@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/video_cadence_estimator.h"
+#include "cobalt/media/filters/video_cadence_estimator.h"
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <memory>
+#include <string>
 
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"

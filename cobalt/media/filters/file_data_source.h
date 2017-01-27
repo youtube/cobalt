@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_FILE_DATA_SOURCE_H_
-#define MEDIA_FILTERS_FILE_DATA_SOURCE_H_
+#ifndef COBALT_MEDIA_FILTERS_FILE_DATA_SOURCE_H_
+#define COBALT_MEDIA_FILTERS_FILE_DATA_SOURCE_H_
 
 #include <stdint.h>
 
@@ -13,7 +13,7 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
-#include "media2/base/data_source.h"
+#include "cobalt/media/base/data_source.h"
 
 namespace media {
 
@@ -56,4 +56,4 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_FILE_DATA_SOURCE_H_
+#endif  // COBALT_MEDIA_FILTERS_FILE_DATA_SOURCE_H_

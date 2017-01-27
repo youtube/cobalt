@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/cdm_promise_adapter.h"
+#include "cobalt/media/base/cdm_promise_adapter.h"
 
 #include <utility>
 
-#include "media2/base/media_keys.h"
+#include "cobalt/media/base/media_keys.h"
 
 namespace media {
 

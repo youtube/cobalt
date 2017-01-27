@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/cdm_session_adapter.h"
+#include "cobalt/media/blink/cdm_session_adapter.h"
 
 #include <utility>
 
@@ -12,13 +12,13 @@
 #include "base/stl_util.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/media/base/cdm_factory.h"
+#include "cobalt/media/base/cdm_key_information.h"
+#include "cobalt/media/base/cdm_promise.h"
+#include "cobalt/media/base/key_systems.h"
+#include "cobalt/media/blink/webcontentdecryptionmodule_impl.h"
+#include "cobalt/media/blink/webcontentdecryptionmodulesession_impl.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/cdm_factory.h"
-#include "media2/base/cdm_key_information.h"
-#include "media2/base/cdm_promise.h"
-#include "media2/base/key_systems.h"
-#include "media2/blink/webcontentdecryptionmodule_impl.h"
-#include "media2/blink/webcontentdecryptionmodulesession_impl.h"
 
 namespace media {
 

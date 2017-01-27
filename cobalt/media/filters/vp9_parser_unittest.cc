@@ -16,11 +16,13 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <string>
+
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
-#include "media2/base/test_data_util.h"
-#include "media2/filters/ivf_parser.h"
-#include "media2/filters/vp9_parser.h"
+#include "cobalt/media/base/test_data_util.h"
+#include "cobalt/media/filters/ivf_parser.h"
+#include "cobalt/media/filters/vp9_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

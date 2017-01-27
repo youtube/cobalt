@@ -2,36 +2,37 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MOCK_FILTERS_H_
-#define MEDIA_BASE_MOCK_FILTERS_H_
+#ifndef COBALT_MEDIA_BASE_MOCK_FILTERS_H_
+#define COBALT_MEDIA_BASE_MOCK_FILTERS_H_
 
 #include <stdint.h>
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
-#include "media2/base/audio_decoder.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/audio_renderer.h"
-#include "media2/base/cdm_context.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/decryptor.h"
-#include "media2/base/demuxer.h"
-#include "media2/base/media_track.h"
-#include "media2/base/pipeline.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/renderer.h"
-#include "media2/base/renderer_client.h"
-#include "media2/base/stream_parser.h"
-#include "media2/base/text_track.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/time_source.h"
-#include "media2/base/video_decoder.h"
-#include "media2/base/video_decoder_config.h"
-#include "media2/base/video_frame.h"
-#include "media2/base/video_renderer.h"
+#include "cobalt/media/base/audio_decoder.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/audio_renderer.h"
+#include "cobalt/media/base/cdm_context.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/decryptor.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/media_track.h"
+#include "cobalt/media/base/pipeline.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/renderer.h"
+#include "cobalt/media/base/renderer_client.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/text_track.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/time_source.h"
+#include "cobalt/media/base/video_decoder.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/base/video_frame.h"
+#include "cobalt/media/base/video_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -402,4 +403,4 @@ class MockStreamParser : public StreamParser {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MOCK_FILTERS_H_
+#endif  // COBALT_MEDIA_BASE_MOCK_FILTERS_H_

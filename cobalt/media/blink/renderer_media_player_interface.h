@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_RENDERER_MEDIA_PLAYER_INTERFACE_H_
-#define MEDIA_BLINK_RENDERER_MEDIA_PLAYER_INTERFACE_H_
+#ifndef COBALT_MEDIA_BLINK_RENDERER_MEDIA_PLAYER_INTERFACE_H_
+#define COBALT_MEDIA_BLINK_RENDERER_MEDIA_PLAYER_INTERFACE_H_
 
 // This file contains interfaces modeled after classes in
 // content/renderer/media/android for the purposes of letting clases in
@@ -12,9 +12,10 @@
 // is implemented: crbug/575276
 
 #include <string>
+
 #include "base/time.h"
+#include "cobalt/media/blink/webmediaplayer_delegate.h"
 #include "googleurl/src/gurl.h"
-#include "media2/blink/webmediaplayer_delegate.h"
 #include "ui/gfx/geometry/rect_f.h"
 
 // Dictates which type of media playback is being initialized.
@@ -116,4 +117,4 @@ class RendererMediaPlayerManagerInterface {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_RENDERER_MEDIA_PLAYER_INTERFACE_H_
+#endif  // COBALT_MEDIA_BLINK_RENDERER_MEDIA_PLAYER_INTERFACE_H_

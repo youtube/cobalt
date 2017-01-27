@@ -2,14 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_
-#define MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_
+#ifndef COBALT_MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_
+#define COBALT_MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_
+
+#include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/message_loop.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/video_decoder_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -55,4 +58,4 @@ class FakeTextTrackStream : public DemuxerStream {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_
+#endif  // COBALT_MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/h264_bit_reader.h"
+#include "cobalt/media/filters/h264_bit_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

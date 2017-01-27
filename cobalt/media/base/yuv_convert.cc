@@ -15,7 +15,7 @@
 // ARGB pixel format is output, which on little endian is stored as BGRA.
 // The alpha is set to 255, allowing the application to use RGBA or RGB32.
 
-#include "media2/base/yuv_convert.h"
+#include "cobalt/media/base/yuv_convert.h"
 
 #include <stddef.h>
 
@@ -28,9 +28,9 @@
 #include "base/memory/aligned_memory.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "build/build_config.h"
-#include "media2/base/simd/convert_rgb_to_yuv.h"
-#include "media2/base/simd/convert_yuv_to_rgb.h"
-#include "media2/base/simd/filter_yuv.h"
+#include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
+#include "cobalt/media/base/simd/convert_yuv_to_rgb.h"
+#include "cobalt/media/base/simd/filter_yuv.h"
 
 #if defined(ARCH_CPU_X86_FAMILY)
 #if defined(COMPILER_MSVC)

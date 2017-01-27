@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP4_HEVC_H_
-#define MEDIA_FORMATS_MP4_HEVC_H_
+#ifndef COBALT_MEDIA_FORMATS_MP4_HEVC_H_
+#define COBALT_MEDIA_FORMATS_MP4_HEVC_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -11,10 +11,10 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/media_export.h"
-#include "media2/base/video_codecs.h"
-#include "media2/formats/mp4/bitstream_converter.h"
-#include "media2/formats/mp4/box_definitions.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/video_codecs.h"
+#include "cobalt/media/formats/mp4/bitstream_converter.h"
+#include "cobalt/media/formats/mp4/box_definitions.h"
 
 namespace media {
 
@@ -111,4 +111,4 @@ class HEVCBitstreamConverter : public BitstreamConverter {
 }  // namespace mp4
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP4_HEVC_H_
+#endif  // COBALT_MEDIA_FORMATS_MP4_HEVC_H_

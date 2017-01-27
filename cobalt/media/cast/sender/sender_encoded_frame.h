@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_SENDER_SENDER_ENCODED_FRAME_H_
-#define MEDIA_CAST_SENDER_SENDER_ENCODED_FRAME_H_
+#ifndef COBALT_MEDIA_CAST_SENDER_SENDER_ENCODED_FRAME_H_
+#define COBALT_MEDIA_CAST_SENDER_SENDER_ENCODED_FRAME_H_
 
 #include "base/time/time.h"
 #include "media/cast/net/cast_transport_config.h"
@@ -49,4 +49,4 @@ struct SenderEncodedFrame : public EncodedFrame {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_SENDER_SENDER_ENCODED_FRAME_H_
+#endif  // COBALT_MEDIA_CAST_SENDER_SENDER_ENCODED_FRAME_H_

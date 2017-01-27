@@ -7,9 +7,9 @@
 #include <limits>
 #include <memory>
 
-#include "media2/base/audio_buffer.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/test_helpers.h"
+#include "cobalt/media/base/audio_buffer.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

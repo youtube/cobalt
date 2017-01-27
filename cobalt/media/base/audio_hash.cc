@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/media/base/audio_hash.h"
+
 // MSVC++ requires this to be set before any other includes to get M_PI.
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <sstream>
 
-#include "media2/base/audio_hash.h"
-
 #include "base/basictypes.h"
 #include "base/stringprintf.h"
-#include "media2/base/audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 
 namespace media {
 

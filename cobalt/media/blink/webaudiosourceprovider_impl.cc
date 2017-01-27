@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webaudiosourceprovider_impl.h"
+#include "cobalt/media/blink/webaudiosourceprovider_impl.h"
 
 #include <vector>
 
@@ -11,7 +11,7 @@
 #include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "media2/base/bind_to_current_loop.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
 #include "third_party/WebKit/public/platform/WebAudioSourceProviderClient.h"
 
 using blink::WebVector;

@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <limits>
 
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
-#include "media2/base/audio_parameters.h"
-#include "media2/base/audio_sample_types.h"
-#include "media2/base/limits.h"
-#include "media2/base/vector_math.h"
+#include "cobalt/media/base/audio_parameters.h"
+#include "cobalt/media/base/audio_sample_types.h"
+#include "cobalt/media/base/limits.h"
+#include "cobalt/media/base/vector_math.h"
 
 namespace media {
 

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webmediaplayer_params.h"
+#include "cobalt/media/blink/webmediaplayer_params.h"
 
 #include "base/single_thread_task_runner.h"
 #include "base/task_runner.h"
-#include "media2/base/audio_renderer_sink.h"
-#include "media2/base/media_log.h"
+#include "cobalt/media/base/audio_renderer_sink.h"
+#include "cobalt/media/base/media_log.h"
 
 namespace media {
 

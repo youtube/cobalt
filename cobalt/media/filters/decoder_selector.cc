@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/decoder_selector.h"
+#include "cobalt/media/filters/decoder_selector.h"
 
 #include <utility>
 
@@ -11,18 +11,18 @@
 #include "base/logging.h"
 #include "base/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "media2/base/audio_decoder.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/cdm_context.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/media_log.h"
-#include "media2/base/video_decoder.h"
-#include "media2/filters/decoder_stream_traits.h"
-#include "media2/filters/decrypting_demuxer_stream.h"
+#include "cobalt/media/base/audio_decoder.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/cdm_context.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/video_decoder.h"
+#include "cobalt/media/filters/decoder_stream_traits.h"
+#include "cobalt/media/filters/decrypting_demuxer_stream.h"
 
 #if !defined(OS_ANDROID)
-#include "media2/filters/decrypting_audio_decoder.h"
-#include "media2/filters/decrypting_video_decoder.h"
+#include "cobalt/media/filters/decrypting_audio_decoder.h"
+#include "cobalt/media/filters/decrypting_video_decoder.h"
 #endif
 
 namespace media {

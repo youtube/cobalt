@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_CDM_CALLBACK_PROMISE_H_
-#define MEDIA_BASE_CDM_CALLBACK_PROMISE_H_
+#ifndef COBALT_MEDIA_BASE_CDM_CALLBACK_PROMISE_H_
+#define COBALT_MEDIA_BASE_CDM_CALLBACK_PROMISE_H_
 
 #include <stdint.h>
 
@@ -11,9 +11,9 @@
 
 #include "base/basictypes.h"
 #include "base/callback.h"
-#include "media2/base/cdm_promise.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_keys.h"
+#include "cobalt/media/base/cdm_promise.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_keys.h"
 
 namespace media {
 
@@ -48,4 +48,4 @@ class MEDIA_EXPORT CdmCallbackPromise : public CdmPromiseTemplate<T...> {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_CDM_CALLBACK_PROMISE_H_
+#endif  // COBALT_MEDIA_BASE_CDM_CALLBACK_PROMISE_H_

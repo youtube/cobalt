@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/audio_splicer.h"
+#include "cobalt/media/base/audio_splicer.h"
 
 #include <memory>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_buffer.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/audio_timestamp_helper.h"
-#include "media2/base/test_helpers.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/audio_buffer.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/audio_timestamp_helper.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

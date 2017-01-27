@@ -4,8 +4,10 @@
 
 #include <stdint.h>
 
-#include "media2/ffmpeg/ffmpeg_common.h"
-#include "media2/filters/in_memory_url_protocol.h"
+#include <limits>
+
+#include "cobalt/media/ffmpeg/ffmpeg_common.h"
+#include "cobalt/media/filters/in_memory_url_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

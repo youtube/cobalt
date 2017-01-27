@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-#ifndef MEDIA_BASE_MOCK_DEMUXER_HOST_H_
-#define MEDIA_BASE_MOCK_DEMUXER_HOST_H_
+#ifndef COBALT_MEDIA_BASE_MOCK_DEMUXER_HOST_H_
+#define COBALT_MEDIA_BASE_MOCK_DEMUXER_HOST_H_
 
 #include "base/basictypes.h"
-#include "media2/base/demuxer.h"
-#include "media2/base/text_track_config.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/text_track_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -31,4 +31,4 @@ class MockDemuxerHost : public DemuxerHost {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MOCK_DEMUXER_HOST_H_
+#endif  // COBALT_MEDIA_BASE_MOCK_DEMUXER_HOST_H_

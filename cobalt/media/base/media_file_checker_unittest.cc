@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/media_file_checker.h"
+#include "cobalt/media/base/media_file_checker.h"
 
+#include <string>
 #include <utility>
 
 #include "base/files/file.h"
 #include "base/logging.h"
 #include "build/build_config.h"
-#include "media2/base/test_data_util.h"
+#include "cobalt/media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

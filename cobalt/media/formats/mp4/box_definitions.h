@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_
-#define MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_
+#ifndef COBALT_MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_
+#define COBALT_MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -12,14 +12,14 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "media2/base/decrypt_config.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
-#include "media2/base/video_codecs.h"
-#include "media2/formats/mp4/aac.h"
-#include "media2/formats/mp4/avc.h"
-#include "media2/formats/mp4/box_reader.h"
-#include "media2/formats/mp4/fourccs.h"
+#include "cobalt/media/base/decrypt_config.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/video_codecs.h"
+#include "cobalt/media/formats/mp4/aac.h"
+#include "cobalt/media/formats/mp4/avc.h"
+#include "cobalt/media/formats/mp4/box_reader.h"
+#include "cobalt/media/formats/mp4/fourccs.h"
 
 namespace media {
 namespace mp4 {
@@ -481,4 +481,4 @@ struct MEDIA_EXPORT MovieFragment : Box {
 }  // namespace mp4
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_
+#endif  // COBALT_MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_

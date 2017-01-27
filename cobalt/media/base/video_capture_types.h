@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
-#define MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
+#ifndef COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
+#define COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
 
 #include <stddef.h>
 
+#include <string>
 #include <vector>
 
 #include "build/build_config.h"
-#include "media2/base/media_export.h"
-#include "media2/base/video_types.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/video_types.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -149,4 +150,4 @@ struct MEDIA_EXPORT VideoCaptureParams {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
+#endif  // COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_

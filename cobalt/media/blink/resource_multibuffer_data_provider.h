@@ -2,21 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_
-#define MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_
+#ifndef COBALT_MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_
+#define COBALT_MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_
 
 #include <stdint.h>
 
+#include <list>
 #include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/media/blink/active_loader.h"
+#include "cobalt/media/blink/media_blink_export.h"
+#include "cobalt/media/blink/multibuffer.h"
+#include "cobalt/media/blink/url_index.h"
 #include "googleurl/src/gurl.h"
-#include "media2/blink/active_loader.h"
-#include "media2/blink/media_blink_export.h"
-#include "media2/blink/multibuffer.h"
-#include "media2/blink/url_index.h"
 #include "third_party/WebKit/public/platform/WebURLLoader.h"
 #include "third_party/WebKit/public/platform/WebURLLoaderClient.h"
 #include "third_party/WebKit/public/platform/WebURLRequest.h"
@@ -134,4 +135,4 @@ class MEDIA_BLINK_EXPORT ResourceMultiBufferDataProvider
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_
+#endif  // COBALT_MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_

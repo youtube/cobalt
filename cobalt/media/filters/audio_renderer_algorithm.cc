@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/audio_renderer_algorithm.h"
+#include "cobalt/media/filters/audio_renderer_algorithm.h"
 
 #include <algorithm>
 #include <cmath>
 
 #include "base/logging.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/limits.h"
-#include "media2/filters/wsola_internals.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/limits.h"
+#include "cobalt/media/filters/wsola_internals.h"
 
 namespace media {
 

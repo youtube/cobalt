@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_CONTEXT_3D_H_
-#define MEDIA_FILTERS_CONTEXT_3D_H_
+#ifndef COBALT_MEDIA_FILTERS_CONTEXT_3D_H_
+#define COBALT_MEDIA_FILTERS_CONTEXT_3D_H_
 
 class GrContext;
 
@@ -33,4 +33,4 @@ struct Context3D {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_CONTEXT_3D_H_
+#endif  // COBALT_MEDIA_FILTERS_CONTEXT_3D_H_

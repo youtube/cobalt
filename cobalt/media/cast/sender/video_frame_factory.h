@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_SENDER_VIDEO_FRAME_FACTORY_H_
-#define MEDIA_CAST_SENDER_VIDEO_FRAME_FACTORY_H_
+#ifndef COBALT_MEDIA_CAST_SENDER_VIDEO_FRAME_FACTORY_H_
+#define COBALT_MEDIA_CAST_SENDER_VIDEO_FRAME_FACTORY_H_
 
 #include <memory>
 
@@ -49,4 +49,4 @@ class VideoFrameFactory {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_SENDER_VIDEO_FRAME_FACTORY_H_
+#endif  // COBALT_MEDIA_CAST_SENDER_VIDEO_FRAME_FACTORY_H_

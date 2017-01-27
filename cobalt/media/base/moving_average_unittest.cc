@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/time.h"
-#include "media2/base/moving_average.h"
+#include "cobalt/media/base/moving_average.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

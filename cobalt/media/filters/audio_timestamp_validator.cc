@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/audio_timestamp_validator.h"
+#include "cobalt/media/filters/audio_timestamp_validator.h"
 
 namespace media {
 
@@ -141,4 +141,4 @@ void AudioTimestampValidator::RecordOutputDuration(
   audio_output_ts_helper_->AddFrames(audio_buffer->frame_count());
 }
 
-}  // namespace media
+}

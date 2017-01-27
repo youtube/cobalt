@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/fake_text_track_stream.h"
+#include "cobalt/media/base/fake_text_track_stream.h"
 
 #include <stdint.h>
 
@@ -10,8 +10,8 @@
 #include "base/callback_helpers.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/filters/webvtt_util.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/filters/webvtt_util.h"
 
 namespace media {
 

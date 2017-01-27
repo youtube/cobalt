@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/media_tracks.h"
+#include "cobalt/media/base/media_tracks.h"
 
 #include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/video_decoder_config.h"
 
 namespace media {
 

@@ -4,8 +4,8 @@
 
 // Contains limit definition constants for the media subsystem.
 
-#ifndef MEDIA_BASE_LIMITS_H_
-#define MEDIA_BASE_LIMITS_H_
+#ifndef COBALT_MEDIA_BASE_LIMITS_H_
+#define COBALT_MEDIA_BASE_LIMITS_H_
 
 namespace media {
 
@@ -60,4 +60,4 @@ enum {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_LIMITS_H_
+#endif  // COBALT_MEDIA_BASE_LIMITS_H_

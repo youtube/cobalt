@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/cluster_builder.h"
+#include "cobalt/media/formats/webm/cluster_builder.h"
 
 #include <utility>
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/data_buffer.h"
-#include "media2/formats/webm/webm_constants.h"
+#include "cobalt/media/base/data_buffer.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
 
 namespace media {
 

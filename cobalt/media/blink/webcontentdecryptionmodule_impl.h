@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_
-#define MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_
+#define COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -13,7 +13,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModule.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 
@@ -74,4 +74,4 @@ inline WebContentDecryptionModuleImpl* ToWebContentDecryptionModuleImpl(
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_

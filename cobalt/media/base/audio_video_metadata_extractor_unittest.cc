@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/audio_video_metadata_extractor.h"
+#include "cobalt/media/base/audio_video_metadata_extractor.h"
 
 #include <memory>
 
 #include "base/logging.h"
 #include "base/sha1.h"
 #include "build/build_config.h"
-#include "media2/base/test_data_util.h"
-#include "media2/filters/file_data_source.h"
+#include "cobalt/media/base/test_data_util.h"
+#include "cobalt/media/filters/file_data_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

@@ -2,22 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_
-#define MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_
+#ifndef COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_
+#define COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_
 
 #include <list>
+#include <map>
+#include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/audio_codecs.h"
-#include "media2/base/demuxer.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
-#include "media2/base/stream_parser.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/base/video_codecs.h"
+#include "cobalt/media/base/audio_codecs.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/video_codecs.h"
 
 namespace media {
 
@@ -227,4 +230,4 @@ class MEDIA_EXPORT SourceBufferState {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_
+#endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_

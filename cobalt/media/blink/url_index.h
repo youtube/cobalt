@@ -2,23 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_URL_INDEX_H_
-#define MEDIA_BLINK_URL_INDEX_H_
+#ifndef COBALT_MEDIA_BLINK_URL_INDEX_H_
+#define COBALT_MEDIA_BLINK_URL_INDEX_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/media/blink/lru.h"
+#include "cobalt/media/blink/media_blink_export.h"
+#include "cobalt/media/blink/multibuffer.h"
 #include "googleurl/src/gurl.h"
-#include "media2/blink/lru.h"
-#include "media2/blink/media_blink_export.h"
-#include "media2/blink/multibuffer.h"
 #include "third_party/WebKit/public/web/WebFrame.h"
 
 namespace media {
@@ -258,4 +260,5 @@ class MEDIA_BLINK_EXPORT UrlIndex {
 };
 
 }  // namespace media
-#endif  // MEDIA_BLINK_URL_INDEX_H_
+
+#endif  // COBALT_MEDIA_BLINK_URL_INDEX_H_

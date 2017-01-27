@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/video_frame_compositor.h"
+#include "cobalt/media/blink/video_frame_compositor.h"
 
 #include "base/bind.h"
 #include "base/default_tick_clock.h"
 #include "base/message_loop.h"
 #include "base/trace_event/trace_event.h"
-#include "media2/base/video_frame.h"
+#include "cobalt/media/base/video_frame.h"
 
 namespace media {
 

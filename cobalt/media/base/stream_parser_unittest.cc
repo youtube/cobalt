@@ -10,8 +10,8 @@
 #include <sstream>
 
 #include "base/basictypes.h"
-#include "media2/base/stream_parser.h"
-#include "media2/base/stream_parser_buffer.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

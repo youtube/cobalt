@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_
-#define MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_
+#ifndef COBALT_MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_
+#define COBALT_MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_
 
 #include "base/bind.h"
 #include "base/location.h"
@@ -184,4 +184,4 @@ static base::Callback<T> BindToCurrentLoop(
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_
+#endif  // COBALT_MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/common/offset_byte_queue.h"
+#include "cobalt/media/formats/common/offset_byte_queue.h"
 
 #include <stdint.h>
 #include <string.h>
