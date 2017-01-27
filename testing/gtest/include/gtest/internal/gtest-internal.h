@@ -50,9 +50,12 @@
 # include <stdexcept>
 #endif
 
+#if !GTEST_OS_STARBOARD
 #include <ctype.h>
 #include <float.h>
 #include <string.h>
+#endif  // !GTEST_OS_STARBOARD
+
 #include <iomanip>
 #include <limits>
 #include <map>
@@ -555,10 +558,10 @@ class GTEST_API_ TypedTestCasePState {
   bool AddTestName(const char* file, int line, const char* case_name,
                    const char* test_name) {
     if (registered_) {
-      fprintf(stderr, "%s Test %s must be defined before "
+      posix::PrintF("%s Test %s must be defined before "
               "REGISTER_TYPED_TEST_CASE_P(%s, ...).\n",
               FormatFileLocation(file, line).c_str(), test_name, case_name);
-      fflush(stderr);
+      posix::Flush();
       posix::Abort();
     }
     registered_tests_.insert(
@@ -592,7 +595,7 @@ class GTEST_API_ TypedTestCasePState {
 // Skips to the first non-space char after the first comma in 'str';
 // returns NULL if no comma is found in 'str'.
 inline const char* SkipComma(const char* str) {
-  const char* comma = strchr(str, ',');
+  const char* comma = posix::StrChr(str, ',');
   if (comma == NULL) {
     return NULL;
   }
@@ -603,7 +606,7 @@ inline const char* SkipComma(const char* str) {
 // Returns the prefix of 'str' before the first comma in it; returns
 // the entire string if it contains no comma.
 inline std::string GetPrefixUntilComma(const char* str) {
-  const char* comma = strchr(str, ',');
+  const char* comma = posix::StrChr(str, ',');
   return comma == NULL ? str : std::string(str, comma);
 }
 
@@ -678,11 +681,11 @@ class TypeParameterizedTestCase {
     std::string test_name = StripTrailingSpaces(
         GetPrefixUntilComma(test_names));
     if (!state->TestExists(test_name)) {
-      fprintf(stderr, "Failed to get code location for test %s.%s at %s.",
+      posix::PrintF("Failed to get code location for test %s.%s at %s.",
               case_name, test_name.c_str(),
               FormatFileLocation(code_location.file.c_str(),
                                  code_location.line).c_str());
-      fflush(stderr);
+      posix::Flush();
       posix::Abort();
     }
     const CodeLocation& test_location = state->GetCodeLocation(test_name);
@@ -1180,17 +1183,27 @@ class NativeArray {
            "  Actual: it doesn't.")
 
 
+// Help Microsoft code analysis tool to understand that the expression
+// being asserted must be true.
+// Note that the code under _PREFAST_ macro is not actually executed, only
+// analyzed.
+#if defined(COBALT) && defined(_PREFAST_)
+#define GTEST_TEST_BOOLEAN_(expression, text, actual, expected, fail) \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
+  __analysis_assume(!!(expression))
+#else
 // Implements Boolean test assertions such as EXPECT_TRUE. expression can be
 // either a boolean expression or an AssertionResult. text is a textual
 // represenation of expression as it was passed into the EXPECT_TRUE.
 #define GTEST_TEST_BOOLEAN_(expression, text, actual, expected, fail) \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
   if (const ::testing::AssertionResult gtest_ar_ = \
-      ::testing::AssertionResult(expression)) \
+      ::testing::AssertionResult(!!(expression))) \
     ; \
   else \
     fail(::testing::internal::GetBoolAssertionFailureMessage(\
         gtest_ar_, text, #actual, #expected).c_str())
+#endif  // defined(COBALT) && defined(_PREFAST_)
 
 #define GTEST_TEST_NO_FATAL_FAILURE_(statement, fail) \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_ \

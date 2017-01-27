@@ -51,11 +51,12 @@
 #ifndef GTEST_INCLUDE_GTEST_GTEST_H_
 #define GTEST_INCLUDE_GTEST_GTEST_H_
 
+#include "gtest/internal/gtest-internal.h"
+
 #include <limits>
 #include <ostream>
 #include <vector>
 
-#include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-string.h"
 #include "gtest/gtest-death-test.h"
 #include "gtest/gtest-message.h"
@@ -1388,11 +1389,21 @@ AssertionResult CmpHelperEQ(const char* expected_expression,
                             const char* actual_expression,
                             const T1& expected,
                             const T2& actual) {
+#if defined(_MSC_VER)
 GTEST_DISABLE_MSC_WARNINGS_PUSH_(4389 /* signed/unsigned mismatch */)
+#elif defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#endif
   if (expected == actual) {
     return AssertionSuccess();
   }
+#if defined(_MSC_VER)
 GTEST_DISABLE_MSC_WARNINGS_POP_()
+#elif defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
   return CmpHelperEQFailure(expected_expression, actual_expression, expected,
                             actual);
