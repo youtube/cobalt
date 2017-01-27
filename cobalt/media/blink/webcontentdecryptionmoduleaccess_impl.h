@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULEACCESS_IMPL_H_
-#define MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULEACCESS_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULEACCESS_IMPL_H_
+#define COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULEACCESS_IMPL_H_
 
 #include "base/basictypes.h"
 #include "base/memory/weak_ptr.h"
-#include "media2/base/cdm_config.h"
+#include "cobalt/media/base/cdm_config.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleAccess.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebMediaKeySystemConfiguration.h"
@@ -55,4 +55,4 @@ class WebContentDecryptionModuleAccessImpl
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULEACCESS_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULEACCESS_IMPL_H_

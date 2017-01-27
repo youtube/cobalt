@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webmediaplayer_impl.h"
+#include "cobalt/media/blink/webmediaplayer_impl.h"
 
 #include <stdint.h>
 
@@ -19,13 +19,13 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/media_switches.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/blink/webmediaplayer_delegate.h"
+#include "cobalt/media/blink/webmediaplayer_params.h"
+#include "cobalt/media/renderers/default_renderer_factory.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/media_log.h"
-#include "media2/base/media_switches.h"
-#include "media2/base/test_helpers.h"
-#include "media2/blink/webmediaplayer_delegate.h"
-#include "media2/blink/webmediaplayer_params.h"
-#include "media2/renderers/default_renderer_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerClient.h"

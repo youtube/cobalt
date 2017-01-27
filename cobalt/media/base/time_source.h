@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_TIME_SOURCE_H_
-#define MEDIA_BASE_TIME_SOURCE_H_
+#ifndef COBALT_MEDIA_BASE_TIME_SOURCE_H_
+#define COBALT_MEDIA_BASE_TIME_SOURCE_H_
 
 #include <vector>
 
 #include "base/callback.h"
 #include "base/time.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -81,4 +81,4 @@ class MEDIA_EXPORT TimeSource {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_TIME_SOURCE_H_
+#endif  // COBALT_MEDIA_BASE_TIME_SOURCE_H_

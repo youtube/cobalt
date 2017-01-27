@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/yuv_convert.h"
+#include "cobalt/media/base/yuv_convert.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <memory>
 
 #include "base/base_paths.h"
@@ -15,10 +16,10 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
-#include "media2/base/djb2.h"
-#include "media2/base/simd/convert_rgb_to_yuv.h"
-#include "media2/base/simd/convert_yuv_to_rgb.h"
-#include "media2/base/simd/filter_yuv.h"
+#include "cobalt/media/base/djb2.h"
+#include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
+#include "cobalt/media/base/simd/convert_yuv_to_rgb.h"
+#include "cobalt/media/base/simd/filter_yuv.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/rect.h"
 

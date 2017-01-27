@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_COMMON_RTP_TIME_H_
-#define MEDIA_CAST_COMMON_RTP_TIME_H_
+#ifndef COBALT_MEDIA_CAST_COMMON_RTP_TIME_H_
+#define COBALT_MEDIA_CAST_COMMON_RTP_TIME_H_
 
 #include <stdint.h>
 
@@ -194,4 +194,4 @@ class RtpTimeTicks : public ExpandedValueBase<int64_t, RtpTimeTicks> {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_COMMON_RTP_TIME_H_
+#endif  // COBALT_MEDIA_CAST_COMMON_RTP_TIME_H_

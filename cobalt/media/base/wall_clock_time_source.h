@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_WALL_CLOCK_TIME_SOURCE_H_
-#define MEDIA_BASE_WALL_CLOCK_TIME_SOURCE_H_
+#ifndef COBALT_MEDIA_BASE_WALL_CLOCK_TIME_SOURCE_H_
+#define COBALT_MEDIA_BASE_WALL_CLOCK_TIME_SOURCE_H_
+
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/default_tick_clock.h"
 #include "base/synchronization/lock.h"
-#include "media2/base/media_export.h"
-#include "media2/base/time_source.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/time_source.h"
 
 namespace media {
 
@@ -60,4 +62,4 @@ class MEDIA_EXPORT WallClockTimeSource : public TimeSource {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_WALL_CLOCK_TIME_SOURCE_H_
+#endif  // COBALT_MEDIA_BASE_WALL_CLOCK_TIME_SOURCE_H_

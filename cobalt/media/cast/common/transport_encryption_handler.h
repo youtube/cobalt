@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_
-#define MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_
+#ifndef COBALT_MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_
+#define COBALT_MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_
 
 // Helper class to handle encryption for the Cast Transport library.
 
@@ -54,4 +54,4 @@ class TransportEncryptionHandler : public base::NonThreadSafe {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_
+#endif  // COBALT_MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_

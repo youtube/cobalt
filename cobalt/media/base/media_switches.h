@@ -4,12 +4,12 @@
 
 // Defines all the "media" command-line switches.
 
-#ifndef MEDIA_BASE_MEDIA_SWITCHES_H_
-#define MEDIA_BASE_MEDIA_SWITCHES_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_SWITCHES_H_
+#define COBALT_MEDIA_BASE_MEDIA_SWITCHES_H_
 
 #include "base/feature_list.h"
 #include "build/build_config.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace switches {
 
@@ -92,4 +92,4 @@ MEDIA_EXPORT extern const base::Feature kExternalClearKeyForTesting;
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_SWITCHES_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_SWITCHES_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MEDIA_LOG_H_
-#define MEDIA_BASE_MEDIA_LOG_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_LOG_H_
+#define COBALT_MEDIA_BASE_MEDIA_LOG_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,10 +15,10 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log_event.h"
-#include "media2/base/pipeline_impl.h"
-#include "media2/base/pipeline_status.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log_event.h"
+#include "cobalt/media/base/pipeline_impl.h"
+#include "cobalt/media/base/pipeline_status.h"
 
 namespace media {
 
@@ -147,4 +147,4 @@ class MEDIA_EXPORT LogHelper {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_LOG_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_LOG_H_

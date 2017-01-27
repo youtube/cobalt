@@ -8,9 +8,9 @@
 #include "base/string_split.h"
 #include "base/stringprintf.h"
 #include "build/build_config.h"
-#include "media2/base/mime_util.h"
-#include "media2/base/mime_util_internal.h"
-#include "media2/media_features.h"
+#include "cobalt/media/base/mime_util.h"
+#include "cobalt/media/base/mime_util_internal.h"
+#include "cobalt/media/media_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_ANDROID)

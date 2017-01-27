@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_
-#define MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_
+#define COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_
 
 #include <stdint.h>
 
@@ -22,28 +22,28 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/pipeline_impl.h"
+#include "cobalt/media/base/renderer_factory.h"
+#include "cobalt/media/base/surface_manager.h"
+#include "cobalt/media/base/text_track.h"
+#include "cobalt/media/blink/buffered_data_source_host_impl.h"
+#include "cobalt/media/blink/media_blink_export.h"
+#include "cobalt/media/blink/multibuffer_data_source.h"
+#include "cobalt/media/blink/video_frame_compositor.h"
+#include "cobalt/media/blink/webmediaplayer_delegate.h"
+#include "cobalt/media/blink/webmediaplayer_params.h"
+#include "cobalt/media/blink/webmediaplayer_util.h"
+#include "cobalt/media/filters/pipeline_controller.h"
+#include "cobalt/media/renderers/skcanvas_video_renderer.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/pipeline_impl.h"
-#include "media2/base/renderer_factory.h"
-#include "media2/base/surface_manager.h"
-#include "media2/base/text_track.h"
-#include "media2/blink/buffered_data_source_host_impl.h"
-#include "media2/blink/media_blink_export.h"
-#include "media2/blink/multibuffer_data_source.h"
-#include "media2/blink/video_frame_compositor.h"
-#include "media2/blink/webmediaplayer_delegate.h"
-#include "media2/blink/webmediaplayer_params.h"
-#include "media2/blink/webmediaplayer_util.h"
-#include "media2/filters/pipeline_controller.h"
-#include "media2/renderers/skcanvas_video_renderer.h"
 #include "third_party/WebKit/public/platform/WebAudioSourceProvider.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayer.h"
 
 #if defined(OS_ANDROID)  // WMPI_CAST
 // Delete this file when WMPI_CAST is no longer needed.
-#include "media2/blink/webmediaplayer_cast_android.h"
+#include "cobalt/media/blink/webmediaplayer_cast_android.h"
 #endif
 
 namespace blink {
@@ -568,4 +568,4 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerImpl
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_USER_INPUT_MONITOR_H_
-#define MEDIA_BASE_USER_INPUT_MONITOR_H_
+#ifndef COBALT_MEDIA_BASE_USER_INPUT_MONITOR_H_
+#define COBALT_MEDIA_BASE_USER_INPUT_MONITOR_H_
 
 #include <stddef.h>
 
@@ -13,7 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/observer_list_threadsafe.h"
 #include "base/synchronization/lock.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 struct SkIPoint;
 
@@ -90,4 +90,4 @@ class MEDIA_EXPORT UserInputMonitor {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_USER_INPUT_MONITOR_H_
+#endif  // COBALT_MEDIA_BASE_USER_INPUT_MONITOR_H_

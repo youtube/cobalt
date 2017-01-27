@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_TEST_SKEWED_SINGLE_THREAD_TASK_RUNNER_H_
-#define MEDIA_CAST_TEST_SKEWED_SINGLE_THREAD_TASK_RUNNER_H_
+#ifndef COBALT_MEDIA_CAST_TEST_SKEWED_SINGLE_THREAD_TASK_RUNNER_H_
+#define COBALT_MEDIA_CAST_TEST_SKEWED_SINGLE_THREAD_TASK_RUNNER_H_
 
 #include <map>
 
@@ -54,4 +54,4 @@ class SkewedSingleThreadTaskRunner : public base::SingleThreadTaskRunner {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_TEST_SKEWED_SINGLE_THREAD_TASK_RUNNER_H_
+#endif  // COBALT_MEDIA_CAST_TEST_SKEWED_SINGLE_THREAD_TASK_RUNNER_H_

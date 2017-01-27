@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
-#define MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
+#ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
+#define COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
 
 #include <stdint.h>
 
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -30,4 +30,4 @@ WebMCreateDecryptConfig(const uint8_t* data,
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
+#endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_

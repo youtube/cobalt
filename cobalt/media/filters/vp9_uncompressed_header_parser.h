@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_VP9_UNCOMPRESSED_HEADER_PARSER_H_
-#define MEDIA_FILTERS_VP9_UNCOMPRESSED_HEADER_PARSER_H_
+#ifndef COBALT_MEDIA_FILTERS_VP9_UNCOMPRESSED_HEADER_PARSER_H_
+#define COBALT_MEDIA_FILTERS_VP9_UNCOMPRESSED_HEADER_PARSER_H_
 
-#include "media2/filters/vp9_parser.h"
-#include "media2/filters/vp9_raw_bits_reader.h"
+#include "cobalt/media/filters/vp9_parser.h"
+#include "cobalt/media/filters/vp9_raw_bits_reader.h"
 
 namespace media {
 
@@ -45,4 +45,4 @@ class Vp9UncompressedHeaderParser {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_VP9_UNCOMPRESSED_HEADER_PARSER_H_
+#endif  // COBALT_MEDIA_FILTERS_VP9_UNCOMPRESSED_HEADER_PARSER_H_

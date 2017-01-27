@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#include "media2/filters/vp9_raw_bits_reader.h"
+#include "cobalt/media/filters/vp9_raw_bits_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

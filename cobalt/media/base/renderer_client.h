@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_RENDERER_CLIENT_H_
-#define MEDIA_BASE_RENDERER_CLIENT_H_
+#ifndef COBALT_MEDIA_BASE_RENDERER_CLIENT_H_
+#define COBALT_MEDIA_BASE_RENDERER_CLIENT_H_
 
 #include "base/time.h"
-#include "media2/base/pipeline_status.h"
+#include "cobalt/media/base/pipeline_status.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -45,4 +45,4 @@ class RendererClient {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_RENDERER_CLIENT_H_
+#endif  // COBALT_MEDIA_BASE_RENDERER_CLIENT_H_

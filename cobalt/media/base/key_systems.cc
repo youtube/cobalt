@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/key_systems.h"
+#include "cobalt/media/base/key_systems.h"
 
 #include <stddef.h>
 
@@ -16,10 +16,10 @@
 #include "base/threading/thread_checker.h"
 #include "base/time.h"
 #include "build/build_config.h"
-#include "media2/base/key_system_names.h"
-#include "media2/base/key_system_properties.h"
-#include "media2/base/media.h"
-#include "media2/base/media_client.h"
+#include "cobalt/media/base/key_system_names.h"
+#include "cobalt/media/base/key_system_properties.h"
+#include "cobalt/media/base/media.h"
+#include "cobalt/media/base/media_client.h"
 #include "third_party/widevine/cdm/widevine_cdm_common.h"
 
 namespace media {

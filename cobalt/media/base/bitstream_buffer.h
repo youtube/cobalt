@@ -2,18 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_BITSTREAM_BUFFER_H_
-#define MEDIA_BASE_BITSTREAM_BUFFER_H_
+#ifndef COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_
+#define COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <string>
+#include <vector>
+
 #include "base/basictypes.h"
 #include "base/memory/shared_memory.h"
 #include "base/time.h"
-#include "media2/base/decrypt_config.h"
-#include "media2/base/media_export.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/decrypt_config.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace IPC {
 template <class P>
@@ -95,4 +98,4 @@ class MEDIA_EXPORT BitstreamBuffer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_BITSTREAM_BUFFER_H_
+#endif  // COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_

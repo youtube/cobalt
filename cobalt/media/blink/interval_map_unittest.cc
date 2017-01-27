@@ -5,10 +5,11 @@
 #include <stdint.h>
 
 #include <string>
+#include <vector>
 
 #include "base/stringprintf.h"
-#include "media2/base/test_random.h"
-#include "media2/blink/interval_map.h"
+#include "cobalt/media/base/test_random.h"
+#include "cobalt/media/blink/interval_map.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

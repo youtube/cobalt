@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP4_BOX_READER_H_
-#define MEDIA_FORMATS_MP4_BOX_READER_H_
+#ifndef COBALT_MEDIA_FORMATS_MP4_BOX_READER_H_
+#define COBALT_MEDIA_FORMATS_MP4_BOX_READER_H_
 
 #include <stdint.h>
 
@@ -13,10 +13,10 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
-#include "media2/formats/mp4/fourccs.h"
-#include "media2/formats/mp4/rcheck.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/formats/mp4/fourccs.h"
+#include "cobalt/media/formats/mp4/rcheck.h"
 
 namespace media {
 namespace mp4 {
@@ -281,4 +281,4 @@ bool BoxReader::ReadAllChildrenInternal(std::vector<T>* children,
 }  // namespace mp4
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP4_BOX_READER_H_
+#endif  // COBALT_MEDIA_FORMATS_MP4_BOX_READER_H_

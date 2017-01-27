@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_TEST_UTILITY_IN_PROCESS_RECEIVER_H_
-#define MEDIA_CAST_TEST_UTILITY_IN_PROCESS_RECEIVER_H_
+#ifndef COBALT_MEDIA_CAST_TEST_UTILITY_IN_PROCESS_RECEIVER_H_
+#define COBALT_MEDIA_CAST_TEST_UTILITY_IN_PROCESS_RECEIVER_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
@@ -141,4 +142,4 @@ class InProcessReceiver {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_TEST_UTILITY_IN_PROCESS_RECEIVER_H_
+#endif  // COBALT_MEDIA_CAST_TEST_UTILITY_IN_PROCESS_RECEIVER_H_

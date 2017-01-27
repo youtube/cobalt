@@ -6,7 +6,7 @@
 
 #include "base/numerics/safe_conversions.h"
 #include "base/optional.h"
-#include "media2/filters/h264_parser.h"
+#include "cobalt/media/filters/h264_parser.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 

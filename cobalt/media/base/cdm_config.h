@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_CDM_CONFIG_H_
-#define MEDIA_BASE_CDM_CONFIG_H_
+#ifndef COBALT_MEDIA_BASE_CDM_CONFIG_H_
+#define COBALT_MEDIA_BASE_CDM_CONFIG_H_
 
 namespace media {
 
@@ -24,4 +24,4 @@ struct CdmConfig {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_CDM_CONFIG_H_
+#endif  // COBALT_MEDIA_BASE_CDM_CONFIG_H_

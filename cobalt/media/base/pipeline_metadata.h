@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_PIPELINE_METADATA_H_
-#define MEDIA_BASE_PIPELINE_METADATA_H_
+#ifndef COBALT_MEDIA_BASE_PIPELINE_METADATA_H_
+#define COBALT_MEDIA_BASE_PIPELINE_METADATA_H_
 
 #include "base/time.h"
-#include "media2/base/video_rotation.h"
+#include "cobalt/media/base/video_rotation.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -25,4 +25,4 @@ struct PipelineMetadata {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_PIPELINE_METADATA_H_
+#endif  // COBALT_MEDIA_BASE_PIPELINE_METADATA_H_

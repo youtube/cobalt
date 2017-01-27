@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webmediaplayer_impl.h"
+#include "cobalt/media/blink/webmediaplayer_impl.h"
 
 #include <algorithm>
 #include <cmath>
@@ -27,27 +27,27 @@
 #include "build/build_config.h"
 #include "cc/blink/web_layer_impl.h"
 #include "cc/layers/video_layer.h"
-#include "media2/audio/null_audio_sink.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/cdm_context.h"
-#include "media2/base/limits.h"
-#include "media2/base/media_content_type.h"
-#include "media2/base/media_keys.h"
-#include "media2/base/media_log.h"
-#include "media2/base/media_switches.h"
-#include "media2/base/text_renderer.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/base/video_frame.h"
-#include "media2/blink/texttrack_impl.h"
-#include "media2/blink/watch_time_reporter.h"
-#include "media2/blink/webaudiosourceprovider_impl.h"
-#include "media2/blink/webcontentdecryptionmodule_impl.h"
-#include "media2/blink/webinbandtexttrack_impl.h"
-#include "media2/blink/webmediaplayer_delegate.h"
-#include "media2/blink/webmediaplayer_util.h"
-#include "media2/blink/webmediasource_impl.h"
-#include "media2/filters/chunk_demuxer.h"
-#include "media2/filters/ffmpeg_demuxer.h"
+#include "cobalt/media/audio/null_audio_sink.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/cdm_context.h"
+#include "cobalt/media/base/limits.h"
+#include "cobalt/media/base/media_content_type.h"
+#include "cobalt/media/base/media_keys.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/media_switches.h"
+#include "cobalt/media/base/text_renderer.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_frame.h"
+#include "cobalt/media/blink/texttrack_impl.h"
+#include "cobalt/media/blink/watch_time_reporter.h"
+#include "cobalt/media/blink/webaudiosourceprovider_impl.h"
+#include "cobalt/media/blink/webcontentdecryptionmodule_impl.h"
+#include "cobalt/media/blink/webinbandtexttrack_impl.h"
+#include "cobalt/media/blink/webmediaplayer_delegate.h"
+#include "cobalt/media/blink/webmediaplayer_util.h"
+#include "cobalt/media/blink/webmediasource_impl.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
+#include "cobalt/media/filters/ffmpeg_demuxer.h"
 #include "third_party/WebKit/public/platform/WebEncryptedMediaTypes.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerClient.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerEncryptedMediaClient.h"
@@ -63,7 +63,7 @@
 #include "third_party/WebKit/public/web/WebView.h"
 
 #if defined(OS_ANDROID)
-#include "media2/base/android/media_codec_util.h"
+#include "cobalt/media/base/android/media_codec_util.h"
 #endif
 
 using blink::WebCanvas;

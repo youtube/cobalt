@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
-#define MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
+#ifndef COBALT_MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
+#define COBALT_MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
 
 #include <stdint.h>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_converter.h"
-#include "media2/base/audio_renderer_sink.h"
+#include "cobalt/media/base/audio_converter.h"
+#include "cobalt/media/base/audio_renderer_sink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -69,4 +69,4 @@ class FakeAudioRenderCallback
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
+#endif  // COBALT_MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_

@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/decoder_buffer.h"
+#include "cobalt/media/base/decoder_buffer.h"
 
 #include <stdint.h>
+
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/ptr_util.h"

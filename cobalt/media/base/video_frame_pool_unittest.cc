@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <memory>
 
-#include "media2/base/video_frame_pool.h"
+#include "cobalt/media/base/video_frame_pool.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {

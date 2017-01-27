@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_DECRYPTING_AUDIO_DECODER_H_
-#define MEDIA_FILTERS_DECRYPTING_AUDIO_DECODER_H_
+#ifndef COBALT_MEDIA_FILTERS_DECRYPTING_AUDIO_DECODER_H_
+#define COBALT_MEDIA_FILTERS_DECRYPTING_AUDIO_DECODER_H_
 
 #include <memory>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time.h"
-#include "media2/base/audio_decoder.h"
-#include "media2/base/cdm_context.h"
-#include "media2/base/decryptor.h"
-#include "media2/base/demuxer_stream.h"
+#include "cobalt/media/base/audio_decoder.h"
+#include "cobalt/media/base/cdm_context.h"
+#include "cobalt/media/base/decryptor.h"
+#include "cobalt/media/base/demuxer_stream.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -125,4 +126,4 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_DECRYPTING_AUDIO_DECODER_H_
+#endif  // COBALT_MEDIA_FILTERS_DECRYPTING_AUDIO_DECODER_H_

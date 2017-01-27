@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_DEMUXER_STREAM_H_
-#define MEDIA_BASE_DEMUXER_STREAM_H_
+#ifndef COBALT_MEDIA_BASE_DEMUXER_STREAM_H_
+#define COBALT_MEDIA_BASE_DEMUXER_STREAM_H_
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "media2/base/media_export.h"
-#include "media2/base/video_rotation.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/video_rotation.h"
 
 namespace media {
 
@@ -116,4 +116,4 @@ class MEDIA_EXPORT DemuxerStream {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_DEMUXER_STREAM_H_
+#endif  // COBALT_MEDIA_BASE_DEMUXER_STREAM_H_

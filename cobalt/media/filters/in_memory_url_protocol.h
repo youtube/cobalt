@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
-#define MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
+#ifndef COBALT_MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
+#define COBALT_MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
 
 #include <stdint.h>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "media2/filters/ffmpeg_glue.h"
+#include "cobalt/media/filters/ffmpeg_glue.h"
 
 namespace media {
 
@@ -41,4 +41,4 @@ class MEDIA_EXPORT InMemoryUrlProtocol : public FFmpegURLProtocol {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
+#endif  // COBALT_MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_

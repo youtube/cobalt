@@ -8,9 +8,9 @@
 #include "base/run_loop.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "cc/layers/video_frame_provider.h"
-#include "media2/base/gmock_callback_support.h"
-#include "media2/base/video_frame.h"
-#include "media2/blink/video_frame_compositor.h"
+#include "cobalt/media/base/gmock_callback_support.h"
+#include "cobalt/media/base/video_frame.h"
+#include "cobalt/media/blink/video_frame_compositor.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

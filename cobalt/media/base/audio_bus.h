@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_BUS_H_
-#define MEDIA_BASE_AUDIO_BUS_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_BUS_H_
+#define COBALT_MEDIA_BASE_AUDIO_BUS_H_
 
 #include <stdint.h>
 
@@ -13,7 +13,7 @@
 #include "base/memory/aligned_memory.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 class AudioParameters;
@@ -324,4 +324,4 @@ class MEDIA_EXPORT AudioBusRefCounted
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_BUS_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_BUS_H_

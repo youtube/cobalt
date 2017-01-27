@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/decrypting_audio_decoder.h"
+#include "cobalt/media/filters/decrypting_audio_decoder.h"
 
 #include <stdint.h>
 
@@ -14,14 +14,14 @@
 #include "base/logging.h"
 #include "base/single_thread_task_runner.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/audio_buffer.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/audio_timestamp_helper.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/cdm_context.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/media_log.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/audio_buffer.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/audio_timestamp_helper.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/cdm_context.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace media {
 

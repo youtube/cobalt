@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/multibuffer_data_source.h"
+#include "cobalt/media/blink/multibuffer_data_source.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/basictypes.h"
@@ -11,9 +12,9 @@
 #include "base/callback_helpers.h"
 #include "base/location.h"
 #include "base/single_thread_task_runner.h"
-#include "media2/base/media_log.h"
-#include "media2/blink/buffered_data_source_host_impl.h"
-#include "media2/blink/multibuffer_reader.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/blink/buffered_data_source_host_impl.h"
+#include "cobalt/media/blink/multibuffer_reader.h"
 #include "net/base/net_errors.h"
 
 using blink::WebFrame;

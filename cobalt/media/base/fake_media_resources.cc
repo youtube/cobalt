@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/media/base/fake_media_resources.h"
+
 #include "base/utf_string_conversions.h"
-#include "media2/base/media_resources.h"
+#include "cobalt/media/base/media_resources.h"
 
 namespace media {
 

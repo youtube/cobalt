@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_SPLICER_H_
-#define MEDIA_BASE_AUDIO_SPLICER_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_SPLICER_H_
+#define COBALT_MEDIA_BASE_AUDIO_SPLICER_H_
 
 #include <memory>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "media2/base/audio_parameters.h"
-#include "media2/base/media_export.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/audio_parameters.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace media {
 
@@ -125,4 +125,4 @@ class MEDIA_EXPORT AudioSplicer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_SPLICER_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_SPLICER_H_

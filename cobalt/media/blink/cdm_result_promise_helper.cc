@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/cdm_result_promise_helper.h"
+#include "cobalt/media/blink/cdm_result_promise_helper.h"
 
 #include "base/logging.h"
 #include "base/metrics/histogram.h"

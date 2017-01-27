@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #include "base/numerics/safe_conversions.h"
-#include "media2/base/container_names.h"
+#include "cobalt/media/base/container_names.h"
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

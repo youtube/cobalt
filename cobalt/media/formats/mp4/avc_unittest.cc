@@ -6,14 +6,16 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
-#include "media2/base/decrypt_config.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/filters/h264_parser.h"
-#include "media2/formats/mp4/avc.h"
-#include "media2/formats/mp4/box_definitions.h"
+#include "cobalt/media/base/decrypt_config.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/filters/h264_parser.h"
+#include "cobalt/media/formats/mp4/avc.h"
+#include "cobalt/media/formats/mp4/box_definitions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

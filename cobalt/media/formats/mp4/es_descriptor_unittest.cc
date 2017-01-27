@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/mp4/es_descriptor.h"
+#include "cobalt/media/formats/mp4/es_descriptor.h"
 
 #include <stdint.h>
 

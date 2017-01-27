@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_SERIAL_RUNNER_H_
-#define MEDIA_BASE_SERIAL_RUNNER_H_
+#ifndef COBALT_MEDIA_BASE_SERIAL_RUNNER_H_
+#define COBALT_MEDIA_BASE_SERIAL_RUNNER_H_
 
 #include <memory>
 #include <queue>
@@ -12,8 +12,8 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "media2/base/media_export.h"
-#include "media2/base/pipeline_status.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/pipeline_status.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -86,4 +86,4 @@ class MEDIA_EXPORT SerialRunner {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_SERIAL_RUNNER_H_
+#endif  // COBALT_MEDIA_BASE_SERIAL_RUNNER_H_
