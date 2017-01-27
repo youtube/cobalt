@@ -232,7 +232,7 @@ SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
 // Define platform-specific implementations to use for atomics and
 // barriers.
 #define SK_ATOMICS_PLATFORM_H "../src/ports/SkAtomics_cobalt.h"
-#define SK_MUTEX_PLATFORM_H "../src/ports/SkMutex_cobalt.h"
+#define SK_MUTEX_PLATFORM_H "../src/ports/SkMutex_starboard.h"
 #define SK_BARRIERS_PLATFORM_H "../src/ports/SkBarriers_cobalt.h"
 
 // ===== End Cobalt-specific definitions =====
