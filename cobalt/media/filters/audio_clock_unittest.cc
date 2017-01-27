@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/audio_clock.h"
+#include "cobalt/media/filters/audio_clock.h"
 
+#include <limits>
 #include <memory>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_timestamp_helper.h"
+#include "cobalt/media/base/audio_timestamp_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

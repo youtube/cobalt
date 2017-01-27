@@ -9,7 +9,7 @@
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_suite.h"
 #include "build/build_config.h"
-#include "media2/base/media.h"
+#include "cobalt/media/base/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/WebKit/public/platform/scheduler/renderer/renderer_scheduler.h"
 #include "third_party/WebKit/public/platform/scheduler/test/renderer_scheduler_test_support.h"
@@ -17,7 +17,7 @@
 
 #if defined(OS_ANDROID)
 #include "base/android/jni_android.h"
-#include "media2/base/android/media_jni_registrar.h"
+#include "cobalt/media/base/android/media_jni_registrar.h"
 #endif
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA

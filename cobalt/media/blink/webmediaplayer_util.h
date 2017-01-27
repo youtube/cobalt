@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBMEDIAPLAYER_UTIL_H_
-#define MEDIA_BLINK_WEBMEDIAPLAYER_UTIL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_UTIL_H_
+#define COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_UTIL_H_
 
 #include "base/time.h"
+#include "cobalt/media/base/audio_renderer_sink.h"
+#include "cobalt/media/base/eme_constants.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/audio_renderer_sink.h"
-#include "media2/base/eme_constants.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/ranges.h"
-#include "media2/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebEncryptedMediaTypes.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayer.h"
 #include "third_party/WebKit/public/platform/WebSecurityOrigin.h"
@@ -56,4 +56,4 @@ ConvertToOutputDeviceStatusCB(blink::WebSetSinkIdCallbacks* web_callbacks);
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBMEDIAPLAYER_UTIL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_UTIL_H_

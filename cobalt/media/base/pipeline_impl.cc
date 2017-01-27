@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/pipeline_impl.h"
+#include "cobalt/media/base/pipeline_impl.h"
 
 #include <algorithm>
 
@@ -17,17 +17,17 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/demuxer.h"
-#include "media2/base/media_log.h"
-#include "media2/base/media_switches.h"
-#include "media2/base/renderer.h"
-#include "media2/base/renderer_client.h"
-#include "media2/base/serial_runner.h"
-#include "media2/base/text_renderer.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/media_switches.h"
+#include "cobalt/media/base/renderer.h"
+#include "cobalt/media/base/renderer_client.h"
+#include "cobalt/media/base/serial_runner.h"
+#include "cobalt/media/base/text_renderer.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_decoder_config.h"
 
 static const double kDefaultPlaybackRate = 0.0;
 static const float kDefaultVolume = 1.0f;

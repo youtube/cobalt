@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/audio_codecs.h"
+#include "cobalt/media/base/audio_codecs.h"
 
 #include "base/logging.h"
 #include "base/string_util.h"

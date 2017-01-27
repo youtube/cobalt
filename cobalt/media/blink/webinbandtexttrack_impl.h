@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBINBANDTEXTTRACK_IMPL_H_
-#define MEDIA_BLINK_WEBINBANDTEXTTRACK_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBINBANDTEXTTRACK_IMPL_H_
+#define COBALT_MEDIA_BLINK_WEBINBANDTEXTTRACK_IMPL_H_
 
 #include "base/basictypes.h"
 #include "third_party/WebKit/public/platform/WebInbandTextTrack.h"
@@ -39,4 +39,4 @@ class WebInbandTextTrackImpl : public blink::WebInbandTextTrack {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBINBANDTEXTTRACK_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBINBANDTEXTTRACK_IMPL_H_

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/h264_to_annex_b_bitstream_converter.h"
+#include "cobalt/media/filters/h264_to_annex_b_bitstream_converter.h"
 
 #include <stddef.h>
 
 #include "base/logging.h"
-#include "media2/filters/h264_parser.h"
-#include "media2/formats/mp4/box_definitions.h"
+#include "cobalt/media/filters/h264_parser.h"
+#include "cobalt/media/formats/mp4/box_definitions.h"
 
 namespace media {
 

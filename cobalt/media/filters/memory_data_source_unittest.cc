@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/memory_data_source.h"
+#include "cobalt/media/filters/memory_data_source.h"
 
 #include <memory>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/bind.h"

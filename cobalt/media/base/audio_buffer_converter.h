@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_AUDIO_BUFFER_CONVERTER_H_
-#define MEDIA_BASE_AUDIO_BUFFER_CONVERTER_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_BUFFER_CONVERTER_H_
+#define COBALT_MEDIA_BASE_AUDIO_BUFFER_CONVERTER_H_
 
 #include <deque>
 #include <memory>
 
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "media2/base/audio_converter.h"
-#include "media2/base/audio_parameters.h"
-#include "media2/base/audio_timestamp_helper.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/audio_converter.h"
+#include "cobalt/media/base/audio_parameters.h"
+#include "cobalt/media/base/audio_timestamp_helper.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -104,4 +104,4 @@ class MEDIA_EXPORT AudioBufferConverter : public AudioConverter::InputCallback {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_AUDIO_BUFFER_CONVERTER_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_BUFFER_CONVERTER_H_

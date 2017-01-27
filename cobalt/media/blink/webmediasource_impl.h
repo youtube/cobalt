@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBMEDIASOURCE_IMPL_H_
-#define MEDIA_BLINK_WEBMEDIASOURCE_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBMEDIASOURCE_IMPL_H_
+#define COBALT_MEDIA_BLINK_WEBMEDIASOURCE_IMPL_H_
 
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
-#include "media2/base/media_log.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebMediaSource.h"
 
 namespace media {
@@ -41,4 +41,4 @@ class MEDIA_BLINK_EXPORT WebMediaSourceImpl
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBMEDIASOURCE_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBMEDIASOURCE_IMPL_H_

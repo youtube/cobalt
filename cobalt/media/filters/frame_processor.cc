@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/frame_processor.h"
+#include "cobalt/media/filters/frame_processor.h"
 
 #include <stdint.h>
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace media {
 

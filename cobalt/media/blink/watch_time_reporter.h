@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WATCH_TIME_REPORTER_H_
-#define MEDIA_BLINK_WATCH_TIME_REPORTER_H_
+#ifndef COBALT_MEDIA_BLINK_WATCH_TIME_REPORTER_H_
+#define COBALT_MEDIA_BLINK_WATCH_TIME_REPORTER_H_
 
 #include "base/callback.h"
 #include "base/power_monitor/power_observer.h"
 #include "base/time.h"
 #include "base/timer/timer.h"
-#include "media2/base/media_log.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -151,4 +151,4 @@ class MEDIA_BLINK_EXPORT WatchTimeReporter : base::PowerObserver {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WATCH_TIME_REPORTER_H_
+#endif  // COBALT_MEDIA_BLINK_WATCH_TIME_REPORTER_H_

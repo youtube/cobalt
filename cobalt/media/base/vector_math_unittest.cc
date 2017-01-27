@@ -13,8 +13,8 @@
 #include "base/string_number_conversions.h"
 #include "base/stringize_macros.h"
 #include "build/build_config.h"
-#include "media2/base/vector_math.h"
-#include "media2/base/vector_math_testing.h"
+#include "cobalt/media/base/vector_math.h"
+#include "cobalt/media/base/vector_math_testing.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using std::fill;

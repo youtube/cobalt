@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include "media2/base/mock_media_log.h"
-#include "media2/formats/mp4/aac.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/formats/mp4/aac.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

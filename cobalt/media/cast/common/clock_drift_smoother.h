@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_COMMON_CLOCK_DRIFT_SMOOTHER_H_
-#define MEDIA_CAST_COMMON_CLOCK_DRIFT_SMOOTHER_H_
+#ifndef COBALT_MEDIA_CAST_COMMON_CLOCK_DRIFT_SMOOTHER_H_
+#define COBALT_MEDIA_CAST_COMMON_CLOCK_DRIFT_SMOOTHER_H_
 
 #include "base/time/time.h"
 
@@ -49,4 +49,4 @@ class ClockDriftSmoother {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_COMMON_CLOCK_DRIFT_SMOOTHER_H_
+#endif  // COBALT_MEDIA_CAST_COMMON_CLOCK_DRIFT_SMOOTHER_H_

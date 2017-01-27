@@ -2,22 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webcontentdecryptionmodule_impl.h"
+#include "cobalt/media/blink/webcontentdecryptionmodule_impl.h"
 
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "cobalt/media/base/cdm_promise.h"
+#include "cobalt/media/base/key_systems.h"
+#include "cobalt/media/base/media_keys.h"
+#include "cobalt/media/blink/cdm_result_promise.h"
+#include "cobalt/media/blink/cdm_session_adapter.h"
+#include "cobalt/media/blink/webcontentdecryptionmodulesession_impl.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/cdm_promise.h"
-#include "media2/base/key_systems.h"
-#include "media2/base/media_keys.h"
-#include "media2/blink/cdm_result_promise.h"
-#include "media2/blink/cdm_session_adapter.h"
-#include "media2/blink/webcontentdecryptionmodulesession_impl.h"
 #include "third_party/WebKit/public/platform/URLConversion.h"
 #include "third_party/WebKit/public/platform/WebSecurityOrigin.h"
 #include "third_party/WebKit/public/platform/WebString.h"

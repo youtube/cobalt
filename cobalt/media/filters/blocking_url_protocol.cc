@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/blocking_url_protocol.h"
+#include "cobalt/media/filters/blocking_url_protocol.h"
 
 #include <stddef.h>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "media2/base/data_source.h"
-#include "media2/ffmpeg/ffmpeg_common.h"
+#include "cobalt/media/base/data_source.h"
+#include "cobalt/media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
 

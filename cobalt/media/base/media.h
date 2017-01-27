@@ -5,11 +5,11 @@
 // Contains code that should be used for initializing, or querying the state
 // of the media library as a whole.
 
-#ifndef MEDIA_BASE_MEDIA_H_
-#define MEDIA_BASE_MEDIA_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_H_
+#define COBALT_MEDIA_BASE_MEDIA_H_
 
 #include "build/build_config.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace base {
 class FilePath;
@@ -49,4 +49,4 @@ MEDIA_EXPORT bool ArePlatformDecodersAvailable();
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_H_

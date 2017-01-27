@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/media/base/audio_block_fifo.h"
+
 #include <stdint.h>
 
 #include <algorithm>
-
-#include "media2/base/audio_block_fifo.h"
 
 #include "base/logging.h"
 

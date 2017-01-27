@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MEDIA_KEYS_H_
-#define MEDIA_BASE_MEDIA_KEYS_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_KEYS_H_
+#define COBALT_MEDIA_BASE_MEDIA_KEYS_H_
 
 #include <stdint.h>
 
@@ -15,9 +15,9 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
+#include "cobalt/media/base/eme_constants.h"
+#include "cobalt/media/base/media_export.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/eme_constants.h"
-#include "media2/base/media_export.h"
 
 namespace base {
 class Time;
@@ -204,4 +204,4 @@ typedef base::Callback<void(const std::string& session_id,
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_KEYS_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_KEYS_H_

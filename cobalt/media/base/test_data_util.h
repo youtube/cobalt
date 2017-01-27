@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_TEST_DATA_UTIL_H_
-#define MEDIA_BASE_TEST_DATA_UTIL_H_
+#ifndef COBALT_MEDIA_BASE_TEST_DATA_UTIL_H_
+#define COBALT_MEDIA_BASE_TEST_DATA_UTIL_H_
 
 #include <string>
 #include <utility>
@@ -37,4 +37,4 @@ scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name);
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_TEST_DATA_UTIL_H_
+#endif  // COBALT_MEDIA_BASE_TEST_DATA_UTIL_H_

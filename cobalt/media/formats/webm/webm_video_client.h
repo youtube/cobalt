@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
-#define MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
+#ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
+#define COBALT_MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
 
 #include <stdint.h>
 
@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "media2/base/media_log.h"
-#include "media2/formats/webm/webm_colour_parser.h"
-#include "media2/formats/webm/webm_parser.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/formats/webm/webm_colour_parser.h"
+#include "cobalt/media/formats/webm/webm_parser.h"
 
 namespace media {
 class EncryptionScheme;
@@ -68,4 +68,4 @@ class WebMVideoClient : public WebMParserClient {
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
+#endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_

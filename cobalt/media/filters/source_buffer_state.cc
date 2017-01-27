@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/source_buffer_state.h"
+#include "cobalt/media/filters/source_buffer_state.h"
 
+#include <algorithm>
 #include <set>
 
 #include "base/callback_helpers.h"
 #include "base/command_line.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/media_track.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/mime_util.h"
-#include "media2/filters/chunk_demuxer.h"
-#include "media2/filters/frame_processor.h"
-#include "media2/filters/source_buffer_stream.h"
+#include "cobalt/media/base/media_track.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/mime_util.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
+#include "cobalt/media/filters/frame_processor.h"
+#include "cobalt/media/filters/source_buffer_stream.h"
 
 namespace media {
 

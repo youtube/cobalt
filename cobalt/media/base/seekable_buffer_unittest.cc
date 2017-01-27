@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/seekable_buffer.h"
+#include "cobalt/media/base/seekable_buffer.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/time.h"
-#include "media2/base/data_buffer.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/data_buffer.h"
+#include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

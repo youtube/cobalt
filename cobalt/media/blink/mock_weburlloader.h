@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_MOCK_WEBURLLOADER_H_
-#define MEDIA_BLINK_MOCK_WEBURLLOADER_H_
+#ifndef COBALT_MEDIA_BLINK_MOCK_WEBURLLOADER_H_
+#define COBALT_MEDIA_BLINK_MOCK_WEBURLLOADER_H_
 
 #include "base/basictypes.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -34,4 +34,4 @@ class MockWebURLLoader : public blink::WebURLLoader {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_MOCK_WEBURLLOADER_H_
+#endif  // COBALT_MEDIA_BLINK_MOCK_WEBURLLOADER_H_

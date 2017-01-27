@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_VIDEO_RENDERER_H_
-#define MEDIA_BASE_VIDEO_RENDERER_H_
+#ifndef COBALT_MEDIA_BASE_VIDEO_RENDERER_H_
+#define COBALT_MEDIA_BASE_VIDEO_RENDERER_H_
 
 #include "base/basictypes.h"
 #include "base/callback_forward.h"
-#include "media2/base/media_export.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/time_source.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/time_source.h"
 
 namespace media {
 
@@ -64,4 +64,4 @@ class MEDIA_EXPORT VideoRenderer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_VIDEO_RENDERER_H_
+#endif  // COBALT_MEDIA_BASE_VIDEO_RENDERER_H_

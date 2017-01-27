@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/decoder_buffer_queue.h"
+#include "cobalt/media/base/decoder_buffer_queue.h"
 
 #include "base/logging.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace media {
 

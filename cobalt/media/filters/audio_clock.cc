@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/audio_clock.h"
+#include "cobalt/media/filters/audio_clock.h"
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <algorithm>
 #include <cmath>

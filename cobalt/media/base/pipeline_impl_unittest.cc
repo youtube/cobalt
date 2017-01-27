@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/pipeline_impl.h"
+#include "cobalt/media/base/pipeline_impl.h"
 
 #include <stddef.h>
 #include <memory>
@@ -20,14 +20,14 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/threading/simple_thread.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "media2/base/fake_text_track_stream.h"
-#include "media2/base/gmock_callback_support.h"
-#include "media2/base/media_log.h"
-#include "media2/base/mock_filters.h"
-#include "media2/base/test_helpers.h"
-#include "media2/base/text_renderer.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/time_delta_interpolator.h"
+#include "cobalt/media/base/fake_text_track_stream.h"
+#include "cobalt/media/base/gmock_callback_support.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/mock_filters.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/base/text_renderer.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/time_delta_interpolator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/size.h"
 

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MOCK_AUDIO_RENDERER_SINK_H_
-#define MEDIA_BASE_MOCK_AUDIO_RENDERER_SINK_H_
+#ifndef COBALT_MEDIA_BASE_MOCK_AUDIO_RENDERER_SINK_H_
+#define COBALT_MEDIA_BASE_MOCK_AUDIO_RENDERER_SINK_H_
 
 #include <string>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_parameters.h"
-#include "media2/base/audio_renderer_sink.h"
+#include "cobalt/media/base/audio_parameters.h"
+#include "cobalt/media/base/audio_renderer_sink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -52,4 +52,4 @@ class MockAudioRendererSink : public SwitchableAudioRendererSink {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MOCK_AUDIO_RENDERER_SINK_H_
+#endif  // COBALT_MEDIA_BASE_MOCK_AUDIO_RENDERER_SINK_H_

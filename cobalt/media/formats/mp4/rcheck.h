@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP4_RCHECK_H_
-#define MEDIA_FORMATS_MP4_RCHECK_H_
+#ifndef COBALT_MEDIA_FORMATS_MP4_RCHECK_H_
+#define COBALT_MEDIA_FORMATS_MP4_RCHECK_H_
 
 #include "base/logging.h"
-#include "media2/base/media_log.h"
+#include "cobalt/media/base/media_log.h"
 
 #define RCHECK_MEDIA_LOGGED(condition, log_cb, msg)                 \
   do {                                                              \
@@ -27,4 +27,4 @@
     }                                                          \
   } while (0)
 
-#endif  // MEDIA_FORMATS_MP4_RCHECK_H_
+#endif  // COBALT_MEDIA_FORMATS_MP4_RCHECK_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_LRU_H_
-#define MEDIA_BLINK_LRU_H_
+#ifndef COBALT_MEDIA_BLINK_LRU_H_
+#define COBALT_MEDIA_BLINK_LRU_H_
 
 #include <stddef.h>
 
@@ -92,4 +92,4 @@ class LRU {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_LRU_H_
+#endif  // COBALT_MEDIA_BLINK_LRU_H_

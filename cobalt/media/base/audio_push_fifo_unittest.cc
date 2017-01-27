@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -9,8 +10,8 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/audio_push_fifo.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/audio_push_fifo.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

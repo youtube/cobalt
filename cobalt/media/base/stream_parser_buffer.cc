@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/stream_parser_buffer.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
 
 #include <algorithm>
 
 #include "base/logging.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace media {
 

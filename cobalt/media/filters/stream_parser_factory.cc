@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/stream_parser_factory.h"
+#include "cobalt/media/filters/stream_parser_factory.h"
 
 #include <stddef.h>
+
+#include <set>
 
 #include "base/basictypes.h"
 #include "base/command_line.h"
@@ -13,17 +15,17 @@
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "build/build_config.h"
-#include "media2/base/media.h"
-#include "media2/formats/mpeg/adts_stream_parser.h"
-#include "media2/formats/mpeg/mpeg1_audio_stream_parser.h"
-#include "media2/formats/webm/webm_stream_parser.h"
+#include "cobalt/media/base/media.h"
+#include "cobalt/media/formats/mpeg/adts_stream_parser.h"
+#include "cobalt/media/formats/mpeg/mpeg1_audio_stream_parser.h"
+#include "cobalt/media/formats/webm/webm_stream_parser.h"
 
 #if defined(OS_ANDROID)
-#include "media2/base/android/media_codec_util.h"
+#include "cobalt/media/base/android/media_codec_util.h"
 #endif
 
-#include "media2/formats/mp4/es_descriptor.h"
-#include "media2/formats/mp4/mp4_stream_parser.h"
+#include "cobalt/media/formats/mp4/es_descriptor.h"
+#include "cobalt/media/formats/mp4/mp4_stream_parser.h"
 
 namespace media {
 

@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/mp4/track_run_iterator.h"
+#include "cobalt/media/formats/mp4/track_run_iterator.h"
 
 #include <algorithm>
 #include <iomanip>
 #include <limits>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/formats/mp4/rcheck.h"
-#include "media2/formats/mp4/sample_to_group_iterator.h"
+#include "cobalt/media/formats/mp4/rcheck.h"
+#include "cobalt/media/formats/mp4/sample_to_group_iterator.h"
 
 namespace media {
 namespace mp4 {

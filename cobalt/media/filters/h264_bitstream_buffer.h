@@ -7,15 +7,15 @@
 // H.264 Annex-B stream format.
 // See H.264 spec Annex B and chapter 7for more details.
 
-#ifndef MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_
-#define MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_
+#ifndef COBALT_MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_
+#define COBALT_MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include "base/gtest_prod_util.h"
-#include "media2/base/media_export.h"
-#include "media2/filters/h264_parser.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/filters/h264_parser.h"
 
 namespace media {
 
@@ -118,4 +118,4 @@ class MEDIA_EXPORT H264BitstreamBuffer {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_
+#endif  // COBALT_MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_

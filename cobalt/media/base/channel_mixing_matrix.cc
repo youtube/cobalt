@@ -5,7 +5,7 @@
 // MSVC++ requires this to be set before any other includes to get M_SQRT1_2.
 #define _USE_MATH_DEFINES
 
-#include "media2/base/channel_mixing_matrix.h"
+#include "cobalt/media/base/channel_mixing_matrix.h"
 
 #include <stddef.h>
 

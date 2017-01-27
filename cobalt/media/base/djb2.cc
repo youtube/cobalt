@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/djb2.h"
+#include "cobalt/media/base/djb2.h"
 
 uint32_t DJB2Hash(const void* buf, size_t len, uint32_t seed) {
   const uint8_t* src = reinterpret_cast<const uint8_t*>(buf);

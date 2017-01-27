@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MPEG_MPEG1_AUDIO_STREAM_PARSER_H_
-#define MEDIA_FORMATS_MPEG_MPEG1_AUDIO_STREAM_PARSER_H_
+#ifndef COBALT_MEDIA_FORMATS_MPEG_MPEG1_AUDIO_STREAM_PARSER_H_
+#define COBALT_MEDIA_FORMATS_MPEG_MPEG1_AUDIO_STREAM_PARSER_H_
 
 #include <stdint.h>
 
+#include <vector>
+
 #include "base/basictypes.h"
-#include "media2/base/media_export.h"
-#include "media2/formats/mpeg/mpeg_audio_stream_parser_base.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/formats/mpeg/mpeg_audio_stream_parser_base.h"
 
 namespace media {
 
@@ -87,4 +89,4 @@ class MEDIA_EXPORT MPEG1AudioStreamParser : public MPEGAudioStreamParserBase {
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MPEG_MPEG1_AUDIO_STREAM_PARSER_H_
+#endif  // COBALT_MEDIA_FORMATS_MPEG_MPEG1_AUDIO_STREAM_PARSER_H_

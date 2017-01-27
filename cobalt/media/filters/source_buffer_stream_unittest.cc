@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/source_buffer_stream.h"
+#include "cobalt/media/filters/source_buffer_stream.h"
 
 #include <stddef.h>
 #include <stdint.h>
+
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -16,14 +18,14 @@
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
-#include "media2/base/data_buffer.h"
-#include "media2/base/media_log.h"
-#include "media2/base/media_util.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/base/test_helpers.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/filters/webvtt_util.h"
+#include "cobalt/media/base/data_buffer.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/filters/webvtt_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::HasSubstr;

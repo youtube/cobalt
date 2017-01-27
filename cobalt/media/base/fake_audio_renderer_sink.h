@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_FAKE_AUDIO_RENDERER_SINK_H_
-#define MEDIA_BASE_FAKE_AUDIO_RENDERER_SINK_H_
+#ifndef COBALT_MEDIA_BASE_FAKE_AUDIO_RENDERER_SINK_H_
+#define COBALT_MEDIA_BASE_FAKE_AUDIO_RENDERER_SINK_H_
 
 #include <stdint.h>
 
 #include <string>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_parameters.h"
-#include "media2/base/audio_renderer_sink.h"
-#include "media2/base/output_device_info.h"
+#include "cobalt/media/base/audio_parameters.h"
+#include "cobalt/media/base/audio_renderer_sink.h"
+#include "cobalt/media/base/output_device_info.h"
 
 namespace media {
 
@@ -68,4 +68,4 @@ class FakeAudioRendererSink : public AudioRendererSink {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_FAKE_AUDIO_RENDERER_SINK_H_
+#endif  // COBALT_MEDIA_BASE_FAKE_AUDIO_RENDERER_SINK_H_

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webencryptedmediaclient_impl.h"
+#include "cobalt/media/blink/webencryptedmediaclient_impl.h"
 
 #include <utility>
 
@@ -11,11 +11,11 @@
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "media2/base/key_systems.h"
-#include "media2/base/media_client.h"
-#include "media2/base/media_permission.h"
-#include "media2/blink/webcontentdecryptionmodule_impl.h"
-#include "media2/blink/webcontentdecryptionmoduleaccess_impl.h"
+#include "cobalt/media/base/key_systems.h"
+#include "cobalt/media/base/media_client.h"
+#include "cobalt/media/base/media_permission.h"
+#include "cobalt/media/blink/webcontentdecryptionmodule_impl.h"
+#include "cobalt/media/blink/webcontentdecryptionmoduleaccess_impl.h"
 #include "third_party/WebKit/public/platform/URLConversion.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebEncryptedMediaRequest.h"

@@ -45,7 +45,7 @@
 #include <algorithm>
 
 #include "base/numerics/safe_conversions.h"
-#include "media2/filters/vp8_bool_decoder.h"
+#include "cobalt/media/filters/vp8_bool_decoder.h"
 
 namespace media {
 

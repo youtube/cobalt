@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/common/stream_parser_test_base.h"
+#include "cobalt/media/formats/common/stream_parser_test_base.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
 #include "base/bind.h"
-#include "media2/base/media_log.h"
-#include "media2/base/media_track.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/test_data_util.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/media_track.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

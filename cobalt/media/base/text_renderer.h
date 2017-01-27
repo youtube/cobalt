@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_TEXT_RENDERER_H_
-#define MEDIA_BASE_TEXT_RENDERER_H_
+#ifndef COBALT_MEDIA_BASE_TEXT_RENDERER_H_
+#define COBALT_MEDIA_BASE_TEXT_RENDERER_H_
 
 #include <map>
 #include <memory>
@@ -12,11 +12,11 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/media_export.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/text_ranges.h"
-#include "media2/base/text_track.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/text_ranges.h"
+#include "cobalt/media/base/text_track.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -139,4 +139,4 @@ class MEDIA_EXPORT TextRenderer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_TEXT_RENDERER_H_
+#endif  // COBALT_MEDIA_BASE_TEXT_RENDERER_H_

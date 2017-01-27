@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/logging.h"
-#include "media2/formats/webm/webm_content_encodings.h"
+#include "cobalt/media/formats/webm/webm_content_encodings.h"
 
 namespace media {
 

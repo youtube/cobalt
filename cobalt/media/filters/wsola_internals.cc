@@ -5,7 +5,7 @@
 // MSVC++ requires this to be set before any other includes to get M_PI.
 #define _USE_MATH_DEFINES
 
-#include "media2/filters/wsola_internals.h"
+#include "cobalt/media/filters/wsola_internals.h"
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +13,7 @@
 #include <memory>
 
 #include "base/logging.h"
-#include "media2/base/audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 
 namespace media {
 

@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#include "media2/filters/h264_bitstream_buffer.h"
+#include "cobalt/media/filters/h264_bitstream_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

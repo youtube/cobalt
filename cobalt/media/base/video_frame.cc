@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/video_frame.h"
+#include "cobalt/media/base/video_frame.h"
 
 #include <algorithm>
 #include <climits>
@@ -16,9 +16,9 @@
 #include "base/string_piece.h"
 #include "base/stringprintf.h"
 #include "build/build_config.h"
-#include "media2/base/limits.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/base/video_util.h"
+#include "cobalt/media/base/limits.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_util.h"
 #include "ui/gfx/geometry/point.h"
 
 namespace media {

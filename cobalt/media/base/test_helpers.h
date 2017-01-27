@@ -2,23 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_TEST_HELPERS_H_
-#define MEDIA_BASE_TEST_HELPERS_H_
+#ifndef COBALT_MEDIA_BASE_TEST_HELPERS_H_
+#define COBALT_MEDIA_BASE_TEST_HELPERS_H_
 
 #include <stddef.h>
+
 #include <memory>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/string_number_conversions.h"
 #include "base/threading/non_thread_safe.h"
-#include "media2/base/audio_parameters.h"
-#include "media2/base/channel_layout.h"
-#include "media2/base/media_log.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/sample_format.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_parameters.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/sample_format.h"
+#include "cobalt/media/base/video_decoder_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/gfx/size.h"
 
@@ -244,4 +246,4 @@ MATCHER(WebMClusterBeforeFirstInfo, "") {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_TEST_HELPERS_H_
+#endif  // COBALT_MEDIA_BASE_TEST_HELPERS_H_

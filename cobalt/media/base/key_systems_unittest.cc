@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "media2/base/eme_constants.h"
-#include "media2/base/key_systems.h"
-#include "media2/base/media.h"
-#include "media2/base/media_client.h"
+#include "cobalt/media/base/eme_constants.h"
+#include "cobalt/media/base/key_systems.h"
+#include "cobalt/media/base/media.h"
+#include "cobalt/media/base/media_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
