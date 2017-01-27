@@ -1,0 +1,15 @@
+# ARM - Exynos
+10144053d714f6429efd266710513584
+# ARM - Tegra
+cd355b553ce7660283c52675232e9227
+# ARM - MediaTek
+6232c99cc54aeccb43aff7a7f9daa6ab
+# Intel - BDW
+bea8039e6921d930bb1c86185f62b1b0
+
+# TODO(llandwerlin): Remove the following hash when the libva-intel-driver
+# is updated.
+# Intel - BDW
+4da7ec5484a99195c2c05b5e591940f9
+#Intel -SKL
+205a4000b3fbde1f2f927c8791c2afe9
