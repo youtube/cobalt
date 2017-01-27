@@ -272,7 +272,7 @@ STATIC_ASSERT_ENUM(kMatrixCoefficientsYCgCo, kMatrixIdYCgCo);
 STATIC_ASSERT_ENUM(kMatrixCoefficientsBt2020NonconstantLuminance,
                    kMatrixIdBt2020NonconstantLuminance);
 STATIC_ASSERT_ENUM(kMatrixCoefficientsBt2020ConstantLuminance,
-                   kMatrixIdBT2020ConstantLuminance);
+                   kMatrixIdBt2020ConstantLuminance);
 
 gfx::ColorSpace::MatrixID FromWebMMatrixCoefficients(MatrixCoefficients c) {
   return static_cast<gfx::ColorSpace::MatrixID>(c);
