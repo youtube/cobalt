@@ -11,11 +11,11 @@
 #include "base/message_loop.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
-#include "media2/base/gmock_callback_support.h"
-#include "media2/base/mock_filters.h"
-#include "media2/base/test_helpers.h"
-#include "media2/filters/decoder_selector.h"
-#include "media2/filters/decrypting_demuxer_stream.h"
+#include "cobalt/media/base/gmock_callback_support.h"
+#include "cobalt/media/base/mock_filters.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/filters/decoder_selector.h"
+#include "cobalt/media/filters/decrypting_demuxer_stream.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;

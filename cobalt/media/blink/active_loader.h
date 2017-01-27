@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_ACTIVE_LOADER_H_
-#define MEDIA_BLINK_ACTIVE_LOADER_H_
+#ifndef COBALT_MEDIA_BLINK_ACTIVE_LOADER_H_
+#define COBALT_MEDIA_BLINK_ACTIVE_LOADER_H_
 
 #include <memory>
 
 #include "base/basictypes.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/blink/media_blink_export.h"
 
 namespace blink {
 class WebURLLoader;
@@ -41,4 +41,4 @@ class MEDIA_BLINK_EXPORT ActiveLoader {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_ACTIVE_LOADER_H_
+#endif  // COBALT_MEDIA_BLINK_ACTIVE_LOADER_H_

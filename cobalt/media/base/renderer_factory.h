@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_RENDERER_FACTORY_H_
-#define MEDIA_BASE_RENDERER_FACTORY_H_
+#ifndef COBALT_MEDIA_BASE_RENDERER_FACTORY_H_
+#define COBALT_MEDIA_BASE_RENDERER_FACTORY_H_
 
 #include <memory>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "media2/base/media_export.h"
-#include "media2/base/renderer.h"
-#include "media2/base/surface_manager.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/renderer.h"
+#include "cobalt/media/base/surface_manager.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -47,4 +47,4 @@ class MEDIA_EXPORT RendererFactory {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_RENDERER_FACTORY_H_
+#endif  // COBALT_MEDIA_BASE_RENDERER_FACTORY_H_

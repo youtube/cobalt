@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/webm_tracks_parser.h"
+#include "cobalt/media/formats/webm/webm_tracks_parser.h"
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
-#include "media2/base/media_util.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/formats/webm/webm_constants.h"
-#include "media2/formats/webm/webm_content_encodings.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
+#include "cobalt/media/formats/webm/webm_content_encodings.h"
 
 namespace media {
 

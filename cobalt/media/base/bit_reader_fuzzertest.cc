@@ -7,8 +7,8 @@
 
 #include "base/hash.h"
 #include "base/numerics/safe_conversions.h"
-#include "media2/base/bit_reader.h"
-#include "media2/base/test_random.h"
+#include "cobalt/media/base/bit_reader.h"
+#include "cobalt/media/base/test_random.h"
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

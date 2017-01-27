@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/source_buffer_range.h"
+#include "cobalt/media/filters/source_buffer_range.h"
 
 #include <algorithm>
 
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace media {
 

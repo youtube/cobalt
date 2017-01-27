@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/texttrack_impl.h"
+#include "cobalt/media/blink/texttrack_impl.h"
 
 #include <utility>
 
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/single_thread_task_runner.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/blink/webinbandtexttrack_impl.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/blink/webinbandtexttrack_impl.h"
 #include "third_party/WebKit/public/platform/WebInbandTextTrackClient.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerClient.h"
 

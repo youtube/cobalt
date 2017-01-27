@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_TEST_UTILITY_NET_UTILITY_H_
-#define MEDIA_CAST_TEST_UTILITY_NET_UTILITY_H_
+#ifndef COBALT_MEDIA_CAST_TEST_UTILITY_NET_UTILITY_H_
+#define COBALT_MEDIA_CAST_TEST_UTILITY_NET_UTILITY_H_
 
 #include "net/base/ip_endpoint.h"
 
@@ -20,4 +20,4 @@ net::IPEndPoint GetFreeLocalPort();
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_TEST_UTILITY_NET_UTILITY_H_
+#endif  // COBALT_MEDIA_CAST_TEST_UTILITY_NET_UTILITY_H_

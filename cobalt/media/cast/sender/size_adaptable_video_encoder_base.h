@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_
-#define MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_
+#ifndef COBALT_MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_
+#define COBALT_MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_
 
 #include <stdint.h>
 
@@ -117,4 +117,4 @@ class SizeAdaptableVideoEncoderBase : public VideoEncoder {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_
+#endif  // COBALT_MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webmediaplayer_util.h"
+#include "cobalt/media/blink/webmediaplayer_util.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -10,8 +10,8 @@
 #include <utility>
 
 #include "base/metrics/histogram.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/media_client.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/media_client.h"
 #include "third_party/WebKit/public/platform/URLConversion.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerEncryptedMediaClient.h"
 

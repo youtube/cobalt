@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/loopback_audio_converter.h"
+#include "cobalt/media/base/loopback_audio_converter.h"
 
 namespace media {
 

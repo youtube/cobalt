@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/webm_cluster_parser.h"
+#include "cobalt/media/formats/webm/webm_cluster_parser.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,13 +17,13 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/decrypt_config.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/formats/webm/cluster_builder.h"
-#include "media2/formats/webm/opus_packet_builder.h"
-#include "media2/formats/webm/webm_constants.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/decrypt_config.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/webm/cluster_builder.h"
+#include "cobalt/media/formats/webm/opus_packet_builder.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

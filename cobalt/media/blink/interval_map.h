@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_INTERVAL_MAP_H_
-#define MEDIA_BLINK_INTERVAL_MAP_H_
+#ifndef COBALT_MEDIA_BLINK_INTERVAL_MAP_H_
+#define COBALT_MEDIA_BLINK_INTERVAL_MAP_H_
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <map>
+#include <utility>
 
 #include "base/logging.h"
 
@@ -286,4 +288,4 @@ class IntervalMap {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_INTERVAL_MAP_H_
+#endif  // COBALT_MEDIA_BLINK_INTERVAL_MAP_H_

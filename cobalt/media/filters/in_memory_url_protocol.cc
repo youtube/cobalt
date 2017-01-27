@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/in_memory_url_protocol.h"
+#include "cobalt/media/filters/in_memory_url_protocol.h"
 
-#include "media2/ffmpeg/ffmpeg_common.h"
+#include "cobalt/media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
 

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_
-#define MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_
+#ifndef COBALT_MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_
+#define COBALT_MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_
 
 #include <stddef.h>
 
 #include <list>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
@@ -15,12 +16,12 @@
 #include "base/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
-#include "media2/base/callback_holder.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/video_decoder.h"
-#include "media2/base/video_decoder_config.h"
-#include "media2/base/video_frame.h"
+#include "cobalt/media/base/callback_holder.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/video_decoder.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/base/video_frame.h"
 #include "ui/gfx/size.h"
 
 using base::ResetAndReturn;
@@ -129,4 +130,4 @@ class FakeVideoDecoder : public VideoDecoder {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_
+#endif  // COBALT_MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_

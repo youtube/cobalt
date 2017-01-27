@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/chunk_demuxer.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
 
 #include <algorithm>
 #include <limits>
@@ -15,16 +15,16 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/mime_util.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/base/video_codecs.h"
-#include "media2/base/video_decoder_config.h"
-#include "media2/filters/frame_processor.h"
-#include "media2/filters/stream_parser_factory.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/mime_util.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_codecs.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/filters/frame_processor.h"
+#include "cobalt/media/filters/stream_parser_factory.h"
 
 using base::TimeDelta;
 

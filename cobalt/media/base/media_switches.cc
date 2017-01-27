@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "build/build_config.h"
-#include "media2/base/media_switches.h"
+#include "cobalt/media/base/media_switches.h"
 
 namespace switches {
 

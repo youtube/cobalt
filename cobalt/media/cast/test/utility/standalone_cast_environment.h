@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_TEST_UTILITY_STANDALONE_CAST_ENVIRONMENT_H_
-#define MEDIA_CAST_TEST_UTILITY_STANDALONE_CAST_ENVIRONMENT_H_
+#ifndef COBALT_MEDIA_CAST_TEST_UTILITY_STANDALONE_CAST_ENVIRONMENT_H_
+#define COBALT_MEDIA_CAST_TEST_UTILITY_STANDALONE_CAST_ENVIRONMENT_H_
 
 #include "base/macros.h"
 #include "base/threading/thread.h"
@@ -41,4 +41,4 @@ class StandaloneCastEnvironment : public CastEnvironment,
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_TEST_UTILITY_STANDALONE_CAST_ENVIRONMENT_H_
+#endif  // COBALT_MEDIA_CAST_TEST_UTILITY_STANDALONE_CAST_ENVIRONMENT_H_

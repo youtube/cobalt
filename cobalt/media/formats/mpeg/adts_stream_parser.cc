@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/mpeg/adts_stream_parser.h"
+#include "cobalt/media/formats/mpeg/adts_stream_parser.h"
 
 #include <stddef.h>
 
 #include "build/build_config.h"
-#include "media2/base/media_log.h"
-#include "media2/formats/mp4/aac.h"
-#include "media2/formats/mpeg/adts_constants.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/formats/mp4/aac.h"
+#include "cobalt/media/formats/mpeg/adts_constants.h"
 
 namespace media {
 

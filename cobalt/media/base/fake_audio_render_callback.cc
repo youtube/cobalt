@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-#include "media2/base/fake_audio_render_callback.h"
+#include "cobalt/media/base/fake_audio_render_callback.h"
 
 namespace media {
 

@@ -6,7 +6,7 @@
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_suite.h"
 #include "build/build_config.h"
-#include "media2/base/media.h"
+#include "cobalt/media/base/media.h"
 
 class TestSuiteNoAtExit : public base::TestSuite {
  public:

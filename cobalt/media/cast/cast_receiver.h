@@ -5,8 +5,8 @@
 // This is the main interface for the cast receiver. All configuration are done
 // at creation.
 
-#ifndef MEDIA_CAST_CAST_RECEIVER_H_
-#define MEDIA_CAST_CAST_RECEIVER_H_
+#ifndef COBALT_MEDIA_CAST_CAST_RECEIVER_H_
+#define COBALT_MEDIA_CAST_CAST_RECEIVER_H_
 
 #include <memory>
 
@@ -81,4 +81,4 @@ class CastReceiver {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_CAST_RECEIVER_H_
+#endif  // COBALT_MEDIA_CAST_CAST_RECEIVER_H_

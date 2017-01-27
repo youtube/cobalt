@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/webm_parser.h"
+#include "cobalt/media/formats/webm/webm_parser.h"
 
 // This file contains code to parse WebM file elements. It was created
 // from information in the Matroska spec.
@@ -19,7 +19,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/formats/webm/webm_constants.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
 
 namespace media {
 

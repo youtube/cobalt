@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/fake_video_decoder.h"
+#include "cobalt/media/filters/fake_video_decoder.h"
 
 #include "base/location.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/test_helpers.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/test_helpers.h"
 
 namespace media {
 

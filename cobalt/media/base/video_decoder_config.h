@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
-#define MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
+#ifndef COBALT_MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
+#define COBALT_MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
 
 #include <stdint.h>
 
@@ -12,12 +12,12 @@
 
 #include "base/basictypes.h"
 #include "base/optional.h"
-#include "media2/base/color_space.h"
-#include "media2/base/encryption_scheme.h"
-#include "media2/base/hdr_metadata.h"
-#include "media2/base/media_export.h"
-#include "media2/base/video_codecs.h"
-#include "media2/base/video_types.h"
+#include "cobalt/media/base/color_space.h"
+#include "cobalt/media/base/encryption_scheme.h"
+#include "cobalt/media/base/hdr_metadata.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/video_codecs.h"
+#include "cobalt/media/base/video_types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -142,4 +142,4 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
+#endif  // COBALT_MEDIA_BASE_VIDEO_DECODER_CONFIG_H_

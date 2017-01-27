@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
-#define MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
+#ifndef COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
+#define COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -13,10 +13,10 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_log.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/formats/mp4/box_definitions.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/formats/mp4/box_definitions.h"
 
 namespace media {
 
@@ -116,4 +116,4 @@ class MEDIA_EXPORT TrackRunIterator {
 }  // namespace mp4
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
+#endif  // COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_

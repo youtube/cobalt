@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include <stddef.h>
+
 #include <memory>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/bind.h"
@@ -11,8 +13,8 @@
 #include "base/message_loop.h"
 #include "base/run_loop.h"
 #include "base/single_thread_task_runner.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/serial_runner.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/serial_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

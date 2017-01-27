@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #include "base/basictypes.h"
-#include "media2/base/audio_sample_types.h"
+#include "cobalt/media/base/audio_sample_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

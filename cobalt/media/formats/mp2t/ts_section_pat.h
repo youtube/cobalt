@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP2T_TS_SECTION_PAT_H_
-#define MEDIA_FORMATS_MP2T_TS_SECTION_PAT_H_
+#ifndef COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PAT_H_
+#define COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PAT_H_
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -37,4 +37,4 @@ class TsSectionPat : public TsSectionPsi {
 }  // namespace mp2t
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP2T_TS_SECTION_PAT_H_
+#endif  // COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PAT_H_

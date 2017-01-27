@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
+
 #include <deque>
 #include <string>
 #include <vector>
@@ -13,10 +15,10 @@
 #include "base/callback_helpers.h"
 #include "base/message_loop.h"
 #include "base/test/simple_test_tick_clock.h"
-#include "media2/base/fake_single_thread_task_runner.h"
-#include "media2/base/test_random.h"
-#include "media2/blink/multibuffer.h"
-#include "media2/blink/multibuffer_reader.h"
+#include "cobalt/media/base/fake_single_thread_task_runner.h"
+#include "cobalt/media/base/test_random.h"
+#include "cobalt/media/blink/multibuffer.h"
+#include "cobalt/media/blink/multibuffer_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 const int kBlockSizeShift = 8;

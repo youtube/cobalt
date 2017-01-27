@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/video_capture_types.h"
+#include "cobalt/media/base/video_capture_types.h"
 
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#include "media2/base/limits.h"
-#include "media2/base/video_frame.h"
+#include "cobalt/media/base/limits.h"
+#include "cobalt/media/base/video_frame.h"
 
 namespace media {
 

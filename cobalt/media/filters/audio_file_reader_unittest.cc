@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/audio_file_reader.h"
+#include "cobalt/media/filters/audio_file_reader.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/md5.h"
 #include "build/build_config.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/audio_hash.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/test_data_util.h"
-#include "media2/ffmpeg/ffmpeg_common.h"
-#include "media2/filters/in_memory_url_protocol.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/audio_hash.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/test_data_util.h"
+#include "cobalt/media/ffmpeg/ffmpeg_common.h"
+#include "cobalt/media/filters/in_memory_url_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

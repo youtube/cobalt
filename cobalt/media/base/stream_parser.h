@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_STREAM_PARSER_H_
-#define MEDIA_BASE_STREAM_PARSER_H_
+#ifndef COBALT_MEDIA_BASE_STREAM_PARSER_H_
+#define COBALT_MEDIA_BASE_STREAM_PARSER_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -18,9 +18,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/eme_constants.h"
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/eme_constants.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -160,4 +160,4 @@ MEDIA_EXPORT bool MergeBufferQueues(const StreamParser::BufferQueueMap& buffers,
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STREAM_PARSER_H_
+#endif  // COBALT_MEDIA_BASE_STREAM_PARSER_H_

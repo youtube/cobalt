@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
-#define MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
+#ifndef COBALT_MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
+#define COBALT_MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
 
 #include <stdint.h>
 
+#include <map>
 #include <set>
 #include <vector>
 
@@ -14,10 +15,10 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
-#include "media2/base/media_export.h"
-#include "media2/base/stream_parser.h"
-#include "media2/formats/common/offset_byte_queue.h"
-#include "media2/formats/mp4/track_run_iterator.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/formats/common/offset_byte_queue.h"
+#include "cobalt/media/formats/mp4/track_run_iterator.h"
 
 namespace media {
 namespace mp4 {
@@ -134,4 +135,4 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
 }  // namespace mp4
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
+#endif  // COBALT_MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_

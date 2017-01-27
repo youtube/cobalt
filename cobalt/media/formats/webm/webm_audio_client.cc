@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/webm/webm_audio_client.h"
+#include "cobalt/media/formats/webm/webm_audio_client.h"
 
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/channel_layout.h"
-#include "media2/formats/webm/webm_constants.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/formats/webm/webm_constants.h"
 
 namespace media {
 
