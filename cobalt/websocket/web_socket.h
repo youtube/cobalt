@@ -17,6 +17,7 @@
 #define COBALT_WEBSOCKET_WEB_SOCKET_H_
 
 #include <string>
+#include <vector>
 
 #include "base/optional.h"
 #include "cobalt/base/tokens.h"
@@ -24,6 +25,7 @@
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/script/wrappable.h"
 
@@ -42,18 +44,24 @@ class WebSocket : public dom::EventTarget {
   static const uint16 kClosed = 3;
 
   // Constructors.
-  explicit WebSocket(const std::string& url,
-                     script::ExceptionState* exception_state);
-  WebSocket(const std::string& url, const std::string& protocols,
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            script::ExceptionState* exception_state);
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            const std::string& protocol,
+            script::ExceptionState* exception_state);
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            const std::vector<std::string>& sub_protocols,
             script::ExceptionState* exception_state);
 
   // Readonly Attributes.
   uint32 buffered_amount() const { return buffered_amount_; }
   uint16 ready_state() const { return ready_state_; }
 
-  std::string extensions() const { return extensions_; }
-  std::string protocol() const { return protocol_; }
-  std::string url() const { return url_; }
+  const std::string& extensions() const { return extensions_; }
+  const std::string& protocol() const { return protocol_; }
+  const std::string& url() const {
+    return resolved_url_.possibly_invalid_spec();
+  }
 
   // Read+Write Attributes.
   std::string binary_type(script::ExceptionState*) { return binary_type_; }
@@ -107,15 +115,25 @@ class WebSocket : public dom::EventTarget {
     SetAttributeEventListener(base::Tokens::open(), event_listener);
   }
 
-  DEFINE_WRAPPABLE_TYPE(WebSocket);
+  std::string GetHost() const { return resolved_url_.host(); }
+  std::string GetResourceName() const;
+  bool IsSecure() const { return is_secure_; }
+  int GetPort() const { return resolved_url_.EffectiveIntPort(); }
+  std::string GetPortAsString() const;
+
+  DEFINE_WRAPPABLE_TYPE(WebSocket)
 
  private:
+  void Initialize(dom::DOMSettings* dom_settings, const std::string& url,
+                  const std::vector<std::string>& sub_protocols,
+                  script::ExceptionState* exception_state);
+
+  void Connect(const GURL& url, const std::string& protocols);
+
   // https://www.w3.org/TR/websockets/#dom-websocket-bufferedamount
   uint32 buffered_amount_;
-
   // https://www.w3.org/TR/websockets/#dom-websocket-readystate
   uint16 ready_state_;
-
   // https://www.w3.org/TR/websockets/#dom-websocket-binarytype
   std::string binary_type_;
   // https://www.w3.org/TR/websockets/#dom-websocket-extensions
@@ -123,7 +141,18 @@ class WebSocket : public dom::EventTarget {
   // https://www.w3.org/TR/websockets/#dom-websocket-protocol
   std::string protocol_;
   // https://www.w3.org/TR/websockets/#dom-websocket-url
-  std::string url_;
+
+  GURL resolved_url_;
+  base::ThreadChecker thread_checker_;
+
+  // Parsed fields that are populated in Initialize.
+  bool is_secure_;
+  int port_;
+  std::string host_;
+  std::string resource_name_;  // The path of the URL.
+  std::string entry_script_origin_;
+
+  FRIEND_TEST(WebSocketTest, GoodOrigin);
 
   DISALLOW_COPY_AND_ASSIGN(WebSocket);
 };
