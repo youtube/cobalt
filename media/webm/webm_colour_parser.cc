@@ -21,85 +21,85 @@ namespace media {
  Matroska/WebM adopted these values from Table 4 of ISO/IEC 23001-8:2013/DCOR1.
  See that document for further details.
  */
-enum class MatrixCoefficients {
+enum MatrixCoefficients {
   /**
    The identity matrix.
 
    Typically used for GBR (often referred to as RGB); however, may also be used
    for YZX (often referred to as XYZ).
    */
-  kRgb = 0,
+  kMatrixCoefficientsRgb = 0,
 
   /**
    Rec. ITU-R BT.709-5.
    */
-  kBt709 = 1,
+  kMatrixCoefficientsBt709 = 1,
 
   /**
    Image characteristics are unknown or are determined by the application.
    */
-  kUnspecified = 2,
+  kMatrixCoefficientsUnspecified = 2,
 
   /**
    United States Federal Communications Commission Title 47 Code of Federal
    Regulations (2003) 73.682 (a) (20).
    */
-  kFcc = 4,
+  kMatrixCoefficientsFcc = 4,
 
   /**
    Rec. ITU-R BT.470‑6 System B, G (historical).
    */
-  kBt470Bg = 5,
+  kMatrixCoefficientsBt470Bg = 5,
 
   /**
    Society of Motion Picture and Television Engineers 170M (2004).
    */
-  kSmpte170M = 6,
+  kMatrixCoefficientsSmpte170M = 6,
 
   /**
    Society of Motion Picture and Television Engineers 240M (1999).
    */
-  kSmpte240M = 7,
+  kMatrixCoefficientsSmpte240M = 7,
 
   /**
    YCgCo.
    */
-  kYCgCo = 8,
+  kMatrixCoefficientsYCgCo = 8,
 
   /**
    Rec. ITU-R BT.2020 (non-constant luminance).
    */
-  kBt2020NonconstantLuminance = 9,
+  kMatrixCoefficientsBt2020NonconstantLuminance = 9,
 
   /**
    Rec. ITU-R BT.2020 (constant luminance).
    */
-  kBt2020ConstantLuminance = 10,
+  kMatrixCoefficientsBt2020ConstantLuminance = 10,
 };
 
 /**
  A parsed \WebMID{Range} element.
  */
-enum class Range {
+enum Range {
   /**
    Unspecified.
    */
-  kUnspecified = 0,
+  kRangeUnspecified = 0,
 
   /**
    Broadcast range.
    */
-  kBroadcast = 1,
+  kRangeBroadcast = 1,
 
   /**
    Full range (no clipping).
    */
-  kFull = 2,
+  kRangeFull = 2,
 
   /**
    Defined by MatrixCoefficients/TransferCharacteristics.
    */
-  kDerived = 3,
+  kRangeDerived = 3,
 };
 
 /**
@@ -108,91 +108,91 @@ enum class Range {
  Matroska/WebM adopted these values from Table 3 of ISO/IEC 23001-8:2013/DCOR1.
  See that document for further details.
  */
-enum class TransferCharacteristics {
+enum TransferCharacteristics {
   /**
    Rec. ITU-R BT.709-6.
    */
-  kBt709 = 1,
+  kTransferCharacteristicsBt709 = 1,
 
   /**
    Image characteristics are unknown or are determined by the application.
    */
-  kUnspecified = 2,
+  kTransferCharacteristicsUnspecified = 2,
 
   /**
    Rec. ITU‑R BT.470‑6 System M (historical) with assumed display gamma 2.2.
    */
-  kGamma22curve = 4,
+  kTransferCharacteristicsGamma22curve = 4,
 
   /**
    Rec. ITU‑R BT.470-6 System B, G (historical) with assumed display gamma 2.8.
    */
-  kGamma28curve = 5,
+  kTransferCharacteristicsGamma28curve = 5,
 
   /**
    Society of Motion Picture and Television Engineers 170M (2004).
    */
-  kSmpte170M = 6,
+  kTransferCharacteristicsSmpte170M = 6,
 
   /**
    Society of Motion Picture and Television Engineers 240M (1999).
    */
-  kSmpte240M = 7,
+  kTransferCharacteristicsSmpte240M = 7,
 
   /**
    Linear transfer characteristics.
    */
-  kLinear = 8,
+  kTransferCharacteristicsLinear = 8,
 
   /**
    Logarithmic transfer characteristic (100:1 range).
    */
-  kLog = 9,
+  kTransferCharacteristicsLog = 9,
 
   /**
    Logarithmic transfer characteristic (100 * Sqrt(10) : 1 range).
    */
-  kLogSqrt = 10,
+  kTransferCharacteristicsLogSqrt = 10,
 
   /**
    IEC 61966-2-4.
    */
-  kIec6196624 = 11,
+  kTransferCharacteristicsIec6196624 = 11,
 
   /**
    Rec. ITU‑R BT.1361-0 extended colour gamut system (historical).
    */
-  kBt1361ExtendedColourGamut = 12,
+  kTransferCharacteristicsBt1361ExtendedColourGamut = 12,
 
   /**
    IEC 61966-2-1 sRGB or sYCC.
    */
-  kIec6196621 = 13,
+  kTransferCharacteristicsIec6196621 = 13,
 
   /**
    Rec. ITU-R BT.2020-2 (10-bit system).
    */
-  k10BitBt2020 = 14,
+  kTransferCharacteristics10BitBt2020 = 14,
 
   /**
    Rec. ITU-R BT.2020-2 (12-bit system).
    */
-  k12BitBt2020 = 15,
+  kTransferCharacteristics12BitBt2020 = 15,
 
   /**
    Society of Motion Picture and Television Engineers ST 2084.
    */
-  kSmpteSt2084 = 16,
+  kTransferCharacteristicsSmpteSt2084 = 16,
 
   /**
    Society of Motion Picture and Television Engineers ST 428-1.
    */
-  kSmpteSt4281 = 17,
+  kTransferCharacteristicsSmpteSt4281 = 17,
 
   /**
    Association of Radio Industries and Businesses (ARIB) STD-B67.
    */
-  kAribStdB67Hlg = 18,
+  kTransferCharacteristicsAribStdB67Hlg = 18,
 };
 
 /**
@@ -201,56 +201,56 @@ enum class TransferCharacteristics {
  Matroska/WebM adopted these values from Table 2 of ISO/IEC 23001-8:2013/DCOR1.
  See that document for further details.
  */
-enum class Primaries {
+enum Primaries {
   /**
    Rec. ITU‑R BT.709-6.
    */
-  kBt709 = 1,
+  kPrimariesBt709 = 1,
 
   /**
    Image characteristics are unknown or are determined by the application.
    */
-  kUnspecified = 2,
+  kPrimariesUnspecified = 2,
 
   /**
    Rec. ITU‑R BT.470‑6 System M (historical).
    */
-  kBt470M = 4,
+  kPrimariesBt470M = 4,
 
   /**
    Rec. ITU‑R BT.470‑6 System B, G (historical).
    */
-  kBt470Bg = 5,
+  kPrimariesBt470Bg = 5,
 
   /**
    Society of Motion Picture and Television Engineers 170M (2004).
    */
-  kSmpte170M = 6,
+  kPrimariesSmpte170M = 6,
 
   /**
    Society of Motion Picture and Television Engineers 240M (1999).
    */
-  kSmpte240M = 7,
+  kPrimariesSmpte240M = 7,
 
   /**
    Generic film.
    */
-  kFilm = 8,
+  kPrimariesFilm = 8,
 
   /**
    Rec. ITU-R BT.2020-2.
    */
-  kBt2020 = 9,
+  kPrimariesBt2020 = 9,
 
   /**
    Society of Motion Picture and Television Engineers ST 428-1.
    */
-  kSmpteSt4281 = 10,
+  kPrimariesSmpteSt4281 = 10,
 
   /**
    JEDEC P22 phosphors/EBU Tech. 3213-E (1975).
    */
-  kJedecP22Phosphors = 22,
+  kPrimariesJedecP22Phosphors = 22,
 };
 
 // ---- End copy/paste from libwebm/webm_parser/include/webm/dom_types.h ----
@@ -260,58 +260,58 @@ enum class Primaries {
   COMPILE_ASSERT(static_cast<int>(a) == static_cast<int>(gfx::ColorSpace::b), \
                  mismatching_enums)
 
-STATIC_ASSERT_ENUM(MatrixCoefficients::kRgb, kMatrixIdRgb);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kBt709, kMatrixIdBt709);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsRgb, kMatrixIdRgb);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsBt709, kMatrixIdBt709);
 
-STATIC_ASSERT_ENUM(MatrixCoefficients::kUnspecified, kMatrixIdUnspecified);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kFcc, kMatrixIdFcc);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kBt470Bg, kMatrixIdBt470Bg);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kSmpte170M, kMatrixIdSmpte170M);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kSmpte240M, kMatrixIdSmpte240M);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kYCgCo, kMatrixIdYCgCo);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kBt2020NonconstantLuminance,
+STATIC_ASSERT_ENUM(kMatrixCoefficientsUnspecified, kMatrixIdUnspecified);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsFcc, kMatrixIdFcc);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsBt470Bg, kMatrixIdBt470Bg);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsSmpte170M, kMatrixIdSmpte170M);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsSmpte240M, kMatrixIdSmpte240M);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsYCgCo, kMatrixIdYCgCo);
+STATIC_ASSERT_ENUM(kMatrixCoefficientsBt2020NonconstantLuminance,
                    kMatrixIdBt2020NonconstantLuminance);
-STATIC_ASSERT_ENUM(MatrixCoefficients::kBt2020ConstantLuminance,
+STATIC_ASSERT_ENUM(kMatrixCoefficientsBt2020ConstantLuminance,
                    kMatrixIdBT2020ConstantLuminance);
 
 gfx::ColorSpace::MatrixID FromWebMMatrixCoefficients(MatrixCoefficients c) {
   return static_cast<gfx::ColorSpace::MatrixID>(c);
 }
 
-STATIC_ASSERT_ENUM(Range::kUnspecified, kRangeIdUnspecified);
-STATIC_ASSERT_ENUM(Range::kBroadcast, kRangeIdLimited);
-STATIC_ASSERT_ENUM(Range::kFull, kRangeIdFull);
-STATIC_ASSERT_ENUM(Range::kDerived, kRangeIdDerived);
+STATIC_ASSERT_ENUM(kRangeUnspecified, kRangeIdUnspecified);
+STATIC_ASSERT_ENUM(kRangeBroadcast, kRangeIdLimited);
+STATIC_ASSERT_ENUM(kRangeFull, kRangeIdFull);
+STATIC_ASSERT_ENUM(kRangeDerived, kRangeIdDerived);
 
 gfx::ColorSpace::RangeID FromWebMRange(Range range) {
   return static_cast<gfx::ColorSpace::RangeID>(range);
 }
 
-STATIC_ASSERT_ENUM(TransferCharacteristics::kBt709, kTransferIdBt709);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kUnspecified,
+STATIC_ASSERT_ENUM(kTransferCharacteristicsBt709, kTransferIdBt709);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsUnspecified,
                    kTransferIdUnspecified);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kGamma22curve, kTransferIdGamma22);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kGamma28curve, kTransferIdGamma28);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kSmpte170M, kTransferIdSmpte170M);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kSmpte240M, kTransferIdSmpte240M);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kLinear, kTransferIdLinear);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kLog, kTransferIdLog);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kLogSqrt, kTransferIdLogSqrt);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kIec6196624,
+STATIC_ASSERT_ENUM(kTransferCharacteristicsGamma22curve, kTransferIdGamma22);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsGamma28curve, kTransferIdGamma28);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsSmpte170M, kTransferIdSmpte170M);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsSmpte240M, kTransferIdSmpte240M);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsLinear, kTransferIdLinear);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsLog, kTransferIdLog);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsLogSqrt, kTransferIdLogSqrt);
+STATIC_ASSERT_ENUM(kTransferCharacteristicsIec6196624,
                    kTransferIdIec6196624);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kBt1361ExtendedColourGamut,
+STATIC_ASSERT_ENUM(kTransferCharacteristicsBt1361ExtendedColourGamut,
                    kTransferIdBt1361Ecg);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kIec6196621,
+STATIC_ASSERT_ENUM(kTransferCharacteristicsIec6196621,
                    kTransferIdIec6196621);
-STATIC_ASSERT_ENUM(TransferCharacteristics::k10BitBt2020,
+STATIC_ASSERT_ENUM(kTransferCharacteristics10BitBt2020,
                    kTransferId10BitBt2020);
-STATIC_ASSERT_ENUM(TransferCharacteristics::k12BitBt2020,
+STATIC_ASSERT_ENUM(kTransferCharacteristics12BitBt2020,
                    kTransferId12BitBt2020);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kSmpteSt2084,
+STATIC_ASSERT_ENUM(kTransferCharacteristicsSmpteSt2084,
                    kTransferIdSmpteSt2084);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kSmpteSt4281,
+STATIC_ASSERT_ENUM(kTransferCharacteristicsSmpteSt4281,
                    kTransferIdSmpteSt4281);
-STATIC_ASSERT_ENUM(TransferCharacteristics::kAribStdB67Hlg,
+STATIC_ASSERT_ENUM(kTransferCharacteristicsAribStdB67Hlg,
                    kTransferIdAribStdB67);
 
 gfx::ColorSpace::TransferID FromWebMTransferCharacteristics(
@@ -319,22 +319,29 @@ gfx::ColorSpace::TransferID FromWebMTransferCharacteristics(
   return static_cast<gfx::ColorSpace::TransferID>(tc);
 }
 
-STATIC_ASSERT_ENUM(Primaries::kBt709, kPrimaryIdBt709);
-STATIC_ASSERT_ENUM(Primaries::kUnspecified, kPrimaryIdUnspecified);
-STATIC_ASSERT_ENUM(Primaries::kBt470M, kPrimaryIdBt470M);
-STATIC_ASSERT_ENUM(Primaries::kBt470Bg, kPrimaryIdBt470Bg);
-STATIC_ASSERT_ENUM(Primaries::kSmpte170M, kPrimaryIdSmpte170M);
-STATIC_ASSERT_ENUM(Primaries::kSmpte240M, kPrimaryIdSmpte240M);
-STATIC_ASSERT_ENUM(Primaries::kFilm, kPrimaryIdFilm);
-STATIC_ASSERT_ENUM(Primaries::kBt2020, kPrimaryIdBt2020);
-STATIC_ASSERT_ENUM(Primaries::kSmpteSt4281, kPrimaryIdSmpteSt4281);
+STATIC_ASSERT_ENUM(kPrimariesBt709, kPrimaryIdBt709);
+STATIC_ASSERT_ENUM(kPrimariesUnspecified, kPrimaryIdUnspecified);
+STATIC_ASSERT_ENUM(kPrimariesBt470M, kPrimaryIdBt470M);
+STATIC_ASSERT_ENUM(kPrimariesBt470Bg, kPrimaryIdBt470Bg);
+STATIC_ASSERT_ENUM(kPrimariesSmpte170M, kPrimaryIdSmpte170M);
+STATIC_ASSERT_ENUM(kPrimariesSmpte240M, kPrimaryIdSmpte240M);
+STATIC_ASSERT_ENUM(kPrimariesFilm, kPrimaryIdFilm);
+STATIC_ASSERT_ENUM(kPrimariesBt2020, kPrimaryIdBt2020);
+STATIC_ASSERT_ENUM(kPrimariesSmpteSt4281, kPrimaryIdSmpteSt4281);
 
 gfx::ColorSpace::PrimaryID FromWebMPrimaries(Primaries primaries) {
   return static_cast<gfx::ColorSpace::PrimaryID>(primaries);
 }
 
-WebMColorMetadata::WebMColorMetadata() {}
-WebMColorMetadata::WebMColorMetadata(const WebMColorMetadata& rhs) = default;
+WebMColorMetadata::WebMColorMetadata() {
+  BitsPerChannel = 0;
+  ChromaSubsamplingHorz = 0;
+  ChromaSubsamplingVert = 0;
+  CbSubsamplingHorz = 0;
+  CbSubsamplingVert = 0;
+  ChromaSitingHorz = 0;
+  ChromaSitingVert = 0;
+}
 
 WebMMasteringMetadataParser::WebMMasteringMetadataParser() {}
 WebMMasteringMetadataParser::~WebMMasteringMetadataParser() {}
@@ -398,6 +405,7 @@ void WebMColourParser::Reset() {
   primaries_ = -1;
   max_cll_ = -1;
   max_fall_ = -1;
+  mastering_metadata_parsed_ = false;
 }
 
 WebMParserClient* WebMColourParser::OnListStart(int id) {
