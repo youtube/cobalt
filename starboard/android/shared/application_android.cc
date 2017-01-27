@@ -19,6 +19,7 @@
 #include <time.h>
 
 #include <map>
+#include <string>
 #include <vector>
 
 #include "starboard/android/shared/file_internal.h"
@@ -70,7 +71,8 @@ typedef ::starboard::shared::starboard::Application::Event Event;
 ApplicationAndroid::ApplicationAndroid(struct android_app* state)
     : android_state_(state),
       window_(kSbWindowInvalid),
-      exit_on_destroy_(false) {}
+      exit_on_destroy_(false),
+      exit_error_level_(0) {}
 
 ApplicationAndroid::~ApplicationAndroid() {}
 
@@ -184,6 +186,12 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
       // process again, and Starboard cannot exit it's stop state.
       if (exit_on_destroy_) {
         DispatchAndDelete(new Event(kSbEventTypeStop, NULL, NULL));
+        // Note this log line may not flush before exit.
+        // Even __android_log_close() does not seem to guarentee it.
+        // Also __android_log_close() is not available on all platforms.
+        SB_LOG(ERROR) << "***Stopping Application*** " << exit_error_level_;
+
+        // The actual exit code here doesn't matter.
         exit(0);
       }
       break;
@@ -224,8 +232,9 @@ ANativeActivity* ApplicationAndroid::GetActivity() {
   return android_state_->activity;
 }
 
-void ApplicationAndroid::SetExitOnActivityDestroy() {
+void ApplicationAndroid::SetExitOnActivityDestroy(int error_level) {
   exit_on_destroy_ = true;
+  exit_error_level_ = error_level;
 }
 
 static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {

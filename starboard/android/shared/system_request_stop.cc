@@ -17,15 +17,41 @@
 #include <android/native_activity.h>
 
 #include "starboard/android/shared/application_android.h"
+#include "starboard/file.h"
+#include "starboard/shared/starboard/command_line.h"
 
 using starboard::android::shared::ApplicationAndroid;
+using starboard::shared::starboard::CommandLine;
+
+namespace {
+const char kExitFilePathSwitch[] = "android_exit_file";
+}
 
 void SbSystemRequestStop(int error_level) {
-  // Note this implementation is intended to suffice for
-  // reporting and stopping an automated test run.
-  SB_LOG(ERROR) << "***Stopping Application*** " << error_level;
+  ApplicationAndroid* app = ApplicationAndroid::Get();
+  app->SetExitOnActivityDestroy(error_level);
 
-  ApplicationAndroid::Get()->SetExitOnActivityDestroy();
+  CommandLine* cl = app->GetCommandLine();
+
+  std::string path = cl->GetSwitchValue(kExitFilePathSwitch);
+
+  if (!path.empty()) {
+    // Since we cannot reliably flush the exit code in the log,
+    // we write a file to our app files directory.
+
+    SbFile exitcode_file = SbFileOpen(
+      path.c_str(),
+      kSbFileCreateAlways | kSbFileRead | kSbFileWrite, NULL, NULL);
+
+    if (exitcode_file != NULL) {
+      std::ostringstream exit_stream;
+      exit_stream << std::dec << error_level;
+
+      SbFileWrite(exitcode_file, exit_stream.str().c_str(),
+                  exit_stream.str().size());
+      SbFileClose(exitcode_file);
+    }
+  }
 
   ANativeActivity_finish(ApplicationAndroid::Get()->GetActivity());
 }
