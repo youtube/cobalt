@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/webmediasource_impl.h"
+#include "cobalt/media/blink/webmediasource_impl.h"
 
 #include "base/guid.h"
-#include "media2/base/mime_util.h"
-#include "media2/blink/websourcebuffer_impl.h"
-#include "media2/filters/chunk_demuxer.h"
+#include "cobalt/media/base/mime_util.h"
+#include "cobalt/media/blink/websourcebuffer_impl.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
 using ::blink::WebString;

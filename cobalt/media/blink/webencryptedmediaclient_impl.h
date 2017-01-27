@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_WEBENCRYPTEDMEDIACLIENT_IMPL_H_
-#define MEDIA_BLINK_WEBENCRYPTEDMEDIACLIENT_IMPL_H_
+#ifndef COBALT_MEDIA_BLINK_WEBENCRYPTEDMEDIACLIENT_IMPL_H_
+#define COBALT_MEDIA_BLINK_WEBENCRYPTEDMEDIACLIENT_IMPL_H_
 
 #include <memory>
 #include <string>
@@ -11,8 +11,8 @@
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_ptr_hash_map.h"
-#include "media2/blink/key_system_config_selector.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/blink/key_system_config_selector.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebEncryptedMediaClient.h"
 
 namespace blink {
@@ -84,4 +84,4 @@ class MEDIA_BLINK_EXPORT WebEncryptedMediaClientImpl
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_WEBENCRYPTEDMEDIACLIENT_IMPL_H_
+#endif  // COBALT_MEDIA_BLINK_WEBENCRYPTEDMEDIACLIENT_IMPL_H_

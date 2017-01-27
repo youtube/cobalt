@@ -10,7 +10,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
-#include "media2/blink/url_index.h"
+#include "cobalt/media/blink/url_index.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

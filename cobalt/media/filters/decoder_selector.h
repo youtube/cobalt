@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_DECODER_SELECTOR_H_
-#define MEDIA_FILTERS_DECODER_SELECTOR_H_
+#ifndef COBALT_MEDIA_FILTERS_DECODER_SELECTOR_H_
+#define COBALT_MEDIA_FILTERS_DECODER_SELECTOR_H_
 
 #include <memory>
 
@@ -13,9 +13,9 @@
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/filters/decoder_stream_traits.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/filters/decoder_stream_traits.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -114,4 +114,4 @@ typedef DecoderSelector<DemuxerStream::AUDIO> AudioDecoderSelector;
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_DECODER_SELECTOR_H_
+#endif  // COBALT_MEDIA_FILTERS_DECODER_SELECTOR_H_

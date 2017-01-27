@@ -4,12 +4,14 @@
 
 #include <memory>
 
+#include <string>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/test_message_loop.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/blink/watch_time_reporter.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/blink/watch_time_reporter.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media2/base/color_space.h"
+#include "cobalt/media/base/color_space.h"
 
 #include "starboard/memory.h"
 

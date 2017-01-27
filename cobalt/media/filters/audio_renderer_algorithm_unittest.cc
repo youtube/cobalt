@@ -8,7 +8,7 @@
 // correct rate.  We always pass in a very large destination buffer with the
 // expectation that FillBuffer() will fill as much as it can but no more.
 
-#include "media2/filters/audio_renderer_algorithm.h"
+#include "cobalt/media/filters/audio_renderer_algorithm.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -21,12 +21,12 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/callback.h"
-#include "media2/base/audio_buffer.h"
-#include "media2/base/audio_bus.h"
-#include "media2/base/channel_layout.h"
-#include "media2/base/test_helpers.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/filters/wsola_internals.h"
+#include "cobalt/media/base/audio_buffer.h"
+#include "cobalt/media/base/audio_bus.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/filters/wsola_internals.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

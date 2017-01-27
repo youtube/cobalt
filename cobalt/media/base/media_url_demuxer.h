@@ -2,16 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_MEDIA_URL_DEMUXER_H_
-#define MEDIA_BASE_MEDIA_URL_DEMUXER_H_
+#ifndef COBALT_MEDIA_BASE_MEDIA_URL_DEMUXER_H_
+#define COBALT_MEDIA_BASE_MEDIA_URL_DEMUXER_H_
 
 #include <stddef.h>
+
+#include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/media/base/demuxer.h"
 #include "googleurl/src/gurl.h"
-#include "media2/base/demuxer.h"
 
 namespace media {
 
@@ -66,4 +69,4 @@ class MEDIA_EXPORT MediaUrlDemuxer : public Demuxer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_MEDIA_URL_DEMUXER_H_
+#endif  // COBALT_MEDIA_BASE_MEDIA_URL_DEMUXER_H_

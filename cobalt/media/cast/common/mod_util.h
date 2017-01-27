@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_COMMON_MOD_UTIL_H_
-#define MEDIA_CAST_COMMON_MOD_UTIL_H_
+#ifndef COBALT_MEDIA_CAST_COMMON_MOD_UTIL_H_
+#define COBALT_MEDIA_CAST_COMMON_MOD_UTIL_H_
 
 #include <map>
 #include "base/logging.h"
@@ -51,4 +51,4 @@ typename MAP::iterator ModMapPrevious(MAP* map, typename MAP::iterator i) {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_COMMON_MOD_UTIL_H_
+#endif  // COBALT_MEDIA_CAST_COMMON_MOD_UTIL_H_

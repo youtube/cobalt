@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/h264_bitstream_buffer.h"
+#include "cobalt/media/filters/h264_bitstream_buffer.h"
 
 #include "base/sys_byteorder.h"
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FILTERS_WEBVTT_UTIL_H_
-#define MEDIA_FILTERS_WEBVTT_UTIL_H_
+#ifndef COBALT_MEDIA_FILTERS_WEBVTT_UTIL_H_
+#define COBALT_MEDIA_FILTERS_WEBVTT_UTIL_H_
 
 #include <stdint.h>
 
@@ -31,4 +31,4 @@ void MakeSideData(T id_begin,
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_WEBVTT_UTIL_H_
+#endif  // COBALT_MEDIA_FILTERS_WEBVTT_UTIL_H_

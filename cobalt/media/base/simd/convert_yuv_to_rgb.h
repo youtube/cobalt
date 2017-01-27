@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
-#define MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
+#ifndef COBALT_MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
+#define COBALT_MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -166,4 +166,4 @@ MEDIA_EXPORT void LinearScaleYUVToRGB32Row_MMX_X64(
 
 }  // extern "C"
 
-#endif  // MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
+#endif  // COBALT_MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_STREAM_PARSER_BUFFER_H_
-#define MEDIA_BASE_STREAM_PARSER_BUFFER_H_
+#ifndef COBALT_MEDIA_BASE_STREAM_PARSER_BUFFER_H_
+#define COBALT_MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -11,11 +11,11 @@
 #include <deque>
 
 #include "base/basictypes.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/media_export.h"
-#include "media2/base/stream_parser.h"
-#include "media2/base/timestamp_constants.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/timestamp_constants.h"
 
 namespace media {
 
@@ -208,4 +208,4 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STREAM_PARSER_BUFFER_H_
+#endif  // COBALT_MEDIA_BASE_STREAM_PARSER_BUFFER_H_

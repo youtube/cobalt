@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_VECTOR_MATH_H_
-#define MEDIA_BASE_VECTOR_MATH_H_
+#ifndef COBALT_MEDIA_BASE_VECTOR_MATH_H_
+#define COBALT_MEDIA_BASE_VECTOR_MATH_H_
 
 #include <utility>
 
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 namespace vector_math {
@@ -38,4 +38,4 @@ MEDIA_EXPORT void Crossfade(const float src[], int len, float dest[]);
 }  // namespace vector_math
 }  // namespace media
 
-#endif  // MEDIA_BASE_VECTOR_MATH_H_
+#endif  // COBALT_MEDIA_BASE_VECTOR_MATH_H_

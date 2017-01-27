@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-#ifndef MEDIA_FILTERS_JPEG_PARSER_H_
-#define MEDIA_FILTERS_JPEG_PARSER_H_
+#ifndef COBALT_MEDIA_FILTERS_JPEG_PARSER_H_
+#define COBALT_MEDIA_FILTERS_JPEG_PARSER_H_
 
 #include <stddef.h>
 #include <stdint.h>
-#include "media2/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 
 namespace media {
 
@@ -122,4 +122,4 @@ MEDIA_EXPORT bool ParseJpegStream(const uint8_t* buffer,
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_JPEG_PARSER_H_
+#endif  // COBALT_MEDIA_FILTERS_JPEG_PARSER_H_

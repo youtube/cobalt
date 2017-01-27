@@ -2,24 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_DEMUXER_H_
-#define MEDIA_BASE_DEMUXER_H_
+#ifndef COBALT_MEDIA_BASE_DEMUXER_H_
+#define COBALT_MEDIA_BASE_DEMUXER_H_
 
 #include <stdint.h>
 
+#include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
-#include "media2/base/data_source.h"
-#include "media2/base/demuxer_stream.h"
-#include "media2/base/demuxer_stream_provider.h"
-#include "media2/base/eme_constants.h"
-#include "media2/base/media_export.h"
-#include "media2/base/media_track.h"
-#include "media2/base/pipeline_status.h"
-#include "media2/base/ranges.h"
+#include "cobalt/media/base/data_source.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/demuxer_stream_provider.h"
+#include "cobalt/media/base/eme_constants.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_track.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/ranges.h"
 
 namespace media {
 
@@ -154,4 +155,4 @@ class MEDIA_EXPORT Demuxer : public DemuxerStreamProvider {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_DEMUXER_H_
+#endif  // COBALT_MEDIA_BASE_DEMUXER_H_

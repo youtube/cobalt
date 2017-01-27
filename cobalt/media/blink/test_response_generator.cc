@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/test_response_generator.h"
+#include "cobalt/media/blink/test_response_generator.h"
+
+#include <string>
 
 #include "base/format_macros.h"
 #include "base/string_number_conversions.h"

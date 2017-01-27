@@ -6,8 +6,8 @@
 // TODO(hclam): Refactor such that there is no separate AudioSender vs.
 // VideoSender, and the functionality of both is rolled into this class.
 
-#ifndef MEDIA_CAST_SENDER_FRAME_SENDER_H_
-#define MEDIA_CAST_SENDER_FRAME_SENDER_H_
+#ifndef COBALT_MEDIA_CAST_SENDER_FRAME_SENDER_H_
+#define COBALT_MEDIA_CAST_SENDER_FRAME_SENDER_H_
 
 #include <stdint.h>
 
@@ -204,4 +204,4 @@ class FrameSender {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_SENDER_FRAME_SENDER_H_
+#endif  // COBALT_MEDIA_CAST_SENDER_FRAME_SENDER_H_

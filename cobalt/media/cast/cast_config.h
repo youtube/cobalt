@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_CAST_CONFIG_H_
-#define MEDIA_CAST_CAST_CONFIG_H_
+#ifndef COBALT_MEDIA_CAST_CAST_CONFIG_H_
+#define COBALT_MEDIA_CAST_CAST_CONFIG_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -219,4 +219,4 @@ typedef base::Callback<void(size_t size,
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_CAST_CONFIG_H_
+#endif  // COBALT_MEDIA_CAST_CAST_CONFIG_H_

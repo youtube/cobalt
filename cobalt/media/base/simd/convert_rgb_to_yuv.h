@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_
-#define MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_
+#ifndef COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_
+#define COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_
 
 #include <stdint.h>
 
@@ -76,4 +76,4 @@ MEDIA_EXPORT void ConvertRGB24ToYUV_C(const uint8_t* rgbframe,
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_
+#endif  // COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/audio_timestamp_validator.h"
+#include "cobalt/media/filters/audio_timestamp_validator.h"
 
 #include <tuple>
 
 #include "base/time.h"
-#include "media2/base/audio_decoder_config.h"
-#include "media2/base/media_util.h"
-#include "media2/base/mock_media_log.h"
-#include "media2/base/test_helpers.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/mock_media_log.h"
+#include "cobalt/media/base/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::HasSubstr;
@@ -249,4 +249,4 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(base::TimeDelta(),  // front discard
                           base::TimeDelta::FromMilliseconds(65))));
 
-}  // namespace media
+}

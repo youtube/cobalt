@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_KEY_SYSTEM_CONFIG_SELECTOR_H_
-#define MEDIA_BLINK_KEY_SYSTEM_CONFIG_SELECTOR_H_
+#ifndef COBALT_MEDIA_BLINK_KEY_SYSTEM_CONFIG_SELECTOR_H_
+#define COBALT_MEDIA_BLINK_KEY_SYSTEM_CONFIG_SELECTOR_H_
 
 #include <memory>
 #include <string>
@@ -13,8 +13,8 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "media2/base/eme_constants.h"
-#include "media2/blink/media_blink_export.h"
+#include "cobalt/media/base/eme_constants.h"
+#include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebVector.h"
 
 namespace blink {
@@ -95,4 +95,4 @@ class MEDIA_BLINK_EXPORT KeySystemConfigSelector {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_KEY_SYSTEM_CONFIG_SELECTOR_H_
+#endif  // COBALT_MEDIA_BLINK_KEY_SYSTEM_CONFIG_SELECTOR_H_

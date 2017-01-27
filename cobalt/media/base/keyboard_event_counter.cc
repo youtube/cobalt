@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/keyboard_event_counter.h"
+#include "cobalt/media/base/keyboard_event_counter.h"
 
 #include "base/atomicops.h"
 #include "base/logging.h"

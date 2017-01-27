@@ -2,19 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/formats/mpeg/mpeg_audio_stream_parser_base.h"
+#include "cobalt/media/formats/mpeg/mpeg_audio_stream_parser_base.h"
+
+#include <algorithm>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "media2/base/media_log.h"
-#include "media2/base/media_tracks.h"
-#include "media2/base/media_util.h"
-#include "media2/base/stream_parser_buffer.h"
-#include "media2/base/text_track_config.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/base/video_decoder_config.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_decoder_config.h"
 
 namespace media {
 

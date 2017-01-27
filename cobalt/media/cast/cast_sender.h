@@ -7,8 +7,8 @@
 // The AudioFrameInput, VideoFrameInput and PacketReciever interfaces should
 // be accessed from the main thread.
 
-#ifndef MEDIA_CAST_CAST_SENDER_H_
-#define MEDIA_CAST_CAST_SENDER_H_
+#ifndef COBALT_MEDIA_CAST_CAST_SENDER_H_
+#define COBALT_MEDIA_CAST_CAST_SENDER_H_
 
 #include <memory>
 
@@ -126,4 +126,4 @@ class CastSender {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_CAST_SENDER_H_
+#endif  // COBALT_MEDIA_CAST_CAST_SENDER_H_

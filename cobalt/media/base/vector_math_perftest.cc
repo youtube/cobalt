@@ -8,8 +8,8 @@
 #include "base/memory/aligned_memory.h"
 #include "base/time.h"
 #include "build/build_config.h"
-#include "media2/base/vector_math.h"
-#include "media2/base/vector_math_testing.h"
+#include "cobalt/media/base/vector_math.h"
+#include "cobalt/media/base/vector_math_testing.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_test.h"
 
@@ -156,4 +156,4 @@ TEST_F(VectorMathPerfTest, EWMAAndMaxPower) {
 #endif
 }
 
-} // namespace media
+}  // namespace media

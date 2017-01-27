@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/media.h"
+#include "cobalt/media/base/media.h"
 
 #include "base/basictypes.h"
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/metrics/field_trial.h"
 #include "base/trace_event/trace_event.h"
-#include "media2/base/media_switches.h"
-#include "media2/base/yuv_convert.h"
+#include "cobalt/media/base/media_switches.h"
+#include "cobalt/media/base/yuv_convert.h"
 
 #if defined(OS_ANDROID)
 #include "base/android/build_info.h"
-#include "media2/base/android/media_codec_util.h"
+#include "cobalt/media/base/android/media_codec_util.h"
 #endif
 
 #if !defined(MEDIA_DISABLE_FFMPEG)
-#include "media2/ffmpeg/ffmpeg_common.h"
+#include "cobalt/media/ffmpeg/ffmpeg_common.h"
 #endif
 
 namespace media {

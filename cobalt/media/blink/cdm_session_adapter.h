@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BLINK_CDM_SESSION_ADAPTER_H_
-#define MEDIA_BLINK_CDM_SESSION_ADAPTER_H_
+#ifndef COBALT_MEDIA_BLINK_CDM_SESSION_ADAPTER_H_
+#define COBALT_MEDIA_BLINK_CDM_SESSION_ADAPTER_H_
 
 #include <stdint.h>
 
@@ -15,7 +15,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "media2/base/media_keys.h"
+#include "cobalt/media/base/media_keys.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleSession.h"
 
@@ -153,4 +153,4 @@ class CdmSessionAdapter : public base::RefCounted<CdmSessionAdapter> {
 
 }  // namespace media
 
-#endif  // MEDIA_BLINK_CDM_SESSION_ADAPTER_H_
+#endif  // COBALT_MEDIA_BLINK_CDM_SESSION_ADAPTER_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_VIDEO_FRAME_H_
-#define MEDIA_BASE_VIDEO_FRAME_H_
+#ifndef COBALT_MEDIA_BASE_VIDEO_FRAME_H_
+#define COBALT_MEDIA_BASE_VIDEO_FRAME_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -18,10 +18,10 @@
 #include "base/memory/shared_memory.h"
 #include "base/synchronization/lock.h"
 #include "build/build_config.h"
+#include "cobalt/media/base/color_space.h"
+#include "cobalt/media/base/video_frame_metadata.h"
+#include "cobalt/media/base/video_types.h"
 #include "gpu/command_buffer/common/mailbox_holder.h"
-#include "media2/base/color_space.h"
-#include "media2/base/video_frame_metadata.h"
-#include "media2/base/video_types.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
@@ -575,4 +575,4 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_VIDEO_FRAME_H_
+#endif  // COBALT_MEDIA_BASE_VIDEO_FRAME_H_

@@ -6,11 +6,11 @@
 #include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/run_loop.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/mock_filters.h"
-#include "media2/base/test_helpers.h"
-#include "media2/base/video_frame.h"
-#include "media2/filters/fake_video_decoder.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/mock_filters.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/base/video_frame.h"
+#include "cobalt/media/filters/fake_video_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {

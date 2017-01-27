@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/filters/vp9_bool_decoder.h"
+#include "cobalt/media/filters/vp9_bool_decoder.h"
 
 #include <algorithm>
 
 #include "base/logging.h"
-#include "media2/base/bit_reader.h"
+#include "cobalt/media/base/bit_reader.h"
 
 namespace media {
 

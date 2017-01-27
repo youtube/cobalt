@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/base/fake_demuxer_stream.h"
+#include "cobalt/media/base/fake_demuxer_stream.h"
 
 #include <stdint.h>
 
+#include <string>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -16,12 +17,12 @@
 #include "base/memory/ptr_util.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "media2/base/bind_to_current_loop.h"
-#include "media2/base/decoder_buffer.h"
-#include "media2/base/media_util.h"
-#include "media2/base/test_helpers.h"
-#include "media2/base/timestamp_constants.h"
-#include "media2/base/video_frame.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_frame.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -233,6 +234,6 @@ DemuxerStream* FakeDemuxerStreamProvider::GetStream(DemuxerStream::Type type) {
   if (type == DemuxerStream::Type::AUDIO)
     return NULL;
   return &fake_video_stream_;
-};
+}
 
 }  // namespace media

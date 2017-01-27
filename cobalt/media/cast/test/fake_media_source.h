@@ -7,8 +7,8 @@
 // This class can transcode a WebM file using FFmpeg. It can also
 // generate an animation and audio of fixed frequency.
 
-#ifndef MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_
-#define MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_
+#ifndef COBALT_MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_
+#define COBALT_MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_
 
 #include <stdint.h>
 
@@ -175,4 +175,4 @@ class FakeMediaSource : public media::AudioConverter::InputCallback {
 }  // namespace cast
 }  // namespace media
 
-#endif // MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_
+#endif  // COBALT_MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_

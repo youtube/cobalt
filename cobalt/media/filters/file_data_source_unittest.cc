@@ -12,8 +12,8 @@
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "base/utf_string_conversions.h"
-#include "media2/base/test_helpers.h"
-#include "media2/filters/file_data_source.h"
+#include "cobalt/media/base/test_helpers.h"
+#include "cobalt/media/filters/file_data_source.h"
 
 using ::testing::NiceMock;
 using ::testing::StrictMock;

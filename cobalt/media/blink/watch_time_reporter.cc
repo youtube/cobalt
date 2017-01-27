@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media2/blink/watch_time_reporter.h"
+#include "cobalt/media/blink/watch_time_reporter.h"
 
 #include "base/power_monitor/power_monitor.h"
 

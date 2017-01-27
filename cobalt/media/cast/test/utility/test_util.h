@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
-#define MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
+#ifndef COBALT_MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
+#define COBALT_MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
 
 #include <stddef.h>
 
@@ -29,4 +29,4 @@ class MeanAndError {
 }  // namespace cast
 }  // namespace media
 
-#endif  // MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
+#endif  // COBALT_MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
