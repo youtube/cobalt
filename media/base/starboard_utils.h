@@ -37,6 +37,12 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
                        SbDrmSampleInfo* drm_info,
                        SbDrmSubSampleMapping* subsample_mapping);
 
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+SbMediaHdrMetadataColorSpace MediaToSbMediaHdrMetadataColorSpace(
+    const HDRMetadata& hdr_metadata,
+    const gfx::ColorSpace& color_space_info);
+#endif
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_STARBOARD_UTILS_H_

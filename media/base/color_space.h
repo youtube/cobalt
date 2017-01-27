@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "base/gtest_prod_util.h"
+#include "base/logging.h"
 #include "build/build_config.h"
 #include "media/base/gfx_export.h"
 
@@ -106,7 +107,7 @@ class ColorSpace {
     kMatrixIdSmpte240M = 7,
     kMatrixIdYCgCo = 8,
     kMatrixIdBt2020NonconstantLuminance = 9,
-    kMatrixIdBT2020ConstantLuminance = 10,
+    kMatrixIdBt2020ConstantLuminance = 10,
     kMatrixIdYDzDx = 11,
 
     kMatrixIdLastStandardValue = kMatrixIdYDzDx,
@@ -145,6 +146,8 @@ class ColorSpace {
   ColorSpace(int primaries, int transfer, int matrix, RangeID full_range);
   ~ColorSpace();
 
+  typedef float CustomPrimaryMatrix[12];
+
   static PrimaryID PrimaryIDFromInt(int primary_id);
   static TransferID TransferIDFromInt(int transfer_id);
   static MatrixID MatrixIDFromInt(int matrix_id);
@@ -160,13 +163,23 @@ class ColorSpace {
   bool operator!=(const ColorSpace& other) const;
   bool operator<(const ColorSpace& other) const;
 
+  PrimaryID primaries() const { return primaries_; }
+  TransferID transfer() const { return transfer_; }
+  MatrixID matrix() const { return matrix_; }
+  RangeID range() const { return range_; }
+
+  const CustomPrimaryMatrix& custom_primary_matrix() const {
+    DCHECK_EQ(primaries_, kPrimaryIdCustom);
+    return custom_primary_matrix_;
+  }
+
  private:
   PrimaryID primaries_;
   TransferID transfer_;
   MatrixID matrix_;
   RangeID range_;
 
-  // Only used if primaries_ == PrimaryID::CUSTOM
+  // Only used if primaries_ == kPrimaryIdCustom
   float custom_primary_matrix_[12];
 };
 

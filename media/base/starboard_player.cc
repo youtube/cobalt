@@ -116,6 +116,12 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   video_info.frame_width = frame_width_;
   video_info.frame_height = frame_height_;
 
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  SbMediaHdrMetadataColorSpace sb_media_hdr_metadata_color_space =
+      MediaToSbMediaHdrMetadataColorSpace(video_config_.hdr_metadata(),
+                                          video_config_.color_space_info());
+  video_info.hdr_metadata_color_space = &sb_media_hdr_metadata_color_space;
+#endif
   if (is_encrypted) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
