@@ -6,10 +6,22 @@
 
 namespace media {
 
-MasteringMetadata::MasteringMetadata() {}
-MasteringMetadata::MasteringMetadata(const MasteringMetadata& rhs) = default;
+MasteringMetadata::MasteringMetadata() {
+  primary_r_chromaticity_x = 0;
+  primary_r_chromaticity_y = 0;
+  primary_g_chromaticity_x = 0;
+  primary_g_chromaticity_y = 0;
+  primary_b_chromaticity_x = 0;
+  primary_b_chromaticity_y = 0;
+  white_point_chromaticity_x = 0;
+  white_point_chromaticity_y = 0;
+  luminance_max = 0;
+  luminance_min = 0;
+}
 
-HDRMetadata::HDRMetadata() {}
-HDRMetadata::HDRMetadata(const HDRMetadata& rhs) = default;
+HDRMetadata::HDRMetadata() {
+  max_cll = 0;
+  max_fall = 0;
+}
 
 }  // namespace media

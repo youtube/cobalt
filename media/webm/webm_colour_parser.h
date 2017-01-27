@@ -5,6 +5,7 @@
 #ifndef MEDIA_WEBM_WEBM_COLOUR_PARSER_H_
 #define MEDIA_WEBM_WEBM_COLOUR_PARSER_H_
 
+#include "base/compiler_specific.h"
 #include "media/base/color_space.h"
 #include "media/base/hdr_metadata.h"
 #include "media/webm/webm_parser.h"
@@ -14,13 +15,13 @@ namespace media {
 // WebM color information, containing HDR metadata:
 // http://www.webmproject.org/docs/container/#Colour
 struct MEDIA_EXPORT WebMColorMetadata {
-  unsigned BitsPerChannel = 0;
-  unsigned ChromaSubsamplingHorz = 0;
-  unsigned ChromaSubsamplingVert = 0;
-  unsigned CbSubsamplingHorz = 0;
-  unsigned CbSubsamplingVert = 0;
-  unsigned ChromaSitingHorz = 0;
-  unsigned ChromaSitingVert = 0;
+  unsigned int BitsPerChannel;
+  unsigned int ChromaSubsamplingHorz;
+  unsigned int ChromaSubsamplingVert;
+  unsigned int CbSubsamplingHorz;
+  unsigned int CbSubsamplingVert;
+  unsigned int ChromaSitingHorz;
+  unsigned int ChromaSitingVert;
 
   gfx::ColorSpace color_space;
 
@@ -35,13 +36,13 @@ struct MEDIA_EXPORT WebMColorMetadata {
 class WebMMasteringMetadataParser : public WebMParserClient {
  public:
   WebMMasteringMetadataParser();
-  ~WebMMasteringMetadataParser() override;
+  ~WebMMasteringMetadataParser() OVERRIDE;
 
   MasteringMetadata GetMasteringMetadata() const { return mastering_metadata_; }
 
  private:
   // WebMParserClient implementation.
-  bool OnFloat(int id, double val) override;
+  bool OnFloat(int id, double val) OVERRIDE;
 
   MasteringMetadata mastering_metadata_;
   DISALLOW_COPY_AND_ASSIGN(WebMMasteringMetadataParser);
@@ -52,7 +53,7 @@ class WebMMasteringMetadataParser : public WebMParserClient {
 class WebMColourParser : public WebMParserClient {
  public:
   WebMColourParser();
-  ~WebMColourParser() override;
+  ~WebMColourParser() OVERRIDE;
 
   void Reset();
 
@@ -60,9 +61,9 @@ class WebMColourParser : public WebMParserClient {
 
  private:
   // WebMParserClient implementation.
-  WebMParserClient* OnListStart(int id) override;
-  bool OnListEnd(int id) override;
-  bool OnUInt(int id, int64_t val) override;
+  WebMParserClient* OnListStart(int id) OVERRIDE;
+  bool OnListEnd(int id) OVERRIDE;
+  bool OnUInt(int id, int64_t val) OVERRIDE;
 
   int64_t matrix_coefficients_;
   int64_t bits_per_channel_;
@@ -79,7 +80,7 @@ class WebMColourParser : public WebMParserClient {
   int64_t max_fall_;
 
   WebMMasteringMetadataParser mastering_metadata_parser_;
-  bool mastering_metadata_parsed_ = false;
+  bool mastering_metadata_parsed_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMColourParser);
 };

@@ -101,16 +101,16 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   is_encrypted_ = is_encrypted;
 
   switch (color_space) {
-    case ColorSpace::COLOR_SPACE_JPEG:
+    case COLOR_SPACE_JPEG:
       color_space_info_ = gfx::ColorSpace::CreateJpeg();
       break;
-    case ColorSpace::COLOR_SPACE_HD_REC709:
+    case COLOR_SPACE_HD_REC709:
       color_space_info_ = gfx::ColorSpace::CreateREC709();
       break;
-    case ColorSpace::COLOR_SPACE_SD_REC601:
+    case COLOR_SPACE_SD_REC601:
       color_space_info_ = gfx::ColorSpace::CreateREC601();
       break;
-    case ColorSpace::COLOR_SPACE_UNSPECIFIED:
+    case COLOR_SPACE_UNSPECIFIED:
       break;
     default:
       NOTREACHED();
