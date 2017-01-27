@@ -18,8 +18,10 @@
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/Console
 
 interface Console {
+  void debug(DOMString text);
   void log(DOMString text);
   void info(DOMString text);
   void error(DOMString text);
+  void warn(DOMString text);
   void trace();
 };
