@@ -45,6 +45,11 @@ Console::Console(script::ExecutionState* execution_state)
     : execution_state_(execution_state),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {}
 
+void Console::Debug(const std::string& text) const {
+  LOG(INFO) << "[console.debug()] " << text;
+  NotifyListeners(text, kDebug);
+}
+
 void Console::Log(const std::string& text) const {
   LOG(INFO) << "[console.log()] " << text;
   NotifyListeners(text, kLog);
@@ -58,6 +63,11 @@ void Console::Info(const std::string& text) const {
 void Console::Error(const std::string& text) const {
   LOG(ERROR) << "[console.error()] " << text;
   NotifyListeners(text, kLog);
+}
+
+void Console::Warn(const std::string& text) const {
+  LOG(WARNING) << "[console.warn()] " << text;
+  NotifyListeners(text, kWarning);
 }
 
 void Console::Trace() const { LOG(INFO) << execution_state_->GetStackTrace(); }
