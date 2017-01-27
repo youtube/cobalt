@@ -18,6 +18,7 @@
       'product_name': 'starboard_platform_future',
       'type': 'static_library',
       'sources': [
+        '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_create_blitter.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_destroy.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_get_format.cc',

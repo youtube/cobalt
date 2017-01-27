@@ -14,6 +14,7 @@
 
 // Includes all headers in a C context to make sure they compile as C files.
 
+#include "starboard/accessibility.h"
 #include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
 #include "starboard/blitter.h"
