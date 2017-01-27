@@ -151,6 +151,13 @@ typedef enum SbEventType {
   // callback directly, so SbEventHandle should never receive this event
   // directly. The data type is an internally-defined structure.
   kSbEventTypeScheduled,
+
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  // The platform's accessibility settings have changed. The application should
+  // query the accessibility settings using the appropriate APIs to get the
+  // new settings.
+  kSbEventTypeAccessiblitySettingsChanged,
+#endif
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
