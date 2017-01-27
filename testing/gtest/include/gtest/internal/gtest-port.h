@@ -256,7 +256,10 @@
 //   Int32FromGTestEnv()  - parses an Int32 environment variable.
 //   StringFromGTestEnv() - parses a string environment variable.
 
+#if !defined(STARBOARD)
+#include <assert.h>
 #include <ctype.h>   // for isspace, etc
+#include <stdarg.h>
 #include <stddef.h>  // for ptrdiff_t
 #include <stdlib.h>
 #include <stdio.h>
@@ -265,6 +268,15 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 #endif  // !_WIN32_WCE
+#else  // !defined(STARBOARD)
+#include "starboard/directory.h"
+#include "starboard/log.h"
+#include "starboard/file.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/system.h"
+#include "starboard/types.h"
+#endif  // !defined(STARBOARD)
 
 #if defined __APPLE__
 # include <AvailabilityMacros.h>
@@ -386,6 +398,14 @@
 # endif
 #endif
 
+#if GTEST_OS_STARBOARD
+# define GTEST_HAS_EXCEPTIONS 0
+# define GTEST_HAS_POSIX_RE 0
+# define GTEST_HAS_RTTI 0
+# define GTEST_HAS_SEH 0
+# define GTEST_HAS_STREAM_REDIRECTION 0
+#else  // GTEST_OS_STARBOARD
+
 // Brings in definitions for functions used in the testing::internal::posix
 // namespace (read, write, close, chdir, isatty, stat). We do not currently
 // use them on Windows Mobile.
@@ -406,6 +426,7 @@ struct _RTL_CRITICAL_SECTION;
 # include <unistd.h>
 # include <strings.h>
 #endif  // GTEST_OS_WINDOWS
+#endif  // GTEST_OS_STARBOARD
 
 #if GTEST_OS_LINUX_ANDROID
 // Used to define __ANDROID_API__ matching the target NDK API level.
@@ -1272,7 +1293,11 @@ class GTEST_API_ GTestLog {
                                   __FILE__, __LINE__).GetStream()
 
 inline void LogToStderr() {}
+#if GTEST_OS_STARBOARD
+inline void FlushInfoLog() {}
+#else
 inline void FlushInfoLog() { fflush(NULL); }
+#endif
 
 #endif  // !defined(GTEST_LOG_)
 
@@ -2298,7 +2323,88 @@ inline std::string StripTrailingSpaces(std::string str) {
 // standard functions as macros, the wrapper cannot have the same name
 // as the wrapped function.
 
+#if GTEST_OS_STARBOARD
+typedef int FILE;
+#endif
+
 namespace posix {
+
+#if GTEST_OS_STARBOARD
+
+typedef SbFileInfo StatStruct;
+
+inline int FileNo(FILE* /*file*/) { return 0; }
+inline int IsATTY(FILE* /*file*/) { return SbLogIsTty() ? 1 : 0; }
+inline int Stat(const char* path, StatStruct* buf) {
+  return SbFileGetPathInfo(path, buf) ? 0 : -1;
+}
+inline int StrCaseCmp(const char* s1, const char* s2) {
+  return SbStringCompareNoCase(s1, s2);
+}
+inline char* StrDup(const char* src) { return SbStringDuplicate(src); }
+inline int RmDir(const char* dir) { return SbFileDelete(dir); }
+inline bool IsDir(const StatStruct& st) { return st.is_directory; }
+
+inline const char* StrNCpy(char* dest, const char* src, size_t n) {
+  SbStringCopy(dest, src, static_cast<int>(n));
+  return dest;
+}
+
+inline FILE* FOpen(const char* /*path*/, const char* /*mode*/) { return NULL; }
+inline int FClose(FILE* /*fp*/) { return -1; }
+inline const char* StrError(int /*errnum*/) { return "N/A"; }
+
+inline const char* GetEnv(const char* /*name*/) { return NULL; }
+inline void Abort() { SbSystemBreakIntoDebugger(); }
+
+inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
+                      va_list args) {
+  return SbStringFormat(out_buffer, size, format, args);
+}
+
+inline size_t StrLen(const char *str) {
+  return SbStringGetLength(str);
+}
+
+inline const char *StrChr(const char *str, char c) {
+  return SbStringFindCharacter(str, c);
+}
+
+inline const char *StrRChr(const char *str, char c) {
+  return SbStringFindLastCharacter(str, c);
+}
+
+inline int StrNCmp(const char *s1, const char *s2, size_t n) {
+  return SbStringCompare(s1, s2, n);
+}
+
+inline void *MemSet(void *s, int c, size_t n) {
+  return SbMemorySet(s, c, n);
+}
+
+inline void Assert(bool b) { SB_CHECK(b); }
+
+inline int MkDir(const char* path, int /*mode*/) {
+  return SbDirectoryCreate(path) ? 0 : -1;
+}
+
+inline void VPrintF(const char* format, va_list args) {
+  SbLogFormat(format, args);
+}
+
+inline void PrintF(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VPrintF(format, args);
+  va_end(args);
+}
+
+inline void Flush() { SbLogFlush(); }
+
+inline void *Malloc(size_t n) { return SbMemoryAllocate(n); }
+inline void Free(void *p) { return SbMemoryDeallocate(p); }
+
+#else // GTEST_OS_STARBOARD
 
 // Functions with a different name on Windows.
 
@@ -2405,6 +2511,15 @@ inline const char* GetEnv(const char* name) {
 
 GTEST_DISABLE_MSC_WARNINGS_POP_()
 
+#if !defined(GTEST_UNREFERENCED_PARAMETER)
+#ifdef _MSC_VER
+#define GTEST_UNREFERENCED_PARAMETER(x) (x)
+#else  // _MSC_VER
+#define GTEST_UNREFERENCED_PARAMETER(x) do { (void)(x); } while(0)
+#endif  // _MSC_VER
+#endif  // !defined(GTEST_UNREFERENCED_PARAMETER)
+
+
 #if GTEST_OS_WINDOWS_MOBILE
 // Windows CE has no C library. The abort() function is used in
 // several places in Google Test. This implementation provides a reasonable
@@ -2414,8 +2529,59 @@ void Abort();
 inline void Abort() { abort(); }
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
+inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
+                     va_list args) {
+  return vsnprintf(out_buffer, size, format, args);
+}
+
+inline size_t StrLen(const char *str) { return strlen(str); }
+inline const char *StrChr(const char *str, char c) { return strchr(str, c); }
+inline const char *StrRChr(const char *str, char c) { return strrchr(str, c); }
+inline int StrNCmp(const char *s1, const char *s2, size_t n) {
+  return strncmp(s1, s2, n);
+}
+inline void *MemSet(void *s, int c, size_t n) { return memset(s, c, n); }
+
+inline void Assert(bool b) {
+  GTEST_UNREFERENCED_PARAMETER(b);
+  assert(b);
+}
+
+inline int MkDir(const char* path, mode_t mode) {
+  GTEST_UNREFERENCED_PARAMETER(mode);
+  return mkdir(path, mode);
+}
+inline void VPrintF(const char* format, va_list args) {
+  vfprintf(stdout, format, args);
+}
+
+inline void PrintF(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VPrintF(format, args);
+  va_end(args);
+}
+
+inline void Flush() { fflush(stdout); }
+
+inline void *Malloc(size_t n) { return malloc(n); }
+inline void Free(void *p) { return free(p); }
+
+#endif  // GTEST_OS_STARBOARD
+
+inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
+  va_list args;
+  va_start(args, format);
+  VSNPrintF(out_buffer, size, format, args);
+  va_end(args);
+}
+
 }  // namespace posix
 
+
+#if GTEST_OS_STARBOARD
+# define GTEST_SNPRINTF_ internal::posix::SNPrintF
+#else  // GTEST_OS_STARBOARD
 // MSVC "deprecates" snprintf and issues warnings wherever it is used.  In
 // order to avoid these warnings, we need to use _snprintf or _snprintf_s on
 // MSVC-based platforms.  We map the GTEST_SNPRINTF_ macro to the appropriate
@@ -2432,6 +2598,7 @@ inline void Abort() { abort(); }
 #else
 # define GTEST_SNPRINTF_ snprintf
 #endif
+#endif  // GTEST_OS_STARBOARD
 
 // The maximum number a BiggestInt can represent.  This definition
 // works no matter BiggestInt is represented in one's complement or
@@ -2509,7 +2676,11 @@ typedef TypeWithSize<8>::Int TimeInMillis;  // Represents time in milliseconds.
 #endif  // !defined(GTEST_FLAG)
 
 #if !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
+#if !defined(STARBOARD)
 # define GTEST_USE_OWN_FLAGFILE_FLAG_ 1
+#else
+# define GTEST_USE_OWN_FLAGFILE_FLAG_ 0
+#endif
 #endif  // !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
 
 #if !defined(GTEST_DECLARE_bool_)
