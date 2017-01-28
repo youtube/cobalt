@@ -20,8 +20,7 @@ H264BitReader::~H264BitReader() {}
 bool H264BitReader::Initialize(const uint8_t* data, off_t size) {
   DCHECK(data);
 
-  if (size < 1)
-    return false;
+  if (size < 1) return false;
 
   data_ = data;
   bytes_left_ = size;
@@ -34,8 +33,7 @@ bool H264BitReader::Initialize(const uint8_t* data, off_t size) {
 }
 
 bool H264BitReader::UpdateCurrByte() {
-  if (bytes_left_ < 1)
-    return false;
+  if (bytes_left_ < 1) return false;
 
   // Emulation prevention three-byte detection.
   // If a sequence of 0x000003 is found, skip (ignore) the last byte (0x03).
@@ -47,8 +45,7 @@ bool H264BitReader::UpdateCurrByte() {
     // Need another full three bytes before we can detect the sequence again.
     prev_two_bytes_ = 0xffff;
 
-    if (bytes_left_ < 1)
-      return false;
+    if (bytes_left_ < 1) return false;
   }
 
   // Load a new byte and advance pointers.
@@ -74,8 +71,7 @@ bool H264BitReader::ReadBits(int num_bits, int* out) {
     *out |= (curr_byte_ << (bits_left - num_remaining_bits_in_curr_byte_));
     bits_left -= num_remaining_bits_in_curr_byte_;
 
-    if (!UpdateCurrByte())
-      return false;
+    if (!UpdateCurrByte()) return false;
   }
 
   *out |= (curr_byte_ >> (num_remaining_bits_in_curr_byte_ - bits_left));
@@ -92,8 +88,7 @@ off_t H264BitReader::NumBitsLeft() {
 bool H264BitReader::HasMoreRBSPData() {
   // Make sure we have more bits, if we are at 0 bits in current byte and
   // updating current byte fails, we don't have more data anyway.
-  if (num_remaining_bits_in_curr_byte_ == 0 && !UpdateCurrByte())
-    return false;
+  if (num_remaining_bits_in_curr_byte_ == 0 && !UpdateCurrByte()) return false;
 
   // If there is no more RBSP data, then |curr_byte_| contains the stop bit and
   // zero padding. Check to see if there is other data instead.
@@ -107,8 +102,7 @@ bool H264BitReader::HasMoreRBSPData() {
   // don't handle emulation prevention sequences because HasMoreRBSPData() is
   // not used when parsing slices (where cabac_zero_word elements are legal).
   for (off_t i = 0; i < bytes_left_; i++) {
-    if (data_[i] != 0)
-      return true;
+    if (data_[i] != 0) return true;
   }
 
   bytes_left_ = 0;

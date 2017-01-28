@@ -47,20 +47,13 @@ OpusPacket::OpusPacket(uint8_t config, uint8_t frame_count, bool is_VBR) {
   data_.push_back(static_cast<uint8_t>(0));
 }
 
-OpusPacket::~OpusPacket() {
-}
+OpusPacket::~OpusPacket() {}
 
-const uint8_t* OpusPacket::data() const {
-  return &(data_[0]);
-}
+const uint8_t* OpusPacket::data() const { return &(data_[0]); }
 
-int OpusPacket::size() const {
-  return data_.size();
-}
+int OpusPacket::size() const { return data_.size(); }
 
-double OpusPacket::duration_ms() const {
-  return duration_ms_;
-}
+double OpusPacket::duration_ms() const { return duration_ms_; }
 
 ScopedVector<OpusPacket> BuildAllOpusPackets() {
   ScopedVector<OpusPacket> opus_packets;

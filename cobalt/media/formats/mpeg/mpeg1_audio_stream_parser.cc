@@ -14,68 +14,58 @@ static const uint32_t kMPEG1StartCodeMask = 0xffe00000;
 // are allowed.
 // Derived from: http://mpgedit.org/mpgedit/mpeg_format/MP3Format.html
 static const bool kIsAllowed[17][4] = {
-  { true, true, true, true },      // free
-  { true, false, false, false },   // 32
-  { true, false, false, false },   // 48
-  { true, false, false, false },   // 56
-  { true, true, true, true },      // 64
-  { true, false, false, false },   // 80
-  { true, true, true, true },      // 96
-  { true, true, true, true },      // 112
-  { true, true, true, true },      // 128
-  { true, true, true, true },      // 160
-  { true, true, true, true },      // 192
-  { false, true, true, true },     // 224
-  { false, true, true, true },     // 256
-  { false, true, true, true },     // 320
-  { false, true, true, true },     // 384
-  { false, false, false, false }   // bad
+    {true, true, true, true},     // free
+    {true, false, false, false},  // 32
+    {true, false, false, false},  // 48
+    {true, false, false, false},  // 56
+    {true, true, true, true},     // 64
+    {true, false, false, false},  // 80
+    {true, true, true, true},     // 96
+    {true, true, true, true},     // 112
+    {true, true, true, true},     // 128
+    {true, true, true, true},     // 160
+    {true, true, true, true},     // 192
+    {false, true, true, true},    // 224
+    {false, true, true, true},    // 256
+    {false, true, true, true},    // 320
+    {false, true, true, true},    // 384
+    {false, false, false, false}  // bad
 };
 
 // Maps version and layer information in the frame header
 // into an index for the |kBitrateMap|.
 // Derived from: http://mpgedit.org/mpgedit/mpeg_format/MP3Format.html
 static const int kVersionLayerMap[4][4] = {
-  // { reserved, L3, L2, L1 }
-  { 5, 4, 4, 3 },  // MPEG 2.5
-  { 5, 5, 5, 5 },  // reserved
-  { 5, 4, 4, 3 },  // MPEG 2
-  { 5, 2, 1, 0 }   // MPEG 1
+    // { reserved, L3, L2, L1 }
+    {5, 4, 4, 3},  // MPEG 2.5
+    {5, 5, 5, 5},  // reserved
+    {5, 4, 4, 3},  // MPEG 2
+    {5, 2, 1, 0}   // MPEG 1
 };
 
 // Maps the bitrate index field in the header and an index
 // from |kVersionLayerMap| to a frame bitrate.
 // Derived from: http://mpgedit.org/mpgedit/mpeg_format/MP3Format.html
 static const int kBitrateMap[16][6] = {
-  // { V1L1, V1L2, V1L3, V2L1, V2L2 & V2L3, reserved }
-  { 0, 0, 0, 0, 0, 0 },
-  { 32, 32, 32, 32, 8, 0 },
-  { 64, 48, 40, 48, 16, 0 },
-  { 96, 56, 48, 56, 24, 0 },
-  { 128, 64, 56, 64, 32, 0 },
-  { 160, 80, 64, 80, 40, 0 },
-  { 192, 96, 80, 96, 48, 0 },
-  { 224, 112, 96, 112, 56, 0 },
-  { 256, 128, 112, 128, 64, 0 },
-  { 288, 160, 128, 144, 80, 0 },
-  { 320, 192, 160, 160, 96, 0 },
-  { 352, 224, 192, 176, 112, 0 },
-  { 384, 256, 224, 192, 128, 0 },
-  { 416, 320, 256, 224, 144, 0 },
-  { 448, 384, 320, 256, 160, 0 },
-  { 0, 0, 0, 0, 0}
-};
+    // { V1L1, V1L2, V1L3, V2L1, V2L2 & V2L3, reserved }
+    {0, 0, 0, 0, 0, 0},           {32, 32, 32, 32, 8, 0},
+    {64, 48, 40, 48, 16, 0},      {96, 56, 48, 56, 24, 0},
+    {128, 64, 56, 64, 32, 0},     {160, 80, 64, 80, 40, 0},
+    {192, 96, 80, 96, 48, 0},     {224, 112, 96, 112, 56, 0},
+    {256, 128, 112, 128, 64, 0},  {288, 160, 128, 144, 80, 0},
+    {320, 192, 160, 160, 96, 0},  {352, 224, 192, 176, 112, 0},
+    {384, 256, 224, 192, 128, 0}, {416, 320, 256, 224, 144, 0},
+    {448, 384, 320, 256, 160, 0}, {0, 0, 0, 0, 0}};
 
 // Maps the sample rate index and version fields from the frame header
 // to a sample rate.
 // Derived from: http://mpgedit.org/mpgedit/mpeg_format/MP3Format.html
 static const int kSampleRateMap[4][4] = {
-  // { V2.5, reserved, V2, V1 }
-  { 11025, 0, 22050, 44100 },
-  { 12000, 0, 24000, 48000 },
-  { 8000, 0, 16000, 32000 },
-  { 0, 0, 0, 0 }
-};
+    // { V2.5, reserved, V2, V1 }
+    {11025, 0, 22050, 44100},
+    {12000, 0, 24000, 48000},
+    {8000, 0, 16000, 32000},
+    {0, 0, 0, 0}};
 
 // Offset in bytes from the end of the MP3 header to "Xing" or "Info" tags which
 // indicate a frame is silent metadata frame.  Values taken from FFmpeg.
@@ -89,8 +79,7 @@ static const int kCodecDelay = 529;
 
 // static
 bool MPEG1AudioStreamParser::ParseHeader(
-    const scoped_refptr<MediaLog>& media_log,
-    const uint8_t* data,
+    const scoped_refptr<MediaLog>& media_log, const uint8_t* data,
     Header* header) {
   BitReader reader(data, kHeaderSize);
   int sync;
@@ -104,30 +93,21 @@ bool MPEG1AudioStreamParser::ParseHeader(
   int channel_mode;
   int other_flags;
 
-  if (!reader.ReadBits(11, &sync) ||
-      !reader.ReadBits(2, &version) ||
-      !reader.ReadBits(2, &layer) ||
-      !reader.ReadBits(1, &is_protected) ||
+  if (!reader.ReadBits(11, &sync) || !reader.ReadBits(2, &version) ||
+      !reader.ReadBits(2, &layer) || !reader.ReadBits(1, &is_protected) ||
       !reader.ReadBits(4, &bitrate_index) ||
       !reader.ReadBits(2, &sample_rate_index) ||
-      !reader.ReadBits(1, &has_padding) ||
-      !reader.ReadBits(1, &is_private) ||
-      !reader.ReadBits(2, &channel_mode) ||
-      !reader.ReadBits(6, &other_flags)) {
+      !reader.ReadBits(1, &has_padding) || !reader.ReadBits(1, &is_private) ||
+      !reader.ReadBits(2, &channel_mode) || !reader.ReadBits(6, &other_flags)) {
     return false;
   }
 
-  DVLOG(2) << "Header data :" << std::hex
-           << " sync 0x" << sync
-           << " version 0x" << version
-           << " layer 0x" << layer
-           << " bitrate_index 0x" << bitrate_index
-           << " sample_rate_index 0x" << sample_rate_index
+  DVLOG(2) << "Header data :" << std::hex << " sync 0x" << sync << " version 0x"
+           << version << " layer 0x" << layer << " bitrate_index 0x"
+           << bitrate_index << " sample_rate_index 0x" << sample_rate_index
            << " channel_mode 0x" << channel_mode;
 
-  if (sync != 0x7ff ||
-      version == kVersionReserved ||
-      layer == kLayerReserved ||
+  if (sync != 0x7ff || version == kVersionReserved || layer == kLayerReserved ||
       bitrate_index == kBitrateFree || bitrate_index == kBitrateBad ||
       sample_rate_index == kSampleRateReserved) {
     MEDIA_LOG(ERROR, media_log)
@@ -203,8 +183,7 @@ bool MPEG1AudioStreamParser::ParseHeader(
         ((samples_per_frame / 8) * bitrate * 1000) / frame_sample_rate;
   }
 
-  if (has_padding)
-    header->frame_size += (layer == kLayer1) ? 4 : 1;
+  if (has_padding) header->frame_size += (layer == kLayer1) ? 4 : 1;
 
   // Map Stereo(0), Joint Stereo(1), and Dual Channel (2) to
   // CHANNEL_LAYOUT_STEREO and Single Channel (3) to CHANNEL_LAYOUT_MONO.
@@ -224,38 +203,26 @@ MPEG1AudioStreamParser::MPEG1AudioStreamParser()
 MPEG1AudioStreamParser::~MPEG1AudioStreamParser() {}
 
 int MPEG1AudioStreamParser::ParseFrameHeader(
-    const uint8_t* data,
-    int size,
-    int* frame_size,
-    int* sample_rate,
-    ChannelLayout* channel_layout,
-    int* sample_count,
-    bool* metadata_frame,
+    const uint8_t* data, int size, int* frame_size, int* sample_rate,
+    ChannelLayout* channel_layout, int* sample_count, bool* metadata_frame,
     std::vector<uint8_t>* extra_data) const {
   DCHECK(data);
   DCHECK_GE(size, 0);
   DCHECK(frame_size);
 
-  if (size < kHeaderSize)
-    return 0;
+  if (size < kHeaderSize) return 0;
 
   Header header;
-  if (!ParseHeader(media_log(), data, &header))
-    return -1;
+  if (!ParseHeader(media_log(), data, &header)) return -1;
 
   *frame_size = header.frame_size;
-  if (sample_rate)
-    *sample_rate = header.sample_rate;
-  if (sample_count)
-    *sample_count = header.sample_count;
-  if (channel_layout)
-    *channel_layout = header.channel_layout;
-  if (metadata_frame)
-    *metadata_frame = false;
+  if (sample_rate) *sample_rate = header.sample_rate;
+  if (sample_count) *sample_count = header.sample_count;
+  if (channel_layout) *channel_layout = header.channel_layout;
+  if (metadata_frame) *metadata_frame = false;
 
   const int header_bytes_read = kHeaderSize;
-  if (header.layer != kLayer3)
-    return header_bytes_read;
+  if (header.layer != kLayer3) return header_bytes_read;
 
   // Check if this is a XING frame and tell the base parser to skip it if so.
   const int xing_header_index =
@@ -280,8 +247,7 @@ int MPEG1AudioStreamParser::ParseFrameHeader(
   // Check to see if the tag contains 'Xing' or 'Info'
   if (tag == 0x496e666f || tag == 0x58696e67) {
     MEDIA_LOG(DEBUG, media_log()) << "Skipping XING header.";
-    if (metadata_frame)
-      *metadata_frame = true;
+    if (metadata_frame) *metadata_frame = true;
     return header_bytes_read + reader.bits_read() / 8;
   }
 

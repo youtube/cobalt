@@ -16,8 +16,8 @@ using ::blink::WebMediaSource;
 namespace media {
 
 #define STATIC_ASSERT_MATCHING_STATUS_ENUM(webkit_name, chromium_name) \
-  static_assert(static_cast<int>(WebMediaSource::webkit_name) == \
-                static_cast<int>(ChunkDemuxer::chromium_name),  \
+  static_assert(static_cast<int>(WebMediaSource::webkit_name) ==       \
+                    static_cast<int>(ChunkDemuxer::chromium_name),     \
                 "mismatching status enum values: " #webkit_name)
 STATIC_ASSERT_MATCHING_STATUS_ENUM(AddStatusOk, kOk);
 STATIC_ASSERT_MATCHING_STATUS_ENUM(AddStatusNotSupported, kNotSupported);
@@ -33,8 +33,7 @@ WebMediaSourceImpl::WebMediaSourceImpl(ChunkDemuxer* demuxer,
 WebMediaSourceImpl::~WebMediaSourceImpl() {}
 
 WebMediaSource::AddStatus WebMediaSourceImpl::addSourceBuffer(
-    const blink::WebString& type,
-    const blink::WebString& codecs,
+    const blink::WebString& type, const blink::WebString& codecs,
     blink::WebSourceBuffer** source_buffer) {
   std::string id = base::GenerateGUID();
 
@@ -47,9 +46,7 @@ WebMediaSource::AddStatus WebMediaSourceImpl::addSourceBuffer(
   return result;
 }
 
-double WebMediaSourceImpl::duration() {
-  return demuxer_->GetDuration();
-}
+double WebMediaSourceImpl::duration() { return demuxer_->GetDuration(); }
 
 void WebMediaSourceImpl::setDuration(double new_duration) {
   DCHECK_GE(new_duration, 0);
@@ -74,8 +71,6 @@ void WebMediaSourceImpl::markEndOfStream(
   demuxer_->MarkEndOfStream(pipeline_status);
 }
 
-void WebMediaSourceImpl::unmarkEndOfStream() {
-  demuxer_->UnmarkEndOfStream();
-}
+void WebMediaSourceImpl::unmarkEndOfStream() { demuxer_->UnmarkEndOfStream(); }
 
 }  // namespace media

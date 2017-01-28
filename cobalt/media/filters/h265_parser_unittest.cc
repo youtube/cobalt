@@ -16,8 +16,8 @@ TEST(H265ParserTest, RawHevcStreamFileParsing) {
   const int num_nalus = 35;
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path))
-      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
+                                            << file_path.MaybeAsASCII();
 
   H265Parser parser;
   parser.SetStream(stream.data(), stream.length());

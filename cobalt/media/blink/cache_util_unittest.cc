@@ -41,9 +41,8 @@ static WebURLResponse CreateResponse(const GRFUTestCase& test) {
        base::SplitString(test.headers, "\n", base::KEEP_WHITESPACE,
                          base::SPLIT_WANT_NONEMPTY)) {
     size_t colon = line.find(": ");
-    response.addHTTPHeaderField(
-        WebString::fromUTF8(line.substr(0, colon)),
-        WebString::fromUTF8(line.substr(colon + 2)));
+    response.addHTTPHeaderField(WebString::fromUTF8(line.substr(0, colon)),
+                                WebString::fromUTF8(line.substr(colon + 2)));
   }
   return response;
 }
@@ -75,10 +74,9 @@ TEST(CacheUtilTest, GetReasonsForUncacheability) {
        "cache-control: no-cache\ncache-control: no-store", kNoCache | kNoStore},
   };
   for (size_t i = 0; i < arraysize(tests); ++i) {
-    SCOPED_TRACE(base::StringPrintf("case: %" PRIuS
-                                    ", version: %d, code: %d, headers: %s",
-                                    i, tests[i].version, tests[i].status_code,
-                                    tests[i].headers));
+    SCOPED_TRACE(base::StringPrintf(
+        "case: %" PRIuS ", version: %d, code: %d, headers: %s", i,
+        tests[i].version, tests[i].status_code, tests[i].headers));
     EXPECT_EQ(GetReasonsForUncacheability(CreateResponse(tests[i])),
               tests[i].expected_reasons);
   }

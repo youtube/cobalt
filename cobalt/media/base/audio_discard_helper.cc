@@ -33,8 +33,7 @@ AudioDiscardHelper::AudioDiscardHelper(int sample_rate, size_t decoder_delay)
   DCHECK_GT(sample_rate_, 0);
 }
 
-AudioDiscardHelper::~AudioDiscardHelper() {
-}
+AudioDiscardHelper::~AudioDiscardHelper() {}
 
 size_t AudioDiscardHelper::TimeDeltaToFrames(base::TimeDelta duration) const {
   DCHECK(duration >= base::TimeDelta());
@@ -220,8 +219,7 @@ bool AudioDiscardHelper::ProcessBuffers(
                << decoded_frames;
 
       // If everything would be discarded, indicate a new buffer is required.
-      if (end_frames_to_discard == decoded_frames)
-        return false;
+      if (end_frames_to_discard == decoded_frames) return false;
 
       decoded_buffer->TrimEnd(end_frames_to_discard);
     }

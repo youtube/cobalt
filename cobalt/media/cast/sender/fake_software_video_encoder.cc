@@ -32,8 +32,7 @@ void FakeSoftwareVideoEncoder::Initialize() {}
 
 void FakeSoftwareVideoEncoder::Encode(
     const scoped_refptr<media::VideoFrame>& video_frame,
-    const base::TimeTicks& reference_time,
-    SenderEncodedFrame* encoded_frame) {
+    const base::TimeTicks& reference_time, SenderEncodedFrame* encoded_frame) {
   DCHECK(encoded_frame);
 
   if (video_frame->visible_rect().size() != last_frame_size_) {
@@ -55,8 +54,7 @@ void FakeSoftwareVideoEncoder::Encode(
   encoded_frame->reference_time = reference_time;
 
   base::DictionaryValue values;
-  values.SetBoolean("key",
-                    encoded_frame->dependency == EncodedFrame::KEY);
+  values.SetBoolean("key", encoded_frame->dependency == EncodedFrame::KEY);
   values.SetInteger("ref", encoded_frame->referenced_frame_id.lower_32_bits());
   values.SetInteger("id", encoded_frame->frame_id.lower_32_bits());
   values.SetInteger("size", frame_size_);
@@ -77,9 +75,7 @@ void FakeSoftwareVideoEncoder::UpdateRates(uint32_t new_bitrate) {
   frame_size_ = new_bitrate / video_config_.max_frame_rate / 8;
 }
 
-void FakeSoftwareVideoEncoder::GenerateKeyFrame() {
-  next_frame_is_key_ = true;
-}
+void FakeSoftwareVideoEncoder::GenerateKeyFrame() { next_frame_is_key_ = true; }
 
 }  // namespace cast
 }  // namespace media

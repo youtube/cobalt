@@ -8,21 +8,13 @@
 
 namespace media {
 
-WebInbandTextTrackImpl::WebInbandTextTrackImpl(
-    Kind kind,
-    const blink::WebString& label,
-    const blink::WebString& language,
-    const blink::WebString& id)
-    : client_(NULL),
-      kind_(kind),
-      label_(label),
-      language_(language),
-      id_(id) {
-}
+WebInbandTextTrackImpl::WebInbandTextTrackImpl(Kind kind,
+                                               const blink::WebString& label,
+                                               const blink::WebString& language,
+                                               const blink::WebString& id)
+    : client_(NULL), kind_(kind), label_(label), language_(language), id_(id) {}
 
-WebInbandTextTrackImpl::~WebInbandTextTrackImpl() {
-  DCHECK(!client_);
-}
+WebInbandTextTrackImpl::~WebInbandTextTrackImpl() { DCHECK(!client_); }
 
 void WebInbandTextTrackImpl::setClient(
     blink::WebInbandTextTrackClient* client) {
@@ -37,16 +29,10 @@ WebInbandTextTrackImpl::Kind WebInbandTextTrackImpl::kind() const {
   return kind_;
 }
 
-blink::WebString WebInbandTextTrackImpl::label() const {
-  return label_;
-}
+blink::WebString WebInbandTextTrackImpl::label() const { return label_; }
 
-blink::WebString WebInbandTextTrackImpl::language() const {
-  return language_;
-}
+blink::WebString WebInbandTextTrackImpl::language() const { return language_; }
 
-blink::WebString WebInbandTextTrackImpl::id() const {
-  return id_;
-}
+blink::WebString WebInbandTextTrackImpl::id() const { return id_; }
 
 }  // namespace media

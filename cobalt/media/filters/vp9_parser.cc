@@ -40,12 +40,9 @@ bool Vp9FrameContext::IsValid() const {
   // probs should be in [1, 255] range.
   static_assert(sizeof(Vp9Prob) == 1,
                 "following checks assuming Vp9Prob is single byte");
-  if (memchr(tx_probs_8x8, 0, sizeof(tx_probs_8x8)))
-    return false;
-  if (memchr(tx_probs_16x16, 0, sizeof(tx_probs_16x16)))
-    return false;
-  if (memchr(tx_probs_32x32, 0, sizeof(tx_probs_32x32)))
-    return false;
+  if (memchr(tx_probs_8x8, 0, sizeof(tx_probs_8x8))) return false;
+  if (memchr(tx_probs_16x16, 0, sizeof(tx_probs_16x16))) return false;
+  if (memchr(tx_probs_32x32, 0, sizeof(tx_probs_32x32))) return false;
 
   for (auto& a : coef_probs) {
     for (auto& ai : a) {
@@ -54,52 +51,32 @@ bool Vp9FrameContext::IsValid() const {
           int max_l = (ak == aj[0]) ? 3 : 6;
           for (int l = 0; l < max_l; l++) {
             for (auto& x : ak[l]) {
-              if (x == 0)
-                return false;
+              if (x == 0) return false;
             }
           }
         }
       }
     }
   }
-  if (memchr(skip_prob, 0, sizeof(skip_prob)))
-    return false;
-  if (memchr(inter_mode_probs, 0, sizeof(inter_mode_probs)))
-    return false;
-  if (memchr(interp_filter_probs, 0, sizeof(interp_filter_probs)))
-    return false;
-  if (memchr(is_inter_prob, 0, sizeof(is_inter_prob)))
-    return false;
-  if (memchr(comp_mode_prob, 0, sizeof(comp_mode_prob)))
-    return false;
-  if (memchr(single_ref_prob, 0, sizeof(single_ref_prob)))
-    return false;
-  if (memchr(comp_ref_prob, 0, sizeof(comp_ref_prob)))
-    return false;
-  if (memchr(y_mode_probs, 0, sizeof(y_mode_probs)))
-    return false;
-  if (memchr(uv_mode_probs, 0, sizeof(uv_mode_probs)))
-    return false;
-  if (memchr(partition_probs, 0, sizeof(partition_probs)))
-    return false;
-  if (memchr(mv_joint_probs, 0, sizeof(mv_joint_probs)))
-    return false;
-  if (memchr(mv_sign_prob, 0, sizeof(mv_sign_prob)))
-    return false;
-  if (memchr(mv_class_probs, 0, sizeof(mv_class_probs)))
-    return false;
-  if (memchr(mv_class0_bit_prob, 0, sizeof(mv_class0_bit_prob)))
-    return false;
-  if (memchr(mv_bits_prob, 0, sizeof(mv_bits_prob)))
-    return false;
-  if (memchr(mv_class0_fr_probs, 0, sizeof(mv_class0_fr_probs)))
-    return false;
-  if (memchr(mv_fr_probs, 0, sizeof(mv_fr_probs)))
-    return false;
-  if (memchr(mv_class0_hp_prob, 0, sizeof(mv_class0_hp_prob)))
-    return false;
-  if (memchr(mv_hp_prob, 0, sizeof(mv_hp_prob)))
-    return false;
+  if (memchr(skip_prob, 0, sizeof(skip_prob))) return false;
+  if (memchr(inter_mode_probs, 0, sizeof(inter_mode_probs))) return false;
+  if (memchr(interp_filter_probs, 0, sizeof(interp_filter_probs))) return false;
+  if (memchr(is_inter_prob, 0, sizeof(is_inter_prob))) return false;
+  if (memchr(comp_mode_prob, 0, sizeof(comp_mode_prob))) return false;
+  if (memchr(single_ref_prob, 0, sizeof(single_ref_prob))) return false;
+  if (memchr(comp_ref_prob, 0, sizeof(comp_ref_prob))) return false;
+  if (memchr(y_mode_probs, 0, sizeof(y_mode_probs))) return false;
+  if (memchr(uv_mode_probs, 0, sizeof(uv_mode_probs))) return false;
+  if (memchr(partition_probs, 0, sizeof(partition_probs))) return false;
+  if (memchr(mv_joint_probs, 0, sizeof(mv_joint_probs))) return false;
+  if (memchr(mv_sign_prob, 0, sizeof(mv_sign_prob))) return false;
+  if (memchr(mv_class_probs, 0, sizeof(mv_class_probs))) return false;
+  if (memchr(mv_class0_bit_prob, 0, sizeof(mv_class0_bit_prob))) return false;
+  if (memchr(mv_bits_prob, 0, sizeof(mv_bits_prob))) return false;
+  if (memchr(mv_class0_fr_probs, 0, sizeof(mv_class0_fr_probs))) return false;
+  if (memchr(mv_fr_probs, 0, sizeof(mv_fr_probs))) return false;
+  if (memchr(mv_class0_hp_prob, 0, sizeof(mv_class0_hp_prob))) return false;
+  if (memchr(mv_hp_prob, 0, sizeof(mv_hp_prob))) return false;
 
   return true;
 }
@@ -171,8 +148,7 @@ void Vp9Parser::Context::Reset() {
   memset(&segmentation_, 0, sizeof(segmentation_));
   memset(&loop_filter_, 0, sizeof(loop_filter_));
   memset(&ref_slots_, 0, sizeof(ref_slots_));
-  for (auto& manager : frame_context_managers_)
-    manager.Reset();
+  for (auto& manager : frame_context_managers_) manager.Reset();
 }
 
 void Vp9Parser::Context::MarkFrameContextForUpdate(size_t frame_context_idx) {
@@ -181,8 +157,7 @@ void Vp9Parser::Context::MarkFrameContextForUpdate(size_t frame_context_idx) {
 }
 
 void Vp9Parser::Context::UpdateFrameContext(
-    size_t frame_context_idx,
-    const Vp9FrameContext& frame_context) {
+    size_t frame_context_idx, const Vp9FrameContext& frame_context) {
   DCHECK_LT(frame_context_idx, arraysize(frame_context_managers_));
   frame_context_managers_[frame_context_idx].Update(frame_context);
 }
@@ -194,8 +169,7 @@ const Vp9Parser::ReferenceSlot& Vp9Parser::Context::GetRefSlot(
 }
 
 void Vp9Parser::Context::UpdateRefSlot(
-    size_t ref_type,
-    const Vp9Parser::ReferenceSlot& ref_slot) {
+    size_t ref_type, const Vp9Parser::ReferenceSlot& ref_slot) {
   DCHECK_LT(ref_type, arraysize(ref_slots_));
   ref_slots_[ref_type] = ref_slot;
 }
@@ -233,8 +207,7 @@ Vp9Parser::Result Vp9Parser::ParseNextFrame(Vp9FrameHeader* fhdr) {
   if (!curr_frame_info_.IsValid()) {
     if (frames_.empty()) {
       // No frames to be decoded, if there is no more stream, request more.
-      if (!stream_)
-        return kEOStream;
+      if (!stream_) return kEOStream;
 
       // New stream to be parsed, parse it and fill frames_.
       frames_ = ParseSuperframe();
@@ -344,8 +317,7 @@ std::deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
   stream_ = NULL;
   bytes_left_ = 0;
 
-  if (bytes_left < 1)
-    return std::deque<FrameInfo>();
+  if (bytes_left < 1) return std::deque<FrameInfo>();
 
   // If this is a superframe, the last byte in the stream will contain the
   // superframe marker. If not, the whole buffer contains a single frame.
@@ -363,12 +335,10 @@ std::deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
   size_t mag = ((marker >> 3) & 0x3) + 1;
   off_t index_size = 2 + mag * num_frames;
 
-  if (bytes_left < index_size)
-    return std::deque<FrameInfo>();
+  if (bytes_left < index_size) return std::deque<FrameInfo>();
 
   const uint8_t* index_ptr = stream + bytes_left - index_size;
-  if (marker != *index_ptr)
-    return std::deque<FrameInfo>();
+  if (marker != *index_ptr) return std::deque<FrameInfo>();
 
   ++index_ptr;
   bytes_left -= index_size;
@@ -401,73 +371,51 @@ std::deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
 // 8.6.1
 const size_t QINDEX_RANGE = 256;
 const int16_t kDcQLookup[QINDEX_RANGE] = {
-  4,       8,    8,    9,   10,   11,   12,   12,
-  13,     14,   15,   16,   17,   18,   19,   19,
-  20,     21,   22,   23,   24,   25,   26,   26,
-  27,     28,   29,   30,   31,   32,   32,   33,
-  34,     35,   36,   37,   38,   38,   39,   40,
-  41,     42,   43,   43,   44,   45,   46,   47,
-  48,     48,   49,   50,   51,   52,   53,   53,
-  54,     55,   56,   57,   57,   58,   59,   60,
-  61,     62,   62,   63,   64,   65,   66,   66,
-  67,     68,   69,   70,   70,   71,   72,   73,
-  74,     74,   75,   76,   77,   78,   78,   79,
-  80,     81,   81,   82,   83,   84,   85,   85,
-  87,     88,   90,   92,   93,   95,   96,   98,
-  99,    101,  102,  104,  105,  107,  108,  110,
-  111,   113,  114,  116,  117,  118,  120,  121,
-  123,   125,  127,  129,  131,  134,  136,  138,
-  140,   142,  144,  146,  148,  150,  152,  154,
-  156,   158,  161,  164,  166,  169,  172,  174,
-  177,   180,  182,  185,  187,  190,  192,  195,
-  199,   202,  205,  208,  211,  214,  217,  220,
-  223,   226,  230,  233,  237,  240,  243,  247,
-  250,   253,  257,  261,  265,  269,  272,  276,
-  280,   284,  288,  292,  296,  300,  304,  309,
-  313,   317,  322,  326,  330,  335,  340,  344,
-  349,   354,  359,  364,  369,  374,  379,  384,
-  389,   395,  400,  406,  411,  417,  423,  429,
-  435,   441,  447,  454,  461,  467,  475,  482,
-  489,   497,  505,  513,  522,  530,  539,  549,
-  559,   569,  579,  590,  602,  614,  626,  640,
-  654,   668,  684,  700,  717,  736,  755,  775,
-  796,   819,  843,  869,  896,  925,  955,  988,
-  1022, 1058, 1098, 1139, 1184, 1232, 1282, 1336,
+    4,   8,    8,    9,    10,   11,   12,   12,   13,   14,  15,  16,  17,
+    18,  19,   19,   20,   21,   22,   23,   24,   25,   26,  26,  27,  28,
+    29,  30,   31,   32,   32,   33,   34,   35,   36,   37,  38,  38,  39,
+    40,  41,   42,   43,   43,   44,   45,   46,   47,   48,  48,  49,  50,
+    51,  52,   53,   53,   54,   55,   56,   57,   57,   58,  59,  60,  61,
+    62,  62,   63,   64,   65,   66,   66,   67,   68,   69,  70,  70,  71,
+    72,  73,   74,   74,   75,   76,   77,   78,   78,   79,  80,  81,  81,
+    82,  83,   84,   85,   85,   87,   88,   90,   92,   93,  95,  96,  98,
+    99,  101,  102,  104,  105,  107,  108,  110,  111,  113, 114, 116, 117,
+    118, 120,  121,  123,  125,  127,  129,  131,  134,  136, 138, 140, 142,
+    144, 146,  148,  150,  152,  154,  156,  158,  161,  164, 166, 169, 172,
+    174, 177,  180,  182,  185,  187,  190,  192,  195,  199, 202, 205, 208,
+    211, 214,  217,  220,  223,  226,  230,  233,  237,  240, 243, 247, 250,
+    253, 257,  261,  265,  269,  272,  276,  280,  284,  288, 292, 296, 300,
+    304, 309,  313,  317,  322,  326,  330,  335,  340,  344, 349, 354, 359,
+    364, 369,  374,  379,  384,  389,  395,  400,  406,  411, 417, 423, 429,
+    435, 441,  447,  454,  461,  467,  475,  482,  489,  497, 505, 513, 522,
+    530, 539,  549,  559,  569,  579,  590,  602,  614,  626, 640, 654, 668,
+    684, 700,  717,  736,  755,  775,  796,  819,  843,  869, 896, 925, 955,
+    988, 1022, 1058, 1098, 1139, 1184, 1232, 1282, 1336,
 };
 
 const int16_t kAcQLookup[QINDEX_RANGE] = {
-  4,       8,    9,   10,   11,   12,   13,   14,
-  15,     16,   17,   18,   19,   20,   21,   22,
-  23,     24,   25,   26,   27,   28,   29,   30,
-  31,     32,   33,   34,   35,   36,   37,   38,
-  39,     40,   41,   42,   43,   44,   45,   46,
-  47,     48,   49,   50,   51,   52,   53,   54,
-  55,     56,   57,   58,   59,   60,   61,   62,
-  63,     64,   65,   66,   67,   68,   69,   70,
-  71,     72,   73,   74,   75,   76,   77,   78,
-  79,     80,   81,   82,   83,   84,   85,   86,
-  87,     88,   89,   90,   91,   92,   93,   94,
-  95,     96,   97,   98,   99,  100,  101,  102,
-  104,   106,  108,  110,  112,  114,  116,  118,
-  120,   122,  124,  126,  128,  130,  132,  134,
-  136,   138,  140,  142,  144,  146,  148,  150,
-  152,   155,  158,  161,  164,  167,  170,  173,
-  176,   179,  182,  185,  188,  191,  194,  197,
-  200,   203,  207,  211,  215,  219,  223,  227,
-  231,   235,  239,  243,  247,  251,  255,  260,
-  265,   270,  275,  280,  285,  290,  295,  300,
-  305,   311,  317,  323,  329,  335,  341,  347,
-  353,   359,  366,  373,  380,  387,  394,  401,
-  408,   416,  424,  432,  440,  448,  456,  465,
-  474,   483,  492,  501,  510,  520,  530,  540,
-  550,   560,  571,  582,  593,  604,  615,  627,
-  639,   651,  663,  676,  689,  702,  715,  729,
-  743,   757,  771,  786,  801,  816,  832,  848,
-  864,   881,  898,  915,  933,  951,  969,  988,
-  1007, 1026, 1046, 1066, 1087, 1108, 1129, 1151,
-  1173, 1196, 1219, 1243, 1267, 1292, 1317, 1343,
-  1369, 1396, 1423, 1451, 1479, 1508, 1537, 1567,
-  1597, 1628, 1660, 1692, 1725, 1759, 1793, 1828,
+    4,    8,    9,    10,   11,   12,   13,   14,   15,   16,   17,   18,
+    19,   20,   21,   22,   23,   24,   25,   26,   27,   28,   29,   30,
+    31,   32,   33,   34,   35,   36,   37,   38,   39,   40,   41,   42,
+    43,   44,   45,   46,   47,   48,   49,   50,   51,   52,   53,   54,
+    55,   56,   57,   58,   59,   60,   61,   62,   63,   64,   65,   66,
+    67,   68,   69,   70,   71,   72,   73,   74,   75,   76,   77,   78,
+    79,   80,   81,   82,   83,   84,   85,   86,   87,   88,   89,   90,
+    91,   92,   93,   94,   95,   96,   97,   98,   99,   100,  101,  102,
+    104,  106,  108,  110,  112,  114,  116,  118,  120,  122,  124,  126,
+    128,  130,  132,  134,  136,  138,  140,  142,  144,  146,  148,  150,
+    152,  155,  158,  161,  164,  167,  170,  173,  176,  179,  182,  185,
+    188,  191,  194,  197,  200,  203,  207,  211,  215,  219,  223,  227,
+    231,  235,  239,  243,  247,  251,  255,  260,  265,  270,  275,  280,
+    285,  290,  295,  300,  305,  311,  317,  323,  329,  335,  341,  347,
+    353,  359,  366,  373,  380,  387,  394,  401,  408,  416,  424,  432,
+    440,  448,  456,  465,  474,  483,  492,  501,  510,  520,  530,  540,
+    550,  560,  571,  582,  593,  604,  615,  627,  639,  651,  663,  676,
+    689,  702,  715,  729,  743,  757,  771,  786,  801,  816,  832,  848,
+    864,  881,  898,  915,  933,  951,  969,  988,  1007, 1026, 1046, 1066,
+    1087, 1108, 1129, 1151, 1173, 1196, 1219, 1243, 1267, 1292, 1317, 1343,
+    1369, 1396, 1423, 1451, 1479, 1508, 1537, 1567, 1597, 1628, 1660, 1692,
+    1725, 1759, 1793, 1828,
 };
 
 static_assert(arraysize(kDcQLookup) == arraysize(kAcQLookup),
@@ -536,8 +484,7 @@ static int ClampLf(int lf) {
 // 8.8.1 Loop filter frame init process
 void Vp9Parser::SetupLoopFilter() {
   Vp9LoopFilterParams& loop_filter = context_.loop_filter_;
-  if (!loop_filter.level)
-    return;
+  if (!loop_filter.level) return;
 
   int scale = loop_filter.level < 32 ? 1 : 2;
 

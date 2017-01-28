@@ -26,7 +26,8 @@ bool BufferReader::Read1(uint8_t* v) {
 }
 
 // Internal implementation of multi-byte reads
-template<typename T> bool BufferReader::Read(T* v) {
+template <typename T>
+bool BufferReader::Read(T* v) {
   RCHECK(HasBytes(sizeof(T)));
 
   T tmp = 0;
@@ -38,24 +39,12 @@ template<typename T> bool BufferReader::Read(T* v) {
   return true;
 }
 
-bool BufferReader::Read2(uint16_t* v) {
-  return Read(v);
-}
-bool BufferReader::Read2s(int16_t* v) {
-  return Read(v);
-}
-bool BufferReader::Read4(uint32_t* v) {
-  return Read(v);
-}
-bool BufferReader::Read4s(int32_t* v) {
-  return Read(v);
-}
-bool BufferReader::Read8(uint64_t* v) {
-  return Read(v);
-}
-bool BufferReader::Read8s(int64_t* v) {
-  return Read(v);
-}
+bool BufferReader::Read2(uint16_t* v) { return Read(v); }
+bool BufferReader::Read2s(int16_t* v) { return Read(v); }
+bool BufferReader::Read4(uint32_t* v) { return Read(v); }
+bool BufferReader::Read4s(int32_t* v) { return Read(v); }
+bool BufferReader::Read8(uint64_t* v) { return Read(v); }
+bool BufferReader::Read8s(int64_t* v) { return Read(v); }
 
 bool BufferReader::ReadFourCC(FourCC* v) {
   return Read4(reinterpret_cast<uint32_t*>(v));
@@ -90,10 +79,8 @@ bool BufferReader::Read4sInto8s(int64_t* v) {
   return true;
 }
 
-BoxReader::BoxReader(const uint8_t* buf,
-                     const int size,
-                     const scoped_refptr<MediaLog>& media_log,
-                     bool is_EOS)
+BoxReader::BoxReader(const uint8_t* buf, const int size,
+                     const scoped_refptr<MediaLog>& media_log, bool is_EOS)
     : BufferReader(buf, size),
       media_log_(media_log),
       type_(FOURCC_NULL),
@@ -104,21 +91,19 @@ BoxReader::BoxReader(const uint8_t* buf,
 
 BoxReader::~BoxReader() {
   if (scanned_ && !children_.empty()) {
-    for (ChildMap::iterator itr = children_.begin();
-         itr != children_.end(); ++itr) {
+    for (ChildMap::iterator itr = children_.begin(); itr != children_.end();
+         ++itr) {
       DVLOG(1) << "Skipping unknown box: " << FourCCToString(itr->first);
     }
   }
 }
 
 // static
-BoxReader* BoxReader::ReadTopLevelBox(const uint8_t* buf,
-                                      const int buf_size,
+BoxReader* BoxReader::ReadTopLevelBox(const uint8_t* buf, const int buf_size,
                                       const scoped_refptr<MediaLog>& media_log,
                                       bool* err) {
   scoped_ptr<BoxReader> reader(new BoxReader(buf, buf_size, media_log, false));
-  if (!reader->ReadHeader(err))
-    return NULL;
+  if (!reader->ReadHeader(err)) return NULL;
 
   if (!IsValidTopLevelBox(reader->type(), media_log)) {
     *err = true;
@@ -132,12 +117,9 @@ BoxReader* BoxReader::ReadTopLevelBox(const uint8_t* buf,
 }
 
 // static
-bool BoxReader::StartTopLevelBox(const uint8_t* buf,
-                                 const int buf_size,
+bool BoxReader::StartTopLevelBox(const uint8_t* buf, const int buf_size,
                                  const scoped_refptr<MediaLog>& media_log,
-                                 FourCC* type,
-                                 int* box_size,
-                                 bool* err) {
+                                 FourCC* type, int* box_size, bool* err) {
   BoxReader reader(buf, buf_size, media_log, false);
   if (!reader.ReadHeader(err)) return false;
   if (!IsValidTopLevelBox(reader.type(), media_log)) {

@@ -32,20 +32,17 @@ void AudioBufferQueue::Append(const scoped_refptr<AudioBuffer>& buffer_in) {
   CHECK_GT(frames_, 0);  // make sure it doesn't overflow.
 }
 
-int AudioBufferQueue::ReadFrames(int frames,
-                                 int dest_frame_offset,
+int AudioBufferQueue::ReadFrames(int frames, int dest_frame_offset,
                                  AudioBus* dest) {
   DCHECK_GE(dest->frames(), frames + dest_frame_offset);
   return InternalRead(frames, true, 0, dest_frame_offset, dest);
 }
 
-int AudioBufferQueue::PeekFrames(int frames,
-                                 int source_frame_offset,
-                                 int dest_frame_offset,
-                                 AudioBus* dest) {
+int AudioBufferQueue::PeekFrames(int frames, int source_frame_offset,
+                                 int dest_frame_offset, AudioBus* dest) {
   DCHECK_GE(dest->frames(), frames);
-  return InternalRead(
-      frames, false, source_frame_offset, dest_frame_offset, dest);
+  return InternalRead(frames, false, source_frame_offset, dest_frame_offset,
+                      dest);
 }
 
 void AudioBufferQueue::SeekFrames(int frames) {
@@ -55,11 +52,9 @@ void AudioBufferQueue::SeekFrames(int frames) {
   DCHECK_EQ(taken, frames);
 }
 
-int AudioBufferQueue::InternalRead(int frames,
-                                   bool advance_position,
+int AudioBufferQueue::InternalRead(int frames, bool advance_position,
                                    int source_frame_offset,
-                                   int dest_frame_offset,
-                                   AudioBus* dest) {
+                                   int dest_frame_offset, AudioBus* dest) {
   // Counts how many frames are actually read from the buffer queue.
   int taken = 0;
   BufferQueue::iterator current_buffer = current_buffer_;
@@ -69,8 +64,7 @@ int AudioBufferQueue::InternalRead(int frames,
   while (taken < frames) {
     // |current_buffer| is valid since the first time this buffer is appended
     // with data. Make sure there is data to be processed.
-    if (current_buffer == buffers_.end())
-      break;
+    if (current_buffer == buffers_.end()) break;
 
     scoped_refptr<AudioBuffer> buffer = *current_buffer;
 
@@ -91,8 +85,8 @@ int AudioBufferQueue::InternalRead(int frames,
 
       // if |dest| is NULL, there's no need to copy.
       if (dest) {
-        buffer->ReadFrames(
-            copied, current_buffer_offset, dest_frame_offset + taken, dest);
+        buffer->ReadFrames(copied, current_buffer_offset,
+                           dest_frame_offset + taken, dest);
       }
 
       // Increase total number of frames copied, which regulates when to end
@@ -108,8 +102,7 @@ int AudioBufferQueue::InternalRead(int frames,
     if (current_buffer_offset == buffer->frame_count()) {
       // If we are at the last buffer, no more data to be copied, so stop.
       BufferQueue::iterator next = current_buffer + 1;
-      if (next == buffers_.end())
-        break;
+      if (next == buffers_.end()) break;
 
       // Advances the iterator.
       current_buffer = next;

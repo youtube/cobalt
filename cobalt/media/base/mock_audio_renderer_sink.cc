@@ -14,25 +14,19 @@ MockAudioRendererSink::MockAudioRendererSink(OutputDeviceStatus device_status)
 MockAudioRendererSink::MockAudioRendererSink(const std::string& device_id,
                                              OutputDeviceStatus device_status)
     : MockAudioRendererSink(
-          device_id,
-          device_status,
-          AudioParameters(AudioParameters::AUDIO_FAKE,
-                          CHANNEL_LAYOUT_STEREO,
-                          AudioParameters::kTelephoneSampleRate,
-                          16,
-                          1)) {}
+          device_id, device_status,
+          AudioParameters(AudioParameters::AUDIO_FAKE, CHANNEL_LAYOUT_STEREO,
+                          AudioParameters::kTelephoneSampleRate, 16, 1)) {}
 
 MockAudioRendererSink::MockAudioRendererSink(
-    const std::string& device_id,
-    OutputDeviceStatus device_status,
+    const std::string& device_id, OutputDeviceStatus device_status,
     const AudioParameters& device_output_params)
     : output_device_info_(device_id, device_status, device_output_params) {}
 
 MockAudioRendererSink::~MockAudioRendererSink() {}
 
 void MockAudioRendererSink::SwitchOutputDevice(
-    const std::string& device_id,
-    const url::Origin& security_origin,
+    const std::string& device_id, const url::Origin& security_origin,
     const OutputDeviceStatusCB& callback) {
   // NB: output device won't be changed, since it's not required by any tests
   // now.

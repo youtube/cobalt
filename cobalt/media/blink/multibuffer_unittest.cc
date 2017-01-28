@@ -34,12 +34,10 @@ std::vector<FakeMultiBufferDataProvider*> writers;
 
 class FakeMultiBufferDataProvider : public MultiBuffer::DataProvider {
  public:
-  FakeMultiBufferDataProvider(MultiBufferBlockId pos,
-                              size_t file_size,
+  FakeMultiBufferDataProvider(MultiBufferBlockId pos, size_t file_size,
                               int max_blocks_after_defer,
                               bool must_read_whole_file,
-                              MultiBuffer* multibuffer,
-                              TestRandom* rnd)
+                              MultiBuffer* multibuffer, TestRandom* rnd)
       : pos_(pos),
         blocks_until_deferred_(1 << 30),
         max_blocks_after_defer_(max_blocks_after_defer),
@@ -92,8 +90,7 @@ class FakeMultiBufferDataProvider : public MultiBuffer::DataProvider {
   }
 
   bool Advance() {
-    if (blocks_until_deferred_ == 0)
-      return false;
+    if (blocks_until_deferred_ == 0) return false;
     --blocks_until_deferred_;
 
     bool ret = true;
@@ -101,8 +98,7 @@ class FakeMultiBufferDataProvider : public MultiBuffer::DataProvider {
     size_t x = 0;
     size_t byte_pos = (fifo_.size() + pos_) * kBlockSize;
     for (x = 0; x < kBlockSize; x++, byte_pos++) {
-      if (byte_pos >= file_size_)
-        break;
+      if (byte_pos >= file_size_) break;
       block->writable_data()[x] =
           static_cast<uint8_t>((byte_pos * 15485863) >> 16);
     }
@@ -452,26 +448,21 @@ TEST_F(MultiBufferTest, LRUTestExpirationTest) {
 
 class ReadHelper {
  public:
-  ReadHelper(size_t end,
-             size_t max_read_size,
-             MultiBuffer* multibuffer,
+  ReadHelper(size_t end, size_t max_read_size, MultiBuffer* multibuffer,
              TestRandom* rnd)
       : pos_(0),
         end_(end),
         max_read_size_(max_read_size),
         read_size_(0),
         rnd_(rnd),
-        reader_(multibuffer,
-                pos_,
-                end_,
+        reader_(multibuffer, pos_, end_,
                 base::Callback<void(int64_t, int64_t)>()) {
     reader_.SetPinRange(2000, 5000);
     reader_.SetPreload(1000, 1000);
   }
 
   bool Read() {
-    if (read_size_ == 0)
-      return true;
+    if (read_size_ == 0) return true;
     unsigned char buffer[4096];
     CHECK_LE(read_size_, static_cast<int64_t>(sizeof(buffer)));
     CHECK_EQ(pos_, reader_.Tell());
@@ -526,12 +517,10 @@ TEST_F(MultiBufferTest, RandomTest) {
   for (int i = 0; i < 100; i++) {
     for (int j = 0; j < 100; j++) {
       if (rnd_.Rand() & 1) {
-        if (!writers.empty())
-          Advance();
+        if (!writers.empty()) Advance();
       } else {
         size_t j = rnd_.Rand() % read_helpers.size();
-        if (rnd_.Rand() % 100 < 3)
-          read_helpers[j]->Seek();
+        if (rnd_.Rand() % 100 < 3) read_helpers[j]->Seek();
         read_helpers[j]->StartRead();
       }
     }
@@ -557,12 +546,10 @@ TEST_F(MultiBufferTest, RandomTest_RangeSupported) {
   for (int i = 0; i < 100; i++) {
     for (int j = 0; j < 100; j++) {
       if (rnd_.Rand() & 1) {
-        if (!writers.empty())
-          Advance();
+        if (!writers.empty()) Advance();
       } else {
         size_t j = rnd_.Rand() % read_helpers.size();
-        if (rnd_.Rand() % 100 < 3)
-          read_helpers[j]->Seek();
+        if (rnd_.Rand() % 100 < 3) read_helpers[j]->Seek();
         read_helpers[j]->StartRead();
       }
     }

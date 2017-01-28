@@ -35,9 +35,7 @@ namespace {
 const int kPacketSize = 1500;
 const int kPlayoutDelayMillis = 100;
 
-FrameId GetFirstTestFrameId() {
-  return FrameId::first() + 1234;
-}
+FrameId GetFirstTestFrameId() { return FrameId::first() + 1234; }
 
 class FakeFrameClient {
  public:
@@ -102,8 +100,8 @@ class FrameReceiverTest : public ::testing::Test {
     config_ = GetDefaultAudioReceiverConfig();
     config_.rtp_max_delay_ms = kPlayoutDelayMillis;
 
-    receiver_.reset(new FrameReceiver(
-        cast_environment_, config_, AUDIO_EVENT, &mock_transport_));
+    receiver_.reset(new FrameReceiver(cast_environment_, config_, AUDIO_EVENT,
+                                      &mock_transport_));
   }
 
   void CreateFrameReceiverOfVideo() {
@@ -113,14 +111,13 @@ class FrameReceiverTest : public ::testing::Test {
     // doesn't have to account for rounding errors.
     config_.target_frame_rate = 25;
 
-    receiver_.reset(new FrameReceiver(
-        cast_environment_, config_, VIDEO_EVENT, &mock_transport_));
+    receiver_.reset(new FrameReceiver(cast_environment_, config_, VIDEO_EVENT,
+                                      &mock_transport_));
   }
 
   void FeedOneFrameIntoReceiver() {
     // Note: For testing purposes, a frame consists of only a single packet.
-    receiver_->ProcessParsedPacket(
-        rtp_header_, &payload_[0], payload_.size());
+    receiver_->ProcessParsedPacket(rtp_header_, &payload_[0], payload_.size());
   }
 
   void FeedLipSyncInfoIntoReceiver() {
@@ -198,9 +195,8 @@ TEST_F(FrameReceiverTest, ReceivesOneFrame) {
   task_runner_->RunTasks();
 
   // Enqueue a request for a frame.
-  receiver_->RequestEncodedFrame(
-      base::Bind(&FakeFrameClient::DeliverEncodedFrame,
-                 base::Unretained(&frame_client_)));
+  receiver_->RequestEncodedFrame(base::Bind(
+      &FakeFrameClient::DeliverEncodedFrame, base::Unretained(&frame_client_)));
 
   // The request should not be satisfied since no packets have been received.
   task_runner_->RunTasks();
@@ -256,9 +252,8 @@ TEST_F(FrameReceiverTest, ReceivesFramesSkippingWhenAppropriate) {
   const base::TimeTicks first_frame_capture_time = testing_clock_->NowTicks();
 
   // Enqueue a request for a frame.
-  const ReceiveEncodedFrameCallback frame_encoded_callback =
-      base::Bind(&FakeFrameClient::DeliverEncodedFrame,
-                 base::Unretained(&frame_client_));
+  const ReceiveEncodedFrameCallback frame_encoded_callback = base::Bind(
+      &FakeFrameClient::DeliverEncodedFrame, base::Unretained(&frame_client_));
   receiver_->RequestEncodedFrame(frame_encoded_callback);
   task_runner_->RunTasks();
   EXPECT_EQ(0, frame_client_.number_times_called());
@@ -313,7 +308,7 @@ TEST_F(FrameReceiverTest, ReceivesFramesSkippingWhenAppropriate) {
                                   first_frame_capture_time +
                                       3 * time_advance_per_frame +
                                       target_playout_delay);
-  FeedOneFrameIntoReceiver();    // Frame 4
+  FeedOneFrameIntoReceiver();  // Frame 4
   task_runner_->RunTasks();
   EXPECT_EQ(3, frame_client_.number_times_called());
 
@@ -370,9 +365,8 @@ TEST_F(FrameReceiverTest, ReceivesFramesRefusingToSkipAny) {
   const base::TimeTicks first_frame_capture_time = testing_clock_->NowTicks();
 
   // Enqueue a request for a frame.
-  const ReceiveEncodedFrameCallback frame_encoded_callback =
-      base::Bind(&FakeFrameClient::DeliverEncodedFrame,
-                 base::Unretained(&frame_client_));
+  const ReceiveEncodedFrameCallback frame_encoded_callback = base::Bind(
+      &FakeFrameClient::DeliverEncodedFrame, base::Unretained(&frame_client_));
   receiver_->RequestEncodedFrame(frame_encoded_callback);
   task_runner_->RunTasks();
   EXPECT_EQ(0, frame_client_.number_times_called());
@@ -427,7 +421,7 @@ TEST_F(FrameReceiverTest, ReceivesFramesRefusingToSkipAny) {
                                   first_frame_capture_time +
                                       2 * time_advance_per_frame +
                                       target_playout_delay);
-  --rtp_header_.frame_id;  // "Frame 2"
+  --rtp_header_.frame_id;            // "Frame 2"
   --rtp_header_.reference_frame_id;  // "Frame 1"
   rtp_header_.rtp_timestamp -= rtp_advance_per_frame;
   FeedOneFrameIntoReceiver();  // Frame 2

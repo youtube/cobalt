@@ -64,8 +64,7 @@ scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
 
 int SandboxMain(int argc, char** argv) {
   if (argc != 2 && argc != 3) {
-    LOG(ERROR) << "Usage: " << argv[0]
-               << " [--null_audio_streamer] <url|path>";
+    LOG(ERROR) << "Usage: " << argv[0] << " [--null_audio_streamer] <url|path>";
     return 1;
   }
   MediaSandbox media_sandbox(

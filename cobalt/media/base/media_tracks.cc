@@ -16,10 +16,8 @@ MediaTracks::MediaTracks() {}
 MediaTracks::~MediaTracks() {}
 
 MediaTrack* MediaTracks::AddAudioTrack(
-    const AudioDecoderConfig& config,
-    StreamParser::TrackId bytestream_track_id,
-    const std::string& kind,
-    const std::string& label,
+    const AudioDecoderConfig& config, StreamParser::TrackId bytestream_track_id,
+    const std::string& kind, const std::string& label,
     const std::string& language) {
   DCHECK(config.IsValidConfig());
   CHECK(audio_configs_.find(bytestream_track_id) == audio_configs_.end());
@@ -32,10 +30,8 @@ MediaTrack* MediaTracks::AddAudioTrack(
 }
 
 MediaTrack* MediaTracks::AddVideoTrack(
-    const VideoDecoderConfig& config,
-    StreamParser::TrackId bytestream_track_id,
-    const std::string& kind,
-    const std::string& label,
+    const VideoDecoderConfig& config, StreamParser::TrackId bytestream_track_id,
+    const std::string& kind, const std::string& label,
     const std::string& language) {
   DCHECK(config.IsValidConfig());
   CHECK(video_configs_.find(bytestream_track_id) == video_configs_.end());
@@ -51,8 +47,7 @@ const AudioDecoderConfig& MediaTracks::getAudioConfig(
     StreamParser::TrackId bytestream_track_id) const {
   std::map<StreamParser::TrackId, AudioDecoderConfig>::const_iterator it =
       audio_configs_.find(bytestream_track_id);
-  if (it != audio_configs_.end())
-    return it->second;
+  if (it != audio_configs_.end()) return it->second;
   static AudioDecoderConfig invalidConfig;
   return invalidConfig;
 }
@@ -61,8 +56,7 @@ const VideoDecoderConfig& MediaTracks::getVideoConfig(
     StreamParser::TrackId bytestream_track_id) const {
   std::map<StreamParser::TrackId, VideoDecoderConfig>::const_iterator it =
       video_configs_.find(bytestream_track_id);
-  if (it != video_configs_.end())
-    return it->second;
+  if (it != video_configs_.end()) return it->second;
   static VideoDecoderConfig invalidConfig;
   return invalidConfig;
 }

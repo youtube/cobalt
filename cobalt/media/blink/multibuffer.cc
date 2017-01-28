@@ -21,8 +21,7 @@ enum {
 // Returns the block ID closest to (but less or equal than) |pos| from |index|.
 template <class T>
 static MultiBuffer::BlockId ClosestPreviousEntry(
-    const std::map<MultiBuffer::BlockId, T>& index,
-    MultiBuffer::BlockId pos) {
+    const std::map<MultiBuffer::BlockId, T>& index, MultiBuffer::BlockId pos) {
   auto i = index.upper_bound(pos);
   DCHECK(i == index.end() || i->first > pos);
   if (i == index.begin()) {
@@ -37,8 +36,7 @@ static MultiBuffer::BlockId ClosestPreviousEntry(
 // from |index|.
 template <class T>
 static MultiBuffer::BlockId ClosestNextEntry(
-    const std::map<MultiBuffer::BlockId, T>& index,
-    MultiBuffer::BlockId pos) {
+    const std::map<MultiBuffer::BlockId, T>& index, MultiBuffer::BlockId pos) {
   auto i = index.lower_bound(pos);
   if (i == index.end()) {
     return std::numeric_limits<MultiBufferBlockId>::max();
@@ -139,9 +137,7 @@ void MultiBuffer::GlobalLRU::Prune(int64_t max_to_free) {
   }
 }
 
-int64_t MultiBuffer::GlobalLRU::Size() const {
-  return lru_.Size();
-}
+int64_t MultiBuffer::GlobalLRU::Size() const { return lru_.Size(); }
 
 //
 // MultiBuffer
@@ -205,8 +201,7 @@ void MultiBuffer::AddReader(const BlockId& pos, Reader* reader) {
 
 void MultiBuffer::RemoveReader(const BlockId& pos, Reader* reader) {
   auto i = readers_.find(pos);
-  if (i == readers_.end())
-    return;
+  if (i == readers_.end()) return;
   i->second.erase(reader);
   if (i->second.empty()) {
     readers_.erase(i);
@@ -232,8 +227,7 @@ bool MultiBuffer::Contains(const BlockId& pos) const {
 
 MultiBufferBlockId MultiBuffer::FindNextUnavailable(const BlockId& pos) const {
   auto i = present_.find(pos);
-  if (i.value())
-    return i.interval_end();
+  if (i.value()) return i.interval_end();
   return pos;
 }
 
@@ -293,8 +287,7 @@ void MultiBuffer::ReleaseBlocks(const std::vector<MultiBufferBlockId>& blocks) {
       }
     }
   }
-  if (data_.empty())
-    OnEmpty();
+  if (data_.empty()) OnEmpty();
 }
 
 void MultiBuffer::OnEmpty() {}
@@ -347,20 +340,16 @@ MultiBuffer::ProviderState MultiBuffer::SuggestProviderState(
 
 bool MultiBuffer::ProviderCollision(const BlockId& id) const {
   // If there is a writer at the same location, it is always a collision.
-  if (writer_index_.find(id) != writer_index_.end())
-    return true;
+  if (writer_index_.find(id) != writer_index_.end()) return true;
 
   // Data already exists at providers current position,
   // if the URL supports ranges, we can kill the data provider.
-  if (RangeSupported() && Contains(id))
-    return true;
+  if (RangeSupported() && Contains(id)) return true;
 
   return false;
 }
 
-void MultiBuffer::Prune(size_t max_to_free) {
-  lru_->Prune(max_to_free);
-}
+void MultiBuffer::Prune(size_t max_to_free) { lru_->Prune(max_to_free); }
 
 void MultiBuffer::OnDataProviderEvent(DataProvider* provider_tmp) {
   std::unique_ptr<DataProvider> provider(RemoveProvider(provider_tmp));
@@ -378,8 +367,7 @@ void MultiBuffer::OnDataProviderEvent(DataProvider* provider_tmp) {
     scoped_refptr<DataBuffer> data = provider->Read();
     data_[pos] = data;
     eof = data->end_of_stream();
-    if (!pinned_[pos])
-      lru_->Use(this, pos);
+    if (!pinned_[pos]) lru_->Use(this, pos);
     ++pos;
   }
   int64_t blocks_after = data_.size();
@@ -449,8 +437,7 @@ void MultiBuffer::MergeFrom(MultiBuffer* other) {
   }
 }
 
-void MultiBuffer::PinRange(const BlockId& from,
-                           const BlockId& to,
+void MultiBuffer::PinRange(const BlockId& from, const BlockId& to,
                            int32_t how_much) {
   DCHECK_NE(how_much, 0);
   DVLOG(3) << "PINRANGE [" << from << " - " << to << ") += " << how_much;
@@ -463,8 +450,7 @@ void MultiBuffer::PinRange(const BlockId& from,
   // We iterate *backwards* through the ranges, with the idea that data in a
   // continous range should be freed from the end first.
 
-  if (data_.empty())
-    return;
+  if (data_.empty()) return;
 
   auto range = pinned_.find(to - 1);
   while (1) {
@@ -473,20 +459,17 @@ void MultiBuffer::PinRange(const BlockId& from,
       bool pin = range.value() == how_much;
       Interval<BlockId> transition_range =
           modified_range.Intersect(range.interval());
-      if (transition_range.Empty())
-        break;
+      if (transition_range.Empty()) break;
 
       // For each range that has transitioned to/from a pinned state,
       // we iterate over the corresponding ranges in |present_| to find
       // the blocks that are actually in the multibuffer.
       for (auto present_block_range = present_.find(transition_range.end - 1);
            present_block_range != present_.begin(); --present_block_range) {
-        if (!present_block_range.value())
-          continue;
+        if (!present_block_range.value()) continue;
         Interval<BlockId> present_transitioned_range =
             transition_range.Intersect(present_block_range.interval());
-        if (present_transitioned_range.Empty())
-          break;
+        if (present_transitioned_range.Empty()) break;
         for (BlockId block = present_transitioned_range.end - 1;
              block >= present_transitioned_range.begin; --block) {
           DCHECK_GE(block, 0);
@@ -501,8 +484,7 @@ void MultiBuffer::PinRange(const BlockId& from,
         }
       }
     }
-    if (range == pinned_.begin())
-      break;
+    if (range == pinned_.begin()) break;
     --range;
   }
 }
@@ -524,8 +506,7 @@ void MultiBuffer::IncrementMaxSize(int32_t size) {
 
 int64_t MultiBuffer::UncommittedBytesAt(const MultiBuffer::BlockId& block) {
   auto i = writer_index_.find(block);
-  if (writer_index_.end() == i)
-    return 0;
+  if (writer_index_.end() == i) return 0;
   return i->second->AvailableBytes();
 }
 

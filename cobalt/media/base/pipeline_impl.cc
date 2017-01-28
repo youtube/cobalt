@@ -41,8 +41,7 @@ class PipelineImpl::RendererWrapper : public DemuxerHost,
                   scoped_refptr<MediaLog> media_log);
   ~RendererWrapper() final;
 
-  void Start(Demuxer* demuxer,
-             std::unique_ptr<Renderer> renderer,
+  void Start(Demuxer* demuxer, std::unique_ptr<Renderer> renderer,
              std::unique_ptr<TextRenderer> text_renderer,
              base::WeakPtr<PipelineImpl> weak_pipeline);
   void Stop(const base::Closure& stop_cb);
@@ -124,8 +123,7 @@ class PipelineImpl::RendererWrapper : public DemuxerHost,
   // Common handlers for notifications from renderers and demuxer.
   void OnPipelineError(PipelineStatus error);
   void OnCdmAttached(const CdmAttachedCB& cdm_attached_cb,
-                     CdmContext* cdm_context,
-                     bool success);
+                     CdmContext* cdm_context, bool success);
   void CheckPlaybackEnded();
 
   // State transition tasks.
@@ -206,8 +204,7 @@ PipelineImpl::RendererWrapper::~RendererWrapper() {
 // running on the media thread would result in crashes.
 
 void PipelineImpl::RendererWrapper::Start(
-    Demuxer* demuxer,
-    std::unique_ptr<Renderer> renderer,
+    Demuxer* demuxer, std::unique_ptr<Renderer> renderer,
     std::unique_ptr<TextRenderer> text_renderer,
     base::WeakPtr<PipelineImpl> weak_pipeline) {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
@@ -427,8 +424,7 @@ void PipelineImpl::RendererWrapper::SetVolume(float volume) {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
 
   volume_ = volume;
-  if (state_ == kPlaying)
-    shared_state_.renderer->SetVolume(volume_);
+  if (state_ == kPlaying) shared_state_.renderer->SetVolume(volume_);
 }
 
 base::TimeDelta PipelineImpl::RendererWrapper::GetMediaTime() const {
@@ -466,8 +462,7 @@ PipelineStatistics PipelineImpl::RendererWrapper::GetStatistics() const {
 }
 
 void PipelineImpl::RendererWrapper::SetCdm(
-    CdmContext* cdm_context,
-    const CdmAttachedCB& cdm_attached_cb) {
+    CdmContext* cdm_context, const CdmAttachedCB& cdm_attached_cb) {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
 
   if (!shared_state_.renderer) {
@@ -511,8 +506,7 @@ void PipelineImpl::RendererWrapper::OnDemuxerError(PipelineStatus error) {
 }
 
 void PipelineImpl::RendererWrapper::AddTextStream(
-    DemuxerStream* text_stream,
-    const TextTrackConfig& config) {
+    DemuxerStream* text_stream, const TextTrackConfig& config) {
   // TODO(alokp): Add thread DCHECK after ensuring that all Demuxer
   // implementations call DemuxerHost on the media thread.
   media_task_runner_->PostTask(
@@ -541,8 +535,7 @@ void PipelineImpl::RendererWrapper::OnEnded() {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::ENDED));
 
-  if (state_ != kPlaying)
-    return;
+  if (state_ != kPlaying) return;
 
   DCHECK(!renderer_ended_);
   renderer_ended_ = true;
@@ -663,8 +656,7 @@ void PipelineImpl::RendererWrapper::OnTextRendererEnded() {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::TEXT_ENDED));
 
-  if (state_ != kPlaying)
-    return;
+  if (state_ != kPlaying) return;
 
   DCHECK(!text_renderer_ended_);
   text_renderer_ended_ = true;
@@ -672,22 +664,19 @@ void PipelineImpl::RendererWrapper::OnTextRendererEnded() {
 }
 
 void PipelineImpl::RendererWrapper::AddTextStreamTask(
-    DemuxerStream* text_stream,
-    const TextTrackConfig& config) {
+    DemuxerStream* text_stream, const TextTrackConfig& config) {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
 
   // TODO(matthewjheaney): fix up text_ended_ when text stream
   // is added (http://crbug.com/321446).
-  if (text_renderer_)
-    text_renderer_->AddTextStream(text_stream, config);
+  if (text_renderer_) text_renderer_->AddTextStream(text_stream, config);
 }
 
 void PipelineImpl::RendererWrapper::RemoveTextStreamTask(
     DemuxerStream* text_stream) {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
 
-  if (text_renderer_)
-    text_renderer_->RemoveTextStream(text_stream);
+  if (text_renderer_) text_renderer_->RemoveTextStream(text_stream);
 }
 
 void PipelineImpl::RendererWrapper::OnPipelineError(PipelineStatus error) {
@@ -695,8 +684,7 @@ void PipelineImpl::RendererWrapper::OnPipelineError(PipelineStatus error) {
   DCHECK_NE(PIPELINE_OK, error) << "PIPELINE_OK isn't an error!";
 
   // Preserve existing abnormal status.
-  if (status_ != PIPELINE_OK)
-    return;
+  if (status_ != PIPELINE_OK) return;
 
   // Don't report pipeline error events to the media log here. The embedder
   // will log this when Client::OnError is called. If the pipeline is already
@@ -715,21 +703,18 @@ void PipelineImpl::RendererWrapper::OnPipelineError(PipelineStatus error) {
 }
 
 void PipelineImpl::RendererWrapper::OnCdmAttached(
-    const CdmAttachedCB& cdm_attached_cb,
-    CdmContext* cdm_context,
+    const CdmAttachedCB& cdm_attached_cb, CdmContext* cdm_context,
     bool success) {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
 
-  if (success)
-    cdm_context_ = cdm_context;
+  if (success) cdm_context_ = cdm_context;
   cdm_attached_cb.Run(success);
 }
 
 void PipelineImpl::RendererWrapper::CheckPlaybackEnded() {
   DCHECK(media_task_runner_->BelongsToCurrentThread());
 
-  if (shared_state_.renderer && !renderer_ended_)
-    return;
+  if (shared_state_.renderer && !renderer_ended_) return;
 
   if (text_renderer_ && text_renderer_->HasTracks() && !text_renderer_ended_)
     return;
@@ -773,8 +758,7 @@ void PipelineImpl::RendererWrapper::CompleteSeek(base::TimeDelta seek_time,
     shared_state_.suspend_timestamp = kNoTimestamp;
   }
 
-  if (text_renderer_)
-    text_renderer_->StartPlaying();
+  if (text_renderer_) text_renderer_->StartPlaying();
 
   shared_state_.renderer->SetPlaybackRate(playback_rate_);
   shared_state_.renderer->SetVolume(volume_);
@@ -892,10 +876,8 @@ PipelineImpl::~PipelineImpl() {
   media_task_runner_->DeleteSoon(FROM_HERE, renderer_wrapper_.release());
 }
 
-void PipelineImpl::Start(Demuxer* demuxer,
-                         std::unique_ptr<Renderer> renderer,
-                         Client* client,
-                         const PipelineStatusCB& seek_cb) {
+void PipelineImpl::Start(Demuxer* demuxer, std::unique_ptr<Renderer> renderer,
+                         Client* client, const PipelineStatusCB& seek_cb) {
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(demuxer);
@@ -1041,8 +1023,7 @@ void PipelineImpl::SetPlaybackRate(double playback_rate) {
   DVLOG(2) << __func__ << "(" << playback_rate << ")";
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (playback_rate < 0.0)
-    return;
+  if (playback_rate < 0.0) return;
 
   playback_rate_ = playback_rate;
   media_task_runner_->PostTask(
@@ -1060,8 +1041,7 @@ void PipelineImpl::SetVolume(float volume) {
   DVLOG(2) << __func__ << "(" << volume << ")";
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (volume < 0.0f || volume > 1.0f)
-    return;
+  if (volume < 0.0f || volume > 1.0f) return;
 
   volume_ = volume;
   media_task_runner_->PostTask(

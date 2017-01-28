@@ -39,9 +39,7 @@ class VideoDecoder::ImplBase
         codec_(codec),
         operational_status_(STATUS_UNINITIALIZED) {}
 
-  OperationalStatus InitializationResult() const {
-    return operational_status_;
-  }
+  OperationalStatus InitializationResult() const { return operational_status_; }
 
   void DecodeFrame(std::unique_ptr<EncodedFrame> encoded_frame,
                    const DecodeFrameCallback& callback) {
@@ -57,9 +55,9 @@ class VideoDecoder::ImplBase
     }
     last_frame_id_ = encoded_frame->frame_id;
 
-    const scoped_refptr<VideoFrame> decoded_frame = Decode(
-        encoded_frame->mutable_bytes(),
-        static_cast<int>(encoded_frame->data.size()));
+    const scoped_refptr<VideoFrame> decoded_frame =
+        Decode(encoded_frame->mutable_bytes(),
+               static_cast<int>(encoded_frame->data.size()));
     decoded_frame->set_timestamp(
         encoded_frame->rtp_timestamp.ToTimeDelta(kVideoFrequency));
 
@@ -72,8 +70,7 @@ class VideoDecoder::ImplBase
     cast_environment_->logger()->DispatchFrameEvent(std::move(decode_event));
 
     cast_environment_->PostTask(
-        CastEnvironment::MAIN,
-        FROM_HERE,
+        CastEnvironment::MAIN, FROM_HERE,
         base::Bind(callback, decoded_frame, is_continuous));
   }
 
@@ -105,8 +102,7 @@ class VideoDecoder::Vp8Impl : public VideoDecoder::ImplBase {
  public:
   explicit Vp8Impl(const scoped_refptr<CastEnvironment>& cast_environment)
       : ImplBase(cast_environment, CODEC_VIDEO_VP8) {
-    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
-      return;
+    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED) return;
 
     vpx_codec_dec_cfg_t cfg = {0};
     // TODO(miu): Revisit this for typical multi-core desktop use case.  This
@@ -114,9 +110,7 @@ class VideoDecoder::Vp8Impl : public VideoDecoder::ImplBase {
     cfg.threads = 1;
 
     DCHECK(vpx_codec_get_caps(vpx_codec_vp8_dx()) & VPX_CODEC_CAP_POSTPROC);
-    if (vpx_codec_dec_init(&context_,
-                           vpx_codec_vp8_dx(),
-                           &cfg,
+    if (vpx_codec_dec_init(&context_, vpx_codec_vp8_dx(), &cfg,
                            VPX_CODEC_USE_POSTPROC) != VPX_CODEC_OK) {
       ImplBase::operational_status_ = STATUS_INVALID_CONFIGURATION;
       return;
@@ -131,18 +125,15 @@ class VideoDecoder::Vp8Impl : public VideoDecoder::ImplBase {
   }
 
   scoped_refptr<VideoFrame> Decode(uint8_t* data, int len) final {
-    if (len <= 0 || vpx_codec_decode(&context_,
-                                     data,
-                                     static_cast<unsigned int>(len),
-                                     NULL,
-                                     0) != VPX_CODEC_OK) {
+    if (len <= 0 ||
+        vpx_codec_decode(&context_, data, static_cast<unsigned int>(len), NULL,
+                         0) != VPX_CODEC_OK) {
       return NULL;
     }
 
     vpx_codec_iter_t iter = NULL;
     vpx_image_t* const image = vpx_codec_get_frame(&context_, &iter);
-    if (!image)
-      return NULL;
+    if (!image) return NULL;
     if (image->fmt != VPX_IMG_FMT_I420) {
       NOTREACHED() << "Only pixel format supported is I420, got " << image->fmt;
       return NULL;
@@ -182,10 +173,8 @@ class VideoDecoder::Vp8Impl : public VideoDecoder::ImplBase {
 class VideoDecoder::FakeImpl : public VideoDecoder::ImplBase {
  public:
   explicit FakeImpl(const scoped_refptr<CastEnvironment>& cast_environment)
-      : ImplBase(cast_environment, CODEC_VIDEO_FAKE),
-        last_decoded_id_(-1) {
-    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
-      return;
+      : ImplBase(cast_environment, CODEC_VIDEO_FAKE), last_decoded_id_(-1) {
+    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED) return;
     ImplBase::operational_status_ = STATUS_INITIALIZED;
   }
 
@@ -194,13 +183,11 @@ class VideoDecoder::FakeImpl : public VideoDecoder::ImplBase {
 
   scoped_refptr<VideoFrame> Decode(uint8_t* data, int len) final {
     // Make sure this is a JSON string.
-    if (!len || data[0] != '{')
-      return NULL;
+    if (!len || data[0] != '{') return NULL;
     base::JSONReader reader;
     std::unique_ptr<base::Value> values(
         reader.Read(base::StringPiece(reinterpret_cast<char*>(data), len)));
-    if (!values)
-      return NULL;
+    if (!values) return NULL;
     base::DictionaryValue* dict = NULL;
     values->GetAsDictionary(&dict);
 
@@ -222,8 +209,7 @@ class VideoDecoder::FakeImpl : public VideoDecoder::ImplBase {
 #endif
 
 VideoDecoder::VideoDecoder(
-    const scoped_refptr<CastEnvironment>& cast_environment,
-    Codec codec)
+    const scoped_refptr<CastEnvironment>& cast_environment, Codec codec)
     : cast_environment_(cast_environment) {
   switch (codec) {
 #ifndef OFFICIAL_BUILD
@@ -247,8 +233,7 @@ VideoDecoder::VideoDecoder(
 VideoDecoder::~VideoDecoder() {}
 
 OperationalStatus VideoDecoder::InitializationResult() const {
-  if (impl_.get())
-    return impl_->InitializationResult();
+  if (impl_.get()) return impl_->InitializationResult();
   return STATUS_UNSUPPORTED_CODEC;
 }
 
@@ -260,12 +245,10 @@ void VideoDecoder::DecodeFrame(std::unique_ptr<EncodedFrame> encoded_frame,
     callback.Run(make_scoped_refptr<VideoFrame>(NULL), false);
     return;
   }
-  cast_environment_->PostTask(CastEnvironment::VIDEO,
-                              FROM_HERE,
-                              base::Bind(&VideoDecoder::ImplBase::DecodeFrame,
-                                         impl_,
-                                         base::Passed(&encoded_frame),
-                                         callback));
+  cast_environment_->PostTask(
+      CastEnvironment::VIDEO, FROM_HERE,
+      base::Bind(&VideoDecoder::ImplBase::DecodeFrame, impl_,
+                 base::Passed(&encoded_frame), callback));
 }
 
 }  // namespace cast

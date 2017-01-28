@@ -21,9 +21,7 @@ DemuxerStream* MediaUrlDemuxer::GetStream(DemuxerStream::Type type) {
   return NULL;
 }
 
-GURL MediaUrlDemuxer::GetUrl() const {
-  return url_;
-}
+GURL MediaUrlDemuxer::GetUrl() const { return url_; }
 
 DemuxerStreamProvider::Type MediaUrlDemuxer::GetType() const {
   return DemuxerStreamProvider::Type::URL;
@@ -58,22 +56,16 @@ base::TimeDelta MediaUrlDemuxer::GetStartTime() const {
   // MediaPlayerRender in order to return a sensible value here.
   return base::TimeDelta();
 }
-base::Time MediaUrlDemuxer::GetTimelineOffset() const {
-  return base::Time();
-}
+base::Time MediaUrlDemuxer::GetTimelineOffset() const { return base::Time(); }
 
-int64_t MediaUrlDemuxer::GetMemoryUsage() const {
-  return 0;
-}
+int64_t MediaUrlDemuxer::GetMemoryUsage() const { return 0; }
 
 void MediaUrlDemuxer::OnEnabledAudioTracksChanged(
-    const std::vector<MediaTrack::Id>& track_ids,
-    base::TimeDelta currTime) {
+    const std::vector<MediaTrack::Id>& track_ids, base::TimeDelta currTime) {
   NOTIMPLEMENTED();
 }
 void MediaUrlDemuxer::OnSelectedVideoTrackChanged(
-    const std::vector<MediaTrack::Id>& track_ids,
-    base::TimeDelta currTime) {
+    const std::vector<MediaTrack::Id>& track_ids, base::TimeDelta currTime) {
   NOTIMPLEMENTED();
 }
 

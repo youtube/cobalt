@@ -46,16 +46,12 @@ void AudioPullFifo::Consume(AudioBus* destination, int frames_to_consume) {
 
 void AudioPullFifo::Clear() { fifo_index_ = fifo_->frames(); }
 
-int AudioPullFifo::SizeInFrames() const {
-  return fifo_->frames();
-}
+int AudioPullFifo::SizeInFrames() const { return fifo_->frames(); }
 
-int AudioPullFifo::ReadFromFifo(AudioBus* destination,
-                                int frames_to_provide,
+int AudioPullFifo::ReadFromFifo(AudioBus* destination, int frames_to_provide,
                                 int write_pos) {
   int frames = std::min(frames_to_provide, fifo_->frames() - fifo_index_);
-  if (frames <= 0)
-    return 0;
+  if (frames <= 0) return 0;
 
   for (int ch = 0; ch < fifo_->channels(); ++ch) {
     const float* src = fifo_->channel(ch) + fifo_index_;

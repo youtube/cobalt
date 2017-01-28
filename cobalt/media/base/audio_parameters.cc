@@ -12,10 +12,8 @@ namespace media {
 AudioParameters::AudioParameters()
     : AudioParameters(AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_NONE, 0, 0, 0) {}
 
-AudioParameters::AudioParameters(Format format,
-                                 ChannelLayout channel_layout,
-                                 int sample_rate,
-                                 int bits_per_sample,
+AudioParameters::AudioParameters(Format format, ChannelLayout channel_layout,
+                                 int sample_rate, int bits_per_sample,
                                  int frames_per_buffer)
     : latency_tag_(AudioLatency::LATENCY_COUNT) {
   Reset(format, channel_layout, sample_rate, bits_per_sample,
@@ -27,10 +25,8 @@ AudioParameters::~AudioParameters() {}
 AudioParameters::AudioParameters(const AudioParameters&) = default;
 AudioParameters& AudioParameters::operator=(const AudioParameters&) = default;
 
-void AudioParameters::Reset(Format format,
-                            ChannelLayout channel_layout,
-                            int sample_rate,
-                            int bits_per_sample,
+void AudioParameters::Reset(Format format, ChannelLayout channel_layout,
+                            int sample_rate, int bits_per_sample,
                             int frames_per_buffer) {
   format_ = format;
   channel_layout_ = channel_layout;

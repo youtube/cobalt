@@ -23,18 +23,13 @@
 namespace media {
 
 WebMStreamParser::WebMStreamParser()
-    : state_(kWaitingForInit),
-      unknown_segment_size_(false) {
-}
+    : state_(kWaitingForInit), unknown_segment_size_(false) {}
 
-WebMStreamParser::~WebMStreamParser() {
-}
+WebMStreamParser::~WebMStreamParser() {}
 
 void WebMStreamParser::Init(
-    const InitCB& init_cb,
-    const NewConfigCB& config_cb,
-    const NewBuffersCB& new_buffers_cb,
-    bool ignore_text_tracks,
+    const InitCB& init_cb, const NewConfigCB& config_cb,
+    const NewBuffersCB& new_buffers_cb, bool ignore_text_tracks,
     const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
     const NewMediaSegmentCB& new_segment_cb,
     const EndMediaSegmentCB& end_of_segment_cb,
@@ -63,17 +58,14 @@ void WebMStreamParser::Flush() {
   DCHECK_NE(state_, kWaitingForInit);
 
   byte_queue_.Reset();
-  if (cluster_parser_)
-    cluster_parser_->Reset();
-  if (state_ == kParsingClusters)
-    ChangeState(kParsingHeaders);
+  if (cluster_parser_) cluster_parser_->Reset();
+  if (state_ == kParsingClusters) ChangeState(kParsingHeaders);
 }
 
 bool WebMStreamParser::Parse(const uint8_t* buf, int size) {
   DCHECK_NE(state_, kWaitingForInit);
 
-  if (state_ == kError)
-    return false;
+  if (state_ == kError) return false;
 
   byte_queue_.Push(buf, size);
 
@@ -104,8 +96,7 @@ bool WebMStreamParser::Parse(const uint8_t* buf, int size) {
       return false;
     }
 
-    if (state_ == oldState && result == 0)
-      break;
+    if (state_ == oldState && result == 0) break;
 
     DCHECK_GE(result, 0);
     cur += result;
@@ -135,8 +126,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
   int64_t element_size;
   int result = WebMParseElementHeader(cur, cur_size, &id, &element_size);
 
-  if (result <= 0)
-    return result;
+  if (result <= 0) return result;
 
   switch (id) {
     case kWebMIdEBMLHeader:
@@ -166,8 +156,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
       break;
     case kWebMIdSegment:
       // Segment of unknown size indicates live stream.
-      if (element_size == kWebMUnknownSize)
-        unknown_segment_size_ = true;
+      if (element_size == kWebMUnknownSize) unknown_segment_size_ = true;
       // Just consume the segment header.
       return result;
       break;
@@ -184,8 +173,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
   WebMInfoParser info_parser;
   result = info_parser.Parse(cur, cur_size);
 
-  if (result <= 0)
-    return result;
+  if (result <= 0) return result;
 
   cur += result;
   cur_size -= result;
@@ -194,8 +182,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
   WebMTracksParser tracks_parser(media_log_, ignore_text_tracks_);
   result = tracks_parser.Parse(cur, cur_size);
 
-  if (result <= 0)
-    return result;
+  if (result <= 0) return result;
 
   bytes_parsed += result;
 
@@ -257,12 +244,10 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
 }
 
 int WebMStreamParser::ParseCluster(const uint8_t* data, int size) {
-  if (!cluster_parser_)
-    return -1;
+  if (!cluster_parser_) return -1;
 
   int bytes_parsed = cluster_parser_->Parse(data, size);
-  if (bytes_parsed < 0)
-    return bytes_parsed;
+  if (bytes_parsed < 0) return bytes_parsed;
 
   BufferQueueMap buffer_queue_map;
   cluster_parser_->GetBuffers(&buffer_queue_map);

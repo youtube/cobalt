@@ -26,8 +26,7 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
   DCHECK(!std::isnan(time));
   DCHECK_NE(time, -std::numeric_limits<double>::infinity());
 
-  if (time == std::numeric_limits<double>::infinity())
-    return kInfiniteDuration;
+  if (time == std::numeric_limits<double>::infinity()) return kInfiniteDuration;
 
   // Don't use base::TimeDelta::Max() here, as we want the largest finite time
   // delta.
@@ -35,11 +34,10 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
       std::numeric_limits<int64_t>::max() - 1);
   double max_time_in_seconds = max_time.InSecondsF();
 
-  if (time >= max_time_in_seconds)
-    return max_time;
+  if (time >= max_time_in_seconds) return max_time;
 
-  return base::TimeDelta::FromMicroseconds(
-      time * base::Time::kMicrosecondsPerSecond);
+  return base::TimeDelta::FromMicroseconds(time *
+                                           base::Time::kMicrosecondsPerSecond);
 }
 
 WebSourceBufferImpl::WebSourceBufferImpl(const std::string& id,
@@ -66,8 +64,7 @@ void WebSourceBufferImpl::setClient(blink::WebSourceBufferClient* client) {
 }
 
 bool WebSourceBufferImpl::setMode(WebSourceBuffer::AppendMode mode) {
-  if (demuxer_->IsParsingMediaSegment(id_))
-    return false;
+  if (demuxer_->IsParsingMediaSegment(id_)) return false;
 
   switch (mode) {
     case WebSourceBuffer::AppendModeSegments:
@@ -99,13 +96,10 @@ double WebSourceBufferImpl::highestPresentationTimestamp() {
 bool WebSourceBufferImpl::evictCodedFrames(double currentPlaybackTime,
                                            size_t newDataSize) {
   return demuxer_->EvictCodedFrames(
-      id_,
-      base::TimeDelta::FromSecondsD(currentPlaybackTime),
-      newDataSize);
+      id_, base::TimeDelta::FromSecondsD(currentPlaybackTime), newDataSize);
 }
 
-bool WebSourceBufferImpl::append(const unsigned char* data,
-                                 unsigned length,
+bool WebSourceBufferImpl::append(const unsigned char* data, unsigned length,
                                  double* timestamp_offset) {
   base::TimeDelta old_offset = timestamp_offset_;
   bool success = demuxer_->AppendData(id_, data, length, append_window_start_,
@@ -123,8 +117,7 @@ bool WebSourceBufferImpl::append(const unsigned char* data,
 }
 
 void WebSourceBufferImpl::resetParserState() {
-  demuxer_->ResetParserState(id_,
-                             append_window_start_, append_window_end_,
+  demuxer_->ResetParserState(id_, append_window_start_, append_window_end_,
                              &timestamp_offset_);
 
   // TODO(wolenetz): resetParserState should be able to modify the caller
@@ -139,8 +132,7 @@ void WebSourceBufferImpl::remove(double start, double end) {
 }
 
 bool WebSourceBufferImpl::setTimestampOffset(double offset) {
-  if (demuxer_->IsParsingMediaSegment(id_))
-    return false;
+  if (demuxer_->IsParsingMediaSegment(id_)) return false;
 
   timestamp_offset_ = DoubleToTimeDelta(offset);
 

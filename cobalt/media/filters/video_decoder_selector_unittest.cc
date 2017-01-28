@@ -29,12 +29,8 @@ using ::testing::StrictMock;
 // times across multiple test files. Sadly we can't use static for them.
 namespace {
 
-MATCHER(EncryptedConfig, "") {
-  return arg.is_encrypted();
-}
-MATCHER(ClearConfig, "") {
-  return !arg.is_encrypted();
-}
+MATCHER(EncryptedConfig, "") { return arg.is_encrypted(); }
+MATCHER(ClearConfig, "") { return !arg.is_encrypted(); }
 
 }  // namespace
 
@@ -100,8 +96,8 @@ class VideoDecoderSelectorTest : public ::testing::Test {
     }
 
     DCHECK_GE(all_decoders_.size(), static_cast<size_t>(num_decoders));
-    all_decoders_.erase(
-        all_decoders_.begin() + num_decoders, all_decoders_.end());
+    all_decoders_.erase(all_decoders_.begin() + num_decoders,
+                        all_decoders_.end());
 
     decoder_selector_.reset(new VideoDecoderSelector(
         message_loop_.task_runner(), std::move(all_decoders_), media_log_));
@@ -127,13 +123,9 @@ class VideoDecoderSelectorTest : public ::testing::Test {
     base::RunLoop().RunUntilIdle();
   }
 
-  void FrameReady(const scoped_refptr<VideoFrame>& frame) {
-    NOTREACHED();
-  }
+  void FrameReady(const scoped_refptr<VideoFrame>& frame) { NOTREACHED(); }
 
-  void OnWaitingForDecryptionKey() {
-    NOTREACHED();
-  }
+  void OnWaitingForDecryptionKey() { NOTREACHED(); }
 
   scoped_refptr<MediaLog> media_log_;
 

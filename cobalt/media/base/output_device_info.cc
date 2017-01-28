@@ -12,8 +12,7 @@ OutputDeviceInfo::OutputDeviceInfo()
     : OutputDeviceInfo(OUTPUT_DEVICE_STATUS_ERROR_INTERNAL) {}
 
 OutputDeviceInfo::OutputDeviceInfo(OutputDeviceStatus device_status)
-    : OutputDeviceInfo(std::string(),
-                       device_status,
+    : OutputDeviceInfo(std::string(), device_status,
                        AudioParameters::UnavailableDeviceParams()) {}
 
 OutputDeviceInfo::OutputDeviceInfo(const std::string& device_id,

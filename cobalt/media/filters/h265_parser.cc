@@ -33,16 +33,11 @@ namespace media {
     }                                                                \
   } while (0)
 
-H265NALU::H265NALU() {
-  memset(this, 0, sizeof(*this));
-}
+H265NALU::H265NALU() { memset(this, 0, sizeof(*this)); }
 
-H265Parser::H265Parser() {
-  Reset();
-}
+H265Parser::H265Parser() { Reset(); }
 
-H265Parser::~H265Parser() {
-}
+H265Parser::~H265Parser() {}
 
 void H265Parser::Reset() {
   stream_ = NULL;
@@ -56,8 +51,7 @@ void H265Parser::SetStream(const uint8_t* stream, off_t stream_size) {
 }
 
 void H265Parser::SetEncryptedStream(
-    const uint8_t* stream,
-    off_t stream_size,
+    const uint8_t* stream, off_t stream_size,
     const std::vector<SubsampleEntry>& subsamples) {
   DCHECK(stream);
   DCHECK_GT(stream_size, 0);
@@ -83,10 +77,9 @@ bool H265Parser::LocateNALU(off_t* nalu_size, off_t* start_code_size) {
   off_t nalu_start_off = 0;
   off_t annexb_start_code_size = 0;
 
-  if (!H264Parser::FindStartCodeInClearRanges(stream_, bytes_left_,
-                                              encrypted_ranges_,
-                                              &nalu_start_off,
-                                              &annexb_start_code_size)) {
+  if (!H264Parser::FindStartCodeInClearRanges(
+          stream_, bytes_left_, encrypted_ranges_, &nalu_start_off,
+          &annexb_start_code_size)) {
     DVLOG(4) << "Could not find start code, end of stream?";
     return false;
   }
@@ -110,10 +103,9 @@ bool H265Parser::LocateNALU(off_t* nalu_size, off_t* start_code_size) {
   // belong to the current NALU.
   off_t next_start_code_size = 0;
   off_t nalu_size_without_start_code = 0;
-  if (!H264Parser::FindStartCodeInClearRanges(nalu_data, max_nalu_data_size,
-                                              encrypted_ranges_,
-                                              &nalu_size_without_start_code,
-                                              &next_start_code_size)) {
+  if (!H264Parser::FindStartCodeInClearRanges(
+          nalu_data, max_nalu_data_size, encrypted_ranges_,
+          &nalu_size_without_start_code, &next_start_code_size)) {
     nalu_size_without_start_code = max_nalu_data_size;
   }
   *nalu_size = nalu_size_without_start_code + annexb_start_code_size;
@@ -135,8 +127,7 @@ H265Parser::Result H265Parser::AdvanceToNextNALU(H265NALU* nalu) {
   DVLOG(4) << "NALU found: size=" << nalu_size_with_start_code;
 
   // Initialize bit reader at the start of found NALU.
-  if (!br_.Initialize(nalu->data, nalu->size))
-    return kEOStream;
+  if (!br_.Initialize(nalu->data, nalu->size)) return kEOStream;
 
   // Move parser state to after this NALU, so next time AdvanceToNextNALU
   // is called, we will effectively be skipping it;

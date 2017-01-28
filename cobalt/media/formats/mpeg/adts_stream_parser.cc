@@ -20,19 +20,15 @@ ADTSStreamParser::ADTSStreamParser()
 
 ADTSStreamParser::~ADTSStreamParser() {}
 
-int ADTSStreamParser::ParseFrameHeader(const uint8_t* data,
-                                       int size,
-                                       int* frame_size,
-                                       int* sample_rate,
+int ADTSStreamParser::ParseFrameHeader(const uint8_t* data, int size,
+                                       int* frame_size, int* sample_rate,
                                        ChannelLayout* channel_layout,
-                                       int* sample_count,
-                                       bool* metadata_frame,
+                                       int* sample_count, bool* metadata_frame,
                                        std::vector<uint8_t>* extra_data) const {
   DCHECK(data);
   DCHECK_GE(size, 0);
 
-  if (size < kADTSHeaderMinSize)
-    return 0;
+  if (size < kADTSHeaderMinSize) return 0;
 
   BitReader reader(data, size);
   int sync;
@@ -46,27 +42,19 @@ int ADTSStreamParser::ParseFrameHeader(const uint8_t* data,
   size_t num_data_blocks;
   int unused;
 
-  if (!reader.ReadBits(12, &sync) ||
-      !reader.ReadBits(1, &version) ||
-      !reader.ReadBits(2, &layer) ||
-      !reader.ReadBits(1, &protection_absent) ||
+  if (!reader.ReadBits(12, &sync) || !reader.ReadBits(1, &version) ||
+      !reader.ReadBits(2, &layer) || !reader.ReadBits(1, &protection_absent) ||
       !reader.ReadBits(2, &profile) ||
-      !reader.ReadBits(4, &sample_rate_index) ||
-      !reader.ReadBits(1, &unused) ||
+      !reader.ReadBits(4, &sample_rate_index) || !reader.ReadBits(1, &unused) ||
       !reader.ReadBits(3, &channel_layout_index) ||
-      !reader.ReadBits(4, &unused) ||
-      !reader.ReadBits(13, &frame_length) ||
-      !reader.ReadBits(11, &unused) ||
-      !reader.ReadBits(2, &num_data_blocks) ||
+      !reader.ReadBits(4, &unused) || !reader.ReadBits(13, &frame_length) ||
+      !reader.ReadBits(11, &unused) || !reader.ReadBits(2, &num_data_blocks) ||
       (!protection_absent && !reader.ReadBits(16, &unused))) {
     return -1;
   }
 
-  DVLOG(2) << "Header data :" << std::hex
-           << " sync 0x" << sync
-           << " version 0x" << version
-           << " layer 0x" << layer
-           << " profile 0x" << profile
+  DVLOG(2) << "Header data :" << std::hex << " sync 0x" << sync << " version 0x"
+           << version << " layer 0x" << layer << " profile 0x" << profile
            << " sample_rate_index 0x" << sample_rate_index
            << " channel_layout_index 0x" << channel_layout_index;
 
@@ -84,20 +72,16 @@ int ADTSStreamParser::ParseFrameHeader(const uint8_t* data,
     return -1;
   }
 
-  if (sample_rate)
-    *sample_rate = kADTSFrequencyTable[sample_rate_index];
+  if (sample_rate) *sample_rate = kADTSFrequencyTable[sample_rate_index];
 
-  if (frame_size)
-    *frame_size = frame_length;
+  if (frame_size) *frame_size = frame_length;
 
-  if (sample_count)
-    *sample_count = (num_data_blocks + 1) * kSamplesPerAACFrame;
+  if (sample_count) *sample_count = (num_data_blocks + 1) * kSamplesPerAACFrame;
 
   if (channel_layout)
     *channel_layout = kADTSChannelLayoutTable[channel_layout_index];
 
-  if (metadata_frame)
-    *metadata_frame = false;
+  if (metadata_frame) *metadata_frame = false;
 
   if (extra_data) {
     // See mp4::AAC::Parse() for details. We don't need to worry about writing
@@ -112,8 +96,7 @@ int ADTSStreamParser::ParseFrameHeader(const uint8_t* data,
                           << 3;
     extra_data->push_back(esds >> 8);
     extra_data->push_back(esds & 0xFF);
-    if (media_log())
-      DCHECK(mp4::AAC().Parse(*extra_data, media_log()));
+    if (media_log()) DCHECK(mp4::AAC().Parse(*extra_data, media_log()));
   }
 
   return bytes_read;

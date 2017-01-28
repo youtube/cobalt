@@ -55,13 +55,11 @@ bool EsParserAdts::LookForAdtsFrame(AdtsFrame* adts_frame) {
   es_queue_->Peek(&es, &es_size);
 
   int max_offset = es_size - kADTSHeaderMinSize;
-  if (max_offset <= 0)
-    return false;
+  if (max_offset <= 0) return false;
 
   for (int offset = 0; offset < max_offset; offset++) {
     const uint8_t* cur_buf = &es[offset];
-    if (!isAdtsSyncWord(cur_buf))
-      continue;
+    if (!isAdtsSyncWord(cur_buf)) continue;
 
     int frame_size = ExtractAdtsFrameSize(cur_buf);
     if (frame_size < kADTSHeaderMinSize) {
@@ -87,12 +85,11 @@ bool EsParserAdts::LookForAdtsFrame(AdtsFrame* adts_frame) {
     es_queue_->Peek(&adts_frame->data, &es_size);
     adts_frame->queue_offset = es_queue_->head();
     adts_frame->size = frame_size;
-    DVLOG(LOG_LEVEL_ES)
-        << "ADTS syncword @ pos=" << adts_frame->queue_offset
-        << " frame_size=" << adts_frame->size;
-    DVLOG(LOG_LEVEL_ES)
-        << "ADTS header: "
-        << base::HexEncode(adts_frame->data, kADTSHeaderMinSize);
+    DVLOG(LOG_LEVEL_ES) << "ADTS syncword @ pos=" << adts_frame->queue_offset
+                        << " frame_size=" << adts_frame->size;
+    DVLOG(LOG_LEVEL_ES) << "ADTS header: "
+                        << base::HexEncode(adts_frame->data,
+                                           kADTSHeaderMinSize);
     return true;
   }
 
@@ -105,17 +102,14 @@ void EsParserAdts::SkipAdtsFrame(const AdtsFrame& adts_frame) {
   es_queue_->Pop(adts_frame.size);
 }
 
-EsParserAdts::EsParserAdts(
-    const NewAudioConfigCB& new_audio_config_cb,
-    const EmitBufferCB& emit_buffer_cb,
-    bool sbr_in_mimetype)
-  : new_audio_config_cb_(new_audio_config_cb),
-    emit_buffer_cb_(emit_buffer_cb),
-    sbr_in_mimetype_(sbr_in_mimetype) {
-}
+EsParserAdts::EsParserAdts(const NewAudioConfigCB& new_audio_config_cb,
+                           const EmitBufferCB& emit_buffer_cb,
+                           bool sbr_in_mimetype)
+    : new_audio_config_cb_(new_audio_config_cb),
+      emit_buffer_cb_(emit_buffer_cb),
+      sbr_in_mimetype_(sbr_in_mimetype) {}
 
-EsParserAdts::~EsParserAdts() {
-}
+EsParserAdts::~EsParserAdts() {}
 
 bool EsParserAdts::ParseFromEsQueue() {
   // Look for every ADTS frame in the ES buffer.
@@ -166,8 +160,7 @@ bool EsParserAdts::ParseFromEsQueue() {
   return true;
 }
 
-void EsParserAdts::Flush() {
-}
+void EsParserAdts::Flush() {}
 
 void EsParserAdts::ResetInternal() {
   last_audio_decoder_config_ = AudioDecoderConfig();

@@ -26,9 +26,7 @@ namespace media {
 // Static POD class for generating unique identifiers for each VideoFrame.
 static base::StaticAtomicSequenceNumber g_unique_id_generator;
 
-static bool IsPowerOfTwo(size_t x) {
-  return x != 0 && (x & (x - 1)) == 0;
-}
+static bool IsPowerOfTwo(size_t x) { return x != 0 && (x & (x - 1)) == 0; }
 
 static inline size_t RoundUp(size_t value, size_t alignment) {
   DCHECK(IsPowerOfTwo(alignment));
@@ -86,8 +84,7 @@ static bool IsStorageTypeMappable(VideoFrame::StorageType storage_type) {
 // Checks if |source_format| can be wrapped into a |target_format| frame.
 static bool AreValidPixelFormatsForWrap(VideoPixelFormat source_format,
                                         VideoPixelFormat target_format) {
-  if (source_format == target_format)
-    return true;
+  if (source_format == target_format) return true;
 
   // It is possible to add other planar to planar format conversions here if the
   // use case is there.
@@ -117,8 +114,7 @@ bool VideoFrame::IsValidConfig(VideoPixelFormat format,
 
   // TODO(mcasas): Remove parameter |storage_type| when the opaque storage types
   // comply with the checks below. Right now we skip them.
-  if (!IsStorageTypeMappable(storage_type))
-    return true;
+  if (!IsStorageTypeMappable(storage_type)) return true;
 
   // Make sure new formats are properly accounted for in the method.
   static_assert(PIXEL_FORMAT_MAX == 26,
@@ -146,10 +142,8 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(VideoPixelFormat format,
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::CreateZeroInitializedFrame(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
   return CreateFrameInternal(format, coded_size, visible_rect, natural_size,
                              timestamp, true);
@@ -158,12 +152,10 @@ scoped_refptr<VideoFrame> VideoFrame::CreateZeroInitializedFrame(
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapNativeTextures(
     VideoPixelFormat format,
-    const gpu::MailboxHolder (&mailbox_holders)[kMaxPlanes],
+    const gpu::MailboxHolder(&mailbox_holders)[kMaxPlanes],
     const ReleaseMailboxCB& mailbox_holder_release_cb,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    base::TimeDelta timestamp) {
+    const gfx::Size& coded_size, const gfx::Rect& visible_rect,
+    const gfx::Size& natural_size, base::TimeDelta timestamp) {
   if (format != PIXEL_FORMAT_ARGB && format != PIXEL_FORMAT_XRGB &&
       format != PIXEL_FORMAT_UYVY && format != PIXEL_FORMAT_NV12 &&
       format != PIXEL_FORMAT_I420) {
@@ -185,13 +177,9 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTextures(
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapExternalData(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    uint8_t* data,
-    size_t data_size,
-    base::TimeDelta timestamp) {
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size, uint8_t* data,
+    size_t data_size, base::TimeDelta timestamp) {
   return WrapExternalStorage(format, STORAGE_UNOWNED_MEMORY, coded_size,
                              visible_rect, natural_size, data, data_size,
                              timestamp, base::SharedMemory::NULLHandle(), 0);
@@ -199,14 +187,9 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalData(
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapExternalSharedMemory(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    uint8_t* data,
-    size_t data_size,
-    base::SharedMemoryHandle handle,
-    size_t data_offset,
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size, uint8_t* data,
+    size_t data_size, base::SharedMemoryHandle handle, size_t data_offset,
     base::TimeDelta timestamp) {
   return WrapExternalStorage(format, STORAGE_SHMEM, coded_size, visible_rect,
                              natural_size, data, data_size, timestamp, handle,
@@ -215,17 +198,10 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalSharedMemory(
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvData(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    int32_t y_stride,
-    int32_t u_stride,
-    int32_t v_stride,
-    uint8_t* y_data,
-    uint8_t* u_data,
-    uint8_t* v_data,
-    base::TimeDelta timestamp) {
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
+    int32_t y_stride, int32_t u_stride, int32_t v_stride, uint8_t* y_data,
+    uint8_t* u_data, uint8_t* v_data, base::TimeDelta timestamp) {
   const StorageType storage = STORAGE_UNOWNED_MEMORY;
   if (!IsValidConfig(format, storage, coded_size, visible_rect, natural_size)) {
     LOG(DFATAL) << __func__ << " Invalid config."
@@ -247,20 +223,13 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvData(
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvGpuMemoryBuffers(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    int32_t y_stride,
-    int32_t u_stride,
-    int32_t v_stride,
-    uint8_t* y_data,
-    uint8_t* u_data,
-    uint8_t* v_data,
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
+    int32_t y_stride, int32_t u_stride, int32_t v_stride, uint8_t* y_data,
+    uint8_t* u_data, uint8_t* v_data,
     const gfx::GpuMemoryBufferHandle& y_handle,
     const gfx::GpuMemoryBufferHandle& u_handle,
-    const gfx::GpuMemoryBufferHandle& v_handle,
-    base::TimeDelta timestamp) {
+    const gfx::GpuMemoryBufferHandle& v_handle, base::TimeDelta timestamp) {
   const StorageType storage = STORAGE_GPU_MEMORY_BUFFERS;
   if (!IsValidConfig(format, storage, coded_size, visible_rect, natural_size)) {
     LOG(DFATAL) << __func__ << " Invalid config."
@@ -285,18 +254,10 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvGpuMemoryBuffers(
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvaData(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    int32_t y_stride,
-    int32_t u_stride,
-    int32_t v_stride,
-    int32_t a_stride,
-    uint8_t* y_data,
-    uint8_t* u_data,
-    uint8_t* v_data,
-    uint8_t* a_data,
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
+    int32_t y_stride, int32_t u_stride, int32_t v_stride, int32_t a_stride,
+    uint8_t* y_data, uint8_t* u_data, uint8_t* v_data, uint8_t* a_data,
     base::TimeDelta timestamp) {
   const StorageType storage = STORAGE_UNOWNED_MEMORY;
   if (!IsValidConfig(format, storage, coded_size, visible_rect, natural_size)) {
@@ -328,12 +289,9 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvaData(
 #if defined(OS_LINUX)
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapExternalDmabufs(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    const std::vector<int>& dmabuf_fds,
-    base::TimeDelta timestamp) {
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
+    const std::vector<int>& dmabuf_fds, base::TimeDelta timestamp) {
   const StorageType storage = STORAGE_DMABUFS;
   if (!IsValidConfig(format, storage, coded_size, visible_rect, natural_size)) {
     LOG(DFATAL) << __func__ << " Invalid config."
@@ -357,8 +315,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalDmabufs(
 #if defined(OS_MACOSX)
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapCVPixelBuffer(
-    CVPixelBufferRef cv_pixel_buffer,
-    base::TimeDelta timestamp) {
+    CVPixelBufferRef cv_pixel_buffer, base::TimeDelta timestamp) {
   DCHECK(cv_pixel_buffer);
   DCHECK(CFGetTypeID(cv_pixel_buffer) == CVPixelBufferGetTypeID());
 
@@ -400,10 +357,8 @@ scoped_refptr<VideoFrame> VideoFrame::WrapCVPixelBuffer(
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapVideoFrame(
-    const scoped_refptr<VideoFrame>& frame,
-    VideoPixelFormat format,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size) {
+    const scoped_refptr<VideoFrame>& frame, VideoPixelFormat format,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size) {
   // Frames with textures need mailbox info propagated, and there's no support
   // for that here yet, see http://crbug/362521.
   CHECK(!frame->HasTextures());
@@ -467,10 +422,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateEOSFrame() {
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::CreateColorFrame(
-    const gfx::Size& size,
-    uint8_t y,
-    uint8_t u,
-    uint8_t v,
+    const gfx::Size& size, uint8_t y, uint8_t u, uint8_t v,
     base::TimeDelta timestamp) {
   scoped_refptr<VideoFrame> frame =
       CreateFrame(PIXEL_FORMAT_YV12, size, gfx::Rect(size), size, timestamp);
@@ -549,8 +501,7 @@ size_t VideoFrame::AllocationSize(VideoPixelFormat format,
 }
 
 // static
-gfx::Size VideoFrame::PlaneSize(VideoPixelFormat format,
-                                size_t plane,
+gfx::Size VideoFrame::PlaneSize(VideoPixelFormat format, size_t plane,
                                 const gfx::Size& coded_size) {
   DCHECK(IsValidPlane(plane, format));
 
@@ -585,7 +536,7 @@ int VideoFrame::PlaneHorizontalBitsPerPixel(VideoPixelFormat format,
 int VideoFrame::PlaneBitsPerPixel(VideoPixelFormat format, size_t plane) {
   DCHECK(IsValidPlane(plane, format));
   return PlaneHorizontalBitsPerPixel(format, plane) /
-      SampleSize(format, plane).height();
+         SampleSize(format, plane).height();
 }
 
 // static
@@ -703,8 +654,8 @@ uint8_t* VideoFrame::visible_data(size_t plane) {
       static_cast<const VideoFrame*>(this)->visible_data(plane));
 }
 
-const gpu::MailboxHolder&
-VideoFrame::mailbox_holder(size_t texture_index) const {
+const gpu::MailboxHolder& VideoFrame::mailbox_holder(
+    size_t texture_index) const {
   DCHECK(HasTextures());
   DCHECK(IsValidPlane(texture_index, format_));
   return mailbox_holders_[texture_index];
@@ -743,7 +694,7 @@ bool VideoFrame::DuplicateFileDescriptors(const std::vector<int>& in_fds) {
   // TODO(posciak): This is not exactly correct, it's possible for one
   // buffer to contain more than one plane.
   if (in_fds.size() != NumPlanes(format_)) {
-    LOG(FATAL) << "Not enough dmabuf fds provided, got: " <<  in_fds.size()
+    LOG(FATAL) << "Not enough dmabuf fds provided, got: " << in_fds.size()
                << ", expected: " << NumPlanes(format_);
     return false;
   }
@@ -786,8 +737,7 @@ void VideoFrame::UpdateReleaseSyncToken(SyncTokenClient* client) {
   // Must wait on the previous sync point before inserting a new sync point so
   // that |mailbox_holders_release_cb_| guarantees the previous sync point
   // occurred when it waits on |release_sync_token_|.
-  if (release_sync_token_.HasData())
-    client->WaitSyncToken(release_sync_token_);
+  if (release_sync_token_.HasData()) client->WaitSyncToken(release_sync_token_);
   client->GenerateSyncToken(&release_sync_token_);
 }
 
@@ -804,15 +754,10 @@ std::string VideoFrame::AsHumanReadableString() {
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapExternalStorage(
-    VideoPixelFormat format,
-    StorageType storage_type,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    uint8_t* data,
-    size_t data_size,
-    base::TimeDelta timestamp,
-    base::SharedMemoryHandle handle,
+    VideoPixelFormat format, StorageType storage_type,
+    const gfx::Size& coded_size, const gfx::Rect& visible_rect,
+    const gfx::Size& natural_size, uint8_t* data, size_t data_size,
+    base::TimeDelta timestamp, base::SharedMemoryHandle handle,
     size_t data_offset) {
   DCHECK(IsStorageTypeMappable(storage_type));
 
@@ -853,12 +798,10 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalStorage(
   return frame;
 }
 
-VideoFrame::VideoFrame(VideoPixelFormat format,
-                       StorageType storage_type,
+VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
                        const gfx::Size& coded_size,
                        const gfx::Rect& visible_rect,
-                       const gfx::Size& natural_size,
-                       base::TimeDelta timestamp)
+                       const gfx::Size& natural_size, base::TimeDelta timestamp)
     : format_(format),
       storage_type_(storage_type),
       coded_size_(coded_size),
@@ -887,8 +830,7 @@ VideoFrame::~VideoFrame() {
     base::ResetAndReturn(&mailbox_holders_release_cb_).Run(release_sync_token);
   }
 
-  for (auto& callback : done_callbacks_)
-    base::ResetAndReturn(&callback).Run();
+  for (auto& callback : done_callbacks_) base::ResetAndReturn(&callback).Run();
 }
 
 // static
@@ -934,38 +876,27 @@ void VideoFrame::set_stride(size_t plane, int stride) {
   strides_[plane] = stride;
 }
 
-VideoFrame::VideoFrame(VideoPixelFormat format,
-                       StorageType storage_type,
+VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
                        const gfx::Size& coded_size,
                        const gfx::Rect& visible_rect,
-                       const gfx::Size& natural_size,
-                       base::TimeDelta timestamp,
+                       const gfx::Size& natural_size, base::TimeDelta timestamp,
                        base::SharedMemoryHandle handle,
                        size_t shared_memory_offset)
-    : VideoFrame(format,
-                 storage_type,
-                 coded_size,
-                 visible_rect,
-                 natural_size,
+    : VideoFrame(format, storage_type, coded_size, visible_rect, natural_size,
                  timestamp) {
   DCHECK_EQ(storage_type, STORAGE_SHMEM);
   AddSharedMemoryHandle(handle);
   shared_memory_offset_ = shared_memory_offset;
 }
 
-VideoFrame::VideoFrame(VideoPixelFormat format,
-                       StorageType storage_type,
+VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
                        const gfx::Size& coded_size,
                        const gfx::Rect& visible_rect,
                        const gfx::Size& natural_size,
                        const gpu::MailboxHolder(&mailbox_holders)[kMaxPlanes],
                        const ReleaseMailboxCB& mailbox_holder_release_cb,
                        base::TimeDelta timestamp)
-    : VideoFrame(format,
-                 storage_type,
-                 coded_size,
-                 visible_rect,
-                 natural_size,
+    : VideoFrame(format, storage_type, coded_size, visible_rect, natural_size,
                  timestamp) {
   memcpy(&mailbox_holders_, mailbox_holders, sizeof(mailbox_holders_));
   mailbox_holders_release_cb_ = mailbox_holder_release_cb;
@@ -973,12 +904,9 @@ VideoFrame::VideoFrame(VideoPixelFormat format,
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::CreateFrameInternal(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    base::TimeDelta timestamp,
-    bool zero_initialize_memory) {
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
+    base::TimeDelta timestamp, bool zero_initialize_memory) {
   if (!IsYuvPlanar(format)) {
     NOTIMPLEMENTED();
     return NULL;
@@ -1140,8 +1068,7 @@ void VideoFrame::AllocateYUV(bool zero_initialize_memory) {
 
   uint8_t* data = reinterpret_cast<uint8_t*>(
       base::AlignedAlloc(data_size, kFrameAddressAlignment));
-  if (zero_initialize_memory)
-    memset(data, 0, data_size);
+  if (zero_initialize_memory) memset(data, 0, data_size);
 
   for (size_t plane = 0; plane < NumPlanes(format_); ++plane)
     data_[plane] = data + offset[plane];

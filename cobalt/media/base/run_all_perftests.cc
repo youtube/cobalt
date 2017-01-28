@@ -33,6 +33,6 @@ int main(int argc, char** argv) {
   // perf measurements with randomness resulting from running
   // in parallel.
   return base::LaunchUnitTestsSerially(
-      argc, argv, base::Bind(&TestSuiteNoAtExit::Run,
-                             base::Unretained(&test_suite)));
+      argc, argv,
+      base::Bind(&TestSuiteNoAtExit::Run, base::Unretained(&test_suite)));
 }

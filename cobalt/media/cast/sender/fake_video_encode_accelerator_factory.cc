@@ -31,15 +31,13 @@ void FakeVideoEncodeAcceleratorFactory::SetInitializationWillSucceed(
 void FakeVideoEncodeAcceleratorFactory::SetAutoRespond(bool auto_respond) {
   auto_respond_ = auto_respond;
   if (auto_respond_) {
-    if (!vea_response_callback_.is_null())
-      RespondWithVideoEncodeAccelerator();
-    if (!shm_response_callback_.is_null())
-      RespondWithSharedMemory();
+    if (!vea_response_callback_.is_null()) RespondWithVideoEncodeAccelerator();
+    if (!shm_response_callback_.is_null()) RespondWithSharedMemory();
   }
 }
 
 void FakeVideoEncodeAcceleratorFactory::CreateVideoEncodeAccelerator(
-      const ReceiveVideoEncodeAcceleratorCallback& callback) {
+    const ReceiveVideoEncodeAcceleratorCallback& callback) {
   DCHECK(!callback.is_null());
   DCHECK(!next_response_vea_);
 
@@ -48,8 +46,7 @@ void FakeVideoEncodeAcceleratorFactory::CreateVideoEncodeAccelerator(
   vea->SetWillInitializationSucceed(will_init_succeed_);
   next_response_vea_.reset(vea);
   vea_response_callback_ = callback;
-  if (auto_respond_)
-    RespondWithVideoEncodeAccelerator();
+  if (auto_respond_) RespondWithVideoEncodeAccelerator();
 }
 
 void FakeVideoEncodeAcceleratorFactory::CreateSharedMemory(
@@ -60,8 +57,7 @@ void FakeVideoEncodeAcceleratorFactory::CreateSharedMemory(
   next_response_shm_.reset(new base::SharedMemory());
   CHECK(next_response_shm_->CreateAndMapAnonymous(size));
   shm_response_callback_ = callback;
-  if (auto_respond_)
-    RespondWithSharedMemory();
+  if (auto_respond_) RespondWithSharedMemory();
 }
 
 void FakeVideoEncodeAcceleratorFactory::RespondWithVideoEncodeAccelerator() {

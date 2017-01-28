@@ -37,18 +37,14 @@ static const uint8_t kSkipBox[] = {
     0x00};
 
 struct FreeBox : Box {
-  bool Parse(BoxReader* reader) override {
-    return true;
-  }
+  bool Parse(BoxReader* reader) override { return true; }
   FourCC BoxType() const override { return FOURCC_FREE; }
 };
 
 struct PsshBox : Box {
   uint32_t val;
 
-  bool Parse(BoxReader* reader) override {
-    return reader->Read4(&val);
-  }
+  bool Parse(BoxReader* reader) override { return reader->Read4(&val); }
   FourCC BoxType() const override { return FOURCC_PSSH; }
 };
 
@@ -62,14 +58,10 @@ struct SkipBox : Box {
   FreeBox mpty;
 
   bool Parse(BoxReader* reader) override {
-    RCHECK(reader->ReadFullBoxHeader() &&
-           reader->Read1(&a) &&
-           reader->Read1(&b) &&
-           reader->Read2(&c) &&
-           reader->Read4s(&d) &&
+    RCHECK(reader->ReadFullBoxHeader() && reader->Read1(&a) &&
+           reader->Read1(&b) && reader->Read2(&c) && reader->Read4s(&d) &&
            reader->Read4sInto8s(&e));
-    return reader->ScanChildren() &&
-           reader->ReadChildren(&kids) &&
+    return reader->ScanChildren() && reader->ReadChildren(&kids) &&
            reader->MaybeReadChild(&mpty);
   }
   FourCC BoxType() const override { return FOURCC_SKIP; }
@@ -208,7 +200,7 @@ TEST_F(BoxReaderTest, ReadAllChildrenTest) {
   std::vector<PsshBox> kids;
   EXPECT_TRUE(reader->SkipBytes(16) && reader->ReadAllChildren(&kids));
   EXPECT_EQ(2u, kids.size());
-  EXPECT_EQ(kids[0].val, 0xdeadbeef);   // Ensure order is preserved
+  EXPECT_EQ(kids[0].val, 0xdeadbeef);  // Ensure order is preserved
 }
 
 TEST_F(BoxReaderTest, SkippingBloc) {

@@ -86,8 +86,7 @@ std::string GetProfileName(VideoCodecProfile profile) {
   return "";
 }
 
-bool ParseAVCCodecId(const std::string& codec_id,
-                     VideoCodecProfile* profile,
+bool ParseAVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
                      uint8_t* level_idc) {
   // Make sure we have avc1.xxxxxx or avc3.xxxxxx , where xxxxxx are hex digits
   if (!StartsWithASCII(codec_id, "avc1.", true) &&
@@ -168,19 +167,16 @@ bool ParseAVCCodecId(const std::string& codec_id,
     out_profile = H264PROFILE_BASELINE;
   }
 
-  if (level_idc)
-    *level_idc = level_byte;
+  if (level_idc) *level_idc = level_byte;
 
-  if (profile)
-    *profile = out_profile;
+  if (profile) *profile = out_profile;
 
   return true;
 }
 
 // The specification for HEVC codec id strings can be found in ISO IEC 14496-15
 // dated 2012 or newer in the Annex E.3
-bool ParseHEVCCodecId(const std::string& codec_id,
-                      VideoCodecProfile* profile,
+bool ParseHEVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
                       uint8_t* level_idc) {
   if (!StartsWithASCII(codec_id, "hev1.", true) &&
       !StartsWithASCII(codec_id, "hvc1.", true)) {
@@ -262,8 +258,7 @@ bool ParseHEVCCodecId(const std::string& codec_id,
     return false;
   }
 
-  if (level_idc)
-    *level_idc = static_cast<uint8_t>(general_level_idc);
+  if (level_idc) *level_idc = static_cast<uint8_t>(general_level_idc);
 
   uint8_t constraint_flags[6];
   memset(constraint_flags, 0, sizeof(constraint_flags));
@@ -288,20 +283,14 @@ bool ParseHEVCCodecId(const std::string& codec_id,
 VideoCodec StringToVideoCodec(const std::string& codec_id) {
   std::vector<std::string> elem;
   base::SplitString(codec_id, '.', &elem);
-  if (elem.empty())
-    return kUnknownVideoCodec;
+  if (elem.empty()) return kUnknownVideoCodec;
   VideoCodecProfile profile = VIDEO_CODEC_PROFILE_UNKNOWN;
   uint8_t level = 0;
-  if (ParseAVCCodecId(codec_id, &profile, &level))
-    return kCodecH264;
-  if (codec_id == "vp8" || codec_id == "vp8.0")
-    return kCodecVP8;
-  if (codec_id == "vp9" || codec_id == "vp9.0")
-    return kCodecVP9;
-  if (codec_id == "theora")
-    return kCodecTheora;
-  if (ParseHEVCCodecId(codec_id, &profile, &level))
-    return kCodecHEVC;
+  if (ParseAVCCodecId(codec_id, &profile, &level)) return kCodecH264;
+  if (codec_id == "vp8" || codec_id == "vp8.0") return kCodecVP8;
+  if (codec_id == "vp9" || codec_id == "vp9.0") return kCodecVP9;
+  if (codec_id == "theora") return kCodecTheora;
+  if (ParseHEVCCodecId(codec_id, &profile, &level)) return kCodecHEVC;
 
   return kUnknownVideoCodec;
 }

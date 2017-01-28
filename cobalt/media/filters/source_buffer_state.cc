@@ -64,8 +64,7 @@ bool CheckBytestreamTrackIds(
 // List of time ranges for each SourceBuffer.
 // static
 Ranges<TimeDelta> SourceBufferState::ComputeRangesIntersection(
-    const RangesList& active_ranges,
-    bool ended) {
+    const RangesList& active_ranges, bool ended) {
   // TODO(servolk): Perhaps this can be removed in favor of blink implementation
   // (MediaSource::buffered)? Currently this is only used on Android and for
   // updating DemuxerHost's buffered ranges during AppendData() as well as
@@ -75,8 +74,7 @@ Ranges<TimeDelta> SourceBufferState::ComputeRangesIntersection(
 
   // Step 1: If activeSourceBuffers.length equals 0 then return an empty
   //  TimeRanges object and abort these steps.
-  if (active_ranges.empty())
-    return Ranges<TimeDelta>();
+  if (active_ranges.empty()) return Ranges<TimeDelta>();
 
   // Step 2: Let active ranges be the ranges returned by buffered for each
   //  SourceBuffer object in activeSourceBuffers.
@@ -84,8 +82,7 @@ Ranges<TimeDelta> SourceBufferState::ComputeRangesIntersection(
   //  ranges.
   TimeDelta highest_end_time;
   for (size_t i = 0; i < active_ranges.size(); ++i) {
-    if (!active_ranges[i].size())
-      continue;
+    if (!active_ranges[i].size()) continue;
 
     highest_end_time = std::max(
         highest_end_time, active_ranges[i].end(active_ranges[i].size() - 1));
@@ -140,13 +137,10 @@ SourceBufferState::SourceBufferState(
   DCHECK(frame_processor_);
 }
 
-SourceBufferState::~SourceBufferState() {
-  Shutdown();
-}
+SourceBufferState::~SourceBufferState() { Shutdown(); }
 
 void SourceBufferState::Init(
-    const StreamParser::InitCB& init_cb,
-    const std::string& expected_codecs,
+    const StreamParser::InitCB& init_cb, const std::string& expected_codecs,
     const StreamParser::EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
     const NewTextTrackCB& new_text_track_cb) {
   DCHECK_EQ(state_, UNINITIALIZED);
@@ -206,8 +200,7 @@ void SourceBufferState::SetTracksWatcher(
   init_segment_received_cb_ = tracks_updated_cb;
 }
 
-bool SourceBufferState::Append(const uint8_t* data,
-                               size_t length,
+bool SourceBufferState::Append(const uint8_t* data, size_t length,
                                TimeDelta append_window_start,
                                TimeDelta append_window_end,
                                TimeDelta* timestamp_offset) {
@@ -249,8 +242,7 @@ void SourceBufferState::ResetParserState(TimeDelta append_window_start,
   media_segment_has_data_for_track_.clear();
 }
 
-void SourceBufferState::Remove(TimeDelta start,
-                               TimeDelta end,
+void SourceBufferState::Remove(TimeDelta start, TimeDelta end,
                                TimeDelta duration) {
   for (DemuxerStreamMap::iterator it = audio_streams_.begin();
        it != audio_streams_.end(); ++it) {
@@ -288,15 +280,13 @@ bool SourceBufferState::EvictCodedFrames(DecodeTimestamp media_time,
            << " newDataSize=" << newDataSize
            << " total_buffered_size=" << total_buffered_size;
 
-  if (total_buffered_size == 0)
-    return true;
+  if (total_buffered_size == 0) return true;
 
   bool success = true;
   for (DemuxerStreamMap::iterator it = audio_streams_.begin();
        it != audio_streams_.end(); ++it) {
     uint64_t curr_size = it->second->GetBufferedSize();
-    if (curr_size == 0)
-      continue;
+    if (curr_size == 0) continue;
     uint64_t estimated_new_size = newDataSize * curr_size / total_buffered_size;
     DCHECK_LE(estimated_new_size, SIZE_MAX);
     success &= it->second->EvictCodedFrames(
@@ -305,8 +295,7 @@ bool SourceBufferState::EvictCodedFrames(DecodeTimestamp media_time,
   for (DemuxerStreamMap::iterator it = video_streams_.begin();
        it != video_streams_.end(); ++it) {
     uint64_t curr_size = it->second->GetBufferedSize();
-    if (curr_size == 0)
-      continue;
+    if (curr_size == 0) continue;
     uint64_t estimated_new_size = newDataSize * curr_size / total_buffered_size;
     DCHECK_LE(estimated_new_size, SIZE_MAX);
     success &= it->second->EvictCodedFrames(
@@ -315,8 +304,7 @@ bool SourceBufferState::EvictCodedFrames(DecodeTimestamp media_time,
   for (DemuxerStreamMap::iterator it = text_streams_.begin();
        it != text_streams_.end(); ++it) {
     uint64_t curr_size = it->second->GetBufferedSize();
-    if (curr_size == 0)
-      continue;
+    if (curr_size == 0) continue;
     uint64_t estimated_new_size = newDataSize * curr_size / total_buffered_size;
     DCHECK_LE(estimated_new_size, SIZE_MAX);
     success &= it->second->EvictCodedFrames(
@@ -557,14 +545,12 @@ void SourceBufferState::SetMemoryLimits(DemuxerStream::Type type,
 bool SourceBufferState::IsSeekWaitingForData() const {
   for (DemuxerStreamMap::const_iterator it = audio_streams_.begin();
        it != audio_streams_.end(); ++it) {
-    if (it->second->IsSeekWaitingForData())
-      return true;
+    if (it->second->IsSeekWaitingForData()) return true;
   }
 
   for (DemuxerStreamMap::const_iterator it = video_streams_.begin();
        it != video_streams_.end(); ++it) {
-    if (it->second->IsSeekWaitingForData())
-      return true;
+    if (it->second->IsSeekWaitingForData()) return true;
   }
 
   // NOTE: We are intentionally not checking the text tracks
@@ -578,8 +564,7 @@ bool SourceBufferState::IsSeekWaitingForData() const {
 }
 
 bool SourceBufferState::OnNewConfigs(
-    std::string expected_codecs,
-    scoped_ptr<MediaTracks> tracks,
+    std::string expected_codecs, scoped_ptr<MediaTracks> tracks,
     const StreamParser::TextTrackConfigMap& text_configs) {
   DCHECK(tracks.get());
   DVLOG(1) << __func__ << " expected_codecs=" << expected_codecs
@@ -646,8 +631,7 @@ bool SourceBufferState::OnNewConfigs(
       } else {
         if (audio_streams_.size() > 1) {
           DemuxerStreamMap::iterator it = audio_streams_.find(track_id);
-          if (it != audio_streams_.end())
-            stream = it->second;
+          if (it != audio_streams_.end()) stream = it->second;
         } else {
           // If there is only one audio track then bytestream id might change in
           // a new init segment. So update our state and notify frame processor.
@@ -703,8 +687,7 @@ bool SourceBufferState::OnNewConfigs(
       } else {
         if (video_streams_.size() > 1) {
           DemuxerStreamMap::iterator it = video_streams_.find(track_id);
-          if (it != video_streams_.end())
-            stream = it->second;
+          if (it != video_streams_.end()) stream = it->second;
         } else {
           // If there is only one video track then bytestream id might change in
           // a new init segment. So update our state and notify frame processor.
@@ -839,8 +822,7 @@ bool SourceBufferState::OnNewConfigs(
 
   DVLOG(1) << "OnNewConfigs() : " << (success ? "success" : "failed");
   if (success) {
-    if (state_ == PENDING_PARSER_CONFIG)
-      state_ = PENDING_PARSER_INIT;
+    if (state_ == PENDING_PARSER_CONFIG) state_ = PENDING_PARSER_INIT;
     DCHECK(!init_segment_received_cb_.is_null());
     init_segment_received_cb_.Run(tracks.Pass());
   }
@@ -848,8 +830,7 @@ bool SourceBufferState::OnNewConfigs(
   return success;
 }
 
-void SourceBufferState::SetStreamMemoryLimits() {
-}
+void SourceBufferState::SetStreamMemoryLimits() {}
 
 void SourceBufferState::OnNewMediaSegment() {
   DVLOG(2) << "OnNewMediaSegment()";

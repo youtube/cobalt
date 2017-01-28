@@ -56,8 +56,6 @@ bool OffsetByteQueue::Trim(int64_t max_offset) {
   return true;
 }
 
-void OffsetByteQueue::Sync() {
-  queue_.Peek(&buf_, &size_);
-}
+void OffsetByteQueue::Sync() { queue_.Peek(&buf_, &size_); }
 
 }  // namespace media

@@ -9,8 +9,7 @@
 namespace media {
 
 DataBuffer::DataBuffer(int buffer_size)
-    : buffer_size_(buffer_size),
-      data_size_(0) {
+    : buffer_size_(buffer_size), data_size_(0) {
   CHECK_GE(buffer_size, 0);
   data_.reset(new uint8_t[buffer_size_]);
 }

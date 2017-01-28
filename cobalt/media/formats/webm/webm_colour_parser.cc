@@ -407,8 +407,7 @@ WebMParserClient* WebMColourParser::OnListStart(int id) {
 }
 
 bool WebMColourParser::OnListEnd(int id) {
-  if (id == kWebMIdMasteringMetadata)
-    mastering_metadata_parsed_ = true;
+  if (id == kWebMIdMasteringMetadata) mastering_metadata_parsed_ = true;
   return true;
 }
 
@@ -495,8 +494,7 @@ WebMColorMetadata WebMColourParser::GetWebMColorMetadata() const {
         static_cast<MatrixCoefficient>(matrix_coefficients_));
 
   gfx::ColorSpace::RangeID range_id = gfx::ColorSpace::kRangeIdUnspecified;
-  if (range_ != -1)
-    range_id = FromWebMRange(static_cast<Range>(range_));
+  if (range_ != -1) range_id = FromWebMRange(static_cast<Range>(range_));
 
   gfx::ColorSpace::TransferID transfer_id =
       gfx::ColorSpace::kTransferIdUnspecified;
@@ -512,11 +510,9 @@ WebMColorMetadata WebMColourParser::GetWebMColorMetadata() const {
   color_metadata.color_space =
       gfx::ColorSpace(primary_id, transfer_id, matrix_id, range_id);
 
-  if (max_cll_ != -1)
-    color_metadata.hdr_metadata.max_cll = max_cll_;
+  if (max_cll_ != -1) color_metadata.hdr_metadata.max_cll = max_cll_;
 
-  if (max_fall_ != -1)
-    color_metadata.hdr_metadata.max_fall = max_fall_;
+  if (max_fall_ != -1) color_metadata.hdr_metadata.max_fall = max_fall_;
 
   if (mastering_metadata_parsed_)
     color_metadata.hdr_metadata.mastering_metadata =

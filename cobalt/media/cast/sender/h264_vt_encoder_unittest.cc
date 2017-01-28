@@ -80,10 +80,9 @@ class MetadataRecorder : public base::RefCountedThreadSafe<MetadataRecorder> {
                        FrameId expected_last_referenced_frame_id,
                        RtpTimeTicks expected_rtp_timestamp,
                        const base::TimeTicks& expected_reference_time) {
-    expectations_.push(Expectation{expected_frame_id,
-                                   expected_last_referenced_frame_id,
-                                   expected_rtp_timestamp,
-                                   expected_reference_time});
+    expectations_.push(
+        Expectation{expected_frame_id, expected_last_referenced_frame_id,
+                    expected_rtp_timestamp, expected_reference_time});
   }
 
   void CompareFrameWithExpected(

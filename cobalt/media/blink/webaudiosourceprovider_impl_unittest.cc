@@ -29,12 +29,11 @@ class WebAudioSourceProviderImplTest
       public blink::WebAudioSourceProviderClient {
  public:
   WebAudioSourceProviderImplTest()
-      : params_(AudioParameters::AUDIO_PCM_LINEAR,
-                CHANNEL_LAYOUT_STEREO, 48000, 16, 64),
+      : params_(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO, 48000,
+                16, 64),
         fake_callback_(0.1),
         mock_sink_(new MockAudioRendererSink()),
-        wasp_impl_(new WebAudioSourceProviderImpl(mock_sink_)) {
-  }
+        wasp_impl_(new WebAudioSourceProviderImpl(mock_sink_)) {}
 
   virtual ~WebAudioSourceProviderImplTest() {}
 
@@ -91,8 +90,7 @@ class WebAudioSourceProviderImplTest
   // CopyAudioCB. Added forwarder method due to GMock troubles with scoped_ptr.
   MOCK_METHOD3(DoCopyAudioCB,
                void(AudioBus*, uint32_t frames_delayed, int sample_rate));
-  void OnAudioBus(std::unique_ptr<AudioBus> bus,
-                  uint32_t frames_delayed,
+  void OnAudioBus(std::unique_ptr<AudioBus> bus, uint32_t frames_delayed,
                   int sample_rate) {
     DoCopyAudioCB(bus.get(), frames_delayed, sample_rate);
   }

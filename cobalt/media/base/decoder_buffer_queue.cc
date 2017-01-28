@@ -34,11 +34,9 @@ void DecoderBufferQueue::Push(const scoped_refptr<DecoderBuffer>& buffer) {
   }
 
   if (buffer->timestamp() < earliest_valid_timestamp_) {
-    DVLOG(2)
-        << "Out of order timestamps: "
-        << buffer->timestamp().InMicroseconds()
-        << " vs. "
-        << earliest_valid_timestamp_.InMicroseconds();
+    DVLOG(2) << "Out of order timestamps: "
+             << buffer->timestamp().InMicroseconds() << " vs. "
+             << earliest_valid_timestamp_.InMicroseconds();
     return;
   }
 
@@ -69,13 +67,10 @@ void DecoderBufferQueue::Clear() {
   earliest_valid_timestamp_ = kNoTimestamp;
 }
 
-bool DecoderBufferQueue::IsEmpty() {
-  return queue_.empty();
-}
+bool DecoderBufferQueue::IsEmpty() { return queue_.empty(); }
 
 base::TimeDelta DecoderBufferQueue::Duration() {
-  if (in_order_queue_.size() < 2)
-    return base::TimeDelta();
+  if (in_order_queue_.size() < 2) return base::TimeDelta();
 
   base::TimeDelta start = in_order_queue_.front()->timestamp();
   base::TimeDelta end = in_order_queue_.back()->timestamp();

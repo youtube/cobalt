@@ -19,28 +19,23 @@ namespace mp2t {
 
 EsParserTestBase::Packet::Packet() : offset(0u), size(0u), pts(kNoTimestamp) {}
 
-EsParserTestBase::EsParserTestBase()
-    : config_count_(0u),
-      buffer_count_(0u) {
-}
+EsParserTestBase::EsParserTestBase() : config_count_(0u), buffer_count_(0u) {}
 
-EsParserTestBase::~EsParserTestBase() {
-}
+EsParserTestBase::~EsParserTestBase() {}
 
 void EsParserTestBase::LoadStream(const char* filename) {
   base::FilePath file_path = GetTestDataFilePath(filename);
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path))
-      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
+                                            << file_path.MaybeAsASCII();
 
   stream_.resize(stream.length());
   memcpy(&stream_[0], stream.data(), stream_.size());
 }
 
 std::vector<EsParserTestBase::Packet> EsParserTestBase::LoadPacketsFromFiles(
-    const char* filename_template,
-    size_t file_count) {
+    const char* filename_template, size_t file_count) {
   std::vector<Packet> packets;
   for (size_t i = 0; i < file_count; ++i) {
     base::FilePath file_path =
@@ -71,16 +66,14 @@ void EsParserTestBase::NewVideoConfig(const VideoDecoderConfig& config) {
 }
 
 void EsParserTestBase::EmitBuffer(scoped_refptr<StreamParserBuffer> buffer) {
-  buffer_timestamps_stream_ << "("
-                            << buffer->timestamp().InMilliseconds()
+  buffer_timestamps_stream_ << "(" << buffer->timestamp().InMilliseconds()
                             << ") ";
   buffer_count_++;
 }
 
-bool EsParserTestBase::ProcessPesPackets(
-    EsParser* es_parser,
-    const std::vector<Packet>& pes_packets,
-    bool force_timing) {
+bool EsParserTestBase::ProcessPesPackets(EsParser* es_parser,
+                                         const std::vector<Packet>& pes_packets,
+                                         bool force_timing) {
   DCHECK(es_parser);
 
   buffer_count_ = 0;
@@ -103,15 +96,14 @@ bool EsParserTestBase::ProcessPesPackets(
   es_parser->Flush();
 
   buffer_timestamps_ = buffer_timestamps_stream_.str();
-  base::TrimWhitespaceASCII(
-      buffer_timestamps_, base::TRIM_ALL, &buffer_timestamps_);
+  base::TrimWhitespaceASCII(buffer_timestamps_, base::TRIM_ALL,
+                            &buffer_timestamps_);
   return true;
 }
 
 void EsParserTestBase::ComputePacketSize(std::vector<Packet>* packets) {
   DCHECK(packets);
-  if (packets->size() == 0u)
-    return;
+  if (packets->size() == 0u) return;
 
   Packet* cur = &(*packets)[0];
   for (size_t k = 0; k < packets->size() - 1; k++) {

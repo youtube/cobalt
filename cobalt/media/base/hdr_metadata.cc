@@ -24,8 +24,6 @@ MasteringMetadata::MasteringMetadata(const MasteringMetadata& rhs) {
 
 HDRMetadata::HDRMetadata() : max_cll(0), max_fall(0) {}
 
-HDRMetadata::HDRMetadata(const HDRMetadata& rhs) {
-  *this = rhs;
-}
+HDRMetadata::HDRMetadata(const HDRMetadata& rhs) { *this = rhs; }
 
 }  // namespace media

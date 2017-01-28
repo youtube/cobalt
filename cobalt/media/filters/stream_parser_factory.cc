@@ -30,15 +30,10 @@
 namespace media {
 
 typedef bool (*CodecIDValidatorFunction)(
-    const std::string& codecs_id,
-    const scoped_refptr<MediaLog>& media_log);
+    const std::string& codecs_id, const scoped_refptr<MediaLog>& media_log);
 
 struct CodecInfo {
-  enum Type {
-    UNKNOWN,
-    AUDIO,
-    VIDEO
-  };
+  enum Type { UNKNOWN, AUDIO, VIDEO };
 
   // Update tools/metrics/histograms/histograms.xml if new values are added.
   enum HistogramTag {
@@ -73,28 +68,20 @@ struct SupportedTypeInfo {
   const CodecInfo** codecs;
 };
 
-static const CodecInfo kVP8CodecInfo = { "vp8", CodecInfo::VIDEO, NULL,
-                                         CodecInfo::HISTOGRAM_VP8 };
-static const CodecInfo kVP9CodecInfo = { "vp9", CodecInfo::VIDEO, NULL,
-                                         CodecInfo::HISTOGRAM_VP9 };
-static const CodecInfo kVorbisCodecInfo = { "vorbis", CodecInfo::AUDIO, NULL,
-                                            CodecInfo::HISTOGRAM_VORBIS };
-static const CodecInfo kOpusCodecInfo = { "opus", CodecInfo::AUDIO, NULL,
-                                          CodecInfo::HISTOGRAM_OPUS };
+static const CodecInfo kVP8CodecInfo = {"vp8", CodecInfo::VIDEO, NULL,
+                                        CodecInfo::HISTOGRAM_VP8};
+static const CodecInfo kVP9CodecInfo = {"vp9", CodecInfo::VIDEO, NULL,
+                                        CodecInfo::HISTOGRAM_VP9};
+static const CodecInfo kVorbisCodecInfo = {"vorbis", CodecInfo::AUDIO, NULL,
+                                           CodecInfo::HISTOGRAM_VORBIS};
+static const CodecInfo kOpusCodecInfo = {"opus", CodecInfo::AUDIO, NULL,
+                                         CodecInfo::HISTOGRAM_OPUS};
 
 static const CodecInfo* kVideoWebMCodecs[] = {
-  &kVP8CodecInfo,
-  &kVP9CodecInfo,
-  &kVorbisCodecInfo,
-  &kOpusCodecInfo,
-  NULL
-};
+    &kVP8CodecInfo, &kVP9CodecInfo, &kVorbisCodecInfo, &kOpusCodecInfo, NULL};
 
-static const CodecInfo* kAudioWebMCodecs[] = {
-  &kVorbisCodecInfo,
-  &kOpusCodecInfo,
-  NULL
-};
+static const CodecInfo* kAudioWebMCodecs[] = {&kVorbisCodecInfo,
+                                              &kOpusCodecInfo, NULL};
 
 static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs,
                                      const scoped_refptr<MediaLog>& media_log) {
@@ -145,22 +132,21 @@ bool ValidateMP4ACodecID(const std::string& codec_id,
   return false;
 }
 
-static const CodecInfo kH264AVC1CodecInfo = { "avc1.*", CodecInfo::VIDEO, NULL,
-                                              CodecInfo::HISTOGRAM_H264 };
-static const CodecInfo kH264AVC3CodecInfo = { "avc3.*", CodecInfo::VIDEO, NULL,
-                                              CodecInfo::HISTOGRAM_H264 };
-static const CodecInfo kHEVCHEV1CodecInfo = { "hev1.*", CodecInfo::VIDEO, NULL,
-                                              CodecInfo::HISTOGRAM_HEVC };
-static const CodecInfo kHEVCHVC1CodecInfo = { "hvc1.*", CodecInfo::VIDEO, NULL,
-                                              CodecInfo::HISTOGRAM_HEVC };
+static const CodecInfo kH264AVC1CodecInfo = {"avc1.*", CodecInfo::VIDEO, NULL,
+                                             CodecInfo::HISTOGRAM_H264};
+static const CodecInfo kH264AVC3CodecInfo = {"avc3.*", CodecInfo::VIDEO, NULL,
+                                             CodecInfo::HISTOGRAM_H264};
+static const CodecInfo kHEVCHEV1CodecInfo = {"hev1.*", CodecInfo::VIDEO, NULL,
+                                             CodecInfo::HISTOGRAM_HEVC};
+static const CodecInfo kHEVCHVC1CodecInfo = {"hvc1.*", CodecInfo::VIDEO, NULL,
+                                             CodecInfo::HISTOGRAM_HEVC};
 static const CodecInfo kMPEG4VP09CodecInfo = {"vp09.*", CodecInfo::VIDEO, NULL,
                                               CodecInfo::HISTOGRAM_VP9};
-static const CodecInfo kMPEG4AACCodecInfo = { "mp4a.40.*", CodecInfo::AUDIO,
-                                              &ValidateMP4ACodecID,
-                                              CodecInfo::HISTOGRAM_MPEG4AAC };
-static const CodecInfo kMPEG2AACLCCodecInfo = { "mp4a.67", CodecInfo::AUDIO,
-                                                NULL,
-                                                CodecInfo::HISTOGRAM_MPEG2AAC };
+static const CodecInfo kMPEG4AACCodecInfo = {"mp4a.40.*", CodecInfo::AUDIO,
+                                             &ValidateMP4ACodecID,
+                                             CodecInfo::HISTOGRAM_MPEG4AAC};
+static const CodecInfo kMPEG2AACLCCodecInfo = {
+    "mp4a.67", CodecInfo::AUDIO, NULL, CodecInfo::HISTOGRAM_MPEG2AAC};
 // The 'ac-3' and 'ec-3' are mime codec ids for AC3 and EAC3 according to
 // http://www.mp4ra.org/codecs.html
 // The object types for AC3 and EAC3 in MP4 container are 0xa5 and 0xa6, so
@@ -181,20 +167,15 @@ static const CodecInfo kEAC3CodecInfo3 = {"mp4a.A6", CodecInfo::AUDIO, NULL,
                                           CodecInfo::HISTOGRAM_EAC3};
 
 static const CodecInfo* kVideoMP4Codecs[] = {
-    &kH264AVC1CodecInfo,  &kH264AVC3CodecInfo,
-    &kHEVCHEV1CodecInfo,  &kHEVCHVC1CodecInfo,
-    &kMPEG4VP09CodecInfo,
-    &kMPEG4AACCodecInfo,  &kMPEG2AACLCCodecInfo, NULL};
+    &kH264AVC1CodecInfo,   &kH264AVC3CodecInfo,
+    &kHEVCHEV1CodecInfo,   &kHEVCHVC1CodecInfo,
+    &kMPEG4VP09CodecInfo,  &kMPEG4AACCodecInfo,
+    &kMPEG2AACLCCodecInfo, NULL};
 
-static const CodecInfo* kAudioMP4Codecs[] = {&kMPEG4AACCodecInfo,
-                                             &kMPEG2AACLCCodecInfo,
-                                             &kAC3CodecInfo1,
-                                             &kAC3CodecInfo2,
-                                             &kAC3CodecInfo3,
-                                             &kEAC3CodecInfo1,
-                                             &kEAC3CodecInfo2,
-                                             &kEAC3CodecInfo3,
-                                             NULL};
+static const CodecInfo* kAudioMP4Codecs[] = {
+    &kMPEG4AACCodecInfo, &kMPEG2AACLCCodecInfo, &kAC3CodecInfo1,
+    &kAC3CodecInfo2,     &kAC3CodecInfo3,       &kEAC3CodecInfo1,
+    &kEAC3CodecInfo2,    &kEAC3CodecInfo3,      NULL};
 
 static StreamParser* BuildMP4Parser(const std::vector<std::string>& codecs,
                                     const scoped_refptr<MediaLog>& media_log) {
@@ -230,25 +211,19 @@ static StreamParser* BuildMP4Parser(const std::vector<std::string>& codecs,
   return new mp4::MP4StreamParser(audio_object_types, has_sbr);
 }
 
-static const CodecInfo kMP3CodecInfo = { NULL, CodecInfo::AUDIO, NULL,
-                                         CodecInfo::HISTOGRAM_MP3 };
+static const CodecInfo kMP3CodecInfo = {NULL, CodecInfo::AUDIO, NULL,
+                                        CodecInfo::HISTOGRAM_MP3};
 
-static const CodecInfo* kAudioMP3Codecs[] = {
-  &kMP3CodecInfo,
-  NULL
-};
+static const CodecInfo* kAudioMP3Codecs[] = {&kMP3CodecInfo, NULL};
 
 static StreamParser* BuildMP3Parser(const std::vector<std::string>& codecs,
                                     const scoped_refptr<MediaLog>& media_log) {
   return new MPEG1AudioStreamParser();
 }
 
-static const CodecInfo kADTSCodecInfo = { NULL, CodecInfo::AUDIO, NULL,
-                                          CodecInfo::HISTOGRAM_MPEG4AAC };
-static const CodecInfo* kAudioADTSCodecs[] = {
-  &kADTSCodecInfo,
-  NULL
-};
+static const CodecInfo kADTSCodecInfo = {NULL, CodecInfo::AUDIO, NULL,
+                                         CodecInfo::HISTOGRAM_MPEG4AAC};
+static const CodecInfo* kAudioADTSCodecs[] = {&kADTSCodecInfo, NULL};
 
 static StreamParser* BuildADTSParser(const std::vector<std::string>& codecs,
                                      const scoped_refptr<MediaLog>& media_log) {
@@ -273,14 +248,12 @@ static const SupportedTypeInfo kSupportedTypeInfo[] = {
 // video codec. |video_codecs| may be NULL, in which case it is not updated.
 //
 // Returns false otherwise, and |audio_codecs| and |video_codecs| not touched.
-static bool VerifyCodec(
-    const CodecInfo* codec_info,
-    std::vector<CodecInfo::HistogramTag>* audio_codecs,
-    std::vector<CodecInfo::HistogramTag>* video_codecs) {
+static bool VerifyCodec(const CodecInfo* codec_info,
+                        std::vector<CodecInfo::HistogramTag>* audio_codecs,
+                        std::vector<CodecInfo::HistogramTag>* video_codecs) {
   switch (codec_info->type) {
     case CodecInfo::AUDIO:
-      if (audio_codecs)
-        audio_codecs->push_back(codec_info->tag);
+      if (audio_codecs) audio_codecs->push_back(codec_info->tag);
       return true;
     case CodecInfo::VIDEO:
 #if defined(OS_ANDROID)
@@ -291,8 +264,7 @@ static bool VerifyCodec(
         return false;
       }
 #endif
-      if (video_codecs)
-        video_codecs->push_back(codec_info->tag);
+      if (video_codecs) video_codecs->push_back(codec_info->tag);
       return true;
     default:
       // Not audio or video, so skip it.
@@ -317,8 +289,7 @@ static bool VerifyCodec(
 // Returns false otherwise. The values of |factory_function|, |audio_codecs|,
 // and |video_codecs| are undefined.
 static bool CheckTypeAndCodecs(
-    const std::string& type,
-    const std::vector<std::string>& codecs,
+    const std::string& type, const std::vector<std::string>& codecs,
     const scoped_refptr<MediaLog>& media_log,
     ParserFactoryFunction* factory_function,
     std::vector<CodecInfo::HistogramTag>* audio_codecs,
@@ -331,9 +302,7 @@ static bool CheckTypeAndCodecs(
         const CodecInfo* codec_info = type_info.codecs[0];
         if (codec_info && !codec_info->pattern &&
             VerifyCodec(codec_info, audio_codecs, video_codecs)) {
-
-          if (factory_function)
-            *factory_function = type_info.factory_function;
+          if (factory_function) *factory_function = type_info.factory_function;
           return true;
         }
 
@@ -366,8 +335,7 @@ static bool CheckTypeAndCodecs(
         }
       }
 
-      if (factory_function)
-        *factory_function = type_info.factory_function;
+      if (factory_function) *factory_function = type_info.factory_function;
 
       // All codecs were supported by this |type|.
       return true;
@@ -384,8 +352,7 @@ bool StreamParserFactory::IsTypeSupported(
 }
 
 scoped_ptr<StreamParser> StreamParserFactory::Create(
-    const std::string& type,
-    const std::vector<std::string>& codecs,
+    const std::string& type, const std::vector<std::string>& codecs,
     const scoped_refptr<MediaLog>& media_log) {
   scoped_ptr<StreamParser> stream_parser;
   ParserFactoryFunction factory_function;
@@ -397,13 +364,11 @@ scoped_ptr<StreamParser> StreamParserFactory::Create(
     // Log the number of codecs specified, as well as the details on each one.
     UMA_HISTOGRAM_COUNTS_100("Media.MSE.NumberOfTracks", codecs.size());
     for (size_t i = 0; i < audio_codecs.size(); ++i) {
-      UMA_HISTOGRAM_ENUMERATION("Media.MSE.AudioCodec",
-                                audio_codecs[i],
+      UMA_HISTOGRAM_ENUMERATION("Media.MSE.AudioCodec", audio_codecs[i],
                                 CodecInfo::HISTOGRAM_MAX + 1);
     }
     for (size_t i = 0; i < video_codecs.size(); ++i) {
-      UMA_HISTOGRAM_ENUMERATION("Media.MSE.VideoCodec",
-                                video_codecs[i],
+      UMA_HISTOGRAM_ENUMERATION("Media.MSE.VideoCodec", video_codecs[i],
                                 CodecInfo::HISTOGRAM_MAX + 1);
     }
 

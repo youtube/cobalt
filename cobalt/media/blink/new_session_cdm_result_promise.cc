@@ -32,12 +32,10 @@ NewSessionCdmResultPromise::NewSessionCdmResultPromise(
     const SessionInitializedCB& new_session_created_cb)
     : web_cdm_result_(result),
       uma_name_(uma_name),
-      new_session_created_cb_(new_session_created_cb) {
-}
+      new_session_created_cb_(new_session_created_cb) {}
 
 NewSessionCdmResultPromise::~NewSessionCdmResultPromise() {
-  if (!IsPromiseSettled())
-    RejectPromiseOnDestruction();
+  if (!IsPromiseSettled()) RejectPromiseOnDestruction();
 }
 
 void NewSessionCdmResultPromise::resolve(const std::string& session_id) {

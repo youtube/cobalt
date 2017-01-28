@@ -82,15 +82,11 @@ void ClusterBuilder::SetClusterTimecode(int64_t cluster_timecode) {
   }
 }
 
-void ClusterBuilder::AddSimpleBlock(int track_num,
-                                    int64_t timecode,
-                                    int flags,
-                                    const uint8_t* data,
-                                    int size) {
+void ClusterBuilder::AddSimpleBlock(int track_num, int64_t timecode, int flags,
+                                    const uint8_t* data, int size) {
   int block_size = size + 4;
   int bytes_needed = sizeof(kSimpleBlockHeader) + block_size;
-  if (bytes_needed > (buffer_size_ - bytes_used_))
-    ExtendBuffer(bytes_needed);
+  if (bytes_needed > (buffer_size_ - bytes_used_)) ExtendBuffer(bytes_needed);
 
   uint8_t* buf = buffer_.get() + bytes_used_;
   int block_offset = bytes_used_;
@@ -103,35 +99,25 @@ void ClusterBuilder::AddSimpleBlock(int track_num,
   bytes_used_ += bytes_needed;
 }
 
-void ClusterBuilder::AddBlockGroup(int track_num,
-                                   int64_t timecode,
-                                   int duration,
-                                   int flags,
-                                   bool is_key_frame,
-                                   const uint8_t* data,
-                                   int size) {
+void ClusterBuilder::AddBlockGroup(int track_num, int64_t timecode,
+                                   int duration, int flags, bool is_key_frame,
+                                   const uint8_t* data, int size) {
   AddBlockGroupInternal(track_num, timecode, true, duration, flags,
                         is_key_frame, data, size);
 }
 
-void ClusterBuilder::AddBlockGroupWithoutBlockDuration(int track_num,
-                                                       int64_t timecode,
-                                                       int flags,
-                                                       bool is_key_frame,
-                                                       const uint8_t* data,
-                                                       int size) {
+void ClusterBuilder::AddBlockGroupWithoutBlockDuration(
+    int track_num, int64_t timecode, int flags, bool is_key_frame,
+    const uint8_t* data, int size) {
   AddBlockGroupInternal(track_num, timecode, false, 0, flags, is_key_frame,
                         data, size);
 }
 
-void ClusterBuilder::AddBlockGroupInternal(int track_num,
-                                           int64_t timecode,
+void ClusterBuilder::AddBlockGroupInternal(int track_num, int64_t timecode,
                                            bool include_block_duration,
-                                           int duration,
-                                           int flags,
+                                           int duration, int flags,
                                            bool is_key_frame,
-                                           const uint8_t* data,
-                                           int size) {
+                                           const uint8_t* data, int size) {
   int block_size = size + 4;
   int bytes_needed = block_size;
   if (include_block_duration) {
@@ -145,8 +131,7 @@ void ClusterBuilder::AddBlockGroupInternal(int track_num,
 
   int block_group_size = bytes_needed - 9;
 
-  if (bytes_needed > (buffer_size_ - bytes_used_))
-    ExtendBuffer(bytes_needed);
+  if (bytes_needed > (buffer_size_ - bytes_used_)) ExtendBuffer(bytes_needed);
 
   uint8_t* buf = buffer_.get() + bytes_used_;
   int block_group_offset = bytes_used_;
@@ -180,12 +165,8 @@ void ClusterBuilder::AddBlockGroupInternal(int track_num,
   bytes_used_ += bytes_needed;
 }
 
-void ClusterBuilder::WriteBlock(uint8_t* buf,
-                                int track_num,
-                                int64_t timecode,
-                                int flags,
-                                const uint8_t* data,
-                                int size) {
+void ClusterBuilder::WriteBlock(uint8_t* buf, int track_num, int64_t timecode,
+                                int flags, const uint8_t* data, int size) {
   DCHECK_GE(track_num, 0);
   DCHECK_LE(track_num, 126);
   DCHECK_GE(flags, 0);
@@ -236,8 +217,7 @@ void ClusterBuilder::Reset() {
 void ClusterBuilder::ExtendBuffer(int bytes_needed) {
   int new_buffer_size = 2 * buffer_size_;
 
-  while ((new_buffer_size - bytes_used_) < bytes_needed)
-    new_buffer_size *= 2;
+  while ((new_buffer_size - bytes_used_) < bytes_needed) new_buffer_size *= 2;
 
   scoped_array<uint8_t> new_buffer(new uint8_t[new_buffer_size]);
 
