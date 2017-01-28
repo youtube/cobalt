@@ -52,6 +52,7 @@ extern const char kEaseOutKeywordName[];
 extern const char kEllipseKeywordName[];
 extern const char kEllipsisKeywordName[];
 extern const char kEndKeywordName[];
+extern const char kEquirectangularKeywordName[];
 extern const char kFantasyKeywordName[];
 extern const char kFarthestCornerKeywordName[];
 extern const char kFarthestSideKeywordName[];

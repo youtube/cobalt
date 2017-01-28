@@ -131,6 +131,11 @@ class KeywordValue : public PropertyValue {
     //   https://www.w3.org/TR/css-text-3/#text-align
     kEnd,
 
+    // "equirectangular" is a value of a parameter of the "map-to-mesh"
+    // filter function which indicates that the built-in equirectangular mesh
+    // should be used.
+    kEquirectangular,
+
     // "fantasy" is a value of "font_family" property which indicates a generic
     // font family using decorative or expressive representations of characters.
     //   https://www.w3.org/TR/css3-fonts/#generic-font-families
@@ -346,6 +351,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetCursive();
   static const scoped_refptr<KeywordValue>& GetEllipsis();
   static const scoped_refptr<KeywordValue>& GetEnd();
+  static const scoped_refptr<KeywordValue>& GetEquirectangular();
   static const scoped_refptr<KeywordValue>& GetFantasy();
   static const scoped_refptr<KeywordValue>& GetForwards();
   static const scoped_refptr<KeywordValue>& GetFixed();
