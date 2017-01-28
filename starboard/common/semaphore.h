@@ -18,6 +18,7 @@
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/mutex.h"
+#include "starboard/time.h"
 
 namespace starboard {
 
@@ -41,6 +42,10 @@ class Semaphore {
   // function returns immediately and the semaphore is not modified. If true
   // is returned then the effects are the same as if Take() had been invoked.
   bool TakeTry();
+
+  // Same as Take(), but will wait at most, wait_us microseconds.
+  // Returns |false| if the semaphore timed out, |true| otherwise.
+  bool TakeWait(SbTime wait_us);
 
  private:
   Mutex mutex_;
@@ -77,6 +82,26 @@ inline bool Semaphore::TakeTry() {
   ScopedLock lock(mutex_);
   if (permits_ <= 0) {
     return false;
+  }
+  --permits_;
+  return true;
+}
+
+inline bool Semaphore::TakeWait(SbTime wait_us) {
+  if (wait_us <= 0) {
+    return TakeTry();
+  }
+  SbTime expire_time = SbTimeGetMonotonicNow() + wait_us;
+  ScopedLock lock(mutex_);
+  while (permits_ <= 0) {
+    SbTime remaining_wait_time = expire_time - SbTimeGetMonotonicNow();
+    if (remaining_wait_time <= 0) {
+      return false;  // Timed out.
+    }
+    bool was_signaled = condition_.WaitTimed(remaining_wait_time);
+    if (!was_signaled) {
+      return false;  // Timed out.
+    }
   }
   --permits_;
   return true;
