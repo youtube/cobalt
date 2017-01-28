@@ -70,11 +70,8 @@ class WatchTimeReporterTest : public testing::Test {
     DISALLOW_COPY_AND_ASSIGN(WatchTimeLogMonitor);
   };
 
-  void Initialize(bool has_audio,
-                  bool has_video,
-                  bool is_mse,
-                  bool is_encrypted,
-                  const gfx::Size& initial_video_size) {
+  void Initialize(bool has_audio, bool has_video, bool is_mse,
+                  bool is_encrypted, const gfx::Size& initial_video_size) {
     wtr_.reset(new WatchTimeReporter(
         has_audio, has_video, is_mse, is_encrypted, media_log_,
         initial_video_size,
@@ -534,8 +531,7 @@ TEST_F(WatchTimeReporterTest, HysteresisPartialExitStillFinalizes) {
 
   for (size_t i = 0; i < 3; ++i) {
     for (size_t j = 0; j < 3; ++j) {
-      if (i == j)
-        continue;
+      if (i == j) continue;
 
       RunHysteresisTest<kFinalizeInterleavedStartEvent>(
           [i, j, start_event, stop_event]() {

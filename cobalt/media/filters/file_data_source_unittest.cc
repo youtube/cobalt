@@ -40,9 +40,9 @@ base::FilePath TestFileURL() {
   base::FilePath data_dir;
   EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("media"))
-                     .Append(FILE_PATH_LITERAL("test"))
-                     .Append(FILE_PATH_LITERAL("data"))
-                     .Append(FILE_PATH_LITERAL("ten_byte_file"));
+                 .Append(FILE_PATH_LITERAL("test"))
+                 .Append(FILE_PATH_LITERAL("data"))
+                 .Append(FILE_PATH_LITERAL("ten_byte_file"));
   return data_dir;
 }
 
@@ -60,24 +60,24 @@ TEST(FileDataSourceTest, ReadData) {
 
   ReadCBHandler handler;
   EXPECT_CALL(handler, ReadCB(10));
-  data_source.Read(0, 10, ten_bytes, base::Bind(
-      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
+  data_source.Read(0, 10, ten_bytes, base::Bind(&ReadCBHandler::ReadCB,
+                                                base::Unretained(&handler)));
   EXPECT_EQ('0', ten_bytes[0]);
   EXPECT_EQ('5', ten_bytes[5]);
   EXPECT_EQ('9', ten_bytes[9]);
 
   EXPECT_CALL(handler, ReadCB(1));
-  data_source.Read(9, 1, ten_bytes, base::Bind(
-      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
+  data_source.Read(9, 1, ten_bytes, base::Bind(&ReadCBHandler::ReadCB,
+                                               base::Unretained(&handler)));
   EXPECT_EQ('9', ten_bytes[0]);
 
   EXPECT_CALL(handler, ReadCB(0));
-  data_source.Read(10, 10, ten_bytes, base::Bind(
-      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
+  data_source.Read(10, 10, ten_bytes, base::Bind(&ReadCBHandler::ReadCB,
+                                                 base::Unretained(&handler)));
 
   EXPECT_CALL(handler, ReadCB(5));
-  data_source.Read(5, 10, ten_bytes, base::Bind(
-      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
+  data_source.Read(5, 10, ten_bytes, base::Bind(&ReadCBHandler::ReadCB,
+                                                base::Unretained(&handler)));
   EXPECT_EQ('5', ten_bytes[0]);
 
   data_source.Stop();

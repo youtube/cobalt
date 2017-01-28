@@ -50,15 +50,12 @@ WebURLResponse TestResponseGenerator::Generate206(int64_t first_byte_offset,
 }
 
 WebURLResponse TestResponseGenerator::GeneratePartial206(
-    int64_t first_byte_offset,
-    int64_t last_byte_offset) {
+    int64_t first_byte_offset, int64_t last_byte_offset) {
   return GeneratePartial206(first_byte_offset, last_byte_offset, kNormal);
 }
 
 WebURLResponse TestResponseGenerator::GeneratePartial206(
-    int64_t first_byte_offset,
-    int64_t last_byte_offset,
-    Flags flags) {
+    int64_t first_byte_offset, int64_t last_byte_offset, Flags flags) {
   int64_t range_content_length = content_length_ - first_byte_offset;
 
   WebURLResponse response(gurl_);
@@ -71,8 +68,7 @@ WebURLResponse TestResponseGenerator::GeneratePartial206(
 
   if ((flags & kNoContentRange) == 0) {
     std::string content_range = base::StringPrintf(
-        "bytes %" PRId64 "-%" PRId64 "/",
-        first_byte_offset, last_byte_offset);
+        "bytes %" PRId64 "-%" PRId64 "/", first_byte_offset, last_byte_offset);
     if (flags & kNoContentRangeInstanceSize)
       content_range += "*";
     else

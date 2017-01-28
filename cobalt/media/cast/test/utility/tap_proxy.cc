@@ -48,14 +48,11 @@ const size_t kMaxPacketSize = 4096;
 
 class SendToFDPipe : public PacketPipe {
  public:
-  explicit SendToFDPipe(int fd) : fd_(fd) {
-  }
+  explicit SendToFDPipe(int fd) : fd_(fd) {}
   void Send(std::unique_ptr<Packet> packet) final {
     while (1) {
-      int written = write(
-          fd_,
-          reinterpret_cast<char*>(&packet->front()),
-          packet->size());
+      int written =
+          write(fd_, reinterpret_cast<char*>(&packet->front()), packet->size());
       if (written < 0) {
         if (errno == EINTR) continue;
         perror("write");
@@ -68,6 +65,7 @@ class SendToFDPipe : public PacketPipe {
       break;
     }
   }
+
  private:
   int fd_;
 };
@@ -93,8 +91,7 @@ class QueueManager {
  private:
   void OnFileCanReadWithoutBlocking() {
     std::unique_ptr<Packet> packet(new Packet(kMaxPacketSize));
-    int nread = read(input_fd_,
-                     reinterpret_cast<char*>(&packet->front()),
+    int nread = read(input_fd_, reinterpret_cast<char*>(&packet->front()),
                      kMaxPacketSize);
     if (nread < 0) {
       if (errno == EINTR) return;
@@ -121,9 +118,7 @@ base::TimeTicks last_printout;
 
 class ByteCounter {
  public:
-  ByteCounter() : bytes_(0), packets_(0) {
-    push(base::TimeTicks::Now());
-  }
+  ByteCounter() : bytes_(0), packets_(0) { push(base::TimeTicks::Now()); }
 
   base::TimeDelta time_range() {
     return time_data_.back() - time_data_.front();
@@ -146,13 +141,13 @@ class ByteCounter {
   }
 
   double packets_per_second() {
-    double packets = packet_data_.back()- packet_data_.front();
+    double packets = packet_data_.back() - packet_data_.front();
     return packets / time_range().InSecondsF();
   }
 
   void Increment(uint64_t x) {
     bytes_ += x;
-    packets_ ++;
+    packets_++;
   }
 
  private:
@@ -175,6 +170,7 @@ class ByteCounterPipe : public media::cast::test::PacketPipe {
     counter_->Increment(packet->size());
     pipe_->Send(std::move(packet));
   }
+
  private:
   ByteCounter* counter_;
 };
@@ -211,15 +207,14 @@ void CheckByteCounters() {
     last_printout = now;
   }
   base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&CheckByteCounters),
+      FROM_HERE, base::Bind(&CheckByteCounters),
       base::TimeDelta::FromMilliseconds(100));
 }
 
-int tun_alloc(char *dev, int flags) {
+int tun_alloc(char* dev, int flags) {
   struct ifreq ifr;
   int fd, err;
-  const char *clonedev = "/dev/net/tun";
+  const char* clonedev = "/dev/net/tun";
 
   /* Arguments taken by the function:
    *
@@ -229,14 +224,14 @@ int tun_alloc(char *dev, int flags) {
    */
 
   /* open the clone device */
-  if( (fd = open(clonedev, O_RDWR)) < 0 ) {
+  if ((fd = open(clonedev, O_RDWR)) < 0) {
     return fd;
   }
 
   /* preparation of the struct ifr, of type "struct ifreq" */
   memset(&ifr, 0, sizeof(ifr));
 
-  ifr.ifr_flags = flags;   /* IFF_TUN or IFF_TAP, plus maybe IFF_NO_PI */
+  ifr.ifr_flags = flags; /* IFF_TUN or IFF_TAP, plus maybe IFF_NO_PI */
 
   if (*dev) {
     /* if a device name was specified, put it in the structure; otherwise,
@@ -246,7 +241,7 @@ int tun_alloc(char *dev, int flags) {
   }
 
   /* try to create the device */
-  if( (err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0 ) {
+  if ((err = ioctl(fd, TUNSETIFF, (void*)&ifr)) < 0) {
     close(fd);
     return err;
   }
@@ -265,7 +260,7 @@ int tun_alloc(char *dev, int flags) {
 }
 
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   base::AtExitManager exit_manager;
   base::CommandLine::Init(argc, argv);
   InitLogging(logging::LoggingSettings());
@@ -299,8 +294,8 @@ int main(int argc, char **argv) {
   }
 
   SetupByteCounters(&in_pipe, &in_pipe_input_counter, &in_pipe_output_counter);
-  SetupByteCounters(
-      &out_pipe, &out_pipe_input_counter, &out_pipe_output_counter);
+  SetupByteCounters(&out_pipe, &out_pipe_input_counter,
+                    &out_pipe_output_counter);
 
   int fd1 = tun_alloc(argv[1], IFF_TAP);
   int fd2 = tun_alloc(argv[2], IFF_TAP);

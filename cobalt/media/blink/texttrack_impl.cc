@@ -27,11 +27,9 @@ TextTrackImpl::TextTrackImpl(
 }
 
 TextTrackImpl::~TextTrackImpl() {
-  task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&TextTrackImpl::OnRemoveTrack,
-                 client_,
-                 base::Passed(&text_track_)));
+  task_runner_->PostTask(FROM_HERE,
+                         base::Bind(&TextTrackImpl::OnRemoveTrack, client_,
+                                    base::Passed(&text_track_)));
 }
 
 void TextTrackImpl::addWebVTTCue(const base::TimeDelta& start,
@@ -40,22 +38,17 @@ void TextTrackImpl::addWebVTTCue(const base::TimeDelta& start,
                                  const std::string& content,
                                  const std::string& settings) {
   task_runner_->PostTask(
-    FROM_HERE,
-    base::Bind(&TextTrackImpl::OnAddCue,
-                text_track_.get(),
-                start, end,
-                id, content, settings));
+      FROM_HERE, base::Bind(&TextTrackImpl::OnAddCue, text_track_.get(), start,
+                            end, id, content, settings));
 }
 
 void TextTrackImpl::OnAddCue(WebInbandTextTrackImpl* text_track,
                              const base::TimeDelta& start,
-                             const base::TimeDelta& end,
-                             const std::string& id,
+                             const base::TimeDelta& end, const std::string& id,
                              const std::string& content,
                              const std::string& settings) {
   if (blink::WebInbandTextTrackClient* client = text_track->client()) {
-    client->addWebVTTCue(start.InSecondsF(),
-                         end.InSecondsF(),
+    client->addWebVTTCue(start.InSecondsF(), end.InSecondsF(),
                          blink::WebString::fromUTF8(id),
                          blink::WebString::fromUTF8(content),
                          blink::WebString::fromUTF8(settings));
@@ -65,8 +58,7 @@ void TextTrackImpl::OnAddCue(WebInbandTextTrackImpl* text_track,
 void TextTrackImpl::OnRemoveTrack(
     blink::WebMediaPlayerClient* client,
     std::unique_ptr<WebInbandTextTrackImpl> text_track) {
-  if (text_track->client())
-    client->removeTextTrack(text_track.get());
+  if (text_track->client()) client->removeTextTrack(text_track.get());
 }
 
 }  // namespace media

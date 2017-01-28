@@ -54,8 +54,8 @@ const int kMaxStrangeSameTimestampsLogs = 20;
 // false otherwise.
 bool IsRangeListSorted(const std::list<media::SourceBufferRange*>& ranges) {
   DecodeTimestamp prev = kNoDecodeTimestamp();
-  for (std::list<SourceBufferRange*>::const_iterator itr =
-       ranges.begin(); itr != ranges.end(); ++itr) {
+  for (std::list<SourceBufferRange*>::const_iterator itr = ranges.begin();
+       itr != ranges.end(); ++itr) {
     if (prev != kNoDecodeTimestamp() && prev >= (*itr)->GetStartTimestamp())
       return false;
     prev = (*itr)->GetEndTimestamp();
@@ -90,22 +90,20 @@ std::string RangeToString(const SourceBufferRange& range) {
     return "[]";
   }
   std::stringstream ss;
-  ss << "[" << range.GetStartTimestamp().InSecondsF()
-     << ";" << range.GetEndTimestamp().InSecondsF()
-     << "(" << range.GetBufferedEndTimestamp().InSecondsF() << ")]";
+  ss << "[" << range.GetStartTimestamp().InSecondsF() << ";"
+     << range.GetEndTimestamp().InSecondsF() << "("
+     << range.GetBufferedEndTimestamp().InSecondsF() << ")]";
   return ss.str();
 }
 
 // Helper method for logging, converts a set of ranges into a readable string.
 std::string RangesToString(const SourceBufferStream::RangeList& ranges) {
-  if (ranges.empty())
-    return "<EMPTY>";
+  if (ranges.empty()) return "<EMPTY>";
 
   std::stringstream ss;
   for (SourceBufferStream::RangeList::const_iterator iter = ranges.begin();
        iter != ranges.end(); ++iter) {
-    if (iter != ranges.begin())
-      ss << " ";
+    if (iter != ranges.begin()) ss << " ";
     ss << RangeToString(**iter);
   }
   return ss.str();
@@ -115,18 +113,20 @@ std::string BufferQueueToLogString(
     const SourceBufferStream::BufferQueue& buffers) {
   std::stringstream result;
   if (buffers.front()->GetDecodeTimestamp().InMicroseconds() ==
-      buffers.front()->timestamp().InMicroseconds() &&
+          buffers.front()->timestamp().InMicroseconds() &&
       buffers.back()->GetDecodeTimestamp().InMicroseconds() ==
-      buffers.back()->timestamp().InMicroseconds()) {
+          buffers.back()->timestamp().InMicroseconds()) {
     result << "dts/pts=[" << buffers.front()->timestamp().InSecondsF() << ";"
-           << buffers.back()->timestamp().InSecondsF() << "(last frame dur="
-           << buffers.back()->duration().InSecondsF() << ")]";
+           << buffers.back()->timestamp().InSecondsF()
+           << "(last frame dur=" << buffers.back()->duration().InSecondsF()
+           << ")]";
   } else {
     result << "dts=[" << buffers.front()->GetDecodeTimestamp().InSecondsF()
            << ";" << buffers.back()->GetDecodeTimestamp().InSecondsF()
            << "] pts=[" << buffers.front()->timestamp().InSecondsF() << ";"
-           << buffers.back()->timestamp().InSecondsF() << "(last frame dur="
-           << buffers.back()->duration().InSecondsF() << ")]";
+           << buffers.back()->timestamp().InSecondsF()
+           << "(last frame dur=" << buffers.back()->duration().InSecondsF()
+           << ")]";
   }
   return result.str();
 }
@@ -225,9 +225,8 @@ void SourceBufferStream::OnStartOfCodedFrameGroup(
 }
 
 bool SourceBufferStream::Append(const BufferQueue& buffers) {
-  TRACE_EVENT2("media", "SourceBufferStream::Append",
-               "stream type", GetStreamTypeName(),
-               "buffers to append", buffers.size());
+  TRACE_EVENT2("media", "SourceBufferStream::Append", "stream type",
+               GetStreamTypeName(), "buffers to append", buffers.size());
 
   DCHECK(!buffers.empty());
   DCHECK(coded_frame_group_start_time_ != kNoDecodeTimestamp());
@@ -333,12 +332,11 @@ bool SourceBufferStream::Append(const BufferQueue& buffers) {
           buffers_for_new_range->front()->GetDecodeTimestamp();
     }
 
-    range_for_next_append_ =
-        AddToRanges(new SourceBufferRange(
-            TypeToGapPolicy(GetType()),
-            *buffers_for_new_range, new_range_start_time,
-            base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
-                       base::Unretained(this))));
+    range_for_next_append_ = AddToRanges(new SourceBufferRange(
+        TypeToGapPolicy(GetType()), *buffers_for_new_range,
+        new_range_start_time,
+        base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
+                   base::Unretained(this))));
     last_appended_buffer_timestamp_ =
         buffers_for_new_range->back()->GetDecodeTimestamp();
     last_appended_buffer_duration_ = buffers_for_new_range->back()->duration();
@@ -365,7 +363,7 @@ bool SourceBufferStream::Append(const BufferQueue& buffers) {
            track_buffer_.back()->GetDecodeTimestamp() < start_of_deleted)
         << "decode timestamp "
         << track_buffer_.back()->GetDecodeTimestamp().InSecondsF() << " sec"
-        << ", start_of_deleted " << start_of_deleted.InSecondsF()<< " sec";
+        << ", start_of_deleted " << start_of_deleted.InSecondsF() << " sec";
 
     track_buffer_.insert(track_buffer_.end(), deleted_buffers.begin(),
                          deleted_buffers.end());
@@ -402,8 +400,8 @@ void SourceBufferStream::Remove(base::TimeDelta start, base::TimeDelta end,
            << start.InSecondsF() << ", " << end.InSecondsF() << ", "
            << duration.InSecondsF() << ")";
   DCHECK(start >= base::TimeDelta()) << start.InSecondsF();
-  DCHECK(start < end) << "start " << start.InSecondsF()
-                      << " end " << end.InSecondsF();
+  DCHECK(start < end) << "start " << start.InSecondsF() << " end "
+                      << end.InSecondsF();
   DCHECK(duration != kNoTimestamp);
 
   DecodeTimestamp start_dts = DecodeTimestamp::FromPresentationTime(start);
@@ -447,8 +445,7 @@ DecodeTimestamp SourceBufferStream::PotentialNextAppendTimestamp() const {
            base::TimeDelta::FromInternalValue(1);
   }
 
-  if (new_coded_frame_group_)
-    return coded_frame_group_start_time_;
+  if (new_coded_frame_group_) return coded_frame_group_start_time_;
 
   // If we still don't know a potential next append timestamp, then we have
   // removed the ranged to which it previously belonged and have not completed a
@@ -458,8 +455,7 @@ DecodeTimestamp SourceBufferStream::PotentialNextAppendTimestamp() const {
 }
 
 void SourceBufferStream::UpdateLastAppendStateForRemove(
-    DecodeTimestamp remove_start,
-    DecodeTimestamp remove_end,
+    DecodeTimestamp remove_start, DecodeTimestamp remove_end,
     bool exclude_start) {
   // TODO(chcunningham): change exclude_start to include_start in this class and
   // SourceBufferRange. Negatives are hard to reason about.
@@ -467,8 +463,7 @@ void SourceBufferStream::UpdateLastAppendStateForRemove(
 
   // No need to check previous append's GOP if starting a new CFG. New CFG is
   // already required to begin with a key frame.
-  if (new_coded_frame_group_)
-    return;
+  if (new_coded_frame_group_) return;
 
   if (range_for_next_append_ != ranges_.end()) {
     if (last_appended_buffer_timestamp_ != kNoDecodeTimestamp()) {
@@ -502,8 +497,7 @@ void SourceBufferStream::UpdateLastAppendStateForRemove(
 }
 
 void SourceBufferStream::RemoveInternal(DecodeTimestamp start,
-                                        DecodeTimestamp end,
-                                        bool exclude_start,
+                                        DecodeTimestamp end, bool exclude_start,
                                         BufferQueue* deleted_buffers) {
   DVLOG(2) << __func__ << " " << GetStreamTypeName() << " ("
            << start.InSecondsF() << ", " << end.InSecondsF() << ", "
@@ -512,8 +506,8 @@ void SourceBufferStream::RemoveInternal(DecodeTimestamp start,
            << ": before remove ranges_=" << RangesToString(ranges_);
 
   DCHECK(start >= DecodeTimestamp());
-  DCHECK(start < end) << "start " << start.InSecondsF()
-                      << " end " << end.InSecondsF();
+  DCHECK(start < end) << "start " << start.InSecondsF() << " end "
+                      << end.InSecondsF();
   DCHECK(deleted_buffers);
 
   // Doing this upfront simplifies decisions about range_for_next_append_ below.
@@ -522,8 +516,7 @@ void SourceBufferStream::RemoveInternal(DecodeTimestamp start,
   RangeList::iterator itr = ranges_.begin();
   while (itr != ranges_.end()) {
     SourceBufferRange* range = *itr;
-    if (range->GetStartTimestamp() >= end)
-      break;
+    if (range->GetStartTimestamp() >= end) break;
 
     // Split off any remaining GOPs starting at or after |end| and add it to
     // |ranges_|.
@@ -547,8 +540,7 @@ void SourceBufferStream::RemoveInternal(DecodeTimestamp start,
 
       // Update the selected range if the next buffer position was transferred
       // to |new_range|.
-      if (new_range->HasNextBufferPosition())
-        SetSelectedRange(new_range);
+      if (new_range->HasNextBufferPosition()) SetSelectedRange(new_range);
     }
 
     // Truncate the current range so that it only contains data before
@@ -585,7 +577,7 @@ void SourceBufferStream::RemoveInternal(DecodeTimestamp start,
 
       if (!range->BelongsToRange(potential_next_append_timestamp)) {
         DVLOG(1) << "Resetting range_for_next_append_ since the next append"
-                 <<  " can't add to the current range.";
+                 << " can't add to the current range.";
         range_for_next_append_ =
             FindExistingRangeFor(potential_next_append_timestamp);
       }
@@ -621,8 +613,7 @@ void SourceBufferStream::ResetLastAppendedState() {
 
 bool SourceBufferStream::ShouldSeekToStartOfBuffered(
     base::TimeDelta seek_timestamp) const {
-  if (ranges_.empty())
-    return false;
+  if (ranges_.empty()) return false;
   base::TimeDelta beginning_of_buffered =
       ranges_.front()->GetStartTimestamp().ToPresentationTime();
   return (seek_timestamp <= beginning_of_buffered &&
@@ -633,16 +624,16 @@ bool SourceBufferStream::IsMonotonicallyIncreasing(const BufferQueue& buffers) {
   DCHECK(!buffers.empty());
   DecodeTimestamp prev_timestamp = last_appended_buffer_timestamp_;
   bool prev_is_keyframe = last_appended_buffer_is_keyframe_;
-  for (BufferQueue::const_iterator itr = buffers.begin();
-       itr != buffers.end(); ++itr) {
+  for (BufferQueue::const_iterator itr = buffers.begin(); itr != buffers.end();
+       ++itr) {
     DecodeTimestamp current_timestamp = (*itr)->GetDecodeTimestamp();
     bool current_is_keyframe = (*itr)->is_key_frame();
     DCHECK(current_timestamp != kNoDecodeTimestamp());
     DCHECK((*itr)->duration() >= base::TimeDelta())
         << "Packet with invalid duration."
-        << " pts " << (*itr)->timestamp().InSecondsF()
-        << " dts " << (*itr)->GetDecodeTimestamp().InSecondsF()
-        << " dur " << (*itr)->duration().InSecondsF();
+        << " pts " << (*itr)->timestamp().InSecondsF() << " dts "
+        << (*itr)->GetDecodeTimestamp().InSecondsF() << " dur "
+        << (*itr)->duration().InSecondsF();
 
     if (prev_timestamp != kNoDecodeTimestamp()) {
       if (current_timestamp < prev_timestamp) {
@@ -669,8 +660,8 @@ bool SourceBufferStream::IsMonotonicallyIncreasing(const BufferQueue& buffers) {
 }
 
 bool SourceBufferStream::OnlySelectedRangeIsSeeked() const {
-  for (RangeList::const_iterator itr = ranges_.begin();
-       itr != ranges_.end(); ++itr) {
+  for (RangeList::const_iterator itr = ranges_.begin(); itr != ranges_.end();
+       ++itr) {
     if ((*itr)->HasNextBufferPosition() && (*itr) != selected_range_)
       return false;
   }
@@ -681,8 +672,8 @@ void SourceBufferStream::UpdateMaxInterbufferDistance(
     const BufferQueue& buffers) {
   DCHECK(!buffers.empty());
   DecodeTimestamp prev_timestamp = last_appended_buffer_timestamp_;
-  for (BufferQueue::const_iterator itr = buffers.begin();
-       itr != buffers.end(); ++itr) {
+  for (BufferQueue::const_iterator itr = buffers.begin(); itr != buffers.end();
+       ++itr) {
     DecodeTimestamp current_timestamp = (*itr)->GetDecodeTimestamp();
     DCHECK(current_timestamp != kNoDecodeTimestamp());
 
@@ -707,8 +698,8 @@ void SourceBufferStream::UpdateMaxInterbufferDistance(
 }
 
 void SourceBufferStream::SetConfigIds(const BufferQueue& buffers) {
-  for (BufferQueue::const_iterator itr = buffers.begin();
-       itr != buffers.end(); ++itr) {
+  for (BufferQueue::const_iterator itr = buffers.begin(); itr != buffers.end();
+       ++itr) {
     (*itr)->SetConfigId(append_config_index_);
   }
 }
@@ -735,8 +726,7 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
   }
 
   // Return if we're under or at the memory limit.
-  if (ranges_size + newDataSize <= memory_limit_)
-    return true;
+  if (ranges_size + newDataSize <= memory_limit_) return true;
 
   size_t bytes_to_free = ranges_size + newDataSize - memory_limit_;
 
@@ -870,18 +860,15 @@ size_t SourceBufferStream::FreeBuffersAfterLastAppended(
   if (last_appended_buffer_is_keyframe_)
     remove_range_start += GetMaxInterbufferDistance();
 
-  DecodeTimestamp remove_range_start_keyframe = FindKeyframeAfterTimestamp(
-      remove_range_start);
+  DecodeTimestamp remove_range_start_keyframe =
+      FindKeyframeAfterTimestamp(remove_range_start);
   if (remove_range_start_keyframe != kNoDecodeTimestamp())
     remove_range_start = remove_range_start_keyframe;
-  if (remove_range_start >= media_time)
-    return 0;
+  if (remove_range_start >= media_time) return 0;
 
   DecodeTimestamp remove_range_end;
-  size_t bytes_freed = GetRemovalRange(remove_range_start,
-                                       media_time,
-                                       total_bytes_to_free,
-                                       &remove_range_end);
+  size_t bytes_freed = GetRemovalRange(remove_range_start, media_time,
+                                       total_bytes_to_free, &remove_range_end);
   if (bytes_freed > 0) {
     DVLOG(4) << __func__ << " removing ["
              << remove_range_start.ToPresentationTime().InSecondsF() << ";"
@@ -899,18 +886,16 @@ size_t SourceBufferStream::GetRemovalRange(
     size_t total_bytes_to_free, DecodeTimestamp* removal_end_timestamp) {
   DCHECK(start_timestamp >= DecodeTimestamp()) << start_timestamp.InSecondsF();
   DCHECK(start_timestamp < end_timestamp)
-      << "start " << start_timestamp.InSecondsF()
-      << ", end " << end_timestamp.InSecondsF();
+      << "start " << start_timestamp.InSecondsF() << ", end "
+      << end_timestamp.InSecondsF();
 
   size_t bytes_freed = 0;
 
   for (RangeList::iterator itr = ranges_.begin();
        itr != ranges_.end() && bytes_freed < total_bytes_to_free; ++itr) {
     SourceBufferRange* range = *itr;
-    if (range->GetStartTimestamp() >= end_timestamp)
-      break;
-    if (range->GetEndTimestamp() < start_timestamp)
-      continue;
+    if (range->GetStartTimestamp() >= end_timestamp) break;
+    if (range->GetEndTimestamp() < start_timestamp) continue;
 
     size_t bytes_to_free = total_bytes_to_free - bytes_freed;
     size_t bytes_removed = range->GetRemovalGOP(
@@ -924,8 +909,8 @@ size_t SourceBufferStream::FreeBuffers(size_t total_bytes_to_free,
                                        DecodeTimestamp media_time,
                                        bool reverse_direction) {
   TRACE_EVENT2("media", "SourceBufferStream::FreeBuffers",
-               "total bytes to free", total_bytes_to_free,
-               "reverse direction", reverse_direction);
+               "total bytes to free", total_bytes_to_free, "reverse direction",
+               reverse_direction);
 
   DCHECK_GT(total_bytes_to_free, 0u);
   size_t bytes_freed = 0;
@@ -981,8 +966,7 @@ size_t SourceBufferStream::FreeBuffers(size_t total_bytes_to_free,
 
       // Create a new range containing these buffers.
       new_range_for_append = new SourceBufferRange(
-          TypeToGapPolicy(GetType()),
-          buffers, kNoDecodeTimestamp(),
+          TypeToGapPolicy(GetType()), buffers, kNoDecodeTimestamp(),
           base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
                      base::Unretained(this)));
       range_for_next_append_ = ranges_.end();
@@ -1031,8 +1015,7 @@ void SourceBufferStream::PrepareRangesForNextAppend(
   // Handle splices between the existing buffers and the new buffers.  If a
   // splice is generated the timestamp and duration of the first buffer in
   // |new_buffers| will be modified.
-  if (splice_frames_enabled_)
-    GenerateSpliceFrame(new_buffers);
+  if (splice_frames_enabled_) GenerateSpliceFrame(new_buffers);
 
   DecodeTimestamp prev_timestamp = last_appended_buffer_timestamp_;
   DecodeTimestamp next_timestamp = new_buffers.front()->GetDecodeTimestamp();
@@ -1084,14 +1067,13 @@ void SourceBufferStream::PrepareRangesForNextAppend(
 bool SourceBufferStream::AreAdjacentInSequence(
     DecodeTimestamp first_timestamp, DecodeTimestamp second_timestamp) const {
   return first_timestamp < second_timestamp &&
-      second_timestamp <=
-      first_timestamp + ComputeFudgeRoom(GetMaxInterbufferDistance());
+         second_timestamp <=
+             first_timestamp + ComputeFudgeRoom(GetMaxInterbufferDistance());
 }
 
 void SourceBufferStream::PruneTrackBuffer(const DecodeTimestamp timestamp) {
   // If we don't have the next timestamp, we don't have anything to delete.
-  if (timestamp == kNoDecodeTimestamp())
-    return;
+  if (timestamp == kNoDecodeTimestamp()) return;
 
   while (!track_buffer_.empty() &&
          track_buffer_.back()->GetDecodeTimestamp() >= timestamp) {
@@ -1123,8 +1105,7 @@ void SourceBufferStream::MergeWithAdjacentRangeIfNecessary(
                                            transfer_current_position);
   // Update |selected_range_| pointer if |range| has become selected after
   // merges.
-  if (transfer_current_position)
-    SetSelectedRange(range_with_new_buffers);
+  if (transfer_current_position) SetSelectedRange(range_with_new_buffers);
 
   if (next_range_itr == range_for_next_append_)
     range_for_next_append_ = range_with_new_buffers_itr;
@@ -1152,12 +1133,10 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
 
   RangeList::iterator itr = ranges_.end();
   for (itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
-    if ((*itr)->CanSeekTo(seek_dts))
-      break;
+    if ((*itr)->CanSeekTo(seek_dts)) break;
   }
 
-  if (itr == ranges_.end())
-    return;
+  if (itr == ranges_.end()) return;
 
   SeekAndSetSelectedRange(*itr, seek_dts);
   seek_pending_ = false;
@@ -1172,8 +1151,7 @@ void SourceBufferStream::OnSetDuration(base::TimeDelta duration) {
            << duration.InSecondsF() << ")";
   DCHECK(!end_of_stream_);
 
-  if (ranges_.empty())
-    return;
+  if (ranges_.empty()) return;
 
   DecodeTimestamp start = DecodeTimestamp::FromPresentationTime(duration);
   DecodeTimestamp end = ranges_.back()->GetBufferedEndTimestamp();
@@ -1348,8 +1326,7 @@ SourceBufferStream::Status SourceBufferStream::GetNextBufferInternal(
 
 void SourceBufferStream::WarnIfTrackBufferExhaustionSkipsForward(
     const scoped_refptr<StreamParserBuffer>& next_buffer) {
-  if (!just_exhausted_track_buffer_)
-    return;
+  if (!just_exhausted_track_buffer_) return;
 
   just_exhausted_track_buffer_ = false;
   DCHECK(next_buffer->is_key_frame());
@@ -1373,8 +1350,7 @@ DecodeTimestamp SourceBufferStream::GetNextBufferTimestamp() {
   if (!track_buffer_.empty())
     return track_buffer_.front()->GetDecodeTimestamp();
 
-  if (!selected_range_)
-    return kNoDecodeTimestamp();
+  if (!selected_range_) return kNoDecodeTimestamp();
 
   DCHECK(selected_range_->HasNextBufferPosition());
   return selected_range_->GetNextTimestamp();
@@ -1383,19 +1359,17 @@ DecodeTimestamp SourceBufferStream::GetNextBufferTimestamp() {
 SourceBufferStream::RangeList::iterator
 SourceBufferStream::FindExistingRangeFor(DecodeTimestamp start_timestamp) {
   for (RangeList::iterator itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
-    if ((*itr)->BelongsToRange(start_timestamp))
-      return itr;
+    if ((*itr)->BelongsToRange(start_timestamp)) return itr;
   }
   return ranges_.end();
 }
 
-SourceBufferStream::RangeList::iterator
-SourceBufferStream::AddToRanges(SourceBufferRange* new_range) {
+SourceBufferStream::RangeList::iterator SourceBufferStream::AddToRanges(
+    SourceBufferRange* new_range) {
   DecodeTimestamp start_timestamp = new_range->GetStartTimestamp();
   RangeList::iterator itr = ranges_.end();
   for (itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
-    if ((*itr)->GetStartTimestamp() > start_timestamp)
-      break;
+    if ((*itr)->GetStartTimestamp() > start_timestamp) break;
   }
   return ranges_.insert(itr, new_range);
 }
@@ -1405,8 +1379,7 @@ SourceBufferStream::GetSelectedRangeItr() {
   DCHECK(selected_range_);
   RangeList::iterator itr = ranges_.end();
   for (itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
-    if (*itr == selected_range_)
-      break;
+    if (*itr == selected_range_) break;
   }
   DCHECK(itr != ranges_.end());
   return itr;
@@ -1414,8 +1387,7 @@ SourceBufferStream::GetSelectedRangeItr() {
 
 void SourceBufferStream::SeekAndSetSelectedRange(
     SourceBufferRange* range, DecodeTimestamp seek_timestamp) {
-  if (range)
-    range->Seek(seek_timestamp);
+  if (range) range->Seek(seek_timestamp);
   SetSelectedRange(range);
 }
 
@@ -1423,16 +1395,15 @@ void SourceBufferStream::SetSelectedRange(SourceBufferRange* range) {
   DVLOG(1) << __func__ << " " << GetStreamTypeName() << ": " << selected_range_
            << " " << (selected_range_ ? RangeToString(*selected_range_) : "")
            << " -> " << range << " " << (range ? RangeToString(*range) : "");
-  if (selected_range_)
-    selected_range_->ResetNextBufferPosition();
+  if (selected_range_) selected_range_->ResetNextBufferPosition();
   DCHECK(!range || range->HasNextBufferPosition());
   selected_range_ = range;
 }
 
 Ranges<base::TimeDelta> SourceBufferStream::GetBufferedTime() const {
   Ranges<base::TimeDelta> ranges;
-  for (RangeList::const_iterator itr = ranges_.begin();
-       itr != ranges_.end(); ++itr) {
+  for (RangeList::const_iterator itr = ranges_.begin(); itr != ranges_.end();
+       ++itr) {
     ranges.Add((*itr)->GetStartTimestamp().ToPresentationTime(),
                (*itr)->GetBufferedEndTimestamp().ToPresentationTime());
   }
@@ -1440,8 +1411,7 @@ Ranges<base::TimeDelta> SourceBufferStream::GetBufferedTime() const {
 }
 
 base::TimeDelta SourceBufferStream::GetHighestPresentationTimestamp() const {
-  if (ranges_.empty())
-    return base::TimeDelta();
+  if (ranges_.empty()) return base::TimeDelta();
 
   // TODO(wolenetz): Report actual highest PTS here, not DTS cast to PTS. See
   // https://crbug.com/398130.
@@ -1449,8 +1419,7 @@ base::TimeDelta SourceBufferStream::GetHighestPresentationTimestamp() const {
 }
 
 base::TimeDelta SourceBufferStream::GetBufferedDuration() const {
-  if (ranges_.empty())
-    return base::TimeDelta();
+  if (ranges_.empty()) return base::TimeDelta();
 
   return ranges_.back()->GetBufferedEndTimestamp().ToPresentationTime();
 }
@@ -1474,11 +1443,9 @@ void SourceBufferStream::UnmarkEndOfStream() {
 }
 
 bool SourceBufferStream::IsEndOfStreamReached() const {
-  if (!end_of_stream_ || !track_buffer_.empty())
-    return false;
+  if (!end_of_stream_ || !track_buffer_.empty()) return false;
 
-  if (ranges_.empty())
-    return true;
+  if (ranges_.empty()) return true;
 
   if (seek_pending_) {
     base::TimeDelta last_range_end_time =
@@ -1486,21 +1453,18 @@ bool SourceBufferStream::IsEndOfStreamReached() const {
     return seek_buffer_timestamp_ >= last_range_end_time;
   }
 
-  if (!selected_range_)
-    return true;
+  if (!selected_range_) return true;
 
   return selected_range_ == ranges_.back();
 }
 
 const AudioDecoderConfig& SourceBufferStream::GetCurrentAudioDecoderConfig() {
-  if (config_change_pending_)
-    CompleteConfigChange();
+  if (config_change_pending_) CompleteConfigChange();
   return audio_configs_[current_config_index_];
 }
 
 const VideoDecoderConfig& SourceBufferStream::GetCurrentVideoDecoderConfig() {
-  if (config_change_pending_)
-    CompleteConfigChange();
+  if (config_change_pending_) CompleteConfigChange();
   return video_configs_[current_config_index_];
 }
 
@@ -1622,8 +1586,8 @@ void SourceBufferStream::SetSelectedRangeIfNeeded(
       return;
     }
 
-    start_timestamp = last_output_buffer_timestamp_ +
-        base::TimeDelta::FromInternalValue(1);
+    start_timestamp =
+        last_output_buffer_timestamp_ + base::TimeDelta::FromInternalValue(1);
   }
 
   DecodeTimestamp seek_timestamp =
@@ -1658,10 +1622,8 @@ DecodeTimestamp SourceBufferStream::FindNewSelectedRangeSeekTimestamp(
   // check the earliest ones first.
   for (; itr != ranges_.end(); ++itr) {
     DecodeTimestamp range_start = (*itr)->GetStartTimestamp();
-    if (range_start >= start_timestamp_plus_fudge)
-      break;
-    if ((*itr)->GetEndTimestamp() < start_timestamp)
-      continue;
+    if (range_start >= start_timestamp_plus_fudge) break;
+    if ((*itr)->GetEndTimestamp() < start_timestamp) continue;
     DecodeTimestamp search_timestamp = start_timestamp;
     if (start_timestamp < range_start &&
         start_timestamp_plus_fudge >= range_start) {
@@ -1669,8 +1631,7 @@ DecodeTimestamp SourceBufferStream::FindNewSelectedRangeSeekTimestamp(
     }
     DecodeTimestamp keyframe_timestamp =
         (*itr)->NextKeyframeTimestamp(search_timestamp);
-    if (keyframe_timestamp != kNoDecodeTimestamp())
-      return keyframe_timestamp;
+    if (keyframe_timestamp != kNoDecodeTimestamp()) return keyframe_timestamp;
   }
 
   DVLOG(2) << __func__ << " " << GetStreamTypeName()
@@ -1684,8 +1645,7 @@ DecodeTimestamp SourceBufferStream::FindKeyframeAfterTimestamp(
 
   RangeList::iterator itr = FindExistingRangeFor(timestamp);
 
-  if (itr == ranges_.end())
-    return kNoDecodeTimestamp();
+  if (itr == ranges_.end()) return kNoDecodeTimestamp();
 
   // First check for a keyframe timestamp >= |timestamp|
   // in the current range.
@@ -1706,10 +1666,8 @@ std::string SourceBufferStream::GetStreamTypeName() const {
 }
 
 SourceBufferStream::Type SourceBufferStream::GetType() const {
-  if (!audio_configs_.empty())
-    return kAudio;
-  if (!video_configs_.empty())
-    return kVideo;
+  if (!audio_configs_.empty()) return kAudio;
+  if (!video_configs_.empty()) return kVideo;
   DCHECK_NE(text_track_config_.kind(), kTextNone);
   return kText;
 }
@@ -1737,16 +1695,14 @@ void SourceBufferStream::GenerateSpliceFrame(const BufferQueue& new_buffers) {
   DCHECK(!new_buffers.empty());
 
   // Splice frames are only supported for audio.
-  if (GetType() != kAudio)
-    return;
+  if (GetType() != kAudio) return;
 
   // Find the overlapped range (if any).
   const base::TimeDelta splice_timestamp = new_buffers.front()->timestamp();
   const DecodeTimestamp splice_dts =
       DecodeTimestamp::FromPresentationTime(splice_timestamp);
   RangeList::iterator range_itr = FindExistingRangeFor(splice_dts);
-  if (range_itr == ranges_.end())
-    return;
+  if (range_itr == ranges_.end()) return;
 
   const DecodeTimestamp max_splice_end_dts =
       splice_dts +
@@ -1754,8 +1710,9 @@ void SourceBufferStream::GenerateSpliceFrame(const BufferQueue& new_buffers) {
 
   // Find all buffers involved before the splice point.
   BufferQueue pre_splice_buffers;
-  if (!(*range_itr)->GetBuffersInRange(
-          splice_dts, max_splice_end_dts, &pre_splice_buffers)) {
+  if (!(*range_itr)
+           ->GetBuffersInRange(splice_dts, max_splice_end_dts,
+                               &pre_splice_buffers)) {
     return;
   }
 
@@ -1847,8 +1804,7 @@ bool SourceBufferStream::SetPendingBuffer(
   const bool have_splice_buffers = !(*out_buffer)->splice_buffers().empty();
   const bool have_preroll_buffer = !!(*out_buffer)->preroll_buffer().get();
 
-  if (!have_splice_buffers && !have_preroll_buffer)
-    return false;
+  if (!have_splice_buffers && !have_preroll_buffer) return false;
 
   DCHECK_NE(have_splice_buffers, have_preroll_buffer);
   splice_buffers_index_ = 0;

@@ -9,14 +9,9 @@
 
 namespace media {
 
-void ConvertRGB32ToYUV_SSSE3(const uint8_t* rgbframe,
-                             uint8_t* yplane,
-                             uint8_t* uplane,
-                             uint8_t* vplane,
-                             int width,
-                             int height,
-                             int rgbstride,
-                             int ystride,
+void ConvertRGB32ToYUV_SSSE3(const uint8_t* rgbframe, uint8_t* yplane,
+                             uint8_t* uplane, uint8_t* vplane, int width,
+                             int height, int rgbstride, int ystride,
                              int uvstride) {
   for (; height >= 2; height -= 2) {
     ConvertARGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
@@ -35,14 +30,9 @@ void ConvertRGB32ToYUV_SSSE3(const uint8_t* rgbframe,
     ConvertARGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
 }
 
-void ConvertRGB24ToYUV_SSSE3(const uint8_t* rgbframe,
-                             uint8_t* yplane,
-                             uint8_t* uplane,
-                             uint8_t* vplane,
-                             int width,
-                             int height,
-                             int rgbstride,
-                             int ystride,
+void ConvertRGB24ToYUV_SSSE3(const uint8_t* rgbframe, uint8_t* yplane,
+                             uint8_t* uplane, uint8_t* vplane, int width,
+                             int height, int rgbstride, int ystride,
                              int uvstride) {
   for (; height >= 2; height -= 2) {
     ConvertRGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
@@ -57,8 +47,7 @@ void ConvertRGB24ToYUV_SSSE3(const uint8_t* rgbframe,
     vplane += uvstride;
   }
 
-  if (height)
-    ConvertRGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
+  if (height) ConvertRGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
 }
 
 }  // namespace media

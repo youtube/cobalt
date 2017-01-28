@@ -168,8 +168,7 @@ static bool SanitizeSessionId(const blink::WebString& session_id,
   // The user agent should thoroughly validate the sessionId value before
   // passing it to the CDM. At a minimum, this should include checking that
   // the length and value (e.g. alphanumeric) are reasonable.
-  if (!base::IsStringASCII(session_id))
-    return false;
+  if (!base::IsStringASCII(session_id)) return false;
 
   sanitized_session_id->assign(
       base::UTF16ToASCII(base::StringPiece16(session_id)));
@@ -177,16 +176,14 @@ static bool SanitizeSessionId(const blink::WebString& session_id,
     return false;
 
   for (const char c : *sanitized_session_id) {
-    if (!base::IsAsciiAlpha(c) && !base::IsAsciiDigit(c))
-      return false;
+    if (!base::IsAsciiAlpha(c) && !base::IsAsciiDigit(c)) return false;
   }
 
   return true;
 }
 
 static bool SanitizeResponse(const std::string& key_system,
-                             const uint8_t* response,
-                             size_t response_length,
+                             const uint8_t* response, size_t response_length,
                              std::vector<uint8_t>* sanitized_response) {
   // The user agent should thoroughly validate the response before passing it
   // to the CDM. This may include verifying values are within reasonable limits,
@@ -194,19 +191,16 @@ static bool SanitizeResponse(const std::string& key_system,
   // and/or generating a fully sanitized version. The user agent should check
   // that the length and values of fields are reasonable. Unknown fields should
   // be rejected or removed.
-  if (response_length > limits::kMaxSessionResponseLength)
-    return false;
+  if (response_length > limits::kMaxSessionResponseLength) return false;
 
   if (IsClearKey(key_system) || IsExternalClearKey(key_system)) {
     std::string key_string(response, response + response_length);
     KeyIdAndKeyPairs keys;
     MediaKeys::SessionType session_type = MediaKeys::TEMPORARY_SESSION;
-    if (!ExtractKeysFromJWKSet(key_string, &keys, &session_type))
-      return false;
+    if (!ExtractKeysFromJWKSet(key_string, &keys, &session_type)) return false;
 
     // Must contain at least one key.
-    if (keys.empty())
-      return false;
+    if (keys.empty()) return false;
 
     for (const auto key_pair : keys) {
       if (key_pair.first.size() < limits::kMinKeyIdLength ||
@@ -227,14 +221,12 @@ static bool SanitizeResponse(const std::string& key_system,
 
 WebContentDecryptionModuleSessionImpl::WebContentDecryptionModuleSessionImpl(
     const scoped_refptr<CdmSessionAdapter>& adapter)
-    : adapter_(adapter), is_closed_(false), weak_ptr_factory_(this) {
-}
+    : adapter_(adapter), is_closed_(false), weak_ptr_factory_(this) {}
 
 WebContentDecryptionModuleSessionImpl::
     ~WebContentDecryptionModuleSessionImpl() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (!session_id_.empty())
-    adapter_->UnregisterSession(session_id_);
+  if (!session_id_.empty()) adapter_->UnregisterSession(session_id_);
 }
 
 void WebContentDecryptionModuleSessionImpl::setClientInterface(Client* client) {
@@ -247,8 +239,7 @@ blink::WebString WebContentDecryptionModuleSessionImpl::sessionId() const {
 
 void WebContentDecryptionModuleSessionImpl::initializeNewSession(
     blink::WebEncryptedMediaInitDataType init_data_type,
-    const unsigned char* init_data,
-    size_t init_data_length,
+    const unsigned char* init_data, size_t init_data_length,
     blink::WebEncryptedMediaSessionType session_type,
     blink::WebContentDecryptionModuleResult result) {
   DCHECK(init_data);
@@ -341,8 +332,7 @@ void WebContentDecryptionModuleSessionImpl::load(
 }
 
 void WebContentDecryptionModuleSessionImpl::update(
-    const uint8_t* response,
-    size_t response_length,
+    const uint8_t* response, size_t response_length,
     blink::WebContentDecryptionModuleResult result) {
   DCHECK(response);
   DCHECK(!session_id_.empty());
@@ -384,8 +374,7 @@ void WebContentDecryptionModuleSessionImpl::remove(
 }
 
 void WebContentDecryptionModuleSessionImpl::OnSessionMessage(
-    MediaKeys::MessageType message_type,
-    const std::vector<uint8_t>& message) {
+    MediaKeys::MessageType message_type, const std::vector<uint8_t>& message) {
   DCHECK(client_) << "Client not set before message event";
   DCHECK(thread_checker_.CalledOnValidThread());
   client_->message(convertMessageType(message_type), message.data(),
@@ -393,8 +382,7 @@ void WebContentDecryptionModuleSessionImpl::OnSessionMessage(
 }
 
 void WebContentDecryptionModuleSessionImpl::OnSessionKeysChange(
-    bool has_additional_usable_key,
-    CdmKeysInfo keys_info) {
+    bool has_additional_usable_key, CdmKeysInfo keys_info) {
   DCHECK(thread_checker_.CalledOnValidThread());
   blink::WebVector<blink::WebEncryptedMediaKeyInformation> keys(
       keys_info.size());
@@ -418,16 +406,14 @@ void WebContentDecryptionModuleSessionImpl::OnSessionExpirationUpdate(
 
 void WebContentDecryptionModuleSessionImpl::OnSessionClosed() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (is_closed_)
-    return;
+  if (is_closed_) return;
 
   is_closed_ = true;
   client_->close();
 }
 
 void WebContentDecryptionModuleSessionImpl::OnSessionInitialized(
-    const std::string& session_id,
-    SessionInitStatus* status) {
+    const std::string& session_id, SessionInitStatus* status) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // CDM will return NULL if the session to be loaded can't be found.
   if (session_id.empty()) {

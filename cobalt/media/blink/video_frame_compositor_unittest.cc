@@ -56,10 +56,8 @@ class VideoFrameCompositorTest : public testing::Test,
   void DidReceiveFrame() override { ++did_receive_frame_count_; }
 
   // VideoRendererSink::RenderCallback implementation.
-  MOCK_METHOD3(Render,
-               scoped_refptr<VideoFrame>(base::TimeTicks,
-                                         base::TimeTicks,
-                                         bool));
+  MOCK_METHOD3(Render, scoped_refptr<VideoFrame>(base::TimeTicks,
+                                                 base::TimeTicks, bool));
   MOCK_METHOD0(OnFrameDropped, void());
 
   void StartVideoRendererSink() {
@@ -72,8 +70,7 @@ class VideoFrameCompositorTest : public testing::Test,
   }
 
   void StopVideoRendererSink(bool have_client) {
-    if (have_client)
-      EXPECT_CALL(*this, StopRendering());
+    if (have_client) EXPECT_CALL(*this, StopRendering());
     const bool had_current_frame = !!compositor_->GetCurrentFrame();
     compositor()->Stop();
     // If we previously had a frame, we should still have one now.
@@ -246,7 +243,7 @@ TEST_F(VideoFrameCompositorTest, GetCurrentFrameAndUpdateIfStale) {
   base::RunLoop run_loop;
   EXPECT_CALL(*this, Render(_, _, true))
       .WillOnce(
-           DoAll(RunClosure(run_loop.QuitClosure()), Return(opaque_frame_1)))
+          DoAll(RunClosure(run_loop.QuitClosure()), Return(opaque_frame_1)))
       .WillOnce(Return(opaque_frame_2));
   run_loop.Run();
 

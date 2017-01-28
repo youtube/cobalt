@@ -42,11 +42,9 @@ EsParserMpeg1Audio::EsParserMpeg1Audio(
     const scoped_refptr<MediaLog>& media_log)
     : media_log_(media_log),
       new_audio_config_cb_(new_audio_config_cb),
-      emit_buffer_cb_(emit_buffer_cb) {
-}
+      emit_buffer_cb_(emit_buffer_cb) {}
 
-EsParserMpeg1Audio::~EsParserMpeg1Audio() {
-}
+EsParserMpeg1Audio::~EsParserMpeg1Audio() {}
 
 bool EsParserMpeg1Audio::ParseFromEsQueue() {
   // Look for every MPEG1 audio frame in the ES buffer.
@@ -54,8 +52,7 @@ bool EsParserMpeg1Audio::ParseFromEsQueue() {
   while (LookForMpeg1AudioFrame(&mpeg1audio_frame)) {
     // Update the audio configuration if needed.
     DCHECK_GE(mpeg1audio_frame.size, MPEG1AudioStreamParser::kHeaderSize);
-    if (!UpdateAudioConfiguration(mpeg1audio_frame.data))
-      return false;
+    if (!UpdateAudioConfiguration(mpeg1audio_frame.data)) return false;
 
     // Get the PTS & the duration of this access unit.
     TimingDesc current_timing_desc =
@@ -69,9 +66,8 @@ bool EsParserMpeg1Audio::ParseFromEsQueue() {
       continue;
     }
     base::TimeDelta current_pts = audio_timestamp_helper_->GetTimestamp();
-    base::TimeDelta frame_duration =
-        audio_timestamp_helper_->GetFrameDuration(
-            mpeg1audio_frame.sample_count);
+    base::TimeDelta frame_duration = audio_timestamp_helper_->GetFrameDuration(
+        mpeg1audio_frame.sample_count);
 
     // Emit an audio frame.
     bool is_key_frame = true;
@@ -96,8 +92,7 @@ bool EsParserMpeg1Audio::ParseFromEsQueue() {
   return true;
 }
 
-void EsParserMpeg1Audio::Flush() {
-}
+void EsParserMpeg1Audio::Flush() {}
 
 void EsParserMpeg1Audio::ResetInternal() {
   last_audio_decoder_config_ = AudioDecoderConfig();
@@ -110,13 +105,11 @@ bool EsParserMpeg1Audio::LookForMpeg1AudioFrame(
   es_queue_->Peek(&es, &es_size);
 
   int max_offset = es_size - MPEG1AudioStreamParser::kHeaderSize;
-  if (max_offset <= 0)
-    return false;
+  if (max_offset <= 0) return false;
 
   for (int offset = 0; offset < max_offset; offset++) {
     const uint8_t* cur_buf = &es[offset];
-    if (cur_buf[0] != 0xff)
-      continue;
+    if (cur_buf[0] != 0xff) continue;
 
     int remaining_size = es_size - offset;
     DCHECK_GE(remaining_size, MPEG1AudioStreamParser::kHeaderSize);
@@ -144,13 +137,12 @@ bool EsParserMpeg1Audio::LookForMpeg1AudioFrame(
     mpeg1audio_frame->queue_offset = es_queue_->head();
     mpeg1audio_frame->size = header.frame_size;
     mpeg1audio_frame->sample_count = header.sample_count;
-    DVLOG(LOG_LEVEL_ES)
-        << "MPEG1 audio syncword @ pos=" << mpeg1audio_frame->queue_offset
-        << " frame_size=" << mpeg1audio_frame->size;
-    DVLOG(LOG_LEVEL_ES)
-        << "MPEG1 audio header: "
-        << base::HexEncode(mpeg1audio_frame->data,
-                           MPEG1AudioStreamParser::kHeaderSize);
+    DVLOG(LOG_LEVEL_ES) << "MPEG1 audio syncword @ pos="
+                        << mpeg1audio_frame->queue_offset
+                        << " frame_size=" << mpeg1audio_frame->size;
+    DVLOG(LOG_LEVEL_ES) << "MPEG1 audio header: "
+                        << base::HexEncode(mpeg1audio_frame->data,
+                                           MPEG1AudioStreamParser::kHeaderSize);
     return true;
   }
 
@@ -180,7 +172,7 @@ bool EsParserMpeg1Audio::UpdateAudioConfiguration(
         audio_timestamp_helper_->base_timestamp() != kNoTimestamp) {
       base::TimeDelta base_timestamp = audio_timestamp_helper_->GetTimestamp();
       audio_timestamp_helper_.reset(
-        new AudioTimestampHelper(header.sample_rate));
+          new AudioTimestampHelper(header.sample_rate));
       audio_timestamp_helper_->SetBaseTimestamp(base_timestamp);
     } else {
       audio_timestamp_helper_.reset(

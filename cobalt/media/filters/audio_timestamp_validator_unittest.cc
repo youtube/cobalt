@@ -164,13 +164,11 @@ TEST_P(AudioTimestampValidatorTest, SingleWarnForSingleLargeGap) {
   for (int i = 0; i < 100; ++i) {
     // Halfway through the stream, introduce sudden gap of 50 milliseconds.
     base::TimeDelta offset;
-    if (i >= 50)
-      offset = base::TimeDelta::FromMilliseconds(100);
+    if (i >= 50) offset = base::TimeDelta::FromMilliseconds(100);
 
     // This gap never widens, so expect only a single warning when its first
     // introduced.
-    if (i == 50)
-      EXPECT_MEDIA_LOG(HasSubstr("timestamp gap detected"));
+    if (i == 50) EXPECT_MEDIA_LOG(HasSubstr("timestamp gap detected"));
 
     scoped_refptr<DecoderBuffer> encoded_buffer = new DecoderBuffer(0);
     encoded_buffer->set_timestamp(i * kBufferDuration + offset);
@@ -241,12 +239,10 @@ TEST_P(AudioTimestampValidatorTest, RepeatedWarnForSlowAccumulatingDrift) {
 // discard values. These simulate configurations for different containers/codecs
 // which present different challenges when building timestamp expectations.
 INSTANTIATE_TEST_CASE_P(
-    ,
-    AudioTimestampValidatorTest,
+    , AudioTimestampValidatorTest,
     ::testing::Combine(
         ::testing::Values(0, 10),             // output delay
         ::testing::Values(0, 512),            // codec delay
         ::testing::Values(base::TimeDelta(),  // front discard
                           base::TimeDelta::FromMilliseconds(65))));
-
 }

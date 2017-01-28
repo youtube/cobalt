@@ -57,16 +57,14 @@ void VideoFrameMetadata::SetString(Key key, const std::string& value) {
 }
 
 namespace {
-template<class TimeType>
-void SetTimeValue(VideoFrameMetadata::Key key,
-                  const TimeType& value,
+template <class TimeType>
+void SetTimeValue(VideoFrameMetadata::Key key, const TimeType& value,
                   base::DictionaryValue* dictionary) {
   const int64_t internal_value = value.ToInternalValue();
   dictionary->SetWithoutPathExpansion(
-      ToInternalKey(key),
-      base::BinaryValue::CreateWithCopiedBuffer(
-          reinterpret_cast<const char*>(&internal_value),
-          sizeof(internal_value)));
+      ToInternalKey(key), base::BinaryValue::CreateWithCopiedBuffer(
+                              reinterpret_cast<const char*>(&internal_value),
+                              sizeof(internal_value)));
 }
 }  // namespace
 
@@ -103,8 +101,7 @@ bool VideoFrameMetadata::GetRotation(Key key, VideoRotation* value) const {
   int int_value;
   const bool rv = dictionary_.GetIntegerWithoutPathExpansion(ToInternalKey(key),
                                                              &int_value);
-  if (rv)
-    *value = static_cast<VideoRotation>(int_value);
+  if (rv) *value = static_cast<VideoRotation>(int_value);
   return rv;
 }
 
@@ -117,12 +114,11 @@ bool VideoFrameMetadata::GetString(Key key, std::string* value) const {
 }
 
 namespace {
-template<class TimeType>
+template <class TimeType>
 bool ToTimeValue(const base::BinaryValue& binary_value, TimeType* value) {
   DCHECK(value);
   int64_t internal_value;
-  if (binary_value.GetSize() != sizeof(internal_value))
-    return false;
+  if (binary_value.GetSize() != sizeof(internal_value)) return false;
   memcpy(&internal_value, binary_value.GetBuffer(), sizeof(internal_value));
   *value = TimeType::FromInternalValue(internal_value);
   return true;

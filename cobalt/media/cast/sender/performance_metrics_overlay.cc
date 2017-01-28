@@ -20,12 +20,12 @@ namespace cast {
 
 namespace {
 
-const int kScale = 4;  // Physical pixels per one logical pixel.
-const int kCharacterWidth = 3;  // Logical pixel width of one character.
-const int kCharacterHeight = 5;  // Logical pixel height of one character.
+const int kScale = 4;             // Physical pixels per one logical pixel.
+const int kCharacterWidth = 3;    // Logical pixel width of one character.
+const int kCharacterHeight = 5;   // Logical pixel height of one character.
 const int kCharacterSpacing = 1;  // Logical pixels between each character.
 const int kLineSpacing = 2;  // Logical pixels between each line of characters.
-const int kPlane = 0;  // Y-plane in YUV formats.
+const int kPlane = 0;        // Y-plane in YUV formats.
 
 // For each pixel in the |rect| (logical coordinates), either decrease the
 // intensity or increase it so that the resulting pixel has a perceivably
@@ -75,14 +75,18 @@ void RenderLineOfText(const std::string& line, int top, VideoFrame* frame) {
   // including padding.
   const int line_width =
       (((kCharacterWidth + kCharacterSpacing) * static_cast<int>(line.size())) +
-           kCharacterSpacing) * kScale;
+       kCharacterSpacing) *
+      kScale;
 
   // Determine if any characters would render past the left edge of the frame,
   // and compute the index of the first character to be rendered.
   const int pixels_per_char = (kCharacterWidth + kCharacterSpacing) * kScale;
-  const size_t first_idx = (line_width < frame->visible_rect().width()) ? 0u :
-      static_cast<size_t>(
-          ((line_width - frame->visible_rect().width()) / pixels_per_char) + 1);
+  const size_t first_idx =
+      (line_width < frame->visible_rect().width())
+          ? 0u
+          : static_cast<size_t>(((line_width - frame->visible_rect().width()) /
+                                 pixels_per_char) +
+                                1);
 
   // Compute the pointer to the pixel at the upper-left corner of the first
   // character to be rendered.
@@ -179,7 +183,7 @@ void RenderLineOfText(const std::string& line, int top, VideoFrame* frame) {
       case '+':
         DivergePixels(gfx::Rect(1, 1, 1, 1), p_ul, stride);
         DivergePixels(gfx::Rect(1, 3, 1, 1), p_ul, stride);
-        // ...fall through...
+      // ...fall through...
       case '-':
         DivergePixels(gfx::Rect(0, 2, 3, 1), p_ul, stride);
         break;
@@ -216,8 +220,7 @@ void RenderLineOfText(const std::string& line, int top, VideoFrame* frame) {
 
 void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
                                           bool in_low_latency_mode,
-                                          int target_bitrate,
-                                          int frames_ago,
+                                          int target_bitrate, int frames_ago,
                                           double encoder_utilization,
                                           double lossy_utilization,
                                           VideoFrame* frame) {
@@ -235,8 +238,7 @@ void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
   // Compute the physical pixel top row for the bottom-most line of text.
   const int line_height = (kCharacterHeight + kLineSpacing) * kScale;
   int top = frame->visible_rect().height() - line_height;
-  if (top < 0 || !VLOG_IS_ON(1))
-    return;
+  if (top < 0 || !VLOG_IS_ON(1)) return;
 
   // Line 3: Frame duration, resolution, and timestamp.
   int frame_duration_ms = 0;
@@ -255,21 +257,16 @@ void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
   const int seconds = static_cast<int>(rem.InSeconds());
   rem -= base::TimeDelta::FromSeconds(seconds);
   const int hundredth_seconds = static_cast<int>(rem.InMilliseconds() / 10);
-  RenderLineOfText(base::StringPrintf("%d.%01d %dx%d %d:%02d.%02d",
-                                      frame_duration_ms,
-                                      frame_duration_ms_frac,
-                                      frame->visible_rect().width(),
-                                      frame->visible_rect().height(),
-                                      minutes,
-                                      seconds,
-                                      hundredth_seconds),
-                   top,
-                   frame);
+  RenderLineOfText(
+      base::StringPrintf("%d.%01d %dx%d %d:%02d.%02d", frame_duration_ms,
+                         frame_duration_ms_frac, frame->visible_rect().width(),
+                         frame->visible_rect().height(), minutes, seconds,
+                         hundredth_seconds),
+      top, frame);
 
   // Move up one line's worth of pixels.
   top -= line_height;
-  if (top < 0 || !VLOG_IS_ON(2))
-    return;
+  if (top < 0 || !VLOG_IS_ON(2)) return;
 
   // Line 2: Capture duration, target playout delay, low-latency mode, and
   // target bitrate.
@@ -285,18 +282,15 @@ void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
   const int target_playout_delay_ms =
       static_cast<int>(target_playout_delay.InMillisecondsF() + 0.5);
   const int target_kbits = target_bitrate / 1000;
-  RenderLineOfText(base::StringPrintf("%d %4.1d%c %4.1d",
-                                      capture_duration_ms,
-                                      target_playout_delay_ms,
-                                      in_low_latency_mode ? '!' : '.',
-                                      target_kbits),
-                   top,
-                   frame);
+  RenderLineOfText(
+      base::StringPrintf("%d %4.1d%c %4.1d", capture_duration_ms,
+                         target_playout_delay_ms,
+                         in_low_latency_mode ? '!' : '.', target_kbits),
+      top, frame);
 
   // Move up one line's worth of pixels.
   top -= line_height;
-  if (top < 0 || !VLOG_IS_ON(3))
-    return;
+  if (top < 0 || !VLOG_IS_ON(3)) return;
 
   // Line 1: Recent utilization metrics.
   const int encoder_pct =

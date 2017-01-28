@@ -23,7 +23,6 @@ class AudioHashTest : public testing::Test {
       : bus_one_(AudioBus::Create(kChannelCount, kFrameCount)),
         bus_two_(AudioBus::Create(kChannelCount, kFrameCount)),
         fake_callback_(0.01) {
-
     // Fill each channel in each bus with unique data.
     GenerateUniqueChannels(bus_one_.get());
     GenerateUniqueChannels(bus_two_.get());
@@ -160,8 +159,7 @@ TEST_F(AudioHashTest, VerifySimilarHash) {
   EXPECT_EQ(hash_one.ToString(), hash_two.ToString());
 
   // Twiddle the values too much...
-  for (int i = 0; i < bus_one_->frames(); ++i)
-    channel[i] += 0.0001f;
+  for (int i = 0; i < bus_one_->frames(); ++i) channel[i] += 0.0001f;
 
   AudioHash hash_three;
   hash_three.Update(bus_one_.get(), bus_one_->frames());

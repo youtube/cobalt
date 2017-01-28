@@ -60,9 +60,7 @@ MATCHER_P(ContainsTrackBufferExhaustionSkipLog, skip_milliseconds, "") {
                              "appear temporarily frozen.");
 }
 
-MATCHER_P2(ContainsGeneratedSpliceLog,
-           duration_microseconds,
-           time_microseconds,
+MATCHER_P2(ContainsGeneratedSpliceLog, duration_microseconds, time_microseconds,
            "") {
   return CONTAINS_STRING(arg, "Generated splice of overlap duration " +
                                   base::IntToString(duration_microseconds) +
@@ -107,20 +105,18 @@ class SourceBufferStreamTest : public testing::Test {
   }
 
   void NewCodedFrameGroupAppend(int starting_position, int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers, true,
-                  base::TimeDelta(), true, &kDataA, kDataSize);
+    AppendBuffers(starting_position, number_of_buffers, true, base::TimeDelta(),
+                  true, &kDataA, kDataSize);
   }
 
-  void NewCodedFrameGroupAppend(int starting_position,
-                                int number_of_buffers,
+  void NewCodedFrameGroupAppend(int starting_position, int number_of_buffers,
                                 const uint8_t* data) {
-    AppendBuffers(starting_position, number_of_buffers, true,
-                  base::TimeDelta(), true, data, kDataSize);
+    AppendBuffers(starting_position, number_of_buffers, true, base::TimeDelta(),
+                  true, data, kDataSize);
   }
 
   void NewCodedFrameGroupAppend_OffsetFirstBuffer(
-      int starting_position,
-      int number_of_buffers,
+      int starting_position, int number_of_buffers,
       base::TimeDelta first_buffer_offset) {
     AppendBuffers(starting_position, number_of_buffers, true,
                   first_buffer_offset, true, &kDataA, kDataSize);
@@ -128,8 +124,8 @@ class SourceBufferStreamTest : public testing::Test {
 
   void NewCodedFrameGroupAppend_ExpectFailure(int starting_position,
                                               int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers, true,
-                  base::TimeDelta(), false, &kDataA, kDataSize);
+    AppendBuffers(starting_position, number_of_buffers, true, base::TimeDelta(),
+                  false, &kDataA, kDataSize);
   }
 
   void AppendBuffers(int starting_position, int number_of_buffers) {
@@ -137,8 +133,7 @@ class SourceBufferStreamTest : public testing::Test {
                   base::TimeDelta(), true, &kDataA, kDataSize);
   }
 
-  void AppendBuffers(int starting_position,
-                     int number_of_buffers,
+  void AppendBuffers(int starting_position, int number_of_buffers,
                      const uint8_t* data) {
     AppendBuffers(starting_position, number_of_buffers, false,
                   base::TimeDelta(), true, data, kDataSize);
@@ -174,9 +169,7 @@ class SourceBufferStreamTest : public testing::Test {
     AppendBuffers(buffers_to_append, false, kNoTimestamp, false, false);
   }
 
-  void Seek(int position) {
-    stream_->Seek(position * frame_duration_);
-  }
+  void Seek(int position) { stream_->Seek(position * frame_duration_); }
 
   void SeekToTimestampMs(int64_t timestamp_ms) {
     stream_->Seek(base::TimeDelta::FromMilliseconds(timestamp_ms));
@@ -208,10 +201,10 @@ class SourceBufferStreamTest : public testing::Test {
                           int* removal_end) {
     DecodeTimestamp removal_end_timestamp =
         DecodeTimestamp::FromMilliseconds(*removal_end);
-    int bytes_removed = stream_->GetRemovalRange(
-        DecodeTimestamp::FromMilliseconds(start),
-        DecodeTimestamp::FromMilliseconds(end), bytes_to_free,
-        &removal_end_timestamp);
+    int bytes_removed =
+        stream_->GetRemovalRange(DecodeTimestamp::FromMilliseconds(start),
+                                 DecodeTimestamp::FromMilliseconds(end),
+                                 bytes_to_free, &removal_end_timestamp);
     *removal_end = removal_end_timestamp.InMilliseconds();
     return bytes_removed;
   }
@@ -244,36 +237,30 @@ class SourceBufferStreamTest : public testing::Test {
     EXPECT_EQ(expected, ss.str());
   }
 
-  void CheckExpectedBuffers(
-      int starting_position, int ending_position) {
+  void CheckExpectedBuffers(int starting_position, int ending_position) {
     CheckExpectedBuffers(starting_position, ending_position, false, NULL, 0);
   }
 
-  void CheckExpectedBuffers(
-      int starting_position, int ending_position, bool expect_keyframe) {
+  void CheckExpectedBuffers(int starting_position, int ending_position,
+                            bool expect_keyframe) {
     CheckExpectedBuffers(starting_position, ending_position, expect_keyframe,
                          NULL, 0);
   }
 
-  void CheckExpectedBuffers(int starting_position,
-                            int ending_position,
+  void CheckExpectedBuffers(int starting_position, int ending_position,
                             const uint8_t* data) {
     CheckExpectedBuffers(starting_position, ending_position, false, data,
                          kDataSize);
   }
 
-  void CheckExpectedBuffers(int starting_position,
-                            int ending_position,
-                            const uint8_t* data,
-                            bool expect_keyframe) {
+  void CheckExpectedBuffers(int starting_position, int ending_position,
+                            const uint8_t* data, bool expect_keyframe) {
     CheckExpectedBuffers(starting_position, ending_position, expect_keyframe,
                          data, kDataSize);
   }
 
-  void CheckExpectedBuffers(int starting_position,
-                            int ending_position,
-                            bool expect_keyframe,
-                            const uint8_t* expected_data,
+  void CheckExpectedBuffers(int starting_position, int ending_position,
+                            bool expect_keyframe, const uint8_t* expected_data,
                             int expected_size) {
     int current_position = starting_position;
     for (; current_position <= ending_position; current_position++) {
@@ -281,8 +268,7 @@ class SourceBufferStreamTest : public testing::Test {
       SourceBufferStream::Status status = stream_->GetNextBuffer(&buffer);
 
       EXPECT_NE(status, SourceBufferStream::kConfigChange);
-      if (status != SourceBufferStream::kSuccess)
-        break;
+      if (status != SourceBufferStream::kSuccess) break;
 
       if (expect_keyframe && current_position == starting_position)
         EXPECT_TRUE(buffer->is_key_frame());
@@ -313,8 +299,7 @@ class SourceBufferStreamTest : public testing::Test {
       scoped_refptr<StreamParserBuffer> buffer;
       SourceBufferStream::Status status = stream_->GetNextBuffer(&buffer);
 
-      if (i > 0)
-        ss << " ";
+      if (i > 0) ss << " ";
 
       if (status == SourceBufferStream::kConfigChange) {
         switch (type) {
@@ -336,8 +321,7 @@ class SourceBufferStreamTest : public testing::Test {
       }
 
       EXPECT_EQ(SourceBufferStream::kSuccess, status);
-      if (status != SourceBufferStream::kSuccess)
-        break;
+      if (status != SourceBufferStream::kSuccess) break;
 
       ss << buffer->timestamp().InMilliseconds();
 
@@ -435,13 +419,10 @@ class SourceBufferStreamTest : public testing::Test {
         base::Time::kMicrosecondsPerSecond / frames_per_second);
   }
 
-  void AppendBuffers(int starting_position,
-                     int number_of_buffers,
+  void AppendBuffers(int starting_position, int number_of_buffers,
                      bool begin_coded_frame_group,
-                     base::TimeDelta first_buffer_offset,
-                     bool expect_success,
-                     const uint8_t* data,
-                     int size) {
+                     base::TimeDelta first_buffer_offset, bool expect_success,
+                     const uint8_t* data, int size) {
     if (begin_coded_frame_group)
       stream_->OnStartOfCodedFrameGroup(DecodeTimestamp::FromPresentationTime(
           starting_position * frame_duration_));
@@ -453,13 +434,11 @@ class SourceBufferStreamTest : public testing::Test {
       int position = starting_position + i;
       bool is_keyframe = position % keyframe_interval == 0;
       // Buffer type and track ID are meaningless to these tests.
-      scoped_refptr<StreamParserBuffer> buffer =
-          StreamParserBuffer::CopyFrom(data, size, is_keyframe,
-                                       DemuxerStream::AUDIO, 0);
+      scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
+          data, size, is_keyframe, DemuxerStream::AUDIO, 0);
       base::TimeDelta timestamp = frame_duration_ * position;
 
-      if (i == 0)
-        timestamp += first_buffer_offset;
+      if (i == 0) timestamp += first_buffer_offset;
       buffer->SetDecodeTimestamp(
           DecodeTimestamp::FromPresentationTime(timestamp));
 
@@ -481,8 +460,7 @@ class SourceBufferStreamTest : public testing::Test {
 
       queue.push_back(buffer);
     }
-    if (!queue.empty())
-      EXPECT_EQ(expect_success, stream_->Append(queue));
+    if (!queue.empty()) EXPECT_EQ(expect_success, stream_->Append(queue));
   }
 
   void UpdateLastBufferDuration(DecodeTimestamp current_dts,
@@ -616,9 +594,8 @@ class SourceBufferStreamTest : public testing::Test {
       CHECK(base::StringToInt(buffer_timestamps[1], &dts_in_ms));
 
       // Create buffer. Buffer type and track ID are meaningless to these tests.
-      scoped_refptr<StreamParserBuffer> buffer =
-          StreamParserBuffer::CopyFrom(&kDataA, kDataSize, is_keyframe,
-                                       DemuxerStream::AUDIO, 0);
+      scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
+          &kDataA, kDataSize, is_keyframe, DemuxerStream::AUDIO, 0);
       buffer->set_timestamp(base::TimeDelta::FromMilliseconds(pts_in_ms));
       buffer->set_is_duration_estimated(is_duration_estimated);
 
@@ -634,8 +611,8 @@ class SourceBufferStreamTest : public testing::Test {
       // it as the preroll.
       if (has_preroll) {
         scoped_refptr<StreamParserBuffer> preroll_buffer =
-            StreamParserBuffer::CopyFrom(
-                &kDataA, kDataSize, is_keyframe, DemuxerStream::AUDIO, 0);
+            StreamParserBuffer::CopyFrom(&kDataA, kDataSize, is_keyframe,
+                                         DemuxerStream::AUDIO, 0);
         preroll_buffer->set_duration(frame_duration_);
         buffer->SetPrerollBuffer(preroll_buffer);
       }
@@ -647,9 +624,8 @@ class SourceBufferStreamTest : public testing::Test {
                  buffer->timestamp().InMicroseconds());
         if (!pre_splice_buffers.empty()) {
           // Enforce strictly monotonically increasing timestamps.
-          CHECK_GT(
-              buffer->timestamp().InMicroseconds(),
-              pre_splice_buffers.back()->timestamp().InMicroseconds());
+          CHECK_GT(buffer->timestamp().InMicroseconds(),
+                   pre_splice_buffers.back()->timestamp().InMicroseconds());
           CHECK_GT(
               buffer->GetDecodeTimestamp().InMicroseconds(),
               pre_splice_buffers.back()->GetDecodeTimestamp().InMicroseconds());
@@ -677,8 +653,7 @@ class SourceBufferStreamTest : public testing::Test {
     // same as the second to last buffer.
     if (buffers.size() >= 2 &&
         buffers.back()->duration() <= base::TimeDelta()) {
-      buffers.back()->set_duration(
-          buffers[buffers.size() - 2]->duration());
+      buffers.back()->set_duration(buffers[buffers.size() - 2]->duration());
     }
 
     return buffers;
@@ -687,8 +662,7 @@ class SourceBufferStreamTest : public testing::Test {
   void AppendBuffers(const std::string& buffers_to_append,
                      bool start_new_coded_frame_group,
                      base::TimeDelta coded_frame_group_start_timestamp,
-                     bool one_by_one,
-                     bool expect_success) {
+                     bool one_by_one, bool expect_success) {
     BufferQueue buffers = StringToBufferQueue(buffers_to_append);
 
     if (start_new_coded_frame_group) {
@@ -735,8 +709,7 @@ TEST_F(SourceBufferStreamTest, Append_SingleRange) {
 TEST_F(SourceBufferStreamTest, Append_SingleRange_OneBufferAtATime) {
   // Append 15 buffers starting at position 0, one buffer at a time.
   NewCodedFrameGroupAppend(0, 1);
-  for (int i = 1; i < 15; i++)
-    AppendBuffers(i, 1);
+  for (int i = 1; i < 15; i++) AppendBuffers(i, 1);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -1648,8 +1621,7 @@ TEST_F(SourceBufferStreamTest, Overlap_OneByOne) {
   // Overlap with 10 buffers starting at the beginning, appended one at a
   // time.
   NewCodedFrameGroupAppend(0, 1, &kDataB);
-  for (int i = 1; i < 10; i++)
-    AppendBuffers(i, 1, &kDataB);
+  for (int i = 1; i < 10; i++) AppendBuffers(i, 1, &kDataB);
 
   // All data should be replaced.
   Seek(0);
@@ -2004,7 +1976,7 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfGroup) {
   // GetNextBuffer() should return the next buffer at position (15 + |bump|).
   EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kSuccess);
   EXPECT_EQ(buffer->GetDecodeTimestamp(), DecodeTimestamp::FromPresentationTime(
-      15 * frame_duration() + bump));
+                                              15 * frame_duration() + bump));
 
   // Check rest of buffers.
   CheckExpectedBuffers(16, 19);
@@ -2388,8 +2360,7 @@ TEST_F(SourceBufferStreamTest, GarbageCollection_DeleteFront) {
 
   // Append 20 buffers at positions 0 through 19.
   NewCodedFrameGroupAppend(0, 1, &kDataA);
-  for (int i = 1; i < 20; i++)
-    AppendBuffers(i, 1, &kDataA);
+  for (int i = 1; i < 20; i++) AppendBuffers(i, 1, &kDataA);
 
   // GC should be a no-op, since we are just under memory limit.
   EXPECT_TRUE(GarbageCollectWithPlaybackAtBuffer(0, 0));
@@ -2760,8 +2731,8 @@ TEST_F(SourceBufferStreamTest, GarbageCollection_SaveDataAtPlaybackPosition) {
   CheckExpectedRanges("{ [0,299) }");
 
   // Playback position at 0, all data must be preserved.
-  EXPECT_FALSE(stream_->GarbageCollectIfNeeded(
-      DecodeTimestamp::FromMilliseconds(0), 0));
+  EXPECT_FALSE(
+      stream_->GarbageCollectIfNeeded(DecodeTimestamp::FromMilliseconds(0), 0));
   CheckExpectedRanges("{ [0,299) }");
 
   // Playback position at 1 sec, the first second of data [0,29) should be
@@ -2984,8 +2955,8 @@ TEST_F(SourceBufferStreamTest, GarbageCollection_SaveAppendGOP_Selected3) {
 
   // GC should save the newly appended GOP, which is also the next GOP that
   // will be returned from the seek request.
-  EXPECT_FALSE(stream_->GarbageCollectIfNeeded(
-      DecodeTimestamp::FromMilliseconds(0), 0));
+  EXPECT_FALSE(
+      stream_->GarbageCollectIfNeeded(DecodeTimestamp::FromMilliseconds(0), 0));
   CheckExpectedRangesByTimestamp("{ [0,60) }");
 
   // Check the buffers in the range.
@@ -2997,8 +2968,8 @@ TEST_F(SourceBufferStreamTest, GarbageCollection_SaveAppendGOP_Selected3) {
 
   // GC should still save the rest of this GOP and should be able to fulfill
   // the read.
-  EXPECT_FALSE(stream_->GarbageCollectIfNeeded(
-      DecodeTimestamp::FromMilliseconds(0), 0));
+  EXPECT_FALSE(
+      stream_->GarbageCollectIfNeeded(DecodeTimestamp::FromMilliseconds(0), 0));
   CheckExpectedRangesByTimestamp("{ [0,120) }");
   CheckExpectedBuffers("60 90");
   CheckNoNextBuffer();
@@ -4115,8 +4086,9 @@ TEST_F(SourceBufferStreamTest, Text_CompleteOverlap) {
   CheckExpectedRangesByTimestamp("{ [0,5501) }");
 
   Seek(0);
-  CheckExpectedBuffers("0K 501K 1001K 1501K 2001K 2501K "
-                       "3001K 3501K 4001K 4501K 5001K");
+  CheckExpectedBuffers(
+      "0K 501K 1001K 1501K 2001K 2501K "
+      "3001K 3501K 4001K 4501K 5001K");
 }
 
 TEST_F(SourceBufferStreamTest, Text_OverlapAfter) {

@@ -15,18 +15,11 @@
 
 namespace media {
 
-void ConvertYUVAToARGB_MMX(const uint8_t* yplane,
-                           const uint8_t* uplane,
-                           const uint8_t* vplane,
-                           const uint8_t* aplane,
-                           uint8_t* rgbframe,
-                           int width,
-                           int height,
-                           int ystride,
-                           int uvstride,
-                           int astride,
-                           int rgbstride,
-                           YUVType yuv_type) {
+void ConvertYUVAToARGB_MMX(const uint8_t* yplane, const uint8_t* uplane,
+                           const uint8_t* vplane, const uint8_t* aplane,
+                           uint8_t* rgbframe, int width, int height,
+                           int ystride, int uvstride, int astride,
+                           int rgbstride, YUVType yuv_type) {
   unsigned int y_shift = GetVerticalShift(yuv_type);
   for (int y = 0; y < height; ++y) {
     uint8_t* rgb_row = rgbframe + y * rgbstride;
@@ -35,27 +28,16 @@ void ConvertYUVAToARGB_MMX(const uint8_t* yplane,
     const uint8_t* v_ptr = vplane + (y >> y_shift) * uvstride;
     const uint8_t* a_ptr = aplane + y * astride;
 
-    ConvertYUVAToARGBRow_MMX(y_ptr,
-                             u_ptr,
-                             v_ptr,
-                             a_ptr,
-                             rgb_row,
-                             width,
+    ConvertYUVAToARGBRow_MMX(y_ptr, u_ptr, v_ptr, a_ptr, rgb_row, width,
                              GetLookupTable(yuv_type));
   }
 
   EmptyRegisterState();
 }
 
-void ConvertYUVToRGB32_SSE(const uint8_t* yplane,
-                           const uint8_t* uplane,
-                           const uint8_t* vplane,
-                           uint8_t* rgbframe,
-                           int width,
-                           int height,
-                           int ystride,
-                           int uvstride,
-                           int rgbstride,
+void ConvertYUVToRGB32_SSE(const uint8_t* yplane, const uint8_t* uplane,
+                           const uint8_t* vplane, uint8_t* rgbframe, int width,
+                           int height, int ystride, int uvstride, int rgbstride,
                            YUVType yuv_type) {
   unsigned int y_shift = GetVerticalShift(yuv_type);
   for (int y = 0; y < height; ++y) {
@@ -64,11 +46,7 @@ void ConvertYUVToRGB32_SSE(const uint8_t* yplane,
     const uint8_t* u_ptr = uplane + (y >> y_shift) * uvstride;
     const uint8_t* v_ptr = vplane + (y >> y_shift) * uvstride;
 
-    ConvertYUVToRGB32Row_SSE(y_ptr,
-                             u_ptr,
-                             v_ptr,
-                             rgb_row,
-                             width,
+    ConvertYUVToRGB32Row_SSE(y_ptr, u_ptr, v_ptr, rgb_row, width,
                              GetLookupTable(yuv_type));
   }
 

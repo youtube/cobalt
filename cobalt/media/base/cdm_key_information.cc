@@ -8,25 +8,19 @@
 namespace media {
 
 CdmKeyInformation::CdmKeyInformation()
-    : status(INTERNAL_ERROR), system_code(0) {
-}
+    : status(INTERNAL_ERROR), system_code(0) {}
 
 CdmKeyInformation::CdmKeyInformation(const std::vector<uint8_t>& key_id,
-                                     KeyStatus status,
-                                     uint32_t system_code)
+                                     KeyStatus status, uint32_t system_code)
     : key_id(key_id), status(status), system_code(system_code) {}
 
 CdmKeyInformation::CdmKeyInformation(const std::string& key_id,
-                                     KeyStatus status,
-                                     uint32_t system_code)
+                                     KeyStatus status, uint32_t system_code)
     : CdmKeyInformation(reinterpret_cast<const uint8_t*>(key_id.data()),
-                        key_id.size(),
-                        status,
-                        system_code) {}
+                        key_id.size(), status, system_code) {}
 
 CdmKeyInformation::CdmKeyInformation(const uint8_t* key_id_data,
-                                     size_t key_id_length,
-                                     KeyStatus status,
+                                     size_t key_id_length, KeyStatus status,
                                      uint32_t system_code)
     : key_id(key_id_data, key_id_data + key_id_length),
       status(status),
@@ -34,7 +28,6 @@ CdmKeyInformation::CdmKeyInformation(const uint8_t* key_id_data,
 
 CdmKeyInformation::CdmKeyInformation(const CdmKeyInformation& other) = default;
 
-CdmKeyInformation::~CdmKeyInformation() {
-}
+CdmKeyInformation::~CdmKeyInformation() {}
 
 }  // namespace media

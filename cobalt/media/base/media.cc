@@ -58,9 +58,7 @@ class MediaInitializer {
 #endif  // !defined(MEDIA_DISABLE_FFMPEG)
   }
 
-  ~MediaInitializer() {
-    NOTREACHED() << "MediaInitializer should be leaky!";
-  }
+  ~MediaInitializer() { NOTREACHED() << "MediaInitializer should be leaky!"; }
 
   bool has_platform_decoder_support_ = false;
 
@@ -70,9 +68,7 @@ class MediaInitializer {
 static base::LazyInstance<MediaInitializer>::Leaky g_media_library =
     LAZY_INSTANCE_INITIALIZER;
 
-void InitializeMediaLibrary() {
-  g_media_library.Get();
-}
+void InitializeMediaLibrary() { g_media_library.Get(); }
 
 #if defined(OS_ANDROID)
 void EnablePlatformDecoderSupport() {

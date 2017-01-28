@@ -34,16 +34,14 @@ static bool MergeBufferQueuesInternal(
   // this large grain merge. See http://crbug.com/338484.
 
   // Done if no inputs to merge.
-  if (buffer_queues.empty())
-    return true;
+  if (buffer_queues.empty()) return true;
 
   // Build a vector of iterators, one for each input, to traverse inputs.
   // The union of these iterators points to the set of candidate buffers
   // for being appended to |merged_buffers|.
   size_t num_itrs = buffer_queues.size();
   std::vector<StreamParser::BufferQueue::const_iterator> itrs(num_itrs);
-  for (size_t i = 0; i < num_itrs; ++i)
-    itrs[i] = buffer_queues[i]->begin();
+  for (size_t i = 0; i < num_itrs; ++i) itrs[i] = buffer_queues[i]->begin();
 
   // |last_decode_timestamp| tracks the lower bound, if any, that all candidate
   // buffers must not be less than. If |merged_buffers| already has buffers,
@@ -76,8 +74,7 @@ static bool MergeBufferQueuesInternal(
     // Scan each of the iterators for |buffer_queues| to find the candidate
     // buffer, if any, that has the lowest decode timestamp.
     for (size_t i = 0; i < num_itrs; ++i) {
-      if (itrs[i] == buffer_queues[i]->end())
-        continue;
+      if (itrs[i] == buffer_queues[i]->end()) continue;
 
       // Extract the candidate buffer's decode timestamp.
       DecodeTimestamp ts = (*itrs[i])->GetDecodeTimestamp();
@@ -96,8 +93,7 @@ static bool MergeBufferQueuesInternal(
     }
 
     // All done if no further candidate buffers exist.
-    if (index_of_queue_with_next_decode_timestamp == -1)
-      return true;
+    if (index_of_queue_with_next_decode_timestamp == -1) return true;
 
     // Otherwise, append the winning candidate buffer to |merged_buffers|,
     // remember its decode timestamp as |last_decode_timestamp| now that it is

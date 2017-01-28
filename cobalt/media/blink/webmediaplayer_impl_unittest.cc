@@ -42,9 +42,7 @@ using ::testing::_;
 
 namespace media {
 
-int64_t OnAdjustAllocatedMemory(int64_t delta) {
-  return 0;
-}
+int64_t OnAdjustAllocatedMemory(int64_t delta) { return 0; }
 
 class DummyWebMediaPlayerClient : public blink::WebMediaPlayerClient {
  public:
@@ -60,19 +58,15 @@ class DummyWebMediaPlayerClient : public blink::WebMediaPlayerClient {
   void playbackStateChanged() override {}
   void setWebLayer(blink::WebLayer*) override {}
   blink::WebMediaPlayer::TrackId addAudioTrack(
-      const blink::WebString& id,
-      blink::WebMediaPlayerClient::AudioTrackKind,
-      const blink::WebString& label,
-      const blink::WebString& language,
+      const blink::WebString& id, blink::WebMediaPlayerClient::AudioTrackKind,
+      const blink::WebString& label, const blink::WebString& language,
       bool enabled) override {
     return blink::WebMediaPlayer::TrackId();
   }
   void removeAudioTrack(blink::WebMediaPlayer::TrackId) override {}
   blink::WebMediaPlayer::TrackId addVideoTrack(
-      const blink::WebString& id,
-      blink::WebMediaPlayerClient::VideoTrackKind,
-      const blink::WebString& label,
-      const blink::WebString& language,
+      const blink::WebString& id, blink::WebMediaPlayerClient::VideoTrackKind,
+      const blink::WebString& label, const blink::WebString& language,
       bool selected) override {
     return blink::WebMediaPlayer::TrackId();
   }
@@ -119,9 +113,8 @@ class WebMediaPlayerImplTest : public testing::Test {
       : media_thread_("MediaThreadForTest"),
         web_view_(
             blink::WebView::create(NULL, blink::WebPageVisibilityStateVisible)),
-        web_local_frame_(
-            blink::WebLocalFrame::create(blink::WebTreeScopeType::Document,
-                                         &web_frame_client_)),
+        web_local_frame_(blink::WebLocalFrame::create(
+            blink::WebTreeScopeType::Document, &web_frame_client_)),
         media_log_(new MediaLog()),
         audio_parameters_(TestAudioParameters::Normal()) {
     web_view_->setMainFrame(web_local_frame_);

@@ -16,8 +16,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   media::IvfFileHeader ivf_file_header;
   media::IvfFrameHeader ivf_frame_header;
 
-  if (!ivf_parser.Initialize(data, size, &ivf_file_header))
-    return 0;
+  if (!ivf_parser.Initialize(data, size, &ivf_file_header)) return 0;
 
   // Parse until the end of stream/unsupported stream/error in stream is found.
   while (ivf_parser.ParseNextFrame(&ivf_frame_header, &ivf_payload)) {

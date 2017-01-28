@@ -36,12 +36,9 @@ bool ResourceMultiBuffer::RangeSupported() const {
   return url_data_->range_supported_;
 }
 
-void ResourceMultiBuffer::OnEmpty() {
-  url_data_->OnEmpty();
-}
+void ResourceMultiBuffer::OnEmpty() { url_data_->OnEmpty(); }
 
-UrlData::UrlData(const GURL& url,
-                 CORSMode cors_mode,
+UrlData::UrlData(const GURL& url, CORSMode cors_mode,
                  const base::WeakPtr<UrlIndex>& url_index)
     : url_(url),
       have_data_origin_(false),
@@ -151,11 +148,9 @@ void UrlData::OnEmpty() {
 bool UrlData::Valid() const {
   DCHECK(thread_checker_.CalledOnValidThread());
   base::Time now = base::Time::Now();
-  if (!range_supported_)
-    return false;
+  if (!range_supported_) return false;
   // When ranges are not supported, we cannot re-use cached data.
-  if (valid_until_ > now)
-    return true;
+  if (valid_until_ > now) return true;
   if (now - last_used_ <
       base::TimeDelta::FromSeconds(kUrlMappingTimeoutSeconds))
     return true;
@@ -198,12 +193,10 @@ UrlIndex::UrlIndex(blink::WebFrame* frame, int block_shift)
 UrlIndex::~UrlIndex() {}
 
 void UrlIndex::RemoveUrlDataIfEmpty(const scoped_refptr<UrlData>& url_data) {
-  if (!url_data->multibuffer()->map().empty())
-    return;
+  if (!url_data->multibuffer()->map().empty()) return;
 
   auto i = by_url_.find(url_data->key());
-  if (i != by_url_.end() && i->second == url_data)
-    by_url_.erase(i);
+  if (i != by_url_.end() && i->second == url_data) by_url_.erase(i);
 }
 
 scoped_refptr<UrlData> UrlIndex::GetByUrl(const GURL& gurl,
@@ -228,12 +221,10 @@ bool IsStrongEtag(const std::string& etag) {
 bool IsNewDataForSameResource(const scoped_refptr<UrlData>& new_entry,
                               const scoped_refptr<UrlData>& old_entry) {
   if (IsStrongEtag(new_entry->etag()) && IsStrongEtag(old_entry->etag())) {
-    if (new_entry->etag() != old_entry->etag())
-      return true;
+    if (new_entry->etag() != old_entry->etag()) return true;
   }
   if (!new_entry->last_modified().is_null()) {
-    if (new_entry->last_modified() != old_entry->last_modified())
-      return true;
+    if (new_entry->last_modified() != old_entry->last_modified()) return true;
   }
   return false;
 }
@@ -249,16 +240,13 @@ scoped_refptr<UrlData> UrlIndex::TryInsert(
   } else {
     std::map<UrlData::KeyType, scoped_refptr<UrlData>>::iterator iter;
     iter = by_url_.find(url_data->key());
-    if (iter == by_url_.end())
-      return url_data;
+    if (iter == by_url_.end()) return url_data;
     by_url_slot = &iter->second;
   }
-  if (*by_url_slot == url_data)
-    return url_data;
+  if (*by_url_slot == url_data) return url_data;
 
   if (IsNewDataForSameResource(url_data, *by_url_slot)) {
-    if (urldata_valid)
-      *by_url_slot = url_data;
+    if (urldata_valid) *by_url_slot = url_data;
     return url_data;
   }
 

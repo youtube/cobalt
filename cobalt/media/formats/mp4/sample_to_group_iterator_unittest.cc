@@ -16,8 +16,8 @@ namespace media {
 namespace mp4 {
 
 namespace {
-const SampleToGroupEntry kCompactSampleToGroupTable[] =
-    {{10, 8}, {9, 5}, {25, 7}, {48, 63}, {8, 2}};
+const SampleToGroupEntry kCompactSampleToGroupTable[] = {
+    {10, 8}, {9, 5}, {25, 7}, {48, 63}, {8, 2}};
 }  // namespace
 
 class SampleToGroupIteratorTest : public testing::Test {

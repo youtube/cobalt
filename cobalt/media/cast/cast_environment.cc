@@ -35,10 +35,8 @@ bool CastEnvironment::PostTask(ThreadId identifier,
 }
 
 bool CastEnvironment::PostDelayedTask(
-    ThreadId identifier,
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
-    base::TimeDelta delay) {
+    ThreadId identifier, const tracked_objects::Location& from_here,
+    const base::Closure& task, base::TimeDelta delay) {
   return GetTaskRunner(identifier)->PostDelayedTask(from_here, task, delay);
 }
 

@@ -52,9 +52,7 @@ void SaveOperationalStatus(OperationalStatus* out_status,
 class TestPacketSender : public PacketTransport {
  public:
   TestPacketSender()
-      : number_of_rtp_packets_(0),
-        number_of_rtcp_packets_(0),
-        paused_(false) {}
+      : number_of_rtp_packets_(0), number_of_rtcp_packets_(0), paused_(false) {}
 
   // A singular packet implies a RTCP packet.
   bool SendPacket(PacketRef packet, const base::Closure& cb) final {
@@ -70,8 +68,7 @@ class TestPacketSender : public PacketTransport {
       // packet.  This confirms that the receiver will have the necessary lip
       // sync info before it has to calculate the playout time of the first
       // frame.
-      if (number_of_rtp_packets_ == 0)
-        EXPECT_LE(1, number_of_rtcp_packets_);
+      if (number_of_rtp_packets_ == 0) EXPECT_LE(1, number_of_rtcp_packets_);
       ++number_of_rtp_packets_;
     }
     return true;
@@ -106,8 +103,7 @@ class TestPacketSender : public PacketTransport {
   DISALLOW_COPY_AND_ASSIGN(TestPacketSender);
 };
 
-void IgnorePlayoutDelayChanges(base::TimeDelta unused_playout_delay) {
-}
+void IgnorePlayoutDelayChanges(base::TimeDelta unused_playout_delay) {}
 
 class PeerVideoSender : public VideoSender {
  public:
@@ -118,12 +114,8 @@ class PeerVideoSender : public VideoSender {
       const CreateVideoEncodeAcceleratorCallback& create_vea_cb,
       const CreateVideoEncodeMemoryCallback& create_video_encode_mem_cb,
       CastTransport* const transport_sender)
-      : VideoSender(cast_environment,
-                    video_config,
-                    status_change_cb,
-                    create_vea_cb,
-                    create_video_encode_mem_cb,
-                    transport_sender,
+      : VideoSender(cast_environment, video_config, status_change_cb,
+                    create_vea_cb, create_video_encode_mem_cb, transport_sender,
                     base::Bind(&IgnorePlayoutDelayChanges)) {}
   using VideoSender::OnReceivedCastFeedback;
   using VideoSender::OnReceivedPli;
@@ -152,10 +144,8 @@ class VideoSenderTest : public ::testing::Test {
       : testing_clock_(new base::SimpleTestTickClock()),
         task_runner_(new FakeSingleThreadTaskRunner(testing_clock_)),
         cast_environment_(new CastEnvironment(
-            std::unique_ptr<base::TickClock>(testing_clock_),
-            task_runner_,
-            task_runner_,
-            task_runner_)),
+            std::unique_ptr<base::TickClock>(testing_clock_), task_runner_,
+            task_runner_, task_runner_)),
         operational_status_(STATUS_UNINITIALIZED),
         vea_factory_(task_runner_) {
     testing_clock_->Advance(base::TimeTicks::Now() - base::TimeTicks());
@@ -597,8 +587,7 @@ TEST_F(VideoSenderTest, PopulatesResourceUtilizationInFrameMetadata) {
     EXPECT_TRUE(video_frame->metadata()->GetDouble(
         media::VideoFrameMetadata::RESOURCE_UTILIZATION, &utilization));
     EXPECT_LE(0.0, utilization);
-    if (i == 0)
-      EXPECT_GE(1.0, utilization);  // Key frames never exceed 1.0.
+    if (i == 0) EXPECT_GE(1.0, utilization);  // Key frames never exceed 1.0.
     DVLOG(1) << "Utilization computed by VideoSender is: " << utilization;
   }
 }

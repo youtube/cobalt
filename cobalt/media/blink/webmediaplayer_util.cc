@@ -108,8 +108,7 @@ std::string LoadTypeToString(blink::WebMediaPlayer::LoadType load_type) {
 
 }  // namespace
 
-void ReportMetrics(blink::WebMediaPlayer::LoadType load_type,
-                   const GURL& url,
+void ReportMetrics(blink::WebMediaPlayer::LoadType load_type, const GURL& url,
                    const blink::WebSecurityOrigin& security_origin) {
   // Report URL scheme, such as http, https, file, blob etc.
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url),
@@ -146,8 +145,7 @@ void ReportPipelineError(blink::WebMediaPlayer::LoadType load_type,
   DCHECK_NE(PIPELINE_OK, error);
 
   // Report the origin from where the media player is created.
-  if (!GetMediaClient())
-    return;
+  if (!GetMediaClient()) return;
 
   GetMediaClient()->RecordRapporURL(
       "Media.OriginUrl." + LoadTypeToString(load_type) + ".PipelineError",
@@ -225,8 +223,7 @@ class SetSinkIdCallback {
 
 void RunSetSinkIdCallback(const SetSinkIdCallback& callback,
                           OutputDeviceStatus result) {
-  if (!callback.web_callback_)
-    return;
+  if (!callback.web_callback_) return;
 
   switch (result) {
     case OUTPUT_DEVICE_STATUS_OK:

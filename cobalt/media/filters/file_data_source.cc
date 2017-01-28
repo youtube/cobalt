@@ -12,15 +12,10 @@
 namespace media {
 
 FileDataSource::FileDataSource()
-    : force_read_errors_(false),
-      force_streaming_(false),
-      bytes_read_(0) {
-}
+    : force_read_errors_(false), force_streaming_(false), bytes_read_(0) {}
 
 FileDataSource::FileDataSource(base::File file)
-    : force_read_errors_(false),
-      force_streaming_(false),
-      bytes_read_(0) {
+    : force_read_errors_(false), force_streaming_(false), bytes_read_(0) {
   file_.Initialize(std::move(file));
 }
 
@@ -33,9 +28,7 @@ void FileDataSource::Stop() {}
 
 void FileDataSource::Abort() {}
 
-void FileDataSource::Read(int64_t position,
-                          int size,
-                          uint8_t* data,
+void FileDataSource::Read(int64_t position, int size, uint8_t* data,
                           const DataSource::ReadCB& read_cb) {
   if (force_read_errors_ || !file_.IsValid()) {
     read_cb.Run(kReadError);
@@ -63,9 +56,7 @@ bool FileDataSource::GetSize(int64_t* size_out) {
   return true;
 }
 
-bool FileDataSource::IsStreaming() {
-  return force_streaming_;
-}
+bool FileDataSource::IsStreaming() { return force_streaming_; }
 
 void FileDataSource::SetBitrate(int bitrate) {}
 

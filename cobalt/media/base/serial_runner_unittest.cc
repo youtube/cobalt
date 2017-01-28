@@ -37,23 +37,19 @@ class SerialRunnerTest : public ::testing::Test {
   // queue was called while running the SerialRunner.
   void PushBoundFunction(PipelineStatus status) {
     bound_fns_.Push(base::Bind(&SerialRunnerTest::RunBoundFunction,
-                               base::Unretained(this),
-                               status,
-                               called_.size()));
+                               base::Unretained(this), status, called_.size()));
     called_.push_back(false);
   }
 
   void PushBoundClosure() {
     bound_fns_.Push(base::Bind(&SerialRunnerTest::RunBoundClosure,
-                               base::Unretained(this),
-                               called_.size()));
+                               base::Unretained(this), called_.size()));
     called_.push_back(false);
   }
 
   void PushClosure() {
     bound_fns_.Push(base::Bind(&SerialRunnerTest::RunClosure,
-                               base::Unretained(this),
-                               called_.size()));
+                               base::Unretained(this), called_.size()));
     called_.push_back(false);
   }
 
@@ -71,8 +67,7 @@ class SerialRunnerTest : public ::testing::Test {
   PipelineStatus done_status() { return done_status_; }
 
  private:
-  void RunBoundFunction(PipelineStatus status,
-                        size_t index,
+  void RunBoundFunction(PipelineStatus status, size_t index,
                         const PipelineStatusCB& status_cb) {
     EXPECT_EQ(index == 0u, inside_start_)
         << "First bound function should run on same stack as "
@@ -83,8 +78,7 @@ class SerialRunnerTest : public ::testing::Test {
     status_cb.Run(status);
   }
 
-  void RunBoundClosure(size_t index,
-                       const base::Closure& done_cb) {
+  void RunBoundClosure(size_t index, const base::Closure& done_cb) {
     EXPECT_EQ(index == 0u, inside_start_)
         << "First bound function should run on same stack as "
         << "SerialRunner::Run() while all others should not\n"
@@ -105,8 +99,9 @@ class SerialRunnerTest : public ::testing::Test {
 
   void StartRunnerInternal(const SerialRunner::Queue& bound_fns) {
     inside_start_ = true;
-    runner_ = SerialRunner::Run(bound_fns_, base::Bind(
-        &SerialRunnerTest::DoneCallback, base::Unretained(this)));
+    runner_ = SerialRunner::Run(
+        bound_fns_,
+        base::Bind(&SerialRunnerTest::DoneCallback, base::Unretained(this)));
     inside_start_ = false;
   }
 
@@ -128,9 +123,7 @@ class SerialRunnerTest : public ::testing::Test {
     status_cb.Run(PIPELINE_OK);
   }
 
-  void ResetSerialRunner() {
-    runner_.reset();
-  }
+  void ResetSerialRunner() { runner_.reset(); }
 
   base::MessageLoop message_loop_;
   SerialRunner::Queue bound_fns_;

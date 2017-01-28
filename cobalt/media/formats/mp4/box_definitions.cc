@@ -101,8 +101,7 @@ FourCC SampleAuxiliaryInformationOffset::BoxType() const { return FOURCC_SAIO; }
 
 bool SampleAuxiliaryInformationOffset::Parse(BoxReader* reader) {
   RCHECK(reader->ReadFullBoxHeader());
-  if (reader->flags() & 1)
-    RCHECK(reader->SkipBytes(8));
+  if (reader->flags() & 1) RCHECK(reader->SkipBytes(8));
 
   uint32_t count;
   RCHECK(reader->Read4(&count) &&
@@ -120,15 +119,13 @@ bool SampleAuxiliaryInformationOffset::Parse(BoxReader* reader) {
 }
 
 SampleAuxiliaryInformationSize::SampleAuxiliaryInformationSize()
-  : default_sample_info_size(0), sample_count(0) {
-}
+    : default_sample_info_size(0), sample_count(0) {}
 SampleAuxiliaryInformationSize::~SampleAuxiliaryInformationSize() {}
 FourCC SampleAuxiliaryInformationSize::BoxType() const { return FOURCC_SAIZ; }
 
 bool SampleAuxiliaryInformationSize::Parse(BoxReader* reader) {
   RCHECK(reader->ReadFullBoxHeader());
-  if (reader->flags() & 1)
-    RCHECK(reader->SkipBytes(8));
+  if (reader->flags() & 1) RCHECK(reader->SkipBytes(8));
 
   RCHECK(reader->Read1(&default_sample_info_size) &&
          reader->Read4(&sample_count));
@@ -140,8 +137,7 @@ bool SampleAuxiliaryInformationSize::Parse(BoxReader* reader) {
 SampleEncryptionEntry::SampleEncryptionEntry() {}
 SampleEncryptionEntry::~SampleEncryptionEntry() {}
 
-bool SampleEncryptionEntry::Parse(BufferReader* reader,
-                                  uint8_t iv_size,
+bool SampleEncryptionEntry::Parse(BufferReader* reader, uint8_t iv_size,
                                   bool has_subsamples) {
   // According to ISO/IEC FDIS 23001-7: CENC spec, IV should be either
   // 64-bit (8-byte) or 128-bit (16-byte).
@@ -184,9 +180,7 @@ bool SampleEncryptionEntry::GetTotalSizeOfSubsamples(size_t* total_size) const {
 
 SampleEncryption::SampleEncryption() : use_subsample_encryption(false) {}
 SampleEncryption::~SampleEncryption() {}
-FourCC SampleEncryption::BoxType() const {
-  return FOURCC_SENC;
-}
+FourCC SampleEncryption::BoxType() const { return FOURCC_SENC; }
 
 bool SampleEncryption::Parse(BoxReader* reader) {
   RCHECK(reader->ReadFullBoxHeader());
@@ -209,24 +203,19 @@ SchemeType::~SchemeType() {}
 FourCC SchemeType::BoxType() const { return FOURCC_SCHM; }
 
 bool SchemeType::Parse(BoxReader* reader) {
-  RCHECK(reader->ReadFullBoxHeader() &&
-         reader->ReadFourCC(&type) &&
+  RCHECK(reader->ReadFullBoxHeader() && reader->ReadFourCC(&type) &&
          reader->Read4(&version));
   return true;
 }
 
-TrackEncryption::TrackEncryption()
-  : is_encrypted(false), default_iv_size(0) {
-}
+TrackEncryption::TrackEncryption() : is_encrypted(false), default_iv_size(0) {}
 TrackEncryption::~TrackEncryption() {}
 FourCC TrackEncryption::BoxType() const { return FOURCC_TENC; }
 
 bool TrackEncryption::Parse(BoxReader* reader) {
   uint8_t flag;
-  RCHECK(reader->ReadFullBoxHeader() &&
-         reader->SkipBytes(2) &&
-         reader->Read1(&flag) &&
-         reader->Read1(&default_iv_size) &&
+  RCHECK(reader->ReadFullBoxHeader() && reader->SkipBytes(2) &&
+         reader->Read1(&flag) && reader->Read1(&default_iv_size) &&
          reader->ReadVec(&default_kid, 16));
   is_encrypted = (flag != 0);
   if (is_encrypted) {
@@ -250,11 +239,9 @@ ProtectionSchemeInfo::~ProtectionSchemeInfo() {}
 FourCC ProtectionSchemeInfo::BoxType() const { return FOURCC_SINF; }
 
 bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
-  RCHECK(reader->ScanChildren() &&
-         reader->ReadChild(&format) &&
+  RCHECK(reader->ScanChildren() && reader->ReadChild(&format) &&
          reader->ReadChild(&type));
-  if (type.type == FOURCC_CENC)
-    RCHECK(reader->ReadChild(&info));
+  if (type.type == FOURCC_CENC) RCHECK(reader->ReadChild(&info));
   // Other protection schemes are silently ignored. Since the protection scheme
   // type can't be determined until this box is opened, we return 'true' for
   // non-CENC protection scheme types. It is the parent box's responsibility to
@@ -279,19 +266,15 @@ bool MovieHeader::Parse(BoxReader* reader) {
   version = reader->version();
 
   if (version == 1) {
-    RCHECK(reader->Read8(&creation_time) &&
-           reader->Read8(&modification_time) &&
-           reader->Read4(&timescale) &&
-           reader->Read8(&duration));
+    RCHECK(reader->Read8(&creation_time) && reader->Read8(&modification_time) &&
+           reader->Read4(&timescale) && reader->Read8(&duration));
   } else {
     RCHECK(reader->Read4Into8(&creation_time) &&
            reader->Read4Into8(&modification_time) &&
-           reader->Read4(&timescale) &&
-           reader->Read4Into8(&duration));
+           reader->Read4(&timescale) && reader->Read4Into8(&duration));
   }
 
-  RCHECK(reader->Read4s(&rate) &&
-         reader->Read2s(&volume) &&
+  RCHECK(reader->Read4s(&rate) && reader->Read2s(&volume) &&
          reader->SkipBytes(10) &&  // reserved
          reader->SkipBytes(36) &&  // matrix
          reader->SkipBytes(24) &&  // predefined zero
@@ -315,27 +298,21 @@ FourCC TrackHeader::BoxType() const { return FOURCC_TKHD; }
 bool TrackHeader::Parse(BoxReader* reader) {
   RCHECK(reader->ReadFullBoxHeader());
   if (reader->version() == 1) {
-    RCHECK(reader->Read8(&creation_time) &&
-           reader->Read8(&modification_time) &&
-           reader->Read4(&track_id) &&
-           reader->SkipBytes(4) &&    // reserved
+    RCHECK(reader->Read8(&creation_time) && reader->Read8(&modification_time) &&
+           reader->Read4(&track_id) && reader->SkipBytes(4) &&  // reserved
            reader->Read8(&duration));
   } else {
     RCHECK(reader->Read4Into8(&creation_time) &&
-           reader->Read4Into8(&modification_time) &&
-           reader->Read4(&track_id) &&
-           reader->SkipBytes(4) &&   // reserved
+           reader->Read4Into8(&modification_time) && reader->Read4(&track_id) &&
+           reader->SkipBytes(4) &&  // reserved
            reader->Read4Into8(&duration));
   }
 
   RCHECK(reader->SkipBytes(8) &&  // reserved
-         reader->Read2s(&layer) &&
-         reader->Read2s(&alternate_group) &&
-         reader->Read2s(&volume) &&
-         reader->SkipBytes(2) &&  // reserved
-         reader->SkipBytes(36) &&  // matrix
-         reader->Read4(&width) &&
-         reader->Read4(&height));
+         reader->Read2s(&layer) && reader->Read2s(&alternate_group) &&
+         reader->Read2s(&volume) && reader->SkipBytes(2) &&  // reserved
+         reader->SkipBytes(36) &&                            // matrix
+         reader->Read4(&width) && reader->Read4(&height));
 
   // Round width and height to the nearest number.
   // Note: width and height are fixed-point 16.16 values. The following code
@@ -356,8 +333,7 @@ FourCC SampleDescription::BoxType() const { return FOURCC_STSD; }
 
 bool SampleDescription::Parse(BoxReader* reader) {
   uint32_t count;
-  RCHECK(reader->SkipBytes(4) &&
-         reader->Read4(&count));
+  RCHECK(reader->SkipBytes(4) && reader->Read4(&count));
   video_entries.clear();
   audio_entries.clear();
 
@@ -376,16 +352,14 @@ SampleTable::~SampleTable() {}
 FourCC SampleTable::BoxType() const { return FOURCC_STBL; }
 
 bool SampleTable::Parse(BoxReader* reader) {
-  RCHECK(reader->ScanChildren() &&
-         reader->ReadChild(&description));
+  RCHECK(reader->ScanChildren() && reader->ReadChild(&description));
   // There could be multiple SampleGroupDescription boxes with different
   // grouping types. For common encryption, the relevant grouping type is
   // 'seig'. Continue reading until 'seig' is found, or until running out of
   // child boxes.
   while (reader->HasChild(&sample_group_description)) {
     RCHECK(reader->ReadChild(&sample_group_description));
-    if (sample_group_description.grouping_type == FOURCC_SEIG)
-      break;
+    if (sample_group_description.grouping_type == FOURCC_SEIG) break;
     sample_group_description.entries.clear();
   }
   return true;
@@ -494,18 +468,16 @@ bool AVCDecoderConfigurationRecord::Parse(const uint8_t* data, int data_size) {
 }
 
 bool AVCDecoderConfigurationRecord::ParseInternal(
-    BufferReader* reader,
-    const scoped_refptr<MediaLog>& media_log) {
+    BufferReader* reader, const scoped_refptr<MediaLog>& media_log) {
   RCHECK(reader->Read1(&version) && version == 1 &&
          reader->Read1(&profile_indication) &&
-         reader->Read1(&profile_compatibility) &&
-         reader->Read1(&avc_level));
+         reader->Read1(&profile_compatibility) && reader->Read1(&avc_level));
 
   uint8_t length_size_minus_one;
   RCHECK(reader->Read1(&length_size_minus_one));
   length_size = (length_size_minus_one & 0x3) + 1;
 
-  RCHECK(length_size != 3); // Only values of 1, 2, and 4 are valid.
+  RCHECK(length_size != 3);  // Only values of 1, 2, and 4 are valid.
 
   uint8_t num_sps;
   RCHECK(reader->Read1(&num_sps));
@@ -542,9 +514,7 @@ VPCodecConfigurationRecord::VPCodecConfigurationRecord()
 
 VPCodecConfigurationRecord::~VPCodecConfigurationRecord() {}
 
-FourCC VPCodecConfigurationRecord::BoxType() const {
-  return FOURCC_VPCC;
-}
+FourCC VPCodecConfigurationRecord::BoxType() const { return FOURCC_VPCC; }
 
 bool VPCodecConfigurationRecord::Parse(BoxReader* reader) {
   uint8_t profile_indication = 0;
@@ -577,8 +547,7 @@ PixelAspectRatioBox::~PixelAspectRatioBox() {}
 FourCC PixelAspectRatioBox::BoxType() const { return FOURCC_PASP; }
 
 bool PixelAspectRatioBox::Parse(BoxReader* reader) {
-  RCHECK(reader->Read4(&h_spacing) &&
-         reader->Read4(&v_spacing));
+  RCHECK(reader->Read4(&h_spacing) && reader->Read4(&v_spacing));
   return true;
 }
 
@@ -599,22 +568,17 @@ FourCC VideoSampleEntry::BoxType() const {
 
 bool VideoSampleEntry::Parse(BoxReader* reader) {
   format = reader->type();
-  RCHECK(reader->SkipBytes(6) &&
-         reader->Read2(&data_reference_index) &&
-         reader->SkipBytes(16) &&
-         reader->Read2(&width) &&
-         reader->Read2(&height) &&
-         reader->SkipBytes(50));
+  RCHECK(reader->SkipBytes(6) && reader->Read2(&data_reference_index) &&
+         reader->SkipBytes(16) && reader->Read2(&width) &&
+         reader->Read2(&height) && reader->SkipBytes(50));
 
-  RCHECK(reader->ScanChildren() &&
-         reader->MaybeReadChild(&pixel_aspect));
+  RCHECK(reader->ScanChildren() && reader->MaybeReadChild(&pixel_aspect));
 
   if (format == FOURCC_ENCV) {
     // Continue scanning until a recognized protection scheme is found, or until
     // we run out of protection schemes.
     while (sinf.type.type != FOURCC_CENC) {
-      if (!reader->ReadChild(&sinf))
-        return false;
+      if (!reader->ReadChild(&sinf)) return false;
     }
   }
 
@@ -678,9 +642,7 @@ ElementaryStreamDescriptor::ElementaryStreamDescriptor()
 
 ElementaryStreamDescriptor::~ElementaryStreamDescriptor() {}
 
-FourCC ElementaryStreamDescriptor::BoxType() const {
-  return FOURCC_ESDS;
-}
+FourCC ElementaryStreamDescriptor::BoxType() const { return FOURCC_ESDS; }
 
 bool ElementaryStreamDescriptor::Parse(BoxReader* reader) {
   std::vector<uint8_t> data;
@@ -720,12 +682,9 @@ FourCC AudioSampleEntry::BoxType() const {
 
 bool AudioSampleEntry::Parse(BoxReader* reader) {
   format = reader->type();
-  RCHECK(reader->SkipBytes(6) &&
-         reader->Read2(&data_reference_index) &&
-         reader->SkipBytes(8) &&
-         reader->Read2(&channelcount) &&
-         reader->Read2(&samplesize) &&
-         reader->SkipBytes(4) &&
+  RCHECK(reader->SkipBytes(6) && reader->Read2(&data_reference_index) &&
+         reader->SkipBytes(8) && reader->Read2(&channelcount) &&
+         reader->Read2(&samplesize) && reader->SkipBytes(4) &&
          reader->Read4(&samplerate));
   // Convert from 16.16 fixed point to integer
   samplerate >>= 16;
@@ -735,8 +694,7 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
     // Continue scanning until a recognized protection scheme is found, or until
     // we run out of protection schemes.
     while (sinf.type.type != FOURCC_CENC) {
-      if (!reader->ReadChild(&sinf))
-        return false;
+      if (!reader->ReadChild(&sinf)) return false;
     }
   }
 
@@ -802,8 +760,7 @@ MediaInformation::~MediaInformation() {}
 FourCC MediaInformation::BoxType() const { return FOURCC_MINF; }
 
 bool MediaInformation::Parse(BoxReader* reader) {
-  return reader->ScanChildren() &&
-         reader->ReadChild(&sample_table);
+  return reader->ScanChildren() && reader->ReadChild(&sample_table);
 }
 
 Media::Media() {}
@@ -811,8 +768,7 @@ Media::~Media() {}
 FourCC Media::BoxType() const { return FOURCC_MDIA; }
 
 bool Media::Parse(BoxReader* reader) {
-  RCHECK(reader->ScanChildren() &&
-         reader->ReadChild(&header) &&
+  RCHECK(reader->ScanChildren() && reader->ReadChild(&header) &&
          reader->ReadChild(&handler));
 
   // Maddeningly, the HandlerReference box specifies how to parse the
@@ -831,10 +787,8 @@ Track::~Track() {}
 FourCC Track::BoxType() const { return FOURCC_TRAK; }
 
 bool Track::Parse(BoxReader* reader) {
-  RCHECK(reader->ScanChildren() &&
-         reader->ReadChild(&header) &&
-         reader->ReadChild(&media) &&
-         reader->MaybeReadChild(&edit));
+  RCHECK(reader->ScanChildren() && reader->ReadChild(&header) &&
+         reader->ReadChild(&media) && reader->MaybeReadChild(&edit));
   return true;
 }
 
@@ -862,8 +816,7 @@ TrackExtends::~TrackExtends() {}
 FourCC TrackExtends::BoxType() const { return FOURCC_TREX; }
 
 bool TrackExtends::Parse(BoxReader* reader) {
-  RCHECK(reader->ReadFullBoxHeader() &&
-         reader->Read4(&track_id) &&
+  RCHECK(reader->ReadFullBoxHeader() && reader->Read4(&track_id) &&
          reader->Read4(&default_sample_description_index) &&
          reader->Read4(&default_sample_duration) &&
          reader->Read4(&default_sample_size) &&
@@ -877,8 +830,7 @@ FourCC MovieExtends::BoxType() const { return FOURCC_MVEX; }
 
 bool MovieExtends::Parse(BoxReader* reader) {
   header.fragment_duration = 0;
-  return reader->ScanChildren() &&
-         reader->MaybeReadChild(&header) &&
+  return reader->ScanChildren() && reader->MaybeReadChild(&header) &&
          reader->ReadChildren(&tracks);
 }
 
@@ -968,14 +920,12 @@ bool TrackFragmentHeader::Parse(BoxReader* reader) {
   return true;
 }
 
-TrackFragmentRun::TrackFragmentRun()
-    : sample_count(0), data_offset(0) {}
+TrackFragmentRun::TrackFragmentRun() : sample_count(0), data_offset(0) {}
 TrackFragmentRun::~TrackFragmentRun() {}
 FourCC TrackFragmentRun::BoxType() const { return FOURCC_TRUN; }
 
 bool TrackFragmentRun::Parse(BoxReader* reader) {
-  RCHECK(reader->ReadFullBoxHeader() &&
-         reader->Read4(&sample_count));
+  RCHECK(reader->ReadFullBoxHeader() && reader->Read4(&sample_count));
   const uint32_t flags = reader->flags();
 
   bool data_offset_present = (flags & 0x1) != 0;
@@ -992,29 +942,22 @@ bool TrackFragmentRun::Parse(BoxReader* reader) {
   }
 
   uint32_t first_sample_flags = 0;
-  if (first_sample_flags_present)
-    RCHECK(reader->Read4(&first_sample_flags));
+  if (first_sample_flags_present) RCHECK(reader->Read4(&first_sample_flags));
 
   int fields = sample_duration_present + sample_size_present +
-      sample_flags_present + sample_composition_time_offsets_present;
+               sample_flags_present + sample_composition_time_offsets_present;
   RCHECK(reader->HasBytes(fields * sample_count));
 
-  if (sample_duration_present)
-    sample_durations.resize(sample_count);
-  if (sample_size_present)
-    sample_sizes.resize(sample_count);
-  if (sample_flags_present)
-    sample_flags.resize(sample_count);
+  if (sample_duration_present) sample_durations.resize(sample_count);
+  if (sample_size_present) sample_sizes.resize(sample_count);
+  if (sample_flags_present) sample_flags.resize(sample_count);
   if (sample_composition_time_offsets_present)
     sample_composition_time_offsets.resize(sample_count);
 
   for (uint32_t i = 0; i < sample_count; ++i) {
-    if (sample_duration_present)
-      RCHECK(reader->Read4(&sample_durations[i]));
-    if (sample_size_present)
-      RCHECK(reader->Read4(&sample_sizes[i]));
-    if (sample_flags_present)
-      RCHECK(reader->Read4(&sample_flags[i]));
+    if (sample_duration_present) RCHECK(reader->Read4(&sample_durations[i]));
+    if (sample_size_present) RCHECK(reader->Read4(&sample_sizes[i]));
+    if (sample_flags_present) RCHECK(reader->Read4(&sample_flags[i]));
     if (sample_composition_time_offsets_present)
       RCHECK(reader->Read4s(&sample_composition_time_offsets[i]));
   }
@@ -1034,11 +977,9 @@ SampleToGroup::~SampleToGroup() {}
 FourCC SampleToGroup::BoxType() const { return FOURCC_SBGP; }
 
 bool SampleToGroup::Parse(BoxReader* reader) {
-  RCHECK(reader->ReadFullBoxHeader() &&
-         reader->Read4(&grouping_type));
+  RCHECK(reader->ReadFullBoxHeader() && reader->Read4(&grouping_type));
 
-  if (reader->version() == 1)
-    RCHECK(reader->Read4(&grouping_type_parameter));
+  if (reader->version() == 1) RCHECK(reader->Read4(&grouping_type_parameter));
 
   if (grouping_type != FOURCC_SEIG) {
     DLOG(WARNING) << "SampleToGroup box with grouping_type '" << grouping_type
@@ -1065,8 +1006,7 @@ SampleGroupDescription::~SampleGroupDescription() {}
 FourCC SampleGroupDescription::BoxType() const { return FOURCC_SGPD; }
 
 bool SampleGroupDescription::Parse(BoxReader* reader) {
-  RCHECK(reader->ReadFullBoxHeader() &&
-         reader->Read4(&grouping_type));
+  RCHECK(reader->ReadFullBoxHeader() && reader->Read4(&grouping_type));
 
   if (grouping_type != FOURCC_SEIG) {
     DLOG(WARNING) << "SampleGroupDescription box with grouping_type '"
@@ -1080,8 +1020,8 @@ bool SampleGroupDescription::Parse(BoxReader* reader) {
   const size_t kEntrySize = sizeof(uint32_t) + kKeyIdSize;
   uint32_t default_length = 0;
   if (version == 1) {
-      RCHECK(reader->Read4(&default_length));
-      RCHECK(default_length == 0 || default_length >= kEntrySize);
+    RCHECK(reader->Read4(&default_length));
+    RCHECK(default_length == 0 || default_length >= kEntrySize);
   }
 
   uint32_t count;
@@ -1098,8 +1038,7 @@ bool SampleGroupDescription::Parse(BoxReader* reader) {
 
     uint8_t flag;
     RCHECK(reader->SkipBytes(2) &&  // reserved.
-           reader->Read1(&flag) &&
-           reader->Read1(&entries[i].iv_size) &&
+           reader->Read1(&flag) && reader->Read1(&entries[i].iv_size) &&
            reader->ReadVec(&entries[i].key_id, kKeyIdSize));
 
     entries[i].is_encrypted = (flag != 0);
@@ -1117,11 +1056,9 @@ TrackFragment::~TrackFragment() {}
 FourCC TrackFragment::BoxType() const { return FOURCC_TRAF; }
 
 bool TrackFragment::Parse(BoxReader* reader) {
-  RCHECK(reader->ScanChildren() &&
-         reader->ReadChild(&header) &&
+  RCHECK(reader->ScanChildren() && reader->ReadChild(&header) &&
          // Media Source specific: 'tfdt' required
-         reader->ReadChild(&decode_time) &&
-         reader->MaybeReadChildren(&runs) &&
+         reader->ReadChild(&decode_time) && reader->MaybeReadChildren(&runs) &&
          reader->MaybeReadChild(&auxiliary_offset) &&
          reader->MaybeReadChild(&auxiliary_size) &&
          reader->MaybeReadChild(&sdtp));
@@ -1132,14 +1069,12 @@ bool TrackFragment::Parse(BoxReader* reader) {
   // child boxes.
   while (reader->HasChild(&sample_group_description)) {
     RCHECK(reader->ReadChild(&sample_group_description));
-    if (sample_group_description.grouping_type == FOURCC_SEIG)
-      break;
+    if (sample_group_description.grouping_type == FOURCC_SEIG) break;
     sample_group_description.entries.clear();
   }
   while (reader->HasChild(&sample_to_group)) {
     RCHECK(reader->ReadChild(&sample_to_group));
-    if (sample_to_group.grouping_type == FOURCC_SEIG)
-      break;
+    if (sample_to_group.grouping_type == FOURCC_SEIG) break;
     sample_to_group.entries.clear();
   }
   return true;
@@ -1150,10 +1085,8 @@ MovieFragment::~MovieFragment() {}
 FourCC MovieFragment::BoxType() const { return FOURCC_MOOF; }
 
 bool MovieFragment::Parse(BoxReader* reader) {
-  RCHECK(reader->ScanChildren() &&
-         reader->ReadChild(&header) &&
-         reader->ReadChildren(&tracks) &&
-         reader->MaybeReadChildren(&pssh));
+  RCHECK(reader->ScanChildren() && reader->ReadChild(&header) &&
+         reader->ReadChildren(&tracks) && reader->MaybeReadChildren(&pssh));
   return true;
 }
 
@@ -1183,8 +1116,7 @@ bool IndependentAndDisposableSamples::Parse(BoxReader* reader) {
 
 SampleDependsOn IndependentAndDisposableSamples::sample_depends_on(
     size_t i) const {
-  if (i >= sample_depends_on_.size())
-    return kSampleDependsOnUnknown;
+  if (i >= sample_depends_on_.size()) return kSampleDependsOnUnknown;
 
   return sample_depends_on_[i];
 }

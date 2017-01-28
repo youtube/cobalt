@@ -16,9 +16,7 @@ namespace media {
 
 typedef base::Callback<void(const bool& src, bool* dst)> TestCallback;
 
-void SetBool(const bool& src, bool* dst) {
-  *dst = src;
-}
+void SetBool(const bool& src, bool* dst) { *dst = src; }
 
 TEST(GmockCallbackSupportTest, IsNullCallback) {
   MockFunction<void(const TestCallback&)> check;
@@ -35,8 +33,7 @@ TEST(GmockCallbackSupportTest, IsNotNullCallback) {
 TEST(GmockCallbackSupportTest, RunClosure) {
   MockFunction<void(const base::Closure&)> check;
   bool dst = false;
-  EXPECT_CALL(check, Call(IsNotNullCallback()))
-      .WillOnce(RunClosure<0>());
+  EXPECT_CALL(check, Call(IsNotNullCallback())).WillOnce(RunClosure<0>());
   check.Call(base::Bind(&SetBool, true, &dst));
   EXPECT_TRUE(dst);
 }

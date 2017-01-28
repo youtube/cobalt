@@ -62,8 +62,7 @@ TrackRunInfo::TrackRunInfo()
       is_audio(false),
       aux_info_start_offset(-1),
       aux_info_default_size(-1),
-      aux_info_total_size(-1) {
-}
+      aux_info_total_size(-1) {}
 TrackRunInfo::~TrackRunInfo() {}
 
 base::TimeDelta TimeDeltaFromRational(int64_t numer, int64_t denom) {
@@ -104,7 +103,7 @@ TrackRunIterator::~TrackRunIterator() {}
 
 static std::string HexFlags(uint32_t flags) {
   std::stringstream stream;
-  stream << std::setfill('0') << std::setw(sizeof(flags)*2) << std::hex
+  stream << std::setfill('0') << std::setw(sizeof(flags) * 2) << std::hex
          << flags;
   return stream.str();
 }
@@ -112,8 +111,7 @@ static std::string HexFlags(uint32_t flags) {
 static bool PopulateSampleInfo(const TrackExtends& trex,
                                const TrackFragmentHeader& tfhd,
                                const TrackFragmentRun& trun,
-                               const int64_t edit_list_offset,
-                               const uint32_t i,
+                               const int64_t edit_list_offset, const uint32_t i,
                                SampleInfo* sample_info,
                                const SampleDependsOn sdtp_sample_depends_on,
                                bool is_audio,
@@ -144,13 +142,13 @@ static bool PopulateSampleInfo(const TrackExtends& trex,
   uint32_t flags;
   if (i < trun.sample_flags.size()) {
     flags = trun.sample_flags[i];
-    DVLOG(4) << __FUNCTION__ << " trun sample flags "  << HexFlags(flags);
+    DVLOG(4) << __FUNCTION__ << " trun sample flags " << HexFlags(flags);
   } else if (tfhd.has_default_sample_flags) {
     flags = tfhd.default_sample_flags;
-    DVLOG(4) << __FUNCTION__ << " tfhd sample flags "  << HexFlags(flags);
+    DVLOG(4) << __FUNCTION__ << " tfhd sample flags " << HexFlags(flags);
   } else {
     flags = trex.default_sample_flags;
-    DVLOG(4) << __FUNCTION__ << " trex sample flags "  << HexFlags(flags);
+    DVLOG(4) << __FUNCTION__ << " trex sample flags " << HexFlags(flags);
   }
 
   SampleDependsOn sample_depends_on =
@@ -158,7 +156,7 @@ static bool PopulateSampleInfo(const TrackExtends& trex,
   if (sample_depends_on == kSampleDependsOnUnknown) {
     sample_depends_on = sdtp_sample_depends_on;
   }
-  DVLOG(4) << __FUNCTION__ << " sample_depends_on "  << sample_depends_on;
+  DVLOG(4) << __FUNCTION__ << " sample_depends_on " << sample_depends_on;
   if (sample_depends_on == kSampleDependsOnReserved) {
     MEDIA_LOG(ERROR, media_log) << "Reserved value used in sample dependency"
                                    " info.";
@@ -177,20 +175,18 @@ static bool PopulateSampleInfo(const TrackExtends& trex,
   // attempts to get this right discussed in http://crrev.com/1319813002
   bool sample_is_sync_sample = !(flags & kSampleIsNonSyncSample);
   bool sample_depends_on_others = sample_depends_on == kSampleDependsOnOthers;
-  sample_info->is_keyframe = sample_is_sync_sample &&
-                             (!sample_depends_on_others || is_audio);
+  sample_info->is_keyframe =
+      sample_is_sync_sample && (!sample_depends_on_others || is_audio);
 
   DVLOG(4) << __FUNCTION__ << " is_kf:" << sample_info->is_keyframe
            << " is_sync:" << sample_is_sync_sample
-           << " deps:" << sample_depends_on_others
-           << " audio:" << is_audio;
+           << " deps:" << sample_depends_on_others << " audio:" << is_audio;
 
   return true;
 }
 
 static const CencSampleEncryptionInfoEntry* GetSampleEncryptionInfoEntry(
-    const TrackRunInfo& run_info,
-    uint32_t group_description_index) {
+    const TrackRunInfo& run_info, uint32_t group_description_index) {
   const std::vector<CencSampleEncryptionInfoEntry>* entries = NULL;
 
   // ISO-14496-12 Section 8.9.2.3 and 8.9.4 : group description index
@@ -328,15 +324,13 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
       tri.is_audio = (stsd.type == kAudio);
       if (tri.is_audio) {
         RCHECK(!stsd.audio_entries.empty());
-        if (desc_idx > stsd.audio_entries.size())
-          desc_idx = 0;
+        if (desc_idx > stsd.audio_entries.size()) desc_idx = 0;
         tri.audio_description = &stsd.audio_entries[desc_idx];
         default_iv_size =
             tri.audio_description->sinf.info.track_encryption.default_iv_size;
       } else {
         RCHECK(!stsd.video_entries.empty());
-        if (desc_idx > stsd.video_entries.size())
-          desc_idx = 0;
+        if (desc_idx > stsd.video_entries.size()) desc_idx = 0;
         tri.video_description = &stsd.video_entries[desc_idx];
         default_iv_size =
             tri.video_description->sinf.info.track_encryption.default_iv_size;
@@ -399,8 +393,7 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
 
         uint32_t index = sample_to_group_itr.group_description_index();
         tri.samples[k].cenc_group_description_index = index;
-        if (index != 0)
-          RCHECK(GetSampleEncryptionInfoEntry(tri, index));
+        if (index != 0) RCHECK(GetSampleEncryptionInfoEntry(tri, index));
         is_sample_to_group_valid = sample_to_group_itr.Advance();
       }
       if (sample_encryption_entries_count > 0) {
@@ -468,8 +461,7 @@ bool TrackRunIterator::CacheAuxInfo(const uint8_t* buf, int buf_size) {
   int64_t pos = 0;
   for (size_t i = 0; i < run_itr_->samples.size(); i++) {
     int info_size = run_itr_->aux_info_default_size;
-    if (!info_size)
-      info_size = run_itr_->aux_info_sizes[i];
+    if (!info_size) info_size = run_itr_->aux_info_sizes[i];
 
     if (IsSampleEncrypted(i)) {
       BufferReader reader(buf + pos, info_size);
@@ -484,9 +476,7 @@ bool TrackRunIterator::CacheAuxInfo(const uint8_t* buf, int buf_size) {
   return true;
 }
 
-bool TrackRunIterator::IsRunValid() const {
-  return run_itr_ != runs_.end();
-}
+bool TrackRunIterator::IsRunValid() const { return run_itr_ != runs_.end(); }
 
 bool TrackRunIterator::IsSampleValid() const {
   return IsRunValid() && (sample_itr_ != run_itr_->samples.end());
@@ -503,8 +493,7 @@ int64_t TrackRunIterator::GetMaxClearOffset() {
 
   if (IsSampleValid()) {
     offset = std::min(offset, sample_offset_);
-    if (AuxInfoNeedsToBeCached())
-      offset = std::min(offset, aux_info_offset());
+    if (AuxInfoNeedsToBeCached()) offset = std::min(offset, aux_info_offset());
   }
   if (run_itr_ != runs_.end()) {
     std::vector<TrackRunInfo>::const_iterator next_run = run_itr_ + 1;
@@ -514,8 +503,7 @@ int64_t TrackRunIterator::GetMaxClearOffset() {
         offset = std::min(offset, next_run->aux_info_start_offset);
     }
   }
-  if (offset == std::numeric_limits<int64_t>::max())
-    return 0;
+  if (offset == std::numeric_limits<int64_t>::max()) return 0;
   return offset;
 }
 
@@ -586,8 +574,7 @@ bool TrackRunIterator::is_keyframe() const {
 }
 
 const TrackEncryption& TrackRunIterator::track_encryption() const {
-  if (is_audio())
-    return audio_description().sinf.info.track_encryption;
+  if (is_audio()) return audio_description().sinf.info.track_encryption;
   return video_description().sinf.info.track_encryption;
 }
 

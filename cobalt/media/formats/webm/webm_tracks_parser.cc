@@ -15,31 +15,24 @@
 namespace media {
 
 static TextKind CodecIdToTextKind(const std::string& codec_id) {
-  if (codec_id == kWebMCodecSubtitles)
-    return kTextSubtitles;
+  if (codec_id == kWebMCodecSubtitles) return kTextSubtitles;
 
-  if (codec_id == kWebMCodecCaptions)
-    return kTextCaptions;
+  if (codec_id == kWebMCodecCaptions) return kTextCaptions;
 
-  if (codec_id == kWebMCodecDescriptions)
-    return kTextDescriptions;
+  if (codec_id == kWebMCodecDescriptions) return kTextDescriptions;
 
-  if (codec_id == kWebMCodecMetadata)
-    return kTextMetadata;
+  if (codec_id == kWebMCodecMetadata) return kTextMetadata;
 
   return kTextNone;
 }
 
 static base::TimeDelta PrecisionCappedDefaultDuration(
-    const double timecode_scale_in_us,
-    const int64_t duration_in_ns) {
-  if (duration_in_ns <= 0)
-    return kNoTimestamp;
+    const double timecode_scale_in_us, const int64_t duration_in_ns) {
+  if (duration_in_ns <= 0) return kNoTimestamp;
 
   int64_t mult = duration_in_ns / 1000;
   mult /= timecode_scale_in_us;
-  if (mult == 0)
-    return kNoTimestamp;
+  if (mult == 0) return kNoTimestamp;
 
   mult = static_cast<double>(mult) * timecode_scale_in_us;
   return base::TimeDelta::FromMicroseconds(mult);
@@ -88,16 +81,14 @@ void WebMTracksParser::ResetTrackEntry() {
 }
 
 int WebMTracksParser::Parse(const uint8_t* buf, int size) {
-  if (reset_on_next_parse_)
-    Reset();
+  if (reset_on_next_parse_) Reset();
 
   reset_on_next_parse_ = true;
 
   WebMListParser parser(kWebMIdTracks, this);
   int result = parser.Parse(buf, size);
 
-  if (result <= 0)
-    return result;
+  if (result <= 0) return result;
 
   // For now we do all or nothing parsing.
   return parser.IsParsingComplete() ? result : 0;
@@ -128,11 +119,9 @@ WebMParserClient* WebMTracksParser::OnListStart(int id) {
     return this;
   }
 
-  if (id == kWebMIdAudio)
-    return &audio_client_;
+  if (id == kWebMIdAudio) return &audio_client_;
 
-  if (id == kWebMIdVideo)
-    return &video_client_;
+  if (id == kWebMIdVideo) return &video_client_;
 
   return this;
 }
@@ -265,8 +254,8 @@ bool WebMTracksParser::OnListEnd(int id) {
         ignored_tracks_.insert(track_num_);
       } else {
         std::string track_num = base::Int64ToString(track_num_);
-        text_tracks_[track_num_] = TextTrackConfig(
-            text_track_kind, track_name_, track_language_, track_num);
+        text_tracks_[track_num_] = TextTrackConfig(text_track_kind, track_name_,
+                                                   track_language_, track_num);
       }
     } else {
       MEDIA_LOG(ERROR, media_log_) << "Unexpected TrackType " << track_type_;
@@ -323,9 +312,7 @@ bool WebMTracksParser::OnUInt(int id, int64_t val) {
   return true;
 }
 
-bool WebMTracksParser::OnFloat(int id, double val) {
-  return true;
-}
+bool WebMTracksParser::OnFloat(int id, double val) { return true; }
 
 bool WebMTracksParser::OnBinary(int id, const uint8_t* data, int size) {
   if (id == kWebMIdCodecPrivate) {

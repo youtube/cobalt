@@ -26,12 +26,10 @@ static int kChannels = 2;
 // Max number of audio framed the FIFO can contain.
 static const int kMaxFramesInFifo = 2048;
 
-class AudioPullFifoTest
-    : public testing::TestWithParam<int> {
+class AudioPullFifoTest : public testing::TestWithParam<int> {
  public:
   AudioPullFifoTest()
-      : pull_fifo_(kChannels,
-                   kMaxFramesInFifo,
+      : pull_fifo_(kChannels, kMaxFramesInFifo,
                    base::Bind(&AudioPullFifoTest::ProvideInput,
                               base::Unretained(this))),
         audio_bus_(AudioBus::Create(kChannels, kMaxFramesInFifo)),
@@ -53,8 +51,8 @@ class AudioPullFifoTest
   // producer.
   void ConsumeTest(int frames_to_consume) {
     int start_value = 0;
-    SCOPED_TRACE(base::StringPrintf("Checking frames_to_consume %d",
-                 frames_to_consume));
+    SCOPED_TRACE(
+        base::StringPrintf("Checking frames_to_consume %d", frames_to_consume));
     pull_fifo_.Consume(audio_bus_.get(), frames_to_consume);
     for (int j = 0; j < kChannels; ++j) {
       VerifyValue(audio_bus_->channel(j), frames_to_consume, start_value);
@@ -90,14 +88,12 @@ class AudioPullFifoTest
   DISALLOW_COPY_AND_ASSIGN(AudioPullFifoTest);
 };
 
-TEST_P(AudioPullFifoTest, Consume) {
-  ConsumeTest(GetParam());
-}
+TEST_P(AudioPullFifoTest, Consume) { ConsumeTest(GetParam()); }
 
 // Test common |frames_to_consume| values which will be used as input
 // parameter to AudioPullFifo::Consume() when the consumer asks for data.
-INSTANTIATE_TEST_CASE_P(
-    AudioPullFifoTest, AudioPullFifoTest,
-    testing::Values(544, 512, 512, 512, 512, 2048, 544, 441, 440, 433, 500));
+INSTANTIATE_TEST_CASE_P(AudioPullFifoTest, AudioPullFifoTest,
+                        testing::Values(544, 512, 512, 512, 512, 2048, 544, 441,
+                                        440, 433, 500));
 
 }  // namespace media

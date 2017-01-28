@@ -19,8 +19,7 @@ class AudioDecoderConfig;
 
 namespace mp2t {
 
-class EsParserMpeg1AudioTest : public EsParserTestBase,
-                               public testing::Test {
+class EsParserMpeg1AudioTest : public EsParserTestBase, public testing::Test {
  public:
   EsParserMpeg1AudioTest();
 
@@ -31,12 +30,10 @@ class EsParserMpeg1AudioTest : public EsParserTestBase,
   DISALLOW_COPY_AND_ASSIGN(EsParserMpeg1AudioTest);
 };
 
-EsParserMpeg1AudioTest::EsParserMpeg1AudioTest() {
-}
+EsParserMpeg1AudioTest::EsParserMpeg1AudioTest() {}
 
-bool EsParserMpeg1AudioTest::Process(
-    const std::vector<Packet>& pes_packets,
-    bool force_timing) {
+bool EsParserMpeg1AudioTest::Process(const std::vector<Packet>& pes_packets,
+                                     bool force_timing) {
   EsParserMpeg1Audio es_parser(
       base::Bind(&EsParserMpeg1AudioTest::NewAudioConfig,
                  base::Unretained(this)),

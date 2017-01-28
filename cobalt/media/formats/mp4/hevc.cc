@@ -51,8 +51,7 @@ bool HEVCDecoderConfigurationRecord::Parse(const uint8_t* data, int data_size) {
   return ParseInternal(&reader, new MediaLog());
 }
 
-HEVCDecoderConfigurationRecord::HVCCNALArray::HVCCNALArray()
-    : first_byte(0) {}
+HEVCDecoderConfigurationRecord::HVCCNALArray::HVCCNALArray() : first_byte(0) {}
 
 HEVCDecoderConfigurationRecord::HVCCNALArray::HVCCNALArray(
     const HVCCNALArray& other) {
@@ -62,8 +61,7 @@ HEVCDecoderConfigurationRecord::HVCCNALArray::HVCCNALArray(
 HEVCDecoderConfigurationRecord::HVCCNALArray::~HVCCNALArray() {}
 
 bool HEVCDecoderConfigurationRecord::ParseInternal(
-    BufferReader* reader,
-    const scoped_refptr<MediaLog>& media_log) {
+    BufferReader* reader, const scoped_refptr<MediaLog>& media_log) {
   uint8_t profile_indication = 0;
   uint32_t general_constraint_indicator_flags_hi = 0;
   uint16_t general_constraint_indicator_flags_lo = 0;
@@ -75,13 +73,10 @@ bool HEVCDecoderConfigurationRecord::ParseInternal(
          reader->Read2(&general_constraint_indicator_flags_lo) &&
          reader->Read1(&general_level_idc) &&
          reader->Read2(&min_spatial_segmentation_idc) &&
-         reader->Read1(&parallelismType) &&
-         reader->Read1(&chromaFormat) &&
+         reader->Read1(&parallelismType) && reader->Read1(&chromaFormat) &&
          reader->Read1(&bitDepthLumaMinus8) &&
-         reader->Read1(&bitDepthChromaMinus8) &&
-         reader->Read2(&avgFrameRate) &&
-         reader->Read1(&misc) &&
-         reader->Read1(&numOfArrays));
+         reader->Read1(&bitDepthChromaMinus8) && reader->Read2(&avgFrameRate) &&
+         reader->Read1(&misc) && reader->Read1(&numOfArrays));
 
   general_profile_space = profile_indication >> 6;
   general_tier_flag = (profile_indication >> 5) & 1;
@@ -113,8 +108,8 @@ bool HEVCDecoderConfigurationRecord::ParseInternal(
       uint16_t naluLength = 0;
       RCHECK(reader->Read2(&naluLength) &&
              reader->ReadVec(&arrays[j].units[i], naluLength));
-      DVLOG(4) << __FUNCTION__ << " naluType="
-               << (int)(arrays[j].first_byte & 0x3f)
+      DVLOG(4) << __FUNCTION__
+               << " naluType=" << (int)(arrays[j].first_byte & 0x3f)
                << " size=" << arrays[j].units[i].size();
     }
   }
@@ -145,8 +140,7 @@ static const int kAnnexBStartCodeSize = 4;
 
 bool HEVC::InsertParamSetsAnnexB(
     const HEVCDecoderConfigurationRecord& hevc_config,
-    std::vector<uint8_t>* buffer,
-    std::vector<SubsampleEntry>* subsamples) {
+    std::vector<uint8_t>* buffer, std::vector<SubsampleEntry>* subsamples) {
   DCHECK(HEVC::IsValidAnnexB(*buffer, *subsamples));
 
   scoped_ptr<H265Parser> parser(new H265Parser());
@@ -154,8 +148,7 @@ bool HEVC::InsertParamSetsAnnexB(
   parser->SetEncryptedStream(start, buffer->size(), *subsamples);
 
   H265NALU nalu;
-  if (parser->AdvanceToNextNALU(&nalu) != H265Parser::kOk)
-    return false;
+  if (parser->AdvanceToNextNALU(&nalu) != H265Parser::kOk) return false;
 
   std::vector<uint8_t>::iterator config_insert_point = buffer->begin();
 
@@ -176,14 +169,13 @@ bool HEVC::InsertParamSetsAnnexB(
            << (int)(config_insert_point - buffer->begin());
 
   if (subsamples && !subsamples->empty()) {
-    int subsample_index = AVC::FindSubsampleIndex(*buffer, subsamples,
-                                                  &(*config_insert_point));
+    int subsample_index =
+        AVC::FindSubsampleIndex(*buffer, subsamples, &(*config_insert_point));
     // Update the size of the subsample where SPS/PPS is to be inserted.
     (*subsamples)[subsample_index].clear_bytes += param_sets.size();
   }
 
-  buffer->insert(config_insert_point,
-                 param_sets.begin(), param_sets.end());
+  buffer->insert(config_insert_point, param_sets.begin(), param_sets.end());
 
   DCHECK(HEVC::IsValidAnnexB(*buffer, *subsamples));
   return true;
@@ -216,13 +208,11 @@ bool HEVC::IsValidAnnexB(const std::vector<uint8_t>& buffer,
   return IsValidAnnexB(&buffer[0], buffer.size(), subsamples);
 }
 
-bool HEVC::IsValidAnnexB(const uint8_t* buffer,
-                         size_t size,
+bool HEVC::IsValidAnnexB(const uint8_t* buffer, size_t size,
                          const std::vector<SubsampleEntry>& subsamples) {
   DCHECK(buffer);
 
-  if (size == 0)
-    return true;
+  if (size == 0) return true;
 
   // TODO(servolk): Implement this, see crbug.com/527595
   return true;
@@ -234,12 +224,10 @@ HEVCBitstreamConverter::HEVCBitstreamConverter(
   DCHECK(hevc_config_);
 }
 
-HEVCBitstreamConverter::~HEVCBitstreamConverter() {
-}
+HEVCBitstreamConverter::~HEVCBitstreamConverter() {}
 
 bool HEVCBitstreamConverter::ConvertFrame(
-    std::vector<uint8_t>* frame_buf,
-    bool is_keyframe,
+    std::vector<uint8_t>* frame_buf, bool is_keyframe,
     std::vector<SubsampleEntry>* subsamples) const {
   RCHECK(AVC::ConvertFrameToAnnexB(hevc_config_->lengthSizeMinusOne + 1,
                                    frame_buf, subsamples));

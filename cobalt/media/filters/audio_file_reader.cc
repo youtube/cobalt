@@ -29,13 +29,10 @@ AudioFileReader::AudioFileReader(FFmpegURLProtocol* protocol)
       sample_rate_(0),
       av_sample_format_(0) {}
 
-AudioFileReader::~AudioFileReader() {
-  Close();
-}
+AudioFileReader::~AudioFileReader() { Close(); }
 
 bool AudioFileReader::Open() {
-  if (!OpenDemuxer())
-    return false;
+  if (!OpenDemuxer()) return false;
   return OpenDecoder();
 }
 
@@ -61,8 +58,7 @@ bool AudioFileReader::OpenDemuxer() {
   }
 
   // Get the codec.
-  if (!codec_context_)
-    return false;
+  if (!codec_context_) return false;
 
   const int result = avformat_find_stream_info(format_context, NULL);
   if (result < 0) {
@@ -102,8 +98,8 @@ bool AudioFileReader::OpenDecoder() {
 
   // Verify the channel layout is supported by Chrome.  Acts as a sanity check
   // against invalid files.  See http://crbug.com/171962
-  if (ChannelLayoutToChromeChannelLayout(
-          codec_context_->channel_layout, codec_context_->channels) ==
+  if (ChannelLayoutToChromeChannelLayout(codec_context_->channel_layout,
+                                         codec_context_->channels) ==
       CHANNEL_LAYOUT_UNSUPPORTED) {
     return false;
   }
@@ -124,12 +120,11 @@ void AudioFileReader::Close() {
 }
 
 int AudioFileReader::Read(AudioBus* audio_bus) {
-  DCHECK(glue_.get() && codec_context_) <<
-      "AudioFileReader::Read() : reader is not opened!";
+  DCHECK(glue_.get() && codec_context_)
+      << "AudioFileReader::Read() : reader is not opened!";
 
   DCHECK_EQ(audio_bus->channels(), channels());
-  if (audio_bus->channels() != channels())
-    return 0;
+  if (audio_bus->channels() != channels()) return 0;
 
   size_t bytes_per_sample = av_get_bytes_per_sample(codec_context_->sample_fmt);
 
@@ -151,8 +146,8 @@ int AudioFileReader::Read(AudioBus* audio_bus) {
       av_frame_unref(av_frame.get());
 
       int frame_decoded = 0;
-      int result = avcodec_decode_audio4(
-          codec_context_, av_frame.get(), &frame_decoded, &packet_temp);
+      int result = avcodec_decode_audio4(codec_context_, av_frame.get(),
+                                         &frame_decoded, &packet_temp);
 
       if (result < 0) {
         DLOG(WARNING)
@@ -166,8 +161,7 @@ int AudioFileReader::Read(AudioBus* audio_bus) {
       packet_temp.size -= result;
       packet_temp.data += result;
 
-      if (!frame_decoded)
-        continue;
+      if (!frame_decoded) continue;
 
       // Determine the number of sample-frames we just decoded.  Check overflow.
       int frames_read = av_frame->nb_samples;
@@ -177,21 +171,18 @@ int AudioFileReader::Read(AudioBus* audio_bus) {
       }
 
 #ifdef CHROMIUM_NO_AVFRAME_CHANNELS
-      int channels = av_get_channel_layout_nb_channels(
-          av_frame->channel_layout);
+      int channels =
+          av_get_channel_layout_nb_channels(av_frame->channel_layout);
 #else
       int channels = av_frame->channels;
 #endif
-      if (av_frame->sample_rate != sample_rate_ ||
-          channels != channels_ ||
+      if (av_frame->sample_rate != sample_rate_ || channels != channels_ ||
           av_frame->format != av_sample_format_) {
         DLOG(ERROR) << "Unsupported midstream configuration change!"
                     << " Sample Rate: " << av_frame->sample_rate << " vs "
-                    << sample_rate_
-                    << ", Channels: " << channels << " vs "
-                    << channels_
-                    << ", Sample Format: " << av_frame->format << " vs "
-                    << av_sample_format_;
+                    << sample_rate_ << ", Channels: " << channels << " vs "
+                    << channels_ << ", Sample Format: " << av_frame->format
+                    << " vs " << av_sample_format_;
 
         // This is an unrecoverable error, so bail out.
         continue_decoding = false;
@@ -223,8 +214,8 @@ int AudioFileReader::Read(AudioBus* audio_bus) {
                  av_frame->extended_data[ch], sizeof(float) * frames_read);
         }
       } else {
-        audio_bus->FromInterleavedPartial(
-            av_frame->data[0], current_frame, frames_read, bytes_per_sample);
+        audio_bus->FromInterleavedPartial(av_frame->data[0], current_frame,
+                                          frames_read, bytes_per_sample);
       }
 
       current_frame += frames_read;
@@ -233,8 +224,8 @@ int AudioFileReader::Read(AudioBus* audio_bus) {
   }
 
   // Zero any remaining frames.
-  audio_bus->ZeroFramesPartial(
-      current_frame, audio_bus->frames() - current_frame);
+  audio_bus->ZeroFramesPartial(current_frame,
+                               audio_bus->frames() - current_frame);
 
   // Returns the actual number of sample-frames decoded.
   // Ideally this represents the "true" exact length of the file.
@@ -274,9 +265,7 @@ int AudioFileReader::GetNumberOfFrames() const {
   return static_cast<int>(ceil(GetDuration().InSecondsF() * sample_rate()));
 }
 
-bool AudioFileReader::OpenDemuxerForTesting() {
-  return OpenDemuxer();
-}
+bool AudioFileReader::OpenDemuxerForTesting() { return OpenDemuxer(); }
 
 bool AudioFileReader::ReadPacketForTesting(AVPacket* output_packet) {
   return ReadPacket(output_packet);
@@ -295,8 +284,7 @@ bool AudioFileReader::ReadPacket(AVPacket* output_packet) {
 }
 
 bool AudioFileReader::SeekForTesting(base::TimeDelta seek_time) {
-  return av_seek_frame(glue_->format_context(),
-                       stream_index_,
+  return av_seek_frame(glue_->format_context(), stream_index_,
                        ConvertToTimeBase(codec_context_->time_base, seek_time),
                        AVSEEK_FLAG_BACKWARD) >= 0;
 }

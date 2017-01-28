@@ -123,8 +123,7 @@ static void SetDiscardPadding(AVPacket* packet,
   const uint32_t* skip_samples_ptr =
       reinterpret_cast<const uint32_t*>(av_packet_get_side_data(
           packet, AV_PKT_DATA_SKIP_SAMPLES, &skip_samples_size));
-  if (skip_samples_size < 4)
-    return;
+  if (skip_samples_size < 4) return;
   buffer->set_discard_padding(std::make_pair(
       base::TimeDelta::FromSecondsD(base::ByteSwapToLE32(*skip_samples_ptr) /
                                     samples_per_second),
@@ -143,8 +142,7 @@ class AudioDecoderTest : public testing::TestWithParam<DecoderTestData> {
                                               new MediaLog()));
         break;
       case OPUS:
-        decoder_.reset(
-            new OpusAudioDecoder(message_loop_.task_runner()));
+        decoder_.reset(new OpusAudioDecoder(message_loop_.task_runner()));
         break;
 #if defined(OS_ANDROID)
       case MEDIA_CODEC:
@@ -173,9 +171,7 @@ class AudioDecoderTest : public testing::TestWithParam<DecoderTestData> {
     ASSERT_FALSE(pending_decode_);
   }
 
-  void SendEndOfStream() {
-    DecodeBuffer(DecoderBuffer::CreateEOSBuffer());
-  }
+  void SendEndOfStream() { DecodeBuffer(DecoderBuffer::CreateEOSBuffer()); }
 
   void Initialize() {
     // Load the test data file.
@@ -252,8 +248,7 @@ class AudioDecoderTest : public testing::TestWithParam<DecoderTestData> {
         reader_->GetAVStreamForTesting()->time_base, packet.pts));
     buffer->set_duration(ConvertFromTimeBase(
         reader_->GetAVStreamForTesting()->time_base, packet.duration));
-    if (packet.flags & AV_PKT_FLAG_KEY)
-      buffer->set_is_key_frame(true);
+    if (packet.flags & AV_PKT_FLAG_KEY) buffer->set_is_key_frame(true);
 
     // Don't set discard padding for Opus, it already has discard behavior set
     // based on the codec delay in the AudioDecoderConfig.
@@ -363,8 +358,7 @@ class AudioDecoderTest : public testing::TestWithParam<DecoderTestData> {
 
       // Verify different hashes are being generated.  None of our test data
       // files have audio that hashes out exactly the same.
-      if (i > 0)
-        EXPECT_NE(exact_hash, GetDecodedAudioMD5(i - 1));
+      if (i > 0) EXPECT_NE(exact_hash, GetDecodedAudioMD5(i - 1));
     }
   }
 
@@ -466,9 +460,8 @@ TEST_P(AudioDecoderTest, NoTimestamp) {
 
 TEST_P(OpusAudioDecoderBehavioralTest, InitializeWithNoCodecDelay) {
   ASSERT_EQ(GetParam().decoder_type, OPUS);
-  std::vector<uint8_t> extra_data(
-      kOpusExtraData,
-      kOpusExtraData + arraysize(kOpusExtraData));
+  std::vector<uint8_t> extra_data(kOpusExtraData,
+                                  kOpusExtraData + arraysize(kOpusExtraData));
   AudioDecoderConfig decoder_config;
   decoder_config.Initialize(kCodecOpus, kSampleFormatF32, CHANNEL_LAYOUT_STEREO,
                             48000, extra_data, Unencrypted(),
@@ -478,9 +471,8 @@ TEST_P(OpusAudioDecoderBehavioralTest, InitializeWithNoCodecDelay) {
 
 TEST_P(OpusAudioDecoderBehavioralTest, InitializeWithBadCodecDelay) {
   ASSERT_EQ(GetParam().decoder_type, OPUS);
-  std::vector<uint8_t> extra_data(
-      kOpusExtraData,
-      kOpusExtraData + arraysize(kOpusExtraData));
+  std::vector<uint8_t> extra_data(kOpusExtraData,
+                                  kOpusExtraData + arraysize(kOpusExtraData));
   AudioDecoderConfig decoder_config;
   decoder_config.Initialize(
       kCodecOpus, kSampleFormatF32, CHANNEL_LAYOUT_STEREO, 48000, extra_data,
@@ -522,8 +514,7 @@ const DecoderTestData kOpusBehavioralTest[] = {
     {OPUS, kUnknownAudioCodec, "", NULL, 0, 0, CHANNEL_LAYOUT_NONE},
 };
 
-INSTANTIATE_TEST_CASE_P(OpusAudioDecoderTest,
-                        AudioDecoderTest,
+INSTANTIATE_TEST_CASE_P(OpusAudioDecoderTest, AudioDecoderTest,
                         testing::ValuesIn(kOpusTests));
 INSTANTIATE_TEST_CASE_P(OpusAudioDecoderBehavioralTest,
                         OpusAudioDecoderBehavioralTest,
@@ -555,8 +546,7 @@ const DecoderTestData kMediaCodecTests[] = {
 #endif
 };
 
-INSTANTIATE_TEST_CASE_P(MediaCodecAudioDecoderTest,
-                        AudioDecoderTest,
+INSTANTIATE_TEST_CASE_P(MediaCodecAudioDecoderTest, AudioDecoderTest,
                         testing::ValuesIn(kMediaCodecTests));
 #endif  // defined(OS_ANDROID)
 
@@ -634,8 +624,7 @@ const DecoderTestData kFFmpegBehavioralTest[] = {
     {FFMPEG, kUnknownAudioCodec, "", NULL, 0, 0, CHANNEL_LAYOUT_NONE},
 };
 
-INSTANTIATE_TEST_CASE_P(FFmpegAudioDecoderTest,
-                        AudioDecoderTest,
+INSTANTIATE_TEST_CASE_P(FFmpegAudioDecoderTest, AudioDecoderTest,
                         testing::ValuesIn(kFFmpegTests));
 INSTANTIATE_TEST_CASE_P(FFmpegAudioDecoderBehavioralTest,
                         FFmpegAudioDecoderBehavioralTest,

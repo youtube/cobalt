@@ -162,32 +162,25 @@ static bool ParseVp9CodecID(const std::string& mime_type_lower_case,
 
   std::vector<std::string> fields;
   base::SplitString(codec_id, '.', &fields);
-  if (fields.size() < 1)
-    return false;
+  if (fields.size() < 1) return false;
 
-  if (fields[0] != "vp09")
-    return false;
+  if (fields[0] != "vp09") return false;
 
-  if (fields.size() > 8)
-    return false;
+  if (fields.size() > 8) return false;
 
   std::vector<int> values;
   for (size_t i = 1; i < fields.size(); ++i) {
     // Missing value is not allowed.
-    if (fields[i] == "")
-      return false;
+    if (fields[i] == "") return false;
     int value;
-    if (!base::StringToInt(fields[i], &value))
-      return false;
-    if (value < 0)
-      return false;
+    if (!base::StringToInt(fields[i], &value)) return false;
+    if (value < 0) return false;
     values.push_back(value);
   }
 
   // The spec specifies 8 fields (7 values excluding the first codec field).
   // We do not allow missing fields.
-  if (values.size() < 7)
-    return false;
+  if (values.size() < 7) return false;
 
   const int profile_idc = values[0];
   switch (profile_idc) {
@@ -208,24 +201,19 @@ static bool ParseVp9CodecID(const std::string& mime_type_lower_case,
   }
 
   const int bit_depth = values[2];
-  if (bit_depth != 8 && bit_depth != 10 && bit_depth != 12)
-    return false;
+  if (bit_depth != 8 && bit_depth != 10 && bit_depth != 12) return false;
 
   const int color_space = values[3];
-  if (color_space > 7)
-    return false;
+  if (color_space > 7) return false;
 
   const int chroma_subsampling = values[4];
-  if (chroma_subsampling > 3)
-    return false;
+  if (chroma_subsampling > 3) return false;
 
   const int transfer_function = values[5];
-  if (transfer_function > 1)
-    return false;
+  if (transfer_function > 1) return false;
 
   const int video_full_range_flag = values[6];
-  if (video_full_range_flag > 1)
-    return false;
+  if (video_full_range_flag > 1) return false;
 
   return true;
 }
@@ -269,10 +257,8 @@ VideoCodec MimeUtilToVideoCodec(MimeUtil::Codec codec) {
 }
 
 SupportsType MimeUtil::AreSupportedCodecs(
-    const CodecSet& supported_codecs,
-    const std::vector<std::string>& codecs,
-    const std::string& mime_type_lower_case,
-    bool is_encrypted) const {
+    const CodecSet& supported_codecs, const std::vector<std::string>& codecs,
+    const std::string& mime_type_lower_case, bool is_encrypted) const {
   DCHECK(!supported_codecs.empty());
   DCHECK(!codecs.empty());
 
@@ -294,8 +280,7 @@ SupportsType MimeUtil::AreSupportedCodecs(
       return IsNotSupported;
     }
 
-    if (is_ambiguous)
-      result = MayBeSupported;
+    if (is_ambiguous) result = MayBeSupported;
   }
 
   return result;
@@ -431,30 +416,25 @@ void MimeUtil::ParseCodecString(const std::string& codecs,
   base::SplitString(trimmed_codecs, ',', codecs_out);
 
   // Convert empty or all-whitespace input to 0 results.
-  if (codecs_out->size() == 1 && (*codecs_out)[0].empty())
-    codecs_out->clear();
+  if (codecs_out->size() == 1 && (*codecs_out)[0].empty()) codecs_out->clear();
 
-  if (!strip)
-    return;
+  if (!strip) return;
 
   // Strip everything past the first '.'
   for (std::vector<std::string>::iterator it = codecs_out->begin();
        it != codecs_out->end(); ++it) {
     size_t found = it->find_first_of('.');
-    if (found != std::string::npos)
-      it->resize(found);
+    if (found != std::string::npos) it->resize(found);
   }
 }
 
 SupportsType MimeUtil::IsSupportedMediaFormat(
-    const std::string& mime_type,
-    const std::vector<std::string>& codecs,
+    const std::string& mime_type, const std::vector<std::string>& codecs,
     bool is_encrypted) const {
   const std::string mime_type_lower_case = StringToLowerASCII(mime_type);
   MediaFormatMappings::const_iterator it_media_format_map =
       media_format_map_.find(mime_type_lower_case);
-  if (it_media_format_map == media_format_map_.end())
-    return IsNotSupported;
+  if (it_media_format_map == media_format_map_.end()) return IsNotSupported;
 
   if (it_media_format_map->second.empty()) {
     // We get here if the mimetype does not expect a codecs parameter.
@@ -499,15 +479,12 @@ void MimeUtil::RemoveProprietaryMediaTypesAndCodecs() {
 
 // static
 bool MimeUtil::IsCodecSupportedOnPlatform(
-    Codec codec,
-    const std::string& mime_type_lower_case,
-    bool is_encrypted,
+    Codec codec, const std::string& mime_type_lower_case, bool is_encrypted,
     const PlatformInfo& platform_info) {
   DCHECK_NE(mime_type_lower_case, "");
 
   // Encrypted block support is never available without platform decoders.
-  if (is_encrypted && !platform_info.has_platform_decoders)
-    return false;
+  if (is_encrypted && !platform_info.has_platform_decoders) return false;
 
   // NOTE: We do not account for Media Source Extensions (MSE) within these
   // checks since it has its own isTypeSupported() which will handle platform
@@ -553,8 +530,7 @@ bool MimeUtil::IsCodecSupportedOnPlatform(
         return true;
 
       // Otherwise, platform support is required.
-      if (!platform_info.supports_opus)
-        return false;
+      if (!platform_info.supports_opus) return false;
 
       // MediaPlayer does not support Opus in ogg containers.
       if (EndsWith(mime_type_lower_case, "ogg", true)) {
@@ -588,8 +564,7 @@ bool MimeUtil::IsCodecSupportedOnPlatform(
       if (!is_encrypted && platform_info.is_unified_media_pipeline_enabled)
         return true;
 
-      if (is_encrypted)
-        return platform_info.has_platform_vp8_decoder;
+      if (is_encrypted) return platform_info.has_platform_vp8_decoder;
 
       // MediaPlayer can always play VP8. Note: This is incorrect for MSE, but
       // MSE does not use this code. http://crbug.com/587303.
@@ -600,12 +575,10 @@ bool MimeUtil::IsCodecSupportedOnPlatform(
       if (!is_encrypted && platform_info.is_unified_media_pipeline_enabled)
         return true;
 
-      if (!platform_info.has_platform_vp9_decoder)
-        return false;
+      if (!platform_info.has_platform_vp9_decoder) return false;
 
       // Encrypted content is demuxed so the container is irrelevant.
-      if (is_encrypted)
-        return true;
+      if (is_encrypted) return true;
 
       // MediaPlayer only supports VP9 in WebM.
       return mime_type_lower_case == "video/webm";
@@ -616,12 +589,9 @@ bool MimeUtil::IsCodecSupportedOnPlatform(
 }
 
 bool MimeUtil::StringToCodec(const std::string& mime_type_lower_case,
-                             const std::string& codec_id,
-                             Codec* codec,
-                             bool* is_ambiguous,
-                             VideoCodecProfile* out_profile,
-                             uint8_t* out_level,
-                             bool is_encrypted) const {
+                             const std::string& codec_id, Codec* codec,
+                             bool* is_ambiguous, VideoCodecProfile* out_profile,
+                             uint8_t* out_level, bool is_encrypted) const {
   DCHECK(out_profile);
   DCHECK(out_level);
   *out_profile = VIDEO_CODEC_PROFILE_UNKNOWN;
@@ -635,9 +605,9 @@ bool MimeUtil::StringToCodec(const std::string& mime_type_lower_case,
     return true;
   }
 
-// If |codec_id| is not in |string_to_codec_map_|, then we assume that it is
-// either H.264 or HEVC/H.265 codec ID because currently those are the only
-// ones that are not added to the |string_to_codec_map_| and require parsing.
+  // If |codec_id| is not in |string_to_codec_map_|, then we assume that it is
+  // either H.264 or HEVC/H.265 codec ID because currently those are the only
+  // ones that are not added to the |string_to_codec_map_| and require parsing.
   if (ParseAVCCodecId(codec_id, out_profile, out_level)) {
     *codec = MimeUtil::H264;
     switch (*out_profile) {
@@ -749,8 +719,7 @@ bool MimeUtil::GetDefaultCodecLowerCase(const std::string& mime_type_lower_case,
 }
 
 bool MimeUtil::IsDefaultCodecSupportedLowerCase(
-    const std::string& mime_type_lower_case,
-    bool is_encrypted) const {
+    const std::string& mime_type_lower_case, bool is_encrypted) const {
   Codec default_codec = INVALID_CODEC;
   if (!GetDefaultCodecLowerCase(mime_type_lower_case, &default_codec))
     return false;

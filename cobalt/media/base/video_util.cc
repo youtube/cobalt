@@ -15,28 +15,24 @@ namespace media {
 gfx::Size GetNaturalSize(const gfx::Size& visible_size,
                          int aspect_ratio_numerator,
                          int aspect_ratio_denominator) {
-  if (aspect_ratio_denominator == 0 ||
-      aspect_ratio_numerator < 0 ||
+  if (aspect_ratio_denominator == 0 || aspect_ratio_numerator < 0 ||
       aspect_ratio_denominator < 0)
     return gfx::Size();
 
-  double aspect_ratio = aspect_ratio_numerator /
-      static_cast<double>(aspect_ratio_denominator);
+  double aspect_ratio =
+      aspect_ratio_numerator / static_cast<double>(aspect_ratio_denominator);
 
   return gfx::Size(round(visible_size.width() * aspect_ratio),
                    visible_size.height());
 }
 
-void RotatePlaneByPixels(const uint8_t* src,
-                         uint8_t* dest,
-                         int width,
+void RotatePlaneByPixels(const uint8_t* src, uint8_t* dest, int width,
                          int height,
                          int rotation,  // Clockwise.
-                         bool flip_vert,
-                         bool flip_horiz) {
-  DCHECK((width > 0) && (height > 0) &&
-         ((width & 1) == 0) && ((height & 1) == 0) &&
-         (rotation >= 0) && (rotation < 360) && (rotation % 90 == 0));
+                         bool flip_vert, bool flip_horiz) {
+  DCHECK((width > 0) && (height > 0) && ((width & 1) == 0) &&
+         ((height & 1) == 0) && (rotation >= 0) && (rotation < 360) &&
+         (rotation % 90 == 0));
 
   // Consolidate cases. Only 0 and 90 are left.
   if (rotation == 180 || rotation == 270) {
@@ -96,18 +92,18 @@ void RotatePlaneByPixels(const uint8_t* src,
     dest_row_step = (flip_horiz ? 1 : -1);
     if (flip_horiz) {
       if (flip_vert) {
-        dest += (width > height ? width * (height - 1) + offset :
-                                  width * (height - offset - 1));
+        dest += (width > height ? width * (height - 1) + offset
+                                : width * (height - offset - 1));
       } else {
         dest += (width > height ? offset : width * offset);
       }
     } else {
       if (flip_vert) {
-        dest += (width > height ?  width * height - offset - 1 :
-                                   width * (height - offset) - 1);
+        dest += (width > height ? width * height - offset - 1
+                                : width * (height - offset) - 1);
       } else {
-        dest += (width > height ? width - offset - 1 :
-                                  width * (offset + 1) - 1);
+        dest +=
+            (width > height ? width - offset - 1 : width * (offset + 1) - 1);
       }
     }
   } else {

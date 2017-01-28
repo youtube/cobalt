@@ -27,15 +27,11 @@ FakeVideoDecoder::FakeVideoDecoder(int decoding_delay,
 FakeVideoDecoder::~FakeVideoDecoder() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (state_ == STATE_UNINITIALIZED)
-    return;
+  if (state_ == STATE_UNINITIALIZED) return;
 
-  if (!init_cb_.IsNull())
-    SatisfyInit();
-  if (!held_decode_callbacks_.empty())
-    SatisfyDecode();
-  if (!reset_cb_.IsNull())
-    SatisfyReset();
+  if (!init_cb_.IsNull()) SatisfyInit();
+  if (!held_decode_callbacks_.empty()) SatisfyDecode();
+  if (!reset_cb_.IsNull()) SatisfyReset();
 
   decoded_frames_.clear();
 }
@@ -45,8 +41,7 @@ std::string FakeVideoDecoder::GetDisplayName() const {
 }
 
 void FakeVideoDecoder::Initialize(const VideoDecoderConfig& config,
-                                  bool low_delay,
-                                  CdmContext* /* cdm_context */,
+                                  bool low_delay, CdmContext* /* cdm_context */,
                                   const InitCB& init_cb,
                                   const OutputCB& output_cb) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -87,10 +82,9 @@ void FakeVideoDecoder::Decode(const scoped_refptr<DecoderBuffer>& buffer,
   DCHECK_NE(state_, STATE_END_OF_STREAM);
 
   int buffer_size = buffer->end_of_stream() ? 0 : buffer->data_size();
-  DecodeCB wrapped_decode_cb = base::Bind(&FakeVideoDecoder::OnFrameDecoded,
-                                          weak_factory_.GetWeakPtr(),
-                                          buffer_size,
-                                          BindToCurrentLoop(decode_cb));
+  DecodeCB wrapped_decode_cb =
+      base::Bind(&FakeVideoDecoder::OnFrameDecoded, weak_factory_.GetWeakPtr(),
+                 buffer_size, BindToCurrentLoop(decode_cb));
 
   if (state_ == STATE_ERROR) {
     wrapped_decode_cb.Run(DecodeStatus::DECODE_ERROR);
@@ -117,8 +111,7 @@ void FakeVideoDecoder::Reset(const base::Closure& closure) {
   decoded_frames_.clear();
 
   // Defer the reset if a decode is pending.
-  if (!held_decode_callbacks_.empty())
-    return;
+  if (!held_decode_callbacks_.empty()) return;
 
   DoReset();
 }
@@ -165,8 +158,7 @@ void FakeVideoDecoder::SatisfySingleDecode() {
   held_decode_callbacks_.pop_front();
   RunDecodeCallback(decode_cb);
 
-  if (!reset_cb_.IsNull() && held_decode_callbacks_.empty())
-    DoReset();
+  if (!reset_cb_.IsNull() && held_decode_callbacks_.empty()) DoReset();
 }
 
 void FakeVideoDecoder::SatisfyReset() {
@@ -186,9 +178,7 @@ void FakeVideoDecoder::SimulateError() {
   decoded_frames_.clear();
 }
 
-void FakeVideoDecoder::SimulateFailureToInit() {
-  fail_to_initialize_ = true;
-}
+void FakeVideoDecoder::SimulateFailureToInit() { fail_to_initialize_ = true; }
 
 int FakeVideoDecoder::GetMaxDecodeRequests() const {
   return max_parallel_decoding_requests_;

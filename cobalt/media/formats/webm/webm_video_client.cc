@@ -14,8 +14,7 @@ WebMVideoClient::WebMVideoClient(const scoped_refptr<MediaLog>& media_log)
   Reset();
 }
 
-WebMVideoClient::~WebMVideoClient() {
-}
+WebMVideoClient::~WebMVideoClient() {}
 
 void WebMVideoClient::Reset() {
   pixel_width_ = -1;
@@ -32,10 +31,8 @@ void WebMVideoClient::Reset() {
 }
 
 bool WebMVideoClient::InitializeConfig(
-    const std::string& codec_id,
-    const std::vector<uint8_t>& codec_private,
-    const EncryptionScheme& encryption_scheme,
-    VideoDecoderConfig* config) {
+    const std::string& codec_id, const std::vector<uint8_t>& codec_private,
+    const EncryptionScheme& encryption_scheme, VideoDecoderConfig* config) {
   DCHECK(config);
 
   VideoCodec video_codec = kUnknownVideoCodec;
@@ -56,37 +53,28 @@ bool WebMVideoClient::InitializeConfig(
   VideoPixelFormat format =
       (alpha_mode_ == 1) ? PIXEL_FORMAT_YV12A : PIXEL_FORMAT_YV12;
 
-  if (pixel_width_ <= 0 || pixel_height_ <= 0)
-    return false;
+  if (pixel_width_ <= 0 || pixel_height_ <= 0) return false;
 
   // Set crop and display unit defaults if these elements are not present.
-  if (crop_bottom_ == -1)
-    crop_bottom_ = 0;
+  if (crop_bottom_ == -1) crop_bottom_ = 0;
 
-  if (crop_top_ == -1)
-    crop_top_ = 0;
+  if (crop_top_ == -1) crop_top_ = 0;
 
-  if (crop_left_ == -1)
-    crop_left_ = 0;
+  if (crop_left_ == -1) crop_left_ = 0;
 
-  if (crop_right_ == -1)
-    crop_right_ = 0;
+  if (crop_right_ == -1) crop_right_ = 0;
 
-  if (display_unit_ == -1)
-    display_unit_ = 0;
+  if (display_unit_ == -1) display_unit_ = 0;
 
   gfx::Size coded_size(pixel_width_, pixel_height_);
   gfx::Rect visible_rect(crop_top_, crop_left_,
                          pixel_width_ - (crop_left_ + crop_right_),
                          pixel_height_ - (crop_top_ + crop_bottom_));
   if (display_unit_ == 0) {
-    if (display_width_ <= 0)
-      display_width_ = visible_rect.width();
-    if (display_height_ <= 0)
-      display_height_ = visible_rect.height();
+    if (display_width_ <= 0) display_width_ = visible_rect.width();
+    if (display_height_ <= 0) display_height_ = visible_rect.height();
   } else if (display_unit_ == 3) {
-    if (display_width_ <= 0 || display_height_ <= 0)
-      return false;
+    if (display_width_ <= 0 || display_height_ <= 0) return false;
   } else {
     MEDIA_LOG(ERROR, media_log_) << "Unsupported display unit type "
                                  << display_unit_;
@@ -115,8 +103,7 @@ WebMParserClient* WebMVideoClient::OnListStart(int id) {
 }
 
 bool WebMVideoClient::OnListEnd(int id) {
-  if (id == kWebMIdColour)
-    colour_parsed_ = true;
+  if (id == kWebMIdColour) colour_parsed_ = true;
   return true;
 }
 

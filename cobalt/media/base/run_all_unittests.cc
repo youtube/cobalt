@@ -61,6 +61,6 @@ int main(int argc, char** argv) {
   TestSuiteNoAtExit test_suite(argc, argv);
 
   return base::LaunchUnitTests(
-      argc, argv, base::Bind(&TestSuiteNoAtExit::Run,
-                             base::Unretained(&test_suite)));
+      argc, argv,
+      base::Bind(&TestSuiteNoAtExit::Run, base::Unretained(&test_suite)));
 }
