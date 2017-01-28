@@ -103,28 +103,24 @@ class TestResourceMultiBuffer : public ResourceMultiBuffer {
 
   TestMultiBufferDataProvider* GetProvider() {
     EXPECT_EQ(test_data_providers.size(), 1U);
-    if (test_data_providers.size() != 1)
-      return NULL;
+    if (test_data_providers.size() != 1) return NULL;
     return *test_data_providers.begin();
   }
   TestMultiBufferDataProvider* GetProvider_allownull() {
     EXPECT_LE(test_data_providers.size(), 1U);
-    if (test_data_providers.size() != 1U)
-      return NULL;
+    if (test_data_providers.size() != 1U) return NULL;
     return *test_data_providers.begin();
   }
   bool HasProvider() const { return test_data_providers.size() == 1U; }
   bool loading() {
-    if (test_data_providers.empty())
-      return false;
+    if (test_data_providers.empty()) return false;
     return GetProvider()->loading();
   }
 };
 
 class TestUrlData : public UrlData {
  public:
-  TestUrlData(const GURL& url,
-              CORSMode cors_mode,
+  TestUrlData(const GURL& url, CORSMode cors_mode,
               const base::WeakPtr<UrlIndex>& url_index)
       : UrlData(url, cors_mode, url_index),
         block_shift_(url_index->block_shift()) {}
@@ -185,20 +181,13 @@ class MockBufferedDataSourceHost : public BufferedDataSourceHost {
 class MockMultibufferDataSource : public MultibufferDataSource {
  public:
   MockMultibufferDataSource(
-      const GURL& url,
-      UrlData::CORSMode cors_mode,
+      const GURL& url, UrlData::CORSMode cors_mode,
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      linked_ptr<UrlIndex> url_index,
-      WebLocalFrame* frame,
+      linked_ptr<UrlIndex> url_index, WebLocalFrame* frame,
       BufferedDataSourceHost* host)
       : MultibufferDataSource(
-            url,
-            cors_mode,
-            task_runner,
-            url_index,
-            frame,
-            new media::MediaLog(),
-            host,
+            url, cors_mode, task_runner, url_index, frame,
+            new media::MediaLog(), host,
             base::Bind(&MockMultibufferDataSource::set_downloading,
                        base::Unretained(this))),
         downloading_(false) {}
@@ -234,14 +223,11 @@ class MultibufferDataSourceTest : public testing::Test {
     url_index_ = make_linked_ptr(new TestUrlIndex(frame));
   }
 
-  virtual ~MultibufferDataSourceTest() {
-    view_->close();
-  }
+  virtual ~MultibufferDataSourceTest() { view_->close(); }
 
   MOCK_METHOD1(OnInitialize, void(bool));
 
-  void InitializeWithCORS(const char* url,
-                          bool expected,
+  void InitializeWithCORS(const char* url, bool expected,
                           UrlData::CORSMode cors_mode) {
     GURL gurl(url);
     data_source_.reset(new MockMultibufferDataSource(
@@ -312,16 +298,14 @@ class MultibufferDataSourceTest : public testing::Test {
 
   void Respond(const WebURLResponse& response) {
     EXPECT_TRUE(url_loader());
-    if (!active_loader())
-      return;
+    if (!active_loader()) return;
     data_provider()->didReceiveResponse(url_loader(), response);
     base::RunLoop().RunUntilIdle();
   }
 
   void ReceiveDataLow(int size) {
     EXPECT_TRUE(url_loader());
-    if (!url_loader())
-      return;
+    if (!url_loader()) return;
     std::unique_ptr<char[]> data(new char[size]);
     memset(data.get(), 0xA5, size);  // Arbitrary non-zero value.
 
@@ -335,8 +319,7 @@ class MultibufferDataSourceTest : public testing::Test {
 
   void FinishLoading() {
     EXPECT_TRUE(url_loader());
-    if (!url_loader())
-      return;
+    if (!url_loader()) return;
     data_provider()->didFinishLoading(url_loader(), 0, -1);
     base::RunLoop().RunUntilIdle();
   }
@@ -350,8 +333,7 @@ class MultibufferDataSourceTest : public testing::Test {
   void Restart() {
     EXPECT_TRUE(data_provider());
     EXPECT_FALSE(active_loader_allownull());
-    if (!data_provider())
-      return;
+    if (!data_provider()) return;
     data_provider()->Start();
   }
 
@@ -436,21 +418,18 @@ class MultibufferDataSourceTest : public testing::Test {
   }
   ActiveLoader* active_loader() {
     EXPECT_TRUE(data_provider());
-    if (!data_provider())
-      return NULL;
+    if (!data_provider()) return NULL;
     return data_provider()->active_loader_.get();
   }
   ActiveLoader* active_loader_allownull() {
     TestMultiBufferDataProvider* data_provider =
         multibuffer()->GetProvider_allownull();
-    if (!data_provider)
-      return NULL;
+    if (!data_provider) return NULL;
     return data_provider->active_loader_.get();
   }
   WebURLLoader* url_loader() {
     EXPECT_TRUE(active_loader());
-    if (!active_loader())
-      return NULL;
+    if (!active_loader()) return NULL;
     return active_loader()->loader_.get();
   }
 

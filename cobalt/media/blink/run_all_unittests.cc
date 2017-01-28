@@ -60,8 +60,7 @@ class BlinkMediaTestSuite : public base::TestSuite {
 
 BlinkMediaTestSuite::BlinkMediaTestSuite(int argc, char** argv)
     : TestSuite(argc, argv),
-      blink_platform_support_(new TestBlinkPlatformSupport()) {
-}
+      blink_platform_support_(new TestBlinkPlatformSupport()) {}
 
 BlinkMediaTestSuite::~BlinkMediaTestSuite() {}
 
@@ -95,6 +94,6 @@ int main(int argc, char** argv) {
   BlinkMediaTestSuite test_suite(argc, argv);
 
   return base::LaunchUnitTests(
-      argc, argv, base::Bind(&BlinkMediaTestSuite::Run,
-                             base::Unretained(&test_suite)));
+      argc, argv,
+      base::Bind(&BlinkMediaTestSuite::Run, base::Unretained(&test_suite)));
 }

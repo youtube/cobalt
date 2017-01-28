@@ -84,12 +84,10 @@ Vp8BoolDecoder::Vp8BoolDecoder()
       user_buffer_end_(NULL),
       value_(0),
       count_(-8),
-      range_(255) {
-}
+      range_(255) {}
 
 bool Vp8BoolDecoder::Initialize(const uint8_t* data, size_t size) {
-  if (data == NULL || size == 0)
-    return false;
+  if (data == NULL || size == 0) return false;
   user_buffer_start_ = data;
   user_buffer_ = data;
   user_buffer_end_ = data + size;
@@ -125,8 +123,7 @@ void Vp8BoolDecoder::FillDecoder() {
 int Vp8BoolDecoder::ReadBit(int probability) {
   int bit = 0;
   size_t split = 1 + (((range_ - 1) * probability) >> 8);
-  if (count_ < 0)
-    FillDecoder();
+  if (count_ < 0) FillDecoder();
   size_t bigsplit = static_cast<size_t>(split) << (VP8_BD_VALUE_BIT - 8);
 
   if (value_ >= bigsplit) {
@@ -167,8 +164,7 @@ bool Vp8BoolDecoder::ReadBool(bool* out) {
 bool Vp8BoolDecoder::ReadLiteralWithSign(size_t num_bits, int* out) {
   ReadLiteral(num_bits, out);
   // Read sign.
-  if (ReadBit(kDefaultProbability))
-    *out = -*out;
+  if (ReadBit(kDefaultProbability)) *out = -*out;
   return !OutOfBuffer();
 }
 
@@ -185,8 +181,7 @@ uint8_t Vp8BoolDecoder::GetRange() {
 }
 
 uint8_t Vp8BoolDecoder::GetBottom() {
-  if (count_ < 0)
-    FillDecoder();
+  if (count_ < 0) FillDecoder();
   return static_cast<uint8_t>(value_ >> (VP8_BD_VALUE_BIT - 8));
 }
 

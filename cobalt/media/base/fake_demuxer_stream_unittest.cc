@@ -42,26 +42,18 @@ class FakeDemuxerStreamTest : public testing::Test {
       num_buffers_received_++;
   }
 
-  enum ReadResult {
-    OK,
-    ABORTED,
-    CONFIG_CHANGED,
-    EOS,
-    PENDING
-  };
+  enum ReadResult { OK, ABORTED, CONFIG_CHANGED, EOS, PENDING };
 
   void EnterNormalReadState() {
     stream_.reset(
         new FakeDemuxerStream(kNumConfigs, kNumBuffersInOneConfig, false));
-    for (int i = 0; i < kNumBuffersToReadFirst; ++i)
-      ReadAndExpect(OK);
+    for (int i = 0; i < kNumBuffersToReadFirst; ++i) ReadAndExpect(OK);
     DCHECK_EQ(kNumBuffersToReadFirst, num_buffers_received_);
   }
 
   void EnterBeforeEOSState() {
     stream_.reset(new FakeDemuxerStream(1, kNumBuffersInOneConfig, false));
-    for (int i = 0; i < kNumBuffersInOneConfig; ++i)
-      ReadAndExpect(OK);
+    for (int i = 0; i < kNumBuffersInOneConfig; ++i) ReadAndExpect(OK);
     DCHECK_EQ(kNumBuffersInOneConfig, num_buffers_received_);
   }
 
@@ -115,8 +107,7 @@ class FakeDemuxerStreamTest : public testing::Test {
       stream_->Read(base::Bind(&FakeDemuxerStreamTest::BufferReady,
                                base::Unretained(this)));
       base::RunLoop().RunUntilIdle();
-      if (read_pending_)
-        break;
+      if (read_pending_) break;
     }
   }
 
@@ -133,8 +124,7 @@ class FakeDemuxerStreamTest : public testing::Test {
     base::RunLoop().RunUntilIdle();
 
     EXPECT_FALSE(read_pending_);
-    if (had_read_pending)
-      ExpectReadResult(ABORTED);
+    if (had_read_pending) ExpectReadResult(ABORTED);
   }
 
   void ReadAllBuffers(int num_configs, int num_buffers_in_one_config) {
@@ -157,11 +147,10 @@ class FakeDemuxerStreamTest : public testing::Test {
     EXPECT_EQ(num_configs * num_buffers_in_one_config, num_buffers_received_);
   }
 
-  void TestRead(int num_configs,
-                int num_buffers_in_one_config,
+  void TestRead(int num_configs, int num_buffers_in_one_config,
                 bool is_encrypted) {
-    stream_.reset(new FakeDemuxerStream(
-        num_configs, num_buffers_in_one_config, is_encrypted));
+    stream_.reset(new FakeDemuxerStream(num_configs, num_buffers_in_one_config,
+                                        is_encrypted));
 
     const VideoDecoderConfig& config = stream_->video_decoder_config();
     EXPECT_TRUE(config.IsValidConfig());
@@ -182,21 +171,15 @@ class FakeDemuxerStreamTest : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(FakeDemuxerStreamTest);
 };
 
-TEST_F(FakeDemuxerStreamTest, Read_OneConfig) {
-  TestRead(1, 5, false);
-}
+TEST_F(FakeDemuxerStreamTest, Read_OneConfig) { TestRead(1, 5, false); }
 
-TEST_F(FakeDemuxerStreamTest, Read_MultipleConfigs) {
-  TestRead(3, 5, false);
-}
+TEST_F(FakeDemuxerStreamTest, Read_MultipleConfigs) { TestRead(3, 5, false); }
 
 TEST_F(FakeDemuxerStreamTest, Read_OneBufferPerConfig) {
   TestRead(3, 1, false);
 }
 
-TEST_F(FakeDemuxerStreamTest, Read_Encrypted) {
-  TestRead(6, 3, true);
-}
+TEST_F(FakeDemuxerStreamTest, Read_Encrypted) { TestRead(6, 3, true); }
 
 TEST_F(FakeDemuxerStreamTest, HoldRead_Normal) {
   EnterNormalReadState();
@@ -257,11 +240,9 @@ TEST_F(FakeDemuxerStreamTest, Reset_BeforeEOS) {
 }
 
 TEST_F(FakeDemuxerStreamTest, NoConfigChanges) {
-  stream_.reset(
-      new FakeDemuxerStream(1, kNumBuffersInOneConfig, false));
+  stream_.reset(new FakeDemuxerStream(1, kNumBuffersInOneConfig, false));
   EXPECT_FALSE(stream_->SupportsConfigChanges());
-  for (int i = 0; i < kNumBuffersInOneConfig; ++i)
-    ReadAndExpect(OK);
+  for (int i = 0; i < kNumBuffersInOneConfig; ++i) ReadAndExpect(OK);
   ReadAndExpect(EOS);
 }
 

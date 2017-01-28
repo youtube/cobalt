@@ -18,15 +18,9 @@ static int clip_byte(int x) {
     return x;
 }
 
-void ConvertRGB32ToYUV_C(const uint8_t* rgbframe,
-                         uint8_t* yplane,
-                         uint8_t* uplane,
-                         uint8_t* vplane,
-                         int width,
-                         int height,
-                         int rgbstride,
-                         int ystride,
-                         int uvstride) {
+void ConvertRGB32ToYUV_C(const uint8_t* rgbframe, uint8_t* yplane,
+                         uint8_t* uplane, uint8_t* vplane, int width,
+                         int height, int rgbstride, int ystride, int uvstride) {
 #if defined(OS_ANDROID)
   const int r = 0;
   const int g = 1;
@@ -41,13 +35,15 @@ void ConvertRGB32ToYUV_C(const uint8_t* rgbframe,
     for (int j = 0; j < width; ++j) {
       // Since the input pixel format is RGB32, there are 4 bytes per pixel.
       const uint8_t* pixel = rgbframe + 4 * j;
-      yplane[j] = clip_byte(((pixel[r] * 66 + pixel[g] * 129 +
-                             pixel[b] * 25 + 128) >> 8) + 16);
+      yplane[j] = clip_byte(
+          ((pixel[r] * 66 + pixel[g] * 129 + pixel[b] * 25 + 128) >> 8) + 16);
       if (i % 2 == 0 && j % 2 == 0) {
-        uplane[j / 2] = clip_byte(((pixel[r] * -38 + pixel[g] * -74 +
-                                   pixel[b] * 112 + 128) >> 8) + 128);
-        vplane[j / 2] = clip_byte(((pixel[r] * 112 + pixel[g] * -94 +
-                                    pixel[b] * -18 + 128) >> 8) + 128);
+        uplane[j / 2] = clip_byte(
+            ((pixel[r] * -38 + pixel[g] * -74 + pixel[b] * 112 + 128) >> 8) +
+            128);
+        vplane[j / 2] = clip_byte(
+            ((pixel[r] * 112 + pixel[g] * -94 + pixel[b] * -18 + 128) >> 8) +
+            128);
       }
     }
     rgbframe += rgbstride;
@@ -59,26 +55,22 @@ void ConvertRGB32ToYUV_C(const uint8_t* rgbframe,
   }
 }
 
-void ConvertRGB24ToYUV_C(const uint8_t* rgbframe,
-                         uint8_t* yplane,
-                         uint8_t* uplane,
-                         uint8_t* vplane,
-                         int width,
-                         int height,
-                         int rgbstride,
-                         int ystride,
-                         int uvstride) {
+void ConvertRGB24ToYUV_C(const uint8_t* rgbframe, uint8_t* yplane,
+                         uint8_t* uplane, uint8_t* vplane, int width,
+                         int height, int rgbstride, int ystride, int uvstride) {
   for (int i = 0; i < height; ++i) {
     for (int j = 0; j < width; ++j) {
       // Since the input pixel format is RGB24, there are 3 bytes per pixel.
       const uint8_t* pixel = rgbframe + 3 * j;
-      yplane[j] = clip_byte(((pixel[2] * 66 + pixel[1] * 129 +
-                              pixel[0] * 25 + 128) >> 8) + 16);
+      yplane[j] = clip_byte(
+          ((pixel[2] * 66 + pixel[1] * 129 + pixel[0] * 25 + 128) >> 8) + 16);
       if (i % 2 == 0 && j % 2 == 0) {
-        uplane[j / 2] = clip_byte(((pixel[2] * -38 + pixel[1] * -74 +
-                                    pixel[0] * 112 + 128) >> 8) + 128);
-        vplane[j / 2] = clip_byte(((pixel[2] * 112 + pixel[1] * -94 +
-                                    pixel[0] * -18 + 128) >> 8) + 128);
+        uplane[j / 2] = clip_byte(
+            ((pixel[2] * -38 + pixel[1] * -74 + pixel[0] * 112 + 128) >> 8) +
+            128);
+        vplane[j / 2] = clip_byte(
+            ((pixel[2] * 112 + pixel[1] * -94 + pixel[0] * -18 + 128) >> 8) +
+            128);
       }
     }
 

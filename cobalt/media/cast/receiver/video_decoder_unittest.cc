@@ -67,9 +67,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<Codec> {
     total_video_frames_decoded_ = 0;
   }
 
-  void SetNextFrameSize(const gfx::Size& size) {
-    next_frame_size_ = size;
-  }
+  void SetNextFrameSize(const gfx::Size& size) { next_frame_size_ = size; }
 
   // Called from the unit test thread to create another EncodedFrame and push it
   // into the decoding pipeline.
@@ -103,14 +101,12 @@ class VideoDecoderTest : public ::testing::TestWithParam<Codec> {
 
     // Post a task to decode the encoded frame.
     cast_environment_->PostTask(
-        CastEnvironment::MAIN,
-        FROM_HERE,
+        CastEnvironment::MAIN, FROM_HERE,
         base::Bind(&VideoDecoder::DecodeFrame,
                    base::Unretained(video_decoder_.get()),
                    base::Passed(&encoded_frame),
                    base::Bind(&VideoDecoderTest::OnDecodedFrame,
-                              base::Unretained(this),
-                              video_frame,
+                              base::Unretained(this), video_frame,
                               num_dropped_frames == 0)));
   }
 
@@ -173,8 +169,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<Codec> {
 
 TEST_P(VideoDecoderTest, DecodesFrames) {
   const int kNumFrames = 3;
-  for (int i = 0; i < kNumFrames; ++i)
-    FeedMoreVideo(0);
+  for (int i = 0; i < kNumFrames; ++i) FeedMoreVideo(0);
   WaitForAllVideoToBeDecoded();
 }
 
@@ -228,16 +223,13 @@ TEST_P(VideoDecoderTest, DecodesFramesOfVaryingSizes) {
   for (const auto& frame_size : frame_sizes) {
     SetNextFrameSize(frame_size);
     const int kNumFrames = 3;
-    for (int i = 0; i < kNumFrames; ++i)
-      FeedMoreVideo(0);
+    for (int i = 0; i < kNumFrames; ++i) FeedMoreVideo(0);
   }
 
   WaitForAllVideoToBeDecoded();
 }
 
-INSTANTIATE_TEST_CASE_P(,
-                        VideoDecoderTest,
-                        ::testing::Values(CODEC_VIDEO_VP8));
+INSTANTIATE_TEST_CASE_P(, VideoDecoderTest, ::testing::Values(CODEC_VIDEO_VP8));
 
 }  // namespace cast
 }  // namespace media

@@ -10,12 +10,9 @@ namespace media {
 namespace mp2t {
 
 TimestampUnroller::TimestampUnroller()
-    : is_previous_timestamp_valid_(false),
-      previous_unrolled_timestamp_(0) {
-}
+    : is_previous_timestamp_valid_(false), previous_unrolled_timestamp_(0) {}
 
-TimestampUnroller::~TimestampUnroller() {
-}
+TimestampUnroller::~TimestampUnroller() {}
 
 int64_t TimestampUnroller::GetUnrolledTimestamp(int64_t timestamp) {
   // Mpeg2 TS timestamps have an accuracy of 33 bits.
@@ -58,12 +55,9 @@ int64_t TimestampUnroller::GetUnrolledTimestamp(int64_t timestamp) {
   int64_t diff0 = time0 - previous_unrolled_timestamp_;
   int64_t diff1 = time1 - previous_unrolled_timestamp_;
   int64_t diff2 = time2 - previous_unrolled_timestamp_;
-  if (diff0 < 0)
-    diff0 = -diff0;
-  if (diff1 < 0)
-    diff1 = -diff1;
-  if (diff2 < 0)
-    diff2 = -diff2;
+  if (diff0 < 0) diff0 = -diff0;
+  if (diff1 < 0) diff1 = -diff1;
+  if (diff2 < 0) diff2 = -diff2;
 
   int64_t unrolled_time;
   int64_t min_diff;
@@ -74,8 +68,7 @@ int64_t TimestampUnroller::GetUnrolledTimestamp(int64_t timestamp) {
     unrolled_time = time0;
     min_diff = diff0;
   }
-  if (diff2 < min_diff)
-    unrolled_time = time2;
+  if (diff2 < min_diff) unrolled_time = time2;
 
   // Update the state of the timestamp unroller.
   previous_unrolled_timestamp_ = unrolled_time;

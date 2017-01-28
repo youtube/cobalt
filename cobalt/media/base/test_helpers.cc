@@ -74,15 +74,14 @@ WaitableMessageLoopEvent::~WaitableMessageLoopEvent() {
 
 base::Closure WaitableMessageLoopEvent::GetClosure() {
   DCHECK(CalledOnValidThread());
-  return BindToCurrentLoop(base::Bind(
-      &WaitableMessageLoopEvent::OnCallback, base::Unretained(this),
-      PIPELINE_OK));
+  return BindToCurrentLoop(base::Bind(&WaitableMessageLoopEvent::OnCallback,
+                                      base::Unretained(this), PIPELINE_OK));
 }
 
 PipelineStatusCB WaitableMessageLoopEvent::GetPipelineStatusCB() {
   DCHECK(CalledOnValidThread());
-  return BindToCurrentLoop(base::Bind(
-      &WaitableMessageLoopEvent::OnCallback, base::Unretained(this)));
+  return BindToCurrentLoop(base::Bind(&WaitableMessageLoopEvent::OnCallback,
+                                      base::Unretained(this)));
 }
 
 void WaitableMessageLoopEvent::RunAndWait() {
@@ -115,8 +114,7 @@ void WaitableMessageLoopEvent::OnCallback(PipelineStatus status) {
   status_ = status;
 
   // |run_loop_| may be null if the callback fires before RunAndWaitForStatus().
-  if (run_loop_)
-    run_loop_->Quit();
+  if (run_loop_) run_loop_->Quit();
 }
 
 void WaitableMessageLoopEvent::OnTimeout() {
@@ -125,8 +123,7 @@ void WaitableMessageLoopEvent::OnTimeout() {
   run_loop_->Quit();
 }
 
-static VideoDecoderConfig GetTestConfig(VideoCodec codec,
-                                        gfx::Size coded_size,
+static VideoDecoderConfig GetTestConfig(VideoCodec codec, gfx::Size coded_size,
                                         bool is_encrypted) {
   gfx::Rect visible_rect(coded_size.width(), coded_size.height());
   gfx::Size natural_size = coded_size;
@@ -167,14 +164,10 @@ VideoDecoderConfig TestVideoConfig::LargeEncrypted() {
 }
 
 // static
-gfx::Size TestVideoConfig::NormalCodedSize() {
-  return kNormalSize;
-}
+gfx::Size TestVideoConfig::NormalCodedSize() { return kNormalSize; }
 
 // static
-gfx::Size TestVideoConfig::LargeCodedSize() {
-  return kLargeSize;
-}
+gfx::Size TestVideoConfig::LargeCodedSize() { return kLargeSize; }
 
 // static
 AudioParameters TestAudioParameters::Normal() {
@@ -186,18 +179,13 @@ template <class T>
 scoped_refptr<AudioBuffer> MakeAudioBuffer(SampleFormat format,
                                            ChannelLayout channel_layout,
                                            size_t channel_count,
-                                           int sample_rate,
-                                           T start,
-                                           T increment,
-                                           size_t frames,
+                                           int sample_rate, T start,
+                                           T increment, size_t frames,
                                            base::TimeDelta timestamp) {
   const size_t channels = ChannelLayoutToChannelCount(channel_layout);
-  scoped_refptr<AudioBuffer> output =
-      AudioBuffer::CreateBuffer(format,
-                                channel_layout,
-                                static_cast<int>(channel_count),
-                                sample_rate,
-                                static_cast<int>(frames));
+  scoped_refptr<AudioBuffer> output = AudioBuffer::CreateBuffer(
+      format, channel_layout, static_cast<int>(channel_count), sample_rate,
+      static_cast<int>(frames));
   output->set_timestamp(timestamp);
 
   const bool is_planar =
@@ -225,15 +213,10 @@ scoped_refptr<AudioBuffer> MakeAudioBuffer(SampleFormat format,
 
 // Instantiate all the types of MakeAudioBuffer() and
 // MakeAudioBuffer() needed.
-#define DEFINE_MAKE_AUDIO_BUFFER_INSTANCE(type)              \
-  template scoped_refptr<AudioBuffer> MakeAudioBuffer<type>( \
-      SampleFormat format,                                   \
-      ChannelLayout channel_layout,                          \
-      size_t channel_count,                                  \
-      int sample_rate,                                       \
-      type start,                                            \
-      type increment,                                        \
-      size_t frames,                                         \
+#define DEFINE_MAKE_AUDIO_BUFFER_INSTANCE(type)                                \
+  template scoped_refptr<AudioBuffer> MakeAudioBuffer<type>(                   \
+      SampleFormat format, ChannelLayout channel_layout, size_t channel_count, \
+      int sample_rate, type start, type increment, size_t frames,              \
       base::TimeDelta start_time)
 DEFINE_MAKE_AUDIO_BUFFER_INSTANCE(uint8_t);
 DEFINE_MAKE_AUDIO_BUFFER_INSTANCE(int16_t);
@@ -243,8 +226,8 @@ DEFINE_MAKE_AUDIO_BUFFER_INSTANCE(float);
 static const char kFakeVideoBufferHeader[] = "FakeVideoBufferForTest";
 
 scoped_refptr<DecoderBuffer> CreateFakeVideoBufferForTest(
-    const VideoDecoderConfig& config,
-    base::TimeDelta timestamp, base::TimeDelta duration) {
+    const VideoDecoderConfig& config, base::TimeDelta timestamp,
+    base::TimeDelta duration) {
   base::Pickle pickle;
   pickle.WriteString(kFakeVideoBufferHeader);
   pickle.WriteInt(config.coded_size().width());
@@ -261,9 +244,8 @@ scoped_refptr<DecoderBuffer> CreateFakeVideoBufferForTest(
   return buffer;
 }
 
-bool VerifyFakeVideoBufferForTest(
-    const scoped_refptr<DecoderBuffer>& buffer,
-    const VideoDecoderConfig& config) {
+bool VerifyFakeVideoBufferForTest(const scoped_refptr<DecoderBuffer>& buffer,
+                                  const VideoDecoderConfig& config) {
   // Check if the input |buffer| matches the |config|.
   base::PickleIterator pickle(
       base::Pickle(reinterpret_cast<const char*>(buffer->data()),

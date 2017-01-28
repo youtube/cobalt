@@ -23,14 +23,12 @@ static bool CompareStreamParserBufferToTimeDelta(
 }
 
 bool SourceBufferRange::IsUncommonSameTimestampSequence(
-    bool prev_is_keyframe,
-    bool current_is_keyframe) {
+    bool prev_is_keyframe, bool current_is_keyframe) {
   return current_is_keyframe && !prev_is_keyframe;
 }
 
 SourceBufferRange::SourceBufferRange(
-    GapPolicy gap_policy,
-    const BufferQueue& new_buffers,
+    GapPolicy gap_policy, const BufferQueue& new_buffers,
     DecodeTimestamp range_start_time,
     const InterbufferDistanceCB& interbuffer_distance_cb)
     : gap_policy_(gap_policy),
@@ -58,8 +56,7 @@ void SourceBufferRange::AppendBuffersToEnd(
   AdjustEstimatedDurationForNewAppend(new_buffers);
 
   for (BufferQueue::const_iterator itr = new_buffers.begin();
-       itr != new_buffers.end();
-       ++itr) {
+       itr != new_buffers.end(); ++itr) {
     DCHECK((*itr)->GetDecodeTimestamp() != kNoDecodeTimestamp());
     buffers_.push_back(*itr);
     size_in_bytes_ += (*itr)->data_size();
@@ -144,8 +141,7 @@ SourceBufferRange* SourceBufferRange::SplitRange(DecodeTimestamp timestamp) {
       GetFirstKeyframeAt(timestamp, false);
 
   // If there is no keyframe after |timestamp|, we can't split the range.
-  if (new_beginning_keyframe == keyframe_map_.end())
-    return NULL;
+  if (new_beginning_keyframe == keyframe_map_.end()) return NULL;
 
   // Remove the data beginning at |keyframe_index| from |buffers_| and save it
   // into |removed_buffers|.
@@ -168,10 +164,9 @@ SourceBufferRange* SourceBufferRange::SplitRange(DecodeTimestamp timestamp) {
   FreeBufferRange(starting_point, buffers_.end());
 
   // Create a new range with |removed_buffers|.
-  SourceBufferRange* split_range =
-      new SourceBufferRange(
-          gap_policy_, removed_buffers, new_range_start_timestamp,
-          interbuffer_distance_cb_);
+  SourceBufferRange* split_range = new SourceBufferRange(
+      gap_policy_, removed_buffers, new_range_start_timestamp,
+      interbuffer_distance_cb_);
 
   // If the next buffer position is now in |split_range|, update the state of
   // this range and |split_range| accordingly.
@@ -192,25 +187,18 @@ SourceBufferRange* SourceBufferRange::SplitRange(DecodeTimestamp timestamp) {
 }
 
 SourceBufferRange::BufferQueue::iterator SourceBufferRange::GetBufferItrAt(
-    DecodeTimestamp timestamp,
-    bool skip_given_timestamp) {
+    DecodeTimestamp timestamp, bool skip_given_timestamp) {
   return skip_given_timestamp
-             ? std::upper_bound(buffers_.begin(),
-                                buffers_.end(),
-                                timestamp,
+             ? std::upper_bound(buffers_.begin(), buffers_.end(), timestamp,
                                 CompareTimeDeltaToStreamParserBuffer)
-             : std::lower_bound(buffers_.begin(),
-                                buffers_.end(),
-                                timestamp,
+             : std::lower_bound(buffers_.begin(), buffers_.end(), timestamp,
                                 CompareStreamParserBufferToTimeDelta);
 }
 
-SourceBufferRange::KeyframeMap::iterator
-SourceBufferRange::GetFirstKeyframeAt(DecodeTimestamp timestamp,
-                                      bool skip_given_timestamp) {
-  return skip_given_timestamp ?
-      keyframe_map_.upper_bound(timestamp) :
-      keyframe_map_.lower_bound(timestamp);
+SourceBufferRange::KeyframeMap::iterator SourceBufferRange::GetFirstKeyframeAt(
+    DecodeTimestamp timestamp, bool skip_given_timestamp) {
+  return skip_given_timestamp ? keyframe_map_.upper_bound(timestamp)
+                              : keyframe_map_.lower_bound(timestamp);
 }
 
 SourceBufferRange::KeyframeMap::iterator
@@ -230,9 +218,9 @@ void SourceBufferRange::DeleteAll(BufferQueue* removed_buffers) {
   TruncateAt(buffers_.begin(), removed_buffers);
 }
 
-bool SourceBufferRange::TruncateAt(
-    DecodeTimestamp timestamp, BufferQueue* removed_buffers,
-    bool is_exclusive) {
+bool SourceBufferRange::TruncateAt(DecodeTimestamp timestamp,
+                                   BufferQueue* removed_buffers,
+                                   bool is_exclusive) {
   // Find the place in |buffers_| where we will begin deleting data.
   BufferQueue::iterator starting_point =
       GetBufferItrAt(timestamp, is_exclusive);
@@ -255,9 +243,9 @@ size_t SourceBufferRange::DeleteGOPFromFront(BufferQueue* deleted_buffers) {
 
   // Now we need to delete all the buffers that depend on the keyframe we've
   // just deleted.
-  int end_index = keyframe_map_.size() > 0 ?
-      keyframe_map_.begin()->second - keyframe_map_index_base_ :
-      buffers_.size();
+  int end_index = keyframe_map_.size() > 0
+                      ? keyframe_map_.begin()->second - keyframe_map_index_base_
+                      : buffers_.size();
 
   // Delete buffers from the beginning of the buffered range up until (but not
   // including) the next keyframe.
@@ -281,8 +269,7 @@ size_t SourceBufferRange::DeleteGOPFromFront(BufferQueue* deleted_buffers) {
   }
 
   // Invalidate range start time if we've deleted the first buffer of the range.
-  if (buffers_deleted > 0)
-    range_start_time_ = kNoDecodeTimestamp();
+  if (buffers_deleted > 0) range_start_time_ = kNoDecodeTimestamp();
 
   return total_bytes_deleted;
 }
@@ -324,8 +311,7 @@ size_t SourceBufferRange::GetRemovalGOP(
   size_t bytes_removed = 0;
 
   KeyframeMap::iterator gop_itr = GetFirstKeyframeAt(start_timestamp, false);
-  if (gop_itr == keyframe_map_.end())
-    return 0;
+  if (gop_itr == keyframe_map_.end()) return 0;
   int keyframe_index = gop_itr->second - keyframe_map_index_base_;
   BufferQueue::iterator buffer_itr = buffers_.begin() + keyframe_index;
   KeyframeMap::iterator gop_end = keyframe_map_.end();
@@ -342,8 +328,9 @@ size_t SourceBufferRange::GetRemovalGOP(
     ++gop_itr;
 
     size_t gop_size = 0;
-    int next_gop_index = gop_itr == keyframe_map_.end() ?
-        buffers_.size() : gop_itr->second - keyframe_map_index_base_;
+    int next_gop_index = gop_itr == keyframe_map_.end()
+                             ? buffers_.size()
+                             : gop_itr->second - keyframe_map_index_base_;
     BufferQueue::iterator next_gop_start = buffers_.begin() + next_gop_index;
     for (; buffer_itr != next_gop_start; ++buffer_itr) {
       gop_size += (*buffer_itr)->data_size();
@@ -352,8 +339,9 @@ size_t SourceBufferRange::GetRemovalGOP(
     bytes_removed += gop_size;
   }
   if (bytes_removed > 0) {
-    *removal_end_timestamp = gop_itr == keyframe_map_.end() ?
-        GetBufferedEndTimestamp() : gop_itr->first;
+    *removal_end_timestamp = gop_itr == keyframe_map_.end()
+                                 ? GetBufferedEndTimestamp()
+                                 : gop_itr->first;
   }
   return bytes_removed;
 }
@@ -369,12 +357,10 @@ bool SourceBufferRange::FirstGOPEarlierThanMediaTime(
 }
 
 bool SourceBufferRange::FirstGOPContainsNextBufferPosition() const {
-  if (!HasNextBufferPosition())
-    return false;
+  if (!HasNextBufferPosition()) return false;
 
   // If there is only one GOP, it must contain the next buffer position.
-  if (keyframe_map_.size() == 1u)
-    return true;
+  if (keyframe_map_.size() == 1u) return true;
 
   KeyframeMap::const_iterator second_gop = keyframe_map_.begin();
   ++second_gop;
@@ -382,12 +368,10 @@ bool SourceBufferRange::FirstGOPContainsNextBufferPosition() const {
 }
 
 bool SourceBufferRange::LastGOPContainsNextBufferPosition() const {
-  if (!HasNextBufferPosition())
-    return false;
+  if (!HasNextBufferPosition()) return false;
 
   // If there is only one GOP, it must contain the next buffer position.
-  if (keyframe_map_.size() == 1u)
-    return true;
+  if (keyframe_map_.size() == 1u) return true;
 
   KeyframeMap::const_iterator last_gop = keyframe_map_.end();
   --last_gop;
@@ -397,8 +381,7 @@ bool SourceBufferRange::LastGOPContainsNextBufferPosition() const {
 void SourceBufferRange::FreeBufferRange(
     const BufferQueue::iterator& starting_point,
     const BufferQueue::iterator& ending_point) {
-  for (BufferQueue::iterator itr = starting_point;
-       itr != ending_point; ++itr) {
+  for (BufferQueue::iterator itr = starting_point; itr != ending_point; ++itr) {
     size_t itr_data_size = static_cast<size_t>((*itr)->data_size());
     DCHECK_GE(size_in_bytes_, itr_data_size);
     size_in_bytes_ -= itr_data_size;
@@ -406,13 +389,12 @@ void SourceBufferRange::FreeBufferRange(
   buffers_.erase(starting_point, ending_point);
 }
 
-bool SourceBufferRange::TruncateAt(
-    const BufferQueue::iterator& starting_point, BufferQueue* removed_buffers) {
+bool SourceBufferRange::TruncateAt(const BufferQueue::iterator& starting_point,
+                                   BufferQueue* removed_buffers) {
   DCHECK(!removed_buffers || removed_buffers->empty());
 
   // Return if we're not deleting anything.
-  if (starting_point == buffers_.end())
-    return buffers_.empty();
+  if (starting_point == buffers_.end()) return buffers_.empty();
 
   // Reset the next buffer index if we will be deleting the buffer that's next
   // in sequence.
@@ -443,8 +425,7 @@ bool SourceBufferRange::TruncateAt(
 
 bool SourceBufferRange::GetNextBuffer(
     scoped_refptr<StreamParserBuffer>* out_buffer) {
-  if (!HasNextBuffer())
-    return false;
+  if (!HasNextBuffer()) return false;
 
   *out_buffer = buffers_[next_buffer_index_];
   next_buffer_index_++;
@@ -453,7 +434,7 @@ bool SourceBufferRange::GetNextBuffer(
 
 bool SourceBufferRange::HasNextBuffer() const {
   return next_buffer_index_ >= 0 &&
-      next_buffer_index_ < static_cast<int>(buffers_.size());
+         next_buffer_index_ < static_cast<int>(buffers_.size());
 }
 
 int SourceBufferRange::GetNextConfigId() const {
@@ -479,9 +460,7 @@ bool SourceBufferRange::HasNextBufferPosition() const {
   return next_buffer_index_ >= 0;
 }
 
-void SourceBufferRange::ResetNextBufferPosition() {
-  next_buffer_index_ = -1;
-}
+void SourceBufferRange::ResetNextBufferPosition() { next_buffer_index_ = -1; }
 
 void SourceBufferRange::AppendRangeToEnd(const SourceBufferRange& range,
                                          bool transfer_current_position) {
@@ -523,18 +502,18 @@ bool SourceBufferRange::CanSeekTo(DecodeTimestamp timestamp) const {
   DecodeTimestamp start_timestamp =
       std::max(DecodeTimestamp(), GetStartTimestamp() - GetFudgeRoom());
   return !keyframe_map_.empty() && start_timestamp <= timestamp &&
-      timestamp < GetBufferedEndTimestamp();
+         timestamp < GetBufferedEndTimestamp();
 }
 
 bool SourceBufferRange::CompletelyOverlaps(
     const SourceBufferRange& range) const {
   return GetStartTimestamp() <= range.GetStartTimestamp() &&
-      GetEndTimestamp() >= range.GetEndTimestamp();
+         GetEndTimestamp() >= range.GetEndTimestamp();
 }
 
 bool SourceBufferRange::EndOverlaps(const SourceBufferRange& range) const {
   return range.GetStartTimestamp() <= GetEndTimestamp() &&
-      GetEndTimestamp() < range.GetEndTimestamp();
+         GetEndTimestamp() < range.GetEndTimestamp();
 }
 
 DecodeTimestamp SourceBufferRange::GetStartTimestamp() const {
@@ -566,8 +545,7 @@ DecodeTimestamp SourceBufferRange::NextKeyframeTimestamp(
     return kNoDecodeTimestamp();
 
   KeyframeMap::iterator itr = GetFirstKeyframeAt(timestamp, false);
-  if (itr == keyframe_map_.end())
-    return kNoDecodeTimestamp();
+  if (itr == keyframe_map_.end()) return kNoDecodeTimestamp();
 
   // If the timestamp is inside the gap between the start of the coded frame
   // group and the first buffer, then just pretend there is a keyframe at the
@@ -615,14 +593,12 @@ bool SourceBufferRange::GetBuffersInRange(DecodeTimestamp start,
                                           BufferQueue* buffers) {
   // Find the nearest buffer with a decode timestamp <= start.
   const DecodeTimestamp first_timestamp = KeyframeBeforeTimestamp(start);
-  if (first_timestamp == kNoDecodeTimestamp())
-    return false;
+  if (first_timestamp == kNoDecodeTimestamp()) return false;
 
   // Find all buffers involved in the range.
   const size_t previous_size = buffers->size();
   for (BufferQueue::iterator it = GetBufferItrAt(first_timestamp, false);
-       it != buffers_.end();
-       ++it) {
+       it != buffers_.end(); ++it) {
     const scoped_refptr<StreamParserBuffer>& buffer = *it;
     // Buffers without duration are not supported, so bail if we encounter any.
     if (buffer->duration() == kNoTimestamp ||

@@ -19,29 +19,23 @@ namespace media {
 
 namespace internal {
 
-bool InInterval(int n, Interval q) {
-  return n >= q.first && n <= q.second;
-}
+bool InInterval(int n, Interval q) { return n >= q.first && n <= q.second; }
 
 float MultiChannelSimilarityMeasure(const float* dot_prod_a_b,
                                     const float* energy_a,
-                                    const float* energy_b,
-                                    int channels) {
+                                    const float* energy_b, int channels) {
   const float kEpsilon = 1e-12f;
   float similarity_measure = 0.0f;
   for (int n = 0; n < channels; ++n) {
-    similarity_measure += dot_prod_a_b[n] / sqrt(energy_a[n] * energy_b[n] +
-                                                 kEpsilon);
+    similarity_measure +=
+        dot_prod_a_b[n] / sqrt(energy_a[n] * energy_b[n] + kEpsilon);
   }
   return similarity_measure;
 }
 
-void MultiChannelDotProduct(const AudioBus* a,
-                            int frame_offset_a,
-                            const AudioBus* b,
-                            int frame_offset_b,
-                            int num_frames,
-                            float* dot_product) {
+void MultiChannelDotProduct(const AudioBus* a, int frame_offset_a,
+                            const AudioBus* b, int frame_offset_b,
+                            int num_frames, float* dot_product) {
   DCHECK_EQ(a->channels(), b->channels());
   DCHECK_GE(frame_offset_a, 0);
   DCHECK_GE(frame_offset_b, 0);
@@ -59,8 +53,7 @@ void MultiChannelDotProduct(const AudioBus* a,
 }
 
 void MultiChannelMovingBlockEnergies(const AudioBus* input,
-                                     int frames_per_block,
-                                     float* energy) {
+                                     int frames_per_block, float* energy) {
   int num_blocks = input->frames() - (frames_per_block - 1);
   int channels = input->channels();
 
@@ -77,8 +70,9 @@ void MultiChannelMovingBlockEnergies(const AudioBus* input,
     const float* slide_out = input_channel;
     const float* slide_in = input_channel + frames_per_block;
     for (int n = 1; n < num_blocks; ++n, ++slide_in, ++slide_out) {
-      energy[k + n * channels] = energy[k + (n - 1) * channels] - *slide_out *
-          *slide_out + *slide_in * *slide_in;
+      energy[k + n * channels] = energy[k + (n - 1) * channels] -
+                                 *slide_out * *slide_out +
+                                 *slide_in * *slide_in;
     }
   }
 }
@@ -88,8 +82,7 @@ void MultiChannelMovingBlockEnergies(const AudioBus* input,
 //   f(0) = y[1]
 //   f(1) = y[2]
 // and return the maximum, assuming that y[0] <= y[1] >= y[2].
-void QuadraticInterpolation(const float* y_values,
-                            float* extremum,
+void QuadraticInterpolation(const float* y_values, float* extremum,
                             float* extremum_value) {
   float a = 0.5f * (y_values[2] + y_values[0]) - y_values[1];
   float b = 0.5f * (y_values[2] - y_values[0]);
@@ -105,8 +98,7 @@ void QuadraticInterpolation(const float* y_values,
   }
 }
 
-int DecimatedSearch(int decimation,
-                    Interval exclude_interval,
+int DecimatedSearch(int decimation, Interval exclude_interval,
                     const AudioBus* target_block,
                     const AudioBus* search_segment,
                     const float* energy_target_block,
@@ -163,8 +155,9 @@ int DecimatedSearch(int decimation,
       QuadraticInterpolation(similarity, &normalized_candidate_index,
                              &candidate_similarity);
 
-      int candidate_index = n - decimation + static_cast<int>(
-          normalized_candidate_index * decimation +  0.5f);
+      int candidate_index =
+          n - decimation +
+          static_cast<int>(normalized_candidate_index * decimation + 0.5f);
       if (candidate_similarity > best_similarity &&
           !InInterval(candidate_index, exclude_interval)) {
         optimal_index = candidate_index;
@@ -183,11 +176,8 @@ int DecimatedSearch(int decimation,
   return optimal_index;
 }
 
-int FullSearch(int low_limit,
-               int high_limit,
-               Interval exclude_interval,
-               const AudioBus* target_block,
-               const AudioBus* search_block,
+int FullSearch(int low_limit, int high_limit, Interval exclude_interval,
+               const AudioBus* target_block, const AudioBus* search_block,
                const float* energy_target_block,
                const float* energy_candidate_blocks) {
   int channels = search_block->channels();
@@ -217,8 +207,7 @@ int FullSearch(int low_limit,
   return optimal_index;
 }
 
-int OptimalIndex(const AudioBus* search_block,
-                 const AudioBus* target_block,
+int OptimalIndex(const AudioBus* search_block, const AudioBus* target_block,
                  Interval exclude_interval) {
   int channels = search_block->channels();
   DCHECK_EQ(channels, target_block->channels());
@@ -242,17 +231,16 @@ int OptimalIndex(const AudioBus* search_block,
                                   energy_candidate_blocks.get());
 
   // Energy of target frame.
-  MultiChannelDotProduct(target_block, 0, target_block, 0,
-                         target_size, energy_target_block.get());
+  MultiChannelDotProduct(target_block, 0, target_block, 0, target_size,
+                         energy_target_block.get());
 
-  int optimal_index = DecimatedSearch(kSearchDecimation,
-                                      exclude_interval, target_block,
-                                      search_block, energy_target_block.get(),
-                                      energy_candidate_blocks.get());
+  int optimal_index = DecimatedSearch(
+      kSearchDecimation, exclude_interval, target_block, search_block,
+      energy_target_block.get(), energy_candidate_blocks.get());
 
   int lim_low = std::max(0, optimal_index - kSearchDecimation);
-  int lim_high = std::min(num_candidate_blocks - 1,
-                          optimal_index + kSearchDecimation);
+  int lim_high =
+      std::min(num_candidate_blocks - 1, optimal_index + kSearchDecimation);
   return FullSearch(lim_low, lim_high, exclude_interval, target_block,
                     search_block, energy_target_block.get(),
                     energy_candidate_blocks.get());
@@ -267,4 +255,3 @@ void GetSymmetricHanningWindow(int window_length, float* window) {
 }  // namespace internal
 
 }  // namespace media
-

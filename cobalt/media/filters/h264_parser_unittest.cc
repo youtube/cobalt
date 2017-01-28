@@ -103,8 +103,8 @@ TEST(H264ParserTest, StreamFileParsing) {
   int num_nalus = 759;
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path))
-      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
+                                            << file_path.MaybeAsASCII();
 
   H264Parser parser;
   parser.SetStream(stream.data(), stream.length());

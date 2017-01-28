@@ -17,8 +17,8 @@ namespace media {
 // where we have not yet reached the "edge" of the FIFO. If |pos| + |in_size|
 // exceeds the total size of the FIFO, we must wrap around and start reusing
 // a part the allocated memory. The size of this part is given by |wrap_size|.
-static void GetSizes(
-    int pos, int max_size, int in_size, int* size, int* wrap_size) {
+static void GetSizes(int pos, int max_size, int in_size, int* size,
+                     int* wrap_size) {
   if (pos + in_size > max_size) {
     // Wrapping is required => derive size of each segment.
     *size = max_size - pos;
@@ -84,8 +84,7 @@ void AudioFifo::Push(const AudioBus* source) {
   write_pos_ = UpdatePos(write_pos_, source_size, max_frames());
 }
 
-void AudioFifo::Consume(AudioBus* destination,
-                        int start_frame,
+void AudioFifo::Consume(AudioBus* destination, int start_frame,
                         int frames_to_consume) {
   DCHECK(destination);
   DCHECK_EQ(destination->channels(), audio_bus_->channels());
@@ -101,8 +100,8 @@ void AudioFifo::Consume(AudioBus* destination,
   // when removing audio bus content from the FIFO.
   int consume_size = 0;
   int wrap_size = 0;
-  GetSizes(read_pos_, max_frames(), frames_to_consume,
-           &consume_size, &wrap_size);
+  GetSizes(read_pos_, max_frames(), frames_to_consume, &consume_size,
+           &wrap_size);
 
   // For all channels, remove the requested amount of data from the FIFO
   // and copy the content to the destination. Wrap around if needed.

@@ -7,8 +7,7 @@
 namespace media {
 
 LoopbackAudioConverter::LoopbackAudioConverter(
-    const AudioParameters& input_params,
-    const AudioParameters& output_params,
+    const AudioParameters& input_params, const AudioParameters& output_params,
     bool disable_fifo)
     : audio_converter_(input_params, output_params, disable_fifo) {}
 

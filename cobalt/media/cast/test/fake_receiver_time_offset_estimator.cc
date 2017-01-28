@@ -25,8 +25,7 @@ void FakeReceiverTimeOffsetEstimator::OnReceivePacketEvent(
 }
 
 bool FakeReceiverTimeOffsetEstimator::GetReceiverOffsetBounds(
-    base::TimeDelta* lower_bound,
-    base::TimeDelta* upper_bound) {
+    base::TimeDelta* lower_bound, base::TimeDelta* upper_bound) {
   *lower_bound = offset_;
   *upper_bound = offset_;
   return true;

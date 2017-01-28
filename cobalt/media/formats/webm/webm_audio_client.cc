@@ -15,8 +15,7 @@ WebMAudioClient::WebMAudioClient(const scoped_refptr<MediaLog>& media_log)
   Reset();
 }
 
-WebMAudioClient::~WebMAudioClient() {
-}
+WebMAudioClient::~WebMAudioClient() {}
 
 void WebMAudioClient::Reset() {
   channels_ = -1;
@@ -25,12 +24,9 @@ void WebMAudioClient::Reset() {
 }
 
 bool WebMAudioClient::InitializeConfig(
-    const std::string& codec_id,
-    const std::vector<uint8_t>& codec_private,
-    int64_t seek_preroll,
-    int64_t codec_delay,
-    const EncryptionScheme& encryption_scheme,
-    AudioDecoderConfig* config) {
+    const std::string& codec_id, const std::vector<uint8_t>& codec_private,
+    int64_t seek_preroll, int64_t codec_delay,
+    const EncryptionScheme& encryption_scheme, AudioDecoderConfig* config) {
   DCHECK(config);
   SampleFormat sample_format = kSampleFormatPlanarF32;
 
@@ -44,14 +40,12 @@ bool WebMAudioClient::InitializeConfig(
     return false;
   }
 
-  if (samples_per_second_ <= 0)
-    return false;
+  if (samples_per_second_ <= 0) return false;
 
   // Set channel layout default if a Channels element was not present.
-  if (channels_ == -1)
-    channels_ = 1;
+  if (channels_ == -1) channels_ = 1;
 
-  ChannelLayout channel_layout =  GuessChannelLayout(channels_);
+  ChannelLayout channel_layout = GuessChannelLayout(channels_);
 
   if (channel_layout == CHANNEL_LAYOUT_UNSUPPORTED) {
     MEDIA_LOG(ERROR, media_log_) << "Unsupported channel count " << channels_;
@@ -114,8 +108,7 @@ bool WebMAudioClient::OnFloat(int id, double val) {
       return true;
   }
 
-  if (val <= 0)
-    return false;
+  if (val <= 0) return false;
 
   if (*dst != -1) {
     MEDIA_LOG(ERROR, media_log_) << "Multiple values for id " << std::hex << id

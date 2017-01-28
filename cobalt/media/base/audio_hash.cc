@@ -15,10 +15,7 @@
 
 namespace media {
 
-AudioHash::AudioHash()
-    : audio_hash_(),
-      sample_count_(0) {
-}
+AudioHash::AudioHash() : audio_hash_(), sample_count_(0) {}
 
 AudioHash::~AudioHash() {}
 
@@ -60,8 +57,7 @@ bool AudioHash::IsEquivalent(const std::string& other, double tolerance) const {
   std::stringstream is(other);
   for (size_t i = 0; i < arraysize(audio_hash_); ++i) {
     is >> other_hash >> comma;
-    if (fabs(audio_hash_[i] - other_hash) > tolerance)
-      return false;
+    if (fabs(audio_hash_[i] - other_hash) > tolerance) return false;
   }
   return true;
 }

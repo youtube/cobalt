@@ -15,9 +15,7 @@ SupportedCodecs KeySystemProperties::GetSupportedSecureCodecs() const {
   return EME_CODEC_NONE;
 }
 
-bool KeySystemProperties::UseAesDecryptor() const {
-  return false;
-}
+bool KeySystemProperties::UseAesDecryptor() const { return false; }
 
 std::string KeySystemProperties::GetPepperType() const {
 #if !defined(ENABLE_PEPPER_CDMS)

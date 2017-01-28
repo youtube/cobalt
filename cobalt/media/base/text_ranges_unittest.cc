@@ -17,13 +17,9 @@ class TextRangesTest : public ::testing::Test {
     return ranges_.AddCue(base::TimeDelta::FromSeconds(seconds));
   }
 
-  void Reset() {
-    ranges_.Reset();
-  }
+  void Reset() { ranges_.Reset(); }
 
-  size_t RangeCount() {
-    return ranges_.RangeCountForTesting();
-  }
+  size_t RangeCount() { return ranges_.RangeCountForTesting(); }
 
   TextRanges ranges_;
 };

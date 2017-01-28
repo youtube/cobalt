@@ -58,8 +58,7 @@ static bool IsStreamEncrypted(DemuxerStream* stream) {
 template <DemuxerStream::Type StreamType>
 DecoderSelector<StreamType>::DecoderSelector(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-    ScopedVector<Decoder> decoders,
-    const scoped_refptr<MediaLog>& media_log)
+    ScopedVector<Decoder> decoders, const scoped_refptr<MediaLog>& media_log)
     : task_runner_(task_runner),
       decoders_(std::move(decoders)),
       media_log_(media_log),
@@ -71,8 +70,7 @@ DecoderSelector<StreamType>::~DecoderSelector() {
   DVLOG(2) << __func__;
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-  if (!select_decoder_cb_.is_null())
-    ReturnNullDecoder();
+  if (!select_decoder_cb_.is_null()) ReturnNullDecoder();
 
   decoder_.reset();
   decrypted_stream_.reset();
@@ -80,9 +78,7 @@ DecoderSelector<StreamType>::~DecoderSelector() {
 
 template <DemuxerStream::Type StreamType>
 void DecoderSelector<StreamType>::SelectDecoder(
-    StreamTraits* traits,
-    DemuxerStream* stream,
-    CdmContext* cdm_context,
+    StreamTraits* traits, DemuxerStream* stream, CdmContext* cdm_context,
     const SelectDecoderCB& select_decoder_cb,
     const typename Decoder::OutputCB& output_cb,
     const base::Closure& waiting_for_decryption_key_cb) {

@@ -26,8 +26,8 @@ int main(int argc, char **argv) {
   std::vector<float> samples(kSamplingFrequency / fps);
   size_t num_samples = 0;
   for (uint32_t frame_id = 1; frame_id <= frames; frame_id++) {
-    CHECK(media::cast::EncodeTimestamp(
-        frame_id, num_samples, samples.size(), &samples.front()));
+    CHECK(media::cast::EncodeTimestamp(frame_id, num_samples, samples.size(),
+                                       &samples.front()));
     num_samples += samples.size();
     for (size_t i = 0; i < samples.size(); ++i) {
       const int16_t sample_s16 = static_cast<int16_t>(

@@ -13,11 +13,9 @@ namespace {
 // 6.3.6 Inv recenter noneg syntax, inv_recenter_nonneg().
 int InvRecenterNonneg(int v, int m) {
   DCHECK_LE(m, kVp9MaxProb / 2);
-  if (v > 2 * m)
-    return v;
+  if (v > 2 * m) return v;
 
-  if (v & 1)
-    return m - ((v + 1) >> 1);
+  if (v & 1) return m - ((v + 1) >> 1);
   return m + (v >> 1);
 }
 
@@ -77,15 +75,11 @@ void Vp9CompressedHeaderParser::ReadTxMode(Vp9FrameHeader* fhdr) {
 
 // 6.3.4 Decode term subexp syntax
 uint8_t Vp9CompressedHeaderParser::DecodeTermSubexp() {
-  if (reader_.ReadLiteral(1) == 0)
-    return reader_.ReadLiteral(4);
-  if (reader_.ReadLiteral(1) == 0)
-    return reader_.ReadLiteral(4) + 16;
-  if (reader_.ReadLiteral(1) == 0)
-    return reader_.ReadLiteral(5) + 32;
+  if (reader_.ReadLiteral(1) == 0) return reader_.ReadLiteral(4);
+  if (reader_.ReadLiteral(1) == 0) return reader_.ReadLiteral(4) + 16;
+  if (reader_.ReadLiteral(1) == 0) return reader_.ReadLiteral(5) + 32;
   uint8_t v = reader_.ReadLiteral(7);
-  if (v < 65)
-    return v + 64;
+  if (v < 65) return v + 64;
   return (v << 1) - 1 + reader_.ReadLiteral(1);
 }
 
@@ -100,7 +94,7 @@ void Vp9CompressedHeaderParser::DiffUpdateProb(Vp9Prob* prob) {
 
 // Helper function to DiffUpdateProb an array of probs.
 template <int N>
-void Vp9CompressedHeaderParser::DiffUpdateProbArray(Vp9Prob (&prob_array)[N]) {
+void Vp9CompressedHeaderParser::DiffUpdateProbArray(Vp9Prob(&prob_array)[N]) {
   for (auto& x : prob_array) {
     DiffUpdateProb(&x);
   }
@@ -128,8 +122,7 @@ void Vp9CompressedHeaderParser::ReadCoefProbs(Vp9FrameHeader* fhdr) {
   const int max_tx_size =
       tx_mode_to_biggest_tx_size[fhdr->compressed_header.tx_mode];
   for (int tx_size = 0; tx_size <= max_tx_size; tx_size++) {
-    if (reader_.ReadLiteral(1) == 0)
-      continue;
+    if (reader_.ReadLiteral(1) == 0) continue;
 
     for (auto& ai : fhdr->frame_context.coef_probs[tx_size]) {
       for (auto& aj : ai) {
@@ -152,15 +145,13 @@ void Vp9CompressedHeaderParser::ReadSkipProb(Vp9FrameContext* frame_context) {
 // 6.3.9 Inter mode probs syntax
 void Vp9CompressedHeaderParser::ReadInterModeProbs(
     Vp9FrameContext* frame_context) {
-  for (auto& a : frame_context->inter_mode_probs)
-    DiffUpdateProbArray(a);
+  for (auto& a : frame_context->inter_mode_probs) DiffUpdateProbArray(a);
 }
 
 // 6.3.10 Interp filter probs syntax
 void Vp9CompressedHeaderParser::ReadInterpFilterProbs(
     Vp9FrameContext* frame_context) {
-  for (auto& a : frame_context->interp_filter_probs)
-    DiffUpdateProbArray(a);
+  for (auto& a : frame_context->interp_filter_probs) DiffUpdateProbArray(a);
 }
 
 // 6.3.11 Intra inter probs syntax
@@ -192,8 +183,7 @@ void Vp9CompressedHeaderParser::ReadFrameReferenceModeProbs(
     DiffUpdateProbArray(frame_context->comp_mode_prob);
 
   if (fhdr->compressed_header.reference_mode != COMPOUND_REFERENCE)
-    for (auto& a : frame_context->single_ref_prob)
-      DiffUpdateProbArray(a);
+    for (auto& a : frame_context->single_ref_prob) DiffUpdateProbArray(a);
 
   if (fhdr->compressed_header.reference_mode != SINGLE_REFERENCE)
     DiffUpdateProbArray(frame_context->comp_ref_prob);
@@ -201,15 +191,13 @@ void Vp9CompressedHeaderParser::ReadFrameReferenceModeProbs(
 
 // 6.3.14 Y mode probs syntax
 void Vp9CompressedHeaderParser::ReadYModeProbs(Vp9FrameContext* frame_context) {
-  for (auto& a : frame_context->y_mode_probs)
-    DiffUpdateProbArray(a);
+  for (auto& a : frame_context->y_mode_probs) DiffUpdateProbArray(a);
 }
 
 // 6.3.15 Partition probs syntax
 void Vp9CompressedHeaderParser::ReadPartitionProbs(
     Vp9FrameContext* frame_context) {
-  for (auto& a : frame_context->partition_probs)
-    DiffUpdateProbArray(a);
+  for (auto& a : frame_context->partition_probs) DiffUpdateProbArray(a);
 }
 
 // 6.3.16 MV probs syntax
@@ -225,8 +213,7 @@ void Vp9CompressedHeaderParser::ReadMvProbs(bool allow_high_precision_mv,
   }
 
   for (int i = 0; i < 2; i++) {
-    for (auto& a : frame_context->mv_class0_fr_probs[i])
-      UpdateMvProbArray(a);
+    for (auto& a : frame_context->mv_class0_fr_probs[i]) UpdateMvProbArray(a);
     UpdateMvProbArray(frame_context->mv_fr_probs[i]);
   }
 
@@ -240,25 +227,22 @@ void Vp9CompressedHeaderParser::ReadMvProbs(bool allow_high_precision_mv,
 
 // 6.3.17 Update mv prob syntax
 void Vp9CompressedHeaderParser::UpdateMvProb(Vp9Prob* prob) {
-  if (reader_.ReadBool(252))
-    *prob = reader_.ReadLiteral(7) << 1 | 1;
+  if (reader_.ReadBool(252)) *prob = reader_.ReadLiteral(7) << 1 | 1;
 }
 
 // Helper function to UpdateMvProb an array of probs.
 template <int N>
-void Vp9CompressedHeaderParser::UpdateMvProbArray(Vp9Prob (&prob_array)[N]) {
+void Vp9CompressedHeaderParser::UpdateMvProbArray(Vp9Prob(&prob_array)[N]) {
   for (auto& x : prob_array) {
     UpdateMvProb(&x);
   }
 }
 
 // 6.3 Compressed header syntax
-bool Vp9CompressedHeaderParser::Parse(const uint8_t* stream,
-                                      off_t frame_size,
+bool Vp9CompressedHeaderParser::Parse(const uint8_t* stream, off_t frame_size,
                                       Vp9FrameHeader* fhdr) {
   DVLOG(2) << "Vp9CompressedHeaderParser::Parse";
-  if (!reader_.Initialize(stream, frame_size))
-    return false;
+  if (!reader_.Initialize(stream, frame_size)) return false;
 
   ReadTxMode(fhdr);
   if (fhdr->compressed_header.tx_mode == Vp9CompressedHeader::TX_MODE_SELECT)

@@ -22,8 +22,7 @@ static bool ReadESSize(media::BitReader* reader, uint32_t* size) {
     RCHECK(reader->ReadBits(7, &byte));
     *size = (*size << 7) + byte;
 
-    if (msb == 0)
-      break;
+    if (msb == 0) break;
   }
 
   return true;
@@ -38,9 +37,7 @@ bool ESDescriptor::IsAAC(uint8_t object_type) {
   return object_type == kISO_14496_3 || object_type == kISO_13818_7_AAC_LC;
 }
 
-ESDescriptor::ESDescriptor()
-    : object_type_(kForbidden) {
-}
+ESDescriptor::ESDescriptor() : object_type_(kForbidden) {}
 
 ESDescriptor::~ESDescriptor() {}
 
@@ -65,18 +62,15 @@ bool ESDescriptor::Parse(const std::vector<uint8_t>& data) {
   RCHECK(reader.ReadBits(5, &dummy));  // streamPriority
 
   if (stream_dependency_flag)
-    RCHECK(reader.ReadBits(16, &dummy));  // dependsOn_ES_ID
-  if (ocr_stream_flag)
-    RCHECK(reader.ReadBits(16, &dummy));  // OCR_ES_Id
+    RCHECK(reader.ReadBits(16, &dummy));                     // dependsOn_ES_ID
+  if (ocr_stream_flag) RCHECK(reader.ReadBits(16, &dummy));  // OCR_ES_Id
 
   RCHECK(ParseDecoderConfigDescriptor(&reader));
 
   return true;
 }
 
-uint8_t ESDescriptor::object_type() const {
-  return object_type_;
-}
+uint8_t ESDescriptor::object_type() const { return object_type_; }
 
 const std::vector<uint8_t>& ESDescriptor::decoder_specific_info() const {
   return decoder_specific_info_;

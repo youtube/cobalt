@@ -29,13 +29,11 @@ std::string GenerateWebMCounterBlock(const uint8_t* iv, int iv_size) {
 uint32_t ReadInteger(const uint8_t* buf, int size) {
   // Read in the big-endian integer.
   uint32_t value = 0;
-  for (int i = 0; i < size; ++i)
-    value = (value << 8) | buf[i];
+  for (int i = 0; i < size; ++i) value = (value << 8) | buf[i];
   return value;
 }
 
-bool ExtractSubsamples(const uint8_t* buf,
-                       size_t frame_data_size,
+bool ExtractSubsamples(const uint8_t* buf, size_t frame_data_size,
                        size_t num_partitions,
                        std::vector<SubsampleEntry>* subsample_entries) {
   subsample_entries->clear();
@@ -95,10 +93,8 @@ bool ExtractSubsamples(const uint8_t* buf,
 
 }  // namespace anonymous
 
-bool WebMCreateDecryptConfig(const uint8_t* data,
-                             int data_size,
-                             const uint8_t* key_id,
-                             int key_id_size,
+bool WebMCreateDecryptConfig(const uint8_t* data, int data_size,
+                             const uint8_t* key_id, int key_id_size,
                              scoped_ptr<DecryptConfig>* decrypt_config,
                              int* data_offset) {
   if (data_size < kWebMSignalByteSize) {

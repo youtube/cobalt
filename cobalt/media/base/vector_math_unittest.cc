@@ -29,7 +29,6 @@ static const int kVectorSize = 8192;
 
 class VectorMathTest : public testing::Test {
  public:
-
   VectorMathTest() {
     // Initialize input and output vectors.
     input_vector_.reset(static_cast<float*>(base::AlignedAlloc(
@@ -63,16 +62,16 @@ TEST_F(VectorMathTest, FMAC) {
   {
     SCOPED_TRACE("FMAC");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMAC(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMAC(input_vector_.get(), kScale, kVectorSize,
+                      output_vector_.get());
     VerifyOutput(kResult);
   }
 
   {
     SCOPED_TRACE("FMAC_C");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMAC_C(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMAC_C(input_vector_.get(), kScale, kVectorSize,
+                        output_vector_.get());
     VerifyOutput(kResult);
   }
 
@@ -80,8 +79,8 @@ TEST_F(VectorMathTest, FMAC) {
   {
     SCOPED_TRACE("FMAC_SSE");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMAC_SSE(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMAC_SSE(input_vector_.get(), kScale, kVectorSize,
+                          output_vector_.get());
     VerifyOutput(kResult);
   }
 #endif
@@ -90,8 +89,8 @@ TEST_F(VectorMathTest, FMAC) {
   {
     SCOPED_TRACE("FMAC_NEON");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMAC_NEON(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMAC_NEON(input_vector_.get(), kScale, kVectorSize,
+                           output_vector_.get());
     VerifyOutput(kResult);
   }
 #endif
@@ -104,16 +103,16 @@ TEST_F(VectorMathTest, FMUL) {
   {
     SCOPED_TRACE("FMUL");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMUL(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMUL(input_vector_.get(), kScale, kVectorSize,
+                      output_vector_.get());
     VerifyOutput(kResult);
   }
 
   {
     SCOPED_TRACE("FMUL_C");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMUL_C(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMUL_C(input_vector_.get(), kScale, kVectorSize,
+                        output_vector_.get());
     VerifyOutput(kResult);
   }
 
@@ -121,8 +120,8 @@ TEST_F(VectorMathTest, FMUL) {
   {
     SCOPED_TRACE("FMUL_SSE");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMUL_SSE(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMUL_SSE(input_vector_.get(), kScale, kVectorSize,
+                          output_vector_.get());
     VerifyOutput(kResult);
   }
 #endif
@@ -131,8 +130,8 @@ TEST_F(VectorMathTest, FMUL) {
   {
     SCOPED_TRACE("FMUL_NEON");
     FillTestVectors(kInputFillValue, kOutputFillValue);
-    vector_math::FMUL_NEON(
-        input_vector_.get(), kScale, kVectorSize, output_vector_.get());
+    vector_math::FMUL_NEON(input_vector_.get(), kScale, kVectorSize,
+                           output_vector_.get());
     VerifyOutput(kResult);
   }
 #endif
@@ -140,8 +139,8 @@ TEST_F(VectorMathTest, FMUL) {
 
 TEST_F(VectorMathTest, Crossfade) {
   FillTestVectors(0, 1);
-  vector_math::Crossfade(
-      input_vector_.get(), kVectorSize, output_vector_.get());
+  vector_math::Crossfade(input_vector_.get(), kVectorSize,
+                         output_vector_.get());
   for (int i = 0; i < kVectorSize; ++i) {
     ASSERT_FLOAT_EQ(i / static_cast<float>(kVectorSize), output_vector_[i])
         << "i=" << i;
@@ -154,15 +153,14 @@ class EWMATestScenario {
                    float smoothing_factor)
       : initial_value_(initial_value),
         data_(static_cast<float*>(
-            len == 0 ? NULL :
-            base::AlignedAlloc(len * sizeof(float),
-                               vector_math::kRequiredAlignment))),
+            len == 0 ? NULL
+                     : base::AlignedAlloc(len * sizeof(float),
+                                          vector_math::kRequiredAlignment))),
         data_len_(len),
         smoothing_factor_(smoothing_factor),
         expected_final_avg_(initial_value),
         expected_max_(0.0f) {
-    if (data_len_ > 0)
-      memcpy(data_.get(), src, len * sizeof(float));
+    if (data_len_ > 0) memcpy(data_.get(), src, len * sizeof(float));
   }
 
   // Copy constructor and assignment operator for ::testing::Values(...).
@@ -173,9 +171,8 @@ class EWMATestScenario {
     if (other.data_len_ == 0) {
       this->data_.reset();
     } else {
-      this->data_.reset(static_cast<float*>(
-        base::AlignedAlloc(other.data_len_ * sizeof(float),
-                           vector_math::kRequiredAlignment)));
+      this->data_.reset(static_cast<float*>(base::AlignedAlloc(
+          other.data_len_ * sizeof(float), vector_math::kRequiredAlignment)));
       memcpy(this->data_.get(), other.data_.get(),
              other.data_len_ * sizeof(float));
     }
@@ -189,8 +186,7 @@ class EWMATestScenario {
     EWMATestScenario result(*this);
     float* p = result.data_.get();
     float* const p_end = p + result.data_len_;
-    for (; p < p_end; ++p)
-      *p *= scale;
+    for (; p < p_end; ++p) *p *= scale;
     return result;
   }
 
@@ -257,134 +253,127 @@ class EWMATestScenario {
 
 typedef testing::TestWithParam<EWMATestScenario> VectorMathEWMAAndMaxPowerTest;
 
-TEST_P(VectorMathEWMAAndMaxPowerTest, Correctness) {
-  GetParam().RunTest();
-}
+TEST_P(VectorMathEWMAAndMaxPowerTest, Correctness) { GetParam().RunTest(); }
 
 static const float kZeros[] = {  // 32 zeros
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 static const float kOnes[] = {  // 32 ones
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-};
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
 static const float kCheckerboard[] = {  // 32 alternating 0, 1
-  0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-  0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
-};
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1};
 
 static const float kInverseCheckerboard[] = {  // 32 alternating 1, 0
-  1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
-  1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0
-};
+    1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
 
 INSTANTIATE_TEST_CASE_P(
     Scenarios, VectorMathEWMAAndMaxPowerTest,
     ::testing::Values(
-         // Zero-length input: Result should equal initial value.
-         EWMATestScenario(0.0f, NULL, 0, 0.0f).HasExpectedResult(0.0f, 0.0f),
-         EWMATestScenario(1.0f, NULL, 0, 0.0f).HasExpectedResult(1.0f, 0.0f),
+        // Zero-length input: Result should equal initial value.
+        EWMATestScenario(0.0f, NULL, 0, 0.0f).HasExpectedResult(0.0f, 0.0f),
+        EWMATestScenario(1.0f, NULL, 0, 0.0f).HasExpectedResult(1.0f, 0.0f),
 
-         // Smoothing factor of zero: Samples have no effect on result.
-         EWMATestScenario(0.0f, kOnes, 32, 0.0f).HasExpectedResult(0.0f, 1.0f),
-         EWMATestScenario(1.0f, kZeros, 32, 0.0f).HasExpectedResult(1.0f, 0.0f),
+        // Smoothing factor of zero: Samples have no effect on result.
+        EWMATestScenario(0.0f, kOnes, 32, 0.0f).HasExpectedResult(0.0f, 1.0f),
+        EWMATestScenario(1.0f, kZeros, 32, 0.0f).HasExpectedResult(1.0f, 0.0f),
 
-         // Smothing factor of one: Result = last sample squared.
-         EWMATestScenario(0.0f, kCheckerboard, 32, 1.0f)
-             .ScaledBy(2.0f)
-             .HasExpectedResult(4.0f, 4.0f),
-         EWMATestScenario(1.0f, kInverseCheckerboard, 32, 1.0f)
-             .ScaledBy(2.0f)
-             .HasExpectedResult(0.0f, 4.0f),
+        // Smothing factor of one: Result = last sample squared.
+        EWMATestScenario(0.0f, kCheckerboard, 32, 1.0f)
+            .ScaledBy(2.0f)
+            .HasExpectedResult(4.0f, 4.0f),
+        EWMATestScenario(1.0f, kInverseCheckerboard, 32, 1.0f)
+            .ScaledBy(2.0f)
+            .HasExpectedResult(0.0f, 4.0f),
 
-         // Smoothing factor of 1/4, muted signal.
-         EWMATestScenario(1.0f, kZeros, 1, 0.25f)
-             .HasExpectedResult(powf(0.75, 1.0f), 0.0f),
-         EWMATestScenario(1.0f, kZeros, 2, 0.25f)
-             .HasExpectedResult(powf(0.75, 2.0f), 0.0f),
-         EWMATestScenario(1.0f, kZeros, 3, 0.25f)
-             .HasExpectedResult(powf(0.75, 3.0f), 0.0f),
-         EWMATestScenario(1.0f, kZeros, 12, 0.25f)
-             .HasExpectedResult(powf(0.75, 12.0f), 0.0f),
-         EWMATestScenario(1.0f, kZeros, 13, 0.25f)
-             .HasExpectedResult(powf(0.75, 13.0f), 0.0f),
-         EWMATestScenario(1.0f, kZeros, 14, 0.25f)
-             .HasExpectedResult(powf(0.75, 14.0f), 0.0f),
-         EWMATestScenario(1.0f, kZeros, 15, 0.25f)
-             .HasExpectedResult(powf(0.75, 15.0f), 0.0f),
+        // Smoothing factor of 1/4, muted signal.
+        EWMATestScenario(1.0f, kZeros, 1, 0.25f)
+            .HasExpectedResult(powf(0.75, 1.0f), 0.0f),
+        EWMATestScenario(1.0f, kZeros, 2, 0.25f)
+            .HasExpectedResult(powf(0.75, 2.0f), 0.0f),
+        EWMATestScenario(1.0f, kZeros, 3, 0.25f)
+            .HasExpectedResult(powf(0.75, 3.0f), 0.0f),
+        EWMATestScenario(1.0f, kZeros, 12, 0.25f)
+            .HasExpectedResult(powf(0.75, 12.0f), 0.0f),
+        EWMATestScenario(1.0f, kZeros, 13, 0.25f)
+            .HasExpectedResult(powf(0.75, 13.0f), 0.0f),
+        EWMATestScenario(1.0f, kZeros, 14, 0.25f)
+            .HasExpectedResult(powf(0.75, 14.0f), 0.0f),
+        EWMATestScenario(1.0f, kZeros, 15, 0.25f)
+            .HasExpectedResult(powf(0.75, 15.0f), 0.0f),
 
-         // Smoothing factor of 1/4, constant full-amplitude signal.
-         EWMATestScenario(0.0f, kOnes, 1, 0.25f).HasExpectedResult(0.25f, 1.0f),
-         EWMATestScenario(0.0f, kOnes, 2, 0.25f)
-             .HasExpectedResult(0.4375f, 1.0f),
-         EWMATestScenario(0.0f, kOnes, 3, 0.25f)
-             .HasExpectedResult(0.578125f, 1.0f),
-         EWMATestScenario(0.0f, kOnes, 12, 0.25f)
-             .HasExpectedResult(0.96832365f, 1.0f),
-         EWMATestScenario(0.0f, kOnes, 13, 0.25f)
-             .HasExpectedResult(0.97624274f, 1.0f),
-         EWMATestScenario(0.0f, kOnes, 14, 0.25f)
-             .HasExpectedResult(0.98218205f, 1.0f),
-         EWMATestScenario(0.0f, kOnes, 15, 0.25f)
-             .HasExpectedResult(0.98663654f, 1.0f),
+        // Smoothing factor of 1/4, constant full-amplitude signal.
+        EWMATestScenario(0.0f, kOnes, 1, 0.25f).HasExpectedResult(0.25f, 1.0f),
+        EWMATestScenario(0.0f, kOnes, 2, 0.25f)
+            .HasExpectedResult(0.4375f, 1.0f),
+        EWMATestScenario(0.0f, kOnes, 3, 0.25f)
+            .HasExpectedResult(0.578125f, 1.0f),
+        EWMATestScenario(0.0f, kOnes, 12, 0.25f)
+            .HasExpectedResult(0.96832365f, 1.0f),
+        EWMATestScenario(0.0f, kOnes, 13, 0.25f)
+            .HasExpectedResult(0.97624274f, 1.0f),
+        EWMATestScenario(0.0f, kOnes, 14, 0.25f)
+            .HasExpectedResult(0.98218205f, 1.0f),
+        EWMATestScenario(0.0f, kOnes, 15, 0.25f)
+            .HasExpectedResult(0.98663654f, 1.0f),
 
-         // Smoothing factor of 1/4, checkerboard signal.
-         EWMATestScenario(0.0f, kCheckerboard, 1, 0.25f)
-             .HasExpectedResult(0.0f, 0.0f),
-         EWMATestScenario(0.0f, kCheckerboard, 2, 0.25f)
-             .HasExpectedResult(0.25f, 1.0f),
-         EWMATestScenario(0.0f, kCheckerboard, 3, 0.25f)
-             .HasExpectedResult(0.1875f, 1.0f),
-         EWMATestScenario(0.0f, kCheckerboard, 12, 0.25f)
-             .HasExpectedResult(0.55332780f, 1.0f),
-         EWMATestScenario(0.0f, kCheckerboard, 13, 0.25f)
-             .HasExpectedResult(0.41499585f, 1.0f),
-         EWMATestScenario(0.0f, kCheckerboard, 14, 0.25f)
-             .HasExpectedResult(0.56124689f, 1.0f),
-         EWMATestScenario(0.0f, kCheckerboard, 15, 0.25f)
-             .HasExpectedResult(0.42093517f, 1.0f),
+        // Smoothing factor of 1/4, checkerboard signal.
+        EWMATestScenario(0.0f, kCheckerboard, 1, 0.25f)
+            .HasExpectedResult(0.0f, 0.0f),
+        EWMATestScenario(0.0f, kCheckerboard, 2, 0.25f)
+            .HasExpectedResult(0.25f, 1.0f),
+        EWMATestScenario(0.0f, kCheckerboard, 3, 0.25f)
+            .HasExpectedResult(0.1875f, 1.0f),
+        EWMATestScenario(0.0f, kCheckerboard, 12, 0.25f)
+            .HasExpectedResult(0.55332780f, 1.0f),
+        EWMATestScenario(0.0f, kCheckerboard, 13, 0.25f)
+            .HasExpectedResult(0.41499585f, 1.0f),
+        EWMATestScenario(0.0f, kCheckerboard, 14, 0.25f)
+            .HasExpectedResult(0.56124689f, 1.0f),
+        EWMATestScenario(0.0f, kCheckerboard, 15, 0.25f)
+            .HasExpectedResult(0.42093517f, 1.0f),
 
-         // Smoothing factor of 1/4, inverse checkerboard signal.
-         EWMATestScenario(0.0f, kInverseCheckerboard, 1, 0.25f)
-             .HasExpectedResult(0.25f, 1.0f),
-         EWMATestScenario(0.0f, kInverseCheckerboard, 2, 0.25f)
-             .HasExpectedResult(0.1875f, 1.0f),
-         EWMATestScenario(0.0f, kInverseCheckerboard, 3, 0.25f)
-             .HasExpectedResult(0.390625f, 1.0f),
-         EWMATestScenario(0.0f, kInverseCheckerboard, 12, 0.25f)
-             .HasExpectedResult(0.41499585f, 1.0f),
-         EWMATestScenario(0.0f, kInverseCheckerboard, 13, 0.25f)
-             .HasExpectedResult(0.56124689f, 1.0f),
-         EWMATestScenario(0.0f, kInverseCheckerboard, 14, 0.25f)
-             .HasExpectedResult(0.42093517f, 1.0f),
-         EWMATestScenario(0.0f, kInverseCheckerboard, 15, 0.25f)
-             .HasExpectedResult(0.56570137f, 1.0f),
+        // Smoothing factor of 1/4, inverse checkerboard signal.
+        EWMATestScenario(0.0f, kInverseCheckerboard, 1, 0.25f)
+            .HasExpectedResult(0.25f, 1.0f),
+        EWMATestScenario(0.0f, kInverseCheckerboard, 2, 0.25f)
+            .HasExpectedResult(0.1875f, 1.0f),
+        EWMATestScenario(0.0f, kInverseCheckerboard, 3, 0.25f)
+            .HasExpectedResult(0.390625f, 1.0f),
+        EWMATestScenario(0.0f, kInverseCheckerboard, 12, 0.25f)
+            .HasExpectedResult(0.41499585f, 1.0f),
+        EWMATestScenario(0.0f, kInverseCheckerboard, 13, 0.25f)
+            .HasExpectedResult(0.56124689f, 1.0f),
+        EWMATestScenario(0.0f, kInverseCheckerboard, 14, 0.25f)
+            .HasExpectedResult(0.42093517f, 1.0f),
+        EWMATestScenario(0.0f, kInverseCheckerboard, 15, 0.25f)
+            .HasExpectedResult(0.56570137f, 1.0f),
 
-         // Smoothing factor of 1/4, impluse signal.
-         EWMATestScenario(0.0f, kZeros, 3, 0.25f)
-             .WithImpulse(2.0f, 0)
-             .HasExpectedResult(0.562500f, 4.0f),
-         EWMATestScenario(0.0f, kZeros, 3, 0.25f)
-             .WithImpulse(2.0f, 1)
-             .HasExpectedResult(0.75f, 4.0f),
-         EWMATestScenario(0.0f, kZeros, 3, 0.25f)
-             .WithImpulse(2.0f, 2)
-             .HasExpectedResult(1.0f, 4.0f),
-         EWMATestScenario(0.0f, kZeros, 32, 0.25f)
-             .WithImpulse(2.0f, 0)
-             .HasExpectedResult(0.00013394f, 4.0f),
-         EWMATestScenario(0.0f, kZeros, 32, 0.25f)
-             .WithImpulse(2.0f, 1)
-             .HasExpectedResult(0.00017858f, 4.0f),
-         EWMATestScenario(0.0f, kZeros, 32, 0.25f)
-             .WithImpulse(2.0f, 2)
-             .HasExpectedResult(0.00023811f, 4.0f),
-         EWMATestScenario(0.0f, kZeros, 32, 0.25f)
-             .WithImpulse(2.0f, 3)
-             .HasExpectedResult(0.00031748f, 4.0f)
-    ));
+        // Smoothing factor of 1/4, impluse signal.
+        EWMATestScenario(0.0f, kZeros, 3, 0.25f)
+            .WithImpulse(2.0f, 0)
+            .HasExpectedResult(0.562500f, 4.0f),
+        EWMATestScenario(0.0f, kZeros, 3, 0.25f)
+            .WithImpulse(2.0f, 1)
+            .HasExpectedResult(0.75f, 4.0f),
+        EWMATestScenario(0.0f, kZeros, 3, 0.25f)
+            .WithImpulse(2.0f, 2)
+            .HasExpectedResult(1.0f, 4.0f),
+        EWMATestScenario(0.0f, kZeros, 32, 0.25f)
+            .WithImpulse(2.0f, 0)
+            .HasExpectedResult(0.00013394f, 4.0f),
+        EWMATestScenario(0.0f, kZeros, 32, 0.25f)
+            .WithImpulse(2.0f, 1)
+            .HasExpectedResult(0.00017858f, 4.0f),
+        EWMATestScenario(0.0f, kZeros, 32, 0.25f)
+            .WithImpulse(2.0f, 2)
+            .HasExpectedResult(0.00023811f, 4.0f),
+        EWMATestScenario(0.0f, kZeros, 32, 0.25f)
+            .WithImpulse(2.0f, 3)
+            .HasExpectedResult(0.00031748f, 4.0f)));
 
 }  // namespace media

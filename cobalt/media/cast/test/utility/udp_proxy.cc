@@ -147,6 +147,7 @@ class SimpleDelayBase : public PacketPipe {
                    base::Passed(&packet)),
         base::TimeDelta::FromMicroseconds(static_cast<int64_t>(seconds * 1E6)));
   }
+
  protected:
   virtual double GetDelay() = 0;
 
@@ -187,11 +188,8 @@ std::unique_ptr<PacketPipe> NewRandomUnsortedDelay(double random_delay) {
 
 class DuplicateAndDelay : public RandomUnsortedDelay {
  public:
-  DuplicateAndDelay(double delay_min,
-                    double random_delay) :
-      RandomUnsortedDelay(random_delay),
-      delay_min_(delay_min) {
-  }
+  DuplicateAndDelay(double delay_min, double random_delay)
+      : RandomUnsortedDelay(random_delay), delay_min_(delay_min) {}
   void Send(std::unique_ptr<Packet> packet) final {
     pipe_->Send(std::unique_ptr<Packet>(new Packet(*packet.get())));
     RandomUnsortedDelay::Send(std::move(packet));
@@ -199,6 +197,7 @@ class DuplicateAndDelay : public RandomUnsortedDelay {
   double GetDelay() final {
     return RandomUnsortedDelay::GetDelay() + delay_min_;
   }
+
  private:
   double delay_min_;
 };
@@ -211,8 +210,7 @@ std::unique_ptr<PacketPipe> NewDuplicateAndDelay(double delay_min,
 
 class RandomSortedDelay : public PacketPipe {
  public:
-  RandomSortedDelay(double random_delay,
-                    double extra_delay,
+  RandomSortedDelay(double random_delay, double extra_delay,
                     double seconds_between_extra_delay)
       : random_delay_(random_delay),
         extra_delay_(extra_delay),
@@ -224,7 +222,7 @@ class RandomSortedDelay : public PacketPipe {
     if (buffer_.size() == 1) {
       next_send_ = std::max(
           clock_->NowTicks() +
-          base::TimeDelta::FromSecondsD(base::RandDouble() * random_delay_),
+              base::TimeDelta::FromSecondsD(base::RandDouble() * random_delay_),
           next_send_);
       ProcessBuffer();
     }
@@ -243,9 +241,8 @@ class RandomSortedDelay : public PacketPipe {
     double seconds = seconds_between_extra_delay_ * mult * base::RandDouble();
     int64_t microseconds = static_cast<int64_t>(seconds * 1E6);
     task_runner_->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&RandomSortedDelay::CauseExtraDelay,
-                   weak_factory_.GetWeakPtr()),
+        FROM_HERE, base::Bind(&RandomSortedDelay::CauseExtraDelay,
+                              weak_factory_.GetWeakPtr()),
         base::TimeDelta::FromMicroseconds(microseconds));
   }
 
@@ -267,15 +264,14 @@ class RandomSortedDelay : public PacketPipe {
       pipe_->Send(std::move(packet));
       buffer_.pop_front();
 
-      next_send_ += base::TimeDelta::FromSecondsD(
-          base::RandDouble() * random_delay_);
+      next_send_ +=
+          base::TimeDelta::FromSecondsD(base::RandDouble() * random_delay_);
     }
 
     if (!buffer_.empty()) {
       task_runner_->PostDelayedTask(
-          FROM_HERE,
-          base::Bind(&RandomSortedDelay::ProcessBuffer,
-                     weak_factory_.GetWeakPtr()),
+          FROM_HERE, base::Bind(&RandomSortedDelay::ProcessBuffer,
+                                weak_factory_.GetWeakPtr()),
           next_send_ - now);
     }
   }
@@ -290,8 +286,7 @@ class RandomSortedDelay : public PacketPipe {
 };
 
 std::unique_ptr<PacketPipe> NewRandomSortedDelay(
-    double random_delay,
-    double extra_delay,
+    double random_delay, double extra_delay,
     double seconds_between_extra_delay) {
   return std::unique_ptr<PacketPipe>(new RandomSortedDelay(
       random_delay, extra_delay, seconds_between_extra_delay));
@@ -321,8 +316,8 @@ class NetworkGlitchPipe : public PacketPipe {
  private:
   void Flip() {
     works_ = !works_;
-    double seconds = base::RandDouble() *
-        (works_ ? max_work_time_ : max_outage_time_);
+    double seconds =
+        base::RandDouble() * (works_ ? max_work_time_ : max_outage_time_);
     int64_t microseconds = static_cast<int64_t>(seconds * 1E6);
     task_runner_->PostDelayedTask(
         FROM_HERE,
@@ -346,19 +341,16 @@ std::unique_ptr<PacketPipe> NewNetworkGlitchPipe(double average_work_time,
 // Internal buffer object for a client of the IPP model.
 class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
  public:
-  InternalBuffer(base::WeakPtr<InterruptedPoissonProcess> ipp,
-                 size_t size)
+  InternalBuffer(base::WeakPtr<InterruptedPoissonProcess> ipp, size_t size)
       : ipp_(ipp),
         stored_size_(0),
         stored_limit_(size),
         clock_(NULL),
-        weak_factory_(this) {
-  }
+        weak_factory_(this) {}
 
   void Send(std::unique_ptr<Packet> packet) final {
     // Drop if buffer is full.
-    if (stored_size_ >= stored_limit_)
-      return;
+    if (stored_size_ >= stored_limit_) return;
     stored_size_ += packet->size();
     buffer_.push_back(linked_ptr<Packet>(packet.release()));
     buffer_time_.push_back(clock_->NowTicks());
@@ -369,8 +361,7 @@ class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       base::TickClock* clock) final {
     clock_ = clock;
-    if (ipp_)
-      ipp_->InitOnIOThread(task_runner, clock);
+    if (ipp_) ipp_->InitOnIOThread(task_runner, clock);
     PacketPipe::InitOnIOThread(task_runner, clock);
   }
 
@@ -383,9 +374,7 @@ class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
     DCHECK(buffer_.size() == buffer_time_.size());
   }
 
-  bool Empty() const {
-    return buffer_.empty();
-  }
+  bool Empty() const { return buffer_.empty(); }
 
   base::TimeTicks FirstPacketTime() const {
     DCHECK(!buffer_time_.empty());
@@ -394,7 +383,6 @@ class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
 
   base::WeakPtr<InternalBuffer> GetWeakPtr() {
     return weak_factory_.GetWeakPtr();
-
   }
 
  private:
@@ -410,10 +398,8 @@ class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
 };
 
 InterruptedPoissonProcess::InterruptedPoissonProcess(
-    const std::vector<double>& average_rates,
-    double coef_burstiness,
-    double coef_variance,
-    uint32_t rand_seed)
+    const std::vector<double>& average_rates, double coef_burstiness,
+    double coef_variance, uint32_t rand_seed)
     : clock_(NULL),
       average_rates_(average_rates),
       coef_burstiness_(coef_burstiness),
@@ -426,15 +412,13 @@ InterruptedPoissonProcess::InterruptedPoissonProcess(
   ComputeRates();
 }
 
-InterruptedPoissonProcess::~InterruptedPoissonProcess() {
-}
+InterruptedPoissonProcess::~InterruptedPoissonProcess() {}
 
 void InterruptedPoissonProcess::InitOnIOThread(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     base::TickClock* clock) {
   // Already initialized and started.
-  if (task_runner_.get() && clock_)
-    return;
+  if (task_runner_.get() && clock_) return;
   task_runner_ = task_runner;
   clock_ = clock;
   UpdateRates();
@@ -470,9 +454,9 @@ void InterruptedPoissonProcess::ComputeRates() {
   double avg_rate = average_rates_[rate_index_];
 
   send_rate_ = avg_rate / coef_burstiness_;
-  switch_off_rate_ =
-      2 * avg_rate * (1 - coef_burstiness_) * (1 - coef_burstiness_) /
-      coef_burstiness_ / (coef_variance_ - 1);
+  switch_off_rate_ = 2 * avg_rate * (1 - coef_burstiness_) *
+                     (1 - coef_burstiness_) / coef_burstiness_ /
+                     (coef_variance_ - 1);
   switch_on_rate_ =
       2 * avg_rate * (1 - coef_burstiness_) / (coef_variance_ - 1);
 }
@@ -483,59 +467,49 @@ void InterruptedPoissonProcess::UpdateRates() {
   // Rates are updated once per second.
   rate_index_ = (rate_index_ + 1) % average_rates_.size();
   task_runner_->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&InterruptedPoissonProcess::UpdateRates,
-                 weak_factory_.GetWeakPtr()),
+      FROM_HERE, base::Bind(&InterruptedPoissonProcess::UpdateRates,
+                            weak_factory_.GetWeakPtr()),
       base::TimeDelta::FromSeconds(1));
 }
 
 void InterruptedPoissonProcess::SwitchOff() {
   on_state_ = false;
-  task_runner_->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&InterruptedPoissonProcess::SwitchOn,
-                 weak_factory_.GetWeakPtr()),
-      NextEvent(switch_on_rate_));
+  task_runner_->PostDelayedTask(FROM_HERE,
+                                base::Bind(&InterruptedPoissonProcess::SwitchOn,
+                                           weak_factory_.GetWeakPtr()),
+                                NextEvent(switch_on_rate_));
 }
 
 void InterruptedPoissonProcess::SwitchOn() {
   on_state_ = true;
   task_runner_->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&InterruptedPoissonProcess::SwitchOff,
-                 weak_factory_.GetWeakPtr()),
+      FROM_HERE, base::Bind(&InterruptedPoissonProcess::SwitchOff,
+                            weak_factory_.GetWeakPtr()),
       NextEvent(switch_off_rate_));
 }
 
 void InterruptedPoissonProcess::SendPacket() {
   task_runner_->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&InterruptedPoissonProcess::SendPacket,
-                 weak_factory_.GetWeakPtr()),
+      FROM_HERE, base::Bind(&InterruptedPoissonProcess::SendPacket,
+                            weak_factory_.GetWeakPtr()),
       NextEvent(send_rate_));
 
   // If OFF then don't send.
-  if (!on_state_)
-    return;
+  if (!on_state_) return;
 
   // Find the earliest packet to send.
   base::TimeTicks earliest_time;
   for (size_t i = 0; i < send_buffers_.size(); ++i) {
-    if (!send_buffers_[i])
-      continue;
-    if (send_buffers_[i]->Empty())
-      continue;
+    if (!send_buffers_[i]) continue;
+    if (send_buffers_[i]->Empty()) continue;
     if (earliest_time.is_null() ||
         send_buffers_[i]->FirstPacketTime() < earliest_time)
       earliest_time = send_buffers_[i]->FirstPacketTime();
   }
   for (size_t i = 0; i < send_buffers_.size(); ++i) {
-    if (!send_buffers_[i])
-      continue;
-    if (send_buffers_[i]->Empty())
-      continue;
-    if (send_buffers_[i]->FirstPacketTime() != earliest_time)
-      continue;
+    if (!send_buffers_[i]) continue;
+    if (send_buffers_[i]->Empty()) continue;
+    if (send_buffers_[i]->FirstPacketTime() != earliest_time) continue;
     send_buffers_[i]->SendOnePacket();
     break;
   }
@@ -596,8 +570,8 @@ std::unique_ptr<PacketPipe> WifiNetwork() {
 std::unique_ptr<PacketPipe> BadNetwork() {
   std::unique_ptr<PacketPipe> pipe;
   // This represents the buffer on the sender.
-  BuildPipe(&pipe, new Buffer(64 << 10, 5)); // 64 kb buf, 5mbit/s
-  BuildPipe(&pipe, new RandomDrop(0.05));  // 5% packet drop
+  BuildPipe(&pipe, new Buffer(64 << 10, 5));  // 64 kb buf, 5mbit/s
+  BuildPipe(&pipe, new RandomDrop(0.05));     // 5% packet drop
   BuildPipe(&pipe, new RandomSortedDelay(2E-3, 20E-3, 1));
   // This represents the buffer on the router.
   BuildPipe(&pipe, new Buffer(64 << 10, 5));  // 64 kb buf, 4mbit/s
@@ -618,7 +592,7 @@ std::unique_ptr<PacketPipe> EvilNetwork() {
   BuildPipe(&pipe, new RandomDrop(0.1));  // 10% packet drop
   BuildPipe(&pipe, new RandomSortedDelay(20E-3, 60E-3, 1));
   BuildPipe(&pipe, new Buffer(4 << 10, 2));  // 4 kb buf, 2mbit/s
-  BuildPipe(&pipe, new RandomDrop(0.1));  // 10% packet drop
+  BuildPipe(&pipe, new RandomDrop(0.1));    // 10% packet drop
   BuildPipe(&pipe, new ConstantDelay(1E-3));
   BuildPipe(&pipe, new NetworkGlitchPipe(2.0, 0.3));
   BuildPipe(&pipe, new RandomUnsortedDelay(20E-3));
@@ -665,8 +639,7 @@ class UDPProxyImpl : public UDPProxy {
   UDPProxyImpl(const net::IPEndPoint& local_port,
                const net::IPEndPoint& destination,
                std::unique_ptr<PacketPipe> to_dest_pipe,
-               std::unique_ptr<PacketPipe> from_dest_pipe,
-               net::NetLog* net_log)
+               std::unique_ptr<PacketPipe> from_dest_pipe, net::NetLog* net_log)
       : local_port_(local_port),
         destination_(destination),
         destination_is_mutable_(destination.address().empty()),
@@ -681,11 +654,8 @@ class UDPProxyImpl : public UDPProxy {
         base::WaitableEvent::ResetPolicy::AUTOMATIC,
         base::WaitableEvent::InitialState::NOT_SIGNALED);
     proxy_thread_.task_runner()->PostTask(
-        FROM_HERE,
-        base::Bind(&UDPProxyImpl::Start,
-                   base::Unretained(this),
-                   base::Unretained(&start_event),
-                   net_log));
+        FROM_HERE, base::Bind(&UDPProxyImpl::Start, base::Unretained(this),
+                              base::Unretained(&start_event), net_log));
     start_event.Wait();
   }
 
@@ -694,10 +664,8 @@ class UDPProxyImpl : public UDPProxy {
         base::WaitableEvent::ResetPolicy::AUTOMATIC,
         base::WaitableEvent::InitialState::NOT_SIGNALED);
     proxy_thread_.task_runner()->PostTask(
-        FROM_HERE,
-        base::Bind(&UDPProxyImpl::Stop,
-                   base::Unretained(this),
-                   base::Unretained(&stop_event)));
+        FROM_HERE, base::Bind(&UDPProxyImpl::Stop, base::Unretained(this),
+                              base::Unretained(&stop_event)));
     stop_event.Wait();
     proxy_thread_.Stop();
   }
@@ -721,13 +689,10 @@ class UDPProxyImpl : public UDPProxy {
       result = net::ERR_INVALID_ARGUMENT;
     } else {
       VLOG(1) << "Destination:" << destination.ToString();
-      result = socket_->SendTo(buf.get(),
-                               static_cast<int>(buf_size),
-                               destination,
-                               base::Bind(&UDPProxyImpl::AllowWrite,
-                                          weak_factory_.GetWeakPtr(),
-                                          buf,
-                                          base::Passed(&packet)));
+      result = socket_->SendTo(
+          buf.get(), static_cast<int>(buf_size), destination,
+          base::Bind(&UDPProxyImpl::AllowWrite, weak_factory_.GetWeakPtr(), buf,
+                     base::Passed(&packet)));
     }
     if (result == net::ERR_IO_PENDING) {
       blocked_ = true;
@@ -737,8 +702,7 @@ class UDPProxyImpl : public UDPProxy {
   }
 
  private:
-  void Start(base::WaitableEvent* start_event,
-             net::NetLog* net_log) {
+  void Start(base::WaitableEvent* start_event, net::NetLog* net_log) {
     socket_.reset(new net::UDPServerSocket(net_log, net::NetLogSource()));
     BuildPipe(&to_dest_pipe_, new PacketSender(this, &destination_));
     BuildPipe(&from_dest_pipe_, new PacketSender(this, &return_address_));
@@ -748,8 +712,7 @@ class UDPProxyImpl : public UDPProxy {
                                     &tick_clock_);
 
     VLOG(0) << "From:" << local_port_.ToString();
-    if (!destination_is_mutable_)
-      VLOG(0) << "To:" << destination_.ToString();
+    if (!destination_is_mutable_) VLOG(0) << "To:" << destination_.ToString();
 
     CHECK_GE(socket_->Listen(local_port_), 0);
 
@@ -798,21 +761,17 @@ class UDPProxyImpl : public UDPProxy {
       packet_.reset(new Packet(kMaxPacketSize));
       scoped_refptr<net::IOBuffer> recv_buf =
           new net::WrappedIOBuffer(reinterpret_cast<char*>(&packet_->front()));
-      int len = socket_->RecvFrom(
-          recv_buf.get(),
-          kMaxPacketSize,
-          &recv_address_,
-          base::Bind(
-              &UDPProxyImpl::ReadCallback, base::Unretained(this), recv_buf));
-      if (len == net::ERR_IO_PENDING)
-        break;
+      int len =
+          socket_->RecvFrom(recv_buf.get(), kMaxPacketSize, &recv_address_,
+                            base::Bind(&UDPProxyImpl::ReadCallback,
+                                       base::Unretained(this), recv_buf));
+      if (len == net::ERR_IO_PENDING) break;
       ProcessPacket(recv_buf, len);
     }
   }
 
   void AllowWrite(scoped_refptr<net::IOBuffer> buf,
-                  std::unique_ptr<Packet> packet,
-                  int unused_len) {
+                  std::unique_ptr<Packet> packet, int unused_len) {
     DCHECK(blocked_);
     blocked_ = false;
   }
@@ -847,11 +806,9 @@ void PacketSender::Send(std::unique_ptr<Packet> packet) {
 }
 
 std::unique_ptr<UDPProxy> UDPProxy::Create(
-    const net::IPEndPoint& local_port,
-    const net::IPEndPoint& destination,
+    const net::IPEndPoint& local_port, const net::IPEndPoint& destination,
     std::unique_ptr<PacketPipe> to_dest_pipe,
-    std::unique_ptr<PacketPipe> from_dest_pipe,
-    net::NetLog* net_log) {
+    std::unique_ptr<PacketPipe> from_dest_pipe, net::NetLog* net_log) {
   std::unique_ptr<UDPProxy> ret(
       new UDPProxyImpl(local_port, destination, std::move(to_dest_pipe),
                        std::move(from_dest_pipe), net_log));

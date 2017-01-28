@@ -13,11 +13,9 @@ WebMContentEncodingsClient::WebMContentEncodingsClient(
     const scoped_refptr<MediaLog>& media_log)
     : media_log_(media_log),
       content_encryption_encountered_(false),
-      content_encodings_ready_(false) {
-}
+      content_encodings_ready_(false) {}
 
-WebMContentEncodingsClient::~WebMContentEncodingsClient() {
-}
+WebMContentEncodingsClient::~WebMContentEncodingsClient() {}
 
 const ContentEncodings& WebMContentEncodingsClient::content_encodings() const {
   DCHECK(content_encodings_ready_);
@@ -250,8 +248,7 @@ bool WebMContentEncodingsClient::OnUInt(int id, int64_t val) {
 
 // Multiple occurrence restriction is checked in this function.  Mandatory
 // restriction is checked in OnListEnd.
-bool WebMContentEncodingsClient::OnBinary(int id,
-                                          const uint8_t* data,
+bool WebMContentEncodingsClient::OnBinary(int id, const uint8_t* data,
                                           int size) {
   DCHECK(cur_content_encoding_.get());
   DCHECK(data);

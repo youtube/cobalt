@@ -15,16 +15,14 @@
 namespace {
 
 // Initialize a plane's visible rect with value circularly from 0 to 255.
-void FillPlaneWithPattern(uint8_t* data,
-                          int stride,
+void FillPlaneWithPattern(uint8_t* data, int stride,
                           const gfx::Size& visible_size) {
   DCHECK(data && visible_size.width() <= stride);
 
   uint32_t val = 0;
   uint8_t* src = data;
   for (int i = 0; i < visible_size.height(); ++i, src += stride) {
-    for (int j = 0; j < visible_size.width(); ++j, ++val)
-      src[j] = val & 0xff;
+    for (int j = 0; j < visible_size.width(); ++j, ++val) src[j] = val & 0xff;
   }
 }
 
@@ -34,10 +32,8 @@ void FillPlaneWithPattern(uint8_t* data,
 // |VideoFrame::CreateColorFrame()| where the entrire VideoFrame is filled
 // with a given color.
 scoped_refptr<media::VideoFrame> CreateFrameWithPatternFilled(
-    media::VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
+    media::VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
   scoped_refptr<media::VideoFrame> frame(media::VideoFrame::CreateFrame(
       format, coded_size, visible_rect, natural_size, timestamp));
@@ -60,16 +56,13 @@ scoped_refptr<media::VideoFrame> CreateFrameWithPatternFilled(
 
 // Helper function used to verify the data in the coded region after copying the
 // visible region and padding the remaining area.
-bool VerifyPlanCopyWithPadding(const uint8_t* src,
-                               size_t src_stride,
+bool VerifyPlanCopyWithPadding(const uint8_t* src, size_t src_stride,
                                // Size of visible region.
-                               const gfx::Size& src_size,
-                               const uint8_t* dst,
+                               const gfx::Size& src_size, const uint8_t* dst,
                                size_t dst_stride,
                                // Coded size of |dst|.
                                const gfx::Size& dst_size) {
-  if (!src || !dst)
-    return false;
+  if (!src || !dst) return false;
 
   const size_t src_width = src_size.width();
   const size_t src_height = src_size.height();
@@ -82,17 +75,14 @@ bool VerifyPlanCopyWithPadding(const uint8_t* src,
   const uint8_t *src_ptr = src, *dst_ptr = dst;
   for (size_t i = 0; i < src_height;
        ++i, src_ptr += src_stride, dst_ptr += dst_stride) {
-    if (memcmp(src_ptr, dst_ptr, src_width))
-      return false;
+    if (memcmp(src_ptr, dst_ptr, src_width)) return false;
     for (size_t j = src_width; j < dst_width; ++j) {
-      if (src_ptr[src_width - 1] != dst_ptr[j])
-        return false;
+      if (src_ptr[src_width - 1] != dst_ptr[j]) return false;
     }
   }
   if (src_height < dst_height) {
     src_ptr = dst + (src_height - 1) * dst_stride;
-    if (memcmp(src_ptr, dst_ptr, dst_width))
-      return false;
+    if (memcmp(src_ptr, dst_ptr, dst_width)) return false;
   }
   return true;
 }
@@ -144,17 +134,12 @@ namespace media {
 
 class VideoUtilTest : public testing::Test {
  public:
-  VideoUtilTest()
-      : height_(0),
-        y_stride_(0),
-        u_stride_(0),
-        v_stride_(0) {
-  }
+  VideoUtilTest() : height_(0), y_stride_(0), u_stride_(0), v_stride_(0) {}
 
   ~VideoUtilTest() override {}
 
-  void CreateSourceFrame(int width, int height,
-                         int y_stride, int u_stride, int v_stride) {
+  void CreateSourceFrame(int width, int height, int y_stride, int u_stride,
+                         int v_stride) {
     EXPECT_GE(y_stride, width);
     EXPECT_GE(u_stride, width / 2);
     EXPECT_GE(v_stride, width / 2);
@@ -309,46 +294,45 @@ struct VideoRotationTestData {
 };
 
 const VideoRotationTestData kVideoRotationTestData[] = {
-  { src6x4, target6x4_0_n_n, 6, 4, 0, false, false },
-  { src6x4, target6x4_0_n_y, 6, 4, 0, false, true },
-  { src6x4, target6x4_0_y_n, 6, 4, 0, true, false },
-  { src6x4, target6x4_0_y_y, 6, 4, 0, true, true },
+    {src6x4, target6x4_0_n_n, 6, 4, 0, false, false},
+    {src6x4, target6x4_0_n_y, 6, 4, 0, false, true},
+    {src6x4, target6x4_0_y_n, 6, 4, 0, true, false},
+    {src6x4, target6x4_0_y_y, 6, 4, 0, true, true},
 
-  { src6x4, target6x4_90_n_n, 6, 4, 90, false, false },
-  { src6x4, target6x4_90_n_y, 6, 4, 90, false, true },
-  { src6x4, target6x4_90_y_n, 6, 4, 90, true, false },
-  { src6x4, target6x4_90_y_y, 6, 4, 90, true, true },
+    {src6x4, target6x4_90_n_n, 6, 4, 90, false, false},
+    {src6x4, target6x4_90_n_y, 6, 4, 90, false, true},
+    {src6x4, target6x4_90_y_n, 6, 4, 90, true, false},
+    {src6x4, target6x4_90_y_y, 6, 4, 90, true, true},
 
-  { src6x4, target6x4_180_n_n, 6, 4, 180, false, false },
-  { src6x4, target6x4_180_n_y, 6, 4, 180, false, true },
-  { src6x4, target6x4_180_y_n, 6, 4, 180, true, false },
-  { src6x4, target6x4_180_y_y, 6, 4, 180, true, true },
+    {src6x4, target6x4_180_n_n, 6, 4, 180, false, false},
+    {src6x4, target6x4_180_n_y, 6, 4, 180, false, true},
+    {src6x4, target6x4_180_y_n, 6, 4, 180, true, false},
+    {src6x4, target6x4_180_y_y, 6, 4, 180, true, true},
 
-  { src6x4, target6x4_270_n_n, 6, 4, 270, false, false },
-  { src6x4, target6x4_270_n_y, 6, 4, 270, false, true },
-  { src6x4, target6x4_270_y_n, 6, 4, 270, true, false },
-  { src6x4, target6x4_270_y_y, 6, 4, 270, true, true },
+    {src6x4, target6x4_270_n_n, 6, 4, 270, false, false},
+    {src6x4, target6x4_270_n_y, 6, 4, 270, false, true},
+    {src6x4, target6x4_270_y_n, 6, 4, 270, true, false},
+    {src6x4, target6x4_270_y_y, 6, 4, 270, true, true},
 
-  { src4x6, target4x6_0_n_n, 4, 6, 0, false, false },
-  { src4x6, target4x6_0_n_y, 4, 6, 0, false, true },
-  { src4x6, target4x6_0_y_n, 4, 6, 0, true, false },
-  { src4x6, target4x6_0_y_y, 4, 6, 0, true, true },
+    {src4x6, target4x6_0_n_n, 4, 6, 0, false, false},
+    {src4x6, target4x6_0_n_y, 4, 6, 0, false, true},
+    {src4x6, target4x6_0_y_n, 4, 6, 0, true, false},
+    {src4x6, target4x6_0_y_y, 4, 6, 0, true, true},
 
-  { src4x6, target4x6_90_n_n, 4, 6, 90, false, false },
-  { src4x6, target4x6_90_n_y, 4, 6, 90, false, true },
-  { src4x6, target4x6_90_y_n, 4, 6, 90, true, false },
-  { src4x6, target4x6_90_y_y, 4, 6, 90, true, true },
+    {src4x6, target4x6_90_n_n, 4, 6, 90, false, false},
+    {src4x6, target4x6_90_n_y, 4, 6, 90, false, true},
+    {src4x6, target4x6_90_y_n, 4, 6, 90, true, false},
+    {src4x6, target4x6_90_y_y, 4, 6, 90, true, true},
 
-  { src4x6, target4x6_180_n_n, 4, 6, 180, false, false },
-  { src4x6, target4x6_180_n_y, 4, 6, 180, false, true },
-  { src4x6, target4x6_180_y_n, 4, 6, 180, true, false },
-  { src4x6, target4x6_180_y_y, 4, 6, 180, true, true },
+    {src4x6, target4x6_180_n_n, 4, 6, 180, false, false},
+    {src4x6, target4x6_180_n_y, 4, 6, 180, false, true},
+    {src4x6, target4x6_180_y_n, 4, 6, 180, true, false},
+    {src4x6, target4x6_180_y_y, 4, 6, 180, true, true},
 
-  { src4x6, target4x6_270_n_n, 4, 6, 270, false, false },
-  { src4x6, target4x6_270_n_y, 4, 6, 270, false, true },
-  { src4x6, target4x6_270_y_n, 4, 6, 270, true, false },
-  { src4x6, target4x6_270_y_y, 4, 6, 270, true, true }
-};
+    {src4x6, target4x6_270_n_n, 4, 6, 270, false, false},
+    {src4x6, target4x6_270_n_y, 4, 6, 270, false, true},
+    {src4x6, target4x6_270_y_n, 4, 6, 270, true, false},
+    {src4x6, target4x6_270_y_y, 4, 6, 270, true, true}};
 
 }  // namespace
 
@@ -377,9 +361,8 @@ TEST_P(VideoUtilRotationTest, Rotate) {
   uint8_t* dest = dest_plane();
   memset(dest, 255, size);
 
-  RotatePlaneByPixels(GetParam().src, dest, GetParam().width,
-                      GetParam().height, rotation,
-                      GetParam().flip_vert, GetParam().flip_horiz);
+  RotatePlaneByPixels(GetParam().src, dest, GetParam().width, GetParam().height,
+                      rotation, GetParam().flip_vert, GetParam().flip_horiz);
 
   EXPECT_EQ(memcmp(dest, GetParam().target, size), 0);
 }
@@ -390,43 +373,44 @@ INSTANTIATE_TEST_CASE_P(, VideoUtilRotationTest,
 // Tests the ComputeLetterboxRegion function.  Also, because of shared code
 // internally, this also tests ScaleSizeToFitWithinTarget().
 TEST_F(VideoUtilTest, ComputeLetterboxRegion) {
-  EXPECT_EQ(gfx::Rect(166, 0, 667, 500),
-            ComputeLetterboxRegion(gfx::Rect(0, 0, 1000, 500),
-                                   gfx::Size(640, 480)));
-  EXPECT_EQ(gfx::Rect(0, 312, 500, 375),
-            ComputeLetterboxRegion(gfx::Rect(0, 0, 500, 1000),
-                                   gfx::Size(640, 480)));
+  EXPECT_EQ(
+      gfx::Rect(166, 0, 667, 500),
+      ComputeLetterboxRegion(gfx::Rect(0, 0, 1000, 500), gfx::Size(640, 480)));
+  EXPECT_EQ(
+      gfx::Rect(0, 312, 500, 375),
+      ComputeLetterboxRegion(gfx::Rect(0, 0, 500, 1000), gfx::Size(640, 480)));
   EXPECT_EQ(gfx::Rect(55, 0, 889, 500),
             ComputeLetterboxRegion(gfx::Rect(0, 0, 1000, 500),
                                    gfx::Size(1920, 1080)));
-  EXPECT_EQ(gfx::Rect(0, 12, 100, 75),
-            ComputeLetterboxRegion(gfx::Rect(0, 0, 100, 100),
-                                   gfx::Size(400, 300)));
+  EXPECT_EQ(
+      gfx::Rect(0, 12, 100, 75),
+      ComputeLetterboxRegion(gfx::Rect(0, 0, 100, 100), gfx::Size(400, 300)));
   EXPECT_EQ(gfx::Rect(0, 250000000, 2000000000, 1500000000),
             ComputeLetterboxRegion(gfx::Rect(0, 0, 2000000000, 2000000000),
                                    gfx::Size(40000, 30000)));
   EXPECT_TRUE(ComputeLetterboxRegion(gfx::Rect(0, 0, 2000000000, 2000000000),
-                                     gfx::Size(0, 0)).IsEmpty());
+                                     gfx::Size(0, 0))
+                  .IsEmpty());
 }
 
 TEST_F(VideoUtilTest, ScaleSizeToEncompassTarget) {
-  EXPECT_EQ(gfx::Size(1000, 750),
-            ScaleSizeToEncompassTarget(gfx::Size(640, 480),
-                                       gfx::Size(1000, 500)));
-  EXPECT_EQ(gfx::Size(1333, 1000),
-            ScaleSizeToEncompassTarget(gfx::Size(640, 480),
-                                       gfx::Size(500, 1000)));
-  EXPECT_EQ(gfx::Size(1000, 563),
-            ScaleSizeToEncompassTarget(gfx::Size(1920, 1080),
-                                       gfx::Size(1000, 500)));
-  EXPECT_EQ(gfx::Size(133, 100),
-            ScaleSizeToEncompassTarget(gfx::Size(400, 300),
-                                       gfx::Size(100, 100)));
+  EXPECT_EQ(
+      gfx::Size(1000, 750),
+      ScaleSizeToEncompassTarget(gfx::Size(640, 480), gfx::Size(1000, 500)));
+  EXPECT_EQ(
+      gfx::Size(1333, 1000),
+      ScaleSizeToEncompassTarget(gfx::Size(640, 480), gfx::Size(500, 1000)));
+  EXPECT_EQ(
+      gfx::Size(1000, 563),
+      ScaleSizeToEncompassTarget(gfx::Size(1920, 1080), gfx::Size(1000, 500)));
+  EXPECT_EQ(gfx::Size(133, 100), ScaleSizeToEncompassTarget(
+                                     gfx::Size(400, 300), gfx::Size(100, 100)));
   EXPECT_EQ(gfx::Size(266666667, 200000000),
             ScaleSizeToEncompassTarget(gfx::Size(40000, 30000),
                                        gfx::Size(200000000, 200000000)));
-  EXPECT_TRUE(ScaleSizeToEncompassTarget(
-      gfx::Size(0, 0), gfx::Size(2000000000, 2000000000)).IsEmpty());
+  EXPECT_TRUE(ScaleSizeToEncompassTarget(gfx::Size(0, 0),
+                                         gfx::Size(2000000000, 2000000000))
+                  .IsEmpty());
 }
 
 TEST_F(VideoUtilTest, PadToMatchAspectRatio) {
@@ -447,8 +431,8 @@ TEST_F(VideoUtilTest, PadToMatchAspectRatio) {
   EXPECT_EQ(gfx::Size(40000, 40000),
             PadToMatchAspectRatio(gfx::Size(40000, 30000),
                                   gfx::Size(2000000000, 2000000000)));
-  EXPECT_TRUE(PadToMatchAspectRatio(
-      gfx::Size(40000, 30000), gfx::Size(0, 0)).IsEmpty());
+  EXPECT_TRUE(PadToMatchAspectRatio(gfx::Size(40000, 30000), gfx::Size(0, 0))
+                  .IsEmpty());
 }
 
 TEST_F(VideoUtilTest, LetterboxYUV) {
@@ -469,19 +453,20 @@ TEST_F(VideoUtilTest, LetterboxYUV) {
           LetterboxYUV(frame.get(), view_area);
           for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-              bool inside = x >= view_area.x() &&
-                  x < view_area.x() + view_area.width() &&
-                  y >= view_area.y() &&
-                  y < view_area.y() + view_area.height();
-              EXPECT_EQ(frame->data(VideoFrame::kYPlane)[
-                  y * frame->stride(VideoFrame::kYPlane) + x],
+              bool inside =
+                  x >= view_area.x() && x < view_area.x() + view_area.width() &&
+                  y >= view_area.y() && y < view_area.y() + view_area.height();
+              EXPECT_EQ(frame->data(VideoFrame::kYPlane)
+                            [y * frame->stride(VideoFrame::kYPlane) + x],
                         inside ? 0x01 : 0x00);
-              EXPECT_EQ(frame->data(VideoFrame::kUPlane)[
-                  (y / 2) * frame->stride(VideoFrame::kUPlane) + (x / 2)],
-                        inside ? 0x02 : 0x80);
-              EXPECT_EQ(frame->data(VideoFrame::kVPlane)[
-                  (y / 2) * frame->stride(VideoFrame::kVPlane) + (x / 2)],
-                        inside ? 0x03 : 0x80);
+              EXPECT_EQ(
+                  frame->data(VideoFrame::kUPlane)
+                      [(y / 2) * frame->stride(VideoFrame::kUPlane) + (x / 2)],
+                  inside ? 0x02 : 0x80);
+              EXPECT_EQ(
+                  frame->data(VideoFrame::kVPlane)
+                      [(y / 2) * frame->stride(VideoFrame::kVPlane) + (x / 2)],
+                  inside ? 0x03 : 0x80);
             }
           }
         }

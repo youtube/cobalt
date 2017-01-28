@@ -22,10 +22,8 @@ static bool IsOnBatteryPower() {
   return false;
 }
 
-WatchTimeReporter::WatchTimeReporter(bool has_audio,
-                                     bool has_video,
-                                     bool is_mse,
-                                     bool is_encrypted,
+WatchTimeReporter::WatchTimeReporter(bool has_audio, bool has_video,
+                                     bool is_mse, bool is_encrypted,
                                      scoped_refptr<MediaLog> media_log,
                                      const gfx::Size& initial_video_size,
                                      const GetMediaTimeCB& get_media_time_cb)
@@ -38,11 +36,9 @@ WatchTimeReporter::WatchTimeReporter(bool has_audio,
       get_media_time_cb_(get_media_time_cb) {
   DCHECK(!get_media_time_cb_.is_null());
   DCHECK(has_audio_ || has_video_);
-  if (has_video_)
-    DCHECK(!initial_video_size_.IsEmpty());
+  if (has_video_) DCHECK(!initial_video_size_.IsEmpty());
 
-  if (base::PowerMonitor* pm = base::PowerMonitor::Get())
-    pm->AddObserver(this);
+  if (base::PowerMonitor* pm = base::PowerMonitor::Get()) pm->AddObserver(this);
 }
 
 WatchTimeReporter::~WatchTimeReporter() {
@@ -66,15 +62,13 @@ void WatchTimeReporter::OnPaused() {
 }
 
 void WatchTimeReporter::OnSeeking() {
-  if (!reporting_timer_.IsRunning())
-    return;
+  if (!reporting_timer_.IsRunning()) return;
 
   // Seek is a special case that does not have hysteresis, when this is called
   // the seek is imminent, so finalize the previous playback immediately.
 
   // Don't trample an existing end timestamp.
-  if (end_timestamp_ == kNoTimestamp)
-    end_timestamp_ = get_media_time_cb_.Run();
+  if (end_timestamp_ == kNoTimestamp) end_timestamp_ = get_media_time_cb_.Run();
   UpdateWatchTime();
 }
 
@@ -100,8 +94,7 @@ void WatchTimeReporter::OnHidden() {
 }
 
 void WatchTimeReporter::OnPowerStateChange(bool on_battery_power) {
-  if (!reporting_timer_.IsRunning())
-    return;
+  if (!reporting_timer_.IsRunning()) return;
 
   // Defer changing |is_on_battery_power_| until the next watch time report to
   // avoid momentary power changes from affecting the results.
@@ -146,8 +139,7 @@ void WatchTimeReporter::MaybeStartReportingTimer(
   }
 
   // Don't restart the timer if it's already running.
-  if (reporting_timer_.IsRunning())
-    return;
+  if (reporting_timer_.IsRunning()) return;
 
   last_media_timestamp_ = end_timestamp_for_power_ = kNoTimestamp;
   is_on_battery_power_ = IsOnBatteryPower();
@@ -158,12 +150,10 @@ void WatchTimeReporter::MaybeStartReportingTimer(
 
 void WatchTimeReporter::MaybeFinalizeWatchTime(FinalizeTime finalize_time) {
   // Don't finalize if the timer is already stopped.
-  if (!reporting_timer_.IsRunning())
-    return;
+  if (!reporting_timer_.IsRunning()) return;
 
   // Don't trample an existing finalize; the first takes precedence.
-  if (end_timestamp_ == kNoTimestamp)
-    end_timestamp_ = get_media_time_cb_.Run();
+  if (end_timestamp_ == kNoTimestamp) end_timestamp_ = get_media_time_cb_.Run();
 
   if (finalize_time == FinalizeTime::IMMEDIATELY) {
     UpdateWatchTime();

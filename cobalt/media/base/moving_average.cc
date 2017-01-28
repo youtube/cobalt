@@ -11,8 +11,7 @@ namespace media {
 MovingAverage::MovingAverage(size_t depth)
     : depth_(depth), count_(0), samples_(depth_), square_sum_us_(0) {}
 
-MovingAverage::~MovingAverage() {
-}
+MovingAverage::~MovingAverage() {}
 
 void MovingAverage::AddSample(base::TimeDelta sample) {
   // |samples_| is zero-initialized, so |oldest| is also zero before |count_|
@@ -39,8 +38,7 @@ base::TimeDelta MovingAverage::Deviation() const {
   const double size = std::min(static_cast<uint64_t>(depth_), count_);
   const double average_us = total_.InMicroseconds() / size;
   double sqr_deviation_us = square_sum_us_ / size - average_us * average_us;
-  if (sqr_deviation_us < 0)
-    sqr_deviation_us = 0;
+  if (sqr_deviation_us < 0) sqr_deviation_us = 0;
 
   return base::TimeDelta::FromMicroseconds(sqrt(sqr_deviation_us));
 }

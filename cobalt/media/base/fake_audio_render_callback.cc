@@ -44,8 +44,7 @@ int FakeAudioRenderCallback::RenderInternal(AudioBus* audio_bus,
   last_channel_count_ = audio_bus->channels();
 
   int number_of_frames = audio_bus->frames();
-  if (half_fill_)
-    number_of_frames /= 2;
+  if (half_fill_) number_of_frames /= 2;
 
   // Fill first channel with a sine wave.
   for (int i = 0; i < number_of_frames; ++i)
