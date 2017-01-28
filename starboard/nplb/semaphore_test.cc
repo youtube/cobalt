@@ -32,6 +32,14 @@ TEST(Semaphore, PutAndTakeTry) {
   EXPECT_TRUE(semaphore.TakeTry());
 }
 
+// Tests the expectation that waiting no time will succeed
+// If the semaphore is uncontended.
+TEST(Semaphore, TakeWait_Zero) {
+  Semaphore semaphore;
+  semaphore.Put();
+  EXPECT_TRUE(semaphore.TakeWait(0));
+}
+
 TEST(Semaphore, InitialValue_One) {
   Semaphore semaphore(1);
   semaphore.Take();
@@ -52,6 +60,55 @@ TEST(Semaphore, ThreadTakes) {
   thread.Start();
   semaphore.Put();
   thread.Join();
+}
+
+class ThreadTakesWaitSemaphore : public AbstractTestThread {
+ public:
+  explicit ThreadTakesWaitSemaphore(SbTime wait_us)
+      : wait_us_(wait_us), result_signaled_(false),
+        result_wait_time_(0) {}
+  virtual void Run() SB_OVERRIDE {
+    SbTime start_time = SbTimeGetMonotonicNow();
+    result_signaled_ = semaphore_.TakeWait(wait_us_);
+    result_wait_time_ = SbTimeGetMonotonicNow() - start_time;
+  }
+
+  SbTime wait_us_;
+  Semaphore semaphore_;
+  bool result_signaled_;
+  SbTime result_wait_time_;
+};
+
+TEST(Semaphore, ThreadTakesWait_PutBeforeTimeExpires) {
+  SbTime wait_time = kSbTimeMillisecond * 80;
+  ThreadTakesWaitSemaphore thread(wait_time);
+  thread.Start();
+
+  SbThreadSleep(wait_time / 2);
+  thread.semaphore_.Put();
+
+  thread.Join();
+
+  EXPECT_TRUE(thread.result_signaled_);
+  EXPECT_NEAR(thread.result_wait_time_,
+              wait_time / 2,
+              kSbTimeMillisecond * 10);  // Error threshold
+}
+
+TEST(Semaphore, ThreadTakesWait_TimeExpires) {
+  SbTime wait_time = kSbTimeMillisecond * 20;
+  ThreadTakesWaitSemaphore thread(wait_time);
+  thread.Start();
+
+  SbThreadSleep(wait_time * 2);
+  thread.semaphore_.Put();
+
+  thread.Join();
+
+  EXPECT_FALSE(thread.result_signaled_);
+  EXPECT_NEAR(thread.result_wait_time_,
+              wait_time,
+              kSbTimeMillisecond * 5);  // Error threshold
 }
 
 class ThreadPutsSemaphore : public AbstractTestThread {
