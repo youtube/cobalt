@@ -10,10 +10,8 @@
 namespace media {
 
 PipelineController::PipelineController(
-    Pipeline* pipeline,
-    const RendererFactoryCB& renderer_factory_cb,
-    const SeekedCB& seeked_cb,
-    const SuspendedCB& suspended_cb,
+    Pipeline* pipeline, const RendererFactoryCB& renderer_factory_cb,
+    const SeekedCB& seeked_cb, const SuspendedCB& suspended_cb,
     const PipelineStatusCB& error_cb)
     : pipeline_(pipeline),
       renderer_factory_cb_(renderer_factory_cb),
@@ -34,10 +32,8 @@ PipelineController::~PipelineController() {
 
 // TODO(sandersd): If there is a pending suspend, don't call pipeline_.Start()
 // until Resume().
-void PipelineController::Start(Demuxer* demuxer,
-                               Pipeline::Client* client,
-                               bool is_streaming,
-                               bool is_static) {
+void PipelineController::Start(Demuxer* demuxer, Pipeline::Client* client,
+                               bool is_streaming, bool is_static) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(state_ == State::CREATED);
   DCHECK(demuxer);
@@ -60,8 +56,7 @@ void PipelineController::Seek(base::TimeDelta time, bool time_updated) {
 
   // It would be slightly more clear to set this in Dispatch(), but we want to
   // be sure it gets updated even if the seek is elided.
-  if (time_updated)
-    pending_time_updated_ = true;
+  if (time_updated) pending_time_updated_ = true;
   pending_seeked_cb_ = true;
 
   // If we are already seeking to |time|, and the media is static, elide the

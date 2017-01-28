@@ -38,10 +38,7 @@ class AudioBufferConverterTest : public ::testing::Test {
         expected_output_frames_(0.0),
         output_frames_(0),
         output_params_(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                       kOutChannelLayout,
-                       kOutSampleRate,
-                       16,
-                       kOutFrameSize) {
+                       kOutChannelLayout, kOutSampleRate, 16, kOutFrameSize) {
     audio_buffer_converter_.reset(new AudioBufferConverter(output_params_));
   }
 
@@ -76,8 +73,7 @@ class AudioBufferConverterTest : public ::testing::Test {
 
   void ConsumeAllOutput() {
     AddInput(AudioBuffer::CreateEOSBuffer());
-    while (audio_buffer_converter_->HasNextBuffer())
-      ConsumeOutput();
+    while (audio_buffer_converter_->HasNextBuffer()) ConsumeOutput();
     EXPECT_EQ(output_frames_, ceil(expected_output_frames_));
   }
 
@@ -114,23 +110,23 @@ TEST_F(AudioBufferConverterTest, Upsample) {
 
 // Test resampling a buffer smaller than the SincResampler's kernel size.
 TEST_F(AudioBufferConverterTest, Resample_TinyBuffer) {
-  AddInput(MakeTestBuffer(
-      48000, CHANNEL_LAYOUT_STEREO, 2, SincResampler::kKernelSize - 1));
+  AddInput(MakeTestBuffer(48000, CHANNEL_LAYOUT_STEREO, 2,
+                          SincResampler::kKernelSize - 1));
   ConsumeAllOutput();
 }
 
 TEST_F(AudioBufferConverterTest, Resample_DifferingBufferSizes) {
   const int input_sample_rate = 48000;
-  AddInput(MakeTestBuffer(
-      input_sample_rate, kOutChannelLayout, kOutChannelCount, 100));
-  AddInput(MakeTestBuffer(
-      input_sample_rate, kOutChannelLayout, kOutChannelCount, 200));
-  AddInput(MakeTestBuffer(
-      input_sample_rate, kOutChannelLayout, kOutChannelCount, 300));
-  AddInput(MakeTestBuffer(
-      input_sample_rate, kOutChannelLayout, kOutChannelCount, 400));
-  AddInput(MakeTestBuffer(
-      input_sample_rate, kOutChannelLayout, kOutChannelCount, 500));
+  AddInput(MakeTestBuffer(input_sample_rate, kOutChannelLayout,
+                          kOutChannelCount, 100));
+  AddInput(MakeTestBuffer(input_sample_rate, kOutChannelLayout,
+                          kOutChannelCount, 200));
+  AddInput(MakeTestBuffer(input_sample_rate, kOutChannelLayout,
+                          kOutChannelCount, 300));
+  AddInput(MakeTestBuffer(input_sample_rate, kOutChannelLayout,
+                          kOutChannelCount, 400));
+  AddInput(MakeTestBuffer(input_sample_rate, kOutChannelLayout,
+                          kOutChannelCount, 500));
   ConsumeAllOutput();
 }
 
@@ -217,10 +213,7 @@ TEST_F(AudioBufferConverterTest, DiscreteChannelLayout) {
 
 TEST_F(AudioBufferConverterTest, LargeBuffersResampling) {
   output_params_ = AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                                   kOutChannelLayout,
-                                   kOutSampleRate,
-                                   16,
-                                   2048);
+                                   kOutChannelLayout, kOutSampleRate, 16, 2048);
 
   audio_buffer_converter_.reset(new AudioBufferConverter(output_params_));
   const int kInputSampleRate = 48000;
@@ -229,15 +222,12 @@ TEST_F(AudioBufferConverterTest, LargeBuffersResampling) {
 
   const int kInputBuffers = 3;
   for (int i = 0; i < kInputBuffers; ++i) {
-    AddInput(MakeTestBuffer(kInputSampleRate,
-                            kOutChannelLayout,
-                            kOutChannelCount,
-                            kInputFrameSize));
+    AddInput(MakeTestBuffer(kInputSampleRate, kOutChannelLayout,
+                            kOutChannelCount, kInputFrameSize));
   }
 
   // Do not add an EOS packet here, as it will invoke flushing.
-  while (audio_buffer_converter_->HasNextBuffer())
-    ConsumeOutput();
+  while (audio_buffer_converter_->HasNextBuffer()) ConsumeOutput();
 
   // Since the input buffer size is a multiple of the input request size there
   // should never be any frames remaining at this point.

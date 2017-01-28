@@ -80,8 +80,7 @@ VideoCadenceEstimator::VideoCadenceEstimator(
   Reset();
 }
 
-VideoCadenceEstimator::~VideoCadenceEstimator() {
-}
+VideoCadenceEstimator::~VideoCadenceEstimator() {}
 
 void VideoCadenceEstimator::Reset() {
   cadence_.clear();
@@ -91,8 +90,7 @@ void VideoCadenceEstimator::Reset() {
 }
 
 bool VideoCadenceEstimator::UpdateCadenceEstimate(
-    base::TimeDelta render_interval,
-    base::TimeDelta frame_duration,
+    base::TimeDelta render_interval, base::TimeDelta frame_duration,
     base::TimeDelta frame_duration_deviation,
     base::TimeDelta max_acceptable_drift) {
   DCHECK_GT(render_interval, base::TimeDelta());
@@ -176,8 +174,7 @@ int VideoCadenceEstimator::GetCadenceForFrame(uint64_t frame_number) const {
 }
 
 VideoCadenceEstimator::Cadence VideoCadenceEstimator::CalculateCadence(
-    base::TimeDelta render_interval,
-    base::TimeDelta frame_duration,
+    base::TimeDelta render_interval, base::TimeDelta frame_duration,
     base::TimeDelta max_acceptable_drift,
     base::TimeDelta* time_until_max_drift) const {
   // The perfect cadence is the number of render intervals per frame.
@@ -189,8 +186,7 @@ VideoCadenceEstimator::Cadence VideoCadenceEstimator::CalculateCadence(
   // within minimum_time_until_max_drift.
   if (max_acceptable_drift >= minimum_time_until_max_drift_) {
     int cadence_value = round(perfect_cadence);
-    if (cadence_value == 0)
-      cadence_value = 1;
+    if (cadence_value == 0) cadence_value = 1;
     Cadence result = ConstructCadence(cadence_value, 1);
     const double error = std::fabs(1.0 - perfect_cadence / cadence_value);
     *time_until_max_drift = max_acceptable_drift / error;
@@ -247,8 +243,7 @@ VideoCadenceEstimator::Cadence VideoCadenceEstimator::CalculateCadence(
 
 std::string VideoCadenceEstimator::CadenceToString(
     const Cadence& cadence) const {
-  if (cadence.empty())
-    return std::string("[]");
+  if (cadence.empty()) return std::string("[]");
 
   std::ostringstream os;
   os << "[";

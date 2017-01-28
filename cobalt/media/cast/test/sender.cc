@@ -71,8 +71,7 @@ const char kSwitchSourceFile[] = "source-file";
 const char kSwitchFps[] = "fps";
 const char kSwitchVaryFrameSizes[] = "vary-frame-sizes";
 
-void UpdateCastTransportStatus(
-    media::cast::CastTransportStatus status) {
+void UpdateCastTransportStatus(media::cast::CastTransportStatus status) {
   VLOG(1) << "Transport status: " << status;
 }
 
@@ -97,13 +96,9 @@ void DumpLoggingData(const media::cast::proto::LogMetadata& log_metadata,
 
   std::unique_ptr<char[]> event_log(new char[kMaxSerializedLogBytes]);
   int event_log_bytes;
-  if (!media::cast::SerializeEvents(log_metadata,
-                                    frame_events,
-                                    packet_events,
-                                    true,
-                                    kMaxSerializedLogBytes,
-                                    event_log.get(),
-                                    &event_log_bytes)) {
+  if (!media::cast::SerializeEvents(log_metadata, frame_events, packet_events,
+                                    true, kMaxSerializedLogBytes,
+                                    event_log.get(), &event_log_bytes)) {
     VLOG(0) << "Failed to serialize events.";
     return;
   }
@@ -111,8 +106,7 @@ void DumpLoggingData(const media::cast::proto::LogMetadata& log_metadata,
   VLOG(0) << "Events serialized length: " << event_log_bytes;
 
   int ret = fwrite(event_log.get(), 1, event_log_bytes, log_file.get());
-  if (ret != event_log_bytes)
-    VLOG(0) << "Failed to write logs to file.";
+  if (ret != event_log_bytes) VLOG(0) << "Failed to write logs to file.";
 }
 
 void WriteLogsToFileAndDestroySubscribers(
@@ -121,8 +115,7 @@ void WriteLogsToFileAndDestroySubscribers(
         video_event_subscriber,
     std::unique_ptr<media::cast::EncodingEventSubscriber>
         audio_event_subscriber,
-    base::ScopedFILE video_log_file,
-    base::ScopedFILE audio_log_file) {
+    base::ScopedFILE video_log_file, base::ScopedFILE audio_log_file) {
   cast_environment->logger()->Unsubscribe(video_event_subscriber.get());
   cast_environment->logger()->Unsubscribe(audio_event_subscriber.get());
 
@@ -130,15 +123,15 @@ void WriteLogsToFileAndDestroySubscribers(
   media::cast::proto::LogMetadata log_metadata;
   media::cast::FrameEventList frame_events;
   media::cast::PacketEventList packet_events;
-  video_event_subscriber->GetEventsAndReset(
-      &log_metadata, &frame_events, &packet_events);
+  video_event_subscriber->GetEventsAndReset(&log_metadata, &frame_events,
+                                            &packet_events);
 
   DumpLoggingData(log_metadata, frame_events, packet_events,
                   std::move(video_log_file));
 
   VLOG(0) << "Dumping logging data for audio stream.";
-  audio_event_subscriber->GetEventsAndReset(
-      &log_metadata, &frame_events, &packet_events);
+  audio_event_subscriber->GetEventsAndReset(&log_metadata, &frame_events,
+                                            &packet_events);
 
   DumpLoggingData(log_metadata, frame_events, packet_events,
                   std::move(audio_log_file));
@@ -215,15 +208,13 @@ int main(int argc, char** argv) {
   // Default parameters.
   base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
   std::string remote_ip_address = cmd->GetSwitchValueASCII(kSwitchAddress);
-  if (remote_ip_address.empty())
-    remote_ip_address = "127.0.0.1";
+  if (remote_ip_address.empty()) remote_ip_address = "127.0.0.1";
   int remote_port = 0;
   if (!base::StringToInt(cmd->GetSwitchValueASCII(kSwitchPort), &remote_port) ||
       remote_port < 0 || remote_port > 65535) {
     remote_port = 2344;
   }
-  LOG(INFO) << "Sending to " << remote_ip_address << ":" << remote_port
-            << ".";
+  LOG(INFO) << "Sending to " << remote_ip_address << ":" << remote_port << ".";
 
   media::cast::FrameSenderConfig audio_config =
       media::cast::GetDefaultAudioSenderConfig();
@@ -250,8 +241,7 @@ int main(int argc, char** argv) {
                                        video_config, false));
 
   int final_fps = 0;
-  if (!base::StringToInt(cmd->GetSwitchValueASCII(kSwitchFps),
-                         &final_fps)){
+  if (!base::StringToInt(cmd->GetSwitchValueASCII(kSwitchFps), &final_fps)) {
     final_fps = 0;
   }
   base::FilePath source_path = cmd->GetSwitchValuePath(kSwitchSourceFile);
@@ -316,21 +306,17 @@ int main(int argc, char** argv) {
   const int logging_duration_seconds = 10;
   io_message_loop.task_runner()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&WriteLogsToFileAndDestroySubscribers,
-                 cast_environment,
+      base::Bind(&WriteLogsToFileAndDestroySubscribers, cast_environment,
                  base::Passed(&video_event_subscriber),
                  base::Passed(&audio_event_subscriber),
-                 base::Passed(&video_log_file),
-                 base::Passed(&audio_log_file)),
+                 base::Passed(&video_log_file), base::Passed(&audio_log_file)),
       base::TimeDelta::FromSeconds(logging_duration_seconds));
 
   io_message_loop.task_runner()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&WriteStatsAndDestroySubscribers,
-                 cast_environment,
-                 base::Passed(&video_stats_subscriber),
-                 base::Passed(&audio_stats_subscriber),
-                 base::Passed(&offset_estimator)),
+      FROM_HERE, base::Bind(&WriteStatsAndDestroySubscribers, cast_environment,
+                            base::Passed(&video_stats_subscriber),
+                            base::Passed(&audio_stats_subscriber),
+                            base::Passed(&offset_estimator)),
       base::TimeDelta::FromSeconds(logging_duration_seconds));
 
   // CastSender initialization.

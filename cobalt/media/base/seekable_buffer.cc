@@ -22,8 +22,7 @@ SeekableBuffer::SeekableBuffer(int backward_capacity, int forward_capacity)
   current_buffer_ = buffers_.begin();
 }
 
-SeekableBuffer::~SeekableBuffer() {
-}
+SeekableBuffer::~SeekableBuffer() {}
 
 void SeekableBuffer::Clear() {
   buffers_.clear();
@@ -53,8 +52,7 @@ bool SeekableBuffer::GetCurrentChunk(const uint8_t** data, int* size) const {
     ++current_buffer;
     current_buffer_offset = 0;
   }
-  if (current_buffer == buffers_.end())
-    return false;
+  if (current_buffer == buffers_.end()) return false;
   *data = (*current_buffer)->data() + current_buffer_offset;
   *size = (*current_buffer)->data_size() - current_buffer_offset;
   return true;
@@ -82,8 +80,7 @@ bool SeekableBuffer::Append(const scoped_refptr<DataBuffer>& buffer_in) {
   // Advise the user to stop append if the amount of forward bytes exceeds
   // the forward capacity. A false return value means the user should stop
   // appending more data to this buffer.
-  if (forward_bytes_ >= forward_capacity_)
-    return false;
+  if (forward_bytes_ >= forward_capacity_) return false;
   return true;
 }
 
@@ -107,8 +104,7 @@ bool SeekableBuffer::Seek(int32_t offset) {
 
 bool SeekableBuffer::SeekForward(int size) {
   // Perform seeking forward only if we have enough bytes in the queue.
-  if (size > forward_bytes_)
-    return false;
+  if (size > forward_bytes_) return false;
 
   // Do a read of |size| bytes.
   int taken = InternalRead(NULL, size, true, 0);
@@ -117,8 +113,7 @@ bool SeekableBuffer::SeekForward(int size) {
 }
 
 bool SeekableBuffer::SeekBackward(int size) {
-  if (size > backward_bytes_)
-    return false;
+  if (size > backward_bytes_) return false;
   // Record the number of bytes taken.
   int taken = 0;
   // Loop until we taken enough bytes and rewind by the desired |size|.
@@ -150,8 +145,7 @@ bool SeekableBuffer::SeekBackward(int size) {
     // The current buffer pointed by current iterator has been consumed. Move
     // the iterator backward so it points to the previous buffer.
     if (current_buffer_offset_ == 0) {
-      if (current_buffer_ == buffers_.begin())
-        break;
+      if (current_buffer_ == buffers_.begin()) break;
       // Move the iterator backward.
       --current_buffer_;
       // Set the offset into the current buffer to be the buffer size as we
@@ -170,8 +164,7 @@ void SeekableBuffer::EvictBackwardBuffers() {
   // Advances the iterator until we hit the current pointer.
   while (backward_bytes_ > backward_capacity_) {
     BufferQueue::iterator i = buffers_.begin();
-    if (i == current_buffer_)
-      break;
+    if (i == current_buffer_) break;
     scoped_refptr<DataBuffer> buffer = *i;
     backward_bytes_ -= buffer->data_size();
     DCHECK_GE(backward_bytes_, 0);
@@ -180,9 +173,7 @@ void SeekableBuffer::EvictBackwardBuffers() {
   }
 }
 
-int SeekableBuffer::InternalRead(uint8_t* data,
-                                 int size,
-                                 bool advance_position,
+int SeekableBuffer::InternalRead(uint8_t* data, int size, bool advance_position,
                                  int forward_offset) {
   // Counts how many bytes are actually read from the buffer queue.
   int taken = 0;
@@ -194,13 +185,11 @@ int SeekableBuffer::InternalRead(uint8_t* data,
   while (taken < size) {
     // |current_buffer| is valid since the first time this buffer is appended
     // with data.
-    if (current_buffer == buffers_.end())
-      break;
+    if (current_buffer == buffers_.end()) break;
 
     scoped_refptr<DataBuffer> buffer = *current_buffer;
 
-    int remaining_bytes_in_buffer =
-        buffer->data_size() - current_buffer_offset;
+    int remaining_bytes_in_buffer = buffer->data_size() - current_buffer_offset;
 
     if (bytes_to_skip == 0) {
       // Find the right amount to copy from the current buffer referenced by
@@ -236,8 +225,7 @@ int SeekableBuffer::InternalRead(uint8_t* data,
       BufferQueue::iterator next = current_buffer;
       ++next;
       // If we are at the last buffer, don't advance.
-      if (next == buffers_.end())
-        break;
+      if (next == buffers_.end()) break;
 
       // Advances the iterator.
       current_buffer = next;
@@ -270,8 +258,8 @@ void SeekableBuffer::UpdateCurrentTime(BufferQueue::iterator buffer,
     int64_t time_offset = ((*buffer)->duration().InMicroseconds() * offset) /
                           (*buffer)->data_size();
 
-    current_time_ = (*buffer)->timestamp() +
-                    base::TimeDelta::FromMicroseconds(time_offset);
+    current_time_ =
+        (*buffer)->timestamp() + base::TimeDelta::FromMicroseconds(time_offset);
   }
 }
 

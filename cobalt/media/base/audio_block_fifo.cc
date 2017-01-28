@@ -24,8 +24,7 @@ AudioBlockFifo::AudioBlockFifo(int channels, int frames, int blocks)
 
 AudioBlockFifo::~AudioBlockFifo() {}
 
-void AudioBlockFifo::Push(const void* source,
-                          int frames,
+void AudioBlockFifo::Push(const void* source, int frames,
                           int bytes_per_sample) {
   DCHECK(source);
   DCHECK_GT(frames, 0);
@@ -45,8 +44,8 @@ void AudioBlockFifo::Push(const void* source,
         std::min(block_frames_ - write_pos_, frames_to_push);
 
     // Deinterleave the content to the FIFO and update the |write_pos_|.
-    current_block->FromInterleavedPartial(
-        source_ptr, write_pos_, push_frames, bytes_per_sample);
+    current_block->FromInterleavedPartial(source_ptr, write_pos_, push_frames,
+                                          bytes_per_sample);
     write_pos_ = (write_pos_ + push_frames) % block_frames_;
     if (!write_pos_) {
       // The current block is completely filled, increment |write_block_| and
@@ -99,16 +98,13 @@ void AudioBlockFifo::IncreaseCapacity(int blocks) {
         AudioBus::Create(channels_, block_frames_).release());
   }
 
-  if (!original_size)
-    return;
+  if (!original_size) return;
 
   std::rotate(audio_blocks_.begin() + read_block_,
-              audio_blocks_.begin() + original_size,
-              audio_blocks_.end());
+              audio_blocks_.begin() + original_size, audio_blocks_.end());
 
   // Update the write pointer if it is on top of the new inserted blocks.
-  if (write_block_ >= read_block_)
-    write_block_ += blocks;
+  if (write_block_ >= read_block_) write_block_ += blocks;
 
   // Update the read pointers correspondingly.
   read_block_ += blocks;

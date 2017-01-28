@@ -28,8 +28,7 @@ std::string PointsToString(const std::vector<Point>& points) {
 
 std::vector<Point> ParsePointsFromString(const std::string& points_string) {
   std::vector<Point> points;
-  if (points_string.empty())
-    return points;
+  if (points_string.empty()) return points;
 
   const auto& tokens =
       base::SplitString(points_string, base::kWhitespaceASCII,

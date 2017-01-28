@@ -50,11 +50,8 @@ const int kDefaultFramesPerSecond = 100;
 class AudioEncoder::ImplBase
     : public base::RefCountedThreadSafe<AudioEncoder::ImplBase> {
  public:
-  ImplBase(const scoped_refptr<CastEnvironment>& cast_environment,
-           Codec codec,
-           int num_channels,
-           int sampling_rate,
-           int samples_per_frame,
+  ImplBase(const scoped_refptr<CastEnvironment>& cast_environment, Codec codec,
+           int num_channels, int sampling_rate, int samples_per_frame,
            const FrameEncodedCallback& callback)
       : cast_environment_(cast_environment),
         codec_(codec),
@@ -77,13 +74,9 @@ class AudioEncoder::ImplBase
     }
   }
 
-  OperationalStatus InitializationResult() const {
-    return operational_status_;
-  }
+  OperationalStatus InitializationResult() const { return operational_status_; }
 
-  int samples_per_frame() const {
-    return samples_per_frame_;
-  }
+  int samples_per_frame() const { return samples_per_frame_; }
 
   base::TimeDelta frame_duration() const { return frame_duration_; }
 
@@ -114,9 +107,9 @@ class AudioEncoder::ImplBase
                  << num_frames_missed * samples_per_frame_
                  << " samples' worth of underrun.";
         TRACE_EVENT_INSTANT2("cast.stream", "Audio Skip",
-                             TRACE_EVENT_SCOPE_THREAD,
-                             "frames missed", num_frames_missed,
-                             "samples dropped", samples_dropped_from_buffer_);
+                             TRACE_EVENT_SCOPE_THREAD, "frames missed",
+                             num_frames_missed, "samples dropped",
+                             samples_dropped_from_buffer_);
       }
     }
     frame_capture_time_ = recorded_time - buffer_fill_duration;
@@ -132,13 +125,12 @@ class AudioEncoder::ImplBase
       const int num_samples_to_xfer = std::min(
           samples_per_frame_ - buffer_fill_end_, audio_bus->frames() - src_pos);
       DCHECK_EQ(audio_bus->channels(), num_channels_);
-      TransferSamplesIntoBuffer(
-          audio_bus.get(), src_pos, buffer_fill_end_, num_samples_to_xfer);
+      TransferSamplesIntoBuffer(audio_bus.get(), src_pos, buffer_fill_end_,
+                                num_samples_to_xfer);
       src_pos += num_samples_to_xfer;
       buffer_fill_end_ += num_samples_to_xfer;
 
-      if (buffer_fill_end_ < samples_per_frame_)
-        break;
+      if (buffer_fill_end_ < samples_per_frame_) break;
 
       std::unique_ptr<SenderEncodedFrame> audio_frame(new SenderEncodedFrame());
       audio_frame->dependency = EncodedFrame::KEY;
@@ -165,10 +157,8 @@ class AudioEncoder::ImplBase
         audio_frame->encode_completion_time =
             cast_environment_->Clock()->NowTicks();
         cast_environment_->PostTask(
-            CastEnvironment::MAIN,
-            FROM_HERE,
-            base::Bind(callback_,
-                       base::Passed(&audio_frame),
+            CastEnvironment::MAIN, FROM_HERE,
+            base::Bind(callback_, base::Passed(&audio_frame),
                        samples_dropped_from_buffer_));
         samples_dropped_from_buffer_ = 0;
       }
@@ -237,13 +227,9 @@ class AudioEncoder::ImplBase
 class AudioEncoder::OpusImpl : public AudioEncoder::ImplBase {
  public:
   OpusImpl(const scoped_refptr<CastEnvironment>& cast_environment,
-           int num_channels,
-           int sampling_rate,
-           int bitrate,
+           int num_channels, int sampling_rate, int bitrate,
            const FrameEncodedCallback& callback)
-      : ImplBase(cast_environment,
-                 CODEC_AUDIO_OPUS,
-                 num_channels,
+      : ImplBase(cast_environment, CODEC_AUDIO_OPUS, num_channels,
                  sampling_rate,
                  sampling_rate / kDefaultFramesPerSecond, /* 10 ms frames */
                  callback),
@@ -255,9 +241,7 @@ class AudioEncoder::OpusImpl : public AudioEncoder::ImplBase {
         !IsValidFrameDuration(frame_duration_)) {
       return;
     }
-    if (opus_encoder_init(opus_encoder_,
-                          sampling_rate,
-                          num_channels,
+    if (opus_encoder_init(opus_encoder_, sampling_rate, num_channels,
                           OPUS_APPLICATION_AUDIO) != OPUS_OK) {
       ImplBase::operational_status_ = STATUS_INVALID_CONFIGURATION;
       return;
@@ -278,8 +262,7 @@ class AudioEncoder::OpusImpl : public AudioEncoder::ImplBase {
  private:
   ~OpusImpl() final {}
 
-  void TransferSamplesIntoBuffer(const AudioBus* audio_bus,
-                                 int source_offset,
+  void TransferSamplesIntoBuffer(const AudioBus* audio_bus, int source_offset,
                                  int buffer_fill_offset,
                                  int num_samples) final {
     DCHECK_EQ(audio_bus->channels(), num_channels_);
@@ -345,16 +328,10 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
 
  public:
   AppleAacImpl(const scoped_refptr<CastEnvironment>& cast_environment,
-               int num_channels,
-               int sampling_rate,
-               int bitrate,
+               int num_channels, int sampling_rate, int bitrate,
                const FrameEncodedCallback& callback)
-      : ImplBase(cast_environment,
-                 CODEC_AUDIO_AAC,
-                 num_channels,
-                 sampling_rate,
-                 kAccessUnitSamples,
-                 callback),
+      : ImplBase(cast_environment, CODEC_AUDIO_AAC, num_channels, sampling_rate,
+                 kAccessUnitSamples, callback),
         input_buffer_(AudioBus::Create(num_channels, kAccessUnitSamples)),
         input_bus_(AudioBus::CreateWrapper(num_channels)),
         max_access_unit_size_(0),
@@ -418,11 +395,8 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     out_asbd.mFormatID = kAudioFormatMPEG4AAC;
     out_asbd.mChannelsPerFrame = num_channels_;
     UInt32 prop_size = sizeof(out_asbd);
-    if (AudioFormatGetProperty(kAudioFormatProperty_FormatInfo,
-                               0,
-                               nullptr,
-                               &prop_size,
-                               &out_asbd) != noErr) {
+    if (AudioFormatGetProperty(kAudioFormatProperty_FormatInfo, 0, nullptr,
+                               &prop_size, &out_asbd) != noErr) {
       return false;
     }
 
@@ -435,8 +409,7 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     prop_size = sizeof(out_asbd);
     if (AudioConverterGetProperty(converter_,
                                   kAudioConverterCurrentOutputStreamDescription,
-                                  &prop_size,
-                                  &out_asbd) != noErr) {
+                                  &prop_size, &out_asbd) != noErr) {
       return false;
     }
 
@@ -445,9 +418,8 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     // or compatible with the output sampling rate or channels).
     if (bitrate > 0) {
       prop_size = sizeof(int);
-      if (AudioConverterSetProperty(
-              converter_, kAudioConverterEncodeBitRate, prop_size, &bitrate) !=
-          noErr) {
+      if (AudioConverterSetProperty(converter_, kAudioConverterEncodeBitRate,
+                                    prop_size, &bitrate) != noErr) {
         return false;
       }
     }
@@ -459,10 +431,8 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     if (max_access_unit_size == 0) {
       prop_size = sizeof(max_access_unit_size);
       if (AudioConverterGetProperty(
-              converter_,
-              kAudioConverterPropertyMaximumOutputPacketSize,
-              &prop_size,
-              &max_access_unit_size) != noErr) {
+              converter_, kAudioConverterPropertyMaximumOutputPacketSize,
+              &prop_size, &max_access_unit_size) != noErr) {
         return false;
       }
     }
@@ -489,34 +459,25 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     UInt32 cookie_size;
     if (AudioConverterGetPropertyInfo(converter_,
                                       kAudioConverterCompressionMagicCookie,
-                                      &cookie_size,
-                                      nullptr) != noErr) {
+                                      &cookie_size, nullptr) != noErr) {
       return false;
     }
     std::unique_ptr<uint8_t[]> cookie_data(new uint8_t[cookie_size]);
     if (AudioConverterGetProperty(converter_,
                                   kAudioConverterCompressionMagicCookie,
-                                  &cookie_size,
-                                  cookie_data.get()) != noErr) {
+                                  &cookie_size, cookie_data.get()) != noErr) {
       return false;
     }
 
-    if (AudioFileInitializeWithCallbacks(this,
-                                         &FileReadCallback,
-                                         &FileWriteCallback,
-                                         &FileGetSizeCallback,
-                                         &FileSetSizeCallback,
-                                         kAudioFileAAC_ADTSType,
-                                         &out_asbd,
-                                         0,
-                                         &file_) != noErr) {
+    if (AudioFileInitializeWithCallbacks(
+            this, &FileReadCallback, &FileWriteCallback, &FileGetSizeCallback,
+            &FileSetSizeCallback, kAudioFileAAC_ADTSType, &out_asbd, 0,
+            &file_) != noErr) {
       return false;
     }
 
-    if (AudioFileSetProperty(file_,
-                             kAudioFilePropertyMagicCookieData,
-                             cookie_size,
-                             cookie_data.get()) != noErr) {
+    if (AudioFileSetProperty(file_, kAudioFilePropertyMagicCookieData,
+                             cookie_size, cookie_data.get()) != noErr) {
       return false;
     }
 
@@ -530,8 +491,7 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     return true;
   }
 
-  void TransferSamplesIntoBuffer(const AudioBus* audio_bus,
-                                 int source_offset,
+  void TransferSamplesIntoBuffer(const AudioBus* audio_bus, int source_offset,
                                  int buffer_fill_offset,
                                  int num_samples) final {
     DCHECK_EQ(audio_bus->channels(), input_buffer_->channels());
@@ -551,8 +511,8 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
 
     // Copy the samples into the input buffer.
     DCHECK_EQ(input_bus_->channel(0), input_buffer_->channel(0));
-    audio_bus->CopyPartialFramesTo(
-        source_offset, num_samples, buffer_fill_offset, input_buffer_.get());
+    audio_bus->CopyPartialFramesTo(source_offset, num_samples,
+                                   buffer_fill_offset, input_buffer_.get());
   }
 
   bool EncodeFromFilledBuffer(std::string* out) final {
@@ -563,12 +523,9 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     OSStatus oserr;
     UInt32 io_num_packets = 1;
     AudioStreamPacketDescription packet_description;
-    oserr = AudioConverterFillComplexBuffer(converter_,
-                                            &ConverterFillDataCallback,
-                                            this,
-                                            &io_num_packets,
-                                            &converter_abl_,
-                                            &packet_description);
+    oserr = AudioConverterFillComplexBuffer(
+        converter_, &ConverterFillDataCallback, this, &io_num_packets,
+        &converter_abl_, &packet_description);
     if (oserr != noErr || io_num_packets == 0) {
       return false;
     }
@@ -579,13 +536,10 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
     // Set the current output buffer and emit an ADTS-wrapped AAC access unit.
     // This is a synchronous call. After it returns, reset the output buffer.
     output_buffer_ = out;
-    oserr = AudioFileWritePackets(file_,
-                                  false,
-                                  converter_abl_.mBuffers[0].mDataByteSize,
-                                  &packet_description,
-                                  num_access_units_,
-                                  &io_num_packets,
-                                  converter_abl_.mBuffers[0].mData);
+    oserr = AudioFileWritePackets(
+        file_, false, converter_abl_.mBuffers[0].mDataByteSize,
+        &packet_description, num_access_units_, &io_num_packets,
+        converter_abl_.mBuffers[0].mData);
     output_buffer_ = nullptr;
     if (oserr != noErr || io_num_packets == 0) {
       return false;
@@ -600,10 +554,8 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
   // samples or tracking read and write positions. Note that this function is
   // called synchronously by |AudioConverterFillComplexBuffer|.
   static OSStatus ConverterFillDataCallback(
-      AudioConverterRef in_converter,
-      UInt32* io_num_packets,
-      AudioBufferList* io_data,
-      AudioStreamPacketDescription** out_packet_desc,
+      AudioConverterRef in_converter, UInt32* io_num_packets,
+      AudioBufferList* io_data, AudioStreamPacketDescription** out_packet_desc,
       void* in_encoder) {
     DCHECK(in_encoder);
     auto* encoder = reinterpret_cast<AppleAacImpl*>(in_encoder);
@@ -626,10 +578,8 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
   }
 
   // The AudioFile read callback function.
-  static OSStatus FileReadCallback(void* in_encoder,
-                                   SInt64 in_position,
-                                   UInt32 in_size,
-                                   void* in_buffer,
+  static OSStatus FileReadCallback(void* in_encoder, SInt64 in_position,
+                                   UInt32 in_size, void* in_buffer,
                                    UInt32* out_size) {
     // This class only does writing.
     NOTREACHED();
@@ -638,10 +588,8 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
 
   // The AudioFile write callback function. Appends the data to the encoder's
   // current |output_buffer_|.
-  static OSStatus FileWriteCallback(void* in_encoder,
-                                    SInt64 in_position,
-                                    UInt32 in_size,
-                                    const void* in_buffer,
+  static OSStatus FileWriteCallback(void* in_encoder, SInt64 in_position,
+                                    UInt32 in_size, const void* in_buffer,
                                     UInt32* out_size) {
     DCHECK(in_encoder);
     DCHECK(in_buffer);
@@ -711,26 +659,21 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
 class AudioEncoder::Pcm16Impl : public AudioEncoder::ImplBase {
  public:
   Pcm16Impl(const scoped_refptr<CastEnvironment>& cast_environment,
-            int num_channels,
-            int sampling_rate,
+            int num_channels, int sampling_rate,
             const FrameEncodedCallback& callback)
-      : ImplBase(cast_environment,
-                 CODEC_AUDIO_PCM16,
-                 num_channels,
+      : ImplBase(cast_environment, CODEC_AUDIO_PCM16, num_channels,
                  sampling_rate,
                  sampling_rate / kDefaultFramesPerSecond, /* 10 ms frames */
                  callback),
         buffer_(new int16_t[num_channels * samples_per_frame_]) {
-    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
-      return;
+    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED) return;
     operational_status_ = STATUS_INITIALIZED;
   }
 
  private:
   ~Pcm16Impl() final {}
 
-  void TransferSamplesIntoBuffer(const AudioBus* audio_bus,
-                                 int source_offset,
+  void TransferSamplesIntoBuffer(const AudioBus* audio_bus, int source_offset,
                                  int buffer_fill_offset,
                                  int num_samples) final {
     audio_bus->ToInterleavedPartial(
@@ -744,8 +687,7 @@ class AudioEncoder::Pcm16Impl : public AudioEncoder::ImplBase {
     const int16_t* src = buffer_.get();
     const int16_t* const src_end = src + num_channels_ * samples_per_frame_;
     uint16_t* dest = reinterpret_cast<uint16_t*>(&out->at(0));
-    for (; src < src_end; ++src, ++dest)
-      *dest = base::HostToNet16(*src);
+    for (; src < src_end; ++src, ++dest) *dest = base::HostToNet16(*src);
     return true;
   }
 
@@ -756,11 +698,8 @@ class AudioEncoder::Pcm16Impl : public AudioEncoder::ImplBase {
 };
 
 AudioEncoder::AudioEncoder(
-    const scoped_refptr<CastEnvironment>& cast_environment,
-    int num_channels,
-    int sampling_rate,
-    int bitrate,
-    Codec codec,
+    const scoped_refptr<CastEnvironment>& cast_environment, int num_channels,
+    int sampling_rate, int bitrate, Codec codec,
     const FrameEncodedCallback& frame_encoded_callback)
     : cast_environment_(cast_environment) {
   // Note: It doesn't matter which thread constructs AudioEncoder, just so long
@@ -769,26 +708,18 @@ AudioEncoder::AudioEncoder(
   switch (codec) {
 #if !defined(OS_IOS)
     case CODEC_AUDIO_OPUS:
-      impl_ = new OpusImpl(cast_environment,
-                           num_channels,
-                           sampling_rate,
-                           bitrate,
-                           frame_encoded_callback);
+      impl_ = new OpusImpl(cast_environment, num_channels, sampling_rate,
+                           bitrate, frame_encoded_callback);
       break;
 #endif
 #if defined(OS_MACOSX)
     case CODEC_AUDIO_AAC:
-      impl_ = new AppleAacImpl(cast_environment,
-                               num_channels,
-                               sampling_rate,
-                               bitrate,
-                               frame_encoded_callback);
+      impl_ = new AppleAacImpl(cast_environment, num_channels, sampling_rate,
+                               bitrate, frame_encoded_callback);
       break;
 #endif  // defined(OS_MACOSX)
     case CODEC_AUDIO_PCM16:
-      impl_ = new Pcm16Impl(cast_environment,
-                            num_channels,
-                            sampling_rate,
+      impl_ = new Pcm16Impl(cast_environment, num_channels, sampling_rate,
                             frame_encoded_callback);
       break;
     default:
@@ -833,12 +764,10 @@ void AudioEncoder::InsertAudio(std::unique_ptr<AudioBus> audio_bus,
     NOTREACHED();
     return;
   }
-  cast_environment_->PostTask(CastEnvironment::AUDIO,
-                              FROM_HERE,
-                              base::Bind(&AudioEncoder::ImplBase::EncodeAudio,
-                                         impl_,
-                                         base::Passed(&audio_bus),
-                                         recorded_time));
+  cast_environment_->PostTask(
+      CastEnvironment::AUDIO, FROM_HERE,
+      base::Bind(&AudioEncoder::ImplBase::EncodeAudio, impl_,
+                 base::Passed(&audio_bus), recorded_time));
 }
 
 }  // namespace cast

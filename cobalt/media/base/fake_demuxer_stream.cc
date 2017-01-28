@@ -73,8 +73,7 @@ void FakeDemuxerStream::Read(const ReadCB& read_cb) {
 
   read_cb_ = BindToCurrentLoop(read_cb);
 
-  if (read_to_hold_ == next_read_num_)
-    return;
+  if (read_to_hold_ == next_read_num_) return;
 
   DCHECK(read_to_hold_ == -1 || read_to_hold_ > next_read_num_);
   DoRead();
@@ -97,17 +96,11 @@ DemuxerStream::Type FakeDemuxerStream::type() const {
   return VIDEO;
 }
 
-bool FakeDemuxerStream::SupportsConfigChanges() {
-  return config_changes_;
-}
+bool FakeDemuxerStream::SupportsConfigChanges() { return config_changes_; }
 
-VideoRotation FakeDemuxerStream::video_rotation() {
-  return VIDEO_ROTATION_0;
-}
+VideoRotation FakeDemuxerStream::video_rotation() { return VIDEO_ROTATION_0; }
 
-bool FakeDemuxerStream::enabled() const {
-  return true;
-}
+bool FakeDemuxerStream::enabled() const { return true; }
 
 void FakeDemuxerStream::set_enabled(bool enabled, base::TimeDelta timestamp) {
   NOTIMPLEMENTED();
@@ -151,8 +144,7 @@ void FakeDemuxerStream::SatisfyReadAndHoldNext() {
 void FakeDemuxerStream::Reset() {
   read_to_hold_ = -1;
 
-  if (!read_cb_.is_null())
-    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
+  if (!read_cb_.is_null()) base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
 }
 
 void FakeDemuxerStream::SeekToStart() {
@@ -184,8 +176,8 @@ void FakeDemuxerStream::DoRead() {
   if (num_buffers_left_in_current_config_ == 0) {
     // End of stream.
     if (num_configs_left_ == 0) {
-      base::ResetAndReturn(&read_cb_).Run(kOk,
-                                          DecoderBuffer::CreateEOSBuffer());
+      base::ResetAndReturn(&read_cb_)
+          .Run(kOk, DecoderBuffer::CreateEOSBuffer());
       return;
     }
 
@@ -211,28 +203,22 @@ void FakeDemuxerStream::DoRead() {
   current_timestamp_ += duration_;
 
   num_buffers_left_in_current_config_--;
-  if (num_buffers_left_in_current_config_ == 0)
-    num_configs_left_--;
+  if (num_buffers_left_in_current_config_ == 0) num_configs_left_--;
 
   num_buffers_returned_++;
   base::ResetAndReturn(&read_cb_).Run(kOk, buffer);
 }
 
 FakeDemuxerStreamProvider::FakeDemuxerStreamProvider(
-    int num_video_configs,
-    int num_video_buffers_in_one_config,
+    int num_video_configs, int num_video_buffers_in_one_config,
     bool is_video_encrypted)
-    : fake_video_stream_(num_video_configs,
-                         num_video_buffers_in_one_config,
-                         is_video_encrypted) {
-}
+    : fake_video_stream_(num_video_configs, num_video_buffers_in_one_config,
+                         is_video_encrypted) {}
 
-FakeDemuxerStreamProvider::~FakeDemuxerStreamProvider() {
-}
+FakeDemuxerStreamProvider::~FakeDemuxerStreamProvider() {}
 
 DemuxerStream* FakeDemuxerStreamProvider::GetStream(DemuxerStream::Type type) {
-  if (type == DemuxerStream::Type::AUDIO)
-    return NULL;
+  if (type == DemuxerStream::Type::AUDIO) return NULL;
   return &fake_video_stream_;
 }
 

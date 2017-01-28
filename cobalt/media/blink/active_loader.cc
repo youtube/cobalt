@@ -13,9 +13,7 @@ namespace media {
 ActiveLoader::ActiveLoader(std::unique_ptr<blink::WebURLLoader> loader)
     : loader_(std::move(loader)), deferred_(false) {}
 
-ActiveLoader::~ActiveLoader() {
-  loader_->cancel();
-}
+ActiveLoader::~ActiveLoader() { loader_->cancel(); }
 
 void ActiveLoader::SetDeferred(bool deferred) {
   deferred_ = deferred;

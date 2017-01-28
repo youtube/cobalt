@@ -21,12 +21,8 @@ namespace media {
 
 const int kSampleRate = 44100;
 
-static void VerifyBus(AudioBus* bus,
-                      int offset,
-                      int frames,
-                      int buffer_size,
-                      float start,
-                      float increment) {
+static void VerifyBus(AudioBus* bus, int offset, int frames, int buffer_size,
+                      float start, float increment) {
   for (int ch = 0; ch < bus->channels(); ++ch) {
     const float v = start + ch * buffer_size * increment;
     for (int i = offset; i < offset + frames; ++i) {
@@ -39,9 +35,7 @@ static void VerifyBus(AudioBus* bus,
 template <typename T>
 static scoped_refptr<AudioBuffer> MakeTestBuffer(SampleFormat format,
                                                  ChannelLayout channel_layout,
-                                                 T start,
-                                                 T step,
-                                                 int frames) {
+                                                 T start, T step, int frames) {
   return MakeAudioBuffer<T>(format, channel_layout,
                             ChannelLayoutToChannelCount(channel_layout),
                             kSampleRate, start, step, frames, kNoTimestamp);
@@ -89,19 +83,19 @@ TEST(AudioBufferQueueTest, IteratorCheck) {
 
   // Append 40 frames in 5 buffers. Intersperse ReadFrames() to make the
   // iterator is pointing to the correct position.
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 10.0f, 1.0f, 8));
+  buffer.Append(
+      MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 10.0f, 1.0f, 8));
   EXPECT_EQ(8, buffer.frames());
 
   EXPECT_EQ(4, buffer.ReadFrames(4, 0, bus.get()));
   EXPECT_EQ(4, buffer.frames());
   VerifyBus(bus.get(), 0, 4, bus->frames(), 10, 1);
 
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 20.0f, 1.0f, 8));
+  buffer.Append(
+      MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 20.0f, 1.0f, 8));
   EXPECT_EQ(12, buffer.frames());
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 30.0f, 1.0f, 8));
+  buffer.Append(
+      MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 30.0f, 1.0f, 8));
   EXPECT_EQ(20, buffer.frames());
 
   buffer.SeekFrames(16);
@@ -109,11 +103,11 @@ TEST(AudioBufferQueueTest, IteratorCheck) {
   EXPECT_EQ(0, buffer.frames());
   VerifyBus(bus.get(), 0, 4, bus->frames(), 34, 1);
 
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 40.0f, 1.0f, 8));
+  buffer.Append(
+      MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 40.0f, 1.0f, 8));
   EXPECT_EQ(8, buffer.frames());
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 50.0f, 1.0f, 8));
+  buffer.Append(
+      MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 50.0f, 1.0f, 8));
   EXPECT_EQ(16, buffer.frames());
 
   EXPECT_EQ(4, buffer.ReadFrames(4, 0, bus.get()));
@@ -131,8 +125,8 @@ TEST(AudioBufferQueueTest, Seek) {
   AudioBufferQueue buffer;
 
   // Add 6 frames of data.
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 1.0f, 1.0f, 6));
+  buffer.Append(
+      MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 1.0f, 1.0f, 6));
   EXPECT_EQ(6, buffer.frames());
 
   // Seek past 2 frames.
@@ -256,10 +250,10 @@ TEST(AudioBufferQueueTest, ReadF32Planar) {
   AudioBufferQueue buffer;
 
   // Add 14 frames of data.
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatPlanarF32, channel_layout, 1.0f, 1.0f, 4));
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatPlanarF32, channel_layout, 50.0f, 1.0f, 10));
+  buffer.Append(MakeTestBuffer<float>(kSampleFormatPlanarF32, channel_layout,
+                                      1.0f, 1.0f, 4));
+  buffer.Append(MakeTestBuffer<float>(kSampleFormatPlanarF32, channel_layout,
+                                      50.0f, 1.0f, 10));
   EXPECT_EQ(14, buffer.frames());
 
   // Read 6 frames from the buffer.
@@ -300,10 +294,10 @@ TEST(AudioBufferQueueTest, ReadManyChannels) {
   // Add 76 frames of data.
   buffer.Append(
       MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 0.0f, 1.0f, 6));
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 6.0f * channels, 1.0f, 10));
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 16.0f * channels, 1.0f, 60));
+  buffer.Append(MakeTestBuffer<float>(kSampleFormatF32, channel_layout,
+                                      6.0f * channels, 1.0f, 10));
+  buffer.Append(MakeTestBuffer<float>(kSampleFormatF32, channel_layout,
+                                      16.0f * channels, 1.0f, 60));
   EXPECT_EQ(76, buffer.frames());
 
   // Read 3 frames from the buffer.
@@ -322,8 +316,8 @@ TEST(AudioBufferQueueTest, Peek) {
 
   // Add 60 frames of data.
   const int frames = 60;
-  buffer.Append(MakeTestBuffer<float>(
-      kSampleFormatF32, channel_layout, 0.0f, 1.0f, frames));
+  buffer.Append(MakeTestBuffer<float>(kSampleFormatF32, channel_layout, 0.0f,
+                                      1.0f, frames));
   EXPECT_EQ(frames, buffer.frames());
 
   // Peek at the first 30 frames.

@@ -35,8 +35,8 @@ const int kFrameSize = 250;
 const int kSamplesPerSecond = 3000;
 const int kOutputDurationInSec = 10;
 
-static void FillWithSquarePulseTrain(
-    int half_pulse_width, int offset, int num_samples, float* data) {
+static void FillWithSquarePulseTrain(int half_pulse_width, int offset,
+                                     int num_samples, float* data) {
   ASSERT_GE(offset, 0);
   ASSERT_LE(offset, num_samples);
 
@@ -63,8 +63,8 @@ static void FillWithSquarePulseTrain(
   }
 }
 
-static void FillWithSquarePulseTrain(
-    int half_pulse_width, int offset, int channel, AudioBus* audio_bus) {
+static void FillWithSquarePulseTrain(int half_pulse_width, int offset,
+                                     int channel, AudioBus* audio_bus) {
   FillWithSquarePulseTrain(half_pulse_width, offset, audio_bus->frames(),
                            audio_bus->channel(channel));
 }
@@ -77,8 +77,7 @@ class AudioRendererAlgorithmTest : public testing::Test {
         channel_layout_(CHANNEL_LAYOUT_NONE),
         sample_format_(kUnknownSampleFormat),
         samples_per_second_(0),
-        bytes_per_sample_(0) {
-  }
+        bytes_per_sample_(0) {}
 
   ~AudioRendererAlgorithmTest() override {}
 
@@ -86,10 +85,8 @@ class AudioRendererAlgorithmTest : public testing::Test {
     Initialize(CHANNEL_LAYOUT_STEREO, kSampleFormatS16, 3000, 300);
   }
 
-  void Initialize(ChannelLayout channel_layout,
-                  SampleFormat sample_format,
-                  int samples_per_second,
-                  int frames_per_buffer) {
+  void Initialize(ChannelLayout channel_layout, SampleFormat sample_format,
+                  int samples_per_second, int frames_per_buffer) {
     channels_ = ChannelLayoutToChannelCount(channel_layout);
     samples_per_second_ = samples_per_second;
     channel_layout_ = channel_layout;
@@ -137,8 +134,7 @@ class AudioRendererAlgorithmTest : public testing::Test {
   bool VerifyAudioData(AudioBus* bus, int offset, int frames, float value) {
     for (int ch = 0; ch < bus->channels(); ++ch) {
       for (int i = offset; i < offset + frames; ++i) {
-        if (bus->channel(ch)[i] != value)
-          return false;
+        if (bus->channel(ch)[i] != value) return false;
       }
     }
     return true;
@@ -159,15 +155,14 @@ class AudioRendererAlgorithmTest : public testing::Test {
 
   void TestPlaybackRate(double playback_rate) {
     const int kDefaultBufferSize = algorithm_.samples_per_second() / 100;
-    const int kDefaultFramesRequested = kOutputDurationInSec *
-        algorithm_.samples_per_second();
+    const int kDefaultFramesRequested =
+        kOutputDurationInSec * algorithm_.samples_per_second();
 
-    TestPlaybackRate(
-        playback_rate, kDefaultBufferSize, kDefaultFramesRequested);
+    TestPlaybackRate(playback_rate, kDefaultBufferSize,
+                     kDefaultFramesRequested);
   }
 
-  void TestPlaybackRate(double playback_rate,
-                        int buffer_size_in_frames,
+  void TestPlaybackRate(double playback_rate, int buffer_size_in_frames,
                         int total_frames_requested) {
     int initial_frames_enqueued = frames_enqueued_;
     int initial_frames_buffered = algorithm_.frames_buffered();
@@ -251,11 +246,8 @@ class AudioRendererAlgorithmTest : public testing::Test {
 
     // Input buffer to inject pulses.
     scoped_refptr<AudioBuffer> input =
-        AudioBuffer::CreateBuffer(kSampleFormatPlanarF32,
-                                  kChannelLayout,
-                                  channels_,
-                                  kSampleRateHz,
-                                  kPulseWidthSamples);
+        AudioBuffer::CreateBuffer(kSampleFormatPlanarF32, kChannelLayout,
+                                  channels_, kSampleRateHz, kPulseWidthSamples);
 
     const std::vector<uint8_t*>& channel_data = input->channel_data();
 
@@ -292,14 +284,14 @@ class AudioRendererAlgorithmTest : public testing::Test {
       // Pulses in the first half of WSOLA AOL frame are not constructed
       // perfectly. Do not check them.
       if (n > 3) {
-         for (int m = 0; m < channels_; ++m) {
+        for (int m = 0; m < channels_; ++m) {
           const float* pulse_ch = pulse_buffer->channel(m);
 
           // Because of overlap-and-add we might have round off error.
           for (int k = 0; k < kPulseWidthSamples; ++k) {
             ASSERT_NEAR(reinterpret_cast<float*>(channel_data[m])[k],
-                        pulse_ch[k], kTolerance) << " loop " << n
-                                << " channel/sample " << m << "/" << k;
+                        pulse_ch[k], kTolerance)
+                << " loop " << n << " channel/sample " << m << "/" << k;
           }
         }
       }
@@ -517,10 +509,10 @@ TEST_F(AudioRendererAlgorithmTest, MovingBlockEnergy) {
 TEST_F(AudioRendererAlgorithmTest, FullAndDecimatedSearch) {
   const int kFramesInSearchRegion = 12;
   const int kChannels = 2;
-  float ch_0[] = {
-      0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-  float ch_1[] = {
-      0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.1f, 1.0f, 0.1f, 0.0f, 0.0f };
+  float ch_0[] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                  1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  float ch_1[] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 0.1f, 1.0f, 0.1f, 0.0f, 0.0f};
   ASSERT_EQ(sizeof(ch_0), sizeof(ch_1));
   ASSERT_EQ(static_cast<size_t>(kFramesInSearchRegion),
             sizeof(ch_0) / sizeof(*ch_0));
@@ -532,8 +524,8 @@ TEST_F(AudioRendererAlgorithmTest, FullAndDecimatedSearch) {
   memcpy(ch, ch_1, sizeof(float) * kFramesInSearchRegion);
 
   const int kFramePerBlock = 4;
-  float target_0[] = { 1.0f, 1.0f, 1.0f, 0.0f };
-  float target_1[] = { 0.0f, 1.0f, 0.1f, 1.0f };
+  float target_0[] = {1.0f, 1.0f, 1.0f, 0.0f};
+  float target_1[] = {0.0f, 1.0f, 0.1f, 1.0f};
   ASSERT_EQ(sizeof(target_0), sizeof(target_1));
   ASSERT_EQ(static_cast<size_t>(kFramePerBlock),
             sizeof(target_0) / sizeof(*target_0));
@@ -557,8 +549,8 @@ TEST_F(AudioRendererAlgorithmTest, FullAndDecimatedSearch) {
   std::unique_ptr<float[]> energy_candid_blocks(
       new float[kNumCandidBlocks * kChannels]);
 
-  internal::MultiChannelMovingBlockEnergies(
-      search_region.get(), kFramePerBlock, energy_candid_blocks.get());
+  internal::MultiChannelMovingBlockEnergies(search_region.get(), kFramePerBlock,
+                                            energy_candid_blocks.get());
 
   // Check the energy of the candidate blocks of the first channel.
   ASSERT_FLOAT_EQ(0, energy_candid_blocks[0]);
@@ -584,21 +576,23 @@ TEST_F(AudioRendererAlgorithmTest, FullAndDecimatedSearch) {
 
   // An interval which is of no effect.
   internal::Interval exclude_interval = std::make_pair(-100, -10);
-  EXPECT_EQ(5, internal::FullSearch(
-      0, kNumCandidBlocks - 1, exclude_interval, target.get(),
-      search_region.get(), energy_target.get(), energy_candid_blocks.get()));
+  EXPECT_EQ(
+      5, internal::FullSearch(0, kNumCandidBlocks - 1, exclude_interval,
+                              target.get(), search_region.get(),
+                              energy_target.get(), energy_candid_blocks.get()));
 
   // Exclude the the best match.
   exclude_interval = std::make_pair(2, 5);
-  EXPECT_EQ(7, internal::FullSearch(
-      0, kNumCandidBlocks - 1, exclude_interval, target.get(),
-      search_region.get(), energy_target.get(), energy_candid_blocks.get()));
+  EXPECT_EQ(
+      7, internal::FullSearch(0, kNumCandidBlocks - 1, exclude_interval,
+                              target.get(), search_region.get(),
+                              energy_target.get(), energy_candid_blocks.get()));
 
   // An interval which is of no effect.
   exclude_interval = std::make_pair(-100, -10);
   EXPECT_EQ(4, internal::DecimatedSearch(
-      4, exclude_interval, target.get(), search_region.get(),
-      energy_target.get(), energy_candid_blocks.get()));
+                   4, exclude_interval, target.get(), search_region.get(),
+                   energy_target.get(), energy_candid_blocks.get()));
 
   EXPECT_EQ(5, internal::OptimalIndex(search_region.get(), target.get(),
                                       exclude_interval));
@@ -642,13 +636,9 @@ TEST_F(AudioRendererAlgorithmTest, QuadraticInterpolation_Colinear) {
   EXPECT_FLOAT_EQ(extremum_value, 1.0);
 }
 
-TEST_F(AudioRendererAlgorithmTest, WsolaSlowdown) {
-  WsolaTest(0.6);
-}
+TEST_F(AudioRendererAlgorithmTest, WsolaSlowdown) { WsolaTest(0.6); }
 
-TEST_F(AudioRendererAlgorithmTest, WsolaSpeedup) {
-  WsolaTest(1.6);
-}
+TEST_F(AudioRendererAlgorithmTest, WsolaSpeedup) { WsolaTest(1.6); }
 
 TEST_F(AudioRendererAlgorithmTest, FillBufferOffset) {
   Initialize();

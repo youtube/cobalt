@@ -8,9 +8,7 @@
 
 namespace media {
 
-H264BitstreamBuffer::H264BitstreamBuffer() : data_(NULL) {
-  Reset();
-}
+H264BitstreamBuffer::H264BitstreamBuffer() : data_(NULL) { Reset(); }
 
 H264BitstreamBuffer::~H264BitstreamBuffer() {
   free(data_);
@@ -40,8 +38,7 @@ void H264BitstreamBuffer::FlushReg() {
   // Flush all bytes that have at least one bit cached, but not more
   // (on Flush(), reg_ may not be full).
   size_t bits_in_reg = kRegBitSize - bits_left_in_reg_;
-  if (bits_in_reg == 0)
-    return;
+  if (bits_in_reg == 0) return;
 
   size_t bytes_in_reg = (bits_in_reg + 7) / 8;
   reg_ <<= (kRegBitSize - bits_in_reg);
@@ -50,8 +47,7 @@ void H264BitstreamBuffer::FlushReg() {
   reg_ = base::HostToNet64(reg_);
 
   // Make sure we have enough space. Grow() will CHECK() on allocation failure.
-  if (pos_ + bytes_in_reg < capacity_)
-    Grow();
+  if (pos_ + bytes_in_reg < capacity_) Grow();
 
   memcpy(data_ + pos_, &reg_, bytes_in_reg);
   pos_ += bytes_in_reg;
@@ -64,14 +60,12 @@ void H264BitstreamBuffer::AppendU64(size_t num_bits, uint64_t val) {
   CHECK_LE(num_bits, kRegBitSize);
 
   while (num_bits > 0) {
-    if (bits_left_in_reg_ == 0)
-      FlushReg();
+    if (bits_left_in_reg_ == 0) FlushReg();
 
     uint64_t bits_to_write =
         num_bits > bits_left_in_reg_ ? bits_left_in_reg_ : num_bits;
     uint64_t val_to_write = (val >> (num_bits - bits_to_write));
-    if (bits_to_write < 64)
-      val_to_write &= ((1ull << bits_to_write) - 1);
+    if (bits_to_write < 64) val_to_write &= ((1ull << bits_to_write) - 1);
     reg_ <<= bits_to_write;
     reg_ |= val_to_write;
     num_bits -= bits_to_write;
@@ -80,8 +74,7 @@ void H264BitstreamBuffer::AppendU64(size_t num_bits, uint64_t val) {
 }
 
 void H264BitstreamBuffer::AppendBool(bool val) {
-  if (bits_left_in_reg_ == 0)
-    FlushReg();
+  if (bits_left_in_reg_ == 0) FlushReg();
 
   reg_ <<= 1;
   reg_ |= (static_cast<uint64_t>(val) & 1);
@@ -133,8 +126,7 @@ void H264BitstreamBuffer::FinishNALU() {
   // Byte-alignment zero bits.
   AppendBits(bits_left_in_reg_ % 8, 0);
 
-  if (bits_left_in_reg_ != kRegBitSize)
-    FlushReg();
+  if (bits_left_in_reg_ != kRegBitSize) FlushReg();
 }
 
 size_t H264BitstreamBuffer::BytesInBuffer() {

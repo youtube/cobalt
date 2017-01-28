@@ -14,11 +14,9 @@ const int kRegWidthInBits = sizeof(uint64_t) * 8;
 
 namespace media {
 
-BitReaderCore::ByteStreamProvider::ByteStreamProvider() {
-}
+BitReaderCore::ByteStreamProvider::ByteStreamProvider() {}
 
-BitReaderCore::ByteStreamProvider::~ByteStreamProvider() {
-}
+BitReaderCore::ByteStreamProvider::~ByteStreamProvider() {}
 
 BitReaderCore::BitReaderCore(ByteStreamProvider* byte_stream_provider)
     : byte_stream_provider_(byte_stream_provider),
@@ -26,15 +24,12 @@ BitReaderCore::BitReaderCore(ByteStreamProvider* byte_stream_provider)
       nbits_(0),
       reg_(0),
       nbits_next_(0),
-      reg_next_(0) {
-}
+      reg_next_(0) {}
 
-BitReaderCore::~BitReaderCore() {
-}
+BitReaderCore::~BitReaderCore() {}
 
 bool BitReaderCore::ReadFlag(bool* flag) {
-  if (nbits_ == 0 && !Refill(1))
-    return false;
+  if (nbits_ == 0 && !Refill(1)) return false;
 
   *flag = (reg_ & (UINT64_C(1) << (kRegWidthInBits - 1))) != 0;
   reg_ <<= 1;
@@ -45,8 +40,7 @@ bool BitReaderCore::ReadFlag(bool* flag) {
 
 int BitReaderCore::PeekBitsMsbAligned(int num_bits, uint64_t* out) {
   // Try to have at least |num_bits| in the bit register.
-  if (nbits_ < num_bits)
-    Refill(num_bits);
+  if (nbits_ < num_bits) Refill(num_bits);
 
   *out = reg_;
   return nbits_;
@@ -56,8 +50,7 @@ bool BitReaderCore::SkipBitsSmall(int num_bits) {
   DCHECK_GE(num_bits, 0);
   uint64_t dummy;
   while (num_bits >= kRegWidthInBits) {
-    if (!ReadBitsInternal(kRegWidthInBits, &dummy))
-      return false;
+    if (!ReadBitsInternal(kRegWidthInBits, &dummy)) return false;
     num_bits -= kRegWidthInBits;
   }
   return ReadBitsInternal(num_bits, &dummy);
@@ -67,8 +60,7 @@ bool BitReaderCore::SkipBits(int num_bits) {
   DCHECK_GE(num_bits, 0);
 
   const int remaining_bits = nbits_ + nbits_next_;
-  if (remaining_bits >= num_bits)
-    return SkipBitsSmall(num_bits);
+  if (remaining_bits >= num_bits) return SkipBitsSmall(num_bits);
 
   // Skip first the remaining available bits.
   num_bits -= remaining_bits;
@@ -99,9 +91,7 @@ bool BitReaderCore::SkipBits(int num_bits) {
   return SkipBitsSmall(num_bits);
 }
 
-int BitReaderCore::bits_read() const {
-  return bits_read_;
-}
+int BitReaderCore::bits_read() const { return bits_read_; }
 
 bool BitReaderCore::ReadBitsInternal(int num_bits, uint64_t* out) {
   DCHECK_GE(num_bits, 0);
@@ -141,8 +131,7 @@ bool BitReaderCore::Refill(int min_nbits) {
 
   // Transfer from the next to the current register.
   RefillCurrentRegister();
-  if (min_nbits <= nbits_)
-    return true;
+  if (min_nbits <= nbits_) return true;
   DCHECK_EQ(nbits_next_, 0);
   DCHECK_EQ(reg_next_, 0u);
 
@@ -155,8 +144,7 @@ bool BitReaderCore::Refill(int min_nbits) {
       byte_stream_provider_->GetBytes(max_nbytes, &byte_stream_window);
   DCHECK_GE(window_size, 0);
   DCHECK_LE(window_size, max_nbytes);
-  if (window_size == 0)
-    return false;
+  if (window_size == 0) return false;
 
   reg_next_ = 0;
   memcpy(&reg_next_, byte_stream_window, window_size);
@@ -172,8 +160,7 @@ bool BitReaderCore::Refill(int min_nbits) {
 void BitReaderCore::RefillCurrentRegister() {
   // No refill possible if the destination register is full
   // or the source register is empty.
-  if (nbits_ == kRegWidthInBits || nbits_next_ == 0)
-    return;
+  if (nbits_ == kRegWidthInBits || nbits_next_ == 0) return;
 
   reg_ |= (reg_next_ >> nbits_);
 

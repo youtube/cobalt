@@ -13,16 +13,12 @@ namespace media {
 
 static scoped_refptr<StreamParserBuffer> CopyBuffer(
     const StreamParserBuffer& buffer) {
-  if (buffer.end_of_stream())
-    return StreamParserBuffer::CreateEOSBuffer();
+  if (buffer.end_of_stream()) return StreamParserBuffer::CreateEOSBuffer();
 
   scoped_refptr<StreamParserBuffer> copied_buffer =
-      StreamParserBuffer::CopyFrom(buffer.data(),
-                                   buffer.data_size(),
-                                   buffer.side_data(),
-                                   buffer.side_data_size(),
-                                   buffer.is_key_frame(),
-                                   buffer.type(),
+      StreamParserBuffer::CopyFrom(buffer.data(), buffer.data_size(),
+                                   buffer.side_data(), buffer.side_data_size(),
+                                   buffer.is_key_frame(), buffer.type(),
                                    buffer.track_id());
   copied_buffer->SetDecodeTimestamp(buffer.GetDecodeTimestamp());
   copied_buffer->SetConfigId(buffer.GetConfigId());
@@ -47,27 +43,18 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
-    const uint8_t* data,
-    int data_size,
-    bool is_key_frame,
-    Type type,
+    const uint8_t* data, int data_size, bool is_key_frame, Type type,
     TrackId track_id) {
-  return make_scoped_refptr(
-      new StreamParserBuffer(data, data_size, NULL, 0, is_key_frame, type,
-                             track_id));
+  return make_scoped_refptr(new StreamParserBuffer(
+      data, data_size, NULL, 0, is_key_frame, type, track_id));
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
-    const uint8_t* data,
-    int data_size,
-    const uint8_t* side_data,
-    int side_data_size,
-    bool is_key_frame,
-    Type type,
-    TrackId track_id) {
-  return make_scoped_refptr(
-      new StreamParserBuffer(data, data_size, side_data, side_data_size,
-                             is_key_frame, type, track_id));
+    const uint8_t* data, int data_size, const uint8_t* side_data,
+    int side_data_size, bool is_key_frame, Type type, TrackId track_id) {
+  return make_scoped_refptr(new StreamParserBuffer(data, data_size, side_data,
+                                                   side_data_size, is_key_frame,
+                                                   type, track_id));
 }
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
@@ -78,17 +65,13 @@ DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
 
 void StreamParserBuffer::SetDecodeTimestamp(DecodeTimestamp timestamp) {
   decode_timestamp_ = timestamp;
-  if (preroll_buffer_.get())
-    preroll_buffer_->SetDecodeTimestamp(timestamp);
+  if (preroll_buffer_.get()) preroll_buffer_->SetDecodeTimestamp(timestamp);
 }
 
-StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
-                                       int data_size,
+StreamParserBuffer::StreamParserBuffer(const uint8_t* data, int data_size,
                                        const uint8_t* side_data,
-                                       int side_data_size,
-                                       bool is_key_frame,
-                                       Type type,
-                                       TrackId track_id)
+                                       int side_data_size, bool is_key_frame,
+                                       Type type, TrackId track_id)
     : DecoderBuffer(data, data_size, side_data, side_data_size),
       decode_timestamp_(kNoDecodeTimestamp()),
       config_id_(kInvalidConfigId),
@@ -102,26 +85,21 @@ StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
     set_duration(kNoTimestamp);
   }
 
-  if (is_key_frame)
-    set_is_key_frame(true);
+  if (is_key_frame) set_is_key_frame(true);
 }
 
 StreamParserBuffer::~StreamParserBuffer() {}
 
-int StreamParserBuffer::GetConfigId() const {
-  return config_id_;
-}
+int StreamParserBuffer::GetConfigId() const { return config_id_; }
 
 void StreamParserBuffer::SetConfigId(int config_id) {
   config_id_ = config_id;
-  if (preroll_buffer_.get())
-    preroll_buffer_->SetConfigId(config_id);
+  if (preroll_buffer_.get()) preroll_buffer_->SetConfigId(config_id);
 }
 
 int StreamParserBuffer::GetSpliceBufferConfigId(size_t index) const {
-  return index < splice_buffers().size()
-      ? splice_buffers_[index]->GetConfigId()
-      : GetConfigId();
+  return index < splice_buffers().size() ? splice_buffers_[index]->GetConfigId()
+                                         : GetConfigId();
 }
 
 const char* StreamParserBuffer::GetTypeName() const {
@@ -147,9 +125,9 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
   DCHECK(splice_buffers_.empty());
   DCHECK(duration() > base::TimeDelta())
       << "Only buffers with a valid duration can convert to a splice buffer."
-      << " pts " << timestamp().InSecondsF()
-      << " dts " << GetDecodeTimestamp().InSecondsF()
-      << " dur " << duration().InSecondsF();
+      << " pts " << timestamp().InSecondsF() << " dts "
+      << GetDecodeTimestamp().InSecondsF() << " dur "
+      << duration().InSecondsF();
   DCHECK(!end_of_stream());
 
   // Splicing requires non-estimated sample accurate durations to be confident
@@ -198,8 +176,7 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
 
   // Copy all pre splice buffers into our wrapper buffer.
   for (BufferQueue::const_iterator it = pre_splice_buffers.begin();
-       it != pre_splice_buffers.end();
-       ++it) {
+       it != pre_splice_buffers.end(); ++it) {
     const scoped_refptr<StreamParserBuffer>& buffer = *it;
     DCHECK(!buffer->end_of_stream());
     DCHECK(!buffer->preroll_buffer().get());
@@ -236,8 +213,7 @@ void StreamParserBuffer::SetPrerollBuffer(
 
 void StreamParserBuffer::set_timestamp(base::TimeDelta timestamp) {
   DecoderBuffer::set_timestamp(timestamp);
-  if (preroll_buffer_.get())
-    preroll_buffer_->set_timestamp(timestamp);
+  if (preroll_buffer_.get()) preroll_buffer_->set_timestamp(timestamp);
 }
 
 }  // namespace media

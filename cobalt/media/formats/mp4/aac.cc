@@ -18,23 +18,22 @@ namespace media {
 namespace mp4 {
 
 AAC::AAC()
-    : profile_(0), frequency_index_(0), channel_config_(0), frequency_(0),
-      extension_frequency_(0), channel_layout_(CHANNEL_LAYOUT_UNSUPPORTED) {
-}
+    : profile_(0),
+      frequency_index_(0),
+      channel_config_(0),
+      frequency_(0),
+      extension_frequency_(0),
+      channel_layout_(CHANNEL_LAYOUT_UNSUPPORTED) {}
 
-AAC::AAC(const AAC& other) {
-  *this = other;
-}
+AAC::AAC(const AAC& other) { *this = other; }
 
-AAC::~AAC() {
-}
+AAC::~AAC() {}
 
 bool AAC::Parse(const std::vector<uint8_t>& data,
                 const scoped_refptr<MediaLog>& media_log) {
   codec_specific_data_ = data;
 
-  if (data.empty())
-    return false;
+  if (data.empty()) return false;
 
   BitReader reader(&data[0], data.size());
   uint8_t extension_type = 0;
@@ -50,8 +49,7 @@ bool AAC::Parse(const std::vector<uint8_t>& data,
   // Read base configuration
   RCHECK(reader.ReadBits(5, &profile_));
   RCHECK(reader.ReadBits(4, &frequency_index_));
-  if (frequency_index_ == 0xf)
-    RCHECK(reader.ReadBits(24, &frequency_));
+  if (frequency_index_ == 0xf) RCHECK(reader.ReadBits(24, &frequency_));
   RCHECK(reader.ReadBits(4, &channel_config_));
 
   // Read extension configuration for explicitly signaled HE-AAC profiles
@@ -160,11 +158,9 @@ bool AAC::Parse(const std::vector<uint8_t>& data,
 }
 
 int AAC::GetOutputSamplesPerSecond(bool sbr_in_mimetype) const {
-  if (extension_frequency_ > 0)
-    return extension_frequency_;
+  if (extension_frequency_ > 0) return extension_frequency_;
 
-  if (!sbr_in_mimetype)
-    return frequency_;
+  if (!sbr_in_mimetype) return frequency_;
 
   // The following code is written according to ISO 14496-3:2009 Table 1.11 and
   // Table 1.25. (Table 1.11 refers to the capping to 48000, Table 1.25 refers
@@ -178,8 +174,7 @@ ChannelLayout AAC::GetChannelLayout(bool sbr_in_mimetype) const {
   // Check for implicit signalling of HE-AAC and indicate stereo output
   // if the mono channel configuration is signalled.
   // See ISO 14496-3:2009 Section 1.6.5.3 for details about this special casing.
-  if (sbr_in_mimetype && channel_config_ == 1)
-    return CHANNEL_LAYOUT_STEREO;
+  if (sbr_in_mimetype && channel_config_ == 1) return CHANNEL_LAYOUT_STEREO;
 
   return channel_layout_;
 }
@@ -191,16 +186,15 @@ bool AAC::ConvertEsdsToADTS(std::vector<uint8_t>* buffer) const {
          channel_config_ <= 7);
 
   // ADTS header uses 13 bits for packet size.
-  if (size >= (1 << 13))
-    return false;
+  if (size >= (1 << 13)) return false;
 
   std::vector<uint8_t>& adts = *buffer;
 
   adts.insert(buffer->begin(), kADTSHeaderMinSize, 0);
   adts[0] = 0xff;
   adts[1] = 0xf1;
-  adts[2] = ((profile_ - 1) << 6) + (frequency_index_ << 2) +
-      (channel_config_ >> 2);
+  adts[2] =
+      ((profile_ - 1) << 6) + (frequency_index_ << 2) + (channel_config_ >> 2);
   adts[3] = static_cast<uint8_t>(((channel_config_ & 0x3) << 6) + (size >> 11));
   adts[4] = static_cast<uint8_t>((size & 0x7ff) >> 3);
   adts[5] = ((size & 7) << 5) + 0x1f;
@@ -253,7 +247,7 @@ bool AAC::SkipGASpecificConfig(BitReader* bit_reader) const {
 
   if (extension_flag) {
     if (profile_ == 22) {
-      RCHECK(bit_reader->ReadBits(5, &dummy));  // numOfSubFrame
+      RCHECK(bit_reader->ReadBits(5, &dummy));   // numOfSubFrame
       RCHECK(bit_reader->ReadBits(11, &dummy));  // layer_length
     }
 

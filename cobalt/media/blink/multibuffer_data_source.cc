@@ -59,9 +59,7 @@ T clamp(T value, T min, T max) {
 
 class MultibufferDataSource::ReadOperation {
  public:
-  ReadOperation(int64_t position,
-                int size,
-                uint8_t* data,
+  ReadOperation(int64_t position, int size, uint8_t* data,
                 const DataSource::ReadCB& callback);
   ~ReadOperation();
 
@@ -83,9 +81,7 @@ class MultibufferDataSource::ReadOperation {
 };
 
 MultibufferDataSource::ReadOperation::ReadOperation(
-    int64_t position,
-    int size,
-    uint8_t* data,
+    int64_t position, int size, uint8_t* data,
     const DataSource::ReadCB& callback)
     : position_(position), size_(size), data_(data), callback_(callback) {
   DCHECK(!callback_.is_null());
@@ -97,20 +93,15 @@ MultibufferDataSource::ReadOperation::~ReadOperation() {
 
 // static
 void MultibufferDataSource::ReadOperation::Run(
-    std::unique_ptr<ReadOperation> read_op,
-    int result) {
+    std::unique_ptr<ReadOperation> read_op, int result) {
   base::ResetAndReturn(&read_op->callback_).Run(result);
 }
 
 MultibufferDataSource::MultibufferDataSource(
-    const GURL& url,
-    UrlData::CORSMode cors_mode,
+    const GURL& url, UrlData::CORSMode cors_mode,
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-    linked_ptr<UrlIndex> url_index,
-    WebFrame* frame,
-    MediaLog* media_log,
-    BufferedDataSourceHost* host,
-    const DownloadingCB& downloading_cb)
+    linked_ptr<UrlIndex> url_index, WebFrame* frame, MediaLog* media_log,
+    BufferedDataSourceHost* host, const DownloadingCB& downloading_cb)
     : cors_mode_(cors_mode),
       total_bytes_(kPositionNotSpecified),
       streaming_(false),
@@ -255,13 +246,10 @@ bool MultibufferDataSource::HasSingleOrigin() {
 }
 
 bool MultibufferDataSource::DidPassCORSAccessCheck() const {
-  if (cors_mode_ == UrlData::CORS_UNSPECIFIED)
-    return false;
+  if (cors_mode_ == UrlData::CORS_UNSPECIFIED) return false;
   // If init_cb is set, we initialization is not finished yet.
-  if (!init_cb_.is_null())
-    return false;
-  if (failed_)
-    return false;
+  if (!init_cb_.is_null()) return false;
+  if (failed_) return false;
   return true;
 }
 
@@ -269,8 +257,7 @@ void MultibufferDataSource::MediaPlaybackRateChanged(double playback_rate) {
   DCHECK(render_task_runner_->BelongsToCurrentThread());
   DCHECK(reader_.get());
 
-  if (playback_rate < 0.0)
-    return;
+  if (playback_rate < 0.0) return;
 
   playback_rate_ = playback_rate;
   cancel_on_defer_ = false;
@@ -302,8 +289,7 @@ void MultibufferDataSource::Stop() {
 void MultibufferDataSource::Abort() {
   base::AutoLock auto_lock(lock_);
   DCHECK(init_cb_.is_null());
-  if (read_op_)
-    ReadOperation::Run(std::move(read_op_), kAborted);
+  if (read_op_) ReadOperation::Run(std::move(read_op_), kAborted);
 
   // Abort does not call StopLoader() since it is typically called prior to a
   // seek or suspend. Let the loader logic make the decision about whether a new
@@ -321,8 +307,7 @@ void MultibufferDataSource::OnBufferingHaveEnough(bool always_cancel) {
   if (reader_ && (always_cancel || (preload_ == METADATA &&
                                     !media_has_played_ && !IsStreaming()))) {
     cancel_on_defer_ = true;
-    if (!loading_)
-      reader_.reset(NULL);
+    if (!loading_) reader_.reset(NULL);
   }
 }
 
@@ -336,9 +321,7 @@ GURL MultibufferDataSource::GetUrlAfterRedirects() const {
   return url_data_->url();
 }
 
-void MultibufferDataSource::Read(int64_t position,
-                                 int size,
-                                 uint8_t* data,
+void MultibufferDataSource::Read(int64_t position, int size, uint8_t* data,
                                  const DataSource::ReadCB& read_cb) {
   DVLOG(1) << "Read: " << position << " offset, " << size << " bytes";
   // Reading is not allowed until after initialization.
@@ -372,9 +355,7 @@ bool MultibufferDataSource::GetSize(int64_t* size_out) {
   return false;
 }
 
-bool MultibufferDataSource::IsStreaming() {
-  return streaming_;
-}
+bool MultibufferDataSource::IsStreaming() { return streaming_; }
 
 /////////////////////////////////////////////////////////////////////////////
 // This method is the place where actual read happens,
@@ -383,8 +364,7 @@ void MultibufferDataSource::ReadTask() {
 
   base::AutoLock auto_lock(lock_);
   int bytes_read = 0;
-  if (stop_signal_received_ || !read_op_)
-    return;
+  if (stop_signal_received_ || !read_op_) return;
   DCHECK(read_op_->size());
 
   if (!reader_) {
@@ -423,8 +403,7 @@ void MultibufferDataSource::ReadTask() {
 
 void MultibufferDataSource::StopInternal_Locked() {
   lock_.AssertAcquired();
-  if (stop_signal_received_)
-    return;
+  if (stop_signal_received_) return;
 
   stop_signal_received_ = true;
 
@@ -432,8 +411,7 @@ void MultibufferDataSource::StopInternal_Locked() {
   // response to Stop().
   init_cb_.Reset();
 
-  if (read_op_)
-    ReadOperation::Run(std::move(read_op_), kReadError);
+  if (read_op_) ReadOperation::Run(std::move(read_op_), kReadError);
 }
 
 void MultibufferDataSource::StopLoader() {
@@ -484,14 +462,12 @@ void MultibufferDataSource::StartCallback() {
   // TODO(scherkus): we shouldn't have to lock to signal host(), see
   // http://crbug.com/113712 for details.
   base::AutoLock auto_lock(lock_);
-  if (stop_signal_received_)
-    return;
+  if (stop_signal_received_) return;
 
   if (success) {
     if (total_bytes_ != kPositionNotSpecified) {
       host_->SetTotalBytes(total_bytes_);
-      if (assume_fully_buffered())
-        host_->AddBufferedByteRange(0, total_bytes_);
+      if (assume_fully_buffered()) host_->AddBufferedByteRange(0, total_bytes_);
     }
 
     // Progress callback might be called after the start callback,
@@ -515,16 +491,14 @@ void MultibufferDataSource::ProgressCallback(int64_t begin, int64_t end) {
   DVLOG(1) << __func__ << "(" << begin << ", " << end << ")";
   DCHECK(render_task_runner_->BelongsToCurrentThread());
 
-  if (assume_fully_buffered())
-    return;
+  if (assume_fully_buffered()) return;
 
   base::AutoLock auto_lock(lock_);
 
   if (end > begin) {
     // TODO(scherkus): we shouldn't have to lock to signal host(), see
     // http://crbug.com/113712 for details.
-    if (stop_signal_received_)
-      return;
+    if (stop_signal_received_) return;
 
     host_->AddBufferedByteRange(begin, end);
   }
@@ -535,8 +509,7 @@ void MultibufferDataSource::ProgressCallback(int64_t begin, int64_t end) {
 void MultibufferDataSource::UpdateLoadingState_Locked(bool force_loading) {
   DVLOG(1) << __func__;
   lock_.AssertAcquired();
-  if (assume_fully_buffered())
-    return;
+  if (assume_fully_buffered()) return;
   // Update loading state.
   bool is_loading = !!reader_ && reader_->IsLoading();
   if (force_loading || is_loading != loading_) {
@@ -561,8 +534,7 @@ void MultibufferDataSource::UpdateLoadingState_Locked(bool force_loading) {
 
 void MultibufferDataSource::UpdateBufferSizes() {
   DVLOG(1) << __func__;
-  if (!reader_)
-    return;
+  if (!reader_) return;
 
   if (!assume_fully_buffered()) {
     // If the playback has started and the strategy is aggressive, then try to
@@ -578,8 +550,7 @@ void MultibufferDataSource::UpdateBufferSizes() {
 
   // Use a default bit rate if unknown and clamp to prevent overflow.
   int64_t bitrate = clamp<int64_t>(bitrate_, 0, kMaxBitrate);
-  if (bitrate == 0)
-    bitrate = kDefaultBitrate;
+  if (bitrate == 0) bitrate = kDefaultBitrate;
 
   // Only scale the buffer window for playback rates greater than 1.0 in
   // magnitude and clamp to prevent overflow.

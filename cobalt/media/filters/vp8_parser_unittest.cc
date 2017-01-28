@@ -17,8 +17,8 @@ namespace media {
 TEST(Vp8ParserTest, StreamFileParsing) {
   base::FilePath file_path = GetTestDataFilePath("test-25fps.vp8");
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path))
-      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
+                                            << file_path.MaybeAsASCII();
 
   IvfParser ivf_parser;
   IvfFileHeader ivf_file_header = {};

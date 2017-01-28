@@ -36,8 +36,7 @@ struct TestScenario {
 class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
  public:
   AudioDecoderTest()
-      : cast_environment_(new StandaloneCastEnvironment()),
-        cond_(&lock_) {}
+      : cast_environment_(new StandaloneCastEnvironment()), cond_(&lock_) {}
 
   virtual ~AudioDecoderTest() {
     // Make sure all threads have stopped before the environment goes away.
@@ -46,17 +45,14 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
 
  protected:
   void SetUp() final {
-    audio_decoder_.reset(new AudioDecoder(cast_environment_,
-                                          GetParam().num_channels,
-                                          GetParam().sampling_rate,
-                                          GetParam().codec));
+    audio_decoder_.reset(
+        new AudioDecoder(cast_environment_, GetParam().num_channels,
+                         GetParam().sampling_rate, GetParam().codec));
     CHECK_EQ(STATUS_INITIALIZED, audio_decoder_->InitializationResult());
 
-    audio_bus_factory_.reset(
-        new TestAudioBusFactory(GetParam().num_channels,
-                                GetParam().sampling_rate,
-                                TestAudioBusFactory::kMiddleANoteFreq,
-                                0.5f));
+    audio_bus_factory_.reset(new TestAudioBusFactory(
+        GetParam().num_channels, GetParam().sampling_rate,
+        TestAudioBusFactory::kMiddleANoteFreq, 0.5f));
     last_frame_id_ = FrameId::first();
     seen_a_decoded_frame_ = false;
 
@@ -65,10 +61,9 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
           new uint8_t[opus_encoder_get_size(GetParam().num_channels)]);
       OpusEncoder* const opus_encoder =
           reinterpret_cast<OpusEncoder*>(opus_encoder_memory_.get());
-      CHECK_EQ(OPUS_OK, opus_encoder_init(opus_encoder,
-                                          GetParam().sampling_rate,
-                                          GetParam().num_channels,
-                                          OPUS_APPLICATION_AUDIO));
+      CHECK_EQ(OPUS_OK, opus_encoder_init(
+                            opus_encoder, GetParam().sampling_rate,
+                            GetParam().num_channels, OPUS_APPLICATION_AUDIO));
       CHECK_EQ(OPUS_OK,
                opus_encoder_ctl(opus_encoder, OPUS_SET_BITRATE(OPUS_AUTO)));
     }
@@ -79,8 +74,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
 
   // Called from the unit test thread to create another EncodedFrame and push it
   // into the decoding pipeline.
-  void FeedMoreAudio(const base::TimeDelta& duration,
-                     int num_dropped_frames) {
+  void FeedMoreAudio(const base::TimeDelta& duration, int num_dropped_frames) {
     // Prepare a simulated EncodedFrame to feed into the AudioDecoder.
     std::unique_ptr<EncodedFrame> encoded_frame(new EncodedFrame());
     encoded_frame->dependency = EncodedFrame::KEY;
@@ -107,12 +101,9 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
           reinterpret_cast<OpusEncoder*>(opus_encoder_memory_.get());
       const int kOpusEncodeBufferSize = 4000;
       encoded_frame->data.resize(kOpusEncodeBufferSize);
-      const int payload_size =
-          opus_encode(opus_encoder,
-                      &interleaved.front(),
-                      audio_bus->frames(),
-                      encoded_frame->mutable_bytes(),
-                      encoded_frame->data.size());
+      const int payload_size = opus_encode(
+          opus_encoder, &interleaved.front(), audio_bus->frames(),
+          encoded_frame->mutable_bytes(), encoded_frame->data.size());
       CHECK_GT(payload_size, 1);
       encoded_frame->data.resize(payload_size);
     } else {
@@ -125,22 +116,19 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
     }
 
     cast_environment_->PostTask(
-        CastEnvironment::MAIN,
-        FROM_HERE,
-        base::Bind(&AudioDecoder::DecodeFrame,
-                   base::Unretained(audio_decoder_.get()),
-                   base::Passed(&encoded_frame),
-                   base::Bind(&AudioDecoderTest::OnDecodedFrame,
-                              base::Unretained(this),
-                              num_dropped_frames == 0)));
+        CastEnvironment::MAIN, FROM_HERE,
+        base::Bind(
+            &AudioDecoder::DecodeFrame, base::Unretained(audio_decoder_.get()),
+            base::Passed(&encoded_frame),
+            base::Bind(&AudioDecoderTest::OnDecodedFrame,
+                       base::Unretained(this), num_dropped_frames == 0)));
   }
 
   // Blocks the caller until all audio that has been feed in has been decoded.
   void WaitForAllAudioToBeDecoded() {
     DCHECK(!cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
     base::AutoLock auto_lock(lock_);
-    while (total_audio_decoded_ < total_audio_feed_in_)
-      cond_.Wait();
+    while (total_audio_decoded_ < total_audio_feed_in_) cond_.Wait();
     EXPECT_EQ(total_audio_feed_in_.InMicroseconds(),
               total_audio_decoded_.InMicroseconds());
   }
@@ -148,8 +136,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
  private:
   // Called by |audio_decoder_| to deliver each frame of decoded audio.
   void OnDecodedFrame(bool should_be_continuous,
-                      std::unique_ptr<AudioBus> audio_bus,
-                      bool is_continuous) {
+                      std::unique_ptr<AudioBus> audio_bus, bool is_continuous) {
     DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
 
     // A NULL |audio_bus| indicates a decode error, which we don't expect.
@@ -171,15 +158,14 @@ class AudioDecoderTest : public ::testing::TestWithParam<TestScenario> {
         EXPECT_NEAR(
             TestAudioBusFactory::kMiddleANoteFreq * 2 * audio_bus->frames() /
                 GetParam().sampling_rate,
-            CountZeroCrossings(audio_bus->channel(ch), audio_bus->frames()),
-            1);
+            CountZeroCrossings(audio_bus->channel(ch), audio_bus->frames()), 1);
       }
     }
 
     // Signal the main test thread that more audio was decoded.
     base::AutoLock auto_lock(lock_);
     total_audio_decoded_ += base::TimeDelta::FromSeconds(1) *
-        audio_bus->frames() / GetParam().sampling_rate;
+                            audio_bus->frames() / GetParam().sampling_rate;
     cond_.Signal();
   }
 
@@ -202,14 +188,13 @@ TEST_P(AudioDecoderTest, DecodesFramesWithSameDuration) {
   const base::TimeDelta kTenMilliseconds =
       base::TimeDelta::FromMilliseconds(10);
   const int kNumFrames = 10;
-  for (int i = 0; i < kNumFrames; ++i)
-    FeedMoreAudio(kTenMilliseconds, 0);
+  for (int i = 0; i < kNumFrames; ++i) FeedMoreAudio(kTenMilliseconds, 0);
   WaitForAllAudioToBeDecoded();
 }
 
 TEST_P(AudioDecoderTest, DecodesFramesWithVaryingDuration) {
   // These are the set of frame durations supported by the Opus encoder.
-  const int kFrameDurationMs[] = { 5, 10, 20, 40, 60 };
+  const int kFrameDurationMs[] = {5, 10, 20, 40, 60};
 
   const int kNumFrames = 10;
   for (size_t i = 0; i < arraysize(kFrameDurationMs); ++i)
@@ -238,13 +223,11 @@ TEST_P(AudioDecoderTest, RecoversFromDroppedFrames) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    AudioDecoderTestScenarios,
-    AudioDecoderTest,
-    ::testing::Values(
-         TestScenario(CODEC_AUDIO_PCM16, 1, 8000),
-         TestScenario(CODEC_AUDIO_PCM16, 2, 48000),
-         TestScenario(CODEC_AUDIO_OPUS, 1, 8000),
-         TestScenario(CODEC_AUDIO_OPUS, 2, 48000)));
+    AudioDecoderTestScenarios, AudioDecoderTest,
+    ::testing::Values(TestScenario(CODEC_AUDIO_PCM16, 1, 8000),
+                      TestScenario(CODEC_AUDIO_PCM16, 2, 48000),
+                      TestScenario(CODEC_AUDIO_OPUS, 1, 8000),
+                      TestScenario(CODEC_AUDIO_OPUS, 2, 48000)));
 
 }  // namespace cast
 }  // namespace media

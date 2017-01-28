@@ -156,7 +156,7 @@ std::string MediaLog::MediaEventToLogString(const MediaLogEvent& event) {
       event.params.GetInteger("pipeline_error", &error_code)) {
     PipelineStatus status = static_cast<PipelineStatus>(error_code);
     return EventTypeToString(event.type) + " " +
-        media::MediaLog::PipelineStatusToString(status);
+           media::MediaLog::PipelineStatusToString(status);
   }
   std::string params_json;
   base::JSONWriter::Write(&event.params, &params_json);
@@ -169,9 +169,7 @@ MediaLog::~MediaLog() {}
 
 void MediaLog::AddEvent(scoped_ptr<MediaLogEvent> event) {}
 
-std::string MediaLog::GetLastErrorMessage() {
-  return "";
-}
+std::string MediaLog::GetLastErrorMessage() { return ""; }
 
 void MediaLog::RecordRapporWithSecurityOrigin(const std::string& metric) {
   DVLOG(1) << "Default MediaLog doesn't support rappor reporting.";
@@ -186,17 +184,14 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateEvent(MediaLogEvent::Type type) {
 }
 
 scoped_ptr<MediaLogEvent> MediaLog::CreateBooleanEvent(
-    MediaLogEvent::Type type,
-    const std::string& property,
-    bool value) {
+    MediaLogEvent::Type type, const std::string& property, bool value) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(type));
   event->params.SetBoolean(property, value);
   return event.Pass();
 }
 
 scoped_ptr<MediaLogEvent> MediaLog::CreateStringEvent(
-    MediaLogEvent::Type type,
-    const std::string& property,
+    MediaLogEvent::Type type, const std::string& property,
     const std::string& value) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(type));
   event->params.SetString(property, value);
@@ -248,9 +243,7 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateVideoSizeSetEvent(size_t width,
 }
 
 scoped_ptr<MediaLogEvent> MediaLog::CreateBufferedExtentsChangedEvent(
-    int64_t start,
-    int64_t current,
-    int64_t end) {
+    int64_t start, int64_t current, int64_t end) {
   scoped_ptr<MediaLogEvent> event(
       CreateEvent(MediaLogEvent::BUFFERED_EXTENTS_CHANGED));
   // These values are headed to JS where there is no int64_t so we use a double
@@ -267,22 +260,20 @@ void MediaLog::AddLogEvent(MediaLogLevel level, const std::string& message) {
   AddEvent(event.Pass());
 }
 
-void MediaLog::SetStringProperty(
-    const std::string& key, const std::string& value) {
+void MediaLog::SetStringProperty(const std::string& key,
+                                 const std::string& value) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::PROPERTY_CHANGE));
   event->params.SetString(key, value);
   AddEvent(event.Pass());
 }
 
-void MediaLog::SetDoubleProperty(
-    const std::string& key, double value) {
+void MediaLog::SetDoubleProperty(const std::string& key, double value) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::PROPERTY_CHANGE));
   event->params.SetDouble(key, value);
   AddEvent(event.Pass());
 }
 
-void MediaLog::SetBooleanProperty(
-    const std::string& key, bool value) {
+void MediaLog::SetBooleanProperty(const std::string& key, bool value) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::PROPERTY_CHANGE));
   event->params.SetBoolean(key, value);
   AddEvent(event.Pass());
@@ -294,8 +285,6 @@ LogHelper::LogHelper(MediaLog::MediaLogLevel level,
   DCHECK(media_log_.get());
 }
 
-LogHelper::~LogHelper() {
-  media_log_->AddLogEvent(level_, stream_.str());
-}
+LogHelper::~LogHelper() { media_log_->AddLogEvent(level_, stream_.str()); }
 
 }  // namespace media

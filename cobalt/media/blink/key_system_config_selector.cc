@@ -47,8 +47,7 @@ static EmeConfigRule GetSessionTypeConfigRule(EmeSessionTypeSupport support) {
 }
 
 static EmeConfigRule GetDistinctiveIdentifierConfigRule(
-    EmeFeatureSupport support,
-    EmeFeatureRequirement requirement) {
+    EmeFeatureSupport support, EmeFeatureRequirement requirement) {
   if (support == EmeFeatureSupport::INVALID) {
     NOTREACHED();
     return EmeConfigRule::NOT_SUPPORTED;
@@ -87,8 +86,7 @@ static EmeConfigRule GetDistinctiveIdentifierConfigRule(
 }
 
 static EmeConfigRule GetPersistentStateConfigRule(
-    EmeFeatureSupport support,
-    EmeFeatureRequirement requirement) {
+    EmeFeatureSupport support, EmeFeatureRequirement requirement) {
   if (support == EmeFeatureSupport::INVALID) {
     NOTREACHED();
     return EmeConfigRule::NOT_SUPPORTED;
@@ -282,8 +280,7 @@ class KeySystemConfigSelector::ConfigState {
 };
 
 KeySystemConfigSelector::KeySystemConfigSelector(
-    const KeySystems* key_systems,
-    MediaPermission* media_permission)
+    const KeySystems* key_systems, MediaPermission* media_permission)
     : key_systems_(key_systems),
       media_permission_(media_permission),
       weak_factory_(this) {
@@ -291,12 +288,10 @@ KeySystemConfigSelector::KeySystemConfigSelector(
   DCHECK(media_permission_);
 }
 
-KeySystemConfigSelector::~KeySystemConfigSelector() {
-}
+KeySystemConfigSelector::~KeySystemConfigSelector() {}
 
 bool IsSupportedMediaFormat(const std::string& container_mime_type,
-                            const std::string& codecs,
-                            bool use_aes_decryptor) {
+                            const std::string& codecs, bool use_aes_decryptor) {
   std::vector<std::string> codec_vector;
   ParseCodecString(codecs, &codec_vector, false);
   // AesDecryptor decrypts the stream in the demuxer before it reaches the
@@ -322,10 +317,8 @@ bool IsSupportedMediaFormat(const std::string& container_mime_type,
 // TODO(sandersd): Move contentType parsing from Blink to here so that invalid
 // parameters can be rejected. http://crbug.com/417561
 bool KeySystemConfigSelector::IsSupportedContentType(
-    const std::string& key_system,
-    EmeMediaType media_type,
-    const std::string& container_mime_type,
-    const std::string& codecs,
+    const std::string& key_system, EmeMediaType media_type,
+    const std::string& container_mime_type, const std::string& codecs,
     KeySystemConfigSelector::ConfigState* config_state) {
   // From RFC6838: "Both top-level type and subtype names are case-insensitive."
   std::string container_lower = base::ToLowerASCII(container_mime_type);
@@ -361,16 +354,14 @@ bool KeySystemConfigSelector::IsSupportedContentType(
   ParseCodecString(codecs, &stripped_codec_vector, true);
   EmeConfigRule codecs_rule = key_systems_->GetContentTypeConfigRule(
       key_system, media_type, container_lower, stripped_codec_vector);
-  if (!config_state->IsRuleSupported(codecs_rule))
-    return false;
+  if (!config_state->IsRuleSupported(codecs_rule)) return false;
   config_state->AddRule(codecs_rule);
 
   return true;
 }
 
 bool KeySystemConfigSelector::GetSupportedCapabilities(
-    const std::string& key_system,
-    EmeMediaType media_type,
+    const std::string& key_system, EmeMediaType media_type,
     const blink::WebVector<blink::WebMediaKeySystemMediaCapability>&
         requested_media_capabilities,
     KeySystemConfigSelector::ConfigState* config_state,
@@ -401,12 +392,11 @@ bool KeySystemConfigSelector::GetSupportedCapabilities(
     ConfigState proposed_config_state = *config_state;
     if (!base::IsStringASCII(capability.mimeType) ||
         !base::IsStringASCII(capability.codecs) ||
-        !IsSupportedContentType(key_system, media_type,
-                                base::UTF16ToASCII(
-                                    base::StringPiece16(capability.mimeType)),
-                                base::UTF16ToASCII(
-                                    base::StringPiece16(capability.codecs)),
-                                &proposed_config_state)) {
+        !IsSupportedContentType(
+            key_system, media_type,
+            base::UTF16ToASCII(base::StringPiece16(capability.mimeType)),
+            base::UTF16ToASCII(base::StringPiece16(capability.codecs)),
+            &proposed_config_state)) {
       continue;
     }
     // 3.12. If robustness is not the empty string, run the following steps:
@@ -414,13 +404,11 @@ bool KeySystemConfigSelector::GetSupportedCapabilities(
       // 3.12.1. If robustness is an unrecognized value or not supported by
       //         implementation, continue to the next iteration. String
       //         comparison is case-sensitive.
-      if (!base::IsStringASCII(capability.robustness))
-        continue;
+      if (!base::IsStringASCII(capability.robustness)) continue;
       EmeConfigRule robustness_rule = key_systems_->GetRobustnessConfigRule(
-          key_system, media_type, base::UTF16ToASCII(
-              base::StringPiece16(capability.robustness)));
-      if (!proposed_config_state.IsRuleSupported(robustness_rule))
-        continue;
+          key_system, media_type,
+          base::UTF16ToASCII(base::StringPiece16(capability.robustness)));
+      if (!proposed_config_state.IsRuleSupported(robustness_rule)) continue;
       proposed_config_state.AddRule(robustness_rule);
       // 3.12.2. Add robustness to configuration.
       //         (It's already added, we use capability as configuration.)
@@ -923,8 +911,7 @@ void KeySystemConfigSelector::SelectConfigInternal(
 }
 
 void KeySystemConfigSelector::OnPermissionResult(
-    std::unique_ptr<SelectionRequest> request,
-    bool is_permission_granted) {
+    std::unique_ptr<SelectionRequest> request, bool is_permission_granted) {
   request->was_permission_requested = true;
   request->is_permission_granted = is_permission_granted;
   SelectConfigInternal(std::move(request));

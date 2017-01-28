@@ -56,14 +56,11 @@ static std::unique_ptr<Cluster> CreateCluster(int block_count) {
   return cb.Finish();
 }
 
-static void CreateClusterExpectations(int block_count,
-                                      bool is_complete_cluster,
+static void CreateClusterExpectations(int block_count, bool is_complete_cluster,
                                       MockWebMParserClient* client) {
-
   InSequence s;
   EXPECT_CALL(*client, OnListStart(kWebMIdCluster)).WillOnce(Return(client));
-  EXPECT_CALL(*client, OnUInt(kWebMIdTimecode, 0))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*client, OnUInt(kWebMIdTimecode, 0)).WillOnce(Return(true));
 
   for (int i = 0; i < block_count; i++) {
     EXPECT_CALL(*client, OnBinary(kWebMIdSimpleBlock, _, _))
@@ -351,8 +348,8 @@ TEST_F(WebMParserTest, ReservedIds) {
     int id;
     int64_t element_size;
     int buffer_size = 2 + i;
-    EXPECT_EQ(buffer_size, WebMParseElementHeader(kBuffers[i], buffer_size,
-                                                  &id, &element_size));
+    EXPECT_EQ(buffer_size, WebMParseElementHeader(kBuffers[i], buffer_size, &id,
+                                                  &element_size));
     EXPECT_EQ(id, kWebMReservedId);
     EXPECT_EQ(element_size, 1);
   }
@@ -379,8 +376,8 @@ TEST_F(WebMParserTest, ReservedSizes) {
     int id;
     int64_t element_size;
     int buffer_size = 2 + i;
-    EXPECT_EQ(buffer_size, WebMParseElementHeader(kBuffers[i], buffer_size,
-                                                  &id, &element_size));
+    EXPECT_EQ(buffer_size, WebMParseElementHeader(kBuffers[i], buffer_size, &id,
+                                                  &element_size));
     EXPECT_EQ(id, 0xA3);
     EXPECT_EQ(element_size, kWebMUnknownSize);
   }

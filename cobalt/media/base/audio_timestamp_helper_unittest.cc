@@ -113,7 +113,7 @@ TEST_F(AudioTimestampHelperTest, Basic) {
 
   // Verify that adding frames one frame at a time matches the timestamp
   // returned if the same number of frames are added all at once.
-  base::TimeDelta timestamp_1  = helper_.GetTimestamp();
+  base::TimeDelta timestamp_1 = helper_.GetTimestamp();
   helper_.SetBaseTimestamp(kNoTimestamp);
   EXPECT_TRUE(kNoTimestamp == helper_.base_timestamp());
   helper_.SetBaseTimestamp(base::TimeDelta());

@@ -89,8 +89,7 @@ void ExpectAudioSuccess(OperationalStatus status) {
 class CastTransportWrapper : public CastTransport {
  public:
   // Takes ownership of |transport|.
-  void Init(CastTransport* transport,
-            uint64_t* encoded_video_bytes,
+  void Init(CastTransport* transport, uint64_t* encoded_video_bytes,
             uint64_t* encoded_audio_bytes) {
     transport_.reset(transport);
     encoded_video_bytes_ = encoded_video_bytes;
@@ -115,11 +114,9 @@ class CastTransportWrapper : public CastTransport {
     transport_->InsertFrame(ssrc, frame);
   }
 
-  void SendSenderReport(uint32_t ssrc,
-                        base::TimeTicks current_time,
+  void SendSenderReport(uint32_t ssrc, base::TimeTicks current_time,
                         RtpTimeTicks current_time_as_rtp_timestamp) final {
-    transport_->SendSenderReport(ssrc,
-                                 current_time,
+    transport_->SendSenderReport(ssrc, current_time,
                                  current_time_as_rtp_timestamp);
   }
 
@@ -192,8 +189,8 @@ struct MeasuringPoint {
   }
 
   std::string AsString() const {
-    return base::StringPrintf(
-        "%f Mbit/s %f ms %f %% ", bitrate, latency, percent_packet_drop);
+    return base::StringPrintf("%f Mbit/s %f ms %f %% ", bitrate, latency,
+                              percent_packet_drop);
   }
 
   double bitrate;
@@ -214,13 +211,10 @@ class RunOneBenchmark {
             new test::SkewedSingleThreadTaskRunner(task_runner_)),
         cast_environment_sender_(new CastEnvironment(
             std::unique_ptr<base::TickClock>(testing_clock_sender_),
-            task_runner_sender_,
-            task_runner_sender_,
-            task_runner_sender_)),
+            task_runner_sender_, task_runner_sender_, task_runner_sender_)),
         cast_environment_receiver_(new CastEnvironment(
             std::unique_ptr<base::TickClock>(testing_clock_receiver_),
-            task_runner_receiver_,
-            task_runner_receiver_,
+            task_runner_receiver_, task_runner_receiver_,
             task_runner_receiver_)),
         video_bytes_encoded_(0),
         audio_bytes_encoded_(0),
@@ -229,8 +223,7 @@ class RunOneBenchmark {
         base::TimeDelta::FromMilliseconds(kStartMillisecond));
   }
 
-  void Configure(Codec video_codec,
-                 Codec audio_codec) {
+  void Configure(Codec video_codec, Codec audio_codec) {
     audio_sender_config_ = GetDefaultAudioSenderConfig();
     audio_sender_config_.min_playout_delay =
         audio_sender_config_.max_playout_delay =
@@ -290,20 +283,17 @@ class RunOneBenchmark {
   void SendFakeVideoFrame() {
     // NB: Blackframe with timestamp
     cast_sender_->video_frame_input()->InsertRawVideoFrame(
-        media::VideoFrame::CreateColorFrame(gfx::Size(2, 2),
-        0x00, 0x80, 0x80, VideoTimestamp(frames_sent_)),
+        media::VideoFrame::CreateColorFrame(gfx::Size(2, 2), 0x00, 0x80, 0x80,
+                                            VideoTimestamp(frames_sent_)),
         testing_clock_sender_->NowTicks());
     frames_sent_++;
   }
 
-  void RunTasks(base::TimeDelta duration) {
-    task_runner_->Sleep(duration);
-  }
+  void RunTasks(base::TimeDelta duration) { task_runner_->Sleep(duration); }
 
   void BasicPlayerGotVideoFrame(
       const scoped_refptr<media::VideoFrame>& video_frame,
-      const base::TimeTicks& render_time,
-      bool continuous) {
+      const base::TimeTicks& render_time, bool continuous) {
     video_ticks_.push_back(
         std::make_pair(testing_clock_receiver_->NowTicks(), render_time));
     cast_receiver_->RequestDecodedVideoFrame(base::Bind(
@@ -441,8 +431,8 @@ class RunOneBenchmark {
   int frames_sent_;
   base::TimeDelta frame_duration_;
   double available_bitrate_;
-  std::vector<std::pair<base::TimeTicks, base::TimeTicks> > audio_ticks_;
-  std::vector<std::pair<base::TimeTicks, base::TimeTicks> > video_ticks_;
+  std::vector<std::pair<base::TimeTicks, base::TimeTicks>> audio_ticks_;
+  std::vector<std::pair<base::TimeTicks, base::TimeTicks>> video_ticks_;
 };
 
 namespace {
@@ -543,7 +533,7 @@ class BenchmarkCache {
 
  private:
   base::Lock lock_;
-  std::vector<std::pair<T, bool> > results_;
+  std::vector<std::pair<T, bool>> results_;
 };
 
 struct SearchVariable {
@@ -569,13 +559,11 @@ struct SearchVector {
     return ret;
   }
 
-  SearchVector average(const SearchVector& other) {
-    return blend(other, 0.5);
-  }
+  SearchVector average(const SearchVector& other) { return blend(other, 0.5); }
 
   MeasuringPoint GetMeasuringPoint(double v) const {
-    return MeasuringPoint(
-        bitrate.value(-v), latency.value(v), packet_drop.value(v));
+    return MeasuringPoint(bitrate.value(-v), latency.value(v),
+                          packet_drop.value(v));
   }
   std::string AsString(double v) { return GetMeasuringPoint(v).AsString(); }
 
@@ -635,15 +623,9 @@ class CastBenchmark {
     fflush(stdout);
   }
 
-  void SpanningSearch(int max,
-                      int x,
-                      int y,
-                      int skip,
-                      SearchVector a,
-                      SearchVector b,
-                      SearchVector c,
-                      double accuracy,
-                      std::vector<linked_ptr<base::Thread> >* threads) {
+  void SpanningSearch(int max, int x, int y, int skip, SearchVector a,
+                      SearchVector b, SearchVector c, double accuracy,
+                      std::vector<linked_ptr<base::Thread>>* threads) {
     static int thread_num = 0;
     if (x > max) return;
     if (skip > max) {
@@ -670,10 +652,10 @@ class CastBenchmark {
   void Run() {
     // Spanning search.
 
-    std::vector<linked_ptr<base::Thread> > threads;
+    std::vector<linked_ptr<base::Thread>> threads;
     for (int i = 0; i < 16; i++) {
-      threads.push_back(make_linked_ptr(new base::Thread(
-          base::StringPrintf("cast_bench_thread_%d", i))));
+      threads.push_back(make_linked_ptr(
+          new base::Thread(base::StringPrintf("cast_bench_thread_%d", i))));
       threads[i]->Start();
     }
 
@@ -693,15 +675,7 @@ class CastBenchmark {
       b.latency.grade = 1.0;
       c.packet_drop.grade = 1.0;
 
-      SpanningSearch(512,
-                     0,
-                     0,
-                     1,
-                     a,
-                     b,
-                     c,
-                     0.01,
-                     &threads);
+      SpanningSearch(512, 0, 0, 1, a, b, c, 0.01, &threads);
     }
 
     for (size_t i = 0; i < threads.size(); i++) {

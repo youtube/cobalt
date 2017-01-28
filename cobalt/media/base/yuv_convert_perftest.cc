@@ -82,16 +82,14 @@ TEST_F(YUVConvertPerfTest, ConvertYUVToRGB32Row_SSE) {
           yuv_bytes_.get() + row * kSourceWidth,
           yuv_bytes_.get() + kSourceUOffset + (chroma_row * kSourceWidth / 2),
           yuv_bytes_.get() + kSourceVOffset + (chroma_row * kSourceWidth / 2),
-          rgb_bytes_converted_.get(),
-          kWidth,
-          GetLookupTable(YV12));
+          rgb_bytes_converted_.get(), kWidth, GetLookupTable(YV12));
     }
   }
   media::EmptyRegisterState();
   double total_time_seconds = (base::TimeTicks::Now() - start).InSecondsF();
-  perf_test::PrintResult(
-      "yuv_convert_perftest", "", "ConvertYUVToRGB32Row_SSE",
-      kPerfTestIterations / total_time_seconds, "runs/s", true);
+  perf_test::PrintResult("yuv_convert_perftest", "", "ConvertYUVToRGB32Row_SSE",
+                         kPerfTestIterations / total_time_seconds, "runs/s",
+                         true);
 }
 
 #ifdef HAS_I422TOARGBROW_SSSE3
@@ -177,17 +175,14 @@ TEST_F(YUVConvertPerfTest, ScaleYUVToRGB32Row_SSE) {
           yuv_bytes_.get() + row * kSourceWidth,
           yuv_bytes_.get() + kSourceUOffset + (chroma_row * kSourceWidth / 2),
           yuv_bytes_.get() + kSourceVOffset + (chroma_row * kSourceWidth / 2),
-          rgb_bytes_converted_.get(),
-          kWidth,
-          kSourceDx,
-          GetLookupTable(YV12));
+          rgb_bytes_converted_.get(), kWidth, kSourceDx, GetLookupTable(YV12));
     }
   }
   media::EmptyRegisterState();
   double total_time_seconds = (base::TimeTicks::Now() - start).InSecondsF();
-  perf_test::PrintResult(
-      "yuv_convert_perftest", "", "ScaleYUVToRGB32Row_SSE",
-      kPerfTestIterations / total_time_seconds, "runs/s", true);
+  perf_test::PrintResult("yuv_convert_perftest", "", "ScaleYUVToRGB32Row_SSE",
+                         kPerfTestIterations / total_time_seconds, "runs/s",
+                         true);
 }
 
 TEST_F(YUVConvertPerfTest, LinearScaleYUVToRGB32Row_SSE) {
@@ -203,10 +198,7 @@ TEST_F(YUVConvertPerfTest, LinearScaleYUVToRGB32Row_SSE) {
           yuv_bytes_.get() + row * kSourceWidth,
           yuv_bytes_.get() + kSourceUOffset + (chroma_row * kSourceWidth / 2),
           yuv_bytes_.get() + kSourceVOffset + (chroma_row * kSourceWidth / 2),
-          rgb_bytes_converted_.get(),
-          kWidth,
-          kSourceDx,
-          GetLookupTable(YV12));
+          rgb_bytes_converted_.get(), kWidth, kSourceDx, GetLookupTable(YV12));
     }
   }
   media::EmptyRegisterState();

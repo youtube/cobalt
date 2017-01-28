@@ -24,8 +24,8 @@ TEST(JpegParserTest, Parsing) {
                                  .AppendASCII("pixel-1280x720.jpg");
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path))
-      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
+                                            << file_path.MaybeAsASCII();
 
   JpegParseResult result;
   ASSERT_TRUE(ParseJpegPicture(stream.data(), stream.length(), &result));
@@ -91,8 +91,8 @@ TEST(JpegParserTest, CodedSizeNotEqualVisibleSize) {
                                  .AppendASCII("blank-1x1.jpg");
 
   base::MemoryMappedFile stream;
-  ASSERT_TRUE(stream.Initialize(file_path))
-      << "Couldn't open stream file: " << file_path.MaybeAsASCII();
+  ASSERT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
+                                            << file_path.MaybeAsASCII();
 
   JpegParseResult result;
   ASSERT_TRUE(ParseJpegPicture(stream.data(), stream.length(), &result));

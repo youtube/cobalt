@@ -11,16 +11,11 @@
 
 namespace media {
 
-TextRanges::TextRanges() {
-  Reset();
-}
+TextRanges::TextRanges() { Reset(); }
 
-TextRanges::~TextRanges() {
-}
+TextRanges::~TextRanges() {}
 
-void TextRanges::Reset() {
-  curr_range_itr_ = range_map_.end();
-}
+void TextRanges::Reset() { curr_range_itr_ = range_map_.end(); }
 
 bool TextRanges::AddCue(base::TimeDelta start_time) {
   typedef RangeMap::iterator Itr;
@@ -88,9 +83,7 @@ bool TextRanges::AddCue(base::TimeDelta start_time) {
   return true;
 }
 
-size_t TextRanges::RangeCountForTesting() const {
-  return range_map_.size();
-}
+size_t TextRanges::RangeCountForTesting() const { return range_map_.size(); }
 
 void TextRanges::NewRange(base::TimeDelta start_time) {
   Range range;
@@ -103,9 +96,8 @@ void TextRanges::NewRange(base::TimeDelta start_time) {
   curr_range_itr_ = result.first;
 }
 
-void TextRanges::Merge(
-    Range& curr_range,
-    const RangeMap::iterator& next_range_itr) {
+void TextRanges::Merge(Range& curr_range,
+                       const RangeMap::iterator& next_range_itr) {
   curr_range = next_range_itr->second;
   curr_range.ResetCount(next_range_itr->first);
   range_map_.erase(next_range_itr);
@@ -130,15 +122,12 @@ bool TextRanges::Range::AddCue(base::TimeDelta start_time) {
   DCHECK(start_time == last_time_);
 
   ++count_;
-  if (count_ <= max_count_)
-    return false;
+  if (count_ <= max_count_) return false;
 
   ++max_count_;
   return true;
 }
 
-base::TimeDelta TextRanges::Range::last_time() const {
-  return last_time_;
-}
+base::TimeDelta TextRanges::Range::last_time() const { return last_time_; }
 
 }  // namespace media

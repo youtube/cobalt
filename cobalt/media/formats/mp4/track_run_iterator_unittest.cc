@@ -154,7 +154,7 @@ class TrackRunIteratorTest : public testing::Test {
 
     SampleDependsOn sample_depends_on = kSampleDependsOnReserved;
     bool is_non_sync_sample = false;
-    switch(str[0]) {
+    switch (str[0]) {
       case 'U':
         sample_depends_on = kSampleDependsOnUnknown;
         break;
@@ -168,12 +168,12 @@ class TrackRunIteratorTest : public testing::Test {
         sample_depends_on = kSampleDependsOnReserved;
         break;
       default:
-        CHECK(false) << "Invalid sample dependency character '"
-                     << str[0] << "'";
+        CHECK(false) << "Invalid sample dependency character '" << str[0]
+                     << "'";
         break;
     }
 
-    switch(str[1]) {
+    switch (str[1]) {
       case 'S':
         is_non_sync_sample = false;
         break;
@@ -181,13 +181,11 @@ class TrackRunIteratorTest : public testing::Test {
         is_non_sync_sample = true;
         break;
       default:
-        CHECK(false) << "Invalid sync sample character '"
-                     << str[1] << "'";
+        CHECK(false) << "Invalid sync sample character '" << str[1] << "'";
         break;
     }
     uint32_t flags = static_cast<uint32_t>(sample_depends_on) << 24;
-    if (is_non_sync_sample)
-      flags |= kSampleIsNonSyncSample;
+    if (is_non_sync_sample) flags |= kSampleIsNonSyncSample;
     return flags;
   }
 
@@ -265,9 +263,9 @@ class TrackRunIteratorTest : public testing::Test {
         &track->media.information.sample_table.description;
     ProtectionSchemeInfo* sinf;
     if (!stsd->video_entries.empty()) {
-       sinf = &stsd->video_entries[0].sinf;
+      sinf = &stsd->video_entries[0].sinf;
     } else {
-       sinf = &stsd->audio_entries[0].sinf;
+      sinf = &stsd->audio_entries[0].sinf;
     }
 
     sinf->type.type = FOURCC_CENC;
@@ -279,8 +277,7 @@ class TrackRunIteratorTest : public testing::Test {
 
   // Add SampleGroupDescription Box to track level sample table and to
   // fragment. Populate SampleToGroup Box from input array.
-  void AddCencSampleGroup(Track* track,
-                          TrackFragment* frag,
+  void AddCencSampleGroup(Track* track, TrackFragment* frag,
                           const SampleToGroupEntry* sample_to_group_entries,
                           size_t num_entries) {
     auto& track_cenc_group =
@@ -371,8 +368,7 @@ class TrackRunIteratorTest : public testing::Test {
 
   void SetAscending(std::vector<uint32_t>* vec) {
     vec->resize(10);
-    for (size_t i = 0; i < vec->size(); i++)
-      (*vec)[i] = i+1;
+    for (size_t i = 0; i < vec->size(); i++) (*vec)[i] = i + 1;
   }
 };
 
@@ -431,7 +427,7 @@ TEST_F(TrackRunIteratorTest, BasicOperationTest) {
   EXPECT_EQ(iter_->dts(), DecodeTimestampFromRational(1024 * 10, kAudioScale));
   iter_->AdvanceSample();
   EXPECT_EQ(moof.tracks[0].runs[1].data_offset +
-            moof.tracks[0].header.default_sample_size,
+                moof.tracks[0].header.default_sample_size,
             iter_->sample_offset());
   iter_->AdvanceRun();
   EXPECT_FALSE(iter_->IsRunValid());

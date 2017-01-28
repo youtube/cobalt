@@ -25,9 +25,9 @@ static bool ConvertAVCToAnnexBInPlaceForLengthSize4(std::vector<uint8_t>* buf) {
   size_t pos = 0;
   while (pos + kLengthSize < buf->size()) {
     uint32_t nal_length = (*buf)[pos];
-    nal_length = (nal_length << 8) + (*buf)[pos+1];
-    nal_length = (nal_length << 8) + (*buf)[pos+2];
-    nal_length = (nal_length << 8) + (*buf)[pos+3];
+    nal_length = (nal_length << 8) + (*buf)[pos + 1];
+    nal_length = (nal_length << 8) + (*buf)[pos + 2];
+    nal_length = (nal_length << 8) + (*buf)[pos + 3];
 
     if (nal_length == 0) {
       DVLOG(3) << "nal_length is 0";
@@ -46,31 +46,27 @@ int AVC::FindSubsampleIndex(const std::vector<uint8_t>& buffer,
                             const std::vector<SubsampleEntry>* subsamples,
                             const uint8_t* ptr) {
   DCHECK(ptr >= &buffer[0]);
-  DCHECK(ptr <= &buffer[buffer.size()-1]);
-  if (!subsamples || subsamples->empty())
-    return 0;
+  DCHECK(ptr <= &buffer[buffer.size() - 1]);
+  if (!subsamples || subsamples->empty()) return 0;
 
   const uint8_t* p = &buffer[0];
   for (size_t i = 0; i < subsamples->size(); ++i) {
     p += (*subsamples)[i].clear_bytes + (*subsamples)[i].cypher_bytes;
-    if (p > ptr)
-      return i;
+    if (p > ptr) return i;
   }
   NOTREACHED();
   return 0;
 }
 
 // static
-bool AVC::ConvertFrameToAnnexB(int length_size,
-                               std::vector<uint8_t>* buffer,
+bool AVC::ConvertFrameToAnnexB(int length_size, std::vector<uint8_t>* buffer,
                                std::vector<SubsampleEntry>* subsamples) {
   RCHECK(length_size == 1 || length_size == 2 || length_size == 4);
   DVLOG(5) << __FUNCTION__ << " length_size=" << length_size
            << " buffer->size()=" << buffer->size()
            << " subsamples=" << (subsamples ? subsamples->size() : 0);
 
-  if (length_size == 4)
-    return ConvertAVCToAnnexBInPlaceForLengthSize4(buffer);
+  if (length_size == 4) return ConvertAVCToAnnexBInPlaceForLengthSize4(buffer);
 
   std::vector<uint8_t> temp;
   temp.swap(*buffer);
@@ -79,7 +75,7 @@ bool AVC::ConvertFrameToAnnexB(int length_size,
   size_t pos = 0;
   while (pos + length_size < temp.size()) {
     int nal_length = temp[pos];
-    if (length_size == 2) nal_length = (nal_length << 8) + temp[pos+1];
+    if (length_size == 2) nal_length = (nal_length << 8) + temp[pos + 1];
     pos += length_size;
 
     if (nal_length == 0) {
@@ -115,8 +111,7 @@ bool AVC::InsertParamSetsAnnexB(const AVCDecoderConfigurationRecord& avc_config,
   parser->SetEncryptedStream(start, buffer->size(), *subsamples);
 
   H264NALU nalu;
-  if (parser->AdvanceToNextNALU(&nalu) != H264Parser::kOk)
-    return false;
+  if (parser->AdvanceToNextNALU(&nalu) != H264Parser::kOk) return false;
 
   std::vector<uint8_t>::iterator config_insert_point = buffer->begin();
 
@@ -134,14 +129,13 @@ bool AVC::InsertParamSetsAnnexB(const AVCDecoderConfigurationRecord& avc_config,
   RCHECK(AVC::ConvertConfigToAnnexB(avc_config, &param_sets));
 
   if (subsamples && !subsamples->empty()) {
-    int subsample_index = FindSubsampleIndex(*buffer, subsamples,
-                                             &(*config_insert_point));
+    int subsample_index =
+        FindSubsampleIndex(*buffer, subsamples, &(*config_insert_point));
     // Update the size of the subsample where SPS/PPS is to be inserted.
     (*subsamples)[subsample_index].clear_bytes += param_sets.size();
   }
 
-  buffer->insert(config_insert_point,
-                 param_sets.begin(), param_sets.end());
+  buffer->insert(config_insert_point, param_sets.begin(), param_sets.end());
 
   DCHECK(AVC::IsValidAnnexB(*buffer, *subsamples));
   return true;
@@ -161,9 +155,9 @@ bool AVC::ConvertConfigToAnnexB(const AVCDecoderConfigurationRecord& avc_config,
 
   for (size_t i = 0; i < avc_config.sps_list.size(); i++) {
     buffer->insert(buffer->end(), kAnnexBStartCode,
-                kAnnexBStartCode + kAnnexBStartCodeSize);
+                   kAnnexBStartCode + kAnnexBStartCodeSize);
     buffer->insert(buffer->end(), avc_config.sps_list[i].begin(),
-                avc_config.sps_list[i].end());
+                   avc_config.sps_list[i].end());
   }
 
   for (size_t i = 0; i < avc_config.pps_list.size(); i++) {
@@ -181,14 +175,12 @@ bool AVC::IsValidAnnexB(const std::vector<uint8_t>& buffer,
   return IsValidAnnexB(&buffer[0], buffer.size(), subsamples);
 }
 
-bool AVC::IsValidAnnexB(const uint8_t* buffer,
-                        size_t size,
+bool AVC::IsValidAnnexB(const uint8_t* buffer, size_t size,
                         const std::vector<SubsampleEntry>& subsamples) {
   DVLOG(3) << __FUNCTION__;
   DCHECK(buffer);
 
-  if (size == 0)
-    return true;
+  if (size == 0) return true;
 
   H264Parser parser;
   parser.SetEncryptedStream(buffer, size, subsamples);
@@ -320,12 +312,10 @@ AVCBitstreamConverter::AVCBitstreamConverter(
   DCHECK(avc_config_);
 }
 
-AVCBitstreamConverter::~AVCBitstreamConverter() {
-}
+AVCBitstreamConverter::~AVCBitstreamConverter() {}
 
 bool AVCBitstreamConverter::ConvertFrame(
-    std::vector<uint8_t>* frame_buf,
-    bool is_keyframe,
+    std::vector<uint8_t>* frame_buf, bool is_keyframe,
     std::vector<SubsampleEntry>* subsamples) const {
   // Convert the AVC NALU length fields to Annex B headers, as expected by
   // decoding libraries. Since this may enlarge the size of the buffer, we also

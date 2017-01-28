@@ -122,8 +122,7 @@ TEST_F(Vp9ParserTest, StreamFileParsingWithoutCompressedHeader) {
   // parsed.
   while (num_parsed_frames < num_expected_frames * 2) {
     Vp9FrameHeader fhdr;
-    if (ParseNextFrame(&fhdr) != Vp9Parser::kOk)
-      break;
+    if (ParseNextFrame(&fhdr) != Vp9Parser::kOk) break;
 
     ++num_parsed_frames;
   }
@@ -145,8 +144,7 @@ TEST_F(Vp9ParserTest, StreamFileParsingWithCompressedHeader) {
   // parsed.
   while (num_parsed_frames < num_expected_frames * 2) {
     Vp9FrameHeader fhdr;
-    if (ParseNextFrame(&fhdr) != Vp9Parser::kOk)
-      break;
+    if (ParseNextFrame(&fhdr) != Vp9Parser::kOk) break;
 
     Vp9FrameContext frame_context;
     ReadContext(&frame_context);
@@ -181,8 +179,7 @@ TEST_F(Vp9ParserTest, StreamFileParsingWithContextUpdate) {
   // parsed.
   while (num_parsed_frames < num_expected_frames * 2) {
     Vp9FrameHeader fhdr;
-    if (ParseNextFrame(&fhdr) != Vp9Parser::kOk)
-      break;
+    if (ParseNextFrame(&fhdr) != Vp9Parser::kOk) break;
 
     Vp9FrameContext frame_context;
     ReadContext(&frame_context);
@@ -297,8 +294,7 @@ TEST_F(Vp9ParserTest, VerifyInterFrame) {
   Vp9FrameHeader fhdr;
 
   // To verify the second frame.
-  for (int i = 0; i < 2; i++)
-    ASSERT_EQ(Vp9Parser::kOk, ParseNextFrame(&fhdr));
+  for (int i = 0; i < 2; i++) ASSERT_EQ(Vp9Parser::kOk, ParseNextFrame(&fhdr));
 
   EXPECT_EQ(Vp9FrameHeader::INTERFRAME, fhdr.frame_type);
   EXPECT_FALSE(fhdr.show_frame);

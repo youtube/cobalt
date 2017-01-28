@@ -24,18 +24,15 @@ namespace container_names {
    (static_cast<uint32_t>(static_cast<uint8_t>(c)) << 8) |  \
    (static_cast<uint32_t>(static_cast<uint8_t>(d))))
 
-#define RCHECK(x)     \
-    do {              \
-      if (!(x))       \
-        return false; \
-    } while (0)
+#define RCHECK(x)           \
+  do {                      \
+    if (!(x)) return false; \
+  } while (0)
 
 #define UTF8_BYTE_ORDER_MARK "\xef\xbb\xbf"
 
 // Helper function to read 2 bytes (16 bits, big endian) from a buffer.
-static int Read16(const uint8_t* p) {
-  return p[0] << 8 | p[1];
-}
+static int Read16(const uint8_t* p) { return p[0] << 8 | p[1]; }
 
 // Helper function to read 3 bytes (24 bits, big endian) from a buffer.
 static uint32_t Read24(const uint8_t* p) {
@@ -54,8 +51,7 @@ static uint32_t Read32LE(const uint8_t* p) {
 
 // Helper function to do buffer comparisons with a string without going off the
 // end of the buffer.
-static bool StartsWith(const uint8_t* buffer,
-                       size_t buffer_size,
+static bool StartsWith(const uint8_t* buffer, size_t buffer_size,
                        const char* prefix) {
   size_t prefix_size = strlen(prefix);
   return (prefix_size <= buffer_size &&
@@ -64,10 +60,8 @@ static bool StartsWith(const uint8_t* buffer,
 
 // Helper function to do buffer comparisons with another buffer (to allow for
 // embedded \0 in the comparison) without going off the end of the buffer.
-static bool StartsWith(const uint8_t* buffer,
-                       size_t buffer_size,
-                       const uint8_t* prefix,
-                       size_t prefix_size) {
+static bool StartsWith(const uint8_t* buffer, size_t buffer_size,
+                       const uint8_t* prefix, size_t prefix_size) {
   return (prefix_size <= buffer_size &&
           memcmp(buffer, prefix, prefix_size) == 0);
 }
@@ -82,18 +76,19 @@ static uint64_t ReadBits(BitReader* reader, int num_bits) {
 }
 
 const int kAc3FrameSizeTable[38][3] = {
-  { 128, 138, 192 }, { 128, 140, 192 }, { 160, 174, 240 }, { 160, 176, 240 },
-  { 192, 208, 288 }, { 192, 210, 288 }, { 224, 242, 336 }, { 224, 244, 336 },
-  { 256, 278, 384 }, { 256, 280, 384 }, { 320, 348, 480 }, { 320, 350, 480 },
-  { 384, 416, 576 }, { 384, 418, 576 }, { 448, 486, 672 }, { 448, 488, 672 },
-  { 512, 556, 768 }, { 512, 558, 768 }, { 640, 696, 960 }, { 640, 698, 960 },
-  { 768, 834, 1152 }, { 768, 836, 1152 }, { 896, 974, 1344 },
-  { 896, 976, 1344 }, { 1024, 1114, 1536 }, { 1024, 1116, 1536 },
-  { 1280, 1392, 1920 }, { 1280, 1394, 1920 }, { 1536, 1670, 2304 },
-  { 1536, 1672, 2304 }, { 1792, 1950, 2688 }, { 1792, 1952, 2688 },
-  { 2048, 2228, 3072 }, { 2048, 2230, 3072 }, { 2304, 2506, 3456 },
-  { 2304, 2508, 3456 }, { 2560, 2768, 3840 }, { 2560, 2770, 3840 }
-};
+    {128, 138, 192},    {128, 140, 192},    {160, 174, 240},
+    {160, 176, 240},    {192, 208, 288},    {192, 210, 288},
+    {224, 242, 336},    {224, 244, 336},    {256, 278, 384},
+    {256, 280, 384},    {320, 348, 480},    {320, 350, 480},
+    {384, 416, 576},    {384, 418, 576},    {448, 486, 672},
+    {448, 488, 672},    {512, 556, 768},    {512, 558, 768},
+    {640, 696, 960},    {640, 698, 960},    {768, 834, 1152},
+    {768, 836, 1152},   {896, 974, 1344},   {896, 976, 1344},
+    {1024, 1114, 1536}, {1024, 1116, 1536}, {1280, 1392, 1920},
+    {1280, 1394, 1920}, {1536, 1670, 2304}, {1536, 1672, 2304},
+    {1792, 1950, 2688}, {1792, 1952, 2688}, {2048, 2228, 3072},
+    {2048, 2230, 3072}, {2304, 2506, 3456}, {2304, 2508, 3456},
+    {2560, 2768, 3840}, {2560, 2770, 3840}};
 
 // Checks for an ADTS AAC container.
 static bool CheckAac(const uint8_t* buffer, int buffer_size) {
@@ -267,12 +262,11 @@ static bool CheckCaf(const uint8_t* buffer, int buffer_size) {
   return true;
 }
 
-static bool kSamplingFrequencyValid[16] = { false, true, true, true, false,
-                                            false, true, true, true, false,
-                                            false, true, true, true, false,
-                                            false };
-static bool kExtAudioIdValid[8] = { true, false, true, false, false, false,
-                                    true, false };
+static bool kSamplingFrequencyValid[16] = {
+    false, true,  true,  true, false, false, true,  true,
+    true,  false, false, true, true,  true,  false, false};
+static bool kExtAudioIdValid[8] = {true,  false, true, false,
+                                   false, false, true, false};
 
 // Additional checks for a DTS container.
 static bool CheckDts(const uint8_t* buffer, int buffer_size) {
@@ -414,11 +408,8 @@ static bool CheckGsm(const uint8_t* buffer, int buffer_size) {
 // number of bytes that must remain in the buffer when |start_code| is found.
 // Returns true if start_code found (and enough space in the buffer after it),
 // false otherwise.
-static bool AdvanceToStartCode(const uint8_t* buffer,
-                               int buffer_size,
-                               int* offset,
-                               int bytes_needed,
-                               int num_bits,
+static bool AdvanceToStartCode(const uint8_t* buffer, int buffer_size,
+                               int* offset, int bytes_needed, int num_bits,
                                uint32_t start_code) {
   DCHECK_GE(bytes_needed, 3);
   DCHECK_LE(num_bits, 24);  // Only supports up to 24 bits.
@@ -428,8 +419,7 @@ static bool AdvanceToStartCode(const uint8_t* buffer,
   uint32_t mask = (1 << num_bits) - 1;
   while (*offset + bytes_needed < buffer_size) {
     uint32_t next = Read24(buffer + *offset);
-    if (((next >> bits_to_shift) & mask) == start_code)
-      return true;
+    if (((next >> bits_to_shift) & mask) == start_code) return true;
     ++(*offset);
   }
   return false;
@@ -463,18 +453,15 @@ static bool CheckH261(const uint8_t* buffer, int buffer_size) {
     // out of bits assume that the buffer is correctly formatted.
     int extra = ReadBits(&reader, 1);
     while (extra == 1) {
-      if (!reader.SkipBits(8))
-        return seen_start_code;
-      if (!reader.ReadBits(1, &extra))
-        return seen_start_code;
+      if (!reader.SkipBits(8)) return seen_start_code;
+      if (!reader.ReadBits(1, &extra)) return seen_start_code;
     }
 
     // Next should be a Group of Blocks start code. Again, if we run out of
     // bits, then assume that the buffer up to here is correct, and the buffer
     // just happened to end in the middle of a header.
     int next;
-    if (!reader.ReadBits(16, &next))
-      return seen_start_code;
+    if (!reader.ReadBits(16, &next)) return seen_start_code;
     RCHECK(next == 1);
 
     // Move to the next block.
@@ -655,8 +642,7 @@ static bool CheckMJpeg(const uint8_t* buffer, int buffer_size) {
     }
 
     // Success if the next marker code is EOI (end of image)
-    if (code == 0xd9)
-      return true;
+    if (code == 0xd9) return true;
 
     // Check remaining codes.
     if (code == 0xd8 || code == 1) {
@@ -665,8 +651,7 @@ static bool CheckMJpeg(const uint8_t* buffer, int buffer_size) {
     } else if (code >= 0xd0 && code <= 0xd7) {
       // RST (restart) codes must be in sequence. No other data with header.
       int restart = code & 0x07;
-      if (last_restart >= 0)
-        RCHECK(restart == (last_restart + 1) % 8);
+      if (last_restart >= 0) RCHECK(restart == (last_restart + 1) % 8);
       last_restart = restart;
       offset += 2;
     } else {
@@ -683,8 +668,7 @@ static bool CheckMJpeg(const uint8_t* buffer, int buffer_size) {
         // Advance to the next marker.
         offset += length;
         while (offset + 2 < buffer_size) {
-          if (buffer[offset] == 0xff && buffer[offset + 1] != 0)
-            break;
+          if (buffer[offset] == 0xff && buffer[offset + 1] != 0) break;
           ++offset;
         }
       } else {
@@ -697,10 +681,7 @@ static bool CheckMJpeg(const uint8_t* buffer, int buffer_size) {
   return (num_codes > 1);
 }
 
-enum Mpeg2StartCodes {
-  PROGRAM_END_CODE = 0xb9,
-  PACK_START_CODE = 0xba
-};
+enum Mpeg2StartCodes { PROGRAM_END_CODE = 0xb9, PACK_START_CODE = 0xba };
 
 // Checks for a MPEG2 Program Stream.
 static bool CheckMpeg2ProgramStream(const uint8_t* buffer, int buffer_size) {
@@ -961,29 +942,28 @@ static bool CheckMov(const uint8_t* buffer, int buffer_size) {
     uint32_t atomtype = Read32(buffer + offset + 4);
     // Only need to check for ones that are valid at the top level.
     switch (atomtype) {
-      case TAG('f','t','y','p'):
-      case TAG('p','d','i','n'):
-      case TAG('m','o','o','v'):
-      case TAG('m','o','o','f'):
-      case TAG('m','f','r','a'):
-      case TAG('m','d','a','t'):
-      case TAG('f','r','e','e'):
-      case TAG('s','k','i','p'):
-      case TAG('m','e','t','a'):
-      case TAG('m','e','c','o'):
-      case TAG('s','t','y','p'):
-      case TAG('s','i','d','x'):
-      case TAG('s','s','i','x'):
-      case TAG('p','r','f','t'):
-      case TAG('b','l','o','c'):
+      case TAG('f', 't', 'y', 'p'):
+      case TAG('p', 'd', 'i', 'n'):
+      case TAG('m', 'o', 'o', 'v'):
+      case TAG('m', 'o', 'o', 'f'):
+      case TAG('m', 'f', 'r', 'a'):
+      case TAG('m', 'd', 'a', 't'):
+      case TAG('f', 'r', 'e', 'e'):
+      case TAG('s', 'k', 'i', 'p'):
+      case TAG('m', 'e', 't', 'a'):
+      case TAG('m', 'e', 'c', 'o'):
+      case TAG('s', 't', 'y', 'p'):
+      case TAG('s', 'i', 'd', 'x'):
+      case TAG('s', 's', 'i', 'x'):
+      case TAG('p', 'r', 'f', 't'):
+      case TAG('b', 'l', 'o', 'c'):
         break;
       default:
         return false;
     }
     if (atomsize == 1) {
       // Indicates that the length is the next 64bits.
-      if (offset + 16 > buffer_size)
-        break;
+      if (offset + 16 > buffer_size) break;
       if (Read32(buffer + offset + 8) != 0)
         break;  // Offset is way past buffer size.
       atomsize = Read32(buffer + offset + 12);
@@ -995,38 +975,28 @@ static bool CheckMov(const uint8_t* buffer, int buffer_size) {
   return true;
 }
 
-enum MPEGVersion {
-  VERSION_25 = 0,
-  VERSION_RESERVED,
-  VERSION_2,
-  VERSION_1
-};
-enum MPEGLayer {
-  L_RESERVED = 0,
-  LAYER_3,
-  LAYER_2,
-  LAYER_1
+enum MPEGVersion { VERSION_25 = 0, VERSION_RESERVED, VERSION_2, VERSION_1 };
+enum MPEGLayer { L_RESERVED = 0, LAYER_3, LAYER_2, LAYER_1 };
+
+static int kSampleRateTable[4][4] = {
+    {11025, 12000, 8000, 0},   // v2.5
+    {0, 0, 0, 0},              // not used
+    {22050, 24000, 16000, 0},  // v2
+    {44100, 48000, 32000, 0}   // v1
 };
 
-static int kSampleRateTable[4][4] = { { 11025, 12000, 8000, 0 },   // v2.5
-                                      { 0, 0, 0, 0 },              // not used
-                                      { 22050, 24000, 16000, 0 },  // v2
-                                      { 44100, 48000, 32000, 0 }   // v1
-};
+static int kBitRateTableV1L1[16] = {0,   32,  64,  96,  128, 160, 192, 224,
+                                    256, 288, 320, 352, 384, 416, 448, 0};
+static int kBitRateTableV1L2[16] = {0,   32,  48,  56,  64,  80,  96,  112,
+                                    128, 160, 192, 224, 256, 320, 384, 0};
+static int kBitRateTableV1L3[16] = {0,   32,  40,  48,  56,  64,  80,  96,
+                                    112, 128, 160, 192, 224, 256, 320, 0};
+static int kBitRateTableV2L1[16] = {0,   32,  48,  56,  64,  80,  96,  112,
+                                    128, 144, 160, 176, 192, 224, 256, 0};
+static int kBitRateTableV2L23[16] = {0,  8,  16, 24,  32,  40,  48,  56,
+                                     64, 80, 96, 112, 128, 144, 160, 0};
 
-static int kBitRateTableV1L1[16] = { 0, 32, 64, 96, 128, 160, 192, 224, 256,
-                                     288, 320, 352, 384, 416, 448, 0 };
-static int kBitRateTableV1L2[16] = { 0, 32, 48, 56, 64, 80, 96, 112, 128, 160,
-                                     192, 224, 256, 320, 384, 0 };
-static int kBitRateTableV1L3[16] = { 0, 32, 40, 48, 56, 64, 80, 96, 112, 128,
-                                     160, 192, 224, 256, 320, 0 };
-static int kBitRateTableV2L1[16] = { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144,
-                                     160, 176, 192, 224, 256, 0 };
-static int kBitRateTableV2L23[16] = { 0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96,
-                                      112, 128, 144, 160, 0 };
-
-static bool ValidMpegAudioFrameHeader(const uint8_t* header,
-                                      int header_size,
+static bool ValidMpegAudioFrameHeader(const uint8_t* header, int header_size,
                                       int* framesize) {
   // Reference: http://mpgedit.org/mpgedit/mpeg_format/mpeghdr.htm.
   DCHECK_GE(header_size, 4);
@@ -1105,17 +1075,15 @@ static bool CheckMp3(const uint8_t* buffer, int buffer_size, bool seenHeader) {
     offset = GetMp3HeaderSize(buffer, buffer_size);
   } else {
     // Skip over leading 0's.
-    while (offset < buffer_size && buffer[offset] == 0)
-      ++offset;
+    while (offset < buffer_size && buffer[offset] == 0) ++offset;
   }
 
   while (offset + 3 < buffer_size) {
-    RCHECK(ValidMpegAudioFrameHeader(
-        buffer + offset, buffer_size - offset, &framesize));
+    RCHECK(ValidMpegAudioFrameHeader(buffer + offset, buffer_size - offset,
+                                     &framesize));
 
     // Have we seen enough valid headers?
-    if (++numSeen > 10)
-      return true;
+    if (++numSeen > 10) return true;
     offset += framesize;
   }
   // Off the end of the buffer, return success if a few valid headers seen.
@@ -1126,9 +1094,7 @@ static bool CheckMp3(const uint8_t* buffer, int buffer_size, bool seenHeader) {
 // accepted is optional whitespace followed by 1 or more digits. |max_digits|
 // specifies the maximum number of digits to process. Returns true if a valid
 // number is found, false otherwise.
-static bool VerifyNumber(const uint8_t* buffer,
-                         int buffer_size,
-                         int* offset,
+static bool VerifyNumber(const uint8_t* buffer, int buffer_size, int* offset,
                          int max_digits) {
   RCHECK(*offset < buffer_size);
 
@@ -1143,8 +1109,7 @@ static bool VerifyNumber(const uint8_t* buffer,
   while (--max_digits >= 0 && isdigit(buffer[*offset])) {
     ++numSeen;
     ++(*offset);
-    if (*offset >= buffer_size)
-      return true;  // Out of space but seen a digit.
+    if (*offset >= buffer_size) return true;  // Out of space but seen a digit.
   }
 
   // Success if at least one digit seen.
@@ -1154,11 +1119,8 @@ static bool VerifyNumber(const uint8_t* buffer,
 // Check that the next character in |buffer| is one of |c1| or |c2|. |c2| is
 // optional. Returns true if there is a match, false if no match or out of
 // space.
-static inline bool VerifyCharacters(const uint8_t* buffer,
-                                    int buffer_size,
-                                    int* offset,
-                                    char c1,
-                                    char c2) {
+static inline bool VerifyCharacters(const uint8_t* buffer, int buffer_size,
+                                    int* offset, char c1, char c2) {
   RCHECK(*offset < buffer_size);
   char c = static_cast<char>(buffer[(*offset)++]);
   return (c == c1 || (c == c2 && c2 != 0));
@@ -1175,7 +1137,8 @@ static bool CheckSrt(const uint8_t* buffer, int buffer_size) {
   RCHECK(VerifyCharacters(buffer, buffer_size, &offset, '\n', '\r'));
 
   // Skip any additional \n\r.
-  while (VerifyCharacters(buffer, buffer_size, &offset, '\n', '\r')) {}
+  while (VerifyCharacters(buffer, buffer_size, &offset, '\n', '\r')) {
+  }
   --offset;  // Since VerifyCharacters() gobbled up the next non-CR/LF.
 
   // Second line should look like the following:
@@ -1210,12 +1173,11 @@ static int GetElementId(BitReader* reader) {
   // return -1 as a tag that won't be expected.
   if (reader->bits_available() >= 8) {
     int num_bits_to_read = 0;
-    static int prefix[] = { 0x80, 0x4000, 0x200000, 0x10000000 };
+    static int prefix[] = {0x80, 0x4000, 0x200000, 0x10000000};
     for (int i = 0; i < 4; ++i) {
       num_bits_to_read += 7;
       if (ReadBits(reader, 1) == 1) {
-        if (reader->bits_available() < num_bits_to_read)
-          break;
+        if (reader->bits_available() < num_bits_to_read) break;
         // prefix[] adds back the bits read individually.
         return ReadBits(reader, num_bits_to_read) | prefix[i];
       }
@@ -1235,8 +1197,7 @@ static uint64_t GetVint(BitReader* reader) {
     for (int i = 0; i < 8; ++i) {
       num_bits_to_read += 7;
       if (ReadBits(reader, 1) == 1) {
-        if (reader->bits_available() < num_bits_to_read)
-          break;
+        if (reader->bits_available() < num_bits_to_read) break;
         return ReadBits(reader, num_bits_to_read);
       }
     }
@@ -1284,9 +1245,9 @@ static bool CheckWebm(const uint8_t* buffer, int buffer_size) {
         // Need to see "webm" or "matroska" next.
         RCHECK(reader.bits_available() >= 32);
         switch (ReadBits(&reader, 32)) {
-          case TAG('w', 'e', 'b', 'm') :
+          case TAG('w', 'e', 'b', 'm'):
             return true;
-          case TAG('m', 'a', 't', 'r') :
+          case TAG('m', 'a', 't', 'r'):
             RCHECK(reader.bits_available() >= 32);
             return (ReadBits(&reader, 32) == TAG('o', 's', 'k', 'a'));
         }
@@ -1316,8 +1277,7 @@ static bool CheckVC1(const uint8_t* buffer, int buffer_size) {
   RCHECK(buffer_size >= 24);
 
   // First check for Bitstream Metadata Serialization (Annex L)
-  if (buffer[0] == 0xc5 &&
-      Read32(buffer + 4) == 0x04 &&
+  if (buffer[0] == 0xc5 && Read32(buffer + 4) == 0x04 &&
       Read32(buffer + 20) == 0x0c) {
     // Verify settings in STRUCT_C and STRUCT_A
     BitReader reader(buffer + 8, 12);
@@ -1389,7 +1349,7 @@ static bool CheckVC1(const uint8_t* buffer, int buffer_size) {
             break;
           case 2:  // complex
             return false;
-          case 3:  // advanced
+          case 3:                               // advanced
             RCHECK(ReadBits(&reader, 3) <= 4);  // Verify level = 0..4
             RCHECK(ReadBits(&reader, 2) == 1);  // Verify colordiff_format = 1
             break;
@@ -1431,69 +1391,58 @@ static const uint8_t kWtvSignature[] = {0xb7, 0xd8, 0x00, 0x20, 0x37, 0x49,
 static MediaContainerName LookupContainerByFirst4(const uint8_t* buffer,
                                                   int buffer_size) {
   // Minimum size that the code expects to exist without checking size.
-  if (buffer_size < 12)
-    return CONTAINER_UNKNOWN;
+  if (buffer_size < 12) return CONTAINER_UNKNOWN;
 
   uint32_t first4 = Read32(buffer);
   switch (first4) {
     case 0x1a45dfa3:
-      if (CheckWebm(buffer, buffer_size))
-        return CONTAINER_WEBM;
+      if (CheckWebm(buffer, buffer_size)) return CONTAINER_WEBM;
       break;
 
     case 0x3026b275:
-      if (StartsWith(buffer,
-                     buffer_size,
-                     kAsfSignature,
+      if (StartsWith(buffer, buffer_size, kAsfSignature,
                      sizeof(kAsfSignature))) {
         return CONTAINER_ASF;
       }
       break;
 
-    case TAG('#','!','A','M'):
-      if (StartsWith(buffer, buffer_size, kAmrSignature))
-        return CONTAINER_AMR;
+    case TAG('#', '!', 'A', 'M'):
+      if (StartsWith(buffer, buffer_size, kAmrSignature)) return CONTAINER_AMR;
       break;
 
-    case TAG('#','E','X','T'):
-      if (CheckHls(buffer, buffer_size))
-        return CONTAINER_HLS;
+    case TAG('#', 'E', 'X', 'T'):
+      if (CheckHls(buffer, buffer_size)) return CONTAINER_HLS;
       break;
 
-    case TAG('.','R','M','F'):
-      if (buffer[4] == 0 && buffer[5] == 0)
-        return CONTAINER_RM;
+    case TAG('.', 'R', 'M', 'F'):
+      if (buffer[4] == 0 && buffer[5] == 0) return CONTAINER_RM;
       break;
 
-    case TAG('.','r','a','\xfd'):
+    case TAG('.', 'r', 'a', '\xfd'):
       return CONTAINER_RM;
 
-    case TAG('B','I','K','b'):
-    case TAG('B','I','K','d'):
-    case TAG('B','I','K','f'):
-    case TAG('B','I','K','g'):
-    case TAG('B','I','K','h'):
-    case TAG('B','I','K','i'):
-      if (CheckBink(buffer, buffer_size))
-        return CONTAINER_BINK;
+    case TAG('B', 'I', 'K', 'b'):
+    case TAG('B', 'I', 'K', 'd'):
+    case TAG('B', 'I', 'K', 'f'):
+    case TAG('B', 'I', 'K', 'g'):
+    case TAG('B', 'I', 'K', 'h'):
+    case TAG('B', 'I', 'K', 'i'):
+      if (CheckBink(buffer, buffer_size)) return CONTAINER_BINK;
       break;
 
-    case TAG('c','a','f','f'):
-      if (CheckCaf(buffer, buffer_size))
-        return CONTAINER_CAF;
+    case TAG('c', 'a', 'f', 'f'):
+      if (CheckCaf(buffer, buffer_size)) return CONTAINER_CAF;
       break;
 
-    case TAG('D','E','X','A'):
-      if (buffer_size > 15 &&
-          Read16(buffer + 11) <= 2048 &&
+    case TAG('D', 'E', 'X', 'A'):
+      if (buffer_size > 15 && Read16(buffer + 11) <= 2048 &&
           Read16(buffer + 13) <= 2048) {
         return CONTAINER_DXA;
       }
       break;
 
-    case TAG('D','T','S','H'):
-      if (Read32(buffer + 4) == TAG('D','H','D','R'))
-        return CONTAINER_DTSHD;
+    case TAG('D', 'T', 'S', 'H'):
+      if (Read32(buffer + 4) == TAG('D', 'H', 'D', 'R')) return CONTAINER_DTSHD;
       break;
 
     case 0x64a30100:
@@ -1507,62 +1456,58 @@ static MediaContainerName LookupContainerByFirst4(const uint8_t* buffer,
         return CONTAINER_IRCAM;
       break;
 
-    case TAG('f','L','a','C'):
+    case TAG('f', 'L', 'a', 'C'):
       return CONTAINER_FLAC;
 
-    case TAG('F','L','V',0):
-    case TAG('F','L','V',1):
-    case TAG('F','L','V',2):
-    case TAG('F','L','V',3):
-    case TAG('F','L','V',4):
-      if (buffer[5] == 0 && Read32(buffer + 5) > 8)
-        return CONTAINER_FLV;
+    case TAG('F', 'L', 'V', 0):
+    case TAG('F', 'L', 'V', 1):
+    case TAG('F', 'L', 'V', 2):
+    case TAG('F', 'L', 'V', 3):
+    case TAG('F', 'L', 'V', 4):
+      if (buffer[5] == 0 && Read32(buffer + 5) > 8) return CONTAINER_FLV;
       break;
 
-    case TAG('F','O','R','M'):
+    case TAG('F', 'O', 'R', 'M'):
       switch (Read32(buffer + 8)) {
-        case TAG('A','I','F','F'):
-        case TAG('A','I','F','C'):
+        case TAG('A', 'I', 'F', 'F'):
+        case TAG('A', 'I', 'F', 'C'):
           return CONTAINER_AIFF;
       }
       break;
 
-    case TAG('M','A','C',' '):
+    case TAG('M', 'A', 'C', ' '):
       return CONTAINER_APE;
 
-    case TAG('O','N','2',' '):
-      if (Read32(buffer + 8) == TAG('O','N','2','f'))
-        return CONTAINER_AVI;
+    case TAG('O', 'N', '2', ' '):
+      if (Read32(buffer + 8) == TAG('O', 'N', '2', 'f')) return CONTAINER_AVI;
       break;
 
-    case TAG('O','g','g','S'):
-      if (buffer[5] <= 7)
-        return CONTAINER_OGG;
+    case TAG('O', 'g', 'g', 'S'):
+      if (buffer[5] <= 7) return CONTAINER_OGG;
       break;
 
-    case TAG('R','F','6','4'):
-      if (buffer_size > 16 && Read32(buffer + 12) == TAG('d','s','6','4'))
+    case TAG('R', 'F', '6', '4'):
+      if (buffer_size > 16 && Read32(buffer + 12) == TAG('d', 's', '6', '4'))
         return CONTAINER_WAV;
       break;
 
-    case TAG('R','I','F','F'):
+    case TAG('R', 'I', 'F', 'F'):
       switch (Read32(buffer + 8)) {
-        case TAG('A','V','I',' '):
-        case TAG('A','V','I','X'):
-        case TAG('A','V','I','\x19'):
-        case TAG('A','M','V',' '):
+        case TAG('A', 'V', 'I', ' '):
+        case TAG('A', 'V', 'I', 'X'):
+        case TAG('A', 'V', 'I', '\x19'):
+        case TAG('A', 'M', 'V', ' '):
           return CONTAINER_AVI;
-        case TAG('W','A','V','E'):
+        case TAG('W', 'A', 'V', 'E'):
           return CONTAINER_WAV;
       }
       break;
 
-    case TAG('[','S','c','r'):
-      if (StartsWith(buffer, buffer_size, kAssSignature))
-        return CONTAINER_ASS;
+    case TAG('[', 'S', 'c', 'r'):
+      if (StartsWith(buffer, buffer_size, kAssSignature)) return CONTAINER_ASS;
       break;
 
-    case TAG('\xef','\xbb','\xbf','['):
+    case TAG('\xef', '\xbb', '\xbf', '['):
       if (StartsWith(buffer, buffer_size, kAssBomSignature))
         return CONTAINER_ASS;
       break;
@@ -1571,14 +1516,11 @@ static MediaContainerName LookupContainerByFirst4(const uint8_t* buffer,
     case 0xfe7f0180:
     case 0x1fffe800:
     case 0xff1f00e8:
-      if (CheckDts(buffer, buffer_size))
-        return CONTAINER_DTS;
+      if (CheckDts(buffer, buffer_size)) return CONTAINER_DTS;
       break;
 
     case 0xb7d80020:
-      if (StartsWith(buffer,
-                     buffer_size,
-                     kWtvSignature,
+      if (StartsWith(buffer, buffer_size, kWtvSignature,
                      sizeof(kWtvSignature))) {
         return CONTAINER_WTV;
       }
@@ -1589,13 +1531,12 @@ static MediaContainerName LookupContainerByFirst4(const uint8_t* buffer,
   // than the first 4 bytes.
   uint32_t first3 = first4 & 0xffffff00;
   switch (first3) {
-    case TAG('C','W','S',0):
-    case TAG('F','W','S',0):
+    case TAG('C', 'W', 'S', 0):
+    case TAG('F', 'W', 'S', 0):
       return CONTAINER_SWF;
 
-    case TAG('I','D','3',0):
-      if (CheckMp3(buffer, buffer_size, true))
-        return CONTAINER_MP3;
+    case TAG('I', 'D', '3', 0):
+      if (CheckMp3(buffer, buffer_size, true)) return CONTAINER_MP3;
       break;
   }
 
@@ -1603,24 +1544,20 @@ static MediaContainerName LookupContainerByFirst4(const uint8_t* buffer,
   uint32_t first2 = Read16(buffer);
   switch (first2) {
     case kAc3SyncWord:
-      if (CheckAc3(buffer, buffer_size))
-        return CONTAINER_AC3;
-      if (CheckEac3(buffer, buffer_size))
-        return CONTAINER_EAC3;
+      if (CheckAc3(buffer, buffer_size)) return CONTAINER_AC3;
+      if (CheckEac3(buffer, buffer_size)) return CONTAINER_EAC3;
       break;
 
     case 0xfff0:
     case 0xfff1:
     case 0xfff8:
     case 0xfff9:
-      if (CheckAac(buffer, buffer_size))
-        return CONTAINER_AAC;
+      if (CheckAac(buffer, buffer_size)) return CONTAINER_AAC;
       break;
   }
 
   // Check if the file is in MP3 format without the header.
-  if (CheckMp3(buffer, buffer_size, false))
-    return CONTAINER_MP3;
+  if (CheckMp3(buffer, buffer_size, false)) return CONTAINER_MP3;
 
   return CONTAINER_UNKNOWN;
 }
@@ -1630,47 +1567,32 @@ MediaContainerName DetermineContainer(const uint8_t* buffer, int buffer_size) {
   DCHECK(buffer);
 
   // Since MOV/QuickTime/MPEG4 streams are common, check for them first.
-  if (CheckMov(buffer, buffer_size))
-    return CONTAINER_MOV;
+  if (CheckMov(buffer, buffer_size)) return CONTAINER_MOV;
 
   // Next attempt the simple checks, that typically look at just the
   // first few bytes of the file.
   MediaContainerName result = LookupContainerByFirst4(buffer, buffer_size);
-  if (result != CONTAINER_UNKNOWN)
-    return result;
+  if (result != CONTAINER_UNKNOWN) return result;
 
   // Additional checks that may scan a portion of the buffer.
-  if (CheckMpeg2ProgramStream(buffer, buffer_size))
-    return CONTAINER_MPEG2PS;
-  if (CheckMpeg2TransportStream(buffer, buffer_size))
-    return CONTAINER_MPEG2TS;
-  if (CheckMJpeg(buffer, buffer_size))
-    return CONTAINER_MJPEG;
-  if (CheckDV(buffer, buffer_size))
-    return CONTAINER_DV;
-  if (CheckH261(buffer, buffer_size))
-    return CONTAINER_H261;
-  if (CheckH263(buffer, buffer_size))
-    return CONTAINER_H263;
-  if (CheckH264(buffer, buffer_size))
-    return CONTAINER_H264;
-  if (CheckMpeg4BitStream(buffer, buffer_size))
-    return CONTAINER_MPEG4BS;
-  if (CheckVC1(buffer, buffer_size))
-    return CONTAINER_VC1;
-  if (CheckSrt(buffer, buffer_size))
-    return CONTAINER_SRT;
-  if (CheckGsm(buffer, buffer_size))
-    return CONTAINER_GSM;
+  if (CheckMpeg2ProgramStream(buffer, buffer_size)) return CONTAINER_MPEG2PS;
+  if (CheckMpeg2TransportStream(buffer, buffer_size)) return CONTAINER_MPEG2TS;
+  if (CheckMJpeg(buffer, buffer_size)) return CONTAINER_MJPEG;
+  if (CheckDV(buffer, buffer_size)) return CONTAINER_DV;
+  if (CheckH261(buffer, buffer_size)) return CONTAINER_H261;
+  if (CheckH263(buffer, buffer_size)) return CONTAINER_H263;
+  if (CheckH264(buffer, buffer_size)) return CONTAINER_H264;
+  if (CheckMpeg4BitStream(buffer, buffer_size)) return CONTAINER_MPEG4BS;
+  if (CheckVC1(buffer, buffer_size)) return CONTAINER_VC1;
+  if (CheckSrt(buffer, buffer_size)) return CONTAINER_SRT;
+  if (CheckGsm(buffer, buffer_size)) return CONTAINER_GSM;
 
   // AC3/EAC3 might not start at the beginning of the stream,
   // so scan for a start code.
   int offset = 1;  // No need to start at byte 0 due to First4 check.
   if (AdvanceToStartCode(buffer, buffer_size, &offset, 4, 16, kAc3SyncWord)) {
-    if (CheckAc3(buffer + offset, buffer_size - offset))
-      return CONTAINER_AC3;
-    if (CheckEac3(buffer + offset, buffer_size - offset))
-      return CONTAINER_EAC3;
+    if (CheckAc3(buffer + offset, buffer_size - offset)) return CONTAINER_AC3;
+    if (CheckEac3(buffer + offset, buffer_size - offset)) return CONTAINER_EAC3;
   }
 
   return CONTAINER_UNKNOWN;

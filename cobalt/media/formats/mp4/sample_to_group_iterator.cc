@@ -17,8 +17,7 @@ SampleToGroupIterator::SampleToGroupIterator(
   // Handle the case that the table contains an entry with sample count 0.
   while (iterator_ != sample_to_group_table_.end()) {
     remaining_samples_ = iterator_->sample_count;
-    if (remaining_samples_ > 0)
-      break;
+    if (remaining_samples_ > 0) break;
     ++iterator_;
   }
 }
@@ -32,16 +31,13 @@ bool SampleToGroupIterator::Advance() {
   // Handle the case that the table contains an entry with sample count 0.
   while (remaining_samples_ == 0) {
     ++iterator_;
-    if (iterator_ == sample_to_group_table_.end())
-      return false;
+    if (iterator_ == sample_to_group_table_.end()) return false;
     remaining_samples_ = iterator_->sample_count;
   }
   return true;
 }
 
-bool SampleToGroupIterator::IsValid() const {
-  return remaining_samples_ > 0;
-}
+bool SampleToGroupIterator::IsValid() const { return remaining_samples_ > 0; }
 
 }  // namespace mp4
 }  // namespace media

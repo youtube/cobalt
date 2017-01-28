@@ -14,13 +14,12 @@ SkewedTickClock::SkewedTickClock(base::TickClock* clock)
     : clock_(clock),
       skew_(1.0),
       last_skew_set_time_(clock_->NowTicks()),
-      skew_clock_at_last_set_(last_skew_set_time_) {
-}
+      skew_clock_at_last_set_(last_skew_set_time_) {}
 
 base::TimeTicks SkewedTickClock::SkewTicks(base::TimeTicks now) {
   return base::TimeDelta::FromMicroseconds(
-      (now - last_skew_set_time_).InMicroseconds() * skew_) +
-      skew_clock_at_last_set_;
+             (now - last_skew_set_time_).InMicroseconds() * skew_) +
+         skew_clock_at_last_set_;
 }
 
 void SkewedTickClock::SetSkew(double skew, base::TimeDelta offset) {

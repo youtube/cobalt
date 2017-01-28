@@ -25,18 +25,15 @@ int TsPacket::Sync(const uint8_t* buf, int size) {
     bool is_header = true;
     for (int i = 0; i < 4; i++) {
       int idx = k + i * kPacketSize;
-      if (idx >= size)
-        break;
+      if (idx >= size) break;
       if (buf[idx] != kTsHeaderSyncword) {
-        DVLOG(LOG_LEVEL_TS)
-            << "ByteSync" << idx << ": "
-            << std::hex << static_cast<int>(buf[idx]) << std::dec;
+        DVLOG(LOG_LEVEL_TS) << "ByteSync" << idx << ": " << std::hex
+                            << static_cast<int>(buf[idx]) << std::dec;
         is_header = false;
         break;
       }
     }
-    if (is_header)
-      break;
+    if (is_header) break;
   }
 
   DVLOG_IF(1, k != 0) << "SYNC: nbytes_skipped=" << k;
@@ -54,8 +51,7 @@ TsPacket* TsPacket::Parse(const uint8_t* buf, int size) {
   DCHECK_EQ(buf[0], kTsHeaderSyncword);
   if (buf[0] != kTsHeaderSyncword) {
     DVLOG(1) << "Not on a TS syncword:"
-             << " buf[0]="
-             << std::hex << static_cast<int>(buf[0]) << std::dec;
+             << " buf[0]=" << std::hex << static_cast<int>(buf[0]) << std::dec;
     return NULL;
   }
 
@@ -68,11 +64,9 @@ TsPacket* TsPacket::Parse(const uint8_t* buf, int size) {
   return ts_packet.release();
 }
 
-TsPacket::TsPacket() {
-}
+TsPacket::TsPacket() {}
 
-TsPacket::~TsPacket() {
-}
+TsPacket::~TsPacket() {}
 
 bool TsPacket::ParseHeader(const uint8_t* buf) {
   BitReader bit_reader(buf, kPacketSize);
@@ -103,8 +97,7 @@ bool TsPacket::ParseHeader(const uint8_t* buf) {
   random_access_indicator_ = false;
 
   // Done since no adaptation field.
-  if ((adaptation_field_control & 0x2) == 0)
-    return true;
+  if ((adaptation_field_control & 0x2) == 0) return true;
 
   // Read the adaptation field if needed.
   int adaptation_field_length;
@@ -112,13 +105,11 @@ bool TsPacket::ParseHeader(const uint8_t* buf) {
   DVLOG(LOG_LEVEL_TS) << "adaptation_field_length=" << adaptation_field_length;
   payload_ += 1;
   payload_size_ -= 1;
-  if ((adaptation_field_control & 0x1) == 0 &&
-       adaptation_field_length != 183) {
+  if ((adaptation_field_control & 0x1) == 0 && adaptation_field_length != 183) {
     DVLOG(1) << "adaptation_field_length=" << adaptation_field_length;
     return false;
   }
-  if ((adaptation_field_control & 0x1) == 1 &&
-       adaptation_field_length > 182) {
+  if ((adaptation_field_control & 0x1) == 1 && adaptation_field_length > 182) {
     DVLOG(1) << "adaptation_field_length=" << adaptation_field_length;
     // This is not allowed by the spec.
     // However, some badly encoded streams are using
@@ -128,8 +119,7 @@ bool TsPacket::ParseHeader(const uint8_t* buf) {
 
   // adaptation_field_length = '0' is used to insert a single stuffing byte
   // in the adaptation field of a transport stream packet.
-  if (adaptation_field_length == 0)
-    return true;
+  if (adaptation_field_length == 0) return true;
 
   bool status = ParseAdaptationField(&bit_reader, adaptation_field_length);
   payload_ += adaptation_field_length;
@@ -198,7 +188,8 @@ bool TsPacket::ParseAdaptationField(BitReader* bit_reader,
   }
 
   // The rest of the adaptation field should be stuffing bytes.
-  int adaptation_field_remaining_size = adaptation_field_length -
+  int adaptation_field_remaining_size =
+      adaptation_field_length -
       (adaptation_field_start_marker - bit_reader->bits_available() / 8);
   RCHECK(adaptation_field_remaining_size >= 0);
   for (int k = 0; k < adaptation_field_remaining_size; k++) {
@@ -208,8 +199,8 @@ bool TsPacket::ParseAdaptationField(BitReader* bit_reader,
     // the remaining of the adaptation field with the expected stuffing value:
     // do not fail if that's the case.
     DVLOG_IF(1, stuffing_byte != 0xff)
-        << "Stream not compliant: invalid stuffing byte "
-        << std::hex << stuffing_byte;
+        << "Stream not compliant: invalid stuffing byte " << std::hex
+        << stuffing_byte;
   }
 
   DVLOG(LOG_LEVEL_TS) << "random_access_indicator=" << random_access_indicator_;
@@ -218,4 +209,3 @@ bool TsPacket::ParseAdaptationField(BitReader* bit_reader,
 
 }  // namespace mp2t
 }  // namespace media
-

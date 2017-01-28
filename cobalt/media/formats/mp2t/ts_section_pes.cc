@@ -46,15 +46,12 @@ TsSectionPes::TsSectionPes(std::unique_ptr<EsParser> es_parser,
   DCHECK(timestamp_unroller_);
 }
 
-TsSectionPes::~TsSectionPes() {
-}
+TsSectionPes::~TsSectionPes() {}
 
-bool TsSectionPes::Parse(bool payload_unit_start_indicator,
-                         const uint8_t* buf,
+bool TsSectionPes::Parse(bool payload_unit_start_indicator, const uint8_t* buf,
                          int size) {
   // Ignore partial PES.
-  if (wait_for_pusi_ && !payload_unit_start_indicator)
-    return true;
+  if (wait_for_pusi_ && !payload_unit_start_indicator) return true;
 
   bool parse_result = true;
   if (payload_unit_start_indicator) {
@@ -64,8 +61,7 @@ bool TsSectionPes::Parse(bool payload_unit_start_indicator,
     int raw_pes_size;
     const uint8_t* raw_pes;
     pes_byte_queue_.Peek(&raw_pes, &raw_pes_size);
-    if (raw_pes_size > 0)
-      parse_result = Emit(true);
+    if (raw_pes_size > 0) parse_result = Emit(true);
 
     // Reset the state.
     ResetPesState();
@@ -75,8 +71,7 @@ bool TsSectionPes::Parse(bool payload_unit_start_indicator,
   }
 
   // Add the data to the parser state.
-  if (size > 0)
-    pes_byte_queue_.Push(buf, size);
+  if (size > 0) pes_byte_queue_.Push(buf, size);
 
   // Try emitting the current PES packet.
   return (parse_result && Emit(false));
@@ -103,13 +98,11 @@ bool TsSectionPes::Emit(bool emit_for_unknown_size) {
 
   // A PES should be at least 6 bytes.
   // Wait for more data to come if not enough bytes.
-  if (raw_pes_size < 6)
-    return true;
+  if (raw_pes_size < 6) return true;
 
   // Check whether we have enough data to start parsing.
   int pes_packet_length =
-      (static_cast<int>(raw_pes[4]) << 8) |
-      (static_cast<int>(raw_pes[5]));
+      (static_cast<int>(raw_pes[4]) << 8) | (static_cast<int>(raw_pes[5]));
   if ((pes_packet_length == 0 && !emit_for_unknown_size) ||
       (pes_packet_length != 0 && raw_pes_size < pes_packet_length + 6)) {
     // Wait for more data to come either because:
@@ -154,8 +147,8 @@ bool TsSectionPes::ParseInternal(const uint8_t* raw_pes, int raw_pes_size) {
   // have the same syntax as regular audio streams.
   bool is_private_stream_1 = (stream_id == 0xbd);
   if (!is_audio_stream_id && !is_video_stream_id && !is_private_stream_1) {
-    DVLOG(LOG_LEVEL_PES) << "Dropped TsPacket for stream_id=0x"
-                         << std::hex << stream_id << std::dec;
+    DVLOG(LOG_LEVEL_PES) << "Dropped TsPacket for stream_id=0x" << std::hex
+                         << stream_id << std::dec;
     return true;
   }
 
@@ -238,17 +231,18 @@ bool TsSectionPes::ParseInternal(const uint8_t* raw_pes, int raw_pes_size) {
   // Discard the rest of the PES packet header.
   // TODO(damienv): check if some info of the PES packet header are useful.
   DCHECK_EQ(bit_reader.bits_available() % 8, 0);
-  int pes_header_remaining_size = pes_header_data_length -
+  int pes_header_remaining_size =
+      pes_header_data_length -
       (pes_header_start_size - bit_reader.bits_available() / 8);
   RCHECK(pes_header_remaining_size >= 0);
 
   // Read the PES packet.
-  DVLOG(LOG_LEVEL_PES)
-      << "Emit a reassembled PES:"
-      << " size=" << es_size
-      << " pts=" << media_pts.InMilliseconds()
-      << " dts=" << media_dts.InMilliseconds()
-      << " data_alignment_indicator=" << data_alignment_indicator;
+  DVLOG(LOG_LEVEL_PES) << "Emit a reassembled PES:"
+                       << " size=" << es_size
+                       << " pts=" << media_pts.InMilliseconds()
+                       << " dts=" << media_dts.InMilliseconds()
+                       << " data_alignment_indicator="
+                       << data_alignment_indicator;
   return es_parser_->Parse(&raw_pes[es_offset], es_size, media_pts, media_dts);
 }
 

@@ -20,8 +20,7 @@ CdmCallbackPromise<T...>::CdmCallbackPromise(
 
 template <typename... T>
 CdmCallbackPromise<T...>::~CdmCallbackPromise() {
-  if (IsPromiseSettled())
-    return;
+  if (IsPromiseSettled()) return;
 
   DCHECK(!resolve_cb_.is_null() && !reject_cb_.is_null());
   RejectPromiseOnDestruction();

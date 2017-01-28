@@ -39,18 +39,15 @@ FrameSender::RtcpClient::~RtcpClient() {}
 
 void FrameSender::RtcpClient::OnReceivedCastMessage(
     const RtcpCastMessage& cast_message) {
-  if (frame_sender_)
-    frame_sender_->OnReceivedCastFeedback(cast_message);
+  if (frame_sender_) frame_sender_->OnReceivedCastFeedback(cast_message);
 }
 
 void FrameSender::RtcpClient::OnReceivedRtt(base::TimeDelta round_trip_time) {
-  if (frame_sender_)
-    frame_sender_->OnMeasuredRoundTripTime(round_trip_time);
+  if (frame_sender_) frame_sender_->OnMeasuredRoundTripTime(round_trip_time);
 }
 
 void FrameSender::RtcpClient::OnReceivedPli() {
-  if (frame_sender_)
-    frame_sender_->OnReceivedPli();
+  if (frame_sender_) frame_sender_->OnReceivedPli();
 }
 
 FrameSender::FrameSender(scoped_refptr<CastEnvironment> cast_environment,
@@ -99,8 +96,7 @@ FrameSender::FrameSender(scoped_refptr<CastEnvironment> cast_environment,
       base::MakeUnique<FrameSender::RtcpClient>(weak_factory_.GetWeakPtr()));
 }
 
-FrameSender::~FrameSender() {
-}
+FrameSender::~FrameSender() {}
 
 void FrameSender::ScheduleNextRtcpReport() {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
@@ -133,8 +129,7 @@ void FrameSender::SendRtcpReport(bool schedule_future_reports) {
       GetRecordedRtpTimestamp(last_sent_frame_id_) + rtp_delta;
   transport_sender_->SendSenderReport(ssrc_, now, now_as_rtp_timestamp);
 
-  if (schedule_future_reports)
-    ScheduleNextRtcpReport();
+  if (schedule_future_reports) ScheduleNextRtcpReport();
 }
 
 void FrameSender::OnMeasuredRoundTripTime(base::TimeDelta rtt) {
@@ -148,10 +143,10 @@ void FrameSender::SetTargetPlayoutDelay(
       target_playout_delay_ == new_target_playout_delay) {
     return;
   }
-  new_target_playout_delay = std::max(new_target_playout_delay,
-                                      min_playout_delay_);
-  new_target_playout_delay = std::min(new_target_playout_delay,
-                                      max_playout_delay_);
+  new_target_playout_delay =
+      std::max(new_target_playout_delay, min_playout_delay_);
+  new_target_playout_delay =
+      std::min(new_target_playout_delay, max_playout_delay_);
   VLOG(2) << SENDER_SSRC << "Target playout delay changing from "
           << target_playout_delay_.InMilliseconds() << " ms to "
           << new_target_playout_delay.InMilliseconds() << " ms.";
@@ -169,8 +164,8 @@ void FrameSender::ResendCheck() {
     if (latest_acked_frame_id_ == last_sent_frame_id_) {
       // Last frame acked, no point in doing anything
     } else {
-      VLOG(1) << SENDER_SSRC << "ACK timeout; last acked frame: "
-              << latest_acked_frame_id_;
+      VLOG(1) << SENDER_SSRC
+              << "ACK timeout; last acked frame: " << latest_acked_frame_id_;
       ResendForKickstart();
     }
   }
@@ -180,14 +175,13 @@ void FrameSender::ResendCheck() {
 void FrameSender::ScheduleNextResendCheck() {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
   DCHECK(!last_send_time_.is_null());
-  base::TimeDelta time_to_next =
-      last_send_time_ - cast_environment_->Clock()->NowTicks() +
-      target_playout_delay_;
+  base::TimeDelta time_to_next = last_send_time_ -
+                                 cast_environment_->Clock()->NowTicks() +
+                                 target_playout_delay_;
   time_to_next = std::max(
       time_to_next, base::TimeDelta::FromMilliseconds(kMinSchedulingDelayMs));
   cast_environment_->PostDelayedTask(
-      CastEnvironment::MAIN,
-      FROM_HERE,
+      CastEnvironment::MAIN, FROM_HERE,
       base::Bind(&FrameSender::ResendCheck, weak_factory_.GetWeakPtr()),
       time_to_next);
 }
@@ -218,8 +212,7 @@ RtpTimeTicks FrameSender::GetRecordedRtpTimestamp(FrameId frame_id) const {
 }
 
 int FrameSender::GetUnacknowledgedFrameCount() const {
-  if (last_send_time_.is_null())
-    return 0;
+  if (last_send_time_.is_null()) return 0;
   const int count = last_sent_frame_id_ - latest_acked_frame_id_;
   DCHECK_GE(count, 0);
   return count;
@@ -238,8 +231,9 @@ void FrameSender::SendEncodedFrame(
     std::unique_ptr<SenderEncodedFrame> encoded_frame) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
 
-  VLOG(2) << SENDER_SSRC << "About to send another frame: last_sent="
-          << last_sent_frame_id_ << ", latest_acked=" << latest_acked_frame_id_;
+  VLOG(2) << SENDER_SSRC
+          << "About to send another frame: last_sent=" << last_sent_frame_id_
+          << ", latest_acked=" << latest_acked_frame_id_;
 
   const FrameId frame_id = encoded_frame->frame_id;
   const bool is_first_frame_to_be_sent = last_send_time_.is_null();
@@ -283,16 +277,14 @@ void FrameSender::SendEncodedFrame(
       encoded_frame->lossy_utilization;
   cast_environment_->logger()->DispatchFrameEvent(std::move(encode_event));
 
-  RecordLatestFrameTimestamps(frame_id,
-                              encoded_frame->reference_time,
+  RecordLatestFrameTimestamps(frame_id, encoded_frame->reference_time,
                               encoded_frame->rtp_timestamp);
 
   if (!is_audio_) {
     // Used by chrome/browser/extension/api/cast_streaming/performance_test.cc
-    TRACE_EVENT_INSTANT1(
-        "cast_perf_test", "VideoFrameEncoded",
-        TRACE_EVENT_SCOPE_THREAD,
-        "rtp_timestamp", encoded_frame->rtp_timestamp.lower_32_bits());
+    TRACE_EVENT_INSTANT1("cast_perf_test", "VideoFrameEncoded",
+                         TRACE_EVENT_SCOPE_THREAD, "rtp_timestamp",
+                         encoded_frame->rtp_timestamp.lower_32_bits());
   }
 
   // At the start of the session, it's important to send reports before each
@@ -306,8 +298,8 @@ void FrameSender::SendEncodedFrame(
     ++num_aggressive_rtcp_reports_sent_;
     const bool is_last_aggressive_report =
         (num_aggressive_rtcp_reports_sent_ == kNumAggressiveReportsSentAtStart);
-    VLOG_IF(1, is_last_aggressive_report)
-        << SENDER_SSRC << "Sending last aggressive report.";
+    VLOG_IF(1, is_last_aggressive_report) << SENDER_SSRC
+                                          << "Sending last aggressive report.";
     SendRtcpReport(is_last_aggressive_report);
   }
 
@@ -394,9 +386,9 @@ void FrameSender::OnReceivedCastFeedback(const RtcpCastMessage& cast_feedback) {
 
   const bool is_acked_out_of_order =
       cast_feedback.ack_frame_id < latest_acked_frame_id_;
-  VLOG(2) << SENDER_SSRC
-          << "Received ACK" << (is_acked_out_of_order ? " out-of-order" : "")
-          << " for frame " << cast_feedback.ack_frame_id;
+  VLOG(2) << SENDER_SSRC << "Received ACK"
+          << (is_acked_out_of_order ? " out-of-order" : "") << " for frame "
+          << cast_feedback.ack_frame_id;
   if (is_acked_out_of_order) {
     TRACE_EVENT_INSTANT2(
         "cast.stream", "ACK out of order", TRACE_EVENT_SCOPE_THREAD,
@@ -422,9 +414,7 @@ void FrameSender::OnReceivedCastFeedback(const RtcpCastMessage& cast_feedback) {
   }
 }
 
-void FrameSender::OnReceivedPli() {
-  picture_lost_at_receiver_ = true;
-}
+void FrameSender::OnReceivedPli() { picture_lost_at_receiver_ = true; }
 
 bool FrameSender::ShouldDropNextFrame(base::TimeDelta frame_duration) const {
   // Check that accepting the next frame won't cause more frames to become
@@ -457,10 +447,9 @@ bool FrameSender::ShouldDropNextFrame(base::TimeDelta frame_duration) const {
             ? 100 * duration_would_be_in_flight / allowed_in_flight
             : std::numeric_limits<int64_t>::max();
     VLOG_IF(1, percent > 50)
-        << SENDER_SSRC
-        << duration_in_flight.InMicroseconds() << " usec in-flight + "
-        << frame_duration.InMicroseconds() << " usec for next frame --> "
-        << percent << "% of allowed in-flight.";
+        << SENDER_SSRC << duration_in_flight.InMicroseconds()
+        << " usec in-flight + " << frame_duration.InMicroseconds()
+        << " usec for next frame --> " << percent << "% of allowed in-flight.";
   }
   if (duration_would_be_in_flight > allowed_in_flight) {
     VLOG(1) << SENDER_SSRC << "Dropping: In-flight duration would be too high.";

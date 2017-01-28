@@ -14,23 +14,17 @@ void SetMediaClient(MediaClient* media_client) {
   g_media_client = media_client;
 }
 
-MediaClient* GetMediaClient() {
-  return g_media_client;
-}
+MediaClient* GetMediaClient() { return g_media_client; }
 
 KeySystemInfoForUMA::KeySystemInfoForUMA(
-    const std::string& key_system,
-    const std::string& key_system_name_for_uma)
+    const std::string& key_system, const std::string& key_system_name_for_uma)
     : key_system(key_system),
       key_system_name_for_uma(key_system_name_for_uma) {}
 
-KeySystemInfoForUMA::~KeySystemInfoForUMA() {
-}
+KeySystemInfoForUMA::~KeySystemInfoForUMA() {}
 
-MediaClient::MediaClient() {
-}
+MediaClient::MediaClient() {}
 
-MediaClient::~MediaClient() {
-}
+MediaClient::~MediaClient() {}
 
 }  // namespace media

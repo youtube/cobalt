@@ -14,17 +14,17 @@
 namespace media {
 
 // Human-readable output operator, for debugging/testability.
-template<class T>
+template <class T>
 std::ostream& operator<<(std::ostream& os, const Ranges<T>& r) {
   os << "{ ";
-  for(size_t i = 0; i < r.size(); ++i)
+  for (size_t i = 0; i < r.size(); ++i)
     os << "[" << r.start(i) << "," << r.end(i) << ") ";
   os << "}";
   return os;
 }
 
 // Helper method for asserting stringified form of |r| matches expectation.
-template<class T>
+template <class T>
 static void ExpectRanges(const Ranges<T>& r,
                          const base::StringPiece& expected_string) {
   std::stringstream ss;

@@ -19,9 +19,7 @@ class AudioClockTest : public testing::Test {
 
   ~AudioClockTest() override {}
 
-  void WroteAudio(int frames_written,
-                  int frames_requested,
-                  int delay_frames,
+  void WroteAudio(int frames_written, int frames_requested, int delay_frames,
                   double playback_rate) {
     clock_->WroteAudio(frames_written, frames_requested, delay_frames,
                        playback_rate);
@@ -43,8 +41,8 @@ class AudioClockTest : public testing::Test {
   }
 
   int TimeUntilPlaybackInMilliseconds(int timestamp_ms) {
-    return clock_
-        ->TimeUntilPlayback(base::TimeDelta::FromMilliseconds(timestamp_ms))
+    return clock_->TimeUntilPlayback(
+                     base::TimeDelta::FromMilliseconds(timestamp_ms))
         .InMilliseconds();
   }
 
@@ -329,8 +327,8 @@ TEST_F(AudioClockTest, SupportsYearsWorthOfAudioData) {
   EXPECT_EQ(huge.InDays(), ContiguousAudioDataBufferedInDays());
 
   // Use huge delay to test calculation of buffered data.
-  WroteAudio(
-      huge_amount_of_frames, huge_amount_of_frames, huge_amount_of_frames, 1.0);
+  WroteAudio(huge_amount_of_frames, huge_amount_of_frames,
+             huge_amount_of_frames, 1.0);
   EXPECT_EQ((huge * 3).InDays(), FrontTimestampInDays());
   EXPECT_EQ((huge * 2).InDays(), ContiguousAudioDataBufferedInDays());
 }

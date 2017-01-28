@@ -152,13 +152,11 @@ bool PopulateVideoFrameFromFile(VideoFrame* frame, FILE* video_file) {
 
   uint8_t* const raw_data = new uint8_t[frame_size];
   const size_t count = fread(raw_data, 1, frame_size, video_file);
-  if (count != frame_size)
-    return false;
+  if (count != frame_size) return false;
 
   memcpy(y_plane, raw_data, width * height);
   memcpy(u_plane, raw_data + width * height, half_width * half_height);
-  memcpy(v_plane,
-         raw_data + width * height + half_width * half_height,
+  memcpy(v_plane, raw_data + width * height + half_width * half_height,
          half_width * half_height);
   delete[] raw_data;
   return true;

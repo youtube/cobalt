@@ -22,8 +22,7 @@ TimeDeltaInterpolator::TimeDeltaInterpolator(base::TickClock* tick_clock)
   DCHECK(tick_clock_);
 }
 
-TimeDeltaInterpolator::~TimeDeltaInterpolator() {
-}
+TimeDeltaInterpolator::~TimeDeltaInterpolator() {}
 
 base::TimeDelta TimeDeltaInterpolator::StartInterpolating() {
   DCHECK(!interpolating_);
@@ -65,16 +64,14 @@ void TimeDeltaInterpolator::SetUpperBound(base::TimeDelta upper_bound) {
 }
 
 base::TimeDelta TimeDeltaInterpolator::GetInterpolatedTime() {
-  if (!interpolating_)
-    return lower_bound_;
+  if (!interpolating_) return lower_bound_;
 
   int64_t now_us = (tick_clock_->NowTicks() - reference_).InMicroseconds();
   now_us = static_cast<int64_t>(now_us * playback_rate_);
   base::TimeDelta interpolated_time =
       lower_bound_ + base::TimeDelta::FromMicroseconds(now_us);
 
-  if (upper_bound_ == kNoTimestamp)
-    return interpolated_time;
+  if (upper_bound_ == kNoTimestamp) return interpolated_time;
 
   return std::min(interpolated_time, upper_bound_);
 }

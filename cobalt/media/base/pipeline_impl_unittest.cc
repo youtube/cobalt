@@ -48,13 +48,9 @@ using ::testing::WithArg;
 
 namespace media {
 
-ACTION_P(SetDemuxerProperties, duration) {
-  arg0->SetDuration(duration);
-}
+ACTION_P(SetDemuxerProperties, duration) { arg0->SetDuration(duration); }
 
-ACTION_P(Stop, pipeline) {
-  pipeline->Stop();
-}
+ACTION_P(Stop, pipeline) { pipeline->Stop(); }
 
 ACTION_P2(SetError, renderer_client, status) {
   (*renderer_client)->OnError(status);
@@ -64,8 +60,7 @@ ACTION_P2(SetBufferingState, renderer_client, buffering_state) {
   (*renderer_client)->OnBufferingStateChange(buffering_state);
 }
 
-ACTION_TEMPLATE(PostCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(PostCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_1_VALUE_PARAMS(p0)) {
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind(::std::tr1::get<k>(args), p0));
@@ -123,8 +118,7 @@ class PipelineImplTest : public ::testing::Test {
 
       // The mock demuxer doesn't stop the fake text track stream,
       // so just stop it manually.
-      if (text_stream_)
-        text_stream_->Stop();
+      if (text_stream_) text_stream_->Stop();
 
       pipeline_->Stop();
     }
@@ -292,8 +286,7 @@ class PipelineImplTest : public ::testing::Test {
   }
 
   void ExpectDemuxerStop() {
-    if (demuxer_)
-      EXPECT_CALL(*demuxer_, Stop());
+    if (demuxer_) EXPECT_CALL(*demuxer_, Stop());
   }
 
   void DoOnAddTextTrack(const TextTrackConfig& config,
