@@ -40,8 +40,7 @@ static int LocateEndOfHeaders(const uint8_t* buf, int buf_len, int i) {
   for (; i < buf_len; ++i) {
     char c = buf[i];
     if (c == '\n') {
-      if (was_lf)
-        return i + 1;
+      if (was_lf) return i + 1;
       was_lf = true;
     } else if (c != '\r' || last_c != '\n') {
       was_lf = false;
@@ -63,10 +62,8 @@ MPEGAudioStreamParserBase::MPEGAudioStreamParserBase(uint32_t start_code_mask,
 MPEGAudioStreamParserBase::~MPEGAudioStreamParserBase() {}
 
 void MPEGAudioStreamParserBase::Init(
-    const InitCB& init_cb,
-    const NewConfigCB& config_cb,
-    const NewBuffersCB& new_buffers_cb,
-    bool ignore_text_tracks,
+    const InitCB& init_cb, const NewConfigCB& config_cb,
+    const NewBuffersCB& new_buffers_cb, bool ignore_text_tracks,
     const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
     const NewMediaSegmentCB& new_segment_cb,
     const EndMediaSegmentCB& end_of_segment_cb,
@@ -87,8 +84,7 @@ void MPEGAudioStreamParserBase::Flush() {
   DVLOG(1) << __FUNCTION__;
   DCHECK_NE(state_, UNINITIALIZED);
   queue_.Reset();
-  if (timestamp_helper_)
-    timestamp_helper_->SetBaseTimestamp(base::TimeDelta());
+  if (timestamp_helper_) timestamp_helper_->SetBaseTimestamp(base::TimeDelta());
   in_media_segment_ = false;
 }
 
@@ -98,8 +94,7 @@ bool MPEGAudioStreamParserBase::Parse(const uint8_t* buf, int size) {
   DCHECK_GT(size, 0);
   DCHECK_NE(state_, UNINITIALIZED);
 
-  if (state_ == PARSE_ERROR)
-    return false;
+  if (state_ == PARSE_ERROR) return false;
 
   DCHECK_EQ(state_, INITIALIZED);
 
@@ -112,8 +107,7 @@ bool MPEGAudioStreamParserBase::Parse(const uint8_t* buf, int size) {
     int data_size;
     queue_.Peek(&data, &data_size);
 
-    if (data_size < 4)
-      break;
+    if (data_size < 4) break;
 
     uint32_t start_code =
         data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
@@ -158,8 +152,7 @@ bool MPEGAudioStreamParserBase::Parse(const uint8_t* buf, int size) {
     end_of_segment = true;
   }
 
-  if (buffers.empty())
-    return true;
+  if (buffers.empty()) return true;
 
   // Send buffers collected in this append that haven't been sent yet.
   return SendBuffers(&buffers, end_of_segment);
@@ -170,8 +163,7 @@ void MPEGAudioStreamParserBase::ChangeState(State state) {
   state_ = state;
 }
 
-int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
-                                          int size,
+int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data, int size,
                                           BufferQueue* buffers) {
   DVLOG(2) << __FUNCTION__ << "(" << size << ")";
 
@@ -185,12 +177,10 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
       ParseFrameHeader(data, size, &frame_size, &sample_rate, &channel_layout,
                        &sample_count, &metadata_frame, &extra_data);
 
-  if (bytes_read <= 0)
-    return bytes_read;
+  if (bytes_read <= 0) return bytes_read;
 
   // Make sure data contains the entire frame.
-  if (size < frame_size)
-    return 0;
+  if (size < frame_size) return 0;
 
   DVLOG(2) << " sample_rate " << sample_rate << " channel_layout "
            << channel_layout << " frame_size " << frame_size << " sample_count "
@@ -202,8 +192,7 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
     config_ = AudioDecoderConfig();
 
     // Send all buffers associated with the previous config.
-    if (!buffers->empty() && !SendBuffers(buffers, true))
-      return -1;
+    if (!buffers->empty() && !SendBuffers(buffers, true)) return -1;
   }
 
   if (!config_.IsValidConfig()) {
@@ -212,8 +201,7 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
                        base::TimeDelta(), codec_delay_);
 
     base::TimeDelta base_timestamp;
-    if (timestamp_helper_)
-      base_timestamp = timestamp_helper_->GetTimestamp();
+    if (timestamp_helper_) base_timestamp = timestamp_helper_->GetTimestamp();
 
     timestamp_helper_.reset(new AudioTimestampHelper(sample_rate));
     timestamp_helper_->SetBaseTimestamp(base_timestamp);
@@ -222,8 +210,7 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
     if (config_.IsValidConfig()) {
       media_tracks->AddAudioTrack(config_, kMpegAudioTrackId, "main", "", "");
     }
-    if (!config_cb_.Run(media_tracks.Pass(), TextTrackConfigMap()))
-      return -1;
+    if (!config_cb_.Run(media_tracks.Pass(), TextTrackConfigMap())) return -1;
 
     if (!init_cb_.is_null()) {
       InitParameters params(kInfiniteDuration);
@@ -233,8 +220,7 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
     }
   }
 
-  if (metadata_frame)
-    return frame_size;
+  if (metadata_frame) return frame_size;
 
   // TODO(wolenetz/acolwell): Validate and use a common cross-parser TrackId
   // type and allow multiple audio tracks, if applicable. See
@@ -254,11 +240,9 @@ int MPEGAudioStreamParserBase::ParseIcecastHeader(const uint8_t* data,
                                                   int size) {
   DVLOG(1) << __FUNCTION__ << "(" << size << ")";
 
-  if (size < 4)
-    return 0;
+  if (size < 4) return 0;
 
-  if (memcmp("ICY ", data, 4))
-    return -1;
+  if (memcmp("ICY ", data, 4)) return -1;
 
   int locate_size = std::min(size, kMaxIcecastHeaderSize);
   int offset = LocateEndOfHeaders(data, locate_size, 4);
@@ -277,8 +261,7 @@ int MPEGAudioStreamParserBase::ParseIcecastHeader(const uint8_t* data,
 int MPEGAudioStreamParserBase::ParseID3v1(const uint8_t* data, int size) {
   DVLOG(1) << __FUNCTION__ << "(" << size << ")";
 
-  if (size < kID3v1Size)
-    return 0;
+  if (size < kID3v1Size) return 0;
 
   // TODO(acolwell): Add code to actually validate ID3v1 data and
   // expose it as a metadata text track.
@@ -288,8 +271,7 @@ int MPEGAudioStreamParserBase::ParseID3v1(const uint8_t* data, int size) {
 int MPEGAudioStreamParserBase::ParseID3v2(const uint8_t* data, int size) {
   DVLOG(1) << __FUNCTION__ << "(" << size << ")";
 
-  if (size < 10)
-    return 0;
+  if (size < 10) return 0;
 
   BitReader reader(data, size);
   int32_t id;
@@ -305,12 +287,10 @@ int MPEGAudioStreamParserBase::ParseID3v2(const uint8_t* data, int size) {
   int32_t actual_tag_size = 10 + id3_size;
 
   // Increment size if 'Footer present' flag is set.
-  if (flags & 0x10)
-    actual_tag_size += 10;
+  if (flags & 0x10) actual_tag_size += 10;
 
   // Make sure we have the entire tag.
-  if (size < actual_tag_size)
-    return 0;
+  if (size < actual_tag_size) return 0;
 
   // TODO(acolwell): Add code to actually validate ID3v2 data and
   // expose it as a metadata text track.
@@ -327,8 +307,7 @@ bool MPEGAudioStreamParserBase::ParseSyncSafeInt(BitReader* reader,
       return false;
     }
 
-    if (!reader->ReadBits(7, &tmp))
-      return false;
+    if (!reader->ReadBits(7, &tmp)) return false;
 
     *value <<= 7;
     *value += tmp;
@@ -347,8 +326,7 @@ int MPEGAudioStreamParserBase::FindNextValidStartCode(const uint8_t* data,
     const uint8_t* candidate_start_code =
         static_cast<const uint8_t*>(memchr(start, 0xff, bytes_left));
 
-    if (!candidate_start_code)
-      return 0;
+    if (!candidate_start_code) return 0;
 
     bool parse_header_failed = false;
     const uint8_t* sync = candidate_start_code;
@@ -360,8 +338,7 @@ int MPEGAudioStreamParserBase::FindNextValidStartCode(const uint8_t* data,
       int sync_bytes = ParseFrameHeader(sync, sync_size, &frame_size, NULL,
                                         NULL, NULL, NULL, NULL);
 
-      if (sync_bytes == 0)
-        return 0;
+      if (sync_bytes == 0) return 0;
 
       if (sync_bytes > 0) {
         DCHECK_LT(sync_bytes, sync_size);
@@ -370,8 +347,7 @@ int MPEGAudioStreamParserBase::FindNextValidStartCode(const uint8_t* data,
         sync += frame_size;
 
         // Make sure the next frame starts inside the buffer.
-        if (sync >= end)
-          return 0;
+        if (sync >= end) return 0;
       } else {
         DVLOG(1) << "ParseFrameHeader() " << i << " failed @" << (sync - data);
         parse_header_failed = true;
@@ -404,8 +380,7 @@ bool MPEGAudioStreamParserBase::SendBuffers(BufferQueue* buffers,
 
   BufferQueueMap buffer_queue_map;
   buffer_queue_map.insert(std::make_pair(kMpegAudioTrackId, *buffers));
-  if (!new_buffers_cb_.Run(buffer_queue_map))
-    return false;
+  if (!new_buffers_cb_.Run(buffer_queue_map)) return false;
   buffers->clear();
 
   if (end_of_segment) {

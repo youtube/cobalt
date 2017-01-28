@@ -17,14 +17,13 @@ class VideoFramePoolTest : public ::testing::Test {
 
   scoped_refptr<VideoFrame> CreateFrame(VideoPixelFormat format,
                                         int timestamp_ms) {
-    gfx::Size coded_size(320,240);
+    gfx::Size coded_size(320, 240);
     gfx::Rect visible_rect(coded_size);
     gfx::Size natural_size(coded_size);
 
     scoped_refptr<VideoFrame> frame =
-        pool_->CreateFrame(
-            format, coded_size, visible_rect, natural_size,
-            base::TimeDelta::FromMilliseconds(timestamp_ms));
+        pool_->CreateFrame(format, coded_size, visible_rect, natural_size,
+                           base::TimeDelta::FromMilliseconds(timestamp_ms));
     EXPECT_EQ(format, frame->format());
     EXPECT_EQ(base::TimeDelta::FromMilliseconds(timestamp_ms),
               frame->timestamp());

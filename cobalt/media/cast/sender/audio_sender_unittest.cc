@@ -66,8 +66,7 @@ class TestPacketSender : public PacketTransport {
       // packet.  This confirms that the receiver will have the necessary lip
       // sync info before it has to calculate the playout time of the first
       // frame.
-      if (number_of_rtp_packets_ == 0)
-        EXPECT_LE(1, number_of_rtcp_packets_);
+      if (number_of_rtp_packets_ == 0) EXPECT_LE(1, number_of_rtcp_packets_);
       ++number_of_rtp_packets_;
     }
     return true;
@@ -113,11 +112,10 @@ class AudioSenderTest : public ::testing::Test {
         testing_clock_, base::TimeDelta(), base::MakeUnique<TransportClient>(),
         base::WrapUnique(transport_), task_runner_));
     OperationalStatus operational_status = STATUS_UNINITIALIZED;
-    audio_sender_.reset(new AudioSender(
-        cast_environment_,
-        audio_config_,
-        base::Bind(&SaveOperationalStatus, &operational_status),
-        transport_sender_.get()));
+    audio_sender_.reset(
+        new AudioSender(cast_environment_, audio_config_,
+                        base::Bind(&SaveOperationalStatus, &operational_status),
+                        transport_sender_.get()));
     task_runner_->RunTasks();
     CHECK_EQ(STATUS_INITIALIZED, operational_status);
   }

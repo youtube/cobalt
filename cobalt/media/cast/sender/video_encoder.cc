@@ -54,8 +54,7 @@ std::unique_ptr<VideoFrameFactory> VideoEncoder::CreateVideoFrameFactory() {
   return nullptr;
 }
 
-void VideoEncoder::EmitFrames() {
-}
+void VideoEncoder::EmitFrames() {}
 
 }  // namespace cast
 }  // namespace media

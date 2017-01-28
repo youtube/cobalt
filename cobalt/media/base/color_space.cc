@@ -53,10 +53,8 @@ ColorSpace::ColorSpace()
   SbMemorySet(custom_primary_matrix_, 0, sizeof(custom_primary_matrix_));
 }
 
-ColorSpace::ColorSpace(PrimaryID primaries,
-                       TransferID transfer,
-                       MatrixID matrix,
-                       RangeID range)
+ColorSpace::ColorSpace(PrimaryID primaries, TransferID transfer,
+                       MatrixID matrix, RangeID range)
     : primaries_(primaries),
       transfer_(transfer),
       matrix_(matrix),
@@ -123,30 +121,20 @@ bool ColorSpace::operator!=(const ColorSpace& other) const {
 }
 
 bool ColorSpace::operator<(const ColorSpace& other) const {
-  if (primaries_ < other.primaries_)
-    return true;
-  if (primaries_ > other.primaries_)
-    return false;
-  if (transfer_ < other.transfer_)
-    return true;
-  if (transfer_ > other.transfer_)
-    return false;
-  if (matrix_ < other.matrix_)
-    return true;
-  if (matrix_ > other.matrix_)
-    return false;
-  if (range_ < other.range_)
-    return true;
-  if (range_ > other.range_)
-    return false;
+  if (primaries_ < other.primaries_) return true;
+  if (primaries_ > other.primaries_) return false;
+  if (transfer_ < other.transfer_) return true;
+  if (transfer_ > other.transfer_) return false;
+  if (matrix_ < other.matrix_) return true;
+  if (matrix_ > other.matrix_) return false;
+  if (range_ < other.range_) return true;
+  if (range_ > other.range_) return false;
   if (primaries_ == kPrimaryIdCustom) {
     int primary_result =
         SbMemoryCompare(custom_primary_matrix_, other.custom_primary_matrix_,
                         sizeof(custom_primary_matrix_));
-    if (primary_result < 0)
-      return true;
-    if (primary_result > 0)
-      return false;
+    if (primary_result < 0) return true;
+    if (primary_result > 0) return false;
   }
   return false;
 }

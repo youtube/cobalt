@@ -30,7 +30,7 @@ int SampleFormatToBytesPerChannel(SampleFormat sample_format) {
 }
 
 const char* SampleFormatToString(SampleFormat sample_format) {
-  switch(sample_format) {
+  switch (sample_format) {
     case kUnknownSampleFormat:
       return "Unknown sample format";
     case kSampleFormatU8:

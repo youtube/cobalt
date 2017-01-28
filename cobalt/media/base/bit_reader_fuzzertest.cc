@@ -25,12 +25,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       // Read up to 64 bits. This may fail if there is not enough bits
       // remaining, but it doesn't matter (testing for failures is also good).
       uint64_t value;
-      if (!reader.ReadBits(rnd.Rand() % 64 + 1, &value))
-        break;
+      if (!reader.ReadBits(rnd.Rand() % 64 + 1, &value)) break;
     } else {
       // Skip up to 128 bits. As above, this may fail.
-      if (!reader.SkipBits(rnd.Rand() % 128 + 1))
-        break;
+      if (!reader.SkipBits(rnd.Rand() % 128 + 1)) break;
     }
   }
   return 0;

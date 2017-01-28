@@ -58,58 +58,50 @@ SIMD_ALIGNED(const int16_t ConvertRGBAToYUV_kTable[8 * 3]) = {
 SIMD_ALIGNED(const int32_t kYOffset[4]) = {16, 16, 16, 16};
 
 static inline uint8_t Clamp(int value) {
-  if (value < 0)
-    return 0;
-  if (value > 255)
-    return 255;
+  if (value < 0) return 0;
+  if (value > 255) return 255;
   return static_cast<uint8_t>(value);
 }
 
 static inline uint8_t RGBToY(int r, int g, int b) {
-  int y = ConvertRGBAToYUV_kTable[0] * b +
-      ConvertRGBAToYUV_kTable[1] * g +
-      ConvertRGBAToYUV_kTable[2] * r;
+  int y = ConvertRGBAToYUV_kTable[0] * b + ConvertRGBAToYUV_kTable[1] * g +
+          ConvertRGBAToYUV_kTable[2] * r;
   y >>= FIX_SHIFT;
   return Clamp(y + 16);
 }
 
 static inline uint8_t RGBToU(int r, int g, int b, int shift) {
-  int u = ConvertRGBAToYUV_kTable[8] * b +
-      ConvertRGBAToYUV_kTable[9] * g +
-      ConvertRGBAToYUV_kTable[10] * r;
+  int u = ConvertRGBAToYUV_kTable[8] * b + ConvertRGBAToYUV_kTable[9] * g +
+          ConvertRGBAToYUV_kTable[10] * r;
   u >>= FIX_SHIFT + shift;
   return Clamp(u + 128);
 }
 
 static inline uint8_t RGBToV(int r, int g, int b, int shift) {
-  int v = ConvertRGBAToYUV_kTable[16] * b +
-      ConvertRGBAToYUV_kTable[17] * g +
-      ConvertRGBAToYUV_kTable[18] * r;
+  int v = ConvertRGBAToYUV_kTable[16] * b + ConvertRGBAToYUV_kTable[17] * g +
+          ConvertRGBAToYUV_kTable[18] * r;
   v >>= FIX_SHIFT + shift;
   return Clamp(v + 128);
 }
 
 #define CONVERT_Y(rgb_buf, y_buf) \
-  b = *rgb_buf++; \
-  g = *rgb_buf++; \
-  r = *rgb_buf++; \
-  ++rgb_buf;      \
-  sum_b += b;     \
-  sum_g += g;     \
-  sum_r += r;     \
+  b = *rgb_buf++;                 \
+  g = *rgb_buf++;                 \
+  r = *rgb_buf++;                 \
+  ++rgb_buf;                      \
+  sum_b += b;                     \
+  sum_g += g;                     \
+  sum_r += r;                     \
   *y_buf++ = RGBToY(r, g, b);
 
 static inline void ConvertRGBToYUV_V2H2(const uint8_t* rgb_buf_1,
                                         const uint8_t* rgb_buf_2,
-                                        uint8_t* y_buf_1,
-                                        uint8_t* y_buf_2,
-                                        uint8_t* u_buf,
-                                        uint8_t* v_buf) {
+                                        uint8_t* y_buf_1, uint8_t* y_buf_2,
+                                        uint8_t* u_buf, uint8_t* v_buf) {
   int sum_b = 0;
   int sum_g = 0;
   int sum_r = 0;
   int r, g, b;
-
 
 
   CONVERT_Y(rgb_buf_1, y_buf_1);
@@ -122,10 +114,8 @@ static inline void ConvertRGBToYUV_V2H2(const uint8_t* rgb_buf_1,
 
 static inline void ConvertRGBToYUV_V2H1(const uint8_t* rgb_buf_1,
                                         const uint8_t* rgb_buf_2,
-                                        uint8_t* y_buf_1,
-                                        uint8_t* y_buf_2,
-                                        uint8_t* u_buf,
-                                        uint8_t* v_buf) {
+                                        uint8_t* y_buf_1, uint8_t* y_buf_2,
+                                        uint8_t* u_buf, uint8_t* v_buf) {
   int sum_b = 0;
   int sum_g = 0;
   int sum_r = 0;
@@ -137,10 +127,8 @@ static inline void ConvertRGBToYUV_V2H1(const uint8_t* rgb_buf_1,
   *v_buf++ = RGBToV(sum_r, sum_g, sum_b, 1);
 }
 
-static inline void ConvertRGBToYUV_V1H2(const uint8_t* rgb_buf,
-                                        uint8_t* y_buf,
-                                        uint8_t* u_buf,
-                                        uint8_t* v_buf) {
+static inline void ConvertRGBToYUV_V1H2(const uint8_t* rgb_buf, uint8_t* y_buf,
+                                        uint8_t* u_buf, uint8_t* v_buf) {
   int sum_b = 0;
   int sum_g = 0;
   int sum_r = 0;
@@ -152,10 +140,8 @@ static inline void ConvertRGBToYUV_V1H2(const uint8_t* rgb_buf,
   *v_buf++ = RGBToV(sum_r, sum_g, sum_b, 1);
 }
 
-static inline void ConvertRGBToYUV_V1H1(const uint8_t* rgb_buf,
-                                        uint8_t* y_buf,
-                                        uint8_t* u_buf,
-                                        uint8_t* v_buf) {
+static inline void ConvertRGBToYUV_V1H1(const uint8_t* rgb_buf, uint8_t* y_buf,
+                                        uint8_t* u_buf, uint8_t* v_buf) {
   int sum_b = 0;
   int sum_g = 0;
   int sum_r = 0;
@@ -168,10 +154,8 @@ static inline void ConvertRGBToYUV_V1H1(const uint8_t* rgb_buf,
 
 static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
                                       const uint8_t* rgb_buf_2,
-                                      uint8_t* y_buf_1,
-                                      uint8_t* y_buf_2,
-                                      uint8_t* u_buf,
-                                      uint8_t* v_buf,
+                                      uint8_t* y_buf_1, uint8_t* y_buf_2,
+                                      uint8_t* u_buf, uint8_t* v_buf,
                                       int width) {
   while (width >= 4) {
     // Name for the Y pixels:
@@ -179,8 +163,8 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
     // Row 2: e f g h
     //
     // First row 4 pixels.
-    __m128i rgb_row_1 = _mm_loadu_si128(
-        reinterpret_cast<const __m128i*>(rgb_buf_1));
+    __m128i rgb_row_1 =
+        _mm_loadu_si128(reinterpret_cast<const __m128i*>(rgb_buf_1));
     __m128i zero_1 = _mm_xor_si128(rgb_row_1, rgb_row_1);
 
     __m128i y_table = _mm_load_si128(
@@ -197,20 +181,16 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
     // BG: a b c d
     // A0: a b c d
     __m128i bg_abcd = _mm_castps_si128(
-        _mm_shuffle_ps(
-            _mm_castsi128_ps(rgb_c_d),
-            _mm_castsi128_ps(rgb_a_b),
-            (3 << 6) | (1 << 4) | (3 << 2) | 1));
-    __m128i r_abcd = _mm_castps_si128(
-        _mm_shuffle_ps(
-            _mm_castsi128_ps(rgb_c_d),
-            _mm_castsi128_ps(rgb_a_b),
-            (2 << 6) | (2 << 2)));
+        _mm_shuffle_ps(_mm_castsi128_ps(rgb_c_d), _mm_castsi128_ps(rgb_a_b),
+                       (3 << 6) | (1 << 4) | (3 << 2) | 1));
+    __m128i r_abcd = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(rgb_c_d),
+                                                     _mm_castsi128_ps(rgb_a_b),
+                                                     (2 << 6) | (2 << 2)));
     __m128i y_abcd = _mm_add_epi32(bg_abcd, r_abcd);
 
     // Down shift back to 8bits range.
-    __m128i y_offset = _mm_load_si128(
-        reinterpret_cast<const __m128i*>(kYOffset));
+    __m128i y_offset =
+        _mm_load_si128(reinterpret_cast<const __m128i*>(kYOffset));
     y_abcd = _mm_srai_epi32(y_abcd, FIX_SHIFT);
     y_abcd = _mm_add_epi32(y_abcd, y_offset);
     y_abcd = _mm_packs_epi32(y_abcd, y_abcd);
@@ -219,8 +199,8 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
     y_buf_1 += 4;
 
     // Second row 4 pixels.
-    __m128i rgb_row_2 = _mm_loadu_si128(
-        reinterpret_cast<const __m128i*>(rgb_buf_2));
+    __m128i rgb_row_2 =
+        _mm_loadu_si128(reinterpret_cast<const __m128i*>(rgb_buf_2));
     __m128i zero_2 = _mm_xor_si128(rgb_row_2, rgb_row_2);
     __m128i rgb_e_f = _mm_unpackhi_epi8(rgb_row_2, zero_2);
     __m128i rgb_g_h = _mm_unpacklo_epi8(rgb_row_2, zero_2);
@@ -236,13 +216,11 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
     rgb_g_h = _mm_madd_epi16(rgb_g_h, y_table);
 
     __m128i bg_efgh = _mm_castps_si128(
-        _mm_shuffle_ps(_mm_castsi128_ps(rgb_g_h),
-                       _mm_castsi128_ps(rgb_e_f),
+        _mm_shuffle_ps(_mm_castsi128_ps(rgb_g_h), _mm_castsi128_ps(rgb_e_f),
                        (3 << 6) | (1 << 4) | (3 << 2) | 1));
-    __m128i r_efgh = _mm_castps_si128(
-        _mm_shuffle_ps(_mm_castsi128_ps(rgb_g_h),
-                       _mm_castsi128_ps(rgb_e_f),
-                       (2 << 6) | (2 << 2)));
+    __m128i r_efgh = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(rgb_g_h),
+                                                     _mm_castsi128_ps(rgb_e_f),
+                                                     (2 << 6) | (2 << 2)));
     __m128i y_efgh = _mm_add_epi32(bg_efgh, r_efgh);
     y_efgh = _mm_srai_epi32(y_efgh, FIX_SHIFT);
     y_efgh = _mm_add_epi32(y_efgh, y_offset);
@@ -252,12 +230,10 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
     y_buf_2 += 4;
 
     __m128i rgb_ae_cg = _mm_castps_si128(
-        _mm_shuffle_ps(_mm_castsi128_ps(rgb_cg_dh),
-                       _mm_castsi128_ps(rgb_ae_bf),
+        _mm_shuffle_ps(_mm_castsi128_ps(rgb_cg_dh), _mm_castsi128_ps(rgb_ae_bf),
                        (3 << 6) | (2 << 4) | (3 << 2) | 2));
     __m128i rgb_bf_dh = _mm_castps_si128(
-        _mm_shuffle_ps(_mm_castsi128_ps(rgb_cg_dh),
-                       _mm_castsi128_ps(rgb_ae_bf),
+        _mm_shuffle_ps(_mm_castsi128_ps(rgb_cg_dh), _mm_castsi128_ps(rgb_ae_bf),
                        (1 << 6) | (1 << 2)));
 
     // This is a 2x2 subsampling for 2 pixels.
@@ -265,9 +241,8 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
 
     // Do a multiply add with U table.
     __m128i u_a_b = _mm_madd_epi16(
-        rgb_abef_cdgh,
-        _mm_load_si128(
-            reinterpret_cast<const __m128i*>(ConvertRGBAToYUV_kTable + 8)));
+        rgb_abef_cdgh, _mm_load_si128(reinterpret_cast<const __m128i*>(
+                           ConvertRGBAToYUV_kTable + 8)));
     u_a_b = _mm_add_epi32(_mm_shuffle_epi32(u_a_b, ((3 << 2) | 1)),
                           _mm_shuffle_epi32(u_a_b, (2 << 2)));
     // Right shift 14 because of 12 from fixed point and 2 from subsampling.
@@ -281,9 +256,8 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
     u_buf += 2;
 
     __m128i v_a_b = _mm_madd_epi16(
-        rgb_abef_cdgh,
-        _mm_load_si128(
-            reinterpret_cast<const __m128i*>(ConvertRGBAToYUV_kTable + 16)));
+        rgb_abef_cdgh, _mm_load_si128(reinterpret_cast<const __m128i*>(
+                           ConvertRGBAToYUV_kTable + 16)));
     v_a_b = _mm_add_epi32(_mm_shuffle_epi32(v_a_b, ((3 << 2) | 1)),
                           _mm_shuffle_epi32(v_a_b, (2 << 2)));
     v_a_b = _mm_srai_epi32(v_a_b, FIX_SHIFT + 2);
@@ -317,23 +291,13 @@ static void ConvertRGB32ToYUVRow_SSE2(const uint8_t* rgb_buf_1,
     ConvertRGBToYUV_V2H1(rgb_buf_1, rgb_buf_2, y_buf_1, y_buf_2, u_buf, v_buf);
 }
 
-extern void ConvertRGB32ToYUV_SSE2(const uint8_t* rgbframe,
-                                   uint8_t* yplane,
-                                   uint8_t* uplane,
-                                   uint8_t* vplane,
-                                   int width,
-                                   int height,
-                                   int rgbstride,
-                                   int ystride,
+extern void ConvertRGB32ToYUV_SSE2(const uint8_t* rgbframe, uint8_t* yplane,
+                                   uint8_t* uplane, uint8_t* vplane, int width,
+                                   int height, int rgbstride, int ystride,
                                    int uvstride) {
   while (height >= 2) {
-    ConvertRGB32ToYUVRow_SSE2(rgbframe,
-                              rgbframe + rgbstride,
-                              yplane,
-                              yplane + ystride,
-                              uplane,
-                              vplane,
-                              width);
+    ConvertRGB32ToYUVRow_SSE2(rgbframe, rgbframe + rgbstride, yplane,
+                              yplane + ystride, uplane, vplane, width);
     rgbframe += 2 * rgbstride;
     yplane += 2 * ystride;
     uplane += uvstride;
@@ -341,8 +305,7 @@ extern void ConvertRGB32ToYUV_SSE2(const uint8_t* rgbframe,
     height -= 2;
   }
 
-  if (!height)
-    return;
+  if (!height) return;
 
   // Handle the last row.
   while (width >= 2) {
@@ -354,40 +317,28 @@ extern void ConvertRGB32ToYUV_SSE2(const uint8_t* rgbframe,
     width -= 2;
   }
 
-  if (width)
-    ConvertRGBToYUV_V1H1(rgbframe, yplane, uplane, vplane);
+  if (width) ConvertRGBToYUV_V1H1(rgbframe, yplane, uplane, vplane);
 }
 
-void ConvertRGB32ToYUV_SSE2_Reference(const uint8_t* rgbframe,
-                                      uint8_t* yplane,
-                                      uint8_t* uplane,
-                                      uint8_t* vplane,
-                                      int width,
-                                      int height,
-                                      int rgbstride,
-                                      int ystride,
-                                      int uvstride) {
+void ConvertRGB32ToYUV_SSE2_Reference(const uint8_t* rgbframe, uint8_t* yplane,
+                                      uint8_t* uplane, uint8_t* vplane,
+                                      int width, int height, int rgbstride,
+                                      int ystride, int uvstride) {
   while (height >= 2) {
     int i = 0;
 
     // Convert a 2x2 block.
     while (i + 2 <= width) {
-      ConvertRGBToYUV_V2H2(rgbframe + i * 4,
-                           rgbframe + rgbstride + i * 4,
-                           yplane + i,
-                           yplane + ystride + i,
-                           uplane + i / 2,
+      ConvertRGBToYUV_V2H2(rgbframe + i * 4, rgbframe + rgbstride + i * 4,
+                           yplane + i, yplane + ystride + i, uplane + i / 2,
                            vplane + i / 2);
       i += 2;
     }
 
     // Convert the last pixel of two rows.
     if (i < width) {
-      ConvertRGBToYUV_V2H1(rgbframe + i * 4,
-                           rgbframe + rgbstride + i * 4,
-                           yplane + i,
-                           yplane + ystride + i,
-                           uplane + i / 2,
+      ConvertRGBToYUV_V2H1(rgbframe + i * 4, rgbframe + rgbstride + i * 4,
+                           yplane + i, yplane + ystride + i, uplane + i / 2,
                            vplane + i / 2);
     }
 
@@ -398,8 +349,7 @@ void ConvertRGB32ToYUV_SSE2_Reference(const uint8_t* rgbframe,
     height -= 2;
   }
 
-  if (!height)
-    return;
+  if (!height) return;
 
   // Handle the last row.
   while (width >= 2) {
@@ -412,8 +362,7 @@ void ConvertRGB32ToYUV_SSE2_Reference(const uint8_t* rgbframe,
   }
 
   // Handle the last pixel in the last row.
-  if (width)
-    ConvertRGBToYUV_V1H1(rgbframe, yplane, uplane, vplane);
+  if (width) ConvertRGBToYUV_V1H1(rgbframe, yplane, uplane, vplane);
 }
 
 }  // namespace media

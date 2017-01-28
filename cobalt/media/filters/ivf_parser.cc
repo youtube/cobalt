@@ -27,8 +27,7 @@ void IvfFrameHeader::ByteSwap() {
 
 IvfParser::IvfParser() : ptr_(NULL), end_(NULL) {}
 
-bool IvfParser::Initialize(const uint8_t* stream,
-                           size_t size,
+bool IvfParser::Initialize(const uint8_t* stream, size_t size,
                            IvfFileHeader* file_header) {
   DCHECK(stream);
   DCHECK(file_header);

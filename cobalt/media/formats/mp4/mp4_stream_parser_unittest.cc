@@ -83,16 +83,14 @@ class MP4StreamParserTest : public testing::Test {
     return parser_->Parse(data, length);
   }
 
-  bool AppendDataInPieces(const uint8_t* data,
-                          size_t length,
+  bool AppendDataInPieces(const uint8_t* data, size_t length,
                           size_t piece_size) {
     const uint8_t* start = data;
     const uint8_t* end = data + length;
     while (start < end) {
-      size_t append_size = std::min(piece_size,
-                                    static_cast<size_t>(end - start));
-      if (!AppendData(start, append_size))
-        return false;
+      size_t append_size =
+          std::min(piece_size, static_cast<size_t>(end - start));
+      if (!AppendData(start, append_size)) return false;
       start += append_size;
     }
     return true;
@@ -227,9 +225,8 @@ class MP4StreamParserTest : public testing::Test {
 
   bool ParseMP4File(const std::string& filename, int append_bytes) {
     scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(filename);
-    EXPECT_TRUE(AppendDataInPieces(buffer->data(),
-                                   buffer->data_size(),
-                                   append_bytes));
+    EXPECT_TRUE(
+        AppendDataInPieces(buffer->data(), buffer->data_size(), append_bytes));
     return true;
   }
 };
@@ -270,9 +267,7 @@ TEST_F(MP4StreamParserTest, Flush) {
       ReadTestDataFile("bear-1280x720-av_frag.mp4");
   EXPECT_TRUE(AppendDataInPieces(buffer->data(), 65536, 512));
   parser_->Flush();
-  EXPECT_TRUE(AppendDataInPieces(buffer->data(),
-                                 buffer->data_size(),
-                                 512));
+  EXPECT_TRUE(AppendDataInPieces(buffer->data(), buffer->data_size(), 512));
 }
 
 TEST_F(MP4StreamParserTest, Reinitialization) {
@@ -282,12 +277,8 @@ TEST_F(MP4StreamParserTest, Reinitialization) {
 
   scoped_refptr<DecoderBuffer> buffer =
       ReadTestDataFile("bear-1280x720-av_frag.mp4");
-  EXPECT_TRUE(AppendDataInPieces(buffer->data(),
-                                 buffer->data_size(),
-                                 512));
-  EXPECT_TRUE(AppendDataInPieces(buffer->data(),
-                                 buffer->data_size(),
-                                 512));
+  EXPECT_TRUE(AppendDataInPieces(buffer->data(), buffer->data_size(), 512));
+  EXPECT_TRUE(AppendDataInPieces(buffer->data(), buffer->data_size(), 512));
 }
 
 TEST_F(MP4StreamParserTest, UnknownDuration_V0_AllBitsSet) {
@@ -322,15 +313,12 @@ TEST_F(MP4StreamParserTest, NoMoovAfterFlush) {
 
   scoped_refptr<DecoderBuffer> buffer =
       ReadTestDataFile("bear-1280x720-av_frag.mp4");
-  EXPECT_TRUE(AppendDataInPieces(buffer->data(),
-                                 buffer->data_size(),
-                                 512));
+  EXPECT_TRUE(AppendDataInPieces(buffer->data(), buffer->data_size(), 512));
   parser_->Flush();
 
   const int kFirstMoofOffset = 1307;
   EXPECT_TRUE(AppendDataInPieces(buffer->data() + kFirstMoofOffset,
-                                 buffer->data_size() - kFirstMoofOffset,
-                                 512));
+                                 buffer->data_size() - kFirstMoofOffset, 512));
 }
 
 // Test an invalid file where there are encrypted samples, but

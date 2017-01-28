@@ -71,10 +71,7 @@ class FrameProcessorTest : public testing::TestWithParam<bool> {
         audio_id_(1),
         video_id_(2) {}
 
-  enum StreamFlags {
-    HAS_AUDIO = 1 << 0,
-    HAS_VIDEO = 1 << 1
-  };
+  enum StreamFlags { HAS_AUDIO = 1 << 0, HAS_VIDEO = 1 << 1 };
 
   void AddTestTracks(int stream_flags) {
     const bool has_audio = (stream_flags & HAS_AUDIO) != 0;
@@ -131,9 +128,8 @@ class FrameProcessorTest : public testing::TestWithParam<bool> {
       // timeline due to coded frame processing.
       const uint8_t* timestamp_as_data =
           reinterpret_cast<uint8_t*>(&time_in_ms);
-      scoped_refptr<StreamParserBuffer> buffer =
-          StreamParserBuffer::CopyFrom(timestamp_as_data, sizeof(time_in_ms),
-                                       is_keyframe, type, track_id);
+      scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
+          timestamp_as_data, sizeof(time_in_ms), is_keyframe, type, track_id);
       base::TimeDelta timestamp = base::TimeDelta::FromSecondsD(
           time_in_ms / base::Time::kMillisecondsPerSecond);
       buffer->set_timestamp(timestamp);
@@ -224,8 +220,7 @@ class FrameProcessorTest : public testing::TestWithParam<bool> {
       EXPECT_EQ(DemuxerStream::kOk, last_read_status_);
       EXPECT_FALSE(last_read_buffer_->end_of_stream());
 
-      if (i > 0)
-        ss << " ";
+      if (i > 0) ss << " ";
 
       int time_in_ms = last_read_buffer_->timestamp().InMilliseconds();
       ss << time_in_ms;
@@ -233,10 +228,9 @@ class FrameProcessorTest : public testing::TestWithParam<bool> {
       // Decode the original_time_in_ms from the buffer's data.
       double original_time_in_ms;
       ASSERT_EQ(sizeof(original_time_in_ms), last_read_buffer_->data_size());
-      original_time_in_ms = *(reinterpret_cast<const double*>(
-          last_read_buffer_->data()));
-      if (original_time_in_ms != time_in_ms)
-        ss << ":" << original_time_in_ms;
+      original_time_in_ms =
+          *(reinterpret_cast<const double*>(last_read_buffer_->data()));
+      if (original_time_in_ms != time_in_ms) ss << ":" << original_time_in_ms;
 
       // Detect full-discard preroll buffer.
       if (last_read_buffer_->discard_padding().first == kInfiniteDuration &&
@@ -286,8 +280,8 @@ class FrameProcessorTest : public testing::TestWithParam<bool> {
   void StoreStatusAndBuffer(DemuxerStream::Status status,
                             const scoped_refptr<DecoderBuffer>& buffer) {
     if (status == DemuxerStream::kOk && buffer.get()) {
-      DVLOG(3) << __FUNCTION__ << "status: " << status << " ts: "
-               << buffer->timestamp().InSecondsF();
+      DVLOG(3) << __FUNCTION__ << "status: " << status
+               << " ts: " << buffer->timestamp().InSecondsF();
     } else {
       DVLOG(3) << __FUNCTION__ << "status: " << status << " ts: n/a";
     }
@@ -366,8 +360,7 @@ TEST_P(FrameProcessorTest, AudioOnly_SingleFrame) {
   // Tests A: P(A) -> (a)
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
 
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_));
   ProcessFrames("0K", "");
@@ -381,8 +374,7 @@ TEST_P(FrameProcessorTest, VideoOnly_SingleFrame) {
   // Tests V: P(V) -> (v)
   InSequence s;
   AddTestTracks(HAS_VIDEO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
 
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_));
   ProcessFrames("", "0K");
@@ -396,8 +388,7 @@ TEST_P(FrameProcessorTest, AudioOnly_TwoFrames) {
   // Tests A: P(A0, A10) -> (a0, a10)
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
 
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_ * 2));
   ProcessFrames("0K 10K", "");
@@ -411,8 +402,7 @@ TEST_P(FrameProcessorTest, AudioOnly_SetOffsetThenSingleFrame) {
   // Tests A: STSO(50)+P(A0) -> TSO==50,(a0@50)
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
 
   const base::TimeDelta fifty_ms = base::TimeDelta::FromMilliseconds(50);
   SetTimestampOffset(fifty_ms);
@@ -434,19 +424,18 @@ TEST_P(FrameProcessorTest, AudioOnly_SetOffsetThenFrameTimestampBelowOffset) {
   InSequence s;
   AddTestTracks(HAS_AUDIO);
   bool using_sequence_mode = GetParam();
-  if (using_sequence_mode)
-    frame_processor_->SetSequenceMode(true);
+  if (using_sequence_mode) frame_processor_->SetSequenceMode(true);
 
   const base::TimeDelta fifty_ms = base::TimeDelta::FromMilliseconds(50);
   const base::TimeDelta twenty_ms = base::TimeDelta::FromMilliseconds(20);
   SetTimestampOffset(fifty_ms);
 
   if (using_sequence_mode) {
-    EXPECT_CALL(callbacks_, PossibleDurationIncrease(
-        fifty_ms + frame_duration_));
+    EXPECT_CALL(callbacks_,
+                PossibleDurationIncrease(fifty_ms + frame_duration_));
   } else {
-    EXPECT_CALL(callbacks_, PossibleDurationIncrease(
-        fifty_ms + twenty_ms + frame_duration_));
+    EXPECT_CALL(callbacks_, PossibleDurationIncrease(fifty_ms + twenty_ms +
+                                                     frame_duration_));
   }
 
   ProcessFrames("20K", "");
@@ -469,8 +458,7 @@ TEST_P(FrameProcessorTest, AudioOnly_SequentialProcessFrames) {
   // Tests A: P(A0,A10)+P(A20,A30) -> (a0,a10,a20,a30)
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
 
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_ * 2));
   ProcessFrames("0K 10K", "");
@@ -537,8 +525,7 @@ TEST_P(FrameProcessorTest, AudioVideo_SequentialProcessFrames) {
   //   (a0,a10,a20,a30,a40);(v0,v10,v20,v30)
   InSequence s;
   AddTestTracks(HAS_AUDIO | HAS_VIDEO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
 
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_ * 3));
   ProcessFrames("0K 10K", "0K 10 20");
@@ -695,8 +682,7 @@ TEST_P(FrameProcessorTest,
        AppendWindowFilterOfNegativeBufferTimestampsWithPrerollDiscard) {
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
 
   SetTimestampOffset(frame_duration_ * -2);
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_));
@@ -710,8 +696,7 @@ TEST_P(FrameProcessorTest,
 TEST_P(FrameProcessorTest, AppendWindowFilterWithInexactPreroll) {
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
   SetTimestampOffset(-frame_duration_);
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_ * 2));
   ProcessFrames("0K 9.75K 20K", "");
@@ -722,8 +707,7 @@ TEST_P(FrameProcessorTest, AppendWindowFilterWithInexactPreroll) {
 TEST_P(FrameProcessorTest, AppendWindowFilterWithInexactPreroll_2) {
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
   SetTimestampOffset(-frame_duration_);
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_ * 2));
   ProcessFrames("0K 10.25K 20K", "");
@@ -761,8 +745,7 @@ TEST_P(FrameProcessorTest, PartialAppendWindowFilterNoDiscontinuity) {
   // trimmed frame.
   InSequence s;
   AddTestTracks(HAS_AUDIO);
-  if (GetParam())
-    frame_processor_->SetSequenceMode(true);
+  if (GetParam()) frame_processor_->SetSequenceMode(true);
   EXPECT_CALL(callbacks_,
               PossibleDurationIncrease(base::TimeDelta::FromMilliseconds(29)));
 
@@ -823,7 +806,7 @@ TEST_P(FrameProcessorTest, PartialAppendWindowFilterNoNewMediaSegment) {
   ProcessFrames("", "0K");
   EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_));
   ProcessFrames("-5K", "");
-  EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_* 2));
+  EXPECT_CALL(callbacks_, PossibleDurationIncrease(frame_duration_ * 2));
   ProcessFrames("", "10");
 
   EXPECT_EQ(base::TimeDelta(), timestamp_offset_);

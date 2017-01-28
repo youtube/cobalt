@@ -25,9 +25,8 @@ static const int kDefaultFrameDurationMs = 40;
 // to emulate the H264 dpb bumping process.
 static const size_t kHistorySize = 5;
 
-EsAdapterVideo::EsAdapterVideo(
-    const NewVideoConfigCB& new_video_config_cb,
-    const EmitBufferCB& emit_buffer_cb)
+EsAdapterVideo::EsAdapterVideo(const NewVideoConfigCB& new_video_config_cb,
+                               const EmitBufferCB& emit_buffer_cb)
     : new_video_config_cb_(new_video_config_cb),
       emit_buffer_cb_(emit_buffer_cb),
       has_valid_config_(false),
@@ -36,15 +35,11 @@ EsAdapterVideo::EsAdapterVideo(
           base::TimeDelta::FromMilliseconds(kDefaultFrameDurationMs)),
       buffer_index_(0),
       has_valid_initial_timestamp_(false),
-      discarded_frame_count_(0) {
-}
+      discarded_frame_count_(0) {}
 
-EsAdapterVideo::~EsAdapterVideo() {
-}
+EsAdapterVideo::~EsAdapterVideo() {}
 
-void EsAdapterVideo::Flush() {
-  ProcessPendingBuffers(true);
-}
+void EsAdapterVideo::Flush() { ProcessPendingBuffers(true); }
 
 void EsAdapterVideo::Reset() {
   has_valid_config_ = false;
@@ -120,8 +115,7 @@ bool EsAdapterVideo::OnNewBuffer(
 
   has_valid_frame_ = true;
 
-  if (discarded_frame_count_ > 0)
-    ReplaceDiscardedFrames(stream_parser_buffer);
+  if (discarded_frame_count_ > 0) ReplaceDiscardedFrames(stream_parser_buffer);
 
   buffer_list_.push_back(stream_parser_buffer);
   ProcessPendingBuffers(false);
@@ -159,8 +153,7 @@ void EsAdapterVideo::ProcessPendingBuffers(bool flush) {
     }
 
     emitted_pts_.push_back(buffer->timestamp());
-    if (emitted_pts_.size() > kHistorySize)
-      emitted_pts_.pop_front();
+    if (emitted_pts_.size() > kHistorySize) emitted_pts_.pop_front();
 
     last_frame_duration_ = buffer->duration();
     emit_buffer_cb_.Run(buffer);
@@ -174,8 +167,7 @@ base::TimeDelta EsAdapterVideo::GetNextFramePts(base::TimeDelta current_pts) {
   // Note: the next frame is not enough when the GOP includes some B frames.
   for (BufferQueue::const_iterator it = buffer_list_.begin();
        it != buffer_list_.end(); ++it) {
-    if ((*it)->timestamp() < current_pts)
-      continue;
+    if ((*it)->timestamp() < current_pts) continue;
     if (next_pts == kNoTimestamp || next_pts > (*it)->timestamp())
       next_pts = (*it)->timestamp();
   }
@@ -185,10 +177,8 @@ base::TimeDelta EsAdapterVideo::GetNextFramePts(base::TimeDelta current_pts) {
   // frame (in presentation order) is located before in decode order.
   for (std::list<base::TimeDelta>::const_iterator it = emitted_pts_.begin();
        it != emitted_pts_.end(); ++it) {
-    if (*it < current_pts)
-      continue;
-    if (next_pts == kNoTimestamp || next_pts > *it)
-      next_pts = *it;
+    if (*it < current_pts) continue;
+    if (next_pts == kNoTimestamp || next_pts > *it) next_pts = *it;
   }
 
   return next_pts;
@@ -216,13 +206,10 @@ void EsAdapterVideo::ReplaceDiscardedFrames(
       discarded_frame_count_;
 
   for (int i = 0; i < discarded_frame_count_; i++) {
-    scoped_refptr<StreamParserBuffer> frame =
-        StreamParserBuffer::CopyFrom(
-            stream_parser_buffer->data(),
-            stream_parser_buffer->data_size(),
-            stream_parser_buffer->is_key_frame(),
-            stream_parser_buffer->type(),
-            stream_parser_buffer->track_id());
+    scoped_refptr<StreamParserBuffer> frame = StreamParserBuffer::CopyFrom(
+        stream_parser_buffer->data(), stream_parser_buffer->data_size(),
+        stream_parser_buffer->is_key_frame(), stream_parser_buffer->type(),
+        stream_parser_buffer->track_id());
     frame->SetDecodeTimestamp(dts);
     frame->set_timestamp(pts);
     frame->set_duration(pts_delta);

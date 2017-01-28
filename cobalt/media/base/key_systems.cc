@@ -73,8 +73,7 @@ class ClearKeyProperties : public KeySystemProperties {
 
   bool IsSupportedInitDataType(EmeInitDataType init_data_type) const override {
 #if defined(USE_PROPRIETARY_CODECS)
-    if (init_data_type == EmeInitDataType::CENC)
-      return true;
+    if (init_data_type == EmeInitDataType::CENC) return true;
 #endif
     return init_data_type == EmeInitDataType::WEBM ||
            init_data_type == EmeInitDataType::KEYIDS;
@@ -141,19 +140,15 @@ class ClearKeyProperties : public KeySystemProperties {
 // KeySystemsImpl. Only then should you change this function.
 static bool IsPotentiallySupportedKeySystem(const std::string& key_system) {
   // Known and supported key systems.
-  if (key_system == kWidevineKeySystem)
-    return true;
-  if (key_system == kClearKeyKeySystem)
-    return true;
+  if (key_system == kWidevineKeySystem) return true;
+  if (key_system == kClearKeyKeySystem) return true;
 
   // External Clear Key is known and supports suffixes for testing.
-  if (IsExternalClearKey(key_system))
-    return true;
+  if (IsExternalClearKey(key_system)) return true;
 
   // Chromecast defines behaviors for Cast clients within its reverse domain.
   const char kChromecastRoot[] = "com.chromecast";
-  if (IsChildKeySystemOf(key_system, kChromecastRoot))
-    return true;
+  if (IsChildKeySystemOf(key_system, kChromecastRoot)) return true;
 
   // Implementations that do not have a specification or appropriate glue code
   // can use the "x-" prefix to avoid conflicting with and advertising support
@@ -178,8 +173,7 @@ class KeySystemsImpl : public KeySystems {
 #endif
 
   // These two functions are for testing purpose only.
-  void AddCodecMask(EmeMediaType media_type,
-                    const std::string& codec,
+  void AddCodecMask(EmeMediaType media_type, const std::string& codec,
                     uint32_t mask);
   void AddMimeTypeCodecMask(const std::string& mime_type, uint32_t mask);
 
@@ -190,14 +184,12 @@ class KeySystemsImpl : public KeySystems {
                                EmeInitDataType init_data_type) const OVERRIDE;
 
   EmeConfigRule GetContentTypeConfigRule(
-      const std::string& key_system,
-      EmeMediaType media_type,
+      const std::string& key_system, EmeMediaType media_type,
       const std::string& container_mime_type,
       const std::vector<std::string>& codecs) const OVERRIDE;
 
   EmeConfigRule GetRobustnessConfigRule(
-      const std::string& key_system,
-      EmeMediaType media_type,
+      const std::string& key_system, EmeMediaType media_type,
       const std::string& requested_robustness) const OVERRIDE;
 
   EmeSessionTypeSupport GetPersistentLicenseSessionSupport(
@@ -271,9 +263,9 @@ KeySystemsImpl* KeySystemsImpl::GetInstance() {
 
 // Because we use a LazyInstance, the key systems info must be populated when
 // the instance is lazily initiated.
-KeySystemsImpl::KeySystemsImpl() :
-    audio_codec_mask_(EME_CODEC_AUDIO_ALL),
-    video_codec_mask_(EME_CODEC_VIDEO_ALL) {
+KeySystemsImpl::KeySystemsImpl()
+    : audio_codec_mask_(EME_CODEC_AUDIO_ALL),
+      video_codec_mask_(EME_CODEC_VIDEO_ALL) {
   for (size_t i = 0; i < arraysize(kCodecStrings); ++i) {
     const std::string& name = kCodecStrings[i].name;
     DCHECK(!codec_string_map_.count(name));
@@ -290,15 +282,13 @@ KeySystemsImpl::KeySystemsImpl() :
   UpdateSupportedKeySystems();
 }
 
-KeySystemsImpl::~KeySystemsImpl() {
-}
+KeySystemsImpl::~KeySystemsImpl() {}
 
 SupportedCodecs KeySystemsImpl::GetCodecMaskForMimeType(
     const std::string& container_mime_type) const {
   MimeTypeCodecsMap::const_iterator iter =
       mime_type_to_codec_mask_map_.find(container_mime_type);
-  if (iter == mime_type_to_codec_mask_map_.end())
-    return EME_CODEC_NONE;
+  if (iter == mime_type_to_codec_mask_map_.end()) return EME_CODEC_NONE;
 
   DCHECK(IsValidMimeTypeCodecsCombination(container_mime_type, iter->second));
   return iter->second;
@@ -306,8 +296,7 @@ SupportedCodecs KeySystemsImpl::GetCodecMaskForMimeType(
 
 EmeCodec KeySystemsImpl::GetCodecForString(const std::string& codec) const {
   CodecsMap::const_iterator iter = codec_string_map_.find(codec);
-  if (iter != codec_string_map_.end())
-    return iter->second;
+  if (iter != codec_string_map_.end()) return iter->second;
   return EME_CODEC_NONE;
 }
 
@@ -408,11 +397,9 @@ void KeySystemsImpl::AddSupportedKeySystems(
 #if defined(ENABLE_PEPPER_CDMS)
     DCHECK_EQ(properties->UseAesDecryptor(),
               properties->GetPepperType().empty());
-    if (!properties->GetPepperType().empty())
-      can_block = true;
+    if (!properties->GetPepperType().empty()) can_block = true;
 #elif defined(OS_ANDROID)
-    if (IsExternalClearKey(properties->GetKeySystemName()))
-      can_block = true;
+    if (IsExternalClearKey(properties->GetKeySystemName())) can_block = true;
 #endif
     if (!can_block) {
       DCHECK(properties->GetDistinctiveIdentifierSupport() ==
@@ -455,11 +442,9 @@ void KeySystemsImpl::RegisterMimeType(const std::string& mime_type,
 // are of the correct type based on |*_codec_mask_|.
 // Only audio/ or video/ MIME types with their respective codecs are allowed.
 bool KeySystemsImpl::IsValidMimeTypeCodecsCombination(
-    const std::string& mime_type,
-    SupportedCodecs codecs_mask) const {
+    const std::string& mime_type, SupportedCodecs codecs_mask) const {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (!codecs_mask)
-    return false;
+  if (!codecs_mask) return false;
   if (base::StartsWith(mime_type, "audio/", base::CompareCase::SENSITIVE))
     return !(codecs_mask & ~audio_codec_mask_);
   if (base::StartsWith(mime_type, "video/", base::CompareCase::SENSITIVE))
@@ -469,8 +454,7 @@ bool KeySystemsImpl::IsValidMimeTypeCodecsCombination(
 }
 
 bool KeySystemsImpl::IsSupportedInitDataType(
-    const std::string& key_system,
-    EmeInitDataType init_data_type) const {
+    const std::string& key_system, EmeInitDataType init_data_type) const {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   KeySystemPropertiesMap::const_iterator key_system_iter =
@@ -525,8 +509,7 @@ std::string KeySystemsImpl::GetPepperType(const std::string& key_system) const {
 #endif
 
 void KeySystemsImpl::AddCodecMask(EmeMediaType media_type,
-                                  const std::string& codec,
-                                  uint32_t mask) {
+                                  const std::string& codec, uint32_t mask) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!codec_string_map_.count(codec));
   codec_string_map_[codec] = static_cast<EmeCodec>(mask);
@@ -545,15 +528,13 @@ void KeySystemsImpl::AddMimeTypeCodecMask(const std::string& mime_type,
 bool KeySystemsImpl::IsSupportedKeySystem(const std::string& key_system) const {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (!key_system_properties_map_.count(key_system))
-    return false;
+  if (!key_system_properties_map_.count(key_system)) return false;
 
   return true;
 }
 
 EmeConfigRule KeySystemsImpl::GetContentTypeConfigRule(
-    const std::string& key_system,
-    EmeMediaType media_type,
+    const std::string& key_system, EmeMediaType media_type,
     const std::string& container_mime_type,
     const std::vector<std::string>& codecs) const {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -618,8 +599,7 @@ EmeConfigRule KeySystemsImpl::GetContentTypeConfigRule(
 }
 
 EmeConfigRule KeySystemsImpl::GetRobustnessConfigRule(
-    const std::string& key_system,
-    EmeMediaType media_type,
+    const std::string& key_system, EmeMediaType media_type,
     const std::string& requested_robustness) const {
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -685,9 +665,7 @@ EmeFeatureSupport KeySystemsImpl::GetDistinctiveIdentifierSupport(
   return key_system_iter->second->GetDistinctiveIdentifierSupport();
 }
 
-KeySystems* KeySystems::GetInstance() {
-  return KeySystemsImpl::GetInstance();
-}
+KeySystems* KeySystems::GetInstance() { return KeySystemsImpl::GetInstance(); }
 
 //------------------------------------------------------------------------------
 
@@ -718,8 +696,7 @@ std::string GetPepperType(const std::string& key_system) {
 // "MEDIA_EXPORT" here again so that they are visible to tests.
 
 MEDIA_EXPORT void AddCodecMask(EmeMediaType media_type,
-                               const std::string& codec,
-                               uint32_t mask) {
+                               const std::string& codec, uint32_t mask) {
   KeySystemsImpl::GetInstance()->AddCodecMask(media_type, codec, mask);
 }
 

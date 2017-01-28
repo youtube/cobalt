@@ -12,10 +12,8 @@ namespace cast {
 
 StandaloneCastEnvironment::StandaloneCastEnvironment()
     : CastEnvironment(
-          base::WrapUnique<base::TickClock>(new base::DefaultTickClock()),
-          NULL,
-          NULL,
-          NULL),
+          base::WrapUnique<base::TickClock>(new base::DefaultTickClock()), NULL,
+          NULL, NULL),
       main_thread_("StandaloneCastEnvironment Main"),
       audio_thread_("StandaloneCastEnvironment Audio"),
       video_thread_("StandaloneCastEnvironment Video") {

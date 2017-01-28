@@ -20,10 +20,8 @@ DecoderBuffer::DecoderBuffer(size_t size)
   Initialize();
 }
 
-DecoderBuffer::DecoderBuffer(const uint8_t* data,
-                             size_t size,
-                             const uint8_t* side_data,
-                             size_t side_data_size)
+DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size,
+                             const uint8_t* side_data, size_t side_data_size)
     : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
   if (!data) {
     CHECK_EQ(size_, 0u);
@@ -69,8 +67,8 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
   // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
   CHECK(data);
   CHECK(side_data);
-  return make_scoped_refptr(new DecoderBuffer(data, data_size,
-                                              side_data, side_data_size));
+  return make_scoped_refptr(
+      new DecoderBuffer(data, data_size, side_data, side_data_size));
 }
 
 // static
@@ -85,16 +83,14 @@ std::string DecoderBuffer::AsHumanReadableString() {
 
   std::ostringstream s;
   s << "timestamp: " << timestamp_.InMicroseconds()
-    << " duration: " << duration_.InMicroseconds()
-    << " size: " << size_
+    << " duration: " << duration_.InMicroseconds() << " size: " << size_
     << " side_data_size: " << side_data_size_
     << " is_key_frame: " << is_key_frame_
-    << " encrypted: " << (decrypt_config_ != NULL)
-    << " discard_padding (ms): (" << discard_padding_.first.InMilliseconds()
-    << ", " << discard_padding_.second.InMilliseconds() << ")";
+    << " encrypted: " << (decrypt_config_ != NULL) << " discard_padding (ms): ("
+    << discard_padding_.first.InMilliseconds() << ", "
+    << discard_padding_.second.InMilliseconds() << ")";
 
-  if (decrypt_config_)
-    s << " decrypt:" << (*decrypt_config_);
+  if (decrypt_config_) s << " decrypt:" << (*decrypt_config_);
 
   return s.str();
 }

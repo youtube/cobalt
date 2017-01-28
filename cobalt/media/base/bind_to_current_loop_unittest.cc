@@ -15,17 +15,14 @@
 
 namespace media {
 
-void BoundBoolSet(bool* var, bool val) {
-  *var = val;
-}
+void BoundBoolSet(bool* var, bool val) { *var = val; }
 
 void BoundBoolSetFromScopedPtr(bool* var, std::unique_ptr<bool> val) {
   *var = *val;
 }
 
 void BoundBoolSetFromScopedPtrFreeDeleter(
-    bool* var,
-    std::unique_ptr<bool, base::FreeDeleter> val) {
+    bool* var, std::unique_ptr<bool, base::FreeDeleter> val) {
   *var = *val;
 }
 
@@ -33,9 +30,7 @@ void BoundBoolSetFromScopedArray(bool* var, std::unique_ptr<bool[]> val) {
   *var = val[0];
 }
 
-void BoundBoolSetFromConstRef(bool* var, const bool& val) {
-  *var = val;
-}
+void BoundBoolSetFromConstRef(bool* var, const bool& val) { *var = val; }
 
 void BoundIntegersSet(int* a_var, int* b_var, int a_val, int b_val) {
   *a_var = a_val;
@@ -53,8 +48,8 @@ TEST_F(BindToCurrentLoopTest, Closure) {
   // Test the closure is run inside the loop, not outside it.
   base::WaitableEvent waiter(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                              base::WaitableEvent::InitialState::NOT_SIGNALED);
-  base::Closure cb = BindToCurrentLoop(base::Bind(
-      &base::WaitableEvent::Signal, base::Unretained(&waiter)));
+  base::Closure cb = BindToCurrentLoop(
+      base::Bind(&base::WaitableEvent::Signal, base::Unretained(&waiter)));
   cb.Run();
   EXPECT_FALSE(waiter.IsSignaled());
   base::RunLoop().RunUntilIdle();
@@ -63,8 +58,8 @@ TEST_F(BindToCurrentLoopTest, Closure) {
 
 TEST_F(BindToCurrentLoopTest, Bool) {
   bool bool_var = false;
-  base::Callback<void(bool)> cb = BindToCurrentLoop(base::Bind(
-      &BoundBoolSet, &bool_var));
+  base::Callback<void(bool)> cb =
+      BindToCurrentLoop(base::Bind(&BoundBoolSet, &bool_var));
   cb.Run(true);
   EXPECT_FALSE(bool_var);
   base::RunLoop().RunUntilIdle();
@@ -97,9 +92,9 @@ TEST_F(BindToCurrentLoopTest, BoundScopedArrayBool) {
   bool bool_val = false;
   std::unique_ptr<bool[]> scoped_array_bool(new bool[1]);
   scoped_array_bool[0] = true;
-  base::Closure cb = BindToCurrentLoop(base::Bind(
-      &BoundBoolSetFromScopedArray, &bool_val,
-      base::Passed(&scoped_array_bool)));
+  base::Closure cb =
+      BindToCurrentLoop(base::Bind(&BoundBoolSetFromScopedArray, &bool_val,
+                                   base::Passed(&scoped_array_bool)));
   cb.Run();
   EXPECT_FALSE(bool_val);
   base::RunLoop().RunUntilIdle();
@@ -123,9 +118,9 @@ TEST_F(BindToCurrentLoopTest, BoundScopedPtrFreeDeleterBool) {
   std::unique_ptr<bool, base::FreeDeleter> scoped_ptr_free_deleter_bool(
       static_cast<bool*>(malloc(sizeof(bool))));
   *scoped_ptr_free_deleter_bool = true;
-  base::Closure cb = BindToCurrentLoop(base::Bind(
-      &BoundBoolSetFromScopedPtrFreeDeleter, &bool_val,
-      base::Passed(&scoped_ptr_free_deleter_bool)));
+  base::Closure cb = BindToCurrentLoop(
+      base::Bind(&BoundBoolSetFromScopedPtrFreeDeleter, &bool_val,
+                 base::Passed(&scoped_ptr_free_deleter_bool)));
   cb.Run();
   EXPECT_FALSE(bool_val);
   base::RunLoop().RunUntilIdle();
@@ -150,8 +145,8 @@ TEST_F(BindToCurrentLoopTest, BoolConstRef) {
   bool bool_var = false;
   bool true_var = true;
   const bool& true_ref = true_var;
-  base::Closure cb = BindToCurrentLoop(base::Bind(
-      &BoundBoolSetFromConstRef, &bool_var, true_ref));
+  base::Closure cb = BindToCurrentLoop(
+      base::Bind(&BoundBoolSetFromConstRef, &bool_var, true_ref));
   cb.Run();
   EXPECT_FALSE(bool_var);
   base::RunLoop().RunUntilIdle();
@@ -161,8 +156,8 @@ TEST_F(BindToCurrentLoopTest, BoolConstRef) {
 TEST_F(BindToCurrentLoopTest, Integers) {
   int a = 0;
   int b = 0;
-  base::Callback<void(int, int)> cb = BindToCurrentLoop(base::Bind(
-      &BoundIntegersSet, &a, &b));
+  base::Callback<void(int, int)> cb =
+      BindToCurrentLoop(base::Bind(&BoundIntegersSet, &a, &b));
   cb.Run(1, -1);
   EXPECT_EQ(a, 0);
   EXPECT_EQ(b, 0);

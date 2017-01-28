@@ -50,33 +50,29 @@ class VideoFramePool::PoolImpl
 
 VideoFramePool::PoolImpl::PoolImpl() : is_shutdown_(false) {}
 
-VideoFramePool::PoolImpl::~PoolImpl() {
-  DCHECK(is_shutdown_);
-}
+VideoFramePool::PoolImpl::~PoolImpl() { DCHECK(is_shutdown_); }
 
 scoped_refptr<VideoFrame> VideoFramePool::PoolImpl::CreateFrame(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
   base::AutoLock auto_lock(lock_);
   DCHECK(!is_shutdown_);
 
   scoped_refptr<VideoFrame> frame;
   while (!frame.get() && !frames_.empty()) {
-      scoped_refptr<VideoFrame> pool_frame = frames_.front();
-      frames_.pop_front();
+    scoped_refptr<VideoFrame> pool_frame = frames_.front();
+    frames_.pop_front();
 
-      if (pool_frame->format() == format &&
-          pool_frame->coded_size() == coded_size &&
-          pool_frame->visible_rect() == visible_rect &&
-          pool_frame->natural_size() == natural_size) {
-        frame = pool_frame;
-        frame->set_timestamp(timestamp);
-        frame->metadata()->Clear();
-        break;
-      }
+    if (pool_frame->format() == format &&
+        pool_frame->coded_size() == coded_size &&
+        pool_frame->visible_rect() == visible_rect &&
+        pool_frame->natural_size() == natural_size) {
+      frame = pool_frame;
+      frame->set_timestamp(timestamp);
+      frame->metadata()->Clear();
+      break;
+    }
   }
 
   if (!frame.get()) {
@@ -105,24 +101,18 @@ void VideoFramePool::PoolImpl::Shutdown() {
 void VideoFramePool::PoolImpl::FrameReleased(
     const scoped_refptr<VideoFrame>& frame) {
   base::AutoLock auto_lock(lock_);
-  if (is_shutdown_)
-    return;
+  if (is_shutdown_) return;
 
   frames_.push_back(frame);
 }
 
-VideoFramePool::VideoFramePool() : pool_(new PoolImpl()) {
-}
+VideoFramePool::VideoFramePool() : pool_(new PoolImpl()) {}
 
-VideoFramePool::~VideoFramePool() {
-  pool_->Shutdown();
-}
+VideoFramePool::~VideoFramePool() { pool_->Shutdown(); }
 
 scoped_refptr<VideoFrame> VideoFramePool::CreateFrame(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
+    VideoPixelFormat format, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
   return pool_->CreateFrame(format, coded_size, visible_rect, natural_size,
                             timestamp);

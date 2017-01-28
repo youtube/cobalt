@@ -16,9 +16,7 @@ namespace media {
 
 namespace {
 
-void OnError(bool* succeeded) {
-  *succeeded = false;
-}
+void OnError(bool* succeeded) { *succeeded = false; }
 
 // Returns true if the |tag| matches |expected_key|.
 bool ExtractString(AVDictionaryEntry* tag, const char* expected_key,
@@ -26,8 +24,7 @@ bool ExtractString(AVDictionaryEntry* tag, const char* expected_key,
   if (!base::LowerCaseEqualsASCII(std::string(tag->key), expected_key))
     return false;
 
-  if (destination->empty())
-    *destination = tag->value;
+  if (destination->empty()) *destination = tag->value;
 
   return true;
 }
@@ -66,11 +63,9 @@ AudioVideoMetadataExtractor::AudioVideoMetadataExtractor()
       height_(-1),
       disc_(-1),
       rotation_(-1),
-      track_(-1) {
-}
+      track_(-1) {}
 
-AudioVideoMetadataExtractor::~AudioVideoMetadataExtractor() {
-}
+AudioVideoMetadataExtractor::~AudioVideoMetadataExtractor() {}
 
 bool AudioVideoMetadataExtractor::Extract(DataSource* source,
                                           bool extract_attached_images) {
@@ -81,17 +76,13 @@ bool AudioVideoMetadataExtractor::Extract(DataSource* source,
   media::FFmpegGlue glue(&protocol);
   AVFormatContext* format_context = glue.format_context();
 
-  if (!glue.OpenContext())
-    return false;
+  if (!glue.OpenContext()) return false;
 
-  if (!read_ok)
-    return false;
+  if (!read_ok) return false;
 
-  if (!format_context->iformat)
-    return false;
+  if (!format_context->iformat) return false;
 
-  if (avformat_find_stream_info(format_context, NULL) < 0)
-    return false;
+  if (avformat_find_stream_info(format_context, NULL) < 0) return false;
 
   if (format_context->duration != AV_NOPTS_VALUE)
     duration_ = static_cast<double>(format_context->duration) / AV_TIME_BASE;
@@ -106,15 +97,13 @@ bool AudioVideoMetadataExtractor::Extract(DataSource* source,
     StreamInfo& info = stream_infos_.back();
 
     AVStream* stream = format_context->streams[i];
-    if (!stream)
-      continue;
+    if (!stream) continue;
 
     // Extract dictionary from streams also. Needed for containers that attach
     // metadata to contained streams instead the container itself, like OGG.
     ExtractDictionary(stream->metadata, &info.tags);
 
-    if (!stream->codec)
-      continue;
+    if (!stream->codec) continue;
 
     info.type = avcodec_get_name(stream->codec->codec_id);
 
@@ -234,10 +223,9 @@ AudioVideoMetadataExtractor::attached_images_bytes() const {
   return attached_images_bytes_;
 }
 
-void AudioVideoMetadataExtractor::ExtractDictionary(
-    AVDictionary* metadata, TagDictionary* raw_tags) {
-  if (!metadata)
-    return;
+void AudioVideoMetadataExtractor::ExtractDictionary(AVDictionary* metadata,
+                                                    TagDictionary* raw_tags) {
+  if (!metadata) return;
 
   for (AVDictionaryEntry* tag =
            av_dict_get(metadata, "", NULL, AV_DICT_IGNORE_SUFFIX);

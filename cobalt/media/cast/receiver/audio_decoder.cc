@@ -27,10 +27,8 @@ namespace cast {
 class AudioDecoder::ImplBase
     : public base::RefCountedThreadSafe<AudioDecoder::ImplBase> {
  public:
-  ImplBase(const scoped_refptr<CastEnvironment>& cast_environment,
-           Codec codec,
-           int num_channels,
-           int sampling_rate)
+  ImplBase(const scoped_refptr<CastEnvironment>& cast_environment, Codec codec,
+           int num_channels, int sampling_rate)
       : cast_environment_(cast_environment),
         codec_(codec),
         num_channels_(num_channels),
@@ -39,9 +37,7 @@ class AudioDecoder::ImplBase
       operational_status_ = STATUS_INVALID_CONFIGURATION;
   }
 
-  OperationalStatus InitializationResult() const {
-    return operational_status_;
-  }
+  OperationalStatus InitializationResult() const { return operational_status_; }
 
   void DecodeFrame(std::unique_ptr<EncodedFrame> encoded_frame,
                    const DecodeFrameCallback& callback) {
@@ -69,11 +65,9 @@ class AudioDecoder::ImplBase
     event->frame_id = encoded_frame->frame_id;
     cast_environment_->logger()->DispatchFrameEvent(std::move(event));
 
-    cast_environment_->PostTask(CastEnvironment::MAIN,
-                                FROM_HERE,
-                                base::Bind(callback,
-                                           base::Passed(&decoded_audio),
-                                           is_continuous));
+    cast_environment_->PostTask(
+        CastEnvironment::MAIN, FROM_HERE,
+        base::Bind(callback, base::Passed(&decoded_audio), is_continuous));
   }
 
  protected:
@@ -101,21 +95,17 @@ class AudioDecoder::ImplBase
 class AudioDecoder::OpusImpl : public AudioDecoder::ImplBase {
  public:
   OpusImpl(const scoped_refptr<CastEnvironment>& cast_environment,
-           int num_channels,
-           int sampling_rate)
-      : ImplBase(cast_environment,
-                 CODEC_AUDIO_OPUS,
-                 num_channels,
+           int num_channels, int sampling_rate)
+      : ImplBase(cast_environment, CODEC_AUDIO_OPUS, num_channels,
                  sampling_rate),
         decoder_memory_(new uint8_t[opus_decoder_get_size(num_channels)]),
         opus_decoder_(reinterpret_cast<OpusDecoder*>(decoder_memory_.get())),
         max_samples_per_frame_(kOpusMaxFrameDurationMillis * sampling_rate /
                                1000),
         buffer_(new float[max_samples_per_frame_ * num_channels]) {
-    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
-      return;
+    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED) return;
     if (opus_decoder_init(opus_decoder_, sampling_rate, num_channels) !=
-            OPUS_OK) {
+        OPUS_OK) {
       ImplBase::operational_status_ = STATUS_INVALID_CONFIGURATION;
       return;
     }
@@ -127,9 +117,8 @@ class AudioDecoder::OpusImpl : public AudioDecoder::ImplBase {
 
   void RecoverBecauseFramesWereDropped() final {
     // Passing NULL for the input data notifies the decoder of frame loss.
-    const opus_int32 result =
-        opus_decode_float(
-            opus_decoder_, NULL, 0, buffer_.get(), max_samples_per_frame_, 0);
+    const opus_int32 result = opus_decode_float(
+        opus_decoder_, NULL, 0, buffer_.get(), max_samples_per_frame_, 0);
     DCHECK_GE(result, 0);
   }
 
@@ -137,8 +126,7 @@ class AudioDecoder::OpusImpl : public AudioDecoder::ImplBase {
     std::unique_ptr<AudioBus> audio_bus;
     const opus_int32 num_samples_decoded = opus_decode_float(
         opus_decoder_, data, len, buffer_.get(), max_samples_per_frame_, 0);
-    if (num_samples_decoded <= 0)
-      return audio_bus;  // Decode error.
+    if (num_samples_decoded <= 0) return audio_bus;  // Decode error.
 
     // Copy interleaved samples from |buffer_| into a new AudioBus (where
     // samples are stored in planar format, for each channel).
@@ -148,8 +136,7 @@ class AudioDecoder::OpusImpl : public AudioDecoder::ImplBase {
       const float* src = buffer_.get() + ch;
       const float* const src_end = src + num_samples_decoded * num_channels_;
       float* dest = audio_bus->channel(ch);
-      for (; src < src_end; src += num_channels_, ++dest)
-        *dest = *src;
+      for (; src < src_end; src += num_channels_, ++dest) *dest = *src;
     }
     return audio_bus;
   }
@@ -170,14 +157,10 @@ class AudioDecoder::OpusImpl : public AudioDecoder::ImplBase {
 class AudioDecoder::Pcm16Impl : public AudioDecoder::ImplBase {
  public:
   Pcm16Impl(const scoped_refptr<CastEnvironment>& cast_environment,
-            int num_channels,
-            int sampling_rate)
-      : ImplBase(cast_environment,
-                 CODEC_AUDIO_PCM16,
-                 num_channels,
+            int num_channels, int sampling_rate)
+      : ImplBase(cast_environment, CODEC_AUDIO_PCM16, num_channels,
                  sampling_rate) {
-    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED)
-      return;
+    if (ImplBase::operational_status_ != STATUS_UNINITIALIZED) return;
     ImplBase::operational_status_ = STATUS_INITIALIZED;
   }
 
@@ -187,8 +170,7 @@ class AudioDecoder::Pcm16Impl : public AudioDecoder::ImplBase {
   std::unique_ptr<AudioBus> Decode(uint8_t* data, int len) final {
     std::unique_ptr<AudioBus> audio_bus;
     const int num_samples = len / sizeof(int16_t) / num_channels_;
-    if (num_samples <= 0)
-      return audio_bus;
+    if (num_samples <= 0) return audio_bus;
 
     int16_t* const pcm_data = reinterpret_cast<int16_t*>(data);
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
@@ -206,10 +188,8 @@ class AudioDecoder::Pcm16Impl : public AudioDecoder::ImplBase {
 };
 
 AudioDecoder::AudioDecoder(
-    const scoped_refptr<CastEnvironment>& cast_environment,
-    int channels,
-    int sampling_rate,
-    Codec codec)
+    const scoped_refptr<CastEnvironment>& cast_environment, int channels,
+    int sampling_rate, Codec codec)
     : cast_environment_(cast_environment) {
   switch (codec) {
     case CODEC_AUDIO_OPUS:
@@ -227,8 +207,7 @@ AudioDecoder::AudioDecoder(
 AudioDecoder::~AudioDecoder() {}
 
 OperationalStatus AudioDecoder::InitializationResult() const {
-  if (impl_.get())
-    return impl_->InitializationResult();
+  if (impl_.get()) return impl_->InitializationResult();
   return STATUS_UNSUPPORTED_CODEC;
 }
 
@@ -240,12 +219,10 @@ void AudioDecoder::DecodeFrame(std::unique_ptr<EncodedFrame> encoded_frame,
     callback.Run(base::WrapUnique<AudioBus>(NULL), false);
     return;
   }
-  cast_environment_->PostTask(CastEnvironment::AUDIO,
-                              FROM_HERE,
-                              base::Bind(&AudioDecoder::ImplBase::DecodeFrame,
-                                         impl_,
-                                         base::Passed(&encoded_frame),
-                                         callback));
+  cast_environment_->PostTask(
+      CastEnvironment::AUDIO, FROM_HERE,
+      base::Bind(&AudioDecoder::ImplBase::DecodeFrame, impl_,
+                 base::Passed(&encoded_frame), callback));
 }
 
 }  // namespace cast

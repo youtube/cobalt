@@ -19,24 +19,18 @@ AudioDecoderConfig::AudioDecoderConfig()
       codec_delay_(0) {}
 
 AudioDecoderConfig::AudioDecoderConfig(
-    AudioCodec codec,
-    SampleFormat sample_format,
-    ChannelLayout channel_layout,
-    int samples_per_second,
-    const std::vector<uint8_t>& extra_data,
+    AudioCodec codec, SampleFormat sample_format, ChannelLayout channel_layout,
+    int samples_per_second, const std::vector<uint8_t>& extra_data,
     const EncryptionScheme& encryption_scheme) {
   Initialize(codec, sample_format, channel_layout, samples_per_second,
              extra_data, encryption_scheme, base::TimeDelta(), 0);
 }
 
-void AudioDecoderConfig::Initialize(AudioCodec codec,
-                                    SampleFormat sample_format,
-                                    ChannelLayout channel_layout,
-                                    int samples_per_second,
-                                    const std::vector<uint8_t>& extra_data,
-                                    const EncryptionScheme& encryption_scheme,
-                                    base::TimeDelta seek_preroll,
-                                    int codec_delay) {
+void AudioDecoderConfig::Initialize(
+    AudioCodec codec, SampleFormat sample_format, ChannelLayout channel_layout,
+    int samples_per_second, const std::vector<uint8_t>& extra_data,
+    const EncryptionScheme& encryption_scheme, base::TimeDelta seek_preroll,
+    int codec_delay) {
   codec_ = codec;
   channel_layout_ = channel_layout;
   samples_per_second_ = samples_per_second;
@@ -61,8 +55,7 @@ bool AudioDecoderConfig::IsValidConfig() const {
          samples_per_second_ > 0 &&
          samples_per_second_ <= limits::kMaxSampleRate &&
          sample_format_ != kUnknownSampleFormat &&
-         seek_preroll_ >= base::TimeDelta() &&
-         codec_delay_ >= 0;
+         seek_preroll_ >= base::TimeDelta() && codec_delay_ >= 0;
 }
 
 bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {

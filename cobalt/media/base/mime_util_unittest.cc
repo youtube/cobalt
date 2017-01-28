@@ -142,8 +142,8 @@ TEST(MimeUtilTest, CommonMediaMimeType) {
 
   EXPECT_EQ(kHlsSupported, IsSupportedMediaMimeType("application/x-mpegurl"));
   EXPECT_EQ(kHlsSupported, IsSupportedMediaMimeType("Application/X-MPEGURL"));
-  EXPECT_EQ(kHlsSupported, IsSupportedMediaMimeType(
-      "application/vnd.apple.mpegurl"));
+  EXPECT_EQ(kHlsSupported,
+            IsSupportedMediaMimeType("application/vnd.apple.mpegurl"));
 
 #if defined(USE_PROPRIETARY_CODECS)
   EXPECT_TRUE(IsSupportedMediaMimeType("audio/mp4"));
@@ -187,16 +187,16 @@ TEST(MimeUtilTest, ParseCodecString) {
     size_t expected_size;
     const char* const results[2];
   } tests[] = {
-    { "\"bogus\"",                  1, { "bogus" }            },
-    { "0",                          1, { "0" }                },
-    { "avc1.42E01E, mp4a.40.2",     2, { "avc1",   "mp4a" }   },
-    { "\"mp4v.20.240, mp4a.40.2\"", 2, { "mp4v",   "mp4a" }   },
-    { "mp4v.20.8, samr",            2, { "mp4v",   "samr" }   },
-    { "\"theora, vorbis\"",         2, { "theora", "vorbis" } },
-    { "",                           0, { }                    },
-    { "\"\"",                       0, { }                    },
-    { "\"   \"",                    0, { }                    },
-    { ",",                          2, { "", "" }             },
+      {"\"bogus\"", 1, {"bogus"}},
+      {"0", 1, {"0"}},
+      {"avc1.42E01E, mp4a.40.2", 2, {"avc1", "mp4a"}},
+      {"\"mp4v.20.240, mp4a.40.2\"", 2, {"mp4v", "mp4a"}},
+      {"mp4v.20.8, samr", 2, {"mp4v", "samr"}},
+      {"\"theora, vorbis\"", 2, {"theora", "vorbis"}},
+      {"", 0, {}},
+      {"\"\"", 0, {}},
+      {"\"   \"", 0, {}},
+      {",", 2, {"", ""}},
   };
 
   for (size_t i = 0; i < arraysize(tests); ++i) {

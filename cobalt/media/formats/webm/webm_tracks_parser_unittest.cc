@@ -32,10 +32,8 @@ class WebMTracksParserTest : public testing::Test {
   WebMTracksParserTest() : media_log_(new StrictMock<MockMediaLog>()) {}
 
  protected:
-  void VerifyTextTrackInfo(const uint8_t* buffer,
-                           int buffer_size,
-                           TextKind text_kind,
-                           const std::string& name,
+  void VerifyTextTrackInfo(const uint8_t* buffer, int buffer_size,
+                           TextKind text_kind, const std::string& name,
                            const std::string& language) {
     scoped_ptr<WebMTracksParser> parser(
         new WebMTracksParser(media_log_, false));
@@ -210,7 +208,7 @@ TEST_F(WebMTracksParserTest, HighTrackUID) {
   const std::vector<uint8_t> buf = tb.Finish();
 
   scoped_ptr<WebMTracksParser> parser(new WebMTracksParser(media_log_, true));
-  EXPECT_GT(parser->Parse(&buf[0], buf.size()),0);
+  EXPECT_GT(parser->Parse(&buf[0], buf.size()), 0);
 }
 
 }  // namespace media

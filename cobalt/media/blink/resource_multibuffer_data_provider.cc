@@ -55,8 +55,7 @@ const int kHttpPartialContent = 206;
 const int kHttpRangeNotSatisfiable = 416;
 
 ResourceMultiBufferDataProvider::ResourceMultiBufferDataProvider(
-    UrlData* url_data,
-    MultiBufferBlockId pos)
+    UrlData* url_data, MultiBufferBlockId pos)
     : pos_(pos),
       url_data_(url_data),
       retries_(0),
@@ -134,20 +133,16 @@ MultiBufferBlockId ResourceMultiBufferDataProvider::Tell() const {
 }
 
 bool ResourceMultiBufferDataProvider::Available() const {
-  if (fifo_.empty())
-    return false;
-  if (fifo_.back()->end_of_stream())
-    return true;
-  if (fifo_.front()->data_size() == block_size())
-    return true;
+  if (fifo_.empty()) return false;
+  if (fifo_.back()->end_of_stream()) return true;
+  if (fifo_.front()->data_size() == block_size()) return true;
   return false;
 }
 
 int64_t ResourceMultiBufferDataProvider::AvailableBytes() const {
   int64_t bytes = 0;
   for (const auto i : fifo_) {
-    if (i->end_of_stream())
-      break;
+    if (i->end_of_stream()) break;
     bytes += i->data_size();
   }
   return bytes;
@@ -162,8 +157,7 @@ scoped_refptr<DataBuffer> ResourceMultiBufferDataProvider::Read() {
 }
 
 void ResourceMultiBufferDataProvider::SetDeferred(bool deferred) {
-  if (!active_loader_ || active_loader_->deferred() == deferred)
-    return;
+  if (!active_loader_ || active_loader_->deferred() == deferred) return;
   active_loader_->SetDeferred(deferred);
 }
 
@@ -171,8 +165,7 @@ void ResourceMultiBufferDataProvider::SetDeferred(bool deferred) {
 // WebURLLoaderClient implementation.
 
 bool ResourceMultiBufferDataProvider::willFollowRedirect(
-    WebURLLoader* loader,
-    WebURLRequest& newRequest,
+    WebURLLoader* loader, WebURLRequest& newRequest,
     const WebURLResponse& redirectResponse) {
   redirects_to_ = newRequest.url();
   url_data_->set_valid_until(base::Time::Now() +
@@ -184,8 +177,7 @@ bool ResourceMultiBufferDataProvider::willFollowRedirect(
     if (origin_ != redirects_to_.GetOrigin()) {
       // We also allow the redirect if we don't have any data in the
       // cache, as that means that no dangerous data mixing can occur.
-      if (url_data_->multibuffer()->map().empty() && fifo_.empty())
-        return true;
+      if (url_data_->multibuffer()->map().empty() && fifo_.empty()) return true;
 
       active_loader_ = NULL;
       url_data_->Fail();
@@ -196,15 +188,13 @@ bool ResourceMultiBufferDataProvider::willFollowRedirect(
 }
 
 void ResourceMultiBufferDataProvider::didSendData(
-    WebURLLoader* loader,
-    unsigned long long bytes_sent,
+    WebURLLoader* loader, unsigned long long bytes_sent,
     unsigned long long total_bytes_to_be_sent) {
   NOTIMPLEMENTED();
 }
 
 void ResourceMultiBufferDataProvider::didReceiveResponse(
-    WebURLLoader* loader,
-    const WebURLResponse& response) {
+    WebURLLoader* loader, const WebURLResponse& response) {
 #if ENABLE_DLOG
   string version;
   switch (response.httpVersion()) {
@@ -399,15 +389,12 @@ void ResourceMultiBufferDataProvider::didDownloadData(WebURLLoader* loader,
 }
 
 void ResourceMultiBufferDataProvider::didReceiveCachedMetadata(
-    WebURLLoader* loader,
-    const char* data,
-    int data_length) {
+    WebURLLoader* loader, const char* data, int data_length) {
   NOTIMPLEMENTED();
 }
 
 void ResourceMultiBufferDataProvider::didFinishLoading(
-    WebURLLoader* loader,
-    double finishTime,
+    WebURLLoader* loader, double finishTime,
     int64_t total_encoded_data_length) {
   DVLOG(1) << "didFinishLoading";
   DCHECK(active_loader_.get());
@@ -471,10 +458,8 @@ void ResourceMultiBufferDataProvider::didFail(WebURLLoader* loader,
 }
 
 bool ResourceMultiBufferDataProvider::ParseContentRange(
-    const std::string& content_range_str,
-    int64_t* first_byte_position,
-    int64_t* last_byte_position,
-    int64_t* instance_size) {
+    const std::string& content_range_str, int64_t* first_byte_position,
+    int64_t* last_byte_position, int64_t* instance_size) {
   const char kUpThroughBytesUnit[] = "bytes ";
   if (!base::StartsWith(content_range_str, kUpThroughBytesUnit,
                         base::CompareCase::SENSITIVE)) {
@@ -535,8 +520,7 @@ int64_t ResourceMultiBufferDataProvider::block_size() const {
 }
 
 bool ResourceMultiBufferDataProvider::VerifyPartialResponse(
-    const WebURLResponse& response,
-    const scoped_refptr<UrlData>& url_data) {
+    const WebURLResponse& response, const scoped_refptr<UrlData>& url_data) {
   int64_t first_byte_position, last_byte_position, instance_size;
   if (!ParseContentRange(response.httpHeaderField("Content-Range").utf8(),
                          &first_byte_position, &last_byte_position,

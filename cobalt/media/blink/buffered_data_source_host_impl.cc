@@ -9,10 +9,9 @@
 namespace media {
 
 BufferedDataSourceHostImpl::BufferedDataSourceHostImpl()
-    : total_bytes_(0),
-      did_loading_progress_(false) { }
+    : total_bytes_(0), did_loading_progress_(false) {}
 
-BufferedDataSourceHostImpl::~BufferedDataSourceHostImpl() { }
+BufferedDataSourceHostImpl::~BufferedDataSourceHostImpl() {}
 
 void BufferedDataSourceHostImpl::SetTotalBytes(int64_t total_bytes) {
   total_bytes_ = total_bytes;
@@ -34,10 +33,8 @@ static base::TimeDelta TimeForByteOffset(int64_t byte_offset,
                                          base::TimeDelta duration) {
   double position = static_cast<double>(byte_offset) / total_bytes;
   // Snap to the beginning/end where the approximation can look especially bad.
-  if (position < 0.01)
-    return base::TimeDelta();
-  if (position > 0.99)
-    return duration;
+  if (position < 0.01) return base::TimeDelta();
+  if (position > 0.99) return duration;
   return base::TimeDelta::FromMilliseconds(
       static_cast<int64_t>(position * duration.InMilliseconds()));
 }

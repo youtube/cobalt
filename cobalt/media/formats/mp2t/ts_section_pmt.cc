@@ -14,11 +14,9 @@ namespace media {
 namespace mp2t {
 
 TsSectionPmt::TsSectionPmt(const RegisterPesCb& register_pes_cb)
-    : register_pes_cb_(register_pes_cb) {
-}
+    : register_pes_cb_(register_pes_cb) {}
 
-TsSectionPmt::~TsSectionPmt() {
-}
+TsSectionPmt::~TsSectionPmt() {}
 
 bool TsSectionPmt::ParsePsiSection(BitReader* bit_reader) {
   // Read up to |last_section_number|.
@@ -107,16 +105,14 @@ bool TsSectionPmt::ParsePsiSection(BitReader* bit_reader) {
   RCHECK(bit_reader->ReadBits(32, &crc32));
 
   // Once the PMT has been proved to be correct, register the PIDs.
-  for (std::map<int, int>::iterator it = pid_map.begin();
-       it != pid_map.end(); ++it)
+  for (std::map<int, int>::iterator it = pid_map.begin(); it != pid_map.end();
+       ++it)
     register_pes_cb_.Run(it->first, it->second);
 
   return true;
 }
 
-void TsSectionPmt::ResetPsiSection() {
-}
+void TsSectionPmt::ResetPsiSection() {}
 
 }  // namespace mp2t
 }  // namespace media
-

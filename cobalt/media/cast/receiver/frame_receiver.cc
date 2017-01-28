@@ -35,8 +35,7 @@ namespace cast {
 
 FrameReceiver::FrameReceiver(
     const scoped_refptr<CastEnvironment>& cast_environment,
-    const FrameReceiverConfig& config,
-    EventMediaType event_media_type,
+    const FrameReceiverConfig& config, EventMediaType event_media_type,
     CastTransport* const transport)
     : cast_environment_(cast_environment),
       transport_(transport),
@@ -52,14 +51,10 @@ FrameReceiver::FrameReceiver(
       expected_frame_duration_(
           base::TimeDelta::FromSecondsD(1.0 / config.target_frame_rate)),
       reports_are_scheduled_(false),
-      framer_(cast_environment->Clock(),
-              this,
-              config.sender_ssrc,
-              true,
-              static_cast<int>(
-                  config.rtp_max_delay_ms * config.target_frame_rate / 1000)),
-      rtcp_(cast_environment_->Clock(),
-            config.receiver_ssrc,
+      framer_(cast_environment->Clock(), this, config.sender_ssrc, true,
+              static_cast<int>(config.rtp_max_delay_ms *
+                               config.target_frame_rate / 1000)),
+      rtcp_(cast_environment_->Clock(), config.receiver_ssrc,
             config.sender_ssrc),
       is_waiting_for_consecutive_frame_(false),
       lip_sync_drift_(ClockDriftSmoother::GetDefaultTimeConstant()),
@@ -92,10 +87,8 @@ bool FrameReceiver::ProcessPacket(std::unique_ptr<Packet> packet) {
     RtpCastHeader rtp_header;
     const uint8_t* payload_data;
     size_t payload_size;
-    if (!packet_parser_.ParsePacket(&packet->front(),
-                                    packet->size(),
-                                    &rtp_header,
-                                    &payload_data,
+    if (!packet_parser_.ParsePacket(&packet->front(), packet->size(),
+                                    &rtp_header, &payload_data,
                                     &payload_size)) {
       return false;
     }
@@ -139,8 +132,7 @@ void FrameReceiver::ProcessParsedPacket(const RtpCastHeader& rtp_header,
       framer_.InsertPacket(payload_data, payload_size, rtp_header, &duplicate);
 
   // Duplicate packets are ignored.
-  if (duplicate)
-    return;
+  if (duplicate) return;
 
   // Update lip-sync values upon receiving the first packet of each frame, or if
   // they have never been set yet.
@@ -169,14 +161,13 @@ void FrameReceiver::ProcessParsedPacket(const RtpCastHeader& rtp_header,
           (fresh_sync_rtp - lip_sync_rtp_timestamp_).ToTimeDelta(rtp_timebase_);
     }
     lip_sync_rtp_timestamp_ = fresh_sync_rtp;
-    lip_sync_drift_.Update(
-        now, fresh_sync_reference - lip_sync_reference_time_);
+    lip_sync_drift_.Update(now,
+                           fresh_sync_reference - lip_sync_reference_time_);
   }
 
   // Another frame is complete from a non-duplicate packet.  Attempt to emit
   // more frames to satisfy enqueued requests.
-  if (complete)
-    EmitAvailableEncodedFrames();
+  if (complete) EmitAvailableEncodedFrames();
 }
 
 void FrameReceiver::CastFeedback(const RtcpCastMessage& cast_message) {
@@ -242,8 +233,7 @@ void FrameReceiver::EmitAvailableEncodedFrames() {
         if (!is_waiting_for_consecutive_frame_) {
           is_waiting_for_consecutive_frame_ = true;
           cast_environment_->PostDelayedTask(
-              CastEnvironment::MAIN,
-              FROM_HERE,
+              CastEnvironment::MAIN, FROM_HERE,
               base::Bind(&FrameReceiver::EmitAvailableEncodedFramesAfterWaiting,
                          weak_factory_.GetWeakPtr()),
               playout_time - now);
@@ -260,8 +250,7 @@ void FrameReceiver::EmitAvailableEncodedFrames() {
     // Decrypt the payload data in the frame, if crypto is being used.
     if (decryptor_.is_activated()) {
       std::string decrypted_data;
-      if (!decryptor_.Decrypt(encoded_frame->frame_id,
-                              encoded_frame->data,
+      if (!decryptor_.Decrypt(encoded_frame->frame_id, encoded_frame->data,
                               &decrypted_data)) {
         // Decryption failed.  Give up on this frame.
         framer_.ReleaseFrame(encoded_frame->frame_id);
@@ -277,12 +266,10 @@ void FrameReceiver::EmitAvailableEncodedFrames() {
       target_playout_delay_ = base::TimeDelta::FromMilliseconds(
           encoded_frame->new_playout_delay_ms);
     }
-    cast_environment_->PostTask(CastEnvironment::MAIN,
-                                FROM_HERE,
-                                base::Bind(&FrameReceiver::EmitOneFrame,
-                                           weak_factory_.GetWeakPtr(),
-                                           frame_request_queue_.front(),
-                                           base::Passed(&encoded_frame)));
+    cast_environment_->PostTask(
+        CastEnvironment::MAIN, FROM_HERE,
+        base::Bind(&FrameReceiver::EmitOneFrame, weak_factory_.GetWeakPtr(),
+                   frame_request_queue_.front(), base::Passed(&encoded_frame)));
     frame_request_queue_.pop_front();
   }
 }
@@ -298,15 +285,14 @@ void FrameReceiver::EmitOneFrame(
     const ReceiveEncodedFrameCallback& callback,
     std::unique_ptr<EncodedFrame> encoded_frame) const {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
-  if (!callback.is_null())
-    callback.Run(std::move(encoded_frame));
+  if (!callback.is_null()) callback.Run(std::move(encoded_frame));
 }
 
 base::TimeTicks FrameReceiver::GetPlayoutTime(const EncodedFrame& frame) const {
   base::TimeDelta target_playout_delay = target_playout_delay_;
   if (frame.new_playout_delay_ms) {
-    target_playout_delay = base::TimeDelta::FromMilliseconds(
-        frame.new_playout_delay_ms);
+    target_playout_delay =
+        base::TimeDelta::FromMilliseconds(frame.new_playout_delay_ms);
   }
   return lip_sync_reference_time_ + lip_sync_drift_.Current() +
          (frame.rtp_timestamp - lip_sync_rtp_timestamp_)
@@ -323,8 +309,7 @@ void FrameReceiver::ScheduleNextCastMessage() {
   time_to_send = std::max(
       time_to_send, base::TimeDelta::FromMilliseconds(kMinSchedulingDelayMs));
   cast_environment_->PostDelayedTask(
-      CastEnvironment::MAIN,
-      FROM_HERE,
+      CastEnvironment::MAIN, FROM_HERE,
       base::Bind(&FrameReceiver::SendNextCastMessage,
                  weak_factory_.GetWeakPtr()),
       time_to_send);
@@ -357,12 +342,9 @@ void FrameReceiver::SendNextRtcpReport() {
 }
 
 void FrameReceiver::SendRtcpReport(
-    uint32_t rtp_receiver_ssrc,
-    uint32_t rtp_sender_ssrc,
-    const RtcpTimeData& time_data,
-    const RtcpCastMessage* cast_message,
-    const RtcpPliMessage* pli_message,
-    base::TimeDelta target_delay,
+    uint32_t rtp_receiver_ssrc, uint32_t rtp_sender_ssrc,
+    const RtcpTimeData& time_data, const RtcpCastMessage* cast_message,
+    const RtcpPliMessage* pli_message, base::TimeDelta target_delay,
     const ReceiverRtcpEventSubscriber::RtcpEvents* rtcp_events,
     const RtpReceiverStatistics* rtp_receiver_statistics) {
   transport_->InitializeRtpReceiverRtcpBuilder(rtp_receiver_ssrc, time_data);
@@ -392,12 +374,9 @@ void FrameReceiver::SendRtcpReport(
     }
     transport_->AddRtpReceiverReport(report_block);
   }
-  if (cast_message)
-    transport_->AddCastFeedback(*cast_message, target_delay);
-  if (pli_message)
-    transport_->AddPli(*pli_message);
-  if (rtcp_events)
-    transport_->AddRtcpEvents(*rtcp_events);
+  if (cast_message) transport_->AddCastFeedback(*cast_message, target_delay);
+  if (pli_message) transport_->AddPli(*pli_message);
+  if (rtcp_events) transport_->AddRtcpEvents(*rtcp_events);
   transport_->SendRtcpFromRtpReceiver();
 }
 

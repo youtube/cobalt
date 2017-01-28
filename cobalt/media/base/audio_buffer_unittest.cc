@@ -16,11 +16,8 @@ namespace media {
 
 static const int kSampleRate = 4800;
 
-static void VerifyBusWithOffset(AudioBus* bus,
-                                int offset,
-                                int frames,
-                                float start,
-                                float start_offset,
+static void VerifyBusWithOffset(AudioBus* bus, int offset, int frames,
+                                float start, float start_offset,
                                 float increment) {
   for (int ch = 0; ch < bus->channels(); ++ch) {
     const float v = start_offset + start + ch * bus->frames() * increment;
@@ -41,14 +38,9 @@ static void TrimRangeTest(SampleFormat sample_format) {
   const int frames = kSampleRate / 10;
   const base::TimeDelta timestamp = base::TimeDelta();
   const base::TimeDelta duration = base::TimeDelta::FromMilliseconds(100);
-  scoped_refptr<AudioBuffer> buffer = MakeAudioBuffer<float>(sample_format,
-                                                             channel_layout,
-                                                             channels,
-                                                             kSampleRate,
-                                                             0,
-                                                             1,
-                                                             frames,
-                                                             timestamp);
+  scoped_refptr<AudioBuffer> buffer =
+      MakeAudioBuffer<float>(sample_format, channel_layout, channels,
+                             kSampleRate, 0, 1, frames, timestamp);
   EXPECT_EQ(frames, buffer->frame_count());
   EXPECT_EQ(timestamp, buffer->timestamp());
   EXPECT_EQ(duration, buffer->duration());
@@ -70,12 +62,8 @@ static void TrimRangeTest(SampleFormat sample_format) {
   bus->Zero();
   buffer->ReadFrames(buffer->frame_count(), 0, 0, bus.get());
   VerifyBus(bus.get(), trim_start, 0, 1);
-  VerifyBusWithOffset(bus.get(),
-                      trim_start,
-                      buffer->frame_count() - trim_start,
-                      0,
-                      trim_length,
-                      1);
+  VerifyBusWithOffset(bus.get(), trim_start, buffer->frame_count() - trim_start,
+                      0, trim_length, 1);
 
   // Trim 10ms of frames from the start, which just adjusts the buffer's
   // internal start offset.
@@ -87,12 +75,8 @@ static void TrimRangeTest(SampleFormat sample_format) {
   bus->Zero();
   buffer->ReadFrames(buffer->frame_count(), 0, 0, bus.get());
   VerifyBus(bus.get(), trim_start, trim_length, 1);
-  VerifyBusWithOffset(bus.get(),
-                      trim_start,
-                      buffer->frame_count() - trim_start,
-                      trim_length,
-                      trim_length,
-                      1);
+  VerifyBusWithOffset(bus.get(), trim_start, buffer->frame_count() - trim_start,
+                      trim_length, trim_length, 1);
 
   // Trim 10ms of frames from the end, which just adjusts the buffer's frame
   // count.
@@ -103,12 +87,8 @@ static void TrimRangeTest(SampleFormat sample_format) {
   bus->Zero();
   buffer->ReadFrames(buffer->frame_count(), 0, 0, bus.get());
   VerifyBus(bus.get(), trim_start, trim_length, 1);
-  VerifyBusWithOffset(bus.get(),
-                      trim_start,
-                      buffer->frame_count() - trim_start,
-                      trim_length,
-                      trim_length,
-                      1);
+  VerifyBusWithOffset(bus.get(), trim_start, buffer->frame_count() - trim_start,
+                      trim_length, trim_length, 1);
 
   // Trim another 10ms from the inner portion of the buffer.
   buffer->TrimRange(trim_start, trim_start + trim_length);
@@ -118,12 +98,8 @@ static void TrimRangeTest(SampleFormat sample_format) {
   bus->Zero();
   buffer->ReadFrames(buffer->frame_count(), 0, 0, bus.get());
   VerifyBus(bus.get(), trim_start, trim_length, 1);
-  VerifyBusWithOffset(bus.get(),
-                      trim_start,
-                      buffer->frame_count() - trim_start,
-                      trim_length,
-                      trim_length * 2,
-                      1);
+  VerifyBusWithOffset(bus.get(), trim_start, buffer->frame_count() - trim_start,
+                      trim_length, trim_length * 2, 1);
 
   // Trim off the end using TrimRange() to ensure end index is exclusive.
   buffer->TrimRange(buffer->frame_count() - trim_length, buffer->frame_count());
@@ -133,12 +109,8 @@ static void TrimRangeTest(SampleFormat sample_format) {
   bus->Zero();
   buffer->ReadFrames(buffer->frame_count(), 0, 0, bus.get());
   VerifyBus(bus.get(), trim_start, trim_length, 1);
-  VerifyBusWithOffset(bus.get(),
-                      trim_start,
-                      buffer->frame_count() - trim_start,
-                      trim_length,
-                      trim_length * 2,
-                      1);
+  VerifyBusWithOffset(bus.get(), trim_start, buffer->frame_count() - trim_start,
+                      trim_length, trim_length * 2, 1);
 
   // Trim off the start using TrimRange() to ensure start index is inclusive.
   buffer->TrimRange(0, trim_length);
@@ -149,12 +121,8 @@ static void TrimRangeTest(SampleFormat sample_format) {
   bus->Zero();
   buffer->ReadFrames(buffer->frame_count(), 0, 0, bus.get());
   VerifyBus(bus.get(), trim_start, 2 * trim_length, 1);
-  VerifyBusWithOffset(bus.get(),
-                      trim_start,
-                      buffer->frame_count() - trim_start,
-                      trim_length * 2,
-                      trim_length * 2,
-                      1);
+  VerifyBusWithOffset(bus.get(), trim_start, buffer->frame_count() - trim_start,
+                      trim_length * 2, trim_length * 2, 1);
 }
 
 TEST(AudioBufferTest, CopyFrom) {
@@ -163,14 +131,11 @@ TEST(AudioBufferTest, CopyFrom) {
       kSampleFormatU8, kChannelLayout,
       ChannelLayoutToChannelCount(kChannelLayout), kSampleRate, 1, 1,
       kSampleRate / 100, base::TimeDelta());
-  scoped_refptr<AudioBuffer> new_buffer =
-      AudioBuffer::CopyFrom(kSampleFormatU8,
-                            original_buffer->channel_layout(),
-                            original_buffer->channel_count(),
-                            original_buffer->sample_rate(),
-                            original_buffer->frame_count(),
-                            &original_buffer->channel_data()[0],
-                            original_buffer->timestamp());
+  scoped_refptr<AudioBuffer> new_buffer = AudioBuffer::CopyFrom(
+      kSampleFormatU8, original_buffer->channel_layout(),
+      original_buffer->channel_count(), original_buffer->sample_rate(),
+      original_buffer->frame_count(), &original_buffer->channel_data()[0],
+      original_buffer->timestamp());
   EXPECT_EQ(original_buffer->frame_count(), new_buffer->frame_count());
   EXPECT_EQ(original_buffer->timestamp(), new_buffer->timestamp());
   EXPECT_EQ(original_buffer->duration(), new_buffer->duration());
@@ -193,13 +158,8 @@ TEST(AudioBufferTest, FrameSize) {
 
   const uint8_t* const data[] = {kTestData};
   scoped_refptr<AudioBuffer> buffer =
-      AudioBuffer::CopyFrom(kSampleFormatU8,
-                            CHANNEL_LAYOUT_STEREO,
-                            2,
-                            kSampleRate,
-                            16,
-                            data,
-                            kTimestamp);
+      AudioBuffer::CopyFrom(kSampleFormatU8, CHANNEL_LAYOUT_STEREO, 2,
+                            kSampleRate, 16, data, kTimestamp);
   EXPECT_EQ(16, buffer->frame_count());  // 2 channels of 8-bit data
 
   buffer = AudioBuffer::CopyFrom(kSampleFormatF32, CHANNEL_LAYOUT_4_0, 4,
@@ -221,8 +181,7 @@ TEST(AudioBufferTest, ReadU8) {
 
   // Now read the same data one frame at a time.
   bus->Zero();
-  for (int i = 0; i < frames; ++i)
-    buffer->ReadFrames(1, i, i, bus.get());
+  for (int i = 0; i < frames; ++i) buffer->ReadFrames(1, i, i, bus.get());
   VerifyBus(bus.get(), frames, 0, 1.0f / 127.0f);
 }
 
@@ -241,8 +200,7 @@ TEST(AudioBufferTest, ReadS16) {
 
   // Now read the same data one frame at a time.
   bus->Zero();
-  for (int i = 0; i < frames; ++i)
-    buffer->ReadFrames(1, i, i, bus.get());
+  for (int i = 0; i < frames; ++i) buffer->ReadFrames(1, i, i, bus.get());
   VerifyBus(bus.get(), frames, 1.0f / std::numeric_limits<int16_t>::max(),
             1.0f / std::numeric_limits<int16_t>::max());
 }
@@ -272,14 +230,9 @@ TEST(AudioBufferTest, ReadF32) {
   const int channels = ChannelLayoutToChannelCount(channel_layout);
   const int frames = 20;
   const base::TimeDelta start_time;
-  scoped_refptr<AudioBuffer> buffer = MakeAudioBuffer<float>(kSampleFormatF32,
-                                                             channel_layout,
-                                                             channels,
-                                                             kSampleRate,
-                                                             1.0f,
-                                                             1.0f,
-                                                             frames,
-                                                             start_time);
+  scoped_refptr<AudioBuffer> buffer =
+      MakeAudioBuffer<float>(kSampleFormatF32, channel_layout, channels,
+                             kSampleRate, 1.0f, 1.0f, frames, start_time);
   std::unique_ptr<AudioBus> bus = AudioBus::Create(channels, frames);
   buffer->ReadFrames(10, 0, 0, bus.get());
   VerifyBus(bus.get(), 10, 1, 1);
@@ -305,8 +258,7 @@ TEST(AudioBufferTest, ReadS16Planar) {
 
   // Read all the frames backwards, one by one. ch[0] should be 20, 19, ...
   bus->Zero();
-  for (int i = frames - 1; i >= 0; --i)
-    buffer->ReadFrames(1, i, i, bus.get());
+  for (int i = frames - 1; i >= 0; --i) buffer->ReadFrames(1, i, i, bus.get());
   VerifyBus(bus.get(), frames, 1.0f / std::numeric_limits<int16_t>::max(),
             1.0f / std::numeric_limits<int16_t>::max());
 
@@ -329,14 +281,8 @@ TEST(AudioBufferTest, ReadF32Planar) {
   const int frames = 100;
   const base::TimeDelta start_time;
   scoped_refptr<AudioBuffer> buffer =
-      MakeAudioBuffer<float>(kSampleFormatPlanarF32,
-                             channel_layout,
-                             channels,
-                             kSampleRate,
-                             1.0f,
-                             1.0f,
-                             frames,
-                             start_time);
+      MakeAudioBuffer<float>(kSampleFormatPlanarF32, channel_layout, channels,
+                             kSampleRate, 1.0f, 1.0f, frames, start_time);
 
   // Read all 100 frames from the buffer. F32 is planar, so ch[0] should be 1,
   // 2, 3, 4, ..., ch[1] should be 101, 102, 103, ..., and so on for all 4
@@ -376,14 +322,8 @@ TEST(AudioBufferTest, Trim) {
   const base::TimeDelta start_time;
   const base::TimeDelta duration = base::TimeDelta::FromMilliseconds(100);
   scoped_refptr<AudioBuffer> buffer =
-      MakeAudioBuffer<float>(kSampleFormatPlanarF32,
-                             channel_layout,
-                             channels,
-                             kSampleRate,
-                             0.0f,
-                             1.0f,
-                             frames,
-                             start_time);
+      MakeAudioBuffer<float>(kSampleFormatPlanarF32, channel_layout, channels,
+                             kSampleRate, 0.0f, 1.0f, frames, start_time);
   EXPECT_EQ(frames, buffer->frame_count());
   EXPECT_EQ(start_time, buffer->timestamp());
   EXPECT_EQ(duration, buffer->duration());
@@ -430,8 +370,6 @@ TEST(AudioBufferTest, TrimRangePlanar) {
   TrimRangeTest(kSampleFormatPlanarF32);
 }
 
-TEST(AudioBufferTest, TrimRangeInterleaved) {
-  TrimRangeTest(kSampleFormatF32);
-}
+TEST(AudioBufferTest, TrimRangeInterleaved) { TrimRangeTest(kSampleFormatF32); }
 
 }  // namespace media

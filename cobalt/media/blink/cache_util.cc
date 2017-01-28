@@ -41,14 +41,12 @@ uint32_t GetReasonsForUncacheability(const WebURLResponse& response) {
                       : version == WebURLResponse::HTTPVersion_0_9
                             ? HttpVersion(0, 9)
                             : HttpVersion();
-  if (code != kHttpOK && code != kHttpPartialContent)
-    reasons |= kNoData;
+  if (code != kHttpOK && code != kHttpPartialContent) reasons |= kNoData;
   if (http_version < HttpVersion(1, 1) && code == kHttpPartialContent)
     reasons |= kPre11PartialResponse;
   if (code == kHttpPartialContent &&
       !net::HttpUtil::HasStrongValidators(
-          http_version,
-          response.httpHeaderField("etag").utf8(),
+          http_version, response.httpHeaderField("etag").utf8(),
           response.httpHeaderField("Last-Modified").utf8(),
           response.httpHeaderField("Date").utf8())) {
     reasons |= kNoStrongValidatorOnPartialResponse;

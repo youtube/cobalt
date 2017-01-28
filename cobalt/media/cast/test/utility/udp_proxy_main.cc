@@ -23,9 +23,7 @@
 
 class ByteCounter {
  public:
-  ByteCounter() : bytes_(0), packets_(0) {
-    push(base::TimeTicks::Now());
-  }
+  ByteCounter() : bytes_(0), packets_(0) { push(base::TimeTicks::Now()); }
 
   base::TimeDelta time_range() {
     return time_data_.back() - time_data_.front();
@@ -48,13 +46,13 @@ class ByteCounter {
   }
 
   double packets_per_second() {
-    double packets = packet_data_.back()- packet_data_.front();
+    double packets = packet_data_.back() - packet_data_.front();
     return packets / time_range().InSecondsF();
   }
 
   void Increment(uint64_t x) {
     bytes_ += x;
-    packets_ ++;
+    packets_++;
   }
 
  private:
@@ -75,8 +73,7 @@ struct GlobalCounter {
 };
 }  // namespace
 
-base::LazyInstance<GlobalCounter>::Leaky g_counter =
-    LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<GlobalCounter>::Leaky g_counter = LAZY_INSTANCE_INITIALIZER;
 
 class ByteCounterPipe : public media::cast::test::PacketPipe {
  public:
@@ -85,6 +82,7 @@ class ByteCounterPipe : public media::cast::test::PacketPipe {
     counter_->Increment(packet->size());
     pipe_->Send(std::move(packet));
   }
+
  private:
   ByteCounter* counter_;
 };
@@ -121,8 +119,7 @@ void CheckByteCounters() {
     g_counter.Get().last_printout = now;
   }
   base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&CheckByteCounters),
+      FROM_HERE, base::Bind(&CheckByteCounters),
       base::TimeDelta::FromMilliseconds(100));
 }
 
@@ -190,9 +187,8 @@ int main(int argc, char** argv) {
 
   SetupByteCounters(&in_pipe, &(g_counter.Get().in_pipe_input_counter),
                     &(g_counter.Get().in_pipe_output_counter));
-  SetupByteCounters(
-      &out_pipe, &(g_counter.Get().out_pipe_input_counter),
-      &(g_counter.Get().out_pipe_output_counter));
+  SetupByteCounters(&out_pipe, &(g_counter.Get().out_pipe_input_counter),
+                    &(g_counter.Get().out_pipe_output_counter));
 
   printf("Press Ctrl-C when done.\n");
   std::unique_ptr<media::cast::test::UDPProxy> proxy(

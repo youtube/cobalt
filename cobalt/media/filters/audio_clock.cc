@@ -23,13 +23,10 @@ AudioClock::AudioClock(base::TimeDelta start_timestamp, int sample_rate)
       front_timestamp_micros_(start_timestamp.InMicroseconds()),
       back_timestamp_micros_(start_timestamp.InMicroseconds()) {}
 
-AudioClock::~AudioClock() {
-}
+AudioClock::~AudioClock() {}
 
-void AudioClock::WroteAudio(int frames_written,
-                            int frames_requested,
-                            int delay_frames,
-                            double playback_rate) {
+void AudioClock::WroteAudio(int frames_written, int frames_requested,
+                            int delay_frames, double playback_rate) {
   DCHECK_GE(frames_written, 0);
   DCHECK_LE(frames_written, frames_requested);
   DCHECK_GE(delay_frames, 0);
@@ -75,8 +72,7 @@ void AudioClock::CompensateForSuspendedWrites(base::TimeDelta elapsed,
   // No need to do anything if we're within the limits of our played out audio
   // or there are no delay frames, the next WroteAudio() call will expire
   // everything correctly.
-  if (frames_elapsed < total_buffered_frames_ || !delay_frames)
-    return;
+  if (frames_elapsed < total_buffered_frames_ || !delay_frames) return;
 
   // Otherwise, flush everything and prime with the delay frames.
   WroteAudio(0, 0, 0, 0);
@@ -125,8 +121,7 @@ base::TimeDelta AudioClock::TimeUntilPlayback(base::TimeDelta timestamp) const {
 }
 
 void AudioClock::ContiguousAudioDataBufferedForTesting(
-    base::TimeDelta* total,
-    base::TimeDelta* same_rate_total) const {
+    base::TimeDelta* total, base::TimeDelta* same_rate_total) const {
   double scaled_frames = 0;
   double scaled_frames_at_same_rate = 0;
   bool found_silence = false;
@@ -137,13 +132,11 @@ void AudioClock::ContiguousAudioDataBufferedForTesting(
     }
 
     // Any buffered silence breaks our contiguous stretch of audio data.
-    if (found_silence)
-      break;
+    if (found_silence) break;
 
     scaled_frames += (buffered_[i].frames * buffered_[i].playback_rate);
 
-    if (i == 0)
-      scaled_frames_at_same_rate = scaled_frames;
+    if (i == 0) scaled_frames_at_same_rate = scaled_frames;
   }
 
   *total = base::TimeDelta::FromMicroseconds(scaled_frames *
@@ -153,12 +146,10 @@ void AudioClock::ContiguousAudioDataBufferedForTesting(
 }
 
 AudioClock::AudioData::AudioData(int64_t frames, double playback_rate)
-    : frames(frames), playback_rate(playback_rate) {
-}
+    : frames(frames), playback_rate(playback_rate) {}
 
 void AudioClock::PushBufferedAudioData(int64_t frames, double playback_rate) {
-  if (frames == 0)
-    return;
+  if (frames == 0) return;
 
   total_buffered_frames_ += frames;
 
@@ -179,8 +170,7 @@ void AudioClock::PopBufferedAudioData(int64_t frames) {
   while (frames > 0) {
     int64_t frames_to_pop = std::min(buffered_.front().frames, frames);
     buffered_.front().frames -= frames_to_pop;
-    if (buffered_.front().frames == 0)
-      buffered_.pop_front();
+    if (buffered_.front().frames == 0) buffered_.pop_front();
 
     frames -= frames_to_pop;
   }

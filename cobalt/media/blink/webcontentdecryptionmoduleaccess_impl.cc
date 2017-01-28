@@ -55,11 +55,9 @@ WebContentDecryptionModuleAccessImpl::WebContentDecryptionModuleAccessImpl(
       security_origin_(security_origin),
       configuration_(configuration),
       cdm_config_(cdm_config),
-      client_(client) {
-}
+      client_(client) {}
 
-WebContentDecryptionModuleAccessImpl::~WebContentDecryptionModuleAccessImpl() {
-}
+WebContentDecryptionModuleAccessImpl::~WebContentDecryptionModuleAccessImpl() {}
 
 blink::WebMediaKeySystemConfiguration
 WebContentDecryptionModuleAccessImpl::getConfiguration() {

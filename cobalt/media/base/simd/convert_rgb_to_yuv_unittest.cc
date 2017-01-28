@@ -50,8 +50,7 @@ TEST(YUVConvertTest, MAYBE_SideBySideRGB) {
   // We skip this test on PCs which does not support SSE3 because this test
   // needs it.
   base::CPU cpu;
-  if (!cpu.has_ssse3())
-    return;
+  if (!cpu.has_ssse3()) return;
 
   // This test checks a subset of all RGB values so this test does not take so
   // long time.
@@ -76,14 +75,12 @@ TEST(YUVConvertTest, MAYBE_SideBySideRGB) {
     int total_error = 0;
     for (int r = 0; r < kWidth; ++r) {
       for (int g = 0; g < kWidth; ++g) {
-
         // Fill the input pixels.
         for (int b = 0; b < kWidth; ++b) {
           rgb[b * size + 0] = b * kStep;
           rgb[b * size + 1] = g * kStep;
           rgb[b * size + 2] = r * kStep;
-          if (size == 4)
-            rgb[b * size + 3] = 255;
+          if (size == 4) rgb[b * size + 3] = 255;
         }
 
         // Convert the input RGB pixels to YUV ones.

@@ -60,8 +60,7 @@ int64_t AudioTimestampHelper::GetFramesToTarget(base::TimeDelta target) const {
   DCHECK(target >= base_timestamp_);
 
   int64_t delta_in_us = (target - GetTimestamp()).InMicroseconds();
-  if (delta_in_us == 0)
-    return 0;
+  if (delta_in_us == 0) return 0;
 
   // Compute a timestamp relative to |base_timestamp_| since timestamps
   // created from |frame_count_| are computed relative to this base.

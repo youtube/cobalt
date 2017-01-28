@@ -89,8 +89,7 @@ Vp8Encoder::Vp8Encoder(const FrameSenderConfig& video_config)
 
 Vp8Encoder::~Vp8Encoder() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (is_initialized())
-    vpx_codec_destroy(&encoder_);
+  if (is_initialized()) vpx_codec_destroy(&encoder_);
 }
 
 void Vp8Encoder::Initialize() {
@@ -113,8 +112,7 @@ void Vp8Encoder::ConfigureForNewFrameSize(const gfx::Size& frame_size) {
       config_.g_w = frame_size.width();
       config_.g_h = frame_size.height();
       config_.rc_min_quantizer = cast_config_.video_codec_params.min_qp;
-      if (vpx_codec_enc_config_set(&encoder_, &config_) == VPX_CODEC_OK)
-        return;
+      if (vpx_codec_enc_config_set(&encoder_, &config_) == VPX_CODEC_OK) return;
       DVLOG(1) << "libvpx rejected the attempt to use a smaller frame size in "
                   "the current instance.";
     }
@@ -146,7 +144,7 @@ void Vp8Encoder::ConfigureForNewFrameSize(const gfx::Size& frame_size) {
 
   // Rate control settings.
   config_.rc_dropframe_thresh = 0;  // The encoder may not drop any frames.
-  config_.rc_resize_allowed = 0;  // TODO(miu): Why not?  Investigate this.
+  config_.rc_resize_allowed = 0;    // TODO(miu): Why not?  Investigate this.
   config_.rc_end_usage = VPX_CBR;
   config_.rc_target_bitrate = bitrate_kbit_;
   config_.rc_min_quantizer = cast_config_.video_codec_params.min_qp;
@@ -209,11 +207,7 @@ void Vp8Encoder::Encode(const scoped_refptr<media::VideoFrame>& video_frame,
   // Only the VISIBLE rectangle within |video_frame| is exposed to the codec.
   vpx_image_t vpx_image;
   vpx_image_t* const result = vpx_img_wrap(
-      &vpx_image,
-      VPX_IMG_FMT_I420,
-      frame_size.width(),
-      frame_size.height(),
-      1,
+      &vpx_image, VPX_IMG_FMT_I420, frame_size.width(), frame_size.height(), 1,
       video_frame->data(VideoFrame::kYPlane));
   DCHECK_EQ(result, &vpx_image);
   vpx_image.planes[VPX_PLANE_Y] =
@@ -233,9 +227,8 @@ void Vp8Encoder::Encode(const scoped_refptr<media::VideoFrame>& video_frame,
   // rate can be highly variable, including long pauses in the video stream.
   const base::TimeDelta minimum_frame_duration =
       base::TimeDelta::FromSecondsD(1.0 / cast_config_.max_frame_rate);
-  const base::TimeDelta maximum_frame_duration =
-      base::TimeDelta::FromSecondsD(static_cast<double>(kRestartFramePeriods) /
-                                        cast_config_.max_frame_rate);
+  const base::TimeDelta maximum_frame_duration = base::TimeDelta::FromSecondsD(
+      static_cast<double>(kRestartFramePeriods) / cast_config_.max_frame_rate);
   base::TimeDelta predicted_frame_duration;
   if (!video_frame->metadata()->GetTimeDelta(
           media::VideoFrameMetadata::FRAME_DURATION,
@@ -267,8 +260,7 @@ void Vp8Encoder::Encode(const scoped_refptr<media::VideoFrame>& video_frame,
   const vpx_codec_cx_pkt_t* pkt = NULL;
   vpx_codec_iter_t iter = NULL;
   while ((pkt = vpx_codec_get_cx_data(&encoder_, &iter)) != NULL) {
-    if (pkt->kind != VPX_CODEC_CX_FRAME_PKT)
-      continue;
+    if (pkt->kind != VPX_CODEC_CX_FRAME_PKT) continue;
     if (pkt->data.frame.flags & VPX_FRAME_IS_KEY) {
       // TODO(hubbe): Replace "dependency" with a "bool is_key_frame".
       encoded_frame->dependency = EncodedFrame::KEY;
@@ -395,12 +387,10 @@ void Vp8Encoder::Encode(const scoped_refptr<media::VideoFrame>& video_frame,
 void Vp8Encoder::UpdateRates(uint32_t new_bitrate) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (!is_initialized())
-    return;
+  if (!is_initialized()) return;
 
   uint32_t new_bitrate_kbit = new_bitrate / 1000;
-  if (config_.rc_target_bitrate == new_bitrate_kbit)
-    return;
+  if (config_.rc_target_bitrate == new_bitrate_kbit) return;
 
   config_.rc_target_bitrate = bitrate_kbit_ = new_bitrate_kbit;
 

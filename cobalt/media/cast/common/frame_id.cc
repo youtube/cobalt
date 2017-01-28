@@ -9,8 +9,7 @@ namespace cast {
 
 std::ostream& operator<<(std::ostream& out, const FrameId rhs) {
   out << "F";
-  if (rhs.is_null())
-    return out << "<null>";
+  if (rhs.is_null()) return out << "<null>";
   return out << rhs.value();
 }
 

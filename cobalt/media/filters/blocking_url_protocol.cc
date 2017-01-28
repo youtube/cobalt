@@ -29,14 +29,11 @@ BlockingUrlProtocol::BlockingUrlProtocol(DataSource* data_source,
 
 BlockingUrlProtocol::~BlockingUrlProtocol() {}
 
-void BlockingUrlProtocol::Abort() {
-  aborted_.Signal();
-}
+void BlockingUrlProtocol::Abort() { aborted_.Signal(); }
 
 int BlockingUrlProtocol::Read(int size, uint8_t* data) {
   // Read errors are unrecoverable.
-  if (aborted_.IsSignaled())
-    return AVERROR(EIO);
+  if (aborted_.IsSignaled()) return AVERROR(EIO);
 
   // Even though FFmpeg defines AVERROR_EOF, it's not to be used with I/O
   // routines. Instead return 0 for any read at or past EOF.
@@ -47,14 +44,14 @@ int BlockingUrlProtocol::Read(int size, uint8_t* data) {
   // Blocking read from data source until either:
   //   1) |last_read_bytes_| is set and |read_complete_| is signalled
   //   2) |aborted_| is signalled
-  data_source_->Read(read_position_, size, data, base::Bind(
-      &BlockingUrlProtocol::SignalReadCompleted, base::Unretained(this)));
+  data_source_->Read(read_position_, size, data,
+                     base::Bind(&BlockingUrlProtocol::SignalReadCompleted,
+                                base::Unretained(this)));
 
-  base::WaitableEvent* events[] = { &aborted_, &read_complete_ };
+  base::WaitableEvent* events[] = {&aborted_, &read_complete_};
   size_t index = base::WaitableEvent::WaitMany(events, arraysize(events));
 
-  if (events[index] == &aborted_)
-    return AVERROR(EIO);
+  if (events[index] == &aborted_) return AVERROR(EIO);
 
   if (last_read_bytes_ == DataSource::kReadError) {
     aborted_.Signal();
@@ -62,8 +59,7 @@ int BlockingUrlProtocol::Read(int size, uint8_t* data) {
     return AVERROR(EIO);
   }
 
-  if (last_read_bytes_ == DataSource::kAborted)
-    return AVERROR(EIO);
+  if (last_read_bytes_ == DataSource::kAborted) return AVERROR(EIO);
 
   read_position_ += last_read_bytes_;
   return last_read_bytes_;
@@ -89,9 +85,7 @@ bool BlockingUrlProtocol::GetSize(int64_t* size_out) {
   return data_source_->GetSize(size_out);
 }
 
-bool BlockingUrlProtocol::IsStreaming() {
-  return data_source_->IsStreaming();
-}
+bool BlockingUrlProtocol::IsStreaming() { return data_source_->IsStreaming(); }
 
 void BlockingUrlProtocol::SignalReadCompleted(int size) {
   last_read_bytes_ = size;
