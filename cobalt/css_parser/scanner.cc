@@ -2257,6 +2257,11 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kFarthestCornerToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kEquirectangularKeywordName)) {
+        *property_value_token = kEquirectangularToken;
+        return true;
+      }
       return false;
 
     case 17:

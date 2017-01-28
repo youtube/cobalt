@@ -612,6 +612,11 @@ TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
+  filter_list_a.push_back(
+      new MTMFunction(MTMFunction::kEquirectangular, 0.676f, 6.28f,
+                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+                      KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_a(
       new FilterFunctionListValue(filter_list_a.Pass()));
 
@@ -628,6 +633,11 @@ TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
+  filter_list_b.push_back(
+      new MTMFunction(MTMFunction::kEquirectangular, 0.676f, 6.28f,
+                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+                      KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_b(
       new FilterFunctionListValue(filter_list_b.Pass()));
 
@@ -656,6 +666,27 @@ TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
       new FilterFunctionListValue(filter_list_b.Pass()));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
+
+  FilterFunctionListValue::Builder filter_list_c;
+  filter_list_c.push_back(
+      new MTMFunction(MTMFunction::kEquirectangular, 8.5f, 3.14f,
+                      glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+                      KeywordValue::GetMonoscopic()));
+  scoped_refptr<FilterFunctionListValue> value_c(
+      new FilterFunctionListValue(filter_list_c.Pass()));
+
+  FilterFunctionListValue::Builder filter_list_d;
+  filter_list_d.push_back(new MTMFunction(
+      new URLValue("format.msh"),
+      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetMonoscopic()));
+  scoped_refptr<FilterFunctionListValue> value_d(
+      new FilterFunctionListValue(filter_list_d.Pass()));
+
+  EXPECT_FALSE(value_c->Equals(*value_d));
 }
 
 }  // namespace cssom

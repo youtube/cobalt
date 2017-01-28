@@ -351,6 +351,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kForwards:
     case KeywordValue::kFixed:
@@ -449,6 +450,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -555,6 +557,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -676,6 +679,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -798,6 +802,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -918,6 +923,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
@@ -1035,6 +1041,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -1146,6 +1153,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -1563,6 +1571,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -1839,6 +1848,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -2089,6 +2099,7 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kForwards:
     case KeywordValue::kFixed:
@@ -2476,6 +2487,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kEnd:
+    case KeywordValue::kEquirectangular:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
