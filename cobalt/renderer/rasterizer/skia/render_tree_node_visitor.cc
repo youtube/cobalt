@@ -58,6 +58,11 @@
 // enough calls that performance is affected.
 #define ENABLE_RENDER_TREE_VISITOR_TRACING 0
 
+// Setting this define to 1 will filter the trace events enabled by
+// ENABLE_RENDER_TREE_VISITOR_TRACING so that trace events will only be
+// recorded for leaf nodes.
+#define FILTER_RENDER_TREE_VISITOR_TRACING 1
+
 // Setting this define to 1 will result in a SkCanvas::flush() call being made
 // after each node is visited.  This is useful for debugging Skia code since
 // otherwise the actual execution of Skia commands will likely be queued and
@@ -110,7 +115,7 @@ bool NodeIsWithinCanvasBounds(const SkMatrix& total_matrix,
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(CompositionNode)");
 #endif
 
@@ -386,7 +391,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     return;
   }
 
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(FilterNode)");
 
   if (filter_node->data().opacity_filter) {
@@ -692,7 +697,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransformNode)");
 #endif
 
@@ -953,6 +958,35 @@ void DrawRoundedRectWithBrush(
       RoundedRectToSkiaPath(rect, rounded_corners), paint);
 }
 
+void DrawUniformSolidNonRoundRectBorder(
+    RenderTreeNodeVisitorDrawState* draw_state,
+    const math::RectF& rect,
+    float border_width,
+    const render_tree::ColorRGBA& border_color,
+    bool anti_alias) {
+  SkPaint paint;
+  const float alpha = border_color.a() * draw_state->opacity;
+  paint.setARGB(alpha * 255,
+                border_color.r() * 255,
+                border_color.g() * 255,
+                border_color.b() * 255);
+  paint.setAntiAlias(anti_alias);
+  if (alpha == 1.0f) {
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+  } else {
+    paint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
+  }
+  paint.setStyle(SkPaint::kStroke_Style);
+  paint.setStrokeWidth(border_width);
+  SkRect skrect;
+  const float half_border_width = border_width * 0.5f;
+  skrect.set(rect.x() + half_border_width,
+             rect.y() + half_border_width,
+             rect.right() - half_border_width,
+             rect.bottom() - half_border_width);
+  draw_state->render_target->drawRect(skrect, paint);
+}
+
 void DrawQuadWithColorIfBorderIsSolid(
     render_tree::BorderStyle border_style,
     RenderTreeNodeVisitorDrawState* draw_state,
@@ -1003,6 +1037,24 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
   // position, it may have one extra pixel visible, which is a large percentage
   // of its small width.
   const float kAntiAliasWidthThreshold = 3.0f;
+
+  // Use faster draw function if possible.
+  if (border_colors_are_same &&
+      border.top.style == render_tree::kBorderStyleSolid &&
+      border.bottom.style == render_tree::kBorderStyleSolid &&
+      border.left.style == render_tree::kBorderStyleSolid &&
+      border.right.style == render_tree::kBorderStyleSolid &&
+      border.top.width == border.bottom.width &&
+      border.top.width == border.left.width &&
+      border.top.width == border.right.width) {
+    bool anti_alias = border.top.width < kAntiAliasWidthThreshold ||
+                      border.bottom.width < kAntiAliasWidthThreshold ||
+                      border.left.width < kAntiAliasWidthThreshold ||
+                      border.right.width < kAntiAliasWidthThreshold;
+    DrawUniformSolidNonRoundRectBorder(draw_state, rect,
+        border.top.width, border.top.color, anti_alias);
+    return;
+  }
 
   // Top
   SkPoint top_points[4] = {
@@ -1447,7 +1499,7 @@ void RenderText(SkCanvas* render_target,
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(TextNode)");
 #endif
   DCHECK_EQ(1.0f, draw_state_.opacity);
