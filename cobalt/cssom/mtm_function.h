@@ -22,6 +22,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/filter_function.h"
@@ -33,7 +34,7 @@
 namespace cobalt {
 namespace cssom {
 
-// Represent an MTM filter.
+// Represent a map-to-mesh filter.
 class MTMFunction : public FilterFunction {
  public:
   // A resolution-matched mesh specifier.
@@ -52,21 +53,95 @@ class MTMFunction : public FilterFunction {
     const int height_match_;
     const scoped_refptr<PropertyValue> mesh_url_;
   };
+
+  // Type of the source of the mesh: either a built-in mesh type or a custom
+  // mesh.
+  enum MeshSpecType {
+    // Built-in equirectangular mesh.
+    kEquirectangular,
+    // List of custom binary mesh URLs.
+    kUrls
+  };
   typedef ScopedVector<ResolutionMatchedMesh> ResolutionMatchedMeshListBuilder;
 
+  // Contains the specification of the mesh source.
+  class MeshSpec {
+   public:
+    explicit MeshSpec(MeshSpecType mesh_type) : mesh_type_(mesh_type) {
+      // Check that this is a built-in mesh type.
+      DCHECK_EQ(mesh_type, kEquirectangular);
+    }
+
+    MeshSpec(MeshSpecType mesh_type,
+             const scoped_refptr<PropertyValue>& mesh_url,
+             ResolutionMatchedMeshListBuilder resolution_matched_meshes)
+        : mesh_type_(mesh_type),
+          mesh_url_(mesh_url),
+          resolution_matched_meshes_(resolution_matched_meshes.Pass()) {
+      DCHECK_EQ(mesh_type_, kUrls);
+      DCHECK(mesh_url);
+    }
+
+    const scoped_refptr<PropertyValue>& mesh_url() const {
+      DCHECK_EQ(mesh_type_, kUrls);
+      return mesh_url_;
+    }
+    const ResolutionMatchedMeshListBuilder& resolution_matched_meshes() const {
+      DCHECK_EQ(mesh_type_, kUrls);
+      return resolution_matched_meshes_;
+    }
+    MeshSpecType mesh_type() const { return mesh_type_; }
+
+   private:
+    MeshSpecType mesh_type_;
+    scoped_refptr<PropertyValue> mesh_url_;
+    ResolutionMatchedMeshListBuilder resolution_matched_meshes_;
+
+    DISALLOW_COPY_AND_ASSIGN(MeshSpec);
+  };
+
+  MTMFunction(scoped_ptr<MeshSpec> mesh_spec, float horizontal_fov,
+              float vertical_fov, const glm::mat4& transform,
+              const scoped_refptr<KeywordValue>& stereo_mode)
+      : mesh_spec_(mesh_spec.Pass()),
+        horizontal_fov_(horizontal_fov),
+        vertical_fov_(vertical_fov),
+        transform_(transform),
+        stereo_mode_(stereo_mode) {
+    DCHECK(mesh_spec_);
+    DCHECK(stereo_mode_);
+  }
+
+  // Alternate constructor for mesh URL lists.
   MTMFunction(const scoped_refptr<PropertyValue>& mesh_url,
               ResolutionMatchedMeshListBuilder resolution_matched_meshes,
               float horizontal_fov, float vertical_fov,
               const glm::mat4& transform,
-              const scoped_refptr<KeywordValue>& stereo_mode);
+              const scoped_refptr<KeywordValue>& stereo_mode)
+      : mesh_spec_(
+            new MeshSpec(kUrls, mesh_url, resolution_matched_meshes.Pass())),
+        horizontal_fov_(horizontal_fov),
+        vertical_fov_(vertical_fov),
+        transform_(transform),
+        stereo_mode_(stereo_mode) {
+    DCHECK(stereo_mode_);
+  }
+
+  // Alternate constructor for built-in meshes.
+  MTMFunction(MeshSpecType spec_type, float horizontal_fov, float vertical_fov,
+              const glm::mat4& transform,
+              const scoped_refptr<KeywordValue>& stereo_mode)
+      : mesh_spec_(new MeshSpec(spec_type)),
+        horizontal_fov_(horizontal_fov),
+        vertical_fov_(vertical_fov),
+        transform_(transform),
+        stereo_mode_(stereo_mode) {
+    DCHECK(stereo_mode_);
+  }
 
   ~MTMFunction() OVERRIDE {}
 
-  const scoped_refptr<PropertyValue>& mesh_url() const { return mesh_url_; }
-  const ResolutionMatchedMeshListBuilder& resolution_matched_meshes() const {
-    return resolution_matched_meshes_;
-  }
-
+  const MeshSpec& mesh_spec() const { return *mesh_spec_; }
   float horizontal_fov() const { return horizontal_fov_; }
   float vertical_fov() const { return vertical_fov_; }
   const glm::mat4& transform() const { return transform_; }
@@ -83,8 +158,7 @@ class MTMFunction : public FilterFunction {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(MTMFunction);
 
  private:
-  const scoped_refptr<PropertyValue> mesh_url_;
-  const ResolutionMatchedMeshListBuilder resolution_matched_meshes_;
+  const scoped_ptr<MeshSpec> mesh_spec_;
   const float horizontal_fov_;
   const float vertical_fov_;
   const glm::mat4 transform_;
