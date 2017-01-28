@@ -356,7 +356,21 @@ TEST(PropertyValueToStringTest, MTMFunctionSingleMesh) {
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
   EXPECT_EQ(
-      "-cobalt-mtm(url(-.msh), "
+      "map-to-mesh(url(-.msh), "
+      "2.5rad 3.14rad, "
+      "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
+      "monoscopic)",
+      function->ToString());
+}
+
+TEST(PropertyValueToStringTest, MTMFunctionEquirectangular) {
+  scoped_ptr<MTMFunction> function(
+      new MTMFunction(MTMFunction::kEquirectangular, 2.5f, 3.14f,
+                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+                      KeywordValue::GetMonoscopic()));
+  EXPECT_EQ(
+      "map-to-mesh(equirectangular, "
       "2.5rad 3.14rad, "
       "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
       "monoscopic)",
@@ -375,7 +389,7 @@ TEST(PropertyValueToStringTest, MTMFunctionWithResolutionMatchedMeshes) {
                                 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
                       KeywordValue::GetStereoscopicLeftRight()));
   EXPECT_EQ(
-      "-cobalt-mtm(url(-.msh) 1920 2000000 url(a.msh) 640 5 url(b.msh), "
+      "map-to-mesh(url(-.msh) 1920 2000000 url(a.msh) 640 5 url(b.msh), "
       "28.5rad 3.14rad, "
       "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
       "stereoscopic-left-right)",
@@ -413,19 +427,19 @@ TEST(PropertyValueToStringTest, FilterFunctionListValue) {
       new FilterFunctionListValue(filter_list.Pass()));
 
   EXPECT_EQ(
-      "-cobalt-mtm(url(-.msh), "
+      "map-to-mesh(url(-.msh), "
       "8.5rad 3.14rad, "
       "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
       "monoscopic) "
-      "-cobalt-mtm(url(world.msh), "
+      "map-to-mesh(url(world.msh), "
       "8.5rad 39rad, "
       "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
       "monoscopic) "
-      "-cobalt-mtm(url(stereoscopic-world.msh), "
+      "map-to-mesh(url(stereoscopic-world.msh), "
       "8.5rad 39rad, "
       "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
       "stereoscopic-left-right) "
-      "-cobalt-mtm(url(stereoscopic-top-bottom-world.msh), "
+      "map-to-mesh(url(stereoscopic-top-bottom-world.msh), "
       "8.5rad 39rad, "
       "matrix3d(1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1), "
       "stereoscopic-top-bottom)",
