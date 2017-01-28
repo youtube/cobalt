@@ -26,34 +26,24 @@
 namespace cobalt {
 namespace cssom {
 
-MTMFunction::MTMFunction(
-    const scoped_refptr<PropertyValue>& mesh_url,
-    ResolutionMatchedMeshListBuilder resolution_matched_meshes,
-    float horizontal_fov, float vertical_fov, const glm::mat4& transform,
-    const scoped_refptr<KeywordValue>& stereo_mode)
-    : mesh_url_(mesh_url),
-      resolution_matched_meshes_(resolution_matched_meshes.Pass()),
-      horizontal_fov_(horizontal_fov),
-      vertical_fov_(vertical_fov),
-      transform_(transform),
-      stereo_mode_(stereo_mode) {
-  DCHECK(mesh_url_);
-  DCHECK(stereo_mode_);
-}
-
 std::string MTMFunction::ToString() const {
-  std::string result = "-cobalt-mtm(";
+  std::string result = "map-to-mesh(";
 
-  result.append(mesh_url()->ToString());
+  if (mesh_spec().mesh_type() == kEquirectangular) {
+    result.append("equirectangular");
+  } else if (mesh_spec().mesh_type() == kUrls) {
+    result.append(mesh_spec().mesh_url()->ToString());
 
-  const ResolutionMatchedMeshListBuilder& meshes = resolution_matched_meshes();
-  for (size_t mesh_index = 0; mesh_index < meshes.size(); ++mesh_index) {
-    result.push_back(' ');
-    result.append(base::IntToString(meshes[mesh_index]->width_match()));
-    result.push_back(' ');
-    result.append(base::IntToString(meshes[mesh_index]->height_match()));
-    result.push_back(' ');
-    result.append(meshes[mesh_index]->mesh_url()->ToString());
+    const ResolutionMatchedMeshListBuilder& meshes =
+        mesh_spec().resolution_matched_meshes();
+    for (size_t mesh_index = 0; mesh_index < meshes.size(); ++mesh_index) {
+      result.push_back(' ');
+      result.append(base::IntToString(meshes[mesh_index]->width_match()));
+      result.push_back(' ');
+      result.append(base::IntToString(meshes[mesh_index]->height_match()));
+      result.push_back(' ');
+      result.append(meshes[mesh_index]->mesh_url()->ToString());
+    }
   }
 
   result.append(base::StringPrintf(", %.7grad", horizontal_fov()));
@@ -118,30 +108,37 @@ const MTMFunction* MTMFunction::ExtractFromFilterList(
 }
 
 bool MTMFunction::operator==(const MTMFunction& rhs) const {
-  if (!mesh_url()->Equals(*rhs.mesh_url()) ||
+  if (mesh_spec().mesh_type() != rhs.mesh_spec().mesh_type() ||
       horizontal_fov() != rhs.horizontal_fov() ||
       horizontal_fov() != rhs.horizontal_fov() ||
       !stereo_mode()->Equals(*rhs.stereo_mode())) {
     return false;
   }
-  const ResolutionMatchedMeshListBuilder& lhs_meshes =
-      resolution_matched_meshes();
-  const ResolutionMatchedMeshListBuilder& rhs_meshes =
-      rhs.resolution_matched_meshes();
 
-  if (lhs_meshes.size() != rhs_meshes.size()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < lhs_meshes.size(); ++i) {
-    if (*lhs_meshes[i] != *rhs_meshes[i]) {
+  if (mesh_spec().mesh_type() == kUrls) {
+    if (!mesh_spec().mesh_url()->Equals(*rhs.mesh_spec().mesh_url())) {
       return false;
     }
-  }
 
-  for (int col = 0; col <= 3; ++col) {
-    if (!glm::all(glm::equal(transform()[col], rhs.transform()[col]))) {
+    const ResolutionMatchedMeshListBuilder& lhs_meshes =
+        mesh_spec().resolution_matched_meshes();
+    const ResolutionMatchedMeshListBuilder& rhs_meshes =
+        rhs.mesh_spec().resolution_matched_meshes();
+
+    if (lhs_meshes.size() != rhs_meshes.size()) {
       return false;
+    }
+
+    for (size_t i = 0; i < lhs_meshes.size(); ++i) {
+      if (*lhs_meshes[i] != *rhs_meshes[i]) {
+        return false;
+      }
+    }
+
+    for (int col = 0; col <= 3; ++col) {
+      if (!glm::all(glm::equal(transform()[col], rhs.transform()[col]))) {
+        return false;
+      }
     }
   }
 
