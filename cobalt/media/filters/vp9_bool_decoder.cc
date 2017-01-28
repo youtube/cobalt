@@ -91,8 +91,7 @@ bool Vp9BoolDecoder::ReadBool(int prob) {
   DCHECK(reader_);
 
   if (count_to_fill_ > 0) {
-    if (!Fill())
-      return false;
+    if (!Fill()) return false;
   }
 
   unsigned int split = (bool_range_ * prob + (256 - prob)) >> kBoolSize;
@@ -127,8 +126,7 @@ uint8_t Vp9BoolDecoder::ReadLiteral(int bits) {
   DCHECK(reader_);
 
   uint8_t x = 0;
-  for (int i = 0; i < bits; i++)
-    x = 2 * x + ReadBool(128);
+  for (int i = 0; i < bits; i++) x = 2 * x + ReadBool(128);
 
   return x;
 }

@@ -82,9 +82,7 @@ class ResourceMultiBufferDataProviderTest : public testing::Test {
     }
   }
 
-  virtual ~ResourceMultiBufferDataProviderTest() {
-    view_->close();
-  }
+  virtual ~ResourceMultiBufferDataProviderTest() { view_->close(); }
 
   void Initialize(const char* url, int first_position) {
     gurl_ = GURL(url);
@@ -133,16 +131,13 @@ class ResourceMultiBufferDataProviderTest : public testing::Test {
     EXPECT_FALSE(url_data_->range_supported());
   }
 
-  void PartialResponse(int64_t first_position,
-                       int64_t last_position,
+  void PartialResponse(int64_t first_position, int64_t last_position,
                        int64_t instance_size) {
     PartialResponse(first_position, last_position, instance_size, false, true);
   }
 
-  void PartialResponse(int64_t first_position,
-                       int64_t last_position,
-                       int64_t instance_size,
-                       bool chunked,
+  void PartialResponse(int64_t first_position, int64_t last_position,
+                       int64_t instance_size, bool chunked,
                        bool accept_ranges) {
     WebURLResponse response(gurl_);
     response.setHTTPHeaderField(

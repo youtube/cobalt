@@ -43,8 +43,7 @@ VideoFrameCompositor::~VideoFrameCompositor() {
   DCHECK(compositor_task_runner_->BelongsToCurrentThread());
   DCHECK(!callback_);
   DCHECK(!rendering_);
-  if (client_)
-    client_->StopUsingProvider();
+  if (client_) client_->StopUsingProvider();
 }
 
 void VideoFrameCompositor::OnRendererStateUpdate(bool new_state) {
@@ -62,8 +61,7 @@ void VideoFrameCompositor::OnRendererStateUpdate(bool new_state) {
     DCHECK(!background_rendering_timer_.IsRunning());
   }
 
-  if (!client_)
-    return;
+  if (!client_) return;
 
   if (rendering_)
     client_->StartRendering();
@@ -74,13 +72,11 @@ void VideoFrameCompositor::OnRendererStateUpdate(bool new_state) {
 void VideoFrameCompositor::SetVideoFrameProviderClient(
     cc::VideoFrameProvider::Client* client) {
   DCHECK(compositor_task_runner_->BelongsToCurrentThread());
-  if (client_)
-    client_->StopUsingProvider();
+  if (client_) client_->StopUsingProvider();
   client_ = client;
 
   // |client_| may now be null, so verify before calling it.
-  if (rendering_ && client_)
-    client_->StartRendering();
+  if (rendering_ && client_) client_->StartRendering();
 }
 
 scoped_refptr<VideoFrame> VideoFrameCompositor::GetCurrentFrame() {
@@ -134,8 +130,7 @@ void VideoFrameCompositor::Stop() {
 }
 
 void VideoFrameCompositor::PaintSingleFrame(
-    const scoped_refptr<VideoFrame>& frame,
-    bool repaint_duplicate_frame) {
+    const scoped_refptr<VideoFrame>& frame, bool repaint_duplicate_frame) {
   if (!compositor_task_runner_->BelongsToCurrentThread()) {
     compositor_task_runner_->PostTask(
         FROM_HERE,
@@ -160,8 +155,7 @@ VideoFrameCompositor::GetCurrentFrameAndUpdateIfStale() {
   const base::TimeDelta interval = now - last_background_render_;
 
   // Cap updates to 250Hz which should be more than enough for everyone.
-  if (interval < base::TimeDelta::FromMilliseconds(4))
-    return current_frame_;
+  if (interval < base::TimeDelta::FromMilliseconds(4)) return current_frame_;
 
   // Update the interval based on the time between calls and call background
   // render which will give this information to the client.
@@ -176,18 +170,15 @@ base::TimeDelta VideoFrameCompositor::GetCurrentFrameTimestamp() const {
   // prevents CallRender() from invoking ProcessNewFrame(), and so
   // |current_frame_| won't change again until after Start(). (Assuming that
   // PaintSingleFrame() is not also called while stopped.)
-  if (!current_frame_)
-    return base::TimeDelta();
+  if (!current_frame_) return base::TimeDelta();
   return current_frame_->timestamp();
 }
 
 bool VideoFrameCompositor::ProcessNewFrame(
-    const scoped_refptr<VideoFrame>& frame,
-    bool repaint_duplicate_frame) {
+    const scoped_refptr<VideoFrame>& frame, bool repaint_duplicate_frame) {
   DCHECK(compositor_task_runner_->BelongsToCurrentThread());
 
-  if (!repaint_duplicate_frame && frame == current_frame_)
-    return false;
+  if (!repaint_duplicate_frame && frame == current_frame_) return false;
 
   // Set the flag indicating that the current frame is unrendered, if we get a
   // subsequent PutCurrentFrame() call it will mark it as rendered.
@@ -202,8 +193,7 @@ void VideoFrameCompositor::BackgroundRender() {
   const base::TimeTicks now = tick_clock_->NowTicks();
   last_background_render_ = now;
   bool new_frame = CallRender(now, now + last_interval_, true);
-  if (new_frame && client_)
-    client_->DidReceiveFrame();
+  if (new_frame && client_) client_->DidReceiveFrame();
 }
 
 bool VideoFrameCompositor::CallRender(base::TimeTicks deadline_min,
@@ -242,8 +232,7 @@ bool VideoFrameCompositor::CallRender(base::TimeTicks deadline_min,
 
   // Restart the background rendering timer whether we're background rendering
   // or not; in either case we should wait for |kBackgroundRenderingTimeoutMs|.
-  if (background_rendering_enabled_)
-    background_rendering_timer_.Reset();
+  if (background_rendering_enabled_) background_rendering_timer_.Reset();
   return new_frame || had_new_background_frame;
 }
 

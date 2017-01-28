@@ -68,8 +68,7 @@ bool TransportEncryptionHandler::Initialize(const std::string& aes_key,
 bool TransportEncryptionHandler::Encrypt(FrameId frame_id,
                                          const base::StringPiece& data,
                                          std::string* encrypted_data) {
-  if (!is_activated_)
-    return false;
+  if (!is_activated_) return false;
   if (!encryptor_->SetCounter(GetAesNonce(frame_id, iv_mask_))) {
     NOTREACHED() << "Failed to set counter";
     return false;

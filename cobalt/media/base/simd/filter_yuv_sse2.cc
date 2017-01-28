@@ -15,29 +15,23 @@
 
 namespace media {
 
-void FilterYUVRows_SSE2(uint8_t* dest,
-                        const uint8_t* src0,
-                        const uint8_t* src1,
-                        int width,
-                        uint8_t fraction) {
+void FilterYUVRows_SSE2(uint8_t* dest, const uint8_t* src0, const uint8_t* src1,
+                        int width, uint8_t fraction) {
   int pixel = 0;
 
   // Process the unaligned bytes first.
-  int unaligned_width =
-      (16 - (reinterpret_cast<uintptr_t>(dest) & 15)) & 15;
+  int unaligned_width = (16 - (reinterpret_cast<uintptr_t>(dest) & 15)) & 15;
   while (pixel < width && pixel < unaligned_width) {
-    dest[pixel] = (src0[pixel] * (256 - fraction) +
-                   src1[pixel] * fraction) >> 8;
+    dest[pixel] =
+        (src0[pixel] * (256 - fraction) + src1[pixel] * fraction) >> 8;
     ++pixel;
   }
 
   __m128i zero = _mm_setzero_si128();
   __m128i src1_fraction = _mm_set1_epi16(fraction);
   __m128i src0_fraction = _mm_set1_epi16(256 - fraction);
-  const __m128i* src0_128 =
-      reinterpret_cast<const __m128i*>(src0 + pixel);
-  const __m128i* src1_128 =
-      reinterpret_cast<const __m128i*>(src1 + pixel);
+  const __m128i* src0_128 = reinterpret_cast<const __m128i*>(src0 + pixel);
+  const __m128i* src1_128 = reinterpret_cast<const __m128i*>(src1 + pixel);
   __m128i* dest128 = reinterpret_cast<__m128i*>(dest + pixel);
   __m128i* end128 = reinterpret_cast<__m128i*>(
       reinterpret_cast<uintptr_t>(dest + width) & ~15);
@@ -65,8 +59,8 @@ void FilterYUVRows_SSE2(uint8_t* dest,
   }
 
   while (pixel < width) {
-    dest[pixel] = (src0[pixel] * (256 - fraction) +
-                   src1[pixel] * fraction) >> 8;
+    dest[pixel] =
+        (src0[pixel] * (256 - fraction) + src1[pixel] * fraction) >> 8;
     ++pixel;
   }
 }

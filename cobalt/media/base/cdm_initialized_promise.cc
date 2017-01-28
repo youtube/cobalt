@@ -7,12 +7,10 @@
 namespace media {
 
 CdmInitializedPromise::CdmInitializedPromise(
-    const CdmCreatedCB& cdm_created_cb,
-    const scoped_refptr<MediaKeys>& cdm)
+    const CdmCreatedCB& cdm_created_cb, const scoped_refptr<MediaKeys>& cdm)
     : cdm_created_cb_(cdm_created_cb), cdm_(cdm) {}
 
-CdmInitializedPromise::~CdmInitializedPromise() {
-}
+CdmInitializedPromise::~CdmInitializedPromise() {}
 
 void CdmInitializedPromise::resolve() {
   MarkPromiseSettled();

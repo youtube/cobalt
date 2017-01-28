@@ -17,8 +17,7 @@ FakeSingleThreadTaskRunner::FakeSingleThreadTaskRunner(
 FakeSingleThreadTaskRunner::~FakeSingleThreadTaskRunner() {}
 
 bool FakeSingleThreadTaskRunner::PostDelayedTask(
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
+    const tracked_objects::Location& from_here, const base::Closure& task,
     base::TimeDelta delay) {
   if (fail_on_next_task_) {
     LOG(FATAL) << "Infinite task posting loop detected.  Possibly caused by "
@@ -61,11 +60,9 @@ void FakeSingleThreadTaskRunner::RunTasks() {
   while (true) {
     // Run all tasks equal or older than current time.
     const auto it = tasks_.begin();
-    if (it == tasks_.end())
-      return;  // No more tasks.
+    if (it == tasks_.end()) return;  // No more tasks.
 
-    if (clock_->NowTicks() < it->first.first)
-      return;
+    if (clock_->NowTicks() < it->first.first) return;
 
     const base::Closure task = it->second;
     tasks_.erase(it);
@@ -103,8 +100,7 @@ void FakeSingleThreadTaskRunner::Sleep(base::TimeDelta t) {
 }
 
 bool FakeSingleThreadTaskRunner::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
+    const tracked_objects::Location& from_here, const base::Closure& task,
     base::TimeDelta delay) {
   NOTIMPLEMENTED();
   return false;

@@ -70,21 +70,20 @@ TEST(DecoderBufferTest, PaddingAlignment) {
   ASSERT_TRUE(buffer2.get());
 
   // Padding data should always be zeroed.
-  for(int i = 0; i < DecoderBuffer::kPaddingSize; i++)
+  for (int i = 0; i < DecoderBuffer::kPaddingSize; i++)
     EXPECT_EQ((buffer2->data() + kDataSize)[i], 0);
 
   // If the data is padded correctly we should be able to read and write past
   // the end of the data by DecoderBuffer::kPaddingSize bytes without crashing
   // or Valgrind/ASAN throwing errors.
   const uint8_t kFillChar = 0xFF;
-  memset(
-      buffer2->writable_data() + kDataSize, kFillChar,
-      DecoderBuffer::kPaddingSize);
-  for(int i = 0; i < DecoderBuffer::kPaddingSize; i++)
+  memset(buffer2->writable_data() + kDataSize, kFillChar,
+         DecoderBuffer::kPaddingSize);
+  for (int i = 0; i < DecoderBuffer::kPaddingSize; i++)
     EXPECT_EQ((buffer2->data() + kDataSize)[i], kFillChar);
 
-  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(
-      buffer2->data()) & (DecoderBuffer::kAlignmentSize - 1));
+  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(buffer2->data()) &
+                    (DecoderBuffer::kAlignmentSize - 1));
 
   EXPECT_FALSE(buffer2->is_key_frame());
 }

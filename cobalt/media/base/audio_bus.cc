@@ -30,18 +30,17 @@ static bool IsAligned(void* ptr) {
 // We do this by allocating space for potentially more frames than requested.
 // This method returns the required size for the contiguous memory block
 // in bytes and outputs the adjusted number of frames via |out_aligned_frames|.
-static int CalculateMemorySizeInternal(int channels,
-                                       int frames,
+static int CalculateMemorySizeInternal(int channels, int frames,
                                        int* out_aligned_frames) {
   // Since our internal sample format is float, we can guarantee the alignment
   // by making the number of frames an integer multiple of
   // AudioBus::kChannelAlignment / sizeof(float).
   int aligned_frames =
       ((frames * sizeof(float) + AudioBus::kChannelAlignment - 1) &
-       ~(AudioBus::kChannelAlignment - 1)) / sizeof(float);
+       ~(AudioBus::kChannelAlignment - 1)) /
+      sizeof(float);
 
-  if (out_aligned_frames)
-    *out_aligned_frames = aligned_frames;
+  if (out_aligned_frames) *out_aligned_frames = aligned_frames;
 
   return sizeof(float) * channels * aligned_frames;
 }
@@ -62,22 +61,20 @@ void AudioBus::CheckOverflow(int start_frame, int frames, int total_frames) {
 }
 
 AudioBus::AudioBus(int channels, int frames)
-    : frames_(frames),
-      can_set_channel_data_(false) {
+    : frames_(frames), can_set_channel_data_(false) {
   ValidateConfig(channels, frames_);
 
   int aligned_frames = 0;
   int size = CalculateMemorySizeInternal(channels, frames, &aligned_frames);
 
-  data_.reset(static_cast<float*>(base::AlignedAlloc(
-      size, AudioBus::kChannelAlignment)));
+  data_.reset(static_cast<float*>(
+      base::AlignedAlloc(size, AudioBus::kChannelAlignment)));
 
   BuildChannelData(channels, aligned_frames, data_.get());
 }
 
 AudioBus::AudioBus(int channels, int frames, float* data)
-    : frames_(frames),
-      can_set_channel_data_(false) {
+    : frames_(frames), can_set_channel_data_(false) {
   // Since |data| may have come from an external source, ensure it's valid.
   CHECK(data);
   ValidateConfig(channels, frames_);
@@ -92,8 +89,7 @@ AudioBus::AudioBus(int frames, const std::vector<float*>& channel_data)
     : channel_data_(channel_data),
       frames_(frames),
       can_set_channel_data_(false) {
-  ValidateConfig(
-      base::checked_cast<int>(channel_data_.size()), frames_);
+  ValidateConfig(base::checked_cast<int>(channel_data_.size()), frames_);
 
   // Sanity check wrapped vector for alignment and channel count.
   for (size_t i = 0; i < channel_data_.size(); ++i)
@@ -101,12 +97,9 @@ AudioBus::AudioBus(int frames, const std::vector<float*>& channel_data)
 }
 
 AudioBus::AudioBus(int channels)
-    : channel_data_(channels),
-      frames_(0),
-      can_set_channel_data_(true) {
+    : channel_data_(channels), frames_(0), can_set_channel_data_(true) {
   CHECK_GT(channels, 0);
-  for (size_t i = 0; i < channel_data_.size(); ++i)
-    channel_data_[i] = NULL;
+  for (size_t i = 0; i < channel_data_.size(); ++i) channel_data_[i] = NULL;
 }
 
 AudioBus::~AudioBus() {}
@@ -125,13 +118,11 @@ std::unique_ptr<AudioBus> AudioBus::CreateWrapper(int channels) {
 }
 
 std::unique_ptr<AudioBus> AudioBus::WrapVector(
-    int frames,
-    const std::vector<float*>& channel_data) {
+    int frames, const std::vector<float*>& channel_data) {
   return base::WrapUnique(new AudioBus(frames, channel_data));
 }
 
-std::unique_ptr<AudioBus> AudioBus::WrapMemory(int channels,
-                                               int frames,
+std::unique_ptr<AudioBus> AudioBus::WrapMemory(int channels, int frames,
                                                void* data) {
   // |data| must be aligned by AudioBus::kChannelAlignment.
   CHECK(IsAligned(data));
@@ -166,8 +157,7 @@ void AudioBus::set_frames(int frames) {
 void AudioBus::ZeroFramesPartial(int start_frame, int frames) {
   CheckOverflow(start_frame, frames, frames_);
 
-  if (frames <= 0)
-    return;
+  if (frames <= 0) return;
 
   for (size_t i = 0; i < channel_data_.size(); ++i) {
     memset(channel_data_[i] + start_frame, 0,
@@ -175,27 +165,22 @@ void AudioBus::ZeroFramesPartial(int start_frame, int frames) {
   }
 }
 
-void AudioBus::ZeroFrames(int frames) {
-  ZeroFramesPartial(0, frames);
-}
+void AudioBus::ZeroFrames(int frames) { ZeroFramesPartial(0, frames); }
 
-void AudioBus::Zero() {
-  ZeroFrames(frames_);
-}
+void AudioBus::Zero() { ZeroFrames(frames_); }
 
 bool AudioBus::AreFramesZero() const {
   for (size_t i = 0; i < channel_data_.size(); ++i) {
     for (int j = 0; j < frames_; ++j) {
-      if (channel_data_[i][j])
-        return false;
+      if (channel_data_[i][j]) return false;
     }
   }
   return true;
 }
 
 int AudioBus::CalculateMemorySize(const AudioParameters& params) {
-  return CalculateMemorySizeInternal(
-      params.channels(), params.frames_per_buffer(), NULL);
+  return CalculateMemorySizeInternal(params.channels(),
+                                     params.frames_per_buffer(), NULL);
 }
 
 int AudioBus::CalculateMemorySize(int channels, int frames) {
@@ -212,8 +197,7 @@ void AudioBus::BuildChannelData(int channels, int aligned_frames, float* data) {
 }
 
 // Forwards to non-deprecated version.
-void AudioBus::FromInterleaved(const void* source,
-                               int frames,
+void AudioBus::FromInterleaved(const void* source, int frames,
                                int bytes_per_sample) {
   switch (bytes_per_sample) {
     case 1:
@@ -236,10 +220,8 @@ void AudioBus::FromInterleaved(const void* source,
 }
 
 // Forwards to non-deprecated version.
-void AudioBus::FromInterleavedPartial(const void* source,
-                                      int start_frame,
-                                      int frames,
-                                      int bytes_per_sample) {
+void AudioBus::FromInterleavedPartial(const void* source, int start_frame,
+                                      int frames, int bytes_per_sample) {
   switch (bytes_per_sample) {
     case 1:
       FromInterleavedPartial<UnsignedInt8SampleTypeTraits>(
@@ -261,8 +243,7 @@ void AudioBus::FromInterleavedPartial(const void* source,
 }
 
 // Forwards to non-deprecated version.
-void AudioBus::ToInterleaved(int frames,
-                             int bytes_per_sample,
+void AudioBus::ToInterleaved(int frames, int bytes_per_sample,
                              void* dest) const {
   switch (bytes_per_sample) {
     case 1:
@@ -284,10 +265,8 @@ void AudioBus::ToInterleaved(int frames,
 }
 
 // Forwards to non-deprecated version.
-void AudioBus::ToInterleavedPartial(int start_frame,
-                                    int frames,
-                                    int bytes_per_sample,
-                                    void* dest) const {
+void AudioBus::ToInterleavedPartial(int start_frame, int frames,
+                                    int bytes_per_sample, void* dest) const {
   switch (bytes_per_sample) {
     case 1:
       ToInterleavedPartial<UnsignedInt8SampleTypeTraits>(
@@ -311,10 +290,8 @@ void AudioBus::CopyTo(AudioBus* dest) const {
   CopyPartialFramesTo(0, frames(), 0, dest);
 }
 
-void AudioBus::CopyPartialFramesTo(int source_start_frame,
-                                   int frame_count,
-                                   int dest_start_frame,
-                                   AudioBus* dest) const {
+void AudioBus::CopyPartialFramesTo(int source_start_frame, int frame_count,
+                                   int dest_start_frame, AudioBus* dest) const {
   CHECK_EQ(channels(), dest->channels());
   CHECK_LE(source_start_frame + frame_count, frames());
   CHECK_LE(dest_start_frame + frame_count, dest->frames());
@@ -322,8 +299,7 @@ void AudioBus::CopyPartialFramesTo(int source_start_frame,
   // Since we don't know if the other AudioBus is wrapped or not (and we don't
   // want to care), just copy using the public channel() accessors.
   for (int i = 0; i < channels(); ++i) {
-    memcpy(dest->channel(i) + dest_start_frame,
-           channel(i) + source_start_frame,
+    memcpy(dest->channel(i) + dest_start_frame, channel(i) + source_start_frame,
            sizeof(*channel(i)) * frame_count);
   }
 }
@@ -344,8 +320,8 @@ void AudioBus::SwapChannels(int a, int b) {
   std::swap(channel_data_[a], channel_data_[b]);
 }
 
-scoped_refptr<AudioBusRefCounted> AudioBusRefCounted::Create(
-    int channels, int frames) {
+scoped_refptr<AudioBusRefCounted> AudioBusRefCounted::Create(int channels,
+                                                             int frames) {
   return scoped_refptr<AudioBusRefCounted>(
       new AudioBusRefCounted(channels, frames));
 }

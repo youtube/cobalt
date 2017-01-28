@@ -9,11 +9,9 @@
 namespace media {
 
 WallClockTimeSource::WallClockTimeSource()
-    : tick_clock_(&default_tick_clock_), ticking_(false), playback_rate_(1.0) {
-}
+    : tick_clock_(&default_tick_clock_), ticking_(false), playback_rate_(1.0) {}
 
-WallClockTimeSource::~WallClockTimeSource() {
-}
+WallClockTimeSource::~WallClockTimeSource() {}
 
 void WallClockTimeSource::StartTicking() {
   DVLOG(1) << __func__;
@@ -83,8 +81,7 @@ bool WallClockTimeSource::GetWallClockTimes(
 
 base::TimeDelta WallClockTimeSource::CurrentMediaTime_Locked() {
   lock_.AssertAcquired();
-  if (!ticking_ || !playback_rate_)
-    return base_timestamp_;
+  if (!ticking_ || !playback_rate_) return base_timestamp_;
 
   base::TimeTicks now = tick_clock_->NowTicks();
   return base_timestamp_ +

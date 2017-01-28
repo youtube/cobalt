@@ -21,8 +21,7 @@ namespace media {
 
 class SeekableBufferTest : public testing::Test {
  public:
-  SeekableBufferTest() : buffer_(kBufferSize, kBufferSize) {
-  }
+  SeekableBufferTest() : buffer_(kBufferSize, kBufferSize) {}
 
  protected:
   static const int kDataSize = 409600;
@@ -37,13 +36,10 @@ class SeekableBufferTest : public testing::Test {
     srand(kKnownSeed);
 
     // Create random test data samples.
-    for (int i = 0; i < kDataSize; i++)
-      data_[i] = static_cast<char>(rand());
+    for (int i = 0; i < kDataSize; i++) data_[i] = static_cast<char>(rand());
   }
 
-  int GetRandomInt(int maximum) {
-    return rand() % (maximum + 1);
-  }
+  int GetRandomInt(int maximum) { return rand() % (maximum + 1); }
 
   SeekableBuffer buffer_;
   uint8_t data_[kDataSize];
@@ -270,8 +266,7 @@ TEST_F(SeekableBufferTest, SeekForward) {
 
     // Read a random amount of data.
     int seek_size = GetRandomInt(kBufferSize);
-    if (buffer_.Seek(seek_size))
-      read_position += seek_size;
+    if (buffer_.Seek(seek_size)) read_position += seek_size;
     EXPECT_GE(write_position, read_position);
     EXPECT_EQ(write_position - read_position, buffer_.forward_bytes());
 
@@ -304,33 +299,33 @@ TEST_F(SeekableBufferTest, GetTime) {
     int consume_bytes;
     int64_t expected_time;
   } tests[] = {
-    { kNoTS, 1000000, 0, kNoTS },
-    { kNoTS, 4000000, 0, kNoTS },
-    { kNoTS, 8000000, 0, kNoTS },
-    { kNoTS, 1000000, kWriteSize / 2, kNoTS },
-    { kNoTS, 4000000, kWriteSize / 2, kNoTS },
-    { kNoTS, 8000000, kWriteSize / 2, kNoTS },
-    { kNoTS, 1000000, kWriteSize, kNoTS },
-    { kNoTS, 4000000, kWriteSize, kNoTS },
-    { kNoTS, 8000000, kWriteSize, kNoTS },
-    { 0, 1000000, 0, 0 },
-    { 0, 4000000, 0, 0 },
-    { 0, 8000000, 0, 0 },
-    { 0, 1000000, kWriteSize / 2, 500000 },
-    { 0, 4000000, kWriteSize / 2, 2000000 },
-    { 0, 8000000, kWriteSize / 2, 4000000 },
-    { 0, 1000000, kWriteSize, 1000000 },
-    { 0, 4000000, kWriteSize, 4000000 },
-    { 0, 8000000, kWriteSize, 8000000 },
-    { 5, 1000000, 0, 5 },
-    { 5, 4000000, 0, 5 },
-    { 5, 8000000, 0, 5 },
-    { 5, 1000000, kWriteSize / 2, 500005 },
-    { 5, 4000000, kWriteSize / 2, 2000005 },
-    { 5, 8000000, kWriteSize / 2, 4000005 },
-    { 5, 1000000, kWriteSize, 1000005 },
-    { 5, 4000000, kWriteSize, 4000005 },
-    { 5, 8000000, kWriteSize, 8000005 },
+      {kNoTS, 1000000, 0, kNoTS},
+      {kNoTS, 4000000, 0, kNoTS},
+      {kNoTS, 8000000, 0, kNoTS},
+      {kNoTS, 1000000, kWriteSize / 2, kNoTS},
+      {kNoTS, 4000000, kWriteSize / 2, kNoTS},
+      {kNoTS, 8000000, kWriteSize / 2, kNoTS},
+      {kNoTS, 1000000, kWriteSize, kNoTS},
+      {kNoTS, 4000000, kWriteSize, kNoTS},
+      {kNoTS, 8000000, kWriteSize, kNoTS},
+      {0, 1000000, 0, 0},
+      {0, 4000000, 0, 0},
+      {0, 8000000, 0, 0},
+      {0, 1000000, kWriteSize / 2, 500000},
+      {0, 4000000, kWriteSize / 2, 2000000},
+      {0, 8000000, kWriteSize / 2, 4000000},
+      {0, 1000000, kWriteSize, 1000000},
+      {0, 4000000, kWriteSize, 4000000},
+      {0, 8000000, kWriteSize, 8000000},
+      {5, 1000000, 0, 5},
+      {5, 4000000, 0, 5},
+      {5, 8000000, 0, 5},
+      {5, 1000000, kWriteSize / 2, 500005},
+      {5, 4000000, kWriteSize / 2, 2000005},
+      {5, 8000000, kWriteSize / 2, 4000005},
+      {5, 1000000, kWriteSize, 1000005},
+      {5, 4000000, kWriteSize, 4000005},
+      {5, 8000000, kWriteSize, 8000005},
   };
 
   // current_time() must initially return kNoTimestamp.
@@ -340,19 +335,19 @@ TEST_F(SeekableBufferTest, GetTime) {
   scoped_refptr<DataBuffer> buffer = DataBuffer::CopyFrom(data_, kWriteSize);
 
   for (size_t i = 0; i < arraysize(tests); ++i) {
-    buffer->set_timestamp(base::TimeDelta::FromMicroseconds(
-        tests[i].first_time_useconds));
-    buffer->set_duration(base::TimeDelta::FromMicroseconds(
-        tests[i].duration_useconds));
+    buffer->set_timestamp(
+        base::TimeDelta::FromMicroseconds(tests[i].first_time_useconds));
+    buffer->set_duration(
+        base::TimeDelta::FromMicroseconds(tests[i].duration_useconds));
     buffer_.Append(buffer.get());
     EXPECT_TRUE(buffer_.Seek(tests[i].consume_bytes));
 
     int64_t actual = buffer_.current_time().ToInternalValue();
 
-    EXPECT_EQ(tests[i].expected_time, actual) << "With test = { start:"
-        << tests[i].first_time_useconds << ", duration:"
-        << tests[i].duration_useconds << ", consumed:"
-        << tests[i].consume_bytes << " }\n";
+    EXPECT_EQ(tests[i].expected_time, actual)
+        << "With test = { start:" << tests[i].first_time_useconds
+        << ", duration:" << tests[i].duration_useconds
+        << ", consumed:" << tests[i].consume_bytes << " }\n";
 
     buffer_.Clear();
   }

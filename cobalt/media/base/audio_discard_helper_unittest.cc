@@ -21,8 +21,7 @@ static const float kDataStep = 0.01f;
 static const size_t kSampleRate = 48000;
 
 static scoped_refptr<DecoderBuffer> CreateEncodedBuffer(
-    base::TimeDelta timestamp,
-    base::TimeDelta duration) {
+    base::TimeDelta timestamp, base::TimeDelta duration) {
   scoped_refptr<DecoderBuffer> result(new DecoderBuffer(1));
   result->set_timestamp(timestamp);
   result->set_duration(duration);
@@ -48,9 +47,8 @@ TEST(AudioDiscardHelperTest, TimeDeltaToFrames) {
   AudioDiscardHelper discard_helper(kSampleRate, 0);
 
   EXPECT_EQ(0u, discard_helper.TimeDeltaToFrames(base::TimeDelta()));
-  EXPECT_EQ(
-      kSampleRate / 100,
-      discard_helper.TimeDeltaToFrames(base::TimeDelta::FromMilliseconds(10)));
+  EXPECT_EQ(kSampleRate / 100, discard_helper.TimeDeltaToFrames(
+                                   base::TimeDelta::FromMilliseconds(10)));
 
   // Ensure partial frames are rounded down correctly.  The equation below
   // calculates a frame count with a fractional part < 0.5.

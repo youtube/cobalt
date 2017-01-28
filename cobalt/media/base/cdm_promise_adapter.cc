@@ -10,8 +10,7 @@
 
 namespace media {
 
-CdmPromiseAdapter::CdmPromiseAdapter() : next_promise_id_(1) {
-}
+CdmPromiseAdapter::CdmPromiseAdapter() : next_promise_id_(1) {}
 
 CdmPromiseAdapter::~CdmPromiseAdapter() {
   DCHECK(promises_.empty());
@@ -71,15 +70,13 @@ std::unique_ptr<CdmPromise> CdmPromiseAdapter::TakePromise(
     uint32_t promise_id) {
   DCHECK(thread_checker_.CalledOnValidThread());
   PromiseMap::iterator it = promises_.find(promise_id);
-  if (it == promises_.end())
-    return NULL;
+  if (it == promises_.end()) return NULL;
   return promises_.take_and_erase(it);
 }
 
 // Explicit instantiation of function templates.
 template MEDIA_EXPORT void CdmPromiseAdapter::ResolvePromise(uint32_t);
 template MEDIA_EXPORT void CdmPromiseAdapter::ResolvePromise(
-    uint32_t,
-    const std::string&);
+    uint32_t, const std::string&);
 
 }  // namespace media

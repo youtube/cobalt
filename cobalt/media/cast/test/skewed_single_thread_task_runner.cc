@@ -13,24 +13,18 @@ namespace cast {
 namespace test {
 
 SkewedSingleThreadTaskRunner::SkewedSingleThreadTaskRunner(
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner) :
-    skew_(1.0),
-    task_runner_(task_runner) {
-}
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner)
+    : skew_(1.0), task_runner_(task_runner) {}
 
 SkewedSingleThreadTaskRunner::~SkewedSingleThreadTaskRunner() {}
 
-void SkewedSingleThreadTaskRunner::SetSkew(double skew) {
-  skew_ = skew;
-}
+void SkewedSingleThreadTaskRunner::SetSkew(double skew) { skew_ = skew; }
 
 bool SkewedSingleThreadTaskRunner::PostDelayedTask(
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
+    const tracked_objects::Location& from_here, const base::Closure& task,
     base::TimeDelta delay) {
   return task_runner_->PostDelayedTask(
-      from_here,
-      task,
+      from_here, task,
       base::TimeDelta::FromMicroseconds(delay.InMicroseconds() * skew_));
 }
 
@@ -39,12 +33,10 @@ bool SkewedSingleThreadTaskRunner::RunsTasksOnCurrentThread() const {
 }
 
 bool SkewedSingleThreadTaskRunner::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
+    const tracked_objects::Location& from_here, const base::Closure& task,
     base::TimeDelta delay) {
   return task_runner_->PostNonNestableDelayedTask(
-      from_here,
-      task,
+      from_here, task,
       base::TimeDelta::FromMicroseconds(delay.InMicroseconds() * skew_));
 }
 

@@ -167,27 +167,17 @@ class AudioPushFifoTest : public testing::TestWithParam<int> {
 };
 
 // Tests an atypical edge case: Push()ing one frame at a time.
-TEST_P(AudioPushFifoTest, PushOneFrameAtATime) {
-  RunSimpleRechunkTest(1);
-}
+TEST_P(AudioPushFifoTest, PushOneFrameAtATime) { RunSimpleRechunkTest(1); }
 
 // Tests that re-chunking the audio from common platform input chunk sizes
 // works.
-TEST_P(AudioPushFifoTest, Push128FramesAtATime) {
-  RunSimpleRechunkTest(128);
-}
-TEST_P(AudioPushFifoTest, Push512FramesAtATime) {
-  RunSimpleRechunkTest(512);
-}
+TEST_P(AudioPushFifoTest, Push128FramesAtATime) { RunSimpleRechunkTest(128); }
+TEST_P(AudioPushFifoTest, Push512FramesAtATime) { RunSimpleRechunkTest(512); }
 
 // Tests that re-chunking the audio from common "10 ms" input chunk sizes
 // works (44100 Hz * 10 ms = 441, and 48000 Hz * 10 ms = 480).
-TEST_P(AudioPushFifoTest, Push441FramesAtATime) {
-  RunSimpleRechunkTest(441);
-}
-TEST_P(AudioPushFifoTest, Push480FramesAtATime) {
-  RunSimpleRechunkTest(480);
-}
+TEST_P(AudioPushFifoTest, Push441FramesAtATime) { RunSimpleRechunkTest(441); }
+TEST_P(AudioPushFifoTest, Push480FramesAtATime) { RunSimpleRechunkTest(480); }
 
 // Tests that re-chunking when input audio is provided in varying chunk sizes
 // works.
@@ -231,8 +221,7 @@ TEST_P(AudioPushFifoTest, PushArbitraryNumbersOfFramesAtATime) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(,
-                        AudioPushFifoTest,
+INSTANTIATE_TEST_CASE_P(, AudioPushFifoTest,
                         ::testing::Values(
                             // 1 ms output chunks at common sample rates.
                             16,  // 16000 Hz

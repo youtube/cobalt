@@ -25,8 +25,7 @@ class VideoDecoderConfig;
 
 namespace mp2t {
 
-class EsParserH264Test : public EsParserTestBase,
-                         public testing::Test {
+class EsParserH264Test : public EsParserTestBase, public testing::Test {
  public:
   EsParserH264Test() {}
 
@@ -77,11 +76,10 @@ void EsParserH264Test::GetAccessUnits() {
     // Find the next start code.
     off_t relative_offset = 0;
     off_t start_code_size = 0;
-    bool success = H264Parser::FindStartCode(
-        &stream_[offset], stream_.size() - offset,
-        &relative_offset, &start_code_size);
-    if (!success)
-      break;
+    bool success =
+        H264Parser::FindStartCode(&stream_[offset], stream_.size() - offset,
+                                  &relative_offset, &start_code_size);
+    if (!success) break;
     offset += relative_offset;
 
     if (start_access_unit) {
@@ -93,8 +91,7 @@ void EsParserH264Test::GetAccessUnits() {
 
     // Get the NALU type.
     offset += start_code_size;
-    if (offset >= stream_.size())
-      break;
+    if (offset >= stream_.size()) break;
     int nal_unit_type = stream_[offset] & 0x1f;
 
     // We assume there is only one slice per access unit.
@@ -123,8 +120,8 @@ void EsParserH264Test::InsertAUD() {
     memcpy(&stream_with_aud[offset], aud, sizeof(aud));
     offset += sizeof(aud);
 
-    memcpy(&stream_with_aud[offset],
-           &stream_[access_units_[k].offset], access_units_[k].size);
+    memcpy(&stream_with_aud[offset], &stream_[access_units_[k].offset],
+           access_units_[k].size);
     offset += access_units_[k].size;
   }
 
@@ -162,9 +159,8 @@ void EsParserH264Test::GetPesTimestamps(std::vector<Packet>* pes_packets_ptr) {
   }
 }
 
-bool EsParserH264Test::Process(
-    const std::vector<Packet>& pes_packets,
-    bool force_timing) {
+bool EsParserH264Test::Process(const std::vector<Packet>& pes_packets,
+                               bool force_timing) {
   EsParserH264 es_parser(
       base::Bind(&EsParserH264Test::NewVideoConfig, base::Unretained(this)),
       base::Bind(&EsParserH264Test::EmitBuffer, base::Unretained(this)));
@@ -176,13 +172,12 @@ void EsParserH264Test::CheckAccessUnits() {
 
   std::stringstream buffer_timestamps_stream;
   for (size_t k = 0; k < access_units_.size(); k++) {
-    buffer_timestamps_stream << "("
-                             << access_units_[k].pts.InMilliseconds()
+    buffer_timestamps_stream << "(" << access_units_[k].pts.InMilliseconds()
                              << ") ";
   }
   std::string buffer_timestamps = buffer_timestamps_stream.str();
-  base::TrimWhitespaceASCII(
-      buffer_timestamps, base::TRIM_ALL, &buffer_timestamps);
+  base::TrimWhitespaceASCII(buffer_timestamps, base::TRIM_ALL,
+                            &buffer_timestamps);
   EXPECT_EQ(buffer_timestamps_, buffer_timestamps);
 }
 
@@ -212,8 +207,8 @@ TEST_F(EsParserH264Test, NonAlignedPesPacket) {
     // access unit and some bytes of the current access unit
     // (487 bytes in this unit test but no more than the current access unit
     // size).
-    cur_pes_packet.offset = access_units_[k].offset +
-        std::min<size_t>(487u, access_units_[k].size);
+    cur_pes_packet.offset =
+        access_units_[k].offset + std::min<size_t>(487u, access_units_[k].size);
   }
   ComputePacketSize(&pes_packets);
   GetPesTimestamps(&pes_packets);
@@ -236,8 +231,7 @@ TEST_F(EsParserH264Test, SeveralPesPerAccessUnit) {
   // Use a small PES packet size or the minimum access unit size
   // if it is even smaller.
   size_t pes_size = 512;
-  if (min_access_unit_size < pes_size)
-    pes_size = min_access_unit_size;
+  if (min_access_unit_size < pes_size) pes_size = min_access_unit_size;
 
   std::vector<Packet> pes_packets;
   Packet cur_pes_packet;

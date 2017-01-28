@@ -15,9 +15,7 @@ MemoryDataSource::MemoryDataSource(const uint8_t* data, size_t size)
 
 MemoryDataSource::~MemoryDataSource() {}
 
-void MemoryDataSource::Read(int64_t position,
-                            int size,
-                            uint8_t* data,
+void MemoryDataSource::Read(int64_t position, int size, uint8_t* data,
                             const DataSource::ReadCB& read_cb) {
   DCHECK(!read_cb.is_null());
 
@@ -39,9 +37,7 @@ void MemoryDataSource::Read(int64_t position,
   read_cb.Run(clamped_size);
 }
 
-void MemoryDataSource::Stop() {
-  is_stopped_ = true;
-}
+void MemoryDataSource::Stop() { is_stopped_ = true; }
 
 void MemoryDataSource::Abort() {}
 
@@ -50,9 +46,7 @@ bool MemoryDataSource::GetSize(int64_t* size_out) {
   return true;
 }
 
-bool MemoryDataSource::IsStreaming() {
-  return false;
-}
+bool MemoryDataSource::IsStreaming() { return false; }
 
 void MemoryDataSource::SetBitrate(int bitrate) {}
 

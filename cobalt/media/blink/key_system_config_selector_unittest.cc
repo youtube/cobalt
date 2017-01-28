@@ -61,12 +61,10 @@ blink::WebMediaKeySystemConfiguration DefaultConfiguration() {
 
 class FakeKeySystems : public KeySystems {
  public:
-  ~FakeKeySystems() override {
-  }
+  ~FakeKeySystems() override {}
 
   bool IsSupportedKeySystem(const std::string& key_system) const override {
-    if (key_system == kSupported)
-      return true;
+    if (key_system == kSupported) return true;
     return false;
   }
 
@@ -89,24 +87,21 @@ class FakeKeySystems : public KeySystems {
 
   // TODO(sandersd): Secure codec simulation.
   EmeConfigRule GetContentTypeConfigRule(
-      const std::string& key_system,
-      EmeMediaType media_type,
+      const std::string& key_system, EmeMediaType media_type,
       const std::string& container_mime_type,
       const std::vector<std::string>& codecs) const override {
     if (container_mime_type == kUnsupportedContainer)
       return EmeConfigRule::NOT_SUPPORTED;
     DCHECK_EQ(kSupportedContainer, container_mime_type);
     for (const std::string& codec : codecs) {
-      if (codec == kUnsupportedCodec)
-        return EmeConfigRule::NOT_SUPPORTED;
+      if (codec == kUnsupportedCodec) return EmeConfigRule::NOT_SUPPORTED;
       DCHECK_EQ(kSupportedCodec, codec);
     }
     return EmeConfigRule::SUPPORTED;
   }
 
   EmeConfigRule GetRobustnessConfigRule(
-      const std::string& key_system,
-      EmeMediaType media_type,
+      const std::string& key_system, EmeMediaType media_type,
       const std::string& requested_robustness) const override {
     if (requested_robustness == kUnsupported)
       return EmeConfigRule::NOT_SUPPORTED;
@@ -114,8 +109,7 @@ class FakeKeySystems : public KeySystems {
       return EmeConfigRule::IDENTIFIER_REQUIRED;
     if (requested_robustness == kRecommendIdentifier)
       return EmeConfigRule::IDENTIFIER_RECOMMENDED;
-    if (requested_robustness == kSupported)
-      return EmeConfigRule::SUPPORTED;
+    if (requested_robustness == kSupported) return EmeConfigRule::SUPPORTED;
     NOTREACHED();
     return EmeConfigRule::NOT_SUPPORTED;
   }
@@ -159,15 +153,13 @@ class FakeKeySystems : public KeySystems {
 
 class FakeMediaPermission : public MediaPermission {
  public:
-  void HasPermission(Type type,
-                     const GURL& security_origin,
+  void HasPermission(Type type, const GURL& security_origin,
                      const PermissionStatusCB& permission_status_cb) override {
     permission_status_cb.Run(is_granted);
   }
 
   void RequestPermission(
-      Type type,
-      const GURL& security_origin,
+      Type type, const GURL& security_origin,
       const PermissionStatusCB& permission_status_cb) override {
     requests++;
     permission_status_cb.Run(is_granted);
@@ -621,8 +613,7 @@ TEST_F(KeySystemConfigSelectorTest, VideoCapabilities_AllSupported) {
   EXPECT_EQ("b", config_.videoCapabilities[1].contentType);
 }
 
-TEST_F(KeySystemConfigSelectorTest,
-       VideoCapabilities_Codecs_SubsetSupported) {
+TEST_F(KeySystemConfigSelectorTest, VideoCapabilities_Codecs_SubsetSupported) {
   std::vector<blink::WebMediaKeySystemMediaCapability> video_capabilities(1);
   video_capabilities[0].contentType = "a";
   video_capabilities[0].mimeType = kSupportedContainer;

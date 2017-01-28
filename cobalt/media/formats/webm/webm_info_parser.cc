@@ -13,10 +13,7 @@ namespace media {
 // not specified in the INFO element.
 static const int kWebMDefaultTimecodeScale = 1000000;
 
-WebMInfoParser::WebMInfoParser()
-    : timecode_scale_(-1),
-      duration_(-1) {
-}
+WebMInfoParser::WebMInfoParser() : timecode_scale_(-1), duration_(-1) {}
 
 WebMInfoParser::~WebMInfoParser() {}
 
@@ -27,8 +24,7 @@ int WebMInfoParser::Parse(const uint8_t* buf, int size) {
   WebMListParser parser(kWebMIdInfo, this);
   int result = parser.Parse(buf, size);
 
-  if (result <= 0)
-    return result;
+  if (result <= 0) return result;
 
   // For now we do all or nothing parsing.
   return parser.IsParsingComplete() ? result : 0;
@@ -46,8 +42,7 @@ bool WebMInfoParser::OnListEnd(int id) {
 }
 
 bool WebMInfoParser::OnUInt(int id, int64_t val) {
-  if (id != kWebMIdTimecodeScale)
-    return true;
+  if (id != kWebMIdTimecodeScale) return true;
 
   if (timecode_scale_ != -1) {
     DVLOG(1) << "Multiple values for id " << std::hex << id << " specified";
@@ -75,8 +70,7 @@ bool WebMInfoParser::OnFloat(int id, double val) {
 
 bool WebMInfoParser::OnBinary(int id, const uint8_t* data, int size) {
   if (id == kWebMIdDateUTC) {
-    if (size != 8)
-      return false;
+    if (size != 8) return false;
 
     int64_t date_in_nanoseconds = 0;
     for (int i = 0; i < size; ++i)
@@ -97,8 +91,6 @@ bool WebMInfoParser::OnBinary(int id, const uint8_t* data, int size) {
   return true;
 }
 
-bool WebMInfoParser::OnString(int id, const std::string& str) {
-  return true;
-}
+bool WebMInfoParser::OnString(int id, const std::string& str) { return true; }
 
 }  // namespace media

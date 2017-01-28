@@ -23,11 +23,9 @@ static std::string BufferQueueToString(
 
   ss << "{";
   for (StreamParser::BufferQueue::const_iterator itr = buffers.begin();
-       itr != buffers.end();
-       ++itr) {
+       itr != buffers.end(); ++itr) {
     ss << " " << (*itr)->timestamp().InMilliseconds();
-    if ((*itr)->is_key_frame())
-      ss << "K";
+    if ((*itr)->is_key_frame()) ss << "K";
   }
   ss << " }";
 
@@ -73,8 +71,7 @@ bool StreamParserTestBase::AppendDataInPieces(const uint8_t* data,
   const uint8_t* end = data + length;
   while (start < end) {
     size_t append_size = std::min(piece_size, static_cast<size_t>(end - start));
-    if (!parser_->Parse(start, append_size))
-      return false;
+    if (!parser_->Parse(start, append_size)) return false;
     start += append_size;
   }
   return true;

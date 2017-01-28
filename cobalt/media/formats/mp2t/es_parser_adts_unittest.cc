@@ -21,8 +21,7 @@ namespace {
 const char kAac44100PacketTimestamp[] = "(0) (23) (46) (69)";
 }
 
-class EsParserAdtsTest : public EsParserTestBase,
-                         public testing::Test {
+class EsParserAdtsTest : public EsParserTestBase, public testing::Test {
  public:
   EsParserAdtsTest();
 
@@ -33,8 +32,7 @@ class EsParserAdtsTest : public EsParserTestBase,
   DISALLOW_COPY_AND_ASSIGN(EsParserAdtsTest);
 };
 
-EsParserAdtsTest::EsParserAdtsTest() {
-}
+EsParserAdtsTest::EsParserAdtsTest() {}
 
 bool EsParserAdtsTest::Process(const std::vector<Packet>& pes_packets,
                                bool sbr_in_mimetype) {
@@ -87,4 +85,3 @@ TEST_F(EsParserAdtsTest, AacSampleRate) {
 }
 }  // namespace mp2t
 }  // namespace media
-

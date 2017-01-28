@@ -33,12 +33,11 @@ namespace mp2t {
 namespace {
 
 bool IsMonotonic(const StreamParser::BufferQueue& buffers) {
-  if (buffers.empty())
-    return true;
+  if (buffers.empty()) return true;
 
   StreamParser::BufferQueue::const_iterator it1 = buffers.begin();
   StreamParser::BufferQueue::const_iterator it2 = ++it1;
-  for ( ; it2 != buffers.end(); ++it1, ++it2) {
+  for (; it2 != buffers.end(); ++it1, ++it2) {
     if ((*it2)->GetDecodeTimestamp() < (*it1)->GetDecodeTimestamp())
       return false;
   }
@@ -98,16 +97,14 @@ class Mp2tStreamParserTest : public testing::Test {
     return parser_->Parse(data, length);
   }
 
-  bool AppendDataInPieces(const uint8_t* data,
-                          size_t length,
+  bool AppendDataInPieces(const uint8_t* data, size_t length,
                           size_t piece_size) {
     const uint8_t* start = data;
     const uint8_t* end = data + length;
     while (start < end) {
-      size_t append_size = std::min(piece_size,
-                                    static_cast<size_t>(end - start));
-      if (!AppendData(start, append_size))
-        return false;
+      size_t append_size =
+          std::min(piece_size, static_cast<size_t>(end - start));
+      if (!AppendData(start, append_size)) return false;
       start += append_size;
     }
     return true;
@@ -172,18 +169,15 @@ class Mp2tStreamParserTest : public testing::Test {
                                               : itr_video->second;
 
     // Verify monotonicity.
-    if (!IsMonotonic(video_buffers))
-      return false;
-    if (!IsMonotonic(audio_buffers))
-      return false;
+    if (!IsMonotonic(video_buffers)) return false;
+    if (!IsMonotonic(audio_buffers)) return false;
 
     if (!video_buffers.empty()) {
       DecodeTimestamp first_dts = video_buffers.front()->GetDecodeTimestamp();
       DecodeTimestamp last_dts = video_buffers.back()->GetDecodeTimestamp();
       if (video_max_dts_ != kNoDecodeTimestamp() && first_dts < video_max_dts_)
         return false;
-      if (video_min_dts_ == kNoDecodeTimestamp())
-        video_min_dts_ = first_dts;
+      if (video_min_dts_ == kNoDecodeTimestamp()) video_min_dts_ = first_dts;
       video_max_dts_ = last_dts;
     }
     if (!audio_buffers.empty()) {
@@ -191,8 +185,7 @@ class Mp2tStreamParserTest : public testing::Test {
       DecodeTimestamp last_dts = audio_buffers.back()->GetDecodeTimestamp();
       if (audio_max_dts_ != kNoDecodeTimestamp() && first_dts < audio_max_dts_)
         return false;
-      if (audio_min_dts_ == kNoDecodeTimestamp())
-        audio_min_dts_ = first_dts;
+      if (audio_min_dts_ == kNoDecodeTimestamp()) audio_min_dts_ = first_dts;
       audio_max_dts_ = last_dts;
     }
 
@@ -232,9 +225,8 @@ class Mp2tStreamParserTest : public testing::Test {
 
   bool ParseMpeg2TsFile(const std::string& filename, int append_bytes) {
     scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(filename);
-    EXPECT_TRUE(AppendDataInPieces(buffer->data(),
-                                   buffer->data_size(),
-                                   append_bytes));
+    EXPECT_TRUE(
+        AppendDataInPieces(buffer->data(), buffer->data_size(), append_bytes));
     return true;
   }
 };
@@ -287,10 +279,10 @@ TEST_F(Mp2tStreamParserTest, TimestampWrapAround) {
   parser_->Flush();
   EXPECT_EQ(video_frame_count_, 82);
 
-  EXPECT_TRUE(IsAlmostEqual(video_min_dts_,
-                            DecodeTimestamp::FromSecondsD(95443.376)));
-  EXPECT_TRUE(IsAlmostEqual(video_max_dts_,
-                            DecodeTimestamp::FromSecondsD(95446.079)));
+  EXPECT_TRUE(
+      IsAlmostEqual(video_min_dts_, DecodeTimestamp::FromSecondsD(95443.376)));
+  EXPECT_TRUE(
+      IsAlmostEqual(video_max_dts_, DecodeTimestamp::FromSecondsD(95446.079)));
 
   // Note: for audio, AdtsStreamParser considers only the PTS (which is then
   // used as the DTS).
@@ -303,10 +295,10 @@ TEST_F(Mp2tStreamParserTest, TimestampWrapAround) {
   // 9 ADTS frames with 1 AAC frame in each ADTS frame.
   // So the PTS of the last AAC frame is:
   // 95445.931 + 8 * (1024 / 44100) = 95446.117
-  EXPECT_TRUE(IsAlmostEqual(audio_min_dts_,
-                            DecodeTimestamp::FromSecondsD(95443.400)));
-  EXPECT_TRUE(IsAlmostEqual(audio_max_dts_,
-                            DecodeTimestamp::FromSecondsD(95446.117)));
+  EXPECT_TRUE(
+      IsAlmostEqual(audio_min_dts_, DecodeTimestamp::FromSecondsD(95443.400)));
+  EXPECT_TRUE(
+      IsAlmostEqual(audio_max_dts_, DecodeTimestamp::FromSecondsD(95446.117)));
 }
 
 TEST_F(Mp2tStreamParserTest, AudioInPrivateStream1) {

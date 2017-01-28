@@ -53,14 +53,14 @@ bool EncodeBarcode(const std::vector<bool>& bits,
   if (unit_size < 1) return false;
   size_t bytes_required = unit_size * units;
   size_t padding = (row_bytes - bytes_required) / 2;
-  unsigned char *pos = &bytes[padding];
+  unsigned char* pos = &bytes[padding];
   // Two leading black bars.
   memset(pos, 0, unit_size);
   pos += unit_size * 2;
   memset(pos, 0, unit_size);
   pos += unit_size * 2;
   for (size_t bit = 0; bit < bits.size(); bit++) {
-    memset(pos, 0, bits[bit] ? unit_size * 2: unit_size);
+    memset(pos, 0, bits[bit] ? unit_size * 2 : unit_size);
     pos += unit_size * 3;
   }
   memset(pos, 0, unit_size);
@@ -72,18 +72,15 @@ bool EncodeBarcode(const std::vector<bool>& bits,
   // Now replicate this one row into all rows in kYPlane.
   for (int row = 0; row < output_frame->rows(VideoFrame::kYPlane); row++) {
     memcpy(output_frame->data(VideoFrame::kYPlane) +
-           output_frame->stride(VideoFrame::kYPlane) * row,
-           &bytes.front(),
-           row_bytes);
+               output_frame->stride(VideoFrame::kYPlane) * row,
+           &bytes.front(), row_bytes);
   }
   return true;
 }
 
 namespace {
 bool DecodeBarCodeRows(const scoped_refptr<VideoFrame>& frame,
-                       std::vector<bool>* output,
-                       int min_row,
-                       int max_row) {
+                       std::vector<bool>* output, int min_row, int max_row) {
   // Do a basic run-length encoding
   std::deque<int> runs;
   bool is_black = true;
@@ -91,8 +88,8 @@ bool DecodeBarCodeRows(const scoped_refptr<VideoFrame>& frame,
   for (int pos = 0; pos < frame->row_bytes(VideoFrame::kYPlane); pos++) {
     float value = 0.0;
     for (int row = min_row; row < max_row; row++) {
-      value += frame->data(VideoFrame::kYPlane)[
-          frame->stride(VideoFrame::kYPlane) * row + pos];
+      value += frame->data(
+          VideoFrame::kYPlane)[frame->stride(VideoFrame::kYPlane) * row + pos];
     }
     value /= max_row - min_row;
     if (is_black ? value > kBlackThreshold : value < kWhiteThreshold) {
@@ -106,7 +103,7 @@ bool DecodeBarCodeRows(const scoped_refptr<VideoFrame>& frame,
   runs.push_back(length);
 
   // Try decoding starting at each white-black transition.
-  while (runs.size() >=  output->size() * 2 + 7) {
+  while (runs.size() >= output->size() * 2 + 7) {
     std::deque<int>::const_iterator i = runs.begin();
     double unit_size = (i[1] + i[2] + i[3] + i[4]) / 4;
     bool valid = true;
@@ -135,7 +132,7 @@ bool DecodeBarCodeRows(const scoped_refptr<VideoFrame>& frame,
     DCHECK(i <= runs.end());
     if (valid) {
       // Decoding successful, return true
-     return true;
+      return true;
     }
     runs.pop_front();
     runs.pop_front();
@@ -155,9 +152,7 @@ bool DecodeBarcode(const scoped_refptr<VideoFrame>& frame,
          frame->format() == PIXEL_FORMAT_I420);
   int rows = frame->rows(VideoFrame::kYPlane);
   // Middle 10 lines
-  if (DecodeBarCodeRows(frame,
-                        output,
-                        std::max(0, rows / 2 - 5),
+  if (DecodeBarCodeRows(frame, output, std::max(0, rows / 2 - 5),
                         std::min(rows, rows / 2 + 5))) {
     return true;
   }

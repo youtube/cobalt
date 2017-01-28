@@ -23,8 +23,7 @@ void KeyboardEventCounter::OnKeyboardEvent(ui::EventType event,
                                            ui::KeyboardCode key_code) {
   // Updates the pressed keys and the total count of key presses.
   if (event == ui::ET_KEY_PRESSED) {
-    if (pressed_keys_.find(key_code) != pressed_keys_.end())
-      return;
+    if (pressed_keys_.find(key_code) != pressed_keys_.end()) return;
     pressed_keys_.insert(key_code);
     base::subtle::NoBarrier_AtomicIncrement(
         reinterpret_cast<base::subtle::AtomicWord*>(&total_key_presses_), 1);

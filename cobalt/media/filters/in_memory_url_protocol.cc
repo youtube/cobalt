@@ -8,8 +8,7 @@
 
 namespace media {
 
-InMemoryUrlProtocol::InMemoryUrlProtocol(const uint8_t* data,
-                                         int64_t size,
+InMemoryUrlProtocol::InMemoryUrlProtocol(const uint8_t* data, int64_t size,
                                          bool streaming)
     : data_(data),
       size_(size >= 0 ? size : 0),
@@ -19,12 +18,10 @@ InMemoryUrlProtocol::InMemoryUrlProtocol(const uint8_t* data,
 InMemoryUrlProtocol::~InMemoryUrlProtocol() {}
 
 int InMemoryUrlProtocol::Read(int size, uint8_t* data) {
-  if (size < 0)
-    return AVERROR(EIO);
+  if (size < 0) return AVERROR(EIO);
 
   int64_t available_bytes = size_ - position_;
-  if (size > available_bytes)
-    size = available_bytes;
+  if (size > available_bytes) size = available_bytes;
 
   if (size > 0) {
     memcpy(data, data_ + position_, size);
@@ -35,30 +32,25 @@ int InMemoryUrlProtocol::Read(int size, uint8_t* data) {
 }
 
 bool InMemoryUrlProtocol::GetPosition(int64_t* position_out) {
-  if (!position_out)
-    return false;
+  if (!position_out) return false;
 
   *position_out = position_;
   return true;
 }
 
 bool InMemoryUrlProtocol::SetPosition(int64_t position) {
-  if (position < 0 || position > size_)
-    return false;
+  if (position < 0 || position > size_) return false;
   position_ = position;
   return true;
 }
 
 bool InMemoryUrlProtocol::GetSize(int64_t* size_out) {
-  if (!size_out)
-    return false;
+  if (!size_out) return false;
 
   *size_out = size_;
   return true;
 }
 
-bool InMemoryUrlProtocol::IsStreaming() {
-  return streaming_;
-}
+bool InMemoryUrlProtocol::IsStreaming() { return streaming_; }
 
 }  // namespace media

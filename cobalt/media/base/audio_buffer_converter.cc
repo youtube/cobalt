@@ -47,8 +47,7 @@ void AudioBufferConverter::AddInput(const scoped_refptr<AudioBuffer>& buffer) {
   }
 
   // We'll need a new |audio_converter_| if there was a config change.
-  if (IsConfigChange(input_params_, buffer))
-    ResetConverter(buffer);
+  if (IsConfigChange(input_params_, buffer)) ResetConverter(buffer);
 
   // Pass straight through if there's no work to be done.
   if (!audio_converter_) {
@@ -103,8 +102,8 @@ double AudioBufferConverter::ProvideInput(AudioBus* audio_bus,
     int frames_to_read =
         std::min(requested_frames_left,
                  input_buffer->frame_count() - last_input_buffer_offset_);
-    input_buffer->ReadFrames(
-        frames_to_read, last_input_buffer_offset_, dest_index, audio_bus);
+    input_buffer->ReadFrames(frames_to_read, last_input_buffer_offset_,
+                             dest_index, audio_bus);
     last_input_buffer_offset_ += frames_to_read;
 
     if (last_input_buffer_offset_ == input_buffer->frame_count()) {
@@ -140,9 +139,7 @@ void AudioBufferConverter::ResetConverter(
   Flush();
   audio_converter_.reset();
   input_params_.Reset(
-      input_params_.format(),
-      buffer->channel_layout(),
-      buffer->sample_rate(),
+      input_params_.format(), buffer->channel_layout(), buffer->sample_rate(),
       input_params_.bits_per_sample(),
       // If resampling is needed and the FIFO disabled, the AudioConverter will
       // always request SincResampler::kDefaultRequestSize frames.  Otherwise it
@@ -157,8 +154,7 @@ void AudioBufferConverter::ResetConverter(
 
   // If |buffer| matches |output_params_| we don't need an AudioConverter at
   // all, and can early-out here.
-  if (!IsConfigChange(output_params_, buffer))
-    return;
+  if (!IsConfigChange(output_params_, buffer)) return;
 
   // Note: The FIFO is disabled to avoid extraneous memcpy().
   audio_converter_.reset(
@@ -184,15 +180,11 @@ void AudioBufferConverter::ConvertIfPossible() {
     request_frames = chunks * audio_converter_->ChunkSize();
   }
 
-  if (!request_frames)
-    return;
+  if (!request_frames) return;
 
-  scoped_refptr<AudioBuffer> output_buffer =
-      AudioBuffer::CreateBuffer(kSampleFormatPlanarF32,
-                                output_params_.channel_layout(),
-                                output_params_.channels(),
-                                output_params_.sample_rate(),
-                                request_frames);
+  scoped_refptr<AudioBuffer> output_buffer = AudioBuffer::CreateBuffer(
+      kSampleFormatPlanarF32, output_params_.channel_layout(),
+      output_params_.channels(), output_params_.sample_rate(), request_frames);
   std::unique_ptr<AudioBus> output_bus =
       AudioBus::CreateWrapper(output_buffer->channel_count());
 
@@ -214,9 +206,8 @@ void AudioBufferConverter::ConvertIfPossible() {
     output_bus->set_frames(frames_this_iteration);
     for (int ch = 0; ch < output_buffer->channel_count(); ++ch) {
       output_bus->SetChannelData(
-          ch,
-          reinterpret_cast<float*>(output_buffer->channel_data()[ch]) +
-              offset_into_buffer);
+          ch, reinterpret_cast<float*>(output_buffer->channel_data()[ch]) +
+                  offset_into_buffer);
     }
 
     // Do the actual conversion.
@@ -233,8 +224,7 @@ void AudioBufferConverter::ConvertIfPossible() {
 }
 
 void AudioBufferConverter::Flush() {
-  if (!audio_converter_)
-    return;
+  if (!audio_converter_) return;
   is_flushing_ = true;
   ConvertIfPossible();
   is_flushing_ = false;

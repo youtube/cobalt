@@ -19,8 +19,7 @@ namespace test {
 static const char kEnablePromptsSwitch[] = "enable-prompts";
 
 InputBuilder::InputBuilder(const std::string& title,
-                           const std::string& default_value,
-                           int low_range,
+                           const std::string& default_value, int low_range,
                            int high_range)
     : title_(title),
       default_value_(default_value),
@@ -47,8 +46,7 @@ std::string InputBuilder::GetStringInput() const {
 
   std::string input = raw_input;
   input = input.substr(0, input.size() - 1);  // Strip last \n.
-  if (input.empty() && !default_value_.empty())
-    return default_value_;
+  if (input.empty() && !default_value_.empty()) return default_value_;
 
   if (!ValidateInput(input)) {
     printf("Invalid input. Please try again.\n");
@@ -66,11 +64,9 @@ int InputBuilder::GetIntInput() const {
 
 bool InputBuilder::ValidateInput(const std::string& input) const {
   // Check for a valid range.
-  if (low_range_ == INT_MIN && high_range_ == INT_MAX)
-    return true;
+  if (low_range_ == INT_MIN && high_range_ == INT_MAX) return true;
   int value;
-  if (!base::StringToInt(input, &value))
-    return false;
+  if (!base::StringToInt(input, &value)) return false;
   return value >= low_range_ && value <= high_range_;
 }
 

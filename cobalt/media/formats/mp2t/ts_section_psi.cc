@@ -39,19 +39,14 @@ namespace media {
 namespace mp2t {
 
 TsSectionPsi::TsSectionPsi()
-    : wait_for_pusi_(true),
-      leading_bytes_to_discard_(0) {
-}
+    : wait_for_pusi_(true), leading_bytes_to_discard_(0) {}
 
-TsSectionPsi::~TsSectionPsi() {
-}
+TsSectionPsi::~TsSectionPsi() {}
 
-bool TsSectionPsi::Parse(bool payload_unit_start_indicator,
-                         const uint8_t* buf,
+bool TsSectionPsi::Parse(bool payload_unit_start_indicator, const uint8_t* buf,
                          int size) {
   // Ignore partial PSI.
-  if (wait_for_pusi_ && !payload_unit_start_indicator)
-    return true;
+  if (wait_for_pusi_ && !payload_unit_start_indicator) return true;
 
   if (payload_unit_start_indicator) {
     // Reset the state of the PSI section.
@@ -73,8 +68,7 @@ bool TsSectionPsi::Parse(bool payload_unit_start_indicator,
     size -= nbytes_to_discard;
     leading_bytes_to_discard_ -= nbytes_to_discard;
   }
-  if (size == 0)
-    return true;
+  if (size == 0) return true;
 
   // Add the data to the parser state.
   psi_byte_queue_.Push(buf, size);
@@ -83,13 +77,11 @@ bool TsSectionPsi::Parse(bool payload_unit_start_indicator,
   psi_byte_queue_.Peek(&raw_psi, &raw_psi_size);
 
   // Check whether we have enough data to start parsing.
-  if (raw_psi_size < 3)
-    return true;
+  if (raw_psi_size < 3) return true;
   int section_length =
-      ((static_cast<int>(raw_psi[1]) << 8) |
-       (static_cast<int>(raw_psi[2]))) & 0xfff;
-  if (section_length >= 1021)
-    return false;
+      ((static_cast<int>(raw_psi[1]) << 8) | (static_cast<int>(raw_psi[2]))) &
+      0xfff;
+  if (section_length >= 1021) return false;
   int psi_length = section_length + 3;
   if (raw_psi_size < psi_length) {
     // Don't throw an error when there is not enough data,
@@ -100,8 +92,8 @@ bool TsSectionPsi::Parse(bool payload_unit_start_indicator,
   // There should not be any trailing bytes after a PMT.
   // Instead, the pointer field should be used to stuff bytes.
   DVLOG_IF(1, raw_psi_size > psi_length)
-      << "Trailing bytes after a PSI section: "
-      << psi_length << " vs " << raw_psi_size;
+      << "Trailing bytes after a PSI section: " << psi_length << " vs "
+      << raw_psi_size;
 
   // Verify the CRC.
   RCHECK(IsCrcValid(raw_psi, psi_length));
@@ -109,14 +101,12 @@ bool TsSectionPsi::Parse(bool payload_unit_start_indicator,
   // Parse the PSI section.
   BitReader bit_reader(raw_psi, raw_psi_size);
   bool status = ParsePsiSection(&bit_reader);
-  if (status)
-    ResetPsiState();
+  if (status) ResetPsiState();
 
   return status;
 }
 
-void TsSectionPsi::Flush() {
-}
+void TsSectionPsi::Flush() {}
 
 void TsSectionPsi::Reset() {
   ResetPsiSection();
@@ -131,4 +121,3 @@ void TsSectionPsi::ResetPsiState() {
 
 }  // namespace mp2t
 }  // namespace media
-

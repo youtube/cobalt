@@ -54,16 +54,14 @@ class WebEncryptedMediaClientImpl::Reporter {
   ~Reporter() {}
 
   void ReportRequested() {
-    if (is_request_reported_)
-      return;
+    if (is_request_reported_) return;
     Report(KEY_SYSTEM_REQUESTED);
     is_request_reported_ = true;
   }
 
   void ReportSupported() {
     DCHECK(is_request_reported_);
-    if (is_support_reported_)
-      return;
+    if (is_support_reported_) return;
     Report(KEY_SYSTEM_SUPPORTED);
     is_support_reported_ = true;
   }
@@ -75,7 +73,8 @@ class WebEncryptedMediaClientImpl::Reporter {
     base::LinearHistogram::FactoryGet(
         uma_name_, 1, KEY_SYSTEM_SUPPORT_STATUS_COUNT,
         KEY_SYSTEM_SUPPORT_STATUS_COUNT + 1,
-        base::Histogram::kUmaTargetedHistogramFlag)->Add(status);
+        base::Histogram::kUmaTargetedHistogramFlag)
+        ->Add(status);
   }
 
   const std::string uma_name_;
@@ -85,8 +84,7 @@ class WebEncryptedMediaClientImpl::Reporter {
 
 WebEncryptedMediaClientImpl::WebEncryptedMediaClientImpl(
     base::Callback<bool(void)> are_secure_codecs_supported_cb,
-    CdmFactory* cdm_factory,
-    MediaPermission* media_permission)
+    CdmFactory* cdm_factory, MediaPermission* media_permission)
     : are_secure_codecs_supported_cb_(are_secure_codecs_supported_cb),
       cdm_factory_(cdm_factory),
       key_system_config_selector_(KeySystems::GetInstance(), media_permission),
@@ -94,8 +92,7 @@ WebEncryptedMediaClientImpl::WebEncryptedMediaClientImpl(
   DCHECK(cdm_factory_);
 }
 
-WebEncryptedMediaClientImpl::~WebEncryptedMediaClientImpl() {
-}
+WebEncryptedMediaClientImpl::~WebEncryptedMediaClientImpl() {}
 
 void WebEncryptedMediaClientImpl::requestMediaKeySystemAccess(
     blink::WebEncryptedMediaRequest request) {

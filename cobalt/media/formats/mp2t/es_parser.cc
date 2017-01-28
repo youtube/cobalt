@@ -13,22 +13,14 @@ namespace mp2t {
 EsParser::TimingDesc::TimingDesc()
     : dts(kNoDecodeTimestamp()), pts(kNoTimestamp) {}
 
-EsParser::TimingDesc::TimingDesc(
-    DecodeTimestamp dts_in, base::TimeDelta pts_in)
-    : dts(dts_in),
-      pts(pts_in) {
-}
+EsParser::TimingDesc::TimingDesc(DecodeTimestamp dts_in, base::TimeDelta pts_in)
+    : dts(dts_in), pts(pts_in) {}
 
-EsParser::EsParser()
-    : es_queue_(new media::OffsetByteQueue()) {
-}
+EsParser::EsParser() : es_queue_(new media::OffsetByteQueue()) {}
 
-EsParser::~EsParser() {
-}
+EsParser::~EsParser() {}
 
-bool EsParser::Parse(const uint8_t* buf,
-                     int size,
-                     base::TimeDelta pts,
+bool EsParser::Parse(const uint8_t* buf, int size, base::TimeDelta pts,
                      DecodeTimestamp dts) {
   DCHECK(buf);
   DCHECK_GT(size, 0);

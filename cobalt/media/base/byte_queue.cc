@@ -34,8 +34,7 @@ void ByteQueue::Push(const uint8_t* data, int size) {
   // Check to see if we need a bigger buffer.
   if (size_needed > size_) {
     size_t new_size = 2 * size_;
-    while (size_needed > new_size && new_size > size_)
-      new_size *= 2;
+    while (size_needed > new_size && new_size > size_) new_size *= 2;
 
     // Sanity check to make sure we didn't overflow.
     CHECK_GT(new_size, size_);
@@ -43,8 +42,7 @@ void ByteQueue::Push(const uint8_t* data, int size) {
     scoped_array<uint8_t> new_buffer(new uint8_t[new_size]);
 
     // Copy the data from the old buffer to the start of the new one.
-    if (used_ > 0)
-      memcpy(new_buffer.get(), front(), used_);
+    if (used_ > 0) memcpy(new_buffer.get(), front(), used_);
 
     buffer_ = new_buffer.Pass();
     size_ = new_size;
@@ -79,8 +77,6 @@ void ByteQueue::Pop(int count) {
   }
 }
 
-uint8_t* ByteQueue::front() const {
-  return buffer_.get() + offset_;
-}
+uint8_t* ByteQueue::front() const { return buffer_.get() + offset_; }
 
 }  // namespace media

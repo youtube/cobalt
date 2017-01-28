@@ -599,8 +599,7 @@ Vp9FrameContext kVp9DefaultFrameContext = {
 int GetMinLog2TileCols(int sb64_cols) {
   const int kMaxTileWidthB64 = 64;
   int min_log2 = 0;
-  while ((kMaxTileWidthB64 << min_log2) < sb64_cols)
-    min_log2++;
+  while ((kMaxTileWidthB64 << min_log2) < sb64_cols) min_log2++;
   return min_log2;
 }
 
@@ -609,8 +608,7 @@ int GetMinLog2TileCols(int sb64_cols) {
 int GetMaxLog2TileCols(int sb64_cols) {
   const int kMinTileWidthB64 = 4;
   int max_log2 = 1;
-  while ((sb64_cols >> max_log2) >= kMinTileWidthB64)
-    max_log2++;
+  while ((sb64_cols >> max_log2) >= kMinTileWidthB64) max_log2++;
   return max_log2 - 1;
 }
 
@@ -624,12 +622,9 @@ uint8_t Vp9UncompressedHeaderParser::ReadProfile() {
   uint8_t profile = 0;
 
   // LSB first.
-  if (reader_.ReadBool())
-    profile |= 1;
-  if (reader_.ReadBool())
-    profile |= 2;
-  if (profile > 2 && reader_.ReadBool())
-    profile += 1;
+  if (reader_.ReadBool()) profile |= 1;
+  if (reader_.ReadBool()) profile |= 2;
+  if (profile > 2 && reader_.ReadBool()) profile += 1;
   return profile;
 }
 
@@ -723,8 +718,7 @@ bool Vp9UncompressedHeaderParser::ReadFrameSizeFromRefs(Vp9FrameHeader* fhdr) {
     }
   }
 
-  if (!found_ref)
-    ReadFrameSize(fhdr);
+  if (!found_ref) ReadFrameSize(fhdr);
 
   // 7.2.5 Frame size with refs semantics
   bool has_valid_ref_frame = false;
@@ -750,8 +744,7 @@ bool Vp9UncompressedHeaderParser::ReadFrameSizeFromRefs(Vp9FrameHeader* fhdr) {
 
 // 6.2.7 Interpolation filter syntax
 Vp9InterpolationFilter Vp9UncompressedHeaderParser::ReadInterpolationFilter() {
-  if (reader_.ReadBool())
-    return Vp9InterpolationFilter::SWITCHABLE;
+  if (reader_.ReadBool()) return Vp9InterpolationFilter::SWITCHABLE;
 
   // The mapping table for next two bits.
   const Vp9InterpolationFilter table[] = {
@@ -807,8 +800,7 @@ void Vp9UncompressedHeaderParser::ReadQuantizationParams(
 
 // 6.2.10 Delta quantizer syntax
 int8_t Vp9UncompressedHeaderParser::ReadDeltaQ() {
-  if (reader_.ReadBool())
-    return reader_.ReadSignedLiteral(4);
+  if (reader_.ReadBool()) return reader_.ReadSignedLiteral(4);
   return 0;
 }
 
@@ -819,8 +811,7 @@ bool Vp9UncompressedHeaderParser::ReadSegmentationParams() {
   segmentation.update_data = false;
 
   segmentation.enabled = reader_.ReadBool();
-  if (!segmentation.enabled)
-    return true;
+  if (!segmentation.enabled) return true;
 
   segmentation.update_map = reader_.ReadBool();
   if (segmentation.update_map) {
@@ -879,12 +870,10 @@ bool Vp9UncompressedHeaderParser::ReadTileInfo(Vp9FrameHeader* fhdr) {
 
   int max_ones = max_log2_tile_cols - min_log2_tile_cols;
   fhdr->tile_cols_log2 = min_log2_tile_cols;
-  while (max_ones-- && reader_.ReadBool())
-    fhdr->tile_cols_log2++;
+  while (max_ones-- && reader_.ReadBool()) fhdr->tile_cols_log2++;
 
   fhdr->tile_rows_log2 = reader_.ReadBool() ? 1 : 0;
-  if (fhdr->tile_rows_log2 > 0 && reader_.ReadBool())
-    fhdr->tile_rows_log2++;
+  if (fhdr->tile_rows_log2 > 0 && reader_.ReadBool()) fhdr->tile_rows_log2++;
 
   // 7.2.11 Tile info semantics
   if (fhdr->tile_cols_log2 > 6) {
@@ -910,8 +899,7 @@ void Vp9UncompressedHeaderParser::ResetLoopfilter() {
 }
 
 // 6.2 Uncompressed header syntax
-bool Vp9UncompressedHeaderParser::Parse(const uint8_t* stream,
-                                        off_t frame_size,
+bool Vp9UncompressedHeaderParser::Parse(const uint8_t* stream, off_t frame_size,
                                         Vp9FrameHeader* fhdr) {
   DVLOG(2) << "Vp9UncompressedHeaderParser::Parse";
   reader_.Initialize(stream, frame_size);
@@ -954,29 +942,24 @@ bool Vp9UncompressedHeaderParser::Parse(const uint8_t* stream,
   fhdr->error_resilient_mode = reader_.ReadBool();
 
   if (fhdr->IsKeyframe()) {
-    if (!VerifySyncCode())
-      return false;
+    if (!VerifySyncCode()) return false;
 
-    if (!ReadColorConfig(fhdr))
-      return false;
+    if (!ReadColorConfig(fhdr)) return false;
 
     ReadFrameSize(fhdr);
     ReadRenderSize(fhdr);
     fhdr->refresh_frame_flags = 0xff;
   } else {
-    if (!fhdr->show_frame)
-      fhdr->intra_only = reader_.ReadBool();
+    if (!fhdr->show_frame) fhdr->intra_only = reader_.ReadBool();
 
     if (!fhdr->error_resilient_mode)
       fhdr->reset_frame_context = reader_.ReadLiteral(2);
 
     if (fhdr->intra_only) {
-      if (!VerifySyncCode())
-        return false;
+      if (!VerifySyncCode()) return false;
 
       if (fhdr->profile > 0) {
-        if (!ReadColorConfig(fhdr))
-          return false;
+        if (!ReadColorConfig(fhdr)) return false;
       } else {
         fhdr->bit_depth = 8;
         fhdr->color_space = Vp9ColorSpace::BT_601;
@@ -1040,8 +1023,7 @@ bool Vp9UncompressedHeaderParser::Parse(const uint8_t* stream,
         }
       }
 
-      if (!ReadFrameSizeFromRefs(fhdr))
-        return false;
+      if (!ReadFrameSizeFromRefs(fhdr)) return false;
 
       fhdr->allow_high_precision_mv = reader_.ReadBool();
       fhdr->interpolation_filter = ReadInterpolationFilter();
@@ -1074,11 +1056,9 @@ bool Vp9UncompressedHeaderParser::Parse(const uint8_t* stream,
 
   ReadLoopFilterParams();
   ReadQuantizationParams(&fhdr->quant_params);
-  if (!ReadSegmentationParams())
-    return false;
+  if (!ReadSegmentationParams()) return false;
 
-  if (!ReadTileInfo(fhdr))
-    return false;
+  if (!ReadTileInfo(fhdr)) return false;
 
   fhdr->header_size_in_bytes = reader_.ReadLiteral(16);
   if (fhdr->header_size_in_bytes == 0) {

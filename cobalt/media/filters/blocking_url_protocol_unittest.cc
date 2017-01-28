@@ -26,9 +26,7 @@ class BlockingUrlProtocolTest : public testing::Test {
     CHECK(data_source_.Initialize(GetTestDataFilePath("bear-320x240.webm")));
   }
 
-  virtual ~BlockingUrlProtocolTest() {
-    data_source_.Stop();
-  }
+  virtual ~BlockingUrlProtocolTest() { data_source_.Stop(); }
 
   MOCK_METHOD0(OnDataSourceError, void());
 

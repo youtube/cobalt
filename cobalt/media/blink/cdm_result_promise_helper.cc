@@ -54,15 +54,12 @@ blink::WebContentDecryptionModuleException ConvertCdmException(
 }
 
 void ReportCdmResultUMA(const std::string& uma_name, CdmResultForUMA result) {
-  if (uma_name.empty())
-    return;
+  if (uma_name.empty()) return;
 
   base::LinearHistogram::FactoryGet(
-      uma_name,
-      1,
-      NUM_RESULT_CODES,
-      NUM_RESULT_CODES + 1,
-      base::HistogramBase::kUmaTargetedHistogramFlag)->Add(result);
+      uma_name, 1, NUM_RESULT_CODES, NUM_RESULT_CODES + 1,
+      base::HistogramBase::kUmaTargetedHistogramFlag)
+      ->Add(result);
 }
 
 }  // namespace media

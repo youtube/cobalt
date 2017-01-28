@@ -22,9 +22,7 @@ const int kMinimumAcceptableTimeBetweenGlitchesSecs = 8;
 
 // Slows down the given |fps| according to NTSC field reduction standards; see
 // http://en.wikipedia.org/wiki/Frame_rate#Digital_video_and_television
-static double NTSC(double fps) {
-  return fps / 1.001;
-}
+static double NTSC(double fps) { return fps / 1.001; }
 
 static base::TimeDelta Interval(double hertz) {
   return base::TimeDelta::FromSecondsD(1.0 / hertz);
@@ -36,8 +34,8 @@ std::vector<int> CreateCadenceFromString(const std::string& cadence) {
 
   std::vector<int> result;
   for (const std::string& token :
-       base::SplitString(cadence.substr(1, cadence.length() - 2),
-                         ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL)) {
+       base::SplitString(cadence.substr(1, cadence.length() - 2), ":",
+                         base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL)) {
     int cadence_value = 0;
     CHECK(base::StringToInt(token, &cadence_value)) << token;
     result.push_back(cadence_value);
@@ -47,11 +45,8 @@ std::vector<int> CreateCadenceFromString(const std::string& cadence) {
 }
 
 static void VerifyCadenceVectorWithCustomDeviationAndDrift(
-    VideoCadenceEstimator* estimator,
-    double frame_hertz,
-    double render_hertz,
-    base::TimeDelta deviation,
-    base::TimeDelta acceptable_drift,
+    VideoCadenceEstimator* estimator, double frame_hertz, double render_hertz,
+    base::TimeDelta deviation, base::TimeDelta acceptable_drift,
     const std::string& expected_cadence) {
   SCOPED_TRACE(base::StringPrintf("Checking %.03f fps into %0.03f", frame_hertz,
                                   render_hertz));
@@ -67,8 +62,7 @@ static void VerifyCadenceVectorWithCustomDeviationAndDrift(
   EXPECT_EQ(expected_cadence_vector.empty(), !estimator->has_cadence());
 
   // Nothing further to test.
-  if (expected_cadence_vector.empty() || !estimator->has_cadence())
-    return;
+  if (expected_cadence_vector.empty() || !estimator->has_cadence()) return;
 
   EXPECT_EQ(expected_cadence_vector.size(),
             estimator->cadence_size_for_testing());
@@ -81,22 +75,16 @@ static void VerifyCadenceVectorWithCustomDeviationAndDrift(
 }
 
 static void VerifyCadenceVectorWithCustomDrift(
-    VideoCadenceEstimator* estimator,
-    double frame_hertz,
-    double render_hertz,
-    base::TimeDelta acceptable_drift,
-    const std::string& expected_cadence) {
+    VideoCadenceEstimator* estimator, double frame_hertz, double render_hertz,
+    base::TimeDelta acceptable_drift, const std::string& expected_cadence) {
   VerifyCadenceVectorWithCustomDeviationAndDrift(
       estimator, frame_hertz, render_hertz, base::TimeDelta(), acceptable_drift,
       expected_cadence);
 }
 
 static void VerifyCadenceVectorWithCustomDeviation(
-    VideoCadenceEstimator* estimator,
-    double frame_hertz,
-    double render_hertz,
-    base::TimeDelta deviation,
-    const std::string& expected_cadence) {
+    VideoCadenceEstimator* estimator, double frame_hertz, double render_hertz,
+    base::TimeDelta deviation, const std::string& expected_cadence) {
   const base::TimeDelta acceptable_drift =
       std::max(Interval(frame_hertz) / 2, Interval(render_hertz));
   VerifyCadenceVectorWithCustomDeviationAndDrift(
@@ -105,8 +93,7 @@ static void VerifyCadenceVectorWithCustomDeviation(
 }
 
 static void VerifyCadenceVector(VideoCadenceEstimator* estimator,
-                                double frame_hertz,
-                                double render_hertz,
+                                double frame_hertz, double render_hertz,
                                 const std::string& expected_cadence) {
   const base::TimeDelta acceptable_drift =
       std::max(Interval(frame_hertz) / 2, Interval(render_hertz));
@@ -165,7 +152,6 @@ TEST(VideoCadenceEstimatorTest, CadenceCalculations) {
 
   VerifyCadenceVector(&estimator, NTSC(60), 50, kEmptyCadence);
   VerifyCadenceVector(&estimator, 60, 50, kEmptyCadence);
-
 }
 
 // Check the extreme case that max_acceptable_drift is larger than
