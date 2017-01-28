@@ -50,6 +50,7 @@ const char kEaseOutKeywordName[] = "ease-out";
 const char kEllipseKeywordName[] = "ellipse";
 const char kEllipsisKeywordName[] = "ellipsis";
 const char kEndKeywordName[] = "end";
+const char kEquirectangularKeywordName[] = "equirectangular";
 const char kFantasyKeywordName[] = "fantasy";
 const char kFarthestCornerKeywordName[] = "farthest-corner";
 const char kFarthestSideKeywordName[] = "farthest-side";

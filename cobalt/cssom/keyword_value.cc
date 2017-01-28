@@ -44,6 +44,7 @@ struct KeywordValue::NonTrivialStaticFields {
         cursive_value(new KeywordValue(KeywordValue::kCursive)),
         ellipsis_value(new KeywordValue(KeywordValue::kEllipsis)),
         end_value(new KeywordValue(KeywordValue::kEnd)),
+        equirectangular_value(new KeywordValue(KeywordValue::kEquirectangular)),
         fantasy_value(new KeywordValue(KeywordValue::kFantasy)),
         forwards_value(new KeywordValue(KeywordValue::kForwards)),
         fixed_value(new KeywordValue(KeywordValue::kFixed)),
@@ -100,6 +101,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> cursive_value;
   const scoped_refptr<KeywordValue> ellipsis_value;
   const scoped_refptr<KeywordValue> end_value;
+  const scoped_refptr<KeywordValue> equirectangular_value;
   const scoped_refptr<KeywordValue> fantasy_value;
   const scoped_refptr<KeywordValue> forwards_value;
   const scoped_refptr<KeywordValue> fixed_value;
@@ -217,6 +219,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetEllipsis() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetEnd() {
   return non_trivial_static_fields.Get().end_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetEquirectangular() {
+  return non_trivial_static_fields.Get().equirectangular_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetFantasy() {
@@ -401,6 +407,8 @@ std::string KeywordValue::ToString() const {
       return kEllipsisKeywordName;
     case kEnd:
       return kEndKeywordName;
+    case kEquirectangular:
+      return kEquirectangularKeywordName;
     case kFantasy:
       return kFantasyKeywordName;
     case kForwards:
