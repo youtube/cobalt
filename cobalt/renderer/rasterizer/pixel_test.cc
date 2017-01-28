@@ -1429,6 +1429,20 @@ TEST_F(PixelTest, RectNodeContainsBorderWithTranslationRotationAndScale) {
           ScaleMatrix(1.5f)));
 }
 
+TEST_F(PixelTest, RectNodeContainsSkinnyBorderWithTranslation) {
+  // RectNode can be translated and drawn with skinny borders.
+  BorderSide border_side(2, render_tree::kBorderStyleSolid,
+                         ColorRGBA(0.0, 1.0, 0.0, 1));
+  scoped_ptr<Border> border(new Border(border_side));
+
+  TestTree(new MatrixTransformNode(
+      new RectNode(
+          RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+          border.Pass()),
+      TranslateMatrix(40, 80)));
+}
+
 // Creates a white/block checkered image where |dimensions| gives the size
 // in pixels of the image to be constructed and |block_size| gives the size
 // in pixels of each checker box.
