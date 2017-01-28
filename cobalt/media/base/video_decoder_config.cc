@@ -49,13 +49,9 @@ VideoDecoderConfig::VideoDecoderConfig()
       format_(PIXEL_FORMAT_UNKNOWN) {}
 
 VideoDecoderConfig::VideoDecoderConfig(
-    VideoCodec codec,
-    VideoCodecProfile profile,
-    VideoPixelFormat format,
-    ColorSpace color_space,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
+    VideoCodec codec, VideoCodecProfile profile, VideoPixelFormat format,
+    ColorSpace color_space, const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
     const std::vector<uint8_t>& extra_data,
     const EncryptionScheme& encryption_scheme) {
   Initialize(codec, profile, format, color_space, coded_size, visible_rect,
@@ -81,8 +77,7 @@ base::optional<HDRMetadata> VideoDecoderConfig::hdr_metadata() const {
   return hdr_metadata_;
 }
 
-void VideoDecoderConfig::Initialize(VideoCodec codec,
-                                    VideoCodecProfile profile,
+void VideoDecoderConfig::Initialize(VideoCodec codec, VideoCodecProfile profile,
                                     VideoPixelFormat format,
                                     ColorSpace color_space,
                                     const gfx::Size& coded_size,

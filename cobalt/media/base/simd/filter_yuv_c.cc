@@ -8,10 +8,8 @@
 
 namespace media {
 
-void FilterYUVRows_C(uint8_t* ybuf,
-                     const uint8_t* y0_ptr,
-                     const uint8_t* y1_ptr,
-                     int source_width,
+void FilterYUVRows_C(uint8_t* ybuf, const uint8_t* y0_ptr,
+                     const uint8_t* y1_ptr, int source_width,
                      uint8_t source_y_fraction) {
   uint8_t y1_fraction = source_y_fraction;
   uint16_t y0_fraction = 256 - y1_fraction;

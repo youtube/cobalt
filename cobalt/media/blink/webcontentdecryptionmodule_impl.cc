@@ -27,8 +27,7 @@
 namespace media {
 
 void WebContentDecryptionModuleImpl::Create(
-    media::CdmFactory* cdm_factory,
-    const base::string16& key_system,
+    media::CdmFactory* cdm_factory, const base::string16& key_system,
     const blink::WebSecurityOrigin& security_origin,
     const CdmConfig& cdm_config,
     std::unique_ptr<blink::WebContentDecryptionModuleResult> result) {
@@ -79,11 +78,9 @@ void WebContentDecryptionModuleImpl::Create(
 
 WebContentDecryptionModuleImpl::WebContentDecryptionModuleImpl(
     scoped_refptr<CdmSessionAdapter> adapter)
-    : adapter_(adapter) {
-}
+    : adapter_(adapter) {}
 
-WebContentDecryptionModuleImpl::~WebContentDecryptionModuleImpl() {
-}
+WebContentDecryptionModuleImpl::~WebContentDecryptionModuleImpl() {}
 
 // The caller owns the created session.
 blink::WebContentDecryptionModuleSession*
@@ -92,8 +89,7 @@ WebContentDecryptionModuleImpl::createSession() {
 }
 
 void WebContentDecryptionModuleImpl::setServerCertificate(
-    const uint8_t* server_certificate,
-    size_t server_certificate_length,
+    const uint8_t* server_certificate, size_t server_certificate_length,
     blink::WebContentDecryptionModuleResult result) {
   DCHECK(server_certificate);
   adapter_->SetServerCertificate(

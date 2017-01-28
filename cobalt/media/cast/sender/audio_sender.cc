@@ -20,9 +20,7 @@ AudioSender::AudioSender(scoped_refptr<CastEnvironment> cast_environment,
                          const FrameSenderConfig& audio_config,
                          const StatusChangeCallback& status_change_cb,
                          CastTransport* const transport_sender)
-    : FrameSender(cast_environment,
-                  transport_sender,
-                  audio_config,
+    : FrameSender(cast_environment, transport_sender, audio_config,
                   NewFixedCongestionControl(audio_config.max_bitrate)),
       samples_in_encoder_(0),
       weak_factory_(this) {
@@ -38,11 +36,10 @@ AudioSender::AudioSender(scoped_refptr<CastEnvironment> cast_environment,
   // Post a task now with its initialization result status to allow the client
   // to start sending frames.
   cast_environment_->PostTask(
-      CastEnvironment::MAIN,
-      FROM_HERE,
-      base::Bind(status_change_cb,
-                 audio_encoder_ ? audio_encoder_->InitializationResult() :
-                     STATUS_INVALID_CONFIGURATION));
+      CastEnvironment::MAIN, FROM_HERE,
+      base::Bind(status_change_cb, audio_encoder_
+                                       ? audio_encoder_->InitializationResult()
+                                       : STATUS_INVALID_CONFIGURATION));
 
   // The number of samples per encoded audio frame depends on the codec and its
   // initialization parameters. Now that we have an encoder, we can calculate
@@ -64,8 +61,7 @@ void AudioSender::InsertAudio(std::unique_ptr<AudioBus> audio_bus,
 
   const base::TimeDelta next_frame_duration =
       RtpTimeDelta::FromTicks(audio_bus->frames()).ToTimeDelta(rtp_timebase());
-  if (ShouldDropNextFrame(next_frame_duration))
-    return;
+  if (ShouldDropNextFrame(next_frame_duration)) return;
 
   samples_in_encoder_ += audio_bus->frames();
 
@@ -79,14 +75,14 @@ int AudioSender::GetNumberOfFramesInEncoder() const {
 }
 
 base::TimeDelta AudioSender::GetInFlightMediaDuration() const {
-  const int samples_in_flight = samples_in_encoder_ +
+  const int samples_in_flight =
+      samples_in_encoder_ +
       GetUnacknowledgedFrameCount() * audio_encoder_->GetSamplesPerFrame();
   return RtpTimeDelta::FromTicks(samples_in_flight).ToTimeDelta(rtp_timebase());
 }
 
 void AudioSender::OnEncodedAudioFrame(
-    int encoder_bitrate,
-    std::unique_ptr<SenderEncodedFrame> encoded_frame,
+    int encoder_bitrate, std::unique_ptr<SenderEncodedFrame> encoded_frame,
     int samples_skipped) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
 

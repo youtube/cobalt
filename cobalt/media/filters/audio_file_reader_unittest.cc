@@ -84,13 +84,8 @@ class AudioFileReaderTest : public testing::Test {
     }
   }
 
-  void RunTest(const char* fn,
-               const char* hash,
-               int channels,
-               int sample_rate,
-               base::TimeDelta duration,
-               int frames,
-               int trimmed_frames) {
+  void RunTest(const char* fn, const char* hash, int channels, int sample_rate,
+               base::TimeDelta duration, int frames, int trimmed_frames) {
     Initialize(fn);
     ASSERT_TRUE(reader_->Open());
     EXPECT_EQ(channels, reader_->channels());
@@ -116,9 +111,7 @@ class AudioFileReaderTest : public testing::Test {
     EXPECT_EQ(reader_->Read(decoded_audio_data.get()), 0);
   }
 
-  void disable_packet_verification() {
-    packet_verification_disabled_ = true;
-  }
+  void disable_packet_verification() { packet_verification_disabled_ = true; }
 
  protected:
   scoped_refptr<DecoderBuffer> data_;
@@ -129,96 +122,54 @@ class AudioFileReaderTest : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(AudioFileReaderTest);
 };
 
-TEST_F(AudioFileReaderTest, WithoutOpen) {
-  Initialize("bear.ogv");
-}
+TEST_F(AudioFileReaderTest, WithoutOpen) { Initialize("bear.ogv"); }
 
 TEST_F(AudioFileReaderTest, InvalidFile) {
   RunTestFailingDemux("ten_byte_file");
 }
 
 TEST_F(AudioFileReaderTest, WithVideo) {
-  RunTest("bear.ogv",
-          "-2.49,-0.75,0.38,1.60,0.70,-1.22,",
-          2,
-          44100,
-          base::TimeDelta::FromMicroseconds(1011520),
-          44609,
-          44609);
+  RunTest("bear.ogv", "-2.49,-0.75,0.38,1.60,0.70,-1.22,", 2, 44100,
+          base::TimeDelta::FromMicroseconds(1011520), 44609, 44609);
 }
 
 TEST_F(AudioFileReaderTest, Vorbis) {
-  RunTest("sfx.ogg",
-          "4.36,4.81,4.84,4.45,4.61,4.63,",
-          1,
-          44100,
-          base::TimeDelta::FromMicroseconds(350001),
-          15436,
-          15436);
+  RunTest("sfx.ogg", "4.36,4.81,4.84,4.45,4.61,4.63,", 1, 44100,
+          base::TimeDelta::FromMicroseconds(350001), 15436, 15436);
 }
 
 TEST_F(AudioFileReaderTest, WaveU8) {
-  RunTest("sfx_u8.wav",
-          "-1.23,-1.57,-1.14,-0.91,-0.87,-0.07,",
-          1,
-          44100,
-          base::TimeDelta::FromMicroseconds(288414),
-          12720,
-          12719);
+  RunTest("sfx_u8.wav", "-1.23,-1.57,-1.14,-0.91,-0.87,-0.07,", 1, 44100,
+          base::TimeDelta::FromMicroseconds(288414), 12720, 12719);
 }
 
 TEST_F(AudioFileReaderTest, WaveS16LE) {
-  RunTest("sfx_s16le.wav",
-          "3.05,2.87,3.00,3.32,3.58,4.08,",
-          1,
-          44100,
-          base::TimeDelta::FromMicroseconds(288414),
-          12720,
-          12719);
+  RunTest("sfx_s16le.wav", "3.05,2.87,3.00,3.32,3.58,4.08,", 1, 44100,
+          base::TimeDelta::FromMicroseconds(288414), 12720, 12719);
 }
 
 TEST_F(AudioFileReaderTest, WaveS24LE) {
-  RunTest("sfx_s24le.wav",
-          "3.03,2.86,2.99,3.31,3.57,4.06,",
-          1,
-          44100,
-          base::TimeDelta::FromMicroseconds(288414),
-          12720,
-          12719);
+  RunTest("sfx_s24le.wav", "3.03,2.86,2.99,3.31,3.57,4.06,", 1, 44100,
+          base::TimeDelta::FromMicroseconds(288414), 12720, 12719);
 }
 
 TEST_F(AudioFileReaderTest, WaveF32LE) {
-  RunTest("sfx_f32le.wav",
-          "3.03,2.86,2.99,3.31,3.57,4.06,",
-          1,
-          44100,
-          base::TimeDelta::FromMicroseconds(288414),
-          12720,
-          12719);
+  RunTest("sfx_f32le.wav", "3.03,2.86,2.99,3.31,3.57,4.06,", 1, 44100,
+          base::TimeDelta::FromMicroseconds(288414), 12720, 12719);
 }
 
 #if defined(USE_PROPRIETARY_CODECS)
 TEST_F(AudioFileReaderTest, MP3) {
-  RunTest("sfx.mp3",
-          "1.30,2.72,4.56,5.08,3.74,2.03,",
-          1,
-          44100,
-          base::TimeDelta::FromMicroseconds(313470),
-          13825,
-          11025);
+  RunTest("sfx.mp3", "1.30,2.72,4.56,5.08,3.74,2.03,", 1, 44100,
+          base::TimeDelta::FromMicroseconds(313470), 13825, 11025);
 }
 
 TEST_F(AudioFileReaderTest, CorruptMP3) {
   // Disable packet verification since the file is corrupt and FFmpeg does not
   // make any guarantees on packet consistency in this case.
   disable_packet_verification();
-  RunTest("corrupt.mp3",
-          "-4.95,-2.95,-0.44,1.16,0.31,-2.21,",
-          1,
-          44100,
-          base::TimeDelta::FromMicroseconds(1018801),
-          44930,
-          44928);
+  RunTest("corrupt.mp3", "-4.95,-2.95,-0.44,1.16,0.31,-2.21,", 1, 44100,
+          base::TimeDelta::FromMicroseconds(1018801), 44930, 44928);
 }
 
 TEST_F(AudioFileReaderTest, AAC) {
@@ -236,13 +187,8 @@ TEST_F(AudioFileReaderTest, VorbisInvalidChannelLayout) {
 }
 
 TEST_F(AudioFileReaderTest, WaveValidFourChannelLayout) {
-  RunTest("4ch.wav",
-          "131.71,38.02,130.31,44.89,135.98,42.52,",
-          4,
-          44100,
-          base::TimeDelta::FromMicroseconds(100001),
-          4411,
-          4410);
+  RunTest("4ch.wav", "131.71,38.02,130.31,44.89,135.98,42.52,", 4, 44100,
+          base::TimeDelta::FromMicroseconds(100001), 4411, 4410);
 }
 
 }  // namespace media

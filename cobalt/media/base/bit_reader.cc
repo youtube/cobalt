@@ -22,8 +22,7 @@ int BitReader::GetBytes(int max_nbytes, const uint8_t** out) {
   DCHECK(out);
 
   int nbytes = max_nbytes;
-  if (nbytes > bytes_left_)
-    nbytes = bytes_left_;
+  if (nbytes > bytes_left_) nbytes = bytes_left_;
 
   *out = data_;
   data_ += nbytes;

@@ -32,14 +32,13 @@ TextRenderer::TextRenderer(
 TextRenderer::~TextRenderer() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   text_track_state_map_.clear();
-  if (!pause_cb_.is_null())
-    base::ResetAndReturn(&pause_cb_).Run();
+  if (!pause_cb_.is_null()) base::ResetAndReturn(&pause_cb_).Run();
 }
 
 void TextRenderer::Initialize(const base::Closure& ended_cb) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(!ended_cb.is_null());
-  DCHECK_EQ(kUninitialized, state_)  << "state_ " << state_;
+  DCHECK_EQ(kUninitialized, state_) << "state_ " << state_;
   DCHECK(text_track_state_map_.empty());
   DCHECK_EQ(pending_read_count_, 0);
   DCHECK(pending_eos_set_.empty());
@@ -102,13 +101,11 @@ void TextRenderer::AddTextStream(DemuxerStream* text_stream,
   DCHECK(state_ != kUninitialized) << "state_ " << state_;
   DCHECK(text_track_state_map_.find(text_stream) ==
          text_track_state_map_.end());
-  DCHECK(pending_eos_set_.find(text_stream) ==
-         pending_eos_set_.end());
+  DCHECK(pending_eos_set_.find(text_stream) == pending_eos_set_.end());
 
   AddTextTrackDoneCB done_cb =
       BindToCurrentLoop(base::Bind(&TextRenderer::OnAddTextTrackDone,
-                                   weak_factory_.GetWeakPtr(),
-                                   text_stream));
+                                   weak_factory_.GetWeakPtr(), text_stream));
 
   add_text_track_cb_.Run(config, done_cb);
 }
@@ -131,10 +128,9 @@ bool TextRenderer::HasTracks() const {
   return !text_track_state_map_.empty();
 }
 
-void TextRenderer::BufferReady(
-    DemuxerStream* stream,
-    DemuxerStream::Status status,
-    const scoped_refptr<DecoderBuffer>& input) {
+void TextRenderer::BufferReady(DemuxerStream* stream,
+                               DemuxerStream::Status status,
+                               const scoped_refptr<DecoderBuffer>& input) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_NE(status, DemuxerStream::kConfigChanged);
 
@@ -197,18 +193,13 @@ void TextRenderer::BufferReady(
   std::string text(input->data(), input->data() + input->data_size());
 
   scoped_refptr<TextCue> text_cue(
-      new TextCue(input->timestamp(),
-                  input->duration(),
-                  id,
-                  settings,
-                  text));
+      new TextCue(input->timestamp(), input->duration(), id, settings, text));
 
   CueReady(stream, text_cue);
 }
 
-void TextRenderer::CueReady(
-    DemuxerStream* text_stream,
-    const scoped_refptr<TextCue>& text_cue) {
+void TextRenderer::CueReady(DemuxerStream* text_stream,
+                            const scoped_refptr<TextCue>& text_cue) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_NE(state_, kUninitialized);
   DCHECK_GT(pending_read_count_, 0);
@@ -226,8 +217,7 @@ void TextRenderer::CueReady(
 
   switch (state_) {
     case kPlaying: {
-      if (text_cue.get())
-        break;
+      if (text_cue.get()) break;
 
       const size_t count = pending_eos_set_.erase(text_stream);
       DCHECK_EQ(count, 1U);
@@ -243,8 +233,7 @@ void TextRenderer::CueReady(
       return;
     }
     case kPausePending: {
-      if (text_cue.get())
-        break;
+      if (text_cue.get()) break;
 
       const size_t count = pending_eos_set_.erase(text_stream);
       DCHECK_EQ(count, 1U);
@@ -272,10 +261,8 @@ void TextRenderer::CueReady(
   if (state->text_ranges_.AddCue(start)) {
     base::TimeDelta end = start + text_cue->duration();
 
-    state->text_track->addWebVTTCue(start, end,
-                                    text_cue->id(),
-                                    text_cue->text(),
-                                    text_cue->settings());
+    state->text_track->addWebVTTCue(start, end, text_cue->id(),
+                                    text_cue->text(), text_cue->settings());
   }
 
   if (state_ == kPlaying) {
@@ -284,9 +271,9 @@ void TextRenderer::CueReady(
   }
 
   if (pending_read_count_ == 0) {
-      DCHECK_EQ(state_, kPausePending) << "state_ " << state_;
-      state_ = kPaused;
-      base::ResetAndReturn(&pause_cb_).Run();
+    DCHECK_EQ(state_, kPausePending) << "state_ " << state_;
+    state_ = kPaused;
+    base::ResetAndReturn(&pause_cb_).Run();
   }
 }
 
@@ -306,22 +293,19 @@ void TextRenderer::OnAddTextTrackDone(DemuxerStream* text_stream,
     Read(text_track_state_map_[text_stream].get(), text_stream);
 }
 
-void TextRenderer::Read(
-    TextTrackState* state,
-    DemuxerStream* text_stream) {
+void TextRenderer::Read(TextTrackState* state, DemuxerStream* text_stream) {
   DCHECK_NE(state->read_state, TextTrackState::kReadPending);
 
   state->read_state = TextTrackState::kReadPending;
   ++pending_read_count_;
 
-  text_stream->Read(base::Bind(
-      &TextRenderer::BufferReady, weak_factory_.GetWeakPtr(), text_stream));
+  text_stream->Read(base::Bind(&TextRenderer::BufferReady,
+                               weak_factory_.GetWeakPtr(), text_stream));
 }
 
 TextRenderer::TextTrackState::TextTrackState(std::unique_ptr<TextTrack> tt)
     : read_state(kReadIdle), text_track(std::move(tt)) {}
 
-TextRenderer::TextTrackState::~TextTrackState() {
-}
+TextRenderer::TextTrackState::~TextTrackState() {}
 
 }  // namespace media

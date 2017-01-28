@@ -63,7 +63,7 @@ static void OnMediaTracksUpdated(std::unique_ptr<MediaTracks> tracks) {
   VLOG(0) << "Got media tracks info, tracks = " << tracks->tracks().size();
 }
 
-typedef std::vector<media::DemuxerStream* > Streams;
+typedef std::vector<media::DemuxerStream*> Streams;
 
 // Simulates playback reading requirements by reading from each stream
 // present in |demuxer| in as-close-to-monotonically-increasing timestamp order.
@@ -83,8 +83,7 @@ class StreamReader {
   const std::vector<int>& counts() { return counts_; }
 
  private:
-  void OnReadDone(base::MessageLoop* message_loop,
-                  bool* end_of_stream,
+  void OnReadDone(base::MessageLoop* message_loop, bool* end_of_stream,
                   base::TimeDelta* timestamp,
                   media::DemuxerStream::Status status,
                   const scoped_refptr<media::DecoderBuffer>& buffer);
@@ -116,8 +115,7 @@ StreamReader::StreamReader(media::Demuxer* demuxer,
     last_read_timestamp_.push_back(media::kNoTimestamp);
     counts_.push_back(0);
 
-    if (enable_bitstream_converter)
-      stream->EnableBitstreamConverter();
+    if (enable_bitstream_converter) stream->EnableBitstreamConverter();
   }
 }
 
@@ -128,9 +126,9 @@ void StreamReader::Read() {
   bool end_of_stream = false;
   base::TimeDelta timestamp;
 
-  streams_[index]->Read(base::Bind(
-      &StreamReader::OnReadDone, base::Unretained(this),
-      base::MessageLoop::current(), &end_of_stream, &timestamp));
+  streams_[index]->Read(
+      base::Bind(&StreamReader::OnReadDone, base::Unretained(this),
+                 base::MessageLoop::current(), &end_of_stream, &timestamp));
   base::RunLoop().Run();
 
   CHECK(end_of_stream || timestamp != media::kNoTimestamp);
@@ -141,17 +139,14 @@ void StreamReader::Read() {
 
 bool StreamReader::IsDone() {
   for (size_t i = 0; i < end_of_stream_.size(); ++i) {
-    if (!end_of_stream_[i])
-      return false;
+    if (!end_of_stream_[i]) return false;
   }
   return true;
 }
 
 void StreamReader::OnReadDone(
-    base::MessageLoop* message_loop,
-    bool* end_of_stream,
-    base::TimeDelta* timestamp,
-    media::DemuxerStream::Status status,
+    base::MessageLoop* message_loop, bool* end_of_stream,
+    base::TimeDelta* timestamp, media::DemuxerStream::Status status,
     const scoped_refptr<media::DecoderBuffer>& buffer) {
   CHECK_EQ(status, media::DemuxerStream::kOk);
   CHECK(buffer.get());
@@ -165,15 +160,12 @@ int StreamReader::GetNextStreamIndexToRead() {
   int index = -1;
   for (int i = 0; i < number_of_streams(); ++i) {
     // Ignore streams at EOS.
-    if (end_of_stream_[i])
-      continue;
+    if (end_of_stream_[i]) continue;
 
     // Use a stream if it hasn't been read from yet.
-    if (last_read_timestamp_[i] == media::kNoTimestamp)
-      return i;
+    if (last_read_timestamp_[i] == media::kNoTimestamp) return i;
 
-    if (index < 0 ||
-        last_read_timestamp_[i] < last_read_timestamp_[index]) {
+    if (index < 0 || last_read_timestamp_[i] < last_read_timestamp_[index]) {
       index = i;
     }
   }
@@ -200,8 +192,7 @@ static void RunDemuxerBenchmark(const std::string& filename) {
                           new MediaLog());
 
     demuxer.Initialize(&demuxer_host,
-                       base::Bind(&QuitLoopWithStatus, &message_loop),
-                       false);
+                       base::Bind(&QuitLoopWithStatus, &message_loop), false);
     base::RunLoop().Run();
     StreamReader stream_reader(&demuxer, false);
 
@@ -217,12 +208,8 @@ static void RunDemuxerBenchmark(const std::string& filename) {
     base::RunLoop().Run();
   }
 
-  perf_test::PrintResult("demuxer_bench",
-                         "",
-                         filename,
-                         kBenchmarkIterations / total_time,
-                         "runs/s",
-                         true);
+  perf_test::PrintResult("demuxer_bench", "", filename,
+                         kBenchmarkIterations / total_time, "runs/s", true);
 }
 
 #if defined(OS_WIN)

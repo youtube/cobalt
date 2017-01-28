@@ -27,22 +27,18 @@ namespace mp2t {
 // 3 bytes for the start code + 1 byte for the NALU type.
 const int kMinAUDSize = 4;
 
-EsParserH264::EsParserH264(
-    const NewVideoConfigCB& new_video_config_cb,
-    const EmitBufferCB& emit_buffer_cb)
+EsParserH264::EsParserH264(const NewVideoConfigCB& new_video_config_cb,
+                           const EmitBufferCB& emit_buffer_cb)
     : es_adapter_(new_video_config_cb, emit_buffer_cb),
       h264_parser_(new H264Parser()),
       current_access_unit_pos_(0),
-      next_access_unit_pos_(0) {
-}
+      next_access_unit_pos_(0) {}
 
-EsParserH264::~EsParserH264() {
-}
+EsParserH264::~EsParserH264() {}
 
 void EsParserH264::Flush() {
   DVLOG(1) << __FUNCTION__;
-  if (!FindAUD(&current_access_unit_pos_))
-    return;
+  if (!FindAUD(&current_access_unit_pos_)) return;
 
   // Simulate an additional AUD to force emitting the last access unit
   // which is assumed to be complete at this point.
@@ -83,8 +79,7 @@ bool EsParserH264::FindAUD(int64_t* stream_pos) {
     // Note: NALU header for an AUD:
     // - nal_ref_idc must be 0
     // - nal_unit_type must be H264NALU::kAUD
-    if (es[start_code_offset + start_code_size] == H264NALU::kAUD)
-      break;
+    if (es[start_code_offset + start_code_size] == H264NALU::kAUD) break;
 
     // The current NALU is not an AUD, skip the start code
     // and continue parsing the stream.
@@ -110,16 +105,14 @@ bool EsParserH264::ParseFromEsQueue() {
     next_access_unit_pos_ = current_access_unit_pos_;
 
   // Resume parsing later if no AUD was found.
-  if (!aud_found)
-    return true;
+  if (!aud_found) return true;
 
   // Find the next AUD to make sure we have a complete access unit.
   if (next_access_unit_pos_ < current_access_unit_pos_ + kMinAUDSize) {
     next_access_unit_pos_ = current_access_unit_pos_ + kMinAUDSize;
     DCHECK_LE(next_access_unit_pos_, es_queue_->tail());
   }
-  if (!FindAUD(&next_access_unit_pos_))
-    return true;
+  if (!FindAUD(&next_access_unit_pos_)) return true;
 
   // At this point, we know we have a full access unit.
   bool is_key_frame = false;
@@ -146,8 +139,7 @@ bool EsParserH264::ParseFromEsQueue() {
         is_eos = true;
         break;
     }
-    if (is_eos)
-      break;
+    if (is_eos) break;
 
     switch (nalu.nal_unit_type) {
       case H264NALU::kAUD: {
@@ -157,15 +149,13 @@ bool EsParserH264::ParseFromEsQueue() {
       case H264NALU::kSPS: {
         DVLOG(LOG_LEVEL_ES) << "NALU: SPS";
         int sps_id;
-        if (h264_parser_->ParseSPS(&sps_id) != H264Parser::kOk)
-          return false;
+        if (h264_parser_->ParseSPS(&sps_id) != H264Parser::kOk) return false;
         break;
       }
       case H264NALU::kPPS: {
         DVLOG(LOG_LEVEL_ES) << "NALU: PPS";
         int pps_id;
-        if (h264_parser_->ParsePPS(&pps_id) != H264Parser::kOk)
-          return false;
+        if (h264_parser_->ParsePPS(&pps_id) != H264Parser::kOk) return false;
         break;
       }
       case H264NALU::kIDRSlice:
@@ -178,32 +168,27 @@ bool EsParserH264::ParseFromEsQueue() {
           // does not necessarily start with an SPS/PPS/IDR.
           // TODO(damienv): Should be able to differentiate a missing SPS/PPS
           // from a slice header parsing error.
-          if (last_video_decoder_config_.IsValidConfig())
-            return false;
+          if (last_video_decoder_config_.IsValidConfig()) return false;
         } else {
           pps_id_for_access_unit = shdr.pic_parameter_set_id;
         }
         break;
       }
-      default: {
-        DVLOG(LOG_LEVEL_ES) << "NALU: " << nalu.nal_unit_type;
-      }
+      default: { DVLOG(LOG_LEVEL_ES) << "NALU: " << nalu.nal_unit_type; }
     }
   }
 
   // Emit a frame and move the stream to the next AUD position.
-  RCHECK(EmitFrame(current_access_unit_pos_, access_unit_size,
-                   is_key_frame, pps_id_for_access_unit));
+  RCHECK(EmitFrame(current_access_unit_pos_, access_unit_size, is_key_frame,
+                   pps_id_for_access_unit));
   current_access_unit_pos_ = next_access_unit_pos_;
   es_queue_->Trim(current_access_unit_pos_);
 
   return true;
 }
 
-bool EsParserH264::EmitFrame(int64_t access_unit_pos,
-                             int access_unit_size,
-                             bool is_key_frame,
-                             int pps_id) {
+bool EsParserH264::EmitFrame(int64_t access_unit_pos, int access_unit_size,
+                             bool is_key_frame, int pps_id) {
   // Get the access unit timing info.
   // Note: |current_timing_desc.pts| might be |kNoTimestamp| at this point
   // if:
@@ -229,12 +214,10 @@ bool EsParserH264::EmitFrame(int64_t access_unit_pos,
     // In this case, the initial frames are conveyed to the upper layer with
     // an invalid VideoDecoderConfig and it's up to the upper layer
     // to process this kind of frame accordingly.
-    if (last_video_decoder_config_.IsValidConfig())
-      return false;
+    if (last_video_decoder_config_.IsValidConfig()) return false;
   } else {
     const H264SPS* sps = h264_parser_->GetSPS(pps->seq_parameter_set_id);
-    if (!sps)
-      return false;
+    if (!sps) return false;
     RCHECK(UpdateVideoDecoderConfig(sps, Unencrypted()));
   }
 
@@ -263,12 +246,10 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
   int sar_height = (sps->sar_height == 0) ? 1 : sps->sar_height;
 
   base::Optional<gfx::Size> coded_size = sps->GetCodedSize();
-  if (!coded_size)
-    return false;
+  if (!coded_size) return false;
 
   base::Optional<gfx::Rect> visible_rect = sps->GetVisibleRect();
-  if (!visible_rect)
-    return false;
+  if (!visible_rect) return false;
 
   if (visible_rect->width() > std::numeric_limits<int>::max() / sar_width) {
     DVLOG(1) << "Integer overflow detected: visible_rect.width()="
@@ -277,8 +258,7 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
   }
   gfx::Size natural_size((visible_rect->width() * sar_width) / sar_height,
                          visible_rect->height());
-  if (natural_size.width() == 0)
-    return false;
+  if (natural_size.width() == 0) return false;
 
   VideoDecoderConfig video_decoder_config(
       kCodecH264, H264Parser::ProfileIDCToVideoCodecProfile(sps->profile_idc),
@@ -290,8 +270,7 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
     DVLOG(1) << "Level IDC: " << sps->level_idc;
     DVLOG(1) << "Pic width: " << coded_size->width();
     DVLOG(1) << "Pic height: " << coded_size->height();
-    DVLOG(1) << "log2_max_frame_num_minus4: "
-             << sps->log2_max_frame_num_minus4;
+    DVLOG(1) << "log2_max_frame_num_minus4: " << sps->log2_max_frame_num_minus4;
     DVLOG(1) << "SAR: width=" << sps->sar_width
              << " height=" << sps->sar_height;
     last_video_decoder_config_ = video_decoder_config;

@@ -63,10 +63,8 @@ ChannelMixingMatrix::ChannelMixingMatrix(ChannelLayout input_layout,
   CHECK_NE(output_layout, CHANNEL_LAYOUT_STEREO_DOWNMIX);
 
   // Verify that the layouts are supported
-  if (input_layout != CHANNEL_LAYOUT_DISCRETE)
-    ValidateLayout(input_layout);
-  if (output_layout != CHANNEL_LAYOUT_DISCRETE)
-    ValidateLayout(output_layout);
+  if (input_layout != CHANNEL_LAYOUT_DISCRETE) ValidateLayout(input_layout);
+  if (output_layout != CHANNEL_LAYOUT_DISCRETE) ValidateLayout(output_layout);
 
   // Special case for 5.0, 5.1 with back channels when upmixed to 7.0, 7.1,
   // which should map the back LR to side LR.
@@ -79,8 +77,7 @@ ChannelMixingMatrix::ChannelMixingMatrix(ChannelLayout input_layout,
   }
 }
 
-ChannelMixingMatrix::~ChannelMixingMatrix() {
-}
+ChannelMixingMatrix::~ChannelMixingMatrix() {}
 
 bool ChannelMixingMatrix::CreateTransformationMatrix(
     std::vector<std::vector<float>>* matrix) {
@@ -99,8 +96,7 @@ bool ChannelMixingMatrix::CreateTransformationMatrix(
     // If the number of input channels is less than output channels, then
     // copy them all, then zero out the remaining output channels.
     int passthrough_channels = std::min(input_channels_, output_channels_);
-    for (int i = 0; i < passthrough_channels; ++i)
-      (*matrix_)[i][i] = 1;
+    for (int i = 0; i < passthrough_channels; ++i) (*matrix_)[i][i] = 1;
 
     return true;
   }
@@ -109,8 +105,7 @@ bool ChannelMixingMatrix::CreateTransformationMatrix(
   for (Channels ch = LEFT; ch < CHANNELS_MAX + 1;
        ch = static_cast<Channels>(ch + 1)) {
     int input_ch_index = ChannelOrder(input_layout_, ch);
-    if (input_ch_index < 0)
-      continue;
+    if (input_ch_index < 0) continue;
 
     int output_ch_index = ChannelOrder(output_layout_, ch);
     if (output_ch_index < 0) {
@@ -136,8 +131,9 @@ bool ChannelMixingMatrix::CreateTransformationMatrix(
     // stereo mixes.  Scaling by 1 / sqrt(2) here will likely lead to clipping
     // so we use 1 / 2 instead.
     float scale =
-        (output_layout_ == CHANNEL_LAYOUT_MONO && input_channels_ == 2) ?
-        0.5 : kEqualPowerScale;
+        (output_layout_ == CHANNEL_LAYOUT_MONO && input_channels_ == 2)
+            ? 0.5
+            : kEqualPowerScale;
     Mix(LEFT, CENTER, scale);
     Mix(RIGHT, CENTER, scale);
   }
@@ -145,8 +141,7 @@ bool ChannelMixingMatrix::CreateTransformationMatrix(
   // Mix center into front LR.
   if (IsUnaccounted(CENTER)) {
     // When up mixing from mono, just do a copy to front LR.
-    float scale =
-        (input_layout_ == CHANNEL_LAYOUT_MONO) ? 1 : kEqualPowerScale;
+    float scale = (input_layout_ == CHANNEL_LAYOUT_MONO) ? 1 : kEqualPowerScale;
     MixWithoutAccounting(CENTER, LEFT, scale);
     Mix(CENTER, RIGHT, scale);
   }
@@ -265,8 +260,8 @@ bool ChannelMixingMatrix::CreateTransformationMatrix(
 }
 
 void ChannelMixingMatrix::AccountFor(Channels ch) {
-  unaccounted_inputs_.erase(std::find(
-      unaccounted_inputs_.begin(), unaccounted_inputs_.end(), ch));
+  unaccounted_inputs_.erase(
+      std::find(unaccounted_inputs_.begin(), unaccounted_inputs_.end(), ch));
 }
 
 bool ChannelMixingMatrix::IsUnaccounted(Channels ch) const {
@@ -282,8 +277,7 @@ bool ChannelMixingMatrix::HasOutputChannel(Channels ch) const {
   return ChannelOrder(output_layout_, ch) >= 0;
 }
 
-void ChannelMixingMatrix::Mix(Channels input_ch,
-                              Channels output_ch,
+void ChannelMixingMatrix::Mix(Channels input_ch, Channels output_ch,
                               float scale) {
   MixWithoutAccounting(input_ch, output_ch, scale);
   AccountFor(input_ch);

@@ -24,8 +24,7 @@ SizeAdaptableVideoEncoderBase::SizeAdaptableVideoEncoderBase(
       next_frame_id_(FrameId::first()),
       weak_factory_(this) {
   cast_environment_->PostTask(
-      CastEnvironment::MAIN,
-      FROM_HERE,
+      CastEnvironment::MAIN, FROM_HERE,
       base::Bind(status_change_cb_, STATUS_INITIALIZED));
 }
 
@@ -50,33 +49,29 @@ bool SizeAdaptableVideoEncoderBase::EncodeVideoFrame(
   }
   if (frame_size != frame_size_ || !encoder_) {
     VLOG(1) << "Dropping this frame, and future frames until a replacement "
-               "encoder is spun-up to handle size " << frame_size.ToString();
+               "encoder is spun-up to handle size "
+            << frame_size.ToString();
     TrySpawningReplacementEncoder(frame_size);
     return false;
   }
 
   const bool is_frame_accepted = encoder_->EncodeVideoFrame(
-      video_frame,
-      reference_time,
+      video_frame, reference_time,
       base::Bind(&SizeAdaptableVideoEncoderBase::OnEncodedVideoFrame,
-                 weak_factory_.GetWeakPtr(),
-                 frame_encoded_callback));
-  if (is_frame_accepted)
-    ++frames_in_encoder_;
+                 weak_factory_.GetWeakPtr(), frame_encoded_callback));
+  if (is_frame_accepted) ++frames_in_encoder_;
   return is_frame_accepted;
 }
 
 void SizeAdaptableVideoEncoderBase::SetBitRate(int new_bit_rate) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
   video_config_.start_bitrate = new_bit_rate;
-  if (encoder_)
-    encoder_->SetBitRate(new_bit_rate);
+  if (encoder_) encoder_->SetBitRate(new_bit_rate);
 }
 
 void SizeAdaptableVideoEncoderBase::GenerateKeyFrame() {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
-  if (encoder_)
-    encoder_->GenerateKeyFrame();
+  if (encoder_) encoder_->GenerateKeyFrame();
 }
 
 std::unique_ptr<VideoFrameFactory>
@@ -87,12 +82,11 @@ SizeAdaptableVideoEncoderBase::CreateVideoFrameFactory() {
 
 void SizeAdaptableVideoEncoderBase::EmitFrames() {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
-  if (encoder_)
-    encoder_->EmitFrames();
+  if (encoder_) encoder_->EmitFrames();
 }
 
 StatusChangeCallback
-    SizeAdaptableVideoEncoderBase::CreateEncoderStatusChangeCallback() {
+SizeAdaptableVideoEncoderBase::CreateEncoderStatusChangeCallback() {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
   return base::Bind(&SizeAdaptableVideoEncoderBase::OnEncoderStatusChange,
                     weak_factory_.GetWeakPtr());
@@ -120,19 +114,16 @@ void SizeAdaptableVideoEncoderBase::TrySpawningReplacementEncoder(
     encoder_->EmitFrames();
     // Check again, since EmitFrames() is a synchronous operation for some
     // encoders.
-    if (frames_in_encoder_ > 0)
-      return;
+    if (frames_in_encoder_ > 0) return;
   }
 
-  if (frames_in_encoder_ == kEncoderIsInitializing)
-    return;  // Already spawned.
+  if (frames_in_encoder_ == kEncoderIsInitializing) return;  // Already spawned.
 
   DestroyEncoder();
   frames_in_encoder_ = kEncoderIsInitializing;
   OnEncoderStatusChange(STATUS_CODEC_REINIT_PENDING);
   VLOG(1) << "Creating replacement video encoder (for frame size change from "
-          << frame_size_.ToString() << " to "
-          << size_needed.ToString() << ").";
+          << frame_size_.ToString() << " to " << size_needed.ToString() << ").";
   frame_size_ = size_needed;
   encoder_ = CreateEncoder();
   DCHECK(encoder_);
@@ -157,8 +148,7 @@ void SizeAdaptableVideoEncoderBase::OnEncodedVideoFrame(
   --frames_in_encoder_;
   DCHECK_GE(frames_in_encoder_, 0);
 
-  if (encoded_frame)
-    next_frame_id_ = encoded_frame->frame_id + 1;
+  if (encoded_frame) next_frame_id_ = encoded_frame->frame_id + 1;
   frame_encoded_callback.Run(std::move(encoded_frame));
 }
 

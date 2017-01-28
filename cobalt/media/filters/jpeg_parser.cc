@@ -47,8 +47,7 @@ static int RoundUp(int value, int mul) {
 }
 
 // |frame_header| is already initialized to 0 in ParseJpegPicture.
-static bool ParseSOF(const char* buffer,
-                     size_t length,
+static bool ParseSOF(const char* buffer, size_t length,
                      JpegFrameHeader* frame_header) {
   // Spec B.2.2 Frame header syntax
   DCHECK(buffer);
@@ -117,8 +116,7 @@ static bool ParseSOF(const char* buffer,
 }
 
 // |q_table| is already initialized to 0 in ParseJpegPicture.
-static bool ParseDQT(const char* buffer,
-                     size_t length,
+static bool ParseDQT(const char* buffer, size_t length,
                      JpegQuantizationTable* q_table) {
   // Spec B.2.4.1 Quantization table-specification syntax
   DCHECK(buffer);
@@ -153,10 +151,8 @@ static bool ParseDQT(const char* buffer,
 }
 
 // |dc_table| and |ac_table| are already initialized to 0 in ParseJpegPicture.
-static bool ParseDHT(const char* buffer,
-                     size_t length,
-                     JpegHuffmanTable* dc_table,
-                     JpegHuffmanTable* ac_table) {
+static bool ParseDHT(const char* buffer, size_t length,
+                     JpegHuffmanTable* dc_table, JpegHuffmanTable* ac_table) {
   // Spec B.2.4.2 Huffman table-specification syntax
   DCHECK(buffer);
   DCHECK(dc_table);
@@ -193,15 +189,13 @@ static bool ParseDHT(const char* buffer,
       DVLOG(1) << "Invalid code count " << count;
       return false;
     }
-    if (!reader.ReadBytes(&table->code_value, count))
-      return false;
+    if (!reader.ReadBytes(&table->code_value, count)) return false;
     table->valid = true;
   }
   return true;
 }
 
-static bool ParseDRI(const char* buffer,
-                     size_t length,
+static bool ParseDRI(const char* buffer, size_t length,
                      uint16_t* restart_interval) {
   // Spec B.2.4.4 Restart interval definition syntax
   DCHECK(buffer);
@@ -211,8 +205,7 @@ static bool ParseDRI(const char* buffer,
 }
 
 // |scan| is already initialized to 0 in ParseJpegPicture.
-static bool ParseSOS(const char* buffer,
-                     size_t length,
+static bool ParseSOS(const char* buffer, size_t length,
                      const JpegFrameHeader& frame_header,
                      JpegScanHeader* scan) {
   // Spec B.2.3 Scan header syntax
@@ -281,8 +274,7 @@ static bool SearchEOI(const char* buffer, size_t length, const char** eoi_ptr) {
   while (reader.remaining() > 0) {
     const char* marker1_ptr = static_cast<const char*>(
         memchr(reader.ptr(), JPEG_MARKER_PREFIX, reader.remaining()));
-    if (!marker1_ptr)
-      return false;
+    if (!marker1_ptr) return false;
     reader.Skip(marker1_ptr - reader.ptr() + 1);
 
     do {
@@ -331,8 +323,7 @@ static bool SearchEOI(const char* buffer, size_t length, const char** eoi_ptr) {
 }
 
 // |result| is already initialized to 0 in ParseJpegPicture.
-static bool ParseSOI(const char* buffer,
-                     size_t length,
+static bool ParseSOI(const char* buffer, size_t length,
                      JpegParseResult* result) {
   // Spec B.2.1 High-level syntax
   DCHECK(buffer);
@@ -346,8 +337,7 @@ static bool ParseSOI(const char* buffer,
   // Once reached SOS, all neccesary data are parsed.
   while (!has_marker_sos) {
     READ_U8_OR_RETURN_FALSE(&marker1);
-    if (marker1 != JPEG_MARKER_PREFIX)
-      return false;
+    if (marker1 != JPEG_MARKER_PREFIX) return false;
 
     do {
       READ_U8_OR_RETURN_FALSE(&marker2);
@@ -439,8 +429,7 @@ static bool ParseSOI(const char* buffer,
   return true;
 }
 
-bool ParseJpegPicture(const uint8_t* buffer,
-                      size_t length,
+bool ParseJpegPicture(const uint8_t* buffer, size_t length,
                       JpegParseResult* result) {
   DCHECK(buffer);
   DCHECK(result);
@@ -458,16 +447,14 @@ bool ParseJpegPicture(const uint8_t* buffer,
   return ParseSOI(reader.ptr(), reader.remaining(), result);
 }
 
-bool ParseJpegStream(const uint8_t* buffer,
-                     size_t length,
+bool ParseJpegStream(const uint8_t* buffer, size_t length,
                      JpegParseResult* result) {
   DCHECK(buffer);
   DCHECK(result);
-  if (!ParseJpegPicture(buffer, length, result))
-    return false;
+  if (!ParseJpegPicture(buffer, length, result)) return false;
 
-  BigEndianReader reader(
-      reinterpret_cast<const char*>(result->data), result->data_size);
+  BigEndianReader reader(reinterpret_cast<const char*>(result->data),
+                         result->data_size);
   const char* eoi_ptr = NULL;
   if (!SearchEOI(reader.ptr(), reader.remaining(), &eoi_ptr)) {
     DLOG(ERROR) << "SearchEOI failed";

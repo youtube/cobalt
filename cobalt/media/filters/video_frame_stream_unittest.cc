@@ -34,8 +34,7 @@ static const int kNumBuffersInOneConfig = 5;
 namespace media {
 
 struct VideoFrameStreamTestParams {
-  VideoFrameStreamTestParams(bool is_encrypted,
-                             int decoding_delay,
+  VideoFrameStreamTestParams(bool is_encrypted, int decoding_delay,
                              int parallel_decoding)
       : is_encrypted(is_encrypted),
         decoding_delay(decoding_delay),
@@ -51,29 +50,22 @@ class VideoFrameStreamTest
       public testing::WithParamInterface<VideoFrameStreamTestParams> {
  public:
   VideoFrameStreamTest()
-      : demuxer_stream_(new FakeDemuxerStream(kNumConfigs,
-                                              kNumBuffersInOneConfig,
-                                              GetParam().is_encrypted)),
+      : demuxer_stream_(new FakeDemuxerStream(
+            kNumConfigs, kNumBuffersInOneConfig, GetParam().is_encrypted)),
         cdm_context_(new StrictMock<MockCdmContext>()),
         decryptor_(new NiceMock<MockDecryptor>()),
-        decoder1_(
-            new FakeVideoDecoder(GetParam().decoding_delay,
-                                 GetParam().parallel_decoding,
-                                 base::Bind(
-                                     &VideoFrameStreamTest::OnBytesDecoded,
-                                     base::Unretained(this)))),
-        decoder2_(
-            new FakeVideoDecoder(GetParam().decoding_delay,
-                                 GetParam().parallel_decoding,
-                                 base::Bind(
-                                     &VideoFrameStreamTest::OnBytesDecoded,
-                                     base::Unretained(this)))),
-        decoder3_(
-            new FakeVideoDecoder(GetParam().decoding_delay,
-                                 GetParam().parallel_decoding,
-                                 base::Bind(
-                                     &VideoFrameStreamTest::OnBytesDecoded,
-                                     base::Unretained(this)))),
+        decoder1_(new FakeVideoDecoder(
+            GetParam().decoding_delay, GetParam().parallel_decoding,
+            base::Bind(&VideoFrameStreamTest::OnBytesDecoded,
+                       base::Unretained(this)))),
+        decoder2_(new FakeVideoDecoder(
+            GetParam().decoding_delay, GetParam().parallel_decoding,
+            base::Bind(&VideoFrameStreamTest::OnBytesDecoded,
+                       base::Unretained(this)))),
+        decoder3_(new FakeVideoDecoder(
+            GetParam().decoding_delay, GetParam().parallel_decoding,
+            base::Bind(&VideoFrameStreamTest::OnBytesDecoded,
+                       base::Unretained(this)))),
         is_initialized_(false),
         num_decoded_frames_(0),
         pending_initialize_(false),
@@ -125,9 +117,7 @@ class VideoFrameStreamTest
     num_decoded_bytes_unreported_ -= statistics.video_bytes_decoded;
   }
 
-  void OnBytesDecoded(int count) {
-    num_decoded_bytes_unreported_ += count;
-  }
+  void OnBytesDecoded(int count) { num_decoded_bytes_unreported_ += count; }
 
   void OnInitialized(bool success) {
     DCHECK(!pending_read_);
@@ -169,8 +159,7 @@ class VideoFrameStreamTest
     DCHECK_EQ(stream_type, Decryptor::kVideo);
     scoped_refptr<DecoderBuffer> decrypted =
         DecoderBuffer::CopyFrom(encrypted->data(), encrypted->data_size());
-    if (encrypted->is_key_frame())
-      decrypted->set_is_key_frame(true);
+    if (encrypted->is_key_frame()) decrypted->set_is_key_frame(true);
     decrypted->set_timestamp(encrypted->timestamp());
     decrypted->set_duration(encrypted->duration());
     decrypt_cb.Run(Decryptor::kSuccess, decrypted);
@@ -198,8 +187,8 @@ class VideoFrameStreamTest
   void ReadOneFrame() {
     frame_read_ = NULL;
     pending_read_ = true;
-    video_frame_stream_->Read(base::Bind(
-        &VideoFrameStreamTest::FrameReady, base::Unretained(this)));
+    video_frame_stream_->Read(
+        base::Bind(&VideoFrameStreamTest::FrameReady, base::Unretained(this)));
     base::RunLoop().RunUntilIdle();
   }
 
@@ -212,9 +201,9 @@ class VideoFrameStreamTest
   void ReadAllFrames(int expected_decoded_frames) {
     do {
       ReadOneFrame();
-    } while (frame_read_.get() &&
-             !frame_read_->metadata()->IsTrue(
-                 VideoFrameMetadata::END_OF_STREAM));
+    } while (
+        frame_read_.get() &&
+        !frame_read_->metadata()->IsTrue(VideoFrameMetadata::END_OF_STREAM));
 
     DCHECK_EQ(expected_decoded_frames, num_decoded_frames_);
   }
@@ -277,8 +266,8 @@ class VideoFrameStreamTest
       case DECODER_RESET:
         decoder->HoldNextReset();
         pending_reset_ = true;
-        video_frame_stream_->Reset(base::Bind(&VideoFrameStreamTest::OnReset,
-                                              base::Unretained(this)));
+        video_frame_stream_->Reset(
+            base::Bind(&VideoFrameStreamTest::OnReset, base::Unretained(this)));
         base::RunLoop().RunUntilIdle();
         break;
 
@@ -384,30 +373,22 @@ class VideoFrameStreamTest
 };
 
 INSTANTIATE_TEST_CASE_P(
-    Clear,
-    VideoFrameStreamTest,
-    ::testing::Values(
-        VideoFrameStreamTestParams(false, 0, 1),
-        VideoFrameStreamTestParams(false, 3, 1),
-        VideoFrameStreamTestParams(false, 7, 1)));
+    Clear, VideoFrameStreamTest,
+    ::testing::Values(VideoFrameStreamTestParams(false, 0, 1),
+                      VideoFrameStreamTestParams(false, 3, 1),
+                      VideoFrameStreamTestParams(false, 7, 1)));
+
+INSTANTIATE_TEST_CASE_P(Encrypted, VideoFrameStreamTest,
+                        ::testing::Values(VideoFrameStreamTestParams(true, 7,
+                                                                     1)));
 
 INSTANTIATE_TEST_CASE_P(
-    Encrypted,
-    VideoFrameStreamTest,
-    ::testing::Values(
-        VideoFrameStreamTestParams(true, 7, 1)));
-
-INSTANTIATE_TEST_CASE_P(
-    Clear_Parallel,
-    VideoFrameStreamTest,
-    ::testing::Values(
-        VideoFrameStreamTestParams(false, 0, 3),
-        VideoFrameStreamTestParams(false, 2, 3)));
+    Clear_Parallel, VideoFrameStreamTest,
+    ::testing::Values(VideoFrameStreamTestParams(false, 0, 3),
+                      VideoFrameStreamTestParams(false, 2, 3)));
 
 
-TEST_P(VideoFrameStreamTest, Initialization) {
-  Initialize();
-}
+TEST_P(VideoFrameStreamTest, Initialization) { Initialize(); }
 
 TEST_P(VideoFrameStreamTest, AllDecoderInitializationFails) {
   decoder1_->SimulateFailureToInit();
@@ -473,8 +454,7 @@ TEST_P(VideoFrameStreamTest, Read_BlockedDemuxer) {
 
 TEST_P(VideoFrameStreamTest, Read_BlockedDemuxerAndDecoder) {
   // Test applies only when the decoder allows multiple parallel requests.
-  if (GetParam().parallel_decoding == 1)
-    return;
+  if (GetParam().parallel_decoding == 1) return;
 
   Initialize();
   demuxer_stream_->HoldNextRead();
@@ -666,16 +646,13 @@ TEST_P(VideoFrameStreamTest, Reset_DuringNoKeyRead) {
 // In the following Destroy_* tests, |video_frame_stream_| is destroyed in
 // VideoFrameStreamTest dtor.
 
-TEST_P(VideoFrameStreamTest, Destroy_BeforeInitialization) {
-}
+TEST_P(VideoFrameStreamTest, Destroy_BeforeInitialization) {}
 
 TEST_P(VideoFrameStreamTest, Destroy_DuringInitialization) {
   EnterPendingState(DECODER_INIT);
 }
 
-TEST_P(VideoFrameStreamTest, Destroy_AfterInitialization) {
-  Initialize();
-}
+TEST_P(VideoFrameStreamTest, Destroy_AfterInitialization) { Initialize(); }
 
 TEST_P(VideoFrameStreamTest, Destroy_DuringReinitialization) {
   Initialize();
@@ -872,8 +849,7 @@ TEST_P(VideoFrameStreamTest,
 TEST_P(VideoFrameStreamTest, FallbackDecoder_ConfigChangeClearsPendingBuffers) {
   // Test case is only interesting if the decoder can receive a config change
   // before returning its first frame.
-  if (GetParam().decoding_delay < kNumBuffersInOneConfig)
-    return;
+  if (GetParam().decoding_delay < kNumBuffersInOneConfig) return;
 
   Initialize();
   EnterPendingState(DEMUXER_READ_CONFIG_CHANGE);
@@ -889,8 +865,7 @@ TEST_P(VideoFrameStreamTest, FallbackDecoder_ConfigChangeClearsPendingBuffers) {
 TEST_P(VideoFrameStreamTest, FallbackDecoder_ErrorDuringConfigChangeFlushing) {
   // Test case is only interesting if the decoder can receive a config change
   // before returning its first frame.
-  if (GetParam().decoding_delay < kNumBuffersInOneConfig)
-    return;
+  if (GetParam().decoding_delay < kNumBuffersInOneConfig) return;
 
   Initialize();
   EnterPendingState(DEMUXER_READ_CONFIG_CHANGE);

@@ -44,17 +44,15 @@ static bool IsText(scoped_refptr<StreamParserBuffer> buffer) {
 // end of the sequence and no buffer is appended for it. Each new buffer's
 // type will be |type| with track ID set to |track_id|.
 static void GenerateBuffers(const int* decode_timestamps,
-                            StreamParserBuffer::Type type,
-                            TrackId track_id,
+                            StreamParserBuffer::Type type, TrackId track_id,
                             BufferQueue* queue) {
   DCHECK(decode_timestamps);
   DCHECK(queue);
   DCHECK_NE(type, DemuxerStream::UNKNOWN);
   DCHECK_LT(type, DemuxerStream::NUM_TYPES);
   for (int i = 0; decode_timestamps[i] != kEnd; ++i) {
-    scoped_refptr<StreamParserBuffer> buffer =
-        StreamParserBuffer::CopyFrom(kFakeData, sizeof(kFakeData),
-                                     true, type, track_id);
+    scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
+        kFakeData, sizeof(kFakeData), true, type, track_id);
     buffer->SetDecodeTimestamp(
         DecodeTimestamp::FromMicroseconds(decode_timestamps[i]));
     queue->push_back(buffer);
@@ -69,9 +67,8 @@ class StreamParserTest : public testing::Test {
   // returns true.
   size_t CountMatchingMergedBuffers(
       bool (*predicate)(scoped_refptr<StreamParserBuffer> buffer)) {
-    return static_cast<size_t>(count_if(merged_buffers_.begin(),
-                                        merged_buffers_.end(),
-                                        predicate));
+    return static_cast<size_t>(
+        count_if(merged_buffers_.begin(), merged_buffers_.end(), predicate));
   }
 
   // Appends test audio buffers in the sequence described by |decode_timestamps|
@@ -124,10 +121,8 @@ class StreamParserTest : public testing::Test {
   std::string MergedBufferQueueString(bool include_type_and_text_track) {
     std::stringstream results_stream;
     for (BufferQueue::const_iterator itr = merged_buffers_.begin();
-         itr != merged_buffers_.end();
-         ++itr) {
-      if (itr != merged_buffers_.begin())
-        results_stream << " ";
+         itr != merged_buffers_.end(); ++itr) {
+      if (itr != merged_buffers_.begin()) results_stream << " ";
       const StreamParserBuffer& buffer = *(itr->get());
       if (include_type_and_text_track) {
         switch (buffer.type()) {
@@ -233,61 +228,63 @@ TEST_F(StreamParserTest, MergeBufferQueues_AllEmpty) {
 
 TEST_F(StreamParserTest, MergeBufferQueues_SingleAudioBuffer) {
   std::string expected = "A0:100";
-  int audio_timestamps[] = { 100, kEnd };
+  int audio_timestamps[] = {100, kEnd};
   GenerateAudioBuffers(audio_timestamps);
   VerifyMergeSuccess(expected, true);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_SingleVideoBuffer) {
   std::string expected = "V1:100";
-  int video_timestamps[] = { 100, kEnd };
+  int video_timestamps[] = {100, kEnd};
   GenerateVideoBuffers(video_timestamps);
   VerifyMergeSuccess(expected, true);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_SingleTextBuffer) {
   std::string expected = "T2:100";
-  int text_timestamps[] = { 100, kEnd };
+  int text_timestamps[] = {100, kEnd};
   GenerateTextBuffers(text_timestamps, NULL);
   VerifyMergeSuccess(expected, true);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_OverlappingAudioVideo) {
   std::string expected = "A0:100 V1:101 V1:102 A0:103 A0:104 V1:105";
-  int audio_timestamps[] = { 100, 103, 104, kEnd };
+  int audio_timestamps[] = {100, 103, 104, kEnd};
   GenerateAudioBuffers(audio_timestamps);
-  int video_timestamps[] = { 101, 102, 105, kEnd };
+  int video_timestamps[] = {101, 102, 105, kEnd};
   GenerateVideoBuffers(video_timestamps);
   VerifyMergeSuccess(expected, true);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_OverlappingMultipleText) {
   std::string expected = "T2:100 T2:101 T3:103 T2:104 T3:105 T3:106";
-  int text_timestamps_a[] = { 100, 101, 104, kEnd };
-  int text_timestamps_b[] = { 103, 105, 106, kEnd };
+  int text_timestamps_a[] = {100, 101, 104, kEnd};
+  int text_timestamps_b[] = {103, 105, 106, kEnd};
   GenerateTextBuffers(text_timestamps_a, text_timestamps_b);
   VerifyMergeSuccess(expected, true);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_OverlappingAudioVideoText) {
-  std::string expected = "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 "
-                         "T2:107";
-  int audio_timestamps[] = { 100, 105, kEnd };
+  std::string expected =
+      "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 "
+      "T2:107";
+  int audio_timestamps[] = {100, 105, kEnd};
   GenerateAudioBuffers(audio_timestamps);
-  int video_timestamps[] = { 101, 103, 106, kEnd };
+  int video_timestamps[] = {101, 103, 106, kEnd};
   GenerateVideoBuffers(video_timestamps);
-  int text_timestamps_a[] = { 102, 107, kEnd };
-  int text_timestamps_b[] = { 104, kEnd };
+  int text_timestamps_a[] = {102, 107, kEnd};
+  int text_timestamps_b[] = {104, kEnd};
   GenerateTextBuffers(text_timestamps_a, text_timestamps_b);
   VerifyMergeSuccess(expected, true);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_NonDecreasingNoCrossMediaDuplicate) {
-  std::string expected = "A0:100 A0:100 A0:100 V1:101 V1:101 V1:101 A0:102 "
-                         "V1:103 V1:103";
-  int audio_timestamps[] = { 100, 100, 100, 102, kEnd };
+  std::string expected =
+      "A0:100 A0:100 A0:100 V1:101 V1:101 V1:101 A0:102 "
+      "V1:103 V1:103";
+  int audio_timestamps[] = {100, 100, 100, 102, kEnd};
   GenerateAudioBuffers(audio_timestamps);
-  int video_timestamps[] = { 101, 101, 101, 103, 103, kEnd };
+  int video_timestamps[] = {101, 101, 101, 103, 103, kEnd};
   GenerateVideoBuffers(video_timestamps);
   VerifyMergeSuccess(expected, true);
 }
@@ -297,64 +294,67 @@ TEST_F(StreamParserTest, MergeBufferQueues_CrossStreamDuplicates) {
   // selection when timestamps are tied. Verify at least the right number of
   // each kind of buffer results, and that buffers are in nondecreasing order.
   std::string expected = "100 100 100 100 100 100 102 102 102 102 102 102 102";
-  int audio_timestamps[] = { 100, 100, 100, 102, kEnd };
+  int audio_timestamps[] = {100, 100, 100, 102, kEnd};
   GenerateAudioBuffers(audio_timestamps);
-  int video_timestamps[] = { 100, 100, 102, 102, 102, kEnd };
+  int video_timestamps[] = {100, 100, 102, 102, 102, kEnd};
   GenerateVideoBuffers(video_timestamps);
-  int text_timestamps[] = { 100, 102, 102, 102, kEnd };
+  int text_timestamps[] = {100, 102, 102, 102, kEnd};
   GenerateTextBuffers(text_timestamps, NULL);
   VerifyMergeSuccess(expected, false);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_InvalidDecreasingSingleStream) {
-  int audio_timestamps[] = { 101, 102, 100, 103, kEnd };
+  int audio_timestamps[] = {101, 102, 100, 103, kEnd};
   GenerateAudioBuffers(audio_timestamps);
   VerifyMergeFailure();
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_InvalidDecreasingMultipleStreams) {
-  int audio_timestamps[] = { 101, 102, 100, 103, kEnd };
+  int audio_timestamps[] = {101, 102, 100, 103, kEnd};
   GenerateAudioBuffers(audio_timestamps);
-  int video_timestamps[] = { 104, 100, kEnd };
+  int video_timestamps[] = {104, 100, kEnd};
   GenerateVideoBuffers(video_timestamps);
   VerifyMergeFailure();
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_ValidAppendToExistingMerge) {
-  std::string expected = "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 "
-                         "T2:107";
-  int audio_timestamps[] = { 100, 105, kEnd };
+  std::string expected =
+      "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 "
+      "T2:107";
+  int audio_timestamps[] = {100, 105, kEnd};
   GenerateAudioBuffers(audio_timestamps);
-  int video_timestamps[] = { 101, 103, 106, kEnd };
+  int video_timestamps[] = {101, 103, 106, kEnd};
   GenerateVideoBuffers(video_timestamps);
-  int text_timestamps_a[] = { 102, 107, kEnd };
-  int text_timestamps_b[] = { 104, kEnd };
+  int text_timestamps_a[] = {102, 107, kEnd};
+  int text_timestamps_b[] = {104, kEnd};
   GenerateTextBuffers(text_timestamps_a, text_timestamps_b);
   VerifyMergeSuccess(expected, true);
 
   ClearBufferQueuesButKeepAnyMergedBuffers();
 
-  expected = "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 T2:107 "
-             "A0:107 V1:111 T2:112 V1:113 T3:114 A0:115 V1:116 T2:117";
-  int more_audio_timestamps[] = { 107, 115, kEnd };
+  expected =
+      "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 T2:107 "
+      "A0:107 V1:111 T2:112 V1:113 T3:114 A0:115 V1:116 T2:117";
+  int more_audio_timestamps[] = {107, 115, kEnd};
   GenerateAudioBuffers(more_audio_timestamps);
-  int more_video_timestamps[] = { 111, 113, 116, kEnd };
+  int more_video_timestamps[] = {111, 113, 116, kEnd};
   GenerateVideoBuffers(more_video_timestamps);
-  int more_text_timestamps_a[] = { 112, 117, kEnd };
-  int more_text_timestamps_b[] = { 114, kEnd };
+  int more_text_timestamps_a[] = {112, 117, kEnd};
+  int more_text_timestamps_b[] = {114, kEnd};
   GenerateTextBuffers(more_text_timestamps_a, more_text_timestamps_b);
   VerifyMergeSuccess(expected, true);
 }
 
 TEST_F(StreamParserTest, MergeBufferQueues_InvalidAppendToExistingMerge) {
-  std::string expected = "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 "
-                         "T2:107";
-  int audio_timestamps[] = { 100, 105, kEnd };
+  std::string expected =
+      "A0:100 V1:101 T2:102 V1:103 T3:104 A0:105 V1:106 "
+      "T2:107";
+  int audio_timestamps[] = {100, 105, kEnd};
   GenerateAudioBuffers(audio_timestamps);
-  int video_timestamps[] = { 101, 103, 106, kEnd };
+  int video_timestamps[] = {101, 103, 106, kEnd};
   GenerateVideoBuffers(video_timestamps);
-  int text_timestamps_a[] = { 102, 107, kEnd };
-  int text_timestamps_b[] = { 104, kEnd };
+  int text_timestamps_a[] = {102, 107, kEnd};
+  int text_timestamps_b[] = {104, kEnd};
   GenerateTextBuffers(text_timestamps_a, text_timestamps_b);
   VerifyMergeSuccess(expected, true);
 
@@ -365,7 +365,7 @@ TEST_F(StreamParserTest, MergeBufferQueues_InvalidAppendToExistingMerge) {
 
   // But appending something with a lower timestamp than the last timestamp
   // in the pre-existing merge result should fail.
-  int more_audio_timestamps[] = { 106, kEnd };
+  int more_audio_timestamps[] = {106, kEnd};
   GenerateAudioBuffers(more_audio_timestamps);
   VerifyMergeFailure();
 }

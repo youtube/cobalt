@@ -17,9 +17,7 @@
 namespace media {
 
 MultiBufferReader::MultiBufferReader(
-    MultiBuffer* multibuffer,
-    int64_t start,
-    int64_t end,
+    MultiBuffer* multibuffer, int64_t start, int64_t end,
     const base::Callback<void(int64_t, int64_t)>& progress_callback)
     : multibuffer_(multibuffer),
       // If end is -1, we use a very large (but still supported) value instead.
@@ -49,8 +47,7 @@ MultiBufferReader::~MultiBufferReader() {
 
 void MultiBufferReader::Seek(int64_t pos) {
   DCHECK_GE(pos, 0);
-  if (pos == pos_)
-    return;
+  if (pos == pos_) return;
   PinRange(block(pos - max_buffer_backward_),
            block_ceil(pos + max_buffer_forward_));
 
@@ -94,15 +91,11 @@ int64_t MultiBufferReader::TryRead(uint8_t* data, int64_t len) {
   int64_t p = pos_;
   int64_t bytes_read = 0;
   while (bytes_read < len) {
-    if (i == data_map.end())
-      break;
-    if (i->first != block(p))
-      break;
-    if (i->second->end_of_stream())
-      break;
+    if (i == data_map.end()) break;
+    if (i->first != block(p)) break;
+    if (i->second->end_of_stream()) break;
     size_t offset = p & ((1LL << multibuffer_->block_size_shift()) - 1);
-    if (offset > static_cast<size_t>(i->second->data_size()))
-      break;
+    if (offset > static_cast<size_t>(i->second->data_size())) break;
     size_t tocopy =
         std::min<size_t>(len - bytes_read, i->second->data_size() - offset);
     memcpy(data, i->second->data() + offset, tocopy);
@@ -141,9 +134,7 @@ void MultiBufferReader::SetPreload(int64_t preload_high, int64_t preload_low) {
   UpdateInternalState();
 }
 
-bool MultiBufferReader::IsLoading() const {
-  return loading_;
-}
+bool MultiBufferReader::IsLoading() const { return loading_; }
 
 void MultiBufferReader::CheckWait() {
   if (!cb_.is_null() &&
@@ -157,9 +148,7 @@ void MultiBufferReader::CheckWait() {
   }
 }
 
-void MultiBufferReader::Call(const base::Closure& cb) const {
-  cb.Run();
-}
+void MultiBufferReader::Call(const base::Closure& cb) const { cb.Run(); }
 
 void MultiBufferReader::UpdateEnd(MultiBufferBlockId p) {
   auto i = multibuffer_->map().find(p - 1);

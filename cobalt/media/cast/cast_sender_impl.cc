@@ -24,24 +24,23 @@ class LocalVideoFrameInput : public VideoFrameInput {
       : cast_environment_(cast_environment),
         video_sender_(video_sender),
         video_frame_factory_(
-            video_sender.get() ?
-                video_sender->CreateVideoFrameFactory().release() : nullptr) {}
+            video_sender.get()
+                ? video_sender->CreateVideoFrameFactory().release()
+                : nullptr) {}
 
   void InsertRawVideoFrame(const scoped_refptr<media::VideoFrame>& video_frame,
                            const base::TimeTicks& capture_time) final {
-    cast_environment_->PostTask(CastEnvironment::MAIN,
-                                FROM_HERE,
-                                base::Bind(&VideoSender::InsertRawVideoFrame,
-                                           video_sender_,
-                                           video_frame,
-                                           capture_time));
+    cast_environment_->PostTask(
+        CastEnvironment::MAIN, FROM_HERE,
+        base::Bind(&VideoSender::InsertRawVideoFrame, video_sender_,
+                   video_frame, capture_time));
   }
 
   scoped_refptr<VideoFrame> MaybeCreateOptimizedFrame(
-      const gfx::Size& frame_size,
-      base::TimeDelta timestamp) final {
-    return video_frame_factory_ ?
-        video_frame_factory_->MaybeCreateFrame(frame_size, timestamp) : nullptr;
+      const gfx::Size& frame_size, base::TimeDelta timestamp) final {
+    return video_frame_factory_
+               ? video_frame_factory_->MaybeCreateFrame(frame_size, timestamp)
+               : nullptr;
   }
 
   bool CanCreateOptimizedFrames() const final {
@@ -71,12 +70,10 @@ class LocalAudioFrameInput : public AudioFrameInput {
 
   void InsertAudio(std::unique_ptr<AudioBus> audio_bus,
                    const base::TimeTicks& recorded_time) final {
-    cast_environment_->PostTask(CastEnvironment::MAIN,
-                                FROM_HERE,
-                                base::Bind(&AudioSender::InsertAudio,
-                                           audio_sender_,
-                                           base::Passed(&audio_bus),
-                                           recorded_time));
+    cast_environment_->PostTask(
+        CastEnvironment::MAIN, FROM_HERE,
+        base::Bind(&AudioSender::InsertAudio, audio_sender_,
+                   base::Passed(&audio_bus), recorded_time));
   }
 
  protected:
@@ -117,11 +114,9 @@ void CastSenderImpl::InitializeAudio(
   VLOG(1) << "CastSenderImpl@" << this << "::InitializeAudio()";
 
   audio_sender_.reset(
-      new AudioSender(cast_environment_,
-                      audio_config,
+      new AudioSender(cast_environment_, audio_config,
                       base::Bind(&CastSenderImpl::OnAudioStatusChange,
-                                 weak_factory_.GetWeakPtr(),
-                                 status_change_cb),
+                                 weak_factory_.GetWeakPtr(), status_change_cb),
                       transport_sender_));
   if (video_sender_) {
     DCHECK(audio_sender_->GetTargetPlayoutDelay() ==
@@ -139,14 +134,10 @@ void CastSenderImpl::InitializeVideo(
   VLOG(1) << "CastSenderImpl@" << this << "::InitializeVideo()";
 
   video_sender_.reset(new VideoSender(
-      cast_environment_,
-      video_config,
+      cast_environment_, video_config,
       base::Bind(&CastSenderImpl::OnVideoStatusChange,
-                 weak_factory_.GetWeakPtr(),
-                 status_change_cb),
-      create_vea_cb,
-      create_video_encode_mem_cb,
-      transport_sender_,
+                 weak_factory_.GetWeakPtr(), status_change_cb),
+      create_vea_cb, create_video_encode_mem_cb, transport_sender_,
       base::Bind(&CastSenderImpl::SetTargetPlayoutDelay,
                  weak_factory_.GetWeakPtr())));
   if (audio_sender_) {
@@ -180,8 +171,7 @@ void CastSenderImpl::SetTargetPlayoutDelay(
 }
 
 void CastSenderImpl::OnAudioStatusChange(
-    const StatusChangeCallback& status_change_cb,
-    OperationalStatus status) {
+    const StatusChangeCallback& status_change_cb, OperationalStatus status) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
   if (status == STATUS_INITIALIZED && !audio_frame_input_) {
     audio_frame_input_ =
@@ -191,8 +181,7 @@ void CastSenderImpl::OnAudioStatusChange(
 }
 
 void CastSenderImpl::OnVideoStatusChange(
-    const StatusChangeCallback& status_change_cb,
-    OperationalStatus status) {
+    const StatusChangeCallback& status_change_cb, OperationalStatus status) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
   if (status == STATUS_INITIALIZED && !video_frame_input_) {
     video_frame_input_ =

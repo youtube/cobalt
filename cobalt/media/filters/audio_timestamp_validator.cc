@@ -40,8 +40,7 @@ AudioTimestampValidator::~AudioTimestampValidator() {}
 
 void AudioTimestampValidator::CheckForTimestampGap(
     const scoped_refptr<DecoderBuffer>& buffer) {
-  if (buffer->end_of_stream())
-    return;
+  if (buffer->end_of_stream()) return;
   DCHECK_NE(kNoTimestamp, buffer->timestamp());
 
   // If audio_base_ts_ == kNoTimestamp, we are processing our first buffer.
@@ -57,8 +56,7 @@ void AudioTimestampValidator::CheckForTimestampGap(
 
   // Don't continue checking timestamps if we've exhausted tries to reach stable
   // state. This suggests the media's encoded timestamps are way off.
-  if (num_unstable_audio_tries_ > limit_unstable_audio_tries_)
-    return;
+  if (num_unstable_audio_tries_ > limit_unstable_audio_tries_) return;
 
   // Keep resetting encode base ts until we start getting decode output. Some
   // codecs/containers (e.g. chained Ogg) will take several encoded buffers
@@ -140,5 +138,4 @@ void AudioTimestampValidator::RecordOutputDuration(
   DVLOG(3) << __func__ << " " << audio_buffer->frame_count() << " frames";
   audio_output_ts_helper_->AddFrames(audio_buffer->frame_count());
 }
-
 }

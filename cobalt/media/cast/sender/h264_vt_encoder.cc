@@ -35,8 +35,7 @@ struct InProgressFrameEncode {
   const base::TimeTicks reference_time;
   const VideoEncoder::FrameEncodedCallback frame_encoded_callback;
 
-  InProgressFrameEncode(RtpTimeTicks rtp,
-                        base::TimeTicks r_time,
+  InProgressFrameEncode(RtpTimeTicks rtp, base::TimeTicks r_time,
                         VideoEncoder::FrameEncodedCallback callback)
       : rtp_timestamp(rtp),
         reference_time(r_time),
@@ -56,9 +55,8 @@ class H264VideoToolboxEncoder::VideoFrameFactoryImpl
                         const scoped_refptr<CastEnvironment>& cast_environment)
       : encoder_(encoder), cast_environment_(cast_environment) {}
 
-  scoped_refptr<VideoFrame> MaybeCreateFrame(
-      const gfx::Size& frame_size,
-      base::TimeDelta timestamp) final {
+  scoped_refptr<VideoFrame> MaybeCreateFrame(const gfx::Size& frame_size,
+                                             base::TimeDelta timestamp) final {
     if (frame_size.IsEmpty()) {
       DVLOG(1) << "Rejecting empty video frame.";
       return nullptr;
@@ -131,9 +129,8 @@ class H264VideoToolboxEncoder::VideoFrameFactoryImpl::Proxy
     DCHECK(video_frame_factory_);
   }
 
-  scoped_refptr<VideoFrame> MaybeCreateFrame(
-      const gfx::Size& frame_size,
-      base::TimeDelta timestamp) final {
+  scoped_refptr<VideoFrame> MaybeCreateFrame(const gfx::Size& frame_size,
+                                             base::TimeDelta timestamp) final {
     return video_frame_factory_->MaybeCreateFrame(frame_size, timestamp);
   }
 
@@ -201,8 +198,7 @@ H264VideoToolboxEncoder::~H264VideoToolboxEncoder() {
   // changes in the ctor and it must now unregister.
   if (video_frame_factory_) {
     auto* power_monitor = base::PowerMonitor::Get();
-    if (power_monitor)
-      power_monitor->RemoveObserver(this);
+    if (power_monitor) power_monitor->RemoveObserver(this);
   }
 }
 
@@ -210,8 +206,7 @@ void H264VideoToolboxEncoder::ResetCompressionSession() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // Ignore reset requests while power suspended.
-  if (power_suspended_)
-    return;
+  if (power_suspended_) return;
 
   // Notify that we're resetting the encoder.
   cast_environment_->PostTask(
@@ -253,8 +248,7 @@ void H264VideoToolboxEncoder::ResetCompressionSession() {
       video_toolbox::DictionaryWithKeysAndValues(
           buffer_attributes_keys, buffer_attributes_values,
           arraysize(buffer_attributes_keys));
-  for (auto* v : buffer_attributes_values)
-    CFRelease(v);
+  for (auto* v : buffer_attributes_values) CFRelease(v);
 
   // Create the compression session.
 
@@ -479,8 +473,7 @@ H264VideoToolboxEncoder::CreateVideoFrameFactory() {
 
 void H264VideoToolboxEncoder::EmitFrames() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (!compression_session_)
-    return;
+  if (!compression_session_) return;
 
   OSStatus status = videotoolbox_glue_->VTCompressionSessionCompleteFrames(
       compression_session_, CoreMediaGlue::CMTime{0, 0, 0, 0});
@@ -538,8 +531,7 @@ void H264VideoToolboxEncoder::CompressionCallback(void* encoder_opaque,
     // keyframe (at least I think, VT documentation is, erm, sparse). Could
     // alternatively use kCMSampleAttachmentKey_DependsOnOthers == false.
     keyframe = !CFDictionaryContainsKey(
-                   sample_attachments,
-                   CoreMediaGlue::kCMSampleAttachmentKey_NotSync());
+        sample_attachments, CoreMediaGlue::kCMSampleAttachmentKey_NotSync());
     has_frame_data = true;
   }
 

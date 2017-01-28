@@ -14,8 +14,7 @@ static volatile size_t volatile_sink;
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  if (!size)
-    return 0;
+  if (!size) return 0;
 
   media::H264Parser parser;
   parser.SetStream(data, base::checked_cast<off_t>(size));
@@ -25,8 +24,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   while (true) {
     media::H264NALU nalu;
     media::H264Parser::Result res = parser.AdvanceToNextNALU(&nalu);
-    if (res != media::H264Parser::kOk)
-      break;
+    if (res != media::H264Parser::kOk) break;
 
     switch (nalu.nal_unit_type) {
       case media::H264NALU::kIDRSlice:
@@ -39,11 +37,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       case media::H264NALU::kSPS: {
         int id;
         res = parser.ParseSPS(&id);
-        if (res != media::H264Parser::kOk)
-          break;
+        if (res != media::H264Parser::kOk) break;
         const media::H264SPS* sps = parser.GetSPS(id);
-        if (!sps)
-          break;
+        if (!sps) break;
         // Also test the SPS helper methods. We make sure that the results are
         // used so that the calls are not optimized away.
         base::Optional<gfx::Size> coded_size = sps->GetCodedSize();
@@ -69,8 +65,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         // Skip any other NALU.
         break;
     }
-    if (res != media::H264Parser::kOk)
-      break;
+    if (res != media::H264Parser::kOk) break;
   }
 
   return 0;

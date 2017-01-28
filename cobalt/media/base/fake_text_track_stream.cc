@@ -16,13 +16,9 @@
 namespace media {
 
 FakeTextTrackStream::FakeTextTrackStream()
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
-      stopping_(false) {
-}
+    : task_runner_(base::ThreadTaskRunnerHandle::Get()), stopping_(false) {}
 
-FakeTextTrackStream::~FakeTextTrackStream() {
-  DCHECK(read_cb_.is_null());
-}
+FakeTextTrackStream::~FakeTextTrackStream() { DCHECK(read_cb_.is_null()); }
 
 void FakeTextTrackStream::Read(const ReadCB& read_cb) {
   DCHECK(!read_cb.is_null());
@@ -31,8 +27,9 @@ void FakeTextTrackStream::Read(const ReadCB& read_cb) {
   read_cb_ = read_cb;
 
   if (stopping_) {
-    task_runner_->PostTask(FROM_HERE, base::Bind(
-        &FakeTextTrackStream::AbortPendingRead, base::Unretained(this)));
+    task_runner_->PostTask(FROM_HERE,
+                           base::Bind(&FakeTextTrackStream::AbortPendingRead,
+                                      base::Unretained(this)));
   }
 }
 
@@ -42,13 +39,9 @@ DemuxerStream::Type FakeTextTrackStream::type() const {
 
 bool FakeTextTrackStream::SupportsConfigChanges() { return false; }
 
-VideoRotation FakeTextTrackStream::video_rotation() {
-  return VIDEO_ROTATION_0;
-}
+VideoRotation FakeTextTrackStream::video_rotation() { return VIDEO_ROTATION_0; }
 
-bool FakeTextTrackStream::enabled() const {
-  return true;
-}
+bool FakeTextTrackStream::enabled() const { return true; }
 
 void FakeTextTrackStream::set_enabled(bool enabled, base::TimeDelta timestamp) {
   NOTIMPLEMENTED();
@@ -59,12 +52,11 @@ void FakeTextTrackStream::SetStreamStatusChangeCB(
   NOTIMPLEMENTED();
 }
 
-void FakeTextTrackStream::SatisfyPendingRead(
-    const base::TimeDelta& start,
-    const base::TimeDelta& duration,
-    const std::string& id,
-    const std::string& content,
-    const std::string& settings) {
+void FakeTextTrackStream::SatisfyPendingRead(const base::TimeDelta& start,
+                                             const base::TimeDelta& duration,
+                                             const std::string& id,
+                                             const std::string& content,
+                                             const std::string& settings) {
   DCHECK(!read_cb_.is_null());
 
   const uint8_t* const data_buf =
@@ -72,9 +64,8 @@ void FakeTextTrackStream::SatisfyPendingRead(
   const int data_len = static_cast<int>(content.size());
 
   std::vector<uint8_t> side_data;
-  MakeSideData(id.begin(), id.end(),
-                settings.begin(), settings.end(),
-                &side_data);
+  MakeSideData(id.begin(), id.end(), settings.begin(), settings.end(),
+               &side_data);
 
   const uint8_t* const sd_buf = &side_data[0];
   const int sd_len = static_cast<int>(side_data.size());
@@ -103,8 +94,7 @@ void FakeTextTrackStream::SendEosNotification() {
 
 void FakeTextTrackStream::Stop() {
   stopping_ = true;
-  if (!read_cb_.is_null())
-    AbortPendingRead();
+  if (!read_cb_.is_null()) AbortPendingRead();
 }
 
 }  // namespace media

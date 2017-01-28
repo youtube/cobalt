@@ -12,23 +12,17 @@ namespace media {
 
 FakeAudioRendererSink::FakeAudioRendererSink()
     : FakeAudioRendererSink(
-          AudioParameters(AudioParameters::AUDIO_FAKE,
-                          CHANNEL_LAYOUT_STEREO,
-                          AudioParameters::kTelephoneSampleRate,
-                          16,
-                          1)) {}
+          AudioParameters(AudioParameters::AUDIO_FAKE, CHANNEL_LAYOUT_STEREO,
+                          AudioParameters::kTelephoneSampleRate, 16, 1)) {}
 
 FakeAudioRendererSink::FakeAudioRendererSink(
     const AudioParameters& hardware_params)
     : state_(kUninitialized),
       callback_(NULL),
-      output_device_info_(std::string(),
-                          OUTPUT_DEVICE_STATUS_OK,
+      output_device_info_(std::string(), OUTPUT_DEVICE_STATUS_OK,
                           hardware_params) {}
 
-FakeAudioRendererSink::~FakeAudioRendererSink() {
-  DCHECK(!callback_);
-}
+FakeAudioRendererSink::~FakeAudioRendererSink() { DCHECK(!callback_); }
 
 void FakeAudioRendererSink::Initialize(const AudioParameters& params,
                                        RenderCallback* callback) {
@@ -61,9 +55,7 @@ void FakeAudioRendererSink::Play() {
   ChangeState(kPlaying);
 }
 
-bool FakeAudioRendererSink::SetVolume(double volume) {
-  return true;
-}
+bool FakeAudioRendererSink::SetVolume(double volume) { return true; }
 
 OutputDeviceInfo FakeAudioRendererSink::GetOutputDeviceInfo() {
   return output_device_info_;
@@ -74,11 +66,9 @@ bool FakeAudioRendererSink::CurrentThreadIsRenderingThread() {
   return false;
 }
 
-bool FakeAudioRendererSink::Render(AudioBus* dest,
-                                   uint32_t frames_delayed,
+bool FakeAudioRendererSink::Render(AudioBus* dest, uint32_t frames_delayed,
                                    int* frames_written) {
-  if (state_ != kPlaying)
-    return false;
+  if (state_ != kPlaying) return false;
 
   *frames_written = callback_->Render(dest, frames_delayed, 0);
   return true;
@@ -92,17 +82,12 @@ void FakeAudioRendererSink::OnRenderError() {
 }
 
 void FakeAudioRendererSink::ChangeState(State new_state) {
-  static const char* kStateNames[] = {
-    "kUninitialized",
-    "kInitialized",
-    "kStarted",
-    "kPaused",
-    "kPlaying",
-    "kStopped"
-  };
+  static const char* kStateNames[] = {"kUninitialized", "kInitialized",
+                                      "kStarted",       "kPaused",
+                                      "kPlaying",       "kStopped"};
 
-  DVLOG(1) << __FUNCTION__ << " : "
-           << kStateNames[state_] << " -> " << kStateNames[new_state];
+  DVLOG(1) << __FUNCTION__ << " : " << kStateNames[state_] << " -> "
+           << kStateNames[new_state];
   state_ = new_state;
 }
 

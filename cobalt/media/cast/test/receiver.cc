@@ -70,12 +70,11 @@ const char* kVideoWindowHeight = "720";
 #endif  // defined(USE_X11)
 
 void GetPorts(uint16_t* tx_port, uint16_t* rx_port) {
-  test::InputBuilder tx_input(
-      "Enter send port.", DEFAULT_SEND_PORT, 1, 65535);
+  test::InputBuilder tx_input("Enter send port.", DEFAULT_SEND_PORT, 1, 65535);
   *tx_port = static_cast<uint16_t>(tx_input.GetIntInput());
 
-  test::InputBuilder rx_input(
-      "Enter receive port.", DEFAULT_RECEIVE_PORT, 1, 65535);
+  test::InputBuilder rx_input("Enter receive port.", DEFAULT_RECEIVE_PORT, 1,
+                              65535);
   *rx_port = static_cast<uint16_t>(rx_input.GetIntInput());
 }
 
@@ -91,34 +90,34 @@ std::string GetIpAddress(const std::string& display_text) {
 }
 
 void GetAudioSsrcs(FrameReceiverConfig* audio_config) {
-  test::InputBuilder input_tx(
-      "Choose audio sender SSRC.", DEFAULT_AUDIO_FEEDBACK_SSRC, 1, INT_MAX);
+  test::InputBuilder input_tx("Choose audio sender SSRC.",
+                              DEFAULT_AUDIO_FEEDBACK_SSRC, 1, INT_MAX);
   audio_config->receiver_ssrc = input_tx.GetIntInput();
 
-  test::InputBuilder input_rx(
-      "Choose audio receiver SSRC.", DEFAULT_AUDIO_INCOMING_SSRC, 1, INT_MAX);
+  test::InputBuilder input_rx("Choose audio receiver SSRC.",
+                              DEFAULT_AUDIO_INCOMING_SSRC, 1, INT_MAX);
   audio_config->sender_ssrc = input_rx.GetIntInput();
 }
 
 void GetVideoSsrcs(FrameReceiverConfig* video_config) {
-  test::InputBuilder input_tx(
-      "Choose video sender SSRC.", DEFAULT_VIDEO_FEEDBACK_SSRC, 1, INT_MAX);
+  test::InputBuilder input_tx("Choose video sender SSRC.",
+                              DEFAULT_VIDEO_FEEDBACK_SSRC, 1, INT_MAX);
   video_config->receiver_ssrc = input_tx.GetIntInput();
 
-  test::InputBuilder input_rx(
-      "Choose video receiver SSRC.", DEFAULT_VIDEO_INCOMING_SSRC, 1, INT_MAX);
+  test::InputBuilder input_rx("Choose video receiver SSRC.",
+                              DEFAULT_VIDEO_INCOMING_SSRC, 1, INT_MAX);
   video_config->sender_ssrc = input_rx.GetIntInput();
 }
 
 #if defined(USE_X11)
 void GetWindowSize(int* width, int* height) {
   // Resolution values based on sender settings
-  test::InputBuilder input_w(
-      "Choose window width.", kVideoWindowWidth, 144, 1920);
+  test::InputBuilder input_w("Choose window width.", kVideoWindowWidth, 144,
+                             1920);
   *width = input_w.GetIntInput();
 
-  test::InputBuilder input_h(
-      "Choose window height.", kVideoWindowHeight, 176, 1080);
+  test::InputBuilder input_h("Choose window height.", kVideoWindowHeight, 176,
+                             1080);
   *height = input_h.GetIntInput();
 }
 #endif  // defined(USE_X11)
@@ -191,24 +190,21 @@ class NaivePlayer : public InProcessReceiver,
               const net::IPEndPoint& local_end_point,
               const net::IPEndPoint& remote_end_point,
               const FrameReceiverConfig& audio_config,
-              const FrameReceiverConfig& video_config,
-              int window_width,
+              const FrameReceiverConfig& video_config, int window_width,
               int window_height)
-      : InProcessReceiver(cast_environment,
-                          local_end_point,
-                          remote_end_point,
-                          audio_config,
-                          video_config),
+      : InProcessReceiver(cast_environment, local_end_point, remote_end_point,
+                          audio_config, video_config),
         // Maximum age is the duration of 3 video frames.  3 was chosen
         // arbitrarily, but seems to work well.
         max_frame_age_(base::TimeDelta::FromSeconds(1) * 3 /
-                           video_config.target_frame_rate),
+                       video_config.target_frame_rate),
 #if defined(USE_X11)
         render_(0, 0, window_width, window_height, "Cast_receiver"),
 #endif  // defined(USE_X11)
         num_video_frames_processed_(0),
         num_audio_frames_processed_(0),
-        currently_playing_audio_frame_start_(-1) {}
+        currently_playing_audio_frame_start_(-1) {
+  }
 
   ~NaivePlayer() final {}
 
@@ -228,10 +224,8 @@ class NaivePlayer : public InProcessReceiver,
                              base::WaitableEvent::InitialState::NOT_SIGNALED);
     DCHECK(!AudioManager::Get()->GetTaskRunner()->BelongsToCurrentThread());
     AudioManager::Get()->GetTaskRunner()->PostTask(
-        FROM_HERE,
-        base::Bind(&NaivePlayer::StopAudioOutputOnAudioManagerThread,
-                   base::Unretained(this),
-                   &done));
+        FROM_HERE, base::Bind(&NaivePlayer::StopAudioOutputOnAudioManagerThread,
+                              base::Unretained(this), &done));
     done.Wait();
 
     // Now, stop receiving new frames.
@@ -300,8 +294,7 @@ class NaivePlayer : public InProcessReceiver,
     base::AutoLock auto_lock(audio_lock_);
     uint16_t frame_no;
     if (media::cast::DecodeTimestamp(audio_frame->channel(0),
-                                     audio_frame->frames(),
-                                     &frame_no)) {
+                                     audio_frame->frames(), &frame_no)) {
       // Since there are lots of audio packets with the same frame_no,
       // we really want to make sure that we get the playout_time from
       // the first one. If is_continous is true, then it's possible
@@ -327,8 +320,7 @@ class NaivePlayer : public InProcessReceiver,
 
   int OnMoreData(base::TimeDelta /* delay */,
                  base::TimeTicks /* delay_timestamp */,
-                 int /* prior_frames_skipped */,
-                 AudioBus* dest) final {
+                 int /* prior_frames_skipped */, AudioBus* dest) final {
     // Note: This method is being invoked by a separate thread unknown to us
     // (i.e., outside of CastEnvironment).
 
@@ -348,8 +340,7 @@ class NaivePlayer : public InProcessReceiver,
                audio_playout_queue_.front().first < earliest_time_to_play) {
           PopOneAudioFrame(true);
         }
-        if (audio_playout_queue_.empty())
-          break;
+        if (audio_playout_queue_.empty()) break;
 
         currently_playing_audio_frame_ = PopOneAudioFrame(false);
         currently_playing_audio_frame_start_ = 0;
@@ -359,18 +350,14 @@ class NaivePlayer : public InProcessReceiver,
       // |dest|.  Once all samples in |currently_playing_audio_frame_| have been
       // consumed, release it.
       const int num_samples_to_copy =
-          std::min(samples_remaining,
-                   currently_playing_audio_frame_->frames() -
-                       currently_playing_audio_frame_start_);
+          std::min(samples_remaining, currently_playing_audio_frame_->frames() -
+                                          currently_playing_audio_frame_start_);
       currently_playing_audio_frame_->CopyPartialFramesTo(
-          currently_playing_audio_frame_start_,
-          num_samples_to_copy,
-          0,
-          dest);
+          currently_playing_audio_frame_start_, num_samples_to_copy, 0, dest);
       samples_remaining -= num_samples_to_copy;
       currently_playing_audio_frame_start_ += num_samples_to_copy;
       if (currently_playing_audio_frame_start_ ==
-              currently_playing_audio_frame_->frames()) {
+          currently_playing_audio_frame_->frames()) {
         currently_playing_audio_frame_.reset();
       }
     }
@@ -412,10 +399,8 @@ class NaivePlayer : public InProcessReceiver,
       video_playout_timer_.Stop();
     } else {
       video_playout_timer_.Start(
-          FROM_HERE,
-          video_playout_queue_.front().first - now,
-          base::Bind(&NaivePlayer::PlayNextVideoFrame,
-                     base::Unretained(this)));
+          FROM_HERE, video_playout_queue_.front().first - now,
+          base::Bind(&NaivePlayer::PlayNextVideoFrame, base::Unretained(this)));
     }
   }
 
@@ -435,17 +420,20 @@ class NaivePlayer : public InProcessReceiver,
     DCHECK(cast_env()->CurrentlyOn(CastEnvironment::MAIN));
 
     if (is_being_skipped) {
-      VLOG(1) << "VideoFrame[" << num_video_frames_processed_
-              << " (dt=" << (video_playout_queue_.front().first -
-                             last_popped_video_playout_time_).InMicroseconds()
+      VLOG(1) << "VideoFrame[" << num_video_frames_processed_ << " (dt="
+              << (video_playout_queue_.front().first -
+                  last_popped_video_playout_time_)
+                     .InMicroseconds()
               << " usec)]: Skipped.";
     } else {
-      VLOG(1) << "VideoFrame[" << num_video_frames_processed_
-              << " (dt=" << (video_playout_queue_.front().first -
-                             last_popped_video_playout_time_).InMicroseconds()
+      VLOG(1) << "VideoFrame[" << num_video_frames_processed_ << " (dt="
+              << (video_playout_queue_.front().first -
+                  last_popped_video_playout_time_)
+                     .InMicroseconds()
               << " usec)]: Playing "
               << (cast_env()->Clock()->NowTicks() -
-                      video_playout_queue_.front().first).InMicroseconds()
+                  video_playout_queue_.front().first)
+                     .InMicroseconds()
               << " usec later than intended.";
     }
 
@@ -460,17 +448,20 @@ class NaivePlayer : public InProcessReceiver,
     audio_lock_.AssertAcquired();
 
     if (was_skipped) {
-      VLOG(1) << "AudioFrame[" << num_audio_frames_processed_
-              << " (dt=" << (audio_playout_queue_.front().first -
-                             last_popped_audio_playout_time_).InMicroseconds()
+      VLOG(1) << "AudioFrame[" << num_audio_frames_processed_ << " (dt="
+              << (audio_playout_queue_.front().first -
+                  last_popped_audio_playout_time_)
+                     .InMicroseconds()
               << " usec)]: Skipped.";
     } else {
-      VLOG(1) << "AudioFrame[" << num_audio_frames_processed_
-              << " (dt=" << (audio_playout_queue_.front().first -
-                             last_popped_audio_playout_time_).InMicroseconds()
+      VLOG(1) << "AudioFrame[" << num_audio_frames_processed_ << " (dt="
+              << (audio_playout_queue_.front().first -
+                  last_popped_audio_playout_time_)
+                     .InMicroseconds()
               << " usec)]: Playing "
               << (cast_env()->Clock()->NowTicks() -
-                      audio_playout_queue_.front().first).InMicroseconds()
+                  audio_playout_queue_.front().first)
+                     .InMicroseconds()
               << " usec later than intended.";
     }
 
@@ -482,14 +473,12 @@ class NaivePlayer : public InProcessReceiver,
   }
 
   void CheckAVSync() {
-    if (video_play_times_.size() > 30 &&
-        audio_play_times_.size() > 30) {
+    if (video_play_times_.size() > 30 && audio_play_times_.size() > 30) {
       size_t num_events = 0;
       base::TimeDelta delta;
       std::map<uint16_t, base::TimeTicks>::iterator audio_iter, video_iter;
       for (video_iter = video_play_times_.begin();
-           video_iter != video_play_times_.end();
-           ++video_iter) {
+           video_iter != video_play_times_.end(); ++video_iter) {
         audio_iter = audio_play_times_.find(video_iter->first);
         if (audio_iter != audio_play_times_.end()) {
           num_events++;
@@ -499,8 +488,7 @@ class NaivePlayer : public InProcessReceiver,
       }
 
       if (num_events > 30) {
-        VLOG(0) << "Audio behind by: "
-                << (delta / num_events).InMilliseconds()
+        VLOG(0) << "Audio behind by: " << (delta / num_events).InMilliseconds()
                 << "ms";
         video_play_times_.clear();
         audio_play_times_.clear();
@@ -516,7 +504,7 @@ class NaivePlayer : public InProcessReceiver,
   // dropped (i.e., playback is falling behind).
   const base::TimeDelta max_frame_age_;
 
-  // Outputs created, started, and destroyed by this NaivePlayer.
+// Outputs created, started, and destroyed by this NaivePlayer.
 #if defined(USE_X11)
   test::LinuxOutputWindow render_;
 #endif  // defined(USE_X11)
@@ -598,13 +586,9 @@ int main(int argc, char** argv) {
 #if defined(USE_X11)
   media::cast::GetWindowSize(&window_width, &window_height);
 #endif  // defined(USE_X11)
-  media::cast::NaivePlayer player(cast_environment,
-                                  local_end_point,
-                                  remote_end_point,
-                                  audio_config,
-                                  video_config,
-                                  window_width,
-                                  window_height);
+  media::cast::NaivePlayer player(cast_environment, local_end_point,
+                                  remote_end_point, audio_config, video_config,
+                                  window_width, window_height);
   player.Start();
 
   base::RunLoop().Run();  // Run forever (i.e., until SIGTERM).

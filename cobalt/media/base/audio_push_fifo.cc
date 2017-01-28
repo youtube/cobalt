@@ -74,8 +74,7 @@ void AudioPushFifo::Push(const AudioBus& input_bus) {
 }
 
 void AudioPushFifo::Flush() {
-  if (queued_frames_ == 0)
-    return;
+  if (queued_frames_ == 0) return;
 
   audio_queue_->ZeroFramesPartial(queued_frames_,
                                   audio_queue_->frames() - queued_frames_);

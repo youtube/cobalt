@@ -171,8 +171,7 @@ DecryptingDemuxerStream::~DecryptingDemuxerStream() {
   DVLOG(2) << __func__ << " : state_ = " << state_;
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-  if (state_ == kUninitialized)
-    return;
+  if (state_ == kUninitialized) return;
 
   if (decryptor_) {
     decryptor_->CancelDecrypt(GetDecryptorStreamType());
@@ -180,16 +179,13 @@ DecryptingDemuxerStream::~DecryptingDemuxerStream() {
   }
   if (!init_cb_.is_null())
     base::ResetAndReturn(&init_cb_).Run(PIPELINE_ERROR_ABORT);
-  if (!read_cb_.is_null())
-    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
-  if (!reset_cb_.is_null())
-    base::ResetAndReturn(&reset_cb_).Run();
+  if (!read_cb_.is_null()) base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
+  if (!reset_cb_.is_null()) base::ResetAndReturn(&reset_cb_).Run();
   pending_buffer_to_decrypt_ = NULL;
 }
 
 void DecryptingDemuxerStream::DecryptBuffer(
-    DemuxerStream::Status status,
-    const scoped_refptr<DecoderBuffer>& buffer) {
+    DemuxerStream::Status status, const scoped_refptr<DecoderBuffer>& buffer) {
   DVLOG(3) << __func__;
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDemuxerRead) << state_;
@@ -209,8 +205,7 @@ void DecryptingDemuxerStream::DecryptBuffer(
 
     state_ = kIdle;
     base::ResetAndReturn(&read_cb_).Run(kConfigChanged, NULL);
-    if (!reset_cb_.is_null())
-      DoReset();
+    if (!reset_cb_.is_null()) DoReset();
     return;
   }
 
@@ -238,12 +233,11 @@ void DecryptingDemuxerStream::DecryptBuffer(
   // An empty iv string signals that the frame is unencrypted.
   if (buffer->decrypt_config()->iv().empty()) {
     DVLOG(2) << "DoDecryptBuffer() - clear buffer.";
-    scoped_refptr<DecoderBuffer> decrypted = DecoderBuffer::CopyFrom(
-        buffer->data(), buffer->data_size());
+    scoped_refptr<DecoderBuffer> decrypted =
+        DecoderBuffer::CopyFrom(buffer->data(), buffer->data_size());
     decrypted->set_timestamp(buffer->timestamp());
     decrypted->set_duration(buffer->duration());
-    if (buffer->is_key_frame())
-      decrypted->set_is_key_frame(true);
+    if (buffer->is_key_frame()) decrypted->set_is_key_frame(true);
 
     state_ = kIdle;
     base::ResetAndReturn(&read_cb_).Run(kOk, decrypted);
@@ -259,8 +253,7 @@ void DecryptingDemuxerStream::DecryptPendingBuffer() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecrypt) << state_;
   decryptor_->Decrypt(
-      GetDecryptorStreamType(),
-      pending_buffer_to_decrypt_,
+      GetDecryptorStreamType(), pending_buffer_to_decrypt_,
       BindToCurrentLoop(
           base::Bind(&DecryptingDemuxerStream::DeliverBuffer, weak_this_)));
 }
@@ -355,8 +348,7 @@ void DecryptingDemuxerStream::DoReset() {
 }
 
 Decryptor::StreamType DecryptingDemuxerStream::GetDecryptorStreamType() const {
-  if (demuxer_stream_->type() == AUDIO)
-    return Decryptor::kAudio;
+  if (demuxer_stream_->type() == AUDIO) return Decryptor::kAudio;
 
   DCHECK_EQ(demuxer_stream_->type(), VIDEO);
   return Decryptor::kVideo;

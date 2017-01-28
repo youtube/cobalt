@@ -16,8 +16,8 @@
 
 namespace media {
 
-class MPEG1AudioStreamParserTest
-    : public StreamParserTestBase, public testing::Test {
+class MPEG1AudioStreamParserTest : public StreamParserTestBase,
+                                   public testing::Test {
  public:
   MPEG1AudioStreamParserTest()
       : StreamParserTestBase(base::MakeUnique<MPEG1AudioStreamParser>()) {}

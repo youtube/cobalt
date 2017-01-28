@@ -6,10 +6,8 @@
 
 namespace media {
 
-RendererFactory::RendererFactory() {
-}
+RendererFactory::RendererFactory() {}
 
-RendererFactory::~RendererFactory() {
-}
+RendererFactory::~RendererFactory() {}
 
 }  // namespace media

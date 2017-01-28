@@ -38,10 +38,8 @@ class VideoEncoderTest
       : testing_clock_(new base::SimpleTestTickClock()),
         task_runner_(new FakeSingleThreadTaskRunner(testing_clock_)),
         cast_environment_(new CastEnvironment(
-            std::unique_ptr<base::TickClock>(testing_clock_),
-            task_runner_,
-            task_runner_,
-            task_runner_)),
+            std::unique_ptr<base::TickClock>(testing_clock_), task_runner_,
+            task_runner_, task_runner_)),
         video_config_(GetDefaultVideoSenderConfig()),
         operational_status_(STATUS_UNINITIALIZED),
         count_frames_delivered_(0) {
@@ -81,13 +79,11 @@ class VideoEncoderTest
       ASSERT_EQ(STATUS_INITIALIZED, operational_status_);
   }
 
-  bool is_encoder_present() const {
-    return !!video_encoder_;
-  }
+  bool is_encoder_present() const { return !!video_encoder_; }
 
   bool is_testing_software_vp8_encoder() const {
     return video_config_.codec == CODEC_VIDEO_VP8 &&
-        !video_config_.use_external_encoder;
+           !video_config_.use_external_encoder;
   }
 
   bool is_testing_video_toolbox_encoder() const {
@@ -101,24 +97,18 @@ class VideoEncoderTest
 
   bool is_testing_platform_encoder() const {
     return video_config_.use_external_encoder ||
-        is_testing_video_toolbox_encoder();
+           is_testing_video_toolbox_encoder();
   }
 
   bool encoder_has_resize_delay() const {
     return is_testing_platform_encoder() && !is_testing_video_toolbox_encoder();
   }
 
-  VideoEncoder* video_encoder() const {
-    return video_encoder_.get();
-  }
+  VideoEncoder* video_encoder() const { return video_encoder_.get(); }
 
-  void DestroyEncoder() {
-    video_encoder_.reset();
-  }
+  void DestroyEncoder() { video_encoder_.reset(); }
 
-  base::TimeTicks Now() const {
-    return testing_clock_->NowTicks();
-  }
+  base::TimeTicks Now() const { return testing_clock_->NowTicks(); }
 
   void RunTasksAndAdvanceClock() const {
     DCHECK_GT(video_config_.max_frame_rate, 0);
@@ -138,14 +128,11 @@ class VideoEncoderTest
     testing_clock_->Advance(frame_duration);
   }
 
-  int count_frames_delivered() const {
-    return count_frames_delivered_;
-  }
+  int count_frames_delivered() const { return count_frames_delivered_; }
 
   void WaitForAllFramesToBeDelivered(int total_expected) const {
     video_encoder_->EmitFrames();
-    while (count_frames_delivered_ < total_expected)
-      RunTasksAndAdvanceClock();
+    while (count_frames_delivered_ < total_expected) RunTasksAndAdvanceClock();
   }
 
   // Creates a new VideoFrame of the given |size|, filled with a test pattern.
@@ -169,8 +156,7 @@ class VideoEncoderTest
   // via a callback that checks for expected results.  Returns false if the
   // encoder rejected the request.
   bool EncodeAndCheckDelivery(
-      const scoped_refptr<media::VideoFrame>& video_frame,
-      FrameId frame_id,
+      const scoped_refptr<media::VideoFrame>& video_frame, FrameId frame_id,
       FrameId reference_frame_id) {
     return video_encoder_->EncodeVideoFrame(
         video_frame, Now(),
@@ -184,18 +170,15 @@ class VideoEncoderTest
   // If the implementation of |video_encoder_| is ExternalVideoEncoder, check
   // that the VEA factory has responded (by running the callbacks) a specific
   // number of times.  Otherwise, check that the VEA factory is inactive.
-  void ExpectVEAResponsesForExternalVideoEncoder(
-      int vea_response_count,
-      int shm_response_count) const {
-    if (!vea_factory_)
-      return;
+  void ExpectVEAResponsesForExternalVideoEncoder(int vea_response_count,
+                                                 int shm_response_count) const {
+    if (!vea_factory_) return;
     EXPECT_EQ(vea_response_count, vea_factory_->vea_response_count());
     EXPECT_EQ(shm_response_count, vea_factory_->shm_response_count());
   }
 
   void SetVEAFactoryAutoRespond(bool auto_respond) {
-    if (vea_factory_)
-      vea_factory_->SetAutoRespond(auto_respond);
+    if (vea_factory_) vea_factory_->SetAutoRespond(auto_respond);
   }
 
  private:
@@ -216,8 +199,7 @@ class VideoEncoderTest
   // Checks that |encoded_frame| matches expected values.  This is the method
   // bound in the callback returned from EncodeAndCheckDelivery().
   void DeliverEncodedVideoFrame(
-      FrameId expected_frame_id,
-      FrameId expected_last_referenced_frame_id,
+      FrameId expected_frame_id, FrameId expected_last_referenced_frame_id,
       RtpTimeTicks expected_rtp_timestamp,
       const base::TimeTicks& expected_reference_time,
       std::unique_ptr<SenderEncodedFrame> encoded_frame) {
@@ -298,8 +280,7 @@ TEST_P(VideoEncoderTest, GeneratesKeyFrameThenOnlyDeltaFrames) {
   do {
     accepted_first_frame = EncodeAndCheckDelivery(
         CreateTestVideoFrame(frame_size), frame_id, reference_frame_id);
-    if (!encoder_has_resize_delay())
-      EXPECT_TRUE(accepted_first_frame);
+    if (!encoder_has_resize_delay()) EXPECT_TRUE(accepted_first_frame);
     RunTasksAndAdvanceClock();
   } while (!accepted_first_frame);
   ExpectVEAResponsesForExternalVideoEncoder(1, 3);
@@ -308,8 +289,7 @@ TEST_P(VideoEncoderTest, GeneratesKeyFrameThenOnlyDeltaFrames) {
   for (++frame_id; frame_id < FrameId::first() + 3;
        ++frame_id, ++reference_frame_id) {
     EXPECT_TRUE(EncodeAndCheckDelivery(CreateTestVideoFrame(frame_size),
-                                       frame_id,
-                                       reference_frame_id));
+                                       frame_id, reference_frame_id));
     RunTasksAndAdvanceClock();
   }
 
@@ -352,8 +332,7 @@ TEST_P(VideoEncoderTest, EncodesVariedFrameSizes) {
               EncodeAndCheckDelivery(CreateTestVideoFrame(frame_size), frame_id,
                                      frame_id));
     RunTasksAndAdvanceClock();
-    if (!encoder_has_resize_delay())
-      ++frame_id;
+    if (!encoder_has_resize_delay()) ++frame_id;
   }
 
   // Encode three frames at each size. For encoders with a resize delay, expect
@@ -364,22 +343,20 @@ TEST_P(VideoEncoderTest, EncodesVariedFrameSizes) {
     do {
       accepted_first_frame = EncodeAndCheckDelivery(
           CreateTestVideoFrame(frame_size), frame_id, frame_id);
-      if (!encoder_has_resize_delay())
-        EXPECT_TRUE(accepted_first_frame);
+      if (!encoder_has_resize_delay()) EXPECT_TRUE(accepted_first_frame);
       RunTasksAndAdvanceClock();
     } while (!accepted_first_frame);
     ++frame_id;
     for (int i = 1; i < 3; ++i, ++frame_id) {
       EXPECT_TRUE(EncodeAndCheckDelivery(CreateTestVideoFrame(frame_size),
-                                         frame_id,
-                                         frame_id - 1));
+                                         frame_id, frame_id - 1));
       RunTasksAndAdvanceClock();
     }
   }
 
   WaitForAllFramesToBeDelivered(3 * frame_sizes.size());
-  ExpectVEAResponsesForExternalVideoEncoder(
-      2 * frame_sizes.size(), 6 * frame_sizes.size());
+  ExpectVEAResponsesForExternalVideoEncoder(2 * frame_sizes.size(),
+                                            6 * frame_sizes.size());
 }
 
 // Verify that everything goes well even if ExternalVideoEncoder is destroyed
@@ -426,8 +403,8 @@ std::vector<std::pair<Codec, bool>> DetermineEncodersToTest() {
 }
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(
-    , VideoEncoderTest, ::testing::ValuesIn(DetermineEncodersToTest()));
+INSTANTIATE_TEST_CASE_P(, VideoEncoderTest,
+                        ::testing::ValuesIn(DetermineEncodersToTest()));
 
 }  // namespace cast
 }  // namespace media

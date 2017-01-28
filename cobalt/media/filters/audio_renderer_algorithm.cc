@@ -119,8 +119,8 @@ void AudioRendererAlgorithm::Initialize(const AudioParameters& params) {
   //              <---------->                     <---------->
   //                Candidate      ...               Candidate
   //                   1,          ...         |num_candidate_blocks_|
-  search_block_center_offset_ = num_candidate_blocks_ / 2 +
-      (ola_window_size_ / 2 - 1);
+  search_block_center_offset_ =
+      num_candidate_blocks_ / 2 + (ola_window_size_ / 2 - 1);
 
   ola_window_.reset(new float[ola_window_size_]);
   internal::GetSymmetricHanningWindow(ola_window_size_, ola_window_.get());
@@ -139,12 +139,10 @@ void AudioRendererAlgorithm::Initialize(const AudioParameters& params) {
   target_block_ = AudioBus::Create(channels_, ola_window_size_);
 }
 
-int AudioRendererAlgorithm::FillBuffer(AudioBus* dest,
-                                       int dest_offset,
+int AudioRendererAlgorithm::FillBuffer(AudioBus* dest, int dest_offset,
                                        int requested_frames,
                                        double playback_rate) {
-  if (playback_rate == 0)
-    return 0;
+  if (playback_rate == 0) return 0;
 
   DCHECK_GT(playback_rate, 0);
   DCHECK_EQ(channels_, dest->channels());
@@ -238,7 +236,7 @@ bool AudioRendererAlgorithm::CanPerformWsola() const {
   const int search_block_size = num_candidate_blocks_ + (ola_window_size_ - 1);
   const int frames = audio_buffer_.frames();
   return target_block_index_ + ola_window_size_ <= frames &&
-      search_block_index_ + search_block_size <= frames;
+         search_block_index_ + search_block_size <= frames;
 }
 
 int AudioRendererAlgorithm::ConvertMillisecondsToFrames(int ms) const {
@@ -247,8 +245,7 @@ int AudioRendererAlgorithm::ConvertMillisecondsToFrames(int ms) const {
 }
 
 bool AudioRendererAlgorithm::RunOneWsolaIteration(double playback_rate) {
-  if (!CanPerformWsola())
-    return false;
+  if (!CanPerformWsola()) return false;
 
   GetOptimalBlock();
 
@@ -258,7 +255,7 @@ bool AudioRendererAlgorithm::RunOneWsolaIteration(double playback_rate) {
     float* ch_output = wsola_output_->channel(k) + num_complete_frames_;
     for (int n = 0; n < ola_hop_size_; ++n) {
       ch_output[n] = ch_output[n] * ola_window_[ola_hop_size_ + n] +
-          ch_opt_frame[n] * ola_window_[n];
+                     ch_opt_frame[n] * ola_window_[n];
     }
 
     // Copy the second half to the output.
@@ -276,30 +273,30 @@ void AudioRendererAlgorithm::UpdateOutputTime(double playback_rate,
                                               double time_change) {
   output_time_ += time_change;
   // Center of the search region, in frames.
-  const int search_block_center_index = static_cast<int>(
-      output_time_ * playback_rate + 0.5);
+  const int search_block_center_index =
+      static_cast<int>(output_time_ * playback_rate + 0.5);
   search_block_index_ = search_block_center_index - search_block_center_offset_;
 }
 
 void AudioRendererAlgorithm::RemoveOldInputFrames(double playback_rate) {
-  const int earliest_used_index = std::min(target_block_index_,
-                                           search_block_index_);
-  if (earliest_used_index <= 0)
-    return;  // Nothing to remove.
+  const int earliest_used_index =
+      std::min(target_block_index_, search_block_index_);
+  if (earliest_used_index <= 0) return;  // Nothing to remove.
 
   // Remove frames from input and adjust indices accordingly.
   audio_buffer_.SeekFrames(earliest_used_index);
   target_block_index_ -= earliest_used_index;
 
   // Adjust output index.
-  double output_time_change = static_cast<double>(earliest_used_index) /
-      playback_rate;
+  double output_time_change =
+      static_cast<double>(earliest_used_index) / playback_rate;
   CHECK_GE(output_time_, output_time_change);
   UpdateOutputTime(playback_rate, -output_time_change);
 }
 
-int AudioRendererAlgorithm::WriteCompletedFramesTo(
-    int requested_frames, int dest_offset, AudioBus* dest) {
+int AudioRendererAlgorithm::WriteCompletedFramesTo(int requested_frames,
+                                                   int dest_offset,
+                                                   AudioBus* dest) {
   int rendered_frames = std::min(num_complete_frames_, requested_frames);
 
   if (rendered_frames == 0)
@@ -321,8 +318,8 @@ bool AudioRendererAlgorithm::TargetIsWithinSearchRegion() const {
   const int search_block_size = num_candidate_blocks_ + (ola_window_size_ - 1);
 
   return target_block_index_ >= search_block_index_ &&
-      target_block_index_ + ola_window_size_ <=
-      search_block_index_ + search_block_size;
+         target_block_index_ + ola_window_size_ <=
+             search_block_index_ + search_block_size;
 }
 
 void AudioRendererAlgorithm::GetOptimalBlock() {
@@ -338,11 +335,11 @@ void AudioRendererAlgorithm::GetOptimalBlock() {
   } else {
     PeekAudioWithZeroPrepend(target_block_index_, target_block_.get());
     PeekAudioWithZeroPrepend(search_block_index_, search_block_.get());
-    int last_optimal = target_block_index_ - ola_hop_size_ -
-        search_block_index_;
-    internal::Interval exclude_iterval = std::make_pair(
-        last_optimal - kExcludeIntervalLengthFrames / 2,
-        last_optimal + kExcludeIntervalLengthFrames / 2);
+    int last_optimal =
+        target_block_index_ - ola_hop_size_ - search_block_index_;
+    internal::Interval exclude_iterval =
+        std::make_pair(last_optimal - kExcludeIntervalLengthFrames / 2,
+                       last_optimal + kExcludeIntervalLengthFrames / 2);
 
     // |optimal_index| is in frames and it is relative to the beginning of the
     // |search_block_|.
@@ -366,8 +363,8 @@ void AudioRendererAlgorithm::GetOptimalBlock() {
       float* ch_opt = optimal_block_->channel(k);
       const float* const ch_target = target_block_->channel(k);
       for (int n = 0; n < ola_window_size_; ++n) {
-        ch_opt[n] = ch_opt[n] * transition_window_[n] + ch_target[n] *
-            transition_window_[ola_window_size_ + n];
+        ch_opt[n] = ch_opt[n] * transition_window_[n] +
+                    ch_target[n] * transition_window_[ola_window_size_ + n];
       }
     }
   }
@@ -376,22 +373,22 @@ void AudioRendererAlgorithm::GetOptimalBlock() {
   target_block_index_ = optimal_index + ola_hop_size_;
 }
 
-void AudioRendererAlgorithm::PeekAudioWithZeroPrepend(
-    int read_offset_frames, AudioBus* dest) {
+void AudioRendererAlgorithm::PeekAudioWithZeroPrepend(int read_offset_frames,
+                                                      AudioBus* dest) {
   CHECK_LE(read_offset_frames + dest->frames(), audio_buffer_.frames());
 
   int write_offset = 0;
   int num_frames_to_read = dest->frames();
   if (read_offset_frames < 0) {
-    int num_zero_frames_appended = std::min(-read_offset_frames,
-                                            num_frames_to_read);
+    int num_zero_frames_appended =
+        std::min(-read_offset_frames, num_frames_to_read);
     read_offset_frames = 0;
     num_frames_to_read -= num_zero_frames_appended;
     write_offset = num_zero_frames_appended;
     dest->ZeroFrames(num_zero_frames_appended);
   }
-  audio_buffer_.PeekFrames(num_frames_to_read, read_offset_frames,
-                           write_offset, dest);
+  audio_buffer_.PeekFrames(num_frames_to_read, read_offset_frames, write_offset,
+                           dest);
 }
 
 }  // namespace media

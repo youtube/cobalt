@@ -25,8 +25,7 @@ namespace cast {
 std::unique_ptr<CastReceiver> CastReceiver::Create(
     scoped_refptr<CastEnvironment> cast_environment,
     const FrameReceiverConfig& audio_config,
-    const FrameReceiverConfig& video_config,
-    CastTransport* const transport) {
+    const FrameReceiverConfig& video_config, CastTransport* const transport) {
   return std::unique_ptr<CastReceiver>(new CastReceiverImpl(
       cast_environment, audio_config, video_config, transport));
 }
@@ -34,8 +33,7 @@ std::unique_ptr<CastReceiver> CastReceiver::Create(
 CastReceiverImpl::CastReceiverImpl(
     scoped_refptr<CastEnvironment> cast_environment,
     const FrameReceiverConfig& audio_config,
-    const FrameReceiverConfig& video_config,
-    CastTransport* const transport)
+    const FrameReceiverConfig& video_config, CastTransport* const transport)
     : cast_environment_(cast_environment),
       audio_receiver_(cast_environment, audio_config, AUDIO_EVENT, transport),
       video_receiver_(cast_environment, video_config, VIDEO_EVENT, transport),
@@ -71,10 +69,8 @@ void CastReceiverImpl::ReceivePacket(std::unique_ptr<Packet> packet) {
     return;
   }
   cast_environment_->PostTask(
-      CastEnvironment::MAIN,
-      FROM_HERE,
-      base::Bind(base::IgnoreResult(&FrameReceiver::ProcessPacket),
-                 target,
+      CastEnvironment::MAIN, FROM_HERE,
+      base::Bind(base::IgnoreResult(&FrameReceiver::ProcessPacket), target,
                  base::Passed(&packet)));
 }
 
@@ -86,8 +82,7 @@ void CastReceiverImpl::RequestDecodedAudioFrame(
       &CastReceiverImpl::DecodeEncodedAudioFrame,
       // Note: Use of Unretained is safe since this Closure is guaranteed to be
       // invoked or discarded by |audio_receiver_| before destruction of |this|.
-      base::Unretained(this),
-      callback));
+      base::Unretained(this), callback));
 }
 
 void CastReceiverImpl::RequestEncodedAudioFrame(
@@ -104,8 +99,7 @@ void CastReceiverImpl::RequestDecodedVideoFrame(
       &CastReceiverImpl::DecodeEncodedVideoFrame,
       // Note: Use of Unretained is safe since this Closure is guaranteed to be
       // invoked or discarded by |video_receiver_| before destruction of |this|.
-      base::Unretained(this),
-      callback));
+      base::Unretained(this), callback));
 }
 
 void CastReceiverImpl::RequestEncodedVideoFrame(
@@ -126,8 +120,7 @@ void CastReceiverImpl::DecodeEncodedAudioFrame(
   if (!audio_decoder_) {
     audio_decoder_.reset(new AudioDecoder(cast_environment_,
                                           num_audio_channels_,
-                                          audio_sampling_rate_,
-                                          audio_codec_));
+                                          audio_sampling_rate_, audio_codec_));
   }
   const FrameId frame_id = encoded_frame->frame_id;
   const RtpTimeTicks rtp_timestamp = encoded_frame->rtp_timestamp;
@@ -143,15 +136,14 @@ void CastReceiverImpl::DecodeEncodedVideoFrame(
     std::unique_ptr<EncodedFrame> encoded_frame) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
   if (!encoded_frame) {
-    callback.Run(
-        make_scoped_refptr<VideoFrame>(NULL), base::TimeTicks(), false);
+    callback.Run(make_scoped_refptr<VideoFrame>(NULL), base::TimeTicks(),
+                 false);
     return;
   }
 
   // Used by chrome/browser/extension/api/cast_streaming/performance_test.cc
   TRACE_EVENT_INSTANT2(
-      "cast_perf_test", "PullEncodedVideoFrame",
-      TRACE_EVENT_SCOPE_THREAD,
+      "cast_perf_test", "PullEncodedVideoFrame", TRACE_EVENT_SCOPE_THREAD,
       "rtp_timestamp", encoded_frame->rtp_timestamp.lower_32_bits(),
       "render_time", encoded_frame->reference_time.ToInternalValue());
 
@@ -169,12 +161,9 @@ void CastReceiverImpl::DecodeEncodedVideoFrame(
 // static
 void CastReceiverImpl::EmitDecodedAudioFrame(
     const scoped_refptr<CastEnvironment>& cast_environment,
-    const AudioFrameDecodedCallback& callback,
-    FrameId frame_id,
-    RtpTimeTicks rtp_timestamp,
-    const base::TimeTicks& playout_time,
-    std::unique_ptr<AudioBus> audio_bus,
-    bool is_continuous) {
+    const AudioFrameDecodedCallback& callback, FrameId frame_id,
+    RtpTimeTicks rtp_timestamp, const base::TimeTicks& playout_time,
+    std::unique_ptr<AudioBus> audio_bus, bool is_continuous) {
   DCHECK(cast_environment->CurrentlyOn(CastEnvironment::MAIN));
 
   if (audio_bus.get()) {
@@ -196,12 +185,9 @@ void CastReceiverImpl::EmitDecodedAudioFrame(
 // static
 void CastReceiverImpl::EmitDecodedVideoFrame(
     const scoped_refptr<CastEnvironment>& cast_environment,
-    const VideoFrameDecodedCallback& callback,
-    FrameId frame_id,
-    RtpTimeTicks rtp_timestamp,
-    const base::TimeTicks& playout_time,
-    const scoped_refptr<VideoFrame>& video_frame,
-    bool is_continuous) {
+    const VideoFrameDecodedCallback& callback, FrameId frame_id,
+    RtpTimeTicks rtp_timestamp, const base::TimeTicks& playout_time,
+    const scoped_refptr<VideoFrame>& video_frame, bool is_continuous) {
   DCHECK(cast_environment->CurrentlyOn(CastEnvironment::MAIN));
 
   if (video_frame.get()) {
@@ -217,10 +203,9 @@ void CastReceiverImpl::EmitDecodedVideoFrame(
     cast_environment->logger()->DispatchFrameEvent(std::move(playout_event));
 
     // Used by chrome/browser/extension/api/cast_streaming/performance_test.cc
-    TRACE_EVENT_INSTANT1(
-        "cast_perf_test", "FrameDecoded",
-        TRACE_EVENT_SCOPE_THREAD,
-        "rtp_timestamp", rtp_timestamp.lower_32_bits());
+    TRACE_EVENT_INSTANT1("cast_perf_test", "FrameDecoded",
+                         TRACE_EVENT_SCOPE_THREAD, "rtp_timestamp",
+                         rtp_timestamp.lower_32_bits());
   }
 
   callback.Run(video_frame, playout_time, is_continuous);

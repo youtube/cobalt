@@ -30,18 +30,12 @@ TEST(MediaFileCheckerTest, InvalidFile) {
   RunMediaFileChecker("ten_byte_file", false);
 }
 
-TEST(MediaFileCheckerTest, Video) {
-  RunMediaFileChecker("bear.ogv", true);
-}
+TEST(MediaFileCheckerTest, Video) { RunMediaFileChecker("bear.ogv", true); }
 
-TEST(MediaFileCheckerTest, Audio) {
-  RunMediaFileChecker("sfx.ogg", true);
-}
+TEST(MediaFileCheckerTest, Audio) { RunMediaFileChecker("sfx.ogg", true); }
 
 #if defined(USE_PROPRIETARY_CODECS)
-TEST(MediaFileCheckerTest, MP3) {
-  RunMediaFileChecker("sfx.mp3", true);
-}
+TEST(MediaFileCheckerTest, MP3) { RunMediaFileChecker("sfx.mp3", true); }
 #endif
 
 }  // namespace media

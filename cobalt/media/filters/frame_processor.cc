@@ -38,9 +38,7 @@ class MseTrackBuffer : public base::RefCountedThreadSafe<MseTrackBuffer> {
   }
 
   // Get/set |last_frame_duration_|.
-  base::TimeDelta last_frame_duration() const {
-    return last_frame_duration_;
-  }
+  base::TimeDelta last_frame_duration() const { return last_frame_duration_; }
   void set_last_frame_duration(base::TimeDelta duration) {
     last_frame_duration_ = duration;
   }
@@ -51,9 +49,7 @@ class MseTrackBuffer : public base::RefCountedThreadSafe<MseTrackBuffer> {
   }
 
   // Get/set |needs_random_access_point_|.
-  bool needs_random_access_point() const {
-    return needs_random_access_point_;
-  }
+  bool needs_random_access_point() const { return needs_random_access_point_; }
   void set_needs_random_access_point(bool needs_random_access_point) {
     needs_random_access_point_ = needs_random_access_point;
   }
@@ -123,9 +119,7 @@ MseTrackBuffer::MseTrackBuffer(ChunkDemuxerStream* stream)
   DCHECK(stream_);
 }
 
-MseTrackBuffer::~MseTrackBuffer() {
-  DVLOG(2) << __func__ << "()";
-}
+MseTrackBuffer::~MseTrackBuffer() { DVLOG(2) << __func__ << "()"; }
 
 void MseTrackBuffer::Reset() {
   DVLOG(2) << __func__ << "()";
@@ -150,8 +144,7 @@ void MseTrackBuffer::EnqueueProcessedFrame(
 }
 
 bool MseTrackBuffer::FlushProcessedFrames() {
-  if (processed_frames_.empty())
-    return true;
+  if (processed_frames_.empty()) return true;
 
   bool result = stream_->Append(processed_frames_);
   processed_frames_.clear();
@@ -175,9 +168,7 @@ FrameProcessor::FrameProcessor(const UpdateDurationCB& update_duration_cb,
   DCHECK(!update_duration_cb.is_null());
 }
 
-FrameProcessor::~FrameProcessor() {
-  DVLOG(2) << __func__ << "()";
-}
+FrameProcessor::~FrameProcessor() { DVLOG(2) << __func__ << "()"; }
 
 void FrameProcessor::SetSequenceMode(bool sequence_mode) {
   DVLOG(2) << __func__ << "(" << sequence_mode << ")";
@@ -201,8 +192,7 @@ void FrameProcessor::SetSequenceMode(bool sequence_mode) {
 
 bool FrameProcessor::ProcessFrames(
     const StreamParser::BufferQueueMap& buffer_queue_map,
-    base::TimeDelta append_window_start,
-    base::TimeDelta append_window_end,
+    base::TimeDelta append_window_start, base::TimeDelta append_window_end,
     base::TimeDelta* timestamp_offset) {
   StreamParser::BufferQueue frames;
   if (!MergeBufferQueues(buffer_queue_map, &frames)) {
@@ -228,8 +218,7 @@ bool FrameProcessor::ProcessFrames(
     }
   }
 
-  if (!FlushProcessedFrames())
-    return false;
+  if (!FlushProcessedFrames()) return false;
 
   // 2. - 4. Are handled by the WebMediaPlayer / Pipeline / Media Element.
 
@@ -245,8 +234,7 @@ void FrameProcessor::SetGroupStartTimestampIfInSequenceMode(
     base::TimeDelta timestamp_offset) {
   DVLOG(2) << __func__ << "(" << timestamp_offset.InSecondsF() << ")";
   DCHECK(kNoTimestamp != timestamp_offset);
-  if (sequence_mode_)
-    group_start_timestamp_ = timestamp_offset;
+  if (sequence_mode_) group_start_timestamp_ = timestamp_offset;
 
   // Changes to timestampOffset should invalidate the preroll buffer.
   audio_preroll_buffer_ = NULL;
@@ -334,8 +322,7 @@ void FrameProcessor::OnPossibleAudioConfigUpdate(
   // Always clear the preroll buffer when a config update is received.
   audio_preroll_buffer_ = NULL;
 
-  if (config.Matches(current_audio_config_))
-    return;
+  if (config.Matches(current_audio_config_)) return;
 
   current_audio_config_ = config;
   sample_duration_ = base::TimeDelta::FromSecondsD(
@@ -344,8 +331,7 @@ void FrameProcessor::OnPossibleAudioConfigUpdate(
 
 MseTrackBuffer* FrameProcessor::FindTrack(StreamParser::TrackId id) {
   TrackBuffersMap::iterator itr = track_buffers_.find(id);
-  if (itr == track_buffers_.end())
-    return NULL;
+  if (itr == track_buffers_.end()) return NULL;
 
   return itr->second;
 }
@@ -366,16 +352,14 @@ bool FrameProcessor::FlushProcessedFrames() {
   bool result = true;
   for (TrackBuffersMap::iterator itr = track_buffers_.begin();
        itr != track_buffers_.end(); ++itr) {
-    if (!itr->second->FlushProcessedFrames())
-      result = false;
+    if (!itr->second->FlushProcessedFrames()) result = false;
   }
 
   return result;
 }
 
 bool FrameProcessor::HandlePartialAppendWindowTrimming(
-    base::TimeDelta append_window_start,
-    base::TimeDelta append_window_end,
+    base::TimeDelta append_window_start, base::TimeDelta append_window_end,
     const scoped_refptr<StreamParserBuffer>& buffer) {
   DCHECK(buffer->duration() >= base::TimeDelta());
   DCHECK_EQ(DemuxerStream::AUDIO, buffer->type());
@@ -393,8 +377,7 @@ bool FrameProcessor::HandlePartialAppendWindowTrimming(
   }
 
   // If the buffer is entirely after |append_window_end| there's nothing to do.
-  if (buffer->timestamp() >= append_window_end)
-    return false;
+  if (buffer->timestamp() >= append_window_end) return false;
 
   DCHECK(buffer->timestamp() >= append_window_start ||
          frame_end_timestamp > append_window_start);
@@ -414,8 +397,9 @@ bool FrameProcessor::HandlePartialAppendWindowTrimming(
       DVLOG(1) << "Attaching audio preroll buffer ["
                << audio_preroll_buffer_->timestamp().InSecondsF() << ", "
                << (audio_preroll_buffer_->timestamp() +
-                   audio_preroll_buffer_->duration()).InSecondsF() << ") to "
-               << buffer->timestamp().InSecondsF();
+                   audio_preroll_buffer_->duration())
+                      .InSecondsF()
+               << ") to " << buffer->timestamp().InSecondsF();
       buffer->SetPrerollBuffer(audio_preroll_buffer_);
       processed_buffer = true;
     } else {
@@ -474,8 +458,7 @@ bool FrameProcessor::HandlePartialAppendWindowTrimming(
 
 bool FrameProcessor::ProcessFrame(
     const scoped_refptr<StreamParserBuffer>& frame,
-    base::TimeDelta append_window_start,
-    base::TimeDelta append_window_end,
+    base::TimeDelta append_window_start, base::TimeDelta append_window_end,
     base::TimeDelta* timestamp_offset) {
   // Implements the loop within step 1 of the coded frame processing algorithm
   // for a single input frame per June 9, 2016 MSE spec editor's draft:
@@ -538,7 +521,7 @@ bool FrameProcessor::ProcessFrame(
           << presentation_timestamp.InMicroseconds() << "us";
       return false;
     }
-    if (frame_duration <  base::TimeDelta()) {
+    if (frame_duration < base::TimeDelta()) {
       MEDIA_LOG(ERROR, media_log_)
           << "Negative duration " << frame_duration.InMicroseconds()
           << "us for " << frame->GetTypeName() << " frame at PTS "
@@ -659,8 +642,7 @@ bool FrameProcessor::ProcessFrame(
     frame->SetDecodeTimestamp(decode_timestamp);
     if (track_buffer->stream()->supports_partial_append_window_trimming() &&
         HandlePartialAppendWindowTrimming(append_window_start,
-                                          append_window_end,
-                                          frame)) {
+                                          append_window_end, frame)) {
       // |frame| has been partially trimmed or had preroll added.  Though
       // |frame|'s duration may have changed, do not update |frame_duration|
       // here, so |track_buffer|'s last frame duration update uses original
@@ -721,8 +703,7 @@ bool FrameProcessor::ProcessFrame(
         (sequence_mode_ && coded_frame_group_last_dts_ > decode_timestamp)) {
       // First, complete the append to track buffer streams of the previous
       // coded frame group's frames, if any.
-      if (!FlushProcessedFrames())
-        return false;
+      if (!FlushProcessedFrames()) return false;
 
       // TODO(wolenetz): This should be changed to a presentation timestamp. See
       // http://crbug.com/402502

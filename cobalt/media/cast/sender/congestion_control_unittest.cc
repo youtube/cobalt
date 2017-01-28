@@ -30,9 +30,9 @@ class CongestionControlTest : public ::testing::Test {
       : task_runner_(new FakeSingleThreadTaskRunner(&testing_clock_)) {
     testing_clock_.Advance(
         base::TimeDelta::FromMilliseconds(kStartMillisecond));
-    congestion_control_.reset(NewAdaptiveCongestionControl(
-        &testing_clock_, kMaxBitrateConfigured, kMinBitrateConfigured,
-        kMaxFrameRate));
+    congestion_control_.reset(
+        NewAdaptiveCongestionControl(&testing_clock_, kMaxBitrateConfigured,
+                                     kMinBitrateConfigured, kMaxFrameRate));
     const int max_unacked_frames = 10;
     const base::TimeDelta target_playout_delay =
         (max_unacked_frames - 1) * base::TimeDelta::FromSeconds(1) /
@@ -44,21 +44,17 @@ class CongestionControlTest : public ::testing::Test {
     congestion_control_->AckFrame(frame_id, testing_clock_.NowTicks());
   }
 
-  void Run(int num_frames,
-           size_t frame_size,
-           base::TimeDelta rtt,
-           base::TimeDelta frame_delay,
-           base::TimeDelta ack_time) {
+  void Run(int num_frames, size_t frame_size, base::TimeDelta rtt,
+           base::TimeDelta frame_delay, base::TimeDelta ack_time) {
     const FrameId end = FrameId::first() + num_frames;
     for (frame_id_ = FrameId::first(); frame_id_ < end; frame_id_++) {
       congestion_control_->UpdateRtt(rtt);
-      congestion_control_->SendFrameToTransport(
-          frame_id_, frame_size, testing_clock_.NowTicks());
-      task_runner_->PostDelayedTask(FROM_HERE,
-                                    base::Bind(&CongestionControlTest::AckFrame,
-                                               base::Unretained(this),
-                                               frame_id_),
-                                    ack_time);
+      congestion_control_->SendFrameToTransport(frame_id_, frame_size,
+                                                testing_clock_.NowTicks());
+      task_runner_->PostDelayedTask(
+          FROM_HERE, base::Bind(&CongestionControlTest::AckFrame,
+                                base::Unretained(this), frame_id_),
+          ack_time);
       task_runner_->Sleep(frame_delay);
     }
   }
@@ -76,9 +72,7 @@ class CongestionControlTest : public ::testing::Test {
 // "target buffer fill" model).
 TEST_F(CongestionControlTest, SimpleRun) {
   uint32_t frame_size = 10000 * 8;
-  Run(500,
-      frame_size,
-      base::TimeDelta::FromMilliseconds(10),
+  Run(500, frame_size, base::TimeDelta::FromMilliseconds(10),
       base::TimeDelta::FromMilliseconds(kFrameDelayMs),
       base::TimeDelta::FromMilliseconds(45));
   // Empty the buffer.
@@ -88,21 +82,19 @@ TEST_F(CongestionControlTest, SimpleRun) {
   uint32_t bitrate = congestion_control_->GetBitrate(
       testing_clock_.NowTicks() + base::TimeDelta::FromMilliseconds(300),
       base::TimeDelta::FromMilliseconds(300));
-  EXPECT_NEAR(
-      safe_bitrate / kTargetEmptyBufferFraction, bitrate, safe_bitrate * 0.05);
+  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction, bitrate,
+              safe_bitrate * 0.05);
 
   bitrate = congestion_control_->GetBitrate(
       testing_clock_.NowTicks() + base::TimeDelta::FromMilliseconds(200),
       base::TimeDelta::FromMilliseconds(300));
-  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 2 / 3,
-              bitrate,
+  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 2 / 3, bitrate,
               safe_bitrate * 0.05);
 
   bitrate = congestion_control_->GetBitrate(
       testing_clock_.NowTicks() + base::TimeDelta::FromMilliseconds(100),
       base::TimeDelta::FromMilliseconds(300));
-  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 1 / 3,
-              bitrate,
+  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 1 / 3, bitrate,
               safe_bitrate * 0.05);
 
   // Add a large (100ms) frame.
@@ -113,8 +105,7 @@ TEST_F(CongestionControlTest, SimpleRun) {
   bitrate = congestion_control_->GetBitrate(
       testing_clock_.NowTicks() + base::TimeDelta::FromMilliseconds(300),
       base::TimeDelta::FromMilliseconds(300));
-  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 2 / 3,
-              bitrate,
+  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 2 / 3, bitrate,
               safe_bitrate * 0.05);
 
   // Add another large (100ms) frame.
@@ -125,8 +116,7 @@ TEST_F(CongestionControlTest, SimpleRun) {
   bitrate = congestion_control_->GetBitrate(
       testing_clock_.NowTicks() + base::TimeDelta::FromMilliseconds(300),
       base::TimeDelta::FromMilliseconds(300));
-  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 1 / 3,
-              bitrate,
+  EXPECT_NEAR(safe_bitrate / kTargetEmptyBufferFraction * 1 / 3, bitrate,
               safe_bitrate * 0.05);
 
   // Ack the last frame.

@@ -6,10 +6,8 @@
 
 namespace media {
 
-CdmPromise::CdmPromise() {
-}
+CdmPromise::CdmPromise() {}
 
-CdmPromise::~CdmPromise() {
-}
+CdmPromise::~CdmPromise() {}
 
 }  // namespace media

@@ -28,8 +28,7 @@ namespace {
 class AutoTryLock {
  public:
   explicit AutoTryLock(base::Lock& lock)
-      : lock_(lock),
-        acquired_(lock_.Try()) {}
+      : lock_(lock), acquired_(lock_.Try()) {}
 
   bool locked() const { return acquired_; }
 
@@ -57,8 +56,7 @@ class WebAudioSourceProviderImpl::TeeFilter
   TeeFilter() : renderer_(NULL), channels_(0), sample_rate_(0) {}
   ~TeeFilter() override {}
 
-  void Initialize(AudioRendererSink::RenderCallback* renderer,
-                  int channels,
+  void Initialize(AudioRendererSink::RenderCallback* renderer, int channels,
                   int sample_rate) {
     DCHECK(renderer);
     renderer_ = renderer;
@@ -69,8 +67,7 @@ class WebAudioSourceProviderImpl::TeeFilter
   // AudioRendererSink::RenderCallback implementation.
   // These are forwarders to |renderer_| and are here to allow for a client to
   // get a copy of the rendered audio by SetCopyAudioCallback().
-  int Render(AudioBus* audio_bus,
-             uint32_t frames_delayed,
+  int Render(AudioBus* audio_bus, uint32_t frames_delayed,
              uint32_t frames_skipped) OVERRIDE;
   void OnRenderError() OVERRIDE;
 
@@ -100,8 +97,7 @@ WebAudioSourceProviderImpl::WebAudioSourceProviderImpl(
       tee_filter_(new TeeFilter()),
       weak_factory_(this) {}
 
-WebAudioSourceProviderImpl::~WebAudioSourceProviderImpl() {
-}
+WebAudioSourceProviderImpl::~WebAudioSourceProviderImpl() {}
 
 void WebAudioSourceProviderImpl::setClient(
     blink::WebAudioSourceProviderClient* client) {
@@ -126,10 +122,8 @@ void WebAudioSourceProviderImpl::setClient(
     // Restore normal playback.
     client_ = NULL;
     sink_->SetVolume(volume_);
-    if (state_ >= kStarted)
-      sink_->Start();
-    if (state_ >= kPlaying)
-      sink_->Play();
+    if (state_ >= kStarted) sink_->Start();
+    if (state_ >= kPlaying) sink_->Play();
   }
 }
 
@@ -172,8 +166,7 @@ void WebAudioSourceProviderImpl::Initialize(const AudioParameters& params,
 
   sink_->Initialize(params, tee_filter_.get());
 
-  if (!set_format_cb_.is_null())
-    base::ResetAndReturn(&set_format_cb_).Run();
+  if (!set_format_cb_.is_null()) base::ResetAndReturn(&set_format_cb_).Run();
 }
 
 void WebAudioSourceProviderImpl::Start() {
@@ -181,38 +174,33 @@ void WebAudioSourceProviderImpl::Start() {
   DCHECK(tee_filter_);
   DCHECK_EQ(state_, kStopped);
   state_ = kStarted;
-  if (!client_)
-    sink_->Start();
+  if (!client_) sink_->Start();
 }
 
 void WebAudioSourceProviderImpl::Stop() {
   base::AutoLock auto_lock(sink_lock_);
   state_ = kStopped;
-  if (!client_)
-    sink_->Stop();
+  if (!client_) sink_->Stop();
 }
 
 void WebAudioSourceProviderImpl::Play() {
   base::AutoLock auto_lock(sink_lock_);
   DCHECK_EQ(state_, kStarted);
   state_ = kPlaying;
-  if (!client_)
-    sink_->Play();
+  if (!client_) sink_->Play();
 }
 
 void WebAudioSourceProviderImpl::Pause() {
   base::AutoLock auto_lock(sink_lock_);
   DCHECK(state_ == kPlaying || state_ == kStarted);
   state_ = kStarted;
-  if (!client_)
-    sink_->Pause();
+  if (!client_) sink_->Pause();
 }
 
 bool WebAudioSourceProviderImpl::SetVolume(double volume) {
   base::AutoLock auto_lock(sink_lock_);
   volume_ = volume;
-  if (!client_)
-    sink_->SetVolume(volume);
+  if (!client_) sink_->SetVolume(volume);
   return true;
 }
 
@@ -227,8 +215,7 @@ bool WebAudioSourceProviderImpl::CurrentThreadIsRenderingThread() {
 }
 
 void WebAudioSourceProviderImpl::SwitchOutputDevice(
-    const std::string& device_id,
-    const url::Origin& security_origin,
+    const std::string& device_id, const url::Origin& security_origin,
     const OutputDeviceStatusCB& callback) {
   base::AutoLock auto_lock(sink_lock_);
   if (client_)
@@ -259,8 +246,7 @@ int WebAudioSourceProviderImpl::RenderForTesting(AudioBus* audio_bus) {
 
 void WebAudioSourceProviderImpl::OnSetFormat() {
   base::AutoLock auto_lock(sink_lock_);
-  if (!client_)
-    return;
+  if (!client_) return;
 
   // Inform Blink about the audio stream format.
   client_->setFormat(tee_filter_->channels(), tee_filter_->sample_rate());

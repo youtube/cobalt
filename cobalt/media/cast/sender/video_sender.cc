@@ -95,16 +95,13 @@ VideoSender::VideoSender(
     CastTransport* const transport_sender,
     const PlayoutDelayChangeCB& playout_delay_change_cb)
     : FrameSender(
-          cast_environment,
-          transport_sender,
-          video_config,
+          cast_environment, transport_sender, video_config,
           video_config.use_external_encoder
               ? NewFixedCongestionControl(
                     (video_config.min_bitrate + video_config.max_bitrate) / 2)
-              : NewAdaptiveCongestionControl(cast_environment->Clock(),
-                                             video_config.max_bitrate,
-                                             video_config.min_bitrate,
-                                             video_config.max_frame_rate)),
+              : NewAdaptiveCongestionControl(
+                    cast_environment->Clock(), video_config.max_bitrate,
+                    video_config.min_bitrate, video_config.max_frame_rate)),
       frames_in_encoder_(0),
       last_bitrate_(0),
       playout_delay_change_cb_(playout_delay_change_cb),
@@ -112,22 +109,17 @@ VideoSender::VideoSender(
       last_reported_encoder_utilization_(-1.0),
       last_reported_lossy_utilization_(-1.0),
       weak_factory_(this) {
-  video_encoder_ = VideoEncoder::Create(
-      cast_environment_,
-      video_config,
-      status_change_cb,
-      create_vea_cb,
-      create_video_encode_mem_cb);
+  video_encoder_ =
+      VideoEncoder::Create(cast_environment_, video_config, status_change_cb,
+                           create_vea_cb, create_video_encode_mem_cb);
   if (!video_encoder_) {
     cast_environment_->PostTask(
-        CastEnvironment::MAIN,
-        FROM_HERE,
+        CastEnvironment::MAIN, FROM_HERE,
         base::Bind(status_change_cb, STATUS_UNSUPPORTED_CODEC));
   }
 }
 
-VideoSender::~VideoSender() {
-}
+VideoSender::~VideoSender() {}
 
 void VideoSender::InsertRawVideoFrame(
     const scoped_refptr<media::VideoFrame>& video_frame,
@@ -145,11 +137,10 @@ void VideoSender::InsertRawVideoFrame(
                             rtp_timestamp);
 
   // Used by chrome/browser/extension/api/cast_streaming/performance_test.cc
-  TRACE_EVENT_INSTANT2(
-      "cast_perf_test", "InsertRawVideoFrame",
-      TRACE_EVENT_SCOPE_THREAD,
-      "timestamp", reference_time.ToInternalValue(),
-      "rtp_timestamp", rtp_timestamp.lower_32_bits());
+  TRACE_EVENT_INSTANT2("cast_perf_test", "InsertRawVideoFrame",
+                       TRACE_EVENT_SCOPE_THREAD, "timestamp",
+                       reference_time.ToInternalValue(), "rtp_timestamp",
+                       rtp_timestamp.lower_32_bits());
 
   bool low_latency_mode;
   if (video_frame->metadata()->GetBoolean(
@@ -171,9 +162,9 @@ void VideoSender::InsertRawVideoFrame(
        reference_time <= last_enqueued_frame_reference_time_)) {
     VLOG(1) << "Dropping video frame: RTP or reference time did not increase.";
     TRACE_EVENT_INSTANT2("cast.stream", "Video Frame Drop",
-                         TRACE_EVENT_SCOPE_THREAD,
-                         "rtp_timestamp", rtp_timestamp.lower_32_bits(),
-                         "reason", "time did not increase");
+                         TRACE_EVENT_SCOPE_THREAD, "rtp_timestamp",
+                         rtp_timestamp.lower_32_bits(), "reason",
+                         "time did not increase");
     return;
   }
 
@@ -197,15 +188,16 @@ void VideoSender::InsertRawVideoFrame(
   // based on the configured |max_frame_rate_|.  Any error introduced by this
   // guess will be eliminated when |duration_in_encoder_| is updated in
   // OnEncodedVideoFrame().
-  const base::TimeDelta duration_added_by_next_frame = frames_in_encoder_ > 0 ?
-      reference_time - last_enqueued_frame_reference_time_ :
-      base::TimeDelta::FromSecondsD(1.0 / max_frame_rate_);
+  const base::TimeDelta duration_added_by_next_frame =
+      frames_in_encoder_ > 0
+          ? reference_time - last_enqueued_frame_reference_time_
+          : base::TimeDelta::FromSecondsD(1.0 / max_frame_rate_);
 
   if (ShouldDropNextFrame(duration_added_by_next_frame)) {
-    base::TimeDelta new_target_delay = std::min(
-        current_round_trip_time_ * kRoundTripsNeeded +
-        base::TimeDelta::FromMilliseconds(kConstantTimeMs),
-        max_playout_delay_);
+    base::TimeDelta new_target_delay =
+        std::min(current_round_trip_time_ * kRoundTripsNeeded +
+                     base::TimeDelta::FromMilliseconds(kConstantTimeMs),
+                 max_playout_delay_);
     // In case of low latency mode, we prefer frame drops over increasing
     // playout time.
     if (!low_latency_mode_ && new_target_delay > target_playout_delay_) {
@@ -230,9 +222,9 @@ void VideoSender::InsertRawVideoFrame(
     video_encoder_->EmitFrames();
 
     TRACE_EVENT_INSTANT2("cast.stream", "Video Frame Drop",
-                         TRACE_EVENT_SCOPE_THREAD,
-                         "rtp_timestamp", rtp_timestamp.lower_32_bits(),
-                         "reason", "too much in flight");
+                         TRACE_EVENT_SCOPE_THREAD, "rtp_timestamp",
+                         rtp_timestamp.lower_32_bits(), "reason",
+                         "too much in flight");
     return;
   }
 
@@ -256,12 +248,9 @@ void VideoSender::InsertRawVideoFrame(
       last_reported_lossy_utilization_, video_frame.get());
 
   if (video_encoder_->EncodeVideoFrame(
-          video_frame,
-          reference_time,
+          video_frame, reference_time,
           base::Bind(&VideoSender::OnEncodedVideoFrame,
-                     weak_factory_.GetWeakPtr(),
-                     video_frame,
-                     bitrate))) {
+                     weak_factory_.GetWeakPtr(), video_frame, bitrate))) {
     TRACE_EVENT_ASYNC_BEGIN1("cast.stream", "Video Encode", video_frame.get(),
                              "rtp_timestamp", rtp_timestamp.lower_32_bits());
     frames_in_encoder_++;
@@ -271,8 +260,8 @@ void VideoSender::InsertRawVideoFrame(
   } else {
     VLOG(1) << "Encoder rejected a frame.  Skipping...";
     TRACE_EVENT_INSTANT1("cast.stream", "Video Encode Reject",
-                         TRACE_EVENT_SCOPE_THREAD,
-                         "rtp_timestamp", rtp_timestamp.lower_32_bits());
+                         TRACE_EVENT_SCOPE_THREAD, "rtp_timestamp",
+                         rtp_timestamp.lower_32_bits());
   }
 }
 
@@ -288,15 +277,14 @@ base::TimeDelta VideoSender::GetInFlightMediaDuration() const {
   if (GetUnacknowledgedFrameCount() > 0) {
     const FrameId oldest_unacked_frame_id = latest_acked_frame_id_ + 1;
     return last_enqueued_frame_reference_time_ -
-        GetRecordedReferenceTime(oldest_unacked_frame_id);
+           GetRecordedReferenceTime(oldest_unacked_frame_id);
   } else {
     return duration_in_encoder_;
   }
 }
 
 void VideoSender::OnEncodedVideoFrame(
-    const scoped_refptr<media::VideoFrame>& video_frame,
-    int encoder_bitrate,
+    const scoped_refptr<media::VideoFrame>& video_frame, int encoder_bitrate,
     std::unique_ptr<SenderEncodedFrame> encoded_frame) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
 
@@ -304,8 +292,7 @@ void VideoSender::OnEncodedVideoFrame(
   DCHECK_GE(frames_in_encoder_, 0);
 
   // Encoding was exited with errors.
-  if (!encoded_frame)
-    return;
+  if (!encoded_frame) return;
 
   duration_in_encoder_ =
       last_enqueued_frame_reference_time_ - encoded_frame->reference_time;
@@ -331,8 +318,9 @@ void VideoSender::OnEncodedVideoFrame(
     // this can misguide the producer of the input video frames.
     video_frame->metadata()->SetDouble(
         media::VideoFrameMetadata::RESOURCE_UTILIZATION,
-        encoded_frame->dependency == EncodedFrame::KEY ?
-            std::min(1.0, attenuated_utilization) : attenuated_utilization);
+        encoded_frame->dependency == EncodedFrame::KEY
+            ? std::min(1.0, attenuated_utilization)
+            : attenuated_utilization);
   }
 
   SendEncodedFrame(encoder_bitrate, std::move(encoded_frame));

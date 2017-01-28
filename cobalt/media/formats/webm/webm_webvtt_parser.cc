@@ -6,10 +6,8 @@
 
 namespace media {
 
-void WebMWebVTTParser::Parse(const uint8_t* payload,
-                             int payload_size,
-                             std::string* id,
-                             std::string* settings,
+void WebMWebVTTParser::Parse(const uint8_t* payload, int payload_size,
+                             std::string* id, std::string* settings,
                              std::string* content) {
   WebMWebVTTParser parser(payload, payload_size);
   parser.Parse(id, settings, content);
@@ -18,8 +16,7 @@ void WebMWebVTTParser::Parse(const uint8_t* payload,
 WebMWebVTTParser::WebMWebVTTParser(const uint8_t* payload, int payload_size)
     : ptr_(payload), ptr_end_(payload + payload_size) {}
 
-void WebMWebVTTParser::Parse(std::string* id,
-                             std::string* settings,
+void WebMWebVTTParser::Parse(std::string* id, std::string* settings,
                              std::string* content) {
   ParseLine(id);
   ParseLine(settings);
@@ -27,16 +24,13 @@ void WebMWebVTTParser::Parse(std::string* id,
 }
 
 bool WebMWebVTTParser::GetByte(uint8_t* byte) {
-  if (ptr_ >= ptr_end_)
-    return false;  // indicates end-of-stream
+  if (ptr_ >= ptr_end_) return false;  // indicates end-of-stream
 
   *byte = *ptr_++;
   return true;
 }
 
-void WebMWebVTTParser::UngetByte() {
-  --ptr_;
-}
+void WebMWebVTTParser::UngetByte() { --ptr_; }
 
 void WebMWebVTTParser::ParseLine(std::string* line) {
   line->clear();
@@ -52,20 +46,15 @@ void WebMWebVTTParser::ParseLine(std::string* line) {
   // The spec is here:
   //  http://wiki.webmproject.org/webm-metadata/temporal-metadata/webvtt-in-webm
 
-  enum {
-    kLF = '\x0A',
-    kCR = '\x0D'
-  };
+  enum { kLF = '\x0A', kCR = '\x0D' };
 
   for (;;) {
     uint8_t byte;
 
-    if (!GetByte(&byte) || byte == kLF)
-      return;
+    if (!GetByte(&byte) || byte == kLF) return;
 
     if (byte == kCR) {
-      if (GetByte(&byte) && byte != kLF)
-        UngetByte();
+      if (GetByte(&byte) && byte != kLF) UngetByte();
 
       return;
     }

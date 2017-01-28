@@ -28,8 +28,7 @@ void InitializeEncoderOnEncoderThread(
 }
 
 void EncodeVideoFrameOnEncoderThread(
-    scoped_refptr<CastEnvironment> environment,
-    SoftwareVideoEncoder* encoder,
+    scoped_refptr<CastEnvironment> environment, SoftwareVideoEncoder* encoder,
     const scoped_refptr<media::VideoFrame>& video_frame,
     const base::TimeTicks& reference_time,
     const VideoEncoderImpl::CodecDynamicConfig& dynamic_config,
@@ -44,8 +43,7 @@ void EncodeVideoFrameOnEncoderThread(
   encoder->Encode(video_frame, reference_time, encoded_frame.get());
   encoded_frame->encode_completion_time = environment->Clock()->NowTicks();
   environment->PostTask(
-      CastEnvironment::MAIN,
-      FROM_HERE,
+      CastEnvironment::MAIN, FROM_HERE,
       base::Bind(frame_encoded_callback, base::Passed(&encoded_frame)));
 }
 }  // namespace
@@ -53,8 +51,7 @@ void EncodeVideoFrameOnEncoderThread(
 // static
 bool VideoEncoderImpl::IsSupported(const FrameSenderConfig& video_config) {
 #ifndef OFFICIAL_BUILD
-  if (video_config.codec == CODEC_VIDEO_FAKE)
-    return true;
+  if (video_config.codec == CODEC_VIDEO_FAKE) return true;
 #endif
   return video_config.codec == CODEC_VIDEO_VP8;
 }
@@ -69,11 +66,9 @@ VideoEncoderImpl::VideoEncoderImpl(
 
   if (video_config.codec == CODEC_VIDEO_VP8) {
     encoder_.reset(new Vp8Encoder(video_config));
-    cast_environment_->PostTask(CastEnvironment::VIDEO,
-                                FROM_HERE,
+    cast_environment_->PostTask(CastEnvironment::VIDEO, FROM_HERE,
                                 base::Bind(&InitializeEncoderOnEncoderThread,
-                                           cast_environment,
-                                           encoder_.get()));
+                                           cast_environment, encoder_.get()));
 #ifndef OFFICIAL_BUILD
   } else if (video_config.codec == CODEC_VIDEO_FAKE) {
     encoder_.reset(new FakeSoftwareVideoEncoder(video_config));
@@ -86,19 +81,16 @@ VideoEncoderImpl::VideoEncoderImpl(
   dynamic_config_.bit_rate = video_config.start_bitrate;
 
   cast_environment_->PostTask(
-      CastEnvironment::MAIN,
-      FROM_HERE,
-      base::Bind(status_change_cb,
-                 encoder_.get() ? STATUS_INITIALIZED :
-                                  STATUS_UNSUPPORTED_CODEC));
+      CastEnvironment::MAIN, FROM_HERE,
+      base::Bind(status_change_cb, encoder_.get() ? STATUS_INITIALIZED
+                                                  : STATUS_UNSUPPORTED_CODEC));
 }
 
 VideoEncoderImpl::~VideoEncoderImpl() {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
   if (encoder_) {
     cast_environment_->PostTask(
-        CastEnvironment::VIDEO,
-        FROM_HERE,
+        CastEnvironment::VIDEO, FROM_HERE,
         base::Bind(&base::DeletePointer<SoftwareVideoEncoder>,
                    encoder_.release()));
   }
@@ -112,15 +104,11 @@ bool VideoEncoderImpl::EncodeVideoFrame(
   DCHECK(!video_frame->visible_rect().IsEmpty());
   DCHECK(!frame_encoded_callback.is_null());
 
-  cast_environment_->PostTask(CastEnvironment::VIDEO,
-                              FROM_HERE,
-                              base::Bind(&EncodeVideoFrameOnEncoderThread,
-                                         cast_environment_,
-                                         encoder_.get(),
-                                         video_frame,
-                                         reference_time,
-                                         dynamic_config_,
-                                         frame_encoded_callback));
+  cast_environment_->PostTask(
+      CastEnvironment::VIDEO, FROM_HERE,
+      base::Bind(&EncodeVideoFrameOnEncoderThread, cast_environment_,
+                 encoder_.get(), video_frame, reference_time, dynamic_config_,
+                 frame_encoded_callback));
 
   dynamic_config_.key_frame_requested = false;
   return true;

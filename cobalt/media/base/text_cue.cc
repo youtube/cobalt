@@ -7,16 +7,13 @@
 namespace media {
 
 TextCue::TextCue(const base::TimeDelta& timestamp,
-                 const base::TimeDelta& duration,
-                 const std::string& id,
-                 const std::string& settings,
-                 const std::string& text)
+                 const base::TimeDelta& duration, const std::string& id,
+                 const std::string& settings, const std::string& text)
     : timestamp_(timestamp),
       duration_(duration),
       id_(id),
       settings_(settings),
-      text_(text) {
-}
+      text_(text) {}
 
 TextCue::~TextCue() {}
 

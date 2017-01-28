@@ -18,7 +18,7 @@ base::TimeDelta TicksToTimeDelta(int64_t ticks, int timebase) {
   DCHECK_GT(timebase, 0);
   const double micros = static_cast<double>(ticks) / timebase *
                             base::Time::kMicrosecondsPerSecond +
-                                0.5 /* rounding */;
+                        0.5 /* rounding */;
   DCHECK_LT(micros, static_cast<double>(std::numeric_limits<int64_t>::max()));
   return base::TimeDelta::FromMicroseconds(static_cast<int64_t>(micros));
 }

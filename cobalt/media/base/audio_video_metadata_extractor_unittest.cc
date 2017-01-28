@@ -16,11 +16,8 @@
 namespace media {
 
 std::unique_ptr<AudioVideoMetadataExtractor> GetExtractor(
-    const std::string& filename,
-    bool extract_attached_images,
-    bool expected_result,
-    double expected_duration,
-    int expected_width,
+    const std::string& filename, bool extract_attached_images,
+    bool expected_result, double expected_duration, int expected_width,
     int expected_height) {
   FileDataSource source;
   EXPECT_TRUE(source.Initialize(GetTestDataFilePath(filename)));
@@ -30,8 +27,7 @@ std::unique_ptr<AudioVideoMetadataExtractor> GetExtractor(
   bool extracted = extractor->Extract(&source, extract_attached_images);
   EXPECT_EQ(expected_result, extracted);
 
-  if (!extracted)
-    return extractor;
+  if (!extracted) return extractor;
 
   EXPECT_EQ(expected_duration, extractor->duration());
 

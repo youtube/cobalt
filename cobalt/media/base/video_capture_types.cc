@@ -14,23 +14,16 @@ namespace media {
 
 // This list is ordered by precedence of use.
 static VideoPixelFormat const kSupportedCapturePixelFormats[] = {
-    PIXEL_FORMAT_I420,
-    PIXEL_FORMAT_YV12,
-    PIXEL_FORMAT_NV12,
-    PIXEL_FORMAT_NV21,
-    PIXEL_FORMAT_UYVY,
-    PIXEL_FORMAT_YUY2,
-    PIXEL_FORMAT_RGB24,
-    PIXEL_FORMAT_RGB32,
-    PIXEL_FORMAT_ARGB,
+    PIXEL_FORMAT_I420,  PIXEL_FORMAT_YV12,  PIXEL_FORMAT_NV12,
+    PIXEL_FORMAT_NV21,  PIXEL_FORMAT_UYVY,  PIXEL_FORMAT_YUY2,
+    PIXEL_FORMAT_RGB24, PIXEL_FORMAT_RGB32, PIXEL_FORMAT_ARGB,
     PIXEL_FORMAT_MJPEG,
 };
 
 VideoCaptureFormat::VideoCaptureFormat()
     : frame_rate(0.0f),
       pixel_format(PIXEL_FORMAT_UNKNOWN),
-      pixel_storage(PIXEL_STORAGE_CPU) {
-}
+      pixel_storage(PIXEL_STORAGE_CPU) {}
 
 VideoCaptureFormat::VideoCaptureFormat(const gfx::Size& frame_size,
                                        float frame_rate,
@@ -38,8 +31,7 @@ VideoCaptureFormat::VideoCaptureFormat(const gfx::Size& frame_size,
     : frame_size(frame_size),
       frame_rate(frame_rate),
       pixel_format(pixel_format),
-      pixel_storage(PIXEL_STORAGE_CPU) {
-}
+      pixel_storage(PIXEL_STORAGE_CPU) {}
 
 VideoCaptureFormat::VideoCaptureFormat(const gfx::Size& frame_size,
                                        float frame_rate,
@@ -48,8 +40,7 @@ VideoCaptureFormat::VideoCaptureFormat(const gfx::Size& frame_size,
     : frame_size(frame_size),
       frame_rate(frame_rate),
       pixel_format(pixel_format),
-      pixel_storage(pixel_storage) {
-}
+      pixel_storage(pixel_storage) {}
 
 bool VideoCaptureFormat::IsValid() const {
   return (frame_size.width() < media::limits::kMaxDimension) &&
@@ -68,7 +59,7 @@ size_t VideoCaptureFormat::ImageAllocationSize() const {
   return VideoFrame::AllocationSize(pixel_format, frame_size);
 }
 
-//static
+// static
 std::string VideoCaptureFormat::ToString(const VideoCaptureFormat& format) {
   // Beware: This string is parsed by manager.js:parseVideoCaptureFormat_,
   // take care when changing the formatting.
@@ -95,8 +86,7 @@ std::string VideoCaptureFormat::PixelStorageToString(
 
 // static
 bool VideoCaptureFormat::ComparePixelFormatPreference(
-    const VideoPixelFormat& lhs,
-    const VideoPixelFormat& rhs) {
+    const VideoPixelFormat& lhs, const VideoPixelFormat& rhs) {
   auto* format_lhs = std::find(
       kSupportedCapturePixelFormats,
       kSupportedCapturePixelFormats + arraysize(kSupportedCapturePixelFormats),

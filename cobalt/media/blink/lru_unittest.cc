@@ -38,8 +38,7 @@ class SimpleLRU {
   }
 
   void Use(int x) {
-    if (Contains(x))
-      Remove(x);
+    if (Contains(x)) Remove(x);
     Insert(x);
   }
 
@@ -126,8 +125,7 @@ class LRUTest : public testing::Test {
   }
 
   void Clear() {
-    while (!Empty())
-      Pop();
+    while (!Empty()) Pop();
   }
 
   int Peek() {
@@ -211,8 +209,7 @@ TEST_F(LRUTest, RandomTest) {
       int value = rnd_.Rand() % kTestIntRange;
       switch (rnd_.Rand() % 3) {
         case 0:
-          if (!Empty())
-            Pop();
+          if (!Empty()) Pop();
           break;
 
         case 1:

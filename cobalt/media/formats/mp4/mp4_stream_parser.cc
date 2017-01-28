@@ -53,10 +53,8 @@ MP4StreamParser::MP4StreamParser(const std::set<int>& audio_object_types,
 MP4StreamParser::~MP4StreamParser() {}
 
 void MP4StreamParser::Init(
-    const InitCB& init_cb,
-    const NewConfigCB& config_cb,
-    const NewBuffersCB& new_buffers_cb,
-    bool /* ignore_text_tracks */,
+    const InitCB& init_cb, const NewConfigCB& config_cb,
+    const NewBuffersCB& new_buffers_cb, bool /* ignore_text_tracks */,
     const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
     const NewMediaSegmentCB& new_segment_cb,
     const EndMediaSegmentCB& end_of_segment_cb,
@@ -96,8 +94,7 @@ void MP4StreamParser::Flush() {
 bool MP4StreamParser::Parse(const uint8_t* buf, int size) {
   DCHECK_NE(state_, kWaitingForInit);
 
-  if (state_ == kError)
-    return false;
+  if (state_ == kError) return false;
 
   queue_.Push(buf, size);
 
@@ -119,8 +116,7 @@ bool MP4StreamParser::Parse(const uint8_t* buf, int size) {
 
       case kWaitingForSampleData:
         result = HaveEnoughDataToEnqueueSamples();
-        if (result)
-          ChangeState(kEmittingSamples);
+        if (result) ChangeState(kEmittingSamples);
         break;
 
       case kEmittingSamples:
@@ -133,8 +129,7 @@ bool MP4StreamParser::Parse(const uint8_t* buf, int size) {
     }
   } while (result && !err);
 
-  if (!err)
-    err = !SendAndFlushSamples(&buffers);
+  if (!err) err = !SendAndFlushSamples(&buffers);
 
   if (err) {
     DLOG(ERROR) << "Error while parsing MP4";
@@ -226,8 +221,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
       // It is not uncommon to find otherwise-valid files with incorrect sample
       // description indices, so we fail gracefully in that case.
-      if (desc_idx >= samp_descr.audio_entries.size())
-        desc_idx = 0;
+      if (desc_idx >= samp_descr.audio_entries.size()) desc_idx = 0;
       const AudioSampleEntry& entry = samp_descr.audio_entries[desc_idx];
       const AAC& aac = entry.esds.aac;
 
@@ -247,10 +241,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
       uint8_t audio_type = entry.esds.object_type;
       if (audio_type == kForbidden) {
-        if (audio_format == FOURCC_AC3)
-          audio_type = kAC3;
-        if (audio_format == FOURCC_EAC3)
-          audio_type = kEAC3;
+        if (audio_format == FOURCC_AC3) audio_type = kAC3;
+        if (audio_format == FOURCC_EAC3) audio_type = kEAC3;
       }
       DVLOG(1) << "audio_type 0x" << std::hex << static_cast<int>(audio_type);
       if (audio_object_types_.find(audio_type) == audio_object_types_.end()) {
@@ -332,8 +324,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       detected_video_track_count++;
 
       RCHECK(!samp_descr.video_entries.empty());
-      if (desc_idx >= samp_descr.video_entries.size())
-        desc_idx = 0;
+      if (desc_idx >= samp_descr.video_entries.size()) desc_idx = 0;
       const VideoSampleEntry& entry = samp_descr.video_entries[desc_idx];
 
       if (!entry.IsFormatValid()) {
@@ -356,8 +347,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
             GetNaturalSize(visible_rect.size(), entry.pixel_aspect.h_spacing,
                            entry.pixel_aspect.v_spacing);
       } else if (track->header.width && track->header.height) {
-        natural_size =
-            gfx::Size(track->header.width, track->header.height);
+        natural_size = gfx::Size(track->header.width, track->header.height);
       }
 
       uint32_t video_track_id = track->header.track_id;
@@ -396,12 +386,10 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
     // embedded caption data in video track. At time of init segment parsing, we
     // don't have this data (unless maybe by SourceBuffer's mimetype).
     // See https://crbug.com/597073
-    if (track->media.handler.type == kText)
-      detected_text_track_count++;
+    if (track->media.handler.type == kText) detected_text_track_count++;
   }
 
-  if (!moov_->pssh.empty())
-    OnEncryptedMediaInitData(moov_->pssh);
+  if (!moov_->pssh.empty()) OnEncryptedMediaInitData(moov_->pssh);
 
   RCHECK(config_cb_.Run(media_tracks.Pass(), TextTrackConfigMap()));
 
@@ -455,13 +443,11 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
   RCHECK(moov_.get());  // Must already have initialization segment
   MovieFragment moof;
   RCHECK(moof.Parse(reader));
-  if (!runs_)
-    runs_.reset(new TrackRunIterator(moov_.get(), media_log_));
+  if (!runs_) runs_.reset(new TrackRunIterator(moov_.get(), media_log_));
   RCHECK(runs_->Init(moof));
   RCHECK(ComputeHighestEndOffset(moof));
 
-  if (!moof.pssh.empty())
-    OnEncryptedMediaInitData(moof.pssh);
+  if (!moof.pssh.empty()) OnEncryptedMediaInitData(moof.pssh);
 
   new_segment_cb_.Run();
   ChangeState(kWaitingForSampleData);
@@ -480,16 +466,14 @@ void MP4StreamParser::OnEncryptedMediaInitData(
   std::vector<uint8_t> init_data(total_size);
   size_t pos = 0;
   for (size_t i = 0; i < headers.size(); i++) {
-    memcpy(&init_data[pos], &headers[i].raw_box[0],
-           headers[i].raw_box.size());
+    memcpy(&init_data[pos], &headers[i].raw_box[0], headers[i].raw_box.size());
     pos += headers[i].raw_box.size();
   }
   encrypted_media_init_data_cb_.Run(kEmeInitDataTypeCenc, init_data);
 }
 
 bool MP4StreamParser::PrepareAACBuffer(
-    const AAC& aac_config,
-    std::vector<uint8_t>* frame_buf,
+    const AAC& aac_config, std::vector<uint8_t>* frame_buf,
     std::vector<SubsampleEntry>* subsamples) const {
   // Append an ADTS header to every audio sample.
   RCHECK(aac_config.ConvertEsdsToADTS(frame_buf));
@@ -512,13 +496,11 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
     // Flush any buffers we've gotten in this chunk so that buffers don't
     // cross |new_segment_cb_| calls
     *err = !SendAndFlushSamples(buffers);
-    if (*err)
-      return false;
+    if (*err) return false;
 
     // Remain in kEmittingSamples state, discarding data, until the end of
     // the current 'mdat' box has been appended to the queue.
-    if (!queue_.Trim(mdat_tail_))
-      return false;
+    if (!queue_.Trim(mdat_tail_)) return false;
 
     ChangeState(kParsingBoxes);
     end_of_segment_cb_.Run();
@@ -603,8 +585,8 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
 
   if (audio) {
     if (ESDescriptor::IsAAC(runs_->audio_description().esds.object_type) &&
-        !PrepareAACBuffer(runs_->audio_description().esds.aac,
-                          &frame_buf, &subsamples)) {
+        !PrepareAACBuffer(runs_->audio_description().esds.aac, &frame_buf,
+                          &subsamples)) {
       MEDIA_LOG(ERROR, media_log_) << "Failed to prepare AAC sample for decode";
       *err = true;
       return false;
@@ -613,11 +595,9 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
 
   if (decrypt_config) {
     if (!subsamples.empty()) {
-    // Create a new config with the updated subsamples.
-    decrypt_config.reset(new DecryptConfig(
-        decrypt_config->key_id(),
-        decrypt_config->iv(),
-        subsamples));
+      // Create a new config with the updated subsamples.
+      decrypt_config.reset(new DecryptConfig(decrypt_config->key_id(),
+                                             decrypt_config->iv(), subsamples));
     }
     // else, use the existing config.
   } else if (is_track_encrypted_[runs_->track_id()]) {
@@ -627,15 +607,14 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
         new DecryptConfig("1", "", std::vector<SubsampleEntry>()));
   }
 
-  StreamParserBuffer::Type buffer_type = audio ? DemuxerStream::AUDIO :
-      DemuxerStream::VIDEO;
+  StreamParserBuffer::Type buffer_type =
+      audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
 
   scoped_refptr<StreamParserBuffer> stream_buf = StreamParserBuffer::CopyFrom(
       &frame_buf[0], frame_buf.size(), runs_->is_keyframe(), buffer_type,
       runs_->track_id());
 
-  if (decrypt_config)
-    stream_buf->set_decrypt_config(decrypt_config.Pass());
+  if (decrypt_config) stream_buf->set_decrypt_config(decrypt_config.Pass());
 
   stream_buf->set_duration(runs_->duration());
   stream_buf->set_timestamp(runs_->cts());
@@ -655,8 +634,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
 }
 
 bool MP4StreamParser::SendAndFlushSamples(BufferQueueMap* buffers) {
-  if (buffers->empty())
-    return true;
+  if (buffers->empty()) return true;
   bool success = new_buffers_cb_.Run(*buffers);
   buffers->clear();
   return success;

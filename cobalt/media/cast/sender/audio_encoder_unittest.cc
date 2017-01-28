@@ -91,8 +91,7 @@ struct TestScenario {
   std::string ToString() const {
     std::ostringstream out;
     for (size_t i = 0; i < num_durations; ++i) {
-      if (i > 0)
-        out << ", ";
+      if (i > 0) out << ", ";
       out << durations_in_ms[i];
     }
     return out.str();
@@ -151,19 +150,14 @@ class AudioEncoderTest : public ::testing::TestWithParam<TestScenario> {
  private:
   void CreateObjectsForCodec(Codec codec) {
     audio_bus_factory_.reset(
-        new TestAudioBusFactory(kNumChannels,
-                                kDefaultAudioSamplingRate,
-                                TestAudioBusFactory::kMiddleANoteFreq,
-                                0.5f));
+        new TestAudioBusFactory(kNumChannels, kDefaultAudioSamplingRate,
+                                TestAudioBusFactory::kMiddleANoteFreq, 0.5f));
 
     receiver_.reset(new TestEncodedAudioFrameReceiver());
 
     audio_encoder_.reset(new AudioEncoder(
-        cast_environment_,
-        kNumChannels,
-        kDefaultAudioSamplingRate,
-        kDefaultAudioEncoderBitrate,
-        codec,
+        cast_environment_, kNumChannels, kDefaultAudioSamplingRate,
+        kDefaultAudioEncoderBitrate, codec,
         base::Bind(&TestEncodedAudioFrameReceiver::FrameEncoded,
                    base::Unretained(receiver_.get()))));
 
@@ -180,18 +174,12 @@ class AudioEncoderTest : public ::testing::TestWithParam<TestScenario> {
   DISALLOW_COPY_AND_ASSIGN(AudioEncoderTest);
 };
 
-TEST_P(AudioEncoderTest, EncodeOpus) {
-  RunTestForCodec(CODEC_AUDIO_OPUS);
-}
+TEST_P(AudioEncoderTest, EncodeOpus) { RunTestForCodec(CODEC_AUDIO_OPUS); }
 
-TEST_P(AudioEncoderTest, EncodePcm16) {
-  RunTestForCodec(CODEC_AUDIO_PCM16);
-}
+TEST_P(AudioEncoderTest, EncodePcm16) { RunTestForCodec(CODEC_AUDIO_PCM16); }
 
 #if defined(OS_MACOSX)
-TEST_P(AudioEncoderTest, EncodeAac) {
-  RunTestForCodec(CODEC_AUDIO_AAC);
-}
+TEST_P(AudioEncoderTest, EncodeAac) { RunTestForCodec(CODEC_AUDIO_AAC); }
 #endif
 
 static const int64_t kOneCall_3Millis[] = {3};
@@ -228,8 +216,7 @@ static const int64_t kMixedUnderruns[] = {31, -64, 4, 15, 9,  26, -53, 5,   8,
                                           -9, 7,   9, 32, 38, -4, 62,  -64, 3};
 
 INSTANTIATE_TEST_CASE_P(
-    AudioEncoderTestScenarios,
-    AudioEncoderTest,
+    AudioEncoderTestScenarios, AudioEncoderTest,
     ::testing::Values(
         TestScenario(kOneCall_3Millis, arraysize(kOneCall_3Millis)),
         TestScenario(kOneCall_10Millis, arraysize(kOneCall_10Millis)),

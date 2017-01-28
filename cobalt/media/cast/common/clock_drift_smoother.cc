@@ -12,8 +12,7 @@ namespace media {
 namespace cast {
 
 ClockDriftSmoother::ClockDriftSmoother(base::TimeDelta time_constant)
-    : time_constant_(time_constant),
-      estimate_us_(0.0) {
+    : time_constant_(time_constant), estimate_us_(0.0) {
   DCHECK(time_constant_ > base::TimeDelta());
 }
 
@@ -47,7 +46,7 @@ void ClockDriftSmoother::Update(base::TimeTicks now,
     const double weight =
         elapsed_us / (elapsed_us + time_constant_.InMicroseconds());
     estimate_us_ = weight * measured_offset.InMicroseconds() +
-        (1.0 - weight) * estimate_us_;
+                   (1.0 - weight) * estimate_us_;
   }
 }
 

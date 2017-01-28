@@ -43,8 +43,7 @@ class PidState {
     kPidVideoPes,
   };
 
-  PidState(int pid,
-           PidType pid_type,
+  PidState(int pid, PidType pid_type,
            std::unique_ptr<TsSection> section_parser);
 
   // Extract the content of the TS packet and parse it.
@@ -76,8 +75,7 @@ class PidState {
   int continuity_counter_;
 };
 
-PidState::PidState(int pid,
-                   PidType pid_type,
+PidState::PidState(int pid, PidType pid_type,
                    std::unique_ptr<TsSection> section_parser)
     : pid_(pid),
       pid_type_(pid_type),
@@ -92,8 +90,7 @@ bool PidState::PushTsPacket(const TsPacket& ts_packet) {
 
   // The current PID is not part of the PID filter,
   // just discard the incoming TS packet.
-  if (!enable_)
-    return true;
+  if (!enable_) return true;
 
   int expected_continuity_counter = (continuity_counter_ + 1) % 16;
   if (continuity_counter_ >= 0 &&
@@ -102,10 +99,9 @@ bool PidState::PushTsPacket(const TsPacket& ts_packet) {
     return false;
   }
 
-  bool status = section_parser_->Parse(
-      ts_packet.payload_unit_start_indicator(),
-      ts_packet.payload(),
-      ts_packet.payload_size());
+  bool status =
+      section_parser_->Parse(ts_packet.payload_unit_start_indicator(),
+                             ts_packet.payload(), ts_packet.payload_size());
 
   // At the minimum, when parsing failed, auto reset the section parser.
   // Components that use the StreamParser can take further action if needed.
@@ -122,21 +118,16 @@ void PidState::Flush() {
   ResetState();
 }
 
-void PidState::Enable() {
-  enable_ = true;
-}
+void PidState::Enable() { enable_ = true; }
 
 void PidState::Disable() {
-  if (!enable_)
-    return;
+  if (!enable_) return;
 
   ResetState();
   enable_ = false;
 }
 
-bool PidState::IsEnabled() const {
-  return enable_;
-}
+bool PidState::IsEnabled() const { return enable_; }
 
 void PidState::ResetState() {
   section_parser_->Reset();
@@ -144,36 +135,29 @@ void PidState::ResetState() {
 }
 
 Mp2tStreamParser::BufferQueueWithConfig::BufferQueueWithConfig(
-    bool is_cfg_sent,
-    const AudioDecoderConfig& audio_cfg,
+    bool is_cfg_sent, const AudioDecoderConfig& audio_cfg,
     const VideoDecoderConfig& video_cfg)
-  : is_config_sent(is_cfg_sent),
-    audio_config(audio_cfg),
-    video_config(video_cfg) {
-}
+    : is_config_sent(is_cfg_sent),
+      audio_config(audio_cfg),
+      video_config(video_cfg) {}
 
 Mp2tStreamParser::BufferQueueWithConfig::BufferQueueWithConfig(
     const BufferQueueWithConfig& other) = default;
 
-Mp2tStreamParser::BufferQueueWithConfig::~BufferQueueWithConfig() {
-}
+Mp2tStreamParser::BufferQueueWithConfig::~BufferQueueWithConfig() {}
 
 Mp2tStreamParser::Mp2tStreamParser(bool sbr_in_mimetype)
-  : sbr_in_mimetype_(sbr_in_mimetype),
-    selected_audio_pid_(-1),
-    selected_video_pid_(-1),
-    is_initialized_(false),
-    segment_started_(false) {
-}
+    : sbr_in_mimetype_(sbr_in_mimetype),
+      selected_audio_pid_(-1),
+      selected_video_pid_(-1),
+      is_initialized_(false),
+      segment_started_(false) {}
 
-Mp2tStreamParser::~Mp2tStreamParser() {
-}
+Mp2tStreamParser::~Mp2tStreamParser() {}
 
 void Mp2tStreamParser::Init(
-    const InitCB& init_cb,
-    const NewConfigCB& config_cb,
-    const NewBuffersCB& new_buffers_cb,
-    bool /* ignore_text_tracks */,
+    const InitCB& init_cb, const NewConfigCB& config_cb,
+    const NewBuffersCB& new_buffers_cb, bool /* ignore_text_tracks */,
     const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
     const NewMediaSegmentCB& new_segment_cb,
     const EndMediaSegmentCB& end_of_segment_cb,
@@ -254,8 +238,7 @@ bool Mp2tStreamParser::Parse(const uint8_t* buf, int size) {
     const uint8_t* ts_buffer;
     int ts_buffer_size;
     ts_byte_queue_.Peek(&ts_buffer, &ts_buffer_size);
-    if (ts_buffer_size < TsPacket::kPacketSize)
-      break;
+    if (ts_buffer_size < TsPacket::kPacketSize) break;
 
     // Synchronization.
     int skipped_bytes = TsPacket::Sync(ts_buffer, ts_buffer_size);
@@ -274,29 +257,26 @@ bool Mp2tStreamParser::Parse(const uint8_t* buf, int size) {
       ts_byte_queue_.Pop(1);
       continue;
     }
-    DVLOG(LOG_LEVEL_TS)
-        << "Processing PID=" << ts_packet->pid()
-        << " start_unit=" << ts_packet->payload_unit_start_indicator();
+    DVLOG(LOG_LEVEL_TS) << "Processing PID=" << ts_packet->pid()
+                        << " start_unit="
+                        << ts_packet->payload_unit_start_indicator();
 
     // Parse the section.
     auto it = pids_.find(ts_packet->pid());
-    if (it == pids_.end() &&
-        ts_packet->pid() == TsSection::kPidPat) {
+    if (it == pids_.end() && ts_packet->pid() == TsSection::kPidPat) {
       // Create the PAT state here if needed.
       std::unique_ptr<TsSection> pat_section_parser(new TsSectionPat(
           base::Bind(&Mp2tStreamParser::RegisterPmt, base::Unretained(this))));
       std::unique_ptr<PidState> pat_pid_state(new PidState(
           ts_packet->pid(), PidState::kPidPat, std::move(pat_section_parser)));
       pat_pid_state->Enable();
-      it = pids_
-               .insert(
-                   std::make_pair(ts_packet->pid(), std::move(pat_pid_state)))
+      it = pids_.insert(
+                    std::make_pair(ts_packet->pid(), std::move(pat_pid_state)))
                .first;
     }
 
     if (it != pids_.end()) {
-      if (!it->second->PushTsPacket(*ts_packet))
-        return false;
+      if (!it->second->PushTsPacket(*ts_packet)) return false;
     } else {
       DVLOG(LOG_LEVEL_TS) << "Ignoring TS packet for pid: " << ts_packet->pid();
     }
@@ -313,8 +293,7 @@ bool Mp2tStreamParser::Parse(const uint8_t* buf, int size) {
 
 void Mp2tStreamParser::RegisterPmt(int program_number, int pmt_pid) {
   DVLOG(1) << "RegisterPmt:"
-           << " program_number=" << program_number
-           << " pmt_pid=" << pmt_pid;
+           << " program_number=" << program_number << " pmt_pid=" << pmt_pid;
 
   // Only one TS program is allowed. Ignore the incoming program map table,
   // if there is already one registered.
@@ -337,39 +316,30 @@ void Mp2tStreamParser::RegisterPmt(int program_number, int pmt_pid) {
   pids_.insert(std::make_pair(pmt_pid, std::move(pmt_pid_state)));
 }
 
-void Mp2tStreamParser::RegisterPes(int pmt_pid,
-                                   int pes_pid,
-                                   int stream_type) {
+void Mp2tStreamParser::RegisterPes(int pmt_pid, int pes_pid, int stream_type) {
   // TODO(damienv): check there is no mismatch if the entry already exists.
   DVLOG(1) << "RegisterPes:"
-           << " pes_pid=" << pes_pid
-           << " stream_type=" << std::hex << stream_type << std::dec;
+           << " pes_pid=" << pes_pid << " stream_type=" << std::hex
+           << stream_type << std::dec;
   auto it = pids_.find(pes_pid);
-  if (it != pids_.end())
-    return;
+  if (it != pids_.end()) return;
 
   // Create a stream parser corresponding to the stream type.
   bool is_audio = false;
   std::unique_ptr<EsParser> es_parser;
   if (stream_type == kStreamTypeAVC) {
     es_parser.reset(
-        new EsParserH264(
-            base::Bind(&Mp2tStreamParser::OnVideoConfigChanged,
-                       base::Unretained(this),
-                       pes_pid),
-            base::Bind(&Mp2tStreamParser::OnEmitVideoBuffer,
-                       base::Unretained(this),
-                       pes_pid)));
+        new EsParserH264(base::Bind(&Mp2tStreamParser::OnVideoConfigChanged,
+                                    base::Unretained(this), pes_pid),
+                         base::Bind(&Mp2tStreamParser::OnEmitVideoBuffer,
+                                    base::Unretained(this), pes_pid)));
   } else if (stream_type == kStreamTypeAAC) {
     es_parser.reset(
-        new EsParserAdts(
-            base::Bind(&Mp2tStreamParser::OnAudioConfigChanged,
-                       base::Unretained(this),
-                       pes_pid),
-            base::Bind(&Mp2tStreamParser::OnEmitAudioBuffer,
-                       base::Unretained(this),
-                       pes_pid),
-            sbr_in_mimetype_));
+        new EsParserAdts(base::Bind(&Mp2tStreamParser::OnAudioConfigChanged,
+                                    base::Unretained(this), pes_pid),
+                         base::Bind(&Mp2tStreamParser::OnEmitAudioBuffer,
+                                    base::Unretained(this), pes_pid),
+                         sbr_in_mimetype_));
     is_audio = true;
   } else if (stream_type == kStreamTypeMpeg1Audio) {
     es_parser.reset(new EsParserMpeg1Audio(
@@ -438,8 +408,7 @@ void Mp2tStreamParser::UpdatePidFilter() {
 }
 
 void Mp2tStreamParser::OnVideoConfigChanged(
-    int pes_pid,
-    const VideoDecoderConfig& video_decoder_config) {
+    int pes_pid, const VideoDecoderConfig& video_decoder_config) {
   DVLOG(1) << "OnVideoConfigChanged for pid=" << pes_pid;
   DCHECK_EQ(pes_pid, selected_video_pid_);
   DCHECK(video_decoder_config.IsValidConfig());
@@ -453,8 +422,8 @@ void Mp2tStreamParser::OnVideoConfigChanged(
     // Create a new entry in |buffer_queue_chain_| with the updated configs.
     BufferQueueWithConfig buffer_queue_with_config(
         false,
-        buffer_queue_chain_.empty()
-        ? AudioDecoderConfig() : buffer_queue_chain_.back().audio_config,
+        buffer_queue_chain_.empty() ? AudioDecoderConfig()
+                                    : buffer_queue_chain_.back().audio_config,
         video_decoder_config);
     buffer_queue_chain_.push_back(buffer_queue_with_config);
   }
@@ -462,16 +431,15 @@ void Mp2tStreamParser::OnVideoConfigChanged(
   // Replace any non valid config with the 1st valid entry.
   // This might happen if there was no available config before.
   for (std::list<BufferQueueWithConfig>::iterator it =
-       buffer_queue_chain_.begin(); it != buffer_queue_chain_.end(); ++it) {
-    if (it->video_config.IsValidConfig())
-      break;
+           buffer_queue_chain_.begin();
+       it != buffer_queue_chain_.end(); ++it) {
+    if (it->video_config.IsValidConfig()) break;
     it->video_config = video_decoder_config;
   }
 }
 
 void Mp2tStreamParser::OnAudioConfigChanged(
-    int pes_pid,
-    const AudioDecoderConfig& audio_decoder_config) {
+    int pes_pid, const AudioDecoderConfig& audio_decoder_config) {
   DVLOG(1) << "OnAudioConfigChanged for pid=" << pes_pid;
   DCHECK_EQ(pes_pid, selected_audio_pid_);
   DCHECK(audio_decoder_config.IsValidConfig());
@@ -484,19 +452,18 @@ void Mp2tStreamParser::OnAudioConfigChanged(
   } else {
     // Create a new entry in |buffer_queue_chain_| with the updated configs.
     BufferQueueWithConfig buffer_queue_with_config(
-        false,
-        audio_decoder_config,
-        buffer_queue_chain_.empty()
-        ? VideoDecoderConfig() : buffer_queue_chain_.back().video_config);
+        false, audio_decoder_config,
+        buffer_queue_chain_.empty() ? VideoDecoderConfig()
+                                    : buffer_queue_chain_.back().video_config);
     buffer_queue_chain_.push_back(buffer_queue_with_config);
   }
 
   // Replace any non valid config with the 1st valid entry.
   // This might happen if there was no available config before.
   for (std::list<BufferQueueWithConfig>::iterator it =
-       buffer_queue_chain_.begin(); it != buffer_queue_chain_.end(); ++it) {
-    if (it->audio_config.IsValidConfig())
-      break;
+           buffer_queue_chain_.begin();
+       it != buffer_queue_chain_.end(); ++it) {
+    if (it->audio_config.IsValidConfig()) break;
     it->audio_config = audio_decoder_config;
   }
 }
@@ -520,12 +487,10 @@ std::unique_ptr<MediaTracks> GenerateMediaTrackInfo(
 
 bool Mp2tStreamParser::FinishInitializationIfNeeded() {
   // Nothing to be done if already initialized.
-  if (is_initialized_)
-    return true;
+  if (is_initialized_) return true;
 
   // Wait for more data to come to finish initialization.
-  if (buffer_queue_chain_.empty())
-    return true;
+  if (buffer_queue_chain_.empty()) return true;
 
   // Wait for more data to come if one of the config is not available.
   BufferQueueWithConfig& queue_with_config = buffer_queue_chain_.front();
@@ -560,20 +525,15 @@ bool Mp2tStreamParser::FinishInitializationIfNeeded() {
 }
 
 void Mp2tStreamParser::OnEmitAudioBuffer(
-    int pes_pid,
-    scoped_refptr<StreamParserBuffer> stream_parser_buffer) {
+    int pes_pid, scoped_refptr<StreamParserBuffer> stream_parser_buffer) {
   DCHECK_EQ(pes_pid, selected_audio_pid_);
 
   DVLOG(LOG_LEVEL_ES)
       << "OnEmitAudioBuffer: "
-      << " size="
-      << stream_parser_buffer->data_size()
-      << " dts="
-      << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
-      << " pts="
-      << stream_parser_buffer->timestamp().InMilliseconds()
-      << " dur="
-      << stream_parser_buffer->duration().InMilliseconds();
+      << " size=" << stream_parser_buffer->data_size()
+      << " dts=" << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
+      << " pts=" << stream_parser_buffer->timestamp().InMilliseconds()
+      << " dur=" << stream_parser_buffer->duration().InMilliseconds();
 
   // Ignore the incoming buffer if it is not associated with any config.
   if (buffer_queue_chain_.empty()) {
@@ -585,22 +545,16 @@ void Mp2tStreamParser::OnEmitAudioBuffer(
 }
 
 void Mp2tStreamParser::OnEmitVideoBuffer(
-    int pes_pid,
-    scoped_refptr<StreamParserBuffer> stream_parser_buffer) {
+    int pes_pid, scoped_refptr<StreamParserBuffer> stream_parser_buffer) {
   DCHECK_EQ(pes_pid, selected_video_pid_);
 
   DVLOG(LOG_LEVEL_ES)
       << "OnEmitVideoBuffer"
-      << " size="
-      << stream_parser_buffer->data_size()
-      << " dts="
-      << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
-      << " pts="
-      << stream_parser_buffer->timestamp().InMilliseconds()
-      << " dur="
-      << stream_parser_buffer->duration().InMilliseconds()
-      << " is_key_frame="
-      << stream_parser_buffer->is_key_frame();
+      << " size=" << stream_parser_buffer->data_size()
+      << " dts=" << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
+      << " pts=" << stream_parser_buffer->timestamp().InMilliseconds()
+      << " dur=" << stream_parser_buffer->duration().InMilliseconds()
+      << " is_key_frame=" << stream_parser_buffer->is_key_frame();
 
   // Ignore the incoming buffer if it is not associated with any config.
   if (buffer_queue_chain_.empty()) {
@@ -615,11 +569,9 @@ bool Mp2tStreamParser::EmitRemainingBuffers() {
   DVLOG(LOG_LEVEL_ES) << "Mp2tStreamParser::EmitRemainingBuffers";
 
   // No buffer should be sent until fully initialized.
-  if (!is_initialized_)
-    return true;
+  if (!is_initialized_) return true;
 
-  if (buffer_queue_chain_.empty())
-    return true;
+  if (buffer_queue_chain_.empty()) return true;
 
   // Keep track of the last audio and video config sent.
   AudioDecoderConfig last_audio_config =
@@ -669,8 +621,8 @@ bool Mp2tStreamParser::EmitRemainingBuffers() {
 
   // Push an empty queue with the last audio/video config
   // so that buffers with the same config can be added later on.
-  BufferQueueWithConfig queue_with_config(
-      true, last_audio_config, last_video_config);
+  BufferQueueWithConfig queue_with_config(true, last_audio_config,
+                                          last_video_config);
   buffer_queue_chain_.push_back(queue_with_config);
 
   return true;

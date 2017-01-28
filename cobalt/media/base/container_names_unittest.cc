@@ -38,9 +38,10 @@ TEST(ContainerNamesTest, CheckSmallBuffer) {
   VERIFY(buffer1, CONTAINER_SRT);
 
   // HLS has it's own loop.
-  char buffer2[] = "#EXTM3U"
-                   "some other random stuff"
-                   "#EXT-X-MEDIA-SEQUENCE:";
+  char buffer2[] =
+      "#EXTM3U"
+      "some other random stuff"
+      "#EXT-X-MEDIA-SEQUENCE:";
   VERIFY(buffer2, CONTAINER_HLS);
 
   // Try a large buffer all zeros.

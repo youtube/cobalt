@@ -19,10 +19,8 @@ MockPipelineClient::~MockPipelineClient() {}
 MockPipeline::MockPipeline() {}
 MockPipeline::~MockPipeline() {}
 
-void MockPipeline::Start(Demuxer* demuxer,
-                         std::unique_ptr<Renderer> renderer,
-                         Client* client,
-                         const PipelineStatusCB& seek_cb) {
+void MockPipeline::Start(Demuxer* demuxer, std::unique_ptr<Renderer> renderer,
+                         Client* client, const PipelineStatusCB& seek_cb) {
   Start(demuxer, &renderer, client, seek_cb);
 }
 
@@ -36,19 +34,14 @@ MockDemuxer::MockDemuxer() {}
 
 MockDemuxer::~MockDemuxer() {}
 
-std::string MockDemuxer::GetDisplayName() const {
-  return "MockDemuxer";
-}
+std::string MockDemuxer::GetDisplayName() const { return "MockDemuxer"; }
 
 MockDemuxerStream::MockDemuxerStream(DemuxerStream::Type type)
-    : type_(type), liveness_(LIVENESS_UNKNOWN) {
-}
+    : type_(type), liveness_(LIVENESS_UNKNOWN) {}
 
 MockDemuxerStream::~MockDemuxerStream() {}
 
-DemuxerStream::Type MockDemuxerStream::type() const {
-  return type_;
-}
+DemuxerStream::Type MockDemuxerStream::type() const { return type_; }
 
 DemuxerStream::Liveness MockDemuxerStream::liveness() const {
   return liveness_;
@@ -80,9 +73,7 @@ void MockDemuxerStream::set_liveness(DemuxerStream::Liveness liveness) {
   liveness_ = liveness;
 }
 
-VideoRotation MockDemuxerStream::video_rotation() {
-  return VIDEO_ROTATION_0;
-}
+VideoRotation MockDemuxerStream::video_rotation() { return VIDEO_ROTATION_0; }
 
 std::string MockVideoDecoder::GetDisplayName() const {
   return "MockVideoDecoder";
@@ -134,13 +125,9 @@ MockCdmContext::MockCdmContext() {}
 
 MockCdmContext::~MockCdmContext() {}
 
-int MockCdmContext::GetCdmId() const {
-  return cdm_id_;
-}
+int MockCdmContext::GetCdmId() const { return cdm_id_; }
 
-void MockCdmContext::set_cdm_id(int cdm_id) {
-  cdm_id_ = cdm_id;
-}
+void MockCdmContext::set_cdm_id(int cdm_id) { cdm_id_ = cdm_id; }
 
 MockStreamParser::MockStreamParser() {}
 
