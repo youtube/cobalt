@@ -52,6 +52,7 @@ class VectorMathTest : public testing::Test {
   std::unique_ptr<float[], base::AlignedFreeDeleter> input_vector_;
   std::unique_ptr<float[], base::AlignedFreeDeleter> output_vector_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(VectorMathTest);
 };
 

@@ -245,4 +245,5 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(0, 512),            // codec delay
         ::testing::Values(base::TimeDelta(),  // front discard
                           base::TimeDelta::FromMilliseconds(65))));
-}
+
+}  // namespace media

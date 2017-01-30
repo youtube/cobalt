@@ -605,7 +605,7 @@ static int ParseNonListElement(ElementType type, int id, int64_t element_size,
     default:
       DVLOG(1) << "Unhandled ID type " << type;
       return -1;
-  };
+  }
 
   DCHECK_LE(result, size);
   return result;

@@ -387,7 +387,6 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(VideoFrameStreamTestParams(false, 0, 3),
                       VideoFrameStreamTestParams(false, 2, 3)));
 
-
 TEST_P(VideoFrameStreamTest, Initialization) { Initialize(); }
 
 TEST_P(VideoFrameStreamTest, AllDecoderInitializationFails) {

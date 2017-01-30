@@ -5,6 +5,7 @@
 #include "media/formats/mp2t/ts_section_pmt.h"
 
 #include <map>
+#include <utility>
 
 #include "base/logging.h"
 #include "media/base/bit_reader.h"

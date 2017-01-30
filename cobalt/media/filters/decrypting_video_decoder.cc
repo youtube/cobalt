@@ -181,7 +181,6 @@ void DecryptingVideoDecoder::FinishInitialization(bool success) {
   base::ResetAndReturn(&init_cb_).Run(true);
 }
 
-
 void DecryptingVideoDecoder::DecodePendingBuffer() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecode) << state_;

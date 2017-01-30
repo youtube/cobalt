@@ -85,6 +85,7 @@ class AudioPullFifoTest : public testing::TestWithParam<int> {
   int fill_value_;
   int last_frame_delay_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(AudioPullFifoTest);
 };
 
