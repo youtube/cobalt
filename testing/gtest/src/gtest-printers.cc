@@ -43,10 +43,9 @@
 // defines Foo.
 
 #include "gtest/gtest-printers.h"
-#if !defined(STARBOARD)
 #include <ctype.h>
 #include <stdio.h>
-#endif  // !defined(STARBOARD)
+#include <cwchar>
 #include <ostream>  // NOLINT
 #include <string>
 #include "gtest/internal/gtest-port.h"
@@ -58,6 +57,9 @@ namespace {
 using ::std::ostream;
 
 // Prints a segment of bytes in the given object.
+GTEST_ATTRIBUTE_NO_SANITIZE_MEMORY_
+GTEST_ATTRIBUTE_NO_SANITIZE_ADDRESS_
+GTEST_ATTRIBUTE_NO_SANITIZE_THREAD_
 void PrintByteSegmentInObjectTo(const unsigned char* obj_bytes, size_t start,
                                 size_t count, ostream* os) {
   char text[5] = "";
@@ -178,7 +180,7 @@ static CharFormat PrintAsCharLiteralTo(Char c, ostream* os) {
         *os << static_cast<char>(c);
         return kAsIs;
       } else {
-        *os << String::Format("\\x%X", static_cast<UnsignedChar>(c));
+        *os << "\\x" + String::FormatHexInt(static_cast<UnsignedChar>(c));
         return kHexEscape;
       }
   }
@@ -223,7 +225,7 @@ void PrintCharAndCodeTo(Char c, ostream* os) {
   // obvious).
   if (c == 0)
     return;
-  *os << " (" << String::Format("%d", c).c_str();
+  *os << " (" << static_cast<int>(c);
 
   // For more convenience, we print c's code again in hexidecimal,
   // unless c was already printed in the form '\x##' or the code is in
@@ -231,8 +233,7 @@ void PrintCharAndCodeTo(Char c, ostream* os) {
   if (format == kHexEscape || (1 <= c && c <= 9)) {
     // Do nothing.
   } else {
-    *os << String::Format(", 0x%X",
-                          static_cast<UnsignedChar>(c)).c_str();
+    *os << ", 0x" << String::FormatHexInt(static_cast<UnsignedChar>(c));
   }
   *os << ")";
 }
@@ -255,6 +256,9 @@ void PrintTo(wchar_t wc, ostream* os) {
 // The array starts at begin, the length is len, it may include '\0' characters
 // and may not be NUL-terminated.
 template <typename CharType>
+GTEST_ATTRIBUTE_NO_SANITIZE_MEMORY_
+GTEST_ATTRIBUTE_NO_SANITIZE_ADDRESS_
+GTEST_ATTRIBUTE_NO_SANITIZE_THREAD_
 static void PrintCharsAsStringTo(
     const CharType* begin, size_t len, ostream* os) {
   const char* const kQuoteBegin = sizeof(CharType) == 1 ? "\"" : "L\"";
@@ -276,6 +280,9 @@ static void PrintCharsAsStringTo(
 // Prints a (const) char/wchar_t array of 'len' elements, starting at address
 // 'begin'.  CharType must be either char or wchar_t.
 template <typename CharType>
+GTEST_ATTRIBUTE_NO_SANITIZE_MEMORY_
+GTEST_ATTRIBUTE_NO_SANITIZE_ADDRESS_
+GTEST_ATTRIBUTE_NO_SANITIZE_THREAD_
 static void UniversalPrintCharArray(
     const CharType* begin, size_t len, ostream* os) {
   // The code
@@ -315,7 +322,7 @@ void PrintTo(const char* s, ostream* os) {
     *os << "NULL";
   } else {
     *os << ImplicitCast_<const void*>(s) << " pointing to ";
-    PrintCharsAsStringTo(s, internal::posix::StrLen(s), os);
+    PrintCharsAsStringTo(s, strlen(s), os);
   }
 }
 
@@ -332,7 +339,7 @@ void PrintTo(const wchar_t* s, ostream* os) {
     *os << "NULL";
   } else {
     *os << ImplicitCast_<const void*>(s) << " pointing to ";
-    PrintCharsAsStringTo(s, wcslen(s), os);
+    PrintCharsAsStringTo(s, std::wcslen(s), os);
   }
 }
 #endif  // wchar_t is native
