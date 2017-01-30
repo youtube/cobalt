@@ -20,7 +20,6 @@
 #define STARBOARD_FILE_H_
 
 #include "starboard/export.h"
-#include "starboard/log.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
