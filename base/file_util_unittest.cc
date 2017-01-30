@@ -33,6 +33,9 @@
 #if defined(OS_WIN)
 #include "base/win/scoped_handle.h"
 #endif
+#if defined(OS_STARBOARD)
+#include "starboard/string.h"
+#endif
 
 // This macro helps avoid wrapped lines in the test structs.
 #define FPL(x) FILE_PATH_LITERAL(x)
