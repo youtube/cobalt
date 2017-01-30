@@ -270,7 +270,7 @@ bool VerifyTextBuffers(const scoped_ptr<WebMClusterParser>& parser,
 
 void VerifyEncryptedBuffer(scoped_refptr<StreamParserBuffer> buffer) {
   EXPECT_TRUE(buffer->decrypt_config());
-  EXPECT_EQ(static_cast<unsigned long>(DecryptConfig::kDecryptionKeySize),
+  EXPECT_EQ(static_cast<size_t>(DecryptConfig::kDecryptionKeySize),
             buffer->decrypt_config()->iv().length());
 }
 

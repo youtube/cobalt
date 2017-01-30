@@ -725,7 +725,6 @@ TEST_F(TextRendererTest, PlayPauseRemove_SplitCancel) {
   EXPECT_FALSE(text_renderer_->HasTracks());
 }
 
-
 TEST_F(TextRendererTest, PlayPauseRemove_PauseLast) {
   CreateTextRenderer();
   AddTextTrack(kTextSubtitles, "1", "", true);

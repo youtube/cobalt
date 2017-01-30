@@ -479,18 +479,22 @@ DemuxerStream* ChunkDemuxer::GetStream(DemuxerStream::Type type) {
   DCHECK_NE(type, DemuxerStream::TEXT);
   base::AutoLock auto_lock(lock_);
 
-  // TODO(servolk): For now return only the first enabled audio/video stream,
-  // since this GetStream method is part of the implementation of the
-  // DemuxerStreamProvider interface that is used in many places and can't be
-  // changed easily. It will be fixed later, when we add support for multiple
-  // streams/tracks in DemuxerStreamProvider, tracked by crbug.com/646669
-  if (type == DemuxerStream::AUDIO)
-    for (size_t i = 0; i < audio_streams_.size(); ++i)
+  // TODO: For now return only the first enabled audio/video stream, since this
+  // GetStream method is part of the implementation of the DemuxerStreamProvider
+  // interface that is used in many places and can't be changed easily. It will
+  // be fixed later, when we add support for multiple streams/tracks in
+  // DemuxerStreamProvider, tracked by crbug.com/646669
+  if (type == DemuxerStream::AUDIO) {
+    for (size_t i = 0; i < audio_streams_.size(); ++i) {
       if (audio_streams_[i]->enabled()) return audio_streams_[i];
+    }
+  }
 
-  if (type == DemuxerStream::VIDEO)
-    for (size_t i = 0; i < video_streams_.size(); ++i)
+  if (type == DemuxerStream::VIDEO) {
+    for (size_t i = 0; i < video_streams_.size(); ++i) {
       if (video_streams_[i]->enabled()) return video_streams_[i];
+    }
+  }
 
   return NULL;
 }
@@ -930,7 +934,6 @@ void ChunkDemuxer::SetGroupStartTimestampIfInSequenceMode(
   source_state_map_[id]->SetGroupStartTimestampIfInSequenceMode(
       timestamp_offset);
 }
-
 
 void ChunkDemuxer::MarkEndOfStream(PipelineStatus status) {
   DVLOG(1) << "MarkEndOfStream(" << status << ")";

@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -49,6 +50,7 @@ class TransportClient : public CastTransport::Client {
       std::unique_ptr<std::vector<PacketEvent>> packet_events) final{};
   void ProcessRtpPacket(std::unique_ptr<Packet> packet) final{};
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(TransportClient);
 };
 

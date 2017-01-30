@@ -220,7 +220,6 @@ TEST_F(WebMParserTest, VoidAndCRC32InList) {
   EXPECT_TRUE(parser.IsParsingComplete());
 }
 
-
 TEST_F(WebMParserTest, ParseListElementWithSingleCall) {
   std::unique_ptr<Cluster> cluster(CreateCluster(kBlockCount));
   CreateClusterExpectations(kBlockCount, true, &client_);

@@ -6,6 +6,8 @@
 
 #include <math.h>
 #include <stdlib.h>
+
+#include <deque>
 #include <utility>
 #include <vector>
 
@@ -117,7 +119,7 @@ std::unique_ptr<PacketPipe> NewBuffer(size_t buffer_size, double bandwidth) {
 
 class RandomDrop : public PacketPipe {
  public:
-  RandomDrop(double drop_fraction)
+  explicit RandomDrop(double drop_fraction)
       : drop_fraction_(static_cast<int>(drop_fraction * RAND_MAX)) {}
 
   void Send(std::unique_ptr<Packet> packet) final {
@@ -161,7 +163,7 @@ class SimpleDelayBase : public PacketPipe {
 
 class ConstantDelay : public SimpleDelayBase {
  public:
-  ConstantDelay(double delay_seconds) : delay_seconds_(delay_seconds) {}
+  explicit ConstantDelay(double delay_seconds) : delay_seconds_(delay_seconds) {}
   double GetDelay() final { return delay_seconds_; }
 
  private:
@@ -174,7 +176,8 @@ std::unique_ptr<PacketPipe> NewConstantDelay(double delay_seconds) {
 
 class RandomUnsortedDelay : public SimpleDelayBase {
  public:
-  RandomUnsortedDelay(double random_delay) : random_delay_(random_delay) {}
+  explicit RandomUnsortedDelay(double random_delay)
+      : random_delay_(random_delay) {}
 
   double GetDelay() override { return random_delay_ * base::RandDouble(); }
 
@@ -336,7 +339,6 @@ std::unique_ptr<PacketPipe> NewNetworkGlitchPipe(double average_work_time,
   return std::unique_ptr<PacketPipe>(
       new NetworkGlitchPipe(average_work_time, average_outage_time));
 }
-
 
 // Internal buffer object for a client of the IPP model.
 class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
