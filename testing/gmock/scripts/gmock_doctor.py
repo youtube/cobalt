@@ -175,11 +175,15 @@ def _NeedToReturnReferenceDiagnoser(msg):
                  r'note: in instantiation of function template specialization '
                  r'\'testing::internal::ReturnAction<(?P<type>.*)>'
                  r'::operator Action<.*>\' requested here')
+  clang11_re = (r'use_ReturnRef_instead_of_Return_to_return_a_reference.*'
+                r'(.*\n)*?' + _CLANG_NON_GMOCK_FILE_LINE_RE)
+
   diagnosis = """
 You are using a Return() action in a function that returns a reference to
 %(type)s.  Please use ReturnRef() instead."""
   return _GenericDiagnoser('NRR', 'Need to Return Reference',
                            [(clang_regex, diagnosis),
+                            (clang11_re, diagnosis % {'type': 'a type'}),
                             (gcc_regex, diagnosis % {'type': 'a type'})],
                            msg)
 
@@ -304,7 +308,7 @@ def _OverloadedFunctionActionDiagnoser(msg):
   clang_regex = (_CLANG_FILE_LINE_RE + r'error: no matching '
                  r'function for call to \'Invoke\'\r?\n'
                  r'(.*\n)*?'
-                 r'.*\bgmock-\w+-actions\.h:\d+:\d+:\s+'
+                 r'.*\bgmock-generated-actions\.h:\d+:\d+:\s+'
                  r'note: candidate template ignored:\s+'
                  r'couldn\'t infer template argument \'FunctionImpl\'')
   diagnosis = """
@@ -330,7 +334,7 @@ def _OverloadedMethodActionDiagnoser(msg):
   clang_regex = (_CLANG_FILE_LINE_RE + r'error: no matching function '
                  r'for call to \'Invoke\'\r?\n'
                  r'(.*\n)*?'
-                 r'.*\bgmock-\w+-actions\.h:\d+:\d+: '
+                 r'.*\bgmock-generated-actions\.h:\d+:\d+: '
                  r'note: candidate function template not viable: '
                  r'requires .*, but 2 (arguments )?were provided')
   diagnosis = """
@@ -358,7 +362,7 @@ def _MockObjectPointerDiagnoser(msg):
                r'which is of non-class type \'(.*::)*(?P<class_name>.+)\*\'')
   clang_regex = (_CLANG_FILE_LINE_RE + r'error: member reference type '
                  r'\'(?P<class_name>.*?) *\' is a pointer; '
-                 r'maybe you meant to use \'->\'\?')
+                 r'(did you mean|maybe you meant) to use \'->\'\?')
   diagnosis = """
 The first argument to ON_CALL() and EXPECT_CALL() must be a mock *object*,
 not a *pointer* to it.  Please write '*(%(mock_object)s)' instead of
@@ -517,12 +521,17 @@ def _WrongMockMethodMacroDiagnoser(msg):
                  r'(?P=file):(?P=line):(?P=column): error: too few arguments '
                  r'to function call, expected (?P<args>\d+), '
                  r'have (?P<wrong_args>\d+)')
+  clang11_re = (_CLANG_NON_GMOCK_FILE_LINE_RE +
+                r'.*this_method_does_not_take_'
+                r'(?P<wrong_args>\d+)_argument.*')
   diagnosis = """
 You are using MOCK_METHOD%(wrong_args)s to define a mock method that has
 %(args)s arguments. Use MOCK_METHOD%(args)s (or MOCK_CONST_METHOD%(args)s,
 MOCK_METHOD%(args)s_T, MOCK_CONST_METHOD%(args)s_T as appropriate) instead."""
   return _GenericDiagnoser('WMM', 'Wrong MOCK_METHODn Macro',
                            [(gcc_regex, diagnosis),
+                            (clang11_re, diagnosis % {'wrong_args': 'm',
+                                                      'args': 'n'}),
                             (clang_regex, diagnosis)],
                            msg)
 
