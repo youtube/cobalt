@@ -29,12 +29,11 @@
 //
 // Authors: keith.ray@gmail.com (Keith Ray)
 
+#include "gtest/gtest-message.h"
 #include "gtest/internal/gtest-filepath.h"
 #include "gtest/internal/gtest-port.h"
 
-#if !GTEST_OS_STARBOARD
 #include <stdlib.h>
-#endif
 
 #if GTEST_OS_WINDOWS_MOBILE
 # include <windows.h>
@@ -71,7 +70,6 @@ namespace internal {
 // of them.
 const char kPathSeparator = '\\';
 const char kAlternatePathSeparator = '/';
-const char kPathSeparatorString[] = "\\";
 const char kAlternatePathSeparatorString[] = "/";
 # if GTEST_OS_WINDOWS_MOBILE
 // Windows CE doesn't have a current directory. You should not use
@@ -85,7 +83,6 @@ const char kCurrentDirectoryString[] = ".\\";
 # endif  // GTEST_OS_WINDOWS_MOBILE
 #else
 const char kPathSeparator = '/';
-const char kPathSeparatorString[] = "/";
 const char kCurrentDirectoryString[] = "./";
 #endif  // GTEST_OS_WINDOWS
 
@@ -100,7 +97,7 @@ static bool IsPathSeparator(char c) {
 
 // Returns the current working directory, or "" if unsuccessful.
 FilePath FilePath::GetCurrentDir() {
-#if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_STARBOARD
+#if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_WINDOWS_PHONE || GTEST_OS_WINDOWS_RT
   // Windows CE doesn't have a current directory, so we just return
   // something reasonable.
   return FilePath(kCurrentDirectoryString);
@@ -109,7 +106,14 @@ FilePath FilePath::GetCurrentDir() {
   return FilePath(_getcwd(cwd, sizeof(cwd)) == NULL ? "" : cwd);
 #else
   char cwd[GTEST_PATH_MAX_ + 1] = { '\0' };
-  return FilePath(getcwd(cwd, sizeof(cwd)) == NULL ? "" : cwd);
+  char* result = getcwd(cwd, sizeof(cwd));
+# if GTEST_OS_NACL
+  // getcwd will likely fail in NaCl due to the sandbox, so return something
+  // reasonable. The user may have provided a shim implementation for getcwd,
+  // however, so fallback only when failure is detected.
+  return FilePath(result == NULL ? kCurrentDirectoryString : cwd);
+# endif  // GTEST_OS_NACL
+  return FilePath(result == NULL ? "" : cwd);
 #endif  // GTEST_OS_WINDOWS_MOBILE
 }
 
@@ -130,11 +134,9 @@ FilePath FilePath::RemoveExtension(const char* extension) const {
 // the FilePath. On Windows, for example, both '/' and '\' are valid path
 // separators. Returns NULL if no path separator was found.
 const char* FilePath::FindLastPathSeparator() const {
-  const char* const last_sep =
-      internal::posix::StrRChr(c_str(), kPathSeparator);
+  const char* const last_sep = strrchr(c_str(), kPathSeparator);
 #if GTEST_HAS_ALT_PATH_SEP_
-  const char* const last_alt_sep =
-      internal::posix::StrRChr(c_str(), kAlternatePathSeparator);
+  const char* const last_alt_sep = strrchr(c_str(), kAlternatePathSeparator);
   // Comparing two pointers of which only one is NULL is undefined.
   if (last_alt_sep != NULL &&
       (last_sep == NULL || last_alt_sep > last_sep)) {
@@ -186,7 +188,7 @@ FilePath FilePath::MakeFileName(const FilePath& directory,
   if (number == 0) {
     file = base_name.string() + "." + extension;
   } else {
-    file = base_name.string() + "_" + String::Format("%d", number).c_str()
+    file = base_name.string() + "_" + StreamableToString(number)
         + "." + extension;
   }
   return ConcatPaths(directory, FilePath(file));
@@ -329,7 +331,7 @@ bool FilePath::CreateFolder() const {
 #elif GTEST_OS_WINDOWS
   int result = _mkdir(pathname_.c_str());
 #else
-  int result = posix::MkDir(pathname_.c_str(), 0777);
+  int result = mkdir(pathname_.c_str(), 0777);
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
   if (result == -1) {
@@ -359,7 +361,7 @@ void FilePath::Normalize() {
   const char* src = pathname_.c_str();
   char* const dest = new char[pathname_.length() + 1];
   char* dest_ptr = dest;
-  internal::posix::MemSet(dest_ptr, 0, pathname_.length() + 1);
+  memset(dest_ptr, 0, pathname_.length() + 1);
 
   while (*src != '\0') {
     *dest_ptr = *src;

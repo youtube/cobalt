@@ -39,9 +39,7 @@
 
 #include "gtest/internal/gtest-internal.h"
 
-#if !GTEST_OS_STARBOARD
 #include <stdio.h>
-#endif  // !GTEST_OS_STARBOARD
 
 namespace testing {
 namespace internal {
