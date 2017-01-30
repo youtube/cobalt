@@ -97,7 +97,7 @@ bool HEVCDecoderConfigurationRecord::ParseInternal(
   temporalIdNested = (misc >> 2) & 1;
   lengthSizeMinusOne = misc & 3;
 
-  DVLOG(2) << __FUNCTION__ << " numOfArrays=" << (int)numOfArrays;
+  DVLOG(2) << __FUNCTION__ << " numOfArrays=" << static_cast<int>(numOfArrays);
   arrays.resize(numOfArrays);
   for (uint32_t j = 0; j < numOfArrays; j++) {
     RCHECK(reader->Read1(&arrays[j].first_byte));
@@ -109,7 +109,7 @@ bool HEVCDecoderConfigurationRecord::ParseInternal(
       RCHECK(reader->Read2(&naluLength) &&
              reader->ReadVec(&arrays[j].units[i], naluLength));
       DVLOG(4) << __FUNCTION__
-               << " naluType=" << (int)(arrays[j].first_byte & 0x3f)
+               << " naluType=" << static_cast<int>(arrays[j].first_byte & 0x3f)
                << " size=" << arrays[j].units[i].size();
     }
   }
@@ -166,7 +166,7 @@ bool HEVC::InsertParamSetsAnnexB(
   RCHECK(HEVC::ConvertConfigToAnnexB(hevc_config, &param_sets));
   DVLOG(4) << __FUNCTION__ << " converted hvcC to AnnexB "
            << " size=" << param_sets.size() << " inserted at "
-           << (int)(config_insert_point - buffer->begin());
+           << static_cast<int>(config_insert_point - buffer->begin());
 
   if (subsamples && !subsamples->empty()) {
     int subsample_index =
@@ -190,7 +190,7 @@ bool HEVC::ConvertConfigToAnnexB(
   for (size_t j = 0; j < hevc_config.arrays.size(); j++) {
     uint8_t naluType = hevc_config.arrays[j].first_byte & 0x3f;
     for (size_t i = 0; i < hevc_config.arrays[j].units.size(); ++i) {
-      DVLOG(3) << __FUNCTION__ << " naluType=" << (int)naluType
+      DVLOG(3) << __FUNCTION__ << " naluType=" << static_cast<int>(naluType)
                << " size=" << hevc_config.arrays[j].units[i].size();
       buffer->insert(buffer->end(), kAnnexBStartCode,
                      kAnnexBStartCode + kAnnexBStartCodeSize);

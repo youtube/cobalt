@@ -392,7 +392,7 @@ class End2EndTest : public ::testing::Test {
  public:
   void ReceivePacket(std::unique_ptr<media::cast::Packet> packet) {
     cast_receiver_->ReceivePacket(std::move(packet));
-  };
+  }
 
  protected:
   End2EndTest()

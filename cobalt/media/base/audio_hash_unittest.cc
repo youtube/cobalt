@@ -48,6 +48,7 @@ class AudioHashTest : public testing::Test {
   std::unique_ptr<AudioBus> bus_two_;
   FakeAudioRenderCallback fake_callback_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(AudioHashTest);
 };
 

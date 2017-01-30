@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "media/base/video_frame.h"

@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/memory/ptr_util.h"
 #include "cobalt/media/base/test_data_util.h"

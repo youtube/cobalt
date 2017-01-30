@@ -51,8 +51,8 @@ class MEDIA_BLINK_EXPORT ResourceMultiBufferDataProvider
       blink::WebURLRequest& newRequest,
       const blink::WebURLResponse& redirectResponse) OVERRIDE;
   void didSendData(blink::WebURLLoader* loader,
-                   unsigned long long bytesSent,
-                   unsigned long long totalBytesToBeSent) OVERRIDE;
+                   uint64 bytesSent,
+                   uint64 totalBytesToBeSent) OVERRIDE;
   void didReceiveResponse(blink::WebURLLoader* loader,
                           const blink::WebURLResponse& response) OVERRIDE;
   void didDownloadData(blink::WebURLLoader* loader,

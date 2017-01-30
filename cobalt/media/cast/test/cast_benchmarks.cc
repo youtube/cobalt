@@ -459,7 +459,7 @@ class TransportClient : public CastTransport::Client {
   DISALLOW_COPY_AND_ASSIGN(TransportClient);
 };
 
-}  // namepspace
+}  // namespace
 
 void RunOneBenchmark::Create(const MeasuringPoint& p) {
   sender_to_receiver_ = new LoopBackTransport(cast_environment_sender_);

@@ -64,7 +64,7 @@ bool H264BitReader::UpdateCurrByte() {
 bool H264BitReader::ReadBits(int num_bits, int* out) {
   int bits_left = num_bits;
   *out = 0;
-  DCHECK(num_bits <= 31);
+  DCHECK_GE(31, num_bits);
 
   while (num_remaining_bits_in_curr_byte_ < bits_left) {
     // Take all that's left in current byte, shift to make space for the rest.

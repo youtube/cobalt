@@ -72,7 +72,7 @@ class TestKeySystemProperties : public KeySystemProperties {
 
 class AesKeySystemProperties : public TestKeySystemProperties {
  public:
-  AesKeySystemProperties(const std::string& name) : name_(name) {}
+  explicit AesKeySystemProperties(const std::string& name) : name_(name) {}
 
   std::string GetKeySystemName() const override { return name_; }
   EmeSessionTypeSupport GetPersistentLicenseSessionSupport() const override {
