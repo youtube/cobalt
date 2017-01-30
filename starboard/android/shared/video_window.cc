@@ -78,7 +78,7 @@ void fillWithColor(ANativeWindow* window, int32_t color) {
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(
+void Java_foo_cobalt_VideoSurfaceView_onVideoSurfaceChanged(
     JNIEnv* env, jobject unused_this, jobject surface) {
   if (native_video_window_) {
     // TODO: Ensure that the decoder isn't still using the window.
