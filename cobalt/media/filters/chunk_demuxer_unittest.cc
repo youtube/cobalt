@@ -1740,7 +1740,6 @@ TEST_F(ChunkDemuxerTest, BackwardsAndBeforeClusterTimecode) {
       &timestamp_offset_map_[kSourceId]));
 }
 
-
 TEST_F(ChunkDemuxerTest, PerStreamMonotonicallyIncreasingTimestamps) {
   ASSERT_TRUE(InitDemuxer(HAS_AUDIO | HAS_VIDEO));
   ASSERT_TRUE(AppendCluster(kDefaultFirstCluster()));
@@ -3481,7 +3480,6 @@ TEST_F(ChunkDemuxerTest, EndOfStreamTruncateDuration) {
                          kDefaultFirstClusterEndTimestamp)));
   MarkEndOfStream(PIPELINE_OK);
 }
-
 
 TEST_F(ChunkDemuxerTest, ZeroLengthAppend) {
   ASSERT_TRUE(InitDemuxer(HAS_AUDIO | HAS_VIDEO));

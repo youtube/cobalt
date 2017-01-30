@@ -14,7 +14,6 @@
 
 namespace media {
 
-
 // Waveform Similarity Overlap-and-add (WSOLA).
 //
 // One WSOLA iteration

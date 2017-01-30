@@ -138,4 +138,5 @@ void AudioTimestampValidator::RecordOutputDuration(
   DVLOG(3) << __func__ << " " << audio_buffer->frame_count() << " frames";
   audio_output_ts_helper_->AddFrames(audio_buffer->frame_count());
 }
-}
+
+}  // namespace media

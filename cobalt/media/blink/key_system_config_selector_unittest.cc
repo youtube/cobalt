@@ -29,8 +29,8 @@ const char kRecommendIdentifier[] = "recommend_identifier";
 const char kRequireIdentifier[] = "require_identifier";
 const char kUnsupported[] = "unsupported";
 
-// TODO(sandersd): Audio and video variants (doesn't matter for now because the
-// checks are in KeySystems).
+// TODO: Audio and video variants (doesn't matter for now because the checks are
+// in KeySystems).
 const char kSupportedContainer[] = "video/webm";
 const char kUnsupportedContainer[] = "video/foo";
 
@@ -244,6 +244,7 @@ class KeySystemConfigSelectorTest : public testing::Test {
   int succeeded_count_;
   int not_supported_count_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(KeySystemConfigSelectorTest);
 };
 

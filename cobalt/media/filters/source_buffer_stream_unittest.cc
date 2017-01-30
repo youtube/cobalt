@@ -3233,7 +3233,6 @@ TEST_F(SourceBufferStreamTest, ConfigChange_Seek) {
   CheckVideoConfig(new_config);
   CheckExpectedBuffers(5, 9, &kDataB);
 
-
   // Seek to the start which has a different config. Don't fetch any buffers and
   // seek back to buffers with the current config. Make sure a config change
   // isn't signalled in this case.
@@ -3241,7 +3240,6 @@ TEST_F(SourceBufferStreamTest, ConfigChange_Seek) {
   Seek(0);
   Seek(7);
   CheckExpectedBuffers(5, 9, &kDataB);
-
 
   // Seek to the start and make sure a config change is signalled.
   CheckVideoConfig(new_config);
@@ -3756,7 +3754,6 @@ TEST_F(SourceBufferStreamTest, EndNotSelected_During_PendingSeek) {
   stream_->MarkEndOfStream();
   EXPECT_TRUE(stream_->IsSeekPending());
 }
-
 
 // Removing exact start & end of a range.
 TEST_F(SourceBufferStreamTest, Remove_WholeRange1) {

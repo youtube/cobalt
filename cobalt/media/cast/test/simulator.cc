@@ -166,7 +166,7 @@ class TransportClient : public CastTransport::Client {
 // frame from FakeMediaSource.
 class EncodedVideoFrameTracker : public RawEventSubscriber {
  public:
-  EncodedVideoFrameTracker(FakeMediaSource* media_source)
+  explicit EncodedVideoFrameTracker(FakeMediaSource* media_source)
       : media_source_(media_source), last_frame_event_type_(UNKNOWN) {}
   ~EncodedVideoFrameTracker() final {}
 

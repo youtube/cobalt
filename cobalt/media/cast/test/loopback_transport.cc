@@ -19,7 +19,7 @@ namespace {
 // PacketReceiverCallback.
 class LoopBackPacketPipe : public test::PacketPipe {
  public:
-  LoopBackPacketPipe(const PacketReceiverCallback& packet_receiver)
+  explicit LoopBackPacketPipe(const PacketReceiverCallback& packet_receiver)
       : packet_receiver_(packet_receiver) {}
 
   ~LoopBackPacketPipe() final {}

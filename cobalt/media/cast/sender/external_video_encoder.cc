@@ -4,8 +4,12 @@
 
 #include "media/cast/sender/external_video_encoder.h"
 
+#include <algorithm>
 #include <cmath>
+#include <list>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/command_line.h"
@@ -223,8 +227,8 @@ class ExternalVideoEncoder::VEAClientImpl
         CastEnvironment::MAIN, FROM_HERE,
         base::Bind(status_change_cb_, STATUS_CODEC_RUNTIME_ERROR));
 
-    // TODO(miu): Force-flush all |in_progress_frame_encodes_| immediately so
-    // pending frames do not become stuck, freezing VideoSender.
+    // TODO: Force-flush all |in_progress_frame_encodes_| immediately so pending
+    // frames do not become stuck, freezing VideoSender.
   }
 
   // Called to allocate the input and output buffers.

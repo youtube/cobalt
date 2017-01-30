@@ -124,7 +124,6 @@ TEST_F(AudioTimestampHelperTest, Basic) {
   EXPECT_TRUE(timestamp_1 == helper_.GetTimestamp());
 }
 
-
 TEST_F(AudioTimestampHelperTest, GetDuration) {
   helper_.SetBaseTimestamp(base::TimeDelta::FromMicroseconds(100));
 

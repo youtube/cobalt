@@ -119,6 +119,7 @@ class AudioFileReaderTest : public testing::Test {
   std::unique_ptr<AudioFileReader> reader_;
   bool packet_verification_disabled_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(AudioFileReaderTest);
 };
 

@@ -20,8 +20,7 @@ int TsPacket::Sync(const uint8_t* buf, int size) {
   for (; k < size; k++) {
     // Verify that we have 4 syncwords in a row when possible,
     // this should improve synchronization robustness.
-    // TODO(damienv): Consider the case where there is garbage
-    // between TS packets.
+    // TODO: Consider the case where there is garbage between TS packets.
     bool is_header = true;
     for (int i = 0; i < 4; i++) {
       int idx = k + i * kPacketSize;

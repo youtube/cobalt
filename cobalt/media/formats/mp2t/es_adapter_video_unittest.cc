@@ -54,7 +54,8 @@ StreamParserBuffer::BufferQueue GenerateFakeBuffers(const int* frame_pts_ms,
   }
   return buffers;
 }
-}
+
+}  // namespace
 
 class EsAdapterVideoTest : public testing::Test {
  public:

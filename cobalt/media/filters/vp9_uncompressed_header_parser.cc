@@ -838,7 +838,7 @@ bool Vp9UncompressedHeaderParser::ReadSegmentationParams() {
         segmentation.feature_enabled[i][j] = reader_.ReadBool();
         if (segmentation.feature_enabled[i][j]) {
           data = reader_.ReadLiteral(kFeatureDataBits[j]);
-          if (kFeatureDataSigned[j])
+          if (kFeatureDataSigned[j]) {
             if (reader_.ReadBool()) {
               // 7.2.9
               if (segmentation.abs_or_delta_update) {
@@ -848,6 +848,7 @@ bool Vp9UncompressedHeaderParser::ReadSegmentationParams() {
               }
               data = -data;
             }
+          }
         }
         segmentation.feature_data[i][j] = data;
       }
