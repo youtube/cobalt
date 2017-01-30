@@ -116,7 +116,6 @@ class FixedCongestionControl : public CongestionControl {
   DISALLOW_COPY_AND_ASSIGN(FixedCongestionControl);
 };
 
-
 CongestionControl* NewAdaptiveCongestionControl(base::TickClock* clock,
                                                 int max_bitrate_configured,
                                                 int min_bitrate_configured,

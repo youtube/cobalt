@@ -37,7 +37,6 @@ class BlockingUrlProtocolTest : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(BlockingUrlProtocolTest);
 };
 
-
 TEST_F(BlockingUrlProtocolTest, Read) {
   // Set read head to zero as Initialize() will have parsed a bit of the file.
   int64_t position = 0;

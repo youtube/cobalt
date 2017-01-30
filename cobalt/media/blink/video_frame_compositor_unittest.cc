@@ -89,6 +89,7 @@ class VideoFrameCompositorTest : public testing::Test,
 
   int did_receive_frame_count_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(VideoFrameCompositorTest);
 };
 

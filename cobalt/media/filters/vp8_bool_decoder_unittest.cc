@@ -14,9 +14,9 @@
 
 namespace media {
 
-const static size_t NUM_BITS_TO_TEST = 100;
-
 namespace {
+
+const size_t NUM_BITS_TO_TEST = 100;
 
 // 100 zeros with probability of 0x80.
 const uint8_t kDataZerosAndEvenProbabilities[] = {0x00, 0x00, 0x00, 0x00, 0x00,

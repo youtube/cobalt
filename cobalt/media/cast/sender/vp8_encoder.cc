@@ -4,6 +4,9 @@
 
 #include "media/cast/sender/vp8_encoder.h"
 
+#include <algorithm>
+#include <string>
+
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/format_macros.h"

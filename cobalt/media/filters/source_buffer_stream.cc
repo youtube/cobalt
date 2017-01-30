@@ -66,10 +66,10 @@ bool IsRangeListSorted(const std::list<media::SourceBufferRange*>& ranges) {
 // Returns an estimate of how far from the beginning or end of a range a buffer
 // can be to still be considered in the range, given the |approximate_duration|
 // of a buffer in the stream.
-// TODO(wolenetz): Once all stream parsers emit accurate frame durations, use
-// logic like FrameProcessor (2*last_frame_duration + last_decode_timestamp)
-// instead of an overall maximum interbuffer delta for range discontinuity
-// detection, and adjust similarly for splice frame discontinuity detection.
+// TODO: Once all stream parsers emit accurate frame durations, use logic like
+// FrameProcessor (2*last_frame_duration + last_decode_timestamp) instead of an
+// overall maximum interbuffer delta for range discontinuity detection, and
+// adjust similarly for splice frame discontinuity detection.
 // See http://crbug.com/351489 and http://crbug.com/351166.
 base::TimeDelta ComputeFudgeRoom(base::TimeDelta approximate_duration) {
   // Because we do not know exactly when is the next timestamp, any buffer
