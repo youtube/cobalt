@@ -23,7 +23,8 @@
             '../apk/app/src/main/java/foo/cobalt/AlertDialogPlatformError.java',
             '../apk/app/src/main/java/foo/cobalt/CobaltActivity.java',
             '../apk/app/src/main/java/foo/cobalt/PlatformError.java',
-            '../apk/app/src/main/java/foo/cobalt/UsedByNative.java'
+            '../apk/app/src/main/java/foo/cobalt/UsedByNative.java',
+            '../apk/app/src/main/java/foo/cobalt/VideoSurfaceView.java',
           ],
           'manifest': '../apk/app/src/main/AndroidManifest.xml',
           'keystore_path': 'debug.keystore',
