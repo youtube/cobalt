@@ -68,10 +68,8 @@
 #ifndef GTEST_INCLUDE_GTEST_INTERNAL_GTEST_LINKED_PTR_H_
 #define GTEST_INCLUDE_GTEST_INTERNAL_GTEST_LINKED_PTR_H_
 
-#if !defined(STARBOARD)
 #include <stdlib.h>
 #include <assert.h>
-#endif  // !GTEST_OS_STARBOARD
 
 #include "gtest/internal/gtest-port.h"
 
@@ -112,7 +110,12 @@ class linked_ptr_internal {
     MutexLock lock(&g_linked_ptr_mutex);
 
     linked_ptr_internal const* p = ptr;
-    while (p->next_ != ptr) p = p->next_;
+    while (p->next_ != ptr) {
+      assert(p->next_ != this &&
+             "Trying to join() a linked ring we are already in. "
+             "Is GMock thread safety enabled?");
+      p = p->next_;
+    }
     p->next_ = this;
     next_ = ptr;
   }
@@ -125,7 +128,12 @@ class linked_ptr_internal {
 
     if (next_ == this) return true;
     linked_ptr_internal const* p = next_;
-    while (p->next_ != this) p = p->next_;
+    while (p->next_ != this) {
+      assert(p->next_ != next_ &&
+             "Trying to depart() a linked ring we are not in. "
+             "Is GMock thread safety enabled?");
+      p = p->next_;
+    }
     p->next_ = next_;
     return false;
   }
@@ -147,7 +155,7 @@ class linked_ptr {
   // Copy an existing linked_ptr<>, adding ourselves to the list of references.
   template <typename U> linked_ptr(linked_ptr<U> const& ptr) { copy(&ptr); }
   linked_ptr(linked_ptr const& ptr) {  // NOLINT
-    posix::Assert(&ptr != this);
+    assert(&ptr != this);
     copy(&ptr);
   }
 
