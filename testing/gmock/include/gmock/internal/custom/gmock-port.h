@@ -1,4 +1,4 @@
-// Copyright 2009, Google Inc.
+// Copyright 2015, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,25 +27,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Author: wan@google.com (Zhanyong Wan)
+// Injection point for custom user configurations.
+// The following macros can be defined:
 //
-// Tests for Google C++ Mocking Framework (Google Mock)
+//   Flag related macros:
+//     GMOCK_DECLARE_bool_(name)
+//     GMOCK_DECLARE_int32_(name)
+//     GMOCK_DECLARE_string_(name)
+//     GMOCK_DEFINE_bool_(name, default_val, doc)
+//     GMOCK_DEFINE_int32_(name, default_val, doc)
+//     GMOCK_DEFINE_string_(name, default_val, doc)
 //
-// Some users use a build system that Google Mock doesn't support directly,
-// yet they still want to build and run Google Mock's own tests.  This file
-// includes most such tests, making it easier for these users to maintain
-// their build scripts (they just need to build this file, even though the
-// below list of actual *_test.cc files might change).
-#include "test/gmock-actions_test.cc"
-#include "test/gmock-cardinalities_test.cc"
-#include "test/gmock-generated-actions_test.cc"
-#include "test/gmock-generated-function-mockers_test.cc"
-#include "test/gmock-generated-internal-utils_test.cc"
-#include "test/gmock-generated-matchers_test.cc"
-#include "test/gmock-internal-utils_test.cc"
-#include "test/gmock-matchers_test.cc"
-#include "test/gmock-more-actions_test.cc"
-#include "test/gmock-nice-strict_test.cc"
-#include "test/gmock-port_test.cc"
-#include "test/gmock-spec-builders_test.cc"
-#include "test/gmock_test.cc"
+// ** Custom implementation starts here **
+
+#ifndef GMOCK_INCLUDE_GMOCK_INTERNAL_CUSTOM_GMOCK_PORT_H_
+#define GMOCK_INCLUDE_GMOCK_INTERNAL_CUSTOM_GMOCK_PORT_H_
+
+#endif  // GMOCK_INCLUDE_GMOCK_INTERNAL_CUSTOM_GMOCK_PORT_H_
