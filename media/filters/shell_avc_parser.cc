@@ -472,16 +472,12 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   audio_prepend_.clear();
 #endif  // defined(COBALT_WIN)
 
-  audio_config_.Initialize(kCodecAAC,
-                           16,  // AAC is always 16 bit
-                           aac.channel_layout(),
-                           aac.GetOutputSamplesPerSecond(false),
-#if defined(COBALT_WIN)
-                           &aac.raw_data().front(), aac.raw_data().size(),
-#else  // defined(COBALT_WIN)
-                           NULL, 0,
-#endif  // defined(COBALT_WIN)
-                           false, false);
+  audio_config_.Initialize(
+      kCodecAAC,
+      16,  // AAC is always 16 bit
+      aac.channel_layout(), aac.GetOutputSamplesPerSecond(false),
+      aac.raw_data().empty() ? NULL : &aac.raw_data().front(),
+      aac.raw_data().size(), false, false);
 }
 
 size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
