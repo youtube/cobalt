@@ -103,7 +103,6 @@ static inline void ConvertRGBToYUV_V2H2(const uint8_t* rgb_buf_1,
   int sum_r = 0;
   int r, g, b;
 
-
   CONVERT_Y(rgb_buf_1, y_buf_1);
   CONVERT_Y(rgb_buf_1, y_buf_1);
   CONVERT_Y(rgb_buf_2, y_buf_2);

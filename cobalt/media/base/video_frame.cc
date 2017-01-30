@@ -516,8 +516,8 @@ gfx::Size VideoFrame::PlaneSize(VideoPixelFormat format, size_t plane,
   }
 
   const gfx::Size subsample = SampleSize(format, plane);
-  DCHECK(width % subsample.width() == 0);
-  DCHECK(height % subsample.height() == 0);
+  DCHECK_EQ(width % subsample.width(), 0);
+  DCHECK_EQ(height % subsample.height(), 0);
   return gfx::Size(BytesPerElement(format, plane) * width / subsample.width(),
                    height / subsample.height());
 }
@@ -641,8 +641,8 @@ const uint8_t* VideoFrame::visible_data(size_t plane) const {
                           RoundDown(visible_rect_.y(), alignment.height()));
 
   const gfx::Size subsample = SampleSize(format_, plane);
-  DCHECK(offset.x() % subsample.width() == 0);
-  DCHECK(offset.y() % subsample.height() == 0);
+  DCHECK_EQ(offset.x() % subsample.width(), 0);
+  DCHECK_EQ(offset.y() % subsample.height(), 0);
   return data(plane) +
          stride(plane) * (offset.y() / subsample.height()) +  // Row offset.
          BytesPerElement(format_, plane) *                    // Column offset.

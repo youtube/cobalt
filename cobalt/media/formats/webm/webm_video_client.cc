@@ -42,7 +42,7 @@ bool WebMVideoClient::InitializeConfig(
     profile = VP8PROFILE_ANY;
   } else if (codec_id == "V_VP9") {
     video_codec = kCodecVP9;
-    // TODO(servolk): Find a way to read actual VP9 profile from WebM.
+    // TODO: Find a way to read actual VP9 profile from WebM.
     // crbug.com/592074
     profile = VP9PROFILE_PROFILE0;
   } else {

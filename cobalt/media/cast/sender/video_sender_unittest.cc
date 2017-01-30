@@ -41,7 +41,6 @@ static const int kHeight = 240;
 using testing::_;
 using testing::AtLeast;
 
-
 void SaveOperationalStatus(OperationalStatus* out_status,
                            OperationalStatus in_status) {
   DVLOG(1) << "OperationalStatus transitioning from " << *out_status << " to "
@@ -133,6 +132,7 @@ class TransportClient : public CastTransport::Client {
       std::unique_ptr<std::vector<PacketEvent>> packet_events) final{};
   void ProcessRtpPacket(std::unique_ptr<Packet> packet) final{};
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(TransportClient);
 };
 

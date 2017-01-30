@@ -77,7 +77,7 @@ base::LazyInstance<GlobalCounter>::Leaky g_counter = LAZY_INSTANCE_INITIALIZER;
 
 class ByteCounterPipe : public media::cast::test::PacketPipe {
  public:
-  ByteCounterPipe(ByteCounter* counter) : counter_(counter) {}
+  explicit ByteCounterPipe(ByteCounter* counter) : counter_(counter) {}
   void Send(std::unique_ptr<media::cast::Packet> packet) final {
     counter_->Increment(packet->size());
     pipe_->Send(std::move(packet));

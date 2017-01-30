@@ -385,7 +385,6 @@ static bool CheckDV(const uint8_t* buffer, int buffer_size) {
   return true;
 }
 
-
 // Checks for a GSM container.
 static bool CheckGsm(const uint8_t* buffer, int buffer_size) {
   // Reference: ETSI EN 300 961 V8.1.1

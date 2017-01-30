@@ -106,6 +106,7 @@ class WebAudioSourceProviderImplTest
   scoped_refptr<WebAudioSourceProviderImpl> wasp_impl_;
   base::MessageLoop message_loop_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(WebAudioSourceProviderImplTest);
 };
 

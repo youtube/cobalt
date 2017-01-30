@@ -91,7 +91,7 @@ bool ExtractSubsamples(const uint8_t* buf, size_t frame_data_size,
   return true;
 }
 
-}  // namespace anonymous
+}  // namespace
 
 bool WebMCreateDecryptConfig(const uint8_t* data, int data_size,
                              const uint8_t* key_id, int key_id_size,
