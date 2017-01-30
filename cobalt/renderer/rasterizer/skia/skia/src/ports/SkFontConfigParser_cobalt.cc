@@ -24,7 +24,9 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "SkData.h"
 #include "SkOSFile.h"
+#include "SkStream.h"
 #include "SkTSearch.h"
 
 namespace {
@@ -520,38 +522,24 @@ void ParserFatal(void* context, const char* message, ...) {
 void ParseConfigFile(const char* directory, const char* filename,
                      SkTDArray<FontFamily*>* families) {
   SkString file_path = SkOSPath::Join(directory, filename);
-  SkFILE* file = sk_fopen(file_path.c_str(), kRead_SkFILE_Flag);
 
-  if (NULL == file) {
+  SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
+  if (file_stream == NULL) {
     SkDebugf("---- Failed to open %s", file_path.c_str());
     return;
   }
 
-  FamilyData family_data(families);
-
-  xmlParserCtxtPtr xml_parser_context =
-      xmlCreatePushParserCtxt(&xml_sax_handler, &family_data, NULL, 0, NULL);
-
-  if (!xml_parser_context) {
-    SkDebugf("---- Unable to create parsing context!");
+  SkAutoDataUnref file_data(
+      SkData::NewFromStream(file_stream, file_stream->getLength()));
+  if (file_data == NULL) {
+    SkDebugf("---- Failed to read %s", file_path.c_str());
     return;
   }
 
-  char buffer[512];
-  bool done = false;
-  while (!done) {
-    sk_fgets(buffer, sizeof(buffer), file);
-    size_t len = strlen(buffer);
-    if (sk_feof(file) != 0) {
-      done = true;
-    }
-    xmlParseChunk(xml_parser_context, buffer, static_cast<int>(len),
-                  0 /*do not terminate*/);
-  }
-  xmlParseChunk(xml_parser_context, NULL, 0, 1 /*terminate*/);
-  xmlFreeParserCtxt(xml_parser_context);
-
-  sk_fclose(file);
+  FamilyData family_data(families);
+  xmlSAXUserParseMemory(&xml_sax_handler, &family_data,
+                        static_cast<const char*>(file_data->data()),
+                        static_cast<int>(file_data->size()));
 }
 
 void GetSystemFontFamilies(const char* directory,
