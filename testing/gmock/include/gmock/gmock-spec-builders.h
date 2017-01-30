@@ -66,6 +66,10 @@
 #include <string>
 #include <vector>
 
+#if GTEST_HAS_EXCEPTIONS
+# include <stdexcept>  // NOLINT
+#endif
+
 #include "gmock/gmock-actions.h"
 #include "gmock/gmock-cardinalities.h"
 #include "gmock/gmock-matchers.h"
@@ -357,7 +361,8 @@ class OnCallSpec : public UntypedOnCallSpecBase {
 enum CallReaction {
   kAllow,
   kWarn,
-  kFail
+  kFail,
+  kDefault = kWarn  // By default, warn about uninteresting calls.
 };
 
 }  // namespace internal
@@ -394,6 +399,9 @@ class GTEST_API_ Mock {
 
   template <typename M>
   friend class NiceMock;
+
+  template <typename M>
+  friend class NaggyMock;
 
   template <typename M>
   friend class StrictMock;
@@ -1165,16 +1173,9 @@ class TypedExpectation : public ExpectationBase {
       Log(kWarning, ss.str(), 1);
     }
 
-#if defined(COBALT_WIN)
-#pragma warning(push)
-#pragma warning(disable: 4365) // Signed/unsigned mismatch.
-#endif
     return count <= action_count ?
         *static_cast<const Action<F>*>(untyped_actions_[count - 1]) :
         repeated_action();
-#if defined(COBALT_WIN)
-#pragma warning(pop)
-#endif
   }
 
   // Given the arguments of a mock function call, if the call will
@@ -1302,14 +1303,13 @@ class ReferenceOrValueWrapper {
  public:
   // Constructs a wrapper from the given value/reference.
   explicit ReferenceOrValueWrapper(T value)
-      : value_(GTEST_MOVE_(value)) {}
+      : value_(::testing::internal::move(value)) {
+  }
 
   // Unwraps and returns the underlying value/reference, exactly as
   // originally passed. The behavior of calling this more than once on
   // the same object is unspecified.
-  T Unwrap() {
-    return GTEST_MOVE_(value_);
-  }
+  T Unwrap() { return ::testing::internal::move(value_); }
 
   // Provides nondestructive access to the underlying value/reference.
   // Always returns a const reference (more precisely,
@@ -1407,7 +1407,8 @@ class ActionResultHolder : public UntypedActionResultHolderBase {
   typedef ReferenceOrValueWrapper<T> Wrapper;
 
   explicit ActionResultHolder(Wrapper result)
-      : result_(GTEST_MOVE_(result)) {}
+      : result_(::testing::internal::move(result)) {
+  }
 
   Wrapper result_;
 
@@ -1487,10 +1488,12 @@ class FunctionMockerBase : public UntypedFunctionMockerBase {
     return NULL;
   }
 
-  // Performs the default action of this mock function on the given arguments
-  // and returns the result. Asserts with a helpful call descrption if there is
-  // no valid return value. This method doesn't depend on the mutable state of
-  // this object, and thus can be called concurrently without locking.
+  // Performs the default action of this mock function on the given
+  // arguments and returns the result. Asserts (or throws if
+  // exceptions are enabled) with a helpful call descrption if there
+  // is no valid return value. This method doesn't depend on the
+  // mutable state of this object, and thus can be called concurrently
+  // without locking.
   // L = *
   Result PerformDefaultAction(const ArgumentTuple& args,
                               const string& call_description) const {
@@ -1499,9 +1502,16 @@ class FunctionMockerBase : public UntypedFunctionMockerBase {
     if (spec != NULL) {
       return spec->GetAction().Perform(args);
     }
-    Assert(DefaultValue<Result>::Exists(), "", -1,
-           call_description + "\n    The mock function has no default action "
-           "set, and its return type has no default value set.");
+    const string message = call_description +
+        "\n    The mock function has no default action "
+        "set, and its return type has no default value set.";
+#if GTEST_HAS_EXCEPTIONS
+    if (!DefaultValue<Result>::Exists()) {
+      throw std::runtime_error(message);
+    }
+#else
+    Assert(DefaultValue<Result>::Exists(), "", -1, message);
+#endif
     return DefaultValue<Result>::Get();
   }
 
@@ -1742,15 +1752,8 @@ class FunctionMockerBase : public UntypedFunctionMockerBase {
              "expectations, but none matched")
          << ":\n";
     for (int i = 0; i < count; i++) {
-#if defined(COBALT_WIN)
-#pragma warning(push)
-#pragma warning(disable: 4365) // Signed/unsigned mismatch.
-#endif
       TypedExpectation<F>* const expectation =
           static_cast<TypedExpectation<F>*>(untyped_expectations_[i].get());
-#if defined(COBALT_WIN)
-#pragma warning(pop)
-#endif
       *why << "\n";
       expectation->DescribeLocationTo(why);
       if (count > 1) {
