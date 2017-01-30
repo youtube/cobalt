@@ -228,7 +228,8 @@ bool IsNewDataForSameResource(const scoped_refptr<UrlData>& new_entry,
   }
   return false;
 }
-};
+
+}  // namespace
 
 scoped_refptr<UrlData> UrlIndex::TryInsert(
     const scoped_refptr<UrlData>& url_data) {
