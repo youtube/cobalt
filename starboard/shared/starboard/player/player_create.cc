@@ -51,7 +51,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   if (!audio_header) {
-    SB_LOG(ERROR) << "AAC requires a non-NULL SbMediaAudioHeader";
+    SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader";
     return kSbPlayerInvalid;
   }
 
