@@ -88,7 +88,7 @@ class TestUrlData;
 
 class TestResourceMultiBuffer : public ResourceMultiBuffer {
  public:
-  explicit TestResourceMultiBuffer(UrlData* url_data, int shift)
+  TestResourceMultiBuffer(UrlData* url_data, int shift)
       : ResourceMultiBuffer(url_data, shift) {}
 
   std::unique_ptr<MultiBuffer::DataProvider> CreateWriter(
@@ -471,6 +471,7 @@ class MultibufferDataSourceTest : public testing::Test {
   // Used for calling MultibufferDataSource::Read().
   uint8_t buffer_[kDataSize * 2];
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(MultibufferDataSourceTest);
 };
 

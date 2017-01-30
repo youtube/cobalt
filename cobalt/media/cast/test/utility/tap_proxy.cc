@@ -165,7 +165,7 @@ ByteCounter out_pipe_output_counter;
 
 class ByteCounterPipe : public media::cast::test::PacketPipe {
  public:
-  ByteCounterPipe(ByteCounter* counter) : counter_(counter) {}
+  explicit ByteCounterPipe(ByteCounter* counter) : counter_(counter) {}
   void Send(std::unique_ptr<media::cast::Packet> packet) final {
     counter_->Increment(packet->size());
     pipe_->Send(std::move(packet));
@@ -241,7 +241,7 @@ int tun_alloc(char* dev, int flags) {
   }
 
   /* try to create the device */
-  if ((err = ioctl(fd, TUNSETIFF, (void*)&ifr)) < 0) {
+  if ((err = ioctl(fd, TUNSETIFF, &ifr)) < 0) {
     close(fd);
     return err;
   }
@@ -258,7 +258,6 @@ int tun_alloc(char* dev, int flags) {
    * with the virtual interface */
   return fd;
 }
-
 
 int main(int argc, char** argv) {
   base::AtExitManager exit_manager;

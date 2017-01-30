@@ -38,9 +38,9 @@ base::optional<gfx::Size> H264SPS::GetCodedSize() const {
   int map_unit = frame_mbs_only_flag ? 16 : 32;
 
   // Verify that the values are not too large before multiplying them.
-  // TODO(sandersd): These limits could be much smaller. The currently-largest
-  // specified limit (excluding SVC, multiview, etc., which I didn't bother to
-  // read) is 543 macroblocks (section A.3.1).
+  // TODO: These limits could be much smaller. The currently-largest specified
+  // limit (excluding SVC, multiview, etc., which I didn't bother to read) is
+  // 543 macroblocks (section A.3.1).
   int max_mb_minus1 = std::numeric_limits<int>::max() / mb_unit - 1;
   int max_map_units_minus1 = std::numeric_limits<int>::max() / map_unit - 1;
   if (pic_width_in_mbs_minus1 > max_mb_minus1 ||

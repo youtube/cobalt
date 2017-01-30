@@ -10,6 +10,7 @@
 #include <deque>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/macros.h"

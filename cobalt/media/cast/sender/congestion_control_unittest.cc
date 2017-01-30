@@ -64,6 +64,7 @@ class CongestionControlTest : public ::testing::Test {
   scoped_refptr<FakeSingleThreadTaskRunner> task_runner_;
   FrameId frame_id_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(CongestionControlTest);
 };
 
