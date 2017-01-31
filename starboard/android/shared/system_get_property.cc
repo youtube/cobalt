@@ -14,17 +14,11 @@
 
 #include "starboard/system.h"
 
+#include "starboard/android/shared/private/property_value.h"
 #include "starboard/log.h"
 #include "starboard/string.h"
 
-// We can't #include "base/stringize_macros.h" in Starboard
-#define STRINGIZE_NO_EXPANSION(x) #x
-#define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
-
 namespace {
-
-const char* kFriendlyName = "Android";
-const char* kPlatformName = "Android; Linux " STRINGIZE(ANDROID_ABI);
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -51,7 +45,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
-    case kSbSystemPropertySpeechApiKey:
       return false;
 
     case kSbSystemPropertyFriendlyName:
@@ -63,6 +56,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyPlatformUuid:
       SB_NOTIMPLEMENTED();
       return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
+
+    case kSbSystemPropertySpeechApiKey:
+      return CopyStringAndTestIfSuccess(out_value, value_length, kSpeechApiKey);
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__
