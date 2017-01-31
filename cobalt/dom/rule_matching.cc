@@ -442,7 +442,9 @@ void ForEachChildOnNodes(
   const std::vector<base::Token>& element_class_list =
       element->class_list()->GetTokens();
 
-  const scoped_refptr<NamedNodeMap>& element_attributes = element->attributes();
+  // Don't retrieve the element's attributes until they are needed. Retrieving
+  // them typically requires the creation of a NamedNodeMap.
+  scoped_refptr<NamedNodeMap> element_attributes;
 
   // Iterate through all nodes in node_set.
   for (typename NodeSet::const_iterator node_iterator = node_set.begin();
@@ -474,6 +476,12 @@ void ForEachChildOnNodes(
 
       // Attribute selector.
       if (node->HasSimpleSelector(cssom::kAttributeSelector, combinator_type)) {
+        // If the element's attributes have not been retrieved yet, then
+        // retrieve them now.
+        if (!element_attributes) {
+          element_attributes = element->attributes();
+        }
+
         for (unsigned int index = 0; index < element_attributes->length();
              ++index) {
           GatherCandidateNodesFromMap(
