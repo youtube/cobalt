@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+
 #include "starboard/speech_synthesis.h"
 
 #if !SB_HAS(SPEECH_SYNTHESIS) && SB_VERSION(3)
@@ -22,3 +24,5 @@
 bool SbSpeechSynthesisSetLanguage(const char* lang) {
   return false;
 }
+
+#endif

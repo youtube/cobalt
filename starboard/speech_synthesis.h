@@ -35,17 +35,21 @@
 extern "C" {
 #endif
 
-// Sets a language for speech synthesis.
-//
+#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+// DEPRECATED IN API VERSION 4
 // Must be called before any other function in this module,
 // or subsequent calls are allowed to fail silently.
 //
 // |lang| should be a BCP 47 language string, eg "en-US".
 // Return true if language is supported, false if not.
 SB_EXPORT bool SbSpeechSynthesisSetLanguage(const char* lang);
+#endif
 
-// Enqueues |text|, a UTF-8 string, to be spoken the currently
-// selected language. Returns immediately.
+// Enqueues |text|, a UTF-8 string, to be spoken.
+// Returns immediately.
+//
+// Spoken language for the text should be the same as the locale returned
+// by SbSystemGetLocaleId().
 //
 // If audio from previous SbSpeechSynthesisSpeak() invocations is still
 // processing, the current speaking should continue and this new
