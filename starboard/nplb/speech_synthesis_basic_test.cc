@@ -18,11 +18,8 @@
 #if SB_HAS(SPEECH_SYNTHESIS) && SB_VERSION(3)
 
 TEST(SbSpeechSynthesisBasicTest, Basic) {
-  // An implementation must at least support US English
-  EXPECT_TRUE(SbSpeechSynthesisSetLanguage("en-US"));
   SbSpeechSynthesisSpeak("Hello");
   SbSpeechSynthesisCancel();
 }
 
 #endif  // SB_HAS(SPEECH_SYNTHESIS) && SB_VERSION(3)
-
