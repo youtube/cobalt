@@ -24,7 +24,7 @@
 #define STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 
 // The API version implemented by this platform.
-#define SB_API_VERSION 2
+#define SB_API_VERSION 3
 
 // --- Architecture Configuration --------------------------------------------
 
@@ -113,6 +113,9 @@
 // Indicates whether or not the given platform supports rendering of NV12
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 1
 
 #define SB_HAS_MICROPHONE 0
 
