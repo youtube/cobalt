@@ -25,6 +25,7 @@
 #include "base/rand_util.h"
 #include "cobalt/audio/audio_file_reader.h"
 #include "starboard/file.h"
+#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/time.h"
 
