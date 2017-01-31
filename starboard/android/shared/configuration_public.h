@@ -117,8 +117,6 @@
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 1
 
-#define SB_HAS_MICROPHONE 0
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -149,7 +147,7 @@
 #define SB_HAS_FLOAT_H 1
 
 // Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0
+#define SB_HAS_MICROPHONE 1
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
