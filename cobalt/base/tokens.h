@@ -51,6 +51,7 @@ namespace base {
     MacroOpWithNameOnly(characterData)                               \
     MacroOpWithNameOnly(childList)                                   \
     MacroOpWithNameOnly(close)                                       \
+    MacroOpWithNameOnly(deviceorientation)                           \
     MacroOpWithNameOnly(durationchange)                              \
     MacroOpWithNameOnly(emptied)                                     \
     MacroOpWithNameOnly(end)                                         \

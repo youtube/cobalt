@@ -50,15 +50,6 @@ class CameraTransform {
   }
 };
 
-// Structure to keep track of the current orientation state.
-struct CameraOrientation {
-  CameraOrientation() : roll(0.0f), pitch(0.0f), yaw(0.0f) {}
-
-  float roll;
-  float pitch;
-  float yaw;
-};
-
 }  // namespace base
 
 #endif  // COBALT_BASE_CAMERA_TRANSFORM_H_
