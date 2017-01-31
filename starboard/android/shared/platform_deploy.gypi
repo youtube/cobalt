@@ -22,6 +22,7 @@
           'java_files': [
             '../apk/app/src/main/java/foo/cobalt/AlertDialogPlatformError.java',
             '../apk/app/src/main/java/foo/cobalt/CobaltActivity.java',
+            '../apk/app/src/main/java/foo/cobalt/CobaltTextToSpeechHelper.java',
             '../apk/app/src/main/java/foo/cobalt/PlatformError.java',
             '../apk/app/src/main/java/foo/cobalt/UsedByNative.java',
             '../apk/app/src/main/java/foo/cobalt/VideoSurfaceView.java',
