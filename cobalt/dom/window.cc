@@ -24,6 +24,7 @@
 #include "cobalt/cssom/user_agent_style_sheet.h"
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/console.h"
+#include "cobalt/dom/device_orientation_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
@@ -166,6 +167,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, this, fetcher_factory,
                             url, dom_parser, error_callback));
+  camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
 }
 
 void Window::StartDocumentLoad(
