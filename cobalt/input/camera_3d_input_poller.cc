@@ -21,6 +21,7 @@
 
 #include "cobalt/input/create_default_camera_3d.h"
 #include "third_party/glm/glm/gtc/matrix_transform.hpp"
+#include "third_party/glm/glm/gtc/quaternion.hpp"
 #include "third_party/glm/glm/gtx/transform.hpp"
 
 namespace cobalt {
@@ -48,33 +49,18 @@ void Camera3DInputPoller::ClearAllKeyMappings() {
   keycode_map_.clear();
 }
 
-base::CameraOrientation Camera3DInputPoller::GetOrientation() const {
+glm::quat Camera3DInputPoller::GetOrientation() const {
   base::AutoLock lock(mutex_);
   return orientation_;
 }
-
-namespace {
-
-const float kPiF = static_cast<float>(M_PI);
-
-float DegreesToRadians(float degrees) { return (degrees / 360.0f) * 2 * kPiF; }
-
-}  // namespace
 
 base::CameraTransform
 Camera3DInputPoller::GetCameraTransformAndUpdateOrientation() {
   base::AutoLock lock(mutex_);
   AccumulateOrientation();
 
-  // Note that we invert the rotation angles since this matrix is applied to
-  // the objects in our scene, and if the camera moves right, the objects,
-  // relatively, would move right.
-  glm::mat4 view_matrix =
-      glm::rotate(-DegreesToRadians(orientation_.roll), glm::vec3(0, 0, 1)) *
-      glm::rotate(-DegreesToRadians(orientation_.pitch), glm::vec3(1, 0, 0)) *
-      glm::rotate(-DegreesToRadians(orientation_.yaw), glm::vec3(0, 1, 0));
+  glm::mat4 view_matrix = glm::mat4_cast(orientation_);
 
-  // Setup a (right-handed) perspective projection matrix.
   const float kNearZ = 0.01f;
   const float kFarZ = 1000.0f;
   glm::mat4 projection_matrix = glm::perspectiveRH(
@@ -91,7 +77,7 @@ void Camera3DInputPoller::UpdatePerspective(float width_to_height_aspect_ratio,
 
 void Camera3DInputPoller::Reset() {
   base::AutoLock lock(mutex_);
-  orientation_ = base::CameraOrientation();
+  orientation_ = glm::quat();
 }
 
 void Camera3DInputPoller::AccumulateOrientation() {
@@ -111,6 +97,9 @@ void Camera3DInputPoller::AccumulateOrientation() {
       delta = kMaxTimeDelta;
     }
 
+    // Accumulate new rotation from all mapped inputs.
+    float roll = 0.0f, pitch = 0.0f, yaw = 0.0f;
+
     for (KeycodeMap::const_iterator iter = keycode_map_.begin();
          iter != keycode_map_.end(); ++iter) {
       // If the key does not have analog output, the AnalogInput() method will
@@ -127,30 +116,29 @@ void Camera3DInputPoller::AccumulateOrientation() {
       float* target_angle;
       switch (iter->second.axis) {
         case kCameraRoll:
-          target_angle = &orientation_.roll;
+          target_angle = &roll;
           break;
         case kCameraPitch:
-          target_angle = &orientation_.pitch;
+          target_angle = &pitch;
           break;
         case kCameraYaw:
-          target_angle = &orientation_.yaw;
+          target_angle = &yaw;
           break;
       }
 
       // Apply the angle adjustment from the key.
       *target_angle += value * iter->second.degrees_per_second *
                        static_cast<float>(delta.InSecondsF());
-
-      // Apply any clamping or wrapping to the resulting camera angles.
-      if (iter->second.axis == kCameraPitch) {
-        *target_angle = std::min(90.0f, std::max(-90.0f, *target_angle));
-      } else {
-        *target_angle = static_cast<float>(fmod(*target_angle, 360));
-        if (*target_angle < 0) {
-          *target_angle += 360;
-        }
-      }
     }
+
+    // New rotation applied from the right to keep it in global axes.
+    // Note that we invert the rotation angles since this transform is applied
+    // to the objects in our scene, and if the camera moves right, the objects,
+    // relatively, would move right.
+    orientation_ *=
+        glm::angleAxis(-DegreesToRadians(roll), glm::vec3(0, 0, 1)) *
+        glm::angleAxis(-DegreesToRadians(pitch), glm::vec3(1, 0, 0)) *
+        glm::angleAxis(-DegreesToRadians(yaw), glm::vec3(0, 1, 0));
   }
   last_update_ = now;
 }
