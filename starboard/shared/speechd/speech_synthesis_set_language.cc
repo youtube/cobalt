@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+// DEPRECATED IN API VERSION 4
+
 #include "starboard/speech_synthesis.h"
 
 #include "starboard/shared/speechd/speechd_internal.h"
@@ -25,3 +28,5 @@ bool SbSpeechSynthesisSetLanguage(const char* lang) {
   }
   return speech_dispatcher->SetLanguage(lang);
 }
+
+#endif
