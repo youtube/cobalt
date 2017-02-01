@@ -326,7 +326,27 @@ WebModule::Impl::Impl(const ConstructionData& data)
     : name_(data.options.name), is_running_(false) {
   resource_provider_ = data.resource_provider;
 
-  css_parser_ = css_parser::Parser::Create();
+  // Currently we rely on a platform to explicitly specify that it supports
+  // the map-to-mesh filter via the ENABLE_MTM define (and the 'enable_mtm' gyp
+  // variable).  When we have better support for checking for decode to texture
+  // support, it would be nice to switch this logic to something like:
+  //
+  //   supports_map_to_mesh =
+  //      (resource_provider_->Supports3D() && SbPlayerSupportsDecodeToTexture()
+  //           ? css_parser::Parser::kSupportsMapToMesh
+  //           : css_parser::Parser::kDoesNotSupportMapToMesh);
+  //
+  // Note that it is important that we do not parse map-to-mesh filters if we
+  // cannot render them, since web apps may check for map-to-mesh support by
+  // testing whether it parses or not via the CSS.supports() Web API.
+  css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
+#if defined(ENABLE_MTM)
+      css_parser::Parser::kSupportsMapToMesh;
+#else
+      css_parser::Parser::kDoesNotSupportMapToMesh;
+#endif
+
+  css_parser_ = css_parser::Parser::Create(supports_map_to_mesh);
   DCHECK(css_parser_);
 
   dom_parser_.reset(new dom_parser::Parser(

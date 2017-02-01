@@ -91,6 +91,9 @@
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
         }],
+        ['enable_mtm == 1', {
+          'defines' : ['ENABLE_MTM'],
+        }],
       ],
     },
 
