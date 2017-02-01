@@ -6549,14 +6549,21 @@ cobalt_mtm_filter_function:
     scoped_ptr<cssom::MTMFunction::ResolutionMatchedMeshListBuilder>
         resolution_matched_mesh_urls($4);
     scoped_ptr<glm::mat4> transform($9);
+    scoped_refptr<cssom::PropertyValue> url = MakeScopedRefPtrAndRelease($3);
+    scoped_refptr<cssom::KeywordValue> stereo_mode =
+        MakeScopedRefPtrAndRelease($10);
 
-    $$ = new cssom::MTMFunction(
-        MakeScopedRefPtrAndRelease($3),
-        resolution_matched_mesh_urls->Pass(),
-        $6,
-        $7,
-        *transform,
-        MakeScopedRefPtrAndRelease($10));
+    if (!parser_impl->supports_map_to_mesh()) {
+      YYERROR;
+    } else {
+      $$ = new cssom::MTMFunction(
+          url,
+          resolution_matched_mesh_urls->Pass(),
+          $6,
+          $7,
+          *transform,
+          stereo_mode);
+    }
   }
   ;
 

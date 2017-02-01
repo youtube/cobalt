@@ -95,10 +95,10 @@ class MockParserObserver {
   MOCK_METHOD1(OnError, void(const std::string& message));
 };
 
-class ParserTest : public ::testing::Test {
+class ParserTestBase : public ::testing::Test {
  public:
-  ParserTest();
-  ~ParserTest() OVERRIDE {}
+  explicit ParserTestBase(Parser::SupportsMapToMeshFlag supports_map_to_mesh);
+  ~ParserTestBase() OVERRIDE {}
 
  protected:
   ::testing::StrictMock<MockParserObserver> parser_observer_;
@@ -106,13 +106,24 @@ class ParserTest : public ::testing::Test {
   const base::SourceLocation source_location_;
 };
 
-ParserTest::ParserTest()
+ParserTestBase::ParserTestBase(
+    Parser::SupportsMapToMeshFlag supports_map_to_mesh)
     : parser_(base::Bind(&MockParserObserver::OnWarning,
                          base::Unretained(&parser_observer_)),
               base::Bind(&MockParserObserver::OnError,
                          base::Unretained(&parser_observer_)),
-              Parser::kShort),
+              Parser::kShort, supports_map_to_mesh),
       source_location_("[object ParserTest]", 1, 1) {}
+
+class ParserTest : public ParserTestBase {
+ public:
+  ParserTest() : ParserTestBase(Parser::kSupportsMapToMesh) {}
+};
+
+class ParserNoMapToMeshTest : public ParserTestBase {
+ public:
+  ParserNoMapToMeshTest() : ParserTestBase(Parser::kDoesNotSupportMapToMesh) {}
+};
 
 // TODO: Test every reduction that has semantic action.
 
@@ -8423,6 +8434,46 @@ TEST_F(ParserTest, ParsesMtmWIPFilterName) {
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
             cssom::KeywordValue::kMonoscopic);
+}
+
+TEST_F(ParserNoMapToMeshTest, DoesNotParseMapToMeshFilter) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:9: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: map-to-mesh(url(projection.msh),"
+          "                        180deg 1.5rad,"
+          "                        matrix3d(1, 0, 0, 0,"
+          "                                 0, 1, 0, 0,"
+          "                                 0, 0, 1, 0,"
+          "                                 0, 0, 0, 1));",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  EXPECT_FALSE(filter_list);
+}
+
+TEST_F(ParserNoMapToMeshTest, DoesNotParseMtmFilter) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:9: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(projection.msh),"
+          "                    180deg 1.5rad,"
+          "                    matrix3d(1, 0, 0, 0,"
+          "                             0, 1, 0, 0,"
+          "                             0, 0, 1, 0,"
+          "                             0, 0, 0, 1));",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  EXPECT_FALSE(filter_list);
 }
 
 TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
