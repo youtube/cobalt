@@ -18,6 +18,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'text_alternative_tests.cc',
+        'internal/live_region_test.cc',
         'internal/text_alternative_helper_test.cc',
       ],
       'dependencies': [
