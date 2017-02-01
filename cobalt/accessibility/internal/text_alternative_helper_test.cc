@@ -17,11 +17,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/accessibility/internal/text_alternative_helper.h"
-#include "cobalt/css_parser/parser.h"
-#include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/test/empty_document.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,20 +28,10 @@ namespace accessibility {
 namespace internal {
 class TextAlternativeHelperTest : public ::testing::Test {
  protected:
-  TextAlternativeHelperTest()
-      : css_parser_(css_parser::Parser::Create()),
-        dom_stat_tracker_(new dom::DomStatTracker("TextAlternativeHelperTest")),
-        html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, NULL,
-                              dom_stat_tracker_.get(), ""),
-        document_(new dom::Document(&html_element_context_)) {}
+  dom::Document* document() { return empty_document_.document(); }
 
-  scoped_ptr<css_parser::Parser> css_parser_;
-  scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
-  dom::HTMLElementContext html_element_context_;
-  scoped_refptr<dom::Document> document_;
-  scoped_refptr<dom::Element> element_;
   TextAlternativeHelper text_alternative_helper_;
+  test::EmptyDocument empty_document_;
 };
 
 TEST_F(TextAlternativeHelperTest, ConcatenatesAlternatives) {
@@ -70,7 +58,7 @@ TEST_F(TextAlternativeHelperTest, TrimsAlternatives) {
 }
 
 TEST_F(TextAlternativeHelperTest, HiddenOnlyIfAriaHiddenSet) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("div");
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
   // No aria-hidden attribute set.
   EXPECT_FALSE(TextAlternativeHelper::IsAriaHidden(element));
 
@@ -90,8 +78,8 @@ TEST_F(TextAlternativeHelperTest, HiddenOnlyIfAriaHiddenSet) {
 }
 
 TEST_F(TextAlternativeHelperTest, GetTextAlternativeFromTextNode) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("div");
-  element->AppendChild(document_->CreateTextNode("text node contents"));
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
+  element->AppendChild(document()->CreateTextNode("text node contents"));
   text_alternative_helper_.AppendTextAlternative(element);
   EXPECT_STREQ("text node contents",
                text_alternative_helper_.GetTextAlternative().c_str());
@@ -99,7 +87,7 @@ TEST_F(TextAlternativeHelperTest, GetTextAlternativeFromTextNode) {
 
 TEST_F(TextAlternativeHelperTest, GetAltAttributeFromHTMLImage) {
   scoped_refptr<dom::Element> element =
-      document_->CreateElement(dom::HTMLImageElement::kTagName);
+      document()->CreateElement(dom::HTMLImageElement::kTagName);
   element->SetAttribute(base::Tokens::alt().c_str(), "image alt text");
   EXPECT_TRUE(text_alternative_helper_.TryAppendFromAltProperty(element));
   EXPECT_STREQ("image alt text",
@@ -108,7 +96,7 @@ TEST_F(TextAlternativeHelperTest, GetAltAttributeFromHTMLImage) {
 
 TEST_F(TextAlternativeHelperTest, EmptyAltAttribute) {
   scoped_refptr<dom::Element> element =
-      document_->CreateElement(dom::HTMLImageElement::kTagName);
+      document()->CreateElement(dom::HTMLImageElement::kTagName);
   // No alt attribute.
   EXPECT_FALSE(text_alternative_helper_.TryAppendFromAltProperty(element));
   EXPECT_TRUE(text_alternative_helper_.GetTextAlternative().empty());
@@ -120,14 +108,14 @@ TEST_F(TextAlternativeHelperTest, EmptyAltAttribute) {
 }
 
 TEST_F(TextAlternativeHelperTest, AltAttributeOnArbitraryElement) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("div");
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
   element->SetAttribute(base::Tokens::alt().c_str(), "alt text");
   EXPECT_FALSE(text_alternative_helper_.TryAppendFromAltProperty(element));
   EXPECT_TRUE(text_alternative_helper_.GetTextAlternative().empty());
 }
 
 TEST_F(TextAlternativeHelperTest, GetTextFromAriaLabel) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("div");
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
   element->SetAttribute(base::Tokens::aria_label().c_str(), "label text");
   EXPECT_TRUE(text_alternative_helper_.TryAppendFromLabel(element));
   EXPECT_STREQ("label text",
@@ -135,23 +123,23 @@ TEST_F(TextAlternativeHelperTest, GetTextFromAriaLabel) {
 }
 
 TEST_F(TextAlternativeHelperTest, IgnoreEmptyAriaLabel) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("test");
+  scoped_refptr<dom::Element> element = document()->CreateElement("test");
   element->SetAttribute(base::Tokens::aria_label().c_str(), "   ");
   EXPECT_FALSE(text_alternative_helper_.TryAppendFromLabel(element));
   EXPECT_TRUE(text_alternative_helper_.GetTextAlternative().empty());
 }
 
 TEST_F(TextAlternativeHelperTest, GetTextFromAriaLabelledBy) {
-  scoped_refptr<dom::Element> target_element = document_->CreateElement("div");
-  target_element->AppendChild(document_->CreateTextNode("labelledby target"));
+  scoped_refptr<dom::Element> target_element = document()->CreateElement("div");
+  target_element->AppendChild(document()->CreateTextNode("labelledby target"));
   target_element->set_id("target_element");
-  document_->AppendChild(target_element);
+  document()->AppendChild(target_element);
 
   scoped_refptr<dom::Element> labelledby_element =
-      document_->CreateElement("div");
+      document()->CreateElement("div");
   labelledby_element->SetAttribute(base::Tokens::aria_labelledby().c_str(),
                                    "target_element");
-  document_->AppendChild(labelledby_element);
+  document()->AppendChild(labelledby_element);
 
   EXPECT_TRUE(
       text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
@@ -160,16 +148,16 @@ TEST_F(TextAlternativeHelperTest, GetTextFromAriaLabelledBy) {
 }
 
 TEST_F(TextAlternativeHelperTest, InvalidLabelledByReference) {
-  scoped_refptr<dom::Element> target_element = document_->CreateElement("div");
-  target_element->AppendChild(document_->CreateTextNode("labelledby target"));
+  scoped_refptr<dom::Element> target_element = document()->CreateElement("div");
+  target_element->AppendChild(document()->CreateTextNode("labelledby target"));
   target_element->set_id("target_element");
-  document_->AppendChild(target_element);
+  document()->AppendChild(target_element);
 
   scoped_refptr<dom::Element> labelledby_element =
-      document_->CreateElement("div");
+      document()->CreateElement("div");
   labelledby_element->SetAttribute(base::Tokens::aria_labelledby().c_str(),
                                    "bad_reference");
-  document_->AppendChild(labelledby_element);
+  document()->AppendChild(labelledby_element);
 
   EXPECT_FALSE(
       text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
@@ -177,25 +165,25 @@ TEST_F(TextAlternativeHelperTest, InvalidLabelledByReference) {
 }
 
 TEST_F(TextAlternativeHelperTest, MultipleLabelledByReferences) {
-  scoped_refptr<dom::Element> target_element = document_->CreateElement("div");
-  target_element->AppendChild(document_->CreateTextNode("target1"));
+  scoped_refptr<dom::Element> target_element = document()->CreateElement("div");
+  target_element->AppendChild(document()->CreateTextNode("target1"));
   target_element->set_id("target_element1");
-  document_->AppendChild(target_element);
-  target_element = document_->CreateElement("div");
-  target_element->AppendChild(document_->CreateTextNode("target2"));
+  document()->AppendChild(target_element);
+  target_element = document()->CreateElement("div");
+  target_element->AppendChild(document()->CreateTextNode("target2"));
   target_element->set_id("target_element2");
-  document_->AppendChild(target_element);
-  target_element = document_->CreateElement("div");
-  target_element->AppendChild(document_->CreateTextNode("target3"));
+  document()->AppendChild(target_element);
+  target_element = document()->CreateElement("div");
+  target_element->AppendChild(document()->CreateTextNode("target3"));
   target_element->set_id("target_element3");
-  document_->AppendChild(target_element);
+  document()->AppendChild(target_element);
 
   scoped_refptr<dom::Element> labelledby_element =
-      document_->CreateElement("div");
+      document()->CreateElement("div");
   labelledby_element->SetAttribute(
       base::Tokens::aria_labelledby().c_str(),
       "target_element1 target_element2 bad_reference target_element3");
-  document_->AppendChild(labelledby_element);
+  document()->AppendChild(labelledby_element);
 
   EXPECT_TRUE(
       text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
@@ -204,19 +192,19 @@ TEST_F(TextAlternativeHelperTest, MultipleLabelledByReferences) {
 }
 
 TEST_F(TextAlternativeHelperTest, LabelledByReferencesSelf) {
-  scoped_refptr<dom::Element> target_element = document_->CreateElement("div");
-  target_element->AppendChild(document_->CreateTextNode("other-text"));
+  scoped_refptr<dom::Element> target_element = document()->CreateElement("div");
+  target_element->AppendChild(document()->CreateTextNode("other-text"));
   target_element->set_id("other_id");
-  document_->AppendChild(target_element);
+  document()->AppendChild(target_element);
 
   scoped_refptr<dom::Element> labelledby_element =
-      document_->CreateElement("div");
+      document()->CreateElement("div");
   labelledby_element->set_id("self_id");
   labelledby_element->SetAttribute(base::Tokens::aria_label().c_str(),
                                    "self-label");
   labelledby_element->SetAttribute(base::Tokens::aria_labelledby().c_str(),
                                    "other_id self_id");
-  document_->AppendChild(labelledby_element);
+  document()->AppendChild(labelledby_element);
 
   EXPECT_TRUE(
       text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
@@ -225,26 +213,26 @@ TEST_F(TextAlternativeHelperTest, LabelledByReferencesSelf) {
 }
 
 TEST_F(TextAlternativeHelperTest, NoRecursiveLabelledBy) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("div");
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
   element->SetAttribute(base::Tokens::aria_labelledby().c_str(),
                         "first_labelled_by_id");
-  document_->AppendChild(element);
+  document()->AppendChild(element);
 
   scoped_refptr<dom::Element> first_labelledby_element =
-      document_->CreateElement("div");
+      document()->CreateElement("div");
   first_labelledby_element->AppendChild(
-      document_->CreateTextNode("first-labelledby-text-contents"));
+      document()->CreateTextNode("first-labelledby-text-contents"));
   first_labelledby_element->set_id("first_labelled_by_id");
   first_labelledby_element->SetAttribute(
       base::Tokens::aria_labelledby().c_str(), "second_labelled_by_id");
-  document_->AppendChild(first_labelledby_element);
+  document()->AppendChild(first_labelledby_element);
 
   scoped_refptr<dom::Element> second_labelledby_element =
-      document_->CreateElement("div");
+      document()->CreateElement("div");
   second_labelledby_element->AppendChild(
-      document_->CreateTextNode("second-labelledby-text-contents"));
+      document()->CreateTextNode("second-labelledby-text-contents"));
   second_labelledby_element->set_id("second_labelled_by_id");
-  document_->AppendChild(second_labelledby_element);
+  document()->AppendChild(second_labelledby_element);
 
   // In the non-recursive case, we should follow the labelledby attribute.
   text_alternative_helper_.AppendTextAlternative(first_labelledby_element);
@@ -260,22 +248,22 @@ TEST_F(TextAlternativeHelperTest, NoRecursiveLabelledBy) {
 }
 
 TEST_F(TextAlternativeHelperTest, GetTextFromSubtree) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("div");
-  document_->AppendChild(element);
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
+  document()->AppendChild(element);
 
-  scoped_refptr<dom::Element> child = document_->CreateElement("div");
-  child->AppendChild(document_->CreateTextNode("child1-text"));
+  scoped_refptr<dom::Element> child = document()->CreateElement("div");
+  child->AppendChild(document()->CreateTextNode("child1-text"));
   element->AppendChild(child);
 
-  scoped_refptr<dom::Element> child_element = document_->CreateElement("div");
+  scoped_refptr<dom::Element> child_element = document()->CreateElement("div");
   element->AppendChild(child_element);
 
-  child = document_->CreateElement("div");
-  child->AppendChild(document_->CreateTextNode("child2-text"));
+  child = document()->CreateElement("div");
+  child->AppendChild(document()->CreateTextNode("child2-text"));
   child_element->AppendChild(child);
 
-  child = document_->CreateElement("div");
-  child->AppendChild(document_->CreateTextNode("child3-text"));
+  child = document()->CreateElement("div");
+  child->AppendChild(document()->CreateTextNode("child3-text"));
   child_element->AppendChild(child);
 
   text_alternative_helper_.AppendTextAlternative(element);
@@ -284,19 +272,19 @@ TEST_F(TextAlternativeHelperTest, GetTextFromSubtree) {
 }
 
 TEST_F(TextAlternativeHelperTest, DontFollowReferenceLoops) {
-  scoped_refptr<dom::Element> element = document_->CreateElement("div");
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
   element->set_id("root_element_id");
-  document_->AppendChild(element);
+  document()->AppendChild(element);
 
-  scoped_refptr<dom::Element> child_element1 = document_->CreateElement("div");
+  scoped_refptr<dom::Element> child_element1 = document()->CreateElement("div");
   child_element1->SetAttribute(base::Tokens::aria_labelledby().c_str(),
                                "root_element_id");
   element->AppendChild(child_element1);
 
-  scoped_refptr<dom::Element> child_element2 = document_->CreateElement("div");
+  scoped_refptr<dom::Element> child_element2 = document()->CreateElement("div");
   child_element1->AppendChild(child_element2);
 
-  child_element2->AppendChild(document_->CreateTextNode("child2-text"));
+  child_element2->AppendChild(document()->CreateTextNode("child2-text"));
 
   text_alternative_helper_.AppendTextAlternative(element);
   EXPECT_STREQ("child2-text",
