@@ -17,6 +17,8 @@
       'target_name': 'accessibility',
       'type': 'static_library',
       'sources': [
+        'internal/live_region.cc',
+        'internal/live_region.h',
         'internal/text_alternative_helper.cc',
         'internal/text_alternative_helper.h',
         'focus_observer.cc',
