@@ -270,9 +270,6 @@
 // The string form of SB_PATH_SEP_CHAR.
 #define SB_PATH_SEP_STRING ":"
 
-// Whether this platform supports symbolic links.
-#define SB_HAS_SYMBOLIC_LINKS 1
-
 // --- Memory Configuration --------------------------------------------------
 
 // The memory page size, which controls the size of chunks on memory that
