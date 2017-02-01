@@ -27,7 +27,16 @@ namespace css_parser {
 
 class Parser : public cssom::CSSParser {
  public:
-  static scoped_ptr<Parser> Create();
+  enum SupportsMapToMeshFlag {
+    kSupportsMapToMesh,
+    kDoesNotSupportMapToMesh,
+  };
+
+  // The parameter |supports_map_to_mesh| can be used to toggle parser support
+  // for the map-to-mesh CSS filter.  If disabled, "filter: map-to-mesh(...)"
+  // will result in a parse error.
+  static scoped_ptr<Parser> Create(
+      SupportsMapToMeshFlag supports_map_to_mesh = kSupportsMapToMesh);
   ~Parser();
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
@@ -79,14 +88,16 @@ class Parser : public cssom::CSSParser {
 
   Parser(const OnMessageCallback& on_warning_callback,
          const OnMessageCallback& on_error_callback,
-         MessageVerbosity message_verbosity);
+         MessageVerbosity message_verbosity,
+         SupportsMapToMeshFlag supports_map_to_mesh);
 
   const OnMessageCallback on_warning_callback_;
   const OnMessageCallback on_error_callback_;
   MessageVerbosity message_verbosity_;
+  SupportsMapToMeshFlag supports_map_to_mesh_;
 
   friend class ParserImpl;
-  friend class ParserTest;
+  friend class ParserTestBase;
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };
 

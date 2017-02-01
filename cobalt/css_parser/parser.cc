@@ -119,7 +119,8 @@ class ParserImpl {
              cssom::CSSParser* css_parser,
              const Parser::OnMessageCallback& on_warning_callback,
              const Parser::OnMessageCallback& on_error_callback,
-             Parser::MessageVerbosity message_verbosity);
+             Parser::MessageVerbosity message_verbosity,
+             Parser::SupportsMapToMeshFlag supports_map_to_mesh);
 
   cssom::CSSParser* css_parser() { return css_parser_; }
 
@@ -176,6 +177,8 @@ class ParserImpl {
     return into_declaration_data_;
   }
 
+  bool supports_map_to_mesh() const { return supports_map_to_mesh_; }
+
  private:
   bool Parse();
 
@@ -215,6 +218,9 @@ class ParserImpl {
   // ParsePropertyIntoDeclarationData() is called.
   cssom::CSSDeclarationData* into_declaration_data_;
 
+  // Whether or not we support parsing "filter: map-to-mesh(...)".
+  bool supports_map_to_mesh_;
+
   static void IncludeInputWithMessage(const std::string& input,
                                       const Parser::OnMessageCallback& callback,
                                       const std::string& message) {
@@ -245,7 +251,8 @@ ParserImpl::ParserImpl(const std::string& input,
                        cssom::CSSParser* css_parser,
                        const Parser::OnMessageCallback& on_warning_callback,
                        const Parser::OnMessageCallback& on_error_callback,
-                       Parser::MessageVerbosity message_verbosity)
+                       Parser::MessageVerbosity message_verbosity,
+                       Parser::SupportsMapToMeshFlag supports_map_to_mesh)
     : input_(input),
       input_location_(input_location),
       on_warning_callback_(on_warning_callback),
@@ -253,7 +260,9 @@ ParserImpl::ParserImpl(const std::string& input,
       message_verbosity_(message_verbosity),
       css_parser_(css_parser),
       scanner_(input_.c_str(), &string_pool_),
-      into_declaration_data_(NULL) {}
+      into_declaration_data_(NULL),
+      supports_map_to_mesh_(supports_map_to_mesh ==
+                            Parser::kSupportsMapToMesh) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
   TRACK_MEMORY_SCOPE("CSS");
@@ -531,39 +540,44 @@ void LogErrorCallback(const std::string& message) { LOG(ERROR) << message; }
 
 }  // namespace
 
-scoped_ptr<Parser> Parser::Create() {
+scoped_ptr<Parser> Parser::Create(SupportsMapToMeshFlag supports_map_to_mesh) {
   return make_scoped_ptr(new Parser(base::Bind(&LogWarningCallback),
                                     base::Bind(&LogErrorCallback),
-                                    Parser::kVerbose));
+                                    Parser::kVerbose, supports_map_to_mesh));
 }
 
 Parser::Parser(const OnMessageCallback& on_warning_callback,
                const OnMessageCallback& on_error_callback,
-               MessageVerbosity message_verbosity)
+               MessageVerbosity message_verbosity,
+               SupportsMapToMeshFlag supports_map_to_mesh)
     : on_warning_callback_(on_warning_callback),
       on_error_callback_(on_error_callback),
-      message_verbosity_(message_verbosity) {}
+      message_verbosity_(message_verbosity),
+      supports_map_to_mesh_(supports_map_to_mesh) {}
 
 Parser::~Parser() {}
 
 scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
-                         on_error_callback_, message_verbosity_);
+                         on_error_callback_, message_verbosity_,
+                         supports_map_to_mesh_);
   return parser_impl.ParseStyleSheet();
 }
 
 scoped_refptr<cssom::CSSRule> Parser::ParseRule(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
-                         on_error_callback_, message_verbosity_);
+                         on_error_callback_, message_verbosity_,
+                         supports_map_to_mesh_);
   return parser_impl.ParseRule();
 }
 
 scoped_refptr<cssom::CSSDeclaredStyleData> Parser::ParseStyleDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
-                         on_error_callback_, message_verbosity_);
+                         on_error_callback_, message_verbosity_,
+                         supports_map_to_mesh_);
   return parser_impl.ParseStyleDeclarationList();
 }
 
@@ -571,7 +585,8 @@ scoped_refptr<cssom::CSSFontFaceDeclarationData>
 Parser::ParseFontFaceDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
-                         on_error_callback_, message_verbosity_);
+                         on_error_callback_, message_verbosity_,
+                         supports_map_to_mesh_);
   return parser_impl.ParseFontFaceDeclarationList();
 }
 
@@ -580,7 +595,7 @@ scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
     const base::SourceLocation& property_location) {
   ParserImpl parser_impl(property_value, property_location, this,
                          on_warning_callback_, on_error_callback_,
-                         message_verbosity_);
+                         message_verbosity_, supports_map_to_mesh_);
   return parser_impl.ParsePropertyValue(property_name);
 }
 
@@ -590,7 +605,7 @@ void Parser::ParsePropertyIntoDeclarationData(
     cssom::CSSDeclarationData* declaration_data) {
   ParserImpl parser_impl(property_value, property_location, this,
                          on_warning_callback_, on_error_callback_,
-                         message_verbosity_);
+                         message_verbosity_, supports_map_to_mesh_);
   return parser_impl.ParsePropertyIntoDeclarationData(property_name,
                                                       declaration_data);
 }
@@ -598,7 +613,8 @@ void Parser::ParsePropertyIntoDeclarationData(
 scoped_refptr<cssom::MediaList> Parser::ParseMediaList(
     const std::string& media_list, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(media_list, input_location, this, on_warning_callback_,
-                         on_error_callback_, message_verbosity_);
+                         on_error_callback_, message_verbosity_,
+                         supports_map_to_mesh_);
   return parser_impl.ParseMediaList();
 }
 
@@ -607,7 +623,7 @@ scoped_refptr<cssom::MediaQuery> Parser::ParseMediaQuery(
     const base::SourceLocation& input_location) {
   ParserImpl parser_impl(media_query, input_location, this,
                          on_warning_callback_, on_error_callback_,
-                         message_verbosity_);
+                         message_verbosity_, supports_map_to_mesh_);
   return parser_impl.ParseMediaQuery();
 }
 
