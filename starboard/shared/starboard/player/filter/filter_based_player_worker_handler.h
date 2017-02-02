@@ -19,9 +19,11 @@
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 #include "starboard/time.h"
 
@@ -39,22 +41,25 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
                                  const SbMediaAudioHeader& audio_header);
 
  private:
-  void Setup(PlayerWorker* player_worker,
-             SbPlayer player,
-             UpdateMediaTimeCB update_media_time_cb,
-             GetPlayerStateCB get_player_state_cb,
-             UpdatePlayerStateCB update_player_state_cb) SB_OVERRIDE;
-  bool ProcessInitEvent() SB_OVERRIDE;
-  bool ProcessSeekEvent(const SeekEventData& data) SB_OVERRIDE;
-  bool ProcessWriteSampleEvent(const WriteSampleEventData& data,
-                               bool* written) SB_OVERRIDE;
-  bool ProcessWriteEndOfStreamEvent(const WriteEndOfStreamEventData& data)
-      SB_OVERRIDE;
-  bool ProcessSetPauseEvent(const SetPauseEventData& data) SB_OVERRIDE;
-  bool ProcessUpdateEvent(const SetBoundsEventData& data) SB_OVERRIDE;
-  void ProcessStopEvent() SB_OVERRIDE;
+  bool Init(PlayerWorker* player_worker,
+            JobQueue* job_queue,
+            SbPlayer player,
+            UpdateMediaTimeCB update_media_time_cb,
+            GetPlayerStateCB get_player_state_cb,
+            UpdatePlayerStateCB update_player_state_cb) SB_OVERRIDE;
+  bool Seek(SbMediaTime seek_to_pts, int ticket) SB_OVERRIDE;
+  bool WriteSample(InputBuffer input_buffer, bool* written) SB_OVERRIDE;
+  bool WriteEndOfStream(SbMediaType sample_type) SB_OVERRIDE;
+  bool SetPause(bool pause) SB_OVERRIDE;
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  bool SetBounds(const PlayerWorker::Bounds& bounds) SB_OVERRIDE;
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+  void Stop() SB_OVERRIDE;
+
+  void Update();
 
   PlayerWorker* player_worker_;
+  JobQueue* job_queue_;
   SbPlayer player_;
   UpdateMediaTimeCB update_media_time_cb_;
   GetPlayerStateCB get_player_state_cb_;
@@ -69,6 +74,10 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   scoped_ptr<VideoRenderer> video_renderer_;
 
   bool paused_;
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  PlayerWorker::Bounds bounds_;
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+  Closure update_closure_;
 };
 
 }  // namespace filter
