@@ -23,8 +23,11 @@
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/closure.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -35,7 +38,8 @@ namespace filter {
 
 class AudioRenderer {
  public:
-  AudioRenderer(scoped_ptr<AudioDecoder> decoder,
+  AudioRenderer(JobQueue* job_queue,
+                scoped_ptr<AudioDecoder> decoder,
                 const SbMediaAudioHeader& audio_header);
   ~AudioRenderer();
 
@@ -48,7 +52,7 @@ class AudioRenderer {
   void Pause();
   void Seek(SbMediaTime seek_to_pts);
 
-  bool IsEndOfStreamWritten() const { return end_of_stream_reached_; }
+  bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
   bool IsEndOfStreamPlayed() const;
   bool CanAcceptMoreData() const;
   bool IsSeekingInProgress() const;
@@ -64,6 +68,16 @@ class AudioRenderer {
   //    no longer accept more data.
   static const size_t kMaxCachedFrames = 256 * 1024;
 
+  void UpdateSourceStatus(int* frames_in_buffer,
+                          int* offset_in_frames,
+                          bool* is_playing,
+                          bool* is_eos_reached);
+  void ConsumeFrames(int frames_consumed);
+
+  void ReadFromDecoder();
+  bool AppendDecodedAudio_Locked(
+      const scoped_refptr<DecodedAudio>& decoded_audio);
+
   // SbAudioSink callbacks
   static void UpdateSourceStatusFunc(int* frames_in_buffer,
                                      int* offset_in_frames,
@@ -71,14 +85,8 @@ class AudioRenderer {
                                      bool* is_eos_reached,
                                      void* context);
   static void ConsumeFramesFunc(int frames_consumed, void* context);
-  void UpdateSourceStatus(int* frames_in_buffer,
-                          int* offset_in_frames,
-                          bool* is_playing,
-                          bool* is_eos_reached);
-  void ConsumeFrames(int frames_consumed);
 
-  void AppendFrames(const uint8_t* source_buffer, int frames_to_append);
-
+  JobQueue* job_queue_;
   const int channels_;
   const int bytes_per_frame_;
 
@@ -93,10 +101,13 @@ class AudioRenderer {
   int offset_in_frames_;
 
   int frames_consumed_;
-  bool end_of_stream_reached_;
+  bool end_of_stream_written_;
+  bool end_of_stream_decoded_;
 
   scoped_ptr<AudioDecoder> decoder_;
   SbAudioSink audio_sink_;
+  scoped_refptr<DecodedAudio> pending_decoded_audio_;
+  Closure read_from_decoder_closure_;
 };
 
 }  // namespace filter

@@ -15,11 +15,12 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_H_
 
-#include <vector>
+#include <queue>
 
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
 namespace starboard {
@@ -28,15 +29,16 @@ namespace ffmpeg {
 
 class AudioDecoder : public starboard::player::filter::AudioDecoder {
  public:
+  typedef starboard::player::DecodedAudio DecodedAudio;
   typedef starboard::player::InputBuffer InputBuffer;
 
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header);
   ~AudioDecoder() SB_OVERRIDE;
 
-  void Decode(const InputBuffer& input_buffer,
-              std::vector<uint8_t>* output) SB_OVERRIDE;
+  void Decode(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
+  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
   int GetSamplesPerSecond() const SB_OVERRIDE;
@@ -52,6 +54,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   AVFrame* av_frame_;
 
   bool stream_ended_;
+  std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   SbMediaAudioHeader audio_header_;
 };
 

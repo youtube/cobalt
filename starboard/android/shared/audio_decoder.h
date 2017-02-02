@@ -20,12 +20,13 @@
 #include <media/NdkMediaExtractor.h>
 #include <media/NdkMediaFormat.h>
 
-#include <vector>
+#include <queue>
 
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
 namespace starboard {
@@ -35,15 +36,16 @@ namespace shared {
 class AudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder {
  public:
+  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
 
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header);
   ~AudioDecoder() SB_OVERRIDE;
 
-  void Decode(const InputBuffer& input_buffer,
-              std::vector<uint8_t>* output) SB_OVERRIDE;
+  void Decode(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
+  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
 
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
@@ -66,6 +68,7 @@ class AudioDecoder
   SbMediaAudioSampleType sample_type_;
 
   bool stream_ended_;
+  std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   SbMediaAudioHeader audio_header_;
 };
 
