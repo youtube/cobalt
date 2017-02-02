@@ -306,6 +306,15 @@ void MozjsGlobalEnvironment::EnableEval() {
   eval_enabled_ = true;
 }
 
+void MozjsGlobalEnvironment::DisableJit() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  JS::RuntimeOptionsRef(context_)
+      .setBaseline(false)
+      .setIon(false)
+      .setAsmJS(false)
+      .setNativeRegExp(false);
+}
+
 void MozjsGlobalEnvironment::SetReportEvalCallback(
     const base::Closure& report_eval) {
   DCHECK(thread_checker_.CalledOnValidThread());
