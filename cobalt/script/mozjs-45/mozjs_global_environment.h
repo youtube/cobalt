@@ -71,6 +71,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   void EnableEval() OVERRIDE;
 
+  void DisableJit() OVERRIDE;
+
   void SetReportEvalCallback(const base::Closure& report_eval) OVERRIDE;
 
   void Bind(const std::string& identifier,
