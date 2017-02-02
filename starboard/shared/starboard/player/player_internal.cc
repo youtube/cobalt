@@ -20,8 +20,6 @@ using starboard::shared::starboard::player::InputBuffer;
 
 namespace {
 
-const SbTime kUpdateInterval = kSbTimeMillisecond;
-
 SbMediaTime GetMediaTime(SbMediaTime media_pts,
                          SbTimeMonotonic media_pts_update_time) {
   SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_pts_update_time;
@@ -54,7 +52,6 @@ SbPlayerPrivate::SbPlayerPrivate(
                                decoder_status_func,
                                player_status_func,
                                this,
-                               kUpdateInterval,
                                context)) {}
 
 void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
@@ -66,8 +63,7 @@ void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
     ticket_ = ticket;
   }
 
-  PlayerWorker::SeekEventData data = {seek_to_pts, ticket};
-  worker_->EnqueueEvent(data);
+  worker_->Seek(seek_to_pts, ticket);
 }
 
 void SbPlayerPrivate::WriteSample(
@@ -80,22 +76,20 @@ void SbPlayerPrivate::WriteSample(
   if (sample_type == kSbMediaTypeVideo) {
     ++total_video_frames_;
   }
-  InputBuffer* input_buffer = new InputBuffer(
-      sample_deallocate_func_, this, context_, sample_buffer,
-      sample_buffer_size, sample_pts, video_sample_info, sample_drm_info);
-  PlayerWorker::WriteSampleEventData data = {sample_type, input_buffer};
-  worker_->EnqueueEvent(data);
+  InputBuffer input_buffer(sample_type, sample_deallocate_func_, this, context_,
+                           sample_buffer, sample_buffer_size, sample_pts,
+                           video_sample_info, sample_drm_info);
+  worker_->WriteSample(input_buffer);
 }
 
 void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
-  PlayerWorker::WriteEndOfStreamEventData data = {stream_type};
-  worker_->EnqueueEvent(data);
+  worker_->WriteEndOfStream(stream_type);
 }
 
 #if SB_IS(PLAYER_PUNCHED_OUT)
 void SbPlayerPrivate::SetBounds(int x, int y, int width, int height) {
-  PlayerWorker::SetBoundsEventData data = {x, y, width, height};
-  worker_->EnqueueEvent(data);
+  PlayerWorker::Bounds bounds = {x, y, width, height};
+  worker_->SetBounds(bounds);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
 #endif
@@ -121,8 +115,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
 }
 
 void SbPlayerPrivate::SetPause(bool pause) {
-  PlayerWorker::SetPauseEventData data = {pause};
-  worker_->EnqueueEvent(data);
+  worker_->SetPause(pause);
 }
 
 void SbPlayerPrivate::SetVolume(double volume) {
