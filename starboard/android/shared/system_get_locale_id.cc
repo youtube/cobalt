@@ -14,12 +14,13 @@
 
 #include "starboard/system.h"
 
-#include <android/configuration.h>
 #include <string>
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/once.h"
-
 #include "starboard/string.h"
+
+using starboard::android::shared::JniEnvExt;
 
 namespace {
 
@@ -30,31 +31,13 @@ class LocaleInfo {
   std::string locale_id;
 
   LocaleInfo() {
-    AConfiguration* config = AConfiguration_new();
+    JniEnvExt* env = JniEnvExt::Get();
 
-    // "The output will be filled with an array of two characters. They are not
-    // 0-terminated. If a language is not set, they will be 0."
-    //
-    // https://developer.android.com/ndk/reference/group___configuration.html
-    char outLanguage[2];
-    AConfiguration_getLanguage(config, outLanguage);
-
-    char outCountry[2];
-    AConfiguration_getCountry(config, outCountry);
-
-    if (outLanguage[0] == 0) {
-      locale_id = "en_US";
-    } else {
-      locale_id.append(1, outLanguage[0]);
-      locale_id.append(1, outLanguage[1]);
-      if (outCountry[0] != 0) {
-        locale_id.append(1, '_');
-        locale_id.append(1, outCountry[0]);
-        locale_id.append(1, outCountry[1]);
-      }
-    }
-
-    AConfiguration_delete(config);
+    jstring result = static_cast<jstring>(env->CallActivityObjectMethod(
+        "systemGetLocaleId", "()Ljava/lang/String;"));
+    const char* utf_chars = env->GetStringUTFChars(result, NULL);
+    locale_id = utf_chars;
+    env->ReleaseStringUTFChars(result, utf_chars);
   }
 };
 
