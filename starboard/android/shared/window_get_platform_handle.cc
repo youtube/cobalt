@@ -17,6 +17,9 @@
 #include "starboard/android/shared/window_internal.h"
 
 void* SbWindowGetPlatformHandle(SbWindow window) {
+  if (!SbWindowIsValid(window)) {
+    return NULL;
+  }
   // EGLNativeWindowType and ANativeWindow* are the same.
   return window->native_window;
 }

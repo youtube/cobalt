@@ -49,15 +49,6 @@ const char* GetAbsolutePath(JniEnvExt* env, jobject file_obj) {
 }  // namespace
 
 void SbFileAndroidInitialize(ANativeActivity* activity) {
-  // TODO: Make an APK test runner so we don't need this
-  if (activity == NULL) {
-    SB_LOG(ERROR) << "NULL Activity; Initializing fake file paths for tests";
-    g_asset_manager = NULL;
-    g_app_files_dir = SbStringDuplicate("/data/local/tmp/cobalt");
-    g_app_cache_dir = SbStringDuplicate("/data/local/tmp/cobalt");
-    return;
-  }
-
   SB_DCHECK(g_asset_manager == NULL);
   g_asset_manager = activity->assetManager;
 

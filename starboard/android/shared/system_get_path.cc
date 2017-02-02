@@ -91,7 +91,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
-    // TODO probably subdir in Context.getDir()
     case kSbSystemPathTestOutputDirectory: {
       return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
                              path_size);
