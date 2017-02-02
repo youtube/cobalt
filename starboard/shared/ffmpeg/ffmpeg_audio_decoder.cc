@@ -16,6 +16,7 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {
@@ -81,9 +82,7 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Decode(const InputBuffer& input_buffer,
-                          std::vector<uint8_t>* output) {
-  SB_CHECK(output != NULL);
+void AudioDecoder::Decode(const InputBuffer& input_buffer) {
   SB_CHECK(codec_context_ != NULL);
 
   if (stream_ended_) {
@@ -105,7 +104,6 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
     SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
                      << " with input buffer size: " << input_buffer.size()
                      << " and frame decoded: " << frame_decoded;
-    output->clear();
     return;
   }
 
@@ -115,20 +113,24 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   audio_header_.samples_per_second = codec_context_->sample_rate;
 
   if (decoded_audio_size > 0) {
-    output->resize(codec_context_->channels * av_frame_->nb_samples *
-                   (sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4));
+    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+        input_buffer.pts(),
+        codec_context_->channels * av_frame_->nb_samples *
+            (sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4));
     if (codec_context_->sample_fmt == codec_context_->request_sample_fmt) {
-      memcpy(&(*output)[0], av_frame_->extended_data, output->size());
+      SbMemoryCopy(decoded_audio->buffer(), av_frame_->extended_data,
+                   decoded_audio->size());
     } else {
-      ConvertSamples(
-          codec_context_->sample_fmt, codec_context_->request_sample_fmt,
-          codec_context_->channel_layout, audio_header_.samples_per_second,
-          av_frame_->nb_samples, av_frame_->extended_data, &(*output)[0]);
+      ConvertSamples(codec_context_->sample_fmt,
+                     codec_context_->request_sample_fmt,
+                     codec_context_->channel_layout,
+                     audio_header_.samples_per_second, av_frame_->nb_samples,
+                     av_frame_->extended_data, decoded_audio->buffer());
     }
+    decoded_audios_.push(decoded_audio);
   } else {
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << "Decoded audio frame is empty.";
-    output->clear();
   }
 }
 
@@ -136,10 +138,24 @@ void AudioDecoder::WriteEndOfStream() {
   // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
   // to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
+  // Put EOS into the queue.
+  decoded_audios_.push(new DecodedAudio);
+}
+
+scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
+  scoped_refptr<DecodedAudio> result;
+  if (!decoded_audios_.empty()) {
+    result = decoded_audios_.front();
+    decoded_audios_.pop();
+  }
+  return result;
 }
 
 void AudioDecoder::Reset() {
   stream_ended_ = false;
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
 }
 
 SbMediaAudioSampleType AudioDecoder::GetSampleType() const {
