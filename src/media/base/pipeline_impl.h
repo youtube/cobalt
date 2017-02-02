@@ -96,6 +96,9 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   PipelineImpl(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                MediaLog* media_log);
 
+  void Suspend() OVERRIDE;
+  void Resume() OVERRIDE;
+
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |seek_cb| when the initial seek/preroll has completed.
   //

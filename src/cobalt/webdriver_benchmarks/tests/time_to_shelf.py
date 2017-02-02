@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # pylint: disable=C6204,C6203
 import tv_testcase
+import tv_testcase_util
 
 
 class TimeToShelf(tv_testcase.TvTestCase):
@@ -46,16 +47,15 @@ class TimeToShelf(tv_testcase.TvTestCase):
     for _ in range(10):
       t0 = self.get_int_cval('Cobalt.Lifetime')
       self.load_tv()
-      self.wait_for_layout_complete_after_focused_shelf()
+      self.wait_for_processing_complete_after_focused_shelf()
       t1 = self.get_int_cval('Cobalt.Lifetime')
       startup_time_microseconds = t1 - t0
       metrics_array.append(startup_time_microseconds)
 
-    self.record_result_median('timeToShelfTestTimeShelfDisplayMedianUs',
-                              metrics_array)
-    self.record_result('timeToShelfBlankStartupTimeUs',
-                       blank_startup_time_microseconds)
-
+    tv_testcase_util.record_test_result_median(
+        'timeToShelfTestTimeShelfDisplayMedianUs', metrics_array)
+    tv_testcase_util.record_test_result('timeToShelfBlankStartupTimeUs',
+                                        blank_startup_time_microseconds)
 
 if __name__ == '__main__':
   tv_testcase.main()

@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
+#include "media/base/video_types.h"
 
 namespace media {
 
@@ -20,14 +21,15 @@ VideoDecoderConfig::VideoDecoderConfig()
 VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
                                        VideoCodecProfile profile,
                                        VideoFrame::Format format,
+                                       ColorSpace color_space,
                                        const gfx::Size& coded_size,
                                        const gfx::Rect& visible_rect,
                                        const gfx::Size& natural_size,
                                        const uint8* extra_data,
                                        size_t extra_data_size,
                                        bool is_encrypted) {
-  Initialize(codec, profile, format, coded_size, visible_rect, natural_size,
-             extra_data, extra_data_size, is_encrypted, true);
+  Initialize(codec, profile, format, color_space, coded_size, visible_rect,
+             natural_size, extra_data, extra_data_size, is_encrypted, true);
 }
 
 VideoDecoderConfig::~VideoDecoderConfig() {}
@@ -57,6 +59,7 @@ static void UmaHistogramAspectRatio(const char* name, const T& size) {
 void VideoDecoderConfig::Initialize(VideoCodec codec,
                                     VideoCodecProfile profile,
                                     VideoFrame::Format format,
+                                    ColorSpace color_space,
                                     const gfx::Size& coded_size,
                                     const gfx::Rect& visible_rect,
                                     const gfx::Size& natural_size,
@@ -82,6 +85,7 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   codec_ = codec;
   profile_ = profile;
   format_ = format;
+  color_space_ = color_space;
   coded_size_ = coded_size;
   visible_rect_ = visible_rect;
   natural_size_ = natural_size;
@@ -95,12 +99,30 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   }
 
   is_encrypted_ = is_encrypted;
+
+  switch (color_space) {
+    case COLOR_SPACE_JPEG:
+      color_space_info_ = gfx::ColorSpace::CreateJpeg();
+      break;
+    case COLOR_SPACE_HD_REC709:
+      color_space_info_ = gfx::ColorSpace::CreateREC709();
+      break;
+    case COLOR_SPACE_SD_REC601:
+      color_space_info_ = gfx::ColorSpace::CreateREC601();
+      break;
+    case COLOR_SPACE_UNSPECIFIED:
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
 }
 
 void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
   Initialize(video_config.codec(),
              video_config.profile(),
              video_config.format(),
+             video_config.color_space(),
              video_config.coded_size(),
              video_config.visible_rect(),
              video_config.natural_size(),
@@ -121,6 +143,7 @@ bool VideoDecoderConfig::IsValidConfig() const {
 bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
   return ((codec() == config.codec()) &&
           (format() == config.format()) &&
+          (color_space_info() == config.color_space_info()) &&
           (profile() == config.profile()) &&
           (coded_size() == config.coded_size()) &&
           (visible_rect() == config.visible_rect()) &&
@@ -183,6 +206,27 @@ size_t VideoDecoderConfig::extra_data_size() const {
 
 bool VideoDecoderConfig::is_encrypted() const {
   return is_encrypted_;
+}
+
+void VideoDecoderConfig::set_color_space_info(
+    const gfx::ColorSpace& color_space_info) {
+  color_space_info_ = color_space_info;
+}
+
+gfx::ColorSpace VideoDecoderConfig::color_space_info() const {
+  return color_space_info_;
+}
+
+ColorSpace VideoDecoderConfig::color_space() const {
+  return color_space_;
+}
+
+void VideoDecoderConfig::set_hdr_metadata(const HDRMetadata& hdr_metadata) {
+  hdr_metadata_ = hdr_metadata;
+}
+
+HDRMetadata VideoDecoderConfig::hdr_metadata() const {
+  return hdr_metadata_;
 }
 
 }  // namespace media

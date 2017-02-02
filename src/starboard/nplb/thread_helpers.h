@@ -15,6 +15,7 @@
 #ifndef STARBOARD_NPLB_THREAD_HELPERS_H_
 #define STARBOARD_NPLB_THREAD_HELPERS_H_
 
+#include "starboard/common/semaphore.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/mutex.h"
@@ -26,6 +27,68 @@
 
 namespace starboard {
 namespace nplb {
+
+class TestSemaphore {
+ public:
+  TestSemaphore();  // initial_thread_permits = 0;
+  explicit TestSemaphore(int initial_thread_permits);
+
+  // Copy constructed needed because of tests.
+  TestSemaphore(const TestSemaphore& other)
+      : mutex_(), condition_(mutex_), permits_(other.permits_) {}
+  ~TestSemaphore();
+
+  // Increases the permits. One thread will be woken up if it is blocked in
+  // Take().
+  void Put();
+
+  // The caller is blocked if the counter is negative, and will stay blocked
+  // until Put() is invoked by another thread. The permits is then
+  // decremented by one.
+
+  void Take();
+
+  // A non-blocking version of Take(). If the counter is negative then this
+  // function returns immediately and the semaphore is not modified. If true
+  // is returned then the effects are the same as Take().
+  bool TakeTry();
+
+ private:
+  Mutex mutex_;
+  ConditionVariable condition_;
+  int permits_;
+};
+
+inline TestSemaphore::TestSemaphore()
+    : mutex_(), condition_(mutex_), permits_(0) {}
+
+inline TestSemaphore::TestSemaphore(int initial_thread_permits)
+    : mutex_(), condition_(mutex_), permits_(initial_thread_permits) {}
+
+inline TestSemaphore::~TestSemaphore() {}
+
+inline void TestSemaphore::Put() {
+  ScopedLock lock(mutex_);
+  ++permits_;
+  condition_.Signal();
+}
+
+inline void TestSemaphore::Take() {
+  ScopedLock lock(mutex_);
+  while (permits_ <= 0) {
+    condition_.Wait();
+  }
+  --permits_;
+}
+
+inline bool TestSemaphore::TakeTry() {
+  ScopedLock lock(mutex_);
+  if (permits_ <= 0) {
+    return false;
+  }
+  --permits_;
+  return true;
+}
 
 inline void* ToVoid(intptr_t value) {
   return reinterpret_cast<void*>(value);
@@ -74,24 +137,10 @@ struct WaiterContext {
   int unreturned_waiters;
 };
 
-// A semaphore that tests can use to trigger other threads
-struct Semaphore {
-  Semaphore();
-  explicit Semaphore(int initial_value);
-  ~Semaphore();
-
-  void Put();
-  void Take();
-
-  SbMutex mutex;
-  SbConditionVariable condition;
-  int count;
-};
-
 // An aggregate type (which can be initialized with aggregate initialization) to
 // be used with the TakeThenSignalEntryPoint.
 struct TakeThenSignalContext {
-  Semaphore do_signal;
+  TestSemaphore do_signal;
   SbMutex mutex;
   SbConditionVariable condition;
   SbTime delay_after_signal;

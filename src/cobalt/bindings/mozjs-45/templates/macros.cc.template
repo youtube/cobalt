@@ -47,7 +47,7 @@
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -98,7 +98,11 @@
   } // End scope of {{attribute.type}} forwarded_{{cobalt_impl_prefix}}impl.
 {% else %}
   TypeTraits<{{attribute.type}} >::ConversionType value;
-  FromJSValue(context, vp, {{attribute.conversion_flags}}, &exception_state,
+  if (args.length() != 1) {
+    NOTREACHED();
+    return false;
+  }
+  FromJSValue(context, args[0], {{attribute.conversion_flags}}, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
     return false;
@@ -360,8 +364,7 @@
   JS::RootedValue result_value(context);
   ToJSValue(context, new_object, &result_value);
   DCHECK(result_value.isObject());
-  JS::RootedObject result_object(context, JSVAL_TO_OBJECT(result_value));
-  args.rval().setObject(*result_object);
+  args.rval().setObject(result_value.toObject());
   return true;
 {%- endcall %}
 {%- endmacro %}
@@ -390,7 +393,7 @@
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
       JS::RootedObject object(context);
       if (arg.isObject()) {
-        object = JSVAL_TO_OBJECT(arg);
+        object = JS::RootedObject(context, &arg.toObject());
       }
 {% endif %}
 {% for test, overload in resolution_tests %}

@@ -30,7 +30,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/bindings/testing/named_getter_interface.h"
 
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace bindings {

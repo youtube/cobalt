@@ -26,10 +26,14 @@ namespace base {
 #define TOKENS_FOR_EACH_WITH_NAME_ONLY(MacroOpWithNameOnly)   \
     MacroOpWithNameOnly(addsourcebuffer)                      \
     MacroOpWithNameOnly(abort)                                \
+    MacroOpWithNameOnly(additions)                            \
+    MacroOpWithNameOnly(alt)                                  \
     MacroOpWithNameOnly(animationend)                         \
+    MacroOpWithNameOnly(assertive)                            \
     MacroOpWithNameOnly(blur)                                 \
     MacroOpWithNameOnly(canplay)                              \
     MacroOpWithNameOnly(canplaythrough)                       \
+    MacroOpWithNameOnly(close)                                \
     MacroOpWithNameOnly(durationchange)                       \
     MacroOpWithNameOnly(emptied)                              \
     MacroOpWithNameOnly(ended)                                \
@@ -47,14 +51,19 @@ namespace base {
     MacroOpWithNameOnly(loadedmetadata)                       \
     MacroOpWithNameOnly(loadend)                              \
     MacroOpWithNameOnly(loadstart)                            \
+    MacroOpWithNameOnly(message)                              \
     MacroOpWithNameOnly(needkey)                              \
     MacroOpWithNameOnly(nomatch)                              \
+    MacroOpWithNameOnly(off)                                  \
+    MacroOpWithNameOnly(open)                                 \
     MacroOpWithNameOnly(pause)                                \
     MacroOpWithNameOnly(play)                                 \
     MacroOpWithNameOnly(playing)                              \
+    MacroOpWithNameOnly(polite)                               \
     MacroOpWithNameOnly(progress)                             \
     MacroOpWithNameOnly(ratechange)                           \
     MacroOpWithNameOnly(readystatechange)                     \
+    MacroOpWithNameOnly(removals)                             \
     MacroOpWithNameOnly(removesourcebuffer)                   \
     MacroOpWithNameOnly(result)                               \
     MacroOpWithNameOnly(securitypolicyviolation)              \
@@ -68,6 +77,7 @@ namespace base {
     MacroOpWithNameOnly(storage)                              \
     MacroOpWithNameOnly(stalled)                              \
     MacroOpWithNameOnly(suspend)                              \
+    MacroOpWithNameOnly(text)                                 \
     MacroOpWithNameOnly(timeout)                              \
     MacroOpWithNameOnly(timeupdate)                           \
     MacroOpWithNameOnly(transitionend)                        \
@@ -78,6 +88,13 @@ namespace base {
 #define TOKENS_FOR_EACH_WITH_NAME_AND_VALUE(MacroOpWithNameAndValue)    \
     MacroOpWithNameAndValue(active_pseudo_class_selector, "active")     \
     MacroOpWithNameAndValue(after_pseudo_element_selector, "after")     \
+    MacroOpWithNameAndValue(aria_atomic, "aria-atomic")                 \
+    MacroOpWithNameAndValue(aria_busy, "aria-busy")                     \
+    MacroOpWithNameAndValue(aria_hidden, "aria-hidden")                 \
+    MacroOpWithNameAndValue(aria_label, "aria-label")                   \
+    MacroOpWithNameAndValue(aria_labelledby, "aria-labelledby")         \
+    MacroOpWithNameAndValue(aria_live, "aria-live")                     \
+    MacroOpWithNameAndValue(aria_relevant, "aria-relevant")             \
     MacroOpWithNameAndValue(before_pseudo_element_selector, "before")   \
     MacroOpWithNameAndValue(cdata_section_node_name, "#cdata_section")  \
     MacroOpWithNameAndValue(class_selector_prefix, ".")                 \
@@ -85,13 +102,16 @@ namespace base {
     MacroOpWithNameAndValue(document_name, "#document")                 \
     MacroOpWithNameAndValue(domcontentloaded, "DOMContentLoaded")       \
     MacroOpWithNameAndValue(empty_pseudo_class_selector, "empty")       \
+    MacroOpWithNameAndValue(false_token, "false")                         \
     MacroOpWithNameAndValue(focus_pseudo_class_selector, "focus")       \
     MacroOpWithNameAndValue(hover_pseudo_class_selector, "hover")       \
     MacroOpWithNameAndValue(id_selector_prefix, "#")                    \
     MacroOpWithNameAndValue(not_pseudo_class_selector, "not")           \
     MacroOpWithNameAndValue(pseudo_class_selector_prefix, ":")          \
     MacroOpWithNameAndValue(pseudo_element_selector_prefix, "::")       \
-    MacroOpWithNameAndValue(text_node_name, "#text")
+    MacroOpWithNameAndValue(text_node_name, "#text")                    \
+    MacroOpWithNameAndValue(true_token, "true")
+
 // clang-format on
 
 // Singleton containing commonly used Tokens.

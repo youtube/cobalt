@@ -22,9 +22,9 @@
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/mozjs/wrapper_factory.h"
+#include "cobalt/script/mozjs-45/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

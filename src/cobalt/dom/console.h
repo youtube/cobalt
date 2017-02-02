@@ -55,9 +55,11 @@ class Console : public script::Wrappable {
   // Web API: Console
   //
   // Outputs a message.
+  void Debug(const std::string& text) const;
   void Log(const std::string& text) const;
   void Info(const std::string& text) const;
   void Error(const std::string& text) const;
+  void Warn(const std::string& text) const;
   // Outputs a JavaScript stack trace.
   void Trace() const;
 

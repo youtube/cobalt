@@ -30,22 +30,22 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
-#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/mozjs-45/callback_function_conversion.h"
 #include "cobalt/script/exception_state.h"
-#include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_callback_function.h"
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
-#include "cobalt/script/mozjs/mozjs_object_handle.h"
-#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
-#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
-#include "cobalt/script/mozjs/proxy_handler.h"
-#include "cobalt/script/mozjs/type_traits.h"
-#include "cobalt/script/mozjs/wrapper_factory.h"
-#include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
+#include "cobalt/script/mozjs-45/mozjs_callback_function.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
+#include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/proxy_handler.h"
+#include "cobalt/script/mozjs-45/type_traits.h"
+#include "cobalt/script/mozjs-45/wrapper_factory.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsfriendapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
 namespace {
 using cobalt::bindings::testing::OperationsTestInterface;
@@ -118,8 +118,8 @@ MozjsOperationsTestInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsOperationsTestInterfaceHandler>
     proxy_handler;
 
-JSBool HasInstance(JSContext *context, JS::HandleObject type,
-                   JS::MutableHandleValue vp, JSBool *success) {
+bool HasInstance(JSContext *context, JS::HandleObject type,
+                   JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
       context, JS_GetGlobalForObject(context, type));
   DCHECK(global_object);
@@ -139,58 +139,44 @@ JSBool HasInstance(JSContext *context, JS::HandleObject type,
   return true;
 }
 
-InterfaceData* CreateCachedInterfaceData() {
-  InterfaceData* interface_data = new InterfaceData();
-  memset(&interface_data->instance_class_definition, 0,
-         sizeof(interface_data->instance_class_definition));
-  memset(&interface_data->prototype_class_definition, 0,
-         sizeof(interface_data->prototype_class_definition));
-  memset(&interface_data->interface_object_class_definition, 0,
-         sizeof(interface_data->interface_object_class_definition));
+const JSClass instance_class_definition = {
+    "OperationsTestInterface",
+    0 | JSCLASS_HAS_PRIVATE,
+    NULL,  // addProperty
+    NULL,  // delProperty
+    NULL,  // getProperty
+    NULL,  // setProperty
+    NULL,  // enumerate
+    NULL,  // resolve
+    NULL,  // mayResolve
+    &WrapperPrivate::Finalizer,  // finalize
+    NULL,  // call
+    NULL,  // hasInstance
+    NULL,  // construct
+    &WrapperPrivate::Trace,  // trace
+};
 
-  JSClass* instance_class = &interface_data->instance_class_definition;
-  const int kGlobalFlags = 0;
-  instance_class->name = "OperationsTestInterface";
-  instance_class->flags = kGlobalFlags | JSCLASS_HAS_PRIVATE;
-  instance_class->addProperty = JS_PropertyStub;
-  instance_class->delProperty = JS_DeletePropertyStub;
-  instance_class->getProperty = JS_PropertyStub;
-  instance_class->setProperty = JS_StrictPropertyStub;
-  instance_class->enumerate = JS_EnumerateStub;
-  instance_class->resolve = JS_ResolveStub;
-  instance_class->convert = JS_ConvertStub;
-  // Function to be called before on object of this class is garbage collected.
-  instance_class->finalize = &WrapperPrivate::Finalizer;
-  // Called to trace objects that can be referenced from this object.
-  instance_class->trace = &WrapperPrivate::Trace;
+const JSClass prototype_class_definition = {
+    "OperationsTestInterfacePrototype",
+};
 
-  JSClass* prototype_class = &interface_data->prototype_class_definition;
-  prototype_class->name = "OperationsTestInterfacePrototype";
-  prototype_class->flags = 0;
-  prototype_class->addProperty = JS_PropertyStub;
-  prototype_class->delProperty = JS_DeletePropertyStub;
-  prototype_class->getProperty = JS_PropertyStub;
-  prototype_class->setProperty = JS_StrictPropertyStub;
-  prototype_class->enumerate = JS_EnumerateStub;
-  prototype_class->resolve = JS_ResolveStub;
-  prototype_class->convert = JS_ConvertStub;
+const JSClass interface_object_class_definition = {
+    "OperationsTestInterfaceConstructor",
+    0,
+    NULL,  // addProperty
+    NULL,  // delProperty
+    NULL,  // getProperty
+    NULL,  // setProperty
+    NULL,  // enumerate
+    NULL,  // resolve
+    NULL,  // mayResolve
+    NULL,  // finalize
+    NULL,  // call
+    &HasInstance,
+    NULL,
+};
 
-  JSClass* interface_object_class =
-      &interface_data->interface_object_class_definition;
-  interface_object_class->name = "OperationsTestInterfaceConstructor";
-  interface_object_class->flags = 0;
-  interface_object_class->addProperty = JS_PropertyStub;
-  interface_object_class->delProperty = JS_DeletePropertyStub;
-  interface_object_class->getProperty = JS_PropertyStub;
-  interface_object_class->setProperty = JS_StrictPropertyStub;
-  interface_object_class->enumerate = JS_EnumerateStub;
-  interface_object_class->resolve = JS_ResolveStub;
-  interface_object_class->convert = JS_ConvertStub;
-  interface_object_class->hasInstance = &HasInstance;
-  return interface_data;
-}
-
-JSBool fcn_longFunctionNoArgs(
+bool fcn_longFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -201,7 +187,7 @@ JSBool fcn_longFunctionNoArgs(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -233,7 +219,7 @@ JSBool fcn_longFunctionNoArgs(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_objectFunctionNoArgs(
+bool fcn_objectFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -244,7 +230,7 @@ JSBool fcn_objectFunctionNoArgs(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -276,7 +262,7 @@ JSBool fcn_objectFunctionNoArgs(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_optionalArgumentWithDefault(
+bool fcn_optionalArgumentWithDefault(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -287,7 +273,7 @@ JSBool fcn_optionalArgumentWithDefault(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -329,7 +315,7 @@ JSBool fcn_optionalArgumentWithDefault(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_optionalArguments(
+bool fcn_optionalArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -340,7 +326,7 @@ JSBool fcn_optionalArguments(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -436,7 +422,7 @@ JSBool fcn_optionalArguments(
   }
 }
 
-JSBool fcn_optionalNullableArgumentsWithDefaults(
+bool fcn_optionalNullableArgumentsWithDefaults(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -447,7 +433,7 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -503,7 +489,7 @@ JSBool fcn_optionalNullableArgumentsWithDefaults(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedFunction1(
+bool fcn_overloadedFunction1(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -514,7 +500,7 @@ JSBool fcn_overloadedFunction1(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -540,7 +526,7 @@ JSBool fcn_overloadedFunction1(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedFunction2(
+bool fcn_overloadedFunction2(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -551,7 +537,7 @@ JSBool fcn_overloadedFunction2(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -595,7 +581,7 @@ JSBool fcn_overloadedFunction2(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedFunction3(
+bool fcn_overloadedFunction3(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -606,7 +592,7 @@ JSBool fcn_overloadedFunction3(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -650,7 +636,7 @@ JSBool fcn_overloadedFunction3(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedFunction4(
+bool fcn_overloadedFunction4(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -661,7 +647,7 @@ JSBool fcn_overloadedFunction4(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -729,7 +715,7 @@ JSBool fcn_overloadedFunction4(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedFunction5(
+bool fcn_overloadedFunction5(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -740,7 +726,7 @@ JSBool fcn_overloadedFunction5(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -808,7 +794,7 @@ JSBool fcn_overloadedFunction5(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedFunction(
+bool fcn_overloadedFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   switch(argc) {
@@ -830,7 +816,7 @@ JSBool fcn_overloadedFunction(
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
       JS::RootedObject object(context);
       if (arg.isObject()) {
-        object = JSVAL_TO_OBJECT(arg);
+        object = JS::RootedObject(context, &arg.toObject());
       }
       if (arg.isNumber()) {
         return fcn_overloadedFunction2(
@@ -855,7 +841,7 @@ JSBool fcn_overloadedFunction(
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
       JS::RootedObject object(context);
       if (arg.isObject()) {
-        object = JSVAL_TO_OBJECT(arg);
+        object = JS::RootedObject(context, &arg.toObject());
       }
       if (arg.isObject() ? wrapper_factory->DoesObjectImplementInterface(
               object, base::GetTypeId<ArbitraryInterface>()) :
@@ -878,7 +864,7 @@ JSBool fcn_overloadedFunction(
   return false;
 }
 
-JSBool fcn_overloadedNullable1(
+bool fcn_overloadedNullable1(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -889,7 +875,7 @@ JSBool fcn_overloadedNullable1(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -933,7 +919,7 @@ JSBool fcn_overloadedNullable1(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedNullable2(
+bool fcn_overloadedNullable2(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -944,7 +930,7 @@ JSBool fcn_overloadedNullable2(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -988,7 +974,7 @@ JSBool fcn_overloadedNullable2(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_overloadedNullable(
+bool fcn_overloadedNullable(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   switch(argc) {
@@ -1001,7 +987,7 @@ JSBool fcn_overloadedNullable(
       WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
       JS::RootedObject object(context);
       if (arg.isObject()) {
-        object = JSVAL_TO_OBJECT(arg);
+        object = JS::RootedObject(context, &arg.toObject());
       }
       if (arg.isNullOrUndefined()) {
         return fcn_overloadedNullable2(
@@ -1022,7 +1008,7 @@ JSBool fcn_overloadedNullable(
   return false;
 }
 
-JSBool fcn_stringFunctionNoArgs(
+bool fcn_stringFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -1033,7 +1019,7 @@ JSBool fcn_stringFunctionNoArgs(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -1065,7 +1051,7 @@ JSBool fcn_stringFunctionNoArgs(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_variadicPrimitiveArguments(
+bool fcn_variadicPrimitiveArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -1076,7 +1062,7 @@ JSBool fcn_variadicPrimitiveArguments(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -1122,7 +1108,7 @@ JSBool fcn_variadicPrimitiveArguments(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
+bool fcn_variadicStringArgumentsAfterOptionalArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -1133,7 +1119,7 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -1217,7 +1203,7 @@ JSBool fcn_variadicStringArgumentsAfterOptionalArgument(
   }
 }
 
-JSBool fcn_voidFunctionLongArg(
+bool fcn_voidFunctionLongArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -1228,7 +1214,7 @@ JSBool fcn_voidFunctionLongArg(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -1272,7 +1258,7 @@ JSBool fcn_voidFunctionLongArg(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_voidFunctionNoArgs(
+bool fcn_voidFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -1283,7 +1269,7 @@ JSBool fcn_voidFunctionNoArgs(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -1309,7 +1295,7 @@ JSBool fcn_voidFunctionNoArgs(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_voidFunctionObjectArg(
+bool fcn_voidFunctionObjectArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -1320,7 +1306,7 @@ JSBool fcn_voidFunctionObjectArg(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -1364,7 +1350,7 @@ JSBool fcn_voidFunctionObjectArg(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_voidFunctionStringArg(
+bool fcn_voidFunctionStringArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -1375,7 +1361,7 @@ JSBool fcn_voidFunctionStringArg(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -1419,7 +1405,7 @@ JSBool fcn_voidFunctionStringArg(
   return !exception_state.is_exception_set();
 }
 
-JSBool staticfcn_overloadedFunction1(
+bool staticfcn_overloadedFunction1(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   MozjsExceptionState exception_state(context);
@@ -1449,7 +1435,7 @@ JSBool staticfcn_overloadedFunction1(
   return !exception_state.is_exception_set();
 }
 
-JSBool staticfcn_overloadedFunction2(
+bool staticfcn_overloadedFunction2(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   MozjsExceptionState exception_state(context);
@@ -1491,7 +1477,7 @@ JSBool staticfcn_overloadedFunction2(
   return !exception_state.is_exception_set();
 }
 
-JSBool staticfcn_overloadedFunction(
+bool staticfcn_overloadedFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   switch(argc) {
@@ -1523,109 +1509,54 @@ JSBool staticfcn_overloadedFunction(
 }
 
 
+
 const JSPropertySpec prototype_properties[] = {
   JS_PS_END
 };
 
 const JSFunctionSpec prototype_functions[] = {
-  {
-      "longFunctionNoArgs",
-      JSOP_WRAPPER(&fcn_longFunctionNoArgs),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "objectFunctionNoArgs",
-      JSOP_WRAPPER(&fcn_objectFunctionNoArgs),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "optionalArgumentWithDefault",
-      JSOP_WRAPPER(&fcn_optionalArgumentWithDefault),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "optionalArguments",
-      JSOP_WRAPPER(&fcn_optionalArguments),
-      1,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "optionalNullableArgumentsWithDefaults",
-      JSOP_WRAPPER(&fcn_optionalNullableArgumentsWithDefaults),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "overloadedFunction",
-      JSOP_WRAPPER(&fcn_overloadedFunction),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "overloadedNullable",
-      JSOP_WRAPPER(&fcn_overloadedNullable),
-      1,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "stringFunctionNoArgs",
-      JSOP_WRAPPER(&fcn_stringFunctionNoArgs),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "variadicPrimitiveArguments",
-      JSOP_WRAPPER(&fcn_variadicPrimitiveArguments),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "variadicStringArgumentsAfterOptionalArgument",
-      JSOP_WRAPPER(&fcn_variadicStringArgumentsAfterOptionalArgument),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "voidFunctionLongArg",
-      JSOP_WRAPPER(&fcn_voidFunctionLongArg),
-      1,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "voidFunctionNoArgs",
-      JSOP_WRAPPER(&fcn_voidFunctionNoArgs),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "voidFunctionObjectArg",
-      JSOP_WRAPPER(&fcn_voidFunctionObjectArg),
-      1,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "voidFunctionStringArg",
-      JSOP_WRAPPER(&fcn_voidFunctionStringArg),
-      1,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
+  JS_FNSPEC(
+      "longFunctionNoArgs", fcn_longFunctionNoArgs, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "objectFunctionNoArgs", fcn_objectFunctionNoArgs, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "optionalArgumentWithDefault", fcn_optionalArgumentWithDefault, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "optionalArguments", fcn_optionalArguments, NULL,
+      1, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "optionalNullableArgumentsWithDefaults", fcn_optionalNullableArgumentsWithDefaults, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "overloadedFunction", fcn_overloadedFunction, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "overloadedNullable", fcn_overloadedNullable, NULL,
+      1, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "stringFunctionNoArgs", fcn_stringFunctionNoArgs, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "variadicPrimitiveArguments", fcn_variadicPrimitiveArguments, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "variadicStringArgumentsAfterOptionalArgument", fcn_variadicStringArgumentsAfterOptionalArgument, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "voidFunctionLongArg", fcn_voidFunctionLongArg, NULL,
+      1, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "voidFunctionNoArgs", fcn_voidFunctionNoArgs, NULL,
+      0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "voidFunctionObjectArg", fcn_voidFunctionObjectArg, NULL,
+      1, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "voidFunctionStringArg", fcn_voidFunctionStringArg, NULL,
+      1, JSPROP_ENUMERATE, NULL),
   JS_FS_END
 };
 
@@ -1634,13 +1565,9 @@ const JSPropertySpec interface_object_properties[] = {
 };
 
 const JSFunctionSpec interface_object_functions[] = {
-  {
-      "overloadedFunction",
-      JSOP_WRAPPER(&staticfcn_overloadedFunction),
-      1,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
+  JS_FNSPEC(
+      "overloadedFunction", staticfcn_overloadedFunction, NULL,
+      1, JSPROP_ENUMERATE, NULL),
   JS_FS_END
 };
 
@@ -1659,15 +1586,19 @@ void InitializePrototypeAndInterfaceObject(
       context, JS_GetObjectPrototype(context, global_object));
   DCHECK(parent_prototype);
 
-  // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype,
-      NULL);
+    context, &prototype_class_definition, parent_prototype
+  );
+
+  JS::RootedObject rooted_prototype(context, interface_data->prototype);
   bool success = JS_DefineProperties(
-      context, interface_data->prototype, prototype_properties);
+      context,
+      rooted_prototype,
+      prototype_properties);
+
   DCHECK(success);
   success = JS_DefineFunctions(
-      context, interface_data->prototype, prototype_functions);
+      context, rooted_prototype, prototype_functions);
   DCHECK(success);
 
   JS::RootedObject function_prototype(
@@ -1675,8 +1606,8 @@ void InitializePrototypeAndInterfaceObject(
   DCHECK(function_prototype);
   // Create the Interface object.
   interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_data->interface_object_class_definition,
-      function_prototype, NULL);
+      context, &interface_object_class_definition,
+      function_prototype);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
@@ -1685,10 +1616,9 @@ void InitializePrototypeAndInterfaceObject(
   const char name[] =
       "OperationsTestInterface";
   name_value.setString(JS_NewStringCopyZ(context, name));
-  success =
-      JS_DefineProperty(context, rooted_interface_object, "name", name_value,
-                        JS_PropertyStub, JS_StrictPropertyStub,
-                        JSPROP_READONLY);
+  success = JS_DefineProperty(
+      context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
+      NULL, NULL);
   DCHECK(success);
 
   // Define interface object properties (including constants).
@@ -1700,11 +1630,9 @@ void InitializePrototypeAndInterfaceObject(
                                interface_object_functions);
   DCHECK(success);
 
-
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
   DCHECK(interface_data->prototype);
-  JS::RootedObject rooted_prototype(context, interface_data->prototype);
   success = JS_LinkConstructorAndPrototype(
       context,
       rooted_interface_object,
@@ -1720,7 +1648,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
   intptr_t key = reinterpret_cast<intptr_t>(&own_properties);
   InterfaceData* interface_data = global_environment->GetInterfaceData(key);
   if (!interface_data) {
-    interface_data = CreateCachedInterfaceData();
+    interface_data = new InterfaceData();
     DCHECK(interface_data);
     global_environment->CacheInterfaceData(key, interface_data);
     DCHECK_EQ(interface_data, global_environment->GetInterfaceData(key));
@@ -1742,17 +1670,19 @@ JSObject* MozjsOperationsTestInterface::CreateProxy(
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
   DCHECK(prototype);
-  JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
-      context, &interface_data->instance_class_definition, prototype, NULL));
+  JS::RootedObject new_object(
+      context,
+      JS_NewObjectWithGivenProto(
+          context, &instance_class_definition, prototype));
   DCHECK(new_object);
   JS::RootedObject proxy(context,
-      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
-                             proxy_handler.Pointer()));
+      ProxyHandler::NewProxy(
+          context, proxy_handler.Pointer(), new_object, prototype));
   WrapperPrivate::AddPrivateData(context, proxy, wrappable);
   return proxy;
 }
 
-//static
+// static
 const JSClass* MozjsOperationsTestInterface::PrototypeClass(
       JSContext* context) {
   DCHECK(MozjsGlobalEnvironment::GetFromContext(context));
@@ -1762,7 +1692,7 @@ const JSClass* MozjsOperationsTestInterface::PrototypeClass(
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
-  JSClass* proto_class = JS_GetClass(*prototype.address());
+  const JSClass* proto_class = JS_GetClass(prototype);
   return proto_class;
 }
 

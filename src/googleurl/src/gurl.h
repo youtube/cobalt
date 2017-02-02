@@ -222,6 +222,9 @@ class GURL {
   // object constructions are done.
   GURL_API bool SchemeIs(const char* lower_ascii_scheme) const;
 
+  // Returns true is the scheme is "ws" or "wss".
+  bool SchemeIsWSOrWSS() const;
+
   // We often need to know if this is a file URL. File URLs are "standard", but
   // are often treated separately by some programs.
   bool SchemeIsFile() const {

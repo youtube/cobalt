@@ -177,19 +177,44 @@ static const ElementIdInfo kTrackTranslateIds[] = {
 };
 
 static const ElementIdInfo kVideoIds[] = {
-  {UINT, kWebMIdFlagInterlaced},
-  {UINT, kWebMIdStereoMode},
-  {UINT, kWebMIdPixelWidth},
-  {UINT, kWebMIdPixelHeight},
-  {UINT, kWebMIdPixelCropBottom},
-  {UINT, kWebMIdPixelCropTop},
-  {UINT, kWebMIdPixelCropLeft},
-  {UINT, kWebMIdPixelCropRight},
-  {UINT, kWebMIdDisplayWidth},
-  {UINT, kWebMIdDisplayHeight},
-  {UINT, kWebMIdDisplayUnit},
-  {UINT, kWebMIdAspectRatioType},
-  {BINARY, kWebMIdColorSpace},
+    {UINT, kWebMIdFlagInterlaced},  {UINT, kWebMIdStereoMode},
+    {LIST, kWebMIdProjection},      {UINT, kWebMIdPixelWidth},
+    {UINT, kWebMIdPixelHeight},     {UINT, kWebMIdPixelCropBottom},
+    {UINT, kWebMIdPixelCropTop},    {UINT, kWebMIdPixelCropLeft},
+    {UINT, kWebMIdPixelCropRight},  {UINT, kWebMIdDisplayWidth},
+    {UINT, kWebMIdDisplayHeight},   {UINT, kWebMIdDisplayUnit},
+    {UINT, kWebMIdAspectRatioType}, {BINARY, kWebMIdColorSpace},
+    {LIST, kWebMIdColour},
+};
+
+static const ElementIdInfo kColourIds[] = {
+    {UINT, kWebMIdMatrixCoefficients},
+    {UINT, kWebMIdBitsPerChannel},
+    {UINT, kWebMIdChromaSubsamplingHorz},
+    {UINT, kWebMIdChromaSubsamplingVert},
+    {UINT, kWebMIdCbSubsamplingHorz},
+    {UINT, kWebMIdCbSubsamplingVert},
+    {UINT, kWebMIdChromaSitingHorz},
+    {UINT, kWebMIdChromaSitingVert},
+    {UINT, kWebMIdRange},
+    {UINT, kWebMIdTransferCharacteristics},
+    {UINT, kWebMIdPrimaries},
+    {UINT, kWebMIdMaxCLL},
+    {UINT, kWebMIdMaxFALL},
+    {LIST, kWebMIdMasteringMetadata},
+};
+
+static const ElementIdInfo kMasteringMetadataIds[] = {
+    {FLOAT, kWebMIdPrimaryRChromaticityX},
+    {FLOAT, kWebMIdPrimaryRChromaticityY},
+    {FLOAT, kWebMIdPrimaryGChromaticityX},
+    {FLOAT, kWebMIdPrimaryGChromaticityY},
+    {FLOAT, kWebMIdPrimaryBChromaticityX},
+    {FLOAT, kWebMIdPrimaryBChromaticityY},
+    {FLOAT, kWebMIdWhitePointChromaticityX},
+    {FLOAT, kWebMIdWhitePointChromaticityY},
+    {FLOAT, kWebMIdLuminanceMax},
+    {FLOAT, kWebMIdLuminanceMin},
 };
 
 static const ElementIdInfo kAudioIds[] = {
@@ -354,6 +379,14 @@ static const ElementIdInfo kSimpleTagIds[] = {
   {BINARY, kWebMIdTagBinary},
 };
 
+static const ElementIdInfo kProjectionIds[] = {
+  {FLOAT, kWebMIdProjectionPosePitch},
+  {FLOAT, kWebMIdProjectionPoseRoll},
+  {FLOAT, kWebMIdProjectionPoseYaw},
+  {BINARY, kWebMIdProjectionPrivate},
+  {UINT, kWebMIdProjectionType},
+};
+
 #define LIST_ELEMENT_INFO(id, level, id_info) \
     { (id), (level), (id_info), arraysize(id_info) }
 
@@ -402,6 +435,9 @@ static const ListElementInfo kListElementInfo[] = {
   LIST_ELEMENT_INFO(kWebMIdTag, 2, kTagIds),
   LIST_ELEMENT_INFO(kWebMIdTargets, 3, kTargetsIds),
   LIST_ELEMENT_INFO(kWebMIdSimpleTag, 3, kSimpleTagIds),
+  LIST_ELEMENT_INFO(kWebMIdProjection, 4, kProjectionIds),
+  LIST_ELEMENT_INFO(kWebMIdColour, 4, kColourIds),
+  LIST_ELEMENT_INFO(kWebMIdMasteringMetadata, 5, kMasteringMetadataIds),
 };
 
 // Parses an element header id or size field. These fields are variable length

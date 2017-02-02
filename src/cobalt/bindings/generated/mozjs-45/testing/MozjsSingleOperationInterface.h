@@ -26,8 +26,8 @@
 // Headers for other bindings wrapper classes
 #include "cobalt/bindings/testing/single_operation_interface.h"
 
-#include "cobalt/script/mozjs/weak_heap_object.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "cobalt/script/mozjs-45/weak_heap_object.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace bindings {

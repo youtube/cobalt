@@ -37,11 +37,7 @@ bool FileGetPathInfo(const char* path, SbFileInfo* out_info) {
   }
 
   struct stat file_info;
-#if SB_HAS(SYMBOLIC_LINKS)
-  int result = lstat(path, &file_info);
-#else
   int result = stat(path, &file_info);
-#endif
   if (result) {
     return false;
   }

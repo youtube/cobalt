@@ -20,7 +20,7 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/exception_state.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

@@ -21,6 +21,7 @@
 #include "base/stringprintf.h"
 #include "media/base/endian_util.h"
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/video_types.h"
 #include "media/filters/shell_au.h"
 #include "media/filters/shell_rbsp_stream.h"
 #include "media/mp4/aac.h"
@@ -396,6 +397,7 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       kCodecH264,
       H264PROFILE_MAIN,            // profile is ignored currently
       VideoFrame::NATIVE_TEXTURE,  // we always decode directly to texture
+      COLOR_SPACE_HD_REC709,
       sps_record.coded_size, sps_record.visible_rect, sps_record.natural_size,
       // no extra data needed
       NULL, 0,
@@ -470,16 +472,12 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   audio_prepend_.clear();
 #endif  // defined(COBALT_WIN)
 
-  audio_config_.Initialize(kCodecAAC,
-                           16,  // AAC is always 16 bit
-                           aac.channel_layout(),
-                           aac.GetOutputSamplesPerSecond(false),
-#if defined(COBALT_WIN)
-                           &aac.raw_data().front(), aac.raw_data().size(),
-#else  // defined(COBALT_WIN)
-                           NULL, 0,
-#endif  // defined(COBALT_WIN)
-                           false, false);
+  audio_config_.Initialize(
+      kCodecAAC,
+      16,  // AAC is always 16 bit
+      aac.channel_layout(), aac.GetOutputSamplesPerSecond(false),
+      aac.raw_data().empty() ? NULL : &aac.raw_data().front(),
+      aac.raw_data().size(), false, false);
 }
 
 size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,

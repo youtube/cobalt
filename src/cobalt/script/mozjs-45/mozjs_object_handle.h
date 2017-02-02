@@ -17,11 +17,11 @@
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_OBJECT_HANDLE_H_
 
 #include "base/optional.h"
-#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
-#include "cobalt/script/mozjs/type_traits.h"
-#include "cobalt/script/mozjs/weak_heap_object.h"
+#include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/type_traits.h"
+#include "cobalt/script/mozjs-45/weak_heap_object.h"
 #include "cobalt/script/opaque_handle.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

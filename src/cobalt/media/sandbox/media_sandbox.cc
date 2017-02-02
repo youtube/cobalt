@@ -122,17 +122,17 @@ void MediaSandbox::Impl::AnimateCB(render_tree::ImageNode::Builder* image_node,
 }
 
 void MediaSandbox::Impl::SetupAndSubmitScene() {
-    scoped_refptr<render_tree::ImageNode> image_node =
-        new render_tree::ImageNode(NULL);
-    render_tree::animations::AnimateNode::Builder animate_node_builder;
+  scoped_refptr<render_tree::ImageNode> image_node =
+      new render_tree::ImageNode(NULL);
+  render_tree::animations::AnimateNode::Builder animate_node_builder;
 
-    animate_node_builder.Add(
-        image_node, base::Bind(&Impl::AnimateCB, base::Unretained(this)));
+  animate_node_builder.Add(
+      image_node, base::Bind(&Impl::AnimateCB, base::Unretained(this)));
 
-    renderer_module_->pipeline()->Submit(
-        renderer::Submission(new render_tree::animations::AnimateNode(
-                                 animate_node_builder, image_node),
-                             base::TimeDelta()));
+  renderer_module_->pipeline()->Submit(
+      renderer::Submission(new render_tree::animations::AnimateNode(
+                               animate_node_builder, image_node),
+                           base::TimeDelta()));
 }
 
 MediaSandbox::MediaSandbox(int argc, char** argv,

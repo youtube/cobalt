@@ -42,6 +42,7 @@
 
 #include "base/logging.h"
 #include "googleurl/src/url_canon_stdstring.h"
+#include "googleurl/src/url_constants.h"
 #include "googleurl/src/url_util.h"
 
 namespace {
@@ -394,6 +395,10 @@ bool GURL::SchemeIs(const char* lower_ascii_scheme) const {
   return url_util::LowerCaseEqualsASCII(spec_.data() + parsed_.scheme.begin,
                                         spec_.data() + parsed_.scheme.end(),
                                         lower_ascii_scheme);
+}
+
+bool GURL::SchemeIsWSOrWSS() const {
+  return SchemeIs(url::kWsScheme) || SchemeIs(url::kWssScheme);
 }
 
 int GURL::IntPort() const {

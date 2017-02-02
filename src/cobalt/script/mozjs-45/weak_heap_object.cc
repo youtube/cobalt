@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "cobalt/script/mozjs/weak_heap_object.h"
+#include "cobalt/script/mozjs-45/weak_heap_object.h"
 
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 
 namespace cobalt {
 namespace script {
@@ -39,7 +39,7 @@ WeakHeapObject& WeakHeapObject::operator=(const WeakHeapObject& rhs) {
 
 void WeakHeapObject::Trace(JSTracer* trace) {
   if (heap_) {
-    JS_CallHeapObjectTracer(trace, &heap_, "WeakHeapObject::Trace");
+    JS_CallObjectTracer(trace, &heap_, "WeakHeapObject::Trace");
   }
 }
 

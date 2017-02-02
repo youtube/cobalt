@@ -31,6 +31,7 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base_unittests',
+        '<(DEPTH)/cobalt/accessibility/accessibility_test.gyp:*',
         '<(DEPTH)/cobalt/audio/audio.gyp:*',
         '<(DEPTH)/cobalt/base/base.gyp:*',
         '<(DEPTH)/cobalt/bindings/testing/testing.gyp:*',
@@ -66,6 +67,7 @@
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:*',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:*',
         '<(DEPTH)/cobalt/webdriver/webdriver_test.gyp:*',
+        '<(DEPTH)/cobalt/websocket/websocket.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
         '<(DEPTH)/crypto/crypto.gyp:crypto_unittests',
         '<(DEPTH)/sql/sql.gyp:sql_unittests',

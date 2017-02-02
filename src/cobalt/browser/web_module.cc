@@ -23,6 +23,9 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/accessibility/focus_observer.h"
+#include "cobalt/accessibility/starboard_tts_engine.h"
+#include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
@@ -276,6 +279,9 @@ class WebModule::Impl {
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
+  // Utters the text contents of the focused element.
+  scoped_ptr<accessibility::FocusObserver> focus_observer_;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
@@ -310,6 +316,7 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
   }
 
   void OnMutation() OVERRIDE{};
+  void OnFocusChanged() OVERRIDE{};
 
  private:
   ClosureVector loaded_callbacks_;
@@ -461,6 +468,24 @@ WebModule::Impl::Impl(const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
+  scoped_ptr<accessibility::TTSEngine> tts_engine;
+#if SB_HAS(SPEECH_SYNTHESIS)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
+    tts_engine.reset(new accessibility::StarboardTTSEngine());
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (!tts_engine) {
+    tts_engine.reset(new accessibility::TTSLogger());
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+  if (tts_engine) {
+    focus_observer_.reset(new accessibility::FocusObserver(window_->document(),
+                                                           tts_engine.Pass()));
+  }
   is_running_ = true;
 }
 
@@ -484,6 +509,7 @@ WebModule::Impl::~Impl() {
   remote_typeface_cache_->DisableCallbacks();
   image_cache_->DisableCallbacks();
 
+  focus_observer_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
@@ -548,16 +574,16 @@ void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
+  // Notify the stat tracker that a render tree has been produced. This signals
+  // the end of previous event tracking, and triggers flushing of periodic
+  // counts.
+  web_module_stat_tracker_->OnRenderTreeProduced();
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_->OnRenderTreeProduced(layout_results);
 #else  // ENABLE_DEBUG_CONSOLE
   render_tree_produced_callback_.Run(layout_results);
 #endif  // ENABLE_DEBUG_CONSOLE
-
-  // Notify the stat tracker that a render tree has been produced. This signals
-  // the end of previous event tracking, and triggers flushing of periodic
-  // counts.
-  web_module_stat_tracker_->OnRenderTreeProduced();
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)

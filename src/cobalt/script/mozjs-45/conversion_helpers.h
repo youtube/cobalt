@@ -25,16 +25,18 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
-#include "cobalt/script/mozjs/mozjs_callback_interface_holder.h"
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
-#include "cobalt/script/mozjs/mozjs_object_handle.h"
-#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
-#include "cobalt/script/mozjs/type_traits.h"
-#include "cobalt/script/mozjs/union_type_conversion_forward.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsproxy.h"
-#include "third_party/mozjs/js/src/jsstr.h"
+#include "cobalt/script/mozjs-45/mozjs_callback_interface_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
+#include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/type_traits.h"
+#include "cobalt/script/mozjs-45/union_type_conversion_forward.h"
+#include "third_party/mozjs-45/js/public/CharacterEncoding.h"
+#include "third_party/mozjs-45/js/public/Conversions.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsstr.h"
+#include "third_party/mozjs-45/js/src/proxy/Proxy.h"
 
 namespace cobalt {
 namespace script {
@@ -68,21 +70,20 @@ enum ConversionFlags {
 // std::string -> JSValue
 inline void ToJSValue(JSContext* context, const std::string& in_string,
                       JS::MutableHandleValue out_value) {
+  DCHECK(JS::CurrentGlobalOrNull(context));
   size_t length = in_string.length();
-  jschar* inflated_buffer =
-      js::InflateUTF8String(context, in_string.c_str(), &length);
-
+  char16_t* inflated_buffer =
+      UTF8CharsToNewTwoByteCharsZ(
+          context, JS::UTF8Chars(in_string.c_str(), length), &length)
+          .get();
   if (!inflated_buffer) {
     LOG(ERROR) << "Failed to inflate UTF8 string.";
     out_value.setNull();
     return;
   }
-
-  JS::RootedString rooted_string(
-      context, JS_NewUCStringCopyN(context, inflated_buffer, length));
+  JSString* string = JS_NewUCStringCopyN(context, inflated_buffer, length);
   js_free(inflated_buffer);
-
-  out_value.set(JS::StringValue(rooted_string));
+  out_value.setString(string);
 }
 
 // JSValue -> std::string
@@ -122,7 +123,7 @@ inline void ToJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
-  out_value.set(INT_TO_JSVAL(in_number));
+  out_value.setInt32(in_number);
 }
 
 // JSValue -> signed integers <= 4 bytes
@@ -142,7 +143,7 @@ inline void FromJSValue(
   int32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
-  JSBool success = JS_ValueToECMAInt32(context, value, &out);
+  bool success = JS::ToInt32(context, value, &out);
   DCHECK(success);
 
   *out_number = static_cast<T>(out);
@@ -168,7 +169,7 @@ inline void FromJSValue(
   DCHECK(out_number);
   int64_t out;
   // This produces an IDL long long.
-  JSBool success = JS_ValueToInt64(context, value, &out);
+  bool success = JS::ToInt64(context, value, &out);
   DCHECK(success);
   if (!success) {
     exception_state->SetSimpleException(kNotInt64Type);
@@ -198,7 +199,9 @@ inline void ToJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
-  out_value.set(UINT_TO_JSVAL(in_number));
+  // Must do static cast in the (valid) case where we get a uint8_t or
+  // uint16_t and call to |setNumber({uint32_t, double})| becomes ambiguous.
+  out_value.setNumber(static_cast<uint32_t>(in_number));
 }
 
 // JSValue -> unsigned integers <= 4 bytes
@@ -218,7 +221,7 @@ inline void FromJSValue(
   uint32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
-  JSBool success = JS_ValueToECMAUint32(context, value, &out);
+  bool success = JS::ToUint32(context, value, &out);
   DCHECK(success);
 
   *out_number = static_cast<T>(out);
@@ -240,7 +243,7 @@ inline void FromJSValue(
 
   uint64_t out;
   // This produces and IDL unsigned long long.
-  JSBool success = JS_ValueToUint64(context, value, &out);
+  bool success = JS::ToUint64(context, value, &out);
   DCHECK(success);
   if (!success) {
     exception_state->SetSimpleException(kNotUint64Type);
@@ -268,7 +271,7 @@ inline void ToJSValue(
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
-  out_value.set(DOUBLE_TO_JSVAL(in_number));
+  out_value.setDouble(in_number);
 }
 
 // JSValue -> double
@@ -373,7 +376,7 @@ inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
     object = proxy_target;
   }
 
-  out_value.set(OBJECT_TO_JSVAL(object));
+  out_value.setObject(*object);
 }
 
 // JSValue -> object
@@ -390,7 +393,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
     }
     return;
   }
-  if (!JS_ValueToObject(context, value, js_object.address())) {
+  if (!JS_ValueToObject(context, value, &js_object)) {
     exception_state->SetSimpleException(kNotObjectType);
     return;
   }
@@ -445,7 +448,7 @@ inline void ToJSValue(JSContext* context,
       base::polymorphic_downcast<const MozjsCallbackInterfaceClass*>(
           user_object_holder->GetScriptObject());
   DCHECK(mozjs_callback_interface);
-  out_value.set(OBJECT_TO_JSVAL(mozjs_callback_interface->handle()));
+  out_value.setObjectOrNull(mozjs_callback_interface->handle());
 }
 
 // JSValue -> CallbackInterface
@@ -477,7 +480,7 @@ inline void FromJSValue(
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
 
-  JS::RootedObject implementing_object(context, JSVAL_TO_OBJECT(value));
+  JS::RootedObject implementing_object(context, &value.toObject());
   DCHECK(implementing_object);
   *out_callback_interface = MozjsCallbackInterfaceHolder<T>(
       implementing_object, context, global_environment->wrapper_factory());
@@ -488,6 +491,6 @@ inline void FromJSValue(
 }  // namespace cobalt
 
 // Union type conversion is generated by a pump script.
-#include "cobalt/script/mozjs/union_type_conversion_impl.h"
+#include "cobalt/script/mozjs-45/union_type_conversion_impl.h"
 
 #endif  // COBALT_SCRIPT_MOZJS_45_CONVERSION_HELPERS_H_

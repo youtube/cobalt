@@ -14,10 +14,13 @@
 
 #include "media/base/starboard_player.h"
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "media/base/starboard_utils.h"
+#include "starboard/memory.h"
 
 namespace media {
 
@@ -113,6 +116,12 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   video_info.frame_width = frame_width_;
   video_info.frame_height = frame_height_;
 
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  SbMediaHdrMetadataColorSpace sb_media_hdr_metadata_color_space =
+      MediaToSbMediaHdrMetadataColorSpace(video_config_.hdr_metadata(),
+                                          video_config_.color_space_info());
+  video_info.hdr_metadata_color_space = &sb_media_hdr_metadata_color_space;
+#endif
   if (is_encrypted) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
@@ -283,7 +292,13 @@ void StarboardPlayer::CreatePlayer() {
   audio_header.average_bytes_per_second = 1;
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = audio_config_.bits_per_channel();
-  audio_header.audio_specific_config_size = 0;
+  audio_header.audio_specific_config_size = static_cast<uint16_t>(
+      std::min(audio_config_.extra_data_size(),
+               sizeof(audio_header.audio_specific_config)));
+  if (audio_header.audio_specific_config_size > 0) {
+    SbMemoryCopy(audio_header.audio_specific_config, audio_config_.extra_data(),
+                 audio_header.audio_specific_config_size);
+  }
 
   SbMediaAudioCodec audio_codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());

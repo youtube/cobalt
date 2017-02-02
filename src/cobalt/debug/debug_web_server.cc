@@ -63,7 +63,6 @@ std::string GetMimeType(const FilePath& path) {
   }
   DLOG(ERROR) << "GetMimeType doesn't know mime type for: " << path.value()
               << " text/plain will be returned";
-  NOTREACHED();
   return "text/plain";
 }
 
@@ -79,7 +78,6 @@ FilePath AppendIndexFile(const FilePath& directory) {
     return result;
   }
   DLOG(ERROR) << "No index file found at: " << directory.value();
-  NOTREACHED();
   return directory;
 }
 

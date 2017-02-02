@@ -30,22 +30,22 @@
 #include "cobalt/bindings/testing/single_operation_interface.h"
 
 #include "base/lazy_instance.h"
-#include "cobalt/script/mozjs/callback_function_conversion.h"
+#include "cobalt/script/mozjs-45/callback_function_conversion.h"
 #include "cobalt/script/exception_state.h"
-#include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
-#include "cobalt/script/mozjs/mozjs_callback_function.h"
-#include "cobalt/script/mozjs/mozjs_global_environment.h"
-#include "cobalt/script/mozjs/mozjs_object_handle.h"
-#include "cobalt/script/mozjs/mozjs_property_enumerator.h"
-#include "cobalt/script/mozjs/mozjs_user_object_holder.h"
-#include "cobalt/script/mozjs/proxy_handler.h"
-#include "cobalt/script/mozjs/type_traits.h"
-#include "cobalt/script/mozjs/wrapper_factory.h"
-#include "cobalt/script/mozjs/wrapper_private.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
+#include "cobalt/script/mozjs-45/mozjs_callback_function.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
+#include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/proxy_handler.h"
+#include "cobalt/script/mozjs-45/type_traits.h"
+#include "cobalt/script/mozjs-45/wrapper_factory.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsfriendapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
 namespace {
 using cobalt::bindings::testing::CallbackInterfaceInterface;
@@ -118,8 +118,8 @@ MozjsCallbackInterfaceInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsCallbackInterfaceInterfaceHandler>
     proxy_handler;
 
-JSBool HasInstance(JSContext *context, JS::HandleObject type,
-                   JS::MutableHandleValue vp, JSBool *success) {
+bool HasInstance(JSContext *context, JS::HandleObject type,
+                   JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
       context, JS_GetGlobalForObject(context, type));
   DCHECK(global_object);
@@ -139,60 +139,47 @@ JSBool HasInstance(JSContext *context, JS::HandleObject type,
   return true;
 }
 
-InterfaceData* CreateCachedInterfaceData() {
-  InterfaceData* interface_data = new InterfaceData();
-  memset(&interface_data->instance_class_definition, 0,
-         sizeof(interface_data->instance_class_definition));
-  memset(&interface_data->prototype_class_definition, 0,
-         sizeof(interface_data->prototype_class_definition));
-  memset(&interface_data->interface_object_class_definition, 0,
-         sizeof(interface_data->interface_object_class_definition));
+const JSClass instance_class_definition = {
+    "CallbackInterfaceInterface",
+    0 | JSCLASS_HAS_PRIVATE,
+    NULL,  // addProperty
+    NULL,  // delProperty
+    NULL,  // getProperty
+    NULL,  // setProperty
+    NULL,  // enumerate
+    NULL,  // resolve
+    NULL,  // mayResolve
+    &WrapperPrivate::Finalizer,  // finalize
+    NULL,  // call
+    NULL,  // hasInstance
+    NULL,  // construct
+    &WrapperPrivate::Trace,  // trace
+};
 
-  JSClass* instance_class = &interface_data->instance_class_definition;
-  const int kGlobalFlags = 0;
-  instance_class->name = "CallbackInterfaceInterface";
-  instance_class->flags = kGlobalFlags | JSCLASS_HAS_PRIVATE;
-  instance_class->addProperty = JS_PropertyStub;
-  instance_class->delProperty = JS_DeletePropertyStub;
-  instance_class->getProperty = JS_PropertyStub;
-  instance_class->setProperty = JS_StrictPropertyStub;
-  instance_class->enumerate = JS_EnumerateStub;
-  instance_class->resolve = JS_ResolveStub;
-  instance_class->convert = JS_ConvertStub;
-  // Function to be called before on object of this class is garbage collected.
-  instance_class->finalize = &WrapperPrivate::Finalizer;
-  // Called to trace objects that can be referenced from this object.
-  instance_class->trace = &WrapperPrivate::Trace;
+const JSClass prototype_class_definition = {
+    "CallbackInterfaceInterfacePrototype",
+};
 
-  JSClass* prototype_class = &interface_data->prototype_class_definition;
-  prototype_class->name = "CallbackInterfaceInterfacePrototype";
-  prototype_class->flags = 0;
-  prototype_class->addProperty = JS_PropertyStub;
-  prototype_class->delProperty = JS_DeletePropertyStub;
-  prototype_class->getProperty = JS_PropertyStub;
-  prototype_class->setProperty = JS_StrictPropertyStub;
-  prototype_class->enumerate = JS_EnumerateStub;
-  prototype_class->resolve = JS_ResolveStub;
-  prototype_class->convert = JS_ConvertStub;
+const JSClass interface_object_class_definition = {
+    "CallbackInterfaceInterfaceConstructor",
+    0,
+    NULL,  // addProperty
+    NULL,  // delProperty
+    NULL,  // getProperty
+    NULL,  // setProperty
+    NULL,  // enumerate
+    NULL,  // resolve
+    NULL,  // mayResolve
+    NULL,  // finalize
+    NULL,  // call
+    &HasInstance,
+    NULL,
+};
 
-  JSClass* interface_object_class =
-      &interface_data->interface_object_class_definition;
-  interface_object_class->name = "CallbackInterfaceInterfaceConstructor";
-  interface_object_class->flags = 0;
-  interface_object_class->addProperty = JS_PropertyStub;
-  interface_object_class->delProperty = JS_DeletePropertyStub;
-  interface_object_class->getProperty = JS_PropertyStub;
-  interface_object_class->setProperty = JS_StrictPropertyStub;
-  interface_object_class->enumerate = JS_EnumerateStub;
-  interface_object_class->resolve = JS_ResolveStub;
-  interface_object_class->convert = JS_ConvertStub;
-  interface_object_class->hasInstance = &HasInstance;
-  return interface_data;
-}
-
-JSBool get_callbackAttribute(
-    JSContext* context, JS::HandleObject object, JS::HandleId id,
-    JS::MutableHandleValue vp) {
+bool get_callbackAttribute(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject object(context, &args.thisv().toObject());
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
@@ -216,14 +203,17 @@ JSBool get_callbackAttribute(
               &result_value);
   }
   if (!exception_state.is_exception_set()) {
-    vp.set(result_value);
+    args.rval().set(result_value);
   }
   return !exception_state.is_exception_set();
 }
 
-JSBool set_callbackAttribute(
-    JSContext* context, JS::HandleObject object, JS::HandleId id,
-    JSBool strict, JS::MutableHandleValue vp) {
+bool set_callbackAttribute(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject object(context, &args.thisv().toObject());
+
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
@@ -241,7 +231,11 @@ JSBool set_callbackAttribute(
   CallbackInterfaceInterface* impl =
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
   TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
-  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+  if (args.length() != 1) {
+    NOTREACHED();
+    return false;
+  }
+  FromJSValue(context, args[0], (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
     return false;
@@ -252,7 +246,7 @@ JSBool set_callbackAttribute(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_registerCallback(
+bool fcn_registerCallback(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -263,7 +257,7 @@ JSBool fcn_registerCallback(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -307,7 +301,7 @@ JSBool fcn_registerCallback(
   return !exception_state.is_exception_set();
 }
 
-JSBool fcn_someOperation(
+bool fcn_someOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   // Compute the 'this' value.
@@ -318,7 +312,7 @@ JSBool fcn_someOperation(
     NOTREACHED();
     return false;
   }
-  if (!JS_ValueToObject(context, this_value, object.address())) {
+  if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
@@ -345,31 +339,24 @@ JSBool fcn_someOperation(
 }
 
 
+
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
-      "callbackAttribute", 0,
-      JSPROP_SHARED | JSPROP_ENUMERATE,
-      JSOP_WRAPPER(&get_callbackAttribute),
-      JSOP_WRAPPER(&set_callbackAttribute),
+    "callbackAttribute",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &get_callbackAttribute, NULL } },
+    { { &set_callbackAttribute, NULL } },
   },
   JS_PS_END
 };
 
 const JSFunctionSpec prototype_functions[] = {
-  {
-      "registerCallback",
-      JSOP_WRAPPER(&fcn_registerCallback),
-      1,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
-  {
-      "someOperation",
-      JSOP_WRAPPER(&fcn_someOperation),
-      0,
-      JSPROP_ENUMERATE,
-      NULL,
-  },
+  JS_FNSPEC(
+      "registerCallback", fcn_registerCallback, NULL,
+      1, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "someOperation", fcn_someOperation, NULL,
+      0, JSPROP_ENUMERATE, NULL),
   JS_FS_END
 };
 
@@ -396,15 +383,19 @@ void InitializePrototypeAndInterfaceObject(
       context, JS_GetObjectPrototype(context, global_object));
   DCHECK(parent_prototype);
 
-  // Create the Prototype object.
   interface_data->prototype = JS_NewObjectWithGivenProto(
-      context, &interface_data->prototype_class_definition, parent_prototype,
-      NULL);
+    context, &prototype_class_definition, parent_prototype
+  );
+
+  JS::RootedObject rooted_prototype(context, interface_data->prototype);
   bool success = JS_DefineProperties(
-      context, interface_data->prototype, prototype_properties);
+      context,
+      rooted_prototype,
+      prototype_properties);
+
   DCHECK(success);
   success = JS_DefineFunctions(
-      context, interface_data->prototype, prototype_functions);
+      context, rooted_prototype, prototype_functions);
   DCHECK(success);
 
   JS::RootedObject function_prototype(
@@ -412,8 +403,8 @@ void InitializePrototypeAndInterfaceObject(
   DCHECK(function_prototype);
   // Create the Interface object.
   interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_data->interface_object_class_definition,
-      function_prototype, NULL);
+      context, &interface_object_class_definition,
+      function_prototype);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
@@ -422,10 +413,9 @@ void InitializePrototypeAndInterfaceObject(
   const char name[] =
       "CallbackInterfaceInterface";
   name_value.setString(JS_NewStringCopyZ(context, name));
-  success =
-      JS_DefineProperty(context, rooted_interface_object, "name", name_value,
-                        JS_PropertyStub, JS_StrictPropertyStub,
-                        JSPROP_READONLY);
+  success = JS_DefineProperty(
+      context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
+      NULL, NULL);
   DCHECK(success);
 
   // Define interface object properties (including constants).
@@ -437,11 +427,9 @@ void InitializePrototypeAndInterfaceObject(
                                interface_object_functions);
   DCHECK(success);
 
-
   // Set the Prototype.constructor and Constructor.prototype properties.
   DCHECK(interface_data->interface_object);
   DCHECK(interface_data->prototype);
-  JS::RootedObject rooted_prototype(context, interface_data->prototype);
   success = JS_LinkConstructorAndPrototype(
       context,
       rooted_interface_object,
@@ -457,7 +445,7 @@ InterfaceData* GetInterfaceData(JSContext* context) {
   intptr_t key = reinterpret_cast<intptr_t>(&own_properties);
   InterfaceData* interface_data = global_environment->GetInterfaceData(key);
   if (!interface_data) {
-    interface_data = CreateCachedInterfaceData();
+    interface_data = new InterfaceData();
     DCHECK(interface_data);
     global_environment->CacheInterfaceData(key, interface_data);
     DCHECK_EQ(interface_data, global_environment->GetInterfaceData(key));
@@ -479,17 +467,19 @@ JSObject* MozjsCallbackInterfaceInterface::CreateProxy(
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
   DCHECK(prototype);
-  JS::RootedObject new_object(context, JS_NewObjectWithGivenProto(
-      context, &interface_data->instance_class_definition, prototype, NULL));
+  JS::RootedObject new_object(
+      context,
+      JS_NewObjectWithGivenProto(
+          context, &instance_class_definition, prototype));
   DCHECK(new_object);
   JS::RootedObject proxy(context,
-      ProxyHandler::NewProxy(context, new_object, prototype, NULL,
-                             proxy_handler.Pointer()));
+      ProxyHandler::NewProxy(
+          context, proxy_handler.Pointer(), new_object, prototype));
   WrapperPrivate::AddPrivateData(context, proxy, wrappable);
   return proxy;
 }
 
-//static
+// static
 const JSClass* MozjsCallbackInterfaceInterface::PrototypeClass(
       JSContext* context) {
   DCHECK(MozjsGlobalEnvironment::GetFromContext(context));
@@ -499,7 +489,7 @@ const JSClass* MozjsCallbackInterfaceInterface::PrototypeClass(
   DCHECK(global_object);
 
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
-  JSClass* proto_class = JS_GetClass(*prototype.address());
+  const JSClass* proto_class = JS_GetClass(prototype);
   return proto_class;
 }
 

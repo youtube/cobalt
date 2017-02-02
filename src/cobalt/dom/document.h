@@ -72,6 +72,9 @@ class DocumentObserver {
   // Called each time when the document or one of its descendants is changed.
   virtual void OnMutation() = 0;
 
+  // Called when document.activeElement changes.
+  virtual void OnFocusChanged() = 0;
+
  protected:
   virtual ~DocumentObserver() {}
 };

@@ -15,6 +15,6 @@
 #ifndef STARBOARD_RASPI_1_THREAD_TYPES_PUBLIC_H_
 #define STARBOARD_RASPI_1_THREAD_TYPES_PUBLIC_H_
 
-#include "starboard/linux/shared/thread_types_public.h"
+#include "starboard/raspi/shared/thread_types_public.h"
 
 #endif  // STARBOARD_RASPI_1_THREAD_TYPES_PUBLIC_H_

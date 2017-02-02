@@ -97,6 +97,11 @@
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
+// Some platforms will not align variables on the stack with an alignment
+// greater than 16 bytes. Platforms where this is the case should define the
+// following quirk.
+#undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -370,6 +375,10 @@
 // following macro is defined, the app will append audio frames start from the
 // timestamp that is before the timestamp of the video key frame being appended.
 #undef SB_HAS_QUIRK_SEEK_TO_KEYFRAME
+
+// dlmalloc will use the ffs intrinsic if available.  Platforms on which this is
+// not available should define the following quirk.
+#undef SB_HAS_QUIRK_NO_FFS
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory

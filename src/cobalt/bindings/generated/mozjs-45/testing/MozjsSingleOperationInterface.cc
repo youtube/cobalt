@@ -25,11 +25,11 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 #include "cobalt/script/logging_exception_state.h"
-#include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/mozjs_callback_interface.h"
-#include "cobalt/script/mozjs/util/exception_helpers.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jscntxt.h"
+#include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/mozjs_callback_interface.h"
+#include "cobalt/script/mozjs-45/util/exception_helpers.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jscntxt.h"
 
 namespace {
 using cobalt::bindings::testing::SingleOperationInterface;
@@ -79,19 +79,16 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
 
       // Convert arguments.
       const int kNumArguments = 1;
-      JS::Value args[kNumArguments];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      ToJSValue(context_, value,
-                auto_array_rooter.handleAt(0));
+      JS::AutoValueArray<kNumArguments> args(context_);
+
+      ToJSValue(context_, value, args[0]);
 
       // Call the function.
       JS::RootedValue return_value(context_);
       JS::RootedFunction function(
           context_, JS_ValueToFunction(context_, callable));
       DCHECK(function);
-      success = JS::Call(context_, this_value, function, kNumArguments, args,
-                         return_value.address());
+      success = JS::Call(context_, this_value, function, args, &return_value);
       DLOG_IF(WARNING, !success) << "Exception in callback: "
                                  << GetExceptionString(context_);
       if (success) {

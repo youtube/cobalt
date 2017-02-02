@@ -21,7 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/wrappable.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

@@ -20,8 +20,9 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-#include "third_party/mozjs/js/src/jsproxy.h"
+#include "third_party/mozjs-45/js/public/Proxy.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/proxy/Proxy.h"
 
 namespace cobalt {
 namespace script {
@@ -40,7 +41,7 @@ namespace mozjs {
 // map well onto the Web IDL spec for implementing interfaces that support named
 // and indexed properties.
 //
-// See third_party/mozjs/js/src/jsproxy.h for more details.
+// See third_party/mozjs-45/js/public/Proxy.h for more details.
 //
 // ProxyHandler provides custom traps for getPropertyDescriptor, delete_, and
 // enumerate to implement interfaces that support named and indexed properties.
@@ -63,8 +64,8 @@ class ProxyHandler : public js::DirectProxyHandler {
   struct IndexedPropertyHooks {
     IsSupportedIndexFunction is_supported;
     EnumerateSupportedIndexesFunction enumerate_supported;
-    JSPropertyOp getter;
-    JSStrictPropertyOp setter;
+    JSGetterOp getter;
+    JSSetterOp setter;
     IndexedDeleteFunction deleter;
   };
 
@@ -72,31 +73,37 @@ class ProxyHandler : public js::DirectProxyHandler {
   struct NamedPropertyHooks {
     IsSupportedNameFunction is_supported;
     EnumerateSupportedNamesFunction enumerate_supported;
-    JSPropertyOp getter;
-    JSStrictPropertyOp setter;
+    JSGetterOp getter;
+    JSSetterOp setter;
     NamedDeleteFunction deleter;
   };
 
-  static JSObject* NewProxy(JSContext* context, JSObject* object,
-                            JSObject* prototype, JSObject* parent,
-                            ProxyHandler* handler);
+  static JSObject* NewProxy(JSContext* context, ProxyHandler* handler,
+                            JSObject* object, JSObject* prototype);
 
   // Construct a new ProxyHandler with the provided hooks.
   ProxyHandler(const IndexedPropertyHooks& indexed_hooks,
                const NamedPropertyHooks& named_hooks);
 
   // Overridden fundamental traps.
-  bool getPropertyDescriptor(JSContext* context, JS::HandleObject proxy,
-                             JS::HandleId id, JSPropertyDescriptor* descriptor,
-                             unsigned flags) OVERRIDE;
+  bool getPropertyDescriptor(
+      JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+      JS::MutableHandle<JSPropertyDescriptor> descriptor) const OVERRIDE;
   bool delete_(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-               bool* succeeded) OVERRIDE;
-  bool enumerate(
-      JSContext* context, JS::HandleObject proxy,
-      JS::AutoIdVector& properties) OVERRIDE;  // NOLINT[runtime/references]
+               JS::ObjectOpResult& result)  // NOLINT(runtime/references)
+      const OVERRIDE;
+  bool enumerate(JSContext* context, JS::HandleObject proxy,
+                 JS::MutableHandleObject objp) const OVERRIDE;
   bool defineProperty(JSContext* context, JS::HandleObject proxy,
                       JS::HandleId id,
-                      JSPropertyDescriptor* descriptor) OVERRIDE;
+                      js::Handle<JSPropertyDescriptor> descriptor,
+                      JS::ObjectOpResult& result  // NOLINT[runtime/references]
+                      ) const OVERRIDE;           // NOLINT[whitespace/parens]
+  bool getOwnPropertyDescriptor(
+      JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+      JS::MutableHandle<JSPropertyDescriptor> descriptor) const OVERRIDE {
+    return getPropertyDescriptor(context, proxy, id, descriptor);
+  }
 
   // The derived traps in js::DirectProxyHandler are not implemented in terms of
   // the fundamental traps, where the traps in js::BaseProxyHandler are.
@@ -104,60 +111,51 @@ class ProxyHandler : public js::DirectProxyHandler {
   // that we only need to override the fundamental traps when implementing
   // custom behavior for i.e. interfaces that support named properties.
   bool has(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-           bool* bp) OVERRIDE {
+           bool* bp) const OVERRIDE {
     return js::BaseProxyHandler::has(context, proxy, id, bp);
   }
 
-  bool hasOwn(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-              bool* bp) OVERRIDE {
-    return js::BaseProxyHandler::hasOwn(context, proxy, id, bp);
-  }
-
-  bool get(JSContext* context, JS::HandleObject proxy,
-           JS::HandleObject receiver, JS::HandleId id,
-           JS::MutableHandleValue vp) OVERRIDE {
+  bool get(JSContext* context, JS::HandleObject proxy, JS::HandleValue receiver,
+           JS::HandleId id, JS::MutableHandleValue vp) const OVERRIDE {
     return js::BaseProxyHandler::get(context, proxy, receiver, id, vp);
   }
 
-  bool set(JSContext* context, JS::HandleObject proxy,
-           JS::HandleObject receiver, JS::HandleId id, bool strict,
-           JS::MutableHandleValue vp) OVERRIDE {
-    return js::BaseProxyHandler::set(context, proxy, receiver, id, strict, vp);
-  }
-
-  bool keys(JSContext* context, JS::HandleObject proxy,
-            JS::AutoIdVector& props) OVERRIDE {  // NOLINT[runtime/references]
-    return js::BaseProxyHandler::keys(context, proxy, props);
-  }
-
-  bool iterate(JSContext* context, JS::HandleObject proxy, unsigned flags,
-               JS::MutableHandleValue vp) OVERRIDE {
-    return js::BaseProxyHandler::iterate(context, proxy, flags, vp);
+  bool set(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+           JS::HandleValue v, JS::HandleValue receiver,
+           JS::ObjectOpResult& result)  // NOLINT(runtime/references)
+      const OVERRIDE {
+    return js::BaseProxyHandler::set(context, proxy, id, v, receiver, result);
   }
 
   bool has_custom_property() const { return has_custom_property_; }
 
  private:
-  bool supports_named_properties() {
+  bool supports_named_properties() const {
     return named_property_hooks_.getter != NULL;
   }
 
-  bool supports_indexed_properties() {
+  bool supports_indexed_properties() const {
     return indexed_property_hooks_.getter != NULL;
   }
 
   bool IsSupportedIndex(JSContext* context, JS::HandleObject object,
-                        uint32_t index);
+                        uint32_t index) const {
+    DCHECK(indexed_property_hooks_.is_supported);
+    return indexed_property_hooks_.is_supported(context, object, index);
+  }
 
   bool IsSupportedName(JSContext* context, JS::HandleObject object,
-                       const std::string& name);
+                       const std::string& name) const {
+    DCHECK(named_property_hooks_.is_supported);
+    return named_property_hooks_.is_supported(context, object, name);
+  }
 
   bool IsArrayIndexPropertyName(JSContext* context,
                                 JS::HandleValue property_value,
-                                uint32_t* out_index);
+                                uint32_t* out_index) const;
 
   bool IsNamedPropertyVisible(JSContext* context, JS::HandleObject object,
-                              const std::string& property_name);
+                              const std::string& property_name) const;
 
   IndexedPropertyHooks indexed_property_hooks_;
   NamedPropertyHooks named_property_hooks_;

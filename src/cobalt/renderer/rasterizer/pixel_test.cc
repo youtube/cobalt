@@ -1429,6 +1429,20 @@ TEST_F(PixelTest, RectNodeContainsBorderWithTranslationRotationAndScale) {
           ScaleMatrix(1.5f)));
 }
 
+TEST_F(PixelTest, RectNodeContainsSkinnyBorderWithTranslation) {
+  // RectNode can be translated and drawn with skinny borders.
+  BorderSide border_side(2, render_tree::kBorderStyleSolid,
+                         ColorRGBA(0.0, 1.0, 0.0, 1));
+  scoped_ptr<Border> border(new Border(border_side));
+
+  TestTree(new MatrixTransformNode(
+      new RectNode(
+          RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+          border.Pass()),
+      TranslateMatrix(40, 80)));
+}
+
 // Creates a white/block checkered image where |dimensions| gives the size
 // in pixels of the image to be constructed and |block_size| gives the size
 // in pixels of each checker box.
@@ -2042,6 +2056,15 @@ TEST_F(PixelTest, EllipticalThickBorder) {
       CreateEllipticalBorderRect(ScaleSize(output_surface_size(), 0.75f, 0.5f),
                                  15.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)),
       TranslateMatrix(30.0f, 30.0f)));
+}
+
+TEST_F(PixelTest, SquishedEllipticalThickBorder) {
+  // This test makes sure that we can properly render ellipses that are created
+  // by squishing circles using a scaling MatrixTransformNode node.
+  TestTree(new MatrixTransformNode(
+      CreateEllipticalBorderRect(ScaleSize(output_surface_size(), 0.5f, 0.5f),
+                                 15.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)),
+      ScaleMatrix(1.0f, 0.8f) * TranslateMatrix(30.0f, 30.0f)));
 }
 
 TEST_F(PixelTest, RoundedCornersSubPixelBorder) {

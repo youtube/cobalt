@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "cobalt/script/mozjs/wrapper_factory.h"
+#include "cobalt/script/mozjs-45/wrapper_factory.h"
 
 #include <utility>
 
 #include "base/lazy_instance.h"
-#include "cobalt/script/mozjs/mozjs_wrapper_handle.h"
-#include "cobalt/script/mozjs/wrapper_private.h"
-#include "third_party/mozjs/js/src/jsproxy.h"
+#include "cobalt/script/mozjs-45/mozjs_wrapper_handle.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
+#include "third_party/mozjs-45/js/public/Proxy.h"
 
 namespace cobalt {
 namespace script {
@@ -95,16 +95,15 @@ bool WrapperFactory::DoesObjectImplementInterface(JS::HandleObject object,
   }
   const JSClass* proto_class = it->second.prototype_class.Run(context_);
   JS::RootedObject object_proto_object(context_);
-  bool success =
-      JS_GetPrototype(context_, object, object_proto_object.address());
+  bool success = JS_GetPrototype(context_, object, &object_proto_object);
   bool equality = false;
   while (!equality && success && object_proto_object) {
     // Get the class of the prototype.
-    JSClass* object_proto_class = JS_GetClass(object_proto_object);
+    const JSClass* object_proto_class = JS_GetClass(object_proto_object);
     equality = (object_proto_class == proto_class);
     // Get the prototype of the previous prototype.
-    success = JS_GetPrototype(context_, object_proto_object,
-                              object_proto_object.address());
+    success =
+        JS_GetPrototype(context_, object_proto_object, &object_proto_object);
   }
   return equality;
 }

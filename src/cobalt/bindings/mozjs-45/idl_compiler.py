@@ -25,7 +25,8 @@ bindings_dir = os.path.normpath(os.path.join(module_path, os.pardir))
 sys.path.append(bindings_dir)
 
 from idl_compiler_cobalt import generate_bindings  # pylint: disable=g-import-not-at-top
-from mozjs.code_generator import CodeGeneratorMozjs
+CodeGeneratorMozjs = (  # pylint: disable=invalid-name
+    __import__('mozjs-45.code_generator').code_generator.CodeGeneratorMozjs)
 
 if __name__ == '__main__':
   sys.exit(generate_bindings(CodeGeneratorMozjs))
