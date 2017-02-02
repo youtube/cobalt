@@ -29,6 +29,10 @@ const int64_t kDequeueTimeout = kSecondInMicroseconds;
 const char kMimeTypeAac[] = "audio/mp4a-latm";
 const char kCodecSpecificDataKey[] = "csd-0";
 
+SbMediaTime ConvertFromMicroseconds(const int64_t time_in_microseconds) {
+  return time_in_microseconds * kSbMediaTimeSecond / kSecondInMicroseconds;
+}
+
 int64_t ConvertToMicroseconds(const SbMediaTime media_time) {
   return media_time * kSecondInMicroseconds / kSbMediaTimeSecond;
 }
@@ -57,12 +61,10 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Decode(const InputBuffer& input_buffer,
-                          std::vector<uint8_t>* output) {
+void AudioDecoder::Decode(const InputBuffer& input_buffer) {
   // See "Synchronous Processing using Buffers" at
   // https://developer.android.com/reference/android/media/MediaCodec.html for
   // details regarding logic of this function.
-  SB_CHECK(output);
   SB_CHECK(media_codec_);
 
   if (stream_ended_) {
@@ -118,8 +120,11 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   SB_DCHECK(info.size <= buffer_size);
 
   if (output_buffer && buffer_size > 0) {
-    output->assign(output_buffer + info.offset,
-                   output_buffer + info.offset + info.size);
+    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+        ConvertFromMicroseconds(info.presentationTimeUs), info.size);
+    SbMemoryCopy(decoded_audio->buffer(), output_buffer + info.offset,
+                 info.size);
+    decoded_audios_.push(decoded_audio);
   }
 
   status = AMediaCodec_releaseOutputBuffer(media_codec_, out_index, false);
@@ -134,6 +139,17 @@ void AudioDecoder::WriteEndOfStream() {
   // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
   // to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
+  // Put EOS into the queue.
+  decoded_audios_.push(new DecodedAudio);
+}
+
+scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
+  scoped_refptr<DecodedAudio> result;
+  if (!decoded_audios_.empty()) {
+    result = decoded_audios_.front();
+    decoded_audios_.pop();
+  }
+  return result;
 }
 
 void AudioDecoder::Reset() {
@@ -141,6 +157,10 @@ void AudioDecoder::Reset() {
   media_status_t status = AMediaCodec_flush(media_codec_);
   if (status != AMEDIA_OK) {
     SB_LOG(ERROR) << "|AMediaCodec_flush| failed with status: " << status;
+  }
+
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
   }
 }
 

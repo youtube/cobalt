@@ -27,7 +27,8 @@ namespace player {
 
 class InputBuffer::ReferenceCountedBuffer {
  public:
-  ReferenceCountedBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
+  ReferenceCountedBuffer(SbMediaType sample_type,
+                         SbPlayerDeallocateSampleFunc deallocate_sample_func,
                          SbPlayer player,
                          void* context,
                          const void* sample_buffer,
@@ -36,10 +37,11 @@ class InputBuffer::ReferenceCountedBuffer {
                          const SbMediaVideoSampleInfo* video_sample_info,
                          const SbDrmSampleInfo* sample_drm_info)
       : ref_count_(0),
+        sample_type_(sample_type),
         deallocate_sample_func_(deallocate_sample_func),
         player_(player),
         context_(context),
-        data_(reinterpret_cast<const uint8_t*>(sample_buffer)),
+        data_(static_cast<const uint8_t*>(sample_buffer)),
         size_(sample_buffer_size),
         pts_(sample_pts),
         has_video_sample_info_(video_sample_info != NULL),
@@ -67,6 +69,7 @@ class InputBuffer::ReferenceCountedBuffer {
     }
   }
 
+  SbMediaType sample_type() const { return sample_type_; }
   const uint8_t* data() const { return data_; }
   int size() const { return size_; }
   SbMediaTime pts() const { return pts_; }
@@ -103,6 +106,7 @@ class InputBuffer::ReferenceCountedBuffer {
   }
 
   mutable SbAtomic32 ref_count_;
+  SbMediaType sample_type_;
   SbPlayerDeallocateSampleFunc deallocate_sample_func_;
   SbPlayer player_;
   void* context_;
@@ -121,7 +125,8 @@ class InputBuffer::ReferenceCountedBuffer {
 
 InputBuffer::InputBuffer() : buffer_(NULL) {}
 
-InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
+InputBuffer::InputBuffer(SbMediaType sample_type,
+                         SbPlayerDeallocateSampleFunc deallocate_sample_func,
                          SbPlayer player,
                          void* context,
                          const void* sample_buffer,
@@ -130,7 +135,7 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
                          const SbMediaVideoSampleInfo* video_sample_info,
                          const SbDrmSampleInfo* sample_drm_info) {
   buffer_ = new ReferenceCountedBuffer(
-      deallocate_sample_func, player, context, sample_buffer,
+      sample_type, deallocate_sample_func, player, context, sample_buffer,
       sample_buffer_size, sample_pts, video_sample_info, sample_drm_info);
   buffer_->AddRef();
 }
@@ -143,9 +148,7 @@ InputBuffer::InputBuffer(const InputBuffer& that) {
 }
 
 InputBuffer::~InputBuffer() {
-  if (buffer_) {
-    buffer_->Release();
-  }
+  reset();
 }
 
 InputBuffer& InputBuffer::operator=(const InputBuffer& that) {
@@ -158,6 +161,18 @@ InputBuffer& InputBuffer::operator=(const InputBuffer& that) {
   buffer_ = that.buffer_;
 
   return *this;
+}
+
+void InputBuffer::reset() {
+  if (buffer_) {
+    buffer_->Release();
+    buffer_ = NULL;
+  }
+}
+
+SbMediaType InputBuffer::sample_type() const {
+  SB_DCHECK(buffer_);
+  return buffer_->sample_type();
 }
 
 const uint8_t* InputBuffer::data() const {
