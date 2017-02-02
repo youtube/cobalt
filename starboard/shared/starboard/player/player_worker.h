@@ -19,9 +19,10 @@
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/queue.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/window.h"
@@ -48,84 +49,14 @@ class PlayerWorker {
     ~Host() {}
   };
 
-  struct SeekEventData {
-    SbMediaTime seek_to_pts;
-    int ticket;
-  };
-
-  struct WriteSampleEventData {
-    SbMediaType sample_type;
-    InputBuffer* input_buffer;
-  };
-
-  struct WriteEndOfStreamEventData {
-    SbMediaType stream_type;
-  };
-
-  struct SetPauseEventData {
-    bool pause;
-  };
-
-  struct SetBoundsEventData {
+  struct Bounds {
     int x;
     int y;
     int width;
     int height;
   };
 
-  struct Event {
-   public:
-    enum Type {
-      kInit,
-      kSeek,
-      kWriteSample,
-      kWriteEndOfStream,
-      kSetPause,
-      kSetBounds,
-      kStop,
-    };
-
-    // TODO: No longer use a union so individual members can have non trivial
-    // ctor and WriteSampleEventData::input_buffer no longer has to be a
-    // pointer.
-    union Data {
-      SeekEventData seek;
-      WriteSampleEventData write_sample;
-      WriteEndOfStreamEventData write_end_of_stream;
-      SetPauseEventData set_pause;
-      SetBoundsEventData set_bounds;
-    };
-
-    explicit Event(const SeekEventData& seek) : type(kSeek) {
-      data.seek = seek;
-    }
-
-    explicit Event(const WriteSampleEventData& write_sample)
-        : type(kWriteSample) {
-      data.write_sample = write_sample;
-    }
-
-    explicit Event(const WriteEndOfStreamEventData& write_end_of_stream)
-        : type(kWriteEndOfStream) {
-      data.write_end_of_stream = write_end_of_stream;
-    }
-
-    explicit Event(const SetPauseEventData& set_pause) : type(kSetPause) {
-      data.set_pause = set_pause;
-    }
-
-    explicit Event(const SetBoundsEventData& set_bounds) : type(kSetBounds) {
-      data.set_bounds = set_bounds;
-    }
-
-    explicit Event(Type type) : type(type) {
-      SB_DCHECK(type == kInit || type == kStop);
-    }
-
-    Type type;
-    Data data;
-  };
-
+  // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
     typedef void (PlayerWorker::*UpdateMediaTimeCB)(SbMediaTime media_time);
@@ -133,33 +64,27 @@ class PlayerWorker {
     typedef void (PlayerWorker::*UpdatePlayerStateCB)(
         SbPlayerState player_state);
 
-    typedef PlayerWorker::SeekEventData SeekEventData;
-    typedef PlayerWorker::WriteSampleEventData WriteSampleEventData;
-    typedef PlayerWorker::WriteEndOfStreamEventData WriteEndOfStreamEventData;
-    typedef PlayerWorker::SetPauseEventData SetPauseEventData;
-    typedef PlayerWorker::SetBoundsEventData SetBoundsEventData;
-
     virtual ~Handler() {}
-
-    // This function will be called once inside PlayerWorker's ctor to setup the
-    // callbacks required by the Handler.
-    virtual void Setup(PlayerWorker* player_worker,
-                       SbPlayer player,
-                       UpdateMediaTimeCB update_media_time_cb,
-                       GetPlayerStateCB get_player_state_cb,
-                       UpdatePlayerStateCB update_player_state_cb) = 0;
 
     // All the Process* functions return false to signal a fatal error.  The
     // event processing loop in PlayerWorker will termimate in this case.
-    virtual bool ProcessInitEvent() = 0;
-    virtual bool ProcessSeekEvent(const SeekEventData& data) = 0;
-    virtual bool ProcessWriteSampleEvent(const WriteSampleEventData& data,
-                                         bool* written) = 0;
-    virtual bool ProcessWriteEndOfStreamEvent(
-        const WriteEndOfStreamEventData& data) = 0;
-    virtual bool ProcessSetPauseEvent(const SetPauseEventData& data) = 0;
-    virtual bool ProcessUpdateEvent(const SetBoundsEventData& data) = 0;
-    virtual void ProcessStopEvent() = 0;
+    // All function returns false on error.
+    virtual bool Init(PlayerWorker* player_worker,
+                      JobQueue* job_queue,
+                      SbPlayer player,
+                      UpdateMediaTimeCB update_media_time_cb,
+                      GetPlayerStateCB get_player_state_cb,
+                      UpdatePlayerStateCB update_player_state_cb) = 0;
+    virtual bool Seek(SbMediaTime seek_to_pts, int ticket) = 0;
+    virtual bool WriteSample(InputBuffer input_buffer, bool* written) = 0;
+    virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
+    virtual bool SetPause(bool pause) = 0;
+    virtual bool SetBounds(const Bounds& bounds) = 0;
+
+    // Once this function returns, all processing on the Handler and related
+    // objects has to be stopped.  The JobQueue will be destroyed immediately
+    // after and is no longer safe to access.
+    virtual void Stop() = 0;
   };
 
   PlayerWorker(Host* host,
@@ -167,14 +92,32 @@ class PlayerWorker {
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
                SbPlayer player,
-               SbTime update_interval,
                void* context);
-  virtual ~PlayerWorker();
+  ~PlayerWorker();
 
-  template <typename EventData>
-  void EnqueueEvent(const EventData& event_data) {
-    SB_DCHECK(SbThreadIsValid(thread_));
-    queue_.Put(new Event(event_data));
+  void Seek(SbMediaTime seek_to_pts, int ticket) {
+    job_queue_->Schedule(
+        Bind(&PlayerWorker::DoSeek, this, seek_to_pts, ticket));
+  }
+
+  void WriteSample(InputBuffer input_buffer) {
+    job_queue_->Schedule(
+        Bind(&PlayerWorker::DoWriteSample, this, input_buffer));
+  }
+
+  void WriteEndOfStream(SbMediaType sample_type) {
+    job_queue_->Schedule(
+        Bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
+  }
+
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  void SetBounds(Bounds bounds) {
+    job_queue_->Schedule(Bind(&PlayerWorker::DoSetBounds, this, bounds));
+  }
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+
+  void SetPause(bool pause) {
+    job_queue_->Schedule(Bind(&PlayerWorker::DoSetPause, this, pause));
   }
 
   void UpdateDroppedVideoFrames(int dropped_video_frames) {
@@ -189,17 +132,21 @@ class PlayerWorker {
 
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
-  bool DoInit();
-  bool DoSeek(const SeekEventData& data);
-  bool DoWriteSample(const WriteSampleEventData& data);
-  bool DoWriteEndOfStream(const WriteEndOfStreamEventData& data);
-  bool DoUpdate(const SetBoundsEventData& data);
+  void DoInit();
+  void DoSeek(SbMediaTime seek_to_pts, int ticket);
+  void DoWriteSample(InputBuffer input_buffer);
+  void DoWritePendingSamples();
+  void DoWriteEndOfStream(SbMediaType sample_type);
+#if SB_IS(PLAYER_PUNCHED_OUT)
+  void DoSetBounds(Bounds bounds);
+#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+  void DoSetPause(bool pause);
   void DoStop();
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
   SbThread thread_;
-  Queue<Event*> queue_;
+  scoped_ptr<JobQueue> job_queue_;
 
   Host* host_;
   scoped_ptr<Handler> handler_;
@@ -211,9 +158,9 @@ class PlayerWorker {
   int ticket_;
 
   SbPlayerState player_state_;
-  const SbTime update_interval_;
-  WriteSampleEventData pending_audio_sample_;
-  WriteSampleEventData pending_video_sample_;
+  InputBuffer pending_audio_buffer_;
+  InputBuffer pending_video_buffer_;
+  Closure write_pending_sample_closure_;
 };
 
 }  // namespace player
