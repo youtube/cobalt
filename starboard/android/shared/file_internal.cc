@@ -58,12 +58,12 @@ void SbFileAndroidInitialize(ANativeActivity* activity) {
   SB_DCHECK(g_app_files_dir == NULL);
   file_obj = env->CallActivityObjectMethod("getFilesDir", "()Ljava/io/File;");
   g_app_files_dir = GetAbsolutePath(env, file_obj);
-  SB_LOG(INFO) << "Files dir: " << g_app_files_dir;
+  SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK(g_app_cache_dir == NULL);
   file_obj = env->CallActivityObjectMethod("getCacheDir", "()Ljava/io/File;");
   g_app_cache_dir = GetAbsolutePath(env, file_obj);
-  SB_LOG(INFO) << "Cache dir: " << g_app_cache_dir;
+  SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 }
 
 void SbFileAndroidTeardown() {
