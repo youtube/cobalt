@@ -139,9 +139,9 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
 #ifndef NDEBUG
   const char* cmd_name = kAppCmdNames[cmd];
   if (cmd_name) {
-    SB_LOG(INFO) << cmd_name;
+    SB_DLOG(INFO) << cmd_name;
   } else {
-    SB_LOG(INFO) << "APP_CMD_[unknown  " << cmd << "]";
+    SB_DLOG(INFO) << "APP_CMD_[unknown  " << cmd << "]";
   }
 #endif
 
@@ -275,7 +275,7 @@ static SB_C_INLINE ApplicationAndroid* ToApplication(
 
 // static
 void ApplicationAndroid::HandleCommand(struct android_app* app, int32_t cmd) {
-  SB_LOG(INFO) << "HandleCommand " << cmd;
+  SB_DLOG(INFO) << "HandleCommand " << cmd;
   ToApplication(app)->OnAndroidCommand(cmd);
 }
 
@@ -288,7 +288,7 @@ int32_t ApplicationAndroid::HandleInput(
 // TODO: Figure out how to export ANativeActivity_onCreate()
 extern "C" SB_EXPORT_PLATFORM void CobaltActivity_onCreate(
     ANativeActivity *activity, void *savedState, size_t savedStateSize) {
-  SB_LOG(INFO) << "CobaltActivity_onCreate";
+  SB_DLOG(INFO) << "CobaltActivity_onCreate";
   ANativeActivity_onCreate(activity, savedState, savedStateSize);
 }
 
