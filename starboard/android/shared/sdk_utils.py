@@ -66,10 +66,19 @@ _COBALT_TOOLCHAINS_SDK_DIR = os.path.join(COBALT_TOOLCHAINS_DIR, 'AndroidSdk')
 _COBALT_TOOLCHAINS_NDK_DIR = os.path.join(_COBALT_TOOLCHAINS_SDK_DIR,
                                           'ndk-bundle')
 
+# Maps the Android ABI to the architecture name of the toolchain.
+_TOOLS_ABI_ARCH_MAP = {
+    'x86'        : 'x86',
+    'x86_64'     : 'x86_64',
+    'armeabi'    : 'arm',
+    'armeabi-v7a': 'arm',
+    'arm64-v8a'  : 'arm64',
+}
 
 def GetToolsPath(abi):
   """Returns the path where the NDK standalone toolchain should be."""
-  tools_dir = 'android_toolchain_api%s_%s' % (_ANDROID_NDK_API_LEVEL, abi)
+  tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
+  tools_dir = 'android_toolchain_api%s_%s' % (_ANDROID_NDK_API_LEVEL, tools_arch)
   return os.path.realpath(os.path.join(COBALT_TOOLCHAINS_DIR, tools_dir))
 
 
@@ -256,13 +265,14 @@ def _DownloadInstallOrUpdateSdk():
 
 def _MaybeMakeToolchain(abi):
   """Run the NDK's make_standalone_toolchain.py if necessary."""
+  tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
   tools_path = GetToolsPath(abi)
   if _CheckStamp(tools_path):
-    logging.info('NDK %s toolchain already at %s', abi,
+    logging.info('NDK %s toolchain already at %s', tools_arch,
                  _GetInstalledNdkRevision())
     return
 
-  logging.warning('Installing NDK %s toolchain %s in %s', abi,
+  logging.warning('Installing NDK %s toolchain %s in %s', tools_arch,
                   _GetInstalledNdkRevision(), tools_path)
 
   if os.path.exists(tools_path):
@@ -272,7 +282,7 @@ def _MaybeMakeToolchain(abi):
   script_path = os.path.join(GetNdkPath(), 'build', 'tools',
                              'make_standalone_toolchain.py')
   args = [
-      script_path, '--arch', abi, '--api', _ANDROID_NDK_API_LEVEL,
+      script_path, '--arch', tools_arch, '--api', _ANDROID_NDK_API_LEVEL,
       '--install-dir', tools_path
   ]
   script_proc = subprocess.Popen(args)
