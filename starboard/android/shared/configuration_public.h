@@ -33,29 +33,27 @@
 // automatically set based on this.
 #define SB_IS_BIG_ENDIAN 0
 
-// Whether the current platform is an ARM architecture.
-#define SB_IS_ARCH_ARM 0
-
 // Whether the current platform is a MIPS architecture.
 #define SB_IS_ARCH_MIPS 0
 
 // Whether the current platform is a PPC architecture.
 #define SB_IS_ARCH_PPC 0
 
-// Whether the current platform is an x86 architecture.
+// The current platform CPU architecture architecture.
+#if defined(__arm__) || defined(__aarch64__)
+#define SB_IS_ARCH_ARM 1
+#define SB_IS_ARCH_X86 0
+#elif defined(__i386__) || defined(__x86_64__)
+#define SB_IS_ARCH_ARM 0
 #define SB_IS_ARCH_X86 1
-
-// Whether the current platform is a 32-bit architecture.
-#if defined(__i386__)
-#define SB_IS_32_BIT 1
-#else
-#define SB_IS_32_BIT 0
 #endif
 
-// Whether the current platform is a 64-bit architecture.
-#if defined(__x86_64__)
+// Whether the current platform is 32-bit or 64-bit architecture.
+#if defined(__aarch64__) || defined(__x86_64__)
+#define SB_IS_32_BIT 0
 #define SB_IS_64_BIT 1
 #else
+#define SB_IS_32_BIT 1
 #define SB_IS_64_BIT 0
 #endif
 
@@ -117,6 +115,10 @@
 
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 1
+
+// eglChooseConfig() returns no configs when EGL_BIND_TO_TEXTURE_RGBA is true
+// on Nvidia Shield, and this seems to be fine on other Android TV devices.
+#define SB_HAS_QUIRK_NO_EGL_BIND_TO_TEXTURE 1
 
 // --- System Header Configuration -------------------------------------------
 
