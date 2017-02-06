@@ -35,7 +35,7 @@
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 1,
+    'cobalt_enable_jit': 0,
 
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.
