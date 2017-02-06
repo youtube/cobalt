@@ -259,6 +259,9 @@
           'THREAD_SANITIZER',
         ],
       }],
+      ['<!(python -c "import os.path; print os.path.isfile(\'<(DEPTH)/starboard/android/shared/private/keys.h\') & 1 | 0")==1', {
+        'defines': ['SB_HAS_SPEECH_API_KEY'],
+      }],
     ],
   }, # end of target_defaults
 }
