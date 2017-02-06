@@ -14,6 +14,7 @@
 #include "media/base/media_export.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_types.h"
+#include "media/webm/webm_colour_parser.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -83,7 +84,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
                      const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
                      const gfx::Size& natural_size,
-                     const uint8* extra_data, size_t extra_data_size,
+                     const uint8* extra_data,
+                     size_t extra_data_size,
                      bool is_encrypted);
 
   ~VideoDecoderConfig();
@@ -96,7 +98,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
                   const gfx::Size& coded_size,
                   const gfx::Rect& visible_rect,
                   const gfx::Size& natural_size,
-                  const uint8* extra_data, size_t extra_data_size,
+                  const uint8* extra_data,
+                  size_t extra_data_size,
                   bool is_encrypted,
                   bool record_stats);
 
@@ -142,13 +145,13 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // can be encrypted or not encrypted.
   bool is_encrypted() const;
 
-  void set_color_space_info(const gfx::ColorSpace& color_space_info);
-  gfx::ColorSpace color_space_info() const;
+  void set_webm_color_metadata(const WebMColorMetadata& webm_color_metadata) {
+    webm_color_metadata_ = webm_color_metadata;
+  }
 
-  ColorSpace color_space() const;
-
-  void set_hdr_metadata(const HDRMetadata& hdr_metadata);
-  HDRMetadata hdr_metadata() const;
+  const WebMColorMetadata& webm_color_metadata() const {
+    return webm_color_metadata_;
+  }
 
  private:
   VideoCodec codec_;
@@ -168,9 +171,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   bool is_encrypted_;
 
-  gfx::ColorSpace color_space_info_;
-  HDRMetadata hdr_metadata_;
-
+  WebMColorMetadata webm_color_metadata_;
   DISALLOW_COPY_AND_ASSIGN(VideoDecoderConfig);
 };
 

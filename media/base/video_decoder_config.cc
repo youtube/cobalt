@@ -102,13 +102,13 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
 
   switch (color_space) {
     case COLOR_SPACE_JPEG:
-      color_space_info_ = gfx::ColorSpace::CreateJpeg();
+      webm_color_metadata_.color_space = gfx::ColorSpace::CreateJpeg();
       break;
     case COLOR_SPACE_HD_REC709:
-      color_space_info_ = gfx::ColorSpace::CreateREC709();
+      webm_color_metadata_.color_space = gfx::ColorSpace::CreateREC709();
       break;
     case COLOR_SPACE_SD_REC601:
-      color_space_info_ = gfx::ColorSpace::CreateREC601();
+      webm_color_metadata_.color_space = gfx::ColorSpace::CreateREC601();
       break;
     case COLOR_SPACE_UNSPECIFIED:
       break;
@@ -119,17 +119,13 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
 }
 
 void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
-  Initialize(video_config.codec(),
-             video_config.profile(),
-             video_config.format(),
-             video_config.color_space(),
-             video_config.coded_size(),
-             video_config.visible_rect(),
-             video_config.natural_size(),
-             video_config.extra_data(),
-             video_config.extra_data_size(),
-             video_config.is_encrypted(),
+  Initialize(video_config.codec(), video_config.profile(),
+             video_config.format(), video_config.color_space_,
+             video_config.coded_size(), video_config.visible_rect(),
+             video_config.natural_size(), video_config.extra_data(),
+             video_config.extra_data_size(), video_config.is_encrypted(),
              false);
+  webm_color_metadata_ = video_config.webm_color_metadata_;
 }
 
 bool VideoDecoderConfig::IsValidConfig() const {
@@ -141,16 +137,15 @@ bool VideoDecoderConfig::IsValidConfig() const {
 }
 
 bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
-  return ((codec() == config.codec()) &&
-          (format() == config.format()) &&
-          (color_space_info() == config.color_space_info()) &&
+  return ((codec() == config.codec()) && (format() == config.format()) &&
+          (webm_color_metadata_ == config.webm_color_metadata()) &&
           (profile() == config.profile()) &&
           (coded_size() == config.coded_size()) &&
           (visible_rect() == config.visible_rect()) &&
           (natural_size() == config.natural_size()) &&
           (extra_data_size() == config.extra_data_size()) &&
-          (!extra_data() || !memcmp(extra_data(), config.extra_data(),
-                                    extra_data_size())) &&
+          (!extra_data() ||
+           !memcmp(extra_data(), config.extra_data(), extra_data_size())) &&
           (is_encrypted() == config.is_encrypted()));
 }
 
@@ -206,27 +201,6 @@ size_t VideoDecoderConfig::extra_data_size() const {
 
 bool VideoDecoderConfig::is_encrypted() const {
   return is_encrypted_;
-}
-
-void VideoDecoderConfig::set_color_space_info(
-    const gfx::ColorSpace& color_space_info) {
-  color_space_info_ = color_space_info;
-}
-
-gfx::ColorSpace VideoDecoderConfig::color_space_info() const {
-  return color_space_info_;
-}
-
-ColorSpace VideoDecoderConfig::color_space() const {
-  return color_space_;
-}
-
-void VideoDecoderConfig::set_hdr_metadata(const HDRMetadata& hdr_metadata) {
-  hdr_metadata_ = hdr_metadata;
-}
-
-HDRMetadata VideoDecoderConfig::hdr_metadata() const {
-  return hdr_metadata_;
 }
 
 }  // namespace media
