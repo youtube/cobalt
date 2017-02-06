@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The Starboard configuration for Android X86. Other devices will have
+// The Starboard configuration for Android ARM. Other devices will have
 // specific Starboard implementations, even if they ultimately are running some
 // version of Android.
 

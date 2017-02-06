@@ -22,19 +22,21 @@ final STARBOARD_APP = 'cobalt'
 
 // These are the ABIs that we target. It affects which architectures of Cobalt get built,
 // as well as which ABIs are expected for the split APKs.
-final COBALT_ABIS = (String[]) ['x86']
+//final COBALT_ABIS = (String[]) ['x86', 'armeabi-v7a', 'arm64-v8a']
+final COBALT_ABIS = (String[]) ['x86']  // just one for Nexus Player & emulator for faster builds
+
 // Maps the Android build type to the Cobalt build configuration type
 final COBALT_BUILD_TYPE_MAP = [
         debug  : 'debug',
         release: 'gold',
 ]
 // Maps the Android ABI to the Cobalt target architecture
-// (Configure which are actually built in apk/build.gradle)
+// (Configure which are actually built in COBALT_ABIS above)
 final COBALT_ARCH_MAP = [
         'x86'        : 'x86',
         'x86_64'     : 'x64',
         'armeabi'    : 'arm',
-        'armeabi-v7a': 'arm7',
+        'armeabi-v7a': 'arm',
         'arm64-v8a'  : 'arm64',
 ]
 
@@ -45,8 +47,8 @@ android {
 
     defaultConfig {
         applicationId "foo.cobalt.coat"
-	// Note: Please also change these values in
-	// starboard/android.shared/platform_deploy.gypi
+        // Note: Please also change these values in
+        // starboard/android.shared/platform_deploy.gypi
         minSdkVersion 21
         targetSdkVersion 22  // TODO: Targeting Lollipop avoids runtime permissions for now
         versionCode 1

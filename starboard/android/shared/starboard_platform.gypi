@@ -32,6 +32,7 @@
         'destination': '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/',
         'files': [
           '<(NDK_HOME)/sources/android/native_app_glue/android_native_app_glue.c',
+          '<(NDK_HOME)/sources/android/cpufeatures/cpu-features.c',
         ],
       }],
     },
@@ -102,6 +103,7 @@
         'window_get_platform_handle.cc',
         'window_get_size.cc',
         '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/android_native_app_glue.c',
+        '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/cpu-features.c',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
