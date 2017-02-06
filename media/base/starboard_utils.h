@@ -38,9 +38,8 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
                        SbDrmSubSampleMapping* subsample_mapping);
 
 #if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-SbMediaHdrMetadataColorSpace MediaToSbMediaHdrMetadataColorSpace(
-    const HDRMetadata& hdr_metadata,
-    const gfx::ColorSpace& color_space_info);
+SbMediaColorMetadata MediaToSbMediaColorMetadata(
+    const WebMColorMetadata& webm_color_metadata);
 #endif
 
 }  // namespace media
