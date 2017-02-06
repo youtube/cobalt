@@ -14,11 +14,21 @@
 
 #include "starboard/system.h"
 
-#include "starboard/android/shared/private/property_value.h"
+#ifdef SB_HAS_SPEECH_API_KEY
+#include "starboard/android/shared/private/keys.h"
+#endif  // SB_HAS_SPEECH_API_KEY
+
 #include "starboard/log.h"
 #include "starboard/string.h"
 
+// We can't #include "base/stringize_macros.h" in Starboard
+#define STRINGIZE_NO_EXPANSION(x) #x
+#define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
+
 namespace {
+
+const char kFriendlyName[] = "Android";
+const char kPlatformName[] = "Android; Linux " STRINGIZE(ANDROID_ABI);
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -58,7 +68,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
 
     case kSbSystemPropertySpeechApiKey:
+#ifdef SB_HAS_SPEECH_API_KEY
       return CopyStringAndTestIfSuccess(out_value, value_length, kSpeechApiKey);
+#else
+      return false;
+#endif  // SB_HAS_SPEECH_API_KEY
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__
