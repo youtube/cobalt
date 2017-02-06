@@ -343,6 +343,17 @@ WebMColorMetadata::WebMColorMetadata() {
   ChromaSitingVert = 0;
 }
 
+bool WebMColorMetadata::operator==(const WebMColorMetadata& rhs) const {
+  return (BitsPerChannel == rhs.BitsPerChannel &&
+          ChromaSubsamplingHorz == rhs.ChromaSubsamplingHorz &&
+          ChromaSubsamplingVert == rhs.ChromaSubsamplingVert &&
+          CbSubsamplingHorz == rhs.CbSubsamplingHorz &&
+          CbSubsamplingVert == rhs.CbSubsamplingVert &&
+          ChromaSitingHorz == rhs.ChromaSitingHorz &&
+          ChromaSitingVert == rhs.ChromaSitingVert &&
+          color_space == rhs.color_space && hdr_metadata == rhs.hdr_metadata);
+}
+
 WebMMasteringMetadataParser::WebMMasteringMetadataParser() {}
 WebMMasteringMetadataParser::~WebMMasteringMetadataParser() {}
 
