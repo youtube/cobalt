@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/log.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,6 +23,18 @@ namespace {
 TEST(SbSystemGetTotalCPUMemoryTest, SunnyDay) {
   // We are currently expecting this number to be over 80 megabytes.
   EXPECT_LE(SB_INT64_C(80) * 1024 * 1024, SbSystemGetTotalCPUMemory());
+}
+
+TEST(SbSystemGetTotalCPUMemoryTest, PrintValues) {
+  int64_t bytes_reserved = SbSystemGetTotalCPUMemory();
+  int64_t bytes_in_use = SbSystemGetUsedCPUMemory();
+
+  std::stringstream ss;
+  ss << "\n"
+     << "SbSystemGetTotalCPUMemory() = " << SbSystemGetTotalCPUMemory() << "\n"
+     << "SbSystemGetUsedCPUMemory()  = " << SbSystemGetUsedCPUMemory()
+     << "\n\n";
+  SbLogRaw(ss.str().c_str());
 }
 
 }  // namespace
