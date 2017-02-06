@@ -54,7 +54,7 @@ class SpeechRecognitionManager {
   // managed by their own class.
   void Start(const SpeechRecognitionConfig& config,
              script::ExceptionState* exception_state);
-  void Stop();
+  void Stop(bool run_callback = true);
   void Abort();
 
  private:
