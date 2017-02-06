@@ -95,6 +95,7 @@
 
 #define PR_BYTES_PER_WORD_LOG2   2
 #define PR_BYTES_PER_DWORD_LOG2  3
+
 #elif SB_IS(ARCH_X86) && SB_IS(64_BIT)
 #define PR_BYTES_PER_BYTE   1
 #define PR_BYTES_PER_SHORT  2
@@ -135,6 +136,7 @@
 
 #define PR_BYTES_PER_WORD_LOG2  3
 #define PR_BYTES_PER_DWORD_LOG2 3
+
 #elif SB_IS(ARCH_X86) && SB_IS(32_BIT)
 #define PR_BYTES_PER_BYTE   1
 #define PR_BYTES_PER_SHORT  2
@@ -175,6 +177,7 @@
 
 #define PR_BYTES_PER_WORD_LOG2   2
 #define PR_BYTES_PER_DWORD_LOG2  3
+
 #elif SB_IS(ARCH_MIPS) && SB_IS(32_BIT)
 #define PR_BYTES_PER_BYTE   1
 #define PR_BYTES_PER_SHORT  2
@@ -215,6 +218,7 @@
 
 #define PR_BYTES_PER_WORD_LOG2   2
 #define PR_BYTES_PER_DWORD_LOG2  3
+
 #elif SB_IS(ARCH_ARM) && SB_IS(32_BIT)
 #define PR_BYTES_PER_BYTE   1
 #define PR_BYTES_PER_SHORT  2
@@ -255,6 +259,48 @@
 
 #define PR_BYTES_PER_WORD_LOG2   2
 #define PR_BYTES_PER_DWORD_LOG2  3
+
+#elif SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#define PR_BYTES_PER_BYTE   1
+#define PR_BYTES_PER_SHORT  2
+#define PR_BYTES_PER_INT    4
+#define PR_BYTES_PER_INT64  8
+#define PR_BYTES_PER_LONG   8
+#define PR_BYTES_PER_FLOAT  4
+#define PR_BYTES_PER_DOUBLE 8
+#define PR_BYTES_PER_WORD   8
+#define PR_BYTES_PER_DWORD  8
+
+#define PR_BITS_PER_BYTE    8
+#define PR_BITS_PER_SHORT   16
+#define PR_BITS_PER_INT     32
+#define PR_BITS_PER_INT64   64
+#define PR_BITS_PER_LONG    64
+#define PR_BITS_PER_FLOAT   32
+#define PR_BITS_PER_DOUBLE  64
+#define PR_BITS_PER_WORD    64
+
+#define PR_BITS_PER_BYTE_LOG2   3
+#define PR_BITS_PER_SHORT_LOG2  4
+#define PR_BITS_PER_INT_LOG2    5
+#define PR_BITS_PER_INT64_LOG2  6
+#define PR_BITS_PER_LONG_LOG2   6
+#define PR_BITS_PER_FLOAT_LOG2  5
+#define PR_BITS_PER_DOUBLE_LOG2 6
+#define PR_BITS_PER_WORD_LOG2   6
+
+#define PR_ALIGN_OF_SHORT   2
+#define PR_ALIGN_OF_INT     4
+#define PR_ALIGN_OF_LONG    4
+#define PR_ALIGN_OF_INT64   4
+#define PR_ALIGN_OF_FLOAT   4
+#define PR_ALIGN_OF_DOUBLE  4
+#define PR_ALIGN_OF_POINTER 4
+#define PR_ALIGN_OF_WORD    4
+
+#define PR_BYTES_PER_WORD_LOG2   3
+#define PR_BYTES_PER_DWORD_LOG2  3
+
 #else
 #  error "No configuration definition for Starboard ARCH + BITS."
 #endif
