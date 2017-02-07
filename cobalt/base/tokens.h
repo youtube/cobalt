@@ -31,9 +31,12 @@ namespace base {
     MacroOpWithNameOnly(all)                                  \
     MacroOpWithNameOnly(animationend)                         \
     MacroOpWithNameOnly(assertive)                            \
+    MacroOpWithNameOnly(attribute)                            \
     MacroOpWithNameOnly(blur)                                 \
     MacroOpWithNameOnly(canplay)                              \
     MacroOpWithNameOnly(canplaythrough)                       \
+    MacroOpWithNameOnly(characterData)                        \
+    MacroOpWithNameOnly(childList)                            \
     MacroOpWithNameOnly(close)                                \
     MacroOpWithNameOnly(durationchange)                       \
     MacroOpWithNameOnly(emptied)                              \

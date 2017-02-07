@@ -24,13 +24,15 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/mutation_record.h"
-#include "cobalt/dom/node.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
+
+class MutationObserverTaskManager;
+class Node;
 
 // A MutationObserver object can be used to observe mutations to the tree of
 // nodes.
@@ -51,22 +53,44 @@ class MutationObserver : public script::Wrappable {
 
   // Not part of the spec. Support creating MutationObservers from native Cobalt
   // code.
-  explicit MutationObserver(const NativeMutationCallback& native_callback);
+  MutationObserver(const NativeMutationCallback& native_callback,
+                   MutationObserverTaskManager* task_manager);
 
   // Web Api: MutationObserver
-  explicit MutationObserver(const MutationCallbackArg& callback);
+  MutationObserver(const MutationCallbackArg& callback,
+                   MutationObserverTaskManager* task_manager);
+  ~MutationObserver();
+
   void Observe(const scoped_refptr<Node>& target,
                const MutationObserverInit& options);
   void Disconnect();
   MutationRecordSequence TakeRecords();
+
+  // Not part of the MutationObserver interface. Implements step (4.8) of the
+  // "queue a mutation record" algorithm.
+  // https://www.w3.org/TR/dom/#queue-a-mutation-record
+  void QueueMutationRecord(const scoped_refptr<MutationRecord>& record);
+
+  // Not part of the the MutationObserver interface. Implements steps (3) of the
+  // "notify mutation observers" algorithm.
+  // https://www.w3.org/TR/dom/#notify-mutation-observers
+  bool Notify();
 
   // Internal helper class to allow creation of a MutationObserver with either a
   // native or script callback. Must be public so it can be inherited from in
   // the .cc file.
   class CallbackInternal;
 
+  DEFINE_WRAPPABLE_TYPE(MutationObserver);
+
  private:
+  void TrackObservedNode(const scoped_refptr<dom::Node>& node);
+
   scoped_ptr<CallbackInternal> callback_;
+  typedef std::vector<base::WeakPtr<dom::Node> > WeakNodeVector;
+  WeakNodeVector observed_nodes_;
+  MutationRecordSequence record_queue_;
+  MutationObserverTaskManager* task_manager_;
 };
 }  // namespace dom
 }  // namespace cobalt

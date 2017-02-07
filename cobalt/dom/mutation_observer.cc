@@ -16,12 +16,15 @@
 
 #include "cobalt/dom/mutation_observer.h"
 
+#include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/node.h"
+
 namespace cobalt {
 namespace dom {
 // Abstract base class for a MutationCallback.
 class MutationObserver::CallbackInternal {
  public:
-  virtual void RunCallback(const MutationRecordSequence& mutations,
+  virtual bool RunCallback(const MutationRecordSequence& mutations,
                            const scoped_refptr<MutationObserver>& observer) = 0;
   virtual ~CallbackInternal() {}
 };
@@ -33,9 +36,11 @@ class ScriptCallback : public MutationObserver::CallbackInternal {
   ScriptCallback(const MutationObserver::MutationCallbackArg& callback,
                  MutationObserver* owner)
       : callback_(owner, callback) {}
-  void RunCallback(const MutationObserver::MutationRecordSequence& mutations,
+  bool RunCallback(const MutationObserver::MutationRecordSequence& mutations,
                    const scoped_refptr<MutationObserver>& observer) OVERRIDE {
-    callback_.value().Run(mutations, observer);
+    script::CallbackResult<void> result =
+        callback_.value().Run(mutations, observer);
+    return !result.exception;
   }
 
  private:
@@ -48,37 +53,113 @@ class NativeCallback : public MutationObserver::CallbackInternal {
   explicit NativeCallback(
       const MutationObserver::NativeMutationCallback& callback)
       : callback_(callback) {}
-  void RunCallback(const MutationObserver::MutationRecordSequence& mutations,
+  bool RunCallback(const MutationObserver::MutationRecordSequence& mutations,
                    const scoped_refptr<MutationObserver>& observer) OVERRIDE {
     callback_.Run(mutations, observer);
+    return true;
   }
 
  private:
   MutationObserver::NativeMutationCallback callback_;
 };
+
 }  // namespace
 
 MutationObserver::MutationObserver(
-    const NativeMutationCallback& native_callback) {
+    const NativeMutationCallback& native_callback,
+    MutationObserverTaskManager* task_manager)
+    : task_manager_(task_manager) {
   callback_.reset(new NativeCallback(native_callback));
+  task_manager_->OnMutationObserverCreated(this);
 }
 
-MutationObserver::MutationObserver(const MutationCallbackArg& callback) {
+MutationObserver::MutationObserver(const MutationCallbackArg& callback,
+                                   MutationObserverTaskManager* task_manager)
+    : task_manager_(task_manager) {
   callback_.reset(new ScriptCallback(callback, this));
+  task_manager_->OnMutationObserverCreated(this);
 }
 
 void MutationObserver::Observe(const scoped_refptr<Node>& target,
                                const MutationObserverInit& options) {
-  UNREFERENCED_PARAMETER(target);
-  UNREFERENCED_PARAMETER(options);
-  NOTIMPLEMENTED();
+  if (!target) {
+    // |target| is not nullable, so if this is NULL that indicates a bug in the
+    // bindings layer.
+    NOTREACHED();
+    return;
+  }
+  if (!target->RegisterMutationObserver(make_scoped_refptr(this), options)) {
+    // TODO: Throw TypeError.
+    NOTREACHED();
+  }
 }
 
-void MutationObserver::Disconnect() { NOTIMPLEMENTED(); }
+void MutationObserver::Disconnect() {
+  // The disconnect() method must, for each node in the context object's
+  // list of nodes, remove any registered observer on node for which the context
+  // object is the observer, and also empty context object's record queue.
+  for (WeakNodeVector::iterator it = observed_nodes_.begin();
+       it != observed_nodes_.end(); ++it) {
+    dom::Node* node = it->get();
+    if (node != NULL) {
+      node->UnregisterMutationObserver(make_scoped_refptr(this));
+    }
+  }
+  observed_nodes_.clear();
+  record_queue_.clear();
+}
 
 MutationObserver::MutationRecordSequence MutationObserver::TakeRecords() {
-  NOTIMPLEMENTED();
-  return MutationRecordSequence();
+  // The takeRecords() method must return a copy of the record queue and then
+  // empty the record queue.
+  MutationRecordSequence record_queue;
+  record_queue.swap(record_queue_);
+  return record_queue;
+}
+
+void MutationObserver::QueueMutationRecord(
+    const scoped_refptr<MutationRecord>& record) {
+  record_queue_.push_back(record);
+  task_manager_->QueueMutationObserverMicrotask();
+}
+
+bool MutationObserver::Notify() {
+  // https://www.w3.org/TR/dom/#mutationobserver
+  // Step 3 of "notify mutation observers" steps:
+  //     1. Let queue be a copy of mo's record queue.
+  //     2. Empty mo's record queue.
+  MutationRecordSequence records = TakeRecords();
+
+  //     3. Remove all transient registered observers whose observer is mo.
+  // TODO: handle transient registered observers.
+
+  //     4. If queue is non-empty, call mo's callback with queue as first
+  //        argument, and mo (itself) as second argument and callback this
+  //        value. If this throws an exception, report the exception.
+  if (!records.empty()) {
+    return callback_->RunCallback(records, make_scoped_refptr(this));
+  }
+  // If no records, return true to indicate no error occurred.
+  return true;
+}
+
+MutationObserver::~MutationObserver() {
+  task_manager_->OnMutationObserverDestroyed(this);
+}
+
+void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {
+  for (WeakNodeVector::iterator it = observed_nodes_.begin();
+       it != observed_nodes_.end();) {
+    if (*it == NULL) {
+      it = observed_nodes_.erase(it);
+      continue;
+    }
+    if (*it == node) {
+      return;
+    }
+    ++it;
+  }
+  observed_nodes_.push_back(base::AsWeakPtr(node.get()));
 }
 
 }  // namespace dom

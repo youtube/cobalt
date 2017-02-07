@@ -17,6 +17,7 @@
 #ifndef COBALT_SCRIPT_SEQUENCE_H_
 #define COBALT_SCRIPT_SEQUENCE_H_
 
+#include <algorithm>
 #include <iosfwd>
 #include <vector>
 
@@ -58,7 +59,9 @@ class Sequence {
   typedef typename SequenceType::const_reference const_reference;
   void push_back(const_reference value) { sequence_.push_back(value); }
   size_type size() const { return sequence_.size(); }
+  bool empty() const { return sequence_.empty(); }
   const_reference at(size_type index) const { return sequence_.at(index); }
+  void swap(Sequence<T>& other) { sequence_.swap(other.sequence_); }
 
  private:
   SequenceType sequence_;
