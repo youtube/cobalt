@@ -17,12 +17,15 @@
 #include "nb/atomic.h"
 
 #include <algorithm>
+#include <numeric>
 #include <vector>
 
 #include "nb/test_thread.h"
 #include "starboard/configuration.h"
 #include "starboard/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#define NUM_THREADS 4
 
 namespace nb {
 namespace {
@@ -41,6 +44,9 @@ typedef ::testing::Types<atomic_int32_t, atomic_int64_t,
 typedef ::testing::Types<atomic_int32_t, atomic_int64_t,
                          atomic_float, atomic_double> AtomicNumberTypes;
 
+// Defines a typelist for just atomic number types.
+typedef ::testing::Types<atomic_int32_t, atomic_int64_t> AtomicIntegralTypes;
+
 // Defines test type that will be instantiated using each type in
 // AllAtomicTypes type list.
 template <typename T>
@@ -52,6 +58,10 @@ TYPED_TEST_CASE(AtomicTest, AllAtomicTypes);  // Registration.
 template <typename T>
 class AtomicNumberTest : public ::testing::Test {};
 TYPED_TEST_CASE(AtomicNumberTest, AtomicNumberTypes);  // Registration.
+
+template <typename T>
+class AtomicIntegralTest : public ::testing::Test {};
+TYPED_TEST_CASE(AtomicIntegralTest, AtomicIntegralTypes);  // Registration.
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -163,6 +173,19 @@ TYPED_TEST(AtomicNumberTest, FetchSub_SingleThread) {
   ASSERT_EQ(neg_two, atomic.load());         // 0-2 = -2
 }
 
+TYPED_TEST(AtomicIntegralTest, IncrementAndDecrement_SingleThread) {
+  typedef TypeParam AtomicT;
+  typedef typename AtomicT::ValueType T;
+
+  const T zero(0);
+  const T one = zero + 1;  // Allows AtomicPointer<T*>.
+
+  AtomicT atomic;
+  ASSERT_EQ(atomic.load(), zero);       // Default is 0.
+  ASSERT_EQ(zero, atomic.increment());  // Tests for post-increment operation.
+  ASSERT_EQ(one, atomic.decrement());   // Tests for post-decrement operation.
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Multithreaded tests.
 ///////////////////////////////////////////////////////////////////////////////
@@ -190,7 +213,7 @@ class CompareExchangeThread : public TestThread {
       T new_value = T(i);
       while (true) {
         if (std::rand() % 3 == 0) {
-          // 1 in 3 chance of yeilding.
+          // 1 in 3 chance of yielding.
           // Attempt to cause more contention by giving other threads a chance
           // to run.
           SbThreadYield();
@@ -258,16 +281,15 @@ TYPED_TEST(AtomicNumberTest, Test_CompareExchange_MultiThreaded) {
   typedef typename AtomicT::ValueType T;
 
   static const int kNumElements = 1000;
-  static const int kNumThreads = 4;
 
   AtomicT atomic_value(T(-1));
   std::vector<TestThread*> threads;
   std::vector<T> output_values;
   starboard::Mutex output_mutex;
 
-  for (int i = 0; i < kNumThreads; ++i) {
-    const int start_num = (kNumElements * i) / kNumThreads;
-    const int end_num = (kNumElements * (i + 1)) / kNumThreads;
+  for (int i = 0; i < NUM_THREADS; ++i) {
+    const int start_num = (kNumElements * i) / NUM_THREADS;
+    const int end_num = (kNumElements * (i + 1)) / NUM_THREADS;
     threads.push_back(
         new CompareExchangeThread<AtomicT>(
             start_num,  // defines the number range to generate.
@@ -279,15 +301,15 @@ TYPED_TEST(AtomicNumberTest, Test_CompareExchange_MultiThreaded) {
 
   // These threads will generate unique numbers in their range and then
   // write them to the output array.
-  for (int i = 0; i < kNumThreads; ++i) {
+  for (int i = 0; i < NUM_THREADS; ++i) {
     threads[i]->Start();
   }
 
-  for (int i = 0; i < kNumThreads; ++i) {
+  for (int i = 0; i < NUM_THREADS; ++i) {
     threads[i]->Join();
   }
   // Cleanup threads.
-  for (int i = 0; i < kNumThreads; ++i) {
+  for (int i = 0; i < NUM_THREADS; ++i) {
     delete threads[i];
   }
   threads.clear();
@@ -312,6 +334,154 @@ TYPED_TEST(AtomicNumberTest, Test_CompareExchange_MultiThreaded) {
     ASSERT_EQ(output_values[i], T(i));
   }
 }
+
+// A thread that will invoke increment() and decrement() and equal number
+// of times to atomic_value. The value after this is done should be equal to
+// 0.
+template <typename AtomicT>
+class IncrementAndDecrementThread : public TestThread {
+ public:
+  typedef typename AtomicT::ValueType T;
+  IncrementAndDecrementThread(size_t half_number_of_operations,
+                              AtomicT* atomic_value)
+      : atomic_value_(atomic_value) {
+    for (size_t i = 0; i < half_number_of_operations; ++i) {
+      operation_sequence_.push_back(true);
+    }
+    for (size_t i = 0; i < half_number_of_operations; ++i) {
+      operation_sequence_.push_back(false);
+    }
+    std::random_shuffle(operation_sequence_.begin(),
+                        operation_sequence_.end());
+  }
+
+  virtual void Run() {
+    for (size_t i = 0; i < operation_sequence_.size(); ++i) {
+      if (std::rand() % 3 == 0) {
+        // 1 in 3 chance of yielding.
+        // Attempt to cause more contention by giving other threads a chance
+        // to run.
+        SbThreadYield();
+      }
+      T prev_value = 0;
+      if (operation_sequence_[i]) {
+        prev_value = atomic_value_->increment();
+      } else {
+        prev_value = atomic_value_->decrement();
+      }
+    }
+  }
+ private:
+  // Used purely for true/false values. Note that we don't
+  // use std::vector<bool> because some platforms won't support
+  // swapping elements of std::vector<bool>, which is required for
+  // std::random_shuffle().
+  std::vector<uint8_t> operation_sequence_;
+  AtomicT*const atomic_value_;
+};
+
+TYPED_TEST(AtomicIntegralTest, Test_IncrementAndDecrement_MultiThreaded) {
+  typedef TypeParam AtomicT;
+  typedef typename AtomicT::ValueType T;
+
+  static const int kNumOperations = 10000;
+
+  AtomicT atomic_value(T(0));
+  std::vector<TestThread*> threads;
+
+  for (int i = 0; i < NUM_THREADS; ++i) {
+    threads.push_back(
+        new IncrementAndDecrementThread<AtomicT>(
+            kNumOperations,
+            &atomic_value));
+  }
+
+  for (int i = 0; i < NUM_THREADS; ++i) {
+    threads[i]->Start();
+  }
+
+  for (int i = 0; i < NUM_THREADS; ++i) {
+    threads[i]->Join();
+  }
+  // Cleanup threads.
+  for (int i = 0; i < NUM_THREADS; ++i) {
+    delete threads[i];
+  }
+  threads.clear();
+
+  // After an equal number of decrements and increments, the final value should
+  // be 0.
+  ASSERT_EQ(0, atomic_value.load());
+}
+
+template <typename AtomicT>
+class FetchAddSubThread : public TestThread {
+ public:
+  typedef typename AtomicT::ValueType T;
+  FetchAddSubThread(const int32_t start_value,
+                    const int32_t end_value,
+                    AtomicT* atomic_value)
+      : start_value_(start_value),
+        end_value_(end_value),
+        atomic_value_(atomic_value) {
+  }
+
+  virtual void Run() {
+    for (int32_t i = start_value_; i < end_value_; ++i) {
+      if (std::rand() % 3 == 0) {
+        // 1 in 3 chance of yielding.
+        // Attempt to cause more contention by giving other threads a chance
+        // to run.s
+        SbThreadYield();
+      }
+
+      if (std::rand() % 2 == 0) {
+        atomic_value_->fetch_add(i);
+      } else {
+        atomic_value_->fetch_sub(-i);
+      }
+    }
+  }
+ private:
+  int32_t start_value_;
+  int32_t end_value_;
+  AtomicT*const atomic_value_;
+};
+
+TYPED_TEST(AtomicIntegralTest, Test_FetchAdd_MultiThreaded) {
+  typedef TypeParam AtomicT;
+  typedef typename AtomicT::ValueType T;
+
+  static const int kNumOperations = 10000;
+
+  AtomicT atomic_value(T(0));
+  std::vector<TestThread*> threads;
+
+  // First value is inclusive, second is exclusive.
+  threads.push_back(
+      new FetchAddSubThread<AtomicT>(-kNumOperations, 0, &atomic_value));
+
+  threads.push_back(
+      new FetchAddSubThread<AtomicT>(1, kNumOperations+1, &atomic_value));
+
+  for (int i = 0; i < threads.size(); ++i) {
+    threads[i]->Start();
+  }
+
+  for (int i = 0; i < threads.size(); ++i) {
+    threads[i]->Join();
+  }
+  // Cleanup threads.
+  for (int i = 0; i < threads.size(); ++i) {
+    delete threads[i];
+  }
+  threads.clear();
+
+  // After an equal number of decrements and increments, the final value should
+  // be 0.
+  ASSERT_EQ(0, atomic_value.load());
+}
+
 
 }  // namespace
 }  // namespace nb
