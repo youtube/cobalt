@@ -16,6 +16,7 @@
 
 #include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 
+#include <cstdlib>
 #include <map>
 #include <string>
 
@@ -23,6 +24,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
 #include "nb/analytics/memory_tracker_helpers.h"
+#include "nb/lexical_cast.h"
 #include "starboard/log.h"
 
 namespace cobalt {
@@ -116,7 +118,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   typedef std::map<std::string, SwitchVal> SwitchMap;
 
   SwitchVal startup_tool(
-      "startup",  // Name of tool.
+      "startup(num_mins=1)",  // Name of tool.
       "Records high-frequency memory metrics for the first 60 "
       "seconds of program launch and then dumps it out in CSV format "
       "to stdout.",
@@ -138,7 +140,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       kCompressedTimeseries);
 
   SwitchVal binner_tool(
-      "binner",
+      "binner(region=NULL)",
       "Dumps memory statistics once a second in CSV format to stdout. "
       "The default memory region is all memory regions. Pass the "
       "name of the memory region to specify that only that memory region "
@@ -154,11 +156,14 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       kAllocationLogger);
 
   SwitchMap switch_map;
-  switch_map[startup_tool.tool_name] = startup_tool;
-  switch_map[continuous_printer_tool.tool_name] = continuous_printer_tool;
-  switch_map[compressed_timeseries_tool.tool_name] = compressed_timeseries_tool;
-  switch_map[binner_tool.tool_name] = binner_tool;
-  switch_map[allocation_logger_tool.tool_name] = allocation_logger_tool;
+  switch_map[ParseToolName(startup_tool.tool_name)] = startup_tool;
+  switch_map[ParseToolName(continuous_printer_tool.tool_name)] =
+      continuous_printer_tool;
+  switch_map[ParseToolName(compressed_timeseries_tool.tool_name)] =
+      compressed_timeseries_tool;
+  switch_map[ParseToolName(binner_tool.tool_name)] = binner_tool;
+  switch_map[ParseToolName(allocation_logger_tool.tool_name)] =
+      allocation_logger_tool;
 
   std::string tool_name = ParseToolName(command_arg);
   std::string tool_arg = ParseToolArg(command_arg);
@@ -217,11 +222,48 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       break;
     }
     case kStartup: {
+      double num_mins = 1.0;
+      if (!tool_arg.empty()) {
+        num_mins = nb::lexical_cast<double>(tool_arg.c_str());
+        if ((num_mins > 0) == false) {  // Accounts for NaN.
+          num_mins = 1.0;
+        }
+      }
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
+
+      // Converts minutes into Sampling interval and also total sampling time.
+      // To keep the amount of elements in the output static, we adjust the
+      // sampling.
+      //
+      // The number of samples produced is held constants and is:
+      //   kNumSamples = F::TotalSamplingTime(num_mins) /
+      //                 F::SamplingIntervalMs(num_mins)
+      struct F {
+        static int SamplingIntervalMs(double mins) {
+          // kNumSamples is chosen such that SamplingIntervalMs(1) outputs
+          // 240ms.
+          static const double kNumSamples = 250.;
+          const double millseconds = mins * 60. * 1000.;
+          const int sample_time_ms =
+              static_cast<int>(ToMilliseconds(mins) / kNumSamples);
+          return static_cast<int>(sample_time_ms);
+        }
+
+        // TotalSamplingTime(1) outputs 60,000 milliseconds, or 1 minute.
+        static int ToMilliseconds(double mins) {
+          const double millseconds = mins * 60. * 1000.;
+          return static_cast<int>(millseconds);
+        }
+      };
+
+      // Sample time increases with the number of seconds. At one second we
+      // sample 4 times a second. This keeps the number of samples constant
+      // regardless of input time.
+      int sampling_interval_ms = F::SamplingIntervalMs(num_mins);
+      // Time until output is triggered.
+      int sampling_time_ms = F::ToMilliseconds(num_mins);
       // Create a thread that will gather memory metrics for startup.
-      int sampling_interval_ms = 1000;   // Sample once a second.
-      int sampling_time_ms = 60 * 1000;  // Output after 60 seconds
       tool_ptr.reset(
           new MemoryTrackerPrintCSV(sampling_interval_ms, sampling_time_ms));
       break;
