@@ -24,6 +24,9 @@
 #include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/mutation_observer.h"
+#include "cobalt/dom/mutation_observer_init.h"
+#include "cobalt/dom/registered_observer_list.h"
 
 namespace cobalt {
 namespace dom {
@@ -222,6 +225,15 @@ class Node : public EventTarget {
   // descendents.
   void PurgeCachedResourceReferencesRecursively();
 
+  bool RegisterMutationObserver(const scoped_refptr<MutationObserver>& observer,
+                                const MutationObserverInit& options) {
+    return registered_observers_.AddMutationObserver(observer, options);
+  }
+  void UnregisterMutationObserver(
+      const scoped_refptr<MutationObserver>& observer) {
+    registered_observers_.RemoveMutationObserver(observer);
+  }
+
   DEFINE_WRAPPABLE_TYPE(Node);
 
  protected:
@@ -292,6 +304,8 @@ class Node : public EventTarget {
   // Strong references to first child and next sibling.
   scoped_refptr<Node> first_child_;
   scoped_refptr<Node> next_sibling_;
+
+  RegisteredObserverList registered_observers_;
 
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
