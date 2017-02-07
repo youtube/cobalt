@@ -289,7 +289,43 @@ typedef enum SbMediaRangeId {
 // with standard digital imaging. See the Consumer Electronics
 // Association press release:
 // https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx
-typedef struct SbMediaHdrMetadataColorSpace {
+typedef struct SbMediaColorMetadata {
+  // Number of decoded bits per channel. A value of 0 indicates that
+  // the BitsPerChannel is unspecified.
+  unsigned int bits_per_channel;
+
+  // The amount of pixels to remove in the Cr and Cb channels for
+  // every pixel not removed horizontally. Example: For video with
+  // 4:2:0 chroma subsampling, the |chroma_subsampling_horizontal| should be set
+  // to 1.
+  unsigned int chroma_subsampling_horizontal;
+
+  // The amount of pixels to remove in the Cr and Cb channels for
+  // every pixel not removed vertically. Example: For video with
+  // 4:2:0 chroma subsampling, the |chroma_subsampling_vertical| should be set
+  // to 1.
+  unsigned int chroma_subsampling_vertical;
+
+  // The amount of pixels to remove in the Cb channel for every pixel
+  // not removed horizontally. This is additive with
+  // ChromaSubsamplingHorz. Example: For video with 4:2:1 chroma
+  // subsampling, the |chroma_subsampling_horizontal| should be set to 1 and
+  // |cb_subsampling_horizontal| should be set to 1.
+  unsigned int cb_subsampling_horizontal;
+
+  // The amount of pixels to remove in the Cb channel for every pixel
+  // not removed vertically. This is additive with
+  // |chroma_subsampling_vertical|.
+  unsigned int cb_subsampling_vertical;
+
+  // How chroma is subsampled horizontally. (0: Unspecified, 1: Left
+  // Collocated, 2: Half)
+  unsigned int chroma_siting_horizontal;
+
+  // How chroma is subsampled vertically. (0: Unspecified, 1: Top
+  // Collocated, 2: Half)
+  unsigned int chroma_siting_vertical;
+
   // [HDR Metadata field] SMPTE 2086 mastering data.
   SbMediaMasteringMetadata mastering_metadata;
 
@@ -347,7 +383,7 @@ typedef struct SbMediaHdrMetadataColorSpace {
   // submatrix of the 4 x 4 transform matrix.  The 4th row is
   // completed as (0, 0, 0, 1).
   float custom_primary_matrix[12];
-} SbMediaHdrMetadataColorSpace;
+} SbMediaColorMetadata;
 #endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 
 // The set of information required by the decoder or player for each video
@@ -368,13 +404,15 @@ typedef struct SbMediaVideoSampleInfo {
   int frame_height;
 
 #if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-  // HDR metadata common for HDR10 and WeB/VP9-based HDR formats as
-  // well as the Color Space: MatrixCoefficients, Range,
-  // TansferCharacteristics, and Primaries described here:
-  // https://matroska.org/technical/specs/index.html
-  // This will only be specified on frames where the HDR metadata and color
-  // space might have changed (e.g. keyframes).
-  SbMediaHdrMetadataColorSpace* hdr_metadata_color_space;
+  // HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
+  // well as the Color Space, and Color elements: MatrixCoefficients,
+  // BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
+  // CbSubsamplingHorz, CbSubsamplingVert, ChromaSitingHorz,
+  // ChromaSitingVert, Range, TransferCharacteristics, and Primaries
+  // described here: https://matroska.org/technical/specs/index.html .
+  // This will only be specified on frames where the HDR metadata and
+  // color / color space might have changed (e.g. keyframes).
+  SbMediaColorMetadata* color_metadata;
 #endif
 } SbMediaVideoSampleInfo;
 
