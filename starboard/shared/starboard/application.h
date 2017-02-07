@@ -26,6 +26,7 @@
 #include "starboard/log.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -150,6 +151,10 @@ class Application {
   // blocking until application exit. This method will dispatch all appropriate
   // initialization and teardown events. Returns the resulting error level.
   int Run(int argc, char** argv);
+
+  // Retrieves the CommandLine for the application.
+  // NULL until Run() is called.
+  CommandLine* GetCommandLine();
 
   // Signals that the application should transition from STARTED to PAUSED as
   // soon as possible. Does nothing if already PAUSED or SUSPENDED. May be
@@ -317,9 +322,8 @@ class Application {
   // main thread.
   SbThread thread_;
 
-  // The command line arguments passed to |Run|.
-  int argument_count_;
-  char** argument_values_;
+  // CommandLine instance initialized in |Run|.
+  scoped_ptr<CommandLine> command_line_;
 
   // The deep link included in the Start event sent to Cobalt. Initially NULL,
   // derived classes may set it during initialization using |SetStartLink|.

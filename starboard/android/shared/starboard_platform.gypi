@@ -235,6 +235,8 @@
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/stub_audio_sink_type.h',
+        '<(DEPTH)/starboard/shared/starboard/command_line.cc',
+        '<(DEPTH)/starboard/shared/starboard/command_line.h',
         '<(DEPTH)/starboard/shared/starboard/directory_can_open.cc',
         '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
