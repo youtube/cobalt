@@ -192,6 +192,8 @@
       '<(DEPTH)/starboard/shared/signal/suspend_signals.cc',
       '<(DEPTH)/starboard/shared/signal/suspend_signals.h',
       '<(DEPTH)/starboard/shared/starboard/application.cc',
+      '<(DEPTH)/starboard/shared/starboard/command_line.cc',
+      '<(DEPTH)/starboard/shared/starboard/command_line.h',
       '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_create.cc',
       '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_destroy.cc',
       '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_internal.cc',
