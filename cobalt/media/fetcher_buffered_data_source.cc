@@ -59,7 +59,9 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
   DCHECK(network_module);
 }
 
-FetcherBufferedDataSource::~FetcherBufferedDataSource() { DCHECK(!fetcher_); }
+FetcherBufferedDataSource::~FetcherBufferedDataSource() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+}
 
 void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
                                      const ReadCB& read_cb) {
@@ -84,8 +86,15 @@ void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
       base::ResetAndReturn(&pending_read_cb_).Run(0);
     }
     // From this moment on, any call to Read() should be treated as an error.
+    // Note that we cannot reset |fetcher_| here because of:
+    // 1. Fetcher has to be destroyed on the thread that it is created, however
+    //    Stop() is usually called from the pipeline thread where |fetcher_| is
+    //    created on the web thread.
+    // 2. We cannot post a task to the web thread to destroy |fetcher_| as the
+    //    web thread is blocked by WMPI::Destroy().
+    // Once error_occured_ is set to true, the fetcher callbacks return
+    // immediately so it is safe to destroy |fetcher_| inside the dtor.
     error_occured_ = true;
-    DestroyFetcher(fetcher_.Pass());
   }
 
   // We cannot post the callback using the MessageLoop as we share the
@@ -112,12 +121,11 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
-  if (fetcher_.get() != source) {
+
+  if (fetcher_.get() != source || error_occured_) {
     return;
   }
-  if (error_occured_) {
-    return;
-  }
+
   if (!source->GetStatus().is_success()) {
     // The error will be handled on OnURLFetchComplete()
     error_occured_ = true;
@@ -181,10 +189,8 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
   }
   const uint8* data = reinterpret_cast<const uint8*>(download_data->data());
   base::AutoLock auto_lock(lock_);
-  if (fetcher_.get() != source) {
-    return;
-  }
-  if (error_occured_) {
+
+  if (fetcher_.get() != source || error_occured_) {
     return;
   }
 
@@ -193,7 +199,7 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
   if (size == 0) {
     // The server side doesn't support range request.  Delete the fetcher to
     // stop the current request.
-    DestroyFetcher(fetcher_.Pass());
+    fetcher_.reset();
     ProcessPendingRead_Locked();
     return;
   }
@@ -245,9 +251,11 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
-  if (fetcher_.get() != source) {
+
+  if (fetcher_.get() != source || error_occured_) {
     return;
   }
+
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
     if (total_size_of_resource_ && last_request_size_ != 0) {
@@ -266,21 +274,13 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   ProcessPendingRead_Locked();
 }
 
-void FetcherBufferedDataSource::DestroyFetcher(
-    scoped_ptr<net::URLFetcher> fetcher) {
-  if (fetcher && !message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(
-        FROM_HERE, base::Bind(&FetcherBufferedDataSource::DestroyFetcher, this,
-                              base::Passed(&fetcher)));
-    return;
-  }
-  // Do nothing as |fetcher| will destroy itself.
-}
-
 void FetcherBufferedDataSource::CreateNewFetcher() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
+
+  fetcher_.reset();
+
   DCHECK_GE(static_cast<int64>(last_request_offset_), 0);
   DCHECK_GE(static_cast<int64>(last_request_size_), 0);
 
@@ -405,7 +405,6 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
     last_request_offset_ = buffer_offset_ + buffer_.GetLength();
   }
 
-  DestroyFetcher(fetcher_.Pass());
   message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&FetcherBufferedDataSource::CreateNewFetcher, this));
