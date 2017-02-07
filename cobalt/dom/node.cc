@@ -427,7 +427,8 @@ Node::Node(Document* document)
       previous_sibling_(NULL),
       last_child_(NULL),
       inserted_into_document_(false),
-      node_generation_(kInitialNodeGeneration) {
+      node_generation_(kInitialNodeGeneration),
+      ALLOW_THIS_IN_INITIALIZER_LIST(registered_observers_(this)) {
   DCHECK(node_document_);
   ++(node_count_log.Get().count);
   GlobalStats::GetInstance()->Add(this);
