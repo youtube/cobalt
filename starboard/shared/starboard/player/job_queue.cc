@@ -99,15 +99,16 @@ void JobQueue::Remove(Closure job) {
   ScopedLock scoped_lock(mutex_);
   queue_.Remove(job);
   // std::multimap::erase() doesn't return an iterator until C++11.  So this has
-  // to be done in a nested loop.
-  bool removed_one = true;
-  while (removed_one) {
-    removed_one = false;
+  // to be done in a nested loop to delete multiple occurrences of |job|.
+  bool should_keep_running = true;
+  while (should_keep_running) {
+    should_keep_running = false;
     for (TimeToJobMap::iterator iter = time_to_job_map_.begin();
          iter != time_to_job_map_.end(); ++iter) {
       if (iter->second == job) {
         time_to_job_map_.erase(iter);
-        removed_one = true;
+        should_keep_running = true;
+        break;
       }
     }
   }
