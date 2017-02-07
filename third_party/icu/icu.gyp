@@ -619,9 +619,6 @@
               'unicode/vtzone.h',
             ],
           },
-          'includes': [
-            '../../build/shim_headers.gypi',
-          ],
           'toolsets': ['target'],
         },
         {
@@ -722,9 +719,6 @@
               'unicode/uversion.h',
             ],
           },
-          'includes': [
-            '../../build/shim_headers.gypi',
-          ],
           'toolsets': ['target'],
         },
       ], # targets
