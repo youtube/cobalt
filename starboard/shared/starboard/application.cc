@@ -20,6 +20,8 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
+#include "starboard/shared/starboard/command_line.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -49,8 +51,6 @@ Application* Application::g_instance = NULL;
 Application::Application()
     : error_level_(0),
       thread_(SbThreadGetCurrent()),
-      argument_count_(0),
-      argument_values_(NULL),
       start_link_(NULL),
       state_(kStateUnstarted) {
   Application* old_instance =
@@ -74,8 +74,7 @@ Application::~Application() {
 
 int Application::Run(int argc, char** argv) {
   Initialize();
-  argument_count_ = argc;
-  argument_values_ = argv;
+  command_line_.reset(new CommandLine(argc, argv));
   if (IsStartImmediate()) {
     DispatchStart();
   }
@@ -89,6 +88,10 @@ int Application::Run(int argc, char** argv) {
   CallTeardownCallbacks();
   Teardown();
   return error_level_;
+}
+
+CommandLine* Application::GetCommandLine() {
+  return command_line_.get();
 }
 
 void Application::Pause(void* context, EventHandledCallback callback) {
@@ -148,8 +151,9 @@ void Application::SetStartLink(const char* start_link) {
 void Application::DispatchStart() {
   SB_DCHECK(state_ == kStateUnstarted);
   SbEventStartData start_data;
-  start_data.argument_values = argument_values_;
-  start_data.argument_count = argument_count_;
+  start_data.argument_values =
+      const_cast<char**>(command_line_->GetOriginalArgv());
+  start_data.argument_count = command_line_->GetOriginalArgc();
   start_data.link = start_link_;
   Dispatch(kSbEventTypeStart, &start_data, NULL);
   state_ = kStateStarted;
