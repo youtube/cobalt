@@ -179,6 +179,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Get the SetBoundsCB used to set the bounds of the video frame.
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
+
+  // Returns whether the player is configured for outputting in punch out mode.
+  virtual bool IsPunchOutMode() { return false; }
 };
 
 }  // namespace media

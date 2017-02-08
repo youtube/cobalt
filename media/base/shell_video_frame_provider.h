@@ -24,6 +24,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "media/base/video_frame.h"
+#include "starboard/decode_target.h"
 
 namespace media {
 
@@ -36,6 +37,10 @@ namespace media {
 class ShellVideoFrameProvider
     : public base::RefCountedThreadSafe<ShellVideoFrameProvider> {
  public:
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
   explicit ShellVideoFrameProvider(scoped_refptr<VideoFrame> punch_out = NULL);
 
   // The calling back returns the current media time and a bool which is set to
@@ -57,6 +62,34 @@ class ShellVideoFrameProvider
   // Returns the current frame to be displayed if there is one. Otherwise it
   // returns NULL.
   const scoped_refptr<VideoFrame>& GetCurrentFrame();
+
+  void SetPunchOutMode(bool punch_out) { punch_out_mode_ = punch_out; }
+  bool IsPunchOutMode() const { return punch_out_mode_; }
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  // For Starboard platforms that have a decode-to-texture player, we enable
+  // this ShellVideoFrameProvider to act as a bridge for Cobalt code to query
+  // for the current SbDecodeTarget.  In effect, we bypass all of
+  // ShellVideoFrameProvider's logic in this case, instead relying on the
+  // Starboard implementation to provide us with the current video frame when
+  // needed.
+  void SetGetCurrentSbDecodeTargetFunction(
+      GetCurrentSbDecodeTargetFunction function) {
+    get_current_sb_decode_target_function_ = function;
+  }
+
+  void ResetGetCurrentSbDecodeTargetFunction() {
+    get_current_sb_decode_target_function_.Reset();
+  }
+
+  SbDecodeTarget GetCurrentSbDecodeTarget() const {
+    if (get_current_sb_decode_target_function_.is_null()) {
+      return kSbDecodeTargetInvalid;
+    } else {
+      return get_current_sb_decode_target_function_.Run();
+    }
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   void AddFrame(const scoped_refptr<VideoFrame>& frame);
   // Flush will clear all cached frames except the current frame. So the current
@@ -89,6 +122,11 @@ class ShellVideoFrameProvider
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   int max_delay_in_microseconds_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+
+  bool punch_out_mode_;
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   DISALLOW_COPY_AND_ASSIGN(ShellVideoFrameProvider);
 };

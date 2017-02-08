@@ -37,6 +37,7 @@
 #include "media/base/ranges.h"
 #include "media/base/sbplayer_set_bounds_helper.h"
 #include "media/base/starboard_player.h"
+#include "media/base/starboard_utils.h"
 #include "media/base/video_decoder_config.h"
 #include "media/crypto/starboard_decryptor.h"
 #include "ui/gfx/size.h"
@@ -103,6 +104,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool DidLoadingProgress() const OVERRIDE;
   PipelineStatistics GetStatistics() const OVERRIDE;
   SetBoundsCB GetSetBoundsCB() OVERRIDE;
+
+  bool IsPunchOutMode() OVERRIDE;
 
  private:
   void StartTask(const StartTaskParameters& parameters);
@@ -450,11 +453,16 @@ PipelineStatistics SbPlayerPipeline::GetStatistics() const {
 }
 
 Pipeline::SetBoundsCB SbPlayerPipeline::GetSetBoundsCB() {
-#if SB_IS(PLAYER_PUNCHED_OUT)
   return base::Bind(&SbPlayerSetBoundsHelper::SetBounds, set_bounds_helper_);
-#else   // SB_IS(PLAYER_PUNCHED_OUT)
-  return Pipeline::SetBoundsCB();
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+}
+
+bool SbPlayerPipeline::IsPunchOutMode() {
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  base::AutoLock auto_lock(lock_);
+  return player_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut;
+#else  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  return true;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 }
 
 void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
