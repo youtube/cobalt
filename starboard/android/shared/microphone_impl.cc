@@ -20,19 +20,19 @@
 #include <algorithm>
 #include <queue>
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
+using starboard::android::shared::JniEnvExt;
+
 namespace starboard {
 namespace android {
 namespace shared {
 namespace {
-const int kMinReadSamples = 480;
-// Minimum read size per read call.
-const int kMinReadSize = kMinReadSamples * sizeof(int16_t);
 const int kSampleRateInHz = 16000;
 const int kSampleRateInMillihertz = kSampleRateInHz * 1000;
 const int kNumOfOpenSLESBuffers = 2;
@@ -41,6 +41,12 @@ bool CheckReturnValue(SLresult result) {
   SB_DCHECK(result == SL_RESULT_SUCCESS) << result;
   return result == SL_RESULT_SUCCESS;
 }
+
+int AudioOutputFramesPerBuffer() {
+  return static_cast<int>(JniEnvExt::Get()->CallActivityIntMethod(
+      "audioOutputFramesPerBuffer", "()I"));
+}
+
 }  // namespace
 
 class SbMicrophoneImpl : public SbMicrophonePrivate {
@@ -77,6 +83,10 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   SbMicrophoneInfo info_;
   // Used to track the microphone state.
   State state_;
+  // Optimal buffer frames when enqueuing audio data.
+  int frames_per_buffer_;
+  // Buffer size.
+  int frames_size_;
   // Record if audio recorder is created successfully.
   bool is_valid_;
   // Ready for read.
@@ -97,7 +107,9 @@ SbMicrophoneImpl::SbMicrophoneImpl()
       recorder_(NULL),
       buffer_object_(NULL),
       config_object_(NULL),
-      state_(kClosed) {
+      state_(kClosed),
+      frames_per_buffer_(AudioOutputFramesPerBuffer()),
+      frames_size_(frames_per_buffer_ * sizeof(int16_t)) {
   is_valid_ = CreateAudioRecoder();
 }
 
@@ -132,11 +144,11 @@ bool SbMicrophoneImpl::Open() {
   // Add buffers to the queue before changing state to ensure that recording
   // starts as soon as the state is modified.
   for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
-    int16_t* buffer = new int16_t[kMinReadSamples];
-    SbMemorySet(buffer, 0, kMinReadSize);
+    int16_t* buffer = new int16_t[frames_per_buffer_];
+    SbMemorySet(buffer, 0, frames_size_);
     delivered_queue_.push(buffer);
     SLresult result =
-        (*buffer_object_)->Enqueue(buffer_object_, buffer, kMinReadSize);
+        (*buffer_object_)->Enqueue(buffer_object_, buffer, frames_size_);
     if (!CheckReturnValue(result)) {
       return false;
     }
@@ -194,12 +206,12 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
     return 0;
   }
 
-  SB_DCHECK(audio_data_size >= kMinReadSize);
+  SB_DCHECK(audio_data_size >= frames_size_);
   int16_t* buffer = ready_queue_.front();
-  SbMemoryCopy(out_audio_data, buffer, kMinReadSize);
+  SbMemoryCopy(out_audio_data, buffer, frames_size_);
   ready_queue_.pop();
   delete[] buffer;
-  return kMinReadSize;
+  return frames_size_;
 }
 
 // static
@@ -223,11 +235,11 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
   }
 
   if (state_ == kOpened) {
-    int16_t* buffer = new int16_t[kMinReadSamples];
-    SbMemorySet(buffer, 0, kMinReadSize);
+    int16_t* buffer = new int16_t[frames_per_buffer_];
+    SbMemorySet(buffer, 0, frames_size_);
     delivered_queue_.push(buffer);
     SLresult result =
-        (*buffer_object_)->Enqueue(buffer_object_, buffer, kMinReadSize);
+        (*buffer_object_)->Enqueue(buffer_object_, buffer, frames_size_);
     CheckReturnValue(result);
   }
 }
@@ -386,7 +398,9 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
     out_info_array[0].type = kSbMicrophoneUnknown;
     out_info_array[0].max_sample_rate_hz =
         starboard::android::shared::kSampleRateInHz;
-    out_info_array[0].min_read_size = starboard::android::shared::kMinReadSize;
+    out_info_array[0].min_read_size =
+        starboard::android::shared::AudioOutputFramesPerBuffer() *
+        sizeof(int16_t);
   }
 
   return 1;
