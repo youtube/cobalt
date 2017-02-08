@@ -37,8 +37,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
                         void* context,
-                        SbDecodeTargetProvider* provider
-                        ) {
+                        SbPlayerOutputMode output_mode,
+                        SbDecodeTargetProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
   SB_UNREFERENCED_PARAMETER(provider);
 
@@ -57,11 +57,16 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+  if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
+    SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
+    return kSbPlayerInvalid;
+  }
+
   JniEnvExt::Get()->CallActivityVoidMethod("onMediaStart", "()V");
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
-                                         *audio_header));
+                                         *audio_header, output_mode, provider));
   return new SbPlayerPrivate(duration_pts, sample_deallocate_func,
                              decoder_status_func, player_status_func, context,
                              handler.Pass());

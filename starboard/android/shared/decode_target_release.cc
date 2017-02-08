@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_DECODE_TARGET_INTERNAL_H_
-#define STARBOARD_RASPI_SHARED_OPEN_MAX_DECODE_TARGET_INTERNAL_H_
-
-#include "starboard/decode_target.h"
-
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 
-struct SbDecodeTargetPrivate {
-  EGLDisplay display;
-  EGLImageKHR images[1];
+#include "starboard/android/shared/decode_target_internal.h"
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/decode_target.h"
+#include "starboard/log.h"
 
-  SbDecodeTargetInfo info;
-};
-
-#endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_DECODE_TARGET_INTERNAL_H_
+void SbDecodeTargetRelease(SbDecodeTarget decode_target) {
+  // Most of the actual data within |decode_target| is stored in the reference
+  // counted decode_target->data, so deleting |decode_target| here may not
+  // actually release any resources, if there are other references to
+  // decode_target->data.
+  delete decode_target;
+}

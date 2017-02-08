@@ -14,6 +14,7 @@
 
 #include "starboard/window.h"
 
+#include "starboard/player.h"
 #include "starboard/shared/x11/window_internal.h"
 
 void* SbWindowGetPlatformHandle(SbWindow window) {
@@ -22,7 +23,8 @@ void* SbWindowGetPlatformHandle(SbWindow window) {
   }
 
   Window handle = None;
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
   handle = window->gl_window;
 #else
   handle = window->window;
