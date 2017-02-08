@@ -41,7 +41,7 @@ class InlineLevelReplacedBox : public ReplacedBox {
       const base::optional<LayoutUnit>& maybe_intrinsic_width,
       const base::optional<LayoutUnit>& maybe_intrinsic_height,
       const base::optional<float>& maybe_intrinsic_ratio,
-      UsedStyleProvider* used_style_provider,
+      UsedStyleProvider* used_style_provider, bool is_video_punched_out,
       LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.

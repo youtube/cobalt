@@ -28,16 +28,6 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 
-// Here we determine if we are going to be rendering video ourselves, or if
-// the Starboard Player system will be rendering video in which case we need to
-// punch through our scene so that the video will be visible.
-#if defined(OS_STARBOARD)
-#include "starboard/configuration.h"
-#define PUNCH_THROUGH_VIDEO_RENDERING SB_IS(PLAYER_PUNCHED_OUT)
-#else  // defined(OS_STARBOARD)
-#define PUNCH_THROUGH_VIDEO_RENDERING 0
-#endif  // defined(OS_STARBOARD)
-
 namespace cobalt {
 namespace layout {
 
@@ -60,7 +50,7 @@ class ReplacedBox : public Box {
               const base::optional<LayoutUnit>& maybe_intrinsic_width,
               const base::optional<LayoutUnit>& maybe_intrinsic_height,
               const base::optional<float>& maybe_intrinsic_ratio,
-              UsedStyleProvider* used_style_provider,
+              UsedStyleProvider* used_style_provider, bool is_video_punched_out,
               LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
@@ -120,6 +110,7 @@ class ReplacedBox : public Box {
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
+  bool is_video_punched_out_;
 };
 
 }  // namespace layout

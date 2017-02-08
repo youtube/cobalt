@@ -56,7 +56,19 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
       const scoped_refptr<DecoderBuffer>& buffer) OVERRIDE;
   bool IsOutputProtected() OVERRIDE;
 
+#if SB_API_VERSION >= 3
+  virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() {
+#if SB_HAS(GRAPHICS)
+    return resource_provider_->GetSbDecodeTargetProvider();
+#else   // SB_HAS(GRAPHICS)
+    return NULL;
+#endif  // SB_HAS(GRAPHICS)
+  }
+#endif  // SB_API_VERSION >= 3
+
  private:
+  cobalt::render_tree::ResourceProvider* resource_provider_;
+
   // Optional GPU Memory buffer pool, for buffer offloading.
   scoped_ptr<cobalt::render_tree::RawImageMemory> gpu_memory_buffer_space_;
   scoped_ptr<nb::MemoryPool> gpu_memory_pool_;
