@@ -149,7 +149,7 @@ void VideoDecoder::RunLoop() {
       filled_buffers_.push(buffer);
     }
 
-    if (current_buffer.valid()) {
+    if (current_buffer.is_valid()) {
       int size = static_cast<int>(current_buffer.size());
       while (offset < size) {
         int written = component.WriteData(
