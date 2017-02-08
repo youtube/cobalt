@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/decode_target.h"
+#ifndef STARBOARD_SHARED_GLES_GL_CALL_H_
+#define STARBOARD_SHARED_GLES_GL_CALL_H_
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#include "GLES2/gl2.h"
+#include "starboard/log.h"
 
-GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
-                              SbDecodeTargetPlane plane) {
-  return 0;
-}
+#define GL_CALL(x)                          \
+  do {                                      \
+    x;                                      \
+    SB_DCHECK(glGetError() == GL_NO_ERROR); \
+  } while (false)
 
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // STARBOARD_SHARED_GLES_GL_CALL_H_

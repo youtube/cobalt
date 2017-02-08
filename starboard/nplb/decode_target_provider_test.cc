@@ -50,7 +50,11 @@ void AcquireFalse(SbDecodeTargetProvider* provider) {
     bool valid = SbDecodeTargetIsValid(target);
     EXPECT_FALSE(valid);
     if (valid) {
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+      SbDecodeTargetRelease(target);
+#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
       SbDecodeTargetDestroy(target);
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     }
   }
 }
