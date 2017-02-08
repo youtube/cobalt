@@ -23,13 +23,9 @@
 
 struct SbDecodeTargetPrivate {
   EGLDisplay display;
-  SbDecodeTargetFormat format;
-  int width;
-  int height;
-  int num_planes;
-  GLuint planes[1];
   EGLImageKHR images[1];
-  bool is_opaque;
+
+  SbDecodeTargetInfo info;
 };
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_DECODE_TARGET_INTERNAL_H_

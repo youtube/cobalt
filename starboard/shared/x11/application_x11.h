@@ -44,7 +44,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
   void Composite();
 
  protected:
@@ -54,7 +53,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
                    int y,
                    int width,
                    int height) SB_OVERRIDE;
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
  protected:
   // --- Application overrides ---
@@ -69,7 +67,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
  private:
   typedef std::vector<SbWindow> SbWindowVector;
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
   struct FrameInfo {
     scoped_refptr<VideoFrame> frame;
     int x;
@@ -77,7 +74,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
     int width;
     int height;
   };
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   // Ensures that X is up, display is populated and connected, returning whether
   // it succeeded.
@@ -96,14 +92,12 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   Atom wake_up_atom_;
   Atom wm_delete_atom_;
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
   SbEventId composite_event_id_;
   Mutex frame_mutex_;
   int frame_read_index_;
   bool frame_written_;
   static const int kNumFrames = 2;
   FrameInfo frame_infos_[kNumFrames];
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   Display* display_;
   SbWindowVector windows_;

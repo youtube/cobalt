@@ -52,6 +52,10 @@ class VideoRenderer : private VideoDecoder::Host {
   bool CanAcceptMoreData() const;
   bool IsSeekingInProgress() const;
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTarget GetCurrentDecodeTarget();
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
  private:
   typedef std::list<scoped_refptr<VideoFrame> > Frames;
 

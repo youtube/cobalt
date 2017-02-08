@@ -76,12 +76,40 @@ All Starboard versions that are less than the experimental version are
 considered frozen. Any Starboard APIs in a frozen version shall not change as
 long as that version is supported by Cobalt.
 ### Life of a Starboard API
-New Starboard APIs should be defined in the experimental version. In practice,
-they should be declared as follows:
+New Starboard APIs should be defined in the experimental version.
+
+When introducing a new Starboard API (or modifying an existing one), a new
+feature version define should be created within the "Experimental Feature
+Defines" section of starboard/configuration.h, and set to
+`SB_EXPERIMENTAL_API_VERSION`. A well written comment should be added in front
+of the feature define that describes exactly what is introduced by the feature.
+In the comment, all new/modified/removed symbols should be identified, and all
+modified header files should be named.
+For example,
+
+```
+// --- Experimental Feature Defines ------------------------------------------
+
+...
+
+// Introduce a new API in starboard/screensaver.h, which declares the following
+// functions for managing the platform's screensaver settings:
+//   SbScreensaverDisableScreensaver()
+//   SbScreensaverEnableScreensaver()
+// Additionally, a new event, kSbEventTypeScreensaverStarted, is introduced in
+// starboard/event.h.
+#define SB_SCREENSAVER_FEATURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce a new API in starboard/new_functionality.h which declares the
+// function SbNewFunctionality().
+#define SB_MY_NEW_FEATURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+```
+
+When declaring the new interface, the following syntax should be used:
 
 ```
 // starboard/new_functionality.h
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= SB_MY_NEW_FEATURE_API_VERSION
 void SbNewFunctionality();
 #endif
 ```
@@ -90,7 +118,7 @@ Starboard application features that use a new API must have a similar check:
 
 ```
 // cobalt/new_feature.cc
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= SB_MY_NEW_FEATURE_API_VERSION
 void DoSomethingCool() {
   SbNewFunctionality();
 }
@@ -100,7 +128,9 @@ void DoSomethingCool() {
 When a new version of a Starboard Application that requires new Starboard APIs
 is to be released, these new Starboard APIs will be frozen to the value of the
 current experimental version, and the experimental version will be incremented
-by one.
+by one.  Additionally, the feature define should be removed, and its comment
+moved into the (newly created) section for the corresponding version in
+starboard/CHANGELOG.md.
 
 ```
 // starboard/new_functionality.h
@@ -109,7 +139,7 @@ void SbNewFunctionality();
 #endif
 
 // starboard/other_new_functionality.h
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= SB_MY_OTHER_NEW_FEATURE_API_VERSION
 void SbStillInDevelopment();
 #endif
 
@@ -128,8 +158,7 @@ A developer who increments the experimental version must ensure that stubs and
 reference platforms declare support for the new experimental version through
 their respective `SB_API_VERSION` macros.
 
-## Open questions
 ### Communicating Starboard API changes to porters
-When a new version of Starboard is released, there should be a process to
-describe the changes to the API, which Cobalt features depend on these, and a
-timeline for when porters will be required to move to the new version.
+When a new version of Starboard is released, [starboard/CHANGELOG.md](../CHANGELOG.md) should be
+updated with the feature define comments for all features enabled in that
+version.
