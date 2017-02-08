@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
@@ -71,7 +72,10 @@ class ImageData : public render_tree::ImageData {
 class SinglePlaneImage : public skia::SinglePlaneImage {
  public:
   explicit SinglePlaneImage(scoped_ptr<ImageData> image_data);
-  SinglePlaneImage(SbBlitterSurface surface, bool is_opaque);
+  // If |delete_function| is provided, it will be called in the destructor
+  // instead of manually calling SbBlitterDestroySurface(surface_).
+  SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,
+                   const base::Closure& delete_function);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
@@ -98,6 +102,10 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   // This field is populated when GetBitmap() is called for the first time, and
   // after that is never modified.
   mutable base::optional<SkBitmap> bitmap_;
+
+  // If |delete_function| is provided, it will be called in the destructor
+  // instead of manually calling SbBlitterDestroySurface(surface_).
+  base::Closure delete_function_;
 };
 
 }  // namespace blitter

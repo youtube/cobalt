@@ -21,6 +21,8 @@
       'sources': [
         'software_rasterizer.cc',
         'software_rasterizer.h',
+        'textured_mesh_renderer.cc',
+        'textured_mesh_renderer.h',
       ],
 
       'dependencies': [

@@ -60,6 +60,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   typedef base::Callback<scoped_ptr<ScratchSurface>(const math::Size&)>
       CreateScratchSurfaceFunction;
 
+  typedef base::Callback<void(const render_tree::ImageNode* image_node,
+                              RenderTreeNodeVisitorDrawState* draw_state)>
+      RenderImageFallbackFunction;
+
   enum Type {
     kType_Normal,
     kType_SubVisitor,
@@ -69,11 +73,16 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // RenderTreeNodeVisitor, so it must outlive the RenderTreeNodeVisitor
   // object.  If |is_sub_visitor| is set to true, errors will be supported for
   // certain operations such as punch out alpha textures, as it is unfortunately
-  // difficult to implement them when rendering to a sub-canvas.
+  // difficult to implement them when rendering to a sub-canvas.  If
+  // |render_image_fallback_function| is specified, it will be invoked whenever
+  // standard Skia processing of the image is not possible, which usually is
+  // when the image is backed by a SbDecodeTarget that requires special
+  // consideration.
   RenderTreeNodeVisitor(
       SkCanvas* render_target,
       const CreateScratchSurfaceFunction* create_scratch_surface_function,
       const base::Closure& reset_skia_context_function,
+      const RenderImageFallbackFunction& render_image_fallback_function,
       SurfaceCacheDelegate* surface_cache_delegate,
       common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
@@ -106,6 +115,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       surface_cache_scoped_context_;
 
   base::Closure reset_skia_context_function_;
+
+  RenderImageFallbackFunction render_image_fallback_function_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };
