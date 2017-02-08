@@ -85,6 +85,10 @@ class PlayerWorker {
     // objects has to be stopped.  The JobQueue will be destroyed immediately
     // after and is no longer safe to access.
     virtual void Stop() = 0;
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   };
 
   PlayerWorker(Host* host,
@@ -110,11 +114,13 @@ class PlayerWorker {
         Bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
   }
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
   void SetBounds(Bounds bounds) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetBounds, this, bounds));
   }
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)
 
   void SetPause(bool pause) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetPause, this, pause));
@@ -123,6 +129,12 @@ class PlayerWorker {
   void UpdateDroppedVideoFrames(int dropped_video_frames) {
     host_->UpdateDroppedVideoFrames(dropped_video_frames);
   }
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTarget GetCurrentDecodeTarget() {
+    return handler_->GetCurrentDecodeTarget();
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
  private:
   void UpdateMediaTime(SbMediaTime time);
@@ -137,9 +149,11 @@ class PlayerWorker {
   void DoWriteSample(InputBuffer input_buffer);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetBounds(Bounds bounds);
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetPause(bool pause);
   void DoStop();
 
