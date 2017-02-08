@@ -26,6 +26,7 @@
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_video_data_allocator.h"
 #include "media/base/shell_video_frame_provider.h"
+#include "starboard/decode_target.h"
 
 namespace media {
 
@@ -63,6 +64,10 @@ class MEDIA_EXPORT ShellMediaPlatform {
   virtual scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() {
     return NULL;
   }
+
+#if SB_API_VERSION >= 3
+  virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
+#endif  // SB_API_VERSION >= 3
 
   // Total number of video frames which are populating in the pipeline when
   // prerolling.
