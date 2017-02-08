@@ -224,6 +224,10 @@ class HTMLMediaElement : public HTMLElement,
 
   void SetSourceState(MediaSource::ReadyState ready_state);
 
+  // Called whenever the player's output mode (e.g. punch-out,
+  // decode-to-texture) is updated.
+  void PlayerOutputModeUpdated();
+
   scoped_ptr<WebMediaPlayer> player_;
 
   std::string current_src_;

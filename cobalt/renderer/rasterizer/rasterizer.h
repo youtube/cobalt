@@ -81,6 +81,12 @@ class Rasterizer {
   // like images and fonts which can be referenced by render trees that are
   // subsequently submitted to this pipeline.  This call must be thread-safe.
   virtual render_tree::ResourceProvider* GetResourceProvider() = 0;
+
+  // For GL-based rasterizers, some animation updates can require that the
+  // rasterizer's GL context be current when they are executed.  This method
+  // is essentially a hack to allow GL-based rasterizers a chance to set their
+  // context current before we move to update animations.
+  virtual void MakeCurrent() {}
 };
 
 }  // namespace rasterizer

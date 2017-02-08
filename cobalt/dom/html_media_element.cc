@@ -1026,6 +1026,7 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
+    PlayerOutputModeUpdated();
     ScheduleOwnEvent(base::Tokens::durationchange());
     ScheduleOwnEvent(base::Tokens::loadedmetadata());
   }
@@ -1538,6 +1539,14 @@ void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
   if (ready_state == MediaSource::kReadyStateClosed) {
     media_source_ = NULL;
   }
+}
+
+void HTMLMediaElement::PlayerOutputModeUpdated() {
+  // If the player mode is updated, trigger a re-layout so that we can setup
+  // the video render tree differently depending on whether we are in punch-out
+  // or decode-to-texture.
+  node_document()->OnDOMMutation();
+  InvalidateLayoutBoxesFromNodeAndAncestors();
 }
 
 }  // namespace dom
