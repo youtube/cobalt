@@ -78,8 +78,11 @@ SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
                render_tree::kAlphaFormatOpaque;
 }
 
-SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque)
-    : surface_(surface), is_opaque_(is_opaque) {
+SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,
+                                   const base::Closure& delete_function)
+    : surface_(surface),
+      is_opaque_(is_opaque),
+      delete_function_(delete_function) {
   CHECK(SbBlitterIsSurfaceValid(surface_));
   SbBlitterSurfaceInfo info;
   if (!SbBlitterGetSurfaceInfo(surface_, &info)) {
@@ -119,7 +122,13 @@ const SkBitmap* SinglePlaneImage::GetBitmap() const {
   return &bitmap_.value();
 }
 
-SinglePlaneImage::~SinglePlaneImage() { SbBlitterDestroySurface(surface_); }
+SinglePlaneImage::~SinglePlaneImage() {
+  if (!delete_function_.is_null()) {
+    delete_function_.Run();
+  } else {
+    SbBlitterDestroySurface(surface_);
+  }
+}
 
 }  // namespace blitter
 }  // namespace rasterizer

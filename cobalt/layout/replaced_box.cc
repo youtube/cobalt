@@ -90,7 +90,7 @@ ReplacedBox::ReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_width,
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
-    UsedStyleProvider* used_style_provider,
+    UsedStyleProvider* used_style_provider, bool is_video_punched_out,
     LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
@@ -103,7 +103,8 @@ ReplacedBox::ReplacedBox(
       replace_image_cb_(replace_image_cb),
       set_bounds_cb_(set_bounds_cb),
       paragraph_(paragraph),
-      text_position_(text_position) {}
+      text_position_(text_position),
+      is_video_punched_out_(is_video_punched_out) {}
 
 WrapResult ReplacedBox::TryWrapAt(
     WrapAtPolicy /*wrap_at_policy*/,
@@ -192,8 +193,6 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
   return GetMarginBoxHeight();
 }
 
-#if !PUNCH_THROUGH_VIDEO_RENDERING
-
 namespace {
 
 void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
@@ -247,8 +246,6 @@ void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
 
 }  // namespace
 
-#endif  // !PUNCH_THROUGH_VIDEO_RENDERING
-
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
@@ -267,25 +264,26 @@ void ReplacedBox::RenderAndAnimateContent(
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
-#if PUNCH_THROUGH_VIDEO_RENDERING
-  // For systems that have their own path to blitting video to the display, we
-  // simply punch a hole through our scene so that the video can appear there.
-  PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
-                                         set_bounds_cb_);
-  Node* frame_node = new PunchThroughVideoNode(builder);
-#else
-  AnimateNode::Builder animate_node_builder;
-  animate_node_builder.Add(
-      composition_node, base::Bind(AnimateCB, replace_image_cb_,
-                                   content_box_size()));
+  scoped_refptr<Node> frame_node;
+  if (is_video_punched_out_) {
+    // For systems that have their own path to blitting video to the display, we
+    // simply punch a hole through our scene so that the video can appear there.
+    PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
+                                           set_bounds_cb_);
+    frame_node = new PunchThroughVideoNode(builder);
+  } else {
+    AnimateNode::Builder animate_node_builder;
+    animate_node_builder.Add(
+        composition_node,
+        base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
 
-  Node* frame_node = new AnimateNode(animate_node_builder, composition_node);
-#endif  // PUNCH_THROUGH_VIDEO_RENDERING
+    frame_node = new AnimateNode(animate_node_builder, composition_node);
+  }
 
   const cssom::MTMFunction* mtm_filter_function =
       cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
 
-  Node* content_node = NULL;
+  scoped_refptr<Node> content_node;
   if (mtm_filter_function) {
     const cssom::MTMFunction::MeshSpec& spec = mtm_filter_function->mesh_spec();
     const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =

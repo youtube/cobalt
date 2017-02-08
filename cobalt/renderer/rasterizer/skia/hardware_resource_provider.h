@@ -52,7 +52,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
 #if SB_HAS(GRAPHICS)
-#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
@@ -66,7 +66,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return true; }
 
-#elif SB_VERSION(3)  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+#elif SB_API_VERSION >= 3
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
@@ -83,7 +83,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 
-#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
@@ -132,13 +132,15 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   TextShaper text_shaper_;
 
-#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+    SB_HAS(GRAPHICS)
   static SbDecodeTarget DecodeTargetAcquire(void* context,
                                             SbDecodeTargetFormat format,
                                             int width, int height);
   static void DecodeTargetRelease(void* context, SbDecodeTarget decode_target);
   SbDecodeTargetProvider decode_target_provider_;
-#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+           SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was
   // created on.  This message loop is used whenever we need to issue graphics

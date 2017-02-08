@@ -44,7 +44,8 @@ const size_t kSmallAllocationThreshold = 768U;
 
 ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
     cobalt::render_tree::ResourceProvider* resource_provider)
-    : video_data_allocator_(resource_provider, 0,
+    : resource_provider_(resource_provider),
+      video_data_allocator_(resource_provider_, 0,
                             std::numeric_limits<size_t>::max(),
                             kVideoFrameAlignment),
       video_frame_provider_(new ShellVideoFrameProvider) {
