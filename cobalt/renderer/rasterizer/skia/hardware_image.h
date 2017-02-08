@@ -93,6 +93,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
                         render_tree::AlphaFormat alpha_format,
                         backend::GraphicsContextEGL* cobalt_context,
                         GrContext* gr_context,
+                        scoped_ptr<math::Rect> content_region,
                         MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
@@ -104,6 +105,14 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // skia render tree should only be visited on the rasterizer thread, this
   // restraint should always be satisfied naturally.
   const SkBitmap* GetBitmap() const OVERRIDE;
+
+  const backend::TextureEGL* GetTextureEGL() const OVERRIDE;
+
+  const math::Rect* GetContentRegion() const OVERRIDE {
+    return content_region_.get();
+  }
+
+  bool CanRenderInSkia() const OVERRIDE;
 
   bool EnsureInitialized() OVERRIDE;
 
@@ -127,6 +136,11 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.
   bool is_opaque_;
+
+  // An optional rectangle, in pixel coordinates (with the top-left as the
+  // origin) that indicates where in this image the valid content is contained.
+  // Usually this is only set from platform-specific SbDecodeTargets.
+  scoped_ptr<math::Rect> content_region_;
 
   // We shadow the image dimensions so they can be quickly looked up from just
   // the frontend image object.
@@ -174,6 +188,9 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
   // specified by plane_index.
   const SkBitmap* GetBitmap(int plane_index) const OVERRIDE {
     return planes_[plane_index]->GetBitmap();
+  }
+  const backend::TextureEGL* GetTextureEGL(int plane_index) const OVERRIDE {
+    return planes_[plane_index]->GetTextureEGL();
   }
 
   bool EnsureInitialized() OVERRIDE;

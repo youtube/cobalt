@@ -78,6 +78,7 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SkCanvas* render_target,
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
     const base::Closure& reset_skia_context_function,
+    const RenderImageFallbackFunction& render_image_fallback_function,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache, Type visitor_type)
     : draw_state_(render_target),
@@ -85,7 +86,8 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache),
       visitor_type_(visitor_type),
-      reset_skia_context_function_(reset_skia_context_function) {
+      reset_skia_context_function_(reset_skia_context_function),
+      render_image_fallback_function_(render_image_fallback_function) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -274,7 +276,8 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   {
     RenderTreeNodeVisitor sub_visitor(
         canvas, create_scratch_surface_function_, reset_skia_context_function_,
-        surface_cache_delegate_, surface_cache_, kType_SubVisitor);
+        render_image_fallback_function_, surface_cache_delegate_,
+        surface_cache_, kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -532,6 +535,7 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
                             RenderTreeNodeVisitorDrawState* draw_state,
                             const math::RectF& destination_rect,
                             const math::Matrix3F* local_transform) {
+  DCHECK(!single_plane_image->GetContentRegion());
   SkPaint paint = CreateSkPaintForImageRendering(
       *draw_state, single_plane_image->IsOpaque());
 
@@ -679,9 +683,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
   if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
-    RenderSinglePlaneImage(base::polymorphic_downcast<SinglePlaneImage*>(image),
-                           &draw_state_, image_node->data().destination_rect,
-                           &(image_node->data().local_transform));
+    SinglePlaneImage* single_plane_image =
+        base::polymorphic_downcast<SinglePlaneImage*>(image);
+
+    if (!single_plane_image->CanRenderInSkia()) {
+      render_image_fallback_function_.Run(image_node, &draw_state_);
+    } else {
+      RenderSinglePlaneImage(single_plane_image, &draw_state_,
+                             image_node->data().destination_rect,
+                             &(image_node->data().local_transform));
+    }
   } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
     RenderMultiPlaneImage(base::polymorphic_downcast<MultiPlaneImage*>(image),
                           &draw_state_, image_node->data().destination_rect,

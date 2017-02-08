@@ -138,22 +138,29 @@ class HardwareFrontendImage::HardwareBackendImage {
     DCHECK(thread_checker_.CalledOnValidThread());
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::CommonInitialize()");
+    if (texture_->GetTarget() == GL_TEXTURE_2D) {
+      gr_texture_.reset(
+          WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
+      DCHECK(gr_texture_);
 
-    gr_texture_.reset(
-        WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
-    DCHECK(gr_texture_);
-
-    // Prepare a member SkBitmap that refers to the newly created GrTexture and
-    // will be the object that Skia draw calls will reference when referring
-    // to this image.
-    bitmap_.setInfo(gr_texture_->info());
-    bitmap_.setPixelRef(SkNEW_ARGS(SkGrPixelRef, (bitmap_.info(), gr_texture_)))
-        ->unref();
+      // Prepare a member SkBitmap that refers to the newly created GrTexture
+      // and will be the object that Skia draw calls will reference when
+      // referring to this image.
+      bitmap_.setInfo(gr_texture_->info());
+      bitmap_.setPixelRef(
+                 SkNEW_ARGS(SkGrPixelRef, (bitmap_.info(), gr_texture_)))
+          ->unref();
+    }
   }
 
   const SkBitmap* GetBitmap() const {
     DCHECK(thread_checker_.CalledOnValidThread());
     return &bitmap_;
+  }
+
+  const backend::TextureEGL* GetTextureEGL() const {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    return texture_.get();
   }
 
  private:
@@ -203,9 +210,12 @@ HardwareFrontendImage::HardwareFrontendImage(
     scoped_ptr<backend::TextureEGL> texture,
     render_tree::AlphaFormat alpha_format,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    MessageLoop* rasterizer_message_loop)
+    scoped_ptr<math::Rect> content_region, MessageLoop* rasterizer_message_loop)
     : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
-      size_(texture->GetSize()),
+      content_region_(content_region.Pass()),
+      size_(content_region_ ? math::Size(std::abs(content_region_->width()),
+                                         std::abs(content_region_->height()))
+                            : texture->GetSize()),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
@@ -233,6 +243,24 @@ const SkBitmap* HardwareFrontendImage::GetBitmap() const {
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
   // image will check that this is being called from the correct thread.
   return backend_image_->GetBitmap();
+}
+
+const backend::TextureEGL* HardwareFrontendImage::GetTextureEGL() const {
+  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  return backend_image_->GetTextureEGL();
+}
+
+bool HardwareFrontendImage::CanRenderInSkia() const {
+  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  // In some cases, especially when dealing with SbDecodeTargets, we may end
+  // up with a GLES2 texture whose target is not GL_TEXTURE_2D, in which case
+  // we cannot use our typical Skia flow to render it, and we delegate to
+  // a rasterizer-provided callback for performing custom rendering (e.g.
+  // via direct GL calls).
+  // We also fallback if a content region is specified on the image, since we
+  // don't support handling that in the normal flow.
+  return !GetContentRegion() &&
+         (!GetTextureEGL() || GetTextureEGL()->GetTarget() == GL_TEXTURE_2D);
 }
 
 bool HardwareFrontendImage::EnsureInitialized() {

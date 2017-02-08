@@ -19,6 +19,7 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
@@ -47,8 +48,11 @@ class TextureEGL {
              const math::Size& size, GLenum format, int pitch_in_bytes,
              bool bgra_supported);
   // Wrap and take ownership of a pre-existing OpenGL texture.
-  TextureEGL(GraphicsContextEGL* graphics_context,
-             GLuint gl_handle, const math::Size& size, GLenum format);
+  // If provided, |delete_function| will be used to clean up resources instead
+  // of manually calling gl_
+  TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
+             const math::Size& size, GLenum format, GLenum target,
+             const base::Closure& delete_function);
 
   // Create a texture from a pre-existing offscreen PBuffer render target.
   explicit TextureEGL(
@@ -56,8 +60,9 @@ class TextureEGL {
       const scoped_refptr<PBufferRenderTargetEGL>& render_target);
   virtual ~TextureEGL();
 
-  const math::Size& GetSize() const;
-  GLenum GetFormat() const;
+  const math::Size& GetSize() const { return size_; }
+  GLenum GetFormat() const { return format_; }
+  GLenum GetTarget() const { return target_; }
 
   intptr_t GetPlatformHandle() { return static_cast<intptr_t>(gl_handle()); }
 
@@ -74,12 +79,20 @@ class TextureEGL {
   // Pixel color format of the texture.
   GLenum format_;
 
+  // The texture target type that should be passed in to GLES commands dealing
+  // with this texture.
+  GLenum target_;
+
   // The OpenGL handle to the texture that can be passed into OpenGL functions.
   GLuint gl_handle_;
 
   // If the texture was constructed from a render target, we keep a reference
   // to the render target.
   scoped_refptr<PBufferRenderTargetEGL> source_render_target_;
+
+  // If non-null, will be called upon destruction instead of manually deleting
+  // the texture via glDeleteTextures().
+  base::Closure delete_function_;
 };
 
 }  // namespace backend
