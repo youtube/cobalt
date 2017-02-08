@@ -101,7 +101,11 @@ int GetRemoteDebuggingPort() {
 int GetWebDriverPort() {
   // The default port on which the webdriver server should listen for incoming
   // connections.
+#if defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
+  const int kDefaultWebDriverPort = SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT;
+#else
   const int kDefaultWebDriverPort = 9515;
+#endif  // defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
   int webdriver_port = kDefaultWebDriverPort;
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverPort)) {
