@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,17 @@
 
 #include "starboard/player.h"
 
+#include "starboard/configuration.h"
 #include "starboard/log.h"
-#include "starboard/shared/starboard/player/player_internal.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
-void SbPlayerSetBounds(SbPlayer player, int x, int y, int width, int height) {
-  if (!SbPlayerIsValid(player)) {
-    SB_DLOG(WARNING) << "player is invalid.";
-    return;
-  }
-  player->SetBounds(x, y, width, height);
+bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
+                                 SbMediaVideoCodec codec,
+                                 SbDrmSystem drm_system) {
+  return starboard::shared::starboard::player::filter::VideoDecoder::
+      OutputModeSupported(output_mode, codec, drm_system);
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-           SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

@@ -86,13 +86,11 @@ void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
   worker_->WriteEndOfStream(stream_type);
 }
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
 void SbPlayerPrivate::SetBounds(int x, int y, int width, int height) {
   PlayerWorker::Bounds bounds = {x, y, width, height};
   worker_->SetBounds(bounds);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
-#endif
 
 void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   SB_DCHECK(out_player_info != NULL);
@@ -135,3 +133,9 @@ void SbPlayerPrivate::UpdateDroppedVideoFrames(int dropped_video_frames) {
   starboard::ScopedLock lock(mutex_);
   dropped_video_frames_ = dropped_video_frames;
 }
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+SbDecodeTarget SbPlayerPrivate::GetCurrentDecodeTarget() {
+  return worker_->GetCurrentDecodeTarget();
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

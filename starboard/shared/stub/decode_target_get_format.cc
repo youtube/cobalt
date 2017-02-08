@@ -14,6 +14,10 @@
 
 #include "starboard/decode_target.h"
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 SbDecodeTargetFormat SbDecodeTargetGetFormat(SbDecodeTarget /*decode_target*/) {
   return kSbDecodeTargetFormatInvalid;
 }
+
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

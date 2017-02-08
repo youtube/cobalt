@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,12 +13,18 @@
 // limitations under the License.
 
 #include "starboard/decode_target.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#include "starboard/raspi/shared/open_max/decode_target_internal.h"
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
+                           SbDecodeTargetInfo* out_info) {
+  if (!SbMemoryIsZero(out_info, sizeof(*out_info))) {
+    SB_DCHECK(false) << "out_info must be zeroed out.";
+    return false;
+  }
 
-GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
-                              SbDecodeTargetPlane plane) {
-  return 0;
+  SbMemoryCopy(out_info, &decode_target->info, sizeof(*out_info));
+
+  return true;
 }
-
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

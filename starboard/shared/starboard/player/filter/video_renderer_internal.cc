@@ -142,6 +142,16 @@ void VideoRenderer::OnDecoderStatusUpdate(
   need_more_input_ = (status == VideoDecoder::kNeedMoreInput);
 }
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
+  if (decoder_) {
+    return decoder_->GetCurrentDecodeTarget();
+  } else {
+    return kSbDecodeTargetInvalid;
+  }
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard
