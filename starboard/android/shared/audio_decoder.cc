@@ -215,10 +215,10 @@ namespace player {
 namespace filter {
 
 // static
-AudioDecoder* AudioDecoder::Create(const Options& options) {
+AudioDecoder* AudioDecoder::Create(const Parameters& parameters) {
   ::starboard::android::shared::AudioDecoder* decoder =
-      new ::starboard::android::shared::AudioDecoder(options.audio_codec,
-                                                     options.audio_header);
+      new ::starboard::android::shared::AudioDecoder(parameters.audio_codec,
+                                                     parameters.audio_header);
   if (!decoder->is_valid()) {
     delete decoder;
     return NULL;

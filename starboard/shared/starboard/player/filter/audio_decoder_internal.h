@@ -60,11 +60,11 @@ class AudioDecoder {
   virtual int GetSamplesPerSecond() const = 0;
 
   // A parameter struct to pass into |Create|.
-  struct Options {
-    Options(SbMediaAudioCodec audio_codec,
-            const SbMediaAudioHeader& audio_header,
-            SbDrmSystem drm_system,
-            JobQueue* job_queue)
+  struct Parameters {
+    Parameters(SbMediaAudioCodec audio_codec,
+               const SbMediaAudioHeader& audio_header,
+               SbDrmSystem drm_system,
+               JobQueue* job_queue)
         : audio_codec(audio_codec),
           audio_header(audio_header),
           drm_system(drm_system),
@@ -78,7 +78,7 @@ class AudioDecoder {
 
   // Individual implementation has to implement this function to create an
   // audio decoder.
-  static AudioDecoder* Create(const Options& options);
+  static AudioDecoder* Create(const Parameters& options);
 };
 
 }  // namespace filter

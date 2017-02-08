@@ -232,9 +232,9 @@ namespace player {
 namespace filter {
 
 // static
-AudioDecoder* AudioDecoder::Create(const Options& options) {
+AudioDecoder* AudioDecoder::Create(const Parameters& parameters) {
   ffmpeg::AudioDecoder* decoder =
-      new ffmpeg::AudioDecoder(options.audio_codec, options.audio_header);
+      new ffmpeg::AudioDecoder(parameters.audio_codec, parameters.audio_header);
   if (!decoder->is_valid()) {
     delete decoder;
     return NULL;

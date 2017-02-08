@@ -14,9 +14,15 @@
 
 #include "starboard/android/shared/video_decoder.h"
 
+#include <cmath>
+
 #include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/decode_target_internal.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/decode_target.h"
+#include "starboard/drm.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/thread.h"
@@ -68,7 +74,9 @@ const char* GetMimeTypeFromCodecType(const SbMediaVideoCodec type) {
 
 }  // namespace
 
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
+VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
+                           SbPlayerOutputMode output_mode,
+                           SbDecodeTargetProvider* decode_target_provider)
     : video_codec_(video_codec),
       host_(NULL),
       stream_ended_(false),
@@ -78,7 +86,12 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
       media_codec_(NULL),
       width_(-1),
       height_(-1),
-      color_format_(-1) {
+      color_format_(-1),
+      output_mode_(output_mode),
+      decode_target_provider_(decode_target_provider),
+      decode_target_(kSbDecodeTargetInvalid),
+      frame_width_(0),
+      frame_height_(0) {
   if (!InitializeCodec()) {
     TeardownCodec();
   }
@@ -141,6 +154,33 @@ bool VideoDecoder::InitializeCodec() {
     return false;
   }
 
+  // Setup the output ANativeWindow object.  If we are in punch-out mode, target
+  // the passed in Android video window.  If we are in decode-to-texture mode,
+  // create a ANativeWindow from a new texture target and use that as the
+  // output window.
+  switch (output_mode_) {
+    case kSbPlayerOutputModePunchOut: {
+      output_window_ = video_window_;
+    } break;
+    case kSbPlayerOutputModeDecodeToTexture: {
+      starboard::ScopedLock lock(decode_target_mutex_);
+      // A width and height of (0, 0) is provided here because Android doesn't
+      // actually allocate any memory into the texture at this time.  That is
+      // done behind the scenes, the acquired texture is not actually backed
+      // by texture data until updateTexImage() is called on it.
+      decode_target_ = SbDecodeTargetAcquireFromProvider(
+          decode_target_provider_, kSbDecodeTargetFormat1PlaneRGBA, 0, 0);
+      if (!SbDecodeTargetIsValid(decode_target_)) {
+        SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
+        return false;
+      }
+      output_window_ = decode_target_->data->native_window;
+    } break;
+    case kSbPlayerOutputModeInvalid: {
+      SB_NOTREACHED();
+    } break;
+  }
+
   width_ = ANativeWindow_getWidth(video_window_);
   height_ = ANativeWindow_getHeight(video_window_);
   color_format_ = ANativeWindow_getFormat(video_window_);
@@ -172,7 +212,7 @@ bool VideoDecoder::InitializeCodec() {
   }
 
   media_status_t status =
-      AMediaCodec_configure(media_codec_, media_format_, video_window_,
+      AMediaCodec_configure(media_codec_, media_format_, output_window_,
                             /*crypto=*/NULL, /*flags=*/0);
   if (status != AMEDIA_OK) {
     SB_LOG(ERROR) << "|AMediaCodec_configure| failed with status: " << status;
@@ -196,6 +236,12 @@ void VideoDecoder::TeardownCodec() {
   if (media_format_) {
     AMediaFormat_delete(media_format_);
     media_format_ = NULL;
+  }
+
+  starboard::ScopedLock lock(decode_target_mutex_);
+  if (SbDecodeTargetIsValid(decode_target_)) {
+    SbDecodeTargetReleaseToProvider(decode_target_provider_, decode_target_);
+    decode_target_ = kSbDecodeTargetInvalid;
   }
 }
 
@@ -293,10 +339,131 @@ bool VideoDecoder::DecodeInputBuffer(
     return false;
   }
 
+  // Record the latest width/height of the decoded input.
+  AMediaFormat* format = AMediaCodec_getOutputFormat(media_codec_);
+  AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_WIDTH, &frame_width_);
+  AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_HEIGHT, &frame_height_);
+
   const SbMediaTime out_pts = ConvertToMediaTime(info.presentationTimeUs);
   host_->OnDecoderStatusUpdate(kBufferFull,
                                VideoFrame::CreateEmptyFrame(out_pts));
   return true;
+}
+
+namespace {
+void updateTexImage(jobject surface_texture) {
+  JniEnvExt::Get()->CallVoidMethod(surface_texture, "updateTexImage", "()V");
+}
+
+void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
+  JniEnvExt* env = JniEnvExt::Get();
+
+  jfloatArray java_array = env->NewFloatArray(16);
+  SB_DCHECK(java_array);
+
+  env->CallVoidMethod(surface_texture, "getTransformMatrix", "([F)V",
+                      java_array);
+
+  jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
+  SbMemoryCopy(matrix4x4, array_values, sizeof(float) * 16);
+
+  env->DeleteLocalRef(java_array);
+}
+
+// Rounds the float to the nearest integer, and also does a DCHECK to make sure
+// that the input float was already near an integer value.
+int RoundToNearInteger(float x) {
+  int rounded = static_cast<int>(x + 0.5f);
+  SB_DCHECK(std::abs(static_cast<float>(x - rounded)) < 0.01f);
+  return rounded;
+}
+
+// Converts a 4x4 matrix representing the texture coordinate transform into
+// an equivalent rectangle representing the region within the texture where
+// the pixel data is valid.  Note that the width and height of this region may
+// be negative to indicate that that axis should be flipped.
+void SetDecodeTargetContentRegionFromMatrix(
+    SbDecodeTargetInfoContentRegion* content_region,
+    int width,
+    int height,
+    const float* matrix4x4) {
+  // Ensure that this matrix contains no rotations or shears.  In other words,
+  // make sure that we can convert it to a decode target content region without
+  // losing any information.
+  SB_DCHECK(matrix4x4[1] == 0.0f);
+  SB_DCHECK(matrix4x4[2] == 0.0f);
+  SB_DCHECK(matrix4x4[3] == 0.0f);
+
+  SB_DCHECK(matrix4x4[4] == 0.0f);
+  SB_DCHECK(matrix4x4[6] == 0.0f);
+  SB_DCHECK(matrix4x4[7] == 0.0f);
+
+  SB_DCHECK(matrix4x4[8] == 0.0f);
+  SB_DCHECK(matrix4x4[9] == 0.0f);
+  SB_DCHECK(matrix4x4[10] == 1.0f);
+  SB_DCHECK(matrix4x4[11] == 0.0f);
+
+  SB_DCHECK(matrix4x4[14] == 0.0f);
+  SB_DCHECK(matrix4x4[15] == 1.0f);
+
+  float origin_x = matrix4x4[12];
+  float origin_y = matrix4x4[13];
+
+  float extent_x = matrix4x4[0] + matrix4x4[12];
+  float extent_y = matrix4x4[5] + matrix4x4[13];
+
+  SB_DCHECK(origin_y >= 0.0f);
+  SB_DCHECK(origin_y <= 1.0f);
+  SB_DCHECK(origin_x >= 0.0f);
+  SB_DCHECK(origin_x <= 1.0f);
+  SB_DCHECK(extent_x >= 0.0f);
+  SB_DCHECK(extent_x <= 1.0f);
+  SB_DCHECK(extent_y >= 0.0f);
+  SB_DCHECK(extent_y <= 1.0f);
+
+  // Flip the y-axis to match ContentRegion's coordinate system.
+  origin_y = 1.0f - origin_y;
+  extent_y = 1.0f - extent_y;
+
+  content_region->left = RoundToNearInteger(origin_x * width);
+  content_region->right = RoundToNearInteger(extent_x * width);
+
+  // Note that in GL coordinates, the origin is the bottom and the extent
+  // is the top.
+  content_region->top = RoundToNearInteger(extent_y * height);
+  content_region->bottom = RoundToNearInteger(origin_y * height);
+}
+}  // namespace
+
+// When in decode-to-texture mode, this returns the current decoded video frame.
+SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
+  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  // We must take a lock here since this function can be called from a
+  // separate thread.
+  starboard::ScopedLock lock(decode_target_mutex_);
+
+  if (SbDecodeTargetIsValid(decode_target_)) {
+    updateTexImage(decode_target_->data->surface_texture);
+
+    float matrix4x4[16];
+    getTransformMatrix(decode_target_->data->surface_texture, matrix4x4);
+    SetDecodeTargetContentRegionFromMatrix(
+        &decode_target_->data->info.planes[0].content_region, frame_width_,
+        frame_height_, matrix4x4);
+
+    // Take this opportunity to update the decode target's width and height.
+    decode_target_->data->info.planes[0].width = frame_width_;
+    decode_target_->data->info.planes[0].height = frame_height_;
+    decode_target_->data->info.width = frame_width_;
+    decode_target_->data->info.height = frame_height_;
+
+    SbDecodeTarget out_decode_target = new SbDecodeTargetPrivate;
+    out_decode_target->data = decode_target_->data;
+
+    return out_decode_target;
+  } else {
+    return kSbDecodeTargetInvalid;
+  }
 }
 
 }  // namespace shared
@@ -310,14 +477,35 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(const Options& options) {
+VideoDecoder* VideoDecoder::Create(const Parameters& parameters) {
   ::starboard::android::shared::VideoDecoder* decoder =
-      new ::starboard::android::shared::VideoDecoder(options.video_codec);
+      new ::starboard::android::shared::VideoDecoder(
+          parameters.video_codec
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+          ,
+          parameters.output_mode, parameters.decode_target_provider
+#endif        // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+          );  // NOLINT(whitespace/parens)
   if (!decoder->is_valid()) {
     delete decoder;
     return NULL;
   }
   return decoder;
+}
+
+// static
+bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
+                                       SbMediaVideoCodec codec,
+                                       SbDrmSystem drm_system) {
+  if (output_mode == kSbPlayerOutputModePunchOut) {
+    return true;
+  }
+
+  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    return !SbDrmSystemIsValid(drm_system);
+  }
+
+  return false;
 }
 
 }  // namespace filter

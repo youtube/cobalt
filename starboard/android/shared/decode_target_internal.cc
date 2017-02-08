@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/decode_target.h"
+#include "starboard/android/shared/decode_target_internal.h"
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#include "starboard/android/shared/jni_env_ext.h"
 
-GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
-                              SbDecodeTargetPlane plane) {
-  return 0;
+using starboard::android::shared::JniEnvExt;
+
+SbDecodeTargetPrivate::Data::~Data() {
+  ANativeWindow_release(native_window);
+
+  JniEnvExt* env = JniEnvExt::Get();
+  env->DeleteGlobalRef(surface);
+  env->DeleteGlobalRef(surface_texture);
+
+  glDeleteTextures(1, &info.planes[0].texture);
+  SB_DCHECK(glGetError() == GL_NO_ERROR);
 }
-
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
