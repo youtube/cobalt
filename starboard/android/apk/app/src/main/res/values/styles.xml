@@ -4,10 +4,8 @@
     <!-- Color of the transition animation when launching the app. -->
     <item name="android:colorPrimary">@color/cobalt_blue</item>
 
-    <!-- Color shown after the transition before the window is attached. -->
-    <item name="android:windowBackground">@color/cobalt_blue</item>
-
-    <!-- Transparent background required to punch-out to the video surface. -->
-    <item name="android:background">@android:color/transparent</item>
+    <!-- Color shown after the transition before the window is attached.
+         Avoids a black flash between the transition and splash screen. -->
+    <item name="android:windowBackground">?android:colorPrimary</item>
   </style>
 </resources>
