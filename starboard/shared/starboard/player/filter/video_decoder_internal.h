@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 
+#include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -70,22 +71,54 @@ class VideoDecoder {
   virtual void SetCurrentTime(SbMediaTime current_time) {}
 
   // A parameter struct to pass into |Create|.
-  struct Options {
-    Options(SbMediaVideoCodec video_codec,
-            SbDrmSystem drm_system,
-            JobQueue* job_queue)
+  struct Parameters {
+    Parameters(SbMediaVideoCodec video_codec,
+               SbDrmSystem drm_system,
+               JobQueue* job_queue
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+               ,
+               SbPlayerOutputMode output_mode,
+               SbDecodeTargetProvider* decode_target_provider
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+               )
         : video_codec(video_codec),
           drm_system(drm_system),
-          job_queue(job_queue) {}
+          job_queue(job_queue)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+          ,
+          output_mode(output_mode),
+          decode_target_provider(decode_target_provider)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    {
+    }
 
     SbMediaVideoCodec video_codec;
     SbDrmSystem drm_system;
     JobQueue* job_queue;
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    SbPlayerOutputMode output_mode;
+    SbDecodeTargetProvider* decode_target_provider;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   };
 
   // Individual implementation has to implement this function to create a video
   // decoder.
-  static VideoDecoder* Create(const Options& options);
+  static VideoDecoder* Create(const Parameters& parameters);
+
+#if SB_API_VERSION >= 3
+  // May be called from an arbitrary thread (e.g. a renderer thread).
+  virtual SbDecodeTarget GetCurrentDecodeTarget() {
+    return kSbDecodeTargetInvalid;
+  }
+#endif  // SB_API_VERSION >= 3
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  // Individual implementations must implement this function to indicate which
+  // output modes they support.
+  static bool OutputModeSupported(SbPlayerOutputMode output_mode,
+                                  SbMediaVideoCodec codec,
+                                  SbDrmSystem drm_system);
+#endif  // SB_API_VERSION >= 3
 };
 
 }  // namespace filter

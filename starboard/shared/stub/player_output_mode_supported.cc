@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/decode_target.h"
+#include "starboard/player.h"
 
-void SbDecodeTargetDestroy(SbDecodeTarget /*decode_target*/) {}
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+bool SbPlayerOutputModeSupported(SbPlayerOutputMode /*output_mode*/,
+                                 SbMediaVideoCodec /*codec*/,
+                                 SbDrmSystem /*drm_system*/) {
+  return false;
+}
+
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

@@ -79,6 +79,29 @@ typedef enum SbPlayerState {
   kSbPlayerStateError,
 } SbPlayerState;
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+typedef enum SbPlayerOutputMode {
+  // Requests for SbPlayer to produce an OpenGL texture that the client must
+  // draw every frame with its graphics rendering. It may be that we get a
+  // texture handle, but cannot perform operations like glReadPixels on it if it
+  // is DRM-protected, or it may not support DRM-protected content at all.  When
+  // this output mode is provided to SbCreatePlayer(), the application will be
+  // able to pull frames via calls to SbPlayerGetCurrentFrame().
+  kSbPlayerOutputModeDecodeToTexture,
+
+  // Requests for SbPlayer to use a "punch-out" output mode, where video is
+  // rendered to the far background, and the graphics plane is automatically
+  // composited on top of the video by the platform. The client must punch an
+  // alpha hole out of the graphics plane for video to show through.  In this
+  // case, changing the video bounds must be tightly synchronized between the
+  // player and the graphics plane.
+  kSbPlayerOutputModePunchOut,
+
+  // An invalid output mode.
+  kSbPlayerOutputModeInvalid,
+} SbPlayerOutputMode;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 // Information about the current media playback state.
 typedef struct SbPlayerInfo {
   // The position of the playback head, as precisely as possible, in 90KHz ticks
@@ -236,11 +259,18 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // |context|: This is passed to all callbacks and is generally used to point
 //   at a class or struct that contains state associated with the player.
 //
+// |output_mode|: Selects how the decoded video frames will be output.  For
+//   example, kSbPlayerOutputModePunchOut indicates that the decoded video
+//   frames will be output to a background video layer by the platform, and
+//   kSbPlayerOutputDecodeToTexture indicates that the decoded video frames
+//   should be made available for the application to pull via calls to
+//   SbPlayerGetCurrentFrame().
+//
 // |provider|: Only present in Starboard version 3 and up.  If not |NULL|,
-//   then when SB_HAS(PLAYER_PRODUCING_TEXTURE) is true, the player MAY use the
-//   provider to create SbDecodeTargets. A provider could also potentially be
-//   required by the player, in which case, if the provider is not given, the
-//   player will fail by returning kSbPlayerInvalid.
+//   then when output_mode == kSbPlayerOutputModeDecodeToTexture, the player MAY
+//   use the provider to create SbDecodeTargets. A provider could also
+//   potentially be required by the player, in which case, if the provider is
+//   not given, the player will fail by returning kSbPlayerInvalid.
 SB_EXPORT SbPlayer SbPlayerCreate(
     SbWindow window,
     SbMediaVideoCodec video_codec,
@@ -252,11 +282,24 @@ SB_EXPORT SbPlayer SbPlayerCreate(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     void* context
-#if SB_VERSION(3)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    ,
+    SbPlayerOutputMode output_mode
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 3
     ,
     SbDecodeTargetProvider* provider
-#endif  // SB_VERSION(3)
+#endif  // SB_API_VERSION >= 3
     );  // NOLINT
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+// Returns true if the given player output mode is supported by the platform.
+// If this function returns true, it is okay to call SbPlayerCreate() with
+// the given |output_mode|.
+SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
+                                           SbMediaVideoCodec codec,
+                                           SbDrmSystem drm_system);
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 // Destroys |player|, freeing all associated resources. Each callback must
 // receive one more callback to say that the player was destroyed. Callbacks
@@ -340,10 +383,13 @@ SB_EXPORT void SbPlayerWriteSample(
 SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
                                         SbMediaType stream_type);
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
 // Sets the player bounds to the given graphics plane coordinates. The changes
 // do not take effect until the next graphics frame buffer swap. The default
-// bounds for a player is the full screen.
+// bounds for a player is the full screen.  This function is only relevant when
+// the |player| is created with the kSbPlayerOutputModePunchOut output mode, and
+// if this is not the case then this function call can be ignored.
 //
 // This function is called on every graphics frame that changes the video
 // bounds. For example, if the video bounds are being animated, then this will
@@ -361,7 +407,8 @@ SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
                                  int y,
                                  int width,
                                  int height);
-#endif
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)
 
 // Pauses or unpauses the |player|. If the |player|'s state is
 // |kPlayerStatePrerolling|, this function sets the initial pause state for
@@ -384,6 +431,7 @@ SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 // |out_player_info|: The information retrieved for the player.
 SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #if SB_IS(PLAYER_COMPOSITED)
 // Gets a handle that represents the player's video output, for the purpose of
 // composing with |SbCompositor|, which is currently undefined.
@@ -391,8 +439,10 @@ SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
 // |player|: The player for which the video output handle is retrieved.
 SB_EXPORT SbPlayerCompositionHandle
 SbPlayerGetCompositionHandle(SbPlayer player);
-#endif
+#endif  // SB_IS(PLAYER_COMPOSITED)
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #if SB_IS(PLAYER_PRODUCING_TEXTURE)
 // Gets an OpenGL texture ID that points to the player's video output frame at
 // the time it was called. This function can be called once, and the texture ID
@@ -400,7 +450,19 @@ SbPlayerGetCompositionHandle(SbPlayer player);
 //
 // |player|: The player for which the texture ID is retrieved.
 SB_EXPORT uint32_t SbPlayerGetTextureId(SbPlayer player);
-#endif
+#endif  // SB_IS(PLAYER_PRODUCING_TEXTURE)
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+// Given a player created with the kSbPlayerOutputModeDecodeToTexture
+// output mode, it will return a SbDecodeTarget representing the current frame
+// to be rasterized.  On GLES systems, this function must be called on a
+// thread with an EGLContext current, and specifically the EGLContext that will
+// be used to eventually render the frame.  If this function is called with a
+// |player| object that was created with an output mode other than
+// kSbPlayerOutputModeDecodeToTexture, kSbDecodeTargetInvalid is returned.
+SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 #ifdef __cplusplus
 }  // extern "C"

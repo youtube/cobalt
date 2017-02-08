@@ -17,8 +17,10 @@
 
 #include <media/NdkMediaCodec.h>
 
+#include "starboard/decode_target.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/player.h"
 #include "starboard/queue.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -36,7 +38,9 @@ class VideoDecoder
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
 
-  explicit VideoDecoder(SbMediaVideoCodec video_codec);
+  explicit VideoDecoder(SbMediaVideoCodec video_codec,
+                        SbPlayerOutputMode output_mode,
+                        SbDecodeTargetProvider* decode_target_provider);
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
@@ -51,6 +55,8 @@ class VideoDecoder
   void SetCurrentTime(SbMediaTime current_time) SB_OVERRIDE {
     current_time_ = current_time;
   }
+
+  SbDecodeTarget GetCurrentDecodeTarget();
 
  private:
   enum EventType {
@@ -102,10 +108,29 @@ class VideoDecoder
   AMediaFormat* media_format_;
   ANativeWindow* video_window_;
 
+  ANativeWindow* output_window_;
+
   int32_t width_;
   int32_t height_;
   int32_t color_format_;
   SbMediaTime current_time_;
+
+  SbPlayerOutputMode output_mode_;
+
+  SbDecodeTargetProvider* decode_target_provider_;
+  // If decode-to-texture is enabled, then we store the decode target texture
+  // inside of this |decode_target_| member.
+  SbDecodeTarget decode_target_;
+
+  // Since GetCurrentDecodeTarget() needs to be called from an arbitrary thread
+  // to obtain the current decode target (which ultimately ends up being a
+  // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
+  // and we do so through this mutex.
+  starboard::Mutex decode_target_mutex_;
+
+  // The width and height of the latest decoded frame.
+  int32_t frame_width_;
+  int32_t frame_height_;
 };
 
 }  // namespace shared

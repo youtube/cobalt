@@ -277,9 +277,16 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(const Options& options) {
-  return new raspi::shared::open_max::VideoDecoder(options.video_codec,
-                                                   options.job_queue);
+VideoDecoder* VideoDecoder::Create(const Parameters& parameters) {
+  return new raspi::shared::open_max::VideoDecoder(parameters.video_codec,
+                                                   parameters.job_queue);
+}
+
+// static
+bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
+                                       SbMediaVideoCodec codec,
+                                       SbDrmSystem drm_system) {
+  return output_mode == kSbPlayerOutputModePunchOut;
 }
 
 }  // namespace filter
