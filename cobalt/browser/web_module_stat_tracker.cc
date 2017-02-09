@@ -16,9 +16,16 @@
 
 #include "cobalt/browser/web_module_stat_tracker.h"
 
+#if defined(ENABLE_WEBDRIVER)
+#include <sstream>
+#endif  // ENABLE_WEBDRIVER
+
 #include "base/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
+#if defined(ENABLE_WEBDRIVER)
+#include "cobalt/dom/global_stats.h"
+#endif  // ENABLE_WEBDRIVER
 
 namespace cobalt {
 namespace browser {
@@ -162,7 +169,15 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
           StringPrintf("Event.Duration.%s.Layout.RenderAndAnimate",
                        name.c_str()),
           base::TimeDelta(),
-          "RenderAndAnimate duration for event (in microseconds).") {}
+          "RenderAndAnimate duration for event (in microseconds).")
+#if defined(ENABLE_WEBDRIVER)
+      ,
+      value_dictionary(
+          StringPrintf("Event.%s.ValueDictionary", name.c_str()),
+          "All event values represented as a dictionary in a string.")
+#endif  // ENABLE_WEBDRIVER
+{
+}
 
 bool WebModuleStatTracker::IsStopWatchEnabled(int /*id*/) const { return true; }
 
@@ -216,6 +231,70 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   event_stats->duration_layout_render_and_animate =
       layout_stat_tracker_->GetStopWatchTypeDuration(
           layout::LayoutStatTracker::kStopWatchTypeRenderAndAnimate);
+
+#if defined(ENABLE_WEBDRIVER)
+  // When the Webdriver is enabled, all of the event's values are stored within
+  // a single string representing a dictionary of key-value pairs. This allows
+  // the Webdriver to query a single CVal to retrieve all of the event's values.
+  std::ostringstream oss;
+  oss << "{"
+      << "\"ProducedRenderTree\":" << was_render_tree_produced << ", "
+      << "\"CntDomEventListeners\":"
+      << dom::GlobalStats::GetInstance()->GetNumEventListeners() << ", "
+      << "\"CntDomNodes\":" << dom::GlobalStats::GetInstance()->GetNumNodes()
+      << ", "
+      << "\"CntDomHtmlElements\":" << dom_stat_tracker_->total_html_elements()
+      << ", "
+      << "\"CntDomHtmlElementsCreated\":"
+      << dom_stat_tracker_->html_elements_created_count() << ", "
+      << "\"CntDomHtmlElementsDestroyed\":"
+      << dom_stat_tracker_->html_elements_destroyed_count() << ", "
+      << "\"CntDomUpdateMatchingRuleCalls\":"
+      << dom_stat_tracker_->update_matching_rules_count() << ", "
+      << "\"CntDomUpdateComputedStyleCalls\":"
+      << dom_stat_tracker_->update_computed_style_count() << ", "
+      << "\"CntLayoutBoxes\":" << layout_stat_tracker_->total_boxes() << ", "
+      << "\"CntLayoutBoxesCreated\":"
+      << layout_stat_tracker_->boxes_created_count() << ", "
+      << "\"CntLayoutBoxesDestroyed\":"
+      << layout_stat_tracker_->boxes_destroyed_count() << ", "
+      << "\"DurTotalUs\":"
+      << stop_watch_durations_[kStopWatchTypeEvent].InMicroseconds() << ", "
+      << "\"DurDomInjectEventUs\":"
+      << stop_watch_durations_[kStopWatchTypeInjectEvent].InMicroseconds()
+      << ", "
+      << "\"DurDomUpdateComputedStyleUs\":"
+      << dom_stat_tracker_
+             ->GetStopWatchTypeDuration(
+                 dom::DomStatTracker::kStopWatchTypeUpdateComputedStyle)
+             .InMicroseconds()
+      << ", "
+      << "\"DurLayoutBoxTreeUs\":"
+      << layout_stat_tracker_
+             ->GetStopWatchTypeDuration(
+                 layout::LayoutStatTracker::kStopWatchTypeLayoutBoxTree)
+             .InMicroseconds()
+      << ", "
+      << "\"DurLayoutBoxTreeBoxGenerationUs\":"
+      << layout_stat_tracker_
+             ->GetStopWatchTypeDuration(
+                 layout::LayoutStatTracker::kStopWatchTypeBoxGeneration)
+             .InMicroseconds()
+      << ", "
+      << "\"DurLayoutBoxTreeUpdateUsedSizesUs\":"
+      << layout_stat_tracker_
+             ->GetStopWatchTypeDuration(
+                 layout::LayoutStatTracker::kStopWatchTypeUpdateUsedSizes)
+             .InMicroseconds()
+      << ", "
+      << "\"DurLayoutRenderAndAnimateUs\":"
+      << layout_stat_tracker_
+             ->GetStopWatchTypeDuration(
+                 layout::LayoutStatTracker::kStopWatchTypeRenderAndAnimate)
+             .InMicroseconds()
+      << "}";
+  event_stats->value_dictionary = oss.str();
+#endif  // ENABLE_WEBDRIVER
 
   current_event_type_ = kEventTypeInvalid;
 
