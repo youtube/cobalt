@@ -43,6 +43,22 @@ TEST_F(GetOwnPropertyDescriptorTest,
   EXPECT_EQ(result, "");
 }
 
+TEST_F(GetOwnPropertyDescriptorTest, GetPropertyDescriptorFromPrototype) {
+  std::string result;
+  EvaluateScript(
+      "var descriptor = "
+      "Object.getOwnPropertyDescriptor(ArbitraryInterface.prototype, "
+      "\"arbitraryProperty\")",
+      &result);
+  EXPECT_EQ(result, "undefined");
+  EvaluateScript("descriptor.configurable", &result);
+  EXPECT_EQ(result, "true");
+  EvaluateScript("descriptor.enumerable", &result);
+  EXPECT_EQ(result, "true");
+  EvaluateScript("descriptor.__proto__", &result);
+  EXPECT_EQ(result, "[object Object]");
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
