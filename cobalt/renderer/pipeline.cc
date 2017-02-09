@@ -80,9 +80,11 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
           submit_even_if_render_tree_is_unchanged),
       last_render_animations_active_(false),
       rasterize_periodic_timer_("Renderer.Rasterize.Duration",
-                                kRasterizePeriodicTimerEntriesPerUpdate),
+                                kRasterizePeriodicTimerEntriesPerUpdate,
+                                false /*enable_entry_list_c_val*/),
       rasterize_animations_timer_("Renderer.Rasterize.Animations",
-                                  kRasterizeAnimationsTimerMaxEntries),
+                                  kRasterizeAnimationsTimerMaxEntries,
+                                  true /*enable_entry_list_c_val*/),
       has_active_animations_c_val_(
           "Renderer.HasActiveAnimations", false,
           "Is non-zero if the current render tree has active animations.")
