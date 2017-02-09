@@ -1425,6 +1425,7 @@ static const char *uprv_getPOSIXIDForCategory(int category)
             }
         }
     }
+#endif
     if ((posixID==0)
         || (uprv_strcmp("C", posixID) == 0)
         || (uprv_strcmp("POSIX", posixID) == 0))
@@ -1432,7 +1433,6 @@ static const char *uprv_getPOSIXIDForCategory(int category)
         /* Nothing worked.  Give it a nice POSIX default value. */
         posixID = "en_US_POSIX";
     }
-#endif
     return posixID;
 }
 
