@@ -50,6 +50,8 @@ class DomStatTracker : public base::StopWatchOwner {
   void OnUpdateMatchingRules();
   void OnUpdateComputedStyle();
 
+  int total_html_elements() const { return total_html_elements_; }
+
   int html_elements_created_count() const {
     return html_elements_created_count_;
   }

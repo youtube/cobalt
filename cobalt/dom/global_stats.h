@@ -61,6 +61,9 @@ class GlobalStats {
   void Remove(NodeList* object);
   void RemoveEventListener();
 
+  int GetNumEventListeners() const { return num_event_listeners_; }
+  int GetNumNodes() const { return num_nodes_; }
+
   void StartDispatchEvent();
   void StopDispatchEvent();
 
