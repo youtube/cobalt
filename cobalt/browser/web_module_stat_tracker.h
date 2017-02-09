@@ -97,6 +97,13 @@ class WebModuleStatTracker : public base::StopWatchOwner {
         duration_layout_update_used_sizes;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_layout_render_and_animate;
+
+#if defined(ENABLE_WEBDRIVER)
+    // A string containing all of the event's values as a dictionary of
+    // key-value pairs. This is used by the Webdriver and is only enabled with
+    // it.
+    base::CVal<std::string> value_dictionary;
+#endif  // ENABLE_WEBDRIVER
   };
 
   // From base::StopWatchOwner

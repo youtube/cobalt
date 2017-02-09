@@ -31,8 +31,10 @@ namespace base {
 TEST(CValCollectionTimerStatsTest, DefaultValues) {
   const std::string name = "CollectionTimerStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = false;
 
-  base::CValCollectionTimerStats<> cval(name, max_size);
+  base::CValCollectionTimerStats<> cval(name, max_size,
+                                        enable_entry_list_c_val);
 
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> count =
@@ -53,6 +55,8 @@ TEST(CValCollectionTimerStatsTest, DefaultValues) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "0");
@@ -72,13 +76,16 @@ TEST(CValCollectionTimerStatsTest, DefaultValues) {
   EXPECT_EQ(*pct95, "0us");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "0us");
+  EXPECT_FALSE(entry_list);
 }
 
 TEST(CValCollectionTimerStatsTest, NoFlush) {
   const std::string name = "CollectionTimerStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionTimerStats<> cval(name, max_size);
+  base::CValCollectionTimerStats<> cval(name, max_size,
+                                        enable_entry_list_c_val);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));
@@ -107,6 +114,8 @@ TEST(CValCollectionTimerStatsTest, NoFlush) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "0");
@@ -126,13 +135,17 @@ TEST(CValCollectionTimerStatsTest, NoFlush) {
   EXPECT_EQ(*pct95, "0us");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "0us");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[]");
 }
 
 TEST(CValCollectionTimerStatsTest, MaxSizeFlush) {
   const std::string name = "CollectionTimerStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionTimerStats<> cval(name, max_size);
+  base::CValCollectionTimerStats<> cval(name, max_size,
+                                        enable_entry_list_c_val);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));
@@ -164,6 +177,8 @@ TEST(CValCollectionTimerStatsTest, MaxSizeFlush) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "5");
@@ -183,13 +198,17 @@ TEST(CValCollectionTimerStatsTest, MaxSizeFlush) {
   EXPECT_EQ(*pct95, "8.6ms");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "3.2ms");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[3000, 9000, 1000, 7000, 5000]");
 }
 
 TEST(CValCollectionTimerStatsTest, ManualFlush) {
   const std::string name = "CollectionTimerStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionTimerStats<CValPublic> cval(name, max_size);
+  base::CValCollectionTimerStats<CValPublic> cval(name, max_size,
+                                                  enable_entry_list_c_val);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));
@@ -221,6 +240,8 @@ TEST(CValCollectionTimerStatsTest, ManualFlush) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "4");
@@ -240,13 +261,17 @@ TEST(CValCollectionTimerStatsTest, ManualFlush) {
   EXPECT_EQ(*pct95, "8.7ms");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "3.7ms");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[3000, 9000, 1000, 7000]");
 }
 
 TEST(CValCollectionTimerStatsTest, TwoManualFlushes) {
   const std::string name = "CollectionTimer";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionTimerStats<CValDebug> cval(name, max_size);
+  base::CValCollectionTimerStats<CValDebug> cval(name, max_size,
+                                                 enable_entry_list_c_val);
   cval.Start(base::TimeTicks::FromInternalValue(1000));
   cval.Stop(base::TimeTicks::FromInternalValue(4000));
   cval.Start(base::TimeTicks::FromInternalValue(4000));
@@ -279,6 +304,8 @@ TEST(CValCollectionTimerStatsTest, TwoManualFlushes) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "1");
@@ -298,6 +325,8 @@ TEST(CValCollectionTimerStatsTest, TwoManualFlushes) {
   EXPECT_EQ(*pct95, "5.0ms");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "0us");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[5000]");
 }
 
 }  // namespace base
