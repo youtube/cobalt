@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 import logging
 import os
 import sys
@@ -75,33 +76,19 @@ class TvTestCase(unittest.TestCase):
     return tv_testcase_runner.GetWebDriver()
 
   def get_cval(self, cval_name):
-    """Returns value of a cval.
+    """Returns the Python object represented by a JSON cval string.
 
     Args:
       cval_name: Name of the cval.
     Returns:
-      Value of the cval.
+      Python object represented by the JSON cval string
     """
     javascript_code = "return h5vcc.cVal.getValue('{}')".format(cval_name)
-    return self.get_webdriver().execute_script(javascript_code)
-
-  def get_int_cval(self, cval_name):
-    """Returns int value of a cval.
-
-    The cval value must be an integer, if it is a float, then this function will
-    throw a ValueError.
-
-    Args:
-      cval_name: Name of the cval.
-    Returns:
-      Value of the cval.
-    Raises:
-      ValueError if the cval is cannot be converted to int.
-    """
-    answer = self.get_cval(cval_name)
-    if answer is None:
-      return answer
-    return int(answer)
+    json_result = self.get_webdriver().execute_script(javascript_code)
+    if json_result is None:
+      return None
+    else:
+      return json.loads(json_result)
 
   def goto(self, path, query_params=None):
     """Goes to a path off of BASE_URL.
@@ -267,17 +254,11 @@ class TvTestCase(unittest.TestCase):
 
   def is_processing(self, check_animations):
     """Checks to see if Cobalt is currently processing."""
-    return (
-        self.get_int_cval(c_val_names.count_dom_active_dispatch_events()) or
-        self.get_int_cval(c_val_names.layout_is_dirty()) or
-        (check_animations and
-         self.get_int_cval(c_val_names.renderer_has_active_animations())) or
-        self.get_int_cval(c_val_names.count_image_cache_loading_resources()) or
-        self.get_int_cval(c_val_names.count_image_cache_pending_callbacks()) or
-        self.get_int_cval(
-            c_val_names.count_remote_typeface_cache_loading_resources()) or
-        self.get_int_cval(
-            c_val_names.count_remote_typeface_cache_pending_callbacks()))
+    return (self.get_cval(c_val_names.count_dom_active_dispatch_events()) or
+            self.get_cval(c_val_names.layout_is_dirty()) or
+            (check_animations and
+             self.get_cval(c_val_names.renderer_has_active_animations())) or
+            self.get_cval(c_val_names.count_image_cache_loading_resources()))
 
   def wait_for_media_element_playing(self):
     """Waits for a video to begin playing.
@@ -287,8 +268,8 @@ class TvTestCase(unittest.TestCase):
       required time.
     """
     start_time = time.time()
-    while self.get_int_cval(c_val_names.event_duration_dom_video_start_delay(
-    )) == 0:
+    while self.get_cval(
+        c_val_names.event_duration_dom_video_start_delay()) == 0:
       if time.time() - start_time > MEDIA_TIMEOUT_SECONDS:
         raise TvTestCase.MediaTimeoutException()
 

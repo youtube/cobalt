@@ -43,12 +43,12 @@ class TimeToShelf(tv_testcase.TvTestCase):
     used.
     """
     metrics_array = []
-    blank_startup_time_microseconds = self.get_int_cval('Cobalt.Lifetime')
+    blank_startup_time_microseconds = self.get_cval('Cobalt.Lifetime')
     for _ in range(10):
-      t0 = self.get_int_cval('Cobalt.Lifetime')
+      t0 = self.get_cval('Cobalt.Lifetime')
       self.load_tv()
       self.wait_for_processing_complete_after_focused_shelf()
-      t1 = self.get_int_cval('Cobalt.Lifetime')
+      t1 = self.get_cval('Cobalt.Lifetime')
       startup_time_microseconds = t1 - t0
       metrics_array.append(startup_time_microseconds)
 
@@ -56,6 +56,7 @@ class TimeToShelf(tv_testcase.TvTestCase):
         'timeToShelfTestTimeShelfDisplayMedianUs', metrics_array)
     tv_testcase_util.record_test_result('timeToShelfBlankStartupTimeUs',
                                         blank_startup_time_microseconds)
+
 
 if __name__ == '__main__':
   tv_testcase.main()
