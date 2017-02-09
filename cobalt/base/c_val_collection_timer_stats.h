@@ -35,8 +35,9 @@ class CValCollectionTimerStats {
  public:
   explicit CValCollectionTimerStats(const std::string& name)
       : entry_stats_(name) {}
-  CValCollectionTimerStats(const std::string& name, size_t max_size)
-      : entry_stats_(name, max_size) {}
+  CValCollectionTimerStats(const std::string& name, size_t max_size,
+                           bool enable_entry_list_c_val)
+      : entry_stats_(name, max_size, enable_entry_list_c_val) {}
 
   // Start the timer. If the timer is currently running, it is stopped and
   // re-started. If no time is provided, then |base::TimeTicks::Now()| is used.

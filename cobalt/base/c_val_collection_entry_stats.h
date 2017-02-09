@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -43,13 +44,17 @@ namespace CValDetail {
 //        entries is extremely large, |CValTimeIntervalEntryStats| is more
 //        appropriate, as it does its tracking without keeping entries in memory
 //        (at the cost of not being able to provide percentiles);
+// NOTE3: This class provides the ability to record all entries within a single
+//        string CVal when |enable_entry_list_c_val| is set to true in the
+//        constructor. By default, this CVal is not used.
 template <typename EntryType, typename Visibility = CValDebug>
 class CValCollectionEntryStatsImpl {
  public:
   static const size_t kNoMaxSize = 0;
 
   CValCollectionEntryStatsImpl(const std::string& name,
-                               size_t max_size = kNoMaxSize);
+                               size_t max_size = kNoMaxSize,
+                               bool enable_entry_list_c_val = false);
 
   // Add an entry to the collection. This may trigger a Flush() if adding the
   // entry causes the max size to be reached.
@@ -65,6 +70,11 @@ class CValCollectionEntryStatsImpl {
                                        int percentile);
   static double CalculateStandardDeviation(const CollectionType& collection,
                                            double mean);
+
+  // Constructs a string representing the entries within the collection and
+  // populates |entry_list_| with it if the entry list CVal was enabled during
+  // construction.
+  void PopulateEntryList();
 
   // The maximum size of the collection before Flush() is automatically called.
   const size_t max_size_;
@@ -82,12 +92,15 @@ class CValCollectionEntryStatsImpl {
   base::CVal<EntryType, Visibility> percentile_75th_;
   base::CVal<EntryType, Visibility> percentile_95th_;
   base::CVal<EntryType, Visibility> standard_deviation_;
+  // |entry_list_| is only non-NULL when it is enabled.
+  scoped_ptr<base::CVal<std::string, Visibility> > entry_list_;
 };
 
 template <typename EntryType, typename Visibility>
 CValCollectionEntryStatsImpl<EntryType, Visibility>::
     CValCollectionEntryStatsImpl(const std::string& name,
-                                 size_t max_size /*=kNoMaxSize*/)
+                                 size_t max_size /*=kNoMaxSize*/,
+                                 bool enable_entry_list_c_val /*=false*/)
     : max_size_(max_size),
       count_(StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
       average_(StringPrintf("%s.Avg", name.c_str()), EntryType(),
@@ -105,7 +118,13 @@ CValCollectionEntryStatsImpl<EntryType, Visibility>::
       percentile_95th_(StringPrintf("%s.Pct.95th", name.c_str()), EntryType(),
                        "95th percentile value."),
       standard_deviation_(StringPrintf("%s.Std", name.c_str()), EntryType(),
-                          "Standard deviation of values.") {}
+                          "Standard deviation of values.") {
+  if (enable_entry_list_c_val) {
+    entry_list_.reset(new base::CVal<std::string, Visibility>(
+        StringPrintf("%s.EntryList", name.c_str()), "[]",
+        "The list of entries in the collection."));
+  }
+}
 
 template <typename EntryType, typename Visibility>
 void CValCollectionEntryStatsImpl<EntryType, Visibility>::AddEntry(
@@ -121,6 +140,9 @@ void CValCollectionEntryStatsImpl<EntryType, Visibility>::Flush() {
   if (collection_.size() == 0) {
     return;
   }
+
+  // Populate the entry list cval before the collection is sorted.
+  PopulateEntryList();
 
   // Sort the collection. This allows min, max, and percentiles to be easily
   // determined.
@@ -204,6 +226,28 @@ CValCollectionEntryStatsImpl<EntryType, Visibility>::CalculateStandardDeviation(
   return std::sqrt(variance);
 }
 
+template <typename EntryType, typename Visibility>
+void CValCollectionEntryStatsImpl<EntryType, Visibility>::PopulateEntryList() {
+  // If the entry list was not enabled, then |entry_list_| will be NULL and
+  // there is nothing to do. Simply return.
+  if (!entry_list_) {
+    return;
+  }
+
+  // Construct a string containing a list representation of the collection
+  // entries and set the entry list CVal to it.
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < collection_.size(); ++i) {
+    if (i > 0) {
+      oss << ", ";
+    }
+    oss << CValDetail::ValToString<EntryType>(collection_[i]);
+  }
+  oss << "]";
+  *entry_list_ = oss.str();
+}
+
 #if !defined(ENABLE_DEBUG_C_VAL)
 // This is a stub class that disables CValCollectionEntryStats when
 // ENABLE_DEBUG_C_VAL is not defined.
@@ -213,9 +257,11 @@ class CValCollectionEntryStatsStub {
   explicit CValCollectionEntryStatsStub(const std::string& name) {
     UNREFERENCED_PARAMETER(name);
   }
-  CValCollectionEntryStatsStub(const std::string& name, size_t max_size) {
+  CValCollectionEntryStatsStub(const std::string& name, size_t max_size,
+                               bool enable_entry_list_c_val) {
     UNREFERENCED_PARAMETER(name);
     UNREFERENCED_PARAMETER(max_size);
+    UNREFERENCED_PARAMETER(enable_entry_list_c_val);
   }
 
   void AddEntry(const EntryType& value) { UNREFERENCED_PARAMETER(value); }
@@ -248,8 +294,9 @@ class CValCollectionEntryStats<EntryType, CValDebug>
  public:
   explicit CValCollectionEntryStats(const std::string& name)
       : CValParent(name) {}
-  CValCollectionEntryStats(const std::string& name, size_t max_size)
-      : CValParent(name, max_size) {}
+  CValCollectionEntryStats(const std::string& name, size_t max_size,
+                           bool enable_entry_list_c_val)
+      : CValParent(name, max_size, enable_entry_list_c_val) {}
 };
 
 // CVals with visibility set to CValPublic are always tracked though the CVal
@@ -263,8 +310,9 @@ class CValCollectionEntryStats<EntryType, CValPublic>
  public:
   explicit CValCollectionEntryStats(const std::string& name)
       : CValParent(name) {}
-  CValCollectionEntryStats(const std::string& name, size_t max_size)
-      : CValParent(name, max_size) {}
+  CValCollectionEntryStats(const std::string& name, size_t max_size,
+                           bool enable_entry_list_c_val)
+      : CValParent(name, max_size, enable_entry_list_c_val) {}
 };
 
 }  // namespace base
