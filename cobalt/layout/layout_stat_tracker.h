@@ -49,6 +49,8 @@ class LayoutStatTracker : public base::StopWatchOwner {
   void OnBoxCreated();
   void OnBoxDestroyed();
 
+  int total_boxes() const { return total_boxes_; }
+
   int boxes_created_count() const { return boxes_created_count_; }
   int boxes_destroyed_count() const { return boxes_destroyed_count_; }
 
