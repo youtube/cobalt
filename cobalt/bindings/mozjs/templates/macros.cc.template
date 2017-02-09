@@ -18,6 +18,16 @@
  # Checks if object implements interface.
  #}
 {% macro check_if_object_implements_interface() %}
+  const JSClass* proto_class =
+      {{binding_class}}::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
