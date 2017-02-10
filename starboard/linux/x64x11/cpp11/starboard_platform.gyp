@@ -1,4 +1,4 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,16 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 {
-  'variables': {
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 1,
-  },
   'includes': [
-    '../libraries.gypi',
-    '../../shared/gyp_configuration.gypi',
+    '../starboard_platform.gypi'
+  ],
+  'targets': [
+    {
+      'target_name': 'starboard_platform',
+      'type': 'static_library',
+      'sources': ['<@(starboard_platform_sources)'],
+      'defines': [
+        # This must be defined when building Starboard, and must not when
+        # building Starboard client code.
+        'STARBOARD_IMPLEMENTATION',
+      ],
+      'dependencies': [
+        '<@(starboard_platform_dependencies)',
+      ],
+    },
   ],
 }
