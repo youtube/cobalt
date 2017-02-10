@@ -48,6 +48,7 @@ void SbFileAndroidTeardown();
 
 bool IsAndroidAssetPath(const char* path);
 AAsset* OpenAndroidAsset(const char* path);
+AAssetDir* OpenAndroidAssetDir(const char* path);
 
 }  // namespace shared
 }  // namespace android

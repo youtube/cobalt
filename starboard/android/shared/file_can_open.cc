@@ -16,6 +16,8 @@
 
 #include <android/asset_manager.h>
 
+#include "starboard/directory.h"
+
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/shared/posix/impl/file_can_open.h"
 
@@ -30,5 +32,12 @@ bool SbFileCanOpen(const char* path, int flags) {
   SbFile file = SbFileOpen(path, flags | kSbFileOpenOnly, NULL, NULL);
   bool result = SbFileIsValid(file);
   SbFileClose(file);
+
+  if (!result) {
+    SbDirectory directory = SbDirectoryOpen(path, NULL);
+    result = SbDirectoryIsValid(directory);
+    SbDirectoryClose(directory);
+  }
+
   return result;
 }
