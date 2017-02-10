@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/directory.h"
-
-#include <dirent.h>
-#include <errno.h>
-
-#include "starboard/file.h"
 #include "starboard/shared/iso/directory_internal.h"
-#include "starboard/string.h"
+
+#include "starboard/shared/iso/impl/directory_get_next.h"
 
 bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
-  if (!directory || !directory->directory || !out_entry) {
-    return false;
-  }
-
-  struct dirent dirent_buffer;
-  struct dirent* dirent;
-  int result = readdir_r(directory->directory, &dirent_buffer, &dirent);
-  if (result || !dirent) {
-    return false;
-  }
-
-  SbStringCopy(out_entry->name, dirent->d_name,
-               SB_ARRAY_SIZE_INT(out_entry->name));
-  return true;
+  return ::starboard::shared::iso::impl::SbDirectoryGetNext(directory,
+                                                            out_entry);
 }
