@@ -655,12 +655,14 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
   // Begin output to CSV.
 
   // Preamble
-  ss << kNewLine << "//////////////////////////////////////////////" << kNewLine
-     << "// CSV of bytes allocated per region (MB's)." << kNewLine
+  ss << kNewLine
+     << "//////////////////////////////////////////////" << kNewLine
+     << "// CSV of BYTES allocated per region (MB's)." << kNewLine
      << "// Units are in Megabytes. This is designed" << kNewLine
      << "// to be used in a stacked graph." << kNewLine;
 
   // HEADER.
+  ss << "Time(mins),";
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     const std::string& name = it->first;
     ss << kQuote << SanitizeCSVKey(name) << kQuote << kDelimiter;
@@ -669,6 +671,9 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
 
   // Print out the values of each of the samples.
   for (size_t i = 0; i < smallest_sample_size; ++i) {
+    // Output time first so that it can be used as an x-axis.
+    const double time_mins = timeseries.time_stamps_[i].InSeconds()/60.f;
+    ss << time_mins << ",";
     for (MapIt it = samples.begin(); it != samples.end(); ++it) {
       const int64 alloc_bytes = it->second.allocated_bytes_[i];
       // Convert to float megabytes with decimals of precision.
@@ -678,26 +683,34 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
     }
     ss << kNewLine;
   }
+  ss << "// END CSV of BYTES allocated per region." << kNewLine;
+  ss << "//////////////////////////////////////////////";
 
   ss << kNewLine;
   // Preamble
   ss << kNewLine << "//////////////////////////////////////////////";
-  ss << kNewLine << "// CSV of number of allocations per region." << kNewLine;
+  ss << kNewLine << "// CSV of COUNT of allocations per region." << kNewLine;
 
   // HEADER
+  ss << "Time(mins),";
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     const std::string& name = it->first;
     ss << kQuote << SanitizeCSVKey(name) << kQuote << kDelimiter;
   }
   ss << kNewLine;
   for (size_t i = 0; i < smallest_sample_size; ++i) {
+    // Output time first so that it can be used as an x-axis.
+    const double time_mins = timeseries.time_stamps_[i].InSeconds() / 60.f;
+    ss << time_mins << ",";
     for (MapIt it = samples.begin(); it != samples.end(); ++it) {
       const int64 n_allocs = it->second.number_allocations_[i];
       ss << n_allocs << kDelimiter;
     }
     ss << kNewLine;
   }
-  ss << kNewLine;
+  ss << "// END CSV of COUNT of allocations per region." << kNewLine;
+  ss << "//////////////////////////////////////////////";
+
   std::string output = ss.str();
   return output;
 }
@@ -736,6 +749,19 @@ void MemoryTrackerCompressedTimeSeries::AcquireSample(
     new_entry.allocated_bytes_.push_back(allocation_bytes);
     new_entry.number_allocations_.push_back(num_allocs);
   }
+
+  // Sample the in use memory bytes reported by malloc.
+  MemoryStats memory_stats = GetProcessMemoryStats();
+  AllocationSamples& process_mem_in_use = map_samples["ProcessMemoryInUse"];
+  process_mem_in_use.allocated_bytes_.push_back(memory_stats.used_cpu_memory);
+  process_mem_in_use.number_allocations_.push_back(0);
+
+  // Sample the reserved memory bytes reported by malloc.
+  AllocationSamples& process_mem_reserved
+      = map_samples["ProcessMemoryReserved"];
+  process_mem_reserved.allocated_bytes_
+      .push_back(memory_stats.used_cpu_memory);
+  process_mem_reserved.number_allocations_.push_back(0);
 }
 
 bool MemoryTrackerCompressedTimeSeries::IsFull(const TimeSeries& timeseries,
