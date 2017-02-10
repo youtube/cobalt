@@ -71,7 +71,6 @@
         'log_format.cc',
         'log_is_tty.cc',
         'log_raw.cc',
-        'main.cc',
         'microphone_impl.cc',
         'opensles_audio_sink_type.cc',
         'opensles_audio_sink_type.h',
