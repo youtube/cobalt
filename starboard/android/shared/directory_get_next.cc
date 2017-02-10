@@ -12,11 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/iso/directory_internal.h"
+#include "starboard/directory.h"
 
+#include <android/asset_manager.h>
+
+#include "starboard/android/shared/file_internal.h"
+
+#include "starboard/android/shared/directory_internal.h"
 #include "starboard/shared/iso/impl/directory_get_next.h"
 
+using ::starboard::android::shared::g_app_assets_dir;
+
 bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
+  if (directory && directory->asset_dir && out_entry) {
+    const char* file_name = AAssetDir_getNextFileName(directory->asset_dir);
+    if (file_name == NULL) {
+      return false;
+    }
+    size_t size = SB_ARRAY_SIZE_INT(out_entry->name);
+    SbStringCopy(out_entry->name, g_app_assets_dir, size);
+    SbStringConcat(out_entry->name, file_name, size);
+    return true;
+  }
+
   return ::starboard::shared::iso::impl::SbDirectoryGetNext(directory,
                                                             out_entry);
 }
