@@ -15,8 +15,8 @@ VideoDecoderConfig::VideoDecoderConfig()
       profile_(VIDEO_CODEC_PROFILE_UNKNOWN),
       format_(VideoFrame::INVALID),
       extra_data_size_(0),
-      is_encrypted_(false) {
-}
+      is_encrypted_(false),
+      color_space_(COLOR_SPACE_UNSPECIFIED) {}
 
 VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
                                        VideoCodecProfile profile,
