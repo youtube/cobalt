@@ -1,4 +1,4 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,10 +16,29 @@
   'variables': {
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
+    'javascript_engine': 'mozjs-45',
     'cobalt_enable_jit': 1,
   },
+  'target_defaults': {
+    'default_configuration': 'linux-x64x11-cpp11_debug',
+    'configurations': {
+      'linux-x64x11-cpp11_debug': {
+        'inherit_from': ['debug_base'],
+      },
+      'linux-x64x11-cpp11_devel': {
+        'inherit_from': ['devel_base'],
+      },
+      'linux-x64x11-cpp11_qa': {
+        'inherit_from': ['qa_base'],
+      },
+      'linux-x64x11-cpp11_gold': {
+        'inherit_from': ['gold_base'],
+      },
+    }, # end of configurations
+  },
+
   'includes': [
+    'compiler_flags.gypi',
     '../libraries.gypi',
     '../../shared/gyp_configuration.gypi',
   ],
