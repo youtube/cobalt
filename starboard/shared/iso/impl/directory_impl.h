@@ -12,10 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/iso/directory_internal.h"
+#ifndef STARBOARD_SHARED_ISO_IMPL_DIRECTORY_IMPL_H_
+#define STARBOARD_SHARED_ISO_IMPL_DIRECTORY_IMPL_H_
 
-#include "starboard/shared/iso/impl/directory_open.h"
+#include "starboard/configuration.h"
+#include "starboard/directory.h"
 
-SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
-  return ::starboard::shared::iso::impl::SbDirectoryOpen(path, out_error);
-}
+#include "starboard/shared/internal_only.h"
+
+// Ensure SbDirectory is typedef'd to a SbDirectoryPrivate* that has a directory
+// field.
+SB_COMPILE_ASSERT(sizeof(((SbDirectory)0)->directory), \
+                  SbDirectoryPrivate_must_have_directory);
+
+#endif  // STARBOARD_SHARED_ISO_IMPL_DIRECTORY_IMPL_H_

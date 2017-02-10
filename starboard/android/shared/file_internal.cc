@@ -84,7 +84,7 @@ bool IsAndroidAssetPath(const char* path) {
   size_t prefix_len = strlen(g_app_assets_dir);
   return path != NULL
       && strncmp(g_app_assets_dir, path, prefix_len) == 0
-      && path[prefix_len] == '/';
+      && (path[prefix_len] == '/' || path[prefix_len] == '\0');
 }
 
 AAsset* OpenAndroidAsset(const char* path) {
@@ -93,6 +93,17 @@ AAsset* OpenAndroidAsset(const char* path) {
   }
   const char* asset_path = path + strlen(g_app_assets_dir) + 1;
   return AAssetManager_open(g_asset_manager, asset_path, AASSET_MODE_RANDOM);
+}
+
+AAssetDir* OpenAndroidAssetDir(const char* path) {
+  if (!IsAndroidAssetPath(path) || g_asset_manager == NULL) {
+    return NULL;
+  }
+  const char* asset_path = path + strlen(g_app_assets_dir);
+  if (*asset_path == '/') {
+    asset_path++;
+  }
+  return AAssetManager_openDir(g_asset_manager, asset_path);
 }
 
 }  // namespace shared

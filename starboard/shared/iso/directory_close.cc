@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/directory.h"
-
-#include <dirent.h>
-#include <errno.h>
-
-#include "starboard/file.h"
 #include "starboard/shared/iso/directory_internal.h"
 
-bool SbDirectoryClose(SbDirectory directory) {
-  if (!directory || !directory->directory) {
-    return false;
-  }
+#include "starboard/shared/iso/impl/directory_close.h"
 
-  bool result = !closedir(directory->directory);
-  delete directory;
-  return result;
+bool SbDirectoryClose(SbDirectory directory) {
+  return ::starboard::shared::iso::impl::SbDirectoryClose(directory);
 }
