@@ -164,9 +164,8 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
   // Use reverse iterators for the match so we can early-out of a mismatch
   // more quickly. Most requests start with '/session/:sessionId/', for
   // example.
-  typedef std::pair<std::vector<std::string>::const_reverse_iterator,
-                    std::vector<std::string>::const_reverse_iterator>
-      MismatchResultPair;
+  typedef std::vector<std::string>::const_reverse_iterator MismatchResult;
+  typedef std::pair<MismatchResult, MismatchResult> MismatchResultPair;
   typedef std::pair<CommandMappingLookup::iterator,
                     CommandMappingLookup::iterator> EqualRangeResultPair;
 
@@ -189,7 +188,7 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
     if (result_pair.first == components.rend()) {
       DCHECK(
           result_pair.second ==
-          static_cast<const CommandMapping>(it->second).path_components.rend());
+          static_cast<MismatchResult>(it->second.path_components.rend()));
       return &it->second;
     }
   }
