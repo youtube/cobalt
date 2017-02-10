@@ -14,6 +14,9 @@
 
 #include "starboard/file.h"
 
+#include "starboard/directory.h"
+
+#include "starboard/android/shared/directory_internal.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/shared/posix/impl/file_get_path_info.h"
 
@@ -25,11 +28,24 @@ bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
     return ::starboard::shared::posix::impl::FileGetPathInfo(path, out_info);
   }
 
-  bool result = false;
   SbFile file = SbFileOpen(path, kSbFileRead, NULL, NULL);
   if (file) {
-    result = SbFileGetInfo(file, out_info);
+    bool result = SbFileGetInfo(file, out_info);
     SbFileClose(file);
+    return result;
   }
-  return result;
+
+  SbDirectory directory = SbDirectoryOpen(path, NULL);
+  if (directory && directory->asset_dir) {
+    out_info->creation_time = 0;
+    out_info->is_directory = 1;
+    out_info->is_symbolic_link = 0;
+    out_info->last_accessed = 0;
+    out_info->last_modified = 0;
+    out_info->size = 0;
+    SbDirectoryClose(directory);
+    return true;
+  }
+
+  return false;
 }

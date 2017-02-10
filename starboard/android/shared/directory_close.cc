@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/iso/directory_internal.h"
+#include "starboard/directory.h"
 
-#include "starboard/shared/iso/impl/directory_open.h"
+#include <android/asset_manager.h>
 
-SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
-  return ::starboard::shared::iso::impl::SbDirectoryOpen(path, out_error);
+#include "starboard/android/shared/file_internal.h"
+
+#include "starboard/android/shared/directory_internal.h"
+#include "starboard/shared/iso/impl/directory_close.h"
+
+bool SbDirectoryClose(SbDirectory directory) {
+  if (directory && directory->asset_dir) {
+    AAssetDir_close(directory->asset_dir);
+    delete directory;
+    return true;
+  }
+
+  return ::starboard::shared::iso::impl::SbDirectoryClose(directory);
 }

@@ -12,10 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/iso/directory_internal.h"
+#include "starboard/directory.h"
 
+#include <android/asset_manager.h>
+
+#include "starboard/android/shared/file_internal.h"
+
+#include "starboard/android/shared/directory_internal.h"
 #include "starboard/shared/iso/impl/directory_open.h"
 
+using starboard::android::shared::IsAndroidAssetPath;
+using starboard::android::shared::OpenAndroidAssetDir;
+
 SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
-  return ::starboard::shared::iso::impl::SbDirectoryOpen(path, out_error);
+  if (!IsAndroidAssetPath(path)) {
+    return ::starboard::shared::iso::impl::SbDirectoryOpen(path, out_error);
+  }
+
+  AAssetDir* asset_dir = OpenAndroidAssetDir(path);
+  if (asset_dir) {
+    SbDirectory result = new SbDirectoryPrivate();
+    result->asset_dir = asset_dir;
+    return result;
+  }
+
+  if (out_error) {
+    *out_error = kSbFileErrorFailed;
+  }
+  return kSbDirectoryInvalid;
 }
