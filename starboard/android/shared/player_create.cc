@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 #include "starboard/player.h"
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/log.h"
@@ -24,6 +25,7 @@
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
+using starboard::android::shared::JniEnvExt;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
@@ -54,6 +56,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;
   }
+
+  JniEnvExt::Get()->CallActivityVoidMethod("onMediaStart", "()V");
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
