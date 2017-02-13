@@ -52,6 +52,18 @@ struct JniEnvExt : public JNIEnv {
     return GetMethodID(GetObjectClass(obj), name, sig);
   }
 
+  // Convienience method to lookup and call a constructor.
+  jobject NewObject(const char* class_name, const char* sig, ...) {
+    va_list argp;
+    va_start(argp, sig);
+    jclass cls = FindClass(class_name);
+    jmethodID methodID = GetMethodID(cls, "<init>", sig);
+    jobject result = NewObjectV(cls, methodID, argp);
+    DeleteLocalRef(cls);
+    va_end(argp);
+    return result;
+  }
+
 // Convienience methods to lookup and call a method all at once:
 // Call[Type]Method() overloaded to take a jobject of an instance.
 // CallActivity[Type]Method() to call methods on the CobaltActivity.
