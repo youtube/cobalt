@@ -338,6 +338,8 @@
 // the scene hasn't changed.
 #define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
 
+#define SB_HAS_VIRTUAL_REALITY 1
+
 // --- Media Configuration ---------------------------------------------------
 
 // Specifies whether this platform has support for a possibly-decrypting

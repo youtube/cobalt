@@ -59,6 +59,8 @@
         'types.h',
         'user.h',
         'window.h',
+        # Include private headers, if present.
+        '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "*.h")',
       ],
       'dependencies': [
         '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
