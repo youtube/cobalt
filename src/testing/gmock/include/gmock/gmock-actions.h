@@ -46,6 +46,10 @@
 #include "gmock/internal/gmock-internal-utils.h"
 #include "gmock/internal/gmock-port.h"
 
+#if GTEST_LANG_CXX11  // Defined by gtest-port.h via gmock-port.h.
+#include <type_traits>
+#endif
+
 namespace testing {
 
 // To implement an action Foo, define:
@@ -62,22 +66,17 @@ namespace internal {
 template <typename F1, typename F2>
 class ActionAdaptor;
 
-# ifdef _MSC_VER
-#  pragma warning(push)          // Saves the current warning state.
-#  pragma warning(disable:4702)  // Temporarily disables warning 4702.
-# endif
-
-// BuiltInDefaultValue<T>::Get() returns the "built-in" default
-// value for type T, which is NULL when T is a pointer type, 0 when T
-// is a numeric type, false when T is bool, or "" when T is string or
-// std::string.  For any other type T, this value is undefined and the
-// function will abort the process.
+// BuiltInDefaultValueGetter<T, true>::Get() returns a
+// default-constructed T value.  BuiltInDefaultValueGetter<T,
+// false>::Get() crashes with an error.
+//
+// This primary template is used when kDefaultConstructible is true.
+template <typename T, bool kDefaultConstructible>
+struct BuiltInDefaultValueGetter {
+  static T Get() { return T(); }
+};
 template <typename T>
-class BuiltInDefaultValue {
- public:
-  // This function returns true iff type T has a built-in default value.
-  static bool Exists() { return false; }
-
+struct BuiltInDefaultValueGetter<T, false> {
   static T Get() {
     Assert(false, __FILE__, __LINE__,
            "Default action undefined for the function return type.");
@@ -87,9 +86,39 @@ class BuiltInDefaultValue {
   }
 };
 
-# ifdef _MSC_VER
-#  pragma warning(pop)           // Restores the warning state.
-# endif
+// BuiltInDefaultValue<T>::Get() returns the "built-in" default value
+// for type T, which is NULL when T is a raw pointer type, 0 when T is
+// a numeric type, false when T is bool, or "" when T is string or
+// std::string.  In addition, in C++11 and above, it turns a
+// default-constructed T value if T is default constructible.  For any
+// other type T, the built-in default T value is undefined, and the
+// function will abort the process.
+template <typename T>
+class BuiltInDefaultValue {
+ public:
+#if GTEST_LANG_CXX11
+  // This function returns true iff type T has a built-in default value.
+  static bool Exists() {
+    return ::std::is_default_constructible<T>::value;
+  }
+
+  static T Get() {
+    return BuiltInDefaultValueGetter<
+        T, ::std::is_default_constructible<T>::value>::Get();
+  }
+
+#else  // GTEST_LANG_CXX11
+  // This function returns true iff type T has a built-in default value.
+  static bool Exists() {
+    return false;
+  }
+
+  static T Get() {
+    return BuiltInDefaultValueGetter<T, false>::Get();
+  }
+
+#endif  // GTEST_LANG_CXX11
+};
 
 // This partial specialization says that we use the same built-in
 // default value for T and const T.
@@ -469,6 +498,14 @@ class ActionAdaptor : public ActionInterface<F1> {
   GTEST_DISALLOW_ASSIGN_(ActionAdaptor);
 };
 
+// Helper struct to specialize ReturnAction to execute a move instead of a copy
+// on return. Useful for move-only types, but could be used on any type.
+template <typename T>
+struct ByMoveWrapper {
+  explicit ByMoveWrapper(T value) : payload(internal::move(value)) {}
+  T payload;
+};
+
 // Implements the polymorphic Return(x) action, which can be used in
 // any function that returns the type of x, regardless of the argument
 // types.
@@ -499,7 +536,7 @@ class ReturnAction {
   // Constructs a ReturnAction object from the value to be returned.
   // 'value' is passed by value instead of by const reference in order
   // to allow Return("string literal") to compile.
-  explicit ReturnAction(R value) : value_(value) {}
+  explicit ReturnAction(R value) : value_(new R(internal::move(value))) {}
 
   // This template type conversion operator allows Return(x) to be
   // used in ANY function that returns x's type.
@@ -515,14 +552,14 @@ class ReturnAction {
     // in the Impl class. But both definitions must be the same.
     typedef typename Function<F>::Result Result;
     GTEST_COMPILE_ASSERT_(
-        !internal::is_reference<Result>::value,
+        !is_reference<Result>::value,
         use_ReturnRef_instead_of_Return_to_return_a_reference);
-    return Action<F>(new Impl<F>(value_));
+    return Action<F>(new Impl<R, F>(value_));
   }
 
  private:
   // Implements the Return(x) action for a particular function type F.
-  template <typename F>
+  template <typename R_, typename F>
   class Impl : public ActionInterface<F> {
    public:
     typedef typename Function<F>::Result Result;
@@ -535,20 +572,49 @@ class ReturnAction {
     // Result to call.  ImplicitCast_ forces the compiler to convert R to
     // Result without considering explicit constructors, thus resolving the
     // ambiguity. value_ is then initialized using its copy constructor.
-    explicit Impl(R value)
-        : value_(::testing::internal::ImplicitCast_<Result>(value)) {}
+    explicit Impl(const linked_ptr<R>& value)
+        : value_before_cast_(*value),
+          value_(ImplicitCast_<Result>(value_before_cast_)) {}
 
     virtual Result Perform(const ArgumentTuple&) { return value_; }
 
    private:
-    GTEST_COMPILE_ASSERT_(!internal::is_reference<Result>::value,
+    GTEST_COMPILE_ASSERT_(!is_reference<Result>::value,
                           Result_cannot_be_a_reference_type);
+    // We save the value before casting just in case it is being cast to a
+    // wrapper type.
+    R value_before_cast_;
     Result value_;
+
+    GTEST_DISALLOW_COPY_AND_ASSIGN_(Impl);
+  };
+
+  // Partially specialize for ByMoveWrapper. This version of ReturnAction will
+  // move its contents instead.
+  template <typename R_, typename F>
+  class Impl<ByMoveWrapper<R_>, F> : public ActionInterface<F> {
+   public:
+    typedef typename Function<F>::Result Result;
+    typedef typename Function<F>::ArgumentTuple ArgumentTuple;
+
+    explicit Impl(const linked_ptr<R>& wrapper)
+        : performed_(false), wrapper_(wrapper) {}
+
+    virtual Result Perform(const ArgumentTuple&) {
+      GTEST_CHECK_(!performed_)
+          << "A ByMove() action should only be performed once.";
+      performed_ = true;
+      return internal::move(wrapper_->payload);
+    }
+
+   private:
+    bool performed_;
+    const linked_ptr<R> wrapper_;
 
     GTEST_DISALLOW_ASSIGN_(Impl);
   };
 
-  R value_;
+  const linked_ptr<R> value_;
 
   GTEST_DISALLOW_ASSIGN_(ReturnAction);
 };
@@ -556,12 +622,18 @@ class ReturnAction {
 // Implements the ReturnNull() action.
 class ReturnNullAction {
  public:
-  // Allows ReturnNull() to be used in any pointer-returning function.
+  // Allows ReturnNull() to be used in any pointer-returning function. In C++11
+  // this is enforced by returning nullptr, and in non-C++11 by asserting a
+  // pointer type on compile time.
   template <typename Result, typename ArgumentTuple>
   static Result Perform(const ArgumentTuple&) {
+#if GTEST_LANG_CXX11
+    return nullptr;
+#else
     GTEST_COMPILE_ASSERT_(internal::is_pointer<Result>::value,
                           ReturnNull_can_be_used_to_return_a_pointer_only);
     return NULL;
+#endif  // GTEST_LANG_CXX11
   }
 };
 
@@ -738,7 +810,7 @@ class SetArgumentPointeeAction {
   template <typename Result, typename ArgumentTuple>
   void Perform(const ArgumentTuple& args) const {
     CompileAssertTypesEqual<void, Result>();
-    *::std::tr1::get<N>(args) = value_;
+    *::testing::get<N>(args) = value_;
   }
 
  private:
@@ -761,7 +833,7 @@ class SetArgumentPointeeAction<N, Proto, true> {
   template <typename Result, typename ArgumentTuple>
   void Perform(const ArgumentTuple& args) const {
     CompileAssertTypesEqual<void, Result>();
-    ::std::tr1::get<N>(args)->CopyFrom(*proto_);
+    ::testing::get<N>(args)->CopyFrom(*proto_);
   }
 
  private:
@@ -987,7 +1059,7 @@ Action<To>::Action(const Action<From>& from)
 // will trigger a compiler error about using array as initializer.
 template <typename R>
 internal::ReturnAction<R> Return(R value) {
-  return internal::ReturnAction<R>(value);
+  return internal::ReturnAction<R>(internal::move(value));
 }
 
 // Creates an action that returns NULL.
@@ -1012,6 +1084,15 @@ inline internal::ReturnRefAction<R> ReturnRef(R& x) {  // NOLINT
 template <typename R>
 inline internal::ReturnRefOfCopyAction<R> ReturnRefOfCopy(const R& x) {
   return internal::ReturnRefOfCopyAction<R>(x);
+}
+
+// Modifies the parent action (a Return() action) to perform a move of the
+// argument instead of a copy.
+// Return(ByMove()) actions can only be executed once and will assert this
+// invariant.
+template <typename R>
+internal::ByMoveWrapper<R> ByMove(R x) {
+  return internal::ByMoveWrapper<R>(internal::move(x));
 }
 
 // Creates an action that does the default action for the give mock function.

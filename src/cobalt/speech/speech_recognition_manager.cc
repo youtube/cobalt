@@ -111,7 +111,7 @@ SpeechRecognitionManager::SpeechRecognitionManager(
       microphone_creator));
 }
 
-SpeechRecognitionManager::~SpeechRecognitionManager() { Stop(); }
+SpeechRecognitionManager::~SpeechRecognitionManager() { Stop(false); }
 
 void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
                                      script::ExceptionState* exception_state) {
@@ -131,7 +131,7 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   state_ = kStarted;
 }
 
-void SpeechRecognitionManager::Stop() {
+void SpeechRecognitionManager::Stop(bool run_callback) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
   // If the stop method is called on an object which is already stopped or being
@@ -144,7 +144,9 @@ void SpeechRecognitionManager::Stop() {
   microphone_manager_->Close();
   recognizer_->Stop();
   state_ = kStopped;
-  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
+  if (run_callback) {
+    event_callback_.Run(new dom::Event(base::Tokens::soundend()));
+  }
 }
 
 void SpeechRecognitionManager::Abort() {

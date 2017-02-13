@@ -30,8 +30,10 @@ namespace base {
 TEST(CValCollectionEntryStatsTest, DefaultValues) {
   const std::string name = "CollectionEntry";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = false;
 
-  base::CValCollectionEntryStats<int> cval(name, max_size);
+  base::CValCollectionEntryStats<int> cval(name, max_size,
+                                           enable_entry_list_c_val);
 
   base::CValManager* cvm = base::CValManager::GetInstance();
   base::optional<std::string> count =
@@ -52,6 +54,8 @@ TEST(CValCollectionEntryStatsTest, DefaultValues) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "0");
@@ -71,13 +75,16 @@ TEST(CValCollectionEntryStatsTest, DefaultValues) {
   EXPECT_EQ(*pct95, "0");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "0");
+  EXPECT_FALSE(entry_list);
 }
 
 TEST(CValCollectionEntryStatsTest, NoFlush) {
   const std::string name = "CollectionEntryStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionEntryStats<int> cval(name, max_size);
+  base::CValCollectionEntryStats<int> cval(name, max_size,
+                                           enable_entry_list_c_val);
   cval.AddEntry(3);
   cval.AddEntry(9);
   cval.AddEntry(1);
@@ -102,6 +109,8 @@ TEST(CValCollectionEntryStatsTest, NoFlush) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "0");
@@ -121,13 +130,17 @@ TEST(CValCollectionEntryStatsTest, NoFlush) {
   EXPECT_EQ(*pct95, "0");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "0");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[]");
 }
 
 TEST(CValCollectionEntryStatsTest, MaxSizeFlush) {
   const std::string name = "CollectionEntryStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionEntryStats<int> cval(name, max_size);
+  base::CValCollectionEntryStats<int> cval(name, max_size,
+                                           enable_entry_list_c_val);
   cval.AddEntry(3);
   cval.AddEntry(9);
   cval.AddEntry(1);
@@ -153,6 +166,8 @@ TEST(CValCollectionEntryStatsTest, MaxSizeFlush) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "5");
@@ -172,13 +187,17 @@ TEST(CValCollectionEntryStatsTest, MaxSizeFlush) {
   EXPECT_EQ(*pct95, "8");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "3");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[3, 9, 1, 7, 5]");
 }
 
 TEST(CValCollectionEntryStatsTest, ManualFlush) {
   const std::string name = "CollectionEntryStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionEntryStats<int, CValPublic> cval(name, max_size);
+  base::CValCollectionEntryStats<int> cval(name, max_size,
+                                           enable_entry_list_c_val);
   cval.AddEntry(3);
   cval.AddEntry(9);
   cval.AddEntry(1);
@@ -205,6 +224,8 @@ TEST(CValCollectionEntryStatsTest, ManualFlush) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "4");
@@ -224,13 +245,17 @@ TEST(CValCollectionEntryStatsTest, ManualFlush) {
   EXPECT_EQ(*pct95, "8");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "3");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[3, 9, 1, 7]");
 }
 
 TEST(CValCollectionEntryStatsTest, TwoManualFlushes) {
   const std::string name = "CollectionEntryStats";
   const size_t max_size = 5;
+  bool enable_entry_list_c_val = true;
 
-  base::CValCollectionEntryStats<int, CValDebug> cval(name, max_size);
+  base::CValCollectionEntryStats<int> cval(name, max_size,
+                                           enable_entry_list_c_val);
   cval.AddEntry(3);
   cval.AddEntry(9);
   cval.AddEntry(1);
@@ -258,6 +283,8 @@ TEST(CValCollectionEntryStatsTest, TwoManualFlushes) {
       cvm->GetValueAsPrettyString(StringPrintf("%s.Pct.95th", name.c_str()));
   base::optional<std::string> std =
       cvm->GetValueAsPrettyString(StringPrintf("%s.Std", name.c_str()));
+  base::optional<std::string> entry_list =
+      cvm->GetValueAsPrettyString(StringPrintf("%s.EntryList", name.c_str()));
 
   EXPECT_TRUE(count);
   EXPECT_EQ(*count, "1");
@@ -277,6 +304,8 @@ TEST(CValCollectionEntryStatsTest, TwoManualFlushes) {
   EXPECT_EQ(*pct95, "5");
   EXPECT_TRUE(std);
   EXPECT_EQ(*std, "0");
+  EXPECT_TRUE(entry_list);
+  EXPECT_EQ(*entry_list, "[5]");
 }
 
 }  // namespace base

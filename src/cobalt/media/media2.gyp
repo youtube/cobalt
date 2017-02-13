@@ -181,7 +181,9 @@
       ],
     },
     {
-      'target_name': 'media_unittests',
+      # Rename 'media2_unittests' to 'media_unittests' once the original media
+      # is removed.
+      'target_name': 'media2_unittests',
       'type': '<(gtest_target_type)',
       'dependencies': [
         'media2',
@@ -291,14 +293,18 @@
       ],
     },
     {
-      'target_name': 'qt_faststart',
+      # Rename 'media2_qt_faststart' to 'qt_faststart' once the original media
+      # is removed.
+      'target_name': 'media2_qt_faststart',
       'type': 'executable',
       'sources': [
         'tools/qt_faststart/qt_faststart.c'
       ],
     },
     {
-      'target_name': 'seek_tester',
+      # Rename 'media2_seek_tester' to 'seek_tester' once the original media is
+      # removed.
+      'target_name': 'media2_seek_tester',
       'type': 'executable',
       'dependencies': [
         'media2',
@@ -309,7 +315,9 @@
       ],
     },
     {
-      'target_name': 'demuxer_bench',
+      # Rename 'media2_demuxer_bench' to 'demuxer_bench' once the original media
+      # is removed.
+      'target_name': 'media2_demuxer_bench',
       'type': 'executable',
       'dependencies': [
         'media2',

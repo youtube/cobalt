@@ -95,10 +95,10 @@ class MockParserObserver {
   MOCK_METHOD1(OnError, void(const std::string& message));
 };
 
-class ParserTest : public ::testing::Test {
+class ParserTestBase : public ::testing::Test {
  public:
-  ParserTest();
-  ~ParserTest() OVERRIDE {}
+  explicit ParserTestBase(Parser::SupportsMapToMeshFlag supports_map_to_mesh);
+  ~ParserTestBase() OVERRIDE {}
 
  protected:
   ::testing::StrictMock<MockParserObserver> parser_observer_;
@@ -106,13 +106,24 @@ class ParserTest : public ::testing::Test {
   const base::SourceLocation source_location_;
 };
 
-ParserTest::ParserTest()
+ParserTestBase::ParserTestBase(
+    Parser::SupportsMapToMeshFlag supports_map_to_mesh)
     : parser_(base::Bind(&MockParserObserver::OnWarning,
                          base::Unretained(&parser_observer_)),
               base::Bind(&MockParserObserver::OnError,
                          base::Unretained(&parser_observer_)),
-              Parser::kShort),
+              Parser::kShort, supports_map_to_mesh),
       source_location_("[object ParserTest]", 1, 1) {}
+
+class ParserTest : public ParserTestBase {
+ public:
+  ParserTest() : ParserTestBase(Parser::kSupportsMapToMesh) {}
+};
+
+class ParserNoMapToMeshTest : public ParserTestBase {
+ public:
+  ParserNoMapToMeshTest() : ParserTestBase(Parser::kDoesNotSupportMapToMesh) {}
+};
 
 // TODO: Test every reduction that has semantic action.
 
@@ -8373,11 +8384,11 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
           "filter: map-to-mesh(url(projection.msh),"
-          "                        180deg 1.5rad,"
-          "                        matrix3d(1, 0, 0, 0,"
-          "                                 0, 1, 0, 0,"
-          "                                 0, 0, 1, 0,"
-          "                                 0, 0, 0, 1));",
+          "                    180deg 1.5rad,"
+          "                    matrix3d(1, 0, 0, 0,"
+          "                             0, 1, 0, 0,"
+          "                             0, 0, 1, 0,"
+          "                             0, 0, 0, 1));",
           source_location_);
   scoped_refptr<cssom::FilterFunctionListValue> filter_list =
       dynamic_cast<cssom::FilterFunctionListValue*>(
@@ -8389,6 +8400,40 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   const cssom::MTMFunction* mtm_function =
       dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(cssom::MTMFunction::kUrls, mtm_function->mesh_spec().mesh_type());
+
+  EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
+  EXPECT_EQ(1.5f, mtm_function->vertical_fov());
+
+  EXPECT_EQ(mtm_function->stereo_mode()->value(),
+            cssom::KeywordValue::kMonoscopic);
+}
+
+TEST_F(ParserTest, ParsesMtmEquirectangularFilter) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: map-to-mesh(equirectangular,"
+          "                    180deg 1.5rad,"
+          "                    matrix3d(1, 0, 0, 0,"
+          "                             0, 1, 0, 0,"
+          "                             0, 0, 1, 0,"
+          "                             0, 0, 0, 1),"
+          "                             monoscopic);",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  ASSERT_TRUE(filter_list);
+  ASSERT_EQ(1, filter_list->value().size());
+
+  const cssom::MTMFunction* mtm_function =
+      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  ASSERT_TRUE(mtm_function);
+
+  EXPECT_EQ(cssom::MTMFunction::kEquirectangular,
+            mtm_function->mesh_spec().mesh_type());
 
   EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
   EXPECT_EQ(1.5f, mtm_function->vertical_fov());
@@ -8425,6 +8470,46 @@ TEST_F(ParserTest, ParsesMtmWIPFilterName) {
             cssom::KeywordValue::kMonoscopic);
 }
 
+TEST_F(ParserNoMapToMeshTest, DoesNotParseMapToMeshFilter) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:9: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: map-to-mesh(url(projection.msh),"
+          "                    180deg 1.5rad,"
+          "                    matrix3d(1, 0, 0, 0,"
+          "                             0, 1, 0, 0,"
+          "                             0, 0, 1, 0,"
+          "                             0, 0, 0, 1));",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  EXPECT_FALSE(filter_list);
+}
+
+TEST_F(ParserNoMapToMeshTest, DoesNotParseMtmFilter) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:9: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "filter: -cobalt-mtm(url(projection.msh),"
+          "                    180deg 1.5rad,"
+          "                    matrix3d(1, 0, 0, 0,"
+          "                             0, 1, 0, 0,"
+          "                             0, 0, 1, 0,"
+          "                             0, 0, 0, 1));",
+          source_location_);
+  scoped_refptr<cssom::FilterFunctionListValue> filter_list =
+      dynamic_cast<cssom::FilterFunctionListValue*>(
+          style->GetPropertyValue(cssom::kFilterProperty).get());
+
+  EXPECT_FALSE(filter_list);
+}
+
 TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
@@ -8448,7 +8533,7 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
       dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
 
   const cssom::MTMFunction::ResolutionMatchedMeshListBuilder& meshes =
-      mtm_function->resolution_matched_meshes();
+      mtm_function->mesh_spec().resolution_matched_meshes();
 
   ASSERT_EQ(3, meshes.size());
   EXPECT_EQ(640, meshes[0]->width_match());

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,63 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/directory.h"
-
-#include <dirent.h>
-#include <errno.h>
-
-#include "starboard/file.h"
 #include "starboard/shared/iso/directory_internal.h"
 
+#include "starboard/shared/iso/impl/directory_open.h"
+
 SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
-  if (!path) {
-    if (out_error) {
-      *out_error = kSbFileErrorNotFound;
-    }
-    return kSbDirectoryInvalid;
-  }
-
-  DIR* dir = opendir(path);
-  if (!dir) {
-    if (out_error) {
-      switch (errno) {
-        case EACCES:
-          *out_error = kSbFileErrorAccessDenied;
-          break;
-        case ELOOP:
-          *out_error = kSbFileErrorFailed;
-          break;
-        case ENAMETOOLONG:
-          *out_error = kSbFileErrorInvalidOperation;
-          break;
-        case ENOENT:
-          *out_error = kSbFileErrorNotFound;
-          break;
-        case ENOTDIR:
-          *out_error = kSbFileErrorNotADirectory;
-          break;
-        case EMFILE:
-        case ENFILE:
-          *out_error = kSbFileErrorTooManyOpened;
-          break;
-      }
-    }
-
-    return kSbDirectoryInvalid;
-  }
-
-  SbDirectory result = new SbDirectoryPrivate();
-  if (!result) {
-    closedir(dir);
-    if (out_error) {
-      *out_error = kSbFileErrorNoMemory;
-    }
-    return kSbDirectoryInvalid;
-  }
-
-  result->directory = dir;
-  if (out_error) {
-    *out_error = kSbFileOk;
-  }
-  return result;
+  return ::starboard::shared::iso::impl::SbDirectoryOpen(path, out_error);
 }

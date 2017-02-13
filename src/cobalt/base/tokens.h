@@ -28,6 +28,7 @@ namespace base {
     MacroOpWithNameOnly(abort)                                \
     MacroOpWithNameOnly(additions)                            \
     MacroOpWithNameOnly(alt)                                  \
+    MacroOpWithNameOnly(all)                                  \
     MacroOpWithNameOnly(animationend)                         \
     MacroOpWithNameOnly(assertive)                            \
     MacroOpWithNameOnly(blur)                                 \

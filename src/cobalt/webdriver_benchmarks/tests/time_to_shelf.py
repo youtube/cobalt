@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import datetime
 import os
 import sys
 
@@ -36,26 +37,30 @@ class TimeToShelf(tv_testcase.TvTestCase):
     """This test tries to measure the startup time for the YouTube TV page.
 
     Specifically, this test uses the Cobalt CVal Cobalt.Lifetime, which gets
-    updated ~60Hz on a best effort basis.  This value is in microseconds.
+    updated ~60Hz on a best effort basis and is in microseconds, to determine
+    "timeToShelfBlankStartupTimeUs" and uses Python's datetime module to
+    determine "timeToShelfTestTimeShelfDisplayMedianUs".
 
     Note: t0 is defined after Cobalt starts up, but has not navigated to a page.
     If that true startup time metric is desired, perhaps a separate should be
     used.
     """
     metrics_array = []
-    blank_startup_time_microseconds = self.get_int_cval('Cobalt.Lifetime')
+    blank_startup_time_microseconds = self.get_cval('Cobalt.Lifetime')
     for _ in range(10):
-      t0 = self.get_int_cval('Cobalt.Lifetime')
+      t0 = datetime.datetime.now()
       self.load_tv()
       self.wait_for_processing_complete_after_focused_shelf()
-      t1 = self.get_int_cval('Cobalt.Lifetime')
-      startup_time_microseconds = t1 - t0
+      t1 = datetime.datetime.now()
+      delta = t1 - t0
+      startup_time_microseconds = delta.seconds * 1000000 + delta.microseconds
       metrics_array.append(startup_time_microseconds)
 
     tv_testcase_util.record_test_result_median(
         'timeToShelfTestTimeShelfDisplayMedianUs', metrics_array)
     tv_testcase_util.record_test_result('timeToShelfBlankStartupTimeUs',
                                         blank_startup_time_microseconds)
+
 
 if __name__ == '__main__':
   tv_testcase.main()

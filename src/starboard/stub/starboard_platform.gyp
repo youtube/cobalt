@@ -18,6 +18,8 @@
       'type': 'static_library',
       'sources': [
         '<(DEPTH)/starboard/shared/starboard/application.cc',
+        '<(DEPTH)/starboard/shared/starboard/command_line.cc',
+        '<(DEPTH)/starboard/shared/starboard/command_line.h',
         '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',

@@ -198,6 +198,7 @@
 %token kEllipseToken                    // ellipse
 %token kEllipsisToken                   // ellipsis
 %token kEndToken                        // end
+%token kEquirectangularToken            // equirectangular
 %token kFantasyToken                    // fantasy
 %token kFarthestCornerToken             // farthest-corner
 %token kFarthestSideToken               // farthest-side
@@ -791,6 +792,11 @@
 %union { cssom::FilterFunctionListValue::Builder* cobalt_mtm_filter_functions; }
 %type <cobalt_mtm_filter_functions> filter_function_list
 %destructor { delete $$; } <cobalt_mtm_filter_functions>
+
+%union {
+  cssom::MTMFunction::MeshSpec* cobalt_map_to_mesh_spec; }
+%type <cobalt_map_to_mesh_spec> cobalt_map_to_mesh_spec
+%destructor { delete $$; } <cobalt_map_to_mesh_spec>
 
 %union {
   cssom::MTMFunction::ResolutionMatchedMeshListBuilder* cobalt_mtm_resolution_matched_meshes; }
@@ -6542,21 +6548,42 @@ filter_function:
 
 cobalt_mtm_filter_function:
   // Encodes an mtm filter. Currently the only type of filter function supported.
-    cobalt_mtm_function_name maybe_whitespace url
-        cobalt_mtm_resolution_matched_mesh_list comma angle angle comma
-        cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
+    cobalt_mtm_function_name maybe_whitespace cobalt_map_to_mesh_spec comma angle
+        angle comma cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
         ')' maybe_whitespace {
-    scoped_ptr<cssom::MTMFunction::ResolutionMatchedMeshListBuilder>
-        resolution_matched_mesh_urls($4);
-    scoped_ptr<glm::mat4> transform($9);
+    scoped_ptr<cssom::MTMFunction::MeshSpec>
+        mesh_spec($3);
+    scoped_ptr<glm::mat4> transform($8);
+    scoped_refptr<cssom::KeywordValue> stereo_mode =
+        MakeScopedRefPtrAndRelease($9);
 
-    $$ = new cssom::MTMFunction(
-        MakeScopedRefPtrAndRelease($3),
-        resolution_matched_mesh_urls->Pass(),
-        $6,
-        $7,
-        *transform,
-        MakeScopedRefPtrAndRelease($10));
+    if (!parser_impl->supports_map_to_mesh()) {
+      YYERROR;
+    } else {
+      $$ = new cssom::MTMFunction(
+          mesh_spec.Pass(),
+          $5,
+          $6,
+          *transform,
+          stereo_mode);
+    }
+  }
+  ;
+
+cobalt_map_to_mesh_spec:
+    kEquirectangularToken {
+    $$ = new cssom::MTMFunction::MeshSpec(
+        cssom::MTMFunction::kEquirectangular);
+  }
+  | url cobalt_mtm_resolution_matched_mesh_list {
+    scoped_refptr<cssom::PropertyValue> url = MakeScopedRefPtrAndRelease($1);
+    scoped_ptr<cssom::MTMFunction::ResolutionMatchedMeshListBuilder>
+        resolution_matched_mesh_urls($2);
+
+    $$ = new cssom::MTMFunction::MeshSpec(
+        cssom::MTMFunction::kUrls,
+        url,
+        resolution_matched_mesh_urls->Pass());
   }
   ;
 

@@ -207,59 +207,74 @@ ENUM_EQ(kSbMediaRangeIdFull, gfx::ColorSpace::kRangeIdFull);
 ENUM_EQ(kSbMediaRangeIdDerived, gfx::ColorSpace::kRangeIdDerived);
 ENUM_EQ(kSbMediaRangeIdLast, gfx::ColorSpace::kRangeIdLast);
 
-SbMediaHdrMetadataColorSpace MediaToSbMediaHdrMetadataColorSpace(
-    const HDRMetadata& hdr_metadata,
-    const gfx::ColorSpace& color_space_info) {
+SbMediaColorMetadata MediaToSbMediaColorMetadata(
+    const WebMColorMetadata& webm_color_metadata) {
+  SbMediaColorMetadata sb_media_color_metadata;
+
+  // Copy the other color metadata below.
+  sb_media_color_metadata.bits_per_channel = webm_color_metadata.BitsPerChannel;
+  sb_media_color_metadata.chroma_subsampling_horizontal =
+      webm_color_metadata.ChromaSubsamplingHorz;
+  sb_media_color_metadata.chroma_subsampling_vertical =
+      webm_color_metadata.ChromaSubsamplingVert;
+  sb_media_color_metadata.cb_subsampling_horizontal =
+      webm_color_metadata.CbSubsamplingHorz;
+  sb_media_color_metadata.cb_subsampling_vertical =
+      webm_color_metadata.CbSubsamplingVert;
+  sb_media_color_metadata.chroma_siting_horizontal =
+      webm_color_metadata.ChromaSitingHorz;
+  sb_media_color_metadata.chroma_siting_vertical =
+      webm_color_metadata.ChromaSitingVert;
+
   // Copy the HDR Metadata below.
   SbMediaMasteringMetadata sb_media_mastering_metadata;
+  HDRMetadata hdr_metadata = webm_color_metadata.hdr_metadata;
+  MasteringMetadata mastering_metadata = hdr_metadata.mastering_metadata;
 
   sb_media_mastering_metadata.primary_r_chromaticity_x =
-      hdr_metadata.mastering_metadata.primary_r_chromaticity_x;
+      mastering_metadata.primary_r_chromaticity_x;
   sb_media_mastering_metadata.primary_r_chromaticity_y =
-      hdr_metadata.mastering_metadata.primary_r_chromaticity_y;
+      mastering_metadata.primary_r_chromaticity_y;
 
   sb_media_mastering_metadata.primary_g_chromaticity_x =
-      hdr_metadata.mastering_metadata.primary_g_chromaticity_x;
+      mastering_metadata.primary_g_chromaticity_x;
   sb_media_mastering_metadata.primary_g_chromaticity_y =
-      hdr_metadata.mastering_metadata.primary_g_chromaticity_y;
+      mastering_metadata.primary_g_chromaticity_y;
 
   sb_media_mastering_metadata.primary_b_chromaticity_x =
-      hdr_metadata.mastering_metadata.primary_b_chromaticity_x;
+      mastering_metadata.primary_b_chromaticity_x;
   sb_media_mastering_metadata.primary_b_chromaticity_y =
-      hdr_metadata.mastering_metadata.primary_b_chromaticity_y;
+      mastering_metadata.primary_b_chromaticity_y;
 
   sb_media_mastering_metadata.white_point_chromaticity_x =
-      hdr_metadata.mastering_metadata.white_point_chromaticity_x;
+      mastering_metadata.white_point_chromaticity_x;
   sb_media_mastering_metadata.white_point_chromaticity_y =
-      hdr_metadata.mastering_metadata.white_point_chromaticity_y;
+      mastering_metadata.white_point_chromaticity_y;
 
-  sb_media_mastering_metadata.luminance_max =
-      hdr_metadata.mastering_metadata.luminance_max;
-  sb_media_mastering_metadata.luminance_min =
-      hdr_metadata.mastering_metadata.luminance_min;
+  sb_media_mastering_metadata.luminance_max = mastering_metadata.luminance_max;
+  sb_media_mastering_metadata.luminance_min = mastering_metadata.luminance_min;
 
-  SbMediaHdrMetadataColorSpace sb_media_hdr_metadata_color_space;
-  sb_media_hdr_metadata_color_space.mastering_metadata =
-      sb_media_mastering_metadata;
-  sb_media_hdr_metadata_color_space.max_cll = hdr_metadata.max_cll;
-  sb_media_hdr_metadata_color_space.max_fall = hdr_metadata.max_fall;
+  sb_media_color_metadata.mastering_metadata = sb_media_mastering_metadata;
+  sb_media_color_metadata.max_cll = hdr_metadata.max_cll;
+  sb_media_color_metadata.max_fall = hdr_metadata.max_fall;
 
   // Copy the color space below.
-  sb_media_hdr_metadata_color_space.primaries =
-      static_cast<SbMediaPrimaryId>(color_space_info.primaries());
-  sb_media_hdr_metadata_color_space.transfer =
-      static_cast<SbMediaTransferId>(color_space_info.transfer());
-  sb_media_hdr_metadata_color_space.matrix =
-      static_cast<SbMediaMatrixId>(color_space_info.matrix());
-  sb_media_hdr_metadata_color_space.range =
-      static_cast<SbMediaRangeId>(color_space_info.range());
-  if (sb_media_hdr_metadata_color_space.primaries == kSbMediaPrimaryIdCustom) {
-    const float* custom_primary_matrix =
-        color_space_info.custom_primary_matrix();
-    SbMemoryCopy(sb_media_hdr_metadata_color_space.custom_primary_matrix,
+  gfx::ColorSpace color_space = webm_color_metadata.color_space;
+  sb_media_color_metadata.primaries =
+      static_cast<SbMediaPrimaryId>(color_space.primaries());
+  sb_media_color_metadata.transfer =
+      static_cast<SbMediaTransferId>(color_space.transfer());
+  sb_media_color_metadata.matrix =
+      static_cast<SbMediaMatrixId>(color_space.matrix());
+  sb_media_color_metadata.range =
+      static_cast<SbMediaRangeId>(color_space.range());
+  if (sb_media_color_metadata.primaries == kSbMediaPrimaryIdCustom) {
+    const float* custom_primary_matrix = color_space.custom_primary_matrix();
+    SbMemoryCopy(sb_media_color_metadata.custom_primary_matrix,
                  custom_primary_matrix, sizeof(custom_primary_matrix));
   }
-  return sb_media_hdr_metadata_color_space;
+
+  return sb_media_color_metadata;
 }
 #endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 

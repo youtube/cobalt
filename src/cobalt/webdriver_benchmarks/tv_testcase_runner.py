@@ -141,12 +141,12 @@ class CobaltRunner(object):
     self.should_exit.set()
     self.launcher.SendKill()
 
-  def _GetIPAddress(self):
-    return self.launcher.GetIPAddress()
+  def _GetProcessIPAddress(self):
+    return self.launcher.GetProcessIPAddress()
 
   def _StartWebdriver(self, port):
     global _webdriver
-    url = "http://{}:{}/".format(self._GetIPAddress(), port)
+    url = "http://{}:{}/".format(self._GetProcessIPAddress(), port)
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
     self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECS)

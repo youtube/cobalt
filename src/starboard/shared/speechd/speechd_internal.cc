@@ -40,6 +40,9 @@ SpeechDispatcher::SpeechDispatcher() {
   if (!connection_) {
     SB_DLOG(ERROR) << "Failed to initialize SpeechDispatcher.";
   }
+  if (!SetLanguage(SbSystemGetLocaleId())) {
+    SB_DLOG(ERROR) << "Unable to set language to current locale.";
+  }
 }
 
 SpeechDispatcher::~SpeechDispatcher() {
