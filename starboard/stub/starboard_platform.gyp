@@ -250,6 +250,8 @@
         'atomic_public.h',
         'main.cc',
         'thread_types_public.h',
+        # Include private stubs, if present.
+        '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
