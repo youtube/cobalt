@@ -53,7 +53,7 @@ struct IsPod {
 //   where n is the number of items in flatmap
 //   and m is the input size for the operation.
 //
-// bulk insert |  O(n+m + m*log(m))
+// bulk insert |  O(m*log(m) + m*log(n) + n+m) (sort input, check dups, merge)
 // insert      |  O(n)
 // erase       |  O(n)
 // bulk erase  |  O(n*m)     TODO: Make faster - O(n+m + log(m))
