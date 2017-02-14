@@ -33,19 +33,29 @@ class CharacterData : public Node {
   // Web API: Node
   base::optional<std::string> node_value() const OVERRIDE { return data_; }
   void set_node_value(const base::optional<std::string>& node_value) OVERRIDE {
-    data_ = node_value.value_or("");
+    // Don't use value_or to avoid copying the string.
+    if (node_value) {
+      set_data(node_value.value());
+    } else {
+      set_data("");
+    }
   }
 
   base::optional<std::string> text_content() const OVERRIDE { return data_; }
   void set_text_content(
       const base::optional<std::string>& text_content) OVERRIDE {
-    data_ = text_content.value_or("");
+    // Don't use value_or to avoid copying the string.
+    if (text_content) {
+      set_data(text_content.value());
+    } else {
+      set_data("");
+    }
   }
 
   // Web API: CharacterData
   //
   std::string data() const { return data_; }
-  void set_data(const std::string& data) { data_ = data; }
+  void set_data(const std::string& data);
 
   // Custom, not in any spec.
   //
