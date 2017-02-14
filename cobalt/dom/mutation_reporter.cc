@@ -40,7 +40,7 @@ class MutationRecordBuilder {
 class AttributeMutationRecordBuilder : public MutationRecordBuilder {
  public:
   AttributeMutationRecordBuilder(const std::string& attribute_name,
-                                 const std::string& old_value)
+                                 const base::optional<std::string>& old_value)
       : attribute_name_(attribute_name), old_value_(old_value) {}
 
   bool IsInterested(const MutationObserverInit& options) OVERRIDE {
@@ -74,7 +74,7 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
 
  private:
   std::string attribute_name_;
-  std::string old_value_;
+  base::optional<std::string> old_value_;
 };
 
 // MutationRecordBuild for character data mutations.
@@ -136,14 +136,14 @@ class ChildListMutationRecordBuilder : public MutationRecordBuilder {
 // |record_builder| for interested observers.
 void ReportToInterestedObservers(
     const scoped_refptr<Node>& target,
-    const MutationReporter::RegisteredObserverVector& registered_observers,
+    MutationReporter::RegisteredObserverVector* registered_observers,
     MutationRecordBuilder* record_builder) {
   typedef base::hash_set<MutationObserver*> MutationObserverSet;
   MutationObserverSet reported_observers;
-  for (size_t i = 0; i < registered_observers.size(); ++i) {
-    const RegisteredObserver* registered_observer = registered_observers[i];
-    MutationObserver* observer = registered_observer->observer().get();
-    const MutationObserverInit& options = registered_observer->options();
+  for (size_t i = 0; i < registered_observers->size(); ++i) {
+    const RegisteredObserver& registered_observer = registered_observers->at(i);
+    MutationObserver* observer = registered_observer.observer().get();
+    const MutationObserverInit& options = registered_observer.options();
 
     // The mutation has already been reported to this observer, so skip it, per
     // step 3.6 (https://www.w3.org/TR/dom/#queue-a-mutation-record)
@@ -153,7 +153,7 @@ void ReportToInterestedObservers(
 
     // https://www.w3.org/TR/dom/#queue-a-mutation-record
     // 1. If node is not target and options's subtree is false, continue.
-    if (registered_observer->target() != target && !options.subtree()) {
+    if (registered_observer.target() != target && !options.subtree()) {
       continue;
     }
     // This observer doesn't care about this mutation, so skip it.
@@ -169,24 +169,25 @@ void ReportToInterestedObservers(
 }  // namespace
 
 MutationReporter::MutationReporter(
-    const scoped_refptr<dom::Node>& target,
-    const RegisteredObserverVector& registered_observers)
-    : target_(target), observers_(registered_observers) {}
+    dom::Node* target,
+    scoped_ptr<RegisteredObserverVector> registered_observers)
+    : target_(target), observers_(registered_observers.Pass()) {}
 
 MutationReporter::~MutationReporter() {}
 
 // Implement the "queue a mutation record" algorithm.
 // https://www.w3.org/TR/dom/#queue-a-mutation-record
 void MutationReporter::ReportAttributesMutation(
-    const std::string& name, const std::string& old_value) const {
+    const std::string& name,
+    const base::optional<std::string>& old_value) const {
   AttributeMutationRecordBuilder record_builder(name, old_value);
-  ReportToInterestedObservers(target_, observers_, &record_builder);
+  ReportToInterestedObservers(target_, observers_.get(), &record_builder);
 }
 
 void MutationReporter::ReportCharacterDataMutation(
     const std::string& old_value) const {
   CharacterDataMutationRecordBuilder record_builder(old_value);
-  ReportToInterestedObservers(target_, observers_, &record_builder);
+  ReportToInterestedObservers(target_, observers_.get(), &record_builder);
 }
 
 void MutationReporter::ReportChildListMutation(
@@ -196,7 +197,7 @@ void MutationReporter::ReportChildListMutation(
     const scoped_refptr<dom::Node>& next_sibling) const {
   ChildListMutationRecordBuilder record_builder(added_nodes, removed_nodes,
                                                 previous_sibling, next_sibling);
-  ReportToInterestedObservers(target_, observers_, &record_builder);
+  ReportToInterestedObservers(target_, observers_.get(), &record_builder);
 }
 }  // namespace dom
 }  // namespace cobalt

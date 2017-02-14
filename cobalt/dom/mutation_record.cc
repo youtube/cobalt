@@ -24,7 +24,7 @@ namespace dom {
 
 scoped_refptr<MutationRecord> MutationRecord::CreateAttributeMutationRecord(
     const scoped_refptr<Node>& target, const std::string& attribute_name,
-    const std::string& old_value) {
+    const base::optional<std::string>& old_value) {
   scoped_refptr<MutationRecord> record =
       new MutationRecord(base::Tokens::attribute(), target);
   record->attribute_name_ = attribute_name;
