@@ -18,6 +18,7 @@
 #define COBALT_DOM_NODE_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
@@ -267,6 +268,10 @@ class Node : public EventTarget {
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();
 
+  // Gather a list of RegisteredObservers on this node and its ancestors.
+  typedef std::vector<RegisteredObserver> RegisteredObserverVector;
+  scoped_ptr<RegisteredObserverVector> GatherInclusiveAncestorsObservers();
+
  private:
   // From EventTarget.
   std::string GetDebugName() OVERRIDE { return node_name().c_str(); }
@@ -280,11 +285,11 @@ class Node : public EventTarget {
 
   scoped_refptr<Node> PreInsert(const scoped_refptr<Node>& node,
                                 const scoped_refptr<Node>& child);
-  void Insert(const scoped_refptr<Node>& node,
-              const scoped_refptr<Node>& child);
+  void Insert(const scoped_refptr<Node>& node, const scoped_refptr<Node>& child,
+              bool suppress_observers);
 
   scoped_refptr<Node> PreRemove(const scoped_refptr<Node>& child);
-  void Remove(const scoped_refptr<Node>& node);
+  void Remove(const scoped_refptr<Node>& node, bool suppress_observers);
 
   // Called everytime mutation happens, i.e. when a child is inserted or removed
   // from this node.
