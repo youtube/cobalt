@@ -298,13 +298,13 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
-  ffmpeg::VideoDecoder* decoder = new ffmpeg::VideoDecoder(video_codec);
-  if (decoder->is_valid()) {
-    return decoder;
+VideoDecoder* VideoDecoder::Create(const Options& options) {
+  ffmpeg::VideoDecoder* decoder = new ffmpeg::VideoDecoder(options.video_codec);
+  if (!decoder->is_valid()) {
+    delete decoder;
+    return NULL;
   }
-  delete decoder;
-  return NULL;
+  return decoder;
 }
 
 }  // namespace filter
