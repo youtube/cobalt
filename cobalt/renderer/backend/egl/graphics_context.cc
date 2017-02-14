@@ -64,7 +64,7 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   // Create a dummy EGLSurface object to be assigned as the target surface
   // when we need to make OpenGL calls that do not depend on a surface (e.g.
   // creating a texture).
-  null_surface_ = new PBufferRenderTargetEGL(display, config, math::Size(1, 1));
+  null_surface_ = new PBufferRenderTargetEGL(display, config, math::Size(0, 0));
 
   ScopedMakeCurrent scoped_current_context(this);
 
