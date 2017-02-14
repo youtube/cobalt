@@ -163,6 +163,7 @@
         '../h5vcc/H5vccSettings.idl',
         '../h5vcc/H5vccStorage.idl',
         '../h5vcc/H5vccSystem.idl',
+        '../h5vcc/H5vccTraceEvent.idl',
 
         '../speech/SpeechRecognition.idl',
         '../speech/SpeechRecognitionAlternative.idl',

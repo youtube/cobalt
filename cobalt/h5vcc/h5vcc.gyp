@@ -52,6 +52,8 @@
         'h5vcc_storage.h',
         'h5vcc_system.cc',
         'h5vcc_system.h',
+        'h5vcc_trace_event.cc',
+        'h5vcc_trace_event.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
