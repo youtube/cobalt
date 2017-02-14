@@ -24,7 +24,9 @@
 #include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
 #include "starboard/raspi/shared/open_max/open_max_video_decode_component.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -37,15 +39,16 @@ class VideoDecoder
  public:
   typedef starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
+  typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
+  typedef ::starboard::shared::starboard::player::Closure Closure;
 
-  explicit VideoDecoder(SbMediaVideoCodec video_codec);
+  VideoDecoder(SbMediaVideoCodec video_codec, JobQueue* job_queue);
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
   void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
-  void Update() SB_OVERRIDE;
 
  private:
   struct Event {
@@ -65,6 +68,8 @@ class VideoDecoder
   void RunLoop();
   scoped_refptr<VideoFrame> CreateFrame(const OMX_BUFFERHEADERTYPE* buffer);
 
+  void Update();
+
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   scoped_refptr<DispmanxResourcePool> resource_pool_;
@@ -78,6 +83,9 @@ class VideoDecoder
   Mutex mutex_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
+
+  JobQueue* job_queue_;
+  Closure update_closure_;
 };
 
 }  // namespace open_max

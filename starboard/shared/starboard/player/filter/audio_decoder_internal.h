@@ -21,6 +21,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -58,10 +59,26 @@ class AudioDecoder {
   // different than the sample rate stored in the meta data.
   virtual int GetSamplesPerSecond() const = 0;
 
+  // A parameter struct to pass into |Create|.
+  struct Options {
+    Options(SbMediaAudioCodec audio_codec,
+            const SbMediaAudioHeader& audio_header,
+            SbDrmSystem drm_system,
+            JobQueue* job_queue)
+        : audio_codec(audio_codec),
+          audio_header(audio_header),
+          drm_system(drm_system),
+          job_queue(job_queue) {}
+
+    SbMediaAudioCodec audio_codec;
+    const SbMediaAudioHeader& audio_header;
+    SbDrmSystem drm_system;
+    JobQueue* job_queue;
+  };
+
   // Individual implementation has to implement this function to create an
   // audio decoder.
-  static AudioDecoder* Create(SbMediaAudioCodec audio_codec,
-                              const SbMediaAudioHeader& audio_header);
+  static AudioDecoder* Create(const Options& options);
 };
 
 }  // namespace filter
