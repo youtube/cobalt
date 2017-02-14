@@ -49,11 +49,7 @@ class Location : public script::Wrappable {
 
   void Replace(const std::string& url);
 
-  void Reload() {
-    if (!navigation_callback_.is_null()) {
-      navigation_callback_.Run(url());
-    }
-  }
+  void Reload();
 
   // Web API: URLUtils (implements)
   //
