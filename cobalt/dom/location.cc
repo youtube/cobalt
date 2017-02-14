@@ -83,5 +83,12 @@ void Location::Replace(const std::string& url) {
   }
 }
 
+void Location::Reload() {
+  if (!navigation_callback_.is_null()) {
+    LOG(INFO) << "Reloading URL: " << url();
+    navigation_callback_.Run(url());
+  }
+}
+
 }  // namespace dom
 }  // namespace cobalt
