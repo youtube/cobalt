@@ -83,9 +83,14 @@ bool FilterBasedPlayerWorkerHandler::Init(
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
 
+  AudioDecoder::Options audio_decoder_options(audio_codec_, audio_header_,
+                                              drm_system_, job_queue_);
   scoped_ptr<AudioDecoder> audio_decoder(
-      AudioDecoder::Create(audio_codec_, audio_header_));
-  scoped_ptr<VideoDecoder> video_decoder(VideoDecoder::Create(video_codec_));
+      AudioDecoder::Create(audio_decoder_options));
+  VideoDecoder::Options video_decoder_options(video_codec_, drm_system_,
+                                              job_queue_);
+  scoped_ptr<VideoDecoder> video_decoder(
+      VideoDecoder::Create(video_decoder_options));
 
   if (!audio_decoder || !video_decoder) {
     return false;
@@ -256,10 +261,6 @@ void FilterBasedPlayerWorkerHandler::Update() {
 #endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
     (*player_worker_.*update_media_time_cb_)(audio_renderer_->GetCurrentTime());
-  }
-
-  if (video_renderer_) {
-    video_renderer_->Update();
   }
 
   job_queue_->Schedule(update_closure_, kUpdateInterval);
