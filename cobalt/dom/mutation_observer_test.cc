@@ -23,6 +23,7 @@
 #include "cobalt/dom/mutation_record.h"
 #include "cobalt/dom/mutation_reporter.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/text.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/test/empty_document.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -56,6 +57,7 @@ class MutationObserverTest : public ::testing::Test {
 
   scoped_refptr<Element> CreateDiv() {
     scoped_refptr<Element> element = document()->CreateElement("div");
+    DCHECK(element);
     document()->AppendChild(element);
     return element;
   }
@@ -92,7 +94,7 @@ TEST_F(MutationObserverTest, CreateAttributeMutationRecord) {
   scoped_refptr<dom::Element> target = CreateDiv();
   scoped_refptr<MutationRecord> record =
       MutationRecord::CreateAttributeMutationRecord(target, "attribute_name",
-                                                    "old_value");
+                                                    std::string("old_value"));
   ASSERT_TRUE(record);
 
   // "type" and attribute-related attributes are set as expected
@@ -118,8 +120,8 @@ TEST_F(MutationObserverTest, CreateAttributeMutationRecord) {
 TEST_F(MutationObserverTest, CreateCharacterDataMutationRecord) {
   scoped_refptr<dom::Element> target = CreateDiv();
   scoped_refptr<MutationRecord> record =
-      MutationRecord::CreateCharacterDataMutationRecord(target,
-                                                        "old_character_data");
+      MutationRecord::CreateCharacterDataMutationRecord(
+          target, std::string("old_character_data"));
   ASSERT_TRUE(record);
 
   // "type" and attribute-related attributes are set as expected
@@ -259,15 +261,15 @@ TEST_F(MutationObserverTest, ReportMutation) {
   init.set_child_list(false);
   init.set_character_data(true);
 
-  RegisteredObserver registered_observer(target.get(), observer, init);
-  std::vector<const RegisteredObserver*> registered_observers;
-  registered_observers.push_back(&registered_observer);
-
   // Create a MutationReporter for the list of registered observers.
-  MutationReporter reporter(target.get(), registered_observers);
+  scoped_ptr<std::vector<RegisteredObserver> > registered_observers(
+      new std::vector<RegisteredObserver>());
+  registered_observers->push_back(
+      RegisteredObserver(target.get(), observer, init));
+  MutationReporter reporter(target.get(), registered_observers.Pass());
 
   // Report a few mutations.
-  reporter.ReportAttributesMutation("attribute_name", "old_value");
+  reporter.ReportAttributesMutation("attribute_name", std::string("old_value"));
   reporter.ReportCharacterDataMutation("old_character_data");
   ChildListMutationArguments args = CreateChildListMutationArguments();
   reporter.ReportChildListMutation(args.added_nodes, args.removed_nodes,
@@ -293,17 +295,17 @@ TEST_F(MutationObserverTest, AttributeFilter) {
   init.set_attribute_filter(attribute_filter);
   init.set_attributes(true);
 
-  RegisteredObserver registered_observer(target.get(), observer, init);
-  std::vector<const RegisteredObserver*> registered_observers;
-  registered_observers.push_back(&registered_observer);
-
   // Create a MutationReporter for the list of registered observers.
-  MutationReporter reporter(target.get(), registered_observers);
+  scoped_ptr<std::vector<RegisteredObserver> > registered_observers(
+      new std::vector<RegisteredObserver>());
+  registered_observers->push_back(
+      RegisteredObserver(target.get(), observer, init));
+  MutationReporter reporter(target.get(), registered_observers.Pass());
 
   // Report a few attribute mutations.
-  reporter.ReportAttributesMutation("banana", "rotten");
-  reporter.ReportAttributesMutation("apple", "wormy");
-  reporter.ReportAttributesMutation("potato", "mashed");
+  reporter.ReportAttributesMutation("banana", std::string("rotten"));
+  reporter.ReportAttributesMutation("apple", std::string("wormy"));
+  reporter.ReportAttributesMutation("potato", std::string("mashed"));
 
   // Check that mutation records for the filtered attrbiutes have been queued.
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
@@ -391,6 +393,140 @@ TEST_F(MutationObserverTest, InvalidOptions) {
   options.set_character_data_old_value(true);
   EXPECT_FALSE(observer_list.AddMutationObserver(observer, options));
   EXPECT_EQ(0, observer_list.registered_observers().size());
+}
+
+TEST_F(MutationObserverTest, AddChildNodes) {
+  scoped_refptr<Element> root = CreateDiv();
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  MutationObserverInit options;
+  options.set_subtree(true);
+  options.set_child_list(true);
+  observer->Observe(root, options);
+
+  scoped_refptr<Element> child1 = document()->CreateElement("div");
+  scoped_refptr<Element> child2 = document()->CreateElement("div");
+  ASSERT_TRUE(child1);
+  ASSERT_TRUE(child2);
+
+  root->AppendChild(child1);
+  child1->AppendChild(child2);
+
+  MutationObserver::MutationRecordSequence records = observer->TakeRecords();
+  ASSERT_EQ(2, records.size());
+  EXPECT_EQ("childList", records.at(0)->type());
+  EXPECT_EQ(root, records.at(0)->target());
+  ASSERT_FALSE(records.at(0)->removed_nodes());
+  ASSERT_TRUE(records.at(0)->added_nodes());
+  ASSERT_EQ(1, records.at(0)->added_nodes()->length());
+  EXPECT_EQ(child1, records.at(0)->added_nodes()->Item(0));
+
+  EXPECT_EQ("childList", records.at(1)->type());
+  EXPECT_EQ(child1, records.at(1)->target());
+  ASSERT_FALSE(records.at(1)->removed_nodes());
+  ASSERT_TRUE(records.at(1)->added_nodes());
+  ASSERT_EQ(1, records.at(1)->added_nodes()->length());
+  EXPECT_EQ(child2, records.at(1)->added_nodes()->Item(0));
+}
+
+TEST_F(MutationObserverTest, RemoveChildNode) {
+  scoped_refptr<Element> root = CreateDiv();
+  scoped_refptr<Element> child1 = document()->CreateElement("div");
+  scoped_refptr<Element> child2 = document()->CreateElement("div");
+  ASSERT_TRUE(child1);
+  ASSERT_TRUE(child2);
+
+  root->AppendChild(child1);
+  child1->AppendChild(child2);
+
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  MutationObserverInit options;
+  options.set_subtree(true);
+  options.set_child_list(true);
+  observer->Observe(root, options);
+
+  child1->RemoveChild(child2);
+
+  MutationObserver::MutationRecordSequence records = observer->TakeRecords();
+  ASSERT_EQ(1, records.size());
+  EXPECT_EQ("childList", records.at(0)->type());
+  EXPECT_EQ(child1, records.at(0)->target());
+  ASSERT_TRUE(records.at(0)->removed_nodes());
+  ASSERT_EQ(1, records.at(0)->removed_nodes()->length());
+  EXPECT_EQ(child2, records.at(0)->removed_nodes()->Item(0));
+}
+
+TEST_F(MutationObserverTest, MutateCharacterData) {
+  scoped_refptr<Element> root = CreateDiv();
+  scoped_refptr<Text> text = document()->CreateTextNode("initial-data");
+  ASSERT_TRUE(text);
+  root->AppendChild(text);
+
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  MutationObserverInit options;
+  options.set_subtree(true);
+  options.set_character_data(true);
+  observer->Observe(root, options);
+
+  text->set_data("new-data");
+
+  MutationObserver::MutationRecordSequence records = observer->TakeRecords();
+  ASSERT_EQ(1, records.size());
+  EXPECT_EQ("characterData", records.at(0)->type());
+  EXPECT_EQ(text, records.at(0)->target());
+  ASSERT_TRUE(records.at(0)->old_value());
+  EXPECT_STREQ("initial-data", records.at(0)->old_value()->c_str());
+}
+
+TEST_F(MutationObserverTest, MutateAttribute) {
+  scoped_refptr<Element> root = CreateDiv();
+  root->SetAttribute("banana", "purple");
+  root->SetAttribute("apple", "green");
+
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  script::Sequence<std::string> filter;
+  filter.push_back("banana");
+  MutationObserverInit options;
+  options.set_attributes(true);
+  options.set_attribute_filter(filter);
+  observer->Observe(root, options);
+
+  root->SetAttribute("banana", "yellow");
+  root->SetAttribute("apple", "brown");
+
+  MutationObserver::MutationRecordSequence records = observer->TakeRecords();
+  ASSERT_EQ(1, records.size());
+  EXPECT_EQ("attribute", records.at(0)->type());
+  EXPECT_EQ(root, records.at(0)->target());
+  ASSERT_TRUE(records.at(0)->old_value());
+  ASSERT_TRUE(records.at(0)->attribute_name());
+  EXPECT_STREQ("banana", records.at(0)->attribute_name()->c_str());
+  EXPECT_STREQ("purple", records.at(0)->old_value()->c_str());
+}
+
+TEST_F(MutationObserverTest, Disconnect) {
+  scoped_refptr<Element> root = CreateDiv();
+  scoped_refptr<Text> text = document()->CreateTextNode("initial-data");
+  ASSERT_TRUE(text);
+  root->AppendChild(text);
+
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  MutationObserverInit options;
+  options.set_subtree(true);
+  options.set_character_data(true);
+  observer->Observe(root, options);
+
+  // This should queue up a mutation record.
+  text->set_data("new-data");
+
+  observer->Disconnect();
+  MutationObserver::MutationRecordSequence records = observer->TakeRecords();
+  // MutationObserver.disconnect() should clear any queued records.
+  EXPECT_EQ(0, records.size());
+
+  // This should not queue a mutation record.
+  text->set_data("more-new-data");
+  records = observer->TakeRecords();
+  EXPECT_EQ(0, records.size());
 }
 
 }  // namespace dom

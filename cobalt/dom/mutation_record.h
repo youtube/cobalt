@@ -57,7 +57,7 @@ class MutationRecord : public script::Wrappable {
   // https://www.w3.org/TR/dom/#queue-a-mutation-record
   static scoped_refptr<MutationRecord> CreateAttributeMutationRecord(
       const scoped_refptr<Node>& target, const std::string& attribute_name,
-      const std::string& old_value);
+      const base::optional<std::string>& old_value);
 
   static scoped_refptr<MutationRecord> CreateCharacterDataMutationRecord(
       const scoped_refptr<Node>& target, const std::string& old_character_data);
