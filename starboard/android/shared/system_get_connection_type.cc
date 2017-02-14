@@ -14,9 +14,18 @@
 
 #include "starboard/system.h"
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/log.h"
 
+using starboard::android::shared::JniEnvExt;
+
 SbSystemConnectionType SbSystemGetConnectionType() {
-  SB_NOTIMPLEMENTED();
-  return kSbSystemConnectionTypeUnknown;
+  jboolean isWireless = JniEnvExt::Get()->CallActivityBooleanMethod(
+      "isCurrentNetworkWireless", "()Z");
+
+  if (isWireless) {
+    return kSbSystemConnectionTypeWireless;
+  } else {
+    return kSbSystemConnectionTypeWired;
+  }
 }
