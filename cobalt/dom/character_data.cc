@@ -16,11 +16,19 @@
 
 #include "cobalt/dom/character_data.h"
 
+#include "cobalt/dom/mutation_reporter.h"
+
 namespace cobalt {
 namespace dom {
 
 CharacterData::CharacterData(Document* document, const base::StringPiece& data)
     : Node(document), data_(data.begin(), data.end()) {}
+
+void CharacterData::set_data(const std::string& data) {
+  MutationReporter mutation_reporter(this, GatherInclusiveAncestorsObservers());
+  mutation_reporter.ReportCharacterDataMutation(data_);
+  data_ = data;
+}
 
 }  // namespace dom
 }  // namespace cobalt
