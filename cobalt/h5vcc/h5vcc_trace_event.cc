@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2017 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,32 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/h5vcc/h5vcc_trace_event.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vcc::H5vcc(const Settings& settings) {
-  account_info_ = new H5vccAccountInfo(settings.account_manager);
-  audio_config_array_ = new H5vccAudioConfigArray();
-  c_val_ = new H5vccCVal();
-  runtime_ =
-      new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
-  settings_ = new H5vccSettings(settings.media_module);
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem(settings.media_module);
-  trace_event_ = new H5vccTraceEvent();
+namespace {
+const char* kOutputTraceFilename = "h5vcc_trace_event.json";
+}  // namespace
+
+H5vccTraceEvent::H5vccTraceEvent() {}
+
+void H5vccTraceEvent::Start() {
+  if (trace_to_file_) {
+    DLOG(WARNING) << "H5vccTraceEvent is already started.";
+  } else {
+    trace_to_file_.reset(
+        new trace_event::ScopedTraceToFile(FilePath(kOutputTraceFilename)));
+  }
+}
+
+void H5vccTraceEvent::Stop() {
+  if (trace_to_file_) {
+    trace_to_file_.reset();
+  } else {
+    DLOG(WARNING) << "H5vccTraceEvent is already stopped.";
+  }
 }
 
 }  // namespace h5vcc
