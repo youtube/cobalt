@@ -514,7 +514,7 @@ void BrowserModule::OnKeyEventProduced(const dom::KeyboardEvent::Data& event) {
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  trace_manager.OnKeyEventProduced();
+  trace_manager_.OnKeyEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   InjectKeyEventToMainWebModule(event);
