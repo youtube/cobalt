@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import os
 import sys
+import time
 
 # The parent directory is a module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -47,6 +48,9 @@ class TimeToShelf(tv_testcase.TvTestCase):
     """
     metrics_array = []
     blank_startup_time_microseconds = self.get_cval('Cobalt.Lifetime')
+    # Sleep 5 seconds prior to starting navigations. This accounts for the
+    # period when ***REMOVED*** loads the bulk of its JS.
+    time.sleep(5)
     for _ in range(10):
       with timer.Timer('TimeShelfDisplay') as t:
         self.load_tv()
