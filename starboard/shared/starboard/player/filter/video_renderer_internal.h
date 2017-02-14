@@ -44,7 +44,6 @@ class VideoRenderer : private VideoDecoder::Host {
   void WriteEndOfStream();
 
   void Seek(SbMediaTime seek_to_pts);
-  void Update();
 
   scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time);
 
