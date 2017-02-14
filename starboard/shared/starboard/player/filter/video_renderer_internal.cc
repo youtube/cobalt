@@ -77,12 +77,6 @@ void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
   frames_.clear();
 }
 
-void VideoRenderer::Update() {
-  if (decoder_) {
-    decoder_->Update();
-  }
-}
-
 scoped_refptr<VideoFrame> VideoRenderer::GetCurrentFrame(
     SbMediaTime media_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());

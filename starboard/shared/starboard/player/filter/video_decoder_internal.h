@@ -17,6 +17,7 @@
 
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 
 namespace starboard {
@@ -62,19 +63,29 @@ class VideoDecoder {
   // is called again.
   virtual void Reset() = 0;
 
-  // This function is periodically called on the player worker thread so the
-  // decoder can do some process inside it when necessary.
-  virtual void Update() {}
-
   // In certain cases, a decoder may benefit from knowing the current time of
   // the audio decoder that it is following.  This optional function provides
   // the renderer that owns the decoder an opportunity to provide this
   // information to the decoder.
   virtual void SetCurrentTime(SbMediaTime current_time) {}
 
+  // A parameter struct to pass into |Create|.
+  struct Options {
+    Options(SbMediaVideoCodec video_codec,
+            SbDrmSystem drm_system,
+            JobQueue* job_queue)
+        : video_codec(video_codec),
+          drm_system(drm_system),
+          job_queue(job_queue) {}
+
+    SbMediaVideoCodec video_codec;
+    SbDrmSystem drm_system;
+    JobQueue* job_queue;
+  };
+
   // Individual implementation has to implement this function to create a video
   // decoder.
-  static VideoDecoder* Create(SbMediaVideoCodec video_codec);
+  static VideoDecoder* Create(const Options& options);
 };
 
 }  // namespace filter
