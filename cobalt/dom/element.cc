@@ -32,6 +32,7 @@
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/mutation_reporter.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/serializer.h"
@@ -187,6 +188,11 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    value is value, and then append this attribute to the context object and
   //    terminate these steps.
   // 5. Change attribute from context object to value.
+
+  base::optional<std::string> old_value = GetAttribute(attr_name);
+  MutationReporter mutation_reporter(this, GatherInclusiveAncestorsObservers());
+  mutation_reporter.ReportAttributesMutation(attr_name, old_value);
+
   switch (attr_name.size()) {
     case 5:
       if (attr_name == kStyleAttributeName) {
@@ -250,6 +256,13 @@ void Element::RemoveAttribute(const std::string& name) {
   std::string attr_name = name;
   if (document && !document->IsXMLDocument()) {
     StringToLowerASCII(&attr_name);
+  }
+
+  base::optional<std::string> old_value = GetAttribute(attr_name);
+  if (old_value) {
+    MutationReporter mutation_reporter(this,
+                                       GatherInclusiveAncestorsObservers());
+    mutation_reporter.ReportAttributesMutation(attr_name, old_value);
   }
 
   // 2. Remove the first attribute from the context object whose name is name,

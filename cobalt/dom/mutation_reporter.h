@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/registered_observer.h"
 
 namespace cobalt {
@@ -36,20 +37,21 @@ class NodeList;
 // This class is intended to be used internally in the Node class.
 class MutationReporter {
  public:
-  typedef std::vector<const RegisteredObserver*> RegisteredObserverVector;
+  typedef std::vector<RegisteredObserver> RegisteredObserverVector;
   // Construct a MutationReporter with a list of potentially interested
   // RegisteredObservers. In practice, this list of |registered_observers| will
   // the RegisteredObservers registered to the node that is being mutated and
   // its ancestors. |registered_observers| may contain duplicates.
-  MutationReporter(const scoped_refptr<dom::Node>& target,
-                   const RegisteredObserverVector& registered_observers);
+  MutationReporter(dom::Node* target,
+                   scoped_ptr<RegisteredObserverVector> registered_observers);
 
   ~MutationReporter();
 
   // Implement the "queue a mutation record" algorithm for the different types
   // of mutations.
-  void ReportAttributesMutation(const std::string& name,
-                                const std::string& old_value) const;
+  void ReportAttributesMutation(
+      const std::string& name,
+      const base::optional<std::string>& old_value) const;
   void ReportCharacterDataMutation(const std::string& old_value) const;
   void ReportChildListMutation(
       const scoped_refptr<dom::NodeList>& added_nodes,
@@ -58,8 +60,8 @@ class MutationReporter {
       const scoped_refptr<dom::Node>& next_sibling) const;
 
  private:
-  scoped_refptr<dom::Node> target_;
-  RegisteredObserverVector observers_;
+  dom::Node* target_;
+  scoped_ptr<RegisteredObserverVector> observers_;
 };
 }  // namespace dom
 }  // namespace cobalt

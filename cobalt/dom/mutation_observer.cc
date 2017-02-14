@@ -80,6 +80,10 @@ MutationObserver::MutationObserver(const MutationCallbackArg& callback,
   task_manager_->OnMutationObserverCreated(this);
 }
 
+MutationObserver::~MutationObserver() {
+  task_manager_->OnMutationObserverDestroyed(this);
+}
+
 void MutationObserver::Observe(const scoped_refptr<Node>& target,
                                const MutationObserverInit& options) {
   if (!target) {
@@ -92,6 +96,7 @@ void MutationObserver::Observe(const scoped_refptr<Node>& target,
     // TODO: Throw TypeError.
     NOTREACHED();
   }
+  TrackObservedNode(target);
 }
 
 void MutationObserver::Disconnect() {
@@ -141,10 +146,6 @@ bool MutationObserver::Notify() {
   }
   // If no records, return true to indicate no error occurred.
   return true;
-}
-
-MutationObserver::~MutationObserver() {
-  task_manager_->OnMutationObserverDestroyed(this);
 }
 
 void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {
