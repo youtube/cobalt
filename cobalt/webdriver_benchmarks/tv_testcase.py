@@ -11,21 +11,10 @@ import sys
 import time
 import unittest
 
-# pylint: disable=C6204
-try:
-  # This code works for Python 2.
-  import urlparse
-  from urllib import urlencode
-except ImportError:
-  # This code works for Python 3.
-  import urllib.parse as urlparse
-  from urllib.parse import urlencode
-
 # This directory is a package
 sys.path.insert(0, os.path.abspath("."))
 # pylint: disable=C6204,C6203
 import c_val_names
-import container_util
 import tv
 import tv_testcase_runner
 import tv_testcase_util
@@ -38,9 +27,6 @@ WebDriverWait = tv_testcase_util.import_selenium_module(
 ElementNotVisibleException = tv_testcase_util.import_selenium_module(
     submodule="common.exceptions").ElementNotVisibleException
 
-BASE_URL = "https://www.youtube.com/"
-TV_APP_PATH = "/tv"
-BASE_PARAMS = {"env_forcedOffAllExperiments": True}
 PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
@@ -90,8 +76,8 @@ class TvTestCase(unittest.TestCase):
     else:
       return json.loads(json_result)
 
-  def goto(self, path, query_params=None):
-    """Goes to a path off of BASE_URL.
+  def goto(self, url):
+    """Goes to a url.
 
     Args:
       path: URL path without the hostname.
@@ -99,15 +85,7 @@ class TvTestCase(unittest.TestCase):
     Raises:
       Underlying WebDriver exceptions
     """
-    parsed_url = list(urlparse.urlparse(BASE_URL))
-    parsed_url[2] = path
-    query_dict = BASE_PARAMS.copy()
-    if query_params:
-      query_dict.update(urlparse.parse_qsl(parsed_url[4]))
-      container_util.merge_dict(query_dict, query_params)
-    parsed_url[4] = urlencode(query_dict, doseq=True)
-    final_url = urlparse.urlunparse(parsed_url)
-    self.get_webdriver().get(final_url)
+    self.get_webdriver().get(url)
     time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
 
   def load_tv(self, label=None, additional_query_params=None):
@@ -124,7 +102,7 @@ class TvTestCase(unittest.TestCase):
       query_params = {"label": label}
     if additional_query_params is not None:
       query_params.update(additional_query_params)
-    self.goto(TV_APP_PATH, query_params)
+    self.goto(tv_testcase_util.get_tv_url(query_params))
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
     # decorator-driven success retry loop for subsequent webdriver requests.
