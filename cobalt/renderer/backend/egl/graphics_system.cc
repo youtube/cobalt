@@ -75,8 +75,10 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
                              8,
                              EGL_ALPHA_SIZE,
                              8,
+#if !SB_HAS_QUIRK(NO_EGL_BIND_TO_TEXTURE)
                              EGL_BIND_TO_TEXTURE_RGBA,
                              EGL_TRUE,
+#endif
                              EGL_RENDERABLE_TYPE,
                              EGL_OPENGL_ES2_BIT,
                              EGL_NONE};
