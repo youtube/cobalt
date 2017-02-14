@@ -28,6 +28,7 @@
 namespace cobalt {
 namespace browser {
 
+// Wrapper class which wraps all trace related stuff.
 class TraceManager {
  public:
   // Returns whether there's a trace that is active.
