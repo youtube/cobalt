@@ -310,9 +310,9 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
+VideoDecoder* VideoDecoder::Create(const Options& options) {
   ::starboard::android::shared::VideoDecoder* decoder =
-      new ::starboard::android::shared::VideoDecoder(video_codec);
+      new ::starboard::android::shared::VideoDecoder(options.video_codec);
   if (!decoder->is_valid()) {
     delete decoder;
     return NULL;
