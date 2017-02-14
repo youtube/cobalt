@@ -299,7 +299,7 @@ class BrowserModule {
   // Manages a second web module to implement the debug console.
   scoped_ptr<DebugConsole> debug_console_;
 
-  TraceManager trace_manager;
+  TraceManager trace_manager_;
 
   // Command handler object for toggling the input fuzzer on/off.
   base::ConsoleCommandManager::CommandHandler fuzzer_toggle_command_handler_;
