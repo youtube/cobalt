@@ -41,10 +41,14 @@ ElementNotVisibleException = tv_testcase_util.import_selenium_module(
 BASE_URL = "https://www.youtube.com/"
 TV_APP_PATH = "/tv"
 BASE_PARAMS = {"env_forcedOffAllExperiments": True}
-WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
+# Today, Cobalt's WebDriver has a race that
+# can leave the former page's DOM visible after a navigate.
+# As a workaround, sleep for a bit
+# b/33275371
+COBALT_POST_NAVIGATE_SLEEP_SECONDS = 5
 
 
 class TvTestCase(unittest.TestCase):
@@ -53,9 +57,6 @@ class TvTestCase(unittest.TestCase):
   Style note: snake_case is used for function names here so as to match
   with an internal class with the same name.
   """
-
-  class WindowDriverCreatedTimeoutException(BaseException):
-    """Exception thrown when WindowDriver was not created in time."""
 
   class ProcessingTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
@@ -71,14 +72,8 @@ class TvTestCase(unittest.TestCase):
   def tearDownClass(cls):
     print("Done " + cls.__name__)
 
-  def setUp(self):
-    self.wait_for_windowdriver_created()
-
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
-
-  def get_windowdriver_created(self):
-    return tv_testcase_runner.GetWindowDriverCreated()
 
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
@@ -112,9 +107,8 @@ class TvTestCase(unittest.TestCase):
       container_util.merge_dict(query_dict, query_params)
     parsed_url[4] = urlencode(query_dict, doseq=True)
     final_url = urlparse.urlunparse(parsed_url)
-    self.get_windowdriver_created().clear()
     self.get_webdriver().get(final_url)
-    self.wait_for_windowdriver_created()
+    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
 
   def load_tv(self, label=None, additional_query_params=None):
     """Loads the main TV page and waits for it to display.
@@ -222,12 +216,6 @@ class TvTestCase(unittest.TestCase):
         if time.time() - start_time >= PAGE_LOAD_WAIT_SECONDS:
           raise
         time.sleep(1)
-
-  def wait_for_windowdriver_created(self):
-    """Waits for Cobalt to create a WindowDriver."""
-    windowdriver_created = self.get_windowdriver_created()
-    if not windowdriver_created.wait(WINDOWDRIVER_CREATED_TIMEOUT_SECONDS):
-      raise TvTestCase.WindowDriverCreatedTimeoutException()
 
   def wait_for_processing_complete_after_focused_shelf(self):
     """Waits for Cobalt to focus on a shelf and complete pending layouts."""
