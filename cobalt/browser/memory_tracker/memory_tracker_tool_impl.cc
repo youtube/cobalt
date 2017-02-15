@@ -126,6 +126,24 @@ std::string NumberFormatWithCommas(T val) {
   return s;
 }
 
+// Removes odd elements and resizes vector.
+template <typename VectorType>
+void RemoveOddElements(VectorType* v) {
+  typedef typename VectorType::iterator iterator;
+
+  iterator read_it = v->end();
+  iterator write_it = v->end();
+  for (size_t i = 0; i*2 < v->size(); ++i) {
+    write_it = v->begin() + i;
+    read_it = v->begin() + (i*2);
+    *write_it = *read_it;
+  }
+  if (write_it != v->end()) {
+    write_it++;
+  }
+  v->erase(write_it, v->end());
+}
+
 // NoMemoryTracking will disable memory tracking while in the current scope of
 // execution. When the object is destroyed it will reset the previous state
 // of allocation tracking.
@@ -191,8 +209,8 @@ class Params {
   }
   std::string TimeInMinutesString() const {
     base::TimeDelta delta_t = time_since_start();
-    int64 seconds = delta_t.InSeconds();
-    float time_mins = static_cast<float>(seconds) / 60.f;
+    float seconds = static_cast<float>(delta_t.InMilliseconds()) / 1000.0f;
+    float time_mins = seconds / 60.f;
     std::stringstream ss;
 
     ss << time_mins;
@@ -662,7 +680,7 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
      << "// to be used in a stacked graph." << kNewLine;
 
   // HEADER.
-  ss << "Time(mins),";
+  ss << kQuote << "Time(mins)" << kQuote << kDelimiter;
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     const std::string& name = it->first;
     ss << kQuote << SanitizeCSVKey(name) << kQuote << kDelimiter;
@@ -672,7 +690,8 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
   // Print out the values of each of the samples.
   for (size_t i = 0; i < smallest_sample_size; ++i) {
     // Output time first so that it can be used as an x-axis.
-    const double time_mins = timeseries.time_stamps_[i].InSeconds()/60.f;
+    const double time_mins =
+        timeseries.time_stamps_[i].InMilliseconds() / (1000. * 60.);
     ss << time_mins << ",";
     for (MapIt it = samples.begin(); it != samples.end(); ++it) {
       const int64 alloc_bytes = it->second.allocated_bytes_[i];
@@ -692,7 +711,7 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
   ss << kNewLine << "// CSV of COUNT of allocations per region." << kNewLine;
 
   // HEADER
-  ss << "Time(mins),";
+  ss << kQuote << "Time(mins)" << kQuote << kDelimiter;
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     const std::string& name = it->first;
     ss << kQuote << SanitizeCSVKey(name) << kQuote << kDelimiter;
@@ -700,7 +719,8 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
   ss << kNewLine;
   for (size_t i = 0; i < smallest_sample_size; ++i) {
     // Output time first so that it can be used as an x-axis.
-    const double time_mins = timeseries.time_stamps_[i].InSeconds() / 60.f;
+    const double time_mins =
+        timeseries.time_stamps_[i].InMilliseconds() / (1000. * 60.);
     ss << time_mins << ",";
     for (MapIt it = samples.begin(); it != samples.end(); ++it) {
       const int64 n_allocs = it->second.number_allocations_[i];
@@ -710,6 +730,7 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
   }
   ss << "// END CSV of COUNT of allocations per region." << kNewLine;
   ss << "//////////////////////////////////////////////";
+  ss << kNewLine;
 
   std::string output = ss.str();
   return output;
@@ -720,6 +741,7 @@ void MemoryTrackerCompressedTimeSeries::AcquireSample(
     const base::TimeDelta& time_now) {
   const size_t sample_count = timeseries->time_stamps_.size();
   timeseries->time_stamps_.push_back(time_now);
+
   MapAllocationSamples& map_samples = timeseries->samples_;
 
   std::vector<const AllocationGroup*> vector_output;
@@ -780,11 +802,11 @@ void DoCompression(VectorT* samples) {
 void MemoryTrackerCompressedTimeSeries::Compress(TimeSeries* timeseries) {
   typedef MapAllocationSamples::iterator MapIt;
   MapAllocationSamples& samples = timeseries->samples_;
-  DoCompression(&(timeseries->time_stamps_));
+  RemoveOddElements(&(timeseries->time_stamps_));
   for (MapIt it = samples.begin(); it != samples.end(); ++it) {
     AllocationSamples& data = it->second;
-    DoCompression(&data.allocated_bytes_);
-    DoCompression(&data.number_allocations_);
+    RemoveOddElements(&data.allocated_bytes_);
+    RemoveOddElements(&data.number_allocations_);
   }
 }
 
