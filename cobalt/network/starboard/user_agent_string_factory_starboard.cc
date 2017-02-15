@@ -88,6 +88,11 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
       case kSbSystemDeviceTypeTV:
         youtube_tv_info_->device_type = YouTubeTVInfo::kTV;
         break;
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+      case kSbSystemDeviceTypeAndroidTV:
+        youtube_tv_info_->device_type = YouTubeTVInfo::kAndroidTV;
+        break;
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
       case kSbSystemDeviceTypeDesktopPC:
       default:
         youtube_tv_info_->device_type = YouTubeTVInfo::kInvalidDeviceType;
