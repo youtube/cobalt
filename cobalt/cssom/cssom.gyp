@@ -269,7 +269,7 @@
           'outputs': [
             '<(output_path)',
           ],
-          'action': ['python', '<(script_path)', 'CSSOMEmbeddedResources', '<(input_directory)', '<(output_path)'],
+          'action': ['python', '<(script_path)', 'CSSOMEmbeddedResources', '<(output_path)', '<(input_directory)'],
           'message': 'Embedding cssom resources in "<(input_directory)" into header file, "<(output_path)".',
           'msvs_cygwin_shell': 1,
         },

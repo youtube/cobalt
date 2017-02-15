@@ -120,11 +120,11 @@
 #include "cobalt/bindings/testing/window.h"
 
 #include "base/lazy_instance.h"
-#include "cobalt/script/mozjs/callback_function_conversion.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
+#include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
@@ -251,24 +251,24 @@ using cobalt::script::Wrappable;
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::ExceptionState;
+using cobalt::script::Wrappable;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::InterfaceData;
+using cobalt::script::mozjs::MozjsCallbackFunction;
+using cobalt::script::mozjs::MozjsExceptionState;
+using cobalt::script::mozjs::MozjsGlobalEnvironment;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::ProxyHandler;
+using cobalt::script::mozjs::ToJSValue;
+using cobalt::script::mozjs::TypeTraits;
+using cobalt::script::mozjs::WrapperFactory;
+using cobalt::script::mozjs::WrapperPrivate;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::mozjs::kNoConversionFlags;
-using cobalt::script::mozjs::InterfaceData;
-using cobalt::script::mozjs::MozjsCallbackFunction;
-using cobalt::script::mozjs::MozjsExceptionState;
-using cobalt::script::mozjs::MozjsGlobalEnvironment;
-using cobalt::script::mozjs::MozjsUserObjectHolder;
-using cobalt::script::mozjs::MozjsPropertyEnumerator;
-using cobalt::script::mozjs::ProxyHandler;
-using cobalt::script::mozjs::ToJSValue;
-using cobalt::script::mozjs::TypeTraits;
-using cobalt::script::mozjs::WrapperPrivate;
-using cobalt::script::mozjs::WrapperFactory;
-using cobalt::script::Wrappable;
 JSObject* DummyFunctor(
     JSContext* context, const scoped_refptr<Wrappable>& wrappable) {
   NOTREACHED();
@@ -788,6 +788,7 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
   MozjsWindow::CreateProxy(
       context, global_interface);
   mozjs_global_environment->SetEnvironmentSettings(environment_settings);
+  mozjs_global_environment->EvaluateAutomatics();
 
   WrapperFactory* wrapper_factory =
       mozjs_global_environment->wrapper_factory();
