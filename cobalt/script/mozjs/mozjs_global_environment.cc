@@ -22,6 +22,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
+#include "cobalt/script/mozjs/embedded_resources.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_source_code.h"
 #include "cobalt/script/mozjs/mozjs_wrapper_handle.h"
@@ -193,6 +194,8 @@ void MozjsGlobalEnvironment::CreateGlobalObject() {
       context_, ProxyHandler::NewProxy(context_, global_object, NULL, NULL,
                                        proxy_handler.Pointer()));
   global_object_proxy_ = proxy;
+
+  EvaluateAutomatics();
 }
 
 bool MozjsGlobalEnvironment::EvaluateScript(
@@ -348,6 +351,20 @@ void MozjsGlobalEnvironment::Bind(const std::string& identifier,
   bool success = JS_SetProperty(context_, global_object, identifier.c_str(),
                                 &wrapper_value);
   DCHECK(success);
+}
+
+void MozjsGlobalEnvironment::EvaluateAutomatics() {
+  TRACK_MEMORY_SCOPE("Javascript");
+  std::string source(
+      reinterpret_cast<const char*>(MozjsEmbeddedResources::promise_min_js),
+      sizeof(MozjsEmbeddedResources::promise_min_js));
+  scoped_refptr<SourceCode> source_code =
+      new MozjsSourceCode(source, base::SourceLocation("promise.min.js", 1, 1));
+  std::string result;
+  bool success = EvaluateScript(source_code, &result);
+  if (!success) {
+    DLOG(FATAL) << result;
+  }
 }
 
 InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(intptr_t key) {
