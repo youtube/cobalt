@@ -33,6 +33,10 @@ import tv_testcase_util
 
 class TimeToShelf(tv_testcase.TvTestCase):
 
+  def setUp(self):
+    # Override TvTestCase's setUp() so that blank startup can first be measured.
+    pass
+
   def test_simple(self):
     """This test tries to measure the startup time for the YouTube TV page.
 
@@ -40,18 +44,18 @@ class TimeToShelf(tv_testcase.TvTestCase):
     updated ~60Hz on a best effort basis and is in microseconds, to determine
     "timeToShelfBlankStartupTimeUs" and uses Timer to determine
     "timeToShelfTestTimeShelfDisplayMedianUs".
-
-    Note: t0 is defined after Cobalt starts up, but has not navigated to a page.
-    If that true startup time metric is desired, perhaps a separate should be
-    used.
     """
-    metrics_array = []
+
     blank_startup_time_microseconds = self.get_cval('Cobalt.Lifetime')
-    self.wait_for_processing_complete_after_focused_shelf()
+
+    # Call TvTestCase's setUp() now that the blank startup time has been
+    # measured.
+    super(TimeToShelf, self).setUp()
+
+    metrics_array = []
     for _ in range(10):
       with timer.Timer('TimeShelfDisplay') as t:
         self.load_tv()
-        self.wait_for_processing_complete_after_focused_shelf()
       startup_time_microseconds = int(t.seconds_elapsed * 1000000)
       metrics_array.append(startup_time_microseconds)
 
