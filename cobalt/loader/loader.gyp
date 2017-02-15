@@ -173,6 +173,7 @@
       'sources': [
         '<(input_directory)/splash_screen.css',
         '<(input_directory)/splash_screen.html',
+        '<(input_directory)/splash_screen.js',
         '<(input_directory)/you_tube_logo.png',
       ],
       'actions': [
@@ -185,7 +186,7 @@
           'outputs': [
             '<(output_path)',
           ],
-          'action': ['python', '<(script_path)', 'LoaderEmbeddedResources', '<(input_directory)', '<(output_path)'],
+          'action': ['python', '<(script_path)', 'LoaderEmbeddedResources', '<(output_path)', '<(input_directory)'],
           'message': 'Embedding layout resources in "<(input_directory)" into header file, "<(output_path)".',
         },
       ],
