@@ -15,5 +15,5 @@
 #include "starboard/system.h"
 
 SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
+  return kSbSystemDeviceTypeAndroidTV;
 }
