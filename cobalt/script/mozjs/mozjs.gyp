@@ -42,6 +42,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
+        'embed_mozjs_resources_as_header_files',
       ],
       'defines': [
         'MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
@@ -103,6 +104,42 @@
         'executable_name': 'mozjs_engine_test',
       },
       'includes': [ '../../../starboard/build/deploy.gypi' ],
+    },
+
+    {
+      # This target takes specified files and embeds them as header files for
+      # inclusion into the binary. The script currently requires all resources
+      # to be embedded to live in the same directory.
+      'target_name': 'embed_mozjs_resources_as_header_files',
+      'type': 'none',
+      # Because we generate a header, we must set the hard_dependency flag.
+      'hard_dependency': 1,
+      'variables': {
+        'script_path': '<(DEPTH)/cobalt/build/generate_data_header.py',
+        'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/script/mozjs/embedded_resources.h',
+      },
+      'sources': [
+        '<(DEPTH)/third_party/promise-polyfill/promise.min.js',
+      ],
+      'actions': [
+        {
+          'action_name': 'embed_mozjs_resources_as_header_files',
+          'inputs': [
+            '<(script_path)',
+            '<@(_sources)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)', 'MozjsEmbeddedResources', '<(output_path)', '<@(_sources)' ],
+          'message': 'Embedding MozJS resources in into header file, "<(output_path)".',
+        },
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
     },
   ],
 }
