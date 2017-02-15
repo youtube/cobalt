@@ -37,7 +37,6 @@ cobalt_bindings_dir = os.path.normpath(
 # Add cobalt's bindings generation scripts to the path.
 sys.path.append(cobalt_bindings_dir)
 from idl_compiler_cobalt import IdlCompilerCobalt  # pylint: disable=g-import-not-at-top
-from javascriptcore.code_generator import CodeGeneratorJsc
 from mozjs.code_generator import CodeGeneratorMozjs
 CodeGeneratorMozjs45 = __import__(  # pylint: disable=invalid-name
     'mozjs-45.code_generator').code_generator.CodeGeneratorMozjs
@@ -54,9 +53,7 @@ def main(argv):
   parser.add_argument('engine')
   args = parser.parse_args(argv[1:])
 
-  if args.engine.lower() == 'jsc':
-    generator = CodeGeneratorJsc
-  elif args.engine.lower() == 'mozjs':
+  if args.engine.lower() == 'mozjs':
     generator = CodeGeneratorMozjs
   elif args.engine.lower() == 'mozjs-45':
     generator = CodeGeneratorMozjs45
