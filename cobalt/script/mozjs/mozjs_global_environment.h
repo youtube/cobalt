@@ -77,6 +77,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void Bind(const std::string& identifier,
             const scoped_refptr<Wrappable>& impl) OVERRIDE;
 
+  // Evaluates any automatically included Javascript for the environment.
+  void EvaluateAutomatics();
+
   JSContext* context() const { return context_; }
 
   JSObject* global_object_proxy() const { return global_object_proxy_; }
