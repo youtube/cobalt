@@ -27,14 +27,16 @@ WebDriverWait = tv_testcase_util.import_selenium_module(
 ElementNotVisibleException = tv_testcase_util.import_selenium_module(
     submodule="common.exceptions").ElementNotVisibleException
 
+WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
-# Today, Cobalt's WebDriver has a race that
-# can leave the former page's DOM visible after a navigate.
-# As a workaround, sleep for a bit
-# b/33275371
+# Currently, after loading a new URL with cookies enabled, ***REMOVED*** randomizes
+# the shelf entries when the page finishes loading. Sleep for a bit to allow
+# this to occur before starting any additional logic.
 COBALT_POST_NAVIGATE_SLEEP_SECONDS = 5
+
+_is_initialized = False
 
 
 class TvTestCase(unittest.TestCase):
@@ -43,6 +45,9 @@ class TvTestCase(unittest.TestCase):
   Style note: snake_case is used for function names here so as to match
   with an internal class with the same name.
   """
+
+  class WindowDriverCreatedTimeoutException(BaseException):
+    """Exception thrown when WindowDriver was not created in time."""
 
   class ProcessingTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
@@ -58,8 +63,22 @@ class TvTestCase(unittest.TestCase):
   def tearDownClass(cls):
     print("Done " + cls.__name__)
 
+  def setUp(self):
+    global _is_initialized
+    if not _is_initialized:
+      # Initialize the tests. This involves loading a URL which applies the
+      # forcedOffAllExperiments cookies, ensuring that no subsequent loads
+      # include experiments. Additionally, loading this URL triggers a reload.
+      query_params = {"env_forcedOffAllExperiments": True}
+      triggers_reload = True
+      self.load_tv(None, query_params, triggers_reload)
+      _is_initialized = True
+
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
+
+  def get_windowdriver_created(self):
+    return tv_testcase_runner.GetWindowDriverCreated()
 
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
@@ -76,24 +95,14 @@ class TvTestCase(unittest.TestCase):
     else:
       return json.loads(json_result)
 
-  def goto(self, url):
-    """Goes to a url.
-
-    Args:
-      path: URL path without the hostname.
-      query_params: Dictionary of parameter names and values.
-    Raises:
-      Underlying WebDriver exceptions
-    """
-    self.get_webdriver().get(url)
-    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
-
-  def load_tv(self, label=None, additional_query_params=None):
+  def load_tv(self, label=None, additional_query_params=None,
+              triggers_reload=False):
     """Loads the main TV page and waits for it to display.
 
     Args:
       label: A value for the label query parameter.
       additional_query_params: A dict containing additional query parameters.
+      triggers_reload: Whether or not the navigation will trigger a reload.
     Raises:
       Underlying WebDriver exceptions
     """
@@ -102,13 +111,19 @@ class TvTestCase(unittest.TestCase):
       query_params = {"label": label}
     if additional_query_params is not None:
       query_params.update(additional_query_params)
-    self.goto(tv_testcase_util.get_tv_url(query_params))
+    self.get_windowdriver_created().clear()
+    self.get_webdriver().get(tv_testcase_util.get_tv_url(query_params))
+    self.wait_for_windowdriver_created()
+    if triggers_reload:
+      self.get_windowdriver_created().clear()
+      self.wait_for_windowdriver_created()
+    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
     # decorator-driven success retry loop for subsequent webdriver requests.
     #
     # We'll skip that sophistication here.
-    self.poll_until_found(tv.FOCUSED_SHELF)
+    self.wait_for_processing_complete_after_focused_shelf()
 
   def poll_until_found(self, css_selector):
     """Polls until an element is found.
@@ -194,6 +209,12 @@ class TvTestCase(unittest.TestCase):
         if time.time() - start_time >= PAGE_LOAD_WAIT_SECONDS:
           raise
         time.sleep(1)
+
+  def wait_for_windowdriver_created(self):
+    """Waits for Cobalt to create a WindowDriver."""
+    windowdriver_created = self.get_windowdriver_created()
+    if not windowdriver_created.wait(WINDOWDRIVER_CREATED_TIMEOUT_SECONDS):
+      raise TvTestCase.WindowDriverCreatedTimeoutException()
 
   def wait_for_processing_complete_after_focused_shelf(self):
     """Waits for Cobalt to focus on a shelf and complete pending layouts."""
