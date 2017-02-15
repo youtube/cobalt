@@ -31,16 +31,8 @@
       # building 'all'.
       'target_name': 'all_engines',
       'type': 'none',
-      'conditions': [
-        ['OS == "starboard"', {
-          'dependencies': [
-            'mozjs/mozjs.gyp:*',
-          ],
-        }, {  #else
-          'dependencies': [
-            'javascriptcore/javascriptcore.gyp:*',
-          ],
-        }],
+      'dependencies': [
+        'mozjs/mozjs.gyp:*',
       ],
     },
   ],
