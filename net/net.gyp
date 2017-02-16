@@ -10,7 +10,7 @@
     # this flag is set, we hackily avoid using mmap() in the disk cache.
     'posix_avoid_mmap%': 0,
 
-    'enable_websockets%' : 0,
+    'enable_websockets%' : 1,
     'use_native_http_stack%': 0,
   },
   'targets': [
