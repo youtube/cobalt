@@ -252,7 +252,6 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
     out_args->push_back(SbStringDuplicate(utf_chars));
     env->ReleaseStringUTFChars(element, utf_chars);
   }
-  state->activity->vm->DetachCurrentThread();
 }
 
 /**
