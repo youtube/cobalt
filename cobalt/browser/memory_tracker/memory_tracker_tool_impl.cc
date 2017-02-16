@@ -29,6 +29,7 @@
 #include "cobalt/browser/memory_tracker/buffered_file_writer.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
+#include "starboard/common/semaphore.h"
 #include "starboard/configuration.h"
 #include "starboard/file.h"
 #include "starboard/string.h"
@@ -168,11 +169,12 @@ class NoMemoryTracking {
 class Timer {
  public:
   explicit Timer(base::TimeDelta dt)
-      : start_time_(base::Time::NowFromSystemTime()),
-        time_before_expiration_(dt) {}
+      : start_time_(base::TimeTicks::Now()), time_before_expiration_(dt) {}
+
+  void Restart() { start_time_ = base::TimeTicks::Now(); }
 
   bool UpdateAndIsExpired() {
-    base::Time now_time = base::Time::NowFromSystemTime();
+    base::TimeTicks now_time = base::TimeTicks::Now();
     base::TimeDelta dt = now_time - start_time_;
     if (dt > time_before_expiration_) {
       start_time_ = now_time;
@@ -183,7 +185,7 @@ class Timer {
   }
 
  private:
-  base::Time start_time_;
+  base::TimeTicks start_time_;
   base::TimeDelta time_before_expiration_;
 };
 
@@ -198,7 +200,13 @@ class Params {
         logger_(logger),
         timer_(start_time) {}
   bool finished() const { return finished_; }
-  void set_finished(bool val) { finished_ = val; }
+  bool wait_for_finish_signal(SbTime wait_us) {
+    return finished_semaphore_.TakeWait(wait_us);
+  }
+  void set_finished(bool val) {
+    finished_ = val;
+    finished_semaphore_.Put();
+  }
 
   nb::analytics::MemoryTracker* memory_tracker() const {
     return memory_tracker_;
@@ -209,8 +217,8 @@ class Params {
   }
   std::string TimeInMinutesString() const {
     base::TimeDelta delta_t = time_since_start();
-    float seconds = static_cast<float>(delta_t.InMilliseconds()) / 1000.0f;
-    float time_mins = seconds / 60.f;
+    int64 seconds = delta_t.InSeconds();
+    float time_mins = static_cast<float>(seconds) / 60.f;
     std::stringstream ss;
 
     ss << time_mins;
@@ -222,6 +230,7 @@ class Params {
   bool finished_;
   scoped_ptr<AbstractLogger> logger_;
   base::Time timer_;
+  starboard::Semaphore finished_semaphore_;
 };
 
 MemoryTrackerToolThread::MemoryTrackerToolThread(
@@ -608,25 +617,43 @@ bool MemoryTrackerPrintCSV::TimeExpiredYet(const Params& params) {
 
 ///////////////////////////////////////////////////////////////////////////////
 MemoryTrackerCompressedTimeSeries::MemoryTrackerCompressedTimeSeries()
-    : sample_interval_ms_(100), number_samples_(400) {}
+    : number_samples_(400) {}
 
 void MemoryTrackerCompressedTimeSeries::Run(Params* params) {
   TimeSeries timeseries;
-  Timer timer(base::TimeDelta::FromSeconds(2));
-  while (!params->finished()) {
+  Timer timer_status_message(base::TimeDelta::FromSeconds(1));
+
+  // Outputs CSV once every minute.
+  Timer timer_output_csv(base::TimeDelta::FromMinutes(1));
+
+  base::TimeDelta dt;
+
+  // Initial sample time is every 50 milliseconds.
+  base::TimeDelta current_sample_interval =
+      base::TimeDelta::FromMilliseconds(50);
+
+  while (!params->wait_for_finish_signal(current_sample_interval.ToSbTime())) {
     AcquireSample(params->memory_tracker(), &timeseries,
                   params->time_since_start());
+
     if (IsFull(timeseries, number_samples_)) {
+      Compress(&timeseries);           // Remove every other element.
+      current_sample_interval *= 2;    // Double the sample time.
+      timer_status_message.Restart();  // Skip status message.
+    }
+
+    if (timer_output_csv.UpdateAndIsExpired()) {
       const std::string str = ToCsvString(timeseries);
-      Compress(&timeseries);
       params->logger()->Output(str.c_str());
-    } else if (timer.UpdateAndIsExpired()) {
+      timer_status_message.Restart();  // Skip status message.
+    }
+
+    // Print status message.
+    if (timer_status_message.UpdateAndIsExpired()) {
       std::stringstream ss;
       ss << tool_name() << " is running..." << kNewLine;
       params->logger()->Output(ss.str().c_str());
     }
-    base::PlatformThread::Sleep(
-        base::TimeDelta::FromMilliseconds(sample_interval_ms_));
   }
 }
 
@@ -730,7 +757,7 @@ std::string MemoryTrackerCompressedTimeSeries::ToCsvString(
   }
   ss << "// END CSV of COUNT of allocations per region." << kNewLine;
   ss << "//////////////////////////////////////////////";
-  ss << kNewLine;
+  ss << kNewLine << kNewLine;
 
   std::string output = ss.str();
   return output;
@@ -789,14 +816,6 @@ void MemoryTrackerCompressedTimeSeries::AcquireSample(
 bool MemoryTrackerCompressedTimeSeries::IsFull(const TimeSeries& timeseries,
                                                size_t samples_limit) {
   return timeseries.time_stamps_.size() >= samples_limit;
-}
-
-template <typename VectorT>
-void DoCompression(VectorT* samples) {
-  for (size_t i = 0; i * 2 < samples->size(); ++i) {
-    (*samples)[i] = (*samples)[i * 2];
-  }
-  samples->resize(samples->size() / 2);
 }
 
 void MemoryTrackerCompressedTimeSeries::Compress(TimeSeries* timeseries) {
