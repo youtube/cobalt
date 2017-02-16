@@ -70,6 +70,10 @@ class NET_EXPORT WebSocketJob
                                      bool fatal) OVERRIDE;
   virtual void OnError(const SocketStream* socket, int error) OVERRIDE;
 
+  WebSocketHandshakeResponseHandler* GetHandshakeResponse() {
+    return handshake_response_.get();
+  }
+
  private:
   friend class WebSocketThrottle;
   virtual ~WebSocketJob();
