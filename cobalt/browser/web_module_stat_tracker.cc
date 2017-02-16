@@ -174,6 +174,7 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
       ,
       value_dictionary(
           StringPrintf("Event.%s.ValueDictionary", name.c_str()),
+          "{}"
           "All event values represented as a dictionary in a string.")
 #endif  // ENABLE_WEBDRIVER
 {
