@@ -63,7 +63,6 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DummySocketStreamDelegate delegate;
   // TODO(toyoshim): We need to consider both spdy-enabled and spdy-disabled
   // configuration.
-  WebSocketJob::set_websocket_over_spdy_enabled(true);
 
   // For host1: 1.2.3.4, 1.2.3.5, 1.2.3.6
   AddressList addr;
@@ -280,7 +279,6 @@ TEST_F(WebSocketThrottleTest, Throttle) {
 TEST_F(WebSocketThrottleTest, NoThrottleForDuplicateAddress) {
   TestURLRequestContext context;
   DummySocketStreamDelegate delegate;
-  WebSocketJob::set_websocket_over_spdy_enabled(true);
 
   // For localhost: 127.0.0.1, 127.0.0.1
   AddressList addr;
