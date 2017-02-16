@@ -145,43 +145,38 @@ struct TimeSeries {
   TimeStamps time_stamps_;
 };
 
-// Generates CSV values of the engine of a compressed-scale TimeSeries.
+// Generates CSV values of the engine memory. This includes memory
+// consumption in bytes and also the number of allocations.
+// Allocations are segmented by category such as "Javascript" and "Network and
+// are periodically dumped to the Params::abstract_logger_.
 //
-// A compressed-scale TimeSeries is defined as a time series which has
-// higher resolution at the most recent sampling and becomes progressively
-// lower resolution as time goes backward.
+// Compression:
+//  During early run, the sampling rate is extremely high, however the sampling
+//  rate will degrade by half each time the sampling buffer fills up.
 //
-// For example, here is a compressed-histogram of order 2, which loses
-// 50% resolution on each section going back.
+//  Additionally, every time the sampling buffer fills up, space is freed by
+//  evicting every other element.
 //
-// Startup +------->  +--------+ ..% Resolution
-//                    +--------+
-//                    |        | 12% Resolution
-//                    +--------+
-//                    |        |
-//                    |        | 25% Resolution
-//                    +--------+
-//                    |        |
-//                    |        |
-//                    |        | 50% Resolution
-//                    |        |
-//                    |        |
-//                    +--------+
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        | 100% Resolution
-//                    |        |
-//                    |        |
-//                    |        |
-//                    |        |
-// End Time +------>  +--------+
+// Example output:
+//  //////////////////////////////////////////////
+//  // CSV of BYTES allocated per region (MB's).
+//  // Units are in Megabytes. This is designed
+//  // to be used in a stacked graph.
+//  "Time(mins)","CSS","DOM","Javascript","Media","MessageLoop"....
+//  0,0,0,0,0,0...
+//  1022.54,3.3,7.19,49.93,50.33....
+//  ...
+//  // END CSV of BYTES allocated per region.
+//  //////////////////////////////////////////////
 //
-// The the compressed histogram is dumped out as a CSV string periodically to
-// the output stream.
+//  //////////////////////////////////////////////
+//  // CSV of COUNT of allocations per region.
+//  "Time(mins)","CSS","DOM","Javascript","Media","MessageLoop"....
+//  0,0,0,0,0,0...
+//  1022.54,57458,70011,423217,27,54495,43460...
+//  ...
+//  // END CSV of COUNT of allocations per region.
+//  //////////////////////////////////////////////
 class MemoryTrackerCompressedTimeSeries : public AbstractMemoryTrackerTool {
  public:
   MemoryTrackerCompressedTimeSeries();
@@ -197,7 +192,6 @@ class MemoryTrackerCompressedTimeSeries : public AbstractMemoryTrackerTool {
   static bool IsFull(const TimeSeries& histogram, size_t num_samples);
   static void Compress(TimeSeries* histogram);
 
-  const int sample_interval_ms_;
   const int number_samples_;
 };
 
