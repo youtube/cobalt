@@ -117,8 +117,8 @@ class CompoundSelector : public Selector {
   Specificity specificity_;
   bool has_pseudo_element_;
   // This flag tracks whether or not during rule matching, after the initial
-  // candidate gathering phase, the simple selectors additional checks during
-  // the verification phase to determine a match; otherwise, the act of
+  // candidate gathering phase, the simple selectors require additional checks
+  // during the verification phase to determine a match; otherwise, the act of
   // being gathered itself proves the match.
   // There are two cases where the selectors require a visit:
   // 1. There are multiple selectors. Gathering only tests against the first
