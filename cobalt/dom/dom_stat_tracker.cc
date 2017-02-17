@@ -34,7 +34,9 @@ DomStatTracker::DomStatTracker(const std::string& name)
       html_elements_created_count_(0),
       html_elements_destroyed_count_(0),
       update_matching_rules_count_(0),
-      update_computed_style_count_(0) {
+      update_computed_style_count_(0),
+      generate_html_element_computed_style_count_(0),
+      generate_pseudo_element_computed_style_count_(0) {
   stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
@@ -94,6 +96,14 @@ void DomStatTracker::OnUpdateMatchingRules() { ++update_matching_rules_count_; }
 
 void DomStatTracker::OnUpdateComputedStyle() { ++update_computed_style_count_; }
 
+void DomStatTracker::OnGenerateHtmlElementComputedStyle() {
+  ++generate_html_element_computed_style_count_;
+}
+
+void DomStatTracker::OnGeneratePseudoElementComputedStyle() {
+  ++generate_pseudo_element_computed_style_count_;
+}
+
 base::TimeDelta DomStatTracker::GetStopWatchTypeDuration(
     StopWatchType type) const {
   return stop_watch_durations_[type];
@@ -117,6 +127,8 @@ void DomStatTracker::FlushPeriodicTracking() {
   html_elements_destroyed_count_ = 0;
   update_matching_rules_count_ = 0;
   update_computed_style_count_ = 0;
+  generate_html_element_computed_style_count_ = 0;
+  generate_pseudo_element_computed_style_count_ = 0;
 }
 
 }  // namespace dom
