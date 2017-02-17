@@ -11,6 +11,7 @@ FOCUSED_SHELF_TITLE = '.focused.selected.shelf .shelf-header-title .main'
 FOCUSED_TILE = '.focused.tile'
 FOCUSED_WATCH = '.focused.watch'
 SEARCH_LEGEND = '.search.no-model.legend-item'
+TITLE_CARD_HIDDEN = '.title-card.hidden'
 
 SEARCH = '#search'
 WATCH = '#watch'
