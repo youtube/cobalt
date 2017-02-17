@@ -31,6 +31,7 @@ WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
+TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
 # Currently, after loading a new URL with cookies enabled, ***REMOVED*** randomizes
 # the shelf entries when the page finishes loading. Sleep for a bit to allow
 # this to occur before starting any additional logic.
@@ -54,6 +55,9 @@ class TvTestCase(unittest.TestCase):
 
   class MediaTimeoutException(BaseException):
     """Exception thrown when media did not complete in time."""
+
+  class TitleCardHiddenTimeoutException(BaseException):
+    """Exception thrown when title card did not disappear in time."""
 
   @classmethod
   def setUpClass(cls):
@@ -271,8 +275,20 @@ class TvTestCase(unittest.TestCase):
         c_val_names.event_duration_dom_video_start_delay()) == 0:
       if time.time() - start_time > MEDIA_TIMEOUT_SECONDS:
         raise TvTestCase.MediaTimeoutException()
-
       time.sleep(0.1)
+
+  def wait_for_title_card_hidden(self):
+    """Waits for the title to disappear while a video is playing.
+
+    Raises:
+      TitleCardHiddenTimeoutException: The title card did not become hidden in
+      the required time.
+    """
+    start_time = time.time()
+    while not self.find_elements(tv.TITLE_CARD_HIDDEN):
+      if time.time() - start_time > TITLE_CARD_HIDDEN_TIMEOUT_SECONDS:
+        raise TvTestCase.TitleCardHiddenTimeoutException()
+      time.sleep(1)
 
 
 def main():
