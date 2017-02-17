@@ -82,6 +82,10 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     base::CVal<int, base::CValPublic> count_dom_html_elements_destroyed;
     base::CVal<int, base::CValPublic> count_dom_update_matching_rules;
     base::CVal<int, base::CValPublic> count_dom_update_computed_style;
+    base::CVal<int, base::CValPublic>
+        count_dom_generate_html_element_computed_style;
+    base::CVal<int, base::CValPublic>
+        count_dom_generate_pseudo_element_computed_style;
     base::CVal<int, base::CValPublic> count_layout_boxes_created;
     base::CVal<int, base::CValPublic> count_layout_boxes_destroyed;
 

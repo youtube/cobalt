@@ -49,6 +49,8 @@ class DomStatTracker : public base::StopWatchOwner {
   void OnHtmlElementDestroyed();
   void OnUpdateMatchingRules();
   void OnUpdateComputedStyle();
+  void OnGenerateHtmlElementComputedStyle();
+  void OnGeneratePseudoElementComputedStyle();
 
   int total_html_elements() const { return total_html_elements_; }
 
@@ -63,6 +65,12 @@ class DomStatTracker : public base::StopWatchOwner {
   }
   int update_computed_style_count() const {
     return update_computed_style_count_;
+  }
+  int generate_html_element_computed_style_count() const {
+    return generate_html_element_computed_style_count_;
+  }
+  int generate_pseudo_element_computed_style_count() const {
+    return generate_pseudo_element_computed_style_count_;
   }
 
   base::TimeDelta GetStopWatchTypeDuration(StopWatchType type) const;
@@ -92,6 +100,8 @@ class DomStatTracker : public base::StopWatchOwner {
   int html_elements_destroyed_count_;
   int update_matching_rules_count_;
   int update_computed_style_count_;
+  int generate_html_element_computed_style_count_;
+  int generate_pseudo_element_computed_style_count_;
 
   // Stop watch-related.
   std::vector<base::TimeDelta> stop_watch_durations_;
