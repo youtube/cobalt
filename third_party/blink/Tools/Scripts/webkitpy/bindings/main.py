@@ -188,14 +188,13 @@ def bindings_tests(output_directory, verbose, reference_directory,
     executive = Executive()
 
     def list_files(directory):
-        files = []
+        all_files = []
         for component in os.listdir(directory):
             if component not in component_directories:
                 continue
-            directory_with_component = os.path.join(directory, component)
-            for filename in os.listdir(directory_with_component):
-                files.append(os.path.join(directory_with_component, filename))
-        return files
+            for root, _, files in os.walk(os.path.join(directory, component)):
+                all_files.extend([os.path.join(root, file) for file in files])
+        return all_files
 
     def diff(filename1, filename2):
         # Python's difflib module is too slow, especially on long output, so
@@ -214,8 +213,10 @@ def bindings_tests(output_directory, verbose, reference_directory,
 
     def delete_cache_files():
         # FIXME: Instead of deleting cache files, don't generate them.
-        cache_files = [path for path in list_files(output_directory)
-                       if is_cache_file(os.path.basename(path))]
+        cache_files = []
+        for root, _, files in os.walk(output_directory):
+            cache_files.extend([os.path.join(root, path) for path in files
+                       if is_cache_file(path)])
         for cache_file in cache_files:
             os.remove(cache_file)
 
@@ -304,7 +305,8 @@ def bindings_tests(output_directory, verbose, reference_directory,
             else:
                 idl_partial_interface_compiler = None
 
-            dictionary_impl_compiler = IdlCompilerDictionaryImpl(
+            dictionary_impl_compiler = idl_compiler_constructor(
+                code_generator_constructor,
                 output_dir, interfaces_info=interfaces_info,
                 only_if_changed=True,
                 extended_attributes_filepath=extended_attributes_path)
