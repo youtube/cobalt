@@ -32,6 +32,35 @@ uint32_t RuntimeHash32(const char* data,
                        int length,
                        uint32_t prev_hash = kDefaultSeed);
 
+// Convenience functor for hashing plain old data types like int/float etc and
+// POD structs.
+template <typename T>
+struct PODHasher {
+  uint32_t operator()(const T& value) const {
+    return RuntimeHash32(reinterpret_cast<const char*>(&value), sizeof(value));
+  }
+};
+
+template <class Dest, class Source>
+inline Dest bit_cast(const Source& source) {
+  static_assert(sizeof(Dest) == sizeof(Source),
+                "Source and destination types should have equal sizes.");
+
+  Dest dest;
+  SbMemoryCopy(&dest, &source, sizeof(dest));
+  return dest;
+}
+
+// Specialization so that all pointers are PODs.
+template <typename T>
+struct PODHasher<T*> {
+  uint32_t operator()(const void* ptr) const {
+    uintptr_t ptr_value = bit_cast<uintptr_t>(ptr);
+    PODHasher<uintptr_t> pod_hasher;
+    return pod_hasher(ptr_value);
+  }
+};
+
 }  // namespace nb
 
 #endif  // NB_HASH_H_
