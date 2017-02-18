@@ -63,7 +63,8 @@ TEST_F(EvaluateScriptTest, ThreeArguments) {
       "    return fib(n - 1) + fib(n - 2);\n"
       "  }\n"
       "}\n"
-      "fib(8)";
+      // Box the result so it can be returned naturally from an object property.
+      "new Number(fib(8))";
 
   // Call with null out handle.
   scoped_refptr<StrictMock<ArbitraryInterface> > arbitrary_interface_mock(

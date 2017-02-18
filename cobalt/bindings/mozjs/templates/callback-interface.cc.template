@@ -46,6 +46,12 @@ namespace {{component}} {
     : context_(context),
       implementing_object_(context, implementing_object) { }
 
+{{binding_class}}::{{binding_class}}(
+    JSContext* context,
+    JS::HandleValue implementing_object_value)
+    : context_(context),
+      implementing_object_(context, implementing_object_value) { }
+
 {% for operation in operations %}
 {% for overload in operation.overloads %}
 {{overload.type}} {{binding_class}}::{{overload.name}}(
@@ -62,7 +68,7 @@ namespace {{component}} {
   JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
 
   // This could be set to NULL if it was garbage collected.
-  JS::RootedObject implementing_object(context_, implementing_object_.Get());
+  JS::RootedObject implementing_object(context_, implementing_object_.GetObject());
   DLOG_IF(WARNING, !implementing_object) << "Implementing object is NULL.";
   if (implementing_object) {
     JSAutoCompartment auto_compartment(context_, implementing_object);
