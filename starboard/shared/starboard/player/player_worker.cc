@@ -96,12 +96,13 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 void* PlayerWorker::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param != NULL);
+  PlayerWorker* player_worker = param->player_worker;
   {
     ScopedLock scoped_lock(param->mutex);
-    param->player_worker->job_queue_.reset(new JobQueue);
+    player_worker->job_queue_.reset(new JobQueue);
     param->condition_variable.Signal();
   }
-  param->player_worker->RunLoop();
+  player_worker->RunLoop();
   return NULL;
 }
 
