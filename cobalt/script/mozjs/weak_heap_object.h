@@ -23,26 +23,40 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
-// This class implements a weak reference to a JSObject. The JSObject that an
+// This class implements a weak reference to a JS::Value. The JS::Value that an
 // instance of this class is created with may get garbage collected. In that
 // case, subsequent calls to WeakHeapObject::Get() will return a NULL pointer.
 class WeakHeapObject {
  public:
-  WeakHeapObject(JSContext* context, JS::HandleObject handle);
+  WeakHeapObject(JSContext* context, JS::HandleValue value);
+  WeakHeapObject(JSContext* context, JS::HandleObject object);
   WeakHeapObject(const WeakHeapObject& other);
 
   WeakHeapObject& operator=(const WeakHeapObject& rhs);
-  JSObject* Get() const { return heap_; }
+  const JS::Value& GetValue() const { return value_.get(); }
+  JSObject* GetObject() const {
+    return value_.toObjectOrNull();
+  }
+
   void Trace(JSTracer* trace);
+  bool IsObject() const;
+  bool IsGcThing() const;
+
+  // Whether the value was a GC Thing and has been actually GC'd.
+  bool WasCollected() const;
 
   ~WeakHeapObject();
 
  private:
   void Initialize(WeakHeapObjectManager* weak_heap_object_manager,
-                  JSObject* object);
+                  const JS::Value& value);
+
+  bool IsNull() const;
+  void UpdateWeakPointerAfterGc();
 
   WeakHeapObjectManager* weak_object_manager_;
-  JS::Heap<JSObject*> heap_;
+  JS::Heap<JS::Value> value_;
+  bool was_collected_;
 
   friend class WeakHeapObjectManager;
 };

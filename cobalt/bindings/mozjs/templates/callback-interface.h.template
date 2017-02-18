@@ -33,6 +33,8 @@ class {{binding_class}} : public {{impl_class}} {
 
   {{binding_class}}(
       JSContext* context, JS::HandleObject implementing_object);
+  {{binding_class}}(
+      JSContext* context, JS::HandleValue implementing_object_value);
 {% for operation in operations %}
 {% for overload in operation.overloads %}
   {{overload.type}} {{overload.name}}(
@@ -43,7 +45,9 @@ class {{binding_class}} : public {{impl_class}} {
       bool* had_exception) const OVERRIDE;
 {% endfor %}
 {% endfor %}
-  JSObject* handle() const { return implementing_object_.Get(); }
+  JSObject* handle() const { return implementing_object_.GetObject(); }
+  const JS::Value& value() const { return implementing_object_.GetValue(); }
+  bool WasCollected() const { return implementing_object_.WasCollected(); }
 
  private:
   JSContext* context_;
