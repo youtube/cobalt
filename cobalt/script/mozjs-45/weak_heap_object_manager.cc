@@ -20,8 +20,7 @@
 
 #include "base/logging.h"
 #include "cobalt/script/mozjs-45/weak_heap_object.h"
-#include "third_party/mozjs-45/js/src/gc/Barrier.h"
-#include "third_party/mozjs-45/js/src/gc/Marking.h"
+#include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
@@ -48,6 +47,7 @@ WeakHeapObjectManager::~WeakHeapObjectManager() {
 }
 
 void WeakHeapObjectManager::StartTracking(WeakHeapObject* weak_object) {
+  TRACK_MEMORY_SCOPE("Javascript");
   std::pair<WeakHeapObjects::iterator, bool> pib =
       weak_objects_.insert(weak_object);
   DCHECK(pib.second) << "WeakHeapObject was already being tracked.";
@@ -63,8 +63,8 @@ void WeakHeapObjectManager::StopTracking(WeakHeapObject* weak_object) {
 }
 
 bool WeakHeapObjectManager::MaybeSweep(WeakHeapObject* weak_object) {
-  JS_UpdateWeakPointerAfterGC(&weak_object->heap_);
-  return weak_object->heap_ == NULL;
+  weak_object->UpdateWeakPointerAfterGc();
+  return weak_object->WasCollected();
 }
 
 }  // namespace mozjs

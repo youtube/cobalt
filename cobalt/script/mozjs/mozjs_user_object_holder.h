@@ -21,6 +21,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/referenced_object_map.h"
+#include "cobalt/script/mozjs/util/algorithm_helpers.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/script_object.h"
@@ -48,65 +49,82 @@ class MozjsUserObjectHolder
 
   MozjsUserObjectHolder(JS::HandleObject object, JSContext* context,
                         WrapperFactory* wrapper_factory)
-      : object_handle_(MozjsUserObjectType(context, object)),
+      : handle_(MozjsUserObjectType(context, object)),
+        context_(context),
+        wrapper_factory_(wrapper_factory) {}
+
+  MozjsUserObjectHolder(JS::HandleValue value, JSContext* context,
+                        WrapperFactory* wrapper_factory)
+      : handle_(MozjsUserObjectType(context, value)),
         context_(context),
         wrapper_factory_(wrapper_factory) {}
 
   void RegisterOwner(Wrappable* owner) OVERRIDE {
     JSAutoRequest auto_request(context_);
-    JS::RootedObject owned_object(context_, js_object());
-    DLOG_IF(WARNING, !owned_object)
-        << "Owned object has been garbage collected.";
-    if (owned_object) {
+    JS::RootedValue owned_value(context_, js_value());
+    DLOG_IF(WARNING, handle_->WasCollected())
+        << "Owned value has been garbage collected.";
+    if (owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
       intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->AddReferencedObject(
-          key, owned_object);
+          key, owned_value);
     }
   }
 
   void DeregisterOwner(Wrappable* owner) OVERRIDE {
     // |owner| may be in the process of being destructed, so don't use it.
     JSAutoRequest auto_request(context_);
-    JS::RootedObject owned_object(context_, js_object());
-    if (owned_object) {
+    JS::RootedValue owned_value(context_, js_value());
+    if (owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
       intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->RemoveReferencedObject(
-          key, owned_object);
+          key, owned_value);
     }
   }
 
   const typename MozjsUserObjectType::BaseType* GetScriptObject()
       const OVERRIDE {
-    return object_handle_ ? &object_handle_.value() : NULL;
+    return handle_ ? &handle_.value() : NULL;
   }
 
   scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
     TRACK_MEMORY_SCOPE("Javascript");
-    DCHECK(object_handle_);
+    DCHECK(handle_);
     JSAutoRequest auto_request(context_);
-    JS::RootedObject rooted_object(context_, js_object());
+    JS::RootedValue rooted_value(context_, js_value());
     return make_scoped_ptr<BaseClass>(
-        new MozjsUserObjectHolder(rooted_object, context_, wrapper_factory_));
+        new MozjsUserObjectHolder(rooted_value, context_, wrapper_factory_));
   }
 
   bool EqualTo(const BaseClass& other) const OVERRIDE {
     const MozjsUserObjectHolder* mozjs_other =
         base::polymorphic_downcast<const MozjsUserObjectHolder*>(&other);
-    if (!object_handle_) {
-      return !mozjs_other->object_handle_;
+    if (!handle_) {
+      return !mozjs_other->handle_;
+    } else if (!mozjs_other->handle_) {
+      return false;
     }
-    DCHECK(object_handle_);
-    DCHECK(mozjs_other->object_handle_);
-    return object_handle_->handle() == mozjs_other->object_handle_->handle();
+
+    DCHECK(handle_);
+    DCHECK(mozjs_other->handle_);
+
+    JS::RootedValue value1(context_, js_value());
+    JS::RootedValue value2(context_, mozjs_other->js_value());
+    return util::IsSameGcThing(context_, value1, value2);
+  }
+
+  const JS::Value& js_value() const {
+    DCHECK(handle_);
+    return handle_->value();
   }
 
   JSObject* js_object() const {
-    DCHECK(object_handle_);
-    return object_handle_->handle();
+    DCHECK(handle_);
+    return handle_->handle();
   }
 
  private:
@@ -114,7 +132,7 @@ class MozjsUserObjectHolder
       WrappableAndPrivateHashMap;
 
   JSContext* context_;
-  base::optional<MozjsUserObjectType> object_handle_;
+  base::optional<MozjsUserObjectType> handle_;
   WrapperFactory* wrapper_factory_;
 };
 

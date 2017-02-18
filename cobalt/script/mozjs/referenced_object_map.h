@@ -43,8 +43,8 @@ class ReferencedObjectMap {
     return reinterpret_cast<intptr_t>(wrappable);
   }
 
-  void AddReferencedObject(intptr_t key, JS::HandleObject referee);
-  void RemoveReferencedObject(intptr_t key, JS::HandleObject referee);
+  void AddReferencedObject(intptr_t key, JS::HandleValue referee);
+  void RemoveReferencedObject(intptr_t key, JS::HandleValue referee);
 
   // Trace all objects referenced from this WrapperPrivate*.
   void TraceReferencedObjects(JSTracer* trace, intptr_t key);

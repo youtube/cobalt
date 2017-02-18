@@ -39,20 +39,23 @@ class OpaqueRootStateImpl : public OpaqueRootTracker::OpaqueRootState {
   void TrackReachability(WrapperPrivate* from, WrapperPrivate* to) {
     intptr_t from_key = ReferencedObjectMap::GetKeyForWrappable(
         from->wrappable<Wrappable>().get());
-    JS::RootedObject to_object(context_, to->js_object_proxy());
+    JSObject* to_proxy = to->js_object_proxy();
+    DCHECK(to_proxy);
+    JS::RootedValue to_value(context_, JS::ObjectValue(*to_proxy));
     referenced_objects_.push_back(
-        std::make_pair(from_key, WeakHeapObject(context_, to_object)));
-    referenced_object_map_->AddReferencedObject(from_key, to_object);
+        std::make_pair(from_key, WeakHeapObject(context_, to_value)));
+    referenced_object_map_->AddReferencedObject(from_key, to_value);
   }
 
   ~OpaqueRootStateImpl() {
     JSAutoRequest auto_request(context_);
     for (ReferencedObjectPairVector::iterator it = referenced_objects_.begin();
          it != referenced_objects_.end(); ++it) {
-      if (it->second.Get()) {
-        JS::RootedObject reachable_object(context_, it->second.Get());
+      WeakHeapObject &value = it->second;
+      if (value.IsGcThing() && !value.WasCollected()) {
+        JS::RootedValue reachable_value(context_, it->second.GetValue());
         referenced_object_map_->RemoveReferencedObject(it->first,
-                                                       reachable_object);
+                                                       reachable_value);
       }
     }
   }
