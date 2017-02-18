@@ -35,6 +35,9 @@ class MozjsCallbackInterfaceHolder
   MozjsCallbackInterfaceHolder(JS::HandleObject object, JSContext* context,
                                WrapperFactory* wrapper_factory)
       : BaseClass(object, context, wrapper_factory) {}
+  MozjsCallbackInterfaceHolder(JS::HandleValue value, JSContext* context,
+                               WrapperFactory* wrapper_factory)
+      : BaseClass(value, context, wrapper_factory) {}
 };
 
 template <typename CallbackInterface>

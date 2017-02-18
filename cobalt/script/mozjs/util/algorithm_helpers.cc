@@ -27,6 +27,19 @@ namespace script {
 namespace mozjs {
 namespace util {
 
+bool IsSameGcThing(JSContext* context, JS::HandleValue value1,
+                   JS::HandleValue value2) {
+  if (value1.isNullOrUndefined()) {
+    return value2.isNullOrUndefined();
+  }
+
+  if (!value1.isGCThing() || !value2.isGCThing()) {
+    return false;
+  }
+
+  return value1.toGCThing() == value2.toGCThing();
+}
+
 bool GetIterator(JSContext* context, JS::HandleObject object,
                  JS::MutableHandleObject out_iterator) {
   // Uses the jsiter API to get the iterator, as SM24 it doesn't seem to

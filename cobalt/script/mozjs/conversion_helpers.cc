@@ -106,7 +106,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK(js_object);
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  *out_holder = MozjsObjectHandleHolder(js_object, context,
+  *out_holder = MozjsObjectHandleHolder(value, context,
                                         global_environment->wrapper_factory());
 }
 

@@ -471,7 +471,7 @@ inline void ToJSValue(JSContext* context,
       base::polymorphic_downcast<const MozjsCallbackInterfaceClass*>(
           user_object_holder->GetScriptObject());
   DCHECK(mozjs_callback_interface);
-  out_value.set(OBJECT_TO_JSVAL(mozjs_callback_interface->handle()));
+  out_value.set(mozjs_callback_interface->value());
 }
 
 // JSValue -> CallbackInterface
