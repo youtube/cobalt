@@ -29,7 +29,7 @@ class Wrappable;
 // ScriptObject is a wrapper around JavaScript objects that are being passed
 // into Cobalt. These are objects that do not correspond to cobalt Wrappable
 // objects. Specifically, this could include objects that implement the
-// EventListener interface, and callback functions.
+// EventListener interface, callback functions, and promises.
 // As long as Cobalt maintains a handle to such an object, it should not be
 // garbage collected. Web API implementations should hold on to a reference to
 // a ScriptObject implementation by constructing a ScriptObject::Reference
@@ -82,6 +82,13 @@ class ScriptObject {
 
   // Returns true if this ScriptObject is referring to a NULL JavaScript object.
   bool IsNull() const { return GetScriptObject() == NULL; }
+
+  // Creates a new ScriptObject that contains a weak reference to the same
+  // underlying JavaScript object. Note that this will not prevent the object
+  // from being garbage collected, one must create a Reference to do that.
+  scoped_ptr<ScriptObject> MakeWeakCopy() const {
+    return MakeCopy().Pass();
+  }
 
  protected:
   virtual ~ScriptObject() {}

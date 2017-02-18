@@ -18,7 +18,9 @@
 
 #include <utility>
 
+#include "cobalt/script/mozjs/util/algorithm_helpers.h"
 #include "nb/memory_scope.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -29,23 +31,25 @@ ReferencedObjectMap::ReferencedObjectMap(JSContext* context)
 
 // Add/Remove a reference from a WrapperPrivate to a JSValue.
 void ReferencedObjectMap::AddReferencedObject(intptr_t key,
-                                              JS::HandleObject referee) {
+                                              JS::HandleValue referee) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(referee);
+  DCHECK(!referee.isNullOrUndefined());
+  DCHECK(referee.isGCThing());
   referenced_objects_.insert(
       std::make_pair(key, WeakHeapObject(context_, referee)));
 }
 
 void ReferencedObjectMap::RemoveReferencedObject(intptr_t key,
-                                                 JS::HandleObject referee) {
+                                                 JS::HandleValue referee) {
   DCHECK(thread_checker_.CalledOnValidThread());
   std::pair<ReferencedObjectMultiMap::iterator,
             ReferencedObjectMultiMap::iterator> pair_range =
       referenced_objects_.equal_range(key);
   for (ReferencedObjectMultiMap::iterator it = pair_range.first;
        it != pair_range.second; ++it) {
-    if (it->second.Get() == referee) {
+    JS::RootedValue element(context_, it->second.GetValue());
+    if (util::IsSameGcThing(context_, referee, element)) {
       // There may be multiple mappings between a specific owner and a JS
       // object. Only remove the first mapping.
       referenced_objects_.erase(it);
@@ -72,11 +76,12 @@ void ReferencedObjectMap::RemoveNullReferences() {
   for (ReferencedObjectMultiMap::iterator it = referenced_objects_.begin();
        it != referenced_objects_.end();
        /*Incremented in the loop */) {
-    if (it->second.Get()) {
-      ++it;
-    } else {
+    if (it->second.WasCollected()) {
       ReferencedObjectMultiMap::iterator erase_iterator = it++;
       referenced_objects_.erase(erase_iterator);
+    } else {
+      DCHECK(it->second.IsGcThing());
+      ++it;
     }
   }
 }

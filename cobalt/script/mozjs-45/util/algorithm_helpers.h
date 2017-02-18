@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef COBALT_SCRIPT_MOZJS_UTIL_ALGORITHM_HELPERS_H_
-#define COBALT_SCRIPT_MOZJS_UTIL_ALGORITHM_HELPERS_H_
+#ifndef COBALT_SCRIPT_MOZJS_45_UTIL_ALGORITHM_HELPERS_H_
+#define COBALT_SCRIPT_MOZJS_45_UTIL_ALGORITHM_HELPERS_H_
 
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -62,8 +62,11 @@ bool Call0(JSContext* context, JS::HandleFunction function,
 // Invoke a method named |property_name| on object |value| with 0 arguments.
 bool Invoke0(JSContext* context, JS::HandleObject value,
              const char* property_name, JS::MutableHandleValue out_result);
+
+bool Invoke0(JSContext* context, JS::HandleObject value,
+             JS::HandleId property_id, JS::MutableHandleValue out_result);
 }  // namespace util
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
-#endif  // COBALT_SCRIPT_MOZJS_UTIL_ALGORITHM_HELPERS_H_
+#endif  // COBALT_SCRIPT_MOZJS_45_UTIL_ALGORITHM_HELPERS_H_
