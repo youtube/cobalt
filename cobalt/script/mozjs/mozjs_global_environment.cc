@@ -241,9 +241,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
   JS::RootedValue result_value(context_);
   bool success = EvaluateScriptInternal(source_code, &result_value);
   if (success && out_opaque_handle) {
-    JS::RootedObject js_object(context_);
-    JS_ValueToObject(context_, result_value, js_object.address());
-    MozjsObjectHandleHolder mozjs_object_holder(js_object, context_,
+    MozjsObjectHandleHolder mozjs_object_holder(result_value, context_,
                                                 wrapper_factory());
     out_opaque_handle->emplace(owning_object.get(), mozjs_object_holder);
   }

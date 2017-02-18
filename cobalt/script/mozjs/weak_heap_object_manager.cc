@@ -20,9 +20,8 @@
 
 #include "base/logging.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-
 #include "nb/memory_scope.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -64,11 +63,8 @@ void WeakHeapObjectManager::StopTracking(WeakHeapObject* weak_object) {
 }
 
 bool WeakHeapObjectManager::MaybeSweep(WeakHeapObject* weak_object) {
-  if (weak_object->heap_ &&
-      JS_IsAboutToBeFinalized(weak_object->heap_.unsafeGet())) {
-    weak_object->heap_.set(NULL);
-  }
-  return weak_object->heap_ == NULL;
+  weak_object->UpdateWeakPointerAfterGc();
+  return weak_object->WasCollected();
 }
 
 }  // namespace mozjs
