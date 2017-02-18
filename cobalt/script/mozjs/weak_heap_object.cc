@@ -17,30 +17,55 @@
 #include "cobalt/script/mozjs/weak_heap_object.h"
 
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
+#include "third_party/mozjs/js/src/gc/Marking.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 
-WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleObject handle) {
+WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleValue value)
+    : was_collected_(false) {
   MozjsGlobalEnvironment* global_environment =
       MozjsGlobalEnvironment::GetFromContext(context);
-  Initialize(global_environment->weak_object_manager(), handle);
+  Initialize(global_environment->weak_object_manager(), value);
 }
 
-WeakHeapObject::WeakHeapObject(const WeakHeapObject& other) {
-  Initialize(other.weak_object_manager_, other.heap_);
+WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleObject object)
+    : was_collected_(false) {
+  MozjsGlobalEnvironment* global_environment =
+      MozjsGlobalEnvironment::GetFromContext(context);
+  Initialize(global_environment->weak_object_manager(),
+             OBJECT_TO_JSVAL(object));
+}
+
+WeakHeapObject::WeakHeapObject(const WeakHeapObject& other)
+    : was_collected_(other.was_collected_) {
+  Initialize(other.weak_object_manager_, other.value_);
 }
 
 WeakHeapObject& WeakHeapObject::operator=(const WeakHeapObject& rhs) {
-  Initialize(rhs.weak_object_manager_, rhs.heap_);
+  was_collected_ = rhs.was_collected_;
+  Initialize(rhs.weak_object_manager_, rhs.value_);
   return *this;
 }
 
 void WeakHeapObject::Trace(JSTracer* trace) {
-  if (heap_) {
-    JS_CallHeapObjectTracer(trace, &heap_, "WeakHeapObject::Trace");
+  if (!value_.isNullOrUndefined()) {
+    JS_CallHeapValueTracer(trace, &value_, "WeakHeapObject::Trace");
   }
+}
+
+bool WeakHeapObject::IsObject() const {
+  return value_.isObject();
+}
+
+bool WeakHeapObject::IsGcThing() const {
+  return value_.isGCThing();
+}
+
+bool WeakHeapObject::WasCollected() const {
+  return was_collected_;
 }
 
 WeakHeapObject::~WeakHeapObject() {
@@ -51,12 +76,25 @@ WeakHeapObject::~WeakHeapObject() {
 }
 
 void WeakHeapObject::Initialize(WeakHeapObjectManager* weak_heap_object_manager,
-                                JSObject* object) {
+                                const JS::Value& value) {
   weak_object_manager_ = weak_heap_object_manager;
-  heap_ = object;
-  // Don't bother registering if the pointer is already NULL.
-  if (heap_) {
+  value_ = value;
+
+  // Don't bother registering if not a GC thing.
+  if (IsGcThing()) {
     weak_object_manager_->StartTracking(this);
+  }
+}
+
+bool WeakHeapObject::IsNull() const {
+  return value_.isNullOrUndefined();
+}
+
+void WeakHeapObject::UpdateWeakPointerAfterGc() {
+  if (js::gc::IsValueAboutToBeFinalized(value_.unsafeGet())) {
+    DCHECK(IsGcThing());
+    was_collected_ = true;
+    value_.setNull();
   }
 }
 

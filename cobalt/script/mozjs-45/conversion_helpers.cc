@@ -18,6 +18,8 @@
 
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
+#include "nb/memory_scope.h"
+
 namespace cobalt {
 namespace script {
 namespace mozjs {
@@ -26,6 +28,7 @@ namespace mozjs {
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  std::string* out_string) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsString, 0)
       << "Unexpected conversion flags found: ";
 
@@ -62,6 +65,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 void ToJSValue(JSContext* context,
                const OpaqueHandleHolder* opaque_handle_holder,
                JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   JS::RootedObject js_object(context);
   if (opaque_handle_holder) {
     // Downcast to MozjsObjectHandleHolder so we can get the JS object.
@@ -77,6 +81,7 @@ void ToJSValue(JSContext* context,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  MozjsObjectHandleHolder* out_holder) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
   // https://www.w3.org/TR/WebIDL/#es-object

@@ -74,6 +74,13 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, function.toObjectOrNull()));
+  }
+
   CallbackResult<R> Run($for ARG , [[
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
@@ -82,7 +89,7 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -120,7 +127,9 @@ $if ARITY > 0 [[
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
