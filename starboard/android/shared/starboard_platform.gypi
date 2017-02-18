@@ -40,6 +40,7 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        'accessibility_get_text_to_speech_settings.cc',
         'application_android.cc',
         'atomic_public.h',
         'audio_decoder.cc',
