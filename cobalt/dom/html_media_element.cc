@@ -391,7 +391,7 @@ void HTMLMediaElement::set_default_playback_rate(float rate) {
   MLOG() << rate;
   if (default_playback_rate_ != rate) {
     default_playback_rate_ = rate;
-    ScheduleEvent(base::Tokens::ratechange());
+    ScheduleOwnEvent(base::Tokens::ratechange());
   }
 }
 
@@ -404,7 +404,7 @@ void HTMLMediaElement::set_playback_rate(float rate) {
   MLOG() << rate;
   if (playback_rate_ != rate) {
     playback_rate_ = rate;
-    ScheduleEvent(base::Tokens::ratechange());
+    ScheduleOwnEvent(base::Tokens::ratechange());
   }
 
   if (player_ && PotentiallyPlaying()) {
@@ -486,12 +486,12 @@ void HTMLMediaElement::Play() {
 
   if (paused_) {
     paused_ = false;
-    ScheduleEvent(base::Tokens::play());
+    ScheduleOwnEvent(base::Tokens::play());
 
     if (ready_state_ <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(base::Tokens::waiting());
+      ScheduleOwnEvent(base::Tokens::waiting());
     } else if (ready_state_ >= WebMediaPlayer::kReadyStateHaveFutureData) {
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
   }
   autoplaying_ = false;
@@ -511,7 +511,7 @@ void HTMLMediaElement::Pause() {
   if (!paused_) {
     paused_ = true;
     ScheduleTimeupdateEvent(false);
-    ScheduleEvent(base::Tokens::pause());
+    ScheduleOwnEvent(base::Tokens::pause());
   }
 
   UpdatePlayState();
@@ -545,7 +545,7 @@ void HTMLMediaElement::set_volume(float volume,
   if (volume_ != volume) {
     volume_ = volume;
     UpdateVolume();
-    ScheduleEvent(base::Tokens::volumechange());
+    ScheduleOwnEvent(base::Tokens::volumechange());
   }
 }
 
@@ -564,7 +564,7 @@ void HTMLMediaElement::set_muted(bool muted) {
         player_->SetVolume(muted_ ? 0 : volume_);
       }
     }
-    ScheduleEvent(base::Tokens::volumechange());
+    ScheduleOwnEvent(base::Tokens::volumechange());
   }
 }
 
@@ -575,6 +575,10 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   if (!src.empty()) {
     set_src(src);
   }
+}
+
+void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
+  event_queue_.Enqueue(event);
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
@@ -648,7 +652,7 @@ void HTMLMediaElement::PrepareForLoad() {
   // kNetworkIdle, queue a task to fire a simple event named abort at the media
   // element.
   if (network_state_ == kNetworkLoading || network_state_ == kNetworkIdle) {
-    ScheduleEvent(base::Tokens::abort());
+    ScheduleOwnEvent(base::Tokens::abort());
   }
 
   SetSourceState(MediaSource::kReadyStateClosed);
@@ -663,7 +667,7 @@ void HTMLMediaElement::PrepareForLoad() {
     ready_state_maximum_ = WebMediaPlayer::kReadyStateHaveNothing;
     paused_ = true;
     seeking_ = false;
-    ScheduleEvent(base::Tokens::emptied());
+    ScheduleOwnEvent(base::Tokens::emptied());
   }
 
   // 5 - Set the playbackRate attribute to the value of the defaultPlaybackRate
@@ -716,7 +720,7 @@ void HTMLMediaElement::LoadInternal() {
 
   // 5 - Queue a task to fire a simple event named loadstart at the media
   // element.
-  ScheduleEvent(base::Tokens::loadstart());
+  ScheduleOwnEvent(base::Tokens::loadstart());
 
   // 6 - If mode is kAttribute, then run these substeps.
   if (mode == kAttribute) {
@@ -855,7 +859,7 @@ void HTMLMediaElement::NoneSupported() {
   network_state_ = kNetworkNoSource;
 
   // 7 - Queue a task to fire a simple event named error at the media element.
-  ScheduleEvent(base::Tokens::error());
+  ScheduleOwnEvent(base::Tokens::error());
 
   SetSourceState(MediaSource::kReadyStateClosed);
 }
@@ -900,11 +904,11 @@ void HTMLMediaElement::OnProgressEventTimer() {
   double time_delta = time - previous_progress_time_;
 
   if (player_->DidLoadingProgress()) {
-    ScheduleEvent(base::Tokens::progress());
+    ScheduleOwnEvent(base::Tokens::progress());
     previous_progress_time_ = time;
     sent_stalled_event_ = false;
   } else if (time_delta > 3.0 && !sent_stalled_event_) {
-    ScheduleEvent(base::Tokens::stalled());
+    ScheduleOwnEvent(base::Tokens::stalled());
     sent_stalled_event_ = true;
   }
 }
@@ -959,19 +963,19 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
   // but we only want one event at a given time so filter here
   float movie_time = current_time(NULL);
   if (movie_time != last_time_update_event_movie_time_) {
-    ScheduleEvent(base::Tokens::timeupdate());
+    ScheduleOwnEvent(base::Tokens::timeupdate());
     last_time_update_event_wall_time_ = now;
     last_time_update_event_movie_time_ = movie_time;
   }
 }
 
-void HTMLMediaElement::ScheduleEvent(base::Token event_name) {
+void HTMLMediaElement::ScheduleOwnEvent(base::Token event_name) {
   MLOG() << event_name;
   scoped_refptr<Event> event =
       new Event(event_name, Event::kNotBubbles, Event::kCancelable);
   event->set_target(this);
 
-  event_queue_.Enqueue(event);
+  ScheduleEvent(event);
 }
 
 void HTMLMediaElement::CancelPendingEventsAndCallbacks() {
@@ -1005,7 +1009,7 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
     // 4.8.10.9, step 11
     if (was_potentially_playing &&
         ready_state_ < WebMediaPlayer::kReadyStateHaveFutureData) {
-      ScheduleEvent(base::Tokens::waiting());
+      ScheduleOwnEvent(base::Tokens::waiting());
     }
     // 4.8.10.10 step 14 & 15.
     if (ready_state_ >= WebMediaPlayer::kReadyStateHaveCurrentData) {
@@ -1016,49 +1020,49 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
         ready_state_ < WebMediaPlayer::kReadyStateHaveFutureData) {
       // 4.8.10.8
       ScheduleTimeupdateEvent(false);
-      ScheduleEvent(base::Tokens::waiting());
+      ScheduleOwnEvent(base::Tokens::waiting());
     }
   }
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
-    ScheduleEvent(base::Tokens::durationchange());
-    ScheduleEvent(base::Tokens::loadedmetadata());
+    ScheduleOwnEvent(base::Tokens::durationchange());
+    ScheduleOwnEvent(base::Tokens::loadedmetadata());
   }
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveCurrentData &&
       old_state < WebMediaPlayer::kReadyStateHaveCurrentData &&
       !have_fired_loaded_data_) {
     have_fired_loaded_data_ = true;
-    ScheduleEvent(base::Tokens::loadeddata());
+    ScheduleOwnEvent(base::Tokens::loadeddata());
   }
 
   bool is_potentially_playing = PotentiallyPlaying();
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveFutureData &&
       old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-    ScheduleEvent(base::Tokens::canplay());
+    ScheduleOwnEvent(base::Tokens::canplay());
     if (is_potentially_playing) {
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
   }
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveEnoughData &&
       old_state < WebMediaPlayer::kReadyStateHaveEnoughData) {
     if (old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(base::Tokens::canplay());
+      ScheduleOwnEvent(base::Tokens::canplay());
     }
 
-    ScheduleEvent(base::Tokens::canplaythrough());
+    ScheduleOwnEvent(base::Tokens::canplaythrough());
 
     if (is_potentially_playing &&
         old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
 
     if (autoplaying_ && paused_ && autoplay()) {
       paused_ = false;
-      ScheduleEvent(base::Tokens::play());
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::play());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
   }
 
@@ -1107,8 +1111,8 @@ void HTMLMediaElement::ChangeNetworkStateFromLoadingToIdle() {
 
   // Schedule one last progress event so we guarantee that at least one is fired
   // for files that load very quickly.
-  ScheduleEvent(base::Tokens::progress());
-  ScheduleEvent(base::Tokens::suspend());
+  ScheduleOwnEvent(base::Tokens::progress());
+  ScheduleOwnEvent(base::Tokens::suspend());
   network_state_ = kNetworkIdle;
 }
 
@@ -1165,9 +1169,9 @@ void HTMLMediaElement::Seek(float time) {
 
   if (no_seek_required) {
     if (time == now) {
-      ScheduleEvent(base::Tokens::seeking());
+      ScheduleOwnEvent(base::Tokens::seeking());
       ScheduleTimeupdateEvent(false);
-      ScheduleEvent(base::Tokens::seeked());
+      ScheduleOwnEvent(base::Tokens::seeked());
     }
     seeking_ = false;
     return;
@@ -1186,7 +1190,7 @@ void HTMLMediaElement::Seek(float time) {
   player_->Seek(time);
 
   // 9 - Queue a task to fire a simple event named seeking at the element.
-  ScheduleEvent(base::Tokens::seeking());
+  ScheduleOwnEvent(base::Tokens::seeking());
 
   // 10 - Queue a task to fire a simple event named timeupdate at the element.
   ScheduleTimeupdateEvent(false);
@@ -1200,7 +1204,7 @@ void HTMLMediaElement::FinishSeek() {
   seeking_ = false;
 
   // 4.8.10.9 Seeking step 15
-  ScheduleEvent(base::Tokens::seeked());
+  ScheduleOwnEvent(base::Tokens::seeked());
 }
 
 void HTMLMediaElement::AddPlayedRange(float start, float end) {
@@ -1334,14 +1338,14 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   error_ = error;
 
   // 3 - Queue a task to fire a simple event named error at the media element.
-  ScheduleEvent(base::Tokens::error());
+  ScheduleOwnEvent(base::Tokens::error());
 
   SetSourceState(MediaSource::kReadyStateClosed);
 
   // 4 - Set the element's networkState attribute to the kNetworkEmpty value and
   // queue a task to fire a simple event called emptied at the element.
   network_state_ = kNetworkEmpty;
-  ScheduleEvent(base::Tokens::emptied());
+  ScheduleOwnEvent(base::Tokens::emptied());
 }
 
 void HTMLMediaElement::NetworkStateChanged() {
@@ -1406,12 +1410,12 @@ void HTMLMediaElement::TimeChanged() {
         // changes paused to true and fires a simple event named pause at the
         // media element.
         paused_ = true;
-        ScheduleEvent(base::Tokens::pause());
+        ScheduleOwnEvent(base::Tokens::pause());
       }
       // Queue a task to fire a simple event named ended at the media element.
       if (!sent_end_event_) {
         sent_end_event_ = true;
-        ScheduleEvent(base::Tokens::ended());
+        ScheduleOwnEvent(base::Tokens::ended());
       }
     }
   } else {
@@ -1425,7 +1429,7 @@ void HTMLMediaElement::TimeChanged() {
 void HTMLMediaElement::DurationChanged() {
   BeginProcessingMediaPlayerCallback();
 
-  ScheduleEvent(base::Tokens::durationchange());
+  ScheduleOwnEvent(base::Tokens::durationchange());
 
   float now = current_time(NULL);
   float dur = duration();
