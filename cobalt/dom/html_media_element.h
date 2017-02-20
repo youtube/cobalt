@@ -130,6 +130,10 @@ class HTMLMediaElement : public HTMLElement,
   // From Node
   void OnInsertedIntoDocument() OVERRIDE;
 
+  // Let other objects add event to the EventQueue of HTMLMediaElement.  This
+  // function won't modify the target of the |event| passed in.
+  void ScheduleEvent(const scoped_refptr<Event>& event);
+
   DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
 
  protected:
@@ -161,7 +165,7 @@ class HTMLMediaElement : public HTMLElement,
 
   // Events
   void ScheduleTimeupdateEvent(bool periodic_event);
-  void ScheduleEvent(base::Token event_name);
+  void ScheduleOwnEvent(base::Token event_name);
   void CancelPendingEventsAndCallbacks();
   bool ProcessingMediaPlayerCallback() const {
     return processing_media_player_callback_ > 0;
