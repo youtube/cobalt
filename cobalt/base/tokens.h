@@ -25,16 +25,18 @@ namespace base {
 // clang-format off
 #define TOKENS_FOR_EACH_WITH_NAME_ONLY(MacroOpWithNameOnly)   \
     MacroOpWithNameOnly(addsourcebuffer)                      \
+    MacroOpWithNameOnly(addtrack)                             \
     MacroOpWithNameOnly(abort)                                \
     MacroOpWithNameOnly(additions)                            \
-    MacroOpWithNameOnly(alt)                                  \
     MacroOpWithNameOnly(all)                                  \
+    MacroOpWithNameOnly(alt)                                  \
     MacroOpWithNameOnly(animationend)                         \
     MacroOpWithNameOnly(assertive)                            \
     MacroOpWithNameOnly(attribute)                            \
     MacroOpWithNameOnly(blur)                                 \
     MacroOpWithNameOnly(canplay)                              \
     MacroOpWithNameOnly(canplaythrough)                       \
+    MacroOpWithNameOnly(change)                               \
     MacroOpWithNameOnly(characterData)                        \
     MacroOpWithNameOnly(childList)                            \
     MacroOpWithNameOnly(close)                                \
@@ -69,6 +71,7 @@ namespace base {
     MacroOpWithNameOnly(readystatechange)                     \
     MacroOpWithNameOnly(removals)                             \
     MacroOpWithNameOnly(removesourcebuffer)                   \
+    MacroOpWithNameOnly(removetrack)                          \
     MacroOpWithNameOnly(result)                               \
     MacroOpWithNameOnly(securitypolicyviolation)              \
     MacroOpWithNameOnly(seeked)                               \
