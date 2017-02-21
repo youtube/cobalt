@@ -48,11 +48,19 @@ class LayoutStatTracker : public base::StopWatchOwner {
   // Periodic count-related
   void OnBoxCreated();
   void OnBoxDestroyed();
+  void OnUpdateSize();
+  void OnRenderAndAnimate();
+  void OnUpdateCrossReferences();
 
   int total_boxes() const { return total_boxes_; }
 
   int boxes_created_count() const { return boxes_created_count_; }
   int boxes_destroyed_count() const { return boxes_destroyed_count_; }
+  int update_size_count() const { return update_size_count_; }
+  int render_and_animate_count() const { return render_and_animate_count_; }
+  int update_cross_references_count() const {
+    return update_cross_references_count_;
+  }
 
   base::TimeDelta GetStopWatchTypeDuration(StopWatchType type) const;
 
@@ -75,6 +83,9 @@ class LayoutStatTracker : public base::StopWatchOwner {
   // in |FlushPeriodicTracking|.
   int boxes_created_count_;
   int boxes_destroyed_count_;
+  int update_size_count_;
+  int render_and_animate_count_;
+  int update_cross_references_count_;
 
   // Stop watch-related.
   std::vector<base::TimeDelta> stop_watch_durations_;

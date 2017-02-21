@@ -237,6 +237,8 @@ class Window : public EventTarget {
   // request callback list.
   void RunAnimationFrameCallbacks();
 
+  bool HasPendingAnimationFrameCallbacks() const;
+
   // Call this to inject an event into the window which will ultimately make
   // its way to the appropriate object in DOM.
   void InjectEvent(const scoped_refptr<Event>& event);
