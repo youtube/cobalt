@@ -17,6 +17,7 @@
 #include "cobalt/dom/time_ranges.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "base/logging.h"
 #include "cobalt/dom/dom_exception.h"
@@ -104,6 +105,65 @@ double TimeRanges::Nearest(double time) const {
   DCHECK_LT(prev, time);
   DCHECK_LT(time, next);
   return (time - prev <= next - time) ? prev : next;
+}
+
+scoped_refptr<TimeRanges> TimeRanges::Clone() const {
+  scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
+  time_ranges->ranges_ = ranges_;
+  return time_ranges;
+}
+
+scoped_refptr<TimeRanges> TimeRanges::UnionWith(
+    const scoped_refptr<TimeRanges>& that) const {
+  scoped_refptr<TimeRanges> result = this->Clone();
+  for (uint32 i = 0; i < that->length(); ++i) {
+    result->Add(that->Start(i, NULL), that->End(i, NULL));
+  }
+
+  return result;
+}
+
+scoped_refptr<TimeRanges> TimeRanges::IntersectWith(
+    const scoped_refptr<TimeRanges>& that) const {
+  DCHECK(that);
+
+  if (that == this) {
+    return this->Clone();
+  }
+
+  if (this->length() == 0 || that->length() == 0) {
+    return new TimeRanges;
+  }
+
+  scoped_refptr<TimeRanges> inverted_this = this->Clone()->Invert();
+  scoped_refptr<TimeRanges> inverted_that = that->Clone()->Invert();
+
+  return inverted_this->UnionWith(inverted_that)->Invert();
+}
+
+scoped_refptr<TimeRanges> TimeRanges::Invert() const {
+  const double kInfinity = std::numeric_limits<double>::infinity();
+  scoped_refptr<TimeRanges> inverted = new TimeRanges;
+
+  if (ranges_.empty()) {
+    inverted->Add(-kInfinity, kInfinity);
+  } else {
+    double start = Start(0, NULL);
+    if (start != -kInfinity) {
+      inverted->Add(-kInfinity, start);
+    }
+
+    for (uint32 i = 0; i + 1 < length(); ++i) {
+      inverted->Add(End(i, NULL), Start(i + 1, NULL));
+    }
+
+    double end = End(length() - 1, NULL);
+    if (end != kInfinity) {
+      inverted->Add(end, kInfinity);
+    }
+  }
+
+  return inverted;
 }
 
 }  // namespace dom
