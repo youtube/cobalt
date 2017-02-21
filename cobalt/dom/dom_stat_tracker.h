@@ -30,6 +30,7 @@ namespace dom {
 class DomStatTracker : public base::StopWatchOwner {
  public:
   enum StopWatchType {
+    kStopWatchTypeRunAnimationFrameCallbacks,
     kStopWatchTypeUpdateComputedStyle,
     kStopWatchTypeEventVideoStartDelay,
     kNumStopWatchTypes,

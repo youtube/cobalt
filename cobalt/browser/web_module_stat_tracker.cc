@@ -124,27 +124,40 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
       count_dom_update_matching_rules(
           StringPrintf("Event.Count.%s.DOM.HtmlElement.UpdateMatchingRules",
                        name.c_str()),
-          0, "Number of update matching rules for HTML elements."),
+          0, "Number of HTML elements that had their matching rules updated."),
       count_dom_update_computed_style(
           StringPrintf("Event.Count.%s.DOM.HtmlElement.UpdateComputedStyle",
                        name.c_str()),
-          0, "Number of update computed styles for HTML elements."),
+          0, "Number of HTML elements that had their computed style updated."),
       count_dom_generate_html_element_computed_style(
           StringPrintf(
               "Event.Count.%s.DOM.HtmlElement.GenerateHtmlElementComputedStyle",
               name.c_str()),
-          0, "Number of generated computed styles for HTML elements."),
+          0,
+          "Number of HTML elements that had their computed style generated."),
       count_dom_generate_pseudo_element_computed_style(
           StringPrintf("Event.Count.%s.DOM.HtmlElement."
                        "GeneratePseudoElementComputedStyle",
                        name.c_str()),
-          0, "Number of generated computed styles for Pseudo elements."),
+          0,
+          "Number of pseudo elements that had their computed style generated."),
       count_layout_boxes_created(
           StringPrintf("Event.Count.%s.Layout.Box.Created", name.c_str()), 0,
           "Number of boxes created."),
       count_layout_boxes_destroyed(
           StringPrintf("Event.Count.%s.Layout.Box.Destroyed", name.c_str()), 0,
           "Number of boxes destroyed."),
+      count_layout_update_size(
+          StringPrintf("Event.Count.%s.Layout.Box.UpdateSize", name.c_str()), 0,
+          "Number of boxes that had their size updated."),
+      count_layout_render_and_animate(
+          StringPrintf("Event.Count.%s.Layout.Box.RenderAndAnimate",
+                       name.c_str()),
+          0, "Number of boxes that had their render tree node updated."),
+      count_layout_update_cross_references(
+          StringPrintf("Event.Count.%s.Layout.Box.UpdateCrossReferences",
+                       name.c_str()),
+          0, "Number of boxes that had their cross references updated."),
       duration_total(StringPrintf("Event.Duration.%s", name.c_str()),
                      base::TimeDelta(),
                      "Total duration of the event (in microseconds). This is "
@@ -156,6 +169,12 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
           "Injection duration, which includes JS, for event (in "
           "microseconds). This does not include subsequent DOM and Layout "
           "processing."),
+      duration_dom_run_animation_frame_callbacks(
+          StringPrintf("Event.Duration.%s.DOM.RunAnimationFrameCallbacks",
+                       name.c_str()),
+          base::TimeDelta(),
+          "Run animation frame callbacks duration for event (in "
+          "microseconds)."),
       duration_dom_update_computed_style(
           StringPrintf("Event.Duration.%s.DOM.UpdateComputedStyle",
                        name.c_str()),
@@ -226,11 +245,20 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       layout_stat_tracker_->boxes_created_count();
   event_stats->count_layout_boxes_destroyed =
       layout_stat_tracker_->boxes_destroyed_count();
+  event_stats->count_layout_update_size =
+      layout_stat_tracker_->update_size_count();
+  event_stats->count_layout_render_and_animate =
+      layout_stat_tracker_->render_and_animate_count();
+  event_stats->count_layout_update_cross_references =
+      layout_stat_tracker_->update_cross_references_count();
 
   // Update event durations
   event_stats->duration_total = stop_watch_durations_[kStopWatchTypeEvent];
   event_stats->duration_dom_inject_event =
       stop_watch_durations_[kStopWatchTypeInjectEvent];
+  event_stats->duration_dom_run_animation_frame_callbacks =
+      dom_stat_tracker_->GetStopWatchTypeDuration(
+          dom::DomStatTracker::kStopWatchTypeRunAnimationFrameCallbacks);
   event_stats->duration_dom_update_computed_style =
       dom_stat_tracker_->GetStopWatchTypeDuration(
           dom::DomStatTracker::kStopWatchTypeUpdateComputedStyle);
@@ -278,10 +306,22 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       << layout_stat_tracker_->boxes_created_count() << ", "
       << "\"CntLayoutBoxesDestroyed\":"
       << layout_stat_tracker_->boxes_destroyed_count() << ", "
+      << "\"CntLayoutUpdateSize\":" << layout_stat_tracker_->update_size_count()
+      << ", "
+      << "\"CntLayoutRenderAndAnimate\":"
+      << layout_stat_tracker_->render_and_animate_count() << ", "
+      << "\"CntLayoutUpdateCrossReferences\":"
+      << layout_stat_tracker_->update_cross_references_count() << ", "
       << "\"DurTotalUs\":"
       << stop_watch_durations_[kStopWatchTypeEvent].InMicroseconds() << ", "
       << "\"DurDomInjectEventUs\":"
       << stop_watch_durations_[kStopWatchTypeInjectEvent].InMicroseconds()
+      << ", "
+      << "\"DurDomRunAnimationFrameCallbacksUs\":"
+      << dom_stat_tracker_
+             ->GetStopWatchTypeDuration(
+                 dom::DomStatTracker::kStopWatchTypeRunAnimationFrameCallbacks)
+             .InMicroseconds()
       << ", "
       << "\"DurDomUpdateComputedStyleUs\":"
       << dom_stat_tracker_
