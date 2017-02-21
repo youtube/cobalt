@@ -40,6 +40,7 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        'accessibility_get_display_settings.cc',
         'accessibility_get_text_to_speech_settings.cc',
         'application_android.cc',
         'atomic_public.h',
@@ -304,7 +305,6 @@
         '<(DEPTH)/starboard/shared/starboard/string_duplicate.cc',
         '<(DEPTH)/starboard/shared/starboard/system_get_random_uint64.cc',
         '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
-        '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_create_egl.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_destroy.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_get_format.cc',
