@@ -25,6 +25,7 @@
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
         '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
+        '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/atomic_public.h',
         '<(DEPTH)/starboard/shared/stub/audio_sink_create.cc',

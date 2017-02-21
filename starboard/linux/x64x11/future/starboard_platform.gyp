@@ -22,6 +22,7 @@
       'type': 'static_library',
       'sources': [
         '<@(starboard_platform_sources)',
+        '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_create_egl.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_destroy.cc',
