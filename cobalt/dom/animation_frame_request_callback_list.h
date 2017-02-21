@@ -29,7 +29,7 @@ namespace cobalt {
 namespace dom {
 
 // Manages a list of frame request callbacks as well as their "cancelled" state.
-// Associates a handle to each frame frequest that is unique to this list.
+// Associates a handle to each frame request that is unique to this list.
 //   https://www.w3.org/TR/animation-timing/#dfn-animation-frame-request-callback-list
 class AnimationFrameRequestCallbackList {
  public:
@@ -46,6 +46,9 @@ class AnimationFrameRequestCallbackList {
 
   // Call each animation frame callback in the order they were requested.
   void RunCallbacks(double animation_time);
+
+  // Whether or not there are pending animation frame callbacks.
+  bool HasPendingCallbacks() const;
 
  private:
   // We define a wrapper structure for the frame request so that we can
