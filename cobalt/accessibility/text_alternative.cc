@@ -18,17 +18,19 @@
 
 #include "cobalt/accessibility/internal/text_alternative_helper.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/element.h"
+#include "cobalt/dom/text.h"
 
 namespace cobalt {
 namespace accessibility {
-std::string ComputeTextAlternative(const scoped_refptr<dom::Element>& element) {
+std::string ComputeTextAlternative(const scoped_refptr<dom::Node>& node) {
   // Update the computed styles first to ensure that any CSS that would modify
   // the text contents has been applied (such as :before and :after).
-  DCHECK(element->node_document());
-  element->node_document()->UpdateComputedStyles();
-
+  if (node->node_document()) {
+    node->node_document()->UpdateComputedStyles();
+  }
   internal::TextAlternativeHelper helper;
-  helper.AppendTextAlternative(element);
+  helper.AppendTextAlternative(node);
   return helper.GetTextAlternative();
 }
 }  // namespace accessibility

@@ -34,7 +34,7 @@ namespace internal {
 class TextAlternativeHelper {
  public:
   TextAlternativeHelper() : in_labelled_by_(false) {}
-  void AppendTextAlternative(const scoped_refptr<dom::Element>& element);
+  void AppendTextAlternative(const scoped_refptr<dom::Node>& node);
 
   // Return the accumulated alternatives joined by a single space character.
   std::string GetTextAlternative();
