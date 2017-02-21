@@ -26,7 +26,10 @@ LayoutStatTracker::LayoutStatTracker(const std::string& name)
                    "Total number of layout boxes."),
       is_event_active_(false),
       boxes_created_count_(0),
-      boxes_destroyed_count_(0) {
+      boxes_destroyed_count_(0),
+      update_size_count_(0),
+      render_and_animate_count_(0),
+      update_cross_references_count_(0) {
   stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
@@ -63,6 +66,14 @@ void LayoutStatTracker::OnBoxCreated() { ++boxes_created_count_; }
 
 void LayoutStatTracker::OnBoxDestroyed() { ++boxes_destroyed_count_; }
 
+void LayoutStatTracker::OnUpdateSize() { ++update_size_count_; }
+
+void LayoutStatTracker::OnRenderAndAnimate() { ++render_and_animate_count_; }
+
+void LayoutStatTracker::OnUpdateCrossReferences() {
+  ++update_cross_references_count_;
+}
+
 base::TimeDelta LayoutStatTracker::GetStopWatchTypeDuration(
     StopWatchType type) const {
   return stop_watch_durations_[type];
@@ -84,6 +95,9 @@ void LayoutStatTracker::FlushPeriodicTracking() {
   // Now clear the values.
   boxes_created_count_ = 0;
   boxes_destroyed_count_ = 0;
+  update_size_count_ = 0;
+  render_and_animate_count_ = 0;
+  update_cross_references_count_ = 0;
 }
 
 }  // namespace layout

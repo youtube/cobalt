@@ -305,6 +305,11 @@ HTMLElementContext* Window::html_element_context() const {
 }
 
 void Window::RunAnimationFrameCallbacks() {
+  base::StopWatch stop_watch_run_animation_frame_callbacks(
+      DomStatTracker::kStopWatchTypeRunAnimationFrameCallbacks,
+      base::StopWatch::kAutoStartOn,
+      html_element_context()->dom_stat_tracker());
+
   // First grab the current list of frame request callbacks and hold on to it
   // here locally.
   scoped_ptr<AnimationFrameRequestCallbackList> frame_request_list =
@@ -317,6 +322,10 @@ void Window::RunAnimationFrameCallbacks() {
 
   // Now, iterate through each of the callbacks and call them.
   frame_request_list->RunCallbacks(*document_->timeline()->current_time());
+}
+
+bool Window::HasPendingAnimationFrameCallbacks() const {
+  return animation_frame_request_callback_list_->HasPendingCallbacks();
 }
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {

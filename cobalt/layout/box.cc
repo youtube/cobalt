@@ -108,6 +108,9 @@ void Box::UpdateSize(const LayoutParams& layout_params) {
     return;
   }
 
+  // If this point is reached, then the size of the box is being re-calculated.
+  layout_stat_tracker_->OnUpdateSize();
+
   UpdateBorders();
   UpdatePaddings(layout_params);
   UpdateContentSizeAndMargins(layout_params);
@@ -412,6 +415,10 @@ void Box::RenderAndAnimate(
     }
     return;
   }
+
+  // If this point is reached, then the pre-existing cached render tree node is
+  // not being used.
+  layout_stat_tracker_->OnRenderAndAnimate();
 
   // Initialize the cached render tree node with the border box offset.
   cached_render_tree_node_info_ = CachedRenderTreeNodeInfo(border_box_offset);
