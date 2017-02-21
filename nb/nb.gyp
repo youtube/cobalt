@@ -33,6 +33,7 @@
             'analytics/memory_tracker_helpers.cc',
             'analytics/memory_tracker_helpers.h',
             'atomic.h',
+            'bit_cast.h',
             'concurrent_map.h',
             'fixed_no_free_allocator.cc',
             'fixed_no_free_allocator.h',
