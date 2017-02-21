@@ -97,12 +97,12 @@ def main(argv):
       # testing.gyp.
       'dependency_idl_files':
           frozenset([
-              'ImplementedInterface.idl',
-              'PartialInterface.idl',
-              'InterfaceWithUnsupportedProperties_partial.idl',
-              # UnsupportedInterface is not actually a dependency IDL, but
+              'implemented_interface.idl',
+              'partial_interface.idl',
+              'interface_with_unsupported_properties_partial.idl',
+              # unsupported_interface is not actually a dependency IDL, but
               # this will prevent code from being generated for it.
-              'UnsupportedInterface.idl',
+              'unsupported_interface.idl',
           ]),
       # .idl files that are not valid blink IDLs
       'ignore_idl_files':
