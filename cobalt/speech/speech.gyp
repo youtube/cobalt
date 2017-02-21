@@ -60,11 +60,11 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/content/browser/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
-        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+        '<(DEPTH)/third_party/protobuf-3/protobuf.gyp:protobuf_lite',
       ],
       'include_dirs': [
         # Get protobuf headers from the chromium tree.
-        '<(DEPTH)/third_party/protobuf/src',
+        '<(DEPTH)/third_party/protobuf-3/src',
       ],
       'conditions': [
         ['OS=="starboard"', {
