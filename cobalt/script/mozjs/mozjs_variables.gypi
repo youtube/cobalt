@@ -16,7 +16,7 @@
   'variables': {
     'conditions': [
       ['javascript_engine == "mozjs"', {
-        'generated_bindings_prefix': 'Mozjs',
+        'generated_bindings_prefix': 'mozjs',
         'engine_include_dirs': [],
         'engine_dependencies': [
           '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',

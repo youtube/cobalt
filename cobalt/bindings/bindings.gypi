@@ -169,7 +169,7 @@
     'generated_sources':
         ['<!@pymod_do_main(path_conversion -s'
          ' --output_directory <(bindings_source_output_dir)'
-         ' --output_extension cc --output_prefix <(prefix)'
+         ' --output_extension cc --output_prefix <(prefix)_'
          ' <@(source_idl_files))'],
 
     # Generated IDL file that will define all the constructors that should be
@@ -232,8 +232,8 @@
           '<(extended_attributes_file)',
         ],
         'outputs': [
-          '<(bindings_source_output_dir)/<(prefix)<(RULE_INPUT_ROOT).cc',
-          '<(bindings_source_output_dir)/<(prefix)<(RULE_INPUT_ROOT).h',
+          '<(bindings_source_output_dir)/<(prefix)_<(RULE_INPUT_ROOT).cc',
+          '<(bindings_source_output_dir)/<(prefix)_<(RULE_INPUT_ROOT).h',
         ],
         'action': [
           'python',
