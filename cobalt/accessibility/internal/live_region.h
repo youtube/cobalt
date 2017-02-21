@@ -20,7 +20,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/dom/element.h"
+#include "cobalt/dom/node.h"
 
 namespace cobalt {
 namespace accessibility {
@@ -45,8 +45,8 @@ class LiveRegion {
   //
   // Searches the element's ancestors looking for the first element with a
   // valid aria-live attribute.
-  static scoped_ptr<LiveRegion> GetLiveRegionForElement(
-      const scoped_refptr<dom::Element>& element);
+  static scoped_ptr<LiveRegion> GetLiveRegionForNode(
+      const scoped_refptr<dom::Node>& node);
 
   // Returns true if the value of aria-live is "assertive".
   // https://www.w3.org/TR/2011/CR-wai-aria-20110118/states_and_properties#aria-live
@@ -58,12 +58,12 @@ class LiveRegion {
   // https://www.w3.org/TR/2011/CR-wai-aria-20110118/states_and_properties#aria-relevant
   bool IsMutationRelevant(MutationType mutation_type) const;
 
-  // Returns true if changes to this element should result in an atomic update
+  // Returns true if changes to this node should result in an atomic update
   // to its live region, according to the value of the aria-atomic property set
-  // on this element or its ancestors, up to and including the live region root.
+  // on this node or its ancestors, up to and including the live region root.
   //
   // https://www.w3.org/TR/2011/CR-wai-aria-20110118/states_and_properties#aria-atomic
-  bool IsAtomic(const scoped_refptr<dom::Element>& element) const;
+  bool IsAtomic(const scoped_refptr<dom::Node>& node) const;
 
   // Returns the root of the live region (i.e.) the element that has the
   // aria-live property set on it.

@@ -22,6 +22,7 @@
 #include "base/basictypes.h"
 #include "base/string_split.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/element.h"
 
 namespace cobalt {
 namespace accessibility {
@@ -69,15 +70,16 @@ RelevantMutationsBitset GetRelevantMutations(
 }  // namespace
 
 // static
-scoped_ptr<LiveRegion> LiveRegion::GetLiveRegionForElement(
-    const scoped_refptr<dom::Element>& element) {
-  if (!element) {
+scoped_ptr<LiveRegion> LiveRegion::GetLiveRegionForNode(
+    const scoped_refptr<dom::Node>& node) {
+  if (!node) {
     return make_scoped_ptr<LiveRegion>(NULL);
   }
-  if (HasValidLiveRegionProperty(element)) {
+  scoped_refptr<dom::Element> element = node->AsElement();
+  if (element && HasValidLiveRegionProperty(element)) {
     return make_scoped_ptr(new LiveRegion(element));
   }
-  return GetLiveRegionForElement(element->parent_element());
+  return GetLiveRegionForNode(node->parent_node());
 }
 
 bool LiveRegion::IsAssertive() const {
@@ -95,29 +97,31 @@ bool LiveRegion::IsMutationRelevant(MutationType mutation_type) const {
   return bitset.test(mutation_type);
 }
 
-bool LiveRegion::IsAtomic(const scoped_refptr<dom::Element>& element) const {
+bool LiveRegion::IsAtomic(const scoped_refptr<dom::Node>& node) const {
   // Stop searching if we go past the live region's root node. The default is
   // non-atomic.
-  if (!element || element == root_->parent_element()) {
+  if (!node || node == root_->parent_node()) {
     return false;
   }
-
-  // Search ancestors of the changed element to determine if this change is
-  // atomic or not, per the algorithm described in the spec.
-  // https://www.w3.org/TR/wai-aria/states_and_properties#aria-atomic
-  base::optional<std::string> aria_atomic_attribute =
-      element->GetAttribute(base::Tokens::aria_atomic().c_str());
-  if (aria_atomic_attribute) {
-    if (*aria_atomic_attribute == base::Tokens::true_token()) {
-      return true;
-    } else if (*aria_atomic_attribute == base::Tokens::false_token()) {
-      return false;
-    } else {
-      DLOG(WARNING) << "Unexpected token for aria-atomic: "
-                    << *aria_atomic_attribute;
+  if (node->IsElement()) {
+    scoped_refptr<dom::Element> element = node->AsElement();
+    // Search ancestors of the changed element to determine if this change is
+    // atomic or not, per the algorithm described in the spec.
+    // https://www.w3.org/TR/wai-aria/states_and_properties#aria-atomic
+    base::optional<std::string> aria_atomic_attribute =
+        element->GetAttribute(base::Tokens::aria_atomic().c_str());
+    if (aria_atomic_attribute) {
+      if (*aria_atomic_attribute == base::Tokens::true_token()) {
+        return true;
+      } else if (*aria_atomic_attribute == base::Tokens::false_token()) {
+        return false;
+      } else {
+        DLOG(WARNING) << "Unexpected token for aria-atomic: "
+                      << *aria_atomic_attribute;
+      }
     }
   }
-  return IsAtomic(element->parent_element());
+  return IsAtomic(node->parent_node());
 }
 
 }  // namespace internal

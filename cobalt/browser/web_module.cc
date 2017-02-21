@@ -23,7 +23,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
-#include "cobalt/accessibility/focus_observer.h"
+#include "cobalt/accessibility/screen_reader.h"
 #include "cobalt/accessibility/starboard_tts_engine.h"
 #include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
@@ -37,6 +37,7 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/local_storage_database.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/url.h"
 #include "cobalt/dom_parser/parser.h"
@@ -242,6 +243,9 @@ class WebModule::Impl {
   // tracker are contained within it.
   scoped_ptr<browser::WebModuleStatTracker> web_module_stat_tracker_;
 
+  // Post and run tasks to notify MutationObservers.
+  dom::MutationObserverTaskManager mutation_observer_task_manager_;
+
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
 
@@ -286,7 +290,7 @@ class WebModule::Impl {
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
   // Utters the text contents of the focused element.
-  scoped_ptr<accessibility::FocusObserver> focus_observer_;
+  scoped_ptr<accessibility::ScreenReader> screen_reader_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
@@ -518,8 +522,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
   if (tts_engine) {
-    focus_observer_.reset(new accessibility::FocusObserver(window_->document(),
-                                                           tts_engine.Pass()));
+    screen_reader_.reset(
+        new accessibility::ScreenReader(window_->document(), tts_engine.Pass(),
+                                        &mutation_observer_task_manager_));
   }
   is_running_ = true;
 }
@@ -544,7 +549,7 @@ WebModule::Impl::~Impl() {
   remote_typeface_cache_->DisableCallbacks();
   image_cache_->DisableCallbacks();
 
-  focus_observer_.reset();
+  screen_reader_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
