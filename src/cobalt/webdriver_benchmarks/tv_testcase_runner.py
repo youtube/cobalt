@@ -47,6 +47,8 @@ arg_parser.add_argument(
 # Pattern to match Cobalt log line for when the WebDriver port has been
 # opened.
 RE_WEBDRIVER_LISTEN = re.compile(r"Starting WebDriver server on port (\d+)")
+# Pattern to match Cobalt log line for when a WindowDriver has been created.
+RE_WINDOWDRIVER_CREATED = re.compile(r"Created WindowDriver: ID=\S+")
 
 STARTUP_TIMEOUT_SECONDS = 2 * 60
 
@@ -61,11 +63,17 @@ COBALT_WEBDRIVER_CAPABILITIES = {
 }
 
 _webdriver = None
+_windowdriver_created = threading.Event()
 
 
 def GetWebDriver():
   """Returns the active connect WebDriver instance."""
   return _webdriver
+
+
+def GetWindowDriverCreated():
+  """Returns the WindowDriver created instance."""
+  return _windowdriver_created
 
 
 class TimeoutException(Exception):
@@ -96,7 +104,13 @@ class CobaltRunner(object):
     self.launcher = app_launcher.CreateLauncher(
         platform, executable, devkit_name=devkit_name, close_output_file=False)
 
-    self.launcher.SetArgs(["--enable_webdriver"])
+    args = []
+    args.append("--enable_webdriver")
+    args.append("--null_savegame")
+    args.append("--debug_console=off")
+    args.append("--url=about:blank")
+
+    self.launcher.SetArgs(args)
     self.launcher.SetOutputCallback(self._HandleLine)
     self.log_file_path = log_file_path
     self.log_file = None
@@ -122,6 +136,11 @@ class CobaltRunner(object):
 
   def _HandleLine(self, line):
     """Internal log line callback."""
+
+    # Check for a WindowDriver being created.
+    if RE_WINDOWDRIVER_CREATED.search(line):
+      _windowdriver_created.set()
+      return
 
     # Wait for WebDriver port here then connect
     if self.test_script_started.is_set():

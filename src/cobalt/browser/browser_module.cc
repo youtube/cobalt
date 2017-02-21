@@ -514,7 +514,7 @@ void BrowserModule::OnKeyEventProduced(const dom::KeyboardEvent::Data& event) {
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  trace_manager.OnKeyEventProduced();
+  trace_manager_.OnKeyEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   InjectKeyEventToMainWebModule(event);
@@ -642,6 +642,9 @@ scoped_ptr<webdriver::WindowDriver> BrowserModule::CreateWindowDriver(
       FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
                             base::Unretained(&got_window_driver)));
   got_window_driver.Wait();
+  // This log is relied on by the webdriver benchmark tests, so it shouldn't be
+  // changed unless the corresponding benchmark logic is changed as well.
+  LOG(INFO) << "Created WindowDriver: ID=" << window_id.id();
   DCHECK(window_driver);
   return window_driver.Pass();
 }

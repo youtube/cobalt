@@ -20,12 +20,14 @@
 #include <string>
 
 #include "base/optional.h"
-#include "cobalt/dom/node.h"
-#include "cobalt/dom/node_list.h"
+#include "cobalt/base/token.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
+
+class Node;
+class NodeList;
 
 // MutationRecords are used with the MutationObserver interface to describe a
 // mutation on the documnet.
@@ -33,17 +35,55 @@ namespace dom {
 class MutationRecord : public script::Wrappable {
  public:
   // Web API: MutationRecord
-  std::string type() { return ""; }
-  scoped_refptr<dom::Node> target() { return NULL; }
-  scoped_refptr<dom::NodeList> added_nodes() { return NULL; }
-  scoped_refptr<dom::NodeList> removed_nodes() { return NULL; }
-  scoped_refptr<dom::Node> previous_sibling() { return NULL; }
-  scoped_refptr<dom::Node> next_sibling() { return NULL; }
-  base::optional<std::string> attribute_name() { return base::nullopt; }
-  base::optional<std::string> attribute_namespace() { return base::nullopt; }
-  base::optional<std::string> old_value() { return base::nullopt; }
+  const base::Token& type() { return type_; }
+  const scoped_refptr<dom::Node>& target() { return target_; }
+  const scoped_refptr<dom::NodeList>& added_nodes() { return added_nodes_; }
+  const scoped_refptr<dom::NodeList>& removed_nodes() { return removed_nodes_; }
+  const scoped_refptr<dom::Node>& previous_sibling() {
+    return previous_sibling_;
+  }
+  const scoped_refptr<dom::Node>& next_sibling() { return next_sibling_; }
+  const base::optional<std::string>& attribute_name() {
+    return attribute_name_;
+  }
+  const base::optional<std::string>& attribute_namespace() {
+    return attribute_namespace_;
+  }
+  const base::optional<std::string>& old_value() { return old_value_; }
+
+  // Not part of the MutationRecord interface. These create functions implement
+  // the part of the "queueing a mutation record" algorithm pertaining to
+  // creating a new Mutation Record (step 4).
+  // https://www.w3.org/TR/dom/#queue-a-mutation-record
+  static scoped_refptr<MutationRecord> CreateAttributeMutationRecord(
+      const scoped_refptr<Node>& target, const std::string& attribute_name,
+      const base::optional<std::string>& old_value);
+
+  static scoped_refptr<MutationRecord> CreateCharacterDataMutationRecord(
+      const scoped_refptr<Node>& target, const std::string& old_character_data);
+
+  static scoped_refptr<MutationRecord> CreateChildListMutationRecord(
+      const scoped_refptr<Node>& target,
+      const scoped_refptr<dom::NodeList>& added_nodes,
+      const scoped_refptr<dom::NodeList>& removed_nodes,
+      const scoped_refptr<dom::Node>& previous_sibling,
+      const scoped_refptr<dom::Node>& next_sibling);
 
   DEFINE_WRAPPABLE_TYPE(MutationRecord);
+
+ private:
+  MutationRecord(const base::Token& type, const scoped_refptr<Node>& target);
+  ~MutationRecord();
+
+  base::Token type_;
+  scoped_refptr<dom::Node> target_;
+  scoped_refptr<dom::NodeList> added_nodes_;
+  scoped_refptr<dom::NodeList> removed_nodes_;
+  scoped_refptr<dom::Node> previous_sibling_;
+  scoped_refptr<dom::Node> next_sibling_;
+  base::optional<std::string> attribute_name_;
+  base::optional<std::string> attribute_namespace_;
+  base::optional<std::string> old_value_;
 };
 }  // namespace dom
 }  // namespace cobalt

@@ -23,7 +23,10 @@
 
 #if defined(SK_CPU_ARM32) && defined(SK_ARM_HAS_OPTIONAL_NEON)
 #  define SK_ARM_NEON_MODE  SK_ARM_NEON_MODE_DYNAMIC
-#elif defined(SK_CPU_ARM32) && defined(SK_ARM_HAS_NEON) || defined(SK_CPU_ARM64)
+// TODO: We ignore neon even on ARM64... determine if it would be beneficial and
+// if so add back '|| defined(SK_CPU_ARM64)' to this #elif and include the neon
+// source files in cobalt/renderer/rasterizer/skia/skia/skia_library_opts.gyp.
+#elif defined(SK_CPU_ARM32) && defined(SK_ARM_HAS_NEON)
 #  define SK_ARM_NEON_MODE  SK_ARM_NEON_MODE_ALWAYS
 #else
 #  define SK_ARM_NEON_MODE  SK_ARM_NEON_MODE_NONE

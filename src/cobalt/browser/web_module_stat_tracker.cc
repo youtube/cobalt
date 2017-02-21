@@ -129,6 +129,16 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
           StringPrintf("Event.Count.%s.DOM.HtmlElement.UpdateComputedStyle",
                        name.c_str()),
           0, "Number of update computed styles for HTML elements."),
+      count_dom_generate_html_element_computed_style(
+          StringPrintf(
+              "Event.Count.%s.DOM.HtmlElement.GenerateHtmlElementComputedStyle",
+              name.c_str()),
+          0, "Number of generated computed styles for HTML elements."),
+      count_dom_generate_pseudo_element_computed_style(
+          StringPrintf("Event.Count.%s.DOM.HtmlElement."
+                       "GeneratePseudoElementComputedStyle",
+                       name.c_str()),
+          0, "Number of generated computed styles for Pseudo elements."),
       count_layout_boxes_created(
           StringPrintf("Event.Count.%s.Layout.Box.Created", name.c_str()), 0,
           "Number of boxes created."),
@@ -174,6 +184,7 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
       ,
       value_dictionary(
           StringPrintf("Event.%s.ValueDictionary", name.c_str()),
+          "{}"
           "All event values represented as a dictionary in a string.")
 #endif  // ENABLE_WEBDRIVER
 {
@@ -207,6 +218,10 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       dom_stat_tracker_->update_matching_rules_count();
   event_stats->count_dom_update_computed_style =
       dom_stat_tracker_->update_computed_style_count();
+  event_stats->count_dom_generate_html_element_computed_style =
+      dom_stat_tracker_->generate_html_element_computed_style_count();
+  event_stats->count_dom_generate_pseudo_element_computed_style =
+      dom_stat_tracker_->generate_pseudo_element_computed_style_count();
   event_stats->count_layout_boxes_created =
       layout_stat_tracker_->boxes_created_count();
   event_stats->count_layout_boxes_destroyed =
@@ -249,10 +264,15 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       << dom_stat_tracker_->html_elements_created_count() << ", "
       << "\"CntDomHtmlElementsDestroyed\":"
       << dom_stat_tracker_->html_elements_destroyed_count() << ", "
-      << "\"CntDomUpdateMatchingRuleCalls\":"
+      << "\"CntDomUpdateMatchingRules\":"
       << dom_stat_tracker_->update_matching_rules_count() << ", "
-      << "\"CntDomUpdateComputedStyleCalls\":"
+      << "\"CntDomUpdateComputedStyle\":"
       << dom_stat_tracker_->update_computed_style_count() << ", "
+      << "\"CntDomGenerateHtmlComputedStyle\":"
+      << dom_stat_tracker_->generate_html_element_computed_style_count() << ", "
+      << "\"CntDomGeneratePseudoComputedStyle\":"
+      << dom_stat_tracker_->generate_pseudo_element_computed_style_count()
+      << ", "
       << "\"CntLayoutBoxes\":" << layout_stat_tracker_->total_boxes() << ", "
       << "\"CntLayoutBoxesCreated\":"
       << layout_stat_tracker_->boxes_created_count() << ", "

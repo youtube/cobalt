@@ -36,8 +36,6 @@ class BrowseHorizontalTest(tv_testcase.TvTestCase):
 
     for _ in xrange(NUM_LOAD_TV_CALLS):
       self.load_tv()
-      self.wait_for_processing_complete_after_focused_shelf()
-
       self.send_keys(tv.FOCUSED_TILE, keys.Keys.ARROW_RIGHT)
       self.wait_for_processing_complete_after_focused_shelf()
 

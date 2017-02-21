@@ -593,61 +593,71 @@
             'openssl_config_path': 'config/android',
           },
         }],
-        ['target_arch == "arm"', {
-          'sources!': [
-            # Use assembly version of this source file for ARM.
-            'openssl/crypto/aes/aes_core.c',
+        ['OS=="lb_shell" or OS=="starboard"', {
+          # Don't use assembly in steel or starboard.
+          # TODO: Investigate whether assembly helps low-profile devices.
+          'defines': [
+            'OPENSSL_NO_ASM',
           ],
-          'sources': [
-            'openssl/crypto/aes/asm/aes-armv4.S',
-            'openssl/crypto/bn/asm/armv4-gf2m.S',
-            'openssl/crypto/bn/asm/armv4-mont.S',
-            'openssl/crypto/modes/asm/ghash-armv4.S',
-            'openssl/crypto/sha/asm/sha1-armv4-large.S',
-            'openssl/crypto/sha/asm/sha256-armv4.S',
-            'openssl/crypto/sha/asm/sha512-armv4.S',
-          ],
-        }],
-        ['target_arch == "ia32"', {
-          'sources!': [
-            # Use assembly version of this source file for ARM.
-            'openssl/crypto/aes/aes_core.c',
-            'openssl/crypto/aes/aes_cbc.c',
-            'openssl/crypto/des/des_enc.c',
-            'openssl/crypto/des/fcrypt_b.c',
-            'openssl/crypto/bf/bf_enc.c',
-            'openssl/crypto/bn/bn_asm.c',
-          ],
-          'sources': [
-            'openssl/crypto/aes/asm/aes-586.S',
-            'openssl/crypto/aes/asm/aesni-x86.S',
-            'openssl/crypto/aes/asm/vpaes-x86.S',
-            'openssl/crypto/bf/asm/bf-586.S',
-            'openssl/crypto/bn/asm/bn-586.S',
-            'openssl/crypto/bn/asm/co-586.S',
-            'openssl/crypto/bn/asm/x86-gf2m.S',
-            'openssl/crypto/bn/asm/x86-mont.S',
-            'openssl/crypto/des/asm/crypt586.S',
-            'openssl/crypto/des/asm/des-586.S',
-            'openssl/crypto/md5/asm/md5-586.S',
-            'openssl/crypto/modes/asm/ghash-x86.S',
-            'openssl/crypto/sha/asm/sha1-586.S',
-            'openssl/crypto/sha/asm/sha256-586.S',
-            'openssl/crypto/sha/asm/sha512-586.S',
-          ],
-        }],
-        ['target_arch=="mips"', {
-          'sources!': [
-            # Use assembly version of these source files for MIPS.
-            'openssl/crypto/bn/bn_asm.c',
-            'openssl/crypto/aes/aes_core.c',
-          ],
-          'sources': [
-            'openssl/crypto/aes/asm/aes-mips.S',
-            'openssl/crypto/bn/asm/bn-mips.S',
-            'openssl/crypto/bn/asm/mips-mont.S',
-            'openssl/crypto/sha/asm/sha1-mips.S',
-            'openssl/crypto/sha/asm/sha256-mips.S',
+        }, {  # Not steel or starboard, use assembly
+          'conditions': [
+            ['target_arch == "arm"', {
+              'sources!': [
+                # Use assembly version of this source file for ARM.
+                'openssl/crypto/aes/aes_core.c',
+              ],
+              'sources': [
+                'openssl/crypto/aes/asm/aes-armv4.S',
+                'openssl/crypto/bn/asm/armv4-gf2m.S',
+                'openssl/crypto/bn/asm/armv4-mont.S',
+                'openssl/crypto/modes/asm/ghash-armv4.S',
+                'openssl/crypto/sha/asm/sha1-armv4-large.S',
+                'openssl/crypto/sha/asm/sha256-armv4.S',
+                'openssl/crypto/sha/asm/sha512-armv4.S',
+              ],
+            }],
+            ['target_arch == "ia32"', {
+              'sources!': [
+                # Use assembly version of these source files for IA32.
+                'openssl/crypto/aes/aes_core.c',
+                'openssl/crypto/aes/aes_cbc.c',
+                'openssl/crypto/des/des_enc.c',
+                'openssl/crypto/des/fcrypt_b.c',
+                'openssl/crypto/bf/bf_enc.c',
+                'openssl/crypto/bn/bn_asm.c',
+              ],
+              'sources': [
+                'openssl/crypto/aes/asm/aes-586.S',
+                'openssl/crypto/aes/asm/aesni-x86.S',
+                'openssl/crypto/aes/asm/vpaes-x86.S',
+                'openssl/crypto/bf/asm/bf-586.S',
+                'openssl/crypto/bn/asm/bn-586.S',
+                'openssl/crypto/bn/asm/co-586.S',
+                'openssl/crypto/bn/asm/x86-gf2m.S',
+                'openssl/crypto/bn/asm/x86-mont.S',
+                'openssl/crypto/des/asm/crypt586.S',
+                'openssl/crypto/des/asm/des-586.S',
+                'openssl/crypto/md5/asm/md5-586.S',
+                'openssl/crypto/modes/asm/ghash-x86.S',
+                'openssl/crypto/sha/asm/sha1-586.S',
+                'openssl/crypto/sha/asm/sha256-586.S',
+                'openssl/crypto/sha/asm/sha512-586.S',
+              ],
+            }],
+            ['target_arch=="mips"', {
+              'sources!': [
+                # Use assembly version of these source files for MIPS.
+                'openssl/crypto/bn/bn_asm.c',
+                'openssl/crypto/aes/aes_core.c',
+              ],
+              'sources': [
+                'openssl/crypto/aes/asm/aes-mips.S',
+                'openssl/crypto/bn/asm/bn-mips.S',
+                'openssl/crypto/bn/asm/mips-mont.S',
+                'openssl/crypto/sha/asm/sha1-mips.S',
+                'openssl/crypto/sha/asm/sha256-mips.S',
+              ],
+            }],
           ],
         }],
         ['clang==1', {
@@ -683,7 +693,6 @@
             'NO_SYS_UN_H',
             'NO_SYSLOG',
             'NO_WINDOWS_BRAINDEATH',
-            'OPENSSL_NO_ASM',
             'OPENSSL_NO_BF',
             'OPENSSL_NO_BUF_FREELISTS',
             'OPENSSL_NO_CAMELLIA',

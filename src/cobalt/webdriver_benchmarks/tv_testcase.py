@@ -11,21 +11,10 @@ import sys
 import time
 import unittest
 
-# pylint: disable=C6204
-try:
-  # This code works for Python 2.
-  import urlparse
-  from urllib import urlencode
-except ImportError:
-  # This code works for Python 3.
-  import urllib.parse as urlparse
-  from urllib.parse import urlencode
-
 # This directory is a package
 sys.path.insert(0, os.path.abspath("."))
 # pylint: disable=C6204,C6203
 import c_val_names
-import container_util
 import tv
 import tv_testcase_runner
 import tv_testcase_util
@@ -38,17 +27,17 @@ WebDriverWait = tv_testcase_util.import_selenium_module(
 ElementNotVisibleException = tv_testcase_util.import_selenium_module(
     submodule="common.exceptions").ElementNotVisibleException
 
-BASE_URL = "https://www.youtube.com/"
-TV_APP_PATH = "/tv"
-BASE_PARAMS = {"env_forcedOffAllExperiments": True}
+WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
-# Today, Cobalt's WebDriver has a race that
-# can leave the former page's DOM visible after a navigate.
-# As a workaround, sleep for a bit
-# b/33275371
+TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
+# Currently, after loading a new URL with cookies enabled, Kabuki randomizes
+# the shelf entries when the page finishes loading. Sleep for a bit to allow
+# this to occur before starting any additional logic.
 COBALT_POST_NAVIGATE_SLEEP_SECONDS = 5
+
+_is_initialized = False
 
 
 class TvTestCase(unittest.TestCase):
@@ -58,11 +47,17 @@ class TvTestCase(unittest.TestCase):
   with an internal class with the same name.
   """
 
+  class WindowDriverCreatedTimeoutException(BaseException):
+    """Exception thrown when WindowDriver was not created in time."""
+
   class ProcessingTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
 
   class MediaTimeoutException(BaseException):
     """Exception thrown when media did not complete in time."""
+
+  class TitleCardHiddenTimeoutException(BaseException):
+    """Exception thrown when title card did not disappear in time."""
 
   @classmethod
   def setUpClass(cls):
@@ -72,8 +67,22 @@ class TvTestCase(unittest.TestCase):
   def tearDownClass(cls):
     print("Done " + cls.__name__)
 
+  def setUp(self):
+    global _is_initialized
+    if not _is_initialized:
+      # Initialize the tests. This involves loading a URL which applies the
+      # forcedOffAllExperiments cookies, ensuring that no subsequent loads
+      # include experiments. Additionally, loading this URL triggers a reload.
+      query_params = {"env_forcedOffAllExperiments": True}
+      triggers_reload = True
+      self.load_tv(None, query_params, triggers_reload)
+      _is_initialized = True
+
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
+
+  def get_windowdriver_created(self):
+    return tv_testcase_runner.GetWindowDriverCreated()
 
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
@@ -90,32 +99,14 @@ class TvTestCase(unittest.TestCase):
     else:
       return json.loads(json_result)
 
-  def goto(self, path, query_params=None):
-    """Goes to a path off of BASE_URL.
-
-    Args:
-      path: URL path without the hostname.
-      query_params: Dictionary of parameter names and values.
-    Raises:
-      Underlying WebDriver exceptions
-    """
-    parsed_url = list(urlparse.urlparse(BASE_URL))
-    parsed_url[2] = path
-    query_dict = BASE_PARAMS.copy()
-    if query_params:
-      query_dict.update(urlparse.parse_qsl(parsed_url[4]))
-      container_util.merge_dict(query_dict, query_params)
-    parsed_url[4] = urlencode(query_dict, doseq=True)
-    final_url = urlparse.urlunparse(parsed_url)
-    self.get_webdriver().get(final_url)
-    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
-
-  def load_tv(self, label=None, additional_query_params=None):
+  def load_tv(self, label=None, additional_query_params=None,
+              triggers_reload=False):
     """Loads the main TV page and waits for it to display.
 
     Args:
       label: A value for the label query parameter.
       additional_query_params: A dict containing additional query parameters.
+      triggers_reload: Whether or not the navigation will trigger a reload.
     Raises:
       Underlying WebDriver exceptions
     """
@@ -124,13 +115,19 @@ class TvTestCase(unittest.TestCase):
       query_params = {"label": label}
     if additional_query_params is not None:
       query_params.update(additional_query_params)
-    self.goto(TV_APP_PATH, query_params)
+    self.get_windowdriver_created().clear()
+    self.get_webdriver().get(tv_testcase_util.get_tv_url(query_params))
+    self.wait_for_windowdriver_created()
+    if triggers_reload:
+      self.get_windowdriver_created().clear()
+      self.wait_for_windowdriver_created()
+    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
     # decorator-driven success retry loop for subsequent webdriver requests.
     #
     # We'll skip that sophistication here.
-    self.poll_until_found(tv.FOCUSED_SHELF)
+    self.wait_for_processing_complete_after_focused_shelf()
 
   def poll_until_found(self, css_selector):
     """Polls until an element is found.
@@ -217,6 +214,12 @@ class TvTestCase(unittest.TestCase):
           raise
         time.sleep(1)
 
+  def wait_for_windowdriver_created(self):
+    """Waits for Cobalt to create a WindowDriver."""
+    windowdriver_created = self.get_windowdriver_created()
+    if not windowdriver_created.wait(WINDOWDRIVER_CREATED_TIMEOUT_SECONDS):
+      raise TvTestCase.WindowDriverCreatedTimeoutException()
+
   def wait_for_processing_complete_after_focused_shelf(self):
     """Waits for Cobalt to focus on a shelf and complete pending layouts."""
     self.poll_until_found(tv.FOCUSED_SHELF)
@@ -272,8 +275,20 @@ class TvTestCase(unittest.TestCase):
         c_val_names.event_duration_dom_video_start_delay()) == 0:
       if time.time() - start_time > MEDIA_TIMEOUT_SECONDS:
         raise TvTestCase.MediaTimeoutException()
-
       time.sleep(0.1)
+
+  def wait_for_title_card_hidden(self):
+    """Waits for the title to disappear while a video is playing.
+
+    Raises:
+      TitleCardHiddenTimeoutException: The title card did not become hidden in
+      the required time.
+    """
+    start_time = time.time()
+    while not self.find_elements(tv.TITLE_CARD_HIDDEN):
+      if time.time() - start_time > TITLE_CARD_HIDDEN_TIMEOUT_SECONDS:
+        raise TvTestCase.TitleCardHiddenTimeoutException()
+      time.sleep(1)
 
 
 def main():

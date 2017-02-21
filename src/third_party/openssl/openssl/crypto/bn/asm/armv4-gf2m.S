@@ -121,7 +121,7 @@ bn_GF2m_mul_2x2:
 	beq	.Lialu
 
 	veor	d18,d18
-	vmov.32	d19,r3,r3		@ two copies of b1
+	vmov	d19,r3,r3		@ two copies of b1
 	vmov.32	d18[0],r1		@ a1
 
 	veor	d20,d20

@@ -47,7 +47,6 @@ class BrowseToSearchTest(tv_testcase.TvTestCase):
 
     for _ in xrange(NUM_LOAD_TV_CALLS):
       self.load_tv()
-      self.assert_displayed(tv.FOCUSED_SHELF)
 
       for _ in xrange(NUM_ITERATIONS_PER_LOAD_TV_CALL):
         browse_to_search_recorder.on_start_event()

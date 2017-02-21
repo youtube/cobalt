@@ -260,7 +260,9 @@ void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
 const char kYouTubeTvLocationPolicy[] =
     "h5vcc-location-src "
     "https://www.youtube.com/tv "
+    "https://www.youtube.com/tv/ "
     "https://web-release-qa.youtube.com/tv "
+    "https://web-release-qa.youtube.com/tv/ "
 #if defined(ENABLE_ABOUT_SCHEME)
     "about: "
 #endif

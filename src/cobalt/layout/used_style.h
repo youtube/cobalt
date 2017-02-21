@@ -27,12 +27,14 @@
 #include "cobalt/cssom/transform_matrix.h"
 #include "cobalt/dom/font_cache.h"
 #include "cobalt/dom/font_list.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/rounded_corners.h"
@@ -56,8 +58,10 @@ class ContainingBlock;
 
 class UsedStyleProvider {
  public:
-  UsedStyleProvider(loader::image::ImageCache* image_cache,
-                    dom::FontCache* font_cache);
+  UsedStyleProvider(dom::HTMLElementContext* html_element_context,
+                    loader::image::ImageCache* image_cache,
+                    dom::FontCache* font_cache,
+                    loader::mesh::MeshCache* mesh_cache = NULL);
 
   scoped_refptr<dom::FontList> GetUsedFontList(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -66,9 +70,14 @@ class UsedStyleProvider {
       const scoped_refptr<cssom::PropertyValue>& font_weight_refptr);
 
   scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url);
+  scoped_refptr<render_tree::Mesh> ResolveURLToMesh(const GURL& url);
 
   bool has_image_cache(const loader::image::ImageCache* image_cache) const {
     return image_cache == image_cache_;
+  }
+
+  dom::HTMLElementContext* html_element_context() const {
+    return html_element_context_;
   }
 
  private:
@@ -77,8 +86,10 @@ class UsedStyleProvider {
   // to remove any font lists that are no longer being referenced by boxes.
   void CleanupAfterLayout();
 
+  dom::HTMLElementContext* html_element_context_;
   loader::image::ImageCache* const image_cache_;
   dom::FontCache* const font_cache_;
+  loader::mesh::MeshCache* const mesh_cache_;
 
   // |font_list_key_| is retained in between lookups so that the font names
   // vector will not need to allocate elements each time that it is populated.

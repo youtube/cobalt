@@ -73,7 +73,7 @@ struct SupportedTypeInfo {
 #if defined(OS_STARBOARD)
 #if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
 
-static const CodecInfo kVP9CodecInfo = { "vp9", DemuxerStream::VIDEO };
+static const CodecInfo kVP9CodecInfo = {"vp9*", DemuxerStream::VIDEO};
 
 static const CodecInfo* kVideoWebMCodecs[] = {
   &kVP9CodecInfo,

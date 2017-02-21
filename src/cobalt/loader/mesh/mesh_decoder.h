@@ -41,6 +41,15 @@ class MeshDecoder : public Decoder {
               const SuccessCallback& success_callback,
               const ErrorCallback& error_callback);
 
+  // This function is used for binding a callback to create a MeshDecoder.
+  static scoped_ptr<Decoder> Create(
+      render_tree::ResourceProvider* resource_provider,
+      const SuccessCallback& success_callback,
+      const ErrorCallback& error_callback) {
+    return scoped_ptr<Decoder>(
+        new MeshDecoder(resource_provider, success_callback, error_callback));
+  }
+
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;

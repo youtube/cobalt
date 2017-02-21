@@ -956,6 +956,7 @@ void HTMLElement::UpdateComputedStyle(
   UpdateComputedStyleInvalidationFlags invalidation_flags;
 
   if (generate_computed_style) {
+    dom_stat_tracker_->OnGenerateHtmlElementComputedStyle();
     bool animations_modified = false;
 
     scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
@@ -982,7 +983,7 @@ void HTMLElement::UpdateComputedStyle(
     css_computed_style_declaration_->UpdateInheritedData();
   }
 
-  // NOTE: Currently, pseudo elements computed styles are always generated. If
+  // NOTE: Currently, pseudo element's computed styles are always generated. If
   // this becomes a performance bottleneck, change the logic so that it only
   // occurs when needed.
 
@@ -990,6 +991,7 @@ void HTMLElement::UpdateComputedStyle(
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
+      dom_stat_tracker_->OnGeneratePseudoElementComputedStyle();
       bool animations_modified = false;
 
       scoped_refptr<cssom::CSSComputedStyleData> pseudo_element_computed_style =

@@ -19,7 +19,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import datetime
 import os
 import sys
 
@@ -27,39 +26,43 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # pylint: disable=C6204,C6203
+import timer
 import tv_testcase
 import tv_testcase_util
 
 
 class TimeToShelf(tv_testcase.TvTestCase):
 
+  def setUp(self):
+    # Override TvTestCase's setUp() so that blank startup can first be measured.
+    pass
+
   def test_simple(self):
     """This test tries to measure the startup time for the YouTube TV page.
 
     Specifically, this test uses the Cobalt CVal Cobalt.Lifetime, which gets
     updated ~60Hz on a best effort basis and is in microseconds, to determine
-    "timeToShelfBlankStartupTimeUs" and uses Python's datetime module to
-    determine "timeToShelfTestTimeShelfDisplayMedianUs".
-
-    Note: t0 is defined after Cobalt starts up, but has not navigated to a page.
-    If that true startup time metric is desired, perhaps a separate should be
-    used.
+    "timeToShelfBlankStartupTimeUs" and uses Timer to determine
+    "timeToShelfTestTimeShelfDisplayMedianUs".
     """
-    metrics_array = []
+
     blank_startup_time_microseconds = self.get_cval('Cobalt.Lifetime')
+
+    # Call TvTestCase's setUp() now that the blank startup time has been
+    # measured.
+    super(TimeToShelf, self).setUp()
+
+    metrics_array = []
     for _ in range(10):
-      t0 = datetime.datetime.now()
-      self.load_tv()
-      self.wait_for_processing_complete_after_focused_shelf()
-      t1 = datetime.datetime.now()
-      delta = t1 - t0
-      startup_time_microseconds = delta.seconds * 1000000 + delta.microseconds
+      with timer.Timer('TimeShelfDisplay') as t:
+        self.load_tv()
+      startup_time_microseconds = int(t.seconds_elapsed * 1000000)
       metrics_array.append(startup_time_microseconds)
 
-    tv_testcase_util.record_test_result_median(
-        'timeToShelfTestTimeShelfDisplayMedianUs', metrics_array)
     tv_testcase_util.record_test_result('timeToShelfBlankStartupTimeUs',
                                         blank_startup_time_microseconds)
+    tv_testcase_util.record_test_result_median(
+        'timeToShelfTestTimeShelfDisplayMedianUs', metrics_array)
 
 
 if __name__ == '__main__':

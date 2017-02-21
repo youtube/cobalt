@@ -32,6 +32,7 @@
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/mutation_reporter.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/node_list_live.h"
@@ -287,11 +288,26 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   node->AdoptIntoDocument(node_document_);
 
   // 10. Remove child from its parent with the suppress observers flag set.
-  Remove(child);
+  Remove(child, true);
 
   // 11. Insert node into parent before reference child with the suppress
   // observers flag set.
-  Insert(node, reference_child);
+  Insert(node, reference_child, true);
+
+  // 12. Let nodes be node's children if node is a DocumentFragment node, and a
+  // list containing solely node otherwise.
+  // 13. Queue a mutation record of "childList" for target parent with
+  // addedNodes nodes, removedNodes a list solely containing child, nextSibling
+  // reference child, and previousSibling child's previous sibling.
+  MutationReporter mutation_reporter(this, GatherInclusiveAncestorsObservers());
+  scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
+  added_nodes->AppendNode(node);
+  scoped_refptr<dom::NodeList> removed_nodes = new dom::NodeList();
+  removed_nodes->AppendNode(child);
+  mutation_reporter.ReportChildListMutation(
+      added_nodes, removed_nodes,
+      child->previous_sibling_ /* previous_sibling */,
+      reference_child /* next_sibling */);
 
   return child;
 }
@@ -427,7 +443,8 @@ Node::Node(Document* document)
       previous_sibling_(NULL),
       last_child_(NULL),
       inserted_into_document_(false),
-      node_generation_(kInitialNodeGeneration) {
+      node_generation_(kInitialNodeGeneration),
+      ALLOW_THIS_IN_INITIALIZER_LIST(registered_observers_(this)) {
   DCHECK(node_document_);
   ++(node_count_log.Get().count);
   GlobalStats::GetInstance()->Add(this);
@@ -508,6 +525,21 @@ void Node::UpdateGenerationForNodeAndAncestors() {
   }
 }
 
+scoped_ptr<Node::RegisteredObserverVector>
+Node::GatherInclusiveAncestorsObservers() {
+  scoped_ptr<RegisteredObserverVector> inclusive_observers(
+      new RegisteredObserverVector());
+  Node* current = this;
+  while (current) {
+    const RegisteredObserverList::RegisteredObserverVector& node_observers =
+        current->registered_observers_.registered_observers();
+    inclusive_observers->insert(inclusive_observers->end(),
+                                node_observers.begin(), node_observers.end());
+    current = current->parent_;
+  }
+  return inclusive_observers.Pass();
+}
+
 // Algorithm for EnsurePreInsertionValidity:
 //   https://www.w3.org/TR/dom/#concept-node-ensure-pre-insertion-validity
 bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
@@ -577,7 +609,7 @@ scoped_refptr<Node> Node::PreInsert(const scoped_refptr<Node>& node,
   // 4. Adopt node into parent's node document.
   // 5. Insert node into parent before reference child.
   node->AdoptIntoDocument(node_document_);
-  Insert(node, child == node ? child->next_sibling_ : child);
+  Insert(node, child == node ? child->next_sibling_ : child, false);
 
   // 6. Return node.
   return node;
@@ -586,15 +618,34 @@ scoped_refptr<Node> Node::PreInsert(const scoped_refptr<Node>& node,
 // Algorithm for Insert:
 //   https://www.w3.org/TR/dom/#concept-node-insert
 void Node::Insert(const scoped_refptr<Node>& node,
-                  const scoped_refptr<Node>& child) {
+                  const scoped_refptr<Node>& child, bool suppress_observers) {
   // 1. 2. Not needed by Cobalt.
   // 3. Let nodes be node's children if node is a DocumentFragment node, and a
   // list containing solely node otherwise.
-  // 4. ~ 6. Not needed by Cobalt.
+  // 4. 5. Not needed by Cobalt.
+  // 6. If suppress observers flag is unset, queue a mutation record of
+  //    "childList" for parent with addedNodes nodes, nextSibling child, and
+  //    previousSibling child's previous sibling or parent's last child if
+  //    child is null.
   // 7. For each newNode in nodes, in tree order, run these substeps:
   //   1. Insert newNode into parent before child or at the end of parent if
   //   child is null.
   //   2. Run the insertion steps with newNode.
+
+  if (!suppress_observers) {
+    scoped_ptr<RegisteredObserverVector> observers =
+        GatherInclusiveAncestorsObservers();
+    if (!observers->empty()) {
+      MutationReporter mutation_reporter(this, observers.Pass());
+      scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
+      added_nodes->AppendNode(node);
+      mutation_reporter.ReportChildListMutation(
+          added_nodes, NULL, child && child->previous_sibling_
+                                 ? child->previous_sibling_
+                                 : this->last_child_ /* previous_sibling */,
+          child /* next_sibling */);
+    }
+  }
 
   node->parent_ = this;
 
@@ -646,7 +697,7 @@ scoped_refptr<Node> Node::PreRemove(const scoped_refptr<Node>& child) {
   }
 
   // 2. Remove child from parent.
-  Remove(child);
+  Remove(child, false);
 
   // 3. Return child.
   return child;
@@ -654,7 +705,7 @@ scoped_refptr<Node> Node::PreRemove(const scoped_refptr<Node>& child) {
 
 // Algorithm for Remove:
 //   https://www.w3.org/TR/dom/#concept-node-remove
-void Node::Remove(const scoped_refptr<Node>& node) {
+void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
   DCHECK(node);
 
   OnMutation();
@@ -674,9 +725,33 @@ void Node::Remove(const scoped_refptr<Node>& node) {
     node->OnRemovedFromDocument();
   }
 
-  // 1. ~ 8. Not needed by Cobalt.
+  // 1. 5. Not needed by Cobalt.
+  // 6. Let oldPreviousSibling be node's previous sibling
+  // 7. If suppress observers flag is unset, queue a mutation record of
+  // "childList" for parent with removedNodes a list solely containing node,
+  // nextSibling node's next sibling, and previousSibling oldPreviousSibling.
+  // 8. For each ancestor ancestor of node, if ancestor has any registered
+  // observers whose options's subtree is true, then for each such registered
+  // observer registered, append a transient registered observer whose observer
+  // and options are identical to those of registered and source which is
+  // registered to node's list of registered observers.
   // 9. Remove node from its parent.
   // 10. Run the removing steps with node, parent, and oldPreviousSibling.
+
+  scoped_ptr<RegisteredObserverVector> observers =
+      GatherInclusiveAncestorsObservers();
+  if (!observers->empty()) {
+    // Step 7 - Queue a mutation record.
+    if (!suppress_observers) {
+      MutationReporter mutation_reporter(this, observers.Pass());
+      scoped_refptr<dom::NodeList> removed_nodes = new dom::NodeList();
+      removed_nodes->AppendNode(node);
+      mutation_reporter.ReportChildListMutation(
+          NULL, removed_nodes, node->previous_sibling_ /* previous_sibling */,
+          node->next_sibling_ /* next_sibling */);
+    }
+    // TODO: transient registered observers.
+  }
 
   if (node->previous_sibling_) {
     node->previous_sibling_->next_sibling_ = node->next_sibling_;

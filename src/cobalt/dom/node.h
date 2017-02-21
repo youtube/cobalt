@@ -18,12 +18,16 @@
 #define COBALT_DOM_NODE_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/mutation_observer.h"
+#include "cobalt/dom/mutation_observer_init.h"
+#include "cobalt/dom/registered_observer_list.h"
 
 namespace cobalt {
 namespace dom {
@@ -222,6 +226,15 @@ class Node : public EventTarget {
   // descendents.
   void PurgeCachedResourceReferencesRecursively();
 
+  bool RegisterMutationObserver(const scoped_refptr<MutationObserver>& observer,
+                                const MutationObserverInit& options) {
+    return registered_observers_.AddMutationObserver(observer, options);
+  }
+  void UnregisterMutationObserver(
+      const scoped_refptr<MutationObserver>& observer) {
+    registered_observers_.RemoveMutationObserver(observer);
+  }
+
   DEFINE_WRAPPABLE_TYPE(Node);
 
  protected:
@@ -255,6 +268,10 @@ class Node : public EventTarget {
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();
 
+  // Gather a list of RegisteredObservers on this node and its ancestors.
+  typedef std::vector<RegisteredObserver> RegisteredObserverVector;
+  scoped_ptr<RegisteredObserverVector> GatherInclusiveAncestorsObservers();
+
  private:
   // From EventTarget.
   std::string GetDebugName() OVERRIDE { return node_name().c_str(); }
@@ -268,11 +285,11 @@ class Node : public EventTarget {
 
   scoped_refptr<Node> PreInsert(const scoped_refptr<Node>& node,
                                 const scoped_refptr<Node>& child);
-  void Insert(const scoped_refptr<Node>& node,
-              const scoped_refptr<Node>& child);
+  void Insert(const scoped_refptr<Node>& node, const scoped_refptr<Node>& child,
+              bool suppress_observers);
 
   scoped_refptr<Node> PreRemove(const scoped_refptr<Node>& child);
-  void Remove(const scoped_refptr<Node>& node);
+  void Remove(const scoped_refptr<Node>& node, bool suppress_observers);
 
   // Called everytime mutation happens, i.e. when a child is inserted or removed
   // from this node.
@@ -292,6 +309,8 @@ class Node : public EventTarget {
   // Strong references to first child and next sibling.
   scoped_refptr<Node> first_child_;
   scoped_refptr<Node> next_sibling_;
+
+  RegisteredObserverList registered_observers_;
 
   DISALLOW_COPY_AND_ASSIGN(Node);
 };

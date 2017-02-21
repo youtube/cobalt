@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/optional.h"
+#include "cobalt/script/sequence.h"
 
 namespace cobalt {
 namespace dom {
@@ -28,20 +29,101 @@ namespace dom {
 // Represents the MutationObserverInit dictionary type that is used to
 // initialize the MutationObserver interface.
 // https://www.w3.org/TR/dom/#mutationobserver
-struct MutationObserverInit {
-  typedef std::vector<std::string> StringSequence;
+class MutationObserverInit {
+ public:
+  typedef script::Sequence<std::string> StringSequence;
 
-  // Default values as specified in the IDL.
-  MutationObserverInit() : child_list(false), subtree(false) {}
+  MutationObserverInit()
+      : child_list_(false),
+        attributes_(false),
+        has_attributes_(false),
+        character_data_(false),
+        has_character_data_(false),
+        subtree_(false),
+        attribute_old_value_(false),
+        has_attribute_old_value_(false),
+        character_data_old_value_(false),
+        has_character_data_old_value_(false),
+        has_attribute_filter_(false) {}
 
+  bool child_list() const { return child_list_; }
+  void set_child_list(bool value) { child_list_ = value; }
+
+  bool attributes() const {
+    DCHECK(has_attributes_);
+    return attributes_;
+  }
+  void set_attributes(bool value) {
+    has_attributes_ = true;
+    attributes_ = value;
+  }
+  bool has_attributes() const { return has_attributes_; }
+
+  bool character_data() const {
+    DCHECK(has_character_data_);
+    return character_data_;
+  }
+  void set_character_data(bool value) {
+    has_character_data_ = true;
+    character_data_ = value;
+  }
+  bool has_character_data() const { return has_character_data_; }
+
+  bool subtree() const { return subtree_; }
+  void set_subtree(bool value) { subtree_ = value; }
+
+  bool attribute_old_value() const {
+    DCHECK(has_attribute_old_value_);
+    return attribute_old_value_;
+  }
+  void set_attribute_old_value(bool value) {
+    has_attribute_old_value_ = true;
+    attribute_old_value_ = value;
+  }
+  bool has_attribute_old_value() const { return has_attribute_old_value_; }
+
+  bool character_data_old_value() const {
+    DCHECK(has_character_data_old_value_);
+    return character_data_old_value_;
+  }
+  void set_character_data_old_value(bool value) {
+    has_character_data_old_value_ = true;
+    character_data_old_value_ = value;
+  }
+  bool has_character_data_old_value() const {
+    return has_character_data_old_value_;
+  }
+
+  const StringSequence& attribute_filter() const {
+    DCHECK(has_attribute_filter_);
+    return attribute_filter_;
+  }
+  void set_attribute_filter(StringSequence value) {
+    has_attribute_filter_ = true;
+    attribute_filter_ = value;
+  }
+  bool has_attribute_filter() const { return has_attribute_filter_; }
+
+ private:
   // Dictionary members:
-  bool child_list;
-  base::optional<bool> attributes;
-  base::optional<bool> character_data;
-  bool subtree;
-  base::optional<bool> attribute_old_value;
-  base::optional<bool> character_data_old_value;
-  base::optional<StringSequence> attribute_filter;
+  bool child_list_;
+
+  bool attributes_;
+  bool has_attributes_;
+
+  bool character_data_;
+  bool has_character_data_;
+
+  bool subtree_;
+
+  bool attribute_old_value_;
+  bool has_attribute_old_value_;
+
+  bool character_data_old_value_;
+  bool has_character_data_old_value_;
+
+  StringSequence attribute_filter_;
+  bool has_attribute_filter_;
 };
 }  // namespace dom
 }  // namespace cobalt

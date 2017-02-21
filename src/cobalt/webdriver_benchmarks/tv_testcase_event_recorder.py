@@ -59,9 +59,7 @@ class EventRecorder(object):
     self.event_type = options.event_type
     self.skip_font_file_load_events = options.skip_font_file_load_events
 
-    if self.skip_font_file_load_events:
-      self.font_files_loaded_count = self.test.get_cval(
-          c_val_names.count_font_files_loaded())
+    self.font_files_loaded_count = None
 
     self.render_tree_failure_count = 0
     self.font_file_load_skip_count = 0
@@ -78,8 +76,10 @@ class EventRecorder(object):
     self._add_value_dictionary_recorder("CntDomHtmlElements")
     self._add_value_dictionary_recorder("CntDomHtmlElementsCreated")
     self._add_value_dictionary_recorder("CntDomHtmlElementsDestroyed")
-    self._add_value_dictionary_recorder("CntDomUpdateMatchingRuleCalls")
-    self._add_value_dictionary_recorder("CntDomUpdateComputedStyleCalls")
+    self._add_value_dictionary_recorder("CntDomUpdateMatchingRules")
+    self._add_value_dictionary_recorder("CntDomUpdateComputedStyle")
+    self._add_value_dictionary_recorder("CntDomGenerateHtmlComputedStyle")
+    self._add_value_dictionary_recorder("CntDomGeneratePseudoComputedStyle")
     self._add_value_dictionary_recorder("CntLayoutBoxes")
     self._add_value_dictionary_recorder("CntLayoutBoxesCreated")
     self._add_value_dictionary_recorder("CntLayoutBoxesDestroyed")
@@ -109,12 +109,17 @@ class EventRecorder(object):
 
   def on_start_event(self):
     """Handles logic related to the start of the event instance."""
-    pass
+
+    # If the recorder is set to skip events with font file loads and the font
+    # file loaded count hasn't been initialized yet, then do that now.
+    if self.skip_font_file_load_events and self.font_files_loaded_count is None:
+      self.font_files_loaded_count = self.test.get_cval(
+          c_val_names.count_font_files_loaded())
 
   def on_end_event(self):
     """Handles logic related to the end of the event instance."""
 
-    # If the event is set to skip events with font file loads and a font file
+    # If the recorder is set to skip events with font file loads and a font file
     # loaded during the event, then its data is not collected. Log that it was
     # skipped and return.
     if self.skip_font_file_load_events:
@@ -133,7 +138,7 @@ class EventRecorder(object):
 
     # If the event failed to produce a render tree, then its data is not
     # collected. Log the failure and return.
-    if not value_dictionary.get("ProducedRenderTree"):
+    if not value_dictionary or not value_dictionary.get("ProducedRenderTree"):
       self.render_tree_failure_count += 1
       print("{} event failed to produce render tree! {} events failed.".format(
           self.event_name, self.render_tree_failure_count))

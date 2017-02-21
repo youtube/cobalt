@@ -8,6 +8,10 @@ import importlib
 import json
 import sys
 
+# pylint: disable=C6204
+import urlparse
+from urllib import urlencode
+
 import container_util
 
 # These are watched for in webdriver_benchmark_test.py
@@ -17,6 +21,11 @@ TEST_COMPLETE = "webdriver_benchmark TEST COMPLETE"
 # These are event types that can be injected
 EVENT_TYPE_KEY_DOWN = "KeyDown"
 EVENT_TYPE_KEY_UP = "KeyUp"
+
+# URL-related constants
+BASE_URL = "https://www.youtube.com/"
+TV_APP_PATH = "/tv"
+BASE_PARAMS = {}
 
 
 def import_selenium_module(submodule=None):
@@ -50,6 +59,23 @@ def import_selenium_module(submodule=None):
                      .format(module_path))
     sys.exit(1)
   return module
+
+
+def get_url(path, query_params=None):
+  """Returns the URL indicated by the path and query parameters."""
+  parsed_url = list(urlparse.urlparse(BASE_URL))
+  parsed_url[2] = path
+  query_dict = BASE_PARAMS.copy()
+  if query_params:
+    query_dict.update(urlparse.parse_qsl(parsed_url[4]))
+    container_util.merge_dict(query_dict, query_params)
+  parsed_url[4] = urlencode(query_dict, doseq=True)
+  return urlparse.urlunparse(parsed_url)
+
+
+def get_tv_url(query_params=None):
+  """Returns the tv URL indicated by the query parameters."""
+  return get_url(TV_APP_PATH, query_params)
 
 
 def record_test_result(name, result):

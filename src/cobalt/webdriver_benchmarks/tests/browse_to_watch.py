@@ -48,7 +48,6 @@ class BrowseToWatchTest(tv_testcase.TvTestCase):
 
     for _ in xrange(NUM_LOAD_TV_CALLS):
       self.load_tv()
-      self.wait_for_processing_complete_after_focused_shelf()
 
       for _ in xrange(NUM_ITERATIONS_PER_LOAD_TV_CALL):
         self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_DOWN)
@@ -58,6 +57,10 @@ class BrowseToWatchTest(tv_testcase.TvTestCase):
         self.send_keys(tv.FOCUSED_TILE, keys.Keys.ENTER)
         self.wait_for_media_element_playing()
         browse_to_watch_recorder.on_end_event()
+
+        # Wait for the title card hidden before sending the escape. Otherwise,
+        # two escapes are required to exit the video.
+        self.wait_for_title_card_hidden()
 
         watch_to_browse_recorder.on_start_event()
         self.send_keys(tv.FOCUSED_WATCH, keys.Keys.ESCAPE)

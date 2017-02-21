@@ -34,6 +34,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
@@ -46,6 +47,7 @@
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
+#include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
@@ -92,6 +94,7 @@ class Window : public EventTarget {
          loader::image::ReducedCacheCapacityManager*
              reduced_image_cache_capacity_manager,
          loader::font::RemoteTypefaceCache* remote_typeface_cache,
+         loader::mesh::MeshCache* mesh_cache,
          LocalStorageDatabase* local_storage_database,
          media::CanPlayTypeHandler* can_play_type_handler,
          media::WebMediaPlayerFactory* web_media_player_factory,

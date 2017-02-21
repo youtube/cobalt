@@ -28,6 +28,7 @@ H5vcc::H5vcc(const Settings& settings) {
   settings_ = new H5vccSettings(settings.media_module);
   storage_ = new H5vccStorage(settings.network_module);
   system_ = new H5vccSystem(settings.media_module);
+  trace_event_ = new H5vccTraceEvent();
 }
 
 }  // namespace h5vcc
