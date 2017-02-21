@@ -17,6 +17,7 @@
 #ifndef NB_HASH_H_
 #define NB_HASH_H_
 
+#include "nb/bit_cast.h"
 #include "starboard/types.h"
 
 namespace nb {
@@ -40,16 +41,6 @@ struct PODHasher {
     return RuntimeHash32(reinterpret_cast<const char*>(&value), sizeof(value));
   }
 };
-
-template <class Dest, class Source>
-inline Dest bit_cast(const Source& source) {
-  static_assert(sizeof(Dest) == sizeof(Source),
-                "Source and destination types should have equal sizes.");
-
-  Dest dest;
-  SbMemoryCopy(&dest, &source, sizeof(dest));
-  return dest;
-}
 
 // Specialization so that all pointers are PODs.
 template <typename T>
