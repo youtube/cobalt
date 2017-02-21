@@ -19,18 +19,18 @@
 
 using starboard::android::shared::JniEnvExt;
 
-bool SbAccessibilityGetTextToSpeechSettings(
-    SbAccessibilityTextToSpeechSettings* out_setting) {
+bool SbAccessibilityGetDisplaySettings(
+    SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
       !SbMemoryIsZero(out_setting,
-                      sizeof(SbAccessibilityTextToSpeechSettings))) {
+                      sizeof(SbAccessibilityDisplaySettings))) {
     return false;
   }
 
-  out_setting->has_text_to_speech_setting = true;
-  out_setting->is_text_to_speech_enabled =
+  out_setting->has_high_contrast_text_setting = true;
+  out_setting->is_high_contrast_text_enabled =
       JniEnvExt::Get()->CallActivityBooleanMethod(
-          "isAccessibilityScreenReaderEnabled", "()Z");
+          "isAccessibilityHighContrastTextEnabled", "()Z");
 
   return true;
 }
