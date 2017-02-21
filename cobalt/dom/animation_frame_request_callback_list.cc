@@ -41,6 +41,7 @@ void AnimationFrameRequestCallbackList::CancelAnimationFrame(int32 in_handle) {
     frame_request_callbacks_[handle - 1]->cancelled = true;
   }
 }
+
 void AnimationFrameRequestCallbackList::RunCallbacks(double animation_time) {
   TRACE_EVENT1("cobalt::dom", "Window::RunAnimationFrameCallbacks()",
                "number_of_callbacks", frame_request_callbacks_.size());
@@ -51,6 +52,10 @@ void AnimationFrameRequestCallbackList::RunCallbacks(double animation_time) {
       (*iter)->callback.value().Run(animation_time);
     }
   }
+}
+
+bool AnimationFrameRequestCallbackList::HasPendingCallbacks() const {
+  return !frame_request_callbacks_.empty();
 }
 
 }  // namespace dom
