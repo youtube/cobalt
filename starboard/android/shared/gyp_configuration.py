@@ -55,13 +55,15 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'ANDROID_ABI': self.android_abi,
         'enable_remote_debugging': 0,
         'javac_classpath': self.javac_classpath,
-        'android_build_tools_path': self.android_build_tools_path
+        'android_build_tools_path': self.android_build_tools_path,
     })
     return variables
 
   def GetGeneratorVariables(self, configuration):
     _ = configuration
-    generator_variables = {'qtcreator_session_name_prefix': 'cobalt',}
+    generator_variables = {
+        'qtcreator_session_name_prefix': 'cobalt',
+    }
     return generator_variables
 
   def GetEnvironmentVariables(self):
