@@ -302,6 +302,7 @@
         '<(DEPTH)/starboard/shared/starboard/system_get_random_uint64.cc',
         '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
         '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
+        '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
         '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
