@@ -16,13 +16,13 @@
 
 #include "starboard/memory.h"
 
-bool SbAccessibilityGetTextToSpeechSettings(
-    SbAccessibilityTextToSpeechSettings* out_setting) {
+bool SbAccessibilityGetDisplaySettings(
+    SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
       !SbMemoryIsZero(out_setting,
-                      sizeof(SbAccessibilityTextToSpeechSettings))) {
+                      sizeof(SbAccessibilityDisplaySettings))) {
     return false;
   }
-  out_setting->has_text_to_speech_setting = false;
+  out_setting->has_high_contrast_text_setting = false;
   return true;
 }
