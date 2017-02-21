@@ -19,14 +19,14 @@
 
 #include <string>
 
-#include "cobalt/dom/element.h"
+#include "cobalt/dom/node.h"
 
 namespace cobalt {
 namespace accessibility {
 
-// Compute the Text Alternative for the element per the wai-aria specification:
+// Compute the Text Alternative for the node per the wai-aria specification:
 // https://www.w3.org/TR/2014/REC-wai-aria-implementation-20140320/#mapping_additional_nd_te
-std::string ComputeTextAlternative(const scoped_refptr<dom::Element>& element);
+std::string ComputeTextAlternative(const scoped_refptr<dom::Node>& node);
 
 }  // namespace accessibility
 }  // namespace cobalt
