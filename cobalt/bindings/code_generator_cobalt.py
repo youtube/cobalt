@@ -225,7 +225,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
   def wrapper_header_from_interface_name(self, interface_name):
     attribute_wrapper_class = self.wrapper_class_from_interface_name(
         interface_name)
-    return normalize_slashes(attribute_wrapper_class + '.h')
+    return normalize_slashes(
+        convert_to_cobalt_name(attribute_wrapper_class) + '.h')
 
   def output_paths(self, class_name):
     """Construct the filenames for a generated source file.
@@ -242,8 +243,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         the (.h, .cpp) file that will be generated for this interface
     """
 
-    header_path = os.path.join(self.output_dir, class_name + '.h')
-    cc_path = os.path.join(self.output_dir, class_name + '.cc')
+    snake_case_name = convert_to_cobalt_name(class_name)
+    header_path = os.path.join(self.output_dir, snake_case_name + '.h')
+    cc_path = os.path.join(self.output_dir, snake_case_name + '.cc')
     return header_path, cc_path
 
   def render_template(self, header_template_filename, cc_template_filename,
