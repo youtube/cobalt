@@ -81,8 +81,26 @@ scoped_refptr<dom::Element> GetElementById(
 }  // namespace
 
 void TextAlternativeHelper::AppendTextAlternative(
-    const scoped_refptr<dom::Element>& element) {
-  DCHECK(element);
+    const scoped_refptr<dom::Node>& node) {
+  DCHECK(node);
+  // https://www.w3.org/TR/2014/REC-wai-aria-implementation-20140320/#mapping_additional_nd_te
+  // 5.6.1.3. Text Alternative Computation
+
+  if (node->IsText()) {
+    // Rule 3D
+    // Get the contents of the text node.
+    if (node->text_content()) {
+      AppendTextIfNonEmpty(*node->text_content());
+    }
+    return;
+  }
+
+  scoped_refptr<dom::Element> element = node->AsElement();
+  if (!element) {
+    NOTREACHED() << "Unexpected node type.";
+    return;
+  }
+
   if (visited_element_ids_.find(element->id()) != visited_element_ids_.end()) {
     DLOG(INFO) << "Skipping element to prevent reference loop: "
                << element->id();
@@ -90,9 +108,6 @@ void TextAlternativeHelper::AppendTextAlternative(
   }
 
   ScopedIdSetMember scoped_id_set_member(&visited_element_ids_, element->id());
-
-  // https://www.w3.org/TR/2014/REC-wai-aria-implementation-20140320/#mapping_additional_nd_te
-  // 5.6.1.3. Text Alternative Computation
 
   // Rule 1
   // Skip hidden elements unless the author specifies to use them via an
@@ -165,15 +180,7 @@ void TextAlternativeHelper::AppendTextAlternative(
   scoped_refptr<dom::NodeList> children = element->child_nodes();
   for (int i = 0; i < children->length(); ++i) {
     scoped_refptr<dom::Node> child = children->Item(i);
-    if (child->IsElement()) {
-      AppendTextAlternative(child->AsElement());
-    } else if (child->IsText()) {
-      // Rule 3D
-      // Get the contents of the text node.
-      if (child->text_content()) {
-        AppendTextIfNonEmpty(*child->text_content());
-      }
-    }
+    AppendTextAlternative(child);
   }
 }
 
