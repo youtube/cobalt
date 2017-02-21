@@ -35,6 +35,20 @@ TEST(SbAccessibilityGetSettingTest, CallTextToSpeechWithInvalidArgument) {
   EXPECT_FALSE(SbAccessibilityGetTextToSpeechSettings(NULL));
 }
 
+TEST(SbAccessibilityGetSettingTest, CanCallGetDisplaySettings) {
+  SbAccessibilityDisplaySettings settings = {0};
+  EXPECT_TRUE(SbAccessibilityGetDisplaySettings(&settings));
+}
+
+TEST(SbAccessibilityGetSettingTest, CallDisplayWithInvalidArgument) {
+  // |settings| should be zero-initialized.
+  SbAccessibilityDisplaySettings settings = {1};
+  EXPECT_FALSE(SbAccessibilityGetDisplaySettings(&settings));
+
+  // Argument should not be NULL.
+  EXPECT_FALSE(SbAccessibilityGetDisplaySettings(NULL));
+}
+
 #endif
 
 }  // namespace
