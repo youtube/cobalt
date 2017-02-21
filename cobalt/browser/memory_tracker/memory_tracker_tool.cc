@@ -244,7 +244,6 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
           // kNumSamples is chosen such that SamplingIntervalMs(1) outputs
           // 240ms.
           static const double kNumSamples = 250.;
-          const double millseconds = mins * 60. * 1000.;
           const int sample_time_ms =
               static_cast<int>(ToMilliseconds(mins) / kNumSamples);
           return static_cast<int>(sample_time_ms);
