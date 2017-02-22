@@ -104,7 +104,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 
   bool ContainsCharacter(const SkFontStyle& style, SkUnichar character);
   bool CharacterMapContainsCharacter(SkUnichar character);
-  void GenerateCharacterMapFromData(SkData* font_data);
+  void GenerateCharacterMapFromData(SkData* font_data, int ttc_index);
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
   void CreateSystemTypeface(SkFontStyleSetEntry_Cobalt* style);

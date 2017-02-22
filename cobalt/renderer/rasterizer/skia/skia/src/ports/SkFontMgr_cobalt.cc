@@ -479,7 +479,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
         continue;
       }
 
-      GenerateCharacterMapFromData(font_data);
+      GenerateCharacterMapFromData(font_data, closest_style->ttc_index);
 
       // If the character is contained within the font style set, then go ahead
       // and create the typeface with the loaded font data. Otherwise, creating
@@ -507,7 +507,8 @@ bool SkFontStyleSet_Cobalt::CharacterMapContainsCharacter(SkUnichar character) {
              font_character_map::GetPageCharacterIndex(character));
 }
 
-void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data) {
+void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data,
+                                                         int ttc_index) {
   if (is_character_map_generated_) {
     return;
   }
@@ -520,7 +521,7 @@ void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data) {
 
   FT_Face face;
   FT_Error err = FT_New_Memory_Face(freetype_lib, font_data->bytes(),
-                                    font_data->size(), 0, &face);
+                                    font_data->size(), ttc_index, &face);
   if (!err) {
     // map out this font's characters.
     FT_UInt glyph_index;
@@ -584,7 +585,7 @@ void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
   // fallback font (which means that it'll need the character map for character
   // lookups during fallback).
   if (is_fallback_font_) {
-    GenerateCharacterMapFromData(data);
+    GenerateCharacterMapFromData(data, style_entry->ttc_index);
   }
 
   // Pass the SkData into the SkMemoryStream.
