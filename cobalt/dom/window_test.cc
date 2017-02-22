@@ -62,6 +62,7 @@ class WindowTest : public ::testing::Test {
             NULL, network_bridge::PostSender(),
             std::string() /* default security policy */, kCspEnforcementEnable,
             base::Closure() /* csp_policy_changed */,
+            base::Closure() /* ran_animation_frame_callbacks */,
             base::Closure() /* window_close */)) {}
 
   ~WindowTest() OVERRIDE {}

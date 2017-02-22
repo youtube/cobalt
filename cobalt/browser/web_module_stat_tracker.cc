@@ -94,7 +94,9 @@ void WebModuleStatTracker::OnStartInjectEvent(
   }
 }
 
-void WebModuleStatTracker::OnEndInjectEvent(bool is_new_render_tree_pending) {
+void WebModuleStatTracker::OnEndInjectEvent(
+    bool are_animation_frame_callbacks_pending,
+    bool is_new_render_tree_pending) {
   // If the injection isn't currently being timed, then this event injection
   // isn't being tracked. Simply return.
   if (!stop_watches_[kStopWatchTypeInjectEvent].IsCounting()) {
@@ -103,6 +105,13 @@ void WebModuleStatTracker::OnEndInjectEvent(bool is_new_render_tree_pending) {
 
   stop_watches_[kStopWatchTypeInjectEvent].Stop();
 
+  if (!are_animation_frame_callbacks_pending && !is_new_render_tree_pending) {
+    EndCurrentEvent(false);
+  }
+}
+
+void WebModuleStatTracker::OnRanAnimationFrameCallbacks(
+    bool is_new_render_tree_pending) {
   if (!is_new_render_tree_pending) {
     EndCurrentEvent(false);
   }
