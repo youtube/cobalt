@@ -29,6 +29,8 @@
         'dial/dial_server.h',
         'h5vcc.cc',
         'h5vcc.h',
+        'h5vcc_accessibility.cc',
+        'h5vcc_accessibility.h',
         'h5vcc_account_info.cc',
         'h5vcc_account_info.h',
         'h5vcc_audio_config.cc',
