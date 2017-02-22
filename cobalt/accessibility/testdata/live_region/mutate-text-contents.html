@@ -1,0 +1,18 @@
+<html>
+<head>
+<script>
+var doMutation = function() {
+  var region = document.getElementById("to_mutate");
+  region.firstChild.textContent = "New text contents";
+
+  window.setTimeout(function() { window.close(); } );
+}
+window.addEventListener("load", doMutation);
+</script>
+</head>
+<body>
+<div id="to_mutate" aria-live="polite" aria-relevant="text" aria-atomic="false">
+   Original contents.
+</div>
+</body>
+</html>

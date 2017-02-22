@@ -17,7 +17,7 @@
       'target_name': 'accessibility_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'text_alternative_tests.cc',
+        'screen_reader_tests.cc',
         'internal/live_region_test.cc',
         'internal/text_alternative_helper_test.cc',
       ],
@@ -41,7 +41,7 @@
             'input_files': [
               '<(DEPTH)/cobalt/accessibility/testdata/',
             ],
-            'output_dir': 'cobalt/accessibility_test',
+            'output_dir': 'cobalt/accessibility/testdata/',
           },
           'includes': ['../build/copy_test_data.gypi'],
         }

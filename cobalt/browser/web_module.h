@@ -27,6 +27,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
@@ -166,6 +167,9 @@ class WebModule {
     // fetcher creation and handling callbacks from NetFetcher.
     // The default value is base::kThreadPriority_High.
     base::ThreadPriority fetcher_lifetime_thread_priority;
+
+    // TTSEngine instance to use for text-to-speech.
+    accessibility::TTSEngine* tts_engine;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
