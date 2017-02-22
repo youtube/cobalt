@@ -289,6 +289,9 @@ class WebModule::Impl {
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
+  // TTSEngine that the ScreenReader speaks to.
+  scoped_ptr<accessibility::TTSEngine> tts_engine_;
+
   // Utters the text contents of the focused element.
   scoped_ptr<accessibility::ScreenReader> screen_reader_;
 
@@ -507,24 +510,28 @@ WebModule::Impl::Impl(const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
-  scoped_ptr<accessibility::TTSEngine> tts_engine;
+  // If a TTSEngine was provided through the options, use it.
+  accessibility::TTSEngine* tts_engine = data.options.tts_engine;
+  if (!tts_engine) {
+// Otherwise, create a new TTSEngine that is owned by the WebModule.
 #if SB_HAS(SPEECH_SYNTHESIS)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
-    tts_engine.reset(new accessibility::StarboardTTSEngine());
-  }
+    CommandLine* command_line = CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(browser::switches::kUseTTS)) {
+      tts_engine_.reset(new accessibility::StarboardTTSEngine());
+    }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #endif  // SB_HAS(SPEECH_SYNTHESIS)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  if (!tts_engine) {
-    tts_engine.reset(new accessibility::TTSLogger());
-  }
+    if (!tts_engine) {
+      tts_engine_.reset(new accessibility::TTSLogger());
+    }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+    tts_engine = tts_engine_.get();
+  }
   if (tts_engine) {
-    screen_reader_.reset(
-        new accessibility::ScreenReader(window_->document(), tts_engine.Pass(),
-                                        &mutation_observer_task_manager_));
+    screen_reader_.reset(new accessibility::ScreenReader(
+        window_->document(), tts_engine, &mutation_observer_task_manager_));
   }
   is_running_ = true;
 }
@@ -783,7 +790,8 @@ WebModule::Options::Options()
       thread_priority(base::kThreadPriority_Normal),
       software_decoder_thread_priority(base::kThreadPriority_Low),
       hardware_decoder_thread_priority(base::kThreadPriority_High),
-      fetcher_lifetime_thread_priority(base::kThreadPriority_High) {}
+      fetcher_lifetime_thread_priority(base::kThreadPriority_High),
+      tts_engine(NULL) {}
 
 WebModule::WebModule(
     const GURL& initial_url,
