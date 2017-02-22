@@ -28,6 +28,7 @@ ElementNotVisibleException = tv_testcase_util.import_selenium_module(
     submodule="common.exceptions").ElementNotVisibleException
 
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
+WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
@@ -49,6 +50,9 @@ class TvTestCase(unittest.TestCase):
 
   class WindowDriverCreatedTimeoutException(BaseException):
     """Exception thrown when WindowDriver was not created in time."""
+
+  class WebModuleLoadedTimeoutException(BaseException):
+    """Exception thrown when WebModule was not loaded in time."""
 
   class ProcessingTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
@@ -81,9 +85,6 @@ class TvTestCase(unittest.TestCase):
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
 
-  def get_windowdriver_created(self):
-    return tv_testcase_runner.GetWindowDriverCreated()
-
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
 
@@ -99,7 +100,9 @@ class TvTestCase(unittest.TestCase):
     else:
       return json.loads(json_result)
 
-  def load_tv(self, label=None, additional_query_params=None,
+  def load_tv(self,
+              label=None,
+              additional_query_params=None,
               triggers_reload=False):
     """Loads the main TV page and waits for it to display.
 
@@ -115,12 +118,12 @@ class TvTestCase(unittest.TestCase):
       query_params = {"label": label}
     if additional_query_params is not None:
       query_params.update(additional_query_params)
-    self.get_windowdriver_created().clear()
+    self.clear_url_loaded_events()
     self.get_webdriver().get(tv_testcase_util.get_tv_url(query_params))
-    self.wait_for_windowdriver_created()
+    self.wait_for_url_loaded_events()
     if triggers_reload:
-      self.get_windowdriver_created().clear()
-      self.wait_for_windowdriver_created()
+      self.clear_url_loaded_events()
+      self.wait_for_url_loaded_events()
     time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
@@ -214,11 +217,20 @@ class TvTestCase(unittest.TestCase):
           raise
         time.sleep(1)
 
-  def wait_for_windowdriver_created(self):
-    """Waits for Cobalt to create a WindowDriver."""
-    windowdriver_created = self.get_windowdriver_created()
+  def clear_url_loaded_events(self):
+    """Clear the events that indicate that Cobalt finished loading a URL."""
+    tv_testcase_runner.GetWindowDriverCreated().clear()
+    tv_testcase_runner.GetWebModuleLoaded().clear()
+
+  def wait_for_url_loaded_events(self):
+    """Wait for the events indicating that Cobalt finished loading a URL."""
+    windowdriver_created = tv_testcase_runner.GetWindowDriverCreated()
     if not windowdriver_created.wait(WINDOWDRIVER_CREATED_TIMEOUT_SECONDS):
       raise TvTestCase.WindowDriverCreatedTimeoutException()
+
+    webmodule_loaded = tv_testcase_runner.GetWebModuleLoaded()
+    if not webmodule_loaded.wait(WEBMODULE_LOADED_TIMEOUT_SECONDS):
+      raise TvTestCase.WebModuleLoadedTimeoutException()
 
   def wait_for_processing_complete_after_focused_shelf(self):
     """Waits for Cobalt to focus on a shelf and complete pending layouts."""
