@@ -84,6 +84,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const std::string& default_security_policy,
                CspEnforcementType csp_enforcement_mode,
                const base::Closure& csp_policy_changed_callback,
+               const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
                int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
@@ -125,6 +126,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
       screen_(new Screen(width, height)),
+      ran_animation_frame_callbacks_callback_(
+          ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback) {
 #if defined(ENABLE_TEST_RUNNER)
   test_runner_ = new TestRunner();
@@ -305,23 +308,32 @@ HTMLElementContext* Window::html_element_context() const {
 }
 
 void Window::RunAnimationFrameCallbacks() {
-  base::StopWatch stop_watch_run_animation_frame_callbacks(
-      DomStatTracker::kStopWatchTypeRunAnimationFrameCallbacks,
-      base::StopWatch::kAutoStartOn,
-      html_element_context()->dom_stat_tracker());
+  // Scope the StopWatch. It should not include any processing from
+  // |ran_animation_frame_callbacks_callback_|.
+  {
+    base::StopWatch stop_watch_run_animation_frame_callbacks(
+        DomStatTracker::kStopWatchTypeRunAnimationFrameCallbacks,
+        base::StopWatch::kAutoStartOn,
+        html_element_context()->dom_stat_tracker());
 
-  // First grab the current list of frame request callbacks and hold on to it
-  // here locally.
-  scoped_ptr<AnimationFrameRequestCallbackList> frame_request_list =
-      animation_frame_request_callback_list_.Pass();
+    // First grab the current list of frame request callbacks and hold on to it
+    // here locally.
+    scoped_ptr<AnimationFrameRequestCallbackList> frame_request_list =
+        animation_frame_request_callback_list_.Pass();
 
-  // Then setup the Window's frame request callback list with a freshly created
-  // and empty one.
-  animation_frame_request_callback_list_.reset(
-      new AnimationFrameRequestCallbackList(this));
+    // Then setup the Window's frame request callback list with a freshly
+    // created and empty one.
+    animation_frame_request_callback_list_.reset(
+        new AnimationFrameRequestCallbackList(this));
 
-  // Now, iterate through each of the callbacks and call them.
-  frame_request_list->RunCallbacks(*document_->timeline()->current_time());
+    // Now, iterate through each of the callbacks and call them.
+    frame_request_list->RunCallbacks(*document_->timeline()->current_time());
+  }
+
+  // Run the callback if one exists.
+  if (!ran_animation_frame_callbacks_callback_.is_null()) {
+    ran_animation_frame_callbacks_callback_.Run();
+  }
 }
 
 bool Window::HasPendingAnimationFrameCallbacks() const {
