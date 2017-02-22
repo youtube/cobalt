@@ -1,14 +1,14 @@
-# Add project specific ProGuard rules here.
-# By default, the flags in this file are appended to flags specified
-# in <ANDROID_SDK>/tools/proguard/proguard-android.txt
-# You can edit the include path and order by changing the proguardFiles
-# directive in build.gradle.
+# Proguard flags needed for the Android Starboard Java implementation to work
+# properly with its JNI native library.
 #
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # JNI is an entry point that's hard to keep track of, so the @UsedByNative
 # annotation marks fields and methods used by native code.
+
+# Annotations are implemented as attributes, so we have to explicitly keep them.
+-keepattributes *Annotation*
 
 # Keep the annotations that proguard needs to process.
 -keep class foo.cobalt.UsedByNative
