@@ -41,6 +41,7 @@ enum SwitchEnum {
   kCompressedTimeseries,
   kBinnerAnalytics,
   kAllocationLogger,
+  kLeakTracer,
 };
 
 struct SwitchVal {
@@ -155,6 +156,11 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       "by kSbSystemPathDebugOutputDirectory.",
       kAllocationLogger);
 
+  SwitchVal leak_tracing_tool(
+      "leak_tracer",
+      "Automatically detects leaks and reports them in CSV format.",
+      kLeakTracer);
+
   SwitchMap switch_map;
   switch_map[ParseToolName(startup_tool.tool_name)] = startup_tool;
   switch_map[ParseToolName(continuous_printer_tool.tool_name)] =
@@ -164,6 +170,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   switch_map[ParseToolName(binner_tool.tool_name)] = binner_tool;
   switch_map[ParseToolName(allocation_logger_tool.tool_name)] =
       allocation_logger_tool;
+  switch_map[ParseToolName(leak_tracing_tool.tool_name)] = leak_tracing_tool;
 
   std::string tool_name = ParseToolName(command_arg);
   std::string tool_arg = ParseToolArg(command_arg);
@@ -293,6 +300,16 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       scoped_ptr<MemoryTrackerLogWriter> disk_writer_tool(
           new MemoryTrackerLogWriter());
       tool_ptr.reset(disk_writer_tool.release());
+      break;
+    }
+    case kLeakTracer: {
+      scoped_ptr<MemoryTrackerLeakFinder> leak_finder(
+          new MemoryTrackerLeakFinder());
+
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
+      memory_tracker->SetMemoryTrackerDebugCallback(leak_finder.get());
+      tool_ptr.reset(leak_finder.release());
       break;
     }
     default: {
