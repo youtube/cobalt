@@ -33,7 +33,7 @@ namespace accessibility {
 // user.
 class ScreenReader : public dom::DocumentObserver {
  public:
-  ScreenReader(dom::Document* document, scoped_ptr<TTSEngine> tts_engine,
+  ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                dom::MutationObserverTaskManager* task_manager);
 
  protected:
@@ -52,7 +52,7 @@ class ScreenReader : public dom::DocumentObserver {
       const scoped_refptr<dom::MutationObserver>& observer);
 
   dom::Document* document_;
-  scoped_ptr<TTSEngine> tts_engine_;
+  TTSEngine* tts_engine_;
   scoped_refptr<dom::MutationObserver> live_region_observer_;
 
   friend class scoped_ptr<ScreenReader>;
