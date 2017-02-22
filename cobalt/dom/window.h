@@ -110,6 +110,7 @@ class Window : public EventTarget {
          const std::string& default_security_policy,
          dom::CspEnforcementType csp_enforcement_mode,
          const base::Closure& csp_policy_changed_callback,
+         const base::Closure& ran_animation_frame_callbacks_callback,
          const base::Closure& window_close_callback,
          int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
@@ -283,7 +284,8 @@ class Window : public EventTarget {
 
   scoped_refptr<Screen> screen_;
 
-  base::Closure window_close_callback_;
+  const base::Closure ran_animation_frame_callbacks_callback_;
+  const base::Closure window_close_callback_;
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;

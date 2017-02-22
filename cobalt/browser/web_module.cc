@@ -168,6 +168,9 @@ class WebModule::Impl {
   void InjectCustomWindowAttributes(
       const Options::InjectedWindowAttributes& attributes);
 
+  // Called by |layout_mananger_| after it runs the animation frame callbacks.
+  void OnRanAnimationFrameCallbacks();
+
   // Called by |layout_mananger_| when it produces a render tree. May modify
   // the render tree (e.g. to add a debug overlay), then runs the callback
   // specified in the constructor, |render_tree_produced_callback_|.
@@ -441,6 +444,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
       data.options.location_policy, data.options.csp_enforcement_mode,
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
+                 base::Unretained(this)),
       data.window_close_callback, data.options.csp_insecure_allowed_token,
       data.dom_max_element_depth);
   DCHECK(window_);
@@ -582,6 +587,7 @@ void WebModule::Impl::InjectKeyboardEvent(
   }
 
   web_module_stat_tracker_->OnEndInjectEvent(
+      window_->HasPendingAnimationFrameCallbacks(),
       layout_manager_->IsNewRenderTreePending());
 }
 
@@ -601,13 +607,20 @@ void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
   window_->DestroyTimers();
 }
 
+void WebModule::Impl::OnRanAnimationFrameCallbacks() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  // Notify the stat tracker that the animation frame callbacks have finished.
+  // This may end the current event being tracked.
+  web_module_stat_tracker_->OnRanAnimationFrameCallbacks(
+      layout_manager_->IsNewRenderTreePending());
+}
+
 void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
-  // Notify the stat tracker that a render tree has been produced. This signals
-  // the end of previous event tracking, and triggers flushing of periodic
-  // counts.
+  // Notify the stat tracker that a render tree has been produced.
   web_module_stat_tracker_->OnRenderTreeProduced();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
