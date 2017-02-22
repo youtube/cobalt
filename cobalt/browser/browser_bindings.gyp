@@ -158,6 +158,7 @@
         '../h5vcc/dial/DialHttpResponse.idl',
         '../h5vcc/dial/DialServer.idl',
         '../h5vcc/H5vcc.idl',
+        '../h5vcc/H5vccAccessibility.idl',
         '../h5vcc/H5vccAccountInfo.idl',
         '../h5vcc/H5vccAccountManager.idl',
         '../h5vcc/H5vccAudioConfig.idl',
