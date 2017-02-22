@@ -51,9 +51,14 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   void OnStartInjectEvent(const scoped_refptr<dom::Event>& event);
 
   // |OnEndInjectEvent| notifies the event stat tracking that the event has
-  // finished being injected. If no render tree is pending, it also ends
-  // tracking of the event.
-  void OnEndInjectEvent(bool is_new_render_tree_pending);
+  // finished being injected. If no animation frame callbacks and also no render
+  // tree is pending, it also ends tracking of the event.
+  void OnEndInjectEvent(bool are_animation_frame_callbacks_pending,
+                        bool is_new_render_tree_pending);
+
+  // |OnRanAnimationFrameCallbacks| ends stat tracking for the current event
+  // if no render tree is pending.
+  void OnRanAnimationFrameCallbacks(bool is_new_render_tree_pending);
 
   // |OnRenderTreeProduced| ends stat tracking for the current event.
   void OnRenderTreeProduced();
