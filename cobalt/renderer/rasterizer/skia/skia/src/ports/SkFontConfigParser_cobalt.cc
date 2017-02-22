@@ -273,9 +273,11 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
 void FontElementHandler(FontFileInfo* file, const char** attributes) {
   DCHECK(file != NULL);
 
-  // A <font> should have following attributes:
-  // weight (integer), style (normal, italic), font_name (string), and
-  // postscript_name (string).
+  // A <font> must have following attributes:
+  // weight (non-negative integer), style (normal, italic), font_name (string),
+  // and postscript_name (string).
+  // It may have the following attributes:
+  // index (non-negative integer)
   // The element should contain a filename.
 
   enum SeenAttributeFlags {
@@ -319,7 +321,12 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         }
         break;
       case 5:
-        if (strncmp("style", name, 5) == 0) {
+        if (strncmp("index", name, 5) == 0) {
+          if (!ParseNonNegativeInteger(value, &file->index)) {
+            DLOG(WARNING) << "Invalid font index [" << value << "]";
+            file->index = 0;
+          }
+        } else if (strncmp("style", name, 5) == 0) {
           if (strncmp("italic", value, 6) == 0) {
             file->style = FontFileInfo::kItalic_FontStyle;
             seen_attributes_flag |= kSeenStyle;
