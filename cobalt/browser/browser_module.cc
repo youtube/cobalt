@@ -346,7 +346,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 void BrowserModule::OnLoad() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
-  // asynchonrous access to this object by |web_module_| during destruction.
+  // asynchronous access to this object by |web_module_| during destruction.
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnLoad, weak_this_));
@@ -354,6 +354,11 @@ void BrowserModule::OnLoad() {
   }
 
   DestroySplashScreen();
+
+  // This log is relied on by the webdriver benchmark tests, so it shouldn't be
+  // changed unless the corresponding benchmark logic is changed as well.
+  LOG(INFO) << "Loaded WebModule";
+
   web_module_loaded_.Signal();
 }
 
