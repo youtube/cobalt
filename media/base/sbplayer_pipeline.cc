@@ -691,7 +691,6 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   }
 
   if (status == DemuxerStream::kConfigChanged) {
-    NOTIMPLEMENTED() << "Update decoder config";
     UpdateDecoderConfig(stream);
     stream->Read(
         base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
