@@ -20,6 +20,7 @@
 #include <string>
 
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/h5vcc/h5vcc_accessibility.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
 #include "cobalt/h5vcc/h5vcc_c_val.h"
@@ -49,6 +50,9 @@ class H5vcc : public script::Wrappable {
   };
 
   explicit H5vcc(const Settings& config);
+  const scoped_refptr<H5vccAccessibility>& accessibility() const {
+    return accessibility_;
+  }
   const scoped_refptr<H5vccAccountInfo>& account_info() const {
     return account_info_;
   }
@@ -67,6 +71,7 @@ class H5vcc : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vcc);
 
  private:
+  scoped_refptr<H5vccAccessibility> accessibility_;
   scoped_refptr<H5vccAccountInfo> account_info_;
   scoped_refptr<H5vccAudioConfigArray> audio_config_array_;
   scoped_refptr<H5vccCVal> c_val_;

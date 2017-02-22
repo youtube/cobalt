@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2017 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/h5vcc/h5vcc_accessibility.h"
+
+#include "starboard/accessibility.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vcc::H5vcc(const Settings& settings) {
-  accessibility_ = new H5vccAccessibility();
-  account_info_ = new H5vccAccountInfo(settings.account_manager);
-  audio_config_array_ = new H5vccAudioConfigArray();
-  c_val_ = new H5vccCVal();
-  runtime_ =
-      new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
-  settings_ = new H5vccSettings(settings.media_module);
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem(settings.media_module);
-  trace_event_ = new H5vccTraceEvent();
+H5vccAccessibility::H5vccAccessibility() : high_contrast_text_(false) {
+  SbAccessibilityDisplaySettings settings;
+  SbMemorySet(&settings, 0, sizeof(settings));
+
+  if (!SbAccessibilityGetDisplaySettings(&settings)) {
+    return;
+  }
+
+  high_contrast_text_ = settings.is_high_contrast_text_enabled;
+}
+
+bool H5vccAccessibility::high_contrast_text() const {
+  return high_contrast_text_;
 }
 
 }  // namespace h5vcc

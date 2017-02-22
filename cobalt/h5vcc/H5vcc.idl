@@ -29,6 +29,7 @@
 // during construction.
 
 interface H5vcc {
+  readonly attribute H5vccAccessibility accessibility;
   readonly attribute H5vccAccountInfo accountInfo;
   readonly attribute H5vccAudioConfigArray audioConfig;
   readonly attribute H5vccCVal cVal;
