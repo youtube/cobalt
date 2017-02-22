@@ -34,10 +34,9 @@ namespace {
 const char kRemovedFormatString[] = "Removed. %s";
 }
 
-ScreenReader::ScreenReader(dom::Document* document,
-                           scoped_ptr<TTSEngine> tts_engine,
+ScreenReader::ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                            dom::MutationObserverTaskManager* task_manager)
-    : document_(document), tts_engine_(tts_engine.Pass()) {
+    : document_(document), tts_engine_(tts_engine) {
   document_->AddObserver(this);
   live_region_observer_ = new dom::MutationObserver(
       base::Bind(&ScreenReader::MutationObserverCallback,

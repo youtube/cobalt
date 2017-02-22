@@ -1,0 +1,21 @@
+<html>
+<head>
+<script>
+var doMutation = function() {
+  var region = document.getElementById("to_mutate");
+  var to_remove = document.getElementById("to_remove");
+  region.removeChild(to_remove);
+  window.setTimeout(function() { window.close(); } );
+}
+window.addEventListener("load", doMutation);
+</script>
+</head>
+<body>
+<div id="to_mutate" aria-live="polite" aria-relevant="removals" aria-atomic="false">
+  Some contents
+  <div id="to_remove">
+    Contents to be removed
+  </div>
+</div>
+</body>
+</html>
