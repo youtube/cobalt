@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2017 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RASTERIZER_H_
-#define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RASTERIZER_H_
+#ifndef COBALT_RENDERER_RASTERIZER_EGL_HARDWARE_RASTERIZER_H_
+#define COBALT_RENDERER_RASTERIZER_EGL_HARDWARE_RASTERIZER_H_
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -23,19 +23,14 @@
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 
-class GrContext;
-class SkCanvas;
-
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
-namespace skia {
+namespace egl {
 
-// This HardwareRasterizer class represents a rasterizer that will setup
-// a Skia hardware rendering context.  When Submit() is called, the passed in
-// render tree will be rasterized using hardware-accelerated Skia.  The
-// HardwareRasterizer must be constructed on the same thread that Submit()
-// is to be called on.
+// A hardware rasterizer which directly uses EGL/GLES2 to rasterize render
+// trees onto the given render target.  For certain effects, it will fall back
+// to the Skia hardware rasterizer.
 class HardwareRasterizer : public Rasterizer {
  public:
   // The passed in render target will be used to determine the dimensions of
@@ -56,35 +51,21 @@ class HardwareRasterizer : public Rasterizer {
                               int skia_cache_size_in_bytes,
                               int scratch_surface_cache_size_in_bytes,
                               int surface_cache_size_in_bytes);
-  virtual ~HardwareRasterizer();
 
-  // Consume the render tree and output the results to the render target passed
-  // into the constructor.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
               const Options& options) OVERRIDE;
 
-  // Consume the render tree and output the results to the specified canvas.
-  void SubmitOffscreen(const scoped_refptr<render_tree::Node>& render_tree,
-                       SkCanvas* canvas);
-
-  // If Submit() is not called, then use this function to tell rasterizer that
-  // a frame has been submitted.
-  void AdvanceFrame();
-
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
-  GrContext* GetGrContext();
-
-  void MakeCurrent() OVERRIDE;
 
  private:
   class Impl;
   scoped_ptr<Impl> impl_;
 };
 
-}  // namespace skia
+}  // namespace egl
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RASTERIZER_H_
+#endif  // COBALT_RENDERER_RASTERIZER_EGL_HARDWARE_RASTERIZER_H_
