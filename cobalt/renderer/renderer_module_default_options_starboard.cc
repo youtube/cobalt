@@ -19,6 +19,7 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
+#include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/stub/rasterizer.h"
@@ -40,6 +41,12 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::SoftwareRasterizer(
           graphics_context, options.surface_cache_size_in_bytes));
+#elif defined(COBALT_FORCE_CUSTOM_RASTERIZER)
+  return scoped_ptr<rasterizer::Rasterizer>(
+      new rasterizer::egl::HardwareRasterizer(
+          graphics_context, options.skia_cache_size_in_bytes,
+          options.scratch_surface_cache_size_in_bytes,
+          options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(

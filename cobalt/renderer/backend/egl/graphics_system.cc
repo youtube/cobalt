@@ -81,6 +81,10 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 #endif
                              EGL_RENDERABLE_TYPE,
                              EGL_OPENGL_ES2_BIT,
+#if defined(COBALT_FORCE_CUSTOM_RASTERIZER)
+                             EGL_DEPTH_SIZE,
+                             16,
+#endif
                              EGL_NONE};
 
   // Try to allow preservation of the frame contents between swap calls --
