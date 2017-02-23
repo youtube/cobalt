@@ -31,6 +31,7 @@
               ],
 
               'includes': [
+                '../../renderer_parameters_setup.gypi',
                 '../blitter/blitter_backend.gypi',
               ],
             }, {
@@ -39,6 +40,7 @@
               ],
 
               'includes': [
+                '../../renderer_parameters_setup.gypi',
                 '../egl/egl_backend.gypi',
               ],
             }],

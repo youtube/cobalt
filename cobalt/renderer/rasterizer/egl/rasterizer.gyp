@@ -32,5 +32,29 @@
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
       ],
     },
+    {
+      'target_name': 'hardware_rasterizer',
+      'type': 'static_library',
+
+      'sources': [
+        'draw_object.h',
+        'draw_object.cc',
+        'draw_rect_texture.h',
+        'draw_rect_texture.cc',
+        'graphics_state.h',
+        'graphics_state.cc',
+        'hardware_rasterizer.cc',
+        'hardware_rasterizer.h',
+        'render_tree_node_visitor.h',
+        'render_tree_node_visitor.cc',
+      ],
+
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/rasterizer.gyp:hardware_rasterizer',
+        '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
+      ],
+    },
   ],
 }
