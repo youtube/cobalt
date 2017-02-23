@@ -58,11 +58,17 @@ class HardwareRasterizer::Impl {
        int surface_cache_size_in_bytes);
   ~Impl();
 
+  void AdvanceFrame();
+
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
               const Options& options);
 
+  void SubmitOffscreen(const scoped_refptr<render_tree::Node>& render_tree,
+                       SkCanvas* canvas);
+
   render_tree::ResourceProvider* GetResourceProvider();
+  GrContext* GetGrContext();
 
   void MakeCurrent();
 
@@ -92,10 +98,8 @@ class HardwareRasterizer::Impl {
 
   void ResetSkiaState();
 
-  void RenderTextureEGL(
-      scoped_refptr<backend::RenderTargetEGL> render_target_egl,
-      const render_tree::ImageNode* image_node,
-      RenderTreeNodeVisitorDrawState* draw_state);
+  void RenderTextureEGL(const render_tree::ImageNode* image_node,
+                        RenderTreeNodeVisitorDrawState* draw_state);
 
   base::ThreadChecker thread_checker_;
 
@@ -152,7 +156,6 @@ GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
 }  // namespace
 
 void HardwareRasterizer::Impl::RenderTextureEGL(
-    scoped_refptr<backend::RenderTargetEGL> render_target_egl,
     const render_tree::ImageNode* image_node,
     RenderTreeNodeVisitorDrawState* draw_state) {
   HardwareFrontendImage* image =
@@ -166,7 +169,6 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   // are rendered so that the following draw command will appear in the correct
   // order.
   draw_state->render_target->flush();
-  graphics_context_->MakeCurrentWithSurface(render_target_egl);
 
   // Render a texture to the specified output rectangle on the render target.
   GL_CALL(glViewport(destination_rect.x(), destination_rect.y(),
@@ -269,6 +271,15 @@ HardwareRasterizer::Impl::~Impl() {
   graphics_context_->ReleaseCurrentContext();
 }
 
+void HardwareRasterizer::Impl::AdvanceFrame() {
+  // Update our surface cache to do per-frame calculations such as deciding
+  // which render tree nodes are candidates for caching in this upcoming
+  // frame.
+  if (surface_cache_) {
+    surface_cache_->Frame();
+  }
+}
+
 void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target,
@@ -292,12 +303,7 @@ void HardwareRasterizer::Impl::Submit(
   // draw calls, in case we have modified state in between.
   gr_context_->resetContext();
 
-  // Update our surface cache to do per-frame calculations such as deciding
-  // which render tree nodes are candidates for caching in this upcoming
-  // frame.
-  if (surface_cache_) {
-    surface_cache_->Frame();
-  }
+  AdvanceFrame();
 
   SkSurface* sk_output_surface;
   SkSurfaceMap::iterator iter = sk_output_surface_map_.find(render_target);
@@ -357,7 +363,7 @@ void HardwareRasterizer::Impl::Submit(
         base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
                    base::Unretained(this)),
         base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
-                   base::Unretained(this), render_target_egl),
+                   base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
@@ -374,8 +380,44 @@ void HardwareRasterizer::Impl::Submit(
   canvas->restore();
 }
 
+void HardwareRasterizer::Impl::SubmitOffscreen(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    SkCanvas* canvas) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  // Reset the graphics context since we're starting from an unknown state.
+  gr_context_->resetContext();
+
+  {
+    TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
+    // Rasterize the passed in render tree to our hardware render target.
+    RenderTreeNodeVisitor::CreateScratchSurfaceFunction
+        create_scratch_surface_function =
+            base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
+                       base::Unretained(this));
+    RenderTreeNodeVisitor visitor(
+        canvas, &create_scratch_surface_function,
+        base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
+                   base::Unretained(this)),
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
+                   base::Unretained(this)),
+        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
+        surface_cache_ ? &surface_cache_.value() : NULL);
+    render_tree->Accept(&visitor);
+  }
+
+  {
+    TRACE_EVENT0("cobalt::renderer", "Skia Flush");
+    canvas->flush();
+  }
+}
+
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
+}
+
+GrContext* HardwareRasterizer::Impl::GetGrContext() {
+  return gr_context_.get();
 }
 
 void HardwareRasterizer::Impl::MakeCurrent() {
@@ -451,8 +493,23 @@ void HardwareRasterizer::Submit(
   impl_->Submit(render_tree, render_target, options);
 }
 
+void HardwareRasterizer::SubmitOffscreen(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    SkCanvas* canvas) {
+  TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::SubmitOffscreen()");
+  impl_->SubmitOffscreen(render_tree, canvas);
+}
+
+void HardwareRasterizer::AdvanceFrame() {
+  impl_->AdvanceFrame();
+}
+
 render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
+}
+
+GrContext* HardwareRasterizer::GetGrContext() {
+  return impl_->GetGrContext();
 }
 
 void HardwareRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
