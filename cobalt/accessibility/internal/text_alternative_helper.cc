@@ -97,7 +97,7 @@ void TextAlternativeHelper::AppendTextAlternative(
 
   scoped_refptr<dom::Element> element = node->AsElement();
   if (!element) {
-    NOTREACHED() << "Unexpected node type.";
+    // Since this is neither a Text or Element, ignore it.
     return;
   }
 
