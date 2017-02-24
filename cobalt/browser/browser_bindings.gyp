@@ -165,6 +165,7 @@
         '../h5vcc/h5vcc_audio_config_array.idl',
         '../h5vcc/h5vcc_c_val.idl',
         '../h5vcc/h5vcc_c_val_key_list.idl',
+        '../h5vcc/h5vcc_crash_log.idl',
         '../h5vcc/h5vcc_deep_link_event_target.idl',
         '../h5vcc/h5vcc_runtime.idl',
         '../h5vcc/h5vcc_runtime_event_target.idl',
