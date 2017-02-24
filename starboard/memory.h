@@ -93,6 +93,10 @@ static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
 //   passed to SbMemoryDeallocate.
 SB_EXPORT void* SbMemoryAllocate(size_t size);
 
+// Same as SbMemoryAllocate() but will not report memory to the tracker. Avoid
+// using this unless absolutely necessary.
+SB_EXPORT void* SbMemoryAllocateNoReport(size_t size);
+
 // Attempts to resize |memory| to be at least |size| bytes, without touching
 // the contents of memory.
 // - If the function cannot perform the fast resize, it allocates a new chunk
@@ -131,6 +135,10 @@ SB_EXPORT void* SbMemoryAllocateAligned(size_t alignment, size_t size);
 //
 // |memory|: The chunk of memory to be freed.
 SB_EXPORT void SbMemoryDeallocate(void* memory);
+
+// Same as SbMemoryDeallocate() but will not report memory deallocation to the
+// tracker. This function must be matched with SbMemoryAllocateNoReport().
+SB_EXPORT void SbMemoryDeallocateNoReport(void* memory);
 
 // Frees a previously allocated chunk of aligned memory. This function should
 // be called from the client codebase. It is meant to be a drop-in replacement
