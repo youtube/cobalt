@@ -279,7 +279,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
 void WebMediaPlayerImpl::LoadProgressive(
     const GURL& url,
-    const scoped_refptr<BufferedDataSource>& data_source,
+    scoped_ptr<BufferedDataSource> data_source,
     CORSMode cors_mode) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   DCHECK(filter_collection_);
@@ -296,7 +296,7 @@ void WebMediaPlayerImpl::LoadProgressive(
   scoped_refptr<base::MessageLoopProxy> message_loop =
       message_loop_factory_->GetMessageLoop(MessageLoopFactory::kPipeline);
 
-  proxy_->set_data_source(data_source);
+  proxy_->set_data_source(data_source.Pass());
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 

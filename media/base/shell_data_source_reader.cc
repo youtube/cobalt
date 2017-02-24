@@ -23,15 +23,16 @@ namespace media {
 const int ShellDataSourceReader::kReadError = DataSource::kReadError;
 
 ShellDataSourceReader::ShellDataSourceReader()
-    : blocking_read_event_(false, false),
+    : data_source_(NULL),
+      blocking_read_event_(false, false),
       file_size_(-1),
       read_has_failed_(false),
       last_bytes_read_(0) {}
 
 ShellDataSourceReader::~ShellDataSourceReader() {}
 
-void ShellDataSourceReader::SetDataSource(
-    scoped_refptr<DataSource> data_source) {
+void ShellDataSourceReader::SetDataSource(DataSource* data_source) {
+  DCHECK(data_source);
   data_source_ = data_source;
 }
 
@@ -88,8 +89,10 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
 void ShellDataSourceReader::Stop(const base::Closure& callback) {
   if (data_source_) {
     // stop the data source, it can call the callback
-    data_source_->Stop(callback);
+    data_source_->Stop();
+    data_source_ = NULL;
   }
+  callback.Run();
 }
 
 void ShellDataSourceReader::BlockingReadCompleted(int bytes_read) {
