@@ -49,7 +49,7 @@ void InMemoryDataSource::Read(int64 position, int size, uint8* data,
   read_cb.Run(size);
 }
 
-void InMemoryDataSource::Stop(const base::Closure& callback) { callback.Run(); }
+void InMemoryDataSource::Stop() {}
 
 bool InMemoryDataSource::GetSize(int64* size_out) {
   DCHECK(size_out);
