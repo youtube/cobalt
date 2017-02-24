@@ -69,7 +69,7 @@ void WebMediaPlayerProxy::AbortDataSource() {
 void WebMediaPlayerProxy::Detach() {
   DCHECK(render_loop_->BelongsToCurrentThread());
   webmediaplayer_ = NULL;
-  data_source_ = NULL;
+  data_source_.reset();
   frame_provider_ = NULL;
 }
 

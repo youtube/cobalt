@@ -14,6 +14,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
@@ -83,10 +84,9 @@ class WebMediaPlayer {
   virtual ~WebMediaPlayer() {}
 
   virtual void LoadMediaSource() = 0;
-  virtual void LoadProgressive(
-      const GURL& url,
-      const scoped_refptr<BufferedDataSource>& data_source,
-      CORSMode cors_mode) = 0;
+  virtual void LoadProgressive(const GURL& url,
+                               scoped_ptr<BufferedDataSource> data_source,
+                               CORSMode cors_mode) = 0;
   virtual void CancelLoad() = 0;
 
   // Playback controls.
