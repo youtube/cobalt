@@ -44,6 +44,7 @@
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
+#include "starboard/accessibility.h"
 
 namespace cobalt {
 namespace browser {
@@ -104,6 +105,27 @@ class JSEngineStats {
   base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory_;
 };
 
+#if SB_HAS(SPEECH_SYNTHESIS)
+bool IsTextToSpeechEnabled() {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  // Check for a command-line override to enable TTS.
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
+    return true;
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  // Check if the tts feature is enabled in Starboard.
+  SbAccessibilityTextToSpeechSettings tts_settings = {0};
+  // Check platform settings.
+  if (SbAccessibilityGetTextToSpeechSettings(&tts_settings)) {
+    return tts_settings.has_text_to_speech_setting &&
+           tts_settings.is_text_to_speech_enabled;
+  }
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  return false;
+}
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -513,17 +535,14 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // If a TTSEngine was provided through the options, use it.
   accessibility::TTSEngine* tts_engine = data.options.tts_engine;
   if (!tts_engine) {
-// Otherwise, create a new TTSEngine that is owned by the WebModule.
 #if SB_HAS(SPEECH_SYNTHESIS)
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-    CommandLine* command_line = CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(browser::switches::kUseTTS)) {
+    if (IsTextToSpeechEnabled()) {
+      // Create a StarboardTTSEngine if TTS is enabled.
       tts_engine_.reset(new accessibility::StarboardTTSEngine());
     }
-#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #endif  // SB_HAS(SPEECH_SYNTHESIS)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-    if (!tts_engine) {
+    if (!tts_engine_) {
       tts_engine_.reset(new accessibility::TTSLogger());
     }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
