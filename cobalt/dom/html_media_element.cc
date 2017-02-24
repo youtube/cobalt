@@ -47,6 +47,7 @@
 namespace cobalt {
 namespace dom {
 
+using ::media::BufferedDataSource;
 using ::media::WebMediaPlayer;
 
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
@@ -578,6 +579,7 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
 }
 
 void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
+  MLOG() << event->type();
   event_queue_.Enqueue(event);
 }
 
@@ -811,11 +813,12 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     csp::SecurityCallback csp_callback = base::Bind(
         &CspDelegate::CanLoad,
         base::Unretained(node_document()->csp_delegate()), CspDelegate::kMedia);
-    player_->LoadProgressive(
-        url, new media::FetcherBufferedDataSource(
-                 base::MessageLoopProxy::current(), url, csp_callback,
-                 html_element_context()->fetcher_factory()->network_module()),
-        WebMediaPlayer::kCORSModeUnspecified);
+    scoped_ptr<BufferedDataSource> data_source(
+        new media::FetcherBufferedDataSource(
+            base::MessageLoopProxy::current(), url, csp_callback,
+            html_element_context()->fetcher_factory()->network_module()));
+    player_->LoadProgressive(url, data_source.Pass(),
+                             WebMediaPlayer::kCORSModeUnspecified);
   }
 }
 
