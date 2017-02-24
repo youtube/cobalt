@@ -17,12 +17,16 @@
 #include <android/native_activity.h>
 #include <jni.h>
 
+#include <algorithm>
+#include <string>
+
 #include "starboard/thread.h"
 
 namespace {
 
 SbThreadLocalKey tls_key_ = kSbThreadLocalKeyInvalid;
-ANativeActivity* native_activity_;
+ANativeActivity* native_activity_ = NULL;
+jobject activity_class_loader_ = NULL;
 
 void Destroy(void* value) {
   if (value) {
@@ -36,9 +40,16 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+// static
 void JniEnvExt::Initialize(ANativeActivity* native_activity) {
   tls_key_ = SbThreadCreateLocalKey(Destroy);
   native_activity_ = native_activity;
+
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject loader =
+      env->CallObjectMethod(env->GetObjectClass(native_activity->clazz),
+                            "getClassLoader", "()Ljava/lang/ClassLoader;");
+  activity_class_loader_ = env->ConvertLocalRefToGlobalRef(loader);
 }
 
 JniEnvExt* JniEnvExt::Get() {
@@ -53,6 +64,26 @@ JniEnvExt* JniEnvExt::Get() {
 
 jobject JniEnvExt::GetActivityObject() {
   return native_activity_->clazz;
+}
+
+jclass JniEnvExt::FindClassExt(const char* name) {
+  jclass clazz = FindClass(name);
+  if (!ExceptionCheck()) {
+    return clazz;
+  } else {
+    ExceptionClear();
+  }
+
+  // Convert the JNI FindClass name with slashes to the "binary name" with dots
+  // for ClassLoader.loadClass().
+  ::std::string dot_name = name;
+  ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
+  jstring jname = NewStringUTF(dot_name.c_str());
+  jobject clazz_obj =
+      CallObjectMethod(activity_class_loader_, "findClass",
+                       "(Ljava/lang/String;)Ljava/lang/Class;", jname);
+  DeleteLocalRef(jname);
+  return static_cast<jclass>(clazz_obj);
 }
 
 }  // namespace shared
