@@ -22,6 +22,7 @@
 #include "base/sys_byteorder.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
 #include "net/url_request/url_fetcher_delegate.h"
+#include "starboard/log.h"
 
 namespace cobalt {
 namespace speech {
