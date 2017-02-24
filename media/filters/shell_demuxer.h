@@ -88,7 +88,7 @@ class ShellDemuxerStream : public DemuxerStream {
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
   ShellDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
-               const scoped_refptr<DataSource>& data_source);
+               DataSource* data_source);
   virtual ~ShellDemuxer();
 
   // Demuxer implementation.
@@ -140,7 +140,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 
   // Thread on which all blocking operations are executed.
   base::Thread blocking_thread_;
-  scoped_refptr<DataSource> data_source_;
+  DataSource* data_source_;
   scoped_refptr<ShellDataSourceReader> reader_;
 
   bool stopped_;
