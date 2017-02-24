@@ -19,8 +19,10 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/circular_buffer_shell.h"
 #include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
@@ -68,12 +70,27 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
             const ReadCB& read_cb) OVERRIDE;
-  void Stop(const base::Closure& callback) OVERRIDE;
+  void Stop() OVERRIDE;
   bool GetSize(int64* size_out) OVERRIDE;
   bool IsStreaming() OVERRIDE { return false; }
   void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
 
  private:
+  class CancelableClosure
+      : public base::RefCountedThreadSafe<CancelableClosure> {
+   public:
+    explicit CancelableClosure(const base::Closure& closure);
+
+    void Cancel();
+    base::Closure AsClosure();
+
+   private:
+    void Call();
+
+    base::Lock lock_;
+    base::Closure closure_;
+  };
+
   // net::URLFetcherDelegate methods
   void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
   bool ShouldSendDownloadData() OVERRIDE { return true; }
@@ -115,6 +132,7 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   uint8* pending_read_data_;
 
   csp::SecurityCallback security_callback_;
+  scoped_refptr<CancelableClosure> cancelable_create_fetcher_closure_;
 };
 
 }  // namespace media

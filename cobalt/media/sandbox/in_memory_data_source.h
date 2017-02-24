@@ -37,7 +37,7 @@ class InMemoryDataSource : public ::media::DataSource {
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
             const ReadCB& read_cb) OVERRIDE;
-  void Stop(const base::Closure& callback) OVERRIDE;
+  void Stop() OVERRIDE;
   bool GetSize(int64* size_out) OVERRIDE;
   bool IsStreaming() OVERRIDE { return false; }
   void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
