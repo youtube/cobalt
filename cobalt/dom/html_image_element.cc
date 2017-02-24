@@ -79,6 +79,7 @@ void HTMLImageElement::UpdateImageData() {
   // 3. Forget the img element's current image data, if any.
   if (cached_image_loaded_callback_handler_) {
     cached_image_loaded_callback_handler_.reset();
+    AllowGarbageCollection();
     node_document()->DecreaseLoadingCounter();
   }
 
