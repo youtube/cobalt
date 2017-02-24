@@ -87,6 +87,9 @@
     # Set to 1 to enable H5vccAccountManager.
     'enable_account_manager%': 0,
 
+    # Set to 1 to enable H5vccCrashLog.
+    'enable_crash_log%': 0,
+
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
 
