@@ -27,9 +27,6 @@
         'endpointer/energy_endpointer_params.cc',
         'endpointer/energy_endpointer_params.h',
       ],
-      'dependencies': [
-        '<(DEPTH)/media/media.gyp:media',
-      ],
     },
     {
       'target_name': 'speech_test',
