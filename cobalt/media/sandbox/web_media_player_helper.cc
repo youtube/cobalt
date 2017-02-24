@@ -22,6 +22,7 @@ namespace cobalt {
 namespace media {
 namespace sandbox {
 
+using ::media::BufferedDataSource;
 using ::media::VideoFrame;
 
 class WebMediaPlayerHelper::WebMediaPlayerClientStub
@@ -56,10 +57,10 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
     : client_(new WebMediaPlayerClientStub),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
-  player_->LoadProgressive(video_url, new FetcherBufferedDataSource(
-                                          base::MessageLoopProxy::current(),
-                                          video_url, csp::SecurityCallback(),
-                                          fetcher_factory->network_module()),
+  scoped_ptr<BufferedDataSource> data_source(new FetcherBufferedDataSource(
+      base::MessageLoopProxy::current(), video_url, csp::SecurityCallback(),
+      fetcher_factory->network_module()));
+  player_->LoadProgressive(video_url, data_source.Pass(),
                            WebMediaPlayer::kCORSModeUnspecified);
   player_->Play();
 }
