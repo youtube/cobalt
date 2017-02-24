@@ -76,6 +76,17 @@
             ],
           },
         }],
+        ['enable_crash_log == 1', {
+          'sources': [
+            'h5vcc_crash_log.cc',
+            'h5vcc_crash_log.h',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'COBALT_ENABLE_CRASH_LOG',
+            ],
+          },
+        }],
       ],
     },
 
