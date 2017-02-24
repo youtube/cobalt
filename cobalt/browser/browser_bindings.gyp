@@ -173,6 +173,9 @@
         '../h5vcc/h5vcc_system.idl',
         '../h5vcc/h5vcc_trace_event.idl',
 
+        '../media_session/media_metadata.idl',
+        '../media_session/media_session.idl',
+
         '../speech/speech_recognition.idl',
         '../speech/speech_recognition_alternative.idl',
         '../speech/speech_recognition_error.idl',
@@ -232,6 +235,7 @@
         '../dom/window_local_storage.idl',
         '../dom/window_session_storage.idl',
         '../dom/window_timers.idl',
+        '../media_session/navigator_media_session.idl',
     ],
   },
 }
