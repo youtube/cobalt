@@ -49,17 +49,25 @@ struct JniEnvExt : public JNIEnv {
 
   // Lookup the class of an object and find a method in it.
   jmethodID GetObjectMethodID(jobject obj, const char* name, const char* sig) {
-    return GetMethodID(GetObjectClass(obj), name, sig);
+    jclass clazz = GetObjectClass(obj);
+    jmethodID method_id = GetMethodID(clazz, name, sig);
+    DeleteLocalRef(clazz);
+    return method_id;
   }
+
+  // Find a class by name using the class loader of the current JNI stack first
+  // then fall back to the Activity's class loader if that fails.
+  // https://developer.android.com/training/articles/perf-jni.html#faq_FindClass
+  jclass FindClassExt(const char* name);
 
   // Convienience method to lookup and call a constructor.
   jobject NewObject(const char* class_name, const char* sig, ...) {
     va_list argp;
     va_start(argp, sig);
-    jclass cls = FindClass(class_name);
-    jmethodID methodID = GetMethodID(cls, "<init>", sig);
-    jobject result = NewObjectV(cls, methodID, argp);
-    DeleteLocalRef(cls);
+    jclass clazz = FindClassExt(class_name);
+    jmethodID methodID = GetMethodID(clazz, "<init>", sig);
+    jobject result = NewObjectV(clazz, methodID, argp);
+    DeleteLocalRef(clazz);
     va_end(argp);
     return result;
   }
@@ -114,6 +122,12 @@ struct JniEnvExt : public JNIEnv {
     jobject obj = GetActivityObject();
     CallVoidMethodV(obj, GetObjectMethodID(obj, name, sig), argp);
     va_end(argp);
+  }
+
+  jobject ConvertLocalRefToGlobalRef(jobject local) {
+    jobject global = NewGlobalRef(local);
+    DeleteLocalRef(local);
+    return global;
   }
 };
 
