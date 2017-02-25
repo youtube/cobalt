@@ -24,14 +24,15 @@ scoped_refptr<MutationRecord> MutationRecord::CreateAttributeMutationRecord(
     const scoped_refptr<Node>& target, const std::string& attribute_name,
     const base::optional<std::string>& old_value) {
   scoped_refptr<MutationRecord> record =
-      new MutationRecord(base::Tokens::attribute(), target);
+      new MutationRecord(base::Tokens::attributes(), target);
   record->attribute_name_ = attribute_name;
   record->old_value_ = old_value;
   return record;
 }
 
 scoped_refptr<MutationRecord> MutationRecord::CreateCharacterDataMutationRecord(
-    const scoped_refptr<Node>& target, const std::string& old_character_data) {
+    const scoped_refptr<Node>& target,
+    const base::optional<std::string>& old_character_data) {
   scoped_refptr<MutationRecord> record =
       new MutationRecord(base::Tokens::characterData(), target);
   record->old_value_ = old_character_data;
@@ -46,8 +47,12 @@ scoped_refptr<MutationRecord> MutationRecord::CreateChildListMutationRecord(
     const scoped_refptr<dom::Node>& next_sibling) {
   scoped_refptr<MutationRecord> record =
       new MutationRecord(base::Tokens::childList(), target);
-  record->added_nodes_ = added_nodes;
-  record->removed_nodes_ = removed_nodes;
+  if (added_nodes) {
+    record->added_nodes_ = added_nodes;
+  }
+  if (removed_nodes) {
+    record->removed_nodes_ = removed_nodes;
+  }
   record->previous_sibling_ = previous_sibling;
   record->next_sibling_ = next_sibling;
   return record;
@@ -55,7 +60,11 @@ scoped_refptr<MutationRecord> MutationRecord::CreateChildListMutationRecord(
 
 MutationRecord::MutationRecord(const base::Token& type,
                                const scoped_refptr<Node>& target)
-    : type_(type), target_(target) {}
+    : type_(type),
+      target_(target),
+      added_nodes_(new NodeList()),
+      removed_nodes_(new NodeList()) {}
+
 MutationRecord::~MutationRecord() {}
 
 }  // namespace dom

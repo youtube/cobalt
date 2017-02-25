@@ -14,6 +14,8 @@
 
 #include "cobalt/dom/mutation_observer.h"
 
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/node.h"
 
@@ -71,9 +73,10 @@ MutationObserver::MutationObserver(
   task_manager_->OnMutationObserverCreated(this);
 }
 
-MutationObserver::MutationObserver(const MutationCallbackArg& callback,
-                                   MutationObserverTaskManager* task_manager)
-    : task_manager_(task_manager) {
+MutationObserver::MutationObserver(script::EnvironmentSettings* settings,
+                                   const MutationCallbackArg& callback)
+    : task_manager_(base::polymorphic_downcast<DOMSettings*>(settings)
+                        ->mutation_observer_task_manager()) {
   callback_.reset(new ScriptCallback(callback, this));
   task_manager_->OnMutationObserverCreated(this);
 }

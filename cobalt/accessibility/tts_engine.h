@@ -17,8 +17,6 @@
 
 #include <string>
 
-#include "cobalt/dom/document.h"
-
 namespace cobalt {
 namespace accessibility {
 // Interface for a TTS (text-to-speech) implementation.
