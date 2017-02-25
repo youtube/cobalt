@@ -15,6 +15,7 @@
 #ifndef COBALT_LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
 #define COBALT_LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,11 @@ struct WebPlatformTestInfo {
   std::string url;
 
   State expectation;
+
+  // Only relevant when |expectation| is kPass or kFail. Tests with these names
+  // are expected to fail or pass if |expectation| is kPass or kFail
+  // respectively.
+  std::set<std::string> exceptions;
 
   bool operator<(const WebPlatformTestInfo& rhs) const { return url < rhs.url; }
 };

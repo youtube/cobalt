@@ -30,7 +30,7 @@ namespace base {
     MacroOpWithNameOnly(alt)                                  \
     MacroOpWithNameOnly(animationend)                         \
     MacroOpWithNameOnly(assertive)                            \
-    MacroOpWithNameOnly(attribute)                            \
+    MacroOpWithNameOnly(attributes)                           \
     MacroOpWithNameOnly(blur)                                 \
     MacroOpWithNameOnly(canplay)                              \
     MacroOpWithNameOnly(canplaythrough)                       \

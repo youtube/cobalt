@@ -17,6 +17,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/css_computed_style_data.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/used_style.h"

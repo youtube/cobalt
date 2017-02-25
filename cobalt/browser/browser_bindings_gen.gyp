@@ -117,6 +117,8 @@
         '../dom/memory_info.idl',
 	'../dom/message_event.idl',
         '../dom/mime_type_array.idl',
+        '../dom/mutation_observer.idl',
+        '../dom/mutation_record.idl',
         '../dom/named_node_map.idl',
         '../dom/navigator.idl',
         '../dom/node.idl',
@@ -199,7 +201,9 @@
         '../xhr/xml_http_request_upload.idl',
     ],
 
-    'dictionary_idl_files': [],
+    'dictionary_idl_files': [
+        '../dom/mutation_observer_init.idl',
+    ],
 
     # Partial interfaces and the right-side of "implements". Also includes
     # callback interfaces.

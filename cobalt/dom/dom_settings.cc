@@ -26,7 +26,9 @@ DOMSettings::DOMSettings(
     MediaSource::Registry* media_source_registry, Blob::Registry* blob_registry,
     media::CanPlayTypeHandler* can_play_type_handler,
     script::JavaScriptEngine* engine,
-    script::GlobalEnvironment* global_environment, const Options& options)
+    script::GlobalEnvironment* global_environment,
+    MutationObserverTaskManager* mutation_observer_task_manager,
+    const Options& options)
     : max_dom_element_depth_(max_dom_element_depth),
       microphone_options_(options.microphone_options),
       fetcher_factory_(fetcher_factory),
@@ -39,7 +41,8 @@ DOMSettings::DOMSettings(
       blob_registry_(blob_registry),
       can_play_type_handler_(can_play_type_handler),
       javascript_engine_(engine),
-      global_environment_(global_environment) {
+      global_environment_(global_environment),
+      mutation_observer_task_manager_(mutation_observer_task_manager) {
   if (array_buffer_allocator_) {
     DCHECK(options.array_buffer_cache);
   } else {

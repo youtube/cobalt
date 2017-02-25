@@ -23,6 +23,7 @@
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/mutation_record.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
@@ -56,8 +57,9 @@ class MutationObserver : public script::Wrappable {
                    MutationObserverTaskManager* task_manager);
 
   // Web Api: MutationObserver
-  MutationObserver(const MutationCallbackArg& callback,
-                   MutationObserverTaskManager* task_manager);
+  MutationObserver(script::EnvironmentSettings* settings,
+                   const MutationCallbackArg& callback);
+
   ~MutationObserver();
 
   void Observe(const scoped_refptr<Node>& target,
