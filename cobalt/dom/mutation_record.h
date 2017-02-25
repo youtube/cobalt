@@ -58,7 +58,8 @@ class MutationRecord : public script::Wrappable {
       const base::optional<std::string>& old_value);
 
   static scoped_refptr<MutationRecord> CreateCharacterDataMutationRecord(
-      const scoped_refptr<Node>& target, const std::string& old_character_data);
+      const scoped_refptr<Node>& target,
+      const base::optional<std::string>& old_character_data);
 
   static scoped_refptr<MutationRecord> CreateChildListMutationRecord(
       const scoped_refptr<Node>& target,

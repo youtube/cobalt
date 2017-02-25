@@ -23,6 +23,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/accessibility/screen_reader.h"
 #include "cobalt/accessibility/starboard_tts_engine.h"
+#include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
@@ -34,6 +35,7 @@
 #include "cobalt/debug/debug_server_module.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/storage.h"
@@ -484,7 +486,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
       data.media_module, window_, media_source_registry_.get(),
       blob_registry_.get(), data.media_module, javascript_engine_.get(),
-      global_environment_.get(), data.options.dom_settings_options));
+      global_environment_.get(), &mutation_observer_task_manager_,
+      data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
