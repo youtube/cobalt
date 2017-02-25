@@ -96,7 +96,7 @@ TEST_F(MutationObserverTest, CreateAttributeMutationRecord) {
   ASSERT_TRUE(record);
 
   // "type" and attribute-related attributes are set as expected
-  EXPECT_STREQ("attribute", record->type().c_str());
+  EXPECT_STREQ("attributes", record->type().c_str());
   EXPECT_TRUE(record->attribute_name());
   EXPECT_STREQ("attribute_name", record->attribute_name()->c_str());
   EXPECT_TRUE(record->old_value());
@@ -109,8 +109,10 @@ TEST_F(MutationObserverTest, CreateAttributeMutationRecord) {
   EXPECT_FALSE(record->attribute_namespace());
 
   // Unrelated attributes are not set.
-  EXPECT_FALSE(record->added_nodes());
-  EXPECT_FALSE(record->removed_nodes());
+  ASSERT_TRUE(record->added_nodes());
+  EXPECT_EQ(record->added_nodes()->length(), 0);
+  ASSERT_TRUE(record->removed_nodes());
+  EXPECT_EQ(record->removed_nodes()->length(), 0);
   EXPECT_FALSE(record->previous_sibling());
   EXPECT_FALSE(record->next_sibling());
 }
@@ -133,8 +135,10 @@ TEST_F(MutationObserverTest, CreateCharacterDataMutationRecord) {
   // Unrelated attributes are not set.
   EXPECT_FALSE(record->attribute_name());
   EXPECT_FALSE(record->attribute_namespace());
-  EXPECT_FALSE(record->added_nodes());
-  EXPECT_FALSE(record->removed_nodes());
+  ASSERT_TRUE(record->added_nodes());
+  EXPECT_EQ(record->added_nodes()->length(), 0);
+  ASSERT_TRUE(record->removed_nodes());
+  EXPECT_EQ(record->removed_nodes()->length(), 0);
   EXPECT_FALSE(record->previous_sibling());
   EXPECT_FALSE(record->next_sibling());
 }
@@ -212,8 +216,8 @@ TEST_F(MutationObserverTest, TakeRecords) {
 
   // Append a mutation records.
   scoped_refptr<MutationRecord> record =
-      MutationRecord::CreateCharacterDataMutationRecord(target,
-                                                        "old_character_data");
+      MutationRecord::CreateCharacterDataMutationRecord(
+          target, std::string("old_character_data"));
   observer->QueueMutationRecord(record);
 
   // The queued record can be taken once.
@@ -230,8 +234,8 @@ TEST_F(MutationObserverTest, Notify) {
   // Create a new observer and queue a mutation record.
   scoped_refptr<MutationObserver> observer = CreateObserver();
   scoped_refptr<MutationRecord> record =
-      MutationRecord::CreateCharacterDataMutationRecord(target,
-                                                        "old_character_data");
+      MutationRecord::CreateCharacterDataMutationRecord(
+          target, std::string("old_character_data"));
   observer->QueueMutationRecord(record);
 
   // Callback should be fired with the first argument being a sequence of the
@@ -277,7 +281,7 @@ TEST_F(MutationObserverTest, ReportMutation) {
   // been queued.
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(2, records.size());
-  EXPECT_EQ(records.at(0)->type(), "attribute");
+  EXPECT_EQ(records.at(0)->type(), "attributes");
   EXPECT_EQ(records.at(1)->type(), "characterData");
 }
 
@@ -413,14 +417,16 @@ TEST_F(MutationObserverTest, AddChildNodes) {
   ASSERT_EQ(2, records.size());
   EXPECT_EQ("childList", records.at(0)->type());
   EXPECT_EQ(root, records.at(0)->target());
-  ASSERT_FALSE(records.at(0)->removed_nodes());
+  ASSERT_TRUE(records.at(0)->removed_nodes());
+  ASSERT_EQ(0, records.at(0)->removed_nodes()->length());
   ASSERT_TRUE(records.at(0)->added_nodes());
   ASSERT_EQ(1, records.at(0)->added_nodes()->length());
   EXPECT_EQ(child1, records.at(0)->added_nodes()->Item(0));
 
   EXPECT_EQ("childList", records.at(1)->type());
   EXPECT_EQ(child1, records.at(1)->target());
-  ASSERT_FALSE(records.at(1)->removed_nodes());
+  ASSERT_TRUE(records.at(1)->removed_nodes());
+  ASSERT_EQ(0, records.at(1)->removed_nodes()->length());
   ASSERT_TRUE(records.at(1)->added_nodes());
   ASSERT_EQ(1, records.at(1)->added_nodes()->length());
   EXPECT_EQ(child2, records.at(1)->added_nodes()->Item(0));
@@ -471,6 +477,27 @@ TEST_F(MutationObserverTest, MutateCharacterData) {
   ASSERT_EQ(1, records.size());
   EXPECT_EQ("characterData", records.at(0)->type());
   EXPECT_EQ(text, records.at(0)->target());
+  EXPECT_FALSE(records.at(0)->old_value());
+}
+
+TEST_F(MutationObserverTest, MutateCharacterDataWithOldValue) {
+  scoped_refptr<Element> root = CreateDiv();
+  scoped_refptr<Text> text = document()->CreateTextNode("initial-data");
+  ASSERT_TRUE(text);
+  root->AppendChild(text);
+
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  MutationObserverInit options;
+  options.set_subtree(true);
+  options.set_character_data_old_value(true);
+  observer->Observe(root, options);
+
+  text->set_data("new-data");
+
+  MutationObserver::MutationRecordSequence records = observer->TakeRecords();
+  ASSERT_EQ(1, records.size());
+  EXPECT_EQ("characterData", records.at(0)->type());
+  EXPECT_EQ(text, records.at(0)->target());
   ASSERT_TRUE(records.at(0)->old_value());
   EXPECT_STREQ("initial-data", records.at(0)->old_value()->c_str());
 }
@@ -493,7 +520,27 @@ TEST_F(MutationObserverTest, MutateAttribute) {
 
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(1, records.size());
-  EXPECT_EQ("attribute", records.at(0)->type());
+  EXPECT_EQ("attributes", records.at(0)->type());
+  EXPECT_EQ(root, records.at(0)->target());
+  EXPECT_FALSE(records.at(0)->old_value());
+  ASSERT_TRUE(records.at(0)->attribute_name());
+  EXPECT_STREQ("banana", records.at(0)->attribute_name()->c_str());
+}
+
+TEST_F(MutationObserverTest, MutateAttributeWithOldValue) {
+  scoped_refptr<Element> root = CreateDiv();
+  root->SetAttribute("banana", "purple");
+
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  MutationObserverInit options;
+  options.set_attribute_old_value(true);
+  observer->Observe(root, options);
+
+  root->SetAttribute("banana", "yellow");
+
+  MutationObserver::MutationRecordSequence records = observer->TakeRecords();
+  ASSERT_EQ(1, records.size());
+  EXPECT_EQ("attributes", records.at(0)->type());
   EXPECT_EQ(root, records.at(0)->target());
   ASSERT_TRUE(records.at(0)->old_value());
   ASSERT_TRUE(records.at(0)->attribute_name());

@@ -20,6 +20,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/media_module.h"
@@ -71,6 +72,7 @@ class DOMSettings : public script::EnvironmentSettings {
               media::CanPlayTypeHandler* can_play_type_handler,
               script::JavaScriptEngine* engine,
               script::GlobalEnvironment* global_environment_proxy,
+              MutationObserverTaskManager* mutation_observer_task_manager,
               const Options& options = Options());
   ~DOMSettings() OVERRIDE;
 
@@ -109,6 +111,9 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
+  MutationObserverTaskManager* mutation_observer_task_manager() const {
+    return mutation_observer_task_manager_;
+  }
   Blob::Registry* blob_registry() const { return blob_registry_; }
 
   // An absolute URL used to resolve relative URLs.
@@ -128,6 +133,7 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalEnvironment* global_environment_;
+  MutationObserverTaskManager* mutation_observer_task_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
 };

@@ -88,6 +88,18 @@
         'browser_bindings.gyp:bindings',
         'screen_shot_writer',
       ],
+      # This target doesn't generate any headers, but it exposes generated
+      # header files (for idl dictionaries) through this module's public header
+      # files. So mark this target as a hard dependency to ensure that any
+      # dependent targets wait until this target (and its hard dependencies) are
+      # built.
+      #'hard_dependency': 1,
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+      ],
       'conditions': [
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
