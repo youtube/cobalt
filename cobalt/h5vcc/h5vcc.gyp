@@ -59,6 +59,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
       'include_dirs': [
         # For cobalt_build_id.h

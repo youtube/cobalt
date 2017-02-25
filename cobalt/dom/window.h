@@ -28,11 +28,9 @@
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/dom_stat_tracker.h"
-#include "cobalt/dom/element.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
-#include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
@@ -59,6 +57,7 @@ namespace dom {
 
 class Console;
 class Document;
+class Element;
 class Event;
 class History;
 class HTMLElementContext;

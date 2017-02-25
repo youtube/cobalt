@@ -19,10 +19,11 @@
 
 #include "base/hash_tables.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/dom/mutation_observer.h"
 
 namespace cobalt {
 namespace dom {
+
+class MutationObserver;
 
 // The Mutation observer spec describes a sequence of steps to "queue a mutation
 // observer compound microtask" and "notify mutation observers". These steps

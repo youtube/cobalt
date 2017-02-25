@@ -16,6 +16,7 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "cobalt/dom/mutation_observer.h"
 
 namespace cobalt {
 namespace dom {
