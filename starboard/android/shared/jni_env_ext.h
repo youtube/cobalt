@@ -55,8 +55,9 @@ struct JniEnvExt : public JNIEnv {
     return method_id;
   }
 
-  // Find a class by name using the class loader of the current JNI stack first
-  // then fall back to the Activity's class loader if that fails.
+  // Find a class by name using the Activity's class loader. This can load
+  // both system classes and application classes, even when not in a JNI
+  // stack frame (e.g. in a native thread that was attached the the JVM).
   // https://developer.android.com/training/articles/perf-jni.html#faq_FindClass
   jclass FindClassExt(const char* name);
 
