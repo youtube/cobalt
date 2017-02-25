@@ -31,6 +31,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/screen.h"

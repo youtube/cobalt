@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "cobalt/accessibility/tts_engine.h"
 
 namespace cobalt {

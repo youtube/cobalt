@@ -13,7 +13,7 @@
 // limitations under the License.
 #include "cobalt/layout_tests/web_platform_test_parser.h"
 
-#include <set>
+#include <map>
 #include <utility>
 
 #include "base/file_path.h"
@@ -60,13 +60,14 @@ base::optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
     const std::string& line_string) {
   std::vector<std::string> test_case_tokens;
   Tokenize(line_string, ",", &test_case_tokens);
-  if (test_case_tokens.empty() || test_case_tokens.size() > 2) {
+  if (test_case_tokens.size() < 2) {
     DLOG(WARNING) << "Failed to parse: " << line_string;
     return base::nullopt;
   }
 
-  TrimWhitespaceASCII(test_case_tokens[0], TRIM_ALL, &test_case_tokens[0]);
-  TrimWhitespaceASCII(test_case_tokens[1], TRIM_ALL, &test_case_tokens[1]);
+  for (size_t i = 0; i < test_case_tokens.size(); ++i) {
+    TrimWhitespaceASCII(test_case_tokens[i], TRIM_ALL, &test_case_tokens[i]);
+  }
 
   std::string test_expect = StringToLowerASCII(test_case_tokens[1]);
   WebPlatformTestInfo::State expectation = StringToExpectation(test_expect);
@@ -76,6 +77,9 @@ base::optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
     WebPlatformTestInfo test_info;
     test_info.url = test_case_tokens[0];
     test_info.expectation = expectation;
+    for (size_t i = 2; i < test_case_tokens.size(); ++i) {
+      test_info.exceptions.insert(test_case_tokens[i]);
+    }
     return test_info;
   }
 }
@@ -108,9 +112,9 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
 
     const char kCommentChar = '#';
 
-    typedef std::set<WebPlatformTestInfo> TestInfoSet;
-    TestInfoSet all_test_infos;
-    for (std::vector<std::string>::const_iterator iter = line_tokens.begin();
+    typedef std::map<std::string, WebPlatformTestInfo> TestInfoMap;
+    TestInfoMap all_test_infos;
+    for (std::vector<std::string>::iterator iter = line_tokens.begin();
          iter != line_tokens.end(); ++iter) {
       std::string trimmed_line;
       TrimWhitespaceASCII(*iter, TRIM_ALL, &trimmed_line);
@@ -125,16 +129,31 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
       if (parsed_test_info) {
         WebPlatformTestInfo& test_info = *parsed_test_info;
         test_info.url = top_level + "/" + test_info.url;
-        std::pair<TestInfoSet::iterator, bool> ret =
-            all_test_infos.insert(test_info);
+        std::pair<TestInfoMap::iterator, bool> ret =
+            all_test_infos.insert(std::make_pair(test_info.url, test_info));
+        // If it's the same url, merge the exceptions into the original one.
         if (ret.second == false) {
-          NOTREACHED() << "Duplicate entry found: " << test_info;
+          // Ensure that neither expectation is set to disable, and that the
+          // expectations are different.
+          DCHECK_NE(ret.first->second.expectation,
+                    WebPlatformTestInfo::kDisable);
+          DCHECK_NE(test_info.expectation, WebPlatformTestInfo::kDisable);
+          DCHECK_NE(ret.first->second.expectation, test_info.expectation);
+
+          // There should be at least one test in the list of exceptions for
+          // the new one. Append these to the existing exceptions list.
+          DCHECK_GT(test_info.exceptions.size(), size_t(0));
+          ret.first->second.exceptions.insert(test_info.exceptions.begin(),
+                                              test_info.exceptions.end());
         }
       }
     }
 
-    std::vector<WebPlatformTestInfo> test_info_list(all_test_infos.begin(),
-                                                    all_test_infos.end());
+    std::vector<WebPlatformTestInfo> test_info_list;
+    for (TestInfoMap::iterator it = all_test_infos.begin();
+         it != all_test_infos.end(); ++it) {
+      test_info_list.push_back(it->second);
+    }
     return test_info_list;
   }
 }
