@@ -263,6 +263,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
@@ -303,6 +304,18 @@
           ],
         }],
       ],
+      # This target doesn't generate any headers, but it exposes generated
+      # header files (for idl dictionaries) through this module's public header
+      # files. So mark this target as a hard dependency to ensure that any
+      # dependent targets wait until this target (and its hard dependencies) are
+      # built.
+      'hard_dependency': 1,
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
+      ]
     },
 
     {
