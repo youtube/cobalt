@@ -67,20 +67,13 @@ jobject JniEnvExt::GetActivityObject() {
 }
 
 jclass JniEnvExt::FindClassExt(const char* name) {
-  jclass clazz = FindClass(name);
-  if (!ExceptionCheck()) {
-    return clazz;
-  } else {
-    ExceptionClear();
-  }
-
   // Convert the JNI FindClass name with slashes to the "binary name" with dots
   // for ClassLoader.loadClass().
   ::std::string dot_name = name;
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
   jstring jname = NewStringUTF(dot_name.c_str());
   jobject clazz_obj =
-      CallObjectMethod(activity_class_loader_, "findClass",
+      CallObjectMethod(activity_class_loader_, "loadClass",
                        "(Ljava/lang/String;)Ljava/lang/Class;", jname);
   DeleteLocalRef(jname);
   return static_cast<jclass>(clazz_obj);
