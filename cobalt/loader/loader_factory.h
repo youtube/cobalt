@@ -42,7 +42,7 @@ class LoaderFactory {
                 base::ThreadPriority hardware_decoder_thread_priority,
                 base::ThreadPriority fetcher_thread_priority);
 
-  // Creates a loader that fetches and decodes a render_tree::Image.
+  // Creates a loader that fetches and decodes an image.
   scoped_ptr<Loader> CreateImageLoader(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::SuccessCallback& success_callback,

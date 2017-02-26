@@ -28,6 +28,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -71,7 +72,7 @@ class UsedStyleProvider {
       const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_weight_refptr);
 
-  scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url);
+  scoped_refptr<loader::image::Image> ResolveURLToImage(const GURL& url);
   scoped_refptr<render_tree::Mesh> ResolveURLToMesh(const GURL& url);
 
   bool has_image_cache(const loader::image::ImageCache* image_cache) const {
