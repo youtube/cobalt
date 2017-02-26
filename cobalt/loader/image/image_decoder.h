@@ -19,8 +19,8 @@
 
 #include "base/callback.h"
 #include "cobalt/loader/decoder.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
-#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -34,8 +34,7 @@ namespace image {
 // image.
 class ImageDecoder : public Decoder {
  public:
-  typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
-      SuccessCallback;
+  typedef base::Callback<void(const scoped_refptr<Image>&)> SuccessCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ImageDecoder(render_tree::ResourceProvider* resource_provider,
