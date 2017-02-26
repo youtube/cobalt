@@ -17,9 +17,9 @@
 
 #include <string>
 
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/loader_factory.h"
 #include "cobalt/loader/resource_cache.h"
-#include "cobalt/render_tree/image.h"
 
 namespace cobalt {
 namespace loader {
@@ -28,7 +28,7 @@ namespace image {
 // |ImageResourceCacheType| provides the types and implements the functions
 // required by |ResourceCache<ImageResourceCacheType>|
 struct ImageResourceCacheType {
-  typedef render_tree::Image ResourceType;
+  typedef Image ResourceType;
 
   static uint32 GetEstimatedSizeInBytes(
       const scoped_refptr<ResourceType>& resource) {

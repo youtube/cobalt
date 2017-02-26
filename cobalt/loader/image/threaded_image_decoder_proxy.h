@@ -22,9 +22,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "cobalt/loader/decoder.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "cobalt/loader/image/image_decoder.h"
-#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -36,8 +36,7 @@ namespace image {
 // work.
 class ThreadedImageDecoderProxy : public Decoder {
  public:
-  typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
-      SuccessCallback;
+  typedef base::Callback<void(const scoped_refptr<Image>&)> SuccessCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ThreadedImageDecoderProxy(render_tree::ResourceProvider* resource_provider,

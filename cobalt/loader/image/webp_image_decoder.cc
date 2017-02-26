@@ -16,6 +16,8 @@
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "cobalt/loader/image/animated_webp_image.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace loader {
@@ -23,7 +25,10 @@ namespace image {
 
 WEBPImageDecoder::WEBPImageDecoder(
     render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider), internal_decoder_(NULL) {
+    : ImageDataDecoder(resource_provider),
+      internal_decoder_(NULL),
+      has_animation_(false),
+      data_buffer_(new std::vector<uint8>()) {
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
   WebPInitDecoderConfig(&config_);
@@ -47,46 +52,65 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::DecodeChunkInternal()");
-  const uint8* next_input_byte = data;
-  size_t bytes_in_buffer = input_byte;
-
   if (state() == kWaitingForHeader) {
-    bool has_alpha = false;
-    if (!ReadHeader(next_input_byte, bytes_in_buffer, &has_alpha)) {
+    if (!ReadHeader(data, input_byte)) {
       return 0;
     }
 
-    if (!CreateInternalDecoder(has_alpha)) {
-      return 0;
+    if (!config_.input.has_animation) {
+      // For static images, we don't need to store the encoded data.
+      data_buffer_.reset();
+
+      if (!AllocateImageData(
+              math::Size(config_.input.width, config_.input.height),
+              !!config_.input.has_alpha)) {
+        return 0;
+      }
+      if (!CreateInternalDecoder(!!config_.input.has_alpha)) {
+        return 0;
+      }
+    } else {
+      has_animation_ = true;
+      animated_webp_image_ = new AnimatedWebPImage(
+          math::Size(config_.input.width, config_.input.height),
+          !!config_.input.has_alpha, resource_provider());
     }
     set_state(kReadLines);
   }
 
   if (state() == kReadLines) {
-    // Copies and decodes the next available data. Returns VP8_STATUS_OK when
-    // the image is successfully decoded. Returns VP8_STATUS_SUSPENDED when more
-    // data is expected. Returns error in other cases.
-    VP8StatusCode status =
-        WebPIAppend(internal_decoder_, next_input_byte, bytes_in_buffer);
-    if (status == VP8_STATUS_OK) {
-      DCHECK(image_data());
-      DCHECK(config_.output.u.RGBA.rgba);
-      memcpy(image_data()->GetMemory(), config_.output.u.RGBA.rgba,
-             config_.output.u.RGBA.size);
-      DeleteInternalDecoder();
-      set_state(kDone);
-    } else if (status != VP8_STATUS_SUSPENDED) {
-      DLOG(ERROR) << "WebPIAppend error, status code: " << status;
-      DeleteInternalDecoder();
-      set_state(kError);
+    if (!config_.input.has_animation) {
+      // Copies and decodes the next available data. Returns VP8_STATUS_OK when
+      // the image is successfully decoded. Returns VP8_STATUS_SUSPENDED when
+      // more data is expected. Returns error in other cases.
+      VP8StatusCode status = WebPIAppend(internal_decoder_, data, input_byte);
+      if (status == VP8_STATUS_OK) {
+        DCHECK(image_data());
+        DCHECK(config_.output.u.RGBA.rgba);
+        SbMemoryCopy(image_data()->GetMemory(), config_.output.u.RGBA.rgba,
+                     config_.output.u.RGBA.size);
+        DeleteInternalDecoder();
+        set_state(kDone);
+      } else if (status != VP8_STATUS_SUSPENDED) {
+        DLOG(ERROR) << "WebPIAppend error, status code: " << status;
+        DeleteInternalDecoder();
+        set_state(kError);
+      }
+    } else {
+      animated_webp_image_->AppendChunk(data, input_byte);
     }
   }
 
   return input_byte;
 }
 
-bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
-                                  bool* has_alpha) {
+void WEBPImageDecoder::FinishInternal() {
+  if (config_.input.has_animation) {
+    set_state(kDone);
+  }
+}
+
+bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::ReadHeader()");
   // Retrieve features from the bitstream. The *features structure is filled
   // with information gathered from the bitstream.
@@ -95,11 +119,7 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
   // features from headers. Returns error in other cases.
   VP8StatusCode status = WebPGetFeatures(data, size, &config_.input);
   if (status == VP8_STATUS_OK) {
-    int width = config_.input.width;
-    int height = config_.input.height;
-    *has_alpha = !!config_.input.has_alpha;
-
-    return AllocateImageData(math::Size(width, height), *has_alpha);
+    return true;
   } else if (status == VP8_STATUS_NOT_ENOUGH_DATA) {
     // Data is not enough for decoding the header.
     return false;
