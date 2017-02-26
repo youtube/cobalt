@@ -21,8 +21,10 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/loader/image/animated_webp_image.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -34,13 +36,11 @@ namespace image {
 namespace {
 
 struct MockImageDecoderCallback {
-  void SuccessCallback(const scoped_refptr<render_tree::Image>& value) {
-    image = value;
-  }
+  void SuccessCallback(const scoped_refptr<Image>& value) { image = value; }
 
   MOCK_METHOD1(ErrorCallback, void(const std::string& message));
 
-  scoped_refptr<render_tree::Image> image;
+  scoped_refptr<Image> image;
 };
 
 class MockImageDecoder : public Decoder {
@@ -58,7 +58,7 @@ class MockImageDecoder : public Decoder {
   bool Suspend() OVERRIDE;
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
-  scoped_refptr<render_tree::Image> Image();
+  scoped_refptr<Image> image();
 
   void ExpectCallWithError(const std::string& message);
 
@@ -95,7 +95,7 @@ void MockImageDecoder::Resume(
   image_decoder_->Resume(resource_provider);
 }
 
-scoped_refptr<render_tree::Image> MockImageDecoder::Image() {
+scoped_refptr<Image> MockImageDecoder::image() {
   return image_decoder_callback_.image;
 }
 
@@ -173,7 +173,7 @@ TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
   image_decoder.OnResponseStarted(NULL, headers);
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
@@ -197,7 +197,7 @@ TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
   image_decoder.OnResponseStarted(NULL, headers);
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 TEST(ImageDecoderTest, DecodeNonImageType) {
@@ -222,7 +222,7 @@ TEST(ImageDecoderTest, DecodeNonImageType) {
   image_decoder.DecodeChunk(kContent, sizeof(kContent));
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 TEST(ImageDecoderTest, DecodeNoContentType) {
@@ -246,7 +246,7 @@ TEST(ImageDecoderTest, DecodeNoContentType) {
   image_decoder.DecodeChunk(kContent, sizeof(kContent));
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 TEST(ImageDecoderTest, DecodeImageWithNoContent) {
@@ -270,7 +270,7 @@ TEST(ImageDecoderTest, DecodeImageWithNoContent) {
   image_decoder.OnResponseStarted(NULL, headers);
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 TEST(ImageDecoderTest, DecodeImageWithLessThanHeaderBytes) {
@@ -281,7 +281,7 @@ TEST(ImageDecoderTest, DecodeImageWithLessThanHeaderBytes) {
   image_decoder.DecodeChunk(kPartialWebPHeader, sizeof(kPartialWebPHeader));
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 TEST(ImageDecoderTest, FailedToDecodeImage) {
@@ -294,7 +294,7 @@ TEST(ImageDecoderTest, FailedToDecodeImage) {
   image_decoder.DecodeChunk(kPartialPNGImage, sizeof(kPartialPNGImage));
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 TEST(ImageDecoderTest, UnsupportedImageFormat) {
@@ -306,7 +306,7 @@ TEST(ImageDecoderTest, UnsupportedImageFormat) {
   image_decoder.DecodeChunk(kPartialICOImage, sizeof(kPartialICOImage));
   image_decoder.Finish();
 
-  EXPECT_FALSE(image_decoder.Image());
+  EXPECT_FALSE(image_decoder.image());
 }
 
 // Test that we can properly decode the PNG image.
@@ -328,10 +328,12 @@ TEST(ImageDecoderTest, DecodePNGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -363,10 +365,12 @@ TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -394,10 +398,12 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -429,10 +435,12 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -459,10 +467,12 @@ TEST(ImageDecoderTest, DecodeJPEGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -493,10 +503,12 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -523,10 +535,12 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -557,10 +571,12 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -587,10 +603,12 @@ TEST(ImageDecoderTest, DecodeWEBPImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -620,16 +638,77 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
-  ASSERT_TRUE(image_decoder.Image());
+  StaticImage* static_image =
+      base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
+  ASSERT_TRUE(static_image);
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder.Image().get());
+          static_image->image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
 
   EXPECT_TRUE(
       CheckSameColor(pixels, size.width(), size.height(), expected_color));
+}
+
+void SignalWaitable(base::WaitableEvent* event) { event->Signal(); }
+
+// Test that we can properly decode animated WEBP image.
+TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
+  MockImageDecoder image_decoder;
+
+  std::vector<uint8> image_data =
+      GetImageData(GetTestImagePath("vsauce_sm.webp"));
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
+
+  scoped_refptr<AnimatedWebPImage> animated_webp_image =
+      base::polymorphic_downcast<AnimatedWebPImage*>(
+          image_decoder.image().get());
+  ASSERT_TRUE(animated_webp_image);
+
+  base::WaitableEvent decoded_frames_event(true, false);
+  animated_webp_image->SetDecodedFramesCallback(
+      base::Bind(&SignalWaitable, &decoded_frames_event));
+  decoded_frames_event.Wait();
+
+  // The image should contain the whole undecoded data from the file.
+  EXPECT_EQ(3224674u, animated_webp_image->GetEstimatedSizeInBytes());
+
+  EXPECT_EQ(math::Size(480, 270), animated_webp_image->GetSize());
+  EXPECT_TRUE(animated_webp_image->IsOpaque());
+}
+
+// Test that we can properly decode animated WEBP image in multiple chunks.
+TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
+  MockImageDecoder image_decoder;
+
+  std::vector<uint8> image_data =
+      GetImageData(GetTestImagePath("vsauce_sm.webp"));
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[100]),
+                            image_data.size() - 100);
+  image_decoder.Finish();
+
+  scoped_refptr<AnimatedWebPImage> animated_webp_image =
+      base::polymorphic_downcast<AnimatedWebPImage*>(
+          image_decoder.image().get());
+  ASSERT_TRUE(animated_webp_image);
+
+  base::WaitableEvent decoded_frames_event(true, false);
+  animated_webp_image->SetDecodedFramesCallback(
+      base::Bind(&SignalWaitable, &decoded_frames_event));
+  decoded_frames_event.Wait();
+
+  // The image should contain the whole undecoded data from the file.
+  EXPECT_EQ(3224674u, animated_webp_image->GetEstimatedSizeInBytes());
+
+  EXPECT_EQ(math::Size(480, 270), animated_webp_image->GetSize());
+  EXPECT_TRUE(animated_webp_image->IsOpaque());
 }
 
 }  // namespace image
