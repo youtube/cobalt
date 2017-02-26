@@ -16,7 +16,9 @@
 #define COBALT_LOADER_IMAGE_WEBP_IMAGE_DECODER_H_
 
 #include <string>
+#include <vector>
 
+#include "cobalt/loader/image/animated_webp_image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "third_party/libwebp/webp/decode.h"
 
@@ -35,13 +37,21 @@ class WEBPImageDecoder : public ImageDataDecoder {
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) OVERRIDE;
+  void FinishInternal() OVERRIDE;
+  bool has_animation() const OVERRIDE { return has_animation_; }
+  scoped_refptr<AnimatedImage> animated_image() OVERRIDE {
+    return animated_webp_image_;
+  }
 
-  bool ReadHeader(const uint8* data, size_t size, bool* has_alpha);
+  bool ReadHeader(const uint8* data, size_t size);
   bool CreateInternalDecoder(bool has_alpha);
   void DeleteInternalDecoder();
 
   WebPIDecoder* internal_decoder_;
   WebPDecoderConfig config_;
+  bool has_animation_;
+  scoped_refptr<AnimatedWebPImage> animated_webp_image_;
+  scoped_ptr<std::vector<uint8> > data_buffer_;
 };
 
 }  // namespace image

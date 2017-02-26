@@ -159,21 +159,26 @@ void ImageDecoder::Finish() {
     case kDecoding:
       DCHECK(decoder_);
       if (decoder_->FinishWithSuccess()) {
+        if (!decoder_->has_animation()) {
 #if defined(STARBOARD)
 #if SB_VERSION(3) && SB_HAS(GRAPHICS)
-        SbDecodeTarget target = decoder_->RetrieveSbDecodeTarget();
-        if (SbDecodeTargetIsValid(target)) {
-          success_callback_.Run(
-              resource_provider_->CreateImageFromSbDecodeTarget(target));
-        } else  // NOLINT
+          SbDecodeTarget target = decoder_->RetrieveSbDecodeTarget();
+          if (SbDecodeTargetIsValid(target)) {
+            success_callback_.Run(new StaticImage(
+                resource_provider_->CreateImageFromSbDecodeTarget(target)));
+          } else  // NOLINT
 #endif
 #endif
-        {
-          scoped_ptr<render_tree::ImageData> image_data =
-              decoder_->RetrieveImageData();
-          success_callback_.Run(
-              image_data ? resource_provider_->CreateImage(image_data.Pass())
-                         : NULL);
+          {
+            scoped_ptr<render_tree::ImageData> image_data =
+                decoder_->RetrieveImageData();
+            success_callback_.Run(
+                image_data ? new StaticImage(resource_provider_->CreateImage(
+                                 image_data.Pass()))
+                           : NULL);
+          }
+        } else {
+          success_callback_.Run(decoder_->animated_image());
         }
       } else {
         error_callback_.Run(decoder_->GetTypeString() +
