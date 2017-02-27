@@ -66,7 +66,6 @@ class ConcurrentMap {
   // or is deleted.
   class EntryHandle;
   class ConstEntryHandle;
-  class KeyValueVisitor;
   struct Bucket;
 
   // |num_concurrency_buckets| specifies the number of concurrency buckets
@@ -214,7 +213,8 @@ class ConcurrentMap {
   // warning about performance: while traversing elements, a bucket lock will
   // be maintained and if the visitor is expensive then it's possible that this
   // could cause other threads to block.
-  void ForEach(KeyValueVisitor* visitor) {
+  template <typename KeyValueVisitorT>
+  void ForEach(KeyValueVisitorT* visitor) {
     typedef typename std::vector<Bucket>::iterator bucket_iterator;
     typedef typename InnerMap::iterator map_iterator;
 
@@ -246,12 +246,6 @@ class ConcurrentMap {
       bucket.mutex_.Release();
     }
   }
-
-  class KeyValueVisitor {
-   public:
-    virtual ~KeyValueVisitor() {}
-    virtual void Visit(const KeyT& key, const ValueT& val) = 0;
-  };
 
   class EntryHandle {
    public:
