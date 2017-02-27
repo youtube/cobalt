@@ -22,9 +22,9 @@
 namespace nb {
 namespace {
 
-class CapturesIntValues : public IntToIntConcurrentMap::KeyValueVisitor {
+class CapturesIntValues {
  public:
-  virtual void Visit(const int& key, const int& val) SB_OVERRIDE {
+  virtual void Visit(const int& key, const int& val) {
     visited_values_.push_back(std::make_pair(key, val));
   }
 
