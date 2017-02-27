@@ -76,26 +76,38 @@ struct JniEnvExt : public JNIEnv {
 // Convienience methods to lookup and call a method all at once:
 // Call[Type]Method() overloaded to take a jobject of an instance.
 // CallActivity[Type]Method() to call methods on the CobaltActivity.
-#define X(_jtype, _jname)                                                     \
-  _jtype Call##_jname##Method(jobject obj, const char* name, const char* sig, \
-                              ...) {                                          \
-    va_list argp;                                                             \
-    va_start(argp, sig);                                                      \
-    _jtype result =                                                           \
-        Call##_jname##MethodV(obj, GetObjectMethodID(obj, name, sig), argp);  \
-    va_end(argp);                                                             \
-    return result;                                                            \
-  }                                                                           \
-                                                                              \
-  _jtype CallActivity##_jname##Method(const char* name, const char* sig,      \
-                                      ...) {                                  \
-    va_list argp;                                                             \
-    va_start(argp, sig);                                                      \
-    jobject obj = GetActivityObject();                                        \
-    _jtype result =                                                           \
-        Call##_jname##MethodV(obj, GetObjectMethodID(obj, name, sig), argp);  \
-    va_end(argp);                                                             \
-    return result;                                                            \
+#define X(_jtype, _jname)                                                      \
+  _jtype Call##_jname##Method(jobject obj, const char* name, const char* sig,  \
+                              ...) {                                           \
+    va_list argp;                                                              \
+    va_start(argp, sig);                                                       \
+    _jtype result =                                                            \
+        Call##_jname##MethodV(obj, GetObjectMethodID(obj, name, sig), argp);   \
+    va_end(argp);                                                              \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
+  _jtype CallActivity##_jname##Method(const char* name, const char* sig,       \
+                                      ...) {                                   \
+    va_list argp;                                                              \
+    va_start(argp, sig);                                                       \
+    jobject obj = GetActivityObject();                                         \
+    _jtype result =                                                            \
+        Call##_jname##MethodV(obj, GetObjectMethodID(obj, name, sig), argp);   \
+    va_end(argp);                                                              \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
+  _jtype CallStatic##_jname##Method(                                           \
+      const char* class_name, const char* method_name, const char* sig, ...) { \
+    va_list argp;                                                              \
+    va_start(argp, sig);                                                       \
+    jclass clazz = FindClassExt(class_name);                                   \
+    _jtype result = CallStatic##_jname##MethodV(                               \
+        clazz, GetStaticMethodID(clazz, method_name, sig), argp);              \
+    DeleteLocalRef(clazz);                                                     \
+    va_end(argp);                                                              \
+    return result;                                                             \
   }
 
   X(jobject, Object)
@@ -122,6 +134,19 @@ struct JniEnvExt : public JNIEnv {
     va_start(argp, sig);
     jobject obj = GetActivityObject();
     CallVoidMethodV(obj, GetObjectMethodID(obj, name, sig), argp);
+    va_end(argp);
+  }
+
+  void CallStaticVoidMethod(const char* class_name,
+                            const char* method_name,
+                            const char* sig,
+                            ...) {
+    va_list argp;
+    va_start(argp, sig);
+    jclass clazz = FindClassExt(class_name);
+    CallStaticVoidMethodV(clazz, GetStaticMethodID(clazz, method_name, sig),
+                          argp);
+    DeleteLocalRef(clazz);
     va_end(argp);
   }
 
