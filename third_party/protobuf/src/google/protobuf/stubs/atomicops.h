@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2012 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -54,13 +54,14 @@
 #define GOOGLE_PROTOBUF_ATOMICOPS_H_
 
 // Don't include this file for people not concerned about thread safety.
-#ifndef GOOGLE_PROTOBUF_NO_THREADSAFETY
+#ifndef GOOGLE_PROTOBUF_NO_THREAD_SAFETY
+
+#include <google/protobuf/stubs/common.h>
+#include <google/protobuf/stubs/platform_macros.h>
 
 #if defined(STARBOARD)
 #include "starboard/atomic.h"
 #endif  // defined(STARBOARD)
-
-#include <google/protobuf/stubs/platform_macros.h>
 
 namespace google {
 namespace protobuf {
@@ -72,16 +73,27 @@ typedef SbAtomic32 Atomic32;
 typedef SbAtomic64 Atomic64;
 #endif  // defined(GOOGLE_PROTOBUF_ARCH_64_BIT)
 #else   // defined(STARBOARD)
+#if defined(GOOGLE_PROTOBUF_ARCH_POWER)
+#if defined(_LP64) || defined(__LP64__)
+typedef int32 Atomic32;
+typedef intptr_t Atomic64;
+#else
+typedef intptr_t Atomic32;
+typedef int64 Atomic64;
+#endif
+#else
 typedef int32 Atomic32;
 #ifdef GOOGLE_PROTOBUF_ARCH_64_BIT
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
-#if defined(GOOGLE_PROTOBUF_OS_NACL)
+#if defined(__ILP32__) || defined(GOOGLE_PROTOBUF_OS_NACL)
 // NaCl's intptr_t is not actually 64-bits on 64-bit!
 // http://code.google.com/p/nativeclient/issues/detail?id=1162
+// sparcv9's pointer type is 32bits
 typedef int64 Atomic64;
 #else
 typedef intptr_t Atomic64;
+#endif
 #endif
 #endif
 #endif  // defined(STARBOARD)
@@ -131,6 +143,9 @@ Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
 
+#if defined(__MINGW32__) && defined(MemoryBarrier)
+#undef MemoryBarrier
+#endif
 void MemoryBarrier();
 void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value);
 void Acquire_Store(volatile Atomic32* ptr, Atomic32 value);
@@ -169,46 +184,68 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 
 // Include our platform specific implementation.
 #define GOOGLE_PROTOBUF_ATOMICOPS_ERROR \
-#error "Atomic operations are not supported on your platform"
+"Atomic operations are not supported on your platform"
 
 // Starboard.
 #if defined(STARBOARD)
 #include "third_party/protobuf/src/google/protobuf/stubs/atomicops_internals_starboard.h"
 #else
-
+// ThreadSanitizer, http://clang.llvm.org/docs/ThreadSanitizer.html.
+#if defined(THREAD_SANITIZER)
+#include <google/protobuf/stubs/atomicops_internals_tsan.h>
 // MSVC.
-#if defined(_MSC_VER)
+#elif defined(_MSC_VER)
 #if defined(GOOGLE_PROTOBUF_ARCH_IA32) || defined(GOOGLE_PROTOBUF_ARCH_X64)
 #include <google/protobuf/stubs/atomicops_internals_x86_msvc.h>
 #else
-GOOGLE_PROTOBUF_ATOMICOPS_ERROR
+#error GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #endif
+
+// Solaris
+#elif defined(GOOGLE_PROTOBUF_OS_SOLARIS)
+#include <google/protobuf/stubs/atomicops_internals_solaris.h>
+
+// AIX
+#elif defined(GOOGLE_PROTOBUF_OS_AIX)
+#include <google/protobuf/stubs/atomicops_internals_power.h>
 
 // Apple.
 #elif defined(GOOGLE_PROTOBUF_OS_APPLE)
 #include <google/protobuf/stubs/atomicops_internals_macosx.h>
 
-// LB shell platforms that don't fit any of the existing atomicops_internals_XXX
-#elif (defined(__LB_PS3__) || defined(__LB_WIIU__)) && !defined(__LB_HOST__)
-#define SHELL_BEGIN_ATOMICOPS_NAMESPACES namespace google { namespace protobuf { namespace internal {
-#define SHELL_END_ATOMICOPS_NAMESPACES } } }
-#include "atomicops_internals_shell.h"  // from the platform lib
-
 // GCC.
 #elif defined(__GNUC__)
 #if defined(GOOGLE_PROTOBUF_ARCH_IA32) || defined(GOOGLE_PROTOBUF_ARCH_X64)
 #include <google/protobuf/stubs/atomicops_internals_x86_gcc.h>
-#elif defined(GOOGLE_PROTOBUF_ARCH_ARM)
+#elif defined(GOOGLE_PROTOBUF_ARCH_ARM) && defined(__linux__)
 #include <google/protobuf/stubs/atomicops_internals_arm_gcc.h>
-#elif defined(GOOGLE_PROTOBUF_ARCH_MIPS)
+#elif defined(GOOGLE_PROTOBUF_ARCH_AARCH64)
+#include <google/protobuf/stubs/atomicops_internals_arm64_gcc.h>
+#elif defined(GOOGLE_PROTOBUF_ARCH_ARM_QNX)
+#include <google/protobuf/stubs/atomicops_internals_arm_qnx.h>
+#elif defined(GOOGLE_PROTOBUF_ARCH_MIPS) || defined(GOOGLE_PROTOBUF_ARCH_MIPS64)
 #include <google/protobuf/stubs/atomicops_internals_mips_gcc.h>
+#elif defined(GOOGLE_PROTOBUF_ARCH_POWER)
+#include <google/protobuf/stubs/atomicops_internals_power.h>
+#elif defined(__native_client__)
+#include <google/protobuf/stubs/atomicops_internals_pnacl.h>
+#elif defined(GOOGLE_PROTOBUF_ARCH_PPC)
+#include <google/protobuf/stubs/atomicops_internals_ppc_gcc.h>
+#elif (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 7)) || (__GNUC__ > 4))
+#include <google/protobuf/stubs/atomicops_internals_generic_gcc.h>
+#elif defined(__clang__)
+#if __has_extension(c_atomic)
+#include <google/protobuf/stubs/atomicops_internals_generic_gcc.h>
 #else
-GOOGLE_PROTOBUF_ATOMICOPS_ERROR
+#error GOOGLE_PROTOBUF_ATOMICOPS_ERROR
+#endif
+#else
+#error GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #endif
 
 // Unknown.
 #else
-GOOGLE_PROTOBUF_ATOMICOPS_ERROR
+#error GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #endif
 
 #endif  // defined(STARBOARD)
@@ -221,6 +258,6 @@ GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 
 #undef GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 
-#endif  // GOOGLE_PROTOBUF_NO_THREADSAFETY
+#endif  // GOOGLE_PROTOBUF_NO_THREAD_SAFETY
 
 #endif  // GOOGLE_PROTOBUF_ATOMICOPS_H_

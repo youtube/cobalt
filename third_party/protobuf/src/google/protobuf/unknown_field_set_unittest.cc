@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -43,17 +43,18 @@
 #include <google/protobuf/unittest.pb.h>
 #include <google/protobuf/test_util.h>
 
+#include <google/protobuf/stubs/callback.h>
 #include <google/protobuf/stubs/common.h>
+#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/stubs/mutex.h>
 #include <google/protobuf/testing/googletest.h>
 #include <gtest/gtest.h>
-#include <google/protobuf/stubs/stl_util-inl.h>
+#include <google/protobuf/stubs/stl_util.h>
 
 namespace google {
 namespace protobuf {
 
 using internal::WireFormat;
-
-namespace {
 
 class UnknownFieldSetTest : public testing::Test {
  protected:
@@ -107,6 +108,8 @@ class UnknownFieldSetTest : public testing::Test {
   UnknownFieldSet* unknown_fields_;
 };
 
+namespace {
+
 TEST_F(UnknownFieldSetTest, AllFieldsPresent) {
   // All fields of TestAllTypes should be present, in numeric order (because
   // that's the order we parsed them in).  Fields that are not valid field
@@ -118,7 +121,12 @@ TEST_F(UnknownFieldSetTest, AllFieldsPresent) {
     const FieldDescriptor* field = descriptor_->FindFieldByNumber(i);
     if (field != NULL) {
       ASSERT_LT(pos, unknown_fields_->field_count());
-      EXPECT_EQ(i, unknown_fields_->field(pos++).number());
+      // Do not check oneof field if it is not set.
+      if (field->containing_oneof() == NULL) {
+        EXPECT_EQ(i, unknown_fields_->field(pos++).number());
+      } else if (i == unknown_fields_->field(pos).number()) {
+        pos++;
+      }
       if (field->is_repeated()) {
         // Should have a second instance.
         ASSERT_LT(pos, unknown_fields_->field_count());
@@ -297,10 +305,19 @@ TEST_F(UnknownFieldSetTest, MergeFrom) {
     destination.DebugString());
 }
 
+
 TEST_F(UnknownFieldSetTest, Clear) {
   // Clear the set.
   empty_message_.Clear();
   EXPECT_EQ(0, unknown_fields_->field_count());
+}
+
+TEST_F(UnknownFieldSetTest, ClearAndFreeMemory) {
+  EXPECT_GT(unknown_fields_->field_count(), 0);
+  unknown_fields_->ClearAndFreeMemory();
+  EXPECT_EQ(0, unknown_fields_->field_count());
+  unknown_fields_->AddVarint(123456, 654321);
+  EXPECT_EQ(1, unknown_fields_->field_count());
 }
 
 TEST_F(UnknownFieldSetTest, ParseKnownAndUnknown) {
@@ -468,6 +485,13 @@ TEST_F(UnknownFieldSetTest, UnknownEnumValue) {
   }
 }
 
+TEST_F(UnknownFieldSetTest, SpaceUsedExcludingSelf) {
+  UnknownFieldSet empty;
+  empty.AddVarint(1, 0);
+  EXPECT_EQ(sizeof(vector<UnknownField>) + sizeof(UnknownField),
+            empty.SpaceUsedExcludingSelf());
+}
+
 TEST_F(UnknownFieldSetTest, SpaceUsed) {
   unittest::TestEmptyMessage empty_message;
 
@@ -498,6 +522,7 @@ TEST_F(UnknownFieldSetTest, SpaceUsed) {
   EXPECT_LT(base_size, empty_message.SpaceUsed());
 }
 
+
 TEST_F(UnknownFieldSetTest, Empty) {
   UnknownFieldSet unknown_fields;
   EXPECT_TRUE(unknown_fields.empty());
@@ -507,6 +532,78 @@ TEST_F(UnknownFieldSetTest, Empty) {
   EXPECT_TRUE(unknown_fields.empty());
 }
 
+TEST_F(UnknownFieldSetTest, DeleteSubrange) {
+  // Exhaustively test the deletion of every possible subrange in arrays of all
+  // sizes from 0 through 9.
+  for (int size = 0; size < 10; ++size) {
+    for (int num = 0; num <= size; ++num) {
+      for (int start = 0; start < size - num; ++start) {
+        // Create a set with "size" fields.
+        UnknownFieldSet unknown;
+        for (int i = 0; i < size; ++i) {
+          unknown.AddFixed32(i, i);
+        }
+        // Delete the specified subrange.
+        unknown.DeleteSubrange(start, num);
+        // Make sure the resulting field values are still correct.
+        EXPECT_EQ(size - num, unknown.field_count());
+        for (int i = 0; i < unknown.field_count(); ++i) {
+          if (i < start) {
+            EXPECT_EQ(i, unknown.field(i).fixed32());
+          } else {
+            EXPECT_EQ(i + num, unknown.field(i).fixed32());
+          }
+        }
+      }
+    }
+  }
+}
+
+void CheckDeleteByNumber(const vector<int>& field_numbers, int deleted_number,
+                        const vector<int>& expected_field_nubmers) {
+  UnknownFieldSet unknown_fields;
+  for (int i = 0; i < field_numbers.size(); ++i) {
+    unknown_fields.AddFixed32(field_numbers[i], i);
+  }
+  unknown_fields.DeleteByNumber(deleted_number);
+  ASSERT_EQ(expected_field_nubmers.size(), unknown_fields.field_count());
+  for (int i = 0; i < expected_field_nubmers.size(); ++i) {
+    EXPECT_EQ(expected_field_nubmers[i],
+              unknown_fields.field(i).number());
+  }
+}
+
+#define MAKE_VECTOR(x) vector<int>(x, x + GOOGLE_ARRAYSIZE(x))
+TEST_F(UnknownFieldSetTest, DeleteByNumber) {
+  CheckDeleteByNumber(vector<int>(), 1, vector<int>());
+  static const int kTestFieldNumbers1[] = {1, 2, 3};
+  static const int kFieldNumberToDelete1 = 1;
+  static const int kExpectedFieldNumbers1[] = {2, 3};
+  CheckDeleteByNumber(MAKE_VECTOR(kTestFieldNumbers1), kFieldNumberToDelete1,
+                      MAKE_VECTOR(kExpectedFieldNumbers1));
+  static const int kTestFieldNumbers2[] = {1, 2, 3};
+  static const int kFieldNumberToDelete2 = 2;
+  static const int kExpectedFieldNumbers2[] = {1, 3};
+  CheckDeleteByNumber(MAKE_VECTOR(kTestFieldNumbers2), kFieldNumberToDelete2,
+                      MAKE_VECTOR(kExpectedFieldNumbers2));
+  static const int kTestFieldNumbers3[] = {1, 2, 3};
+  static const int kFieldNumberToDelete3 = 3;
+  static const int kExpectedFieldNumbers3[] = {1, 2};
+  CheckDeleteByNumber(MAKE_VECTOR(kTestFieldNumbers3), kFieldNumberToDelete3,
+                      MAKE_VECTOR(kExpectedFieldNumbers3));
+  static const int kTestFieldNumbers4[] = {1, 2, 1, 4, 1};
+  static const int kFieldNumberToDelete4 = 1;
+  static const int kExpectedFieldNumbers4[] = {2, 4};
+  CheckDeleteByNumber(MAKE_VECTOR(kTestFieldNumbers4), kFieldNumberToDelete4,
+                      MAKE_VECTOR(kExpectedFieldNumbers4));
+  static const int kTestFieldNumbers5[] = {1, 2, 3, 4, 5};
+  static const int kFieldNumberToDelete5 = 6;
+  static const int kExpectedFieldNumbers5[] = {1, 2, 3, 4, 5};
+  CheckDeleteByNumber(MAKE_VECTOR(kTestFieldNumbers5), kFieldNumberToDelete5,
+                      MAKE_VECTOR(kExpectedFieldNumbers5));
+}
+#undef MAKE_VECTOR
 }  // namespace
+
 }  // namespace protobuf
 }  // namespace google
