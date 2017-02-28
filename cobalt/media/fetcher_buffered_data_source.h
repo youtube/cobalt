@@ -29,7 +29,11 @@
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/player/buffered_data_source.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/player/buffered_data_source.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 

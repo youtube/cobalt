@@ -23,23 +23,20 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/time.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/bind_to_loop.h"
-#include "media/base/channel_layout.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/demuxer.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/filter_collection.h"
-#include "media/base/media_export.h"
-#include "media/base/media_log.h"
-#include "media/base/pipeline.h"
-#include "media/base/pipeline_status.h"
-#include "media/base/ranges.h"
-#include "media/base/sbplayer_set_bounds_helper.h"
-#include "media/base/starboard_player.h"
-#include "media/base/starboard_utils.h"
-#include "media/base/video_decoder_config.h"
-#include "media/crypto/starboard_decryptor.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/pipeline.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+#include "cobalt/media/base/starboard_player.h"
+#include "cobalt/media/base/video_decoder_config.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -54,8 +51,7 @@ namespace {
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
 // parameters exceed what base::Bind() can support.
 struct StartTaskParameters {
-  scoped_refptr<Demuxer> demuxer;
-  SetDecryptorReadyCB decryptor_ready_cb;
+  Demuxer* demuxer;
   PipelineStatusCB ended_cb;
   PipelineStatusCB error_cb;
   PipelineStatusCB seek_cb;
@@ -77,11 +73,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void Suspend() OVERRIDE;
   void Resume() OVERRIDE;
-  void Start(scoped_ptr<FilterCollection> filter_collection,
-             const SetDecryptorReadyCB& decryptor_ready_cb,
-             const PipelineStatusCB& ended_cb,
-             const PipelineStatusCB& error_cb,
-             const PipelineStatusCB& seek_cb,
+  void Start(Demuxer* demuxer, const PipelineStatusCB& ended_cb,
+             const PipelineStatusCB& error_cb, const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb) OVERRIDE;
 
@@ -98,7 +91,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   TimeDelta GetMediaTime() const OVERRIDE;
   Ranges<TimeDelta> GetBufferedTimeRanges() OVERRIDE;
   TimeDelta GetMediaDuration() const OVERRIDE;
-  int64 GetTotalBytes() const OVERRIDE;
   void GetNaturalVideoSize(gfx::Size* out_size) const OVERRIDE;
 
   bool DidLoadingProgress() const OVERRIDE;
@@ -113,14 +105,14 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetPlaybackRateTask(float volume);
   void SetDurationTask(TimeDelta duration);
 
-  // DataSourceHost (by way of DemuxerHost) implementation.
-  void SetTotalBytes(int64 total_bytes) OVERRIDE;
-  void AddBufferedByteRange(int64 start, int64 end) OVERRIDE;
-  void AddBufferedTimeRange(TimeDelta start, TimeDelta end) OVERRIDE;
-
   // DemuxerHost implementaion.
+  void OnBufferedTimeRangesChanged(
+      const Ranges<base::TimeDelta>& ranges) OVERRIDE;
   void SetDuration(TimeDelta duration) OVERRIDE;
   void OnDemuxerError(PipelineStatus error) OVERRIDE;
+  void AddTextStream(DemuxerStream* text_stream,
+                     const TextTrackConfig& config) OVERRIDE;
+  void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE;
 
   void CreatePlayer(SbDrmSystem drm_system);
   void SetDecryptor(Decryptor* decryptor);
@@ -135,7 +127,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnNeedData(DemuxerStream::Type type) OVERRIDE;
   void OnPlayerStatus(SbPlayerState state) OVERRIDE;
 
-  void UpdateDecoderConfig(const scoped_refptr<DemuxerStream>& stream);
+  void UpdateDecoderConfig(DemuxerStream* stream);
 
   void SuspendTask(base::WaitableEvent* done_event);
   void ResumeTask(base::WaitableEvent* done_event);
@@ -157,9 +149,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // True when AddBufferedByteRange() has been called more recently than
   // DidLoadingProgress().
   mutable bool did_loading_progress_;
-
-  // Total size of the media.  Set by filters.
-  int64 total_bytes_;
 
   // Video's natural width and height.  Set by filters.
   gfx::Size natural_size_;
@@ -190,14 +179,13 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::Closure stop_cb_;
 
   // Permanent callbacks passed in via Start().
-  SetDecryptorReadyCB decryptor_ready_cb_;
   PipelineStatusCB ended_cb_;
   PipelineStatusCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
 
   // Demuxer reference used for setting the preload value.
-  scoped_refptr<Demuxer> demuxer_;
+  Demuxer* demuxer_;
   bool audio_read_in_progress_;
   bool video_read_in_progress_;
   TimeDelta duration_;
@@ -225,12 +213,12 @@ SbPlayerPipeline::SbPlayerPipeline(
     MediaLog* media_log)
     : window_(window),
       message_loop_(message_loop),
-      total_bytes_(0),
       natural_size_(0, 0),
       volume_(1.f),
       playback_rate_(0.f),
       has_audio_(false),
       has_video_(false),
+      demuxer_(NULL),
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
@@ -262,18 +250,20 @@ void SbPlayerPipeline::Resume() {
   waitable_event.Wait();
 }
 
-void SbPlayerPipeline::Start(scoped_ptr<FilterCollection> filter_collection,
-                             const SetDecryptorReadyCB& decryptor_ready_cb,
-                             const PipelineStatusCB& ended_cb,
+void SbPlayerPipeline::Start(Demuxer* demuxer, const PipelineStatusCB& ended_cb,
                              const PipelineStatusCB& error_cb,
                              const PipelineStatusCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb) {
-  DCHECK(filter_collection);
+  DCHECK(demuxer);
+  DCHECK(!ended_cb.is_null());
+  DCHECK(!error_cb.is_null());
+  DCHECK(!seek_cb.is_null());
+  DCHECK(!buffering_state_cb.is_null());
+  DCHECK(!duration_change_cb.is_null());
 
   StartTaskParameters parameters;
-  parameters.demuxer = filter_collection->GetDemuxer();
-  parameters.decryptor_ready_cb = decryptor_ready_cb;
+  parameters.demuxer = demuxer;
   parameters.ended_cb = ended_cb;
   parameters.error_cb = error_cb;
   parameters.seek_cb = seek_cb;
@@ -310,7 +300,8 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   error_cb_.Reset();
   if (demuxer_) {
     stop_cb_ = stop_cb;
-    demuxer_->Stop(base::Bind(&SbPlayerPipeline::OnDemuxerStopped, this));
+    demuxer_->Stop();
+    OnDemuxerStopped();
   } else {
     stop_cb.Run();
   }
@@ -429,11 +420,6 @@ TimeDelta SbPlayerPipeline::GetMediaDuration() const {
   return duration_;
 }
 
-int64 SbPlayerPipeline::GetTotalBytes() const {
-  base::AutoLock auto_lock(lock_);
-  return total_bytes_;
-}
-
 void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
   CHECK(out_size);
   base::AutoLock auto_lock(lock_);
@@ -471,7 +457,6 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   DCHECK(!demuxer_);
 
   demuxer_ = parameters.demuxer;
-  decryptor_ready_cb_ = parameters.decryptor_ready_cb;
   ended_cb_ = parameters.ended_cb;
   error_cb_ = parameters.error_cb;
   {
@@ -481,9 +466,11 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   buffering_state_cb_ = parameters.buffering_state_cb;
   duration_change_cb_ = parameters.duration_change_cb;
 
-  demuxer_->Initialize(
-      this, BindToCurrentLoop(
-                base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
+  const bool kEnableTextTracks = false;
+  demuxer_->Initialize(this,
+                       BindToCurrentLoop(base::Bind(
+                           &SbPlayerPipeline::OnDemuxerInitialized, this)),
+                       kEnableTextTracks);
 }
 
 void SbPlayerPipeline::SetVolumeTask(float volume) {
@@ -509,9 +496,11 @@ void SbPlayerPipeline::SetDurationTask(TimeDelta duration) {
   }
 }
 
-void SbPlayerPipeline::SetTotalBytes(int64 total_bytes) {
+void SbPlayerPipeline::OnBufferedTimeRangesChanged(
+    const Ranges<base::TimeDelta>& ranges) {
   base::AutoLock auto_lock(lock_);
-  total_bytes_ = total_bytes;
+  did_loading_progress_ = true;
+  buffered_time_ranges_ = ranges;
 }
 
 void SbPlayerPipeline::SetDuration(TimeDelta duration) {
@@ -534,16 +523,13 @@ void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
   }
 }
 
-void SbPlayerPipeline::AddBufferedByteRange(int64 start, int64 end) {
-  base::AutoLock auto_lock(lock_);
-  buffered_byte_ranges_.Add(start, end);
-  did_loading_progress_ = true;
+void SbPlayerPipeline::AddTextStream(DemuxerStream* text_stream,
+                                     const TextTrackConfig& config) {
+  NOTREACHED();
 }
 
-void SbPlayerPipeline::AddBufferedTimeRange(TimeDelta start, TimeDelta end) {
-  base::AutoLock auto_lock(lock_);
-  buffered_time_ranges_.Add(start, end);
-  did_loading_progress_ = true;
+void SbPlayerPipeline::RemoveTextStream(DemuxerStream* text_stream) {
+  NOTREACHED();
 }
 
 void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
@@ -594,9 +580,11 @@ void SbPlayerPipeline::SetDecryptor(Decryptor* decryptor) {
   if (!decryptor) {
     return;
   }
-  StarboardDecryptor* sb_decryptor =
-      reinterpret_cast<StarboardDecryptor*>(decryptor);
-  CreatePlayer(sb_decryptor->drm_system());
+  NOTREACHED();
+  // TODO: Migrate this
+  // StarboardDecryptor* sb_decryptor =
+  //    reinterpret_cast<StarboardDecryptor*>(decryptor);
+  // CreatePlayer(sb_decryptor->drm_system());
 }
 
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
@@ -631,8 +619,10 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
       is_encrypted |= video_config.is_encrypted();
     }
     if (is_encrypted) {
-      decryptor_ready_cb_.Run(
-          BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDecryptor, this)));
+      // TODO: Migrate this
+      // decryptor_ready_cb_.Run(
+      //    BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDecryptor,
+      //    this)));
       return;
     }
   }
@@ -672,7 +662,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     return;
   }
 
-  scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(type);
+  DemuxerStream* stream = demuxer_->GetStream(type);
 
   // In case if Stop() has been called.
   if (!player_) {
@@ -734,7 +724,7 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
     }
     video_read_in_progress_ = true;
   }
-  scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(type);
+  DemuxerStream* stream = demuxer_->GetStream(type);
   stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
 }
 
@@ -773,8 +763,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
   }
 }
 
-void SbPlayerPipeline::UpdateDecoderConfig(
-    const scoped_refptr<DemuxerStream>& stream) {
+void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (stream->type() == DemuxerStream::AUDIO) {

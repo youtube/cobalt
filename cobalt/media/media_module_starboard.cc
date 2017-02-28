@@ -21,10 +21,15 @@
 #include "cobalt/math/size.h"
 #include "cobalt/media/shell_media_platform_starboard.h"
 #include "cobalt/system_window/starboard/system_window.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/player/web_media_player_impl.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 #include "media/base/message_loop_factory.h"
 #include "media/player/web_media_player_impl.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "starboard/media.h"
 #include "starboard/window.h"
 
@@ -34,8 +39,10 @@ namespace media {
 namespace {
 
 using ::base::polymorphic_downcast;
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::FilterCollection;
 using ::media::MessageLoopFactory;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 using system_window::SystemWindowStarboard;
 
 class MediaModuleStarboard : public MediaModule {
@@ -66,10 +73,19 @@ class MediaModuleStarboard : public MediaModule {
   }
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       ::media::WebMediaPlayerClient* client) OVERRIDE {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+    SbWindow window = kSbWindowInvalid;
+    if (system_window_) {
+      window = polymorphic_downcast<SystemWindowStarboard*>(system_window_)
+                   ->GetSbWindow();
+    }
+    return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
+        window, client, this, media_platform_.GetVideoFrameProvider(),
+        new ::media::MediaLog));
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
     scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
     scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
         message_loop_factory->GetMessageLoop(MessageLoopFactory::kPipeline);
-    scoped_ptr<FilterCollection> filter_collection(new FilterCollection);
 
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
@@ -78,8 +94,9 @@ class MediaModuleStarboard : public MediaModule {
     }
     return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
         window, client, this, media_platform_.GetVideoFrameProvider(),
-        filter_collection.Pass(), NULL, message_loop_factory.Pass(),
-        new ::media::MediaLog));
+        scoped_ptr<FilterCollection>(new FilterCollection), NULL,
+        message_loop_factory.Pass(), new ::media::MediaLog));
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   }
 
  private:

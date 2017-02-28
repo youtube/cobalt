@@ -45,32 +45,31 @@
 // at destruction of this class we will need to unhook it from destruction event
 // list of the main thread.
 
-#ifndef MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
-#define MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
+#ifndef COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
+#define COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
+#include "base/threading/thread.h"
 #include "base/time.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/eme_constants.h"
+#include "cobalt/media/base/pipeline.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/player/web_media_player.h"
+#include "cobalt/media/player/web_media_player_delegate.h"
 #include "googleurl/src/gurl.h"
-#include "media/base/audio_renderer_sink.h"
-#include "media/base/decryptor.h"
-#include "media/base/message_loop_factory.h"
-#include "media/base/pipeline.h"
-#include "media/base/ranges.h"
-#include "media/base/shell_video_frame_provider.h"
-#include "media/player/crypto/key_systems.h"
-#include "media/player/crypto/proxy_decryptor.h"
-#include "media/player/web_media_player.h"
-#include "media/player/web_media_player_delegate.h"
 #include "ui/gfx/size.h"
 
 #if defined(OS_STARBOARD)
 
 #if SB_HAS(PLAYER)
+#define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 #endif  // SB_HAS(PLAYER)
 
@@ -78,7 +77,6 @@
 
 namespace media {
 
-class AudioRendererSink;
 class ChunkDemuxer;
 class MediaLog;
 class WebMediaPlayerProxy;
@@ -110,9 +108,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
       WebMediaPlayerClient* client,
       WebMediaPlayerDelegate* delegate,
       const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
-      scoped_ptr<FilterCollection> collection,
-      const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
-      scoped_ptr<MessageLoopFactory> message_loop_factory,
       const scoped_refptr<MediaLog>& media_log);
   ~WebMediaPlayerImpl() OVERRIDE;
 
@@ -132,7 +127,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetRate(float rate) OVERRIDE;
   void SetVolume(float volume) OVERRIDE;
   void SetVisible(bool visible) OVERRIDE;
-  virtual bool GetTotalBytesKnown();
   const Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE;
   float GetMaxTimeSeekable() const OVERRIDE;
 
@@ -163,7 +157,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayer::ReadyState GetReadyState() const OVERRIDE;
 
   bool DidLoadingProgress() const OVERRIDE;
-  unsigned long long GetTotalBytes() const OVERRIDE;
 
   bool HasSingleSecurityOrigin() const OVERRIDE;
   bool DidPassCORSAccessCheck() const OVERRIDE;
@@ -176,37 +169,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   unsigned GetVideoDecodedByteCount() const OVERRIDE;
 
   scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE;
-  // TODO: Remove Get/PutCurrentFrame.
-  scoped_refptr<VideoFrame> GetCurrentFrame() OVERRIDE;
-  void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame) OVERRIDE;
-
-  AddIdStatus SourceAddId(const std::string& id,
-                          const std::string& type,
-                          const std::vector<std::string>& codecs) OVERRIDE;
-  bool SourceRemoveId(const std::string& id) OVERRIDE;
-  Ranges<base::TimeDelta> SourceBuffered(const std::string& id) OVERRIDE;
-  bool SourceAppend(const std::string& id,
-                    const unsigned char* data,
-                    unsigned length) OVERRIDE;
-  bool SourceAbort(const std::string& id) OVERRIDE;
-  double SourceGetDuration() const OVERRIDE;
-  void SourceSetDuration(double new_duration) OVERRIDE;
-  void SourceEndOfStream(EndOfStreamStatus status) OVERRIDE;
-  bool SourceSetTimestampOffset(const std::string& id, double offset) OVERRIDE;
-
-  MediaKeyException GenerateKeyRequest(const std::string& key_system,
-                                       const unsigned char* init_data,
-                                       unsigned init_data_length) OVERRIDE;
-
-  MediaKeyException AddKey(const std::string& key_system,
-                           const unsigned char* key,
-                           unsigned key_length,
-                           const unsigned char* init_data,
-                           unsigned init_data_length,
-                           const std::string& session_id) OVERRIDE;
-
-  MediaKeyException CancelKeyRequest(const std::string& key_system,
-                                     const std::string& session_id) OVERRIDE;
 
   SetBoundsCB GetSetBoundsCB() OVERRIDE;
 
@@ -223,20 +185,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void OnPipelineError(PipelineStatus error);
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
   void OnDemuxerOpened();
-  void OnKeyAdded(const std::string& key_system, const std::string& session_id);
-  void OnKeyError(const std::string& key_system,
-                  const std::string& session_id,
-                  Decryptor::KeyError error_code,
-                  int system_code);
-  void OnKeyMessage(const std::string& key_system,
-                    const std::string& session_id,
-                    const std::string& message,
-                    const GURL& default_url);
-  void OnNeedKey(const std::string& key_system,
-                 const std::string& type,
-                 const std::string& session_id,
-                 scoped_array<uint8> init_data,
-                 int init_data_size);
   void SetOpaque(bool);
 
  private:
@@ -244,7 +192,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void NotifyDownloading(bool is_downloading);
 
   // Finishes starting the pipeline due to a call to load().
-  void StartPipeline();
+  void StartPipeline(Demuxer* demuxer);
 
   // Helpers that set the network/ready state and notifies the client if
   // they've changed.
@@ -256,6 +204,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   void GetMediaTimeAndSeekingState(base::TimeDelta* media_time,
                                    bool* is_seeking) const;
+  void OnEncryptedMediaInitData(EmeInitDataType init_data_type,
+                                const std::vector<uint8_t>& init_data);
 
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();
@@ -263,19 +213,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Callbacks that forward duration change from |pipeline_| to |client_|.
   void OnDurationChanged();
 
-  // Actually do the work for generateKeyRequest/addKey so they can easily
-  // report results to UMA.
-  MediaKeyException GenerateKeyRequestInternal(const std::string& key_system,
-                                               const unsigned char* init_data,
-                                               unsigned init_data_length);
-  MediaKeyException AddKeyInternal(const std::string& key_system,
-                                   const unsigned char* key,
-                                   unsigned key_length,
-                                   const unsigned char* init_data,
-                                   unsigned init_data_length,
-                                   const std::string& session_id);
-  MediaKeyException CancelKeyRequestInternal(const std::string& key_system,
-                                             const std::string& session_id);
+  base::Thread pipeline_thread_;
 
   // TODO(hclam): get rid of these members and read from the pipeline directly.
   WebMediaPlayer::NetworkState network_state_;
@@ -288,14 +226,13 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // for DCHECKs so methods calls won't execute in the wrong thread.
   MessageLoop* main_loop_;
 
-  scoped_ptr<FilterCollection> filter_collection_;
   scoped_refptr<Pipeline> pipeline_;
 
   // The currently selected key system. Empty string means that no key system
   // has been selected.
   std::string current_key_system_;
 
-  scoped_ptr<MessageLoopFactory> message_loop_factory_;
+  scoped_refptr<base::MessageLoopProxy> pipeline_message_loop_;
 
   // Internal state of the WebMediaPlayer. Gathered in one struct to support
   // serialization of this state in debug logs. This should not contain any
@@ -348,19 +285,10 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   bool incremented_externally_allocated_memory_;
 
-  scoped_refptr<AudioRendererSink> audio_renderer_sink_;
-
   bool is_local_source_;
   bool supports_save_;
 
-  // The decryptor that manages decryption keys and decrypts encrypted frames.
-  scoped_ptr<ProxyDecryptor> decryptor_;
-
-  scoped_refptr<ChunkDemuxer> chunk_demuxer_;
-
-  // Temporary for EME v0.1. In the future the init data type should be passed
-  // through GenerateKeyRequest() directly.
-  std::string init_data_type_;
+  scoped_ptr<ChunkDemuxer> chunk_demuxer_;
 
 #if defined(__LB_ANDROID__)
   AudioFocusBridge audio_focus_bridge_;
@@ -379,4 +307,4 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
 }  // namespace media
 
-#endif  // MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
+#endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_
