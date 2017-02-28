@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Google Inc. All Rights Reserved.
+ * Copyright 2012 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_DELEGATE_H_
-#define COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_DELEGATE_H_
+#include "cobalt/media/base/shell_media_platform.h"
 
-#include "base/compiler_specific.h"
+namespace {
+
+media::ShellMediaPlatform* s_shell_media_platform_;
+
+}  // namespace
 
 namespace media {
 
-class WebMediaPlayer;
+// static
+ShellMediaPlatform* ShellMediaPlatform::Instance() {
+  return s_shell_media_platform_;
+}
 
-class WebMediaPlayerDelegate {
- public:
-  virtual void RegisterPlayer(WebMediaPlayer* player) = 0;
-  virtual void UnregisterPlayer(WebMediaPlayer* player) = 0;
-
- protected:
-  virtual ~WebMediaPlayerDelegate() {}
-};
+// static
+void ShellMediaPlatform::SetInstance(ShellMediaPlatform* shell_media_platform) {
+  s_shell_media_platform_ = shell_media_platform;
+}
 
 }  // namespace media
-
-#endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_DELEGATE_H_

@@ -175,8 +175,6 @@
         'media_key_needed_event.h',
         'media_query_list.cc',
         'media_query_list.h',
-        'media_source.cc',
-        'media_source.h',
         'memory_info.cc',
         'memory_info.h',
         'mime_type_array.cc',
@@ -223,10 +221,6 @@
         'security_policy_violation_event.h',
         'serializer.cc',
         'serializer.h',
-        'source_buffer.cc',
-        'source_buffer.h',
-        'source_buffer_list.cc',
-        'source_buffer_list.h',
         'storage.cc',
         'storage.h',
         'storage_area.cc',
@@ -239,6 +233,7 @@
         'text.h',
         'time_ranges.cc',
         'time_ranges.h',
+        'track_base.h',
         'track_default.h',
         'track_default_list.h',
         'track_event.h',
@@ -270,7 +265,6 @@
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
-        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         # Interface layer to avoid directly depending on network.
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
@@ -279,6 +273,33 @@
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/nb/nb.gyp:nb',
+      ],
+      'conditions': [
+        ['cobalt_media_source_2016==1', {
+          'sources': [
+            'media_source/media_source.cc',
+            'media_source/media_source.h',
+            'media_source/source_buffer.cc',
+            'media_source/source_buffer.h',
+            'media_source/source_buffer_list.cc',
+            'media_source/source_buffer_list.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        }, {
+          'sources': [
+            'media_source.cc',
+            'media_source.h',
+            'source_buffer.cc',
+            'source_buffer.h',
+            'source_buffer_list.cc',
+            'source_buffer_list.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
+        }],
       ],
     },
 

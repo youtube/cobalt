@@ -75,7 +75,7 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
 }  // namespace
 
 MediaSource::MediaSource()
-    : ready_state_(kReadyStateClosed),
+    : ready_state_(kClosed),
       player_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       source_buffers_(new SourceBufferList(&event_queue_)) {}
@@ -92,7 +92,7 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
 double MediaSource::duration(script::ExceptionState* exception_state) const {
   UNREFERENCED_PARAMETER(exception_state);
 
-  if (ready_state_ == kReadyStateClosed) {
+  if (ready_state_ == kClosed) {
     return std::numeric_limits<float>::quiet_NaN();
   }
 
@@ -106,7 +106,7 @@ void MediaSource::set_duration(double duration,
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
-  if (ready_state_ != kReadyStateOpen) {
+  if (ready_state_ != kOpen) {
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
@@ -133,7 +133,7 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
     return NULL;
   }
 
-  if (!player_ || ready_state_ != kReadyStateOpen) {
+  if (!player_ || ready_state_ != kOpen) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return NULL;
@@ -184,27 +184,18 @@ void MediaSource::RemoveSourceBuffer(
   player_->SourceRemoveId(source_buffer->id());
 }
 
-std::string MediaSource::ready_state() const {
-  switch (ready_state_) {
-    case kReadyStateClosed:
-      return "closed";
-    case kReadyStateOpen:
-      return "open";
-    case kReadyStateEnded:
-      return "ended";
-  }
-  NOTREACHED() << "ready_state_ (" << ready_state_ << ") is invalid";
-  return "";
+MediaSource::ReadyState MediaSource::ready_state() const {
+  return ready_state_;
 }
 
 void MediaSource::EndOfStream(script::ExceptionState* exception_state) {
   // If there is no error string provided, treat it as empty.
-  EndOfStream("", exception_state);
+  EndOfStream(kNoError, exception_state);
 }
 
-void MediaSource::EndOfStream(const std::string& error,
+void MediaSource::EndOfStream(EndOfStreamError error,
                               script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ != kReadyStateOpen) {
+  if (!player_ || ready_state_ != kOpen) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
@@ -212,18 +203,18 @@ void MediaSource::EndOfStream(const std::string& error,
   WebMediaPlayer::EndOfStreamStatus eos_status =
       WebMediaPlayer::kEndOfStreamStatusNoError;
 
-  if (error.empty() || error == "null") {
+  if (error == kNoError) {
     eos_status = WebMediaPlayer::kEndOfStreamStatusNoError;
-  } else if (error == "network") {
+  } else if (error == kNetwork) {
     eos_status = WebMediaPlayer::kEndOfStreamStatusNetworkError;
-  } else if (error == "decode") {
+  } else if (error == kDecode) {
     eos_status = WebMediaPlayer::kEndOfStreamStatusDecodeError;
   } else {
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
 
-  SetReadyState(kReadyStateEnded);
+  SetReadyState(kEnded);
   player_->SourceEndOfStream(eos_status);
 }
 
@@ -254,7 +245,7 @@ void MediaSource::ScheduleEvent(base::Token event_name) {
 scoped_refptr<TimeRanges> MediaSource::GetBuffered(
     const SourceBuffer* source_buffer,
     script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ == kReadyStateClosed) {
+  if (!player_ || ready_state_ == kClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return NULL;
@@ -274,7 +265,7 @@ scoped_refptr<TimeRanges> MediaSource::GetBuffered(
 bool MediaSource::SetTimestampOffset(const SourceBuffer* source_buffer,
                                      double timestamp_offset,
                                      script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ == kReadyStateClosed) {
+  if (!player_ || ready_state_ == kClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return false;
@@ -295,13 +286,13 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
     return;
   }
 
-  if (!player_ || ready_state_ == kReadyStateClosed) {
+  if (!player_ || ready_state_ == kClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
-  if (ready_state_ == kReadyStateEnded) {
-    SetReadyState(kReadyStateOpen);
+  if (ready_state_ == kEnded) {
+    SetReadyState(kOpen);
   }
 
   TRACE_EVENT1("media_stack", "MediaSource::Append()", "size", size);
@@ -325,17 +316,13 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
 
 void MediaSource::Abort(const SourceBuffer* source_buffer,
                         script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ != kReadyStateOpen) {
+  if (!player_ || ready_state_ != kOpen) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
   bool aborted = player_->SourceAbort(source_buffer->id());
   DCHECK(aborted);
-}
-
-MediaSource::ReadyState MediaSource::GetReadyState() const {
-  return ready_state_;
 }
 
 void MediaSource::SetReadyState(ReadyState ready_state) {
@@ -346,19 +333,19 @@ void MediaSource::SetReadyState(ReadyState ready_state) {
   ReadyState old_state = ready_state_;
   ready_state_ = ready_state;
 
-  if (ready_state_ == kReadyStateClosed) {
+  if (ready_state_ == kClosed) {
     source_buffers_->Clear();
     player_ = NULL;
     ScheduleEvent(base::Tokens::sourceclose());
     return;
   }
 
-  if (old_state == kReadyStateOpen && ready_state_ == kReadyStateEnded) {
+  if (old_state == kOpen && ready_state_ == kEnded) {
     ScheduleEvent(base::Tokens::sourceended());
     return;
   }
 
-  if (ready_state_ == kReadyStateOpen) {
+  if (ready_state_ == kOpen) {
     ScheduleEvent(base::Tokens::sourceopen());
   }
 }

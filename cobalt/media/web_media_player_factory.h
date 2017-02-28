@@ -17,7 +17,11 @@
 #ifndef COBALT_MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
 #define COBALT_MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/player/web_media_player.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/player/web_media_player.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {

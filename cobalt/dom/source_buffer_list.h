@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/media_source/source_buffer_list.h"
+#define COBALT_DOM_SOURCE_BUFFER_LIST_H_
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
 #ifndef COBALT_DOM_SOURCE_BUFFER_LIST_H_
 #define COBALT_DOM_SOURCE_BUFFER_LIST_H_
 

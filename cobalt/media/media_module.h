@@ -35,10 +35,13 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
-#include "media/base/shell_media_platform.h"
-#include "media/base/shell_video_frame_provider.h"
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/player/web_media_player_delegate.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/filters/shell_video_decoder_impl.h"
 #include "media/player/web_media_player_delegate.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {
@@ -83,11 +86,13 @@ class MediaModule : public CanPlayTypeHandler,
   void Suspend();
   void Resume();
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   virtual ::media::ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
     return NULL;
   }
-#endif  // !defined(COBALT_RELEASE)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.
