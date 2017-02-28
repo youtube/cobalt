@@ -21,6 +21,7 @@
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
+#include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
 namespace cobalt {
 namespace renderer {
@@ -50,7 +51,9 @@ class DrawObject {
   virtual ~DrawObject() {}
 
   // Issue GL commands to rasterize the object.
-  virtual void Execute(GraphicsState* graphics_state, ExecutionStage stage) = 0;
+  virtual void Execute(GraphicsState* graphics_state,
+                       ShaderProgramManager* program_manager,
+                       ExecutionStage stage) = 0;
 
  protected:
   explicit DrawObject(const BaseState& base_state);
