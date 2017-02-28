@@ -35,10 +35,9 @@ class DrawRectTexture : public DrawObject {
                   const backend::TextureEGL* texture,
                   const math::Matrix3F& texcoord_transform);
 
-  void Execute(GraphicsState* graphics_state, ExecutionStage stage) OVERRIDE;
-
-  static void CreateResources();
-  static void DestroyResources();
+  void Execute(GraphicsState* graphics_state,
+               ShaderProgramManager* program_manager,
+               ExecutionStage stage) OVERRIDE;
 
  private:
   math::Matrix3F texcoord_transform_;
@@ -46,16 +45,6 @@ class DrawRectTexture : public DrawObject {
   const backend::TextureEGL* texture_;
 
   uint8_t* vertex_buffer_;
-
-  static GLuint fragment_shader_;
-  static GLuint vertex_shader_;
-  static GLuint program_;
-
-  static GLint u_clip_adjustment_;
-  static GLint u_view_matrix_;
-  static GLint a_position_;
-  static GLint a_texcoord_;
-  static GLint u_texture0_;
 };
 
 }  // namespace egl
