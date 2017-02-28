@@ -413,6 +413,7 @@ std::string ChunkDemuxer::GetDisplayName() const { return "ChunkDemuxer"; }
 void ChunkDemuxer::Initialize(DemuxerHost* host,
                               const PipelineStatusCB& init_cb,
                               bool enable_text_tracks) {
+  DLOG(INFO) << "This is an ASYNC MEDIA SOURCE playback.";
   DVLOG(1) << "Init()";
 
   base::AutoLock auto_lock(lock_);
