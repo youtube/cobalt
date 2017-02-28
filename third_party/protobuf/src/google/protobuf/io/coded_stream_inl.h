@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -36,9 +36,12 @@
 #ifndef GOOGLE_PROTOBUF_IO_CODED_STREAM_INL_H__
 #define GOOGLE_PROTOBUF_IO_CODED_STREAM_INL_H__
 
+#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/stubs/common.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <string>
-#include <google/protobuf/stubs/stl_util-inl.h>
+#include <google/protobuf/stubs/stl_util.h>
 
 namespace google {
 namespace protobuf {
@@ -50,12 +53,47 @@ inline bool CodedInputStream::InternalReadStringInline(string* buffer,
 
   if (BufferSize() >= size) {
     STLStringResizeUninitialized(buffer, size);
-    memcpy(string_as_array(buffer), buffer_, size);
-    Advance(size);
+    std::pair<char*, bool> z = as_string_data(buffer);
+    if (z.second) {
+      // Oddly enough, memcpy() requires its first two args to be non-NULL even
+      // if we copy 0 bytes.  So, we have ensured that z.first is non-NULL here.
+      GOOGLE_DCHECK(z.first != NULL);
+#ifndef STARBOARD
+      memcpy(z.first, buffer_, size);
+#else
+      SbMemoryCopy(z.first, buffer_, size);
+#endif  // STARBOARD
+      Advance(size);
+    }
     return true;
   }
 
   return ReadStringFallback(buffer, size);
+}
+
+inline bool CodedInputStream::InternalReadRawInline(void* buffer, int size) {
+  int current_buffer_size;
+  while ((current_buffer_size = BufferSize()) < size) {
+    // Reading past end of buffer.  Copy what we have, then refresh.
+#ifndef STARBOARD
+    memcpy(buffer, buffer_, current_buffer_size);
+#else
+    SbMemoryCopy(buffer, buffer_, current_buffer_size);
+#endif  // STARBOARD
+    buffer = reinterpret_cast<uint8*>(buffer) + current_buffer_size;
+    size -= current_buffer_size;
+    Advance(current_buffer_size);
+    if (!Refresh()) return false;
+  }
+
+#ifndef STARBOARD
+  memcpy(buffer, buffer_, size);
+#else
+  SbMemoryCopy(buffer, buffer_, size);
+#endif  // STARBOARD
+  Advance(size);
+
+  return true;
 }
 
 }  // namespace io
