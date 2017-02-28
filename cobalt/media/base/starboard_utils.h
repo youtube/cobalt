@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_STARBOARD_UTILS_H_
-#define MEDIA_BASE_STARBOARD_UTILS_H_
+#ifndef COBALT_MEDIA_BASE_STARBOARD_UTILS_H_
+#define COBALT_MEDIA_BASE_STARBOARD_UTILS_H_
 
-#include "media/base/audio_decoder_config.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/video_decoder_config.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 
@@ -44,4 +44,4 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STARBOARD_UTILS_H_
+#endif  // COBALT_MEDIA_BASE_STARBOARD_UTILS_H_
