@@ -15,13 +15,11 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_DECODER_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_DECODER_H_
 
-#include <media/NdkMediaCodec.h>
-#include <media/NdkMediaError.h>
-#include <media/NdkMediaExtractor.h>
-#include <media/NdkMediaFormat.h>
+#include <jni.h>
 
 #include <queue>
 
+#include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -54,16 +52,20 @@ class AudioDecoder
   int GetSamplesPerSecond() const SB_OVERRIDE {
     return audio_header_.samples_per_second;
   }
-  bool is_valid() const {
-    return media_codec_ != NULL && media_format_ != NULL;
-  }
+  bool is_valid() const { return media_codec_bridge_ != NULL; }
 
  private:
-  void InitializeCodec();
+  bool InitializeCodec();
   void TeardownCodec();
 
-  AMediaCodec* media_codec_;
-  AMediaFormat* media_format_;
+  bool ProcessOneInputBuffer(const InputBuffer& input_buffer);
+  bool ProcessOneInputRawData(const void* data,
+                              int size,
+                              SbMediaTime pts,
+                              jint flags);
+  bool ProcessOneOutputBuffer();
+
+  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
   SbMediaAudioSampleType sample_type_;
 
