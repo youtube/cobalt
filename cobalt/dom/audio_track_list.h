@@ -38,6 +38,18 @@ class AudioTrackList : public TrackListBase<AudioTrack> {
   using TrackListBase<AudioTrack>::AnonymousIndexedGetter;
   using TrackListBase<AudioTrack>::GetTrackById;
 
+  // Custom, not in any spec.
+  //
+  bool HasEnabledTrack() const {
+    for (uint32 i = 0; i < length(); ++i) {
+      if (AnonymousIndexedGetter(i)->enabled()) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   DEFINE_WRAPPABLE_TYPE(AudioTrackList);
 };
 

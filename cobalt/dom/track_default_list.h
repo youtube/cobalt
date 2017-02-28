@@ -51,7 +51,7 @@ class TrackDefaultList : public script::Wrappable {
       TypeAndId type_and_id(track_default->type(),
                             track_default->byte_stream_track_id());
       if (!type_and_ids.insert(type_and_id).second) {
-        DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
+        DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
         return;
       }
     }
