@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/starboard_player.h"
+#include "cobalt/media/base/starboard_player.h"
 
 #include <algorithm>
 
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "media/base/shell_media_platform.h"
-#include "media/base/starboard_utils.h"
+#include "cobalt/media/base/starboard_utils.h"
 #include "starboard/memory.h"
 
 namespace media {
@@ -28,12 +27,12 @@ namespace media {
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const AudioDecoderConfig& audio_config,
-    const VideoDecoderConfig& video_config,
-    SbWindow window,
-    SbDrmSystem drm_system,
-    Host* host,
+    const VideoDecoderConfig& video_config, SbWindow window,
+    SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper)
     : message_loop_(message_loop),
+      audio_config_(audio_config),
+      video_config_(video_config),
       window_(window),
       drm_system_(drm_system),
       host_(host),
@@ -51,13 +50,11 @@ StarboardPlayer::StarboardPlayer(
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
 
-  audio_config_.CopyFrom(audio_config);
-  video_config_.CopyFrom(video_config);
-
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   output_mode_ = ComputeSbPlayerOutputMode(
       MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system);
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
   CreatePlayer();
 
   message_loop->PostTask(
@@ -106,25 +103,25 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
 
   DCHECK(SbPlayerIsValid(player_));
 
-  if (buffer->IsEndOfStream()) {
+  if (buffer->end_of_stream()) {
     SbPlayerWriteEndOfStream(player_, DemuxerStreamTypeToSbMediaType(type));
     return;
   }
 
-  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->GetData());
+  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
   if (iter == decoding_buffers_.end()) {
-    decoding_buffers_[buffer->GetData()] = std::make_pair(buffer, 1);
+    decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
   } else {
     ++iter->second.second;
   }
 
   SbDrmSampleInfo drm_info;
   SbDrmSubSampleMapping subsample_mapping;
-  bool is_encrypted = buffer->GetDecryptConfig();
+  bool is_encrypted = buffer->decrypt_config();
   SbMediaVideoSampleInfo video_info;
 
   drm_info.subsample_count = 0;
-  video_info.is_key_frame = buffer->IsKeyframe();
+  video_info.is_key_frame = buffer->is_key_frame();
   video_info.frame_width = frame_width_;
   video_info.frame_height = frame_height_;
 
@@ -137,8 +134,8 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
   SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
-                      buffer->GetData(), buffer->GetDataSize(),
-                      TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
+                      buffer->data(), buffer->data_size(),
+                      TimeDeltaToSbMediaTime(buffer->timestamp()),
                       type == DemuxerStream::VIDEO ? &video_info : NULL,
                       drm_info.subsample_count > 0 ? &drm_info : NULL);
 }
@@ -304,10 +301,11 @@ void StarboardPlayer::CreatePlayer() {
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = audio_config_.bits_per_channel();
   audio_header.audio_specific_config_size = static_cast<uint16_t>(
-      std::min(audio_config_.extra_data_size(),
+      std::min(audio_config_.extra_data().size(),
                sizeof(audio_header.audio_specific_config)));
   if (audio_header.audio_specific_config_size > 0) {
-    SbMemoryCopy(audio_header.audio_specific_config, audio_config_.extra_data(),
+    SbMemoryCopy(audio_header.audio_specific_config,
+                 &audio_config_.extra_data()[0],
                  audio_header.audio_specific_config_size);
   }
 
