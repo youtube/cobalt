@@ -59,7 +59,7 @@ void GraphicsState::EndFrame() {
   vertex_data_reserved_ = kVertexDataAlignment - 1;
   vertex_data_allocated_ = 0;
   vertex_data_buffer_updated_ = false;
-  GL_CALL(glFlush());
+  UseProgram(0);
 }
 
 void GraphicsState::Clear() {
