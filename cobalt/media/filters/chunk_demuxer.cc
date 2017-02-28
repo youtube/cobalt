@@ -633,7 +633,7 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
       if (audio_streams_[i] == *iter) {
         stream_found = true;
         removed_streams_.push_back(audio_streams_[i]);
-        audio_streams_.erase(audio_streams_.begin() + i);
+        audio_streams_.weak_erase(audio_streams_.begin() + i);
         break;
       }
     }
@@ -642,7 +642,7 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
       if (video_streams_[i] == *iter) {
         stream_found = true;
         removed_streams_.push_back(video_streams_[i]);
-        video_streams_.erase(video_streams_.begin() + i);
+        video_streams_.weak_erase(video_streams_.begin() + i);
         break;
       }
     }
