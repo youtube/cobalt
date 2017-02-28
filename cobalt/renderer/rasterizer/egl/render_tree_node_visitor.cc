@@ -32,8 +32,10 @@ namespace rasterizer {
 namespace egl {
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
+    ShaderProgramManager* shader_program_manager,
     const FallbackRasterizeFunction* fallback_rasterize)
     : graphics_state_(graphics_state),
+      shader_program_manager_(shader_program_manager),
       fallback_rasterize_(fallback_rasterize) {
   // Let the first draw object render in front of the clear depth.
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
@@ -186,7 +188,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text) {
 void RenderTreeNodeVisitor::ExecuteDraw(DrawObject::ExecutionStage stage) {
   for (int type = 0; type < kDrawCount; ++type) {
     for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->Execute(graphics_state_, stage);
+      draw_objects_[type][index]->Execute(graphics_state_,
+                                          shader_program_manager_, stage);
     }
   }
 }
