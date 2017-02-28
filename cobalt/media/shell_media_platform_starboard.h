@@ -17,13 +17,70 @@
 #ifndef COBALT_MEDIA_SHELL_MEDIA_PLATFORM_STARBOARD_H_
 #define COBALT_MEDIA_SHELL_MEDIA_PLATFORM_STARBOARD_H_
 
+#include "base/logging.h"
+#include "cobalt/render_tree/resource_provider.h"
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+
+#include "cobalt/media/base/shell_media_platform.h"
+
+namespace media {
+class ShellMediaPlatformStarboard : public ShellMediaPlatform {
+ public:
+  explicit ShellMediaPlatformStarboard(
+      cobalt::render_tree::ResourceProvider* resource_provider)
+      : video_frame_provider_(new ShellVideoFrameProvider),
+        resource_provider_(resource_provider) {
+    SetInstance(this);
+  }
+
+  ~ShellMediaPlatformStarboard() {
+    DCHECK_EQ(Instance(), this);
+    SetInstance(NULL);
+  }
+
+  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE {
+    return video_frame_provider_;
+  }
+
+#if SB_API_VERSION >= 3
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE {
+#if SB_HAS(GRAPHICS)
+    return resource_provider_->GetSbDecodeTargetProvider();
+#else   // SB_HAS(GRAPHICS)
+    return NULL;
+#endif  // SB_HAS(GRAPHICS)
+  }
+#endif  // SB_API_VERSION >= 3
+
+ private:
+  void* AllocateBuffer(size_t size) OVERRIDE {
+    NOTREACHED();
+    return NULL;
+  }
+  void FreeBuffer(void* ptr) OVERRIDE { NOTREACHED(); }
+  size_t GetSourceBufferStreamAudioMemoryLimit() const OVERRIDE {
+    NOTREACHED();
+    return 0;
+  }
+  size_t GetSourceBufferStreamVideoMemoryLimit() const OVERRIDE {
+    NOTREACHED();
+    return 0;
+  }
+
+  cobalt::render_tree::ResourceProvider* resource_provider_;
+  scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
+};
+}  // namespace media
+
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
+
 #include "media/base/shell_media_platform.h"
 
 #include "base/compiler_specific.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/shell_video_data_allocator_common.h"
-#include "cobalt/render_tree/resource_provider.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "nb/memory_pool.h"
 
@@ -85,5 +142,7 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 };
 
 }  // namespace media
+
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 #endif  // COBALT_MEDIA_SHELL_MEDIA_PLATFORM_STARBOARD_H_

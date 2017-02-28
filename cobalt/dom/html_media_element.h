@@ -27,16 +27,22 @@
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/media_error.h"
-#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/uint8_array.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/player/web_media_player.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/media_source.h"
 #include "media/player/web_media_player.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace dom {
+
+class MediaSource;
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   https://www.w3.org/TR/html5/embedded-content-0.html#media-element
@@ -130,6 +136,11 @@ class HTMLMediaElement : public HTMLElement,
   // From Node
   void OnInsertedIntoDocument() OVERRIDE;
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  // Called by MediaSource
+  void DurationChanged(double duration, bool request_seek);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
   // Let other objects add event to the EventQueue of HTMLMediaElement.  This
   // function won't modify the target of the |event| passed in.
   void ScheduleEvent(const scoped_refptr<Event>& event);
@@ -209,7 +220,11 @@ class HTMLMediaElement : public HTMLElement,
   void PlaybackStateChanged() OVERRIDE;
   void SawUnsupportedTracks() OVERRIDE;
   float Volume() const OVERRIDE;
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) OVERRIDE;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   void SourceOpened() OVERRIDE;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const OVERRIDE;
   void KeyAdded(const std::string& key_system,
                 const std::string& session_id) OVERRIDE;
@@ -221,8 +236,10 @@ class HTMLMediaElement : public HTMLElement,
   void KeyNeeded(const std::string& key_system, const std::string& session_id,
                  const unsigned char* init_data,
                  unsigned int init_data_length) OVERRIDE;
-
+  void ClearMediaSource();
+#if !defined(COBALT_MEDIA_SOURCE_2016)
   void SetSourceState(MediaSource::ReadyState ready_state);
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   // Called whenever the player's output mode (e.g. punch-out,
   // decode-to-texture) is updated.
