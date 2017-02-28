@@ -24,6 +24,19 @@ struct MEDIA_EXPORT MasteringMetadata {
 
   MasteringMetadata();
   MasteringMetadata(const MasteringMetadata& rhs);
+
+  bool operator==(const MasteringMetadata& rhs) const {
+    return ((primary_r_chromaticity_x == rhs.primary_r_chromaticity_x) &&
+            (primary_r_chromaticity_y == rhs.primary_r_chromaticity_y) &&
+            (primary_g_chromaticity_x == rhs.primary_g_chromaticity_x) &&
+            (primary_g_chromaticity_y == rhs.primary_g_chromaticity_y) &&
+            (primary_b_chromaticity_x == rhs.primary_b_chromaticity_x) &&
+            (primary_b_chromaticity_y == rhs.primary_b_chromaticity_y) &&
+            (white_point_chromaticity_x == rhs.white_point_chromaticity_x) &&
+            (white_point_chromaticity_y == rhs.white_point_chromaticity_y) &&
+            (luminance_max == rhs.luminance_max) &&
+            (luminance_min == rhs.luminance_min));
+  }
 };
 
 // HDR metadata common for HDR10 and WebM/VP9-based HDR formats.
@@ -34,6 +47,11 @@ struct MEDIA_EXPORT HDRMetadata {
 
   HDRMetadata();
   HDRMetadata(const HDRMetadata& rhs);
+
+  bool operator==(const HDRMetadata& rhs) const {
+    return ((max_cll == rhs.max_cll) && (max_fall == rhs.max_fall) &&
+            (mastering_metadata == rhs.mastering_metadata));
+  }
 };
 
 }  // namespace media

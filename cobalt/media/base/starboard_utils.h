@@ -19,6 +19,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 
