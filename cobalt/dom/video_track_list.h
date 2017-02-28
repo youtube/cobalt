@@ -41,11 +41,11 @@ class VideoTrackList : public TrackListBase<VideoTrack> {
   using TrackListBase<VideoTrack>::AnonymousIndexedGetter;
   using TrackListBase<VideoTrack>::GetTrackById;
 
-  uint32 selected_index() const {
+  int32 selected_index() const {
     for (uint32 i = 0; i < length(); ++i) {
       scoped_refptr<VideoTrack> video_track = AnonymousIndexedGetter(i);
       if (video_track->selected()) {
-        return i;
+        return static_cast<int32>(i);
       }
     }
 

@@ -17,35 +17,32 @@
 
 #include <string>
 
-#include "base/memory/weak_ptr.h"
-#include "cobalt/dom/html_media_element.h"
+#include "cobalt/dom/track_base.h"
 #include "cobalt/script/wrappable.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace dom {
 
+class SourceBuffer;
+
 // The VideoTrack interface holds attributes of an video track.
 //   https://www.w3.org/TR/html51/semantics-embedded-content.html#videotrack-videotrack
-class VideoTrack : public script::Wrappable {
+class VideoTrack : public TrackBase {
  public:
   // Custom, not in any spec.
   //
   VideoTrack(const std::string& id, const std::string& kind,
              const std::string& label, const std::string& language,
              bool selected)
-      : id_(id), label_(label), language_(language), selected_(selected) {
-    if (IsValidKind(kind.c_str())) {
-      kind_ = kind;
-    }
-  }
+      : TrackBase(id, kind, label, language, &VideoTrack::IsValidKind),
+        selected_(selected) {}
 
   // Web API: VideoTrack
   //
-  const std::string& id() const { return id_; }
-  const std::string& kind() const { return kind_; }
-  const std::string& label() const { return label_; }
-  const std::string& language() const { return language_; }
+  using TrackBase::id;
+  using TrackBase::kind;
+  using TrackBase::label;
+  using TrackBase::language;
   bool selected() const { return selected_; }
   void set_selected(bool selected) {
     if (selected_ == selected) {
@@ -76,19 +73,11 @@ class VideoTrack : public script::Wrappable {
   // the VideoTrackList to clear the select flag of other VideoTracks when a
   // VideoTrack is selected.
   void deselect() { selected_ = false; }
-  void SetMediaElement(HTMLMediaElement* media_element) {
-    media_element_ = base::AsWeakPtr(media_element);
-  }
 
   DEFINE_WRAPPABLE_TYPE(VideoTrack);
 
  private:
-  std::string id_;
-  std::string kind_;
-  std::string label_;
-  std::string language_;
   bool selected_;
-  base::WeakPtr<HTMLMediaElement> media_element_;
 };
 
 }  // namespace dom
