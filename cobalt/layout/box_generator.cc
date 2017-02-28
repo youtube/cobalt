@@ -43,7 +43,11 @@
 #include "cobalt/layout/white_space_processing.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/shell_video_frame_provider.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/shell_video_frame_provider.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "starboard/decode_target.h"
 
 namespace cobalt {

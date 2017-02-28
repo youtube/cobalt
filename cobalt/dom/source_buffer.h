@@ -14,12 +14,18 @@
  * limitations under the License.
  */
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/media_source/source_buffer.h"
+#define COBALT_DOM_SOURCE_BUFFER_H_
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
 #ifndef COBALT_DOM_SOURCE_BUFFER_H_
 #define COBALT_DOM_SOURCE_BUFFER_H_
 
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/uint8_array.h"
 #include "cobalt/script/exception_state.h"
@@ -33,8 +39,15 @@ class MediaSource;
 // The SourceBuffer interface exposes the media source buffer so its user can
 // append media data to.
 //   https://rawgit.com/w3c/media-source/6747ed7a3206f646963d760100b0f37e2fc7e47e/media-source.html#sourcebuffer
-class SourceBuffer : public script::Wrappable {
+// Note that SourceBuffer is not inherited from EventTarget in MSE 2012 but we
+// make it inherit from EventTarget to be in sync with the binding, which is
+// shared between different versions of MSE.
+class SourceBuffer : public dom::EventTarget {
  public:
+  // Web API: SourceBuffer
+  //
+  enum AppendMode { kSegments, kSequence };
+
   // Custom, not in any spec.
   //
   SourceBuffer(const scoped_refptr<MediaSource>& media_source,

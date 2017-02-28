@@ -23,6 +23,14 @@
         '..',
       ],
       'sources': [
+        'fetcher_buffered_data_source.cc',
+        'fetcher_buffered_data_source.h',
+        'media_module.cc',
+        'media_module.h',
+        'media_module_stub.cc',
+        'media_module_stub.h',
+        'media_module_starboard.cc',
+
         'base/audio_codecs.cc',
         'base/audio_codecs.h',
         'base/audio_decoder_config.cc',
@@ -78,6 +86,8 @@
         'base/sbplayer_set_bounds_helper.h',
         'base/shell_audio_bus.cc',
         'base/shell_audio_bus.h',
+        'base/shell_media_platform.cc',
+        'base/shell_media_platform.h',
         'base/starboard_player.cc',
         'base/starboard_player.h',
         'base/starboard_utils.cc',
@@ -183,6 +193,10 @@
         'formats/webm/webm_webvtt_parser.cc',
         'formats/webm/webm_webvtt_parser.h',
         'player/buffered_data_source.h',
+        'player/web_media_player_impl.cc',
+        'player/web_media_player_impl.h',
+        'player/web_media_player_proxy.cc',
+        'player/web_media_player_proxy.h',
       ],
       'direct_dependent_settings': {
         'include_dirs': [

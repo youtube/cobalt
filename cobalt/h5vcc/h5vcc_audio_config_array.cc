@@ -16,16 +16,19 @@
 
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/audio/shell_audio_streamer.h"
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace h5vcc {
 
-using ::media::ShellAudioStreamer;
-
 H5vccAudioConfigArray::H5vccAudioConfigArray() : audio_config_updated_(false) {}
 
 void H5vccAudioConfigArray::MaybeRefreshAudioConfigs() {
+#if !defined(COBALT_MEDIA_SOURCE_2016)
+  using ::media::ShellAudioStreamer;
+
   if (audio_config_updated_) {
     return;
   }
@@ -44,6 +47,7 @@ void H5vccAudioConfigArray::MaybeRefreshAudioConfigs() {
         output_devices[i].sampling_frequency));
   }
   audio_config_updated_ = true;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 }
 
 }  // namespace h5vcc
