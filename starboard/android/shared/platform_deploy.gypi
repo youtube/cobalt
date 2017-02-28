@@ -22,9 +22,10 @@
           'java_files': [
             '../apk/app/src/main/java/foo/cobalt/AlertDialogPlatformError.java',
             '../apk/app/src/main/java/foo/cobalt/CobaltActivity.java',
+            '../apk/app/src/main/java/foo/cobalt/CobaltHttpHelper.java',
             '../apk/app/src/main/java/foo/cobalt/CobaltPlaybackStateHelper.java',
             '../apk/app/src/main/java/foo/cobalt/CobaltTextToSpeechHelper.java',
-            '../apk/app/src/main/java/foo/cobalt/CobaltHttpHelper.java',
+            '../apk/app/src/main/java/foo/cobalt/MediaCodecBridge.java',
             '../apk/app/src/main/java/foo/cobalt/MediaCodecSelector.java',
             '../apk/app/src/main/java/foo/cobalt/PlatformError.java',
             '../apk/app/src/main/java/foo/cobalt/UsedByNative.java',
