@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_DECODER_BUFFER_CACHE_H_
-#define MEDIA_BASE_DECODER_BUFFER_CACHE_H_
+#ifndef COBALT_MEDIA_BASE_DECODER_BUFFER_CACHE_H_
+#define COBALT_MEDIA_BASE_DECODER_BUFFER_CACHE_H_
 
 #include <deque>
 
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
 #include "base/time.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/demuxer_stream.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/demuxer_stream.h"
 
 namespace media {
 
@@ -67,4 +67,4 @@ class DecoderBufferCache {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_DECODER_BUFFER_CACHE_H_
+#endif  // COBALT_MEDIA_BASE_DECODER_BUFFER_CACHE_H_

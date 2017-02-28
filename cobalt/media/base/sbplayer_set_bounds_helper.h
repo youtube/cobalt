@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
-#define MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
+#ifndef COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
+#define COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
 
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
@@ -40,4 +40,4 @@ class SbPlayerSetBoundsHelper
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
+#endif  // COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_

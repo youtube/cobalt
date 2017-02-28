@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/sbplayer_set_bounds_helper.h"
+#include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 
-#include "media/base/starboard_player.h"
+#include "cobalt/media/base/starboard_player.h"
 
 namespace media {
 

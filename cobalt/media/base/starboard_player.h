@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_STARBOARD_PLAYER_H_
-#define MEDIA_BASE_STARBOARD_PLAYER_H_
+#ifndef COBALT_MEDIA_BASE_STARBOARD_PLAYER_H_
+#define COBALT_MEDIA_BASE_STARBOARD_PLAYER_H_
 
 #include <map>
+#include <utility>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/decoder_buffer_cache.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/sbplayer_set_bounds_helper.h"
-#include "media/base/video_decoder_config.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/decoder_buffer_cache.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+#include "cobalt/media/base/video_decoder_config.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 
@@ -163,4 +164,4 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STARBOARD_PLAYER_H_
+#endif  // COBALT_MEDIA_BASE_STARBOARD_PLAYER_H_

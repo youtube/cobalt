@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_BASE_SHELL_AUDIO_BUS_H_
-#define MEDIA_BASE_SHELL_AUDIO_BUS_H_
+#ifndef COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
+#define COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
 
 #include <vector>
 
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/media_export.h"
+#include "cobalt/export.h"
 
 namespace media {
 
@@ -37,7 +37,7 @@ namespace media {
 // second of such audio contains 48000 frames (96000 samples).
 // Note: This class doesn't do endianness conversions.  It assumes that all data
 // is in the correct endianness.
-class MEDIA_EXPORT ShellAudioBus {
+class COBALT_EXPORT ShellAudioBus {
  public:
   // Guaranteed alignment of each channel's data; use 64-byte alignment so it
   // satisfies all our current platforms.  Note that this is only used for
@@ -159,4 +159,4 @@ class MEDIA_EXPORT ShellAudioBus {
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_SHELL_AUDIO_BUS_H_
+#endif  // COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
