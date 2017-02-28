@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/media_source/media_source.h"
+#define COBALT_DOM_MEDIA_SOURCE_H_
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
 #ifndef COBALT_DOM_MEDIA_SOURCE_H_
 #define COBALT_DOM_MEDIA_SOURCE_H_
 
@@ -45,11 +50,14 @@ class MediaSource : public EventTarget {
  public:
   typedef UrlRegistry<MediaSource> Registry;
 
+  // Web API: MediaSource
+  //
+  enum EndOfStreamError { kNoError, kNetwork, kDecode };
+
+  enum ReadyState { kClosed, kOpen, kEnded };
+
   // Custom, not in any spec.
   //
-  // MediaSource spec defines states as strings "closed", "open" and "ended".
-  enum ReadyState { kReadyStateClosed, kReadyStateOpen, kReadyStateEnded };
-
   MediaSource();
 
   // Web API: MediaSource
@@ -63,10 +71,10 @@ class MediaSource : public EventTarget {
   void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
                           script::ExceptionState* exception_state);
 
-  std::string ready_state() const;
+  ReadyState ready_state() const;
 
   void EndOfStream(script::ExceptionState* exception_state);
-  void EndOfStream(const std::string& error,
+  void EndOfStream(EndOfStreamError error,
                    script::ExceptionState* exception_state);
 
   static bool IsTypeSupported(script::EnvironmentSettings* settings,
@@ -93,7 +101,6 @@ class MediaSource : public EventTarget {
              script::ExceptionState* exception_state);
 
   // Methods used by HTMLMediaElement
-  ReadyState GetReadyState() const;
   void SetReadyState(ReadyState ready_state);
 
   DEFINE_WRAPPABLE_TYPE(MediaSource);

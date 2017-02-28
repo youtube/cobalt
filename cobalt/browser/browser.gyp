@@ -73,7 +73,6 @@
         '<(DEPTH)/cobalt/input/input.gyp:input',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',
-        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
@@ -95,6 +94,15 @@
         }],
         ['enable_mtm == 1', {
           'defines' : ['ENABLE_MTM'],
+        }],
+        ['cobalt_media_source_2016==1', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
         }],
       ],
     },

@@ -37,12 +37,17 @@
 #include "cobalt/dom/media_key_error_event.h"
 #include "cobalt/dom/media_key_message_event.h"
 #include "cobalt/dom/media_key_needed_event.h"
+#include "cobalt/dom/media_source.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/media_log.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
-#include "media/player/can_play_type.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace dom {
@@ -139,7 +144,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
 
 HTMLMediaElement::~HTMLMediaElement() {
   MLOG();
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
   html_media_element_count_log.Get().count--;
 }
 
@@ -578,6 +583,24 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   }
 }
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
+  MLOG() << "DurationChanged(" << duration << ", " << request_seek << ")";
+
+  // TODO: Add cached duration support.
+  /*if (duration_ == duration) {
+    return;
+  }
+
+  duration_ = duration;*/
+  ScheduleOwnEvent(base::Tokens::durationchange());
+
+  if (request_seek) {
+    Seek(static_cast<float>(duration));
+  }
+}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
 void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
   MLOG() << event->type();
   event_queue_.Enqueue(event);
@@ -614,9 +637,11 @@ void HTMLMediaElement::CreateMediaPlayer() {
   player_ =
       html_element_context()->web_media_player_factory()->CreateWebMediaPlayer(
           this);
+#if !defined(COBALT_MEDIA_SOURCE_2016)
   if (media_source_) {
     media_source_->SetPlayer(player_.get());
   }
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   node_document()->OnDOMMutation();
   InvalidateLayoutBoxesFromNodeAndAncestors();
 }
@@ -657,7 +682,7 @@ void HTMLMediaElement::PrepareForLoad() {
     ScheduleOwnEvent(base::Tokens::abort());
   }
 
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
 
   CreateMediaPlayer();
 
@@ -784,7 +809,11 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     // If media_source_ is NULL, the player will try to load it as a normal
     // media resource url and throw a DOM exception when it fails.
     if (media_source_) {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+      media_source_->AttachToElement(this);
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
       media_source_->SetPlayer(player_.get());
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
       media_source_url_ = url;
     } else {
       NoneSupported();
@@ -824,7 +853,8 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 
 void HTMLMediaElement::ClearMediaPlayer() {
   MLOG();
-  SetSourceState(MediaSource::kReadyStateClosed);
+
+  ClearMediaSource();
 
   player_.reset(NULL);
 
@@ -864,7 +894,7 @@ void HTMLMediaElement::NoneSupported() {
   // 7 - Queue a task to fire a simple event named error at the media element.
   ScheduleOwnEvent(base::Tokens::error());
 
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
 }
 
 void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error) {
@@ -1166,8 +1196,7 @@ void HTMLMediaElement::Seek(float time) {
   // Always notify the media engine of a seek if the source is not closed. This
   // ensures that the source is always in a flushed state when the 'seeking'
   // event fires.
-  if (media_source_ &&
-      media_source_->GetReadyState() != MediaSource::kReadyStateClosed) {
+  if (media_source_ && media_source_->ready_state() != MediaSource::kClosed) {
     no_seek_required = false;
   }
 
@@ -1344,7 +1373,7 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   // 3 - Queue a task to fire a simple event named error at the media element.
   ScheduleOwnEvent(base::Tokens::error());
 
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
 
   // 4 - Set the element's networkState attribute to the kNetworkEmpty value and
   // queue a task to fire a simple event called emptied at the element.
@@ -1462,11 +1491,20 @@ void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
 float HTMLMediaElement::Volume() const { return volume(NULL); }
 
-void HTMLMediaElement::SourceOpened() {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+void HTMLMediaElement::SourceOpened(::media::ChunkDemuxer* chunk_demuxer) {
   BeginProcessingMediaPlayerCallback();
-  SetSourceState(MediaSource::kReadyStateOpen);
+  DCHECK(media_source_);
+  media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
   EndProcessingMediaPlayerCallback();
 }
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+void HTMLMediaElement::SourceOpened() {
+  BeginProcessingMediaPlayerCallback();
+  SetSourceState(MediaSource::kOpen);
+  EndProcessingMediaPlayerCallback();
+}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
@@ -1533,16 +1571,29 @@ void HTMLMediaElement::KeyNeeded(const std::string& key_system,
       new Uint8Array(NULL, init_data, init_data_length, NULL)));
 }
 
+void HTMLMediaElement::ClearMediaSource() {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  if (media_source_) {
+    media_source_->Close();
+    media_source_ = NULL;
+  }
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
+  SetSourceState(MediaSource::kClosed);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+}
+
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
   MLOG() << ready_state;
   if (!media_source_) {
     return;
   }
   media_source_->SetReadyState(ready_state);
-  if (ready_state == MediaSource::kReadyStateClosed) {
+  if (ready_state == MediaSource::kClosed) {
     media_source_ = NULL;
   }
 }
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 void HTMLMediaElement::PlayerOutputModeUpdated() {
   // If the player mode is updated, trigger a re-layout so that we can setup
