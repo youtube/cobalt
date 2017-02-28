@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -24,23 +26,16 @@ namespace shared {
 
 namespace {
 
-const int64_t kSecondInMicroseconds = 1 * 1000 * 1000;
-const int64_t kDequeueTimeout = kSecondInMicroseconds;
-const char kMimeTypeAac[] = "audio/mp4a-latm";
-const char kCodecSpecificDataKey[] = "csd-0";
-
-SbMediaTime ConvertFromMicroseconds(const int64_t time_in_microseconds) {
-  return time_in_microseconds * kSbMediaTimeSecond / kSecondInMicroseconds;
-}
-
-int64_t ConvertToMicroseconds(const SbMediaTime media_time) {
-  return media_time * kSecondInMicroseconds / kSbMediaTimeSecond;
-}
+const jlong kDequeueTimeout = kSecondInMicroseconds;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
   SB_DCHECK(
       SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16));
   return kSbMediaAudioSampleTypeInt16;
+}
+
+void* IncrementPointerByBytes(void* pointer, int offset) {
+  return static_cast<uint8_t*>(pointer) + offset;
 }
 
 }  // namespace
@@ -49,12 +44,12 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            const SbMediaAudioHeader& audio_header)
     : stream_ended_(false),
       audio_header_(audio_header),
-      sample_type_(GetSupportedSampleType()),
-      media_codec_(NULL),
-      media_format_(NULL) {
+      sample_type_(GetSupportedSampleType()) {
   SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
-
-  InitializeCodec();
+  if (!InitializeCodec()) {
+    SB_LOG(ERROR) << "Failed to initialize audio decoder.";
+    TeardownCodec();
+  }
 }
 
 AudioDecoder::~AudioDecoder() {
@@ -62,77 +57,13 @@ AudioDecoder::~AudioDecoder() {
 }
 
 void AudioDecoder::Decode(const InputBuffer& input_buffer) {
-  // See "Synchronous Processing using Buffers" at
-  // https://developer.android.com/reference/android/media/MediaCodec.html for
-  // details regarding logic of this function.
-  SB_CHECK(media_codec_);
-
   if (stream_ended_) {
-    SB_LOG(INFO) << "Decode() is called after WriteEndOfStream() is called.";
+    SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
   }
 
-  const uint8_t* data = input_buffer.data();
-  size_t input_size = input_buffer.size();
-
-  ssize_t index = AMediaCodec_dequeueInputBuffer(media_codec_, kDequeueTimeout);
-  if (index < 0) {
-    SB_LOG(ERROR) << "|AMediaCodec_dequeueInputBuffer| failed with status: "
-                  << index;
-    return;
-  }
-
-  size_t buffer_size;
-  uint8_t* mc_input_buffer =
-      AMediaCodec_getInputBuffer(media_codec_, index, &buffer_size);
-  SB_DCHECK(mc_input_buffer);
-  if (input_size > buffer_size) {
-    SB_LOG(ERROR) << "Media codec input buffer too small to write to.";
-    return;
-  }
-  SbMemoryCopy(mc_input_buffer, data, input_size);
-
-  int64_t pts_us = ConvertToMicroseconds(input_buffer.pts());
-  media_status_t status = AMediaCodec_queueInputBuffer(media_codec_, index, 0,
-                                                       input_size, pts_us, 0);
-  if (status != AMEDIA_OK) {
-    SB_LOG(ERROR) << "|AMediaCodec_queueInputBuffer| failed with status: "
-                  << status;
-    return;
-  }
-
-  AMediaCodecBufferInfo info;
-  ssize_t out_index =
-      AMediaCodec_dequeueOutputBuffer(media_codec_, &info, kDequeueTimeout);
-  if (out_index < 0) {
-    SB_LOG(INFO) << "|AMediaCodec_dequeueOutputBuffer| failed with status: "
-                 << out_index << ", at pts: " << input_buffer.pts();
-    return;
-  }
-
-  buffer_size = -1;
-  uint8_t* output_buffer =
-      AMediaCodec_getOutputBuffer(media_codec_, out_index, &buffer_size);
-  // |size| is the capacity of the entire allocated buffer, not the amount
-  // filled with relevant decoded data. We must use |info.size| for the
-  // actual size filled by the decoder. See:
-  // https://android.googlesource.com/platform/frameworks/av/+/47734c/media/ndk/NdkMediaCodec.cpp#288
-  SB_DCHECK(info.size <= buffer_size);
-
-  if (output_buffer && buffer_size > 0) {
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        ConvertFromMicroseconds(info.presentationTimeUs), info.size);
-    SbMemoryCopy(decoded_audio->buffer(), output_buffer + info.offset,
-                 info.size);
-    decoded_audios_.push(decoded_audio);
-  }
-
-  status = AMediaCodec_releaseOutputBuffer(media_codec_, out_index, false);
-  if (status != AMEDIA_OK) {
-    SB_LOG(ERROR) << "|AMediaCodec_releaseOutputBuffer| failed with status: "
-                  << status;
-    return;
-  }
+  ProcessOneInputBuffer(input_buffer);
+  ProcessOneOutputBuffer();
 }
 
 void AudioDecoder::WriteEndOfStream() {
@@ -140,7 +71,7 @@ void AudioDecoder::WriteEndOfStream() {
   // to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
+  decoded_audios_.push(new DecodedAudio());
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
@@ -154,9 +85,9 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
 
 void AudioDecoder::Reset() {
   stream_ended_ = false;
-  media_status_t status = AMediaCodec_flush(media_codec_);
-  if (status != AMEDIA_OK) {
-    SB_LOG(ERROR) << "|AMediaCodec_flush| failed with status: " << status;
+  jint status = media_codec_bridge_->Flush();
+  if (status != MEDIA_CODEC_OK) {
+    SB_LOG(ERROR) << "|flush| failed with status: " << status;
   }
 
   while (!decoded_audios_.empty()) {
@@ -164,44 +95,93 @@ void AudioDecoder::Reset() {
   }
 }
 
-void AudioDecoder::InitializeCodec() {
-  const char* mime_type = kMimeTypeAac;
-  media_codec_ = AMediaCodec_createDecoderByType(mime_type);
-  if (!media_codec_) {
-    SB_LOG(ERROR) << "Failed to create MediaCodec for mime_type: " << mime_type;
-    return;
+bool AudioDecoder::InitializeCodec() {
+  media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
+      kMimeTypeAac, audio_header_);
+  if (!media_codec_bridge_) {
+    return false;
   }
 
-  media_format_ = AMediaFormat_new();
-  AMediaFormat_setString(media_format_, AMEDIAFORMAT_KEY_MIME, mime_type);
-  AMediaFormat_setInt32(media_format_, AMEDIAFORMAT_KEY_CHANNEL_COUNT,
-                        audio_header_.number_of_channels);
-  AMediaFormat_setInt32(media_format_, AMEDIAFORMAT_KEY_SAMPLE_RATE,
-                        audio_header_.samples_per_second);
-  AMediaFormat_setInt32(media_format_, AMEDIAFORMAT_KEY_IS_ADTS, 1);
-  AMediaFormat_setBuffer(media_format_, kCodecSpecificDataKey,
-                         audio_header_.audio_specific_config,
-                         audio_header_.audio_specific_config_size);
-  media_status_t status =
-      AMediaCodec_configure(media_codec_, media_format_, NULL, NULL, 0);
-  if (status != AMEDIA_OK) {
-    SB_LOG(ERROR) << "Failed to configure |media_codec_|, status: " << status;
-    return;
+  if (audio_header_.audio_specific_config_size > 0 &&
+      !ProcessOneInputRawData(audio_header_.audio_specific_config,
+                              audio_header_.audio_specific_config_size, 0,
+                              BUFFER_FLAG_CODEC_CONFIG)) {
+    return false;
   }
-  status = AMediaCodec_start(media_codec_);
-  if (status != AMEDIA_OK) {
-    SB_LOG(ERROR) << "Failed to start |media_codec_|, status: " << status;
-    return;
-  }
+
+  return true;
 }
 
 void AudioDecoder::TeardownCodec() {
-  if (media_codec_) {
-    AMediaCodec_delete(media_codec_);
+  media_codec_bridge_.reset();
+}
+
+bool AudioDecoder::ProcessOneInputBuffer(const InputBuffer& input_buffer) {
+  return ProcessOneInputRawData(input_buffer.data(), input_buffer.size(),
+                                input_buffer.pts(), 0);
+}
+
+bool AudioDecoder::ProcessOneInputRawData(const void* data,
+                                          int size,
+                                          SbMediaTime pts,
+                                          jint flags) {
+  SB_CHECK(media_codec_bridge_);
+
+  DequeueInputResult dequeue_input_result =
+      media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
+  if (dequeue_input_result.index < 0) {
+    SB_LOG(ERROR) << "|dequeueInputBuffer| failed with status: "
+                  << dequeue_input_result.status;
+    return false;
   }
-  if (media_format_) {
-    AMediaFormat_delete(media_format_);
+  ScopedJavaByteBuffer byte_buffer(
+      media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
+  if (byte_buffer.IsNull() || byte_buffer.capacity() < size) {
+    SB_LOG(ERROR) << "Unable to write to MediaCodec input buffer.";
+    return false;
   }
+
+  byte_buffer.CopyInto(data, size);
+
+  jint status = media_codec_bridge_->QueueInputBuffer(
+      dequeue_input_result.index, /*offset=*/0, size,
+      ConvertMicrosecondsToSbMediaTime(pts), flags);
+  if (status != MEDIA_CODEC_OK) {
+    SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
+    return false;
+  }
+
+  return true;
+}
+
+bool AudioDecoder::ProcessOneOutputBuffer() {
+  DequeueOutputResult dequeue_output_result =
+      media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
+  if (dequeue_output_result.index < 0) {
+    SB_LOG(ERROR) << "|dequeueOutputBuffer| failed with status: "
+                  << dequeue_output_result.status;
+    return false;
+  }
+
+  ScopedJavaByteBuffer byte_buffer(
+      media_codec_bridge_->GetOutputBuffer(dequeue_output_result.index));
+  SB_DCHECK(!byte_buffer.IsNull());
+
+  if (dequeue_output_result.num_bytes > 0) {
+    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+        ConvertMicrosecondsToSbMediaTime(
+            dequeue_output_result.presentation_time_microseconds),
+        dequeue_output_result.num_bytes);
+    SbMemoryCopy(decoded_audio->buffer(),
+                 IncrementPointerByBytes(byte_buffer.address(),
+                                         dequeue_output_result.offset),
+                 dequeue_output_result.num_bytes);
+    decoded_audios_.push(decoded_audio);
+  }
+
+  media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index, false);
+
+  return true;
 }
 
 }  // namespace shared
