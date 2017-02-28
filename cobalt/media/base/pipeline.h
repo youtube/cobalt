@@ -159,10 +159,6 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // been determined yet, then returns 0.
   virtual base::TimeDelta GetMediaDuration() const = 0;
 
-  // Get the total size of the media file.  If the size has not yet been
-  // determined or can not be determined, this value is 0.
-  virtual int64 GetTotalBytes() const = 0;
-
   // Gets the natural size of the video output in pixel units.  If there is no
   // video or the video has not been rendered yet, the width and height will
   // be 0.
@@ -177,6 +173,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Get the SetBoundsCB used to set the bounds of the video frame.
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
+
+  // Returns whether the player is configured for outputting in punch out mode.
+  virtual bool IsPunchOutMode() { return false; }
 };
 
 }  // namespace media

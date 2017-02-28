@@ -271,6 +271,7 @@
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
     'sb_libevent_method%': 'epoll',
+    'cobalt_media_source_2016%': 0,
   },
 
   'target_defaults': {
@@ -338,6 +339,15 @@
       ['webkit_target_type == "shared_library"', {
         'defines': [
           'COBALT_WEBKIT_SHARED=1',
+        ],
+      }],
+      ['cobalt_media_source_2016 == 1', {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2016=1',
+        ],
+      }, {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2012=1',
         ],
       }],
       ['OS == "lb_shell"', {

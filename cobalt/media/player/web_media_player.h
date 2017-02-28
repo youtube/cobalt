@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
-#define MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
+#ifndef COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
+#define COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
 
 // The temporary home for WebMediaPlayer and WebMediaPlayerClient. They are the
 // interface between the HTMLMediaElement and the media stack.
 
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -17,11 +18,11 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/base/shell_video_frame_provider.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
+#include "cobalt/media/player/buffered_data_source.h"
 #include "googleurl/src/gurl.h"
-#include "media/base/ranges.h"
-#include "media/base/shell_video_frame_provider.h"
-#include "media/base/video_frame.h"
-#include "media/player/buffered_data_source.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -127,7 +128,6 @@ class WebMediaPlayer {
   virtual ReadyState GetReadyState() const = 0;
 
   virtual bool DidLoadingProgress() const = 0;
-  virtual unsigned long long GetTotalBytes() const = 0;
 
   virtual bool HasSingleSecurityOrigin() const = 0;
   virtual bool DidPassCORSAccessCheck() const = 0;
@@ -142,11 +142,6 @@ class WebMediaPlayer {
   virtual scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() {
     return NULL;
   }
-  virtual scoped_refptr<VideoFrame> GetCurrentFrame() { return 0; }
-  // We no longer need PutCurrentFrame as the the video frame returned from
-  // GetCurrentFrame() is now a scoped_refptr.
-  virtual void PutCurrentFrame(
-      const scoped_refptr<VideoFrame>& /* video_frame */) {}
 
   virtual AddIdStatus SourceAddId(
       const std::string& /* id */,
@@ -237,7 +232,7 @@ class WebMediaPlayerClient {
   virtual void SetOpaque(bool /* opaque */) {}
   virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
-  virtual void SourceOpened() = 0;
+  virtual void SourceOpened(ChunkDemuxer* chunk_demuxer) = 0;
   virtual std::string SourceURL() const = 0;
   // TODO: Make the EME related functions pure virtual again once
   // we have proper EME implementation. Currently empty implementation are
@@ -277,4 +272,4 @@ class WebMediaPlayerClient {
 
 MSVC_POP_WARNING()
 
-#endif  // MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
+#endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
