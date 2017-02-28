@@ -80,6 +80,8 @@
         'log_is_tty.cc',
         'log_raw.cc',
         'main.cc',
+        'media_codec_bridge.cc',
+        'media_codec_bridge.h',
         'microphone_impl.cc',
         'opensles_audio_sink_type.cc',
         'opensles_audio_sink_type.h',
