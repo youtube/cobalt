@@ -19,7 +19,6 @@
 
 #include "base/logging.h"
 #include "cobalt/dom/audio_track.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/video_track.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/sequence.h"
@@ -48,22 +47,22 @@ class TrackDefault : public script::Wrappable {
                const std::string& byte_stream_track_id,
                script::ExceptionState* exception_state)
       : type_(type),
+        byte_stream_track_id_(byte_stream_track_id),
         language_(language),
         label_(label),
-        kinds_(kinds),
-        byte_stream_track_id_(byte_stream_track_id) {
+        kinds_(kinds) {
     if (type == kAudio) {
       for (script::Sequence<std::string>::size_type i = 0; i < kinds.size();
            ++i) {
         if (!AudioTrack::IsValidKind(kinds.at(i).c_str())) {
-          DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
+          exception_state->SetSimpleException(script::kSimpleTypeError);
         }
       }
     } else if (type == kVideo) {
       for (script::Sequence<std::string>::size_type i = 0; i < kinds.size();
            ++i) {
         if (!VideoTrack::IsValidKind(kinds.at(i).c_str())) {
-          DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
+          exception_state->SetSimpleException(script::kSimpleTypeError);
         }
       }
     } else {

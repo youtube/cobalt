@@ -17,35 +17,32 @@
 
 #include <string>
 
-#include "base/memory/weak_ptr.h"
-#include "cobalt/dom/html_media_element.h"
+#include "cobalt/dom/track_base.h"
 #include "cobalt/script/wrappable.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace dom {
 
+class SourceBuffer;
+
 // The AudioTrack interface holds attributes of an audio track.
 //   https://www.w3.org/TR/html51/semantics-embedded-content.html#audiotrack-audiotrack
-class AudioTrack : public script::Wrappable {
+class AudioTrack : public TrackBase {
  public:
   // Custom, not in any spec.
   //
   AudioTrack(const std::string& id, const std::string& kind,
              const std::string& label, const std::string& language,
              bool enabled)
-      : id_(id), label_(label), language_(language), enabled_(enabled) {
-    if (IsValidKind(kind.c_str())) {
-      kind_ = kind;
-    }
-  }
+      : TrackBase(id, kind, label, language, &AudioTrack::IsValidKind),
+        enabled_(enabled) {}
 
   // Web API: AudioTrack
   //
-  const std::string& id() const { return id_; }
-  const std::string& kind() const { return kind_; }
-  const std::string& label() const { return label_; }
-  const std::string& language() const { return language_; }
+  using TrackBase::id;
+  using TrackBase::kind;
+  using TrackBase::label;
+  using TrackBase::language;
   bool enabled() const { return enabled_; }
   void set_enabled(bool enabled) {
     if (enabled_ == enabled) {
@@ -71,19 +68,11 @@ class AudioTrack : public script::Wrappable {
            SbStringCompareAll(kind, "commentary") == 0 ||
            SbStringGetLength(kind) == 0;
   }
-  void SetMediaElement(HTMLMediaElement* media_element) {
-    media_element_ = base::AsWeakPtr(media_element);
-  }
 
   DEFINE_WRAPPABLE_TYPE(AudioTrack);
 
  private:
-  std::string id_;
-  std::string kind_;
-  std::string label_;
-  std::string language_;
   bool enabled_;
-  base::WeakPtr<HTMLMediaElement> media_element_;
 };
 
 }  // namespace dom
