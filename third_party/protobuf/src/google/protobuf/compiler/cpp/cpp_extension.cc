@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -57,9 +57,9 @@ string ExtendeeClassName(const FieldDescriptor* descriptor) {
 }  // anonymous namespace
 
 ExtensionGenerator::ExtensionGenerator(const FieldDescriptor* descriptor,
-                                       const string& dllexport_decl)
+                                       const Options& options)
   : descriptor_(descriptor),
-    dllexport_decl_(dllexport_decl) {
+    options_(options) {
   // Construct type_traits_.
   if (descriptor_->is_repeated()) {
     type_traits_ = "Repeated";
@@ -106,8 +106,8 @@ void ExtensionGenerator::GenerateDeclaration(io::Printer* printer) {
   // export/import specifier.
   if (descriptor_->extension_scope() == NULL) {
     vars["qualifier"] = "extern";
-    if (!dllexport_decl_.empty()) {
-      vars["qualifier"] = dllexport_decl_ + " " + vars["qualifier"];
+    if (!options_.dllexport_decl.empty()) {
+      vars["qualifier"] = options_.dllexport_decl + " " + vars["qualifier"];
     }
   } else {
     vars["qualifier"] = "static";
@@ -155,7 +155,7 @@ void ExtensionGenerator::GenerateDefinition(io::Printer* printer) {
   // Likewise, class members need to declare the field constant variable.
   if (descriptor_->extension_scope() != NULL) {
     printer->Print(vars,
-      "#ifndef _MSC_VER\n"
+      "#if !defined(_MSC_VER) || _MSC_VER >= 1900\n"
       "const int $scope$$constant_name$;\n"
       "#endif\n");
   }
