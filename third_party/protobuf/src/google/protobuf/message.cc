@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -32,22 +32,29 @@
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
+#include <iostream>
 #include <stack>
 #include <google/protobuf/stubs/hash.h>
 
 #include <google/protobuf/message.h>
 
+#include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
+#include <google/protobuf/stubs/mutex.h>
 #include <google/protobuf/stubs/once.h>
+#include <google/protobuf/reflection_internal.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/descriptor.pb.h>
+#include <google/protobuf/map_field.h>
 #include <google/protobuf/descriptor.h>
+#include <google/protobuf/generated_message_util.h>
 #include <google/protobuf/reflection_ops.h>
 #include <google/protobuf/wire_format.h>
 #include <google/protobuf/stubs/strutil.h>
-#include <google/protobuf/stubs/map-util.h>
-#include <google/protobuf/stubs/stl_util-inl.h>
+#include <google/protobuf/stubs/map_util.h>
+#include <google/protobuf/stubs/singleton.h>
+#include <google/protobuf/stubs/stl_util.h>
 
 namespace google {
 namespace protobuf {
@@ -62,7 +69,7 @@ void Message::MergeFrom(const Message& from) {
   GOOGLE_CHECK_EQ(from.GetDescriptor(), descriptor)
     << ": Tried to merge from a message with a different type.  "
        "to: " << descriptor->full_name() << ", "
-       "from:" << from.GetDescriptor()->full_name();
+       "from: " << from.GetDescriptor()->full_name();
   ReflectionOps::Merge(from, this);
 }
 
@@ -73,9 +80,9 @@ void Message::CheckTypeAndMergeFrom(const MessageLite& other) {
 void Message::CopyFrom(const Message& from) {
   const Descriptor* descriptor = GetDescriptor();
   GOOGLE_CHECK_EQ(from.GetDescriptor(), descriptor)
-    << ": Tried to copy from a message with a different type."
+    << ": Tried to copy from a message with a different type. "
        "to: " << descriptor->full_name() << ", "
-       "from:" << from.GetDescriptor()->full_name();
+       "from: " << from.GetDescriptor()->full_name();
   ReflectionOps::Copy(from, this);
 }
 
@@ -98,7 +105,7 @@ void Message::FindInitializationErrors(vector<string>* errors) const {
 string Message::InitializationErrorString() const {
   vector<string> errors;
   FindInitializationErrors(&errors);
-  return JoinStrings(errors, ", ");
+  return Join(errors, ", ");
 }
 
 void Message::CheckInitialized() const {
@@ -147,7 +154,7 @@ int Message::ByteSize() const {
   return size;
 }
 
-void Message::SetCachedSize(int size) const {
+void Message::SetCachedSize(int /* size */) const {
   GOOGLE_LOG(FATAL) << "Message class \"" << GetDescriptor()->full_name()
              << "\" implements neither SetCachedSize() nor ByteSize().  "
                 "Must implement one or the other.";
@@ -181,9 +188,94 @@ bool Message::SerializePartialToOstream(ostream* output) const {
 }
 
 
+// =============================================================================
+// Reflection and associated Template Specializations
+
 Reflection::~Reflection() {}
 
-// ===================================================================
+#define HANDLE_TYPE(TYPE, CPPTYPE, CTYPE)                             \
+template<>                                                            \
+const RepeatedField<TYPE>& Reflection::GetRepeatedField<TYPE>(        \
+    const Message& message, const FieldDescriptor* field) const {     \
+  return *static_cast<RepeatedField<TYPE>* >(                         \
+      MutableRawRepeatedField(const_cast<Message*>(&message),         \
+                          field, CPPTYPE, CTYPE, NULL));              \
+}                                                                     \
+                                                                      \
+template<>                                                            \
+RepeatedField<TYPE>* Reflection::MutableRepeatedField<TYPE>(          \
+    Message* message, const FieldDescriptor* field) const {           \
+  return static_cast<RepeatedField<TYPE>* >(                          \
+      MutableRawRepeatedField(message, field, CPPTYPE, CTYPE, NULL)); \
+}
+
+HANDLE_TYPE(int32,  FieldDescriptor::CPPTYPE_INT32,  -1);
+HANDLE_TYPE(int64,  FieldDescriptor::CPPTYPE_INT64,  -1);
+HANDLE_TYPE(uint32, FieldDescriptor::CPPTYPE_UINT32, -1);
+HANDLE_TYPE(uint64, FieldDescriptor::CPPTYPE_UINT64, -1);
+HANDLE_TYPE(float,  FieldDescriptor::CPPTYPE_FLOAT,  -1);
+HANDLE_TYPE(double, FieldDescriptor::CPPTYPE_DOUBLE, -1);
+HANDLE_TYPE(bool,   FieldDescriptor::CPPTYPE_BOOL,   -1);
+
+
+#undef HANDLE_TYPE
+
+void* Reflection::MutableRawRepeatedString(
+    Message* message, const FieldDescriptor* field, bool is_string) const {
+  return MutableRawRepeatedField(message, field,
+      FieldDescriptor::CPPTYPE_STRING, FieldOptions::STRING, NULL);
+}
+
+
+// Default EnumValue API implementations. Real reflection implementations should
+// override these. However, there are several legacy implementations that do
+// not, and cannot easily be changed at the same time as the Reflection API, so
+// we provide these for now.
+// TODO: Remove these once all Reflection implementations are updated.
+int Reflection::GetEnumValue(const Message& message,
+                             const FieldDescriptor* field) const {
+  GOOGLE_LOG(FATAL) << "Unimplemented EnumValue API.";
+  return 0;
+}
+void Reflection::SetEnumValue(Message* message,
+                  const FieldDescriptor* field,
+                  int value) const {
+  GOOGLE_LOG(FATAL) << "Unimplemented EnumValue API.";
+}
+int Reflection::GetRepeatedEnumValue(
+    const Message& message,
+    const FieldDescriptor* field, int index) const {
+  GOOGLE_LOG(FATAL) << "Unimplemented EnumValue API.";
+  return 0;
+}
+void Reflection::SetRepeatedEnumValue(Message* message,
+                                  const FieldDescriptor* field, int index,
+                                  int value) const {
+  GOOGLE_LOG(FATAL) << "Unimplemented EnumValue API.";
+}
+void Reflection::AddEnumValue(Message* message,
+                  const FieldDescriptor* field,
+                  int value) const {
+  GOOGLE_LOG(FATAL) << "Unimplemented EnumValue API.";
+}
+
+MapIterator Reflection::MapBegin(
+    Message* message,
+    const FieldDescriptor* field) const {
+  GOOGLE_LOG(FATAL) << "Unimplemented Map Reflection API.";
+  MapIterator iter(message, field);
+  return iter;
+}
+
+MapIterator Reflection::MapEnd(
+    Message* message,
+    const FieldDescriptor* field) const {
+  GOOGLE_LOG(FATAL) << "Unimplemented Map Reflection API.";
+  MapIterator iter(message, field);
+  return iter;
+}
+
+// =============================================================================
 // MessageFactory
 
 MessageFactory::~MessageFactory() {}
@@ -257,6 +349,7 @@ void GeneratedMessageFactory::RegisterType(const Descriptor* descriptor,
   }
 }
 
+
 const Message* GeneratedMessageFactory::GetPrototype(const Descriptor* type) {
   {
     ReaderMutexLock lock(&mutex_);
@@ -313,6 +406,112 @@ void MessageFactory::InternalRegisterGeneratedMessage(
   GeneratedMessageFactory::singleton()->RegisterType(descriptor, prototype);
 }
 
+
+MessageFactory* Reflection::GetMessageFactory() const {
+  GOOGLE_LOG(FATAL) << "Not implemented.";
+  return NULL;
+}
+
+void* Reflection::RepeatedFieldData(
+    Message* message, const FieldDescriptor* field,
+    FieldDescriptor::CppType cpp_type,
+    const Descriptor* message_type) const {
+  GOOGLE_LOG(FATAL) << "Not implemented.";
+  return NULL;
+}
+
+namespace internal {
+RepeatedFieldAccessor::~RepeatedFieldAccessor() {
+}
+}  // namespace internal
+
+const internal::RepeatedFieldAccessor* Reflection::RepeatedFieldAccessor(
+    const FieldDescriptor* field) const {
+  GOOGLE_CHECK(field->is_repeated());
+  switch (field->cpp_type()) {
+#define HANDLE_PRIMITIVE_TYPE(TYPE, type) \
+    case FieldDescriptor::CPPTYPE_ ## TYPE: \
+      return internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<type> >::get();
+    HANDLE_PRIMITIVE_TYPE(INT32, int32)
+    HANDLE_PRIMITIVE_TYPE(UINT32, uint32)
+    HANDLE_PRIMITIVE_TYPE(INT64, int64)
+    HANDLE_PRIMITIVE_TYPE(UINT64, uint64)
+    HANDLE_PRIMITIVE_TYPE(FLOAT, float)
+    HANDLE_PRIMITIVE_TYPE(DOUBLE, double)
+    HANDLE_PRIMITIVE_TYPE(BOOL, bool)
+    HANDLE_PRIMITIVE_TYPE(ENUM, int32)
+#undef HANDLE_PRIMITIVE_TYPE
+    case FieldDescriptor::CPPTYPE_STRING:
+      switch (field->options().ctype()) {
+        default:
+        case FieldOptions::STRING:
+          return internal::Singleton<internal::RepeatedPtrFieldStringAccessor>::get();
+      }
+      break;
+    case FieldDescriptor::CPPTYPE_MESSAGE:
+      if (field->is_map()) {
+        return internal::Singleton<internal::MapFieldAccessor>::get();
+      } else {
+        return internal::Singleton<internal::RepeatedPtrFieldMessageAccessor>::get();
+      }
+  }
+  GOOGLE_LOG(FATAL) << "Should not reach here.";
+  return NULL;
+}
+
+namespace internal {
+namespace {
+void ShutdownRepeatedFieldAccessor() {
+  internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<int32> >::ShutDown();
+  internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<uint32> >::ShutDown();
+  internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<int64> >::ShutDown();
+  internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<uint64> >::ShutDown();
+  internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<float> >::ShutDown();
+  internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<double> >::ShutDown();
+  internal::Singleton<internal::RepeatedFieldPrimitiveAccessor<bool> >::ShutDown();
+  internal::Singleton<internal::RepeatedPtrFieldStringAccessor>::ShutDown();
+  internal::Singleton<internal::RepeatedPtrFieldMessageAccessor>::ShutDown();
+  internal::Singleton<internal::MapFieldAccessor>::ShutDown();
+}
+
+struct ShutdownRepeatedFieldRegister {
+  ShutdownRepeatedFieldRegister() {
+    OnShutdown(&ShutdownRepeatedFieldAccessor);
+  }
+} shutdown_;
+
+}  // namespace
+}  // namespace internal
+
+namespace internal {
+template<>
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+// Note: force noinline to workaround MSVC 2015 compiler bug, issue #240
+GOOGLE_ATTRIBUTE_NOINLINE
+#endif
+Message* GenericTypeHandler<Message>::NewFromPrototype(
+    const Message* prototype, google::protobuf::Arena* arena) {
+  return prototype->New(arena);
+}
+template<>
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+// Note: force noinline to workaround MSVC 2015 compiler bug, issue #240
+GOOGLE_ATTRIBUTE_NOINLINE
+#endif
+google::protobuf::Arena* GenericTypeHandler<Message>::GetArena(
+    Message* value) {
+  return value->GetArena();
+}
+template<>
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+// Note: force noinline to workaround MSVC 2015 compiler bug, issue #240
+GOOGLE_ATTRIBUTE_NOINLINE
+#endif
+void* GenericTypeHandler<Message>::GetMaybeArenaPointer(
+    Message* value) {
+  return value->GetMaybeArenaPointer();
+}
+}  // namespace internal
 
 }  // namespace protobuf
 }  // namespace google
