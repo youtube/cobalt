@@ -29,6 +29,7 @@ struct MEDIA_EXPORT WebMColorMetadata {
   HDRMetadata hdr_metadata;
 
   WebMColorMetadata();
+  bool operator==(const WebMColorMetadata& rhs) const;
 };
 
 // Parser for WebM MasteringMetadata within Colour element:
