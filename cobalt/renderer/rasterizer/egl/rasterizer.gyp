@@ -47,6 +47,14 @@
         'hardware_rasterizer.h',
         'render_tree_node_visitor.h',
         'render_tree_node_visitor.cc',
+        'shader_base.h',
+        'shader_base.cc',
+        'shader_impl.h',
+        'shader_impl.cc',
+        'shader_program.h',
+        'shader_program.cc',
+        'shader_program_manager.h',
+        'shader_program_manager.cc',
       ],
 
       'dependencies': [
