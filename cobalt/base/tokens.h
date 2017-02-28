@@ -89,6 +89,9 @@ namespace base {
     MacroOpWithNameOnly(timeupdate)                           \
     MacroOpWithNameOnly(transitionend)                        \
     MacroOpWithNameOnly(unload)                               \
+    MacroOpWithNameOnly(update)                               \
+    MacroOpWithNameOnly(updateend)                            \
+    MacroOpWithNameOnly(updatestart)                          \
     MacroOpWithNameOnly(volumechange)                         \
     MacroOpWithNameOnly(waiting)
 

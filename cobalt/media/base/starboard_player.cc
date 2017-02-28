@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "starboard/memory.h"
 
@@ -68,9 +69,9 @@ StarboardPlayer::~StarboardPlayer() {
   set_bounds_helper_->SetPlayer(NULL);
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-//  ShellMediaPlatform::Instance()
-//      ->GetVideoFrameProvider()
-//      ->ResetGetCurrentSbDecodeTargetFunction();
+  ShellMediaPlatform::Instance()
+      ->GetVideoFrameProvider()
+      ->ResetGetCurrentSbDecodeTargetFunction();
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   SbPlayerDestroy(player_);
@@ -328,20 +329,20 @@ void StarboardPlayer::CreatePlayer() {
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #if SB_API_VERSION >= 3
       ,
-      NULL
-//    ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
+      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
 #endif  // SB_API_VERSION >= 3
       );
+  DCHECK(SbPlayerIsValid(player_));
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-//    ShellMediaPlatform::Instance()
-//        ->GetVideoFrameProvider()
-//        ->SetGetCurrentSbDecodeTargetFunction(
-//            base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
-//                       base::Unretained(this)));
+    ShellMediaPlatform::Instance()
+        ->GetVideoFrameProvider()
+        ->SetGetCurrentSbDecodeTargetFunction(
+            base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
+                       base::Unretained(this)));
   }
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
