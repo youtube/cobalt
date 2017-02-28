@@ -36,6 +36,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
+#include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
 namespace cobalt {
 namespace renderer {
@@ -52,6 +53,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       FallbackRasterizeFunction;
 
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
+                        ShaderProgramManager* shader_program_manager,
                         const FallbackRasterizeFunction* fallback_rasterize);
 
   void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
@@ -78,6 +80,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void AddDrawObject(scoped_ptr<DrawObject> object, DrawType type);
 
   GraphicsState* graphics_state_;
+  ShaderProgramManager* shader_program_manager_;
   const FallbackRasterizeFunction* fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;

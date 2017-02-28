@@ -28,9 +28,9 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/frame_rate_throttler.h"
-#include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
+#include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
@@ -72,6 +72,7 @@ class HardwareRasterizer::Impl {
 
   scoped_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
   scoped_ptr<GraphicsState> graphics_state_;
+  scoped_ptr<ShaderProgramManager> shader_program_manager_;
 
   backend::GraphicsContextEGL* graphics_context_;
   FrameRateThrottler frame_rate_throttler_;
@@ -104,10 +105,7 @@ HardwareRasterizer::Impl::Impl(
       graphics_context_);
 
   graphics_state_.reset(new GraphicsState());
-
-  // TODO: Add build system for shaders instead of manually calling
-  // the static create/destroy function for each one.
-  DrawRectTexture::CreateResources();
+  shader_program_manager_.reset(new ShaderProgramManager());
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -120,7 +118,8 @@ HardwareRasterizer::Impl::~Impl() {
     unused_offscreen_targets_.pop_back();
   }
 
-  DrawRectTexture::DestroyResources();
+  shader_program_manager_.reset();
+  graphics_state_.reset();
 }
 
 void HardwareRasterizer::Impl::Submit(
@@ -146,7 +145,9 @@ void HardwareRasterizer::Impl::Submit(
     RenderTreeNodeVisitor::FallbackRasterizeFunction fallback_rasterize =
         base::Bind(&HardwareRasterizer::Impl::SubmitToFallbackRasterizer,
                    base::Unretained(this));
-    RenderTreeNodeVisitor visitor(graphics_state_.get(), &fallback_rasterize);
+    RenderTreeNodeVisitor visitor(graphics_state_.get(),
+                                  shader_program_manager_.get(),
+                                  &fallback_rasterize);
 
     {
       TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
