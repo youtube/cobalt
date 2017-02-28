@@ -32,7 +32,7 @@ import gyp_utils
 class PlatformConfig(shared_configuration.PlatformConfig):
   """Starboard Linux platform configuration."""
 
-  def __init__(self, platform, asan_enabled_by_default=True):
+  def __init__(self, platform, asan_enabled_by_default=False):
     super(PlatformConfig, self).__init__(
         platform, asan_enabled_by_default, goma_supports_compiler=False)
 
