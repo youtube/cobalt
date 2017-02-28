@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "media/base/shell_audio_bus.h"
+#include "cobalt/media/base/shell_audio_bus.h"
 
 #include <algorithm>
 #include <limits>
