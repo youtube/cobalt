@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/starboard_utils.h"
+#include "cobalt/media/base/starboard_utils.h"
 
 #include "base/logging.h"
 
@@ -83,7 +83,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   DCHECK(drm_info);
   DCHECK(subsample_mapping);
 
-  const DecryptConfig* config = buffer->GetDecryptConfig();
+  const DecryptConfig* config = buffer->decrypt_config();
   if (!config || config->iv().empty() || config->key_id().empty()) {
     drm_info->initialization_vector_size = 0;
     drm_info->identifier_size = 0;
@@ -121,7 +121,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
     drm_info->subsample_count = 1;
     drm_info->subsample_mapping = subsample_mapping;
     subsample_mapping->clear_byte_count = 0;
-    subsample_mapping->encrypted_byte_count = buffer->GetDataSize();
+    subsample_mapping->encrypted_byte_count = buffer->data_size();
   }
 }
 

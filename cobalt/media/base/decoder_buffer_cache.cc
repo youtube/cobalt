@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/decoder_buffer_cache.h"
+#include "cobalt/media/base/decoder_buffer_cache.h"
 
 namespace media {
 
@@ -25,14 +25,14 @@ void DecoderBufferCache::AddBuffer(DemuxerStream::Type type,
 
   if (type == DemuxerStream::AUDIO) {
     audio_buffers_.push_back(buffer);
-    if (buffer->IsKeyframe()) {
-      audio_key_frame_timestamps_.push_back(buffer->GetTimestamp());
+    if (!buffer->end_of_stream() && buffer->is_key_frame()) {
+      audio_key_frame_timestamps_.push_back(buffer->timestamp());
     }
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
     video_buffers_.push_back(buffer);
-    if (buffer->IsKeyframe()) {
-      video_key_frame_timestamps_.push_back(buffer->GetTimestamp());
+    if (!buffer->end_of_stream() && buffer->is_key_frame()) {
+      video_key_frame_timestamps_.push_back(buffer->timestamp());
     }
   }
 }
@@ -115,8 +115,8 @@ void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
     return;
   }
   while (scoped_refptr<DecoderBuffer> buffer = buffers->front()) {
-    if (buffer->IsKeyframe() &&
-        buffer->GetTimestamp() == key_frame_timestamps->front()) {
+    if (buffer->is_key_frame() &&
+        buffer->timestamp() == key_frame_timestamps->front()) {
       break;
     }
     buffers->pop_front();
