@@ -33,10 +33,6 @@ PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
-# Currently, after loading a new URL with cookies enabled, ***REMOVED*** randomizes
-# the shelf entries when the page finishes loading. Sleep for a bit to allow
-# this to occur before starting any additional logic.
-COBALT_POST_NAVIGATE_SLEEP_SECONDS = 5
 
 _is_initialized = False
 
@@ -124,7 +120,6 @@ class TvTestCase(unittest.TestCase):
     if triggers_reload:
       self.clear_url_loaded_events()
       self.wait_for_url_loaded_events()
-    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
     # decorator-driven success retry loop for subsequent webdriver requests.
