@@ -14,6 +14,8 @@
 
 #include "starboard/system.h"
 
+#include "sys/system_properties.h"
+
 #ifdef SB_HAS_SPEECH_API_KEY
 #include "starboard/android/shared/private/keys.h"
 #endif  // SB_HAS_SPEECH_API_KEY
@@ -39,6 +41,17 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   return true;
 }
 
+bool GetAndroidSystemProperty(const char* system_property_name,
+                              char* out_value,
+                              int value_length) {
+  if (value_length < PROP_VALUE_MAX) {
+    return false;
+  }
+  // Note that __system_property_get returns empty string on no value
+  __system_property_get(system_property_name, out_value);
+  return true;
+}
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -50,9 +63,13 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 
   switch (property_id) {
     case kSbSystemPropertyBrandName:
+      return GetAndroidSystemProperty("ro.product.manufacturer", out_value,
+                                      value_length);
+    case kSbSystemPropertyModelName:
+      return GetAndroidSystemProperty("ro.product.model", out_value,
+                                      value_length);
     case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyFirmwareVersion:
-    case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
       return false;
