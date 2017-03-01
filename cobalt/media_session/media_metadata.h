@@ -24,6 +24,8 @@ namespace media_session {
 
 class MediaMetadata : public script::Wrappable {
  public:
+  MediaMetadata() {}
+
   scoped_refptr<MediaMetadata> metadata() {
     return scoped_refptr<MediaMetadata>();
   }

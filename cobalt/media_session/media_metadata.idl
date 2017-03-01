@@ -16,6 +16,9 @@
 
 // MediaMetadata interface
 // https://wicg.github.io/mediasession
+// TODO should be [Constructor(optional MediaMetadataInit init), Exposed=Window]
+// when dictionary support goes in.
+[Constructor, Exposed=Window]
 interface MediaMetadata {
   attribute DOMString title;
   attribute DOMString artist;

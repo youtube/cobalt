@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/mime_type_array.h"
 #include "cobalt/dom/plugin_array.h"
+#include "cobalt/media_session/media_session.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -49,6 +50,9 @@ class Navigator : public script::Wrappable {
   const scoped_refptr<MimeTypeArray>& mime_types() const;
   const scoped_refptr<PluginArray>& plugins() const;
 
+  const scoped_refptr<cobalt::media_session::MediaSession>& media_session()
+      const;
+
   DEFINE_WRAPPABLE_TYPE(Navigator);
 
  private:
@@ -58,6 +62,7 @@ class Navigator : public script::Wrappable {
   std::string language_;
   scoped_refptr<MimeTypeArray> mime_types_;
   scoped_refptr<PluginArray> plugins_;
+  scoped_refptr<cobalt::media_session::MediaSession> media_session_;
 
   DISALLOW_COPY_AND_ASSIGN(Navigator);
 };
