@@ -41,6 +41,7 @@
 #include "net/socket_stream/socket_stream_metrics.h"
 #include "net/url_request/url_request.h"
 #include "starboard/memory.h"
+#include "starboard/client_porting/poem/string_poem.h"
 
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
 static const int kReadBufferSize = 4096;
