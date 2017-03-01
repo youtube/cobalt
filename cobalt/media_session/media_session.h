@@ -42,7 +42,7 @@ class MediaSession : public script::Wrappable {
     kNexttrack
   };
 
-  MediaSession() : state_(MediaSessionPlaybackState::kNone) {}
+  MediaSession() : state_(kNone) {}
 
   scoped_refptr<MediaMetadata> metadata() const { return metadata_; }
 
