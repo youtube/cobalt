@@ -322,7 +322,7 @@ void MemoryTrackerToolThread::Run() {
 }
 
 NoMemoryTracking::NoMemoryTracking(nb::analytics::MemoryTracker* owner)
-    : owner_(owner) {
+    :  prev_val_(false), owner_(owner) {
   if (owner_) {
     prev_val_ = owner_->IsMemoryTrackingEnabled();
     owner_->SetMemoryTrackingEnabled(false);
