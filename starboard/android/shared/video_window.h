@@ -24,6 +24,10 @@ namespace shared {
 // Returns the native window into which video should be rendered.
 ANativeWindow* GetVideoWindow();
 
+// Clear the video window by painting it Black.  This function is safe to call
+// regardless of whether the video window has been initialized or not.
+void ClearVideoWindow();
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
