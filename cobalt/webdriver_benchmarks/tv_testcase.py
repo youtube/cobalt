@@ -96,6 +96,16 @@ class TvTestCase(unittest.TestCase):
     else:
       return json.loads(json_result)
 
+  def load_blank(self):
+    """Loads about:blank and waits for it to finish.
+
+    Raises:
+      Underlying WebDriver exceptions
+    """
+    self.clear_url_loaded_events()
+    self.get_webdriver().get("about:blank")
+    self.wait_for_url_loaded_events()
+
   def load_tv(self,
               label=None,
               additional_query_params=None,
