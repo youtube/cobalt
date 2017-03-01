@@ -17,7 +17,7 @@
 // MediaSession interface
 // https://wicg.github.io/mediasession
 
-[Exposed=Window]
-partial interface Navigator {
+[NoInterfaceObject]
+interface NavigatorMediaSession {
   [SameObject] readonly attribute MediaSession mediaSession;
 };
