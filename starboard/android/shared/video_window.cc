@@ -16,8 +16,12 @@
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
 
 #include "starboard/configuration.h"
+#include "starboard/log.h"
+#include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {
 namespace android {
@@ -48,6 +52,84 @@ Java_foo_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(
 
 ANativeWindow* GetVideoWindow() {
   return native_video_window_;
+}
+
+void ClearVideoWindow() {
+  if (!native_video_window_) {
+    SB_LOG(INFO) << "Tried to clear video window when it was null.";
+    return;
+  }
+
+  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  eglInitialize(display, NULL, NULL);
+
+  const EGLint kAttributeList[] = {
+      EGL_RED_SIZE,
+      8,
+      EGL_GREEN_SIZE,
+      8,
+      EGL_BLUE_SIZE,
+      8,
+      EGL_ALPHA_SIZE,
+      8,
+      EGL_RENDERABLE_TYPE,
+      EGL_OPENGL_ES2_BIT,
+      EGL_NONE,
+      0,
+      EGL_NONE,
+  };
+
+  // First, query how many configs match the given attribute list.
+  EGLint num_configs = 0;
+  EGL_CALL(eglChooseConfig(display, kAttributeList, NULL, 0, &num_configs));
+  SB_DCHECK(num_configs != 0);
+
+  // Allocate space to receive the matching configs and retrieve them.
+  EGLConfig* configs = new EGLConfig[num_configs];
+  EGL_CALL(eglChooseConfig(display, kAttributeList, configs, num_configs,
+                           &num_configs));
+
+  EGLNativeWindowType native_window =
+      static_cast<EGLNativeWindowType>(native_video_window_);
+  EGLConfig config;
+
+  // Find the first config that successfully allow a window surface to be
+  // created.
+  EGLSurface surface;
+  for (int config_number = 0; config_number < num_configs; ++config_number) {
+    config = configs[config_number];
+    surface = eglCreateWindowSurface(display, config, native_window, NULL);
+    if (eglGetError() == EGL_SUCCESS)
+      break;
+  }
+  SB_DCHECK(surface != EGL_NO_SURFACE);
+
+  delete[] configs;
+
+  // Create an OpenGL ES 2.0 context.
+  EGLContext context = EGL_NO_CONTEXT;
+  EGLint context_attrib_list[] = {
+      EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
+  };
+  context =
+      eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list);
+  SB_DCHECK(eglGetError() == EGL_SUCCESS);
+  SB_DCHECK(context != EGL_NO_CONTEXT);
+
+  /* connect the context to the surface */
+  EGL_CALL(eglMakeCurrent(display, surface, surface, context));
+
+  GL_CALL(glClearColor(0, 0, 0, 1));
+  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+  GL_CALL(glFlush());
+  EGL_CALL(eglSwapBuffers(display, surface));
+
+  // Cleanup all used resources.
+  EGL_CALL(
+      eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+  EGL_CALL(eglDestroyContext(display, context));
+  EGL_CALL(eglDestroySurface(display, surface));
+  EGL_CALL(eglTerminate(display));
 }
 
 }  // namespace shared

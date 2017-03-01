@@ -15,13 +15,21 @@
 #ifndef STARBOARD_SHARED_GLES_GL_CALL_H_
 #define STARBOARD_SHARED_GLES_GL_CALL_H_
 
+#include "EGL/egl.h"
 #include "GLES2/gl2.h"
+
 #include "starboard/log.h"
 
 #define GL_CALL(x)                          \
   do {                                      \
     x;                                      \
     SB_DCHECK(glGetError() == GL_NO_ERROR); \
+  } while (false)
+
+#define EGL_CALL(x)                          \
+  do {                                       \
+    x;                                       \
+    SB_DCHECK(eglGetError() == EGL_SUCCESS); \
   } while (false)
 
 #endif  // STARBOARD_SHARED_GLES_GL_CALL_H_
