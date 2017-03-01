@@ -21,6 +21,7 @@
 #include "net/websockets/websocket_handshake_handler.h"
 #include "net/websockets/websocket_net_log_params.h"
 #include "net/websockets/websocket_throttle.h"
+#include "starboard/memory.h"
 
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
 
@@ -99,7 +100,7 @@ bool WebSocketJob::SendData(const char* data, int len) {
     case OPEN:
       {
         scoped_refptr<IOBufferWithSize> buffer = new IOBufferWithSize(len);
-        memcpy(buffer->data(), data, len);
+        SbMemoryCopy(buffer->data(), data, len);
         if (current_send_buffer_ || !send_buffer_queue_.empty()) {
           send_buffer_queue_.push_back(buffer);
           return true;
