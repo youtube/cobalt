@@ -251,7 +251,9 @@ NET_ERROR(SPDY_SESSION_ALREADY_EXISTS, -143)
 
 // Error -144 was removed (LIMIT_VIOLATION).
 
-// Error -145 was removed (WS_PROTOCOL_ERROR).
+// Websocket protocol error. Indicates that we are terminating the connection
+// due to a malformed frame or other protocol violation.
+NET_ERROR(WS_PROTOCOL_ERROR, -145)
 
 // Connection was aborted for switching to another ptotocol.
 // WebSocket abort SocketStream connection when alternate protocol is found.
