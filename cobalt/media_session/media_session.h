@@ -42,6 +42,8 @@ class MediaSession : public script::Wrappable {
     kNexttrack
   };
 
+  MediaSession() : state_(MediaSessionPlaybackState::kNone) {}
+
   scoped_refptr<MediaMetadata> metadata() const { return metadata_; }
 
   void set_metadata(scoped_refptr<MediaMetadata> value) { metadata_ = value; }
@@ -52,6 +54,8 @@ class MediaSession : public script::Wrappable {
 
   void SetActionHandler(MediaSessionAction action,
                         const MediaSessionActionHandlerHolder& handler) {
+    UNREFERENCED_PARAMETER(action);
+    UNREFERENCED_PARAMETER(handler);
     NOTIMPLEMENTED();
   }
 
