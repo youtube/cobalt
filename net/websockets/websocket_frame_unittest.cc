@@ -127,16 +127,16 @@ TEST(WebSocketFrameHeaderTest, FrameOpCodes) {
     { "\x89\x00", 2, WebSocketFrameHeader::kOpCodePing },
     { "\x8A\x00", 2, WebSocketFrameHeader::kOpCodePong },
     // These are undefined opcodes, but the builder should accept them anyway.
-    { "\x83\x00", 2, 0x3 },
-    { "\x84\x00", 2, 0x4 },
-    { "\x85\x00", 2, 0x5 },
-    { "\x86\x00", 2, 0x6 },
-    { "\x87\x00", 2, 0x7 },
-    { "\x8B\x00", 2, 0xB },
-    { "\x8C\x00", 2, 0xC },
-    { "\x8D\x00", 2, 0xD },
-    { "\x8E\x00", 2, 0xE },
-    { "\x8F\x00", 2, 0xF }
+    { "\x83\x00", 2, WebSocketFrameHeader::OpCode(0x3) },
+    { "\x84\x00", 2, WebSocketFrameHeader::OpCode(0x4) },
+    { "\x85\x00", 2, WebSocketFrameHeader::OpCode(0x5) },
+    { "\x86\x00", 2, WebSocketFrameHeader::OpCode(0x6) },
+    { "\x87\x00", 2, WebSocketFrameHeader::OpCode(0x7) },
+    { "\x8B\x00", 2, WebSocketFrameHeader::OpCode(0xB) },
+    { "\x8C\x00", 2, WebSocketFrameHeader::OpCode(0xC) },
+    { "\x8D\x00", 2, WebSocketFrameHeader::OpCode(0xD) },
+    { "\x8E\x00", 2, WebSocketFrameHeader::OpCode(0xE) },
+    { "\x8F\x00", 2, WebSocketFrameHeader::OpCode(0xF) }
   };
   static const int kNumTests = ARRAYSIZE_UNSAFE(kTests);
 
