@@ -22,3 +22,4 @@ Navigator implements NavigatorID;
 Navigator implements NavigatorLanguage;
 Navigator implements NavigatorPlugins;
 Navigator implements NavigatorStorageUtils;
+Navigator implements NavigatorMediaSession;
