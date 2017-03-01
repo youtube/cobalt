@@ -16,6 +16,10 @@
 
 #include "cobalt/dom/navigator.h"
 
+#include "cobalt/media_session/media_session.h"
+
+using cobalt::media_session::MediaSession;
+
 namespace cobalt {
 namespace dom {
 
@@ -23,7 +27,8 @@ Navigator::Navigator(const std::string& user_agent, const std::string& language)
     : user_agent_(user_agent),
       language_(language),
       mime_types_(new MimeTypeArray()),
-      plugins_(new PluginArray()) {}
+      plugins_(new PluginArray()),
+      media_session_(new MediaSession()) {}
 
 const std::string& Navigator::language() const { return language_; }
 
@@ -39,6 +44,11 @@ const scoped_refptr<MimeTypeArray>& Navigator::mime_types() const {
 
 const scoped_refptr<PluginArray>& Navigator::plugins() const {
   return plugins_;
+}
+
+const scoped_refptr<cobalt::media_session::MediaSession>&
+Navigator::media_session() const {
+  return media_session_;
 }
 
 }  // namespace dom
