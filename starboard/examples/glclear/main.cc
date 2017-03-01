@@ -210,7 +210,7 @@ void Application::RenderScene() {
   SB_CHECK(GL_NO_ERROR == glGetError());
 
   glClear(GL_COLOR_BUFFER_BIT);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SB_CHECK(GL_NO_ERROR == glGetError());
 
   glFlush();
   SB_CHECK(GL_NO_ERROR == glGetError());
