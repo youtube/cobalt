@@ -21,8 +21,8 @@ import tv_testcase_util
 
 # selenium imports
 # pylint: disable=C0103
-WebDriverWait = tv_testcase_util.import_selenium_module(
-    submodule="webdriver.support.ui").WebDriverWait
+ActionChains = tv_testcase_util.import_selenium_module(
+    submodule="webdriver.common.action_chains").ActionChains
 
 ElementNotVisibleException = tv_testcase_util.import_selenium_module(
     submodule="common.exceptions").ElementNotVisibleException
@@ -184,33 +184,16 @@ class TvTestCase(unittest.TestCase):
       self.assertEqual(len(elements), expected_num)
     return elements
 
-  def send_keys(self, css_selector, keys):
-    """Sends keys to an element uniquely identified by a selector.
-
-    This method retries for a timeout period if the selected element
-    could not be immediately found. If the retries do not succeed,
-    the underlying exception is passed through.
+  def send_keys(self, keys):
+    """Sends keys to whichever element currently has focus.
 
     Args:
-      css_selector: A CSS selector
       keys: key events
 
     Raises:
       Underlying WebDriver exceptions
     """
-    start_time = time.time()
-    while True:
-      try:
-        element = self.unique_find(css_selector)
-        element.send_keys(keys)
-        return
-      except ElementNotVisibleException:
-        # TODO ElementNotVisibleException seems to be considered
-        # a "falsy" exception in the internal tests, which seems to mean
-        # it would not be retried. But here, it seems essential.
-        if time.time() - start_time >= PAGE_LOAD_WAIT_SECONDS:
-          raise
-        time.sleep(1)
+    ActionChains(self.get_webdriver()).send_keys(keys).perform()
 
   def clear_url_loaded_events(self):
     """Clear the events that indicate that Cobalt finished loading a URL."""
