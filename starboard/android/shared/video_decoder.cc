@@ -100,6 +100,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 VideoDecoder::~VideoDecoder() {
   Reset();
   TeardownCodec();
+  ClearVideoWindow();
 }
 
 void VideoDecoder::SetHost(Host* host) {
