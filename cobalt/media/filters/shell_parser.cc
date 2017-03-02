@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include "media/filters/shell_parser.h"
+#include "cobalt/media/filters/shell_parser.h"
 
 #include "base/logging.h"
-#include "media/filters/shell_flv_parser.h"
-#include "media/filters/shell_mp4_parser.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/filters/shell_mp4_parser.h"
 
 namespace media {
 
@@ -30,8 +30,10 @@ const int ShellParser::kInitialHeaderSize = 9;
 // static
 PipelineStatus ShellParser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
-    scoped_refptr<ShellParser>* parser) {
+    scoped_refptr<ShellParser>* parser,
+    const scoped_refptr<MediaLog>& media_log) {
   DCHECK(parser);
+  DCHECK(media_log);
   *parser = NULL;
 
   // download first 16 bytes of stream to determine file type and extract basic
@@ -43,22 +45,17 @@ PipelineStatus ShellParser::Construct(
   }
 
   // attempt to construct mp4 parser from this header
-  PipelineStatus status = ShellMP4Parser::Construct(reader, header, parser);
-  if (status == PIPELINE_OK) {
-    return status;
-  }
-  // ok, attempt FLV
-  return ShellFLVParser::Construct(reader, header, parser);
+  return ShellMP4Parser::Construct(reader, header, parser, media_log);
 }
 
 ShellParser::ShellParser(scoped_refptr<ShellDataSourceReader> reader)
-    : reader_(reader), duration_(kInfiniteDuration()), bits_per_second_(0) {}
+    : reader_(reader), duration_(kInfiniteDuration), bits_per_second_(0) {}
 
 ShellParser::~ShellParser() {}
 
 bool ShellParser::IsConfigComplete() {
-  return (video_config_.IsValidConfig()) && (audio_config_.IsValidConfig()) &&
-         (duration_ != kInfiniteDuration());
+  return video_config_.IsValidConfig() && audio_config_.IsValidConfig() &&
+         duration_ != kInfiniteDuration;
 }
 
 }  // namespace media

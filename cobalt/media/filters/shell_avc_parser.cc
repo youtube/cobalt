@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-#include "media/filters/shell_avc_parser.h"
+#include "cobalt/media/filters/shell_avc_parser.h"
 
 #include <limits>
+#include <vector>
 
+#include "base/logging.h"
 #include "base/stringprintf.h"
-#include "media/base/endian_util.h"
-#include "media/base/shell_buffer_factory.h"
-#include "media/base/video_types.h"
-#include "media/filters/shell_au.h"
-#include "media/filters/shell_rbsp_stream.h"
-#include "media/mp4/aac.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/endian_util.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/video_types.h"
+#include "cobalt/media/filters/shell_au.h"
+#include "cobalt/media/filters/shell_rbsp_stream.h"
+#include "cobalt/media/formats/mp4/aac.h"
 
 namespace media {
 
@@ -33,8 +36,14 @@ static const int kAVCConfigMinSize = 8;
 // lower five bits of first byte in SPS should be 7
 static const uint8 kSPSNALType = 7;
 
-ShellAVCParser::ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader)
-    : ShellParser(reader), nal_header_size_(0), video_prepend_size_(0) {}
+ShellAVCParser::ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader,
+                               const scoped_refptr<MediaLog>& media_log)
+    : ShellParser(reader),
+      media_log_(media_log),
+      nal_header_size_(0),
+      video_prepend_size_(0) {
+  DCHECK(media_log);
+}
 
 ShellAVCParser::~ShellAVCParser() {}
 
@@ -45,7 +54,7 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     NOTREACHED() << "bad input to Prepend()";
     return false;
   }
-  uint8* prepend_buffer = buffer->GetWritableData();
+  uint8* prepend_buffer = buffer->writable_data();
   if (!prepend_buffer) {
     NOTREACHED() << "empty/undersized buffer to Prepend()";
     return false;
@@ -84,27 +93,21 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
 
 bool ShellAVCParser::DownloadAndParseAVCConfigRecord(uint64 offset,
                                                      uint32 size) {
-  scoped_refptr<ShellScopedArray> record_buffer =
-      ShellBufferFactory::Instance()->AllocateArray(size);
-  // It's possible that the size of this record buffer may exceed the
-  // memory available to the media stack, in which case we skip it.
-  if (!record_buffer || !record_buffer->Get()) {
-    DLOG(WARNING) << base::StringPrintf(
-        "insufficient memory to download AVCConfigRecord of %d bytes", size);
+  if (size == 0) {
     return false;
   }
-  int bytes_read = reader_->BlockingRead(offset, size, record_buffer->Get());
+  std::vector<uint8> record_buffer(size);
+  int bytes_read = reader_->BlockingRead(offset, size, &record_buffer[0]);
   DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
   if (bytes_read < static_cast<int>(size)) {
     return false;
   }
   // ok, successfully downloaded the record, parse it
-  return ParseAVCConfigRecord(record_buffer->Get(), size);
+  return ParseAVCConfigRecord(&record_buffer[0], size);
 }
 
 // static
-bool ShellAVCParser::ParseSPS(const uint8* sps,
-                              size_t sps_size,
+bool ShellAVCParser::ParseSPS(const uint8* sps, size_t sps_size,
                               ShellSPSRecord* record_out) {
   DCHECK(sps) << "no sps provided";
   DCHECK(record_out) << "no output structure provided";
@@ -116,7 +119,7 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   // convert SPS NALU to RBSP stream
   ShellRBSPStream sps_rbsp(sps + 1, sps_size - 1);
   uint8 profile_idc = 0;
-  if (!sps_rbsp.ReadByte(profile_idc)) {
+  if (!sps_rbsp.ReadByte(&profile_idc)) {
     DLOG(ERROR) << "failure reading profile_idc from sps RBSP";
     return false;
   }
@@ -127,13 +130,13 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   uint32 disposable_uev = 0;
   int32 disposable_sev = 0;
   // seq_parameter_set_id
-  sps_rbsp.ReadUEV(disposable_uev);
+  sps_rbsp.ReadUEV(&disposable_uev);
   // skip profile-specific encoding information if there
   if (profile_idc == 100 || profile_idc == 103 || profile_idc == 110 ||
       profile_idc == 122 || profile_idc == 244 || profile_idc == 44 ||
       profile_idc == 83 || profile_idc == 86 || profile_idc == 118) {
     uint32 chroma_format_idc = 0;
-    if (!sps_rbsp.ReadUEV(chroma_format_idc)) {
+    if (!sps_rbsp.ReadUEV(&chroma_format_idc)) {
       DLOG(WARNING) << "failure reading chroma_format_idc from sps RBSP";
       return false;
     }
@@ -142,14 +145,14 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
       sps_rbsp.SkipBits(1);
     }
     // bit_depth_luma_minus8
-    sps_rbsp.ReadUEV(disposable_uev);
+    sps_rbsp.ReadUEV(&disposable_uev);
     // bit_depth_chroma_minus8
-    sps_rbsp.ReadUEV(disposable_uev);
+    sps_rbsp.ReadUEV(&disposable_uev);
     // qpprime_y_zero_transform_bypass_flag
     sps_rbsp.SkipBits(1);
     // seq_scaling_matrix_present_flag
     uint8 seq_scaling_matrix_present_flag = 0;
-    if (!sps_rbsp.ReadBit(seq_scaling_matrix_present_flag)) {
+    if (!sps_rbsp.ReadBit(&seq_scaling_matrix_present_flag)) {
       DLOG(ERROR)
           << "failure reading seq_scaling_matrix_present_flag from sps RBSP";
       return false;
@@ -160,37 +163,37 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
     }
   }
   // log2_max_frame_num_minus4
-  sps_rbsp.ReadUEV(disposable_uev);
+  sps_rbsp.ReadUEV(&disposable_uev);
   // pic_order_cnt_type
   uint32 pic_order_cnt_type = 0;
-  if (!sps_rbsp.ReadUEV(pic_order_cnt_type)) {
+  if (!sps_rbsp.ReadUEV(&pic_order_cnt_type)) {
     DLOG(ERROR) << "failure reading pic_order_cnt_type from sps RBSP";
     return false;
   }
   if (pic_order_cnt_type == 0) {
     // log2_max_pic_order_cnt_lsb_minus4
-    sps_rbsp.ReadUEV(disposable_uev);
+    sps_rbsp.ReadUEV(&disposable_uev);
   } else if (pic_order_cnt_type == 1) {
     // delta_pic_order_always_zero_flag
     sps_rbsp.SkipBits(1);
     // offset_for_non_ref_pic
-    sps_rbsp.ReadSEV(disposable_sev);
+    sps_rbsp.ReadSEV(&disposable_sev);
     // offset_for_top_to_bottom_field
-    sps_rbsp.ReadSEV(disposable_sev);
+    sps_rbsp.ReadSEV(&disposable_sev);
     // num_ref_frames_in_pic_order_cnt_cycle
     uint32 num_ref_frames_in_pic_order_cnt_cycle = 0;
-    if (!sps_rbsp.ReadUEV(num_ref_frames_in_pic_order_cnt_cycle)) {
+    if (!sps_rbsp.ReadUEV(&num_ref_frames_in_pic_order_cnt_cycle)) {
       DLOG(ERROR)
           << "failure reading num_ref_frames_in_pic_order_cnt_cycle from sps";
       return false;
     }
     for (uint32 i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; ++i) {
-      sps_rbsp.ReadSEV(disposable_sev);
+      sps_rbsp.ReadSEV(&disposable_sev);
     }
   }
   // number of reference frames used to decode
   uint32 num_ref_frames = 0;
-  if (!sps_rbsp.ReadUEV(num_ref_frames)) {
+  if (!sps_rbsp.ReadUEV(&num_ref_frames)) {
     DLOG(ERROR) << "failure reading number of ref frames from sps RBSP";
     return false;
   }
@@ -198,7 +201,7 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   sps_rbsp.SkipBits(1);
   // width is calculated from pic_width_in_mbs_minus1
   uint32 pic_width_in_mbs_minus1 = 0;
-  if (!sps_rbsp.ReadUEV(pic_width_in_mbs_minus1)) {
+  if (!sps_rbsp.ReadUEV(&pic_width_in_mbs_minus1)) {
     DLOG(WARNING) << "failure reading image width from sps RBSP";
     return false;
   }
@@ -206,17 +209,17 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   uint32 width = (pic_width_in_mbs_minus1 + 1) * 16;
   // pic_height_in_map_units_minus1
   uint32 pic_height_in_map_units_minus1 = 0;
-  if (!sps_rbsp.ReadUEV(pic_height_in_map_units_minus1)) {
+  if (!sps_rbsp.ReadUEV(&pic_height_in_map_units_minus1)) {
     DLOG(ERROR)
         << "failure reading pic_height_in_map_uints_minus1 from sps RBSP";
     return false;
   }
   uint8 frame_mbs_only_flag = 0;
-  if (!sps_rbsp.ReadBit(frame_mbs_only_flag)) {
+  if (!sps_rbsp.ReadBit(&frame_mbs_only_flag)) {
     DLOG(ERROR) << "failure reading frame_mbs_only_flag from sps RBSP";
     return false;
   }
-  uint32 height = (2 - (uint32)frame_mbs_only_flag) *
+  uint32 height = (2 - static_cast<uint32>(frame_mbs_only_flag)) *
                   (pic_height_in_map_units_minus1 + 1) * 16;
   if (!frame_mbs_only_flag) {
     sps_rbsp.SkipBits(1);
@@ -225,7 +228,7 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   sps_rbsp.SkipBits(1);
   // frame cropping flag
   uint8 frame_cropping_flag = 0;
-  if (!sps_rbsp.ReadBit(frame_cropping_flag)) {
+  if (!sps_rbsp.ReadBit(&frame_cropping_flag)) {
     DLOG(ERROR) << "failure reading frame_cropping_flag from sps RBSP";
     return false;
   }
@@ -256,19 +259,19 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   uint32 crop_bottom = 0;
   // cropping values are stored divided by two
   if (frame_cropping_flag) {
-    if (!sps_rbsp.ReadUEV(crop_left)) {
+    if (!sps_rbsp.ReadUEV(&crop_left)) {
       DLOG(ERROR) << "failure reading crop_left from sps RBSP";
       return false;
     }
-    if (!sps_rbsp.ReadUEV(crop_right)) {
+    if (!sps_rbsp.ReadUEV(&crop_right)) {
       DLOG(ERROR) << "failure reading crop_right from sps RBSP";
       return false;
     }
-    if (!sps_rbsp.ReadUEV(crop_top)) {
+    if (!sps_rbsp.ReadUEV(&crop_top)) {
       DLOG(ERROR) << "failure reading crop_top from sps RBSP";
       return false;
     }
-    if (!sps_rbsp.ReadUEV(crop_bottom)) {
+    if (!sps_rbsp.ReadUEV(&crop_bottom)) {
       DLOG(ERROR) << "failure reading crop_bottom from sps RBSP";
       return false;
     }
@@ -393,26 +396,18 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     return false;
   }
   // we can now initialize our video decoder config
-  video_config_.Initialize(
-      kCodecH264,
-      H264PROFILE_MAIN,            // profile is ignored currently
-      VideoFrame::NATIVE_TEXTURE,  // we always decode directly to texture
-      COLOR_SPACE_HD_REC709,
-      sps_record.coded_size, sps_record.visible_rect, sps_record.natural_size,
-      // no extra data needed
-      NULL, 0,
-      // is not currently encrypted
-      false,
-      // ignore stats for now
-      false);
+  video_config_.Initialize(kCodecH264,
+                           H264PROFILE_MAIN,  // profile is ignored currently
+                           PIXEL_FORMAT_YV12, COLOR_SPACE_HD_REC709,
+                           sps_record.coded_size, sps_record.visible_rect,
+                           sps_record.natural_size, EmptyExtraData(),
+                           Unencrypted());
 
   return BuildAnnexBPrepend(buffer + usable_sps_offset, usable_sps_size,
                             buffer + usable_pps_offset, usable_pps_size);
 }
 
-bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps,
-                                        uint32 sps_size,
-                                        uint8* pps,
+bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
                                         uint32 pps_size) {
   // We will need to attach the sps and pps (if provided) to each keyframe
   // video packet, with the AnnexB start code in front of each. Start with
@@ -456,7 +451,8 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   aac_config[1] = b1;
   audio_prepend_.clear();
 
-  if (!aac.Parse(aac_config) || !aac.ConvertEsdsToADTS(&audio_prepend_)) {
+  if (!aac.Parse(aac_config, media_log_) ||
+      !aac.ConvertEsdsToADTS(&audio_prepend_)) {
     DLOG(WARNING) << "Error in parsing AudioSpecificConfig.";
     return;
   }
@@ -472,12 +468,11 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   audio_prepend_.clear();
 #endif  // defined(COBALT_WIN)
 
+  const bool kSbrInMimetype = false;
   audio_config_.Initialize(
-      kCodecAAC,
-      16,  // AAC is always 16 bit
-      aac.channel_layout(), aac.GetOutputSamplesPerSecond(false),
-      aac.raw_data().empty() ? NULL : &aac.raw_data().front(),
-      aac.raw_data().size(), false, false);
+      kCodecAAC, kSampleFormatS16, aac.GetChannelLayout(kSbrInMimetype),
+      aac.GetOutputSamplesPerSecond(kSbrInMimetype), aac.codec_specific_data(),
+      Unencrypted(), base::TimeDelta(), 0);
 }
 
 size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
@@ -485,8 +480,7 @@ size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
   size_t prepend_size = 0;
   if (type == DemuxerStream::VIDEO) {
     bool needs_prepend = is_keyframe;
-    if (needs_prepend)
-      prepend_size = video_prepend_size_;
+    if (needs_prepend) prepend_size = video_prepend_size_;
   } else if (type == DemuxerStream::AUDIO) {
     prepend_size = audio_prepend_.size();
   } else {

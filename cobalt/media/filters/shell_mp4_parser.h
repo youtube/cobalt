@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_FILTERS_SHELL_MP4_PARSER_H_
-#define MEDIA_FILTERS_SHELL_MP4_PARSER_H_
+#ifndef COBALT_MEDIA_FILTERS_SHELL_MP4_PARSER_H_
+#define COBALT_MEDIA_FILTERS_SHELL_MP4_PARSER_H_
 
-#include "media/filters/shell_avc_parser.h"
-#include "media/filters/shell_mp4_map.h"
-
-// If true the parser will save every atom it parses to disk. Note that since
-// the parser is lazy and only parses what it needs to build the map and know
-// the required video config information it is likely to not build a complete
-// atom table for a given file.
-#define SHELL_MP4_PARSER_DUMP_ATOMS 0
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/filters/shell_avc_parser.h"
+#include "cobalt/media/filters/shell_mp4_map.h"
 
 namespace media {
 
@@ -73,9 +68,11 @@ class ShellMP4Parser : public ShellAVCParser {
   // this returns an error status and |*parser| contains NULL.
   static PipelineStatus Construct(scoped_refptr<ShellDataSourceReader> reader,
                                   const uint8* construction_header,
-                                  scoped_refptr<ShellParser>* parser);
+                                  scoped_refptr<ShellParser>* parser,
+                                  const scoped_refptr<MediaLog>& media_log);
   ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
-                 uint32 ftyp_atom_size);
+                 uint32 ftyp_atom_size,
+                 const scoped_refptr<MediaLog>& media_log);
   virtual ~ShellMP4Parser();
 
   // === ShellParser implementation
@@ -92,10 +89,6 @@ class ShellMP4Parser : public ShellAVCParser {
   bool ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd);
   base::TimeDelta TicksToTime(uint64 ticks, uint32 time_scale_hz);
   uint64 TimeToTicks(base::TimeDelta time, uint32 time_scale_hz);
-
-#if SHELL_MP4_PARSER_DUMP_ATOMS
-  void DumpAtomToDisk(uint32 four_cc, uint32 atom_size, uint64 atom_offset);
-#endif
 
   uint64 atom_offset_;
   bool current_trak_is_video_;
@@ -118,4 +111,4 @@ class ShellMP4Parser : public ShellAVCParser {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SHELL_MP4_PARSER_H_
+#endif  // COBALT_MEDIA_FILTERS_SHELL_MP4_PARSER_H_
