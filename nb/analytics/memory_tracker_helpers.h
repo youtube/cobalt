@@ -23,6 +23,8 @@
 #include "nb/analytics/memory_tracker.h"
 #include "nb/atomic.h"
 #include "nb/simple_thread.h"
+#include "nb/thread_local_boolean.h"
+#include "nb/thread_local_pointer.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
@@ -33,58 +35,6 @@ namespace analytics {
 
 class AllocationGroup;
 class AllocationRecord;
-
-template <typename Type>
-class ThreadLocalPointer {
- public:
-  ThreadLocalPointer() {
-    slot_ = SbThreadCreateLocalKey(NULL);  // No destructor for pointer.
-    SB_DCHECK(kSbThreadLocalKeyInvalid != slot_);
-  }
-
-  ~ThreadLocalPointer() { SbThreadDestroyLocalKey(slot_); }
-
-  Type* Get() const {
-    void* ptr = SbThreadGetLocalValue(slot_);
-    Type* type_ptr = static_cast<Type*>(ptr);
-    return type_ptr;
-  }
-
-  void Set(Type* ptr) {
-    void* void_ptr = static_cast<void*>(ptr);
-    SbThreadSetLocalValue(slot_, void_ptr);
-  }
-
- private:
-  SbThreadLocalKey slot_;
-  SB_DISALLOW_COPY_AND_ASSIGN(ThreadLocalPointer<Type>);
-};
-
-class ThreadLocalBoolean {
- public:
-  ThreadLocalBoolean() : default_value_(false) {}
-  explicit ThreadLocalBoolean(bool default_value)
-      : default_value_(default_value) {}
-  ~ThreadLocalBoolean() {}
-
-  bool Get() const {
-    bool val = tlp_.Get() != NULL;
-    return val ^ default_value_;
-  }
-
-  void Set(bool val) {
-    val = val ^ default_value_;
-    tlp_.Set(val ? TruePointer() : FalsePointer());
-  }
-
- private:
-  static void* TruePointer() { return reinterpret_cast<void*>(0x1); }
-  static void* FalsePointer() { return NULL; }
-  ThreadLocalPointer<void> tlp_;
-  const bool default_value_;
-
-  SB_DISALLOW_COPY_AND_ASSIGN(ThreadLocalBoolean);
-};
 
 // An AllocationGroup is a collection of allocations that are logically lumped
 // together, such as "Javascript" or "Graphics".
