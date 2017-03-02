@@ -41,6 +41,12 @@ class ShellVideoFrameProvider
   typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
+  enum OutputMode {
+    kOutputModePunchOut,
+    kOutputModeDecodeToTexture,
+    kOutputModeInvalid,
+  };
+
   explicit ShellVideoFrameProvider(scoped_refptr<VideoFrame> punch_out = NULL);
 
   // The calling back returns the current media time and a bool which is set to
@@ -63,8 +69,8 @@ class ShellVideoFrameProvider
   // returns NULL.
   const scoped_refptr<VideoFrame>& GetCurrentFrame();
 
-  void SetPunchOutMode(bool punch_out) { punch_out_mode_ = punch_out; }
-  bool IsPunchOutMode() const { return punch_out_mode_; }
+  void SetOutputMode(OutputMode output_mode) { output_mode_ = output_mode; }
+  OutputMode GetOutputMode() const { return output_mode_; }
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   // For Starboard platforms that have a decode-to-texture player, we enable
@@ -123,7 +129,7 @@ class ShellVideoFrameProvider
   int max_delay_in_microseconds_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
-  bool punch_out_mode_;
+  OutputMode output_mode_;
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
