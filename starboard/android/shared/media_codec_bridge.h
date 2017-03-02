@@ -18,6 +18,7 @@
 #include <string>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/scoped_ptr.h"
 

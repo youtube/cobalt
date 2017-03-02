@@ -21,7 +21,6 @@
 #include <cstdarg>
 
 #include "starboard/log.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace android {
@@ -160,53 +159,6 @@ struct JniEnvExt : public JNIEnv {
 
 SB_COMPILE_ASSERT(sizeof(JNIEnv) == sizeof(JniEnvExt),
                   JniEnvExt_must_not_add_fields);
-
-// Wrapper class to manage the lifetime of a local reference to a |jobject|.
-// This is necessary for local references to |jobject|s that are obtained in
-// native code that was not called into from Java, since they will otherwise
-// not be cleaned up.
-class ScopedLocalJavaRef {
- public:
-  explicit ScopedLocalJavaRef(jobject j_object = NULL) : j_object_(j_object) {}
-  ~ScopedLocalJavaRef() {
-    if (j_object_) {
-      JniEnvExt::Get()->DeleteLocalRef(j_object_);
-      j_object_ = NULL;
-    }
-  }
-  jobject Get() const { return j_object_; }
-  operator bool() const { return j_object_; }
-
- private:
-  jobject j_object_;
-
-  SB_DISALLOW_COPY_AND_ASSIGN(ScopedLocalJavaRef);
-};
-
-// Convenience class to manage the lifetime of a local Java ByteBuffer
-// reference, and provide accessors to its properties.
-class ScopedJavaByteBuffer {
- public:
-  explicit ScopedJavaByteBuffer(jobject j_byte_buffer)
-      : j_byte_buffer_(j_byte_buffer) {}
-  void* address() const {
-    return JniEnvExt::Get()->GetDirectBufferAddress(j_byte_buffer_.Get());
-  }
-  jint capacity() const {
-    return JniEnvExt::Get()->GetDirectBufferCapacity(j_byte_buffer_.Get());
-  }
-  bool IsNull() const { return !j_byte_buffer_ || !address(); }
-  void CopyInto(const void* source, jint count) {
-    SB_DCHECK(!IsNull());
-    SB_DCHECK(count >= 0 && count <= capacity());
-    SbMemoryCopy(address(), source, count);
-  }
-
- private:
-  ScopedLocalJavaRef j_byte_buffer_;
-
-  SB_DISALLOW_COPY_AND_ASSIGN(ScopedJavaByteBuffer);
-};
 
 }  // namespace shared
 }  // namespace android
