@@ -39,6 +39,31 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       new MediaCodecBridge(j_media_codec_bridge));
 }
 
+// static
+scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
+    const std::string& mime,
+    int width,
+    int height,
+    jobject j_surface,
+    jobject j_media_crypto) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jstring j_mime = env->NewStringUTF(mime.c_str());
+
+  jobject j_media_codec_bridge = env->CallStaticObjectMethod(
+      "foo/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
+      "(Ljava/lang/String;ZZIILandroid/view/Surface;Landroid/media/"
+      "MediaCrypto;)Lfoo/cobalt/media/MediaCodecBridge;",
+      j_mime, false, false, width, height, j_surface, j_media_crypto);
+
+  if (!j_media_codec_bridge) {
+    return scoped_ptr<MediaCodecBridge>(NULL);
+  }
+
+  j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
+  return scoped_ptr<MediaCodecBridge>(
+      new MediaCodecBridge(j_media_codec_bridge));
+}
+
 MediaCodecBridge::~MediaCodecBridge() {
   JniEnvExt* env = JniEnvExt::Get();
   SB_DCHECK(j_media_codec_bridge_);
@@ -102,6 +127,16 @@ void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
 
 jint MediaCodecBridge::Flush() {
   return JniEnvExt::Get()->CallIntMethod(j_media_codec_bridge_, "flush", "()I");
+}
+
+SurfaceDimensions MediaCodecBridge::GetOutputDimensions() {
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef j_get_output_format_result(env->CallObjectMethod(
+      j_media_codec_bridge_, "getOutputFormat",
+      "()Lfoo/cobalt/media/MediaCodecBridge$GetOutputFormatResult;"));
+  return {
+      env->CallIntMethod(j_get_output_format_result.Get(), "width", "()I"),
+      env->CallIntMethod(j_get_output_format_result.Get(), "height", "()I")};
 }
 
 MediaCodecBridge::MediaCodecBridge(jobject j_media_codec_bridge)
