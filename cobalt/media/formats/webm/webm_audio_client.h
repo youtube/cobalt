@@ -35,8 +35,7 @@ class WebMAudioClient : public WebMParserClient {
   // audio track element fields.
   bool InitializeConfig(const std::string& codec_id,
                         const std::vector<uint8_t>& codec_private,
-                        const int64_t seek_preroll,
-                        const int64_t codec_delay,
+                        const int64_t seek_preroll, const int64_t codec_delay,
                         const EncryptionScheme& encryption_scheme,
                         AudioDecoderConfig* config);
 

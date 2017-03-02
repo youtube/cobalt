@@ -131,18 +131,15 @@ template <class T>
 scoped_refptr<AudioBuffer> MakeAudioBuffer(SampleFormat format,
                                            ChannelLayout channel_layout,
                                            size_t channel_count,
-                                           int sample_rate,
-                                           T start,
-                                           T increment,
-                                           size_t frames,
+                                           int sample_rate, T start,
+                                           T increment, size_t frames,
                                            base::TimeDelta timestamp);
 
 // Create a fake video DecoderBuffer for testing purpose. The buffer contains
 // part of video decoder config info embedded so that the testing code can do
 // some sanity check.
 scoped_refptr<DecoderBuffer> CreateFakeVideoBufferForTest(
-    const VideoDecoderConfig& config,
-    base::TimeDelta timestamp,
+    const VideoDecoderConfig& config, base::TimeDelta timestamp,
     base::TimeDelta duration);
 
 // Verify if a fake video DecoderBuffer is valid.
@@ -154,9 +151,7 @@ MATCHER_P(HasTimestamp, timestamp_in_ms, "") {
          arg->timestamp().InMilliseconds() == timestamp_in_ms;
 }
 
-MATCHER(IsEndOfStream, "") {
-  return arg.get() && arg->end_of_stream();
-}
+MATCHER(IsEndOfStream, "") { return arg.get() && arg->end_of_stream(); }
 
 MATCHER_P(SegmentMissingFrames, track_id, "") {
   return CONTAINS_STRING(
@@ -203,9 +198,7 @@ MATCHER_P2(GeneratedSplice, duration_microseconds, time_microseconds, "") {
                                   base::IntToString(time_microseconds) + "us.");
 }
 
-MATCHER_P2(SkippingSpliceAtOrBefore,
-           new_microseconds,
-           existing_microseconds,
+MATCHER_P2(SkippingSpliceAtOrBefore, new_microseconds, existing_microseconds,
            "") {
   return CONTAINS_STRING(
       arg, "Skipping splice frame generation: first new buffer at " +

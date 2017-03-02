@@ -55,8 +55,7 @@ class MEDIA_EXPORT AudioDecoder {
   // |init_cb| is used to return initialization status.
   // |output_cb| is called for decoded audio buffers (see Decode()).
   virtual void Initialize(const AudioDecoderConfig& config,
-                          CdmContext* cdm_context,
-                          const InitCB& init_cb,
+                          CdmContext* cdm_context, const InitCB& init_cb,
                           const OutputCB& output_cb) = 0;
 
   // Requests samples to be decoded. Only one decode may be in flight at any

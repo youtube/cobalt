@@ -50,8 +50,7 @@ class MEDIA_BLINK_EXPORT NewSessionCdmResultPromise
 
   // CdmPromiseTemplate<T> implementation.
   void resolve(const std::string& session_id) OVERRIDE;
-  void reject(MediaKeys::Exception exception_code,
-              uint32_t system_code,
+  void reject(MediaKeys::Exception exception_code, uint32_t system_code,
               const std::string& error_message) OVERRIDE;
 
  private:

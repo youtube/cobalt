@@ -30,8 +30,9 @@ MEDIA_EXPORT void FMUL(const float src[], float scale, int len, float dest[]);
 //   y[n] = smoothing_factor * src[n]^2 + (1-smoothing_factor) * y[n-1]
 //
 // Returns the final average power and the maximum squared element value.
-MEDIA_EXPORT std::pair<float, float> EWMAAndMaxPower(
-    float initial_value, const float src[], int len, float smoothing_factor);
+MEDIA_EXPORT std::pair<float, float> EWMAAndMaxPower(float initial_value,
+                                                     const float src[], int len,
+                                                     float smoothing_factor);
 
 MEDIA_EXPORT void Crossfade(const float src[], int len, float dest[]);
 

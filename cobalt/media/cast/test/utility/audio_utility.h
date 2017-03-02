@@ -28,10 +28,8 @@ namespace cast {
 // the continuation of a single sine wave.
 class TestAudioBusFactory {
  public:
-  TestAudioBusFactory(int num_channels,
-                      int sample_rate,
-                      float sine_wave_frequency,
-                      float volume);
+  TestAudioBusFactory(int num_channels, int sample_rate,
+                      float sine_wave_frequency, float volume);
   ~TestAudioBusFactory();
 
   // Creates a new AudioBus of the given |duration|, filled with the next batch
@@ -73,9 +71,7 @@ int CountZeroCrossings(const float* samples, int length);
 // contain how many samples has been encoded so far, so that we can make smooth
 // transitions between encoded chunks.
 // See audio_utility.cc for details on how the encoding is done.
-bool EncodeTimestamp(uint16_t timestamp,
-                     size_t sample_offset,
-                     size_t length,
+bool EncodeTimestamp(uint16_t timestamp, size_t sample_offset, size_t length,
                      float* samples);
 
 // Decode a timestamp encoded with EncodeTimestamp. Returns true if a

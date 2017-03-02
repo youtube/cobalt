@@ -49,14 +49,12 @@ enum SupportsType {
 // * Returns IsNotSupported if either the |mime_type| is not supported or the
 //   |mime_type| is supported but at least one of the codecs within |codecs| is
 //   not supported for the |mime_type|.
-MEDIA_EXPORT SupportsType
-IsSupportedMediaFormat(const std::string& mime_type,
-                       const std::vector<std::string>& codecs);
+MEDIA_EXPORT SupportsType IsSupportedMediaFormat(
+    const std::string& mime_type, const std::vector<std::string>& codecs);
 
 // Similar to the above, but for encrypted formats.
-MEDIA_EXPORT SupportsType
-IsSupportedEncryptedMediaFormat(const std::string& mime_type,
-                                const std::vector<std::string>& codecs);
+MEDIA_EXPORT SupportsType IsSupportedEncryptedMediaFormat(
+    const std::string& mime_type, const std::vector<std::string>& codecs);
 
 // Test only method that removes proprietary media types and codecs from the
 // list of supported MIME types and codecs. These types and codecs must be

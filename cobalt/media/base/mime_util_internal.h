@@ -65,8 +65,7 @@ class MEDIA_EXPORT MimeUtil {
   // See mime_util.h for more information on these methods.
   bool IsSupportedMediaMimeType(const std::string& mime_type) const;
   void ParseCodecString(const std::string& codecs,
-                        std::vector<std::string>* codecs_out,
-                        bool strip);
+                        std::vector<std::string>* codecs_out, bool strip);
   SupportsType IsSupportedMediaFormat(const std::string& mime_type,
                                       const std::vector<std::string>& codecs,
                                       bool is_encrypted) const;
@@ -79,9 +78,7 @@ class MEDIA_EXPORT MimeUtil {
   // |platform_info| describes the availability of various platform features;
   // see PlatformInfo for more details.
   static bool IsCodecSupportedOnPlatform(
-      Codec codec,
-      const std::string& mime_type_lower_case,
-      bool is_encrypted,
+      Codec codec, const std::string& mime_type_lower_case, bool is_encrypted,
       const PlatformInfo& platform_info);
 
  private:
@@ -130,19 +127,15 @@ class MEDIA_EXPORT MimeUtil {
   // audio codecs).
   // |is_encrypted| means the codec will be used with encrypted blocks.
   bool StringToCodec(const std::string& mime_type_lower_case,
-                     const std::string& codec_id,
-                     Codec* codec,
-                     bool* is_ambiguous,
-                     VideoCodecProfile* out_profile,
-                     uint8_t* out_level,
-                     bool is_encrypted) const;
+                     const std::string& codec_id, Codec* codec,
+                     bool* is_ambiguous, VideoCodecProfile* out_profile,
+                     uint8_t* out_level, bool is_encrypted) const;
 
   // Returns true if |codec| is supported when contained in
   // |mime_type_lower_case|. Note: This method will always return false for
   // proprietary codecs if |allow_proprietary_codecs_| is set to false.
   // |is_encrypted| means the codec will be used with encrypted blocks.
-  bool IsCodecSupported(Codec codec,
-                        const std::string& mime_type_lower_case,
+  bool IsCodecSupported(Codec codec, const std::string& mime_type_lower_case,
                         bool is_encrypted) const;
 
   // Returns true if |codec| refers to a proprietary codec.

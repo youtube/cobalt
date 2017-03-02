@@ -30,8 +30,7 @@ class MEDIA_EXPORT DecryptConfig {
   // |subsamples| defines the clear and encrypted portions of the sample as
   //   described above. A decrypted buffer will be equal in size to the sum
   //   of the subsample sizes.
-  DecryptConfig(const std::string& key_id,
-                const std::string& iv,
+  DecryptConfig(const std::string& key_id, const std::string& iv,
                 const std::vector<SubsampleEntry>& subsamples);
   ~DecryptConfig();
 

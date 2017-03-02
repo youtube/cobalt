@@ -48,10 +48,8 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
 
   StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                   const AudioDecoderConfig& audio_config,
-                  const VideoDecoderConfig& video_config,
-                  SbWindow window,
-                  SbDrmSystem drm_system,
-                  Host* host,
+                  const VideoDecoderConfig& video_config, SbWindow window,
+                  SbDrmSystem drm_system, Host* host,
                   SbPlayerSetBoundsHelper* set_bounds_helper);
   ~StarboardPlayer();
 
@@ -68,8 +66,7 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
 
   void SetVolume(float volume);
   void SetPause(bool pause);
-  void GetInfo(uint32* video_frames_decoded,
-               uint32* video_frames_dropped,
+  void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time);
 
   void Suspend();
@@ -99,31 +96,23 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   void CreatePlayer();
   void ClearDecoderBufferCache();
 
-  void OnDecoderStatus(SbPlayer player,
-                       SbMediaType type,
-                       SbPlayerDecoderState state,
-                       int ticket);
+  void OnDecoderStatus(SbPlayer player, SbMediaType type,
+                       SbPlayerDecoderState state, int ticket);
   void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
   void OnDeallocateSample(const void* sample_buffer);
 
-  static void DecoderStatusCB(SbPlayer player,
-                              void* context,
-                              SbMediaType type,
-                              SbPlayerDecoderState state,
-                              int ticket);
-  static void PlayerStatusCB(SbPlayer player,
-                             void* context,
-                             SbPlayerState state,
-                             int ticket);
-  static void DeallocateSampleCB(SbPlayer player,
-                                 void* context,
+  static void DecoderStatusCB(SbPlayer player, void* context, SbMediaType type,
+                              SbPlayerDecoderState state, int ticket);
+  static void PlayerStatusCB(SbPlayer player, void* context,
+                             SbPlayerState state, int ticket);
+  static void DeallocateSampleCB(SbPlayer player, void* context,
                                  const void* sample_buffer);
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   // Returns the output mode that should be used for a video with the given
   // specifications.
-  static SbPlayerOutputMode ComputeSbPlayerOutputMode(
-      SbMediaVideoCodec codec, SbDrmSystem drm_system);
+  static SbPlayerOutputMode ComputeSbPlayerOutputMode(SbMediaVideoCodec codec,
+                                                      SbDrmSystem drm_system);
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   // The following variables are initialized in the ctor and never changed.

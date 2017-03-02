@@ -56,8 +56,7 @@ class StreamParserTestBase {
   }
 
  private:
-  bool AppendDataInPieces(const uint8_t* data,
-                          size_t length,
+  bool AppendDataInPieces(const uint8_t* data, size_t length,
                           size_t piece_size);
   void OnInitDone(const StreamParser::InitParameters& params);
   bool OnNewConfig(std::unique_ptr<MediaTracks> tracks,

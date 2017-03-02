@@ -74,9 +74,7 @@ class MEDIA_EXPORT WebMTracksParser : public WebMParserClient {
 
   typedef std::map<int, TextTrackConfig> TextTracks;
 
-  const TextTracks& text_tracks() const {
-    return text_tracks_;
-  }
+  const TextTracks& text_tracks() const { return text_tracks_; }
 
   int detected_audio_track_count() const { return detected_audio_track_count_; }
 
