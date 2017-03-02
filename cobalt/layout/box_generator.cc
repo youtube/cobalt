@@ -321,22 +321,24 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
            ->html_element_context()
            ->resource_provider();
 
-  bool is_video_punched_out =
-      !video_element->GetVideoFrameProvider() ||
-      video_element->GetVideoFrameProvider()->IsPunchOutMode();
+  ShellVideoFrameProvider::OutputMode output_mode =
+      ShellVideoFrameProvider::kOutputModeInvalid;
+  if (video_element->GetVideoFrameProvider()) {
+    output_mode = video_element->GetVideoFrameProvider()->GetOutputMode();
+  }
 
   // Unlike in Chromium, we do not set the intrinsic width, height, or ratio
   // based on the video frame. This allows to avoid relayout while playing
   // adaptive videos.
   ReplacedBoxGenerator replaced_box_generator(
       video_element->css_computed_style_declaration(),
-      video_element->GetVideoFrameProvider()
+      output_mode != ShellVideoFrameProvider::kOutputModeInvalid
           ? base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider(),
                        resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
       base::nullopt, base::nullopt, base::nullopt, context_,
-      is_video_punched_out);
+      output_mode == ShellVideoFrameProvider::kOutputModePunchOut);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
