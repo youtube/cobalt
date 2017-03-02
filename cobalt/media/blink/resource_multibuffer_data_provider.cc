@@ -188,8 +188,7 @@ bool ResourceMultiBufferDataProvider::willFollowRedirect(
 }
 
 void ResourceMultiBufferDataProvider::didSendData(
-    WebURLLoader* loader, uint64 bytes_sent,
-    uint64 total_bytes_to_be_sent) {
+    WebURLLoader* loader, uint64 bytes_sent, uint64 total_bytes_to_be_sent) {
   NOTIMPLEMENTED();
 }
 

@@ -18,10 +18,8 @@ class MockWebURLLoader : public blink::WebURLLoader {
 
   MOCK_METHOD5(loadSynchronously,
                void(const blink::WebURLRequest& request,
-                    blink::WebURLResponse& response,
-                    blink::WebURLError& error,
-                    blink::WebData& data,
-                    int64_t& encoded_data_length));
+                    blink::WebURLResponse& response, blink::WebURLError& error,
+                    blink::WebData& data, int64_t& encoded_data_length));
   MOCK_METHOD2(loadAsynchronously, void(const blink::WebURLRequest& request,
                                         blink::WebURLLoaderClient* client));
   MOCK_METHOD0(cancel, void());

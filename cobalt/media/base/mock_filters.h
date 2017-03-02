@@ -63,18 +63,13 @@ class MockPipeline : public Pipeline {
   // take unique_ptr* instead of unique_ptr so that they can be mock methods.
   // Private stubs for Start() and Resume() implement the actual Pipeline
   // interface by forwarding to these mock methods.
-  MOCK_METHOD4(Start,
-               void(Demuxer*,
-                    std::unique_ptr<Renderer>*,
-                    Client*,
-                    const PipelineStatusCB&));
+  MOCK_METHOD4(Start, void(Demuxer*, std::unique_ptr<Renderer>*, Client*,
+                           const PipelineStatusCB&));
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD2(Seek, void(base::TimeDelta, const PipelineStatusCB&));
   MOCK_METHOD1(Suspend, void(const PipelineStatusCB&));
-  MOCK_METHOD3(Resume,
-               void(std::unique_ptr<Renderer>*,
-                    base::TimeDelta,
-                    const PipelineStatusCB&));
+  MOCK_METHOD3(Resume, void(std::unique_ptr<Renderer>*, base::TimeDelta,
+                            const PipelineStatusCB&));
 
   MOCK_METHOD1(OnEnabledAudioTracksChanged,
                void(const std::vector<MediaTrack::Id>&));
@@ -102,12 +97,9 @@ class MockPipeline : public Pipeline {
 
  private:
   // Forwarding stubs (see comment above).
-  void Start(Demuxer* demuxer,
-             std::unique_ptr<Renderer> renderer,
-             Client* client,
-             const PipelineStatusCB& seek_cb) OVERRIDE;
-  void Resume(std::unique_ptr<Renderer> renderer,
-              base::TimeDelta timestamp,
+  void Start(Demuxer* demuxer, std::unique_ptr<Renderer> renderer,
+             Client* client, const PipelineStatusCB& seek_cb) OVERRIDE;
+  void Resume(std::unique_ptr<Renderer> renderer, base::TimeDelta timestamp,
               const PipelineStatusCB& seek_cb) OVERRIDE;
 
   DISALLOW_COPY_AND_ASSIGN(MockPipeline);
@@ -180,10 +172,8 @@ class MockVideoDecoder : public VideoDecoder {
   // VideoDecoder implementation.
   virtual std::string GetDisplayName() const;
   MOCK_METHOD5(Initialize,
-               void(const VideoDecoderConfig& config,
-                    bool low_delay,
-                    CdmContext* cdm_context,
-                    const InitCB& init_cb,
+               void(const VideoDecoderConfig& config, bool low_delay,
+                    CdmContext* cdm_context, const InitCB& init_cb,
                     const OutputCB& output_cb));
   MOCK_METHOD2(Decode, void(const scoped_refptr<DecoderBuffer>& buffer,
                             const DecodeCB&));
@@ -203,13 +193,10 @@ class MockAudioDecoder : public AudioDecoder {
   // AudioDecoder implementation.
   virtual std::string GetDisplayName() const;
   MOCK_METHOD4(Initialize,
-               void(const AudioDecoderConfig& config,
-                    CdmContext* cdm_context,
-                    const InitCB& init_cb,
-                    const OutputCB& output_cb));
-  MOCK_METHOD2(Decode,
-               void(const scoped_refptr<DecoderBuffer>& buffer,
-                    const DecodeCB&));
+               void(const AudioDecoderConfig& config, CdmContext* cdm_context,
+                    const InitCB& init_cb, const OutputCB& output_cb));
+  MOCK_METHOD2(Decode, void(const scoped_refptr<DecoderBuffer>& buffer,
+                            const DecodeCB&));
   MOCK_METHOD1(Reset, void(const base::Closure&));
 
  private:
@@ -239,8 +226,7 @@ class MockVideoRenderer : public VideoRenderer {
 
   // VideoRenderer implementation.
   MOCK_METHOD5(Initialize,
-               void(DemuxerStream* stream,
-                    CdmContext* cdm_context,
+               void(DemuxerStream* stream, CdmContext* cdm_context,
                     RendererClient* client,
                     const TimeSource::WallClockTimeCB& wall_clock_time_cb,
                     const PipelineStatusCB& init_cb));
@@ -260,10 +246,8 @@ class MockAudioRenderer : public AudioRenderer {
 
   // AudioRenderer implementation.
   MOCK_METHOD4(Initialize,
-               void(DemuxerStream* stream,
-                    CdmContext* cdm_context,
-                    RendererClient* client,
-                    const PipelineStatusCB& init_cb));
+               void(DemuxerStream* stream, CdmContext* cdm_context,
+                    RendererClient* client, const PipelineStatusCB& init_cb));
   MOCK_METHOD0(GetTimeSource, TimeSource*());
   MOCK_METHOD1(Flush, void(const base::Closure& callback));
   MOCK_METHOD0(StartPlaying, void());
@@ -281,8 +265,7 @@ class MockRenderer : public Renderer {
   // Renderer implementation.
   MOCK_METHOD3(Initialize,
                void(DemuxerStreamProvider* demuxer_stream_provider,
-                    RendererClient* client,
-                    const PipelineStatusCB& init_cb));
+                    RendererClient* client, const PipelineStatusCB& init_cb));
   MOCK_METHOD1(Flush, void(const base::Closure& flush_cb));
   MOCK_METHOD1(StartPlayingFrom, void(base::TimeDelta timestamp));
   MOCK_METHOD1(SetPlaybackRate, void(double playback_rate));
@@ -290,9 +273,8 @@ class MockRenderer : public Renderer {
   MOCK_METHOD0(GetMediaTime, base::TimeDelta());
   MOCK_METHOD0(HasAudio, bool());
   MOCK_METHOD0(HasVideo, bool());
-  MOCK_METHOD2(SetCdm,
-               void(CdmContext* cdm_context,
-                    const CdmAttachedCB& cdm_attached_cb));
+  MOCK_METHOD2(SetCdm, void(CdmContext* cdm_context,
+                            const CdmAttachedCB& cdm_attached_cb));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockRenderer);
@@ -309,9 +291,8 @@ class MockTimeSource : public TimeSource {
   MOCK_METHOD1(SetPlaybackRate, void(double));
   MOCK_METHOD1(SetMediaTime, void(base::TimeDelta));
   MOCK_METHOD0(CurrentMediaTime, base::TimeDelta());
-  MOCK_METHOD2(GetWallClockTimes,
-               bool(const std::vector<base::TimeDelta>&,
-                    std::vector<base::TimeTicks>*));
+  MOCK_METHOD2(GetWallClockTimes, bool(const std::vector<base::TimeDelta>&,
+                                       std::vector<base::TimeTicks>*));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockTimeSource);
@@ -322,11 +303,10 @@ class MockTextTrack : public TextTrack {
   MockTextTrack();
   virtual ~MockTextTrack();
 
-  MOCK_METHOD5(addWebVTTCue, void(const base::TimeDelta& start,
-                                  const base::TimeDelta& end,
-                                  const std::string& id,
-                                  const std::string& content,
-                                  const std::string& settings));
+  MOCK_METHOD5(addWebVTTCue,
+               void(const base::TimeDelta& start, const base::TimeDelta& end,
+                    const std::string& id, const std::string& content,
+                    const std::string& settings));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockTextTrack);
@@ -337,18 +317,16 @@ class MockDecryptor : public Decryptor {
   MockDecryptor();
   virtual ~MockDecryptor();
 
-  MOCK_METHOD2(RegisterNewKeyCB, void(StreamType stream_type,
-                                      const NewKeyCB& new_key_cb));
+  MOCK_METHOD2(RegisterNewKeyCB,
+               void(StreamType stream_type, const NewKeyCB& new_key_cb));
   MOCK_METHOD3(Decrypt, void(StreamType stream_type,
                              const scoped_refptr<DecoderBuffer>& encrypted,
                              const DecryptCB& decrypt_cb));
   MOCK_METHOD1(CancelDecrypt, void(StreamType stream_type));
-  MOCK_METHOD2(InitializeAudioDecoder,
-               void(const AudioDecoderConfig& config,
-                    const DecoderInitCB& init_cb));
-  MOCK_METHOD2(InitializeVideoDecoder,
-               void(const VideoDecoderConfig& config,
-                    const DecoderInitCB& init_cb));
+  MOCK_METHOD2(InitializeAudioDecoder, void(const AudioDecoderConfig& config,
+                                            const DecoderInitCB& init_cb));
+  MOCK_METHOD2(InitializeVideoDecoder, void(const VideoDecoderConfig& config,
+                                            const DecoderInitCB& init_cb));
   MOCK_METHOD2(DecryptAndDecodeAudio,
                void(const scoped_refptr<media::DecoderBuffer>& encrypted,
                     const AudioDecodeCB& audio_decode_cb));
@@ -385,15 +363,12 @@ class MockStreamParser : public StreamParser {
 
   // StreamParser interface
   MOCK_METHOD8(
-      Init,
-      void(const InitCB& init_cb,
-           const NewConfigCB& config_cb,
-           const NewBuffersCB& new_buffers_cb,
-           bool ignore_text_track,
-           const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
-           const NewMediaSegmentCB& new_segment_cb,
-           const EndMediaSegmentCB& end_of_segment_cb,
-           const scoped_refptr<MediaLog>& media_log));
+      Init, void(const InitCB& init_cb, const NewConfigCB& config_cb,
+                 const NewBuffersCB& new_buffers_cb, bool ignore_text_track,
+                 const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
+                 const NewMediaSegmentCB& new_segment_cb,
+                 const EndMediaSegmentCB& end_of_segment_cb,
+                 const scoped_refptr<MediaLog>& media_log));
   MOCK_METHOD0(Flush, void());
   MOCK_METHOD2(Parse, bool(const uint8_t*, int));
 

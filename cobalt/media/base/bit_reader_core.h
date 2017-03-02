@@ -54,7 +54,8 @@ class MEDIA_EXPORT BitReaderCore {
   // enter a state where further ReadBits/SkipBits operations will always
   // return false unless |num_bits| is 0. The type |T| has to be a primitive
   // integer type.
-  template<typename T> bool ReadBits(int num_bits, T* out) {
+  template <typename T>
+  bool ReadBits(int num_bits, T* out) {
     DCHECK_LE(num_bits, static_cast<int>(sizeof(T) * 8));
     uint64_t temp;
     bool ret = ReadBitsInternal(num_bits, &temp);

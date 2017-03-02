@@ -76,8 +76,7 @@ class MEDIA_EXPORT HEVC {
 
   static bool InsertParamSetsAnnexB(
       const HEVCDecoderConfigurationRecord& hevc_config,
-      std::vector<uint8_t>* buffer,
-      std::vector<SubsampleEntry>* subsamples);
+      std::vector<uint8_t>* buffer, std::vector<SubsampleEntry>* subsamples);
 
   // Verifies that the contents of |buffer| conform to
   // Section 7.4.2.4.4 of ISO/IEC 23008-2.
@@ -88,8 +87,7 @@ class MEDIA_EXPORT HEVC {
   // C++11's std::vector<T>::data() method.
   static bool IsValidAnnexB(const std::vector<uint8_t>& buffer,
                             const std::vector<SubsampleEntry>& subsamples);
-  static bool IsValidAnnexB(const uint8_t* buffer,
-                            size_t size,
+  static bool IsValidAnnexB(const uint8_t* buffer, size_t size,
                             const std::vector<SubsampleEntry>& subsamples);
 };
 
@@ -99,8 +97,7 @@ class HEVCBitstreamConverter : public BitstreamConverter {
       scoped_ptr<HEVCDecoderConfigurationRecord> hevc_config);
 
   // BitstreamConverter interface
-  bool ConvertFrame(std::vector<uint8_t>* frame_buf,
-                    bool is_keyframe,
+  bool ConvertFrame(std::vector<uint8_t>* frame_buf, bool is_keyframe,
                     std::vector<SubsampleEntry>* subsamples) const OVERRIDE;
 
  private:

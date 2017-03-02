@@ -44,9 +44,8 @@ class MEDIA_BLINK_EXPORT BufferedDataSourceHostImpl
 
   // Translate the byte ranges to time ranges and append them to the list.
   // TODO(sandersd): This is a confusing name, find something better.
-  void AddBufferedTimeRanges(
-      Ranges<base::TimeDelta>* buffered_time_ranges,
-      base::TimeDelta media_duration) const;
+  void AddBufferedTimeRanges(Ranges<base::TimeDelta>* buffered_time_ranges,
+                             base::TimeDelta media_duration) const;
 
   bool DidLoadingProgress();
 

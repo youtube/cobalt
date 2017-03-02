@@ -52,8 +52,7 @@ class MEDIA_EXPORT PipelineController {
   //     in PIPELINE_OK or its error callback is called.
   PipelineController(Pipeline* pipeline,
                      const RendererFactoryCB& renderer_factory_cb,
-                     const SeekedCB& seeked_cb,
-                     const SuspendedCB& suspended_cb,
+                     const SeekedCB& seeked_cb, const SuspendedCB& suspended_cb,
                      const PipelineStatusCB& error_cb);
   ~PipelineController();
 
@@ -68,9 +67,7 @@ class MEDIA_EXPORT PipelineController {
   // Otherwise it is assumed that the media data may have changed.
   //
   // The remaining parameters are just passed directly to pipeline_.Start().
-  void Start(Demuxer* demuxer,
-             Pipeline::Client* client,
-             bool is_streaming,
+  void Start(Demuxer* demuxer, Pipeline::Client* client, bool is_streaming,
              bool is_static);
 
   // Request a seek to |time|. If |time_updated| is true, then the eventual

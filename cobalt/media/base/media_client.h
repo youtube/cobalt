@@ -69,8 +69,7 @@ class MEDIA_EXPORT MediaClient {
   // Returns true if the given combination of video codec, profile and level is
   // supported. The |level| value is codec-specific.
   virtual bool IsSupportedVideoConfig(VideoCodec codec,
-                                      VideoCodecProfile profile,
-                                      int level) = 0;
+                                      VideoCodecProfile profile, int level) = 0;
 };
 
 }  // namespace media

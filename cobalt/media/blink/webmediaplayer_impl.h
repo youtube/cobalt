@@ -91,17 +91,14 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerImpl
   // Constructs a WebMediaPlayer implementation using Chromium's media stack.
   // |delegate| may be null. |renderer_factory| must not be null.
   WebMediaPlayerImpl(
-      blink::WebLocalFrame* frame,
-      blink::WebMediaPlayerClient* client,
+      blink::WebLocalFrame* frame, blink::WebMediaPlayerClient* client,
       blink::WebMediaPlayerEncryptedMediaClient* encrypted_client,
       base::WeakPtr<WebMediaPlayerDelegate> delegate,
       std::unique_ptr<RendererFactory> renderer_factory,
-      linked_ptr<UrlIndex> url_index,
-      const WebMediaPlayerParams& params);
+      linked_ptr<UrlIndex> url_index, const WebMediaPlayerParams& params);
   ~WebMediaPlayerImpl() OVERRIDE;
 
-  void load(LoadType load_type,
-            const blink::WebMediaPlayerSource& source,
+  void load(LoadType load_type, const blink::WebMediaPlayerSource& source,
             CORSMode cors_mode) OVERRIDE;
 
   // Playback controls.
@@ -123,8 +120,7 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerImpl
   // paint() the current video frame into |canvas|. This is used to support
   // various APIs and functionalities, including but not limited to: <canvas>,
   // WebGL texImage2D, ImageBitmap, printing and capturing capabilities.
-  void paint(blink::WebCanvas* canvas,
-             const blink::WebRect& rect,
+  void paint(blink::WebCanvas* canvas, const blink::WebRect& rect,
              SkPaint& paint) OVERRIDE;
 
   // True if the loaded media has a playable video/audio track.
@@ -260,9 +256,7 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerImpl
 
   // Called after |defer_load_cb_| has decided to allow the load. If
   // |defer_load_cb_| is null this is called immediately.
-  void DoLoad(LoadType load_type,
-              const blink::WebURL& url,
-              CORSMode cors_mode);
+  void DoLoad(LoadType load_type, const blink::WebURL& url, CORSMode cors_mode);
 
   // Called after asynchronous initialization of a data source completed.
   void DataSourceInitialized(bool success);
@@ -332,8 +326,7 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerImpl
   void UpdatePlayState();
 
   // Methods internal to UpdatePlayState().
-  PlayState UpdatePlayState_ComputePlayState(bool is_remote,
-                                             bool is_suspended,
+  PlayState UpdatePlayState_ComputePlayState(bool is_remote, bool is_suspended,
                                              bool is_backgrounded);
   void SetDelegateState(DelegateState new_state);
   void SetMemoryReportingState(bool is_memory_reporting_enabled);

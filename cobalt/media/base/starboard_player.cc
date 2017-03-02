@@ -372,10 +372,8 @@ void StarboardPlayer::ClearDecoderBufferCache() {
           kClearDecoderCacheIntervalInMilliseconds));
 }
 
-void StarboardPlayer::OnDecoderStatus(SbPlayer player,
-                                      SbMediaType type,
-                                      SbPlayerDecoderState state,
-                                      int ticket) {
+void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
+                                      SbPlayerDecoderState state, int ticket) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (player_ != player || ticket != ticket_) {
@@ -410,8 +408,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player,
   host_->OnNeedData(SbMediaTypeToDemuxerStreamType(type));
 }
 
-void StarboardPlayer::OnPlayerStatus(SbPlayer player,
-                                     SbPlayerState state,
+void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
                                      int ticket) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -456,11 +453,9 @@ void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
 }
 
 // static
-void StarboardPlayer::DecoderStatusCB(SbPlayer player,
-                                      void* context,
+void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
                                       SbMediaType type,
-                                      SbPlayerDecoderState state,
-                                      int ticket) {
+                                      SbPlayerDecoderState state, int ticket) {
   StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::OnDecoderStatus,
@@ -468,10 +463,8 @@ void StarboardPlayer::DecoderStatusCB(SbPlayer player,
 }
 
 // static
-void StarboardPlayer::PlayerStatusCB(SbPlayer player,
-                                     void* context,
-                                     SbPlayerState state,
-                                     int ticket) {
+void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
+                                     SbPlayerState state, int ticket) {
   StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::OnPlayerStatus,
@@ -479,8 +472,7 @@ void StarboardPlayer::PlayerStatusCB(SbPlayer player,
 }
 
 // static
-void StarboardPlayer::DeallocateSampleCB(SbPlayer player,
-                                         void* context,
+void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                                          const void* sample_buffer) {
   StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(

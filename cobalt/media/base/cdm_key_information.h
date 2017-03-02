@@ -30,16 +30,12 @@ struct MEDIA_EXPORT CdmKeyInformation {
   // Default constructor needed for passing this type through IPC. Regular
   // code should use one of the other constructors.
   CdmKeyInformation();
-  CdmKeyInformation(const std::vector<uint8_t>& key_id,
-                    KeyStatus status,
+  CdmKeyInformation(const std::vector<uint8_t>& key_id, KeyStatus status,
                     uint32_t system_code);
-  CdmKeyInformation(const std::string& key_id,
-                    KeyStatus status,
+  CdmKeyInformation(const std::string& key_id, KeyStatus status,
                     uint32_t system_code);
-  CdmKeyInformation(const uint8_t* key_id_data,
-                    size_t key_id_length,
-                    KeyStatus status,
-                    uint32_t system_code);
+  CdmKeyInformation(const uint8_t* key_id_data, size_t key_id_length,
+                    KeyStatus status, uint32_t system_code);
   CdmKeyInformation(const CdmKeyInformation& other);
   ~CdmKeyInformation();
 
