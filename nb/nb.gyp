@@ -59,6 +59,8 @@
             'thread_collision_warner.cc',
             'thread_collision_warner.h',
             'thread_local_object.h',
+            'thread_local_boolean.h',
+            'thread_local_pointer.h',
           ],
           'dependencies': [
             '<(DEPTH)/starboard/starboard.gyp:starboard',
