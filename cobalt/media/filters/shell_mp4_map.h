@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_FILTERS_SHELL_MP4_MAP_H_
-#define MEDIA_FILTERS_SHELL_MP4_MAP_H_
+#ifndef COBALT_MEDIA_FILTERS_SHELL_MP4_MAP_H_
+#define COBALT_MEDIA_FILTERS_SHELL_MP4_MAP_H_
 
 #include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_data_source_reader.h"
+#include "cobalt/media/base/shell_data_source_reader.h"
 
 namespace media {
 
@@ -47,12 +46,12 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
 
   // All Get() methods return true on success and save their values by
   // reference in the latter argument.
-  bool GetSize(uint32 sample_number, uint32& size_out);
-  bool GetOffset(uint32 sample_number, uint64& offset_out);
+  bool GetSize(uint32 sample_number, uint32* size_out);
+  bool GetOffset(uint32 sample_number, uint64* offset_out);
   // all time values in *ticks* as defined by the mp4 container
-  bool GetTimestamp(uint32 sample_number, uint64& timestamp_out);
-  bool GetDuration(uint32 sample_number, uint32& duration_out);
-  bool GetIsKeyframe(uint32 sample_number, bool& is_keyframe_out);
+  bool GetTimestamp(uint32 sample_number, uint64* timestamp_out);
+  bool GetDuration(uint32 sample_number, uint32* duration_out);
+  bool GetIsKeyframe(uint32 sample_number, bool* is_keyframe_out);
   // Used to determine if the failure reported by any of the above methods
   // is due to EOS or other (fatal) error. The length of a mp4 file in samples
   // may not be known until iterating through almost the entire map, in the
@@ -60,7 +59,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   bool IsEOS(uint32 sample_number);
 
   // Returns the keyframe sample number nearest the provided timestamp
-  bool GetKeyframe(uint64 timestamp, uint32& sample_out);
+  bool GetKeyframe(uint64 timestamp, uint32* sample_out);
 
   // pass 0 as cache_size_entries to force caching of the entire map.
   bool SetAtom(uint32 four_cc,  // fourCC code ascii code as big-endian uint32
@@ -143,7 +142,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
     scoped_refptr<ShellDataSourceReader> reader_;  // means to read more table
 
     // current cache state
-    scoped_refptr<ShellScopedArray> cache_;  // the cached part of the table
+    std::vector<uint8> cache_;         // the cached part of the table
     uint32 cache_first_entry_number_;  // first table entry number in cache
     uint32 cache_entry_count_;         // number of valid entries in cache
   };
@@ -212,4 +211,4 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SHELL_MP4_MAP_H_
+#endif  // COBALT_MEDIA_FILTERS_SHELL_MP4_MAP_H_
