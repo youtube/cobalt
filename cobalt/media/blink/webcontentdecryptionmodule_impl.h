@@ -57,10 +57,12 @@ class MEDIA_BLINK_EXPORT WebContentDecryptionModuleImpl
   friend CdmSessionAdapter;
 
   // Takes reference to |adapter|.
-  WebContentDecryptionModuleImpl(scoped_refptr<CdmSessionAdapter> adapter);
+  explicit WebContentDecryptionModuleImpl(
+      scoped_refptr<CdmSessionAdapter> adapter);
 
   scoped_refptr<CdmSessionAdapter> adapter_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(WebContentDecryptionModuleImpl);
 };
 

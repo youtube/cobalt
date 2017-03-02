@@ -88,6 +88,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
    protected:
     virtual ~SyncTokenClient() {}
 
+   private:
     DISALLOW_COPY_AND_ASSIGN(SyncTokenClient);
   };
 
