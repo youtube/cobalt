@@ -14,20 +14,15 @@
  * limitations under the License.
  */
 
-#include "media/filters/shell_mp4_parser.h"
+#include "cobalt/media/filters/shell_mp4_parser.h"
 
 #include <inttypes.h>
 #include <limits>
+#include <vector>
 
 #include "base/stringprintf.h"
-#include "media/base/endian_util.h"
-#include "media/base/shell_buffer_factory.h"
-#include "media/mp4/es_descriptor.h"
-
-#if SHELL_MP4_PARSER_DUMP_ATOMS
-#include <string>
-extern const std::string* global_game_content_path;
-#endif
+#include "cobalt/media/base/endian_util.h"
+#include "cobalt/media/formats/mp4/es_descriptor.h"
 
 namespace media {
 
@@ -74,9 +69,10 @@ static const int kMapTableAtomCacheEntries_ctts = 51543 / kEntrySize_ctts;
 // static
 PipelineStatus ShellMP4Parser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
-    const uint8* construction_header,
-    scoped_refptr<ShellParser>* parser) {
+    const uint8* construction_header, scoped_refptr<ShellParser>* parser,
+    const scoped_refptr<MediaLog>& media_log) {
   DCHECK(parser);
+  DCHECK(media_log);
   *parser = NULL;
 
   // detect mp4 stream by looking for ftyp atom at top of file
@@ -94,13 +90,14 @@ PipelineStatus ShellMP4Parser::Construct(
   }
 
   // construct new mp4 parser
-  *parser = new ShellMP4Parser(reader, ftyp_atom_size);
+  *parser = new ShellMP4Parser(reader, ftyp_atom_size, media_log);
   return PIPELINE_OK;
 }
 
 ShellMP4Parser::ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
-                               uint32 ftyp_atom_size)
-    : ShellAVCParser(reader),
+                               uint32 ftyp_atom_size,
+                               const scoped_refptr<MediaLog>& media_log)
+    : ShellAVCParser(reader, media_log),
       atom_offset_(ftyp_atom_size),  // start at next atom, skipping over ftyp
       current_trak_is_video_(false),
       current_trak_is_audio_(false),
@@ -145,10 +142,10 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
       DLOG(ERROR) << "|audio_time_scale_hz_| cannot be 0.";
       return NULL;
     }
-    if (!audio_map_->GetSize(audio_sample_, size) ||
-        !audio_map_->GetOffset(audio_sample_, offset) ||
-        !audio_map_->GetDuration(audio_sample_, duration_ticks) ||
-        !audio_map_->GetTimestamp(audio_sample_, timestamp_ticks)) {
+    if (!audio_map_->GetSize(audio_sample_, &size) ||
+        !audio_map_->GetOffset(audio_sample_, &offset) ||
+        !audio_map_->GetDuration(audio_sample_, &duration_ticks) ||
+        !audio_map_->GetTimestamp(audio_sample_, &timestamp_ticks)) {
       // determine if EOS or error
       if (audio_map_->IsEOS(audio_sample_)) {
         return ShellAU::CreateEndOfStreamAU(DemuxerStream::AUDIO,
@@ -192,11 +189,11 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
       DLOG(ERROR) << "|video_time_scale_hz_| cannot be 0.";
       return NULL;
     }
-    if (!video_map_->GetSize(video_sample_, size) ||
-        !video_map_->GetOffset(video_sample_, offset) ||
-        !video_map_->GetDuration(video_sample_, duration_ticks) ||
-        !video_map_->GetTimestamp(video_sample_, timestamp_ticks) ||
-        !video_map_->GetIsKeyframe(video_sample_, is_keyframe)) {
+    if (!video_map_->GetSize(video_sample_, &size) ||
+        !video_map_->GetOffset(video_sample_, &offset) ||
+        !video_map_->GetDuration(video_sample_, &duration_ticks) ||
+        !video_map_->GetTimestamp(video_sample_, &timestamp_ticks) ||
+        !video_map_->GetIsKeyframe(video_sample_, &is_keyframe)) {
       if (video_map_->IsEOS(video_sample_)) {
         return ShellAU::CreateEndOfStreamAU(DemuxerStream::VIDEO,
                                             video_track_duration_);
@@ -240,26 +237,26 @@ bool ShellMP4Parser::SeekTo(base::TimeDelta timestamp) {
   // get video timestamp in video time units
   uint64 video_ticks = TimeToTicks(timestamp, video_time_scale_hz_);
   // find nearest keyframe from map, make it our next video sample
-  if (!video_map_->GetKeyframe(video_ticks, video_sample_)) {
+  if (!video_map_->GetKeyframe(video_ticks, &video_sample_)) {
     return false;
   }
   // get the timestamp for this video keyframe
   uint64 video_keyframe_time_ticks = 0;
-  if (!video_map_->GetTimestamp(video_sample_, video_keyframe_time_ticks)) {
+  if (!video_map_->GetTimestamp(video_sample_, &video_keyframe_time_ticks)) {
     return false;
   }
   base::TimeDelta video_keyframe_time =
       TicksToTime(video_keyframe_time_ticks, video_time_scale_hz_);
   // find the closest audio frame that bounds that timestamp
   uint64 audio_ticks = TimeToTicks(video_keyframe_time, audio_time_scale_hz_);
-  if (!audio_map_->GetKeyframe(audio_ticks, audio_sample_)) {
+  if (!audio_map_->GetKeyframe(audio_ticks, &audio_sample_)) {
     return false;
   }
   DLOG(INFO) << base::StringPrintf(
       "seeking to timestamp: %" PRId64 ", video sample: %d, audio sample: %d",
       timestamp.InMilliseconds(), video_sample_, audio_sample_);
   // cheat our buffer continuity system
-  if (!audio_map_->GetTimestamp(audio_sample_, first_audio_hole_ticks_)) {
+  if (!audio_map_->GetTimestamp(audio_sample_, &first_audio_hole_ticks_)) {
     return false;
   }
   first_audio_hole_ =
@@ -282,7 +279,8 @@ bool ShellMP4Parser::ParseNextAtom() {
     return false;
   }
   // first 4 bytes are size of atom uint32
-  uint64 atom_size = (uint64)endian_util::load_uint32_big_endian(atom);
+  uint64 atom_size =
+      static_cast<uint64>(endian_util::load_uint32_big_endian(atom));
   // normally atom body starts just past fourCC code
   uint32 atom_body = kAtomMinSize;
   // if 1 we need to load the extended size which will be appended just past
@@ -313,10 +311,6 @@ bool ShellMP4Parser::ParseNextAtom() {
   DLOG(INFO) << base::StringPrintf("four_cc: %c%c%c%c", atom[4], atom[5],
                                    atom[6], atom[7]);
 
-#if SHELL_MP4_PARSER_DUMP_ATOMS
-  DumpAtomToDisk(four_cc, atom_size, atom_offset_);
-#endif
-
   // advance read pointer to atom body
   atom_offset_ += atom_body;
   // adjust size of body of atom from size of header
@@ -342,8 +336,7 @@ bool ShellMP4Parser::ParseNextAtom() {
     case kAtomType_avcC:
       atom_parse_success =
           DownloadAndParseAVCConfigRecord(atom_offset_, atom_data_size);
-      if (atom_parse_success)
-        atom_offset_ += atom_data_size;
+      if (atom_parse_success) atom_offset_ += atom_data_size;
       break;
 
     // esds atoms contain actually usable audio configuration info for AAC.
@@ -468,65 +461,6 @@ bool ShellMP4Parser::ParseNextAtom() {
   return atom_parse_success;
 }
 
-#if SHELL_MP4_PARSER_DUMP_ATOMS
-
-void ShellMP4Parser::DumpAtomToDisk(uint32 four_cc,
-                                    uint32 atom_size,
-                                    uint64 atom_offset) {
-  // download entire atom into buffer
-  scoped_refptr<ShellScopedArray> scoped_buffer =
-      ShellBufferFactory::Instance()->AllocateArray(atom_size);
-  uint8* buffer = scoped_buffer->Get();
-  int bytes_read = reader_->BlockingRead(atom_offset, atom_size, buffer);
-  DCHECK_EQ(bytes_read, atom_size);
-  // calculate file and table names
-  std::string av_prefix_file;
-  if (current_trak_is_video_) {
-    av_prefix_file = "/mp4_video_atom_";
-  } else if (current_trak_is_audio_) {
-    av_prefix_file = "/mp4_audio_atom_";
-  } else {
-    av_prefix_file = "/mp4_atom_";
-  }
-  std::string atom_name = base::StringPrintf(
-      "%c%c%c%c", (char)(four_cc >> 24), (char)(four_cc >> 16),
-      (char)(four_cc >> 8), (char)four_cc);
-  // build path
-  std::string path = base::StringPrintf(
-      "%s%s%s_%lld.txt", global_game_content_path->c_str(),
-      av_prefix_file.c_str(), atom_name.c_str(), atom_offset);
-  // get file for writing
-  FILE* atom_file = fopen(path.c_str(), "w");
-  DCHECK(atom_file);
-  // 13 bytes per line matches 80-column rule with indenting :)
-  for (int i = 0; i < atom_size; i += 13) {
-    std::string atom_chars;
-    // do whole lines at a time
-    if (atom_size - i > 13) {
-      atom_chars = base::StringPrintf(
-          "  0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, "
-          "0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x,\n",
-          buffer[i], buffer[i + 1], buffer[i + 2], buffer[i + 3], buffer[i + 4],
-          buffer[i + 5], buffer[i + 6], buffer[i + 7], buffer[i + 8],
-          buffer[i + 9], buffer[i + 10], buffer[i + 11], buffer[i + 12]);
-    } else {
-      atom_chars = "  ";  // start string with indentation
-      // do last line one char at a time
-      for (int j = i; j < atom_size - 1; j++) {
-        atom_chars += base::StringPrintf("0x%02x, ", buffer[j]);
-      }
-      // final char gets no comma and a newline
-      atom_chars += base::StringPrintf("0x%02x\n", buffer[atom_size - 1]);
-    }
-    // save line
-    fwrite(atom_chars.c_str(), 1, atom_chars.length(), atom_file);
-  }
-  // close file
-  fclose(atom_file);
-}
-
-#endif
-
 bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   if (atom_data_size < kFullBoxHeaderAndFlagSize) {
     DLOG(WARNING) << base::StringPrintf(
@@ -537,15 +471,13 @@ bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
 
   uint64 esds_offset = atom_offset_ + kFullBoxHeaderAndFlagSize;
   uint64 esds_size = atom_data_size - kFullBoxHeaderAndFlagSize;
-  // we'll need to download entire esds, allocate buffer for it
-  scoped_refptr<ShellScopedArray> esds_storage =
-      ShellBufferFactory::Instance()->AllocateArray(esds_size);
-  uint8* esds = NULL;
-  if (!esds_storage || !(esds = esds_storage->Get())) {
-    DLOG(WARNING) << base::StringPrintf(
-        "unable to allocate esds temp array of %" PRId64 " bytes", esds_size);
+
+  if (esds_size == 0) {
     return false;
   }
+  // we'll need to download entire esds, allocate buffer for it
+  std::vector<uint8> esds_storage(esds_size);
+  uint8* esds = &esds_storage[0];
   // download esds
   int bytes_read = reader_->BlockingRead(esds_offset, esds_size, esds);
   if (bytes_read < esds_size) {
@@ -610,7 +542,7 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
     return false;
   }
   uint32 time_scale = endian_util::load_uint32_big_endian(mdhd + 12);
-  if(time_scale == 0) {
+  if (time_scale == 0) {
     DLOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }

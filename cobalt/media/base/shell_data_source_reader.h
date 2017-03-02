@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
-#define MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
+#ifndef COBALT_MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
+#define COBALT_MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/message_loop.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
-#include "media/base/data_source.h"
+#include "cobalt/media/base/data_source.h"
 
 namespace media {
 
@@ -51,7 +51,7 @@ class ShellDataSourceReader
   virtual int64 FileSize();
 
   // abort any pending read, then stop the data source
-  virtual void Stop(const base::Closure& callback);
+  virtual void Stop();
 
  protected:
   friend class base::RefCountedThreadSafe<ShellDataSourceReader>;
@@ -68,4 +68,4 @@ class ShellDataSourceReader
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
+#endif  // COBALT_MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_

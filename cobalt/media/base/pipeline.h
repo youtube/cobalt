@@ -20,6 +20,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/time.h"
 #include "cobalt/media/base/decryptor.h"
+#include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/ranges.h"
@@ -98,8 +99,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   //   |duration_change_cb| optional callback that will be executed whenever the
   //                        presentation duration changes.
   // It is an error to call this method after the pipeline has already started.
-  virtual void Start(Demuxer* demuxer,
-                     const PipelineStatusCB& ended_cb,
+  virtual void Start(Demuxer* demuxer, const PipelineStatusCB& ended_cb,
                      const PipelineStatusCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,

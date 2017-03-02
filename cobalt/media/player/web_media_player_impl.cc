@@ -21,6 +21,7 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
+#include "cobalt/media/filters/shell_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
 
 namespace {
@@ -60,10 +61,8 @@ bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
   float duration = wmpi->GetDuration();
   if (base::IsFinite(duration)) {
     // If video is very short, we always treat a position as near the end.
-    if (duration <= kEndOfStreamEpsilonInSeconds)
-      return true;
-    if (position >= duration - kEndOfStreamEpsilonInSeconds)
-      return true;
+    if (duration <= kEndOfStreamEpsilonInSeconds) return true;
+    if (position >= duration - kEndOfStreamEpsilonInSeconds) return true;
   }
   return false;
 }
@@ -96,9 +95,8 @@ namespace media {
 
 // TODO(acolwell): Investigate whether the key_system & session_id parameters
 // are really necessary.
-typedef base::Callback<
-    void(const std::string&, const std::string&, scoped_array<uint8>, int)>
-    OnNeedKeyCB;
+typedef base::Callback<void(const std::string&, const std::string&,
+                            scoped_array<uint8>, int)> OnNeedKeyCB;
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     PipelineWindow window, WebMediaPlayerClient* client,
@@ -141,6 +139,7 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   }
 
   Destroy();
+  progressive_demuxer_.reset();
   chunk_demuxer_.reset();
 
   media_log_->AddEvent(
@@ -173,26 +172,16 @@ enum URLSchemeForHistogram {
 };
 
 URLSchemeForHistogram URLScheme(const GURL& url) {
-  if (!url.has_scheme())
-    return kMissingURLScheme;
-  if (url.SchemeIs("http"))
-    return kHttpURLScheme;
-  if (url.SchemeIs("https"))
-    return kHttpsURLScheme;
-  if (url.SchemeIs("ftp"))
-    return kFtpURLScheme;
-  if (url.SchemeIs("chrome-extension"))
-    return kChromeExtensionURLScheme;
-  if (url.SchemeIs("javascript"))
-    return kJavascriptURLScheme;
-  if (url.SchemeIs("file"))
-    return kFileURLScheme;
-  if (url.SchemeIs("blob"))
-    return kBlobURLScheme;
-  if (url.SchemeIs("data"))
-    return kDataURLScheme;
-  if (url.SchemeIs("filesystem"))
-    return kFileSystemScheme;
+  if (!url.has_scheme()) return kMissingURLScheme;
+  if (url.SchemeIs("http")) return kHttpURLScheme;
+  if (url.SchemeIs("https")) return kHttpsURLScheme;
+  if (url.SchemeIs("ftp")) return kFtpURLScheme;
+  if (url.SchemeIs("chrome-extension")) return kChromeExtensionURLScheme;
+  if (url.SchemeIs("javascript")) return kJavascriptURLScheme;
+  if (url.SchemeIs("file")) return kFileURLScheme;
+  if (url.SchemeIs("blob")) return kBlobURLScheme;
+  if (url.SchemeIs("data")) return kDataURLScheme;
+  if (url.SchemeIs("filesystem")) return kFileSystemScheme;
   return kUnknownURLScheme;
 }
 
@@ -219,8 +208,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
-    const GURL& url,
-    scoped_ptr<BufferedDataSource> data_source,
+    const GURL& url, scoped_ptr<BufferedDataSource> data_source,
     CORSMode cors_mode) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
@@ -237,12 +225,12 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
-  // TODO: Implement progressive playback.
-  NOTREACHED();
-  // new ShellDemuxer(pipeline_message_loop_, proxy_->data_source());
+  progressive_demuxer_.reset(
+      new ShellDemuxer(pipeline_thread_.message_loop_proxy(),
+                       proxy_->data_source(), media_log_));
 
   state_.is_progressive = true;
-  StartPipeline(NULL);
+  StartPipeline(progressive_demuxer_.get());
 }
 
 void WebMediaPlayerImpl::CancelLoad() {
@@ -314,8 +302,7 @@ void WebMediaPlayerImpl::Seek(float seconds) {
   base::TimeDelta seek_time = ConvertSecondsToTimestamp(seconds);
 
   // Update our paused time.
-  if (state_.paused)
-    state_.paused_time = seek_time;
+  if (state_.paused) state_.paused_time = seek_time;
 
   state_.seeking = true;
 
@@ -343,8 +330,7 @@ void WebMediaPlayerImpl::SetRate(float rate) {
 
   // TODO(kylep): Remove when support for negatives is added. Also, modify the
   // following checks so rewind uses reasonable values also.
-  if (rate < 0.0f)
-    return;
+  if (rate < 0.0f) return;
 
   // Limit rates to reasonable values by clamping.
   if (rate != 0.0f) {
@@ -402,8 +388,7 @@ bool WebMediaPlayerImpl::IsPaused() const {
 bool WebMediaPlayerImpl::IsSeeking() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
-    return false;
+  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) return false;
 
   return state_.seeking;
 }
@@ -426,8 +411,7 @@ float WebMediaPlayerImpl::GetDuration() const {
 
 float WebMediaPlayerImpl::GetCurrentTime() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
-  if (state_.paused)
-    return static_cast<float>(state_.paused_time.InSecondsF());
+  if (state_.paused) return static_cast<float>(state_.paused_time.InSecondsF());
   return static_cast<float>(pipeline_->GetMediaTime().InSecondsF());
 }
 
@@ -463,13 +447,9 @@ float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
   return static_cast<float>(pipeline_->GetMediaDuration().InSecondsF());
 }
 
-void WebMediaPlayerImpl::Suspend() {
-  pipeline_->Suspend();
-}
+void WebMediaPlayerImpl::Suspend() { pipeline_->Suspend(); }
 
-void WebMediaPlayerImpl::Resume() {
-  pipeline_->Resume();
-}
+void WebMediaPlayerImpl::Resume() { pipeline_->Resume(); }
 
 bool WebMediaPlayerImpl::DidLoadingProgress() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
@@ -477,8 +457,7 @@ bool WebMediaPlayerImpl::DidLoadingProgress() const {
 }
 
 bool WebMediaPlayerImpl::HasSingleSecurityOrigin() const {
-  if (proxy_)
-    return proxy_->HasSingleOrigin();
+  if (proxy_) return proxy_->HasSingleOrigin();
   return true;
 }
 
@@ -557,8 +536,7 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   }
 
   // Update our paused time.
-  if (state_.paused)
-    state_.paused_time = pipeline_->GetMediaTime();
+  if (state_.paused) state_.paused_time = pipeline_->GetMediaTime();
 
   GetClient()->TimeChanged();
 }
@@ -575,8 +553,7 @@ void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
 void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  if (suppress_destruction_errors_)
-    return;
+  if (suppress_destruction_errors_) return;
 
   media_log_->AddEvent(media_log_->CreatePipelineErrorEvent(error));
 
@@ -685,8 +662,7 @@ void WebMediaPlayerImpl::SetReadyState(WebMediaPlayer::ReadyState state) {
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing &&
       state >= WebMediaPlayer::kReadyStateHaveMetadata) {
-    if (!HasVideo())
-      GetClient()->DisableAcceleratedCompositing();
+    if (!HasVideo()) GetClient()->DisableAcceleratedCompositing();
   } else if (state == WebMediaPlayer::kReadyStateHaveEnoughData) {
     if (is_local_source_ &&
         network_state_ == WebMediaPlayer::kNetworkStateLoading) {
@@ -707,7 +683,6 @@ void WebMediaPlayerImpl::Destroy() {
     // This may happen if this function was already called by the
     // DestructionObserver override when the thread running this player was
     // stopped. The pipeline should have been shut down.
-    DCHECK(!pipeline_message_loop_);
     DCHECK(!proxy_);
     return;
   }
@@ -728,8 +703,6 @@ void WebMediaPlayerImpl::Destroy() {
   waiter.Wait();
   DLOG(INFO) << "Media pipeline stopped.";
 
-  pipeline_message_loop_ = NULL;
-
   // And then detach the proxy, it may live on the render thread for a little
   // longer until all the tasks are finished.
   if (proxy_) {
@@ -739,8 +712,7 @@ void WebMediaPlayerImpl::Destroy() {
 }
 
 void WebMediaPlayerImpl::GetMediaTimeAndSeekingState(
-    base::TimeDelta* media_time,
-    bool* is_seeking) const {
+    base::TimeDelta* media_time, bool* is_seeking) const {
   DCHECK(media_time);
   DCHECK(is_seeking);
   *media_time = pipeline_->GetMediaTime();
@@ -760,8 +732,7 @@ WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {
 }
 
 void WebMediaPlayerImpl::OnDurationChanged() {
-  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
-    return;
+  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) return;
 
   GetClient()->DurationChanged();
 }

@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-#include "media/base/endian_util.h"
-#include "media/filters/shell_au.h"
-#include "media/filters/shell_parser.h"
+#include "cobalt/media/filters/shell_au.h"
+
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/endian_util.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/filters/shell_parser.h"
+
+namespace media {
 
 namespace {
 
-using namespace media;
-
-bool ReadBytes(uint64 offset,
-               size_t size,
-               uint8* buffer,
+bool ReadBytes(uint64 offset, size_t size, uint8* buffer,
                ShellDataSourceReader* reader) {
   if (reader->BlockingRead(offset, size, buffer) != size) {
     DLOG(ERROR) << "unable to download AU";
@@ -35,16 +36,15 @@ bool ReadBytes(uint64 offset,
 
 // ==== ShellEndOfStreamAU ==================================================
 
-class ShellEndOfStreamAU : public media::ShellAU {
+class ShellEndOfStreamAU : public ShellAU {
  public:
   ShellEndOfStreamAU(Type type, TimeDelta timestamp)
-      : type_(type), timestamp_(timestamp), duration_(kInfiniteDuration()) {}
+      : type_(type), timestamp_(timestamp), duration_(kInfiniteDuration) {}
 
  private:
   bool IsEndOfStream() const OVERRIDE { return true; }
   bool IsValid() const OVERRIDE { return true; }
-  bool Read(ShellDataSourceReader* reader,
-            media::DecoderBuffer* buffer) OVERRIDE {
+  bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) OVERRIDE {
     NOTREACHED();
     return false;
   }
@@ -71,23 +71,19 @@ class ShellEndOfStreamAU : public media::ShellAU {
 
 // ==== ShellAudioAU =======================================================
 
-class ShellAudioAU : public media::ShellAU {
+class ShellAudioAU : public ShellAU {
  public:
-  ShellAudioAU(uint64 offset,
-               size_t size,
-               size_t prepend_size,
-               bool is_keyframe,
-               TimeDelta timestamp,
-               TimeDelta duration,
+  ShellAudioAU(uint64 offset, size_t size, size_t prepend_size,
+               bool is_keyframe, TimeDelta timestamp, TimeDelta duration,
                ShellParser* parser);
 
  private:
   bool IsEndOfStream() const OVERRIDE { return false; }
   bool IsValid() const OVERRIDE {
-    return offset_ != 0 && size_ != 0 && timestamp_ != media::kNoTimestamp();
+    return offset_ != 0 && size_ != 0 && timestamp_ != kNoTimestamp;
   }
   bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) OVERRIDE;
-  Type GetType() const OVERRIDE { return media::DemuxerStream::AUDIO; }
+  Type GetType() const OVERRIDE { return DemuxerStream::AUDIO; }
   bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
   bool AddPrepend() const OVERRIDE { return true; }
   size_t GetSize() const OVERRIDE { return size_; }
@@ -103,16 +99,12 @@ class ShellAudioAU : public media::ShellAU {
   bool is_keyframe_;
   TimeDelta timestamp_;
   TimeDelta duration_;
-  media::ShellParser* parser_;
+  ShellParser* parser_;
 };
 
-ShellAudioAU::ShellAudioAU(uint64 offset,
-                           size_t size,
-                           size_t prepend_size,
-                           bool is_keyframe,
-                           TimeDelta timestamp,
-                           TimeDelta duration,
-                           ShellParser* parser)
+ShellAudioAU::ShellAudioAU(uint64 offset, size_t size, size_t prepend_size,
+                           bool is_keyframe, TimeDelta timestamp,
+                           TimeDelta duration, ShellParser* parser)
     : offset_(offset),
       size_(size),
       prepend_size_(prepend_size),
@@ -122,8 +114,8 @@ ShellAudioAU::ShellAudioAU(uint64 offset,
       parser_(parser) {}
 
 bool ShellAudioAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
-  DCHECK_LE(size_ + prepend_size_, buffer->GetDataSize());
-  if (!ReadBytes(offset_, size_, buffer->GetWritableData() + prepend_size_,
+  DCHECK_LE(size_ + prepend_size_, buffer->data_size());
+  if (!ReadBytes(offset_, size_, buffer->writable_data() + prepend_size_,
                  reader))
     return false;
 
@@ -137,24 +129,19 @@ bool ShellAudioAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
 
 // ==== ShellVideoAU =======================================================
 
-class ShellVideoAU : public media::ShellAU {
+class ShellVideoAU : public ShellAU {
  public:
-  ShellVideoAU(uint64 offset,
-               size_t size,
-               size_t prepend_size,
-               uint8 length_of_nalu_size,
-               bool is_keyframe,
-               TimeDelta timestamp,
-               TimeDelta duration,
-               ShellParser* parser);
+  ShellVideoAU(uint64 offset, size_t size, size_t prepend_size,
+               uint8 length_of_nalu_size, bool is_keyframe, TimeDelta timestamp,
+               TimeDelta duration, ShellParser* parser);
 
  private:
   bool IsEndOfStream() const OVERRIDE { return false; }
   bool IsValid() const OVERRIDE {
-    return offset_ != 0 && size_ != 0 && timestamp_ != media::kNoTimestamp();
+    return offset_ != 0 && size_ != 0 && timestamp_ != kNoTimestamp;
   }
   bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) OVERRIDE;
-  Type GetType() const OVERRIDE { return media::DemuxerStream::VIDEO; }
+  Type GetType() const OVERRIDE { return DemuxerStream::VIDEO; }
   bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
   bool AddPrepend() const OVERRIDE { return is_keyframe_; }
   size_t GetSize() const OVERRIDE { return size_; }
@@ -175,16 +162,12 @@ class ShellVideoAU : public media::ShellAU {
   bool is_keyframe_;
   TimeDelta timestamp_;
   TimeDelta duration_;
-  media::ShellParser* parser_;
+  ShellParser* parser_;
 };
 
-ShellVideoAU::ShellVideoAU(uint64 offset,
-                           size_t size,
-                           size_t prepend_size,
-                           uint8 length_of_nalu_size,
-                           bool is_keyframe,
-                           TimeDelta timestamp,
-                           TimeDelta duration,
+ShellVideoAU::ShellVideoAU(uint64 offset, size_t size, size_t prepend_size,
+                           uint8 length_of_nalu_size, bool is_keyframe,
+                           TimeDelta timestamp, TimeDelta duration,
                            ShellParser* parser)
     : offset_(offset),
       size_(size),
@@ -199,11 +182,11 @@ ShellVideoAU::ShellVideoAU(uint64 offset,
 }
 
 bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
-  size_t au_left = size_;                        // bytes left in the AU
-  uint64 au_offset = offset_;                    // offset to read in the reader
-  size_t buf_left = buffer->GetAllocatedSize();  // bytes left in the buffer
+  size_t au_left = size_;                      // bytes left in the AU
+  uint64 au_offset = offset_;                  // offset to read in the reader
+  size_t buf_left = buffer->allocated_size();  // bytes left in the buffer
   // The current write position in the buffer
-  uint8* buf = buffer->GetWritableData() + prepend_size_;
+  uint8* buf = buffer->writable_data() + prepend_size_;
 
   // The NALU is stored as [size][data][size][data].... We are going to
   // transform it into [start code][data][start code][data]....
@@ -233,12 +216,10 @@ bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
       nal_size = endian_util::load_uint32_big_endian(size_buf);
     }
 
-    if (au_left < nal_size || buf_left < nal_size)
-      break;
+    if (au_left < nal_size || buf_left < nal_size) break;
 
     // Read the [data] from reader into buf
-    if (!ReadBytes(au_offset, nal_size, buf, reader))
-      return false;
+    if (!ReadBytes(au_offset, nal_size, buf, reader)) return false;
 
     buf += nal_size;
     au_offset += nal_size;
@@ -251,8 +232,8 @@ bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
     return false;
   }
 
-  size_ = buf - buffer->GetWritableData();
-  buffer->ShrinkTo(size_);
+  size_ = buf - buffer->writable_data();
+  buffer->shrink_to(size_);
 
   if (!parser_->Prepend(this, buffer)) {
     DLOG(ERROR) << "prepend fail";
@@ -263,8 +244,6 @@ bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
 }
 
 }  // namespace
-
-namespace media {
 
 // ==== ShellAU ================================================================
 
@@ -279,26 +258,18 @@ scoped_refptr<ShellAU> ShellAU::CreateEndOfStreamAU(DemuxerStream::Type type,
 }
 
 // static
-scoped_refptr<ShellAU> ShellAU::CreateAudioAU(uint64 offset,
-                                              size_t size,
-                                              size_t prepend_size,
-                                              bool is_keyframe,
-                                              TimeDelta timestamp,
-                                              TimeDelta duration,
-                                              ShellParser* parser) {
+scoped_refptr<ShellAU> ShellAU::CreateAudioAU(
+    uint64 offset, size_t size, size_t prepend_size, bool is_keyframe,
+    TimeDelta timestamp, TimeDelta duration, ShellParser* parser) {
   return new ShellAudioAU(offset, size, prepend_size, is_keyframe, timestamp,
                           duration, parser);
 }
 
 // static
-scoped_refptr<ShellAU> ShellAU::CreateVideoAU(uint64 offset,
-                                              size_t size,
-                                              size_t prepend_size,
-                                              uint8 length_of_nalu_size,
-                                              bool is_keyframe,
-                                              TimeDelta timestamp,
-                                              TimeDelta duration,
-                                              ShellParser* parser) {
+scoped_refptr<ShellAU> ShellAU::CreateVideoAU(
+    uint64 offset, size_t size, size_t prepend_size, uint8 length_of_nalu_size,
+    bool is_keyframe, TimeDelta timestamp, TimeDelta duration,
+    ShellParser* parser) {
   return new ShellVideoAU(offset, size, prepend_size, length_of_nalu_size,
                           is_keyframe, timestamp, duration, parser);
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "media/base/shell_data_source_reader.h"
+#include "cobalt/media/base/shell_data_source_reader.h"
 
 #include <limits.h>  // for ULLONG_MAX
 
@@ -71,8 +71,7 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
     }
 
     // Avoid entering an endless loop here.
-    if (last_bytes_read_ == 0)
-      break;
+    if (last_bytes_read_ == 0) break;
 
     total_bytes_read += last_bytes_read_;
     position += last_bytes_read_;
@@ -86,13 +85,11 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
   return total_bytes_read;
 }
 
-void ShellDataSourceReader::Stop(const base::Closure& callback) {
+void ShellDataSourceReader::Stop() {
   if (data_source_) {
-    // stop the data source, it can call the callback
     data_source_->Stop();
     data_source_ = NULL;
   }
-  callback.Run();
 }
 
 void ShellDataSourceReader::BlockingReadCompleted(int bytes_read) {
