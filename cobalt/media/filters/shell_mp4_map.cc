@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-#include "media/filters/shell_mp4_map.h"
+#include "cobalt/media/filters/shell_mp4_map.h"
+
+#include <algorithm>
 
 #include "base/stringprintf.h"
-#include "media/base/endian_util.h"
-#include "media/filters/shell_mp4_parser.h"
+#include "cobalt/media/base/endian_util.h"
+#include "cobalt/media/filters/shell_mp4_parser.h"
 
 namespace media {
 
 // ==== TableCache =============================================================
 
-ShellMP4Map::TableCache::TableCache(uint64 table_offset,
-                                    uint32 entry_count,
+ShellMP4Map::TableCache::TableCache(uint64 table_offset, uint32 entry_count,
                                     uint32 entry_size,
                                     uint32 cache_size_entries,
                                     scoped_refptr<ShellDataSourceReader> reader)
@@ -56,29 +57,25 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
       cache_entry_count_ = entry_count_ - cache_first_entry_number_;
     }
     // drop old data to allow ShellBufferFactory to defrag
-    cache_ = NULL;
+    cache_.clear();
+    DCHECK_GE(cache_entry_count_, 0);
     int bytes_to_read = cache_entry_count_ * entry_size_;
-    cache_ = ShellBufferFactory::Instance()->AllocateArray(bytes_to_read);
-    if (!cache_ || !cache_->Get()) {
-      cache_entry_count_ = 0;
-      return NULL;
-    }
+    cache_.resize(bytes_to_read);
     uint64 file_offset =
         table_offset_ + (cache_first_entry_number_ * entry_size_);
     int bytes_read =
-        reader_->BlockingRead(file_offset, bytes_to_read, cache_->Get());
+        reader_->BlockingRead(file_offset, bytes_to_read, &cache_[0]);
     if (bytes_read < bytes_to_read) {
       cache_entry_count_ = 0;
       return NULL;
     }
   }
   // cache is assumed to be valid and to contain the entry from here on
-  DCHECK(cache_->Get());
   DCHECK_GE(entry_number, cache_first_entry_number_);
   DCHECK_LT(entry_number, cache_first_entry_number_ + cache_entry_count_);
 
   uint32 cache_offset = entry_number - cache_first_entry_number_;
-  return cache_->Get() + (cache_offset * entry_size_);
+  return &cache_[0] + (cache_offset * entry_size_);
 }
 
 bool ShellMP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
@@ -91,13 +88,10 @@ bool ShellMP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
 }
 
 bool ShellMP4Map::TableCache::ReadU32PairEntry(uint32 entry_number,
-                                               uint32* first,
-                                               uint32* second) {
+                                               uint32* first, uint32* second) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
-    if (first)
-      *first = endian_util::load_uint32_big_endian(data);
-    if (second)
-      *second = endian_util::load_uint32_big_endian(data + 4);
+    if (first) *first = endian_util::load_uint32_big_endian(data);
+    if (second) *second = endian_util::load_uint32_big_endian(data + 4);
     return true;
   }
 
@@ -169,7 +163,8 @@ bool ShellMP4Map::IsComplete() {
 
 // The sample size is a lookup in the stsz table, which is indexed per sample
 // number.
-bool ShellMP4Map::GetSize(uint32 sample_number, uint32& size_out) {
+bool ShellMP4Map::GetSize(uint32 sample_number, uint32* size_out) {
+  DCHECK(size_out);
   DCHECK(stsz_ || stsz_default_size_);
 
   if (sample_number > highest_valid_sample_number_) {
@@ -177,11 +172,11 @@ bool ShellMP4Map::GetSize(uint32 sample_number, uint32& size_out) {
   }
 
   if (stsz_default_size_) {
-    size_out = stsz_default_size_;
+    *size_out = stsz_default_size_;
     return true;
   }
 
-  return stsz_->ReadU32Entry(sample_number, &size_out);
+  return stsz_->ReadU32Entry(sample_number, size_out);
 }
 
 // We first must integrate the stsc table to find the chunk number that the
@@ -190,7 +185,8 @@ bool ShellMP4Map::GetSize(uint32 sample_number, uint32& size_out) {
 // then use the stsz to sum samples to the byte offset with that chunk. The sum
 // of the chunk offset and the byte offset within the chunk is the offset of
 // the sample.
-bool ShellMP4Map::GetOffset(uint32 sample_number, uint64& offset_out) {
+bool ShellMP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
+  DCHECK(offset_out);
   DCHECK(stsc_);
   DCHECK(stco_ || co64_);
   DCHECK(stsz_ || stsz_default_size_);
@@ -243,7 +239,7 @@ bool ShellMP4Map::GetOffset(uint32 sample_number, uint64& offset_out) {
     // sum sample sizes within chunk to get to byte offset of sample
     while (current_chunk_sample_ < sample_number) {
       uint32 sample_size = 0;
-      if (!GetSize(current_chunk_sample_, sample_size)) {
+      if (!GetSize(current_chunk_sample_, &sample_size)) {
         return false;
       }
       current_chunk_offset_ += sample_size;
@@ -251,7 +247,7 @@ bool ShellMP4Map::GetOffset(uint32 sample_number, uint64& offset_out) {
     }
   }
 
-  offset_out = current_chunk_offset_;
+  *offset_out = current_chunk_offset_;
   return true;
 }
 
@@ -260,7 +256,8 @@ bool ShellMP4Map::GetOffset(uint32 sample_number, uint64& offset_out) {
 // durations to find the dts of that sample number. We then integrate sample
 // numbers through the ctts to find the composition time offset, which we add to
 // the dts to return the pts.
-bool ShellMP4Map::GetTimestamp(uint32 sample_number, uint64& timestamp_out) {
+bool ShellMP4Map::GetTimestamp(uint32 sample_number, uint64* timestamp_out) {
+  DCHECK(timestamp_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
   }
@@ -279,12 +276,13 @@ bool ShellMP4Map::GetTimestamp(uint32 sample_number, uint64& timestamp_out) {
     DCHECK_LT(sample_number, ctts_next_first_sample_);
     DCHECK_GE(sample_number, ctts_first_sample_);
   }
-  timestamp_out = dts + ctts_sample_offset_;
+  *timestamp_out = dts + ctts_sample_offset_;
   return true;
 }
 
 // Sum through the stts to find the duration of the given sample_number.
-bool ShellMP4Map::GetDuration(uint32 sample_number, uint32& duration_out) {
+bool ShellMP4Map::GetDuration(uint32 sample_number, uint32* duration_out) {
+  DCHECK(duration_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
   }
@@ -294,27 +292,28 @@ bool ShellMP4Map::GetDuration(uint32 sample_number, uint32& duration_out) {
   }
   DCHECK_LT(sample_number, stts_next_first_sample_);
   DCHECK_GE(sample_number, stts_first_sample_);
-  duration_out = stts_sample_duration_;
+  *duration_out = stts_sample_duration_;
   return true;
 }
 
-bool ShellMP4Map::GetIsKeyframe(uint32 sample_number, bool& is_keyframe_out) {
+bool ShellMP4Map::GetIsKeyframe(uint32 sample_number, bool* is_keyframe_out) {
+  DCHECK(is_keyframe_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
   }
 
   // no stts means every frame is a keyframe
   if (!stss_) {
-    is_keyframe_out = true;
+    *is_keyframe_out = true;
     return true;
   }
 
   // check for keyframe match on either range value
   if (sample_number == stss_next_keyframe_) {
-    is_keyframe_out = true;
+    *is_keyframe_out = true;
     return stss_AdvanceStep();
   } else if (sample_number == stss_last_keyframe_) {
-    is_keyframe_out = true;
+    *is_keyframe_out = true;
     return true;
   }
 
@@ -333,7 +332,7 @@ bool ShellMP4Map::GetIsKeyframe(uint32 sample_number, bool& is_keyframe_out) {
   // stss_FindNearestKeyframe returns exact matches to
   // sample_number in the stss_last_keyframe_ variable, so
   // we check that for equality
-  is_keyframe_out = (sample_number == stss_last_keyframe_);
+  *is_keyframe_out = (sample_number == stss_last_keyframe_);
 
   return true;
 }
@@ -345,7 +344,8 @@ bool ShellMP4Map::IsEOS(uint32 sample_number) {
 // First look up the sample number for the provided timestamp by integrating
 // timestamps through the stts. Then do a binary search on the stss to find the
 // keyframe nearest that sample number.
-bool ShellMP4Map::GetKeyframe(uint64 timestamp, uint32& sample_out) {
+bool ShellMP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
+  DCHECK(sample_out);
   // Advance stts to the provided timestamp range
   if (!stts_AdvanceToTime(timestamp)) {
     return false;
@@ -365,22 +365,19 @@ bool ShellMP4Map::GetKeyframe(uint64 timestamp, uint32& sample_out) {
     if (!stss_FindNearestKeyframe(sample_number)) {
       return false;
     }
-    sample_out = stss_last_keyframe_;
+    *sample_out = stss_last_keyframe_;
   } else {
     // an absent stts means every frame is a key frame, we can provide sample
     // directly.
-    sample_out = sample_number;
+    *sample_out = sample_number;
   }
   return true;
 }
 
 // Set up map state and load first part of table, or entire table if it is small
 // enough, for each of the supporated atoms.
-bool ShellMP4Map::SetAtom(uint32 four_cc,
-                          uint64 offset,
-                          uint64 size,
-                          uint32 cache_size_entries,
-                          const uint8* atom) {
+bool ShellMP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
+                          uint32 cache_size_entries, const uint8* atom) {
   // All map atoms are variable-length tables starting with 4 bytes of
   // version/flag info followed by a uint32 indicating the number of items in
   // table. The stsz atom bucks tradition by putting an optional default value
@@ -420,50 +417,43 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
     case kAtomType_co64:
       co64_ = new TableCache(table_offset, count, kEntrySize_co64,
                              cache_size_entries, reader_);
-      if (co64_)
-        atom_init = co64_Init();
+      if (co64_) atom_init = co64_Init();
       break;
 
     case kAtomType_ctts:
       ctts_ = new TableCache(table_offset, count, kEntrySize_ctts,
                              cache_size_entries, reader_);
-      if (ctts_)
-        atom_init = ctts_Init();
+      if (ctts_) atom_init = ctts_Init();
       break;
 
     case kAtomType_stco:
       stco_ = new TableCache(table_offset, count, kEntrySize_stco,
                              cache_size_entries, reader_);
-      if (stco_)
-        atom_init = stco_Init();
+      if (stco_) atom_init = stco_Init();
       break;
 
     case kAtomType_stsc:
       stsc_ = new TableCache(table_offset, count, kEntrySize_stsc,
                              cache_size_entries, reader_);
-      if (stsc_)
-        atom_init = stsc_Init();
+      if (stsc_) atom_init = stsc_Init();
       break;
 
     case kAtomType_stss:
       stss_ = new TableCache(table_offset, count, kEntrySize_stss,
                              cache_size_entries, reader_);
-      if (stss_)
-        atom_init = stss_Init();
+      if (stss_) atom_init = stss_Init();
       break;
 
     case kAtomType_stts:
       stts_ = new TableCache(table_offset, count, kEntrySize_stts,
                              cache_size_entries, reader_);
-      if (stts_)
-        atom_init = stts_Init();
+      if (stts_) atom_init = stts_Init();
       break;
 
     case kAtomType_stsz:
       stsz_ = new TableCache(table_offset, count, kEntrySize_stsz,
                              cache_size_entries, reader_);
-      if (stsz_)
-        atom_init = stsz_Init();
+      if (stsz_) atom_init = stsz_Init();
       break;
 
     default:
@@ -1146,8 +1136,6 @@ bool ShellMP4Map::stts_SlipCacheToTime(uint64 timestamp,
   return true;
 }
 
-bool ShellMP4Map::stsz_Init() {
-  return stsz_->GetBytesAtEntry(0) != NULL;
-}
+bool ShellMP4Map::stsz_Init() { return stsz_->GetBytesAtEntry(0) != NULL; }
 
 }  // namespace media
