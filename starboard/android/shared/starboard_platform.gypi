@@ -74,6 +74,8 @@
         'get_home_directory.cc',
         'input_event.cc',
         'jni_env_ext.cc',
+        'jni_env_ext.h',
+        'jni_utils.h',
         'log.cc',
         'log_flush.cc',
         'log_format.cc',
