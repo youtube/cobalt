@@ -34,9 +34,7 @@ class MEDIA_EXPORT EsParser {
 
   // ES parsing.
   // Should use kNoTimestamp when a timestamp is not valid.
-  bool Parse(const uint8_t* buf,
-             int size,
-             base::TimeDelta pts,
+  bool Parse(const uint8_t* buf, int size, base::TimeDelta pts,
              DecodeTimestamp dts);
 
   // Flush any pending buffer.

@@ -47,13 +47,9 @@ class SizeAdaptableVideoEncoderBase : public VideoEncoder {
 
  protected:
   // Accessors for subclasses.
-  CastEnvironment* cast_environment() const {
-    return cast_environment_.get();
-  }
+  CastEnvironment* cast_environment() const { return cast_environment_.get(); }
   const FrameSenderConfig& video_config() const { return video_config_; }
-  const gfx::Size& frame_size() const {
-    return frame_size_;
-  }
+  const gfx::Size& frame_size() const { return frame_size_; }
   FrameId next_frame_id() const { return next_frame_id_; }
 
   // Returns a callback that calls OnEncoderStatusChange().  The callback is

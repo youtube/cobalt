@@ -47,27 +47,20 @@ class MEDIA_BLINK_EXPORT ResourceMultiBufferDataProvider
 
   // blink::WebURLLoaderClient implementation.
   bool willFollowRedirect(
-      blink::WebURLLoader* loader,
-      blink::WebURLRequest& newRequest,
+      blink::WebURLLoader* loader, blink::WebURLRequest& newRequest,
       const blink::WebURLResponse& redirectResponse) OVERRIDE;
-  void didSendData(blink::WebURLLoader* loader,
-                   uint64 bytesSent,
+  void didSendData(blink::WebURLLoader* loader, uint64 bytesSent,
                    uint64 totalBytesToBeSent) OVERRIDE;
   void didReceiveResponse(blink::WebURLLoader* loader,
                           const blink::WebURLResponse& response) OVERRIDE;
-  void didDownloadData(blink::WebURLLoader* loader,
-                       int data_length,
+  void didDownloadData(blink::WebURLLoader* loader, int data_length,
                        int encoded_data_length) OVERRIDE;
-  void didReceiveData(blink::WebURLLoader* loader,
-                      const char* data,
-                      int data_length,
-                      int encoded_data_length,
+  void didReceiveData(blink::WebURLLoader* loader, const char* data,
+                      int data_length, int encoded_data_length,
                       int encoded_body_length) OVERRIDE;
-  void didReceiveCachedMetadata(blink::WebURLLoader* loader,
-                                const char* data,
+  void didReceiveCachedMetadata(blink::WebURLLoader* loader, const char* data,
                                 int dataLength) OVERRIDE;
-  void didFinishLoading(blink::WebURLLoader* loader,
-                        double finishTime,
+  void didFinishLoading(blink::WebURLLoader* loader, double finishTime,
                         int64_t total_encoded_data_length) OVERRIDE;
   void didFail(blink::WebURLLoader* loader, const blink::WebURLError&) OVERRIDE;
 

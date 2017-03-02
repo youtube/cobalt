@@ -34,8 +34,7 @@ class CdmResultPromise : public CdmPromiseTemplate<T...> {
 
   // CdmPromiseTemplate<T> implementation.
   void resolve(const T&... result) OVERRIDE;
-  void reject(MediaKeys::Exception exception_code,
-              uint32_t system_code,
+  void reject(MediaKeys::Exception exception_code, uint32_t system_code,
               const std::string& error_message) OVERRIDE;
 
  private:
@@ -55,13 +54,11 @@ template <typename... T>
 CdmResultPromise<T...>::CdmResultPromise(
     const blink::WebContentDecryptionModuleResult& result,
     const std::string& uma_name)
-    : web_cdm_result_(result), uma_name_(uma_name) {
-}
+    : web_cdm_result_(result), uma_name_(uma_name) {}
 
 template <typename... T>
 CdmResultPromise<T...>::~CdmResultPromise() {
-  if (!IsPromiseSettled())
-    RejectPromiseOnDestruction();
+  if (!IsPromiseSettled()) RejectPromiseOnDestruction();
 }
 
 // "inline" is needed to prevent multiple definition error.

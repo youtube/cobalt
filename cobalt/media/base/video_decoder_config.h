@@ -35,12 +35,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   // Constructs an initialized object. It is acceptable to pass in NULL for
   // |extra_data|, otherwise the memory is copied.
-  VideoDecoderConfig(VideoCodec codec,
-                     VideoCodecProfile profile,
-                     VideoPixelFormat format,
-                     ColorSpace color_space,
-                     const gfx::Size& coded_size,
-                     const gfx::Rect& visible_rect,
+  VideoDecoderConfig(VideoCodec codec, VideoCodecProfile profile,
+                     VideoPixelFormat format, ColorSpace color_space,
+                     const gfx::Size& coded_size, const gfx::Rect& visible_rect,
                      const gfx::Size& natural_size,
                      const std::vector<uint8_t>& extra_data,
                      const EncryptionScheme& encryption_scheme);
@@ -48,12 +45,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
   ~VideoDecoderConfig();
 
   // Resets the internal state of this object.
-  void Initialize(VideoCodec codec,
-                  VideoCodecProfile profile,
-                  VideoPixelFormat format,
-                  ColorSpace color_space,
-                  const gfx::Size& coded_size,
-                  const gfx::Rect& visible_rect,
+  void Initialize(VideoCodec codec, VideoCodecProfile profile,
+                  VideoPixelFormat format, ColorSpace color_space,
+                  const gfx::Size& coded_size, const gfx::Rect& visible_rect,
                   const gfx::Size& natural_size,
                   const std::vector<uint8_t>& extra_data,
                   const EncryptionScheme& encryption_scheme);

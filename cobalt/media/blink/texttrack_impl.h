@@ -33,18 +33,14 @@ class TextTrackImpl : public TextTrack {
 
   ~TextTrackImpl() OVERRIDE;
 
-  void addWebVTTCue(const base::TimeDelta& start,
-                    const base::TimeDelta& end,
-                    const std::string& id,
-                    const std::string& content,
+  void addWebVTTCue(const base::TimeDelta& start, const base::TimeDelta& end,
+                    const std::string& id, const std::string& content,
                     const std::string& settings) OVERRIDE;
 
  private:
   static void OnAddCue(WebInbandTextTrackImpl* text_track,
-                       const base::TimeDelta& start,
-                       const base::TimeDelta& end,
-                       const std::string& id,
-                       const std::string& content,
+                       const base::TimeDelta& start, const base::TimeDelta& end,
+                       const std::string& id, const std::string& content,
                        const std::string& settings);
 
   static void OnRemoveTrack(blink::WebMediaPlayerClient* client,

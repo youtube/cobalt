@@ -29,10 +29,8 @@ namespace media {
 
 class RendererMediaPlayerInterface {
  public:
-  virtual void OnMediaMetadataChanged(base::TimeDelta duration,
-                                      int width,
-                                      int height,
-                                      bool success) = 0;
+  virtual void OnMediaMetadataChanged(base::TimeDelta duration, int width,
+                                      int height, bool success) = 0;
   virtual void OnPlaybackComplete() = 0;
   virtual void OnBufferingUpdate(int percentage) = 0;
   virtual void OnSeekRequest(const base::TimeDelta& time_to_seek) = 0;
@@ -72,11 +70,9 @@ class RendererMediaPlayerManagerInterface {
  public:
   // Initializes a MediaPlayerAndroid object in browser process.
   virtual void Initialize(MediaPlayerHostMsg_Initialize_Type type,
-                          int player_id,
-                          const GURL& url,
+                          int player_id, const GURL& url,
                           const GURL& first_party_for_cookies,
-                          const GURL& frame_url,
-                          bool allow_credentials,
+                          const GURL& frame_url, bool allow_credentials,
                           int delegate_id) = 0;
 
   // Starts the player.

@@ -44,9 +44,7 @@ class MEDIA_EXPORT AudioBufferQueue {
   // |source_frame_offset| from current position. |dest_frame_offset| specifies
   // a starting offset into |dest|. On each call, the frames are converted from
   // their source format into the destination AudioBus.
-  int PeekFrames(int frames,
-                 int source_frame_offset,
-                 int dest_frame_offset,
+  int PeekFrames(int frames, int source_frame_offset, int dest_frame_offset,
                  AudioBus* dest);
 
   // Moves the current position forward by |frames| frames. If |frames| exceeds
@@ -67,11 +65,8 @@ class MEDIA_EXPORT AudioBufferQueue {
   // only the current position will advance but no data will be copied.
   // |source_frame_offset| can be used to skip frames before reading.
   // |dest_frame_offset| specifies a starting offset into |dest|.
-  int InternalRead(int frames,
-                   bool advance_position,
-                   int source_frame_offset,
-                   int dest_frame_offset,
-                   AudioBus* dest);
+  int InternalRead(int frames, bool advance_position, int source_frame_offset,
+                   int dest_frame_offset, AudioBus* dest);
 
   BufferQueue::iterator current_buffer_;
   BufferQueue buffers_;
