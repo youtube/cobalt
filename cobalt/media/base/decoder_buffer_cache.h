@@ -49,8 +49,7 @@ class DecoderBufferCache {
   typedef std::deque<base::TimeDelta> KeyFrameTimestamps;
 
   static void ClearSegmentsBeforeMediaTime(
-      base::TimeDelta media_time,
-      Buffers* buffers,
+      base::TimeDelta media_time, Buffers* buffers,
       KeyFrameTimestamps* key_frame_timestamps);
 
   base::ThreadChecker thread_checker_;

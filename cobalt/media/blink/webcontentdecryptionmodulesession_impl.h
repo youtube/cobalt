@@ -39,14 +39,12 @@ class WebContentDecryptionModuleSessionImpl
 
   void initializeNewSession(
       blink::WebEncryptedMediaInitDataType init_data_type,
-      const unsigned char* initData,
-      size_t initDataLength,
+      const unsigned char* initData, size_t initDataLength,
       blink::WebEncryptedMediaSessionType session_type,
       blink::WebContentDecryptionModuleResult result) OVERRIDE;
   void load(const blink::WebString& session_id,
             blink::WebContentDecryptionModuleResult result) OVERRIDE;
-  void update(const uint8_t* response,
-              size_t response_length,
+  void update(const uint8_t* response, size_t response_length,
               blink::WebContentDecryptionModuleResult result) OVERRIDE;
   void close(blink::WebContentDecryptionModuleResult result) OVERRIDE;
   void remove(blink::WebContentDecryptionModuleResult result) OVERRIDE;

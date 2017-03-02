@@ -23,10 +23,8 @@ enum TextKind {
 class MEDIA_EXPORT TextTrackConfig {
  public:
   TextTrackConfig();
-  TextTrackConfig(TextKind kind,
-                  const std::string& label,
-                  const std::string& language,
-                  const std::string& id);
+  TextTrackConfig(TextKind kind, const std::string& label,
+                  const std::string& language, const std::string& id);
 
   // Returns true if all fields in |config| match this config.
   bool Matches(const TextTrackConfig& config) const;

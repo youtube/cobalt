@@ -26,9 +26,7 @@ namespace mp4 {
 
 enum TrackType { kInvalid = 0, kVideo, kAudio, kText, kHint };
 
-enum SampleFlags {
-  kSampleIsNonSyncSample = 0x10000
-};
+enum SampleFlags { kSampleIsNonSyncSample = 0x10000 };
 
 #define DECLARE_BOX_METHODS(T)            \
   T();                                    \

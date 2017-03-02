@@ -18,34 +18,28 @@ static const int kMaxOutstandingRepaints = 50;
 WebMediaPlayerProxy::WebMediaPlayerProxy(
     const scoped_refptr<base::MessageLoopProxy>& render_loop,
     WebMediaPlayerImpl* webmediaplayer)
-    : render_loop_(render_loop),
-      webmediaplayer_(webmediaplayer) {
+    : render_loop_(render_loop), webmediaplayer_(webmediaplayer) {
   DCHECK(render_loop_);
   DCHECK(webmediaplayer_);
 }
 
-WebMediaPlayerProxy::~WebMediaPlayerProxy() {
-  Detach();
-}
+WebMediaPlayerProxy::~WebMediaPlayerProxy() { Detach(); }
 
 bool WebMediaPlayerProxy::HasSingleOrigin() {
   DCHECK(render_loop_->BelongsToCurrentThread());
-  if (data_source_)
-    return data_source_->HasSingleOrigin();
+  if (data_source_) return data_source_->HasSingleOrigin();
   return true;
 }
 
 bool WebMediaPlayerProxy::DidPassCORSAccessCheck() const {
   DCHECK(render_loop_->BelongsToCurrentThread());
-  if (data_source_)
-    return data_source_->DidPassCORSAccessCheck();
+  if (data_source_) return data_source_->DidPassCORSAccessCheck();
   return false;
 }
 
 void WebMediaPlayerProxy::AbortDataSource() {
   DCHECK(render_loop_->BelongsToCurrentThread());
-  if (data_source_)
-    data_source_->Abort();
+  if (data_source_) data_source_->Abort();
 }
 
 void WebMediaPlayerProxy::Detach() {

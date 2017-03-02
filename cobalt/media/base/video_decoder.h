@@ -69,10 +69,8 @@ class MEDIA_EXPORT VideoDecoder {
   // is ready (i.e. w/o thread trampolining) since it can strongly affect frame
   // delivery times with high-frame-rate material.  See Decode() for additional
   // notes.
-  virtual void Initialize(const VideoDecoderConfig& config,
-                          bool low_delay,
-                          CdmContext* cdm_context,
-                          const InitCB& init_cb,
+  virtual void Initialize(const VideoDecoderConfig& config, bool low_delay,
+                          CdmContext* cdm_context, const InitCB& init_cb,
                           const OutputCB& output_cb) = 0;
 
   // Requests a |buffer| to be decoded. The status of the decoder and decoded

@@ -84,16 +84,9 @@ TEST(BitReaderTest, VariableSkipBitsTest) {
   // while the number of bits to skip was chosen so as to cover from small skips
   // to large skips.
   const size_t pattern_read_skip[][2] = {
-      { 5,  17},
-      { 4,  34},
-      { 0,  44},
-      { 3,   4},   // Note: aligned read.
-      { 7,   7},   // Note: both read&skip cross byte boundary.
-      {17,  68},
-      { 7, 102},
-      { 9, 204},
-      { 3, 408}
-  };
+      {5, 17},  {4, 34},  {0, 44},  {3, 4},  // Note: aligned read.
+      {7, 7},  // Note: both read&skip cross byte boundary.
+      {17, 68}, {7, 102}, {9, 204}, {3, 408}};
 
   // Set bits to one only for the first and last bit of each read
   // in the pattern.

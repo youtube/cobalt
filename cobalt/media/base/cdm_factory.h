@@ -30,10 +30,8 @@ class MEDIA_EXPORT CdmFactory {
   // Creates a CDM for |key_system| and returns it through |cdm_created_cb|
   // asynchronously.
   virtual void Create(
-      const std::string& key_system,
-      const GURL& security_origin,
-      const CdmConfig& cdm_config,
-      const SessionMessageCB& session_message_cb,
+      const std::string& key_system, const GURL& security_origin,
+      const CdmConfig& cdm_config, const SessionMessageCB& session_message_cb,
       const SessionClosedCB& session_closed_cb,
       const SessionKeysChangeCB& session_keys_change_cb,
       const SessionExpirationUpdateCB& session_expiration_update_cb,

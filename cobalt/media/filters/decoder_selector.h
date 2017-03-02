@@ -33,7 +33,7 @@ class MediaLog;
 // encrypted, a DecryptingDemuxerStream may also be created.
 // The template parameter |StreamType| is the type of stream we will be
 // selecting a decoder for.
-template<DemuxerStream::Type StreamType>
+template <DemuxerStream::Type StreamType>
 class MEDIA_EXPORT DecoderSelector {
  public:
   typedef DecoderStreamTraits<StreamType> StreamTraits;
@@ -55,8 +55,7 @@ class MEDIA_EXPORT DecoderSelector {
   // |decoders| contains the Decoders to use when initializing.
   DecoderSelector(
       const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
-      ScopedVector<Decoder> decoders,
-      const scoped_refptr<MediaLog>& media_log);
+      ScopedVector<Decoder> decoders, const scoped_refptr<MediaLog>& media_log);
 
   // Aborts pending Decoder selection and fires |select_decoder_cb| with
   // NULL and NULL immediately if it's pending.
@@ -71,8 +70,7 @@ class MEDIA_EXPORT DecoderSelector {
   //    select from the decoders following the decoder that was last returned.
   // 3. |cdm_context| is optional. If |cdm_context| is
   //    null, no CDM will be available to perform decryption.
-  void SelectDecoder(StreamTraits* traits,
-                     DemuxerStream* stream,
+  void SelectDecoder(StreamTraits* traits, DemuxerStream* stream,
                      CdmContext* cdm_context,
                      const SelectDecoderCB& select_decoder_cb,
                      const typename Decoder::OutputCB& output_cb,

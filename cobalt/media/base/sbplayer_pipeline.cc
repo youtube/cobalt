@@ -224,9 +224,7 @@ SbPlayerPipeline::SbPlayerPipeline(
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       suspended_(false) {}
 
-SbPlayerPipeline::~SbPlayerPipeline() {
-  DCHECK(!player_);
-}
+SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_); }
 
 void SbPlayerPipeline::Suspend() {
   DCHECK(!message_loop_->BelongsToCurrentThread());
@@ -354,8 +352,7 @@ float SbPlayerPipeline::GetPlaybackRate() const {
 }
 
 void SbPlayerPipeline::SetPlaybackRate(float playback_rate) {
-  if (playback_rate != 0.0f && playback_rate != 1.0f)
-    return;
+  if (playback_rate != 0.0f && playback_rate != 1.0f) return;
 
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
@@ -370,8 +367,7 @@ float SbPlayerPipeline::GetVolume() const {
 }
 
 void SbPlayerPipeline::SetVolume(float volume) {
-  if (volume < 0.0f || volume > 1.0f)
-    return;
+  if (volume < 0.0f || volume > 1.0f) return;
 
   base::AutoLock auto_lock(lock_);
   volume_ = volume;
@@ -649,8 +645,7 @@ void SbPlayerPipeline::OnDemuxerStopped() {
 }
 
 void SbPlayerPipeline::OnDemuxerStreamRead(
-    DemuxerStream::Type type,
-    DemuxerStream::Status status,
+    DemuxerStream::Type type, DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(type == DemuxerStream::AUDIO || type == DemuxerStream::VIDEO)
       << "Unsupported DemuxerStream::Type " << type;

@@ -67,21 +67,16 @@ class MEDIA_EXPORT MPEG1AudioStreamParser : public MPEGAudioStreamParserBase {
   // Assumption: size of array |data| should be at least |kHeaderSize|.
   // Returns false if the header is not valid.
   static bool ParseHeader(const scoped_refptr<MediaLog>& media_log,
-                          const uint8_t* data,
-                          Header* header);
+                          const uint8_t* data, Header* header);
 
   MPEG1AudioStreamParser();
   ~MPEG1AudioStreamParser() OVERRIDE;
 
  private:
   // MPEGAudioStreamParserBase overrides.
-  int ParseFrameHeader(const uint8_t* data,
-                       int size,
-                       int* frame_size,
-                       int* sample_rate,
-                       ChannelLayout* channel_layout,
-                       int* sample_count,
-                       bool* metadata_frame,
+  int ParseFrameHeader(const uint8_t* data, int size, int* frame_size,
+                       int* sample_rate, ChannelLayout* channel_layout,
+                       int* sample_count, bool* metadata_frame,
                        std::vector<uint8_t>* extra_data) const OVERRIDE;
 
   DISALLOW_COPY_AND_ASSIGN(MPEG1AudioStreamParser);
