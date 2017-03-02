@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_FILTERS_SHELL_PARSER_H_
-#define MEDIA_FILTERS_SHELL_PARSER_H_
+#ifndef COBALT_MEDIA_FILTERS_SHELL_PARSER_H_
+#define COBALT_MEDIA_FILTERS_SHELL_PARSER_H_
 
 #include "base/memory/ref_counted.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/pipeline.h"
-#include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_data_source_reader.h"
-#include "media/base/video_decoder_config.h"
-#include "media/filters/shell_au.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/pipeline.h"
+#include "cobalt/media/base/shell_data_source_reader.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/filters/shell_au.h"
 
 namespace media {
 
@@ -35,7 +35,8 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   // Determine stream type, construct appropriate parser object, and returns
   // PIPELINE_OK on success or error code.
   static PipelineStatus Construct(scoped_refptr<ShellDataSourceReader> reader,
-                                  scoped_refptr<ShellParser>* parser);
+                                  scoped_refptr<ShellParser>* parser,
+                                  const scoped_refptr<MediaLog>& media_log);
   explicit ShellParser(scoped_refptr<ShellDataSourceReader> reader);
 
   // Seek through the file looking for audio and video configuration info,
@@ -79,4 +80,4 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SHELL_PARSER_H_
+#endif  // COBALT_MEDIA_FILTERS_SHELL_PARSER_H_
