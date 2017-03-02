@@ -127,7 +127,6 @@ bool AudioDecoder::ProcessOneInputRawData(const void* data,
                                           SbMediaTime pts,
                                           jint flags) {
   SB_CHECK(media_codec_bridge_);
-
   DequeueInputResult dequeue_input_result =
       media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
   if (dequeue_input_result.index < 0) {
@@ -146,7 +145,7 @@ bool AudioDecoder::ProcessOneInputRawData(const void* data,
 
   jint status = media_codec_bridge_->QueueInputBuffer(
       dequeue_input_result.index, /*offset=*/0, size,
-      ConvertMicrosecondsToSbMediaTime(pts), flags);
+      ConvertSbMediaTimeToMicroseconds(pts), flags);
   if (status != MEDIA_CODEC_OK) {
     SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
     return false;
@@ -156,6 +155,7 @@ bool AudioDecoder::ProcessOneInputRawData(const void* data,
 }
 
 bool AudioDecoder::ProcessOneOutputBuffer() {
+  SB_CHECK(media_codec_bridge_);
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
   if (dequeue_output_result.index < 0) {
