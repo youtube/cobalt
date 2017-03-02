@@ -177,6 +177,8 @@
         'media_query_list.h',
         'memory_info.cc',
         'memory_info.h',
+        'message_event.h',
+        'message_event.cc',
         'mime_type_array.cc',
         'mime_type_array.h',
         'mutation_observer_task_manager.cc',
