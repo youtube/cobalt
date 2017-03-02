@@ -96,20 +96,14 @@ class MEDIA_EXPORT AudioParameters {
   };
 
   AudioParameters();
-  AudioParameters(Format format,
-                  ChannelLayout channel_layout,
-                  int sample_rate,
-                  int bits_per_sample,
-                  int frames_per_buffer);
+  AudioParameters(Format format, ChannelLayout channel_layout, int sample_rate,
+                  int bits_per_sample, int frames_per_buffer);
 
   ~AudioParameters();
 
   // Re-initializes all members.
-  void Reset(Format format,
-             ChannelLayout channel_layout,
-             int sample_rate,
-             int bits_per_sample,
-             int frames_per_buffer);
+  void Reset(Format format, ChannelLayout channel_layout, int sample_rate,
+             int bits_per_sample, int frames_per_buffer);
 
   // Checks that all values are in the expected range. All limits are specified
   // in media::Limits.
@@ -218,10 +212,8 @@ class MEDIA_EXPORT AudioParameters {
 
 // Comparison is useful when AudioParameters is used with std structures.
 inline bool operator<(const AudioParameters& a, const AudioParameters& b) {
-  if (a.format() != b.format())
-    return a.format() < b.format();
-  if (a.channels() != b.channels())
-    return a.channels() < b.channels();
+  if (a.format() != b.format()) return a.format() < b.format();
+  if (a.channels() != b.channels()) return a.channels() < b.channels();
   if (a.sample_rate() != b.sample_rate())
     return a.sample_rate() < b.sample_rate();
   if (a.bits_per_sample() != b.bits_per_sample())

@@ -144,8 +144,7 @@ class WebMediaPlayer {
   }
 
   virtual AddIdStatus SourceAddId(
-      const std::string& /* id */,
-      const std::string& /* type */,
+      const std::string& /* id */, const std::string& /* type */,
       const std::vector<std::string>& /* codecs */) {
     return kAddIdStatusNotSupported;
   }
@@ -170,8 +169,7 @@ class WebMediaPlayer {
   // Returns whether keySystem is supported. If true, the result will be
   // reported by an event.
   virtual MediaKeyException GenerateKeyRequest(
-      const std::string& /* key_system */,
-      const unsigned char* /* init_data */,
+      const std::string& /* key_system */, const unsigned char* /* init_data */,
       unsigned /* init_data_length */) {
     return kMediaKeyExceptionKeySystemNotSupported;
   }
@@ -242,8 +240,7 @@ class WebMediaPlayerClient {
     NOTIMPLEMENTED();
   }
   virtual void KeyError(const std::string& /* key_system */,
-                        const std::string& /* session_id */,
-                        MediaKeyErrorCode,
+                        const std::string& /* session_id */, MediaKeyErrorCode,
                         unsigned short /* system_code */) {
     NOTIMPLEMENTED();
   }

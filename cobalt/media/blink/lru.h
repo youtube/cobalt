@@ -51,8 +51,7 @@ class LRU {
   // If |x| is not in LRU, it is added.
   // Please call Insert() if you know that |x| is not in the LRU.
   void Use(const T& x) {
-    if (Contains(x))
-      Remove(x);
+    if (Contains(x)) Remove(x);
     Insert(x);
   }
 

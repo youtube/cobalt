@@ -31,10 +31,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   MP4StreamParser(const std::set<int>& audio_object_types, bool has_sbr);
   ~MP4StreamParser() OVERRIDE;
 
-  void Init(const InitCB& init_cb,
-            const NewConfigCB& config_cb,
-            const NewBuffersCB& new_buffers_cb,
-            bool ignore_text_tracks,
+  void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
+            const NewBuffersCB& new_buffers_cb, bool ignore_text_tracks,
             const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
             const NewMediaSegmentCB& new_segment_cb,
             const EndMediaSegmentCB& end_of_segment_cb,
@@ -71,8 +69,7 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   void ChangeState(State new_state);
 
   bool EmitConfigs();
-  bool PrepareAACBuffer(const AAC& aac_config,
-                        std::vector<uint8_t>* frame_buf,
+  bool PrepareAACBuffer(const AAC& aac_config, std::vector<uint8_t>* frame_buf,
                         std::vector<SubsampleEntry>* subsamples) const;
   bool EnqueueSample(BufferQueueMap* buffers, bool* err);
   bool SendAndFlushSamples(BufferQueueMap* buffers);

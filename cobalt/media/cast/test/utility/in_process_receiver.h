@@ -114,11 +114,9 @@ class InProcessReceiver {
   // comments for the callbacks defined in src/media/cast/cast_receiver.h for
   // argument description and semantics.
   void GotAudioFrame(std::unique_ptr<AudioBus> audio_frame,
-                     const base::TimeTicks& playout_time,
-                     bool is_continuous);
+                     const base::TimeTicks& playout_time, bool is_continuous);
   void GotVideoFrame(const scoped_refptr<VideoFrame>& video_frame,
-                     const base::TimeTicks& playout_time,
-                     bool is_continuous);
+                     const base::TimeTicks& playout_time, bool is_continuous);
   void PullNextAudioFrame();
   void PullNextVideoFrame();
 

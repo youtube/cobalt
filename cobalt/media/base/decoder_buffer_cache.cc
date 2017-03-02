@@ -94,8 +94,7 @@ void DecoderBufferCache::AdvanceToNextBuffer(DemuxerStream::Type type) {
 
 // static
 void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
-    base::TimeDelta media_time,
-    Buffers* buffers,
+    base::TimeDelta media_time, Buffers* buffers,
     KeyFrameTimestamps* key_frame_timestamps) {
   // Use K to denote a key frame and N for non-key frame.  If the cache contains
   // K N N N N N N N N K N N N N N N N N K N N N N N N N N

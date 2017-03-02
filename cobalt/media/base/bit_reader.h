@@ -15,32 +15,25 @@
 namespace media {
 
 class MEDIA_EXPORT BitReader
-    : NON_EXPORTED_BASE(private BitReaderCore::ByteStreamProvider)  {
+    : NON_EXPORTED_BASE(private BitReaderCore::ByteStreamProvider) {
  public:
   // Initialize the reader to start reading at |data|, |size| being size
   // of |data| in bytes.
   BitReader(const uint8_t* data, int size);
   ~BitReader() OVERRIDE;
 
-  template<typename T> bool ReadBits(int num_bits, T* out) {
+  template <typename T>
+  bool ReadBits(int num_bits, T* out) {
     return bit_reader_core_.ReadBits(num_bits, out);
   }
 
-  bool ReadFlag(bool* flag) {
-    return bit_reader_core_.ReadFlag(flag);
-  }
+  bool ReadFlag(bool* flag) { return bit_reader_core_.ReadFlag(flag); }
 
-  bool SkipBits(int num_bits) {
-    return bit_reader_core_.SkipBits(num_bits);
-  }
+  bool SkipBits(int num_bits) { return bit_reader_core_.SkipBits(num_bits); }
 
-  int bits_available() const {
-    return initial_size_ * 8 - bits_read();
-  }
+  int bits_available() const { return initial_size_ * 8 - bits_read(); }
 
-  int bits_read() const {
-    return bit_reader_core_.bits_read();
-  }
+  int bits_read() const { return bit_reader_core_.bits_read(); }
 
  private:
   // BitReaderCore::ByteStreamProvider implementation.
