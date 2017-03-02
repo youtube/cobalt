@@ -25,9 +25,10 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   JniEnvExt* env = JniEnvExt::Get();
   jstring j_mime = env->NewStringUTF(mime.c_str());
   jobject j_media_codec_bridge = env->CallStaticObjectMethod(
-      "foo/cobalt/MediaCodecBridge", "createAudioMediaCodecBridge",
-      "(Ljava/lang/String;ZZII)Lfoo/cobalt/MediaCodecBridge;", j_mime, false,
-      false, audio_header.samples_per_second, audio_header.number_of_channels);
+      "foo/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
+      "(Ljava/lang/String;ZZII)Lfoo/cobalt/media/MediaCodecBridge;", j_mime,
+      false, false, audio_header.samples_per_second,
+      audio_header.number_of_channels);
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);
@@ -50,7 +51,7 @@ DequeueInputResult MediaCodecBridge::DequeueInputBuffer(jlong timeout_us) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef j_dequeue_input_result(env->CallObjectMethod(
       j_media_codec_bridge_, "dequeueInputBuffer",
-      "(J)Lfoo/cobalt/MediaCodecBridge$DequeueInputResult;", timeout_us));
+      "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueInputResult;", timeout_us));
   return {env->CallIntMethod(j_dequeue_input_result.Get(), "status", "()I"),
           env->CallIntMethod(j_dequeue_input_result.Get(), "index", "()I")};
 }
@@ -76,7 +77,8 @@ DequeueOutputResult MediaCodecBridge::DequeueOutputBuffer(jlong timeout_us) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef j_dequeue_output_result(env->CallObjectMethod(
       j_media_codec_bridge_, "dequeueOutputBuffer",
-      "(J)Lfoo/cobalt/MediaCodecBridge$DequeueOutputResult;", timeout_us));
+      "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueOutputResult;",
+      timeout_us));
   return {env->CallIntMethod(j_dequeue_output_result.Get(), "status", "()I"),
           env->CallIntMethod(j_dequeue_output_result.Get(), "index", "()I"),
           env->CallIntMethod(j_dequeue_output_result.Get(), "flags", "()I"),
