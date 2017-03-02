@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_FILTERS_SHELL_AU_H_
-#define MEDIA_FILTERS_SHELL_AU_H_
+#ifndef COBALT_MEDIA_FILTERS_SHELL_AU_H_
+#define COBALT_MEDIA_FILTERS_SHELL_AU_H_
 
 #include "base/memory/ref_counted.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_data_source_reader.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/shell_data_source_reader.h"
 
 namespace media {
 
@@ -40,21 +39,13 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
 
   static scoped_refptr<ShellAU> CreateEndOfStreamAU(Type type,
                                                     TimeDelta timestamp);
-  static scoped_refptr<ShellAU> CreateAudioAU(uint64 offset,
-                                              size_t size,
-                                              size_t prepend_size,
-                                              bool is_keyframe,
-                                              TimeDelta timestamp,
-                                              TimeDelta duration,
-                                              ShellParser* parser);
-  static scoped_refptr<ShellAU> CreateVideoAU(uint64 offset,
-                                              size_t size,
-                                              size_t prepend_size,
-                                              uint8 length_of_nalu_size,
-                                              bool is_keyframe,
-                                              TimeDelta timestamp,
-                                              TimeDelta duration,
-                                              ShellParser* parser);
+  static scoped_refptr<ShellAU> CreateAudioAU(
+      uint64 offset, size_t size, size_t prepend_size, bool is_keyframe,
+      TimeDelta timestamp, TimeDelta duration, ShellParser* parser);
+  static scoped_refptr<ShellAU> CreateVideoAU(
+      uint64 offset, size_t size, size_t prepend_size,
+      uint8 length_of_nalu_size, bool is_keyframe, TimeDelta timestamp,
+      TimeDelta duration, ShellParser* parser);
 
   virtual bool IsEndOfStream() const = 0;
   virtual bool IsValid() const = 0;
@@ -82,4 +73,4 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SHELL_AU_H_
+#endif  // COBALT_MEDIA_FILTERS_SHELL_AU_H_

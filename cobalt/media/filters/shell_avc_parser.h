@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_FILTERS_SHELL_AVC_PARSER_H_
-#define MEDIA_FILTERS_SHELL_AVC_PARSER_H_
+#ifndef COBALT_MEDIA_FILTERS_SHELL_AVC_PARSER_H_
+#define COBALT_MEDIA_FILTERS_SHELL_AVC_PARSER_H_
 
-#include "media/filters/shell_parser.h"
+#include <vector>
+
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/filters/shell_parser.h"
 
 namespace media {
 
@@ -31,7 +34,8 @@ static const int kAnnexBPrependMaxSize = 1024;
 // while leaving the rest for its children.
 class ShellAVCParser : public ShellParser {
  public:
-  explicit ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader);
+  explicit ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader,
+                          const scoped_refptr<MediaLog>& media_log);
   virtual ~ShellAVCParser();
 
   struct ShellSPSRecord {
@@ -40,8 +44,7 @@ class ShellAVCParser : public ShellParser {
     gfx::Size natural_size;
     uint32 num_ref_frames;
   };
-  static bool ParseSPS(const uint8* sps,
-                       size_t sps_size,
+  static bool ParseSPS(const uint8* sps, size_t sps_size,
                        ShellSPSRecord* record_out);
 
   // GetNextAU we must pass on to FLV or MP4 children.
@@ -54,14 +57,13 @@ class ShellAVCParser : public ShellParser {
   virtual bool DownloadAndParseAVCConfigRecord(uint64 offset, uint32 size);
   virtual bool ParseAVCConfigRecord(uint8* buffer, uint32 size);
   // pps_size can be 0. Returns false on unable to construct.
-  virtual bool BuildAnnexBPrepend(uint8* sps,
-                                  uint32 sps_size,
-                                  uint8* pps,
+  virtual bool BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
                                   uint32 pps_size);
   virtual void ParseAudioSpecificConfig(uint8 b0, uint8 b1);
   virtual size_t CalculatePrependSize(DemuxerStream::Type type,
                                       bool is_keyframe);
 
+  scoped_refptr<MediaLog> media_log_;
   uint8 nal_header_size_;
   // audio frames have a fixed-size small prepend that we attach to every
   // audio buffer created by DownloadBuffer()
@@ -75,4 +77,4 @@ class ShellAVCParser : public ShellParser {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SHELL_AVC_PARSER_H_
+#endif  // COBALT_MEDIA_FILTERS_SHELL_AVC_PARSER_H_

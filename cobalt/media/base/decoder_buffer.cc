@@ -16,13 +16,19 @@ static uint8_t* AllocateFFmpegSafeBlock(size_t size) {
 }
 
 DecoderBuffer::DecoderBuffer(size_t size)
-    : size_(size), side_data_size_(0), is_key_frame_(false) {
+    : allocated_size_(size),
+      size_(size),
+      side_data_size_(0),
+      is_key_frame_(false) {
   Initialize();
 }
 
 DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size,
                              const uint8_t* side_data, size_t side_data_size)
-    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+    : allocated_size_(size),
+      size_(size),
+      side_data_size_(side_data_size),
+      is_key_frame_(false) {
   if (!data) {
     CHECK_EQ(size_, 0u);
     CHECK(!side_data);
