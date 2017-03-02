@@ -16,10 +16,15 @@
 #define STARBOARD_ANDROID_SHARED_VIDEO_WINDOW_H_
 
 #include <android/native_window.h>
+#include <jni.h>
 
 namespace starboard {
 namespace android {
 namespace shared {
+
+// Returns the surface which video should be rendered.  This is the surface
+// that owns the native window returned by |GetVideoWindow|.
+jobject GetVideoSurface();
 
 // Returns the native window into which video should be rendered.
 ANativeWindow* GetVideoWindow();

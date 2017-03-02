@@ -15,8 +15,14 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 
-#include <media/NdkMediaCodec.h>
+#include <jni.h>
 
+#include <deque>
+
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/video_window.h"
 #include "starboard/decode_target.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -48,12 +54,16 @@ class VideoDecoder
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
 
-  bool is_valid() const {
-    return media_codec_ != NULL && media_format_ != NULL;
-  }
+  bool is_valid() const { return media_codec_bridge_ != NULL; }
 
   void SetCurrentTime(SbMediaTime current_time) SB_OVERRIDE {
-    current_time_ = current_time;
+    current_time_ = ConvertSbMediaTimeToMicroseconds(current_time);
+    current_time_set_at_ = SbTimeGetNow();
+  }
+  // Get |current_time_| accounting for the time that has elapsed since it was
+  // last set.
+  SbTime GetAdjustedCurrentTime() const {
+    return current_time_ + SbTimeGetNow() - current_time_set_at_;
   }
 
   SbDecodeTarget GetCurrentDecodeTarget();
@@ -79,24 +89,38 @@ class VideoDecoder
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 
+  // Pending work can be either an input buffer or EOS flag to enqueue.
+  struct InputBufferOrEos {
+    struct CreateEos {};
+    InputBufferOrEos() = delete;
+    InputBufferOrEos(const CreateEos&) : is_eos(true) {}
+    InputBufferOrEos(const InputBuffer& input_buffer)
+        : input_buffer(input_buffer), is_eos(false) {}
+    InputBuffer input_buffer;
+    bool is_eos;
+  };
+
   static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  // Attempt to decode |input_buffer| into a |VideoFrame|, and pass it off
-  // to the renderer.  Returns whether decode was successful or not.
-  bool DecodeInputBuffer(const InputBuffer& input_buffer);
-
-  // Attempt to initialize the codec, and return whether initialization was
-  // successful or not.
+  // Attempt to initialize the codec.  Returns whether initialization was
+  // successful.
   bool InitializeCodec();
   void TeardownCodec();
+
+  // Attempt to enqueue the front of |pending_work_| into a MediaCodec input
+  // buffer.  Returns true if a buffer was queued.
+  bool ProcessOneInputBuffer();
+  // Attempt to dequeue a media codec output buffer.  Returns whether a buffer
+  // was dequeued.
+  bool ProcessOneOutputBuffer();
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
   Host* host_;
 
-  Queue<Event> queue_;
+  Queue<Event> event_queue_;
 
   bool stream_ended_;
   bool error_occured_;
@@ -104,16 +128,12 @@ class VideoDecoder
   // Working thread to avoid lengthy decoding work block the player thread.
   SbThread decoder_thread_;
 
-  AMediaCodec* media_codec_;
-  AMediaFormat* media_format_;
-  ANativeWindow* video_window_;
+  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
-  ANativeWindow* output_window_;
+  SbTime current_time_;
+  SbTime current_time_set_at_;
 
-  int32_t width_;
-  int32_t height_;
-  int32_t color_format_;
-  SbMediaTime current_time_;
+  std::deque<InputBufferOrEos> pending_work_;
 
   SbPlayerOutputMode output_mode_;
 

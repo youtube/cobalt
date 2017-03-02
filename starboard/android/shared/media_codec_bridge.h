@@ -40,6 +40,7 @@ const jint MEDIA_CODEC_ABORT = 8;
 const jint MEDIA_CODEC_ERROR = 9;
 
 const jint BUFFER_FLAG_CODEC_CONFIG = 2;
+const jint BUFFER_FLAG_END_OF_STREAM = 4;
 
 struct DequeueInputResult {
   jint status;
@@ -55,16 +56,27 @@ struct DequeueOutputResult {
   jint num_bytes;
 };
 
+struct SurfaceDimensions {
+  jint width;
+  jint height;
+};
+
 class MediaCodecBridge {
  public:
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       const std::string& mime,
       const SbMediaAudioHeader& audio_header);
 
+  static scoped_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
+      const std::string& mime,
+      int width,
+      int height,
+      jobject j_surface,
+      jobject j_media_crypto);
+
   ~MediaCodecBridge();
 
   DequeueInputResult DequeueInputBuffer(jlong timeout_us);
-
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
   jobject GetInputBuffer(jint index);
@@ -73,14 +85,15 @@ class MediaCodecBridge {
                         jint size,
                         jlong presentation_time_microseconds,
                         jint flags);
-  DequeueOutputResult DequeueOutputBuffer(jlong timeout_us);
 
+  DequeueOutputResult DequeueOutputBuffer(jlong timeout_us);
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
   jobject GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
 
   jint Flush();
+  SurfaceDimensions GetOutputDimensions();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
