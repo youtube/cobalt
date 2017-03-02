@@ -52,7 +52,7 @@ class MEDIA_EXPORT StreamParser {
 
   // Stream parameters passed in InitCB.
   struct MEDIA_EXPORT InitParameters {
-    InitParameters(base::TimeDelta duration);
+    explicit InitParameters(base::TimeDelta duration);
 
     // Stream duration.
     base::TimeDelta duration;
