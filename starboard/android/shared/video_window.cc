@@ -18,7 +18,9 @@
 #include <android/native_window_jni.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
+#include <jni.h>
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/shared/gles/gl_call.h"
@@ -29,8 +31,10 @@ namespace shared {
 
 namespace {
 
+// Global pointer to the single video surface.
+jobject g_j_video_surface = NULL;
 // Global pointer to the single video window.
-ANativeWindow* native_video_window_ = NULL;
+ANativeWindow* g_native_video_window = NULL;
 
 }  // namespace
 
@@ -39,23 +43,33 @@ Java_foo_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(
     JNIEnv* env,
     jobject unused_this,
     jobject surface) {
-  if (native_video_window_) {
+  if (g_j_video_surface) {
+    // TODO: Ensure that the decoder isn't still using the surface.
+    env->DeleteGlobalRef(g_j_video_surface);
+  }
+  if (g_native_video_window) {
     // TODO: Ensure that the decoder isn't still using the window.
-    ANativeWindow_release(native_video_window_);
+    ANativeWindow_release(g_native_video_window);
   }
   if (surface) {
-    native_video_window_ = ANativeWindow_fromSurface(env, surface);
+    g_j_video_surface = env->NewGlobalRef(surface);
+    g_native_video_window = ANativeWindow_fromSurface(env, surface);
   } else {
-    native_video_window_ = NULL;
+    g_j_video_surface = NULL;
+    g_native_video_window = NULL;
   }
+}
+
+jobject GetVideoSurface() {
+  return g_j_video_surface;
 }
 
 ANativeWindow* GetVideoWindow() {
-  return native_video_window_;
+  return g_native_video_window;
 }
 
 void ClearVideoWindow() {
-  if (!native_video_window_) {
+  if (!g_native_video_window) {
     SB_LOG(INFO) << "Tried to clear video window when it was null.";
     return;
   }
@@ -90,7 +104,7 @@ void ClearVideoWindow() {
                            &num_configs));
 
   EGLNativeWindowType native_window =
-      static_cast<EGLNativeWindowType>(native_video_window_);
+      static_cast<EGLNativeWindowType>(g_native_video_window);
   EGLConfig config;
 
   // Find the first config that successfully allow a window surface to be
