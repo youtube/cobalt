@@ -253,6 +253,12 @@ void ReplacedBox::RenderAndAnimateContent(
   }
 
   if (replace_image_cb_.is_null()) {
+    // If we don't have a data stream associated with this video [yet], render
+    // blackness.
+    border_node_builder->AddChild(new RectNode(
+        math::RectF(content_box_size()),
+        scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+            render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))));
     // Nothing to render.
     return;
   }
