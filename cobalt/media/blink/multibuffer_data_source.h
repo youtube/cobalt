@@ -259,6 +259,7 @@ class MEDIA_BLINK_EXPORT MultibufferDataSource : public DataSource {
   base::WeakPtr<MultibufferDataSource> weak_ptr_;
   base::WeakPtrFactory<MultibufferDataSource> weak_factory_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(MultibufferDataSource);
 };
 
