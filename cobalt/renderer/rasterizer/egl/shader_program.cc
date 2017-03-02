@@ -24,6 +24,28 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
+namespace {
+
+void CompileShader(GLuint handle, const GLchar* source) {
+  GLint source_length = strlen(source);
+  GL_CALL(glShaderSource(handle, 1, &source, &source_length));
+  GL_CALL(glCompileShader(handle));
+
+  GLint is_compiled = GL_FALSE;
+  GL_CALL(glGetShaderiv(handle, GL_COMPILE_STATUS, &is_compiled));
+  if (is_compiled != GL_TRUE) {
+    const GLsizei kMaxLogLength = 2048;
+    GLsizei log_length = 0;
+    GLchar log[kMaxLogLength];
+    glGetShaderInfoLog(handle, kMaxLogLength, &log_length, log);
+    DLOG(ERROR) << "shader error: " << log;
+    DLOG(ERROR) << "shader source:\n" << source;
+  }
+  DCHECK_EQ(is_compiled, GL_TRUE);
+}
+
+}  // namespace
+
 ShaderProgramBase::ShaderProgramBase()
     : handle_(0) {}
 
@@ -36,19 +58,11 @@ void ShaderProgramBase::Create(ShaderBase* vertex_shader,
   handle_ = glCreateProgram();
 
   vertex_shader->handle_ = glCreateShader(GL_VERTEX_SHADER);
-  const GLchar* vertex_source = vertex_shader->GetSource();
-  GLint vertex_source_length = strlen(vertex_source);
-  GL_CALL(glShaderSource(vertex_shader->handle_, 1, &vertex_source,
-                         &vertex_source_length));
-  GL_CALL(glCompileShader(vertex_shader->handle_));
+  CompileShader(vertex_shader->handle_, vertex_shader->GetSource());
   GL_CALL(glAttachShader(handle_, vertex_shader->handle_));
 
   fragment_shader->handle_ = glCreateShader(GL_FRAGMENT_SHADER);
-  const GLchar* fragment_source = fragment_shader->GetSource();
-  GLint fragment_source_length = strlen(fragment_source);
-  GL_CALL(glShaderSource(fragment_shader->handle_, 1, &fragment_source,
-                         &fragment_source_length));
-  GL_CALL(glCompileShader(fragment_shader->handle_));
+  CompileShader(fragment_shader->handle_, fragment_shader->GetSource());
   GL_CALL(glAttachShader(handle_, fragment_shader->handle_));
 
   vertex_shader->InitializePreLink(handle_);
