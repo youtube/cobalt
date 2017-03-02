@@ -22,7 +22,8 @@ namespace media {
 
 ShellVideoFrameProvider::ShellVideoFrameProvider(
     scoped_refptr<VideoFrame> punch_out)
-    : punch_out_(punch_out), has_consumed_frames_(false), dropped_frames_(0) {
+    : punch_out_(punch_out), has_consumed_frames_(false), dropped_frames_(0),
+      output_mode_(kOutputModeInvalid) {
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   max_delay_in_microseconds_ = 0;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
