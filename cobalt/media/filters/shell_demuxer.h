@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_FILTERS_SHELL_DEMUXER_H_
-#define MEDIA_FILTERS_SHELL_DEMUXER_H_
+#ifndef COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_
+#define COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_
 
 #include <deque>
-#include <map>
+#include <string>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
-#include "media/base/demuxer.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/ranges.h"
-#include "media/base/shell_buffer_factory.h"
-#include "media/filters/shell_parser.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/base/ranges.h"
+#include "cobalt/media/filters/shell_parser.h"
 
 namespace media {
 
@@ -39,12 +40,20 @@ class ShellDemuxerStream : public DemuxerStream {
   ShellDemuxerStream(ShellDemuxer* demuxer, Type type);
 
   // DemuxerStream implementation
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
-  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
-  virtual Type type() OVERRIDE;
-  virtual void EnableBitstreamConverter() OVERRIDE;
-  virtual bool StreamWasEncrypted() const OVERRIDE;
+  void Read(const ReadCB& read_cb) OVERRIDE;
+  AudioDecoderConfig audio_decoder_config() OVERRIDE;
+  VideoDecoderConfig video_decoder_config() OVERRIDE;
+  Type type() const OVERRIDE;
+  void EnableBitstreamConverter() OVERRIDE;
+  bool SupportsConfigChanges() OVERRIDE { return false; }
+  VideoRotation video_rotation() OVERRIDE { return VIDEO_ROTATION_0; }
+  bool enabled() const OVERRIDE { return true; }
+  void set_enabled(bool enabled, base::TimeDelta timestamp) OVERRIDE {
+    DCHECK(enabled);
+  }
+  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) OVERRIDE {
+    NOTREACHED();
+  }
 
   // Functions used by ShellDemuxer
   Ranges<base::TimeDelta> GetBufferedRanges();
@@ -88,19 +97,34 @@ class ShellDemuxerStream : public DemuxerStream {
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
   ShellDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
-               DataSource* data_source);
-  virtual ~ShellDemuxer();
+               DataSource* data_source,
+               const scoped_refptr<MediaLog>& media_log);
+  ~ShellDemuxer() OVERRIDE;
 
   // Demuxer implementation.
-  virtual void Initialize(DemuxerHost* host,
-                          const PipelineStatusCB& status_cb) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-  virtual void OnAudioRendererDisabled() OVERRIDE;
-  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
-  virtual scoped_refptr<DemuxerStream> GetStream(
-      DemuxerStream::Type type) OVERRIDE;
-  virtual base::TimeDelta GetStartTime() const OVERRIDE;
+  std::string GetDisplayName() const OVERRIDE { return "ShellDemuxer"; }
+  void Initialize(DemuxerHost* host, const PipelineStatusCB& status_cb,
+                  bool enable_text_tracks) OVERRIDE;
+  void AbortPendingReads() OVERRIDE {}
+  void StartWaitingForSeek(base::TimeDelta seek_time) OVERRIDE {}
+  void CancelPendingSeek(base::TimeDelta seek_time) OVERRIDE {}
+  void Stop() OVERRIDE;
+  void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
+  DemuxerStream* GetStream(DemuxerStream::Type type) OVERRIDE;
+  base::TimeDelta GetStartTime() const OVERRIDE;
+  base::Time GetTimelineOffset() const OVERRIDE { return base::Time(); }
+  int64_t GetMemoryUsage() const OVERRIDE {
+    NOTREACHED();
+    return 0;
+  }
+  void OnEnabledAudioTracksChanged(const std::vector<MediaTrack::Id>& track_ids,
+                                   base::TimeDelta currTime) OVERRIDE {
+    NOTREACHED();
+  }
+  void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
+                                   base::TimeDelta currTime) OVERRIDE {
+    NOTREACHED();
+  }
 
   // TODO: Consider move the following functions to private section.
 
@@ -117,9 +141,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // Provide access to ShellDemuxerStream.
   bool MessageLoopBelongsToCurrentThread() const;
 
-  // Callback from ShellBufferFactory
-  void BufferAllocated(scoped_refptr<DecoderBuffer> buffer);
-
  private:
   void ParseConfigDone(const PipelineStatusCB& status_cb,
                        PipelineStatus status);
@@ -130,9 +151,9 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // download enough of the stream to parse the configuration. returns
   // false on error.
   PipelineStatus ParseConfigBlocking(const PipelineStatusCB& status_cb);
-  void RequestTask(DemuxerStream::Type type);
-  void DownloadTask(scoped_refptr<DecoderBuffer> buffer);
-  void IssueNextRequestTask();
+  void AllocateBuffer();
+  void Download(scoped_refptr<DecoderBuffer> buffer);
+  void IssueNextRequest();
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -141,13 +162,14 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // Thread on which all blocking operations are executed.
   base::Thread blocking_thread_;
   DataSource* data_source_;
+  scoped_refptr<MediaLog> media_log_;
   scoped_refptr<ShellDataSourceReader> reader_;
 
   bool stopped_;
   bool flushing_;
 
-  scoped_refptr<ShellDemuxerStream> audio_demuxer_stream_;
-  scoped_refptr<ShellDemuxerStream> video_demuxer_stream_;
+  scoped_ptr<ShellDemuxerStream> audio_demuxer_stream_;
+  scoped_ptr<ShellDemuxerStream> video_demuxer_stream_;
   scoped_refptr<ShellParser> parser_;
 
   scoped_refptr<ShellAU> requested_au_;
@@ -157,4 +179,4 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 
 }  // namespace media
 
-#endif  // MEDIA_FILTERS_SHELL_DEMUXER_H_
+#endif  // COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_

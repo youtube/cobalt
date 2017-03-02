@@ -104,8 +104,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // |audio_renderer_sink| arguments should be the same object.
 
   WebMediaPlayerImpl(
-      PipelineWindow window,
-      WebMediaPlayerClient* client,
+      PipelineWindow window, WebMediaPlayerClient* client,
       WebMediaPlayerDelegate* delegate,
       const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
       const scoped_refptr<MediaLog>& media_log);
@@ -232,8 +231,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // has been selected.
   std::string current_key_system_;
 
-  scoped_refptr<base::MessageLoopProxy> pipeline_message_loop_;
-
   // Internal state of the WebMediaPlayer. Gathered in one struct to support
   // serialization of this state in debug logs. This should not contain any
   // sensitive or potentially PII.
@@ -288,6 +285,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   bool is_local_source_;
   bool supports_save_;
 
+  scoped_ptr<Demuxer> progressive_demuxer_;
   scoped_ptr<ChunkDemuxer> chunk_demuxer_;
 
 #if defined(__LB_ANDROID__)
