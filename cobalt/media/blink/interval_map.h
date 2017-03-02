@@ -76,8 +76,7 @@ struct Interval {
 // IntervalMap where all values are the same. Calling ++/--
 // goes to the next/previous interval, which is guaranteed to
 // have values different from the current interval.
-template <typename KeyType,
-          typename ValueType,
+template <typename KeyType, typename ValueType,
           class Compare = std::less<KeyType>,
           class NumericLimits = std::numeric_limits<KeyType>>
 class IntervalMapConstIterator {
@@ -157,8 +156,7 @@ class IntervalMapConstIterator {
   typename MapType::const_iterator iter_;
 };
 
-template <typename KeyType,
-          typename ValueType,
+template <typename KeyType, typename ValueType,
           class Compare = std::less<KeyType>,
           class NumericLimits = std::numeric_limits<KeyType>>
 class IntervalMap {
@@ -183,8 +181,7 @@ class IntervalMap {
 
   // Increase [from..to) by |how_much|.
   void IncrementInterval(KeyType from, KeyType to, ValueType how_much) {
-    if (to <= from || how_much == 0)
-      return;
+    if (to <= from || how_much == 0) return;
     typename MapType::iterator a = MakeEntry(from);
     typename MapType::iterator b = MakeEntry(to);
     for (typename MapType::iterator i = a; i != b; ++i) {
@@ -197,8 +194,7 @@ class IntervalMap {
 
   // Set [from..to) to |how_much|.
   void SetInterval(KeyType from, KeyType to, ValueType how_much) {
-    if (to <= from)
-      return;
+    if (to <= from) return;
     typename MapType::iterator a = MakeEntry(from);
     typename MapType::iterator b = MakeEntry(to);
     a->second = how_much;
@@ -263,8 +259,7 @@ class IntervalMap {
 
   // Remove duplicates before and after |i|.
   void RemoveDuplicates(typename MapType::iterator i) {
-    if (i == map_.end())
-      return;
+    if (i == map_.end()) return;
 
     typename MapType::iterator first = i;
     typename MapType::iterator second = i;

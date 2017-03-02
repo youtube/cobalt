@@ -29,8 +29,7 @@ class CongestionControl {
   virtual void UpdateTargetPlayoutDelay(base::TimeDelta delay) = 0;
 
   // Called when an encoded frame is enqueued for transport.
-  virtual void SendFrameToTransport(FrameId frame_id,
-                                    size_t frame_size_in_bits,
+  virtual void SendFrameToTransport(FrameId frame_id, size_t frame_size_in_bits,
                                     base::TimeTicks when) = 0;
 
   // Called when we receive an ACK for a frame.
@@ -46,11 +45,10 @@ class CongestionControl {
                          base::TimeDelta playout_delay) = 0;
 };
 
-CongestionControl* NewAdaptiveCongestionControl(
-    base::TickClock* clock,
-    int max_bitrate_configured,
-    int min_bitrate_configured,
-    double max_frame_rate);
+CongestionControl* NewAdaptiveCongestionControl(base::TickClock* clock,
+                                                int max_bitrate_configured,
+                                                int min_bitrate_configured,
+                                                double max_frame_rate);
 
 CongestionControl* NewFixedCongestionControl(int bitrate);
 

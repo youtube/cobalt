@@ -56,7 +56,7 @@ class Ranges {
 // EVERYTHING BELOW HERE IS IMPLEMENTATION DETAIL!!
 //////////////////////////////////////////////////////////////////////
 
-template<class T>
+template <class T>
 size_t Ranges<T>::Add(T start, T end) {
   if (start == end)  // Nothing to be done with empty ranges.
     return ranges_.size();
@@ -87,10 +87,8 @@ size_t Ranges<T>::Add(T start, T end) {
   // and the existing ranges.
 
   // Now: start <= i->second && i->first <= end
-  if (start < ranges_[i].first)
-    ranges_[i].first = start;
-  if (ranges_[i].second < end)
-    ranges_[i].second = end;
+  if (start < ranges_[i].first) ranges_[i].first = start;
+  if (ranges_[i].second < end) ranges_[i].second = end;
 
   // Now: [start,end) is contained in the i'th range, and we'd be done, except
   // for the fact that the newly-extended i'th range might now overlap
@@ -106,37 +104,36 @@ size_t Ranges<T>::Add(T start, T end) {
   return ranges_.size();
 }
 
-template<>
-MEDIA_EXPORT void
-    Ranges<base::TimeDelta>::DCheckLT(const base::TimeDelta& lhs,
-                                      const base::TimeDelta& rhs) const;
+template <>
+MEDIA_EXPORT void Ranges<base::TimeDelta>::DCheckLT(
+    const base::TimeDelta& lhs, const base::TimeDelta& rhs) const;
 
-template<class T>
+template <class T>
 void Ranges<T>::DCheckLT(const T& lhs, const T& rhs) const {
   DCHECK_LT(lhs, rhs);
 }
 
-template<class T>
+template <class T>
 size_t Ranges<T>::size() const {
   return ranges_.size();
 }
 
-template<class T>
+template <class T>
 T Ranges<T>::start(size_t i) const {
   return ranges_[i].first;
 }
 
-template<class T>
+template <class T>
 T Ranges<T>::end(size_t i) const {
   return ranges_[i].second;
 }
 
-template<class T>
+template <class T>
 void Ranges<T>::clear() {
   ranges_.clear();
 }
 
-template<class T>
+template <class T>
 Ranges<T> Ranges<T>::IntersectionWith(const Ranges<T>& other) const {
   Ranges<T> result;
 
@@ -148,8 +145,7 @@ Ranges<T> Ranges<T>::IntersectionWith(const Ranges<T>& other) const {
     T min_end = std::min(end(i), other.end(j));
 
     // Add an intersection range to the result if the ranges overlap.
-    if (max_start < min_end)
-      result.Add(max_start, min_end);
+    if (max_start < min_end) result.Add(max_start, min_end);
 
     if (end(i) < other.end(j))
       ++i;

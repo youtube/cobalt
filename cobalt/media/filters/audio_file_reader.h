@@ -16,7 +16,9 @@ struct AVCodecContext;
 struct AVPacket;
 struct AVStream;
 
-namespace base { class TimeDelta; }
+namespace base {
+class TimeDelta;
+}
 
 namespace media {
 

@@ -34,9 +34,8 @@ class MediaPermission;
 
 class MEDIA_BLINK_EXPORT KeySystemConfigSelector {
  public:
-  KeySystemConfigSelector(
-      const KeySystems* key_systems,
-      MediaPermission* media_permission);
+  KeySystemConfigSelector(const KeySystems* key_systems,
+                          MediaPermission* media_permission);
 
   ~KeySystemConfigSelector();
 
@@ -72,8 +71,7 @@ class MEDIA_BLINK_EXPORT KeySystemConfigSelector {
       blink::WebMediaKeySystemConfiguration* accumulated_configuration);
 
   bool GetSupportedCapabilities(
-      const std::string& key_system,
-      EmeMediaType media_type,
+      const std::string& key_system, EmeMediaType media_type,
       const blink::WebVector<blink::WebMediaKeySystemMediaCapability>&
           requested_media_capabilities,
       ConfigState* config_state,

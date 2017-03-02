@@ -27,8 +27,7 @@ class AudioCapturerSource
     // TODO(chcunningham): Update delay argument to use frames instead of
     // milliseconds to prevent loss of precision. See http://crbug.com/587291.
     virtual void Capture(const AudioBus* audio_source,
-                         int audio_delay_milliseconds,
-                         double volume,
+                         int audio_delay_milliseconds, double volume,
                          bool key_pressed) = 0;
 
     // Signals an error has occurred.
@@ -45,8 +44,7 @@ class AudioCapturerSource
   // selection, pass |session_id| using
   // AudioInputDeviceManager::kFakeOpenSessionId.
   virtual void Initialize(const AudioParameters& params,
-                          CaptureCallback* callback,
-                          int session_id) = 0;
+                          CaptureCallback* callback, int session_id) = 0;
 
   // Starts the audio recording.
   virtual void Start() = 0;

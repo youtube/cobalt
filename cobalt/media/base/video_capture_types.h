@@ -83,11 +83,9 @@ const int kFrameRatePrecision = 10000;
 // supported capture format by a device.
 struct MEDIA_EXPORT VideoCaptureFormat {
   VideoCaptureFormat();
-  VideoCaptureFormat(const gfx::Size& frame_size,
-                     float frame_rate,
+  VideoCaptureFormat(const gfx::Size& frame_size, float frame_rate,
                      VideoPixelFormat pixel_format);
-  VideoCaptureFormat(const gfx::Size& frame_size,
-                     float frame_rate,
+  VideoCaptureFormat(const gfx::Size& frame_size, float frame_rate,
                      VideoPixelFormat pixel_format,
                      VideoPixelStorage pixel_storage);
 
@@ -108,9 +106,8 @@ struct MEDIA_EXPORT VideoCaptureFormat {
   bool IsValid() const;
 
   bool operator==(const VideoCaptureFormat& other) const {
-    return frame_size == other.frame_size &&
-        frame_rate == other.frame_rate &&
-        pixel_format == other.pixel_format;
+    return frame_size == other.frame_size && frame_rate == other.frame_rate &&
+           pixel_format == other.pixel_format;
   }
 
   gfx::Size frame_size;

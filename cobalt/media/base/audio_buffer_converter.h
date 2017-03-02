@@ -45,9 +45,7 @@ class MEDIA_EXPORT AudioBufferConverter : public AudioConverter::InputCallback {
   int input_buffer_size_for_testing() const {
     return input_params_.frames_per_buffer();
   }
-  int input_frames_left_for_testing() const {
-    return input_frames_;
-  }
+  int input_frames_left_for_testing() const { return input_frames_; }
 
  private:
   // Callback to provide data to the AudioConverter

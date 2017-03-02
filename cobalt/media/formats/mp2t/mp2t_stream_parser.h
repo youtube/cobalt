@@ -34,10 +34,8 @@ class MEDIA_EXPORT Mp2tStreamParser : public StreamParser {
   ~Mp2tStreamParser() override;
 
   // StreamParser implementation.
-  void Init(const InitCB& init_cb,
-            const NewConfigCB& config_cb,
-            const NewBuffersCB& new_buffers_cb,
-            bool ignore_text_tracks,
+  void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
+            const NewBuffersCB& new_buffers_cb, bool ignore_text_tracks,
             const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
             const NewMediaSegmentCB& new_segment_cb,
             const EndMediaSegmentCB& end_of_segment_cb,
@@ -47,8 +45,7 @@ class MEDIA_EXPORT Mp2tStreamParser : public StreamParser {
 
  private:
   struct BufferQueueWithConfig {
-    BufferQueueWithConfig(bool is_cfg_sent,
-                          const AudioDecoderConfig& audio_cfg,
+    BufferQueueWithConfig(bool is_cfg_sent, const AudioDecoderConfig& audio_cfg,
                           const VideoDecoderConfig& video_cfg);
     BufferQueueWithConfig(const BufferQueueWithConfig& other);
     ~BufferQueueWithConfig();
@@ -88,11 +85,9 @@ class MEDIA_EXPORT Mp2tStreamParser : public StreamParser {
   // Callback invoked by the ES stream parser
   // to emit a new audio/video access unit.
   void OnEmitAudioBuffer(
-      int pes_pid,
-      scoped_refptr<StreamParserBuffer> stream_parser_buffer);
+      int pes_pid, scoped_refptr<StreamParserBuffer> stream_parser_buffer);
   void OnEmitVideoBuffer(
-      int pes_pid,
-      scoped_refptr<StreamParserBuffer> stream_parser_buffer);
+      int pes_pid, scoped_refptr<StreamParserBuffer> stream_parser_buffer);
   bool EmitRemainingBuffers();
 
   // List of callbacks.

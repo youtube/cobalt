@@ -36,8 +36,7 @@ class MEDIA_BLINK_EXPORT WebContentDecryptionModuleImpl
     : public blink::WebContentDecryptionModule {
  public:
   static void Create(
-      CdmFactory* cdm_factory,
-      const base::string16& key_system,
+      CdmFactory* cdm_factory, const base::string16& key_system,
       const blink::WebSecurityOrigin& security_origin,
       const CdmConfig& cdm_config,
       std::unique_ptr<blink::WebContentDecryptionModuleResult> result);
@@ -48,8 +47,7 @@ class MEDIA_BLINK_EXPORT WebContentDecryptionModuleImpl
   blink::WebContentDecryptionModuleSession* createSession() OVERRIDE;
 
   void setServerCertificate(
-      const uint8_t* server_certificate,
-      size_t server_certificate_length,
+      const uint8_t* server_certificate, size_t server_certificate_length,
       blink::WebContentDecryptionModuleResult result) OVERRIDE;
 
   // Returns a reference to the CDM used by |adapter_|.

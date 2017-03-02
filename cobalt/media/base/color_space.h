@@ -139,9 +139,7 @@ class ColorSpace {
   };
 
   ColorSpace();
-  ColorSpace(PrimaryID primaries,
-             TransferID transfer,
-             MatrixID matrix,
+  ColorSpace(PrimaryID primaries, TransferID transfer, MatrixID matrix,
              RangeID full_range);
   ColorSpace(const ColorSpace& other);
   ColorSpace(int primaries, int transfer, int matrix, RangeID full_range);

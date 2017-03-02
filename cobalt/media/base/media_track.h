@@ -16,10 +16,8 @@ class MEDIA_EXPORT MediaTrack {
  public:
   enum Type { Text, Audio, Video };
   typedef std::string Id;
-  MediaTrack(Type type,
-             StreamParser::TrackId bytestream_track_id,
-             const std::string& kind,
-             const std::string& label,
+  MediaTrack(Type type, StreamParser::TrackId bytestream_track_id,
+             const std::string& kind, const std::string& label,
              const std::string& lang);
   ~MediaTrack();
 

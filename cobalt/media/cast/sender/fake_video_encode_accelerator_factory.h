@@ -28,12 +28,8 @@ class FakeVideoEncodeAcceleratorFactory {
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner);
   ~FakeVideoEncodeAcceleratorFactory();
 
-  int vea_response_count() const {
-    return vea_response_count_;
-  }
-  int shm_response_count() const {
-    return shm_response_count_;
-  }
+  int vea_response_count() const { return vea_response_count_; }
+  int shm_response_count() const { return shm_response_count_; }
 
   // These return the instance last responded.  It is up to the caller to
   // determine whether the pointer is still valid, since this factory does not
@@ -41,9 +37,7 @@ class FakeVideoEncodeAcceleratorFactory {
   media::FakeVideoEncodeAccelerator* last_response_vea() const {
     return static_cast<media::FakeVideoEncodeAccelerator*>(last_response_vea_);
   }
-  base::SharedMemory* last_response_shm() const {
-    return last_response_shm_;
-  }
+  base::SharedMemory* last_response_shm() const { return last_response_shm_; }
 
   // Set whether the next created media::FakeVideoEncodeAccelerator will
   // initialize successfully.
@@ -59,9 +53,8 @@ class FakeVideoEncodeAcceleratorFactory {
 
   // Creates shared memory of the requested |size|.  If in auto-respond mode,
   // |callback| is run synchronously (i.e., before this method returns).
-  void CreateSharedMemory(
-      size_t size,
-      const ReceiveVideoEncodeMemoryCallback& callback);
+  void CreateSharedMemory(size_t size,
+                          const ReceiveVideoEncodeMemoryCallback& callback);
 
   // Runs the |callback| provided to the last call to
   // CreateVideoEncodeAccelerator() with the new VideoEncodeAccelerator

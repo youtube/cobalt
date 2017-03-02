@@ -43,8 +43,7 @@ class MEDIA_EXPORT MediaUrlDemuxer : public Demuxer {
 
   // Demuxer interface.
   std::string GetDisplayName() const OVERRIDE;
-  void Initialize(DemuxerHost* host,
-                  const PipelineStatusCB& status_cb,
+  void Initialize(DemuxerHost* host, const PipelineStatusCB& status_cb,
                   bool enable_text_tracks) OVERRIDE;
   void StartWaitingForSeek(base::TimeDelta seek_time) OVERRIDE;
   void CancelPendingSeek(base::TimeDelta seek_time) OVERRIDE;

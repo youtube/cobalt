@@ -35,8 +35,7 @@ class MEDIA_BLINK_EXPORT WebEncryptedMediaClientImpl
  public:
   WebEncryptedMediaClientImpl(
       base::Callback<bool(void)> are_secure_codecs_supported_cb,
-      CdmFactory* cdm_factory,
-      MediaPermission* media_permission);
+      CdmFactory* cdm_factory, MediaPermission* media_permission);
   ~WebEncryptedMediaClientImpl() OVERRIDE;
 
   // WebEncryptedMediaClient implementation.

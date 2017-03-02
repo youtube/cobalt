@@ -20,13 +20,9 @@ namespace media {
 // false otherwise, in which case |decrypt_config| and |data_offset| will not be
 // changed. Current encrypted WebM request for comments specification is here
 // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-bool MEDIA_EXPORT
-WebMCreateDecryptConfig(const uint8_t* data,
-                        int data_size,
-                        const uint8_t* key_id,
-                        int key_id_size,
-                        scoped_ptr<DecryptConfig>* decrypt_config,
-                        int* data_offset);
+bool MEDIA_EXPORT WebMCreateDecryptConfig(
+    const uint8_t* data, int data_size, const uint8_t* key_id, int key_id_size,
+    scoped_ptr<DecryptConfig>* decrypt_config, int* data_offset);
 
 }  // namespace media
 
