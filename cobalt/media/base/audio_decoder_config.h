@@ -30,24 +30,19 @@ class MEDIA_EXPORT AudioDecoderConfig {
   AudioDecoderConfig();
 
   // Constructs an initialized object.
-  AudioDecoderConfig(AudioCodec codec,
-                     SampleFormat sample_format,
-                     ChannelLayout channel_layout,
-                     int samples_per_second,
+  AudioDecoderConfig(AudioCodec codec, SampleFormat sample_format,
+                     ChannelLayout channel_layout, int samples_per_second,
                      const std::vector<uint8_t>& extra_data,
                      const EncryptionScheme& encryption_scheme);
 
   ~AudioDecoderConfig();
 
   // Resets the internal state of this object. |codec_delay| is in frames.
-  void Initialize(AudioCodec codec,
-                  SampleFormat sample_format,
-                  ChannelLayout channel_layout,
-                  int samples_per_second,
+  void Initialize(AudioCodec codec, SampleFormat sample_format,
+                  ChannelLayout channel_layout, int samples_per_second,
                   const std::vector<uint8_t>& extra_data,
                   const EncryptionScheme& encryption_scheme,
-                  base::TimeDelta seek_preroll,
-                  int codec_delay);
+                  base::TimeDelta seek_preroll, int codec_delay);
 
   // Returns true if this object has appropriate configuration values, false
   // otherwise.

@@ -52,9 +52,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // |dest_offset| is the offset in frames for writing into |dest|.
   //
   // Returns the number of frames copied into |dest|.
-  int FillBuffer(AudioBus* dest,
-                 int dest_offset,
-                 int requested_frames,
+  int FillBuffer(AudioBus* dest, int dest_offset, int requested_frames,
                  double playback_rate);
 
   // Clears |audio_buffer_|.
@@ -93,8 +91,8 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
 
   // Read a maximum of |requested_frames| frames from |wsola_output_|. Returns
   // number of frames actually read.
-  int WriteCompletedFramesTo(
-      int requested_frames, int output_offset, AudioBus* dest);
+  int WriteCompletedFramesTo(int requested_frames, int output_offset,
+                             AudioBus* dest);
 
   // Fill |dest| with frames from |audio_buffer_| starting from frame
   // |read_offset_frames|. |dest| is expected to have the same number of

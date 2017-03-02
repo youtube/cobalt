@@ -37,7 +37,7 @@ class MEDIA_EXPORT VideoFramePool {
                                         const gfx::Size& natural_size,
                                         base::TimeDelta timestamp);
 
-protected:
+ protected:
   friend class VideoFramePoolTest;
 
   // Returns the number of frames in the pool for testing purposes.

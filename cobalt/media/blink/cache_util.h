@@ -22,14 +22,14 @@ namespace media {
 // the server.  Reported via UMA, so don't change/reuse previously-existing
 // values.
 enum UncacheableReason {
-  kNoData = 1 << 0,  // Not 200 or 206.
-  kPre11PartialResponse = 1 << 1,  // 206 but HTTP version < 1.1.
+  kNoData = 1 << 0,                              // Not 200 or 206.
+  kPre11PartialResponse = 1 << 1,                // 206 but HTTP version < 1.1.
   kNoStrongValidatorOnPartialResponse = 1 << 2,  // 206, no strong validator.
-  kShortMaxAge = 1 << 3,  // Max age less than 1h (arbitrary value).
-  kExpiresTooSoon = 1 << 4,  // Expires in less than 1h (arbitrary value).
+  kShortMaxAge = 1 << 3,        // Max age less than 1h (arbitrary value).
+  kExpiresTooSoon = 1 << 4,     // Expires in less than 1h (arbitrary value).
   kHasMustRevalidate = 1 << 5,  // Response asks for revalidation.
-  kNoCache = 1 << 6,  // Response included a no-cache header.
-  kNoStore = 1 << 7,  // Response included a no-store header.
+  kNoCache = 1 << 6,            // Response included a no-cache header.
+  kNoStore = 1 << 7,            // Response included a no-store header.
   kMaxReason  // Needs to be one more than max legitimate reason.
 };
 

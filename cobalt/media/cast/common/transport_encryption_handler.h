@@ -32,12 +32,10 @@ class TransportEncryptionHandler : public base::NonThreadSafe {
 
   bool Initialize(const std::string& aes_key, const std::string& aes_iv_mask);
 
-  bool Encrypt(FrameId frame_id,
-               const base::StringPiece& data,
+  bool Encrypt(FrameId frame_id, const base::StringPiece& data,
                std::string* encrypted_data);
 
-  bool Decrypt(FrameId frame_id,
-               const base::StringPiece& ciphertext,
+  bool Decrypt(FrameId frame_id, const base::StringPiece& ciphertext,
                std::string* plaintext);
 
   bool is_activated() const { return is_activated_; }

@@ -32,8 +32,7 @@ class MEDIA_EXPORT AudioRenderer {
   //
   // |cdm_context| can be used to handle encrypted streams. May be null if the
   // stream is not encrypted.
-  virtual void Initialize(DemuxerStream* stream,
-                          CdmContext* cdm_context,
+  virtual void Initialize(DemuxerStream* stream, CdmContext* cdm_context,
                           RendererClient* client,
                           const PipelineStatusCB& init_cb) = 0;
 
