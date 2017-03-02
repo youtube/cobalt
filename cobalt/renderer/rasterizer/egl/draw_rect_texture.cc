@@ -17,7 +17,7 @@
 #include <GLES2/gl2.h>
 
 #include "cobalt/renderer/backend/egl/utils.h"
-#include "cobalt/renderer/rasterizer/egl/shader_impl.h"
+#include "egl/generated_shader_impl.h"
 
 namespace cobalt {
 namespace renderer {
@@ -68,8 +68,8 @@ void DrawRectTexture::Execute(GraphicsState* graphics_state,
         sizeof(attributes));
     memcpy(vertex_buffer_, attributes, sizeof(attributes));
   } else if (stage == kStageRasterizeNormal) {
-    ShaderProgram<ShaderVertexPositionTexcoord,
-                  ShaderFragmentPositionTexcoord>* program;
+    ShaderProgram<ShaderVertexTexcoord,
+                  ShaderFragmentTexcoord>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     graphics_state->UpdateClipAdjustment(
