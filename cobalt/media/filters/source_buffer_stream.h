@@ -44,7 +44,7 @@ class SourceBufferStreamState {
   typedef StreamParser::BufferQueue BufferQueue;
   typedef std::list<SourceBufferRange*> RangeList;
 
-  SourceBufferStreamState(bool splice_frames_enabled)
+  explicit SourceBufferStreamState(bool splice_frames_enabled)
       : splice_frames_enabled_(splice_frames_enabled) {
     current_config_index_ = 0;
     append_config_index_ = 0;
