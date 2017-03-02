@@ -41,6 +41,7 @@ class MEDIA_EXPORT WebMParserClient {
  protected:
   WebMParserClient();
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(WebMParserClient);
 };
 
