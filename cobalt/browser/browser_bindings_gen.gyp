@@ -115,6 +115,7 @@
         '../dom/media_query_list.idl',
         '../dom/media_source.idl',
         '../dom/memory_info.idl',
+	'../dom/message_event.idl',
         '../dom/mime_type_array.idl',
         '../dom/named_node_map.idl',
         '../dom/navigator.idl',
