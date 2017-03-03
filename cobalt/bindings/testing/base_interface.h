@@ -15,6 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_BASE_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_BASE_INTERFACE_H_
 
+#include <string>
+
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

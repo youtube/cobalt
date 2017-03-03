@@ -18,8 +18,8 @@
 #include <string>
 
 #include "base/hash_tables.h"
-#include "cobalt/csp/directive.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/csp/directive.h"
 
 namespace cobalt {
 namespace csp {
