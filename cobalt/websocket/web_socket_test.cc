@@ -20,6 +20,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,11 +38,14 @@ class FakeSettings : public dom::DOMSettings {
   FakeSettings()
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                          NULL, NULL),
-        base_("https://example.com") {}
+        base_("https://example.com") {
+    this->set_network_module(&network_module_);
+  }
   const GURL& base_url() const OVERRIDE { return base_; }
 
   // public members, so that they're easier for testing.
   GURL base_;
+  cobalt::network::NetworkModule network_module_;
 };
 
 class WebSocketTest : public ::testing::Test {
