@@ -87,6 +87,10 @@ class ProxyHandler : public js::DirectProxyHandler {
   bool getPropertyDescriptor(JSContext* context, JS::HandleObject proxy,
                              JS::HandleId id, JSPropertyDescriptor* descriptor,
                              unsigned flags) OVERRIDE;
+  bool getOwnPropertyDescriptor(JSContext* context, JS::HandleObject proxy,
+                                JS::HandleId id,
+                                JSPropertyDescriptor* descriptor,
+                                unsigned flags) OVERRIDE;
   bool delete_(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
                bool* succeeded) OVERRIDE;
   bool enumerate(JSContext* context, JS::HandleObject proxy,
@@ -135,6 +139,13 @@ class ProxyHandler : public js::DirectProxyHandler {
   bool has_custom_property() const { return has_custom_property_; }
 
  private:
+  // https://heycam.github.io/webidl/#LegacyPlatformObjectGetOwnProperty
+  // This is used to support named and indexed properties.
+  // Returns false on internal failure.
+  bool LegacyPlatformObjectGetOwnPropertyDescriptor(
+      JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+      JSPropertyDescriptor* descriptor);
+
   bool supports_named_properties() {
     return named_property_hooks_.getter != NULL;
   }
