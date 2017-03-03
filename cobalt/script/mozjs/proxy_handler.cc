@@ -51,59 +51,33 @@ bool ProxyHandler::getPropertyDescriptor(JSContext* context,
                                          JS::HandleId id,
                                          JSPropertyDescriptor* descriptor,
                                          unsigned flags) {
-  // https://www.w3.org/TR/WebIDL/#getownproperty
-  if (supports_named_properties() || supports_indexed_properties()) {
-    // Convert the id to a JSValue, so we can easily convert it to Uint32 and
-    // JSString.
-    JS::RootedValue id_value(context);
-    if (!JS_IdToValue(context, id, id_value.address())) {
-      NOTREACHED();
-      return false;
-    }
-    JS::RootedObject object(context, js::GetProxyTargetObject(proxy));
-    if (supports_indexed_properties()) {
-      // If the interface supports indexed properties and this is an array index
-      // property name, and it is a supported property index.
-      uint32_t index;
-      if (IsArrayIndexPropertyName(context, id_value, &index) &&
-          IsSupportedIndex(context, object, index)) {
-        descriptor->obj = object;
-        descriptor->attrs = JSPROP_SHARED | JSPROP_INDEX | JSPROP_ENUMERATE;
-        descriptor->getter = indexed_property_hooks_.getter;
-        if (indexed_property_hooks_.setter) {
-          descriptor->setter = indexed_property_hooks_.setter;
-        } else {
-          descriptor->attrs |= JSPROP_READONLY;
-        }
-        return true;
-      }
-    }
-    if (supports_named_properties()) {
-      std::string property_name;
-      MozjsExceptionState exception_state(context);
-      FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
-                  &property_name);
-      if (exception_state.is_exception_set()) {
-        // The ID should be an integer or a string, so we shouldn't have any
-        // exceptions converting to string.
-        NOTREACHED();
-        return false;
-      }
-      if (IsNamedPropertyVisible(context, object, property_name)) {
-        descriptor->obj = object;
-        descriptor->attrs = JSPROP_SHARED | JSPROP_ENUMERATE;
-        descriptor->getter = named_property_hooks_.getter;
-        if (named_property_hooks_.setter) {
-          descriptor->setter = named_property_hooks_.setter;
-        } else {
-          descriptor->attrs |= JSPROP_READONLY;
-        }
-        return true;
-      }
+  if (!getOwnPropertyDescriptor(context, proxy, id, descriptor, flags)) {
+    return false;
+  }
+  if (descriptor->obj == NULL) {
+    JS::RootedObject prototype(context);
+    if (getPrototypeOf(context, proxy, &prototype)) {
+      return JS_GetPropertyDescriptorById(context, prototype, id, flags,
+                                          descriptor);
     }
   }
-  return js::DirectProxyHandler::getPropertyDescriptor(context, proxy, id,
-                                                       descriptor, flags);
+  return true;
+}
+
+bool ProxyHandler::getOwnPropertyDescriptor(JSContext* context,
+                                            JS::HandleObject proxy,
+                                            JS::HandleId id,
+                                            JSPropertyDescriptor* descriptor,
+                                            unsigned flags) {
+  if (!LegacyPlatformObjectGetOwnPropertyDescriptor(context, proxy, id,
+                                                   descriptor)) {
+    return false;
+  }
+  if (descriptor->obj == NULL) {
+    return js::DirectProxyHandler::getOwnPropertyDescriptor(context, proxy, id,
+                                                            descriptor, flags);
+  }
+  return true;
 }
 
 bool ProxyHandler::delete_(JSContext* context, JS::HandleObject proxy,
@@ -184,6 +158,63 @@ bool ProxyHandler::defineProperty(JSContext* context, JS::HandleObject proxy,
                                   JSPropertyDescriptor* descriptor) {
   has_custom_property_ = true;
   return js::DirectProxyHandler::defineProperty(context, proxy, id, descriptor);
+}
+
+bool ProxyHandler::LegacyPlatformObjectGetOwnPropertyDescriptor(
+    JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+    JSPropertyDescriptor* descriptor) {
+  // https://heycam.github.io/webidl/#LegacyPlatformObjectGetOwnProperty
+  JS::RootedObject object(context, js::GetProxyTargetObject(proxy));
+  if (supports_named_properties() || supports_indexed_properties()) {
+    // Convert the id to a JSValue, so we can easily convert it to Uint32 and
+    // JSString.
+    JS::RootedValue id_value(context);
+    if (!JS_IdToValue(context, id, id_value.address())) {
+      NOTREACHED();
+      return false;
+    }
+    if (supports_indexed_properties()) {
+      // If the interface supports indexed properties and this is an array index
+      // property name, and it is a supported property index.
+      uint32_t index;
+      if (IsArrayIndexPropertyName(context, id_value, &index) &&
+          IsSupportedIndex(context, object, index)) {
+        descriptor->obj = object;
+        descriptor->attrs = JSPROP_SHARED | JSPROP_INDEX | JSPROP_ENUMERATE;
+        descriptor->getter = indexed_property_hooks_.getter;
+        if (indexed_property_hooks_.setter) {
+          descriptor->setter = indexed_property_hooks_.setter;
+        } else {
+          descriptor->attrs |= JSPROP_READONLY;
+        }
+        return true;
+      }
+    }
+    if (supports_named_properties()) {
+      std::string property_name;
+      MozjsExceptionState exception_state(context);
+      FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
+                  &property_name);
+      if (exception_state.is_exception_set()) {
+        // The ID should be an integer or a string, so we shouldn't have any
+        // exceptions converting to string.
+        NOTREACHED();
+        return false;
+      }
+      if (IsNamedPropertyVisible(context, object, property_name)) {
+        descriptor->obj = object;
+        descriptor->attrs = JSPROP_SHARED | JSPROP_ENUMERATE;
+        descriptor->getter = named_property_hooks_.getter;
+        if (named_property_hooks_.setter) {
+          descriptor->setter = named_property_hooks_.setter;
+        } else {
+          descriptor->attrs |= JSPROP_READONLY;
+        }
+        return true;
+      }
+    }
+  }
+  return true;
 }
 
 bool ProxyHandler::IsSupportedIndex(JSContext* context, JS::HandleObject object,
