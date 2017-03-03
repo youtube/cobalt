@@ -28,6 +28,7 @@
         'engine_template_files': [
           '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.h.template',
+          '<(DEPTH)/cobalt/bindings/mozjs/templates/dictionary-conversion.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/macros.cc.template',
