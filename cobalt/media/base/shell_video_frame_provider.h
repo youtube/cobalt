@@ -17,6 +17,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/time.h"
 #include "starboard/decode_target.h"
 
 namespace media {
@@ -26,6 +27,7 @@ namespace media {
 class VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
  public:
   int texture_id() const { return 0; }
+  base::TimeDelta GetTimestamp() const { return base::TimeDelta(); }
 };
 
 // TODO: Remove Shell prefix.
