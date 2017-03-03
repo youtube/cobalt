@@ -52,6 +52,7 @@
         '<(DEPTH)/cobalt/loader/image/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/loader/loader.gyp:*',
         '<(DEPTH)/cobalt/math/math.gyp:*',
+        '<(DEPTH)/cobalt/media/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:*',
         '<(DEPTH)/cobalt/network/network.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
@@ -78,11 +79,6 @@
             '<(DEPTH)/nb/nb.gyp:nb_test',
             '<(DEPTH)/nb/nb.gyp:reuse_allocator_benchmark',
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
-          ],
-        }],
-        ['cobalt_media_source_2016!=1', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/media/sandbox/sandbox.gyp:*',
           ],
         }],
       ],
