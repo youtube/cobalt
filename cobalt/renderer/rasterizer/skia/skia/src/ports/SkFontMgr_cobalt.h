@@ -188,7 +188,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
                                        int ttc_index) const SK_OVERRIDE;
 
   // NOTE: This returns NULL if the typeface cannot be created.
-  virtual SkTypeface* onCreateFromStream(SkStream* stream,
+  virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream,
                                          int ttc_index) const SK_OVERRIDE;
 
   // NOTE: This returns NULL if the typeface cannot be created.
