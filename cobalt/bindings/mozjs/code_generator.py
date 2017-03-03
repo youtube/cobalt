@@ -60,7 +60,7 @@ class CodeGeneratorMozjs(CodeGeneratorCobalt):
 
   @property
   def generated_file_prefix(self):
-    return 'Mozjs'
+    return 'mozjs'
 
   @property
   def expression_generator(self):
