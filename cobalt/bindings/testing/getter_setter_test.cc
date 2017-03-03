@@ -96,6 +96,15 @@ TEST_F(IndexedGetterBindingsTest, IndexedGetter) {
   EXPECT_STREQ("6", result.c_str());
 }
 
+TEST_F(IndexedGetterBindingsTest, IndexIsOwnProperty) {
+  ON_CALL(test_mock(), length()).WillByDefault(Return(10));
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.hasOwnProperty(4);", &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
 TEST_F(IndexedGetterBindingsTest, IndexedGetterOutOfRange) {
   ON_CALL(test_mock(), length()).WillByDefault(Return(10));
   ON_CALL(test_mock(), IndexedGetter(_)).WillByDefault(ReturnArg<0>());
@@ -164,6 +173,16 @@ TEST_F(NamedGetterBindingsTest, NamedGetter) {
   EXPECT_CALL(test_mock(), NamedGetter(std::string("bar"))).Times(1);
   EXPECT_TRUE(EvaluateScript("test.namedGetter(\"bar\");", &result));
   EXPECT_STREQ("foo", result.c_str());
+}
+
+TEST_F(NamedGetterBindingsTest, NamedPropertyIsOwnProperty) {
+  ON_CALL(test_mock(), CanQueryNamedProperty(std::string("foo")))
+      .WillByDefault(Return(true));
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test.hasOwnProperty(\"foo\");", &result));
+  EXPECT_STREQ("true", result.c_str());
 }
 
 TEST_F(NamedGetterBindingsTest, NamedGetterUnsupportedName) {
@@ -254,6 +273,7 @@ TEST_F(AnonymousNamedIndexedGetterBindingsTest, EnumeratedPropertiesOrdering) {
   ON_CALL(test_mock(), EnumerateNamedProperties(_))
       .WillByDefault(Invoke(
           &enumerator, &NamedPropertiesEnumerator::EnumerateNamedProperties));
+  ON_CALL(test_mock(), CanQueryNamedProperty(_)).WillByDefault(Return(true));
 
   std::string result;
   EXPECT_TRUE(
@@ -305,6 +325,7 @@ TEST_F(AnonymousNamedGetterBindingsTest, EnumerateNamedProperties) {
   ON_CALL(test_mock(), EnumerateNamedProperties(_))
       .WillByDefault(Invoke(
           &enumerator, &NamedPropertiesEnumerator::EnumerateNamedProperties));
+  ON_CALL(test_mock(), CanQueryNamedProperty(_)).WillByDefault(Return(true));
 
   std::string result;
   EXPECT_TRUE(
