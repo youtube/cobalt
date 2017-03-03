@@ -23,6 +23,8 @@
       'sources': [
         'web_socket.cc',
         'web_socket.h',
+        'web_socket_handshake_helper.h',
+        'web_socket_handshake_helper.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -36,10 +38,12 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'web_socket_test.cc',
+        'web_socket_handshake_helper_test.cc',
       ],
       'dependencies': [
         'websocket',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
+        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
