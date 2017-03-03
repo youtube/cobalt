@@ -88,7 +88,8 @@ ReplacedBox::ReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_width,
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
-    UsedStyleProvider* used_style_provider, bool is_video_punched_out,
+    UsedStyleProvider* used_style_provider,
+    base::optional<bool> is_video_punched_out,
     LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
@@ -251,8 +252,12 @@ void ReplacedBox::RenderAndAnimateContent(
   }
 
   if (replace_image_cb_.is_null()) {
-    // If we don't have a data stream associated with this video [yet], render
-    // blackness.
+    return;
+  }
+
+  if (is_video_punched_out_ == base::nullopt) {
+    // If we don't have a data stream associated with this video [yet], then
+    // we don't yet know if it is punched out or not, and so render black.
     border_node_builder->AddChild(new RectNode(
         math::RectF(content_box_size()),
         scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
