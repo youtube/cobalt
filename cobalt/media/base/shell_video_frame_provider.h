@@ -37,7 +37,13 @@ class VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 class ShellVideoFrameProvider
     : public base::RefCountedThreadSafe<ShellVideoFrameProvider> {
  public:
-  ShellVideoFrameProvider() : punch_out_mode_(true) {}
+  enum OutputMode {
+    kOutputModePunchOut,
+    kOutputModeDecodeToTexture,
+    kOutputModeInvalid,
+  };
+
+  ShellVideoFrameProvider() : output_mode_(kOutputModePunchOut) {}
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
@@ -45,8 +51,8 @@ class ShellVideoFrameProvider
 
   scoped_refptr<VideoFrame> GetCurrentFrame() { return NULL; }
 
-  void SetPunchOutMode(bool punch_out) { punch_out_mode_ = punch_out; }
-  bool IsPunchOutMode() const { return punch_out_mode_; }
+  void SetOutputMode(OutputMode output_mode) { output_mode_ = output_mode; }
+  OutputMode GetOutputMode() const { return output_mode_; }
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   // For Starboard platforms that have a decode-to-texture player, we enable
@@ -74,7 +80,7 @@ class ShellVideoFrameProvider
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
  private:
-  bool punch_out_mode_;
+  OutputMode output_mode_;
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
