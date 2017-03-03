@@ -15,6 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_CONSTRUCTOR_WITH_ARGUMENTS_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_CONSTRUCTOR_WITH_ARGUMENTS_INTERFACE_H_
 
+#include <string>
+
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {

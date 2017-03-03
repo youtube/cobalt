@@ -14,6 +14,8 @@
 #ifndef COBALT_SCRIPT_SCRIPT_EXCEPTION_H_
 #define COBALT_SCRIPT_SCRIPT_EXCEPTION_H_
 
+#include <string>
+
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -27,6 +29,5 @@ class ScriptException : public Wrappable {
 
 }  // namespace script
 }  // namespace cobalt
-
 
 #endif  // COBALT_SCRIPT_SCRIPT_EXCEPTION_H_
