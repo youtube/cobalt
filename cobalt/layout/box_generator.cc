@@ -183,7 +183,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
                        const base::optional<LayoutUnit>& maybe_intrinsic_height,
                        const base::optional<float>& maybe_intrinsic_ratio,
                        const BoxGenerator::Context* context,
-                       bool is_video_punched_out)
+                       base::optional<bool> is_video_punched_out)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
         set_bounds_cb_(set_bounds_cb),
@@ -210,7 +210,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const base::optional<LayoutUnit> maybe_intrinsic_height_;
   const base::optional<float> maybe_intrinsic_ratio_;
   const BoxGenerator::Context* context_;
-  bool is_video_punched_out_;
+  base::optional<bool> is_video_punched_out_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
 };
@@ -319,10 +319,16 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
            ->html_element_context()
            ->resource_provider();
 
-  ShellVideoFrameProvider::OutputMode output_mode =
-      ShellVideoFrameProvider::kOutputModeInvalid;
+  // If the optional is disengaged, then we don't know if punch out is enabled
+  // or not.
+  base::optional<bool> is_punch_out;
   if (video_element->GetVideoFrameProvider()) {
-    output_mode = video_element->GetVideoFrameProvider()->GetOutputMode();
+    ShellVideoFrameProvider::OutputMode output_mode =
+        video_element->GetVideoFrameProvider()->GetOutputMode();
+    if (output_mode != ShellVideoFrameProvider::kOutputModeInvalid) {
+      is_punch_out =
+          output_mode ==  ShellVideoFrameProvider::kOutputModePunchOut;
+    }
   }
 
   // Unlike in Chromium, we do not set the intrinsic width, height, or ratio
@@ -330,13 +336,12 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // adaptive videos.
   ReplacedBoxGenerator replaced_box_generator(
       video_element->css_computed_style_declaration(),
-      output_mode != ShellVideoFrameProvider::kOutputModeInvalid
+      video_element->GetVideoFrameProvider()
           ? base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider(),
                        resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
-      base::nullopt, base::nullopt, base::nullopt, context_,
-      output_mode == ShellVideoFrameProvider::kOutputModePunchOut);
+      base::nullopt, base::nullopt, base::nullopt, context_, is_punch_out);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
