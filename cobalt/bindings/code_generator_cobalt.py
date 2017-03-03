@@ -31,8 +31,12 @@ blink_script_dir = os.path.normpath(
                  'Source'))
 sys.path.append(blink_script_dir)
 
-import jinja2
 from bindings.scripts.code_generator_v8 import CodeGeneratorBase  # pylint: disable=g-import-not-at-top
+
+# the code_generator_v8 module import in the line above updates sys.path, so
+# that we can import the jinja2 in third_party.
+import jinja2  # pylint: disable=g-bad-import-order
+
 from bindings.scripts.idl_types import IdlType
 from cobalt.bindings import contexts
 from cobalt.bindings import path_generator
@@ -186,7 +190,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     self.jinja_env = initialize_jinja_env(cache_dir,
                                           os.path.abspath(templates_dir))
     self.path_builder = path_generator.PathBuilder(
-        self.generated_file_prefix,interfaces_info, cobalt_dir, output_dir)
+        self.generated_file_prefix, interfaces_info, cobalt_dir, output_dir)
 
   @abc.abstractproperty
   def generated_file_prefix(self):
