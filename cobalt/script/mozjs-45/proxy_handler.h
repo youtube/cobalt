@@ -83,31 +83,32 @@ class ProxyHandler : public js::DirectProxyHandler {
   ProxyHandler(const IndexedPropertyHooks& indexed_hooks,
                const NamedPropertyHooks& named_hooks);
 
-  // Overridden fundamental traps.
-  bool getPropertyDescriptor(
+  // Overridden standard internal methods.
+  bool getOwnPropertyDescriptor(
       JSContext* context, JS::HandleObject proxy, JS::HandleId id,
       JS::MutableHandle<JSPropertyDescriptor> descriptor) const OVERRIDE;
-  bool delete_(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-               JS::ObjectOpResult& result)  // NOLINT(runtime/references)
-      const OVERRIDE;
-  bool enumerate(JSContext* context, JS::HandleObject proxy,
-                 JS::MutableHandleObject objp) const OVERRIDE;
+
   bool defineProperty(JSContext* context, JS::HandleObject proxy,
                       JS::HandleId id,
                       js::Handle<JSPropertyDescriptor> descriptor,
                       JS::ObjectOpResult& result  // NOLINT[runtime/references]
                       ) const OVERRIDE;           // NOLINT[whitespace/parens]
-  bool getOwnPropertyDescriptor(
-      JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-      JS::MutableHandle<JSPropertyDescriptor> descriptor) const OVERRIDE {
-    return getPropertyDescriptor(context, proxy, id, descriptor);
+  bool ownPropertyKeys(JSContext* context, JS::HandleObject proxy,
+                       JS::AutoIdVector& properties) const OVERRIDE; // NOLINT[runtime/references]
+  bool delete_(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+               JS::ObjectOpResult& result)  // NOLINT(runtime/references)
+      const OVERRIDE;
+
+  // Standard methods that were overridden in DirectProxyHandler. These are
+  // implemented in terms of the standard internal methods in BaseProxyHandler
+  // so ensure that we use those, so we don't have to override all of these.
+  // TODO: Consider overriding some of these as performance optimizations if
+  // necessary.
+  bool enumerate(JSContext* context, JS::HandleObject proxy,
+                 JS::MutableHandleObject objp) const OVERRIDE {
+    return js::BaseProxyHandler::enumerate(context, proxy, objp);
   }
 
-  // The derived traps in js::DirectProxyHandler are not implemented in terms of
-  // the fundamental traps, where the traps in js::BaseProxyHandler are.
-  // Redefining the derived traps to be in terms of the fundamental traps means
-  // that we only need to override the fundamental traps when implementing
-  // custom behavior for i.e. interfaces that support named properties.
   bool has(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
            bool* bp) const OVERRIDE {
     return js::BaseProxyHandler::has(context, proxy, id, bp);
@@ -125,9 +126,34 @@ class ProxyHandler : public js::DirectProxyHandler {
     return js::BaseProxyHandler::set(context, proxy, id, v, receiver, result);
   }
 
+  // SpiderMonkey extensions that should also be implemented in terms of the
+  // standard methods, as described above.
+  bool getPropertyDescriptor(
+      JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+      JS::MutableHandle<JSPropertyDescriptor> descriptor) const OVERRIDE {
+    return js::BaseProxyHandler::getPropertyDescriptor(context, proxy, id,
+                                                       descriptor);
+  }
+  bool hasOwn(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+              bool* bp) const OVERRIDE {
+    return js::BaseProxyHandler::hasOwn(context, proxy, id, bp);
+  }
+  bool getOwnEnumerablePropertyKeys(JSContext* context, JS::HandleObject proxy,
+                                    JS::AutoIdVector& props) const OVERRIDE {  // NOLINT[runtime/references]
+    return js::BaseProxyHandler::getOwnEnumerablePropertyKeys(context, proxy,
+                                                              props);
+  }
+
   bool has_custom_property() const { return has_custom_property_; }
 
  private:
+  // https://heycam.github.io/webidl/#LegacyPlatformObjectGetOwnProperty
+  // This is used to support named and indexed properties.
+  // Returns false on failure.
+  bool LegacyPlatformObjectGetOwnPropertyDescriptor(
+      JSContext* context, JS::HandleObject proxy, JS::HandleId id,
+      JS::MutableHandle<JSPropertyDescriptor> descriptor) const;
+
   bool supports_named_properties() const {
     return named_property_hooks_.getter != NULL;
   }
