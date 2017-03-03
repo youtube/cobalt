@@ -23,7 +23,6 @@
 namespace cobalt {
 namespace cssom {
 
-
 TranslateFunction::OffsetType TranslateFunction::offset_type() const {
   if (offset_->GetTypeId() == base::GetTypeId<LengthValue>()) {
     return kLength;

@@ -95,7 +95,6 @@ class TransformMatrix {
         width_percentage_translation_(width_percentage_translation),
         height_percentage_translation_(height_percentage_translation) {}
 
-
   // Translation of pixel units is represented in the matrix (along with all
   // non-translate transformations).
   math::Matrix3F matrix_;

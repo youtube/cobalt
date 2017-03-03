@@ -18,8 +18,8 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/percentage_value.h"
-#include "cobalt/math/size_f.h"
 #include "cobalt/math/size.h"
+#include "cobalt/math/size_f.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
