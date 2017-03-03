@@ -43,7 +43,6 @@ class SourceListDirective : public Directive {
   DISALLOW_COPY_AND_ASSIGN(SourceListDirective);
 };
 
-
 }  // namespace csp
 }  // namespace cobalt
 

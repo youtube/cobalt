@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_TESTING_STUB_SCRIPT_RUNNER_H_
 #define COBALT_DOM_TESTING_STUB_SCRIPT_RUNNER_H_
 
+#include <string>
+
 #include "cobalt/script/script_runner.h"
 
 namespace cobalt {

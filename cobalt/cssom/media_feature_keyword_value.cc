@@ -48,7 +48,6 @@ base::LazyInstance<MediaFeatureKeywordValue::NonTrivialStaticFields>
 
 }  // namespace
 
-
 const scoped_refptr<MediaFeatureKeywordValue>&
 MediaFeatureKeywordValue::GetInterlace() {
   return non_trivial_static_fields.Get().interlace_value;

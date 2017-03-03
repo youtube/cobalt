@@ -320,7 +320,6 @@ TEST_P(KeyframeEffectReadOnlyDataSingleParameterKeyframeTests,
   EXPECT_FLOAT_EQ(1.4f, animated->value());
 }
 
-
 TEST_P(
     KeyframeEffectReadOnlyDataSingleParameterKeyframeTests,
     IterationProgressGreaterThan1ExtrapolatesWithoutExplicit1OffsetKeyframe) {

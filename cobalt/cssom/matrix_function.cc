@@ -37,6 +37,5 @@ std::string MatrixFunction::ToString() const {
                             value_(1, 1), value_(0, 2), value_(1, 2));
 }
 
-
 }  // namespace cssom
 }  // namespace cobalt

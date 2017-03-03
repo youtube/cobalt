@@ -15,6 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_DERIVED_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_DERIVED_INTERFACE_H_
 
+#include <string>
+
 #include "cobalt/bindings/testing/base_interface.h"
 
 namespace cobalt {

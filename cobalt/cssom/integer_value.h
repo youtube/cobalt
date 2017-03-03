@@ -40,7 +40,6 @@ class IntegerValue : public PropertyValue {
     return base::StringPrintf("%d", value_);
   }
 
-
   bool operator==(const IntegerValue& other) const {
     return value_ == other.value_;
   }

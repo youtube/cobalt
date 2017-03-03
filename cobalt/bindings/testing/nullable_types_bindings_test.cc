@@ -142,7 +142,6 @@ TEST_F(NullableTypesBindingsTest, ReturnNonNullFromOperation) {
   EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
 }
 
-
 TEST_F(NullableTypesBindingsTest, SetNullProperty) {
   InSequence in_sequence_dummy;
 
