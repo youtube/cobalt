@@ -138,6 +138,5 @@ TEST(StorageAreaTest, KeyOrder) {
   EXPECT_EQ(found_keys0, found_keys2);
 }
 
-
 }  // namespace dom
 }  // namespace cobalt

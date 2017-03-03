@@ -66,7 +66,6 @@ class WebDriverDispatcher {
     friend class WebDriverDispatcher;
   };
 
-
   // An instance of this class is passed to WebDriver API command
   // implementations through the CommandCallback function.
   class CommandResultHandler {

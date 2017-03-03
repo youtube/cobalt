@@ -68,7 +68,6 @@ TEST(PNGDecodeTests, CanDecodeUnpremultipliedAlpha) {
   expected_color_components[0] = 255;
   expected_color_components[3] = 127;
 
-
   EXPECT_EQ(0,
             CountDifferingPixels(pixels.get(), width, height, expected_color));
 }
@@ -87,7 +86,6 @@ TEST(PNGDecodeTests, CanDecodePremultipliedAlpha) {
       reinterpret_cast<uint8_t*>(&expected_color);
   expected_color_components[0] = 127;
   expected_color_components[3] = 127;
-
 
   EXPECT_EQ(0,
             CountDifferingPixels(pixels.get(), width, height, expected_color));

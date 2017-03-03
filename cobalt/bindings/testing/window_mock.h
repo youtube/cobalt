@@ -15,6 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_WINDOW_MOCK_H_
 #define COBALT_BINDINGS_TESTING_WINDOW_MOCK_H_
 
+#include <string>
+
 #include "cobalt/bindings/testing/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

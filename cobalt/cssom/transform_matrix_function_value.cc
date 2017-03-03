@@ -32,6 +32,5 @@ std::string TransformMatrixFunctionValue::ToString() const {
   return "";
 }
 
-
 }  // namespace cssom
 }  // namespace cobalt

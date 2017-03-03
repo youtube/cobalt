@@ -15,6 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_EXCEPTION_OBJECT_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_EXCEPTION_OBJECT_INTERFACE_H_
 
+#include <string>
+
 #include "cobalt/script/script_exception.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
