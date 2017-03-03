@@ -35,7 +35,6 @@ using cobalt::script::mozjs::util::GetExceptionString;
 {% endblock using_directives %}
 
 {% block implementation %}
-namespace cobalt {
 {% for component in components %}
 namespace {{component}} {
 {% endfor %}
@@ -120,8 +119,7 @@ namespace {{component}} {
 {% endfor %}
 {% endfor %}
 
-{% for component in components %}
+{% for component in components|reverse %}
 }  // namespace {{component}}
 {% endfor %}
-}  // namespace cobalt
 {% endblock implementation %}

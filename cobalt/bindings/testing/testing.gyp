@@ -39,6 +39,7 @@
         'constructor_with_arguments_interface.idl',
         'derived_getter_setter_interface.idl',
         'derived_interface.idl',
+        'dictionary_interface.idl',
         'disabled_interface.idl',
         'dom_string_test_interface.idl',
         'enumeration_interface.idl',
@@ -72,6 +73,10 @@
         'window.idl',
     ],
 
+    'dictionary_idl_files': [
+        'test_dictionary.idl',
+    ],
+
     # Partial interfaces and the right-side of "implements"
     # Code will not get generated for these interfaces; they are used to add
     # functionality to other interfaces.
@@ -97,6 +102,14 @@
   },
 
   'targets': [
+    {
+      'target_name': 'bindings',
+      'type': 'static_library',
+      'dependencies': [
+        # The generated_bindings target comes from bindings.gypi.
+        'generated_bindings',
+      ],
+    },
     {
       'target_name': 'bindings_test_implementation',
       'type': 'static_library',
@@ -128,6 +141,7 @@
         'constants_bindings_test.cc',
         'constructor_bindings_test.cc',
         'dependent_interface_test.cc',
+        'dictionary_test.cc',
         'dom_string_bindings_test.cc',
         'enumeration_bindings_test.cc',
         'evaluate_script_test.cc',
