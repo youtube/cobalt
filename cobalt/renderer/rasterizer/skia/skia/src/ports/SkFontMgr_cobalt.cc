@@ -113,7 +113,8 @@ SkData* NewDataFromFile(const SkString& file_path) {
   LOG(INFO) << "Loading font file: " << file_path.c_str();
   SkFontMgrCVals::GetInstance()->IncrementFontFilesLoadedCount();
 
-  SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
+  SkAutoTUnref<SkStreamAsset> file_stream(
+      SkStream::NewFromFile(file_path.c_str()));
   if (file_stream == NULL) {
     LOG(ERROR) << "Failed to open font file: " << file_path.c_str();
     return NULL;
@@ -163,7 +164,7 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
 
 class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  public:
-  SkTypeface_CobaltStream(SkStream* stream, int index, Style style,
+  SkTypeface_CobaltStream(SkStreamAsset* stream, int index, Style style,
                           bool is_fixed_pitch, const SkString family_name)
       : INHERITED(index, style, is_fixed_pitch, family_name),
         stream_(SkRef(stream)) {
@@ -182,7 +183,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
     *serialize = true;
   }
 
-  virtual SkStream* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+  virtual SkStreamAsset* onOpenStream(int* ttc_index) const SK_OVERRIDE {
     *ttc_index = index_;
     return stream_->duplicate();
   }
@@ -190,7 +191,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  private:
   typedef SkTypeface_Cobalt INHERITED;
 
-  SkAutoTUnref<SkStream> stream_;
+  SkAutoTUnref<SkStreamAsset> stream_;
 };
 
 class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
@@ -221,7 +222,7 @@ class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
     *serialize = false;
   }
 
-  virtual SkStream* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+  virtual SkStreamAsset* onOpenStream(int* ttc_index) const SK_OVERRIDE {
     TRACE_EVENT0("cobalt::renderer", "SkTypeface_CobaltSystem::onOpenStream()");
     *ttc_index = index_;
 
@@ -799,11 +800,11 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromData(SkData* data,
                                                int ttc_index) const {
-  SkAutoTUnref<SkStream> stream(new SkMemoryStream(data));
+  SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(data));
   return createFromStream(stream, ttc_index);
 }
 
-SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
+SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStreamAsset* stream,
                                                  int ttc_index) const {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromStream()");
   bool is_fixed_pitch;
@@ -820,7 +821,7 @@ SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
 SkTypeface* SkFontMgr_Cobalt::onCreateFromFile(const char path[],
                                                int ttc_index) const {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromFile()");
-  SkAutoTUnref<SkStream> stream(SkStream::NewFromFile(path));
+  SkAutoTUnref<SkStreamAsset> stream(SkStream::NewFromFile(path));
   return stream.get() ? createFromStream(stream, ttc_index) : NULL;
 }
 
