@@ -15,9 +15,9 @@
 #ifndef COBALT_BASE_SOURCE_LOCATION_H_
 #define COBALT_BASE_SOURCE_LOCATION_H_
 
-#include "base/logging.h"
-
 #include <string>
+
+#include "base/logging.h"
 
 namespace base {
 

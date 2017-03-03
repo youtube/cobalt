@@ -38,6 +38,5 @@ std::string TransformFunctionListValue::ToString() const {
   return result;
 }
 
-
 }  // namespace cssom
 }  // namespace cobalt
