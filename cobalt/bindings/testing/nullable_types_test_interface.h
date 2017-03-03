@@ -15,6 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"

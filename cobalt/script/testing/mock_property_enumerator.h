@@ -15,6 +15,8 @@
 #ifndef COBALT_SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_
 #define COBALT_SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_
 
+#include <string>
+
 #include "cobalt/script/property_enumerator.h"
 
 #include "testing/gmock/include/gmock/gmock.h"

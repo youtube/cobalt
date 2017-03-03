@@ -41,7 +41,6 @@ class Directive {
   DISALLOW_COPY_AND_ASSIGN(Directive);
 };
 
-
 }  // namespace csp
 }  // namespace cobalt
 

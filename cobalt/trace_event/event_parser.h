@@ -16,10 +16,12 @@
 #define COBALT_TRACE_EVENT_EVENT_PARSER_H_
 
 #include <set>
+#include <string>
 #include <vector>
 
 #include "base/debug/trace_event.h"
 #include "base/debug/trace_event_impl.h"
+#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/time.h"
