@@ -24,9 +24,6 @@ import tv_testcase_util
 ActionChains = tv_testcase_util.import_selenium_module(
     submodule="webdriver.common.action_chains").ActionChains
 
-ElementNotVisibleException = tv_testcase_util.import_selenium_module(
-    submodule="common.exceptions").ElementNotVisibleException
-
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
