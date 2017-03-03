@@ -23,7 +23,11 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/shell_video_frame_provider.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/video_frame.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "net/base/net_util.h"
 
 namespace cobalt {
