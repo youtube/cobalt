@@ -345,7 +345,7 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
   SkAutoTUnref<SkData> skia_data(SkData::NewWithCopy(
       sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
 
-  SkAutoTUnref<SkStream> stream(new SkMemoryStream(skia_data));
+  SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(skia_data));
   SkAutoTUnref<SkTypeface> typeface(SkTypeface::CreateFromStream(stream));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
