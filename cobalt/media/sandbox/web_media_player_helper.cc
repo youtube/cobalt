@@ -37,7 +37,11 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   void PlaybackStateChanged() OVERRIDE {}
   void SawUnsupportedTracks() OVERRIDE {}
   float Volume() const OVERRIDE { return 1.f; }
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  void SourceOpened(::media::ChunkDemuxer*) OVERRIDE {}
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   void SourceOpened() OVERRIDE {}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const OVERRIDE { return ""; }
 };
 

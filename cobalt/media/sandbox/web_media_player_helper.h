@@ -21,8 +21,13 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module.h"
 #include "googleurl/src/gurl.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/shell_video_frame_provider.h"
+#include "cobalt/media/player/web_media_player.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/video_frame.h"
 #include "media/player/web_media_player.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {

@@ -15,6 +15,7 @@
 #ifndef COBALT_MEDIA_SHELL_MEDIA_PLATFORM_STARBOARD_H_
 #define COBALT_MEDIA_SHELL_MEDIA_PLATFORM_STARBOARD_H_
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -27,8 +28,8 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
  public:
   explicit ShellMediaPlatformStarboard(
       cobalt::render_tree::ResourceProvider* resource_provider)
-      : video_frame_provider_(new ShellVideoFrameProvider),
-        resource_provider_(resource_provider) {
+      : resource_provider_(resource_provider),
+        video_frame_provider_(new ShellVideoFrameProvider) {
     SetInstance(this);
   }
 
@@ -53,10 +54,14 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 
  private:
   void* AllocateBuffer(size_t size) OVERRIDE {
+    UNREFERENCED_PARAMETER(size);
     NOTREACHED();
     return NULL;
   }
-  void FreeBuffer(void* ptr) OVERRIDE { NOTREACHED(); }
+  void FreeBuffer(void* ptr) OVERRIDE {
+    UNREFERENCED_PARAMETER(ptr);
+    NOTREACHED();
+  }
   size_t GetSourceBufferStreamAudioMemoryLimit() const OVERRIDE {
     NOTREACHED();
     return 0;
@@ -75,7 +80,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 
 #include "media/base/shell_media_platform.h"
 
-#include "base/compiler_specific.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/shell_video_data_allocator_common.h"

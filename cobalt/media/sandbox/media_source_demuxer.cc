@@ -23,10 +23,17 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/sys_byteorder.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/demuxer.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/bind_to_loop.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline_status.h"
 #include "media/filters/chunk_demuxer.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {
