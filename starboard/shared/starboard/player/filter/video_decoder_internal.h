@@ -72,26 +72,6 @@ class VideoDecoder {
 
   // A parameter struct to pass into |Create|.
   struct Parameters {
-    Parameters(SbMediaVideoCodec video_codec,
-               SbDrmSystem drm_system,
-               JobQueue* job_queue
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-               ,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetProvider* decode_target_provider
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-               )
-        : video_codec(video_codec),
-          drm_system(drm_system),
-          job_queue(job_queue)
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-          ,
-          output_mode(output_mode),
-          decode_target_provider(decode_target_provider)
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-    {
-    }
-
     SbMediaVideoCodec video_codec;
     SbDrmSystem drm_system;
     JobQueue* job_queue;
