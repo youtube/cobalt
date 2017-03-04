@@ -83,7 +83,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   // This function should only be called once.
   SB_DCHECK(player_worker_ == NULL);
 
-  // All parameters has to be valid.
+  // All parameters have to be valid.
   SB_DCHECK(player_worker);
   SB_DCHECK(job_queue);
   SB_DCHECK(job_queue->BelongsToCurrentThread());
@@ -99,19 +99,22 @@ bool FilterBasedPlayerWorkerHandler::Init(
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
 
-  AudioDecoder::Parameters audio_decoder_options(audio_codec_, audio_header_,
-                                                 drm_system_, job_queue_);
+  AudioDecoder::Parameters audio_decoder_parameters = {
+      audio_codec_, audio_header_, drm_system_, job_queue_};
   scoped_ptr<AudioDecoder> audio_decoder(
-      AudioDecoder::Create(audio_decoder_options));
-  VideoDecoder::Parameters video_decoder_options(
-      video_codec_, drm_system_, job_queue_
+      AudioDecoder::Create(audio_decoder_parameters));
+  VideoDecoder::Parameters video_decoder_parameters = {
+    video_codec_,
+    drm_system_,
+    job_queue_
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-      ,
-      output_mode_, decode_target_provider_
+    ,
+    output_mode_,
+    decode_target_provider_
 #endif    // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-      );  // NOLINT(whitespace/parens)
+  };      // NOLINT(whitespace/parens)
   scoped_ptr<VideoDecoder> video_decoder(
-      VideoDecoder::Create(video_decoder_options));
+      VideoDecoder::Create(video_decoder_parameters));
 
   if (!audio_decoder || !video_decoder) {
     return false;
