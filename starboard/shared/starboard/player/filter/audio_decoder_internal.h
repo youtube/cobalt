@@ -61,15 +61,6 @@ class AudioDecoder {
 
   // A parameter struct to pass into |Create|.
   struct Parameters {
-    Parameters(SbMediaAudioCodec audio_codec,
-               const SbMediaAudioHeader& audio_header,
-               SbDrmSystem drm_system,
-               JobQueue* job_queue)
-        : audio_codec(audio_codec),
-          audio_header(audio_header),
-          drm_system(drm_system),
-          job_queue(job_queue) {}
-
     SbMediaAudioCodec audio_codec;
     const SbMediaAudioHeader& audio_header;
     SbDrmSystem drm_system;
