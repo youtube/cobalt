@@ -14,8 +14,8 @@
         }],
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
