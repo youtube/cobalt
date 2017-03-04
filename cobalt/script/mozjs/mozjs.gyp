@@ -90,7 +90,8 @@
         'mozjs_trace_logging.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],

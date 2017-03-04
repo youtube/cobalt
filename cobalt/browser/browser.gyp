@@ -143,12 +143,12 @@
         'memory_tracker/memory_tracker_tool_test.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage_upgrade_copy_test_data',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'browser',
