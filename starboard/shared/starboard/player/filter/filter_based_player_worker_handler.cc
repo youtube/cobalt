@@ -121,8 +121,8 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   audio_renderer_.reset(
       new AudioRenderer(job_queue, audio_decoder.Pass(), audio_header_));
-  video_renderer_.reset(new VideoRenderer(video_decoder.Pass()));
-  if (audio_renderer_->is_valid() && video_renderer_->is_valid()) {
+  video_renderer_ = VideoRenderer::Create(video_decoder.Pass());
+  if (audio_renderer_->is_valid() && video_renderer_) {
     update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
     job_queue_->Schedule(update_closure_, kUpdateInterval);
     return true;
