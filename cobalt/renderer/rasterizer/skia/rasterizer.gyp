@@ -19,6 +19,8 @@
       'type': 'static_library',
 
       'sources': [
+        'create_spherical_mesh.cc',
+        'create_spherical_mesh.h',
         'gl_format_conversions.cc',
         'hardware_image.cc',
         'hardware_image.h',
@@ -26,6 +28,8 @@
         'hardware_rasterizer.h',
         'hardware_resource_provider.cc',
         'hardware_resource_provider.h',
+        'vertex_buffer_object.cc',
+        'vertex_buffer_object.h',
       ],
 
       'dependencies': [

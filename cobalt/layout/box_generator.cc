@@ -332,7 +332,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
         video_element->GetVideoFrameProvider()->GetOutputMode();
     if (output_mode != ShellVideoFrameProvider::kOutputModeInvalid) {
       is_punch_out =
-          output_mode ==  ShellVideoFrameProvider::kOutputModePunchOut;
+          output_mode == ShellVideoFrameProvider::kOutputModePunchOut;
     }
   }
 
