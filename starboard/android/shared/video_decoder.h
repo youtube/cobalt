@@ -53,20 +53,19 @@ class VideoDecoder
   void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
-
-  bool is_valid() const { return media_codec_bridge_ != NULL; }
-
   void SetCurrentTime(SbMediaTime current_time) SB_OVERRIDE {
     current_time_ = ConvertSbMediaTimeToMicroseconds(current_time);
     current_time_set_at_ = SbTimeGetNow();
   }
+
+  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+
   // Get |current_time_| accounting for the time that has elapsed since it was
   // last set.
   SbTime GetAdjustedCurrentTime() const {
     return current_time_ + SbTimeGetNow() - current_time_set_at_;
   }
-
-  SbDecodeTarget GetCurrentDecodeTarget();
+  bool is_valid() const { return media_codec_bridge_ != NULL; }
 
  private:
   enum EventType {
