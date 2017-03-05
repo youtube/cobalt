@@ -75,12 +75,15 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // |render_image_fallback_function| is specified, it will be invoked whenever
   // standard Skia processing of the image is not possible, which usually is
   // when the image is backed by a SbDecodeTarget that requires special
-  // consideration.
+  // consideration.  |render_equirectangular_image_function| must be specified
+  // in order to support the map-to-mesh filter since Skia is unable to draw
+  // 3D meshes natively.
   RenderTreeNodeVisitor(
       SkCanvas* render_target,
       const CreateScratchSurfaceFunction* create_scratch_surface_function,
       const base::Closure& reset_skia_context_function,
       const RenderImageFallbackFunction& render_image_fallback_function,
+      const RenderImageFallbackFunction& render_equirectangular_image_function,
       SurfaceCacheDelegate* surface_cache_delegate,
       common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
@@ -115,6 +118,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   base::Closure reset_skia_context_function_;
 
   RenderImageFallbackFunction render_image_fallback_function_;
+  RenderImageFallbackFunction render_equirectangular_image_function_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };
