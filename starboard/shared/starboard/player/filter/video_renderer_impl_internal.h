@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_IMPL_INTERNAL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_IMPL_INTERNAL_H_
 
 #include <list>
 
@@ -23,6 +23,7 @@
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -33,27 +34,28 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class VideoRenderer : private VideoDecoder::Host {
+class VideoRendererImpl : public VideoRenderer {
  public:
-  explicit VideoRenderer(scoped_ptr<VideoDecoder> decoder);
+  explicit VideoRendererImpl(scoped_ptr<VideoDecoder> decoder);
 
-  bool is_valid() const { return true; }
-  int GetDroppedFrames() const { return dropped_frames_; }
+  int GetDroppedFrames() const SB_OVERRIDE { return dropped_frames_; }
 
-  void WriteSample(const InputBuffer& input_buffer);
-  void WriteEndOfStream();
+  void WriteSample(const InputBuffer& input_buffer) SB_OVERRIDE;
+  void WriteEndOfStream() SB_OVERRIDE;
 
-  void Seek(SbMediaTime seek_to_pts);
+  void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
 
-  scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time);
+  scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time) SB_OVERRIDE;
 
-  bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
-  bool IsEndOfStreamPlayed() const;
-  bool CanAcceptMoreData() const;
-  bool IsSeekingInProgress() const;
+  bool IsEndOfStreamWritten() const SB_OVERRIDE {
+    return end_of_stream_written_;
+  }
+  bool IsEndOfStreamPlayed() const SB_OVERRIDE;
+  bool CanAcceptMoreData() const SB_OVERRIDE;
+  bool IsSeekingInProgress() const SB_OVERRIDE;
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-  SbDecodeTarget GetCurrentDecodeTarget();
+  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
  private:
@@ -99,4 +101,4 @@ class VideoRenderer : private VideoDecoder::Host {
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_IMPL_INTERNAL_H_
