@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 
 #include <algorithm>
 
@@ -22,7 +22,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder)
+VideoRendererImpl::VideoRendererImpl(scoped_ptr<VideoDecoder> decoder)
     : seeking_(false),
       seeking_to_pts_(0),
       end_of_stream_written_(false),
@@ -33,7 +33,7 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder)
   decoder_->SetHost(this);
 }
 
-void VideoRenderer::WriteSample(const InputBuffer& input_buffer) {
+void VideoRendererImpl::WriteSample(const InputBuffer& input_buffer) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   if (end_of_stream_written_) {
@@ -50,7 +50,7 @@ void VideoRenderer::WriteSample(const InputBuffer& input_buffer) {
   decoder_->WriteInputBuffer(input_buffer);
 }
 
-void VideoRenderer::WriteEndOfStream() {
+void VideoRendererImpl::WriteEndOfStream() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   SB_LOG_IF(WARNING, end_of_stream_written_)
@@ -62,7 +62,7 @@ void VideoRenderer::WriteEndOfStream() {
   decoder_->WriteEndOfStream();
 }
 
-void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
+void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(seek_to_pts >= 0);
 
@@ -77,11 +77,9 @@ void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
   frames_.clear();
 }
 
-scoped_refptr<VideoFrame> VideoRenderer::GetCurrentFrame(
+scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
     SbMediaTime media_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-  decoder_->SetCurrentTime(media_time);
 
   if (frames_.empty()) {
     return last_displayed_frame_;
@@ -99,24 +97,24 @@ scoped_refptr<VideoFrame> VideoRenderer::GetCurrentFrame(
   return last_displayed_frame_;
 }
 
-bool VideoRenderer::IsEndOfStreamPlayed() const {
+bool VideoRendererImpl::IsEndOfStreamPlayed() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   return end_of_stream_written_ && frames_.size() <= 1;
 }
 
-bool VideoRenderer::CanAcceptMoreData() const {
+bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   ScopedLock lock(mutex_);
   return frames_.size() < kMaxCachedFrames && !end_of_stream_written_ &&
          need_more_input_;
 }
 
-bool VideoRenderer::IsSeekingInProgress() const {
+bool VideoRendererImpl::IsSeekingInProgress() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   return seeking_;
 }
 
-void VideoRenderer::OnDecoderStatusUpdate(
+void VideoRendererImpl::OnDecoderStatusUpdate(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {
   ScopedLock lock(mutex_);
@@ -143,7 +141,7 @@ void VideoRenderer::OnDecoderStatusUpdate(
 }
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
+SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   if (decoder_) {
     return decoder_->GetCurrentDecodeTarget();
   } else {
@@ -151,6 +149,12 @@ SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
   }
 }
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+// static
+scoped_ptr<VideoRenderer> VideoRenderer::Create(
+    scoped_ptr<VideoDecoder> video_decoder) {
+  return scoped_ptr<VideoRenderer>(new VideoRendererImpl(video_decoder.Pass()));
+}
 
 }  // namespace filter
 }  // namespace player
