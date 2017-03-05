@@ -18,6 +18,7 @@
 
 #include "base/containers/linked_hash_map.h"
 #include "base/debug/trace_event.h"
+#include "cobalt/render_tree/mesh.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -26,18 +27,23 @@
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/create_spherical_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/surface_cache_delegate.h"
+#include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
 #include "third_party/glm/glm/gtc/matrix_inverse.hpp"
 #include "third_party/glm/glm/mat3x3.hpp"
+#include "third_party/glm/glm/gtx/transform.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
 #include "third_party/skia/include/gpu/SkGrPixelRef.h"
 #include "third_party/skia/src/gpu/SkGpuDevice.h"
+
+using cobalt::render_tree::Mesh;
 
 namespace {
   // Some clients call Submit() multiple times with up to 2 different render
@@ -100,6 +106,9 @@ class HardwareRasterizer::Impl {
 
   void RenderTextureEGL(const render_tree::ImageNode* image_node,
                         RenderTreeNodeVisitorDrawState* draw_state);
+  void RenderTextureEquirectangularEGL(
+      const render_tree::ImageNode* image_node,
+      RenderTreeNodeVisitorDrawState* draw_state);
 
   base::ThreadChecker thread_checker_;
 
@@ -118,6 +127,12 @@ class HardwareRasterizer::Impl {
   base::optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
 
   FrameRateThrottler frame_rate_throttler_;
+
+  scoped_ptr<VertexBufferObject> equirectangular_vbo_;
+  scoped_refptr<Mesh> equirectangular_mesh_;
+  // Used to spin the camera around a 360 video as a "demo mode".
+  // TODO: Remove this as soon as the 3D camera is in.
+  base::optional<base::TimeTicks> start_time_;
 };
 
 namespace {
@@ -235,12 +250,97 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
     content_region = *image->GetContentRegion();
   }
 
-  // Invoke out TexturedMeshRenderer to actually perform the draw call.
+  // Invoke our TexturedMeshRenderer to actually perform the draw call.
   textured_mesh_renderer_->RenderQuad(
       texture, content_region,
       GetFallbackTextureModelViewProjectionMatrix(
           canvas_size, draw_state->render_target->getTotalMatrix(),
           image_node->data().destination_rect));
+
+  // Let Skia know that we've modified GL state.
+  gr_context_->resetContext();
+}
+
+void HardwareRasterizer::Impl::RenderTextureEquirectangularEGL(
+    const render_tree::ImageNode* image_node,
+    RenderTreeNodeVisitorDrawState* draw_state) {
+  HardwareFrontendImage* image =
+      base::polymorphic_downcast<HardwareFrontendImage*>(
+          image_node->data().source.get());
+
+  const backend::TextureEGL* texture = image->GetTextureEGL();
+
+  SkIRect canvas_boundsi;
+  draw_state->render_target->getClipDeviceBounds(&canvas_boundsi);
+  const math::Rect& destination_rect =
+      math::Rect(canvas_boundsi.x(), canvas_boundsi.y(), canvas_boundsi.width(),
+                 canvas_boundsi.height());
+
+  // Flush the Skia draw state to ensure that all previously issued Skia calls
+  // are rendered so that the following draw command will appear in the correct
+  // order.
+  draw_state->render_target->flush();
+
+  // We setup our viewport to fill the entire destination rectangle.
+  GL_CALL(glViewport(destination_rect.x(), destination_rect.y(),
+                     destination_rect.width(), destination_rect.height()));
+  GL_CALL(glScissor(destination_rect.x(), destination_rect.y(),
+                    destination_rect.width(), destination_rect.height()));
+
+  if (image->IsOpaque()) {
+    GL_CALL(glDisable(GL_BLEND));
+  } else {
+    GL_CALL(glEnable(GL_BLEND));
+  }
+  GL_CALL(glDisable(GL_DEPTH_TEST));
+  GL_CALL(glDisable(GL_STENCIL_TEST));
+  GL_CALL(glEnable(GL_SCISSOR_TEST));
+  GL_CALL(glEnable(GL_CULL_FACE));
+  GL_CALL(glCullFace(GL_BACK));
+
+  if (!textured_mesh_renderer_) {
+    textured_mesh_renderer_.emplace(graphics_context_);
+  }
+  math::Rect content_region(image->GetSize());
+  if (image->GetContentRegion()) {
+    content_region = *image->GetContentRegion();
+  }
+
+  // Temporary code to have the camera animated to demo 360 video without input.
+  // TODO: This should be removed once a camera is officially hooked up.  This
+  // code causes the camera to rotate around its y-axis at a constant speed
+  // while rotating up and down around its x-axis.
+  if (!start_time_) {
+    start_time_ = base::TimeTicks::Now();
+  }
+  float t = (base::TimeTicks::Now() - *start_time_).InSecondsF();
+  float y_angle = (t * 2 * M_PI) / 4.0f;
+  float x_angle = sin(t * 2 * M_PI / 3.0f) * (M_PI / 6);
+  glm::mat4 camera_rotations = glm::rotate(x_angle, glm::vec3(1, 0, 0)) *
+                               glm::rotate(y_angle, glm::vec3(0, 1, 0));
+
+  // Setup a perspective projection matrix, the same way that gluPerspective()
+  // does:
+  // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
+  const float kVerticalFOVInDegrees = 60.0f;
+  const float kVerticalFOVInRadians =
+      (kVerticalFOVInDegrees / 360.0f) * 2 * M_PI;
+  const float f = 1.0f / tan(kVerticalFOVInRadians / 2);
+  const float kNearZ = 0.01f;
+  const float kFarZ = 1000.0f;
+  const float kRangeZ = kNearZ - kFarZ;
+  float aspect_ratio =
+      static_cast<float>(destination_rect.width()) / destination_rect.height();
+  glm::mat4 projection = glm::mat4(f / aspect_ratio, 0, 0, 0, 0, f, 0, 0, 0, 0,
+                                   (kFarZ + kNearZ) / kRangeZ, -1.0f, 0, 0,
+                                   (2.0f * kFarZ * kNearZ) / kRangeZ, 0.0f);
+
+  // Invoke out TexturedMeshRenderer to actually perform the draw call.
+  textured_mesh_renderer_->RenderVBO(equirectangular_vbo_->GetHandle(),
+                                     equirectangular_mesh_->vertices().size(),
+                                     equirectangular_mesh_->draw_mode(),
+                                     texture, content_region,
+                                     projection * camera_rotations);
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();
@@ -287,6 +387,10 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   // accelerated Skia rasterizer.
   resource_provider_.reset(
       new HardwareResourceProvider(graphics_context_, gr_context_));
+
+  equirectangular_mesh_ = CreateSphericalMesh();
+  equirectangular_vbo_.reset(new VertexBufferObject(equirectangular_mesh_));
+
   graphics_context_->ReleaseCurrentContext();
 
   int max_surface_size = std::max(gr_context_->getMaxRenderTargetSize(),
@@ -306,6 +410,8 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 HardwareRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
   textured_mesh_renderer_ = base::nullopt;
+
+  equirectangular_vbo_.reset();
 
   for (SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
     iter != sk_output_surface_map_.end(); iter++) {
@@ -411,6 +517,8 @@ void HardwareRasterizer::Impl::Submit(
                    base::Unretained(this)),
         base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
                    base::Unretained(this)),
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureEquirectangularEGL,
+                   base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
@@ -447,6 +555,8 @@ void HardwareRasterizer::Impl::SubmitOffscreen(
         base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
                    base::Unretained(this)),
         base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
+                   base::Unretained(this)),
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureEquirectangularEGL,
                    base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
