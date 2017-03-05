@@ -274,7 +274,7 @@ void ReplacedBox::RenderAndAnimateContent(
       new CompositionNode(composition_node_builder);
 
   scoped_refptr<Node> frame_node;
-  if (is_video_punched_out_) {
+  if (*is_video_punched_out_) {
     // For systems that have their own path to blitting video to the display, we
     // simply punch a hole through our scene so that the video can appear there.
     PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
