@@ -193,7 +193,6 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
 }
 
 namespace {
-
 void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
                            CompositionNode::Builder* composition_node_builder) {
   const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
@@ -218,10 +217,27 @@ void AddLetterboxedImageToRenderTree(
   AddLetterboxFillRects(dimensions, composition_node_builder);
 }
 
-void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
-               math::SizeF destination_size,
-               CompositionNode::Builder* composition_node_builder,
-               base::TimeDelta time) {
+void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
+                       ImageNode::Builder* image_node_builder,
+                       base::TimeDelta time) {
+  UNREFERENCED_PARAMETER(time);
+  DCHECK(!replace_image_cb.is_null());
+  DCHECK(image_node_builder);
+
+  image_node_builder->source = replace_image_cb.Run();
+  if (image_node_builder->source) {
+    image_node_builder->destination_rect =
+        math::RectF(image_node_builder->source->GetSize());
+  }
+}
+
+// Animates an image, and additionally adds letterbox rectangles as well
+// according to the aspect ratio of the resulting animated image versus the
+// aspect ratio of the destination box size.
+void AnimateVideoWithLetterboxing(
+    const ReplacedBox::ReplaceImageCB& replace_image_cb,
+    math::SizeF destination_size,
+    CompositionNode::Builder* composition_node_builder, base::TimeDelta time) {
   UNREFERENCED_PARAMETER(time);
 
   DCHECK(!replace_image_cb.is_null());
@@ -266,66 +282,26 @@ void ReplacedBox::RenderAndAnimateContent(
     return;
   }
 
-  CompositionNode::Builder composition_node_builder(
-      math::Vector2dF((border_left_width() + padding_left()).toFloat(),
-                      (border_top_width() + padding_top()).toFloat()));
-
-  scoped_refptr<CompositionNode> composition_node =
-      new CompositionNode(composition_node_builder);
-
-  scoped_refptr<Node> frame_node;
+  const cssom::MapToMeshFunction* mtm_filter_function =
+      cssom::MapToMeshFunction::ExtractFromFilterList(
+          computed_style()->filter());
   if (*is_video_punched_out_) {
+    DCHECK(!mtm_filter_function)
+        << "We currently do not support punched out video with map-to-mesh "
+           "filters.";
     // For systems that have their own path to blitting video to the display, we
     // simply punch a hole through our scene so that the video can appear there.
     PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
                                            set_bounds_cb_);
-    frame_node = new PunchThroughVideoNode(builder);
+    border_node_builder->AddChild(new PunchThroughVideoNode(builder));
   } else {
-    AnimateNode::Builder animate_node_builder;
-    animate_node_builder.Add(
-        composition_node,
-        base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
-
-    frame_node = new AnimateNode(animate_node_builder, composition_node);
-  }
-
-  const cssom::MapToMeshFunction* mtm_filter_function =
-      cssom::MapToMeshFunction::ExtractFromFilterList(
-          computed_style()->filter());
-
-  scoped_refptr<Node> content_node;
-  if (mtm_filter_function) {
-    const cssom::MapToMeshFunction::MeshSpec& spec =
-        mtm_filter_function->mesh_spec();
-    const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =
-        mtm_filter_function->stereo_mode();
-    render_tree::StereoMode stereo_mode =
-        ReadStereoMode(stereo_mode_keyword_value);
-
-    if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
-      // Custom mesh URLs.
-      cssom::URLValue* url_value =
-          base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
-      GURL url(url_value->value());
-      scoped_refptr<render_tree::Mesh> mesh(
-          used_style_provider()->ResolveURLToMesh(url));
-
-      DCHECK(mesh) << "Could not load mesh specified by map-to-mesh filter.";
-
-      content_node =
-          new FilterNode(MapToMeshFilter(stereo_mode, mesh), frame_node);
-    } else if (spec.mesh_type() == cssom::MapToMeshFunction::kEquirectangular) {
-      // Default equirectangular mesh.
-      content_node = new FilterNode(MapToMeshFilter(stereo_mode), frame_node);
+    if (mtm_filter_function) {
+      RenderAndAnimateContentWithMapToMesh(border_node_builder,
+                                           mtm_filter_function);
     } else {
-      NOTREACHED() << "Invalid mesh specification type. Expected"
-                      "'equirectangular' keyword or list of URLs.";
-      content_node = frame_node;
+      RenderAndAnimateContentWithLetterboxing(border_node_builder);
     }
-  } else {
-    content_node = frame_node;
   }
-  border_node_builder->AddChild(content_node);
 }
 
 void ReplacedBox::UpdateContentSizeAndMargins(
@@ -570,6 +546,68 @@ void ReplacedBox::DumpProperties(std::ostream* stream) const {
 }
 
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
+    CompositionNode::Builder* border_node_builder,
+    const cssom::MapToMeshFunction* mtm_function) const {
+  // First setup the animated image node.
+  AnimateNode::Builder animate_node_builder;
+  scoped_refptr<ImageNode> image_node = new ImageNode(NULL);
+  animate_node_builder.Add(image_node,
+                           base::Bind(&AnimateVideoImage, replace_image_cb_));
+  scoped_refptr<AnimateNode> animate_node =
+      new AnimateNode(animate_node_builder, image_node);
+
+  // Then wrap the animated image into a MapToMeshFilter render tree node.
+  const cssom::MapToMeshFunction::MeshSpec& spec = mtm_function->mesh_spec();
+  const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =
+      mtm_function->stereo_mode();
+  render_tree::StereoMode stereo_mode =
+      ReadStereoMode(stereo_mode_keyword_value);
+
+  // Setup the MapToMeshFilter differently depending on whether or not the mesh
+  // is specified via a URL versus the "equirectangular" keyword.
+  if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
+    // Custom mesh URLs.
+    cssom::URLValue* url_value =
+        base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
+    GURL url(url_value->value());
+    scoped_refptr<render_tree::Mesh> mesh(
+        used_style_provider()->ResolveURLToMesh(url));
+
+    DCHECK(mesh) << "Could not load mesh specified by map-to-mesh filter.";
+
+    border_node_builder->AddChild(
+        new FilterNode(MapToMeshFilter(stereo_mode, mesh), animate_node));
+  } else if (spec.mesh_type() == cssom::MapToMeshFunction::kEquirectangular) {
+    // Default equirectangular mesh.
+    border_node_builder->AddChild(
+        new FilterNode(MapToMeshFilter(stereo_mode), animate_node));
+  } else {
+    NOTREACHED() << "Invalid mesh specification type. Expected"
+                    "'equirectangular' keyword or list of URLs.";
+    border_node_builder->AddChild(animate_node);
+  }
+}
+
+void ReplacedBox::RenderAndAnimateContentWithLetterboxing(
+    CompositionNode::Builder* border_node_builder) const {
+  CompositionNode::Builder composition_node_builder(
+      math::Vector2dF((border_left_width() + padding_left()).toFloat(),
+                      (border_top_width() + padding_top()).toFloat()));
+
+  scoped_refptr<CompositionNode> composition_node =
+      new CompositionNode(composition_node_builder);
+
+  AnimateNode::Builder animate_node_builder;
+
+  animate_node_builder.Add(composition_node,
+                           base::Bind(&AnimateVideoWithLetterboxing,
+                                      replace_image_cb_, content_box_size()));
+
+  border_node_builder->AddChild(
+      new AnimateNode(animate_node_builder, composition_node));
+}
 
 }  // namespace layout
 }  // namespace cobalt

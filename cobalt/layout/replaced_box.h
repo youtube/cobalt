@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/time.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/math/rect.h"
@@ -104,6 +105,12 @@ class ReplacedBox : public Box {
   const float intrinsic_ratio_;
 
  private:
+  void RenderAndAnimateContentWithMapToMesh(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      const cssom::MapToMeshFunction* mtm_function) const;
+  void RenderAndAnimateContentWithLetterboxing(
+      render_tree::CompositionNode::Builder* border_node_builder) const;
+
   const ReplaceImageCB replace_image_cb_;
   const SetBoundsCB set_bounds_cb_;
 
