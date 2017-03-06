@@ -522,6 +522,14 @@ def main(argv):
     print 'Usage: %s CACHE_DIR TEMPLATES_DIR DUMMY_FILENAME' % argv[0]
     return 1
 
+  # Delete all jinja2 .cache files, since they will get regenerated anyways.
+  for filename in os.listdir(cache_dir):
+    if os.path.splitext(filename)[1] == '.cache':
+      # We expect that the only .cache files in this directory are for jinja2
+      # and they have a __jinja2_ prefix.
+      assert filename.startswith('__jinja2_')
+      os.remove(os.path.join(cache_dir, filename))
+
   # Cache templates.
   # Whether the path is absolute or relative affects the cache file name. Use
   # the absolute path to ensure that the same path is used when we populate the
