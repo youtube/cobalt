@@ -33,7 +33,7 @@ namespace {
 class CallbackInterfaceTest
     : public InterfaceBindingsTest<CallbackInterfaceInterface> {
  public:
-  typedef ScriptObjectOwner<script::ScriptObject<SingleOperationInterface> >
+  typedef ScriptObjectOwner<script::ScriptValue<SingleOperationInterface> >
       InterfaceOwner;
   CallbackInterfaceTest()
       : callback_arg_(new ArbitraryInterface()), had_exception_(true) {}
@@ -209,8 +209,8 @@ TEST_F(CallbackInterfaceTest, FunctionsAreEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_TRUE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_TRUE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, FunctionsAreNotEqual) {
@@ -232,8 +232,8 @@ TEST_F(CallbackInterfaceTest, FunctionsAreNotEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_FALSE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_FALSE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, ObjectsAreEqual) {
@@ -254,8 +254,8 @@ TEST_F(CallbackInterfaceTest, ObjectsAreEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_TRUE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_TRUE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, ObjectsAreNotEqual) {
@@ -277,8 +277,8 @@ TEST_F(CallbackInterfaceTest, ObjectsAreNotEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_FALSE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_FALSE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, GetAndSetAttribute) {
@@ -296,7 +296,7 @@ TEST_F(CallbackInterfaceTest, GetAndSetAttribute) {
 
   // Get the attribute value and check that it's equal.
   EXPECT_CALL(test_mock(), callback_attribute())
-      .WillOnce(Return(&interface_owner.reference().referenced_object()));
+      .WillOnce(Return(&interface_owner.reference().referenced_value()));
   EXPECT_TRUE(
       EvaluateScript("test.callbackAttribute === implementer;", &result));
   EXPECT_STREQ("true", result.c_str());

@@ -19,7 +19,7 @@
 
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 
 namespace cobalt {
 namespace media_session {
@@ -27,7 +27,7 @@ namespace media_session {
 class MediaSession : public script::Wrappable {
  public:
   typedef script::CallbackFunction<void()> MediaSessionActionHandler;
-  typedef script::ScriptObject<MediaSessionActionHandler>
+  typedef script::ScriptValue<MediaSessionActionHandler>
       MediaSessionActionHandlerHolder;
   enum MediaSessionPlaybackState { kNone, kPaused, kPlaying };
 

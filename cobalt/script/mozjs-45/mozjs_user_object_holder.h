@@ -22,7 +22,7 @@
 #include "cobalt/script/mozjs-45/util/algorithm_helpers.h"
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
 #include "cobalt/script/mozjs-45/wrapper_private.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
 #include "nb/memory_scope.h"
@@ -31,17 +31,17 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
-// Template class that implements the ScriptObject template class for lifetime
+// Template class that implements the ScriptValue template class for lifetime
 // management of User Objects passed from the bindings layer into Cobalt. See
-// the definition of ScriptObject for further detail.
+// the definition of ScriptValue for further detail.
 // This class does not root the underlying JSObject that MozjsUserObjectType
 // holds a reference to. The object will be traced when any owning objects are
 // traced.
 template <typename MozjsUserObjectType>
 class MozjsUserObjectHolder
-    : public ScriptObject<typename MozjsUserObjectType::BaseType> {
+    : public ScriptValue<typename MozjsUserObjectType::BaseType> {
  public:
-  typedef ScriptObject<typename MozjsUserObjectType::BaseType> BaseClass;
+  typedef ScriptValue<typename MozjsUserObjectType::BaseType> BaseClass;
 
   MozjsUserObjectHolder() : context_(NULL), wrapper_factory_(NULL) {}
 
@@ -84,7 +84,7 @@ class MozjsUserObjectHolder
     }
   }
 
-  const typename MozjsUserObjectType::BaseType* GetScriptObject()
+  const typename MozjsUserObjectType::BaseType* GetScriptValue()
       const OVERRIDE {
     return handle_ ? &handle_.value() : NULL;
   }

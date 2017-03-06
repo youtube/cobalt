@@ -23,6 +23,7 @@
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/mutation_record.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
@@ -43,7 +44,7 @@ class MutationObserver : public script::Wrappable {
   typedef script::CallbackFunction<void(const MutationRecordSequence&,
                                         const scoped_refptr<MutationObserver>&)>
       MutationCallback;
-  typedef script::ScriptObject<MutationCallback> MutationCallbackArg;
+  typedef script::ScriptValue<MutationCallback> MutationCallbackArg;
 
   typedef base::Callback<void(const MutationRecordSequence&,
                               const scoped_refptr<MutationObserver>&)>

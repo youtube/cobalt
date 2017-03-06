@@ -21,7 +21,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
-#include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {

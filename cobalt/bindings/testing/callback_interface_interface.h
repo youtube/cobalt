@@ -21,7 +21,7 @@
 #include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/single_operation_interface.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -31,7 +31,7 @@ namespace testing {
 
 class CallbackInterfaceInterface : public script::Wrappable {
  public:
-  typedef script::ScriptObject<SingleOperationInterface>
+  typedef script::ScriptValue<SingleOperationInterface>
       SingleOperationInterfaceHolder;
 
   MOCK_METHOD1(RegisterCallback, void(const SingleOperationInterfaceHolder&));

@@ -20,7 +20,7 @@
 #include "cobalt/script/logging_exception_state.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
@@ -31,7 +31,7 @@ namespace mozjs {
 template <typename Signature>
 void ToJSValue(
     JSContext* context,
-    const ScriptObject<CallbackFunction<Signature> >* callback_function,
+    const ScriptValue<CallbackFunction<Signature> >* callback_function,
     JS::MutableHandleValue out_value) {
   if (!callback_function) {
     out_value.set(JS::NullValue());

@@ -22,7 +22,7 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/h5vcc/h5vcc_event_listener_container.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -36,7 +36,7 @@ class H5vccRuntimeEventTarget : public script::Wrappable {
  public:
   // Type for JavaScript event callback.
   typedef script::CallbackFunction<void()> H5vccRuntimeEventCallback;
-  typedef script::ScriptObject<H5vccRuntimeEventCallback>
+  typedef script::ScriptValue<H5vccRuntimeEventCallback>
       H5vccRuntimeEventCallbackHolder;
 
   H5vccRuntimeEventTarget();

@@ -53,10 +53,10 @@ class HTMLScriptElement : public HTMLElement {
   std::string nonce() const { return GetAttribute("nonce").value_or(""); }
   void set_nonce(const std::string& value) { SetAttribute("nonce", value); }
 
-  const EventListenerScriptObject* onreadystatechange() const {
+  const EventListenerScriptValue* onreadystatechange() const {
     return GetAttributeEventListener(base::Tokens::readystatechange());
   }
-  void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
+  void set_onreadystatechange(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
   }
 

@@ -20,7 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -32,7 +32,7 @@ namespace dom {
 class AnimationFrameRequestCallbackList {
  public:
   typedef script::CallbackFunction<void(double)> FrameRequestCallback;
-  typedef script::ScriptObject<FrameRequestCallback> FrameRequestCallbackArg;
+  typedef script::ScriptValue<FrameRequestCallback> FrameRequestCallbackArg;
 
   explicit AnimationFrameRequestCallbackList(script::Wrappable* const owner)
       : owner_(owner) {}

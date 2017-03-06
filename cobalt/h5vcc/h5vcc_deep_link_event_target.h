@@ -24,7 +24,7 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/h5vcc/h5vcc_event_listener_container.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -39,7 +39,7 @@ class H5vccDeepLinkEventTarget : public script::Wrappable {
   // Type for JavaScript event callback.
   typedef script::CallbackFunction<void(const std::string&)>
       H5vccDeepLinkEventCallback;
-  typedef script::ScriptObject<H5vccDeepLinkEventCallback>
+  typedef script::ScriptValue<H5vccDeepLinkEventCallback>
       H5vccDeepLinkEventCallbackHolder;
 
   H5vccDeepLinkEventTarget();

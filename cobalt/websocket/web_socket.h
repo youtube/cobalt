@@ -85,35 +85,35 @@ class WebSocket : public dom::EventTarget {
             script::ExceptionState* exception_state);
 
   // EventHandlers.
-  const EventListenerScriptObject* onclose() const {
+  const EventListenerScriptValue* onclose() const {
     return GetAttributeEventListener(base::Tokens::close());
   }
 
-  void set_onclose(const EventListenerScriptObject& event_listener) {
+  void set_onclose(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::close(), event_listener);
   }
 
-  const EventListenerScriptObject* onerror() const {
+  const EventListenerScriptValue* onerror() const {
     return GetAttributeEventListener(base::Tokens::error());
   }
 
-  void set_onerror(const EventListenerScriptObject& event_listener) {
+  void set_onerror(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::error(), event_listener);
   }
 
-  const EventListenerScriptObject* onmessage() const {
+  const EventListenerScriptValue* onmessage() const {
     return GetAttributeEventListener(base::Tokens::message());
   }
 
-  void set_onmessage(const EventListenerScriptObject& event_listener) {
+  void set_onmessage(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::message(), event_listener);
   }
 
-  const EventListenerScriptObject* onopen() const {
+  const EventListenerScriptValue* onopen() const {
     return GetAttributeEventListener(base::Tokens::open());
   }
 
-  void set_onopen(const EventListenerScriptObject& event_listener) {
+  void set_onopen(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::open(), event_listener);
   }
 
