@@ -187,10 +187,10 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<Element> active_element() const;
 
-  const EventListenerScriptObject* onreadystatechange() const {
+  const EventListenerScriptValue* onreadystatechange() const {
     return GetAttributeEventListener(base::Tokens::readystatechange());
   }
-  void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
+  void set_onreadystatechange(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
   }
 

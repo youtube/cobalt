@@ -36,7 +36,7 @@ using ::testing::SaveArg;
 using ::testing::StrictMock;
 using ::testing::_;
 using script::testing::MockExceptionState;
-using testing::FakeScriptObject;
+using testing::FakeScriptValue;
 using testing::MockEventListener;
 
 base::optional<bool> DispatchEventOnCurrentTarget(
@@ -68,7 +68,7 @@ TEST(EventTargetTest, SingleEventListenerFired) {
 
   event_listener->ExpectHandleEventCall(event, event_target);
   event_target->AddEventListener("fired",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -80,7 +80,7 @@ TEST(EventTargetTest, SingleEventListenerNotFired) {
 
   event_listener->ExpectNoHandleEventCall();
   event_target->AddEventListener("notfired",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -103,11 +103,11 @@ TEST(EventTargetTest, MultipleEventListeners) {
   event_listenernot_fired->ExpectNoHandleEventCall();
 
   event_target->AddEventListener(
-      "fired", FakeScriptObject(event_listenerfired_1.get()), false);
+      "fired", FakeScriptValue(event_listenerfired_1.get()), false);
   event_target->AddEventListener(
-      "notfired", FakeScriptObject(event_listenernot_fired.get()), false);
+      "notfired", FakeScriptValue(event_listenernot_fired.get()), false);
   event_target->AddEventListener(
-      "fired", FakeScriptObject(event_listenerfired_2.get()), true);
+      "fired", FakeScriptValue(event_listenerfired_2.get()), true);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -120,17 +120,17 @@ TEST(EventTargetTest, AddRemoveEventListener) {
 
   event_listener->ExpectHandleEventCall(event, event_target);
   event_target->AddEventListener("fired",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   event_listener->ExpectNoHandleEventCall();
   event_target->RemoveEventListener(
-      "fired", FakeScriptObject(event_listener.get()), false);
+      "fired", FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   event_listener->ExpectHandleEventCall(event, event_target);
   event_target->AddEventListener("fired",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -147,26 +147,26 @@ TEST(EventTargetTest, AttributeListener) {
       MockEventListener::Create();
 
   event_target->AddEventListener(
-      "fired", FakeScriptObject(non_attribute_event_listener.get()), false);
+      "fired", FakeScriptValue(non_attribute_event_listener.get()), false);
 
   non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
   attribute_event_listener1->ExpectHandleEventCall(event, event_target);
   event_target->SetAttributeEventListener(
-      base::Token("fired"), FakeScriptObject(attribute_event_listener1.get()));
+      base::Token("fired"), FakeScriptValue(attribute_event_listener1.get()));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
   attribute_event_listener1->ExpectNoHandleEventCall();
   attribute_event_listener2->ExpectHandleEventCall(event, event_target);
   event_target->SetAttributeEventListener(
-      base::Token("fired"), FakeScriptObject(attribute_event_listener2.get()));
+      base::Token("fired"), FakeScriptValue(attribute_event_listener2.get()));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
   attribute_event_listener1->ExpectNoHandleEventCall();
   attribute_event_listener2->ExpectNoHandleEventCall();
   event_target->SetAttributeEventListener(base::Token("fired"),
-                                          FakeScriptObject(NULL));
+                                          FakeScriptValue(NULL));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -181,28 +181,28 @@ TEST(EventTargetTest, EventListenerReuse) {
   event_listener->ExpectHandleEventCall(event_1, event_target);
   event_listener->ExpectHandleEventCall(event_2, event_target);
   event_target->AddEventListener("fired_1",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   event_target->AddEventListener("fired_2",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
   event_listener->ExpectHandleEventCall(event_1, event_target);
   event_target->RemoveEventListener(
-      "fired_2", FakeScriptObject(event_listener.get()), false);
+      "fired_2", FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
   event_listener->ExpectHandleEventCall(event_1, event_target);
   // The capture flag is not the same so the event will not be removed.
   event_target->RemoveEventListener(
-      "fired_1", FakeScriptObject(event_listener.get()), true);
+      "fired_1", FakeScriptValue(event_listener.get()), true);
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
   event_listener->ExpectNoHandleEventCall();
   event_target->RemoveEventListener(
-      "fired_1", FakeScriptObject(event_listener.get()), false);
+      "fired_1", FakeScriptValue(event_listener.get()), false);
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 }
@@ -222,9 +222,9 @@ TEST(EventTargetTest, StopPropagation) {
   event_listenerfired_2->ExpectHandleEventCall(event, event_target);
 
   event_target->AddEventListener(
-      "fired", FakeScriptObject(event_listenerfired_1.get()), false);
+      "fired", FakeScriptValue(event_listenerfired_1.get()), false);
   event_target->AddEventListener(
-      "fired", FakeScriptObject(event_listenerfired_2.get()), true);
+      "fired", FakeScriptValue(event_listenerfired_2.get()), true);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -242,9 +242,9 @@ TEST(EventTargetTest, StopImmediatePropagation) {
   event_listenerfired_2->ExpectNoHandleEventCall();
 
   event_target->AddEventListener(
-      "fired", FakeScriptObject(event_listenerfired_1.get()), false);
+      "fired", FakeScriptValue(event_listenerfired_1.get()), false);
   event_target->AddEventListener(
-      "fired", FakeScriptObject(event_listenerfired_2.get()), true);
+      "fired", FakeScriptValue(event_listenerfired_2.get()), true);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -256,7 +256,7 @@ TEST(EventTargetTest, PreventDefault) {
       MockEventListener::Create();
 
   event_target->AddEventListener(
-      "fired", FakeScriptObject(event_listenerfired.get()), false);
+      "fired", FakeScriptValue(event_listenerfired.get()), false);
   event = new Event(base::Token("fired"), Event::kNotBubbles,
                     Event::kNotCancelable);
   event_listenerfired->ExpectHandleEventCall(
@@ -297,7 +297,7 @@ TEST(EventTargetTest, RaiseException) {
   exception = NULL;
 
   event_target->AddEventListener("fired",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   event = new Event(base::Token("fired"), Event::kNotBubbles,
                     Event::kNotCancelable);
   // Dispatch event again when it is being dispatched.
@@ -311,7 +311,7 @@ TEST(EventTargetTest, AddSameListenerMultipleTimes) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
-  FakeScriptObject script_object(event_listener.get());
+  FakeScriptValue script_object(event_listener.get());
 
   InSequence in_sequence;
   event_listener->ExpectHandleEventCall(event, event_target);
@@ -328,7 +328,7 @@ TEST(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
-  FakeScriptObject script_object(event_listener.get());
+  FakeScriptValue script_object(event_listener.get());
 
   InSequence in_sequence;
   event_listener->ExpectHandleEventCall(event, event_target);
@@ -345,7 +345,7 @@ TEST(EventTargetTest, SameEventListenerAsAttribute) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
-  FakeScriptObject script_object(event_listener.get());
+  FakeScriptValue script_object(event_listener.get());
 
   InSequence in_sequence;
   event_listener->ExpectHandleEventCall(event, event_target);

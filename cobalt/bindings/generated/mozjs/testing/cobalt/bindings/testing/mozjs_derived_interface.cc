@@ -23,7 +23,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/bindings/testing/base_interface.h"
 #include "cobalt/bindings/testing/mozjs_base_interface.h"
 
@@ -55,7 +55,7 @@ using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
-using cobalt::script::ScriptObject;
+using cobalt::script::ScriptValue;
 using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;

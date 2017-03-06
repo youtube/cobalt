@@ -23,7 +23,7 @@
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -50,7 +50,7 @@ class DebugScriptRunner : public script::Wrappable {
   typedef script::CallbackFunction<std::string(
       const script::OpaqueHandleHolder*, const std::string&)>
       CreateRemoteObjectCallback;
-  typedef script::ScriptObject<CreateRemoteObjectCallback>
+  typedef script::ScriptValue<CreateRemoteObjectCallback>
       CreateRemoteObjectCallbackHolder;
 
   DebugScriptRunner(script::GlobalEnvironment* global_environment,
