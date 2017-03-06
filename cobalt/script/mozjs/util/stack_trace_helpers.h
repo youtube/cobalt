@@ -19,7 +19,16 @@
 #include <vector>
 
 #include "cobalt/script/stack_frame.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+
+struct JSContext;
+
+#if defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+#define ENABLE_JS_STACK_TRACE_IN_SCOPE(JS_CTX)                             \
+  ::cobalt::script::mozjs::util::StackTraceScope stack_trace_scope_object( \
+      JS_CTX)
+#else
+#define ENABLE_JS_STACK_TRACE_IN_SCOPE(JS_CTX)
+#endif
 
 namespace cobalt {
 namespace script {
@@ -88,10 +97,6 @@ struct StackTraceScope {
   ~StackTraceScope() { SetThreadLocalJSContext(prev_context_); }
   JSContext* prev_context_;
 };
-
-#define ENABLE_JS_STACK_TRACE_IN_SCOPE(JS_CTX)                             \
-  ::util::mozjs::script::cobalt::StackTraceScope stack_trace_scope_object( \
-      JS_CTX)
 
 }  // namespace util
 }  // namespace mozjs
