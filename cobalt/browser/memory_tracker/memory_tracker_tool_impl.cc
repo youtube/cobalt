@@ -26,6 +26,7 @@
 
 #include "base/time.h"
 #include "cobalt/browser/memory_tracker/buffered_file_writer.h"
+#include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/concurrent_map.h"
@@ -246,6 +247,33 @@ bool GetLinearFit(PairIterator begin_it, PairIterator end_it, double* out_slope,
   *out_slope = slope;
   *out_yintercept = yintercept;
   return true;
+}
+
+// Returns a substring with the directory path removed from the filename.
+// Example:
+//   F::BaseNameFast("directory/filename.cc") => "filename.cc"
+//   F::BaseNameFast("directory\filename.cc") => "filename.cc"
+//
+// Note that base::FilePath::BaseName() isn't used because of performance
+// reasons.
+const char* BaseNameFast(const char* file_name) {
+  const char* end_pos = file_name + strlen(file_name);
+  const char* last_forward_slash = SbStringFindLastCharacter(file_name, '/');
+  if (last_forward_slash) {
+    if (end_pos != last_forward_slash) {
+      ++last_forward_slash;
+    }
+    return last_forward_slash;
+  }
+
+  const char* last_backward_slash = SbStringFindLastCharacter(file_name, '\\');
+  if (last_backward_slash) {
+    if (end_pos != last_backward_slash) {
+      ++last_backward_slash;
+    }
+    return last_backward_slash;
+  }
+  return file_name;
 }
 
 }  // namespace
@@ -1275,8 +1303,11 @@ void MemoryTrackerLogWriter::InitAndRegisterMemoryReporter() {
   SbMemorySetReporter(memory_reporter_.get());
 }
 
-MemoryTrackerLeakFinder::MemoryTrackerLeakFinder()
-    : string_pool_(128), frame_map_(128), callframe_map_(128) {
+MemoryTrackerLeakFinder::MemoryTrackerLeakFinder(StackTraceMode mode)
+    : string_pool_(128),
+      frame_map_(128),
+      callframe_map_(128),
+      stack_trace_mode_(mode) {
   default_callframe_str_ = &string_pool_.Intern("<Unknown>");
 }
 
@@ -1285,9 +1316,33 @@ MemoryTrackerLeakFinder::~MemoryTrackerLeakFinder() {
   callframe_map_.Clear();
 }
 
+bool MemoryTrackerLeakFinder::IsJavascriptScope(
+    const nb::analytics::CallStack& callstack) {
+  // March through all MemoryScopes in the callstack and check if any of them
+  // contains a javascript scope. If it does return true.
+  for (nb::analytics::CallStack::const_iterator it = callstack.begin();
+       it != callstack.end(); ++it) {
+    const NbMemoryScopeInfo* memory_scope = *it;
+    const bool is_javascript_scope =
+        SbStringFindString(memory_scope->memory_scope_name_, "Javascript");
+    if (is_javascript_scope) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void MemoryTrackerLeakFinder::OnMemoryAllocation(
     const void* memory_block, const nb::analytics::AllocationRecord& record,
     const nb::analytics::CallStack& callstack) {
+  // When in javascript mode, filter only allocations with "Javascript" in
+  // the memory scope name.
+  if (stack_trace_mode_ == kJavascript) {
+    if (!IsJavascriptScope(callstack)) {
+      return;
+    }
+  }
+
   // symbol_str can be used as a unique key. The same value of callstack will
   // always produce the same string pointer.
   const std::string* symbol_str = GetOrCreateSymbol(callstack);
@@ -1324,7 +1379,8 @@ void MemoryTrackerLeakFinder::OnMemoryDeallocation(
     CallFrameMap::EntryHandle entry_handle;
     if (!callframe_map_.Get(memory_block, &entry_handle)) {
       // This happens if the allocation happened before this tool attached
-      // to the memory tracker.
+      // to the memory tracker or if the memory allocation was filtered and
+      // therefore isn't being tracked.
       return;
     }
     symbol_str = entry_handle.Value();
@@ -1365,6 +1421,7 @@ void MemoryTrackerLeakFinder::Run(Params* params) {
 
   SbTime start_time = SbTimeGetMonotonicNow();
   Timer output_trigger(base::TimeDelta::FromMinutes(1));
+
   const double recording_delay_mins = 5.0;
 
   // Controls how often an update status message is sent to output.
@@ -1450,6 +1507,23 @@ void MemoryTrackerLeakFinder::Run(Params* params) {
 
 const std::string* MemoryTrackerLeakFinder::GetOrCreateSymbol(
     const nb::analytics::CallStack& callstack) {
+  const std::string* symbol_str = NULL;
+
+  // In javascript mode we try and get the javascript symbol. Otherwise
+  // fallback to C++ symbol.
+  if (stack_trace_mode_ == kJavascript) {
+    symbol_str = TryGetJavascriptSymbol();
+    if (symbol_str) {
+      return symbol_str;
+    }
+  }
+
+  symbol_str = GetOrCreateCplusPlusSymbol(callstack);
+  return symbol_str;
+}
+
+const std::string* MemoryTrackerLeakFinder::GetOrCreateCplusPlusSymbol(
+    const nb::analytics::CallStack& callstack) {
   if (callstack.empty()) {
     return default_callframe_str_;
   } else {
@@ -1466,38 +1540,7 @@ const std::string* MemoryTrackerLeakFinder::GetOrCreateSymbol(
       memory_scope = callstack[callstack.size() - 2];
     }
 
-    // Returns a substring with the directory path removed from the filename.
-    // Example:
-    //   F::ClipFilepath("directory/filename.cc") => "filename.cc"
-    //   F::ClipFilepath("directory\filename.cc") => "filename.cc"
-    //
-    // Note that base::FilePath::BaseName() isn't used because of performance
-    // reasons.
-    struct F {
-      static const char* ClipFilepath(const char* file_name) {
-        const char* end_pos = file_name + strlen(file_name);
-        const char* last_forward_slash =
-            SbStringFindLastCharacter(file_name, '/');
-        if (last_forward_slash) {
-          if (end_pos != last_forward_slash) {
-            ++last_forward_slash;
-          }
-          return last_forward_slash;
-        }
-
-        const char* last_backward_slash =
-            SbStringFindLastCharacter(file_name, '\\');
-        if (last_backward_slash) {
-          if (end_pos != last_backward_slash) {
-            ++last_backward_slash;
-          }
-          return last_backward_slash;
-        }
-        return file_name;
-      }
-    };
-
-    const char* file_name = F::ClipFilepath(memory_scope->file_name_);
+    const char* file_name = BaseNameFast(memory_scope->file_name_);
 
     // Generates a symbol.
     // Example:
@@ -1511,6 +1554,21 @@ const std::string* MemoryTrackerLeakFinder::GetOrCreateSymbol(
     // was previously generated then the previous symbol is returned.
     return &string_pool_.Intern(symbol_buff);
   }
+}
+
+const std::string* MemoryTrackerLeakFinder::TryGetJavascriptSymbol() {
+  script::mozjs::util::StackTraceGenerator* js_stack_gen =
+      script::mozjs::util::GetThreadLocalStackTraceGenerator();
+  if (!js_stack_gen || !js_stack_gen->Valid()) return NULL;
+
+  // Only get one symbol.
+  std::string symbol;
+  if (!js_stack_gen->GenerateStackTraceString(1, &symbol)) {
+    return NULL;
+  }
+  symbol = RemoveString(symbol, kNewLine);
+  const char* file_name = BaseNameFast(symbol.c_str());
+  return &string_pool_.Intern(file_name);
 }
 
 void MemoryTrackerLeakFinder::SampleSnapshot(
@@ -1528,6 +1586,8 @@ std::string MemoryTrackerLeakFinder::GenerateCSV(
     const std::vector<base::TimeDelta>& time_values,
     const std::vector<AllocationProfile>& data) {
   std::stringstream ss;
+  ss << std::fixed;  // Turn off scientific notation for CSV values.
+  ss << std::setprecision(3);
   ss << kNewLine << kNewLine;
 
   // HEADER
@@ -1543,7 +1603,10 @@ std::string MemoryTrackerLeakFinder::GenerateCSV(
   for (size_t i = 0; i < time_values.size(); ++i) {
     for (size_t j = 0; j < data.size(); ++j) {
       if (j == 0) {
-        double mins = time_values[i].InSecondsF() / 60.0;
+        double mins = time_values[i].InSecondsF() / 60.f;
+        if (mins < .001) {
+          mins = 0;
+        }
         ss << mins << kDelimiter;
       }
 
