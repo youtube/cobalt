@@ -26,6 +26,7 @@
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/convert_callback_return_value.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
+#include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -64,6 +65,7 @@ class MozjsCallbackFunction<R(void)>
 
   CallbackResult<R> Run()
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
@@ -129,6 +131,7 @@ class MozjsCallbackFunction<R(A1)>
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
@@ -200,6 +203,7 @@ class MozjsCallbackFunction<R(A1, A2)>
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
@@ -273,6 +277,7 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
@@ -348,6 +353,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
@@ -426,6 +432,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
@@ -506,6 +513,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
@@ -588,6 +596,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6,
       typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
