@@ -20,7 +20,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -29,7 +29,7 @@ namespace dom {
 class WindowTimers {
  public:
   typedef script::CallbackFunction<void()> TimerCallback;
-  typedef script::ScriptObject<TimerCallback> TimerCallbackArg;
+  typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
   explicit WindowTimers(script::Wrappable* const owner)
       : current_timer_index_(0), owner_(owner) {}
   ~WindowTimers() {}

@@ -14,7 +14,7 @@
 #ifndef COBALT_SCRIPT_OPAQUE_HANDLE_H_
 #define COBALT_SCRIPT_OPAQUE_HANDLE_H_
 
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 
 namespace cobalt {
 namespace script {
@@ -28,7 +28,7 @@ class OpaqueHandle {
   virtual ~OpaqueHandle() {}
 };
 
-typedef ScriptObject<OpaqueHandle> OpaqueHandleHolder;
+typedef ScriptValue<OpaqueHandle> OpaqueHandleHolder;
 
 }  // namespace script
 }  // namespace cobalt

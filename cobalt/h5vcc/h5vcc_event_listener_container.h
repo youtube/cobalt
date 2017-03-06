@@ -23,7 +23,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -36,7 +36,7 @@ namespace h5vcc {
 template <class CallbackArgType, class CallbackType>
 class H5vccEventListenerContainer {
  public:
-  typedef script::ScriptObject<CallbackType> CallbackHolderType;
+  typedef script::ScriptValue<CallbackType> CallbackHolderType;
 
   // Type for a callback that returns the value of the argument to be passed
   // to the callback for each listener.

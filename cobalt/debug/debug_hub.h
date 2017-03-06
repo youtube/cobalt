@@ -30,7 +30,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/debug/debugger.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -65,7 +65,7 @@ class DebugHub : public script::Wrappable {
   typedef script::CallbackFunction<
       void(int severity, const std::string& file, int line,
            size_t message_start, const std::string& msg)> LogMessageCallback;
-  typedef script::ScriptObject<LogMessageCallback> LogMessageCallbackArg;
+  typedef script::ScriptValue<LogMessageCallback> LogMessageCallbackArg;
 
   // Function signature to call when we need to query for the Hud visibility
   // mode.

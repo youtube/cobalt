@@ -31,7 +31,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 
 namespace cobalt {
 namespace audio {
@@ -80,11 +80,11 @@ class AudioContext : public dom::EventTarget {
   // The AudioBuffer is representing the decoded PCM audio data.
   typedef script::CallbackFunction<void(
       const scoped_refptr<AudioBuffer>& decoded_data)> DecodeSuccessCallback;
-  typedef script::ScriptObject<DecodeSuccessCallback> DecodeSuccessCallbackArg;
+  typedef script::ScriptValue<DecodeSuccessCallback> DecodeSuccessCallbackArg;
   typedef DecodeSuccessCallbackArg::Reference DecodeSuccessCallbackReference;
 
   typedef script::CallbackFunction<void()> DecodeErrorCallback;
-  typedef script::ScriptObject<DecodeErrorCallback> DecodeErrorCallbackArg;
+  typedef script::ScriptValue<DecodeErrorCallback> DecodeErrorCallbackArg;
   typedef DecodeErrorCallbackArg::Reference DecodeErrorCallbackReference;
 
   AudioContext();

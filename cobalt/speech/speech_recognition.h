@@ -60,43 +60,43 @@ class SpeechRecognition : public dom::EventTarget {
   }
 
   // Fired when some sound, possibly speech, has been detected.
-  const EventListenerScriptObject* onsoundstart() const {
+  const EventListenerScriptValue* onsoundstart() const {
     return GetAttributeEventListener(base::Tokens::soundstart());
   }
-  void set_onsoundstart(const EventListenerScriptObject& listener) {
+  void set_onsoundstart(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::soundstart(), listener);
   }
 
   // Fired when some sound is no longer detected.
-  const EventListenerScriptObject* onsoundend() const {
+  const EventListenerScriptValue* onsoundend() const {
     return GetAttributeEventListener(base::Tokens::soundend());
   }
-  void set_onsoundend(const EventListenerScriptObject& listener) {
+  void set_onsoundend(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::soundend(), listener);
   }
 
   // Fired when the speech recognizer returns a result.
-  const EventListenerScriptObject* onresult() const {
+  const EventListenerScriptValue* onresult() const {
     return GetAttributeEventListener(base::Tokens::result());
   }
-  void set_onresult(const EventListenerScriptObject& listener) {
+  void set_onresult(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::result(), listener);
   }
 
   // Fired when the speech recognizer returns a final result with no recognition
   // hypothesis that meet or exceed the confidence threshold.
-  const EventListenerScriptObject* onnomatch() const {
+  const EventListenerScriptValue* onnomatch() const {
     return GetAttributeEventListener(base::Tokens::nomatch());
   }
-  void set_onnomatch(const EventListenerScriptObject& listener) {
+  void set_onnomatch(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::nomatch(), listener);
   }
 
   // Fired when the speech recognition error occurs.
-  const EventListenerScriptObject* onerror() const {
+  const EventListenerScriptValue* onerror() const {
     return GetAttributeEventListener(base::Tokens::error());
   }
-  void set_onerror(const EventListenerScriptObject& listener) {
+  void set_onerror(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::error(), listener);
   }
 

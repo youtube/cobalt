@@ -33,7 +33,7 @@ using ::testing::_;
 namespace cobalt {
 namespace dom {
 
-using testing::FakeScriptObject;
+using testing::FakeScriptValue;
 using testing::MockEventListener;
 
 //////////////////////////////////////////////////////////////////////////
@@ -69,17 +69,17 @@ NodeDispatchEventTest::NodeDispatchEventTest()
   event_listener_bubbling_ = MockEventListener::Create();
 
   grand_parent_->AddEventListener(
-      "fired", FakeScriptObject(event_listener_bubbling_.get()), false);
+      "fired", FakeScriptValue(event_listener_bubbling_.get()), false);
   grand_parent_->AddEventListener(
-      "fired", FakeScriptObject(event_listener_capture_.get()), true);
+      "fired", FakeScriptValue(event_listener_capture_.get()), true);
   parent_->AddEventListener(
-      "fired", FakeScriptObject(event_listener_bubbling_.get()), false);
+      "fired", FakeScriptValue(event_listener_bubbling_.get()), false);
   parent_->AddEventListener(
-      "fired", FakeScriptObject(event_listener_capture_.get()), true);
+      "fired", FakeScriptValue(event_listener_capture_.get()), true);
   child_->AddEventListener(
-      "fired", FakeScriptObject(event_listener_bubbling_.get()), false);
+      "fired", FakeScriptValue(event_listener_bubbling_.get()), false);
   child_->AddEventListener(
-      "fired", FakeScriptObject(event_listener_capture_.get()), true);
+      "fired", FakeScriptValue(event_listener_capture_.get()), true);
 }
 
 NodeDispatchEventTest::~NodeDispatchEventTest() {
