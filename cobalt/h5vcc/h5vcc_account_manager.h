@@ -22,7 +22,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -36,7 +36,7 @@ class H5vccAccountManager : public script::Wrappable {
  public:
   typedef script::CallbackFunction<bool(const std::string&, uint64_t)>
       AccessTokenCallback;
-  typedef script::ScriptObject<AccessTokenCallback> AccessTokenCallbackHolder;
+  typedef script::ScriptValue<AccessTokenCallback> AccessTokenCallbackHolder;
 
   H5vccAccountManager();
   // H5vccAccountManager interface.
@@ -47,7 +47,7 @@ class H5vccAccountManager : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccAccountManager);
 
  private:
-  typedef script::ScriptObject<AccessTokenCallback>::Reference
+  typedef script::ScriptValue<AccessTokenCallback>::Reference
       AccessTokenCallbackReference;
   enum OperationType {
     kPairing,

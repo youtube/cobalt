@@ -28,7 +28,7 @@ namespace mozjs {
 // A wrapper around a JS::Value that can be passed into Cobalt as an
 // opaque script object.
 // An OpaqueHandle is never passed into Cobalt as-is, but only when wrapped as
-// a ScriptObject<OpaqueHandle>.
+// a ScriptValue<OpaqueHandle>.
 class MozjsObjectHandle : public OpaqueHandle {
  public:
   typedef OpaqueHandle BaseType;
@@ -52,7 +52,7 @@ typedef MozjsUserObjectHolder<MozjsObjectHandle> MozjsObjectHandleHolder;
 template <>
 struct TypeTraits<OpaqueHandle> {
   typedef MozjsObjectHandleHolder ConversionType;
-  typedef const ScriptObject<OpaqueHandle>* ReturnType;
+  typedef const ScriptValue<OpaqueHandle>* ReturnType;
 };
 
 }  // namespace mozjs

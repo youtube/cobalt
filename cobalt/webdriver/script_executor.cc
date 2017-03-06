@@ -109,7 +109,7 @@ const ScriptExecutor::ExecuteFunctionCallbackHolder*
 ScriptExecutor::execute_script_harness() {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (execute_callback_) {
-    return &(execute_callback_->referenced_object());
+    return &(execute_callback_->referenced_value());
   } else {
     return NULL;
   }

@@ -30,7 +30,7 @@ using ::testing::Property;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
-using cobalt::dom::testing::FakeScriptObject;
+using cobalt::dom::testing::FakeScriptValue;
 using cobalt::dom::testing::MockEventListener;
 using cobalt::script::testing::MockExceptionState;
 
@@ -151,7 +151,7 @@ TEST_F(XhrTest, InvalidMethod) {
 
 TEST_F(XhrTest, Open) {
   scoped_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptObject script_object(listener.get());
+  FakeScriptValue script_object(listener.get());
   xhr_->set_onreadystatechange(script_object);
   EXPECT_CALL(
       *listener,

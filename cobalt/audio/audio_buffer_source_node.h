@@ -62,10 +62,10 @@ class AudioBufferSourceNode : public AudioNode {
   // dispatched to AudioBufferSourceNode node types. When the playback of the
   // buffer for an AudioBufferSourceNode is finished, an event of type Event
   // will be dispatched to the event handler.
-  const EventListenerScriptObject* onended() const {
+  const EventListenerScriptValue* onended() const {
     return GetAttributeEventListener(base::Tokens::ended());
   }
-  void set_onended(const EventListenerScriptObject& event_listener) {
+  void set_onended(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::ended(), event_listener);
   }
 
