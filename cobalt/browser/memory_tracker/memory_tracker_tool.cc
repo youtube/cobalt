@@ -29,6 +29,20 @@ namespace cobalt {
 namespace browser {
 namespace memory_tracker {
 
+#if !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+// Null implementation for memory tracker tool.
+class MemoryTrackerToolNull : public MemoryTrackerTool {
+ public:
+  virtual ~MemoryTrackerToolNull() {}
+};
+
+// Instantiates the memory tracker tool from the command argument.
+scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(const std::string&) {
+  return scoped_ptr<MemoryTrackerTool>(new MemoryTrackerToolNull);
+}
+
+#else
+
 using nb::analytics::MemoryTracker;
 
 namespace {
@@ -343,6 +357,8 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     return scoped_ptr<MemoryTrackerTool>();
   }
 }
+
+#endif  // !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
 }  // namespace memory_tracker
 }  // namespace browser
