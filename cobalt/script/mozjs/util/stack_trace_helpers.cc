@@ -26,6 +26,7 @@
 #include "nb/thread_local_object.h"
 #include "starboard/once.h"
 #include "starboard/types.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

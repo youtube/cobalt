@@ -342,7 +342,15 @@ class MemoryTrackerLeakFinder
     : public AbstractMemoryTrackerTool,
       public nb::analytics::MemoryTrackerDebugCallback {
  public:
-  MemoryTrackerLeakFinder();
+  enum StackTraceMode {
+    // Always get the C++ version of the stack trace.
+    kCPlusPlus,
+    // Whenever possible, get the javascript stack trace,
+    // else fallback to CPlusPlus.
+    kJavascript,
+  };
+
+  explicit MemoryTrackerLeakFinder(StackTraceMode pref);
   virtual ~MemoryTrackerLeakFinder();
 
   // OnMemoryAllocation() and OnMemoryDeallocation() are part of
@@ -360,6 +368,10 @@ class MemoryTrackerLeakFinder
   virtual void Run(Params* params) OVERRIDE;
 
   const std::string* GetOrCreateSymbol(
+      const nb::analytics::CallStack& callstack);
+
+  const std::string* TryGetJavascriptSymbol();
+  const std::string* GetOrCreateCplusPlusSymbol(
       const nb::analytics::CallStack& callstack);
 
  private:
@@ -441,10 +453,13 @@ class MemoryTrackerLeakFinder
       const std::vector<base::TimeDelta>& time_values,
       const MapSamples& samples, std::vector<AllocationProfile>* destination);
 
+  static bool IsJavascriptScope(const nb::analytics::CallStack& callstack);
+
   const std::string* default_callframe_str_;
   nb::ConcurrentStringInterner string_pool_;
   AllocationFrameMap frame_map_;
   CallFrameMap callframe_map_;
+  StackTraceMode stack_trace_mode_;
 };
 }  // namespace memory_tracker
 }  // namespace browser
