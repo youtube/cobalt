@@ -46,7 +46,7 @@ class ScriptExecutorParams : public script::Wrappable {
       base::optional<base::TimeDelta> async_timeout);
 
   const script::OpaqueHandleHolder* function_object() {
-    return function_object_ ? &function_object_->referenced_object() : NULL;
+    return function_object_ ? &function_object_->referenced_value() : NULL;
   }
   const std::string& json_args() { return json_args_; }
   base::optional<int32_t> async_timeout() { return async_timeout_; }

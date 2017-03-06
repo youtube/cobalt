@@ -131,7 +131,7 @@ void DebugScriptRunner::SetEvalAllowedFromCsp() {
 const DebugScriptRunner::CreateRemoteObjectCallbackHolder*
 DebugScriptRunner::create_remote_object_callback() {
   if (create_remote_object_callback_) {
-    return &(create_remote_object_callback_->referenced_object());
+    return &(create_remote_object_callback_->referenced_value());
   } else {
     return NULL;
   }

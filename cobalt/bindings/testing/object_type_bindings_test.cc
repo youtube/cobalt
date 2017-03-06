@@ -199,7 +199,7 @@ TEST_F(PlatformObjectBindingsTest, ReturnCorrectWrapperForObjectType) {
 
   // Return it back to JS as the original type.
   EXPECT_CALL(test_mock(), object_property())
-      .WillOnce(Return(&object_owner.reference().referenced_object()));
+      .WillOnce(Return(&object_owner.reference().referenced_value()));
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.objectProperty) === "
                      "ArbitraryInterface.prototype;",
@@ -217,7 +217,7 @@ TEST_F(UserObjectBindingsTest, PassUserObjectforObjectType) {
   ASSERT_TRUE(object_owner.IsSet());
 
   EXPECT_CALL(test_mock(), object_property())
-      .WillOnce(Return(&object_owner.reference().referenced_object()));
+      .WillOnce(Return(&object_owner.reference().referenced_value()));
   EXPECT_TRUE(EvaluateScript("test.objectProperty === obj;", NULL));
 }
 
