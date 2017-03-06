@@ -34,7 +34,7 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 
 namespace cobalt {
 namespace debug {

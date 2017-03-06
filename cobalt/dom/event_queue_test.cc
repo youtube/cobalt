@@ -28,7 +28,7 @@ using ::testing::_;
 namespace cobalt {
 namespace dom {
 
-using testing::FakeScriptObject;
+using testing::FakeScriptValue;
 using testing::MockEventListener;
 
 class EventQueueTest : public ::testing::Test {
@@ -55,7 +55,7 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
   EventQueue event_queue(event_target.get());
 
   event_target->AddEventListener("event",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target);
 
@@ -71,7 +71,7 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
 
   event->set_target(event_target);
   event_target->AddEventListener("event",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target);
 
@@ -87,7 +87,7 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
 
   event->set_target(event_target);
   event_target->AddEventListener("event",
-                                 FakeScriptObject(event_listener.get()), false);
+                                 FakeScriptValue(event_listener.get()), false);
   event_listener->ExpectNoHandleEventCall();
 
   event_queue.Enqueue(event);
@@ -108,7 +108,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
 
   event->set_target(event_target_2);
   event_target_2->AddEventListener(
-      "event", FakeScriptObject(event_listener.get()), false);
+      "event", FakeScriptValue(event_listener.get()), false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target_2);
 

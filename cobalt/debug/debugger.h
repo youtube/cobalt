@@ -29,7 +29,7 @@
 #include "cobalt/debug/debugger_event_target.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -43,12 +43,12 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
  public:
   // JavaScript callback to be run when debugger at/detaches.
   typedef script::CallbackFunction<void()> AttachCallback;
-  typedef script::ScriptObject<AttachCallback> AttachCallbackArg;
+  typedef script::ScriptValue<AttachCallback> AttachCallbackArg;
 
   // JavaScript callback to be run when a debug command has been executed.
   typedef script::CallbackFunction<void(base::optional<std::string>)>
       CommandCallback;
-  typedef script::ScriptObject<CommandCallback> CommandCallbackArg;
+  typedef script::ScriptValue<CommandCallback> CommandCallbackArg;
 
   // Callback to be run to get the debug server. The debug server is owned by
   // the web module to which it connects, and this callback allows this object

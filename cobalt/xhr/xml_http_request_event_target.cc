@@ -22,46 +22,46 @@ namespace xhr {
 XMLHttpRequestEventTarget::XMLHttpRequestEventTarget() {}
 XMLHttpRequestEventTarget::~XMLHttpRequestEventTarget() {}
 
-const dom::EventTarget::EventListenerScriptObject*
+const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onabort() const {
-  return onabort_listener_ ? &onabort_listener_.value().referenced_object()
+  return onabort_listener_ ? &onabort_listener_.value().referenced_value()
                            : NULL;
 }
-const dom::EventTarget::EventListenerScriptObject*
+const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onerror() const {
-  return onerror_listener_ ? &onerror_listener_.value().referenced_object()
+  return onerror_listener_ ? &onerror_listener_.value().referenced_value()
                            : NULL;
 }
-const dom::EventTarget::EventListenerScriptObject*
+const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onload() const {
-  return onload_listener_ ? &onload_listener_.value().referenced_object()
+  return onload_listener_ ? &onload_listener_.value().referenced_value()
                           : NULL;
 }
-const dom::EventTarget::EventListenerScriptObject*
+const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onloadend() const {
-  return onloadend_listener_ ? &onloadend_listener_.value().referenced_object()
+  return onloadend_listener_ ? &onloadend_listener_.value().referenced_value()
                              : NULL;
 }
-const dom::EventTarget::EventListenerScriptObject*
+const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onloadstart() const {
   return onloadstart_listener_
-             ? &onloadstart_listener_.value().referenced_object()
+             ? &onloadstart_listener_.value().referenced_value()
              : NULL;
 }
-const dom::EventTarget::EventListenerScriptObject*
+const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onprogress() const {
   return onprogress_listener_
-             ? &onprogress_listener_.value().referenced_object()
+             ? &onprogress_listener_.value().referenced_value()
              : NULL;
 }
-const dom::EventTarget::EventListenerScriptObject*
+const dom::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::ontimeout() const {
-  return ontimeout_listener_ ? &ontimeout_listener_.value().referenced_object()
+  return ontimeout_listener_ ? &ontimeout_listener_.value().referenced_value()
                              : NULL;
 }
 
 void XMLHttpRequestEventTarget::set_onabort(
-    const EventListenerScriptObject& listener) {
+    const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
     onabort_listener_ = base::nullopt;
   } else {
@@ -70,7 +70,7 @@ void XMLHttpRequestEventTarget::set_onabort(
   SetAttributeEventListener(base::Tokens::abort(), listener);
 }
 void XMLHttpRequestEventTarget::set_onerror(
-    const EventListenerScriptObject& listener) {
+    const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
     onerror_listener_ = base::nullopt;
   } else {
@@ -79,7 +79,7 @@ void XMLHttpRequestEventTarget::set_onerror(
   SetAttributeEventListener(base::Tokens::error(), listener);
 }
 void XMLHttpRequestEventTarget::set_onload(
-    const EventListenerScriptObject& listener) {
+    const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
     onload_listener_ = base::nullopt;
   } else {
@@ -88,7 +88,7 @@ void XMLHttpRequestEventTarget::set_onload(
   SetAttributeEventListener(base::Tokens::load(), listener);
 }
 void XMLHttpRequestEventTarget::set_onloadend(
-    const EventListenerScriptObject& listener) {
+    const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
     onloadend_listener_ = base::nullopt;
   } else {
@@ -97,7 +97,7 @@ void XMLHttpRequestEventTarget::set_onloadend(
   SetAttributeEventListener(base::Tokens::loadend(), listener);
 }
 void XMLHttpRequestEventTarget::set_onloadstart(
-    const EventListenerScriptObject& listener) {
+    const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
     onloadstart_listener_ = base::nullopt;
   } else {
@@ -106,7 +106,7 @@ void XMLHttpRequestEventTarget::set_onloadstart(
   SetAttributeEventListener(base::Tokens::loadstart(), listener);
 }
 void XMLHttpRequestEventTarget::set_onprogress(
-    const EventListenerScriptObject& listener) {
+    const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
     onprogress_listener_ = base::nullopt;
   } else {
@@ -115,7 +115,7 @@ void XMLHttpRequestEventTarget::set_onprogress(
   SetAttributeEventListener(base::Tokens::progress(), listener);
 }
 void XMLHttpRequestEventTarget::set_ontimeout(
-    const EventListenerScriptObject& listener) {
+    const EventListenerScriptValue& listener) {
   if (listener.IsNull()) {
     ontimeout_listener_ = base::nullopt;
   } else {

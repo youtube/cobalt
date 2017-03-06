@@ -20,7 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/stack_frame.h"
 #include "cobalt/script/wrappable.h"
 
