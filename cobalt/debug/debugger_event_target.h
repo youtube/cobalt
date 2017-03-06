@@ -25,7 +25,7 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -43,7 +43,7 @@ class DebuggerEventTarget : public script::Wrappable {
   typedef script::CallbackFunction<void(
       const std::string& method,
       const base::optional<std::string>& json_params)> DebuggerEventCallback;
-  typedef script::ScriptObject<DebuggerEventCallback> DebuggerEventCallbackArg;
+  typedef script::ScriptValue<DebuggerEventCallback> DebuggerEventCallbackArg;
 
   // Type for listener info.
   // We store the message loop from which the listener was registered,

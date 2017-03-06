@@ -72,10 +72,10 @@ TEST_F(EvaluateScriptTest, ThreeArguments) {
   // Call with non-null, but unset optional handle.
   base::optional<OpaqueHandleHolder::Reference> opaque_handle;
   EXPECT_TRUE(EvaluateScript(script, arbitrary_interface_mock, &opaque_handle));
-  ASSERT_FALSE(opaque_handle->referenced_object().IsNull());
+  ASSERT_FALSE(opaque_handle->referenced_value().IsNull());
 
   EXPECT_CALL(test_mock(), object_property())
-      .WillOnce(Return(&opaque_handle->referenced_object()));
+      .WillOnce(Return(&opaque_handle->referenced_value()));
   std::string result;
   EXPECT_TRUE(EvaluateScript("test.objectProperty == 21;", &result));
   EXPECT_STREQ("true", result.c_str());

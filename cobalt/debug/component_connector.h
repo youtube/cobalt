@@ -22,7 +22,6 @@
 #include "cobalt/debug/json_object.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_debugger.h"
-#include "cobalt/script/script_object.h"
 
 namespace cobalt {
 namespace debug {

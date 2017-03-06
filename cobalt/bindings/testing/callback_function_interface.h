@@ -21,7 +21,7 @@
 #include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -42,27 +42,27 @@ class CallbackFunctionInterface : public script::Wrappable {
       const scoped_refptr<ArbitraryInterface>&)> FunctionWithNullableParameters;
 
   MOCK_METHOD1(TakesVoidFunction,
-               void(const script::ScriptObject<VoidFunction>&));
+               void(const script::ScriptValue<VoidFunction>&));
   MOCK_METHOD1(TakesFunctionThatReturnsString,
-               void(const script::ScriptObject<FunctionThatReturnsString>&));
+               void(const script::ScriptValue<FunctionThatReturnsString>&));
   MOCK_METHOD1(TakesFunctionWithOneParameter,
-               void(const script::ScriptObject<FunctionWithOneParameter>&));
+               void(const script::ScriptValue<FunctionWithOneParameter>&));
   MOCK_METHOD1(
       TakesFunctionWithSeveralParameters,
-      void(const script::ScriptObject<FunctionWithSeveralParameters>&));
+      void(const script::ScriptValue<FunctionWithSeveralParameters>&));
   MOCK_METHOD1(
       TakesFunctionWithNullableParameters,
-      void(const script::ScriptObject<FunctionWithNullableParameters>&));
+      void(const script::ScriptValue<FunctionWithNullableParameters>&));
 
   MOCK_METHOD0(callback_attribute,
-               const script::ScriptObject<VoidFunction>*(void));
+               const script::ScriptValue<VoidFunction>*(void));
   MOCK_METHOD1(set_callback_attribute,
-               void(const script::ScriptObject<VoidFunction>&));
+               void(const script::ScriptValue<VoidFunction>&));
 
   MOCK_METHOD0(nullable_callback_attribute,
-               const script::ScriptObject<VoidFunction>*(void));
+               const script::ScriptValue<VoidFunction>*(void));
   MOCK_METHOD1(set_nullable_callback_attribute,
-               void(const script::ScriptObject<VoidFunction>&));
+               void(const script::ScriptValue<VoidFunction>&));
 
   DEFINE_WRAPPABLE_TYPE(CallbackFunctionInterface);
 };

@@ -26,7 +26,7 @@
 #include "cobalt/h5vcc/dial/dial_http_response.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "net/dial/dial_service.h"
 
@@ -39,10 +39,10 @@ template <typename T>
 class ScriptCallbackWrapper
     : public base::RefCountedThreadSafe<ScriptCallbackWrapper<T> > {
  public:
-  typedef script::ScriptObject<T> ScriptObject;
-  ScriptCallbackWrapper(script::Wrappable* wrappable, const ScriptObject& func)
+  typedef script::ScriptValue<T> ScriptValue;
+  ScriptCallbackWrapper(script::Wrappable* wrappable, const ScriptValue& func)
       : callback(wrappable, func) {}
-  typename ScriptObject::Reference callback;
+  typename ScriptValue::Reference callback;
 };
 
 class DialServer : public script::Wrappable,
@@ -66,11 +66,11 @@ class DialServer : public script::Wrappable,
 
   // Register a Javascript callback for various DIAL methods.
   bool OnDelete(const std::string& path,
-                const DialHttpRequestCallbackWrapper::ScriptObject& handler);
+                const DialHttpRequestCallbackWrapper::ScriptValue& handler);
   bool OnGet(const std::string& path,
-             const DialHttpRequestCallbackWrapper::ScriptObject& handler);
+             const DialHttpRequestCallbackWrapper::ScriptValue& handler);
   bool OnPost(const std::string& path,
-              const DialHttpRequestCallbackWrapper::ScriptObject& handler);
+              const DialHttpRequestCallbackWrapper::ScriptValue& handler);
   const std::string& service_name() const;
 
   scoped_ptr<net::HttpServerResponseInfo> RunCallback(
@@ -83,7 +83,7 @@ class DialServer : public script::Wrappable,
 
   ~DialServer();
   bool AddHandler(Method method, const std::string& path,
-                  const DialHttpRequestCallbackWrapper::ScriptObject& handler);
+                  const DialHttpRequestCallbackWrapper::ScriptValue& handler);
 
   typedef std::map<std::string, scoped_refptr<DialHttpRequestCallbackWrapper> >
       CallbackMap;

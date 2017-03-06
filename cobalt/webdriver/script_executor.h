@@ -25,7 +25,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/webdriver/element_mapping.h"
 #include "cobalt/webdriver/protocol/element_id.h"
@@ -43,7 +43,7 @@ class ScriptExecutor :
   typedef script::CallbackFunction<void(
       const scoped_refptr<ScriptExecutorParams>&,
       const scoped_refptr<ScriptExecutorResult>&)> ExecuteFunctionCallback;
-  typedef script::ScriptObject<ExecuteFunctionCallback>
+  typedef script::ScriptValue<ExecuteFunctionCallback>
       ExecuteFunctionCallbackHolder;
 
   // This can be called on any thread to preload the webdriver javascript code.

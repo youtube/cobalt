@@ -96,19 +96,19 @@ DialServer::~DialServer() {
 
 bool DialServer::OnDelete(
     const std::string& path,
-    const DialHttpRequestCallbackWrapper::ScriptObject& handler) {
+    const DialHttpRequestCallbackWrapper::ScriptValue& handler) {
   return AddHandler(kDelete, path, handler);
 }
 
 bool DialServer::OnGet(
     const std::string& path,
-    const DialHttpRequestCallbackWrapper::ScriptObject& handler) {
+    const DialHttpRequestCallbackWrapper::ScriptValue& handler) {
   return AddHandler(kGet, path, handler);
 }
 
 bool DialServer::OnPost(
     const std::string& path,
-    const DialHttpRequestCallbackWrapper::ScriptObject& handler) {
+    const DialHttpRequestCallbackWrapper::ScriptValue& handler) {
   return AddHandler(kPost, path, handler);
 }
 
@@ -118,7 +118,7 @@ const std::string& DialServer::service_name() const {
 
 bool DialServer::AddHandler(
     Method method, const std::string& path,
-    const DialHttpRequestCallbackWrapper::ScriptObject& handler) {
+    const DialHttpRequestCallbackWrapper::ScriptValue& handler) {
   DCHECK(thread_checker_.CalledOnValidThread());
   scoped_refptr<DialHttpRequestCallbackWrapper> callback =
       new DialHttpRequestCallbackWrapper(this, handler);

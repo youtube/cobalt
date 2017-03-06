@@ -42,7 +42,7 @@ template <typename CallbackInterface>
 struct TypeTraits<CallbackInterfaceTraits<CallbackInterface> > {
   typedef MozjsCallbackInterfaceHolder<typename CallbackInterfaceTraits<
       CallbackInterface>::MozjsCallbackInterfaceClass> ConversionType;
-  typedef const ScriptObject<CallbackInterface>* ReturnType;
+  typedef const ScriptValue<CallbackInterface>* ReturnType;
 };
 
 }  // namespace mozjs

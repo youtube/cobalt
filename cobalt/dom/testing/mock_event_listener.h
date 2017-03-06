@@ -20,7 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -140,24 +140,24 @@ class MockEventListener : public EventListener {
   }
 };
 
-class FakeScriptObject : public script::ScriptObject<EventListener> {
+class FakeScriptValue : public script::ScriptValue<EventListener> {
  public:
-  typedef script::ScriptObject<EventListener> BaseClass;
-  explicit FakeScriptObject(const MockEventListener* listener)
+  typedef script::ScriptValue<EventListener> BaseClass;
+  explicit FakeScriptValue(const MockEventListener* listener)
       : mock_listener_(listener) {}
 
   void RegisterOwner(script::Wrappable*) OVERRIDE {}
   void DeregisterOwner(script::Wrappable*) OVERRIDE {}
-  const EventListener* GetScriptObject(void) const OVERRIDE {
+  const EventListener* GetScriptValue(void) const OVERRIDE {
     return mock_listener_;
   }
   scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
-    return make_scoped_ptr<BaseClass>(new FakeScriptObject(mock_listener_));
+    return make_scoped_ptr<BaseClass>(new FakeScriptValue(mock_listener_));
   }
 
   bool EqualTo(const BaseClass& other) const OVERRIDE {
-    const FakeScriptObject* other_script_object =
-        base::polymorphic_downcast<const FakeScriptObject*>(&other);
+    const FakeScriptValue* other_script_object =
+        base::polymorphic_downcast<const FakeScriptValue*>(&other);
     return mock_listener_ == other_script_object->mock_listener_;
   }
 
