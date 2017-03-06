@@ -40,6 +40,7 @@ enum SwitchEnum {
   kBinnerAnalytics,
   kAllocationLogger,
   kLeakTracer,
+  kJavascriptLeakTracer,
 };
 
 struct SwitchVal {
@@ -159,6 +160,11 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       "Automatically detects leaks and reports them in CSV format.",
       kLeakTracer);
 
+  SwitchVal js_leak_tracing_tool(
+      "js_leak_tracer",
+      "Automatically detects Javascript leaks and reports them in CSV format.",
+      kJavascriptLeakTracer);
+
   SwitchMap switch_map;
   switch_map[ParseToolName(startup_tool.tool_name)] = startup_tool;
   switch_map[ParseToolName(continuous_printer_tool.tool_name)] =
@@ -169,6 +175,8 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
   switch_map[ParseToolName(allocation_logger_tool.tool_name)] =
       allocation_logger_tool;
   switch_map[ParseToolName(leak_tracing_tool.tool_name)] = leak_tracing_tool;
+  switch_map[ParseToolName(js_leak_tracing_tool.tool_name)] =
+      js_leak_tracing_tool;
 
   std::string tool_name = ParseToolName(command_arg);
   std::string tool_arg = ParseToolArg(command_arg);
@@ -302,7 +310,17 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
     }
     case kLeakTracer: {
       scoped_ptr<MemoryTrackerLeakFinder> leak_finder(
-          new MemoryTrackerLeakFinder());
+          new MemoryTrackerLeakFinder(MemoryTrackerLeakFinder::kCPlusPlus));
+
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
+      memory_tracker->SetMemoryTrackerDebugCallback(leak_finder.get());
+      tool_ptr.reset(leak_finder.release());
+      break;
+    }
+    case kJavascriptLeakTracer: {
+      scoped_ptr<MemoryTrackerLeakFinder> leak_finder(
+          new MemoryTrackerLeakFinder(MemoryTrackerLeakFinder::kJavascript));
 
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
