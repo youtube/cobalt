@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "starboard/client_porting/poem/string_poem.h"
 
 namespace base {
 
