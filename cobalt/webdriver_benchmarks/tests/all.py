@@ -38,7 +38,8 @@ def load_tests(loader, tests, pattern):
   _add_test(test_suite, dir_path, "browse_to_guide")
   _add_test(test_suite, dir_path, "browse_to_search")
   _add_test(test_suite, dir_path, "browse_to_watch")
-  _add_test(test_suite, dir_path, "csi")
+  # "csi" tests are disabled until a new label is created for them.
+  # _add_test(test_suite, dir_path, "csi")
 
   return test_suite
 
