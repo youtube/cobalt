@@ -62,6 +62,9 @@
     {
       'target_name': 'shaders',
       'type': 'static_library',
+      # We're depending on a target which generates a header file, so make sure other
+      # targets which need the header file know this.
+      'hard_dependency': 1,
 
       'sources' : [
         '<(shader_impl_header)',
