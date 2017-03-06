@@ -153,6 +153,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
     return webm_color_metadata_;
   }
 
+  const ColorSpace& color_space() const { return color_space_; }
+
  private:
   VideoCodec codec_;
   VideoCodecProfile profile_;
