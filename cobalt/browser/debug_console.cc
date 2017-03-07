@@ -182,7 +182,7 @@ DebugConsole::DebugConsole(
       base::Bind(&DebugConsole::OnError, base::Unretained(this)),
       base::Closure(), /* window_close_callback */
       media_module, network_module, window_dimensions, resource_provider,
-      layout_refresh_rate, web_module_options));
+      media_module->system_window(), layout_refresh_rate, web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}

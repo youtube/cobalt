@@ -51,6 +51,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
 
@@ -183,6 +184,7 @@ class WebModule {
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
+            system_window::SystemWindow* system_window,
             float layout_refresh_rate, const Options& options = Options());
   ~WebModule();
 
@@ -230,8 +232,8 @@ class WebModule {
         network::NetworkModule* network_module,
         const math::Size& window_dimensions,
         render_tree::ResourceProvider* resource_provider,
-        int dom_max_element_depth, float layout_refresh_rate,
-        const Options& options)
+        int dom_max_element_depth, system_window::SystemWindow* system_window,
+        float layout_refresh_rate, const Options& options)
         : initial_url(initial_url),
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
@@ -241,6 +243,7 @@ class WebModule {
           window_dimensions(window_dimensions),
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
+          system_window_(system_window),
           layout_refresh_rate(layout_refresh_rate),
           options(options) {}
 
@@ -253,6 +256,7 @@ class WebModule {
     math::Size window_dimensions;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
+    system_window::SystemWindow* system_window_;
     float layout_refresh_rate;
     Options options;
   };
