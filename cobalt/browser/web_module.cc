@@ -44,6 +44,7 @@
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/system_window/system_window.h"
 #include "starboard/accessibility.h"
 
 namespace cobalt {
@@ -475,8 +476,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
-      data.window_close_callback, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth);
+      data.window_close_callback, data.system_window_,
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -820,13 +821,15 @@ WebModule::WebModule(
     const base::Closure& window_close_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    render_tree::ResourceProvider* resource_provider,
+    system_window::SystemWindow* system_window, float layout_refresh_rate,
     const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, render_tree_produced_callback, error_callback,
       window_close_callback, media_module, network_module, window_dimensions,
-      resource_provider, kDOMMaxElementDepth, layout_refresh_rate, options);
+      resource_provider, kDOMMaxElementDepth, system_window,
+      layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
