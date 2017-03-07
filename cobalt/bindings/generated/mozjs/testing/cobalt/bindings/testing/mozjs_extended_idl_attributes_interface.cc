@@ -70,6 +70,7 @@ using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::kConversionFlagClamped;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
@@ -234,6 +235,71 @@ JSBool fcn_callWithSettings(
   return !exception_state.is_exception_set();
 }
 
+JSBool fcn_clampArgument(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  const JSClass* proto_class =
+      MozjsExtendedIDLAttributesInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ExtendedIDLAttributesInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  ExtendedIDLAttributesInterface* impl =
+      wrapper_private->wrappable<ExtendedIDLAttributesInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<uint16_t >::ConversionType arg;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              (kConversionFlagClamped),
+              &exception_state, &arg);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->ClampArgument(arg);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   JS_PS_END
@@ -244,6 +310,13 @@ const JSFunctionSpec prototype_functions[] = {
       "callWithSettings",
       JSOP_WRAPPER(&fcn_callWithSettings),
       0,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "clampArgument",
+      JSOP_WRAPPER(&fcn_clampArgument),
+      1,
       JSPROP_ENUMERATE,
       NULL,
   },
