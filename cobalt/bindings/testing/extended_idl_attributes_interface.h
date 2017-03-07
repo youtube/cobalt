@@ -26,6 +26,7 @@ namespace testing {
 class ExtendedIDLAttributesInterface : public script::Wrappable {
  public:
   MOCK_METHOD1(CallWithSettings, void(script::EnvironmentSettings*));
+  MOCK_METHOD1(ClampArgument, void(uint16_t));
 
   DEFINE_WRAPPABLE_TYPE(ExtendedIDLAttributesInterface);
 };
