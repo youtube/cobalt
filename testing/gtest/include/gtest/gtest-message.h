@@ -56,6 +56,11 @@ void operator<<(const testing::internal::Secret&, int);
 
 namespace testing {
 
+// TODO: Remove clang version check workaround.
+#if __clang__ && __clang_major__ == 3 && __clang_minor__ <= 6
+#define CLANG_MAJOR_3_MINOR_LOWER_THAN_6
+#endif  // __clang__ && __clang_major__ == 3 && __clang_minor__ <= 6
+
 // The Message class works like an ostream repeater.
 //
 // Typical usage:
@@ -92,6 +97,17 @@ class GTEST_API_ Message {
   // Constructs an empty Message.
   Message();
 
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+  // Copy constructor.
+  Message(const Message& msg) {  // NOLINT
+    ss_ << msg.GetString();
+  }
+
+  // Constructs a Message from a C-string.
+  explicit Message(const char* str) {
+    ss_ << str;
+  }
+#else
   // Copy constructor.
   Message(const Message& msg) : ss_(new ::std::stringstream) {  // NOLINT
     *ss_ << msg.GetString();
@@ -101,6 +117,7 @@ class GTEST_API_ Message {
   explicit Message(const char* str) : ss_(new ::std::stringstream) {
     *ss_ << str;
   }
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
 
 #if GTEST_OS_SYMBIAN
   // Streams a value (either a pointer or not) to this object.
@@ -128,7 +145,11 @@ class GTEST_API_ Message {
     // overloads of << defined in the global namespace and those
     // visible via Koenig lookup are both exposed in this function.
     using ::operator <<;
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    ss_ << val;
+#else
     *ss_ << val;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
     return *this;
   }
 
@@ -147,11 +168,19 @@ class GTEST_API_ Message {
   // as "(null)".
   template <typename T>
   inline Message& operator <<(T* const& pointer) {  // NOLINT
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    if (pointer == NULL) {
+      ss_ << "(null)";
+    } else {
+      ss_ << pointer;
+    }
+#else
     if (pointer == NULL) {
       *ss_ << "(null)";
     } else {
       *ss_ << pointer;
     }
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
     return *this;
   }
 #endif  // GTEST_OS_SYMBIAN
@@ -163,7 +192,11 @@ class GTEST_API_ Message {
   // endl or other basic IO manipulators to Message will confuse the
   // compiler.
   Message& operator <<(BasicNarrowIoManip val) {
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    ss_ << val;
+#else
     *ss_ << val;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
     return *this;
   }
 
@@ -204,11 +237,19 @@ class GTEST_API_ Message {
   // tr1::type_traits-like is_pointer works, and we can overload on that.
   template <typename T>
   inline void StreamHelper(internal::true_type /*is_pointer*/, T* pointer) {
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    if (pointer == NULL) {
+      ss_ << "(null)";
+    } else {
+      ss_ << pointer;
+    }
+#else
     if (pointer == NULL) {
       *ss_ << "(null)";
     } else {
       *ss_ << pointer;
     }
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
   }
   template <typename T>
   inline void StreamHelper(internal::false_type /*is_pointer*/,
@@ -216,12 +257,20 @@ class GTEST_API_ Message {
     // See the comments in Message& operator <<(const T&) above for why
     // we need this using statement.
     using ::operator <<;
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    ss_ << value;
+#else
     *ss_ << value;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
   }
 #endif  // GTEST_OS_SYMBIAN
 
   // We'll hold the text streamed to this object here.
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+  ::std::stringstream ss_;
+#else
   const internal::scoped_ptr< ::std::stringstream> ss_;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
 
   // We declare (but don't implement) this to prevent the compiler
   // from implementing the assignment operator.
