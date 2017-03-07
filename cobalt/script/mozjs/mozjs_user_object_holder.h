@@ -62,7 +62,8 @@ class MozjsUserObjectHolder
     JS::RootedValue owned_value(context_, js_value());
     DLOG_IF(WARNING, handle_->WasCollected())
         << "Owned value has been garbage collected.";
-    if (owned_value.isGCThing()) {
+    // We have to check for null, because null is apparently a GC Thing.
+    if (!owned_value.isNullOrUndefined() && owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
       intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
@@ -75,7 +76,8 @@ class MozjsUserObjectHolder
     // |owner| may be in the process of being destructed, so don't use it.
     JSAutoRequest auto_request(context_);
     JS::RootedValue owned_value(context_, js_value());
-    if (owned_value.isGCThing()) {
+    // We have to check for null, because null is apparently a GC Thing.
+    if (!owned_value.isNullOrUndefined() && owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
       intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
