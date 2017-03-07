@@ -19,5 +19,4 @@ interface H5vccSystem {
   readonly attribute DOMString region;
   readonly attribute DOMString version;
   boolean triggerHelp();
-  DOMString getVideoContainerSizeOverride();
 };

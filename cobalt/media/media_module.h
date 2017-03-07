@@ -81,6 +81,8 @@ class MediaModule : public CanPlayTypeHandler,
   virtual void OnSuspend() {}
   virtual void OnResume() {}
 
+  virtual system_window::SystemWindow* system_window() const { return NULL; }
+
   void Suspend();
   void Resume();
 
