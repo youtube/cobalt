@@ -285,7 +285,7 @@ bool MemoryReportingTest::s_memory_reporter_error_enabled_ = false;
 // will report memory allocations.
 TEST_F(MemoryReportingTest, CapturesAllocDealloc) {
   if (!MemoryReportingEnabled()) {
-    GTEST_SUCCEED() << "Memory reporting is disabled.";
+    SB_DLOG(INFO) << "Memory reporting is disabled.";
     return;
   }
   EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
@@ -305,7 +305,7 @@ TEST_F(MemoryReportingTest, CapturesAllocDealloc) {
 // deallocation and an allocation to the memory tracker.
 TEST_F(MemoryReportingTest, CapturesRealloc) {
   if (!MemoryReportingEnabled()) {
-    GTEST_SUCCEED() << "Memory reporting is disabled.";
+    SB_DLOG(INFO) << "Memory reporting is disabled.";
     return;
   }
   void* prev_memory = SbMemoryAllocate(4);
@@ -324,7 +324,7 @@ TEST_F(MemoryReportingTest, CapturesRealloc) {
 // will report memory allocations.
 TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
   if (!MemoryReportingEnabled()) {
-    GTEST_SUCCEED() << "Memory reporting is disabled.";
+    SB_DLOG(INFO) << "Memory reporting is disabled.";
     return;
   }
   const int64_t kMemSize = 4096;
@@ -344,7 +344,7 @@ TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
 // memory allocations.
 TEST_F(MemoryReportingTest, CapturesOperatorNewDelete) {
   if (!MemoryReportingEnabled()) {
-    GTEST_SUCCEED() << "Memory reporting is disabled.";
+    SB_DLOG(INFO) << "Memory reporting is disabled.";
     return;
   }
   EXPECT_TRUE_NO_TRACKING(mem_reporter()->number_allocs() == 0);
