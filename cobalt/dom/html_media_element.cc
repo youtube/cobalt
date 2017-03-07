@@ -147,7 +147,7 @@ HTMLMediaElement::~HTMLMediaElement() {
 }
 
 scoped_refptr<MediaError> HTMLMediaElement::error() const {
-  MLOG() << error_->code();
+  MLOG() << (error_ ? error_->code() : 0);
   return error_;
 }
 
