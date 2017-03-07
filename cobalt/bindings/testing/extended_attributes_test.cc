@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <limits>
+
+#include "base/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/extended_idl_attributes_interface.h"
 
@@ -31,6 +34,13 @@ typedef InterfaceBindingsTest<ExtendedIDLAttributesInterface>
 TEST_F(ExtendedAttributesTest, CallWithEnvironmentSettings) {
   EXPECT_CALL(test_mock(), CallWithSettings(environment_settings_.get()));
   EXPECT_TRUE(EvaluateScript("test.callWithSettings();", NULL));
+}
+
+TEST_F(ExtendedAttributesTest, ClampArgument) {
+  EXPECT_CALL(test_mock(), ClampArgument(std::numeric_limits<uint16_t>::max()));
+  EXPECT_TRUE(EvaluateScript(StringPrintf("test.clampArgument(%u);",
+                                          std::numeric_limits<uint32_t>::max()),
+                             NULL));
 }
 
 }  // namespace testing

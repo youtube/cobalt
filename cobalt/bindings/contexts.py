@@ -210,6 +210,9 @@ def get_conversion_flags(typed_object):
                                                '') == 'EmptyString'):
       flags.append('kConversionFlagTreatUndefinedAsEmptyString')
 
+  if typed_object.extended_attributes.has_key('Clamp'):
+    flags.append('kConversionFlagClamped')
+
   if flags:
     return '(%s)' % ' | '.join(flags)
   else:
