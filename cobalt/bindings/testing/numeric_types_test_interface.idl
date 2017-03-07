@@ -16,34 +16,42 @@ interface NumericTypesTestInterface {
   byte byteReturnOperation();
   void byteArgumentOperation(byte arg1);
   attribute byte byteProperty;
+  [Clamp] attribute byte byteClampProperty;
 
   octet octetReturnOperation();
   void octetArgumentOperation(octet arg1);
   attribute octet octetProperty;
+  [Clamp] attribute octet octetClampProperty;
 
   short shortReturnOperation();
   void shortArgumentOperation(short arg1);
   attribute short shortProperty;
+  [Clamp] attribute short shortClampProperty;
 
   unsigned short unsignedShortReturnOperation();
   void unsignedShortArgumentOperation(unsigned short arg1);
   attribute unsigned short unsignedShortProperty;
+  [Clamp] attribute unsigned short unsignedShortClampProperty;
 
   long longReturnOperation();
   void longArgumentOperation(long arg1);
   attribute long longProperty;
+  [Clamp] attribute long longClampProperty;
 
   unsigned long unsignedLongReturnOperation();
   void unsignedLongArgumentOperation(unsigned long arg1);
   attribute unsigned long unsignedLongProperty;
+  [Clamp] attribute unsigned long unsignedLongClampProperty;
 
   long long longLongReturnOperation();
   void longLongArgumentOperation(long long arg1);
   attribute long long longLongProperty;
+  [Clamp] attribute long long longLongClampProperty;
 
   unsigned long long unsignedLongLongReturnOperation();
   void unsignedLongLongArgumentOperation(unsigned long long arg1);
   attribute unsigned long long unsignedLongLongProperty;
+  [Clamp] attribute unsigned long long unsignedLongLongClampProperty;
 
   double doubleReturnOperation();
   void doubleArgumentOperation(double arg1);

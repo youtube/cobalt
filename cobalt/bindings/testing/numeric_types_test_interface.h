@@ -30,41 +30,57 @@ class NumericTypesTestInterface : public script::Wrappable {
   virtual void ByteArgumentOperation(int8_t value) {}
   virtual int8_t byte_property() { return 0; }
   virtual void set_byte_property(int8_t value) {}
+  virtual int8_t byte_clamp_property() { return 0; }
+  virtual void set_byte_clamp_property(int8_t value) {}
 
   virtual uint8_t OctetReturnOperation() { return 0; }
   virtual void OctetArgumentOperation(uint8_t value) {}
   virtual uint8_t octet_property() { return 0; }
   virtual void set_octet_property(uint8_t value) {}
+  virtual uint8_t octet_clamp_property() { return 0; }
+  virtual void set_octet_clamp_property(uint8_t value) {}
 
   virtual int16_t ShortReturnOperation() { return 0; }
   virtual void ShortArgumentOperation(int16_t value) {}
   virtual int16_t short_property() { return 0; }
   virtual void set_short_property(int16_t value) {}
+  virtual int16_t short_clamp_property() { return 0; }
+  virtual void set_short_clamp_property(int16_t value) {}
 
   virtual uint16_t UnsignedShortReturnOperation() { return 0; }
   virtual void UnsignedShortArgumentOperation(uint16_t value) {}
   virtual uint16_t unsigned_short_property() { return 0; }
   virtual void set_unsigned_short_property(uint16_t value) {}
+  virtual uint16_t unsigned_short_clamp_property() { return 0; }
+  virtual void set_unsigned_short_clamp_property(uint16_t value) {}
 
   virtual int32_t LongReturnOperation() { return 0; }
   virtual void LongArgumentOperation(int32_t value) {}
   virtual int32_t long_property() { return 0; }
   virtual void set_long_property(int32_t value) {}
+  virtual int32_t long_clamp_property() { return 0; }
+  virtual void set_long_clamp_property(int32_t value) {}
 
   virtual uint32_t UnsignedLongReturnOperation() { return 0; }
   virtual void UnsignedLongArgumentOperation(uint32_t value) {}
   virtual uint32_t unsigned_long_property() { return 0; }
   virtual void set_unsigned_long_property(uint32_t value) {}
+  virtual uint32_t unsigned_long_clamp_property() { return 0; }
+  virtual void set_unsigned_long_clamp_property(uint32_t value) {}
 
   virtual int64_t LongLongReturnOperation() { return 0; }
   virtual void LongLongArgumentOperation(int64_t value) {}
   virtual int64_t long_long_property() { return 0; }
   virtual void set_long_long_property(int64_t value) {}
+  virtual int64_t long_long_clamp_property() { return 0; }
+  virtual void set_long_long_clamp_property(int64_t value) {}
 
   virtual uint64_t UnsignedLongLongReturnOperation() { return 0; }
   virtual void UnsignedLongLongArgumentOperation(uint64_t value) {}
   virtual uint64_t unsigned_long_long_property() { return 0; }
   virtual void set_unsigned_long_long_property(uint64_t value) {}
+  virtual uint64_t unsigned_long_long_clamp_property() { return 0; }
+  virtual void set_unsigned_long_long_clamp_property(uint64_t value) {}
 
   virtual double DoubleReturnOperation() { return 0; }
   virtual void DoubleArgumentOperation(double value) {}
@@ -104,6 +120,10 @@ class ByteTypeTest : public NumericTypesTestInterfaceT<int8_t> {
   }
   int8_t byte_property() OVERRIDE { return mock_get_property(); }
   void set_byte_property(int8_t value) OVERRIDE { mock_set_property(value); }
+  int8_t byte_clamp_property() OVERRIDE { return mock_get_property(); }
+  void set_byte_clamp_property(int8_t value) OVERRIDE {
+    mock_set_property(value);
+  }
 
   static const char* type_string() { return "byte"; }
   static int8_t max_value() { return 127; }
@@ -120,6 +140,10 @@ class OctetTypeTest : public NumericTypesTestInterfaceT<uint8_t> {
   }
   uint8_t octet_property() OVERRIDE { return mock_get_property(); }
   void set_octet_property(uint8_t value) OVERRIDE { mock_set_property(value); }
+  uint8_t octet_clamp_property() OVERRIDE { return mock_get_property(); }
+  void set_octet_clamp_property(uint8_t value) OVERRIDE {
+    mock_set_property(value);
+  }
 
   static const char* type_string() { return "octet"; }
   static uint8_t max_value() { return 255; }
@@ -136,6 +160,10 @@ class ShortTypeTest : public NumericTypesTestInterfaceT<int16_t> {
   }
   int16_t short_property() OVERRIDE { return mock_get_property(); }
   void set_short_property(int16_t value) OVERRIDE { mock_set_property(value); }
+  int16_t short_clamp_property() OVERRIDE { return mock_get_property(); }
+  void set_short_clamp_property(int16_t value) OVERRIDE {
+    mock_set_property(value);
+  }
 
   static const char* type_string() { return "short"; }
   static int16_t max_value() { return 32767; }
@@ -156,6 +184,12 @@ class UnsignedShortTypeTest : public NumericTypesTestInterfaceT<uint16_t> {
   void set_unsigned_short_property(uint16_t value) OVERRIDE {
     mock_set_property(value);
   }
+  uint16_t unsigned_short_clamp_property() OVERRIDE {
+    return mock_get_property();
+  }
+  void set_unsigned_short_clamp_property(uint16_t value) OVERRIDE {
+    mock_set_property(value);
+  }
 
   static const char* type_string() { return "unsignedShort"; }
   static uint16_t max_value() { return 65535; }
@@ -172,6 +206,10 @@ class LongTypeTest : public NumericTypesTestInterfaceT<int32_t> {
   }
   int32_t long_property() OVERRIDE { return mock_get_property(); }
   void set_long_property(int32_t value) OVERRIDE { mock_set_property(value); }
+  int32_t long_clamp_property() OVERRIDE { return mock_get_property(); }
+  void set_long_clamp_property(int32_t value) OVERRIDE {
+    mock_set_property(value);
+  }
 
   static const char* type_string() { return "long"; }
   static int32_t max_value() { return 2147483647; }
@@ -197,6 +235,12 @@ class UnsignedLongTypeTest : public NumericTypesTestInterfaceT<uint32_t> {
   void set_unsigned_long_property(uint32_t value) OVERRIDE {
     mock_set_property(value);
   }
+  uint32_t unsigned_long_clamp_property() OVERRIDE {
+    return mock_get_property();
+  }
+  void set_unsigned_long_clamp_property(uint32_t value) OVERRIDE {
+    mock_set_property(value);
+  }
 
   static const char* type_string() { return "unsignedLong"; }
   static uint32_t max_value() { return 4294967295; }
@@ -216,6 +260,10 @@ class LongLongTypeTest : public NumericTypesTestInterfaceT<int64_t> {
   }
   int64_t long_long_property() OVERRIDE { return mock_get_property(); }
   void set_long_long_property(int64_t value) OVERRIDE {
+    mock_set_property(value);
+  }
+  int64_t long_long_clamp_property() OVERRIDE { return mock_get_property(); }
+  void set_long_long_clamp_property(int64_t value) OVERRIDE {
     mock_set_property(value);
   }
 
@@ -239,6 +287,12 @@ class UnsignedLongLongTypeTest : public NumericTypesTestInterfaceT<uint64_t> {
     return mock_get_property();
   }
   void set_unsigned_long_long_property(uint64_t value) OVERRIDE {
+    mock_set_property(value);
+  }
+  uint64_t unsigned_long_long_clamp_property() OVERRIDE {
+    return mock_get_property();
+  }
+  void set_unsigned_long_long_clamp_property(uint64_t value) OVERRIDE {
     mock_set_property(value);
   }
 
