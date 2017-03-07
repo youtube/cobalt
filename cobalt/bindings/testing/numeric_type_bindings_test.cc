@@ -225,6 +225,44 @@ TYPED_TEST(IntegerTypeBindingsTest, OutOfRangeBehaviour) {
       NULL));
 }
 
+// With the extended IDL attribute Clamp, out-of-range values are clamped.
+// https://www.w3.org/TR/WebIDL/#es-byte
+// For the signed types (8 bit integer in this example):
+//     If x is not NaN and the conversion to an IDL value is being
+//     performed due to any of the following: ...[Clamp] extended attribute...
+//     then:
+//     1. Set x to min(max(x, −2^7), 2^7 − 1).
+//     2. Round x to the nearest integer, choosing the even integer if
+//     it lies halfway between two, and choosing +0 rather than −0.
+//     3. Return the IDL byte value that represents the same numeric value as x.
+TYPED_TEST(IntegerTypeBindingsTest, ClampedOutOfRangeBehaviour) {
+  InSequence in_sequence_dummy;
+
+  EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::max_value()));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sClampProperty = (%s+1);", TypeParam::type_string(),
+                   TypeParam::max_value_string()),
+      NULL));
+
+  EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::max_value()));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sClampProperty = (%s+2);", TypeParam::type_string(),
+                   TypeParam::max_value_string()),
+      NULL));
+
+  EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sClampProperty = (%s-1);", TypeParam::type_string(),
+                   TypeParam::min_value_string()),
+      NULL));
+
+  EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
+  EXPECT_TRUE(this->EvaluateScript(
+      StringPrintf("test.%sClampProperty = (%s-2);", TypeParam::type_string(),
+                   TypeParam::min_value_string()),
+      NULL));
+}
+
 #if defined(ENGINE_SUPPORTS_INT64)
 TYPED_TEST(LargeIntegerTypeBindingsTest, PropertyValueRange) {
   InSequence in_sequence_dummy;
