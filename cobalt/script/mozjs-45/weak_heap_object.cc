@@ -59,6 +59,7 @@ bool WeakHeapObject::IsObject() const {
 }
 
 bool WeakHeapObject::IsGcThing() const {
+  // We have to check IsNull(), because null is apparently a GC Thing.
   return (!IsNull() && value_.isGCThing());
 }
 
