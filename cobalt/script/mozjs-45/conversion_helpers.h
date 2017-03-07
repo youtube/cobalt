@@ -448,7 +448,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 // CallbackInterface -> JSValue
 template <typename T>
 inline void ToJSValue(JSContext* context,
-                      const ScriptObject<T>* callback_interface,
+                      const ScriptValue<T>* callback_interface,
                       JS::MutableHandleValue out_value) {
   TRACK_MEMORY_SCOPE("Javascript");
   if (!callback_interface) {
@@ -470,7 +470,7 @@ inline void ToJSValue(JSContext* context,
   // can get the implementing object.
   const MozjsCallbackInterfaceClass* mozjs_callback_interface =
       base::polymorphic_downcast<const MozjsCallbackInterfaceClass*>(
-          user_object_holder->GetScriptObject());
+          user_object_holder->GetScriptValue());
   DCHECK(mozjs_callback_interface);
   out_value.setObjectOrNull(mozjs_callback_interface->handle());
 }

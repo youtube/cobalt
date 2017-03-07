@@ -625,7 +625,7 @@ template <typename Signature>
 struct TypeTraits<CallbackFunction<Signature> > {
   typedef MozjsUserObjectHolder<MozjsCallbackFunction<Signature> >
       ConversionType;
-  typedef const ScriptObject<CallbackFunction<Signature> >* ReturnType;
+  typedef const ScriptValue<CallbackFunction<Signature> >* ReturnType;
 };
 
 }  // namespace mozjs
