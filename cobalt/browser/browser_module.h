@@ -334,6 +334,8 @@ class BrowserModule {
   base::Lock quit_lock_;
 
   bool suspended_;
+
+  system_window::SystemWindow* system_window_;
 };
 
 }  // namespace browser

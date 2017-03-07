@@ -273,6 +273,7 @@
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
+        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/nb/nb.gyp:nb',
