@@ -97,6 +97,10 @@ class MediaModuleStarboard : public MediaModule {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   }
 
+  system_window::SystemWindow* system_window() const OVERRIDE {
+    return system_window_;
+  }
+
  private:
   const Options options_;
   system_window::SystemWindow* system_window_;

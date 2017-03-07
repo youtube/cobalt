@@ -189,7 +189,8 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
       will_quit_(false),
-      suspended_(false) {
+      suspended_(false),
+      system_window_(system_window) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
   // All allocations for media will be tracked by "Media" memory scope.
   {
@@ -334,7 +335,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
-      renderer_module_.pipeline()->GetResourceProvider(),
+      renderer_module_.pipeline()->GetResourceProvider(), system_window_,
       kLayoutMaxRefreshFrequencyInHz, options));
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();

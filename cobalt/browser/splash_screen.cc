@@ -49,7 +49,8 @@ SplashScreen::SplashScreen(
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
       &stub_media_module_, network_module, window_dimensions, resource_provider,
-      layout_refresh_rate, web_module_options));
+      stub_media_module_.system_window(), layout_refresh_rate,
+      web_module_options));
 }
 
 SplashScreen::~SplashScreen() {

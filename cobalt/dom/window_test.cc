@@ -61,7 +61,8 @@ class WindowTest : public ::testing::Test {
             std::string() /* default security policy */, kCspEnforcementEnable,
             base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
-            base::Closure() /* window_close */)) {}
+            base::Closure() /* window_close */,
+            stub_media_module_->system_window())) {}
 
   ~WindowTest() OVERRIDE {}
 

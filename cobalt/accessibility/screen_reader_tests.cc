@@ -140,7 +140,8 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
       base::Bind(&LiveRegionMutationTest::Quit, base::Unretained(this)),
       NULL /* media_module */, &network_module, kDefaultViewportSize,
-      &resource_provider, kRefreshRate, web_module_options);
+      &resource_provider, NULL /* system_window */, kRefreshRate,
+      web_module_options);
 
   // Wait for the test to quit.
   quit_event_.Wait();
