@@ -950,11 +950,19 @@ void SplitString(const ::std::string& str, char delimiter,
 // ASSERT/EXPECT in a procedure adds over 200 bytes to the procedure's
 // stack frame leading to huge stack frames in some cases; gcc does not reuse
 // the stack space.
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+Message::Message() {
+  // By default, we want there to be enough precision when printing
+  // a double to a Message.
+  ss_ << std::setprecision(std::numeric_limits<double>::digits10 + 2);
+}
+#else
 Message::Message() : ss_(new ::std::stringstream) {
   // By default, we want there to be enough precision when printing
   // a double to a Message.
   *ss_ << std::setprecision(std::numeric_limits<double>::digits10 + 2);
 }
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
 
 // These two overloads allow streaming a wide C string to a Message
 // using the UTF-8 encoding.
@@ -986,7 +994,12 @@ Message& Message::operator <<(const ::wstring& wstr) {
 // Gets the text streamed to this object so far as an std::string.
 // Each '\0' character in the buffer is replaced with "\\0".
 std::string Message::GetString() const {
+#if __clang__ && __clang_major__ == 3 && __clang_minor__ <= 6
+  ::std::stringstream stream(ss_.str());
+  return internal::StringStreamToString(&stream);
+#else
   return internal::StringStreamToString(ss_.get());
+#endif  // __clang__ && __clang_major__ == 3 && __clang_minor__ <= 6
 }
 
 // AssertionResult constructors.
