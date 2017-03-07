@@ -38,6 +38,8 @@ class WeakHeapObject {
 
   void Trace(JSTracer* trace);
   bool IsObject() const;
+
+  // Whether the value is a GC Thing and not null or undefined.
   bool IsGcThing() const;
 
   // Whether the value was a GC Thing and has been actually GC'd.
