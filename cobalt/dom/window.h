@@ -50,7 +50,10 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/system_window/starboard/system_window.h"
+#include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 namespace dom {
@@ -109,6 +112,7 @@ class Window : public EventTarget {
          const base::Closure& csp_policy_changed_callback,
          const base::Closure& ran_animation_frame_callbacks_callback,
          const base::Closure& window_close_callback,
+         system_window::SystemWindow* system_window,
          int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
@@ -184,7 +188,7 @@ class Window : public EventTarget {
   // The devicePixelRatio attribute returns the ratio of CSS pixels per device
   // pixel.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
-  float device_pixel_ratio() const { return 1.0f; }
+  float device_pixel_ratio() const { return device_pixel_ratio_; }
 
   // Web API: GlobalCrypto (implements)
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
@@ -261,6 +265,7 @@ class Window : public EventTarget {
 
   int width_;
   int height_;
+  float device_pixel_ratio_;
 
   const scoped_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Performance> performance_;
@@ -283,6 +288,8 @@ class Window : public EventTarget {
 
   const base::Closure ran_animation_frame_callbacks_callback_;
   const base::Closure window_close_callback_;
+
+  system_window::SystemWindow* system_window_;
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;

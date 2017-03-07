@@ -85,6 +85,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Closure& csp_policy_changed_callback,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
+               system_window::SystemWindow* system_window,
                int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
       height_(height),
@@ -127,11 +128,26 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       screen_(new Screen(width, height)),
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
-      window_close_callback_(window_close_callback) {
+      window_close_callback_(window_close_callback),
+      system_window_(system_window) {
 #if defined(ENABLE_TEST_RUNNER)
   test_runner_ = new TestRunner();
 #endif  // ENABLE_TEST_RUNNER
   document_->AddObserver(relay_on_load_event_.get());
+  if (system_window_) {
+    system_window::SystemWindowStarboard* system_window_sb =
+        base::polymorphic_downcast<system_window::SystemWindowStarboard*>(
+            system_window_);
+    SbWindow sb_window = system_window_sb->GetSbWindow();
+    SbWindowSize size;
+    if (SbWindowGetSize(sb_window, &size)) {
+      device_pixel_ratio_ = size.video_pixel_ratio;
+    } else {
+      device_pixel_ratio_ = 1.0f;
+    }
+  } else {
+      device_pixel_ratio_ = 1.0f;
+  }
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
