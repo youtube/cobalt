@@ -26,8 +26,8 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/local_src_value.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_key_list_value.h"
@@ -113,14 +113,14 @@ TEST(PropertyValueVisitorTest, VisitsCalcValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsFilterListValue) {
-  MTMFunction::ResolutionMatchedMeshListBuilder resMs;
-  resMs.push_back(
-      new MTMFunction::ResolutionMatchedMesh(22, 22, new URLValue("a.msh")));
+  MapToMeshFunction::ResolutionMatchedMeshListBuilder resMs;
+  resMs.push_back(new MapToMeshFunction::ResolutionMatchedMesh(
+      22, 22, new URLValue("a.msh")));
 
   FilterFunctionListValue::Builder builder;
-  builder.push_back(new MTMFunction(new URLValue("p.msh"), resMs.Pass(), 120,
-                                    60, glm::mat4(1.0f),
-                                    KeywordValue::GetMonoscopic()));
+  builder.push_back(new MapToMeshFunction(new URLValue("p.msh"), resMs.Pass(),
+                                          120, 60, glm::mat4(1.0f),
+                                          KeywordValue::GetMonoscopic()));
 
   scoped_refptr<FilterFunctionListValue> filter_list_value =
       new FilterFunctionListValue(builder.Pass());
