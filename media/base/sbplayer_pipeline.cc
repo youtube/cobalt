@@ -363,9 +363,6 @@ float SbPlayerPipeline::GetPlaybackRate() const {
 }
 
 void SbPlayerPipeline::SetPlaybackRate(float playback_rate) {
-  if (playback_rate != 0.0f && playback_rate != 1.0f)
-    return;
-
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
   message_loop_->PostTask(
@@ -498,7 +495,7 @@ void SbPlayerPipeline::SetPlaybackRateTask(float volume) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (player_) {
-    player_->SetPause(playback_rate_ == 0.0);
+    player_->SetPlaybackRate(playback_rate_);
   }
 }
 
