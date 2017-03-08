@@ -1591,6 +1591,7 @@ std::string MemoryTrackerLeakFinder::GenerateCSV(
   ss << kNewLine << kNewLine;
 
   // HEADER
+  ss << "// Allocation in megabytes." << kNewLine;
   ss << kQuote << "Time(min)" << kQuote << kDelimiter;
   for (size_t i = 0; i < data.size(); ++i) {
     const AllocationProfile& alloc_profile = data[i];
@@ -1619,6 +1620,32 @@ std::string MemoryTrackerLeakFinder::GenerateCSV(
 
       DCHECK_EQ(alloc_history.size(), time_values.size());
       ss << megabytes << kDelimiter;
+    }
+    ss << kNewLine;
+  }
+  ss << kNewLine << kNewLine;
+  ss << "// Object counts." << kNewLine;
+  ss << kQuote << "Time(min)" << kQuote << kDelimiter;
+  for (size_t i = 0; i < data.size(); ++i) {
+    const AllocationProfile& alloc_profile = data[i];
+    const std::string& name = *alloc_profile.name_;
+    ss << kQuote << name << kQuote << kDelimiter;
+  }
+  ss << kNewLine;
+  for (size_t i = 0; i < time_values.size(); ++i) {
+    for (size_t j = 0; j < data.size(); ++j) {
+      if (j == 0) {
+        double mins = time_values[i].InSecondsF() / 60.f;
+        if (mins < .001) {
+          mins = 0;
+        }
+        ss << mins << kDelimiter;
+      }
+      const AllocationProfile& alloc_profile = data[j];
+      const std::vector<AllocRec>& alloc_history =
+          *alloc_profile.alloc_history_;
+      DCHECK_EQ(alloc_history.size(), time_values.size());
+      ss << alloc_history[i].num_allocs << kDelimiter;
     }
     ss << kNewLine;
   }
