@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 
 #include "starboard/audio_sink.h"
+#include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 
 struct SbAudioSinkPrivate {
@@ -38,6 +39,9 @@ struct SbAudioSinkPrivate {
   };
 
   virtual ~SbAudioSinkPrivate() {}
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  virtual void SetPlaybackRate(double playback_rate) = 0;
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   virtual bool IsType(Type* type) = 0;
 
   // The following two functions will be called during application startup and
