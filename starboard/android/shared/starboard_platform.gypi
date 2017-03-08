@@ -390,6 +390,7 @@
         '<(DEPTH)/starboard/shared/stub/media_get_audio_configuration.cc',
         '<(DEPTH)/starboard/shared/stub/media_get_audio_output_count.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/player_set_playback_rate.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
