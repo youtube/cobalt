@@ -29,9 +29,9 @@ namespace egl {
 
 DrawObject::BaseState::BaseState()
     : transform(math::Matrix3F::Identity()),
-      scissor(0.0f, 0.0f,
-              std::numeric_limits<float>::max(),
-              std::numeric_limits<float>::max()),
+      scissor(0, 0,
+              std::numeric_limits<int>::max(),
+              std::numeric_limits<int>::max()),
       depth(GraphicsState::FarthestDepth()),
       opacity(1.0f) {}
 
@@ -43,6 +43,20 @@ DrawObject::BaseState::BaseState(const BaseState& other)
 
 DrawObject::DrawObject(const BaseState& base_state)
     : base_state_(base_state) {}
+
+// static
+uint32_t DrawObject::GetGLRGBA(float r, float g, float b, float a) {
+  // Ensure color bytes represent RGBA, regardless of endianness.
+  union {
+    uint32_t color32;
+    uint8_t color8[4];
+  } color_data;
+  color_data.color8[0] = static_cast<uint8_t>(r * 255.0f);
+  color_data.color8[1] = static_cast<uint8_t>(g * 255.0f);
+  color_data.color8[2] = static_cast<uint8_t>(b * 255.0f);
+  color_data.color8[3] = static_cast<uint8_t>(a * 255.0f);
+  return color_data.color32;
+}
 
 }  // namespace egl
 }  // namespace rasterizer

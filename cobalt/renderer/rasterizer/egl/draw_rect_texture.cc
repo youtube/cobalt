@@ -81,12 +81,13 @@ void DrawRectTexture::Execute(GraphicsState* graphics_state,
         base_state_.scissor.width(), base_state_.scissor.height());
     graphics_state->VertexAttribPointer(
         program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
-        sizeof(VertexAttributes), vertex_buffer_);
+        sizeof(VertexAttributes), vertex_buffer_ +
+        offsetof(VertexAttributes, position));
     graphics_state->VertexAttribPointer(
         program->GetVertexShader().a_texcoord(), 2, GL_FLOAT, GL_FALSE,
-        sizeof(VertexAttributes), vertex_buffer_ + 3*sizeof(float));
+        sizeof(VertexAttributes), vertex_buffer_ +
+        offsetof(VertexAttributes, texcoord));
     graphics_state->VertexAttribFinish();
-    graphics_state->DisableBlend();
     graphics_state->ActiveTexture(
         program->GetFragmentShader().u_texture_texunit());
     GL_CALL(glBindTexture(texture_->GetTarget(), texture_->gl_handle()));
