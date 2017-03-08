@@ -252,6 +252,16 @@ void PlayerWorker::DoSetPause(bool pause) {
   }
 }
 
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (!handler_->SetPlaybackRate(playback_rate)) {
+    UpdatePlayerState(kSbPlayerStateError);
+  }
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
 void PlayerWorker::DoStop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 

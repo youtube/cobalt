@@ -240,6 +240,15 @@ bool FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   return true;
 }
 
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  audio_renderer_->SetPlaybackRate(playback_rate);
+  return true;
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
 bool FilterBasedPlayerWorkerHandler::SetBounds(
     const PlayerWorker::Bounds& bounds) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());

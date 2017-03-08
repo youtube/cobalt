@@ -60,6 +60,9 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   bool WriteSample(InputBuffer input_buffer, bool* written) SB_OVERRIDE;
   bool WriteEndOfStream(SbMediaType sample_type) SB_OVERRIDE;
   bool SetPause(bool pause) SB_OVERRIDE;
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  bool SetPlaybackRate(double playback_rate) SB_OVERRIDE;
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   bool SetBounds(const PlayerWorker::Bounds& bounds) SB_OVERRIDE;
   void Stop() SB_OVERRIDE;
 
