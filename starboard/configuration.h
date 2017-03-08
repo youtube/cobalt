@@ -85,6 +85,10 @@
 //   * SbDecodeTargetDestroy() is renamed to SbDecodeTargetRelease().
 #define SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Support for setting the playback rate on an SbPlayer.  This allows for
+// control of the playback speed of video at runtime.
+#define SB_PLAYER_SET_PLAYBACK_RATE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)

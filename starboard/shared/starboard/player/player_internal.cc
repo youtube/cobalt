@@ -44,6 +44,9 @@ SbPlayerPrivate::SbPlayerPrivate(
       frame_width_(0),
       frame_height_(0),
       is_paused_(true),
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+      playback_rate_(1.0),
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
       volume_(1.0),
       total_video_frames_(0),
       dropped_video_frames_(0),
@@ -52,7 +55,8 @@ SbPlayerPrivate::SbPlayerPrivate(
                                decoder_status_func,
                                player_status_func,
                                this,
-                               context)) {}
+                               context)) {
+}
 
 void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
   {
@@ -110,11 +114,21 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   out_player_info->total_video_frames = total_video_frames_;
   out_player_info->dropped_video_frames = dropped_video_frames_;
   out_player_info->corrupted_video_frames = 0;
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  out_player_info->playback_rate = playback_rate_;
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
 void SbPlayerPrivate::SetPause(bool pause) {
   worker_->SetPause(pause);
 }
+
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+void SbPlayerPrivate::SetPlaybackRate(double playback_rate) {
+  playback_rate_ = playback_rate;
+  worker_->SetPlaybackRate(playback_rate);
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
 void SbPlayerPrivate::SetVolume(double volume) {
   SB_NOTIMPLEMENTED();
