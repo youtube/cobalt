@@ -30,6 +30,8 @@
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/surface_cache_delegate.h"
+#include "third_party/glm/glm/gtc/matrix_inverse.hpp"
+#include "third_party/glm/glm/mat3x3.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
@@ -151,6 +153,47 @@ GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
   return skia_desc;
 }
 
+glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
+    const SkISize& canvas_size, const SkMatrix& total_matrix,
+    const math::RectF& destination_rect) {
+  // We define a transformation from GLES normalized device coordinates (e.g.
+  // [-1.0, 1.0]) into Skia coordinates (e.g. [0, canvas_size.width()]).  This
+  // lets us apply Skia's transform inside of Skia's coordinate space.
+  glm::mat3 gl_norm_coords_to_skia_canvas_coords(
+      canvas_size.width() * 0.5f, 0, 0, 0, -canvas_size.height() * 0.5f, 0,
+      canvas_size.width() * 0.5f, canvas_size.height() * 0.5f, 1);
+
+  // Convert Skia's current transform from the 3x3 row-major Skia matrix to a
+  // 4x4 column-major GLSL matrix.  This is in Skia's coordinate system.
+  glm::mat3 skia_transform_matrix(
+      total_matrix[0], total_matrix[3], total_matrix[6], total_matrix[1],
+      total_matrix[4], total_matrix[7], total_matrix[2],
+      total_matrix[5], total_matrix[8]);
+
+  // Finally construct a matrix to map from full screen coordinates into the
+  // destination rectangle.  This is in Skia's coordinate system.
+  glm::mat3 dest_rect_matrix(
+      destination_rect.width() / canvas_size.width(), 0, 0, 0,
+      destination_rect.height() / canvas_size.height(), 0,
+      destination_rect.x(), destination_rect.y(), 1);
+
+  // Since these matrices are applied in LIFO order, read the followin inlined
+  // comments in reverse order.
+  return glm::mat4(
+      // Finally transform back into normalized device coordinates so that
+      // GL can digest the results.
+      glm::affineInverse(gl_norm_coords_to_skia_canvas_coords) *
+      // Apply Skia's transformation matrix to the resulting coordinates.
+      skia_transform_matrix *
+      // Apply a matrix to transform from a quad that maps to the entire screen
+      // into a quad that maps to the destination rectangle.
+      dest_rect_matrix *
+      // First transform from normalized device coordinates which the VBO
+      // referenced by the RenderQuad() function will have its positions defined
+      // within (e.g. [-1, 1]).
+      gl_norm_coords_to_skia_canvas_coords);
+}
+
 }  // namespace
 
 void HardwareRasterizer::Impl::RenderTextureEGL(
@@ -161,18 +204,19 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
           image_node->data().source.get());
 
   const backend::TextureEGL* texture = image->GetTextureEGL();
-  const math::RectF& destination_rect = image_node->data().destination_rect;
 
   // Flush the Skia draw state to ensure that all previously issued Skia calls
   // are rendered so that the following draw command will appear in the correct
   // order.
   draw_state->render_target->flush();
 
-  // Render a texture to the specified output rectangle on the render target.
-  GL_CALL(glViewport(destination_rect.x(), destination_rect.y(),
-                     destination_rect.width(), destination_rect.height()));
-  GL_CALL(glScissor(destination_rect.x(), destination_rect.y(),
-                    destination_rect.width(), destination_rect.height()));
+  SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
+  GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
+
+  SkIRect canvas_boundsi;
+  draw_state->render_target->getClipDeviceBounds(&canvas_boundsi);
+  GL_CALL(glScissor(canvas_boundsi.x(), canvas_boundsi.y(),
+                    canvas_boundsi.width(), canvas_boundsi.height()));
 
   if (image->IsOpaque()) {
     GL_CALL(glDisable(GL_BLEND));
@@ -190,8 +234,13 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   if (image->GetContentRegion()) {
     content_region = *image->GetContentRegion();
   }
+
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderQuad(texture, content_region);
+  textured_mesh_renderer_->RenderQuad(
+      texture, content_region,
+      GetFallbackTextureModelViewProjectionMatrix(
+          canvas_size, draw_state->render_target->getTotalMatrix(),
+          image_node->data().destination_rect));
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();

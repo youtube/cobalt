@@ -21,6 +21,7 @@
 
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "third_party/glm/glm/gtc/type_ptr.hpp"
 
 namespace cobalt {
 namespace renderer {
@@ -36,10 +37,10 @@ TexturedMeshRenderer::~TexturedMeshRenderer() {
   if (quad_vbo_) {
     GL_CALL(glDeleteBuffers(1, &quad_vbo_.value()));
   }
-  for (std::map<uint32, uint32>::iterator iter =
+  for (std::map<uint32, ProgramInfo>::iterator iter =
            blit_program_per_texture_target_.begin();
        iter != blit_program_per_texture_target_.end(); ++iter) {
-    GL_CALL(glDeleteProgram(iter->second));
+    GL_CALL(glDeleteProgram(iter->second.gl_program_id));
   }
 }
 
@@ -74,27 +75,31 @@ void ConvertContentRegionToScaleTranslateVector(
 
 void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
                                      const backend::TextureEGL* texture,
-                                     const math::Rect& content_region) {
-  uint32 blit_program = GetBlitProgram(texture->GetTarget());
+                                     const math::Rect& content_region,
+                                     const glm::mat4& mvp_transform) {
+  ProgramInfo blit_program = GetBlitProgram(texture->GetTarget());
 
-  GL_CALL(glUseProgram(blit_program));
+  GL_CALL(glUseProgram(blit_program.gl_program_id));
 
   GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vbo));
-  GL_CALL(glVertexAttribPointer(kBlitPositionAttribute, 2, GL_FLOAT, GL_FALSE,
-                                sizeof(float) * 4, 0));
+  GL_CALL(glVertexAttribPointer(kBlitPositionAttribute, 3, GL_FLOAT, GL_FALSE,
+                                sizeof(float) * 5, 0));
   GL_CALL(glVertexAttribPointer(kBlitTexcoordAttribute, 2, GL_FLOAT, GL_FALSE,
-                                sizeof(float) * 4,
-                                reinterpret_cast<GLvoid*>(sizeof(float) * 2)));
+                                sizeof(float) * 5,
+                                reinterpret_cast<GLvoid*>(sizeof(float) * 3)));
   GL_CALL(glEnableVertexAttribArray(kBlitPositionAttribute));
   GL_CALL(glEnableVertexAttribArray(kBlitTexcoordAttribute));
 
   GL_CALL(glActiveTexture(GL_TEXTURE0));
   GL_CALL(glBindTexture(texture->GetTarget(), texture->gl_handle()));
 
+  GL_CALL(glUniformMatrix4fv(blit_program.mvp_transform_uniform, 1, GL_FALSE,
+                             glm::value_ptr(mvp_transform)));
+
   float scale_translate_vector[4];
   ConvertContentRegionToScaleTranslateVector(
       &content_region, texture->GetSize(), scale_translate_vector);
-  GL_CALL(glUniform4fv(texcoord_scale_translate_uniform_, 1,
+  GL_CALL(glUniform4fv(blit_program.texcoord_scale_translate_uniform, 1,
                        scale_translate_vector));
 
   GL_CALL(glDrawArrays(mode, 0, num_vertices));
@@ -107,8 +112,10 @@ void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
 }
 
 void TexturedMeshRenderer::RenderQuad(const backend::TextureEGL* texture,
-                                      const math::Rect& content_region) {
-  RenderVBO(GetQuadVBO(), 4, GL_TRIANGLE_STRIP, texture, content_region);
+                                      const math::Rect& content_region,
+                                      const glm::mat4& mvp_transform) {
+  RenderVBO(GetQuadVBO(), 4, GL_TRIANGLE_STRIP, texture, content_region,
+            mvp_transform);
 }
 
 uint32 TexturedMeshRenderer::GetQuadVBO() {
@@ -118,14 +125,15 @@ uint32 TexturedMeshRenderer::GetQuadVBO() {
     struct QuadVertex {
       float position_x;
       float position_y;
+      float position_z;
       float tex_coord_u;
       float tex_coord_v;
     };
     const QuadVertex kBlitQuadVerts[4] = {
-        {-1.0f, -1.0f, 0.0f, 0.0f},
-        {-1.0f, 1.0f, 0.0f, 1.0f},
-        {1.0f, -1.0f, 1.0f, 0.0f},
-        {1.0f, 1.0, 1.0f, 1.0f},
+        {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f},
+        {-1.0f, 1.0f, 0.0f, 0.0f, 1.0f},
+        {1.0f, -1.0f, 0.0f, 1.0f, 0.0f},
+        {1.0f, 1.0, 0.0f, 1.0f, 1.0f},
     };
 
     quad_vbo_ = 0;
@@ -138,22 +146,27 @@ uint32 TexturedMeshRenderer::GetQuadVBO() {
   return *quad_vbo_;
 }
 
-uint32 TexturedMeshRenderer::GetBlitProgram(uint32 texture_target) {
-  std::map<uint32, uint32>::iterator found =
+TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
+    uint32 texture_target) {
+  std::map<uint32, ProgramInfo>::iterator found =
       blit_program_per_texture_target_.find(texture_target);
   if (found == blit_program_per_texture_target_.end()) {
+    ProgramInfo result;
+
     // Create the blit program.
     // Setup shaders used when blitting the current texture.
-    uint32 blit_program = glCreateProgram();
+    result.gl_program_id = glCreateProgram();
 
     uint32 blit_vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     const char* blit_vertex_shader_source =
-        "attribute vec2 a_position;"
+        "attribute vec3 a_position;"
         "attribute vec2 a_tex_coord;"
         "varying vec2 v_tex_coord;"
         "uniform vec4 scale_translate;"
+        "uniform mat4 model_view_projection_transform;"
         "void main() {"
-        "  gl_Position = vec4(a_position.x, a_position.y, 0, 1);"
+        "  gl_Position = model_view_projection_transform * "
+        "                    vec4(a_position.xyz, 1.0);"
         "  v_tex_coord = "
         "      a_tex_coord * scale_translate.xy + scale_translate.zw;"
         "}";
@@ -167,7 +180,7 @@ uint32 TexturedMeshRenderer::GetBlitProgram(uint32 texture_target) {
     glGetShaderInfoLog(blit_vertex_shader, 2048, &length, buffer);
     DLOG(INFO) << "vertex shader: " << buffer;
 
-    GL_CALL(glAttachShader(blit_program, blit_vertex_shader));
+    GL_CALL(glAttachShader(result.gl_program_id, blit_vertex_shader));
 
     std::string sampler_type = "sampler";
     if (texture_target == GL_TEXTURE_EXTERNAL_OES) {
@@ -200,29 +213,30 @@ uint32 TexturedMeshRenderer::GetBlitProgram(uint32 texture_target) {
     glGetShaderInfoLog(blit_fragment_shader, 2048, &length, buffer);
     DLOG(INFO) << "fragment shader: " << buffer;
 
-    GL_CALL(glAttachShader(blit_program, blit_fragment_shader));
+    GL_CALL(glAttachShader(result.gl_program_id, blit_fragment_shader));
 
-    GL_CALL(glBindAttribLocation(blit_program, kBlitPositionAttribute,
+    GL_CALL(glBindAttribLocation(result.gl_program_id, kBlitPositionAttribute,
                                  "a_position"));
-    GL_CALL(glBindAttribLocation(blit_program, kBlitTexcoordAttribute,
+    GL_CALL(glBindAttribLocation(result.gl_program_id, kBlitTexcoordAttribute,
                                  "a_tex_coord"));
 
-    GL_CALL(glLinkProgram(blit_program));
+    GL_CALL(glLinkProgram(result.gl_program_id));
 
-    glGetProgramInfoLog(blit_program, 2048, &length, buffer);
+    glGetProgramInfoLog(result.gl_program_id, 2048, &length, buffer);
     DLOG(INFO) << buffer;
 
-    texcoord_scale_translate_uniform_ =
-        glGetUniformLocation(blit_program, "scale_translate");
+    result.mvp_transform_uniform = glGetUniformLocation(
+        result.gl_program_id, "model_view_projection_transform");
+    result.texcoord_scale_translate_uniform =
+        glGetUniformLocation(result.gl_program_id, "scale_translate");
 
     GL_CALL(glDeleteShader(blit_fragment_shader));
     GL_CALL(glDeleteShader(blit_vertex_shader));
 
     // Save our shader into the cache.
-    found =
-        blit_program_per_texture_target_.insert(std::make_pair(texture_target,
-                                                               blit_program))
-            .first;
+    found = blit_program_per_texture_target_.insert(std::make_pair(
+                                                        texture_target, result))
+                .first;
   }
 
   return found->second;
