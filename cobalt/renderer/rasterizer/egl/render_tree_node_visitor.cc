@@ -20,6 +20,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
+#include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
@@ -28,6 +29,18 @@ namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace egl {
+
+namespace {
+
+math::Rect RoundRectFToInt(const math::RectF& input) {
+  int left = static_cast<int>(input.x() + 0.5f);
+  int right = static_cast<int>(input.right() + 0.5f);
+  int top = static_cast<int>(input.y() + 0.5f);
+  int bottom = static_cast<int>(input.bottom() + 0.5f);
+  return math::Rect(left, top, right - left, bottom - top);
+}
+
+}  // namespace
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
     ShaderProgramManager* shader_program_manager,
@@ -41,42 +54,48 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
   draw_state_.scissor.Intersect(graphics_state->GetScissor());
 }
 
-void RenderTreeNodeVisitor::Visit(render_tree::CompositionNode* composition) {
-  draw_state_.transform(0, 2) += composition->data().offset().x();
-  draw_state_.transform(1, 2) += composition->data().offset().y();
+void RenderTreeNodeVisitor::Visit(
+    render_tree::CompositionNode* composition_node) {
+  const render_tree::CompositionNode::Builder& data = composition_node->data();
+  draw_state_.transform(0, 2) += data.offset().x();
+  draw_state_.transform(1, 2) += data.offset().y();
   const render_tree::CompositionNode::Children& children =
-      composition->data().children();
+      data.children();
   for (render_tree::CompositionNode::Children::const_iterator iter =
        children.begin(); iter != children.end(); ++iter) {
     (*iter)->Accept(this);
   }
-  draw_state_.transform(0, 2) -= composition->data().offset().x();
-  draw_state_.transform(1, 2) -= composition->data().offset().y();
+  draw_state_.transform(0, 2) -= data.offset().x();
+  draw_state_.transform(1, 2) -= data.offset().y();
 }
 
-void RenderTreeNodeVisitor::Visit(render_tree::MatrixTransformNode* transform) {
+void RenderTreeNodeVisitor::Visit(
+    render_tree::MatrixTransformNode* transform_node) {
+  const render_tree::MatrixTransformNode::Builder& data =
+      transform_node->data();
   math::Matrix3F old_transform = draw_state_.transform;
-  draw_state_.transform = draw_state_.transform * transform->data().transform;
-  transform->data().source->Accept(this);
+  draw_state_.transform = draw_state_.transform *
+      data.transform;
+  data.source->Accept(this);
   draw_state_.transform = old_transform;
 }
 
-void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter) {
+void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+  const render_tree::FilterNode::Builder& data = filter_node->data();
+
   // If this is only a viewport filter w/o rounded edges, and the current
   // transform matrix keeps the filter as an orthogonal rect, then collapse
   // the node.
-  const render_tree::FilterNode::Builder& builder = filter->data();
-  if (builder.viewport_filter &&
-      !builder.viewport_filter->has_rounded_corners() &&
-      !builder.opacity_filter &&
-      !builder.blur_filter &&
-      !builder.map_to_mesh_filter) {
+  if (data.viewport_filter &&
+      !data.viewport_filter->has_rounded_corners() &&
+      !data.opacity_filter &&
+      !data.blur_filter &&
+      !data.map_to_mesh_filter) {
     const math::Matrix3F& transform = draw_state_.transform;
     if (transform(2, 0) == 0 && transform(2, 1) == 0 && transform(2, 2) == 1 &&
         transform(0, 1) == 0 && transform(1, 0) == 0) {
       // Transform local viewport to world viewport.
-      const math::RectF& filter_viewport =
-          filter->data().viewport_filter->viewport();
+      const math::RectF& filter_viewport = data.viewport_filter->viewport();
       math::RectF transformed_viewport(
           filter_viewport.x() * transform(0, 0) + transform(0, 2),
           filter_viewport.y() * transform(1, 1) + transform(1, 2),
@@ -93,10 +112,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter) {
         transformed_viewport.set_height(-transformed_viewport.height());
       }
       // Combine the new viewport filter with existing viewport filter.
-      math::RectF old_scissor = draw_state_.scissor;
-      draw_state_.scissor.Intersect(transformed_viewport);
+      math::Rect old_scissor = draw_state_.scissor;
+      draw_state_.scissor.Intersect(RoundRectFToInt(transformed_viewport));
       if (!draw_state_.scissor.IsEmpty()) {
-        filter->data().source->Accept(this);
+        data.source->Accept(this);
       }
       draw_state_.scissor = old_scissor;
       return;
@@ -106,37 +125,39 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter) {
   NOTIMPLEMENTED();
 }
 
-void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image) {
+void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
+  const render_tree::ImageNode::Builder& data = image_node->data();
+
   // The image node may contain nothing. For example, when it represents a video
   // element before any frame is decoded.
-  if (!image->data().source) {
+  if (!data.source) {
     return;
   }
 
-  if (!IsVisible(image->GetBounds())) {
+  if (!IsVisible(image_node->GetBounds())) {
     return;
   }
 
   skia::Image* skia_image =
-      base::polymorphic_downcast<skia::Image*>(image->data().source.get());
+      base::polymorphic_downcast<skia::Image*>(data.source.get());
 
   // Ensure any required backend processing is done to create the necessary
   // GPU resource.
   skia_image->EnsureInitialized();
 
-  // We issue different skia rasterization commands to render the image
-  // depending on whether it's single or multi planed.
+  // Different shaders are used depending on whether the image has a single
+  // plane or multiple planes.
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
     math::Matrix3F texcoord_transform =
-        image->data().local_transform.IsIdentity() ?
+        data.local_transform.IsIdentity() ?
             math::Matrix3F::Identity() :
-            image->data().local_transform.Inverse();
+            data.local_transform.Inverse();
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
 
     if (hardware_image->IsOpaque() && draw_state_.opacity == 1.0f) {
       scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
-          draw_state_, image->data().destination_rect,
+          draw_state_, data.destination_rect,
           hardware_image->GetTextureEGL(), texcoord_transform));
       AddDrawObject(draw.Pass(), kDrawRectTexture);
     } else {
@@ -151,32 +172,61 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image) {
 }
 
 void RenderTreeNodeVisitor::Visit(
-    render_tree::PunchThroughVideoNode* punch_through) {
-  if (!IsVisible(punch_through->GetBounds())) {
+    render_tree::PunchThroughVideoNode* video_node) {
+  if (!IsVisible(video_node->GetBounds())) {
     return;
   }
 
   NOTIMPLEMENTED();
 }
 
-void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect) {
-  if (!IsVisible(rect->GetBounds())) {
+void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
+  if (!IsVisible(rect_node->GetBounds())) {
+    return;
+  }
+
+  const render_tree::RectNode::Builder& data = rect_node->data();
+
+  const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
+  math::RectF content_rect(data.rect);
+  if (data.border) {
+    content_rect.Inset(data.border->left.width,
+                       data.border->top.width,
+                       data.border->right.width,
+                       data.border->bottom.width);
+  }
+
+  if (data.rounded_corners ||
+      (brush && brush->GetTypeId() !=
+          base::GetTypeId<render_tree::SolidColorBrush>())) {
+    NOTIMPLEMENTED();
+  } else {
+    // Handle drawing the content.
+    if (brush) {
+      render_tree::SolidColorBrush* solid_brush =
+          base::polymorphic_downcast<render_tree::SolidColorBrush*>
+              (brush.get());
+      scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+          draw_state_, content_rect, solid_brush->color()));
+      if (draw_state_.opacity * solid_brush->color().a() == 1.0f) {
+        AddDrawObject(draw.Pass(), kDrawPolyColor);
+      } else {
+        AddDrawObject(draw.Pass(), kDrawTransparent);
+      }
+    }
+  }
+}
+
+void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
+  if (!IsVisible(shadow_node->GetBounds())) {
     return;
   }
 
   NOTIMPLEMENTED();
 }
 
-void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* rect) {
-  if (!IsVisible(rect->GetBounds())) {
-    return;
-  }
-
-  NOTIMPLEMENTED();
-}
-
-void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text) {
-  if (!IsVisible(text->GetBounds())) {
+void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
+  if (!IsVisible(text_node->GetBounds())) {
     return;
   }
 
@@ -185,6 +235,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text) {
 
 void RenderTreeNodeVisitor::ExecuteDraw(DrawObject::ExecutionStage stage) {
   for (int type = 0; type < kDrawCount; ++type) {
+    if (type == kDrawTransparent) {
+      graphics_state_->EnableBlend();
+      graphics_state_->DisableDepthWrite();
+    } else {
+      graphics_state_->DisableBlend();
+      graphics_state_->EnableDepthWrite();
+    }
+
     for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
       draw_objects_[type][index]->Execute(graphics_state_,
                                           shader_program_manager_, stage);
