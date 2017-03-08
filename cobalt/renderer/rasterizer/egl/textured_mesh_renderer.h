@@ -21,6 +21,7 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
 namespace renderer {
@@ -43,32 +44,40 @@ class TexturedMeshRenderer {
   // lie within this rectangle).
   void RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
                  const backend::TextureEGL* texture,
-                 const math::Rect& content_region);
+                 const math::Rect& content_region,
+                 const glm::mat4& mvp_transform);
 
   // This method will call into RenderVBO(), so the comments pertaining to that
   // method also apply to this method.  This method renders with vertex
   // positions (-1, -1) -> (1, 1), so it will occupy the entire viewport
   // specified by glViewport().
   void RenderQuad(const backend::TextureEGL* texture,
-                  const math::Rect& content_region);
+                  const math::Rect& content_region,
+                  const glm::mat4& mvp_transform);
 
  private:
+  struct ProgramInfo {
+    uint32 mvp_transform_uniform;
+    uint32 texcoord_scale_translate_uniform;
+    uint32 gl_program_id;
+  };
+  typedef std::map<uint32, ProgramInfo> ProgramMap;
+
   uint32 GetQuadVBO();
-  uint32 GetBlitProgram(uint32 texture_target);
+  ProgramInfo GetBlitProgram(uint32 texture_target);
+
 
   backend::GraphicsContextEGL* graphics_context_;
 
   // Since different texture targets can warrant different shaders/programs,
   // we keep a map of blit programs for each texture target, and initialize
   // them lazily.
-  std::map<uint32, uint32> blit_program_per_texture_target_;
+  ProgramMap blit_program_per_texture_target_;
 
   static const int kBlitPositionAttribute = 0;
   static const int kBlitTexcoordAttribute = 1;
 
   base::optional<uint32> quad_vbo_;
-
-  uint32 texcoord_scale_translate_uniform_;
 };
 
 }  // namespace egl
