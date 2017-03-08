@@ -20,7 +20,9 @@
     'generate_class_script': '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/generate_shader_impl.py',
     'shader_sources': [
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_texcoord.glsl',
+      '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/vertex_texcoord.glsl',
+      '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/vertex_color.glsl',
     ],
   },
 

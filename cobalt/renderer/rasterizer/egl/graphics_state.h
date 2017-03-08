@@ -69,6 +69,11 @@ class GraphicsState {
   void EnableDepthTest();
   void DisableDepthTest();
 
+  // Control writing to the depth buffer.
+  // Default = enabled.
+  void EnableDepthWrite();
+  void DisableDepthWrite();
+
   // Make the specified texture unit active.
   void ActiveTexture(GLenum texture_unit);
 
@@ -131,6 +136,7 @@ class GraphicsState {
   bool state_dirty_;
   bool blend_enabled_;
   bool depth_test_enabled_;
+  bool depth_write_enabled_;
 
   static const size_t kVertexDataAlignment = 4;
   std::vector<uint8_t> vertex_data_buffer_;

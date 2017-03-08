@@ -17,7 +17,7 @@
 
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
-#include "cobalt/math/rect_f.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
@@ -35,7 +35,7 @@ class DrawObject {
     BaseState(const BaseState& other);
 
     math::Matrix3F transform;
-    math::RectF scissor;
+    math::Rect scissor;
     float depth;
     float opacity;
   };
@@ -55,6 +55,10 @@ class DrawObject {
 
  protected:
   explicit DrawObject(const BaseState& base_state);
+
+  // Return a uint32_t suitable to be transferred as 4 unsigned bytes
+  // representing color to a GL shader.
+  static uint32_t GetGLRGBA(float r, float g, float b, float a);
 
   BaseState base_state_;
 };

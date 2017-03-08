@@ -57,20 +57,22 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
     NOTREACHED();
   }
-  void Visit(render_tree::CompositionNode* composition) OVERRIDE;
-  void Visit(render_tree::MatrixTransformNode* transform) OVERRIDE;
-  void Visit(render_tree::FilterNode* text) OVERRIDE;
-  void Visit(render_tree::ImageNode* image) OVERRIDE;
-  void Visit(render_tree::PunchThroughVideoNode* punch_through) OVERRIDE;
-  void Visit(render_tree::RectNode* rect) OVERRIDE;
-  void Visit(render_tree::RectShadowNode* rect) OVERRIDE;
-  void Visit(render_tree::TextNode* text) OVERRIDE;
+  void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
+  void Visit(render_tree::MatrixTransformNode* transform_node) OVERRIDE;
+  void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
+  void Visit(render_tree::ImageNode* image_node) OVERRIDE;
+  void Visit(render_tree::PunchThroughVideoNode* video_node) OVERRIDE;
+  void Visit(render_tree::RectNode* rect_node) OVERRIDE;
+  void Visit(render_tree::RectShadowNode* shadow_node) OVERRIDE;
+  void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
   void ExecuteDraw(DrawObject::ExecutionStage stage);
 
  private:
   enum DrawType {
     kDrawRectTexture = 0,
+    kDrawPolyColor,
+    kDrawTransparent,
     kDrawCount,
   };
 
