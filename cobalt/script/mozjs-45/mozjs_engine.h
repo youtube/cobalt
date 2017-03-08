@@ -34,6 +34,7 @@ class MozjsEngine : public JavaScriptEngine {
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
   size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
+  bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) OVERRIDE;
 
  private:
   void TimerGarbageCollect();
@@ -42,6 +43,10 @@ class MozjsEngine : public JavaScriptEngine {
   static void GCCallback(JSRuntime* runtime, JSGCStatus status, void* data);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                bool is_compartment, void* data);
+  static JSBool ErrorHookCallback(JSContext* context, const char* message,
+                                  JSErrorReport* report, void* closure);
+  JSBool ReportJSError(JSContext* context, const char* message,
+                       JSErrorReport* report);
 
   base::ThreadChecker thread_checker_;
 
@@ -58,6 +63,9 @@ class MozjsEngine : public JavaScriptEngine {
 
   // Used to trigger a garbage collection periodically.
   base::RepeatingTimer<MozjsEngine> gc_timer_;
+
+  // Used to handle javascript errors.
+  ErrorHandler error_handler_;
 };
 }  // namespace mozjs
 }  // namespace script
