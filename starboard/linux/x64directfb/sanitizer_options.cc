@@ -37,12 +37,8 @@ extern "C" void _sanitizer_options_link_helper() { }
 // http://llvm.org/svn/llvm-project/compiler-rt/trunk/lib/sanitizer_common/sanitizer_suppressions.cc
 SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
   return
-      // It looks like DirectFB leaks __strdup data at initialization time.
+      // DirectFB leaks __strdup data at initialization time.
       "leak:__strdup\n"
-      // This is the same issue as above (both are 261 byes in 11 allocations),
-      // but within a compiled library.  This has come up a few times on the
-      // buildbot.
-      "leak:libc.so.6+0x88729\n";
 }
 
 #endif  // defined(ADDRESS_SANITIZER)
