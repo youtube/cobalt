@@ -14,7 +14,9 @@
 
 interface H5vccAccessibility {
   // True if the host operating system's "high contrast text" option
-  // has been enabled. Does not change during runtime. Changes
-  // will cause application reloads.
+  // has been enabled.
   readonly attribute boolean highContrastText;
+  void addHighContrastTextListener(H5vccAccessibilityCallback callback);
 };
+
+callback H5vccAccessibilityCallback = void();
