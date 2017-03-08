@@ -15,6 +15,8 @@
 #ifndef COBALT_H5VCC_H5VCC_ACCESSIBILITY_H_
 #define COBALT_H5VCC_H5VCC_ACCESSIBILITY_H_
 
+#include "cobalt/script/callback_function.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -22,8 +24,16 @@ namespace h5vcc {
 
 class H5vccAccessibility : public script::Wrappable {
  public:
+  // Type for JavaScript event callback.
+  typedef script::CallbackFunction<void()> H5vccAccessibilityCallback;
+  typedef script::ScriptValue<H5vccAccessibilityCallback>
+      H5vccAccessibilityCallbackHolder;
   H5vccAccessibility();
   bool high_contrast_text() const;
+  void AddHighContrastTextListener(
+      const H5vccAccessibilityCallbackHolder& holder) {
+    UNREFERENCED_PARAMETER(holder);
+  }
 
   DEFINE_WRAPPABLE_TYPE(H5vccAccessibility);
 
