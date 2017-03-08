@@ -23,9 +23,9 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -346,10 +346,10 @@ TEST(PropertyValueToStringTest, URLValue) {
   EXPECT_EQ(property->ToString(), "url(foo.png)");
 }
 
-TEST(PropertyValueToStringTest, MTMFunctionSingleMesh) {
-  scoped_ptr<MTMFunction> function(new MTMFunction(
+TEST(PropertyValueToStringTest, MapToMeshFunctionSingleMesh) {
+  scoped_ptr<MapToMeshFunction> function(new MapToMeshFunction(
       new URLValue("-.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 2.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 2.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
@@ -361,12 +361,12 @@ TEST(PropertyValueToStringTest, MTMFunctionSingleMesh) {
       function->ToString());
 }
 
-TEST(PropertyValueToStringTest, MTMFunctionEquirectangular) {
-  scoped_ptr<MTMFunction> function(
-      new MTMFunction(MTMFunction::kEquirectangular, 2.5f, 3.14f,
-                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-                      KeywordValue::GetMonoscopic()));
+TEST(PropertyValueToStringTest, MapToMeshFunctionEquirectangular) {
+  scoped_ptr<MapToMeshFunction> function(new MapToMeshFunction(
+      MapToMeshFunction::kEquirectangular, 2.5f, 3.14f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetMonoscopic()));
   EXPECT_EQ(
       "map-to-mesh(equirectangular, "
       "2.5rad 3.14rad, "
@@ -375,17 +375,17 @@ TEST(PropertyValueToStringTest, MTMFunctionEquirectangular) {
       function->ToString());
 }
 
-TEST(PropertyValueToStringTest, MTMFunctionWithResolutionMatchedMeshes) {
-  MTMFunction::ResolutionMatchedMeshListBuilder meshes;
-  meshes.push_back(new MTMFunction::ResolutionMatchedMesh(
+TEST(PropertyValueToStringTest, MapToMeshFunctionWithResolutionMatchedMeshes) {
+  MapToMeshFunction::ResolutionMatchedMeshListBuilder meshes;
+  meshes.push_back(new MapToMeshFunction::ResolutionMatchedMesh(
       1920, 2000000, new URLValue("a.msh")));
-  meshes.push_back(
-      new MTMFunction::ResolutionMatchedMesh(640, 5, new URLValue("b.msh")));
-  scoped_ptr<MTMFunction> function(
-      new MTMFunction(new URLValue("-.msh"), meshes.Pass(), 28.5f, 3.14f,
-                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-                      KeywordValue::GetStereoscopicLeftRight()));
+  meshes.push_back(new MapToMeshFunction::ResolutionMatchedMesh(
+      640, 5, new URLValue("b.msh")));
+  scoped_ptr<MapToMeshFunction> function(new MapToMeshFunction(
+      new URLValue("-.msh"), meshes.Pass(), 28.5f, 3.14f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetStereoscopicLeftRight()));
   EXPECT_EQ(
       "map-to-mesh(url(-.msh) 1920 2000000 url(a.msh) 640 5 url(b.msh), "
       "28.5rad 3.14rad, "
@@ -396,27 +396,27 @@ TEST(PropertyValueToStringTest, MTMFunctionWithResolutionMatchedMeshes) {
 
 TEST(PropertyValueToStringTest, FilterFunctionListValue) {
   FilterFunctionListValue::Builder filter_list;
-  filter_list.push_back(new MTMFunction(
+  filter_list.push_back(new MapToMeshFunction(
       new URLValue("-.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list.push_back(new MTMFunction(
+  filter_list.push_back(new MapToMeshFunction(
       new URLValue("world.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list.push_back(new MTMFunction(
+  filter_list.push_back(new MapToMeshFunction(
       new URLValue("stereoscopic-world.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
-  filter_list.push_back(new MTMFunction(
+  filter_list.push_back(new MapToMeshFunction(
       new URLValue("stereoscopic-top-bottom-world.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 39.0f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicTopBottom()));

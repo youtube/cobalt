@@ -21,7 +21,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
-#include "cobalt/cssom/mtm_function.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
@@ -289,18 +289,20 @@ void ReplacedBox::RenderAndAnimateContent(
     frame_node = new AnimateNode(animate_node_builder, composition_node);
   }
 
-  const cssom::MTMFunction* mtm_filter_function =
-      cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
+  const cssom::MapToMeshFunction* mtm_filter_function =
+      cssom::MapToMeshFunction::ExtractFromFilterList(
+          computed_style()->filter());
 
   scoped_refptr<Node> content_node;
   if (mtm_filter_function) {
-    const cssom::MTMFunction::MeshSpec& spec = mtm_filter_function->mesh_spec();
+    const cssom::MapToMeshFunction::MeshSpec& spec =
+        mtm_filter_function->mesh_spec();
     const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =
         mtm_filter_function->stereo_mode();
     render_tree::StereoMode stereo_mode =
         ReadStereoMode(stereo_mode_keyword_value);
 
-    if (spec.mesh_type() == cssom::MTMFunction::kUrls) {
+    if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
       // Custom mesh URLs.
       cssom::URLValue* url_value =
           base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
@@ -312,7 +314,7 @@ void ReplacedBox::RenderAndAnimateContent(
 
       content_node =
           new FilterNode(MapToMeshFilter(stereo_mode, mesh), frame_node);
-    } else if (spec.mesh_type() == cssom::MTMFunction::kEquirectangular) {
+    } else if (spec.mesh_type() == cssom::MapToMeshFunction::kEquirectangular) {
       // Default equirectangular mesh.
       content_node = new FilterNode(MapToMeshFilter(stereo_mode), frame_node);
     } else {
