@@ -792,16 +792,16 @@
 %destructor { delete $$; } <cobalt_mtm_filter_functions>
 
 %union {
-  cssom::MTMFunction::MeshSpec* cobalt_map_to_mesh_spec; }
+  cssom::MapToMeshFunction::MeshSpec* cobalt_map_to_mesh_spec; }
 %type <cobalt_map_to_mesh_spec> cobalt_map_to_mesh_spec
 %destructor { delete $$; } <cobalt_map_to_mesh_spec>
 
 %union {
-  cssom::MTMFunction::ResolutionMatchedMeshListBuilder* cobalt_mtm_resolution_matched_meshes; }
+  cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder* cobalt_mtm_resolution_matched_meshes; }
 %type <cobalt_mtm_resolution_matched_meshes> cobalt_mtm_resolution_matched_mesh_list
 %destructor { delete $$; } <cobalt_mtm_resolution_matched_meshes>
 
-%union { cssom::MTMFunction::ResolutionMatchedMesh* cobalt_mtm_resolution_matched_mesh; }
+%union { cssom::MapToMeshFunction::ResolutionMatchedMesh* cobalt_mtm_resolution_matched_mesh; }
 %type <cobalt_mtm_resolution_matched_mesh> cobalt_mtm_resolution_matched_mesh
 %destructor { delete $$; } <cobalt_mtm_resolution_matched_mesh>
 
@@ -6549,7 +6549,7 @@ cobalt_mtm_filter_function:
     cobalt_mtm_function_name maybe_whitespace cobalt_map_to_mesh_spec comma angle
         angle comma cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
         ')' maybe_whitespace {
-    scoped_ptr<cssom::MTMFunction::MeshSpec>
+    scoped_ptr<cssom::MapToMeshFunction::MeshSpec>
         mesh_spec($3);
     scoped_ptr<glm::mat4> transform($8);
     scoped_refptr<cssom::KeywordValue> stereo_mode =
@@ -6558,7 +6558,7 @@ cobalt_mtm_filter_function:
     if (!parser_impl->supports_map_to_mesh()) {
       YYERROR;
     } else {
-      $$ = new cssom::MTMFunction(
+      $$ = new cssom::MapToMeshFunction(
           mesh_spec.Pass(),
           $5,
           $6,
@@ -6570,16 +6570,16 @@ cobalt_mtm_filter_function:
 
 cobalt_map_to_mesh_spec:
     kEquirectangularToken {
-    $$ = new cssom::MTMFunction::MeshSpec(
-        cssom::MTMFunction::kEquirectangular);
+    $$ = new cssom::MapToMeshFunction::MeshSpec(
+        cssom::MapToMeshFunction::kEquirectangular);
   }
   | url cobalt_mtm_resolution_matched_mesh_list {
     scoped_refptr<cssom::PropertyValue> url = MakeScopedRefPtrAndRelease($1);
-    scoped_ptr<cssom::MTMFunction::ResolutionMatchedMeshListBuilder>
+    scoped_ptr<cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder>
         resolution_matched_mesh_urls($2);
 
-    $$ = new cssom::MTMFunction::MeshSpec(
-        cssom::MTMFunction::kUrls,
+    $$ = new cssom::MapToMeshFunction::MeshSpec(
+        cssom::MapToMeshFunction::kUrls,
         url,
         resolution_matched_mesh_urls->Pass());
   }
@@ -6592,7 +6592,7 @@ cobalt_mtm_function_name:
 
 cobalt_mtm_resolution_matched_mesh_list:
     /* empty */ {
-    $$ = new cssom::MTMFunction::ResolutionMatchedMeshListBuilder();
+    $$ = new cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder();
   }
   // Specifies a different mesh for a particular image resolution.
   | cobalt_mtm_resolution_matched_mesh_list cobalt_mtm_resolution_matched_mesh {
@@ -6603,7 +6603,7 @@ cobalt_mtm_resolution_matched_mesh_list:
 
 cobalt_mtm_resolution_matched_mesh:
     non_negative_integer non_negative_integer url {
-    $$ = new cssom::MTMFunction::ResolutionMatchedMesh($1, $2,
+    $$ = new cssom::MapToMeshFunction::ResolutionMatchedMesh($1, $2,
       MakeScopedRefPtrAndRelease($3));
   }
   ;
