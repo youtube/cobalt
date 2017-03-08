@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_CSSOM_MTM_FUNCTION_H_
-#define COBALT_CSSOM_MTM_FUNCTION_H_
+#ifndef COBALT_CSSOM_MAP_TO_MESH_FUNCTION_H_
+#define COBALT_CSSOM_MAP_TO_MESH_FUNCTION_H_
 
 #include <string>
 
@@ -33,7 +33,7 @@ namespace cobalt {
 namespace cssom {
 
 // Represent a map-to-mesh filter.
-class MTMFunction : public FilterFunction {
+class MapToMeshFunction : public FilterFunction {
  public:
   // A resolution-matched mesh specifier.
   class ResolutionMatchedMesh {
@@ -43,8 +43,8 @@ class MTMFunction : public FilterFunction {
     int width_match() const { return width_match_; }
     int height_match() const { return height_match_; }
     const scoped_refptr<PropertyValue>& mesh_url() const { return mesh_url_; }
-    bool operator==(const MTMFunction::ResolutionMatchedMesh& rhs) const;
-    bool operator!=(const MTMFunction::ResolutionMatchedMesh& rhs) const;
+    bool operator==(const MapToMeshFunction::ResolutionMatchedMesh& rhs) const;
+    bool operator!=(const MapToMeshFunction::ResolutionMatchedMesh& rhs) const;
 
    private:
     const int width_match_;
@@ -98,9 +98,9 @@ class MTMFunction : public FilterFunction {
     DISALLOW_COPY_AND_ASSIGN(MeshSpec);
   };
 
-  MTMFunction(scoped_ptr<MeshSpec> mesh_spec, float horizontal_fov,
-              float vertical_fov, const glm::mat4& transform,
-              const scoped_refptr<KeywordValue>& stereo_mode)
+  MapToMeshFunction(scoped_ptr<MeshSpec> mesh_spec, float horizontal_fov,
+                    float vertical_fov, const glm::mat4& transform,
+                    const scoped_refptr<KeywordValue>& stereo_mode)
       : mesh_spec_(mesh_spec.Pass()),
         horizontal_fov_(horizontal_fov),
         vertical_fov_(vertical_fov),
@@ -111,11 +111,11 @@ class MTMFunction : public FilterFunction {
   }
 
   // Alternate constructor for mesh URL lists.
-  MTMFunction(const scoped_refptr<PropertyValue>& mesh_url,
-              ResolutionMatchedMeshListBuilder resolution_matched_meshes,
-              float horizontal_fov, float vertical_fov,
-              const glm::mat4& transform,
-              const scoped_refptr<KeywordValue>& stereo_mode)
+  MapToMeshFunction(const scoped_refptr<PropertyValue>& mesh_url,
+                    ResolutionMatchedMeshListBuilder resolution_matched_meshes,
+                    float horizontal_fov, float vertical_fov,
+                    const glm::mat4& transform,
+                    const scoped_refptr<KeywordValue>& stereo_mode)
       : mesh_spec_(
             new MeshSpec(kUrls, mesh_url, resolution_matched_meshes.Pass())),
         horizontal_fov_(horizontal_fov),
@@ -126,9 +126,9 @@ class MTMFunction : public FilterFunction {
   }
 
   // Alternate constructor for built-in meshes.
-  MTMFunction(MeshSpecType spec_type, float horizontal_fov, float vertical_fov,
-              const glm::mat4& transform,
-              const scoped_refptr<KeywordValue>& stereo_mode)
+  MapToMeshFunction(MeshSpecType spec_type, float horizontal_fov,
+                    float vertical_fov, const glm::mat4& transform,
+                    const scoped_refptr<KeywordValue>& stereo_mode)
       : mesh_spec_(new MeshSpec(spec_type)),
         horizontal_fov_(horizontal_fov),
         vertical_fov_(vertical_fov),
@@ -137,7 +137,7 @@ class MTMFunction : public FilterFunction {
     DCHECK(stereo_mode_);
   }
 
-  ~MTMFunction() OVERRIDE {}
+  ~MapToMeshFunction() OVERRIDE {}
 
   const MeshSpec& mesh_spec() const { return *mesh_spec_; }
   float horizontal_fov() const { return horizontal_fov_; }
@@ -149,11 +149,12 @@ class MTMFunction : public FilterFunction {
 
   std::string ToString() const OVERRIDE;
 
-  bool operator==(const MTMFunction& rhs) const;
+  bool operator==(const MapToMeshFunction& rhs) const;
 
-  static const MTMFunction* ExtractFromFilterList(PropertyValue* filter_list);
+  static const MapToMeshFunction* ExtractFromFilterList(
+      PropertyValue* filter_list);
 
-  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(MTMFunction);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(MapToMeshFunction);
 
  private:
   const scoped_ptr<MeshSpec> mesh_spec_;
@@ -162,10 +163,10 @@ class MTMFunction : public FilterFunction {
   const glm::mat4 transform_;
   const scoped_refptr<KeywordValue> stereo_mode_;
 
-  DISALLOW_COPY_AND_ASSIGN(MTMFunction);
+  DISALLOW_COPY_AND_ASSIGN(MapToMeshFunction);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // COBALT_CSSOM_MTM_FUNCTION_H_
+#endif  // COBALT_CSSOM_MAP_TO_MESH_FUNCTION_H_
