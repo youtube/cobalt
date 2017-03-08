@@ -25,8 +25,12 @@ import gyp_configuration
 
 def CreatePlatformConfig():
   try:
-    return gyp_configuration.PlatformConfig('linux-x64directfb',
-                                            asan_enabled_by_default=False)
+    return gyp_configuration.PlatformConfig(
+        'linux-x64directfb',
+        # Unfortunately, some memory leaks outside of our control, and difficult
+        # to pattern match with ASAN's suppression list, appear in DirectFB
+        # builds, and so this must be disabled.
+        asan_enabled_by_default=False)
   except RuntimeError as e:
     logging.critical(e)
     return None
