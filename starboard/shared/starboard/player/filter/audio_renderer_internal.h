@@ -50,6 +50,9 @@ class AudioRenderer {
 
   void Play();
   void Pause();
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  void SetPlaybackRate(double playback_rate);
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   void Seek(SbMediaTime seek_to_pts);
 
   bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
@@ -89,6 +92,8 @@ class AudioRenderer {
   JobQueue* job_queue_;
   const int channels_;
   const int bytes_per_frame_;
+
+  double playback_rate_;
 
   Mutex mutex_;
   bool paused_;

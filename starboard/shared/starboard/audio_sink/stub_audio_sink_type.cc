@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "starboard/configuration.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -36,6 +37,11 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ~StubAudioSink() SB_OVERRIDE;
 
   bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
+    SB_NOTIMPLEMENTED();
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
  private:
   static void* ThreadEntryPoint(void* context);

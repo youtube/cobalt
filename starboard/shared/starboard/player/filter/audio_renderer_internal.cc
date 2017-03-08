@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/closure.h"
 
 namespace starboard {
@@ -33,6 +34,7 @@ AudioRenderer::AudioRenderer(JobQueue* job_queue,
       bytes_per_frame_(
           (decoder->GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4) *
           channels_),
+      playback_rate_(1.0),
       paused_(true),
       seeking_(false),
       seeking_to_pts_(0),
@@ -113,6 +115,18 @@ void AudioRenderer::Pause() {
   ScopedLock lock(mutex_);
   paused_ = true;
 }
+
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+void AudioRenderer::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  playback_rate_ = playback_rate;
+
+  if (audio_sink_) {
+    audio_sink_->SetPlaybackRate(playback_rate);
+  }
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
 void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -258,6 +272,9 @@ void AudioRenderer::ReadFromDecoder() {
         reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
         kMaxCachedFrames, &AudioRenderer::UpdateSourceStatusFunc,
         &AudioRenderer::ConsumeFramesFunc, this);
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+    audio_sink_->SetPlaybackRate(playback_rate_);
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   }
 }
 
