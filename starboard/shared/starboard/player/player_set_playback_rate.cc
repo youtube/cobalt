@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,14 +17,20 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
-void SbPlayerSetPause(SbPlayer player, bool pause) {
+bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
-    return;
+    return false;
   }
-  player->SetPause(pause);
+  if (playback_rate < 0.0) {
+    SB_DLOG(WARNING) << "playback_rate cannot be negative but it is set to "
+                     << playback_rate << '.';
+    return false;
+  }
+  player->SetPlaybackRate(playback_rate);
+  return true;
 }
 
-#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION

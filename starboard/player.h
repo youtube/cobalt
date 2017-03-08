@@ -137,6 +137,16 @@ typedef struct SbPlayerInfo {
   // The number of video frames that failed to be decoded since the creation of
   // the player.
   int corrupted_video_frames;
+
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  // The rate of playback.  The video is played back in a speed that is
+  // proportional to this.  By default it is 1.0 which indicates that the
+  // playback is at normal speed.  When it is greater than one, the video is
+  // played in a faster than normal speed.  When it is less than one, the video
+  // is played in a slower than normal speed.  Negative speeds are not
+  // supported.
+  double playback_rate;
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 } SbPlayerInfo;
 
 // An opaque handle to an implementation-private structure representing a
@@ -410,10 +420,28 @@ SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
            SB_IS(PLAYER_PUNCHED_OUT)
 
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
 // Pauses or unpauses the |player|. If the |player|'s state is
 // |kPlayerStatePrerolling|, this function sets the initial pause state for
 // the current seek target.
 SB_EXPORT void SbPlayerSetPause(SbPlayer player, bool pause);
+
+#else  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
+// Set the playback rate of the |player|.  |rate| is default to 1.0 which
+// indicates the playback is at its original speed.  A |rate| greater than one
+// will make the playback faster than its original speed.  For example, when
+// |rate| is 2, the video will be played at twice the speed as its original
+// speed.  A |rate| less than 1.0 will make the playback slower than its
+// original speed.  When |rate| is 0, the playback will be paused.
+// The function returns true when the playback rate is set to |playback_rate| or
+// to a rate that is close to |playback_rate| which the implementation supports.
+// It returns false when the playback rate is unchanged, this can happen when
+// |playback_rate| is negative or if it is too high to support.
+SB_EXPORT bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate);
+
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
 // Sets the player's volume.
 //
