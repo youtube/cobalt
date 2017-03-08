@@ -49,10 +49,10 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/local_src_value.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"
@@ -8395,11 +8395,12 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   ASSERT_TRUE(filter_list);
   ASSERT_EQ(1, filter_list->value().size());
 
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
 
-  EXPECT_EQ(cssom::MTMFunction::kUrls, mtm_function->mesh_spec().mesh_type());
+  EXPECT_EQ(cssom::MapToMeshFunction::kUrls,
+            mtm_function->mesh_spec().mesh_type());
 
   EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
   EXPECT_EQ(1.5f, mtm_function->vertical_fov());
@@ -8426,11 +8427,11 @@ TEST_F(ParserTest, ParsesMtmEquirectangularFilter) {
   ASSERT_TRUE(filter_list);
   ASSERT_EQ(1, filter_list->value().size());
 
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
 
-  EXPECT_EQ(cssom::MTMFunction::kEquirectangular,
+  EXPECT_EQ(cssom::MapToMeshFunction::kEquirectangular,
             mtm_function->mesh_spec().mesh_type());
 
   EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
@@ -8457,8 +8458,8 @@ TEST_F(ParserTest, ParsesMtmWIPFilterName) {
   ASSERT_TRUE(filter_list);
   ASSERT_EQ(1, filter_list->value().size());
 
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
@@ -8527,10 +8528,10 @@ TEST_F(ParserTest, ParsesMtmResolutionMatchedUrlsFilter) {
           style->GetPropertyValue(cssom::kFilterProperty).get());
 
   ASSERT_TRUE(filter_list);
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
 
-  const cssom::MTMFunction::ResolutionMatchedMeshListBuilder& meshes =
+  const cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder& meshes =
       mtm_function->mesh_spec().resolution_matched_meshes();
 
   ASSERT_EQ(3, meshes.size());
@@ -8561,8 +8562,8 @@ TEST_F(ParserTest, ParsesMtmTransformMatrixFilter) {
           style->GetPropertyValue(cssom::kFilterProperty).get());
 
   ASSERT_TRUE(filter_list);
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
 
   const glm::mat4& actual = mtm_function->transform();
   EXPECT_TRUE(
@@ -8596,8 +8597,8 @@ TEST_F(ParserTest, ParsesMtmMonoscopicStereoModeFilter) {
   ASSERT_TRUE(filter_list);
   ASSERT_EQ(1, filter_list->value().size());
 
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
@@ -8622,8 +8623,8 @@ TEST_F(ParserTest, ParsesMtmStereoscopicLeftRightStereoModeFilter) {
   ASSERT_TRUE(filter_list);
   ASSERT_EQ(1, filter_list->value().size());
 
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
@@ -8648,8 +8649,8 @@ TEST_F(ParserTest, ParsesMtmStereoscopicTopBottomStereoModeFilter) {
   ASSERT_TRUE(filter_list);
   ASSERT_EQ(1, filter_list->value().size());
 
-  const cssom::MTMFunction* mtm_function =
-      dynamic_cast<const cssom::MTMFunction*>(filter_list->value()[0]);
+  const cssom::MapToMeshFunction* mtm_function =
+      dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
