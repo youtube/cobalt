@@ -134,6 +134,20 @@ void GraphicsState::DisableDepthTest() {
   }
 }
 
+void GraphicsState::EnableDepthWrite() {
+  if (!depth_write_enabled_) {
+    depth_write_enabled_ = true;
+    GL_CALL(glDepthMask(GL_TRUE));
+  }
+}
+
+void GraphicsState::DisableDepthWrite() {
+  if (depth_write_enabled_) {
+    depth_write_enabled_ = false;
+    GL_CALL(glDepthMask(GL_FALSE));
+  }
+}
+
 void GraphicsState::ActiveTexture(GLenum texture_unit) {
   if (texture_unit_ != texture_unit) {
     texture_unit_ = texture_unit;
@@ -281,12 +295,15 @@ void GraphicsState::Reset() {
 
   blend_enabled_ = true;
   DisableBlend();
+  GL_CALL(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
 
   depth_test_enabled_ = false;
   EnableDepthTest();
-  GL_CALL(glDepthMask(GL_TRUE));
   GL_CALL(glDepthFunc(GL_LESS));
   GL_CALL(glDepthRangef(0.0f, 1.0f));
+
+  depth_write_enabled_ = false;
+  EnableDepthWrite();
 
   GL_CALL(glDisable(GL_DITHER));
   GL_CALL(glDisable(GL_CULL_FACE));
