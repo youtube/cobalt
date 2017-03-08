@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/web_module.h"
 
+#include <sstream>
+
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
@@ -46,6 +48,8 @@
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
 #include "starboard/accessibility.h"
+#include "starboard/log.h"
+#include "starboard/once.h"
 
 namespace cobalt {
 namespace browser {
@@ -127,6 +131,23 @@ bool IsTextToSpeechEnabled() {
   return false;
 }
 #endif  // SB_HAS(SPEECH_SYNTHESIS)
+
+// StartupTimer is designed to measure time since the startup of the app.
+// It is loader initialized to have the most accurate start time as possible.
+class StartupTimer {
+ public:
+  static StartupTimer* Instance();
+  base::TimeDelta TimeSinceStartup() const {
+    return base::TimeTicks::Now() - start_time_;
+  }
+
+ private:
+  StartupTimer() : start_time_(base::TimeTicks::Now()) {}
+  base::TimeTicks start_time_;
+};
+
+SB_ONCE_INITIALIZE_FUNCTION(StartupTimer, StartupTimer::Instance);
+StartupTimer* s_on_startup_init_dont_use = StartupTimer::Instance();
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -183,6 +204,9 @@ class WebModule::Impl {
   void SuspendLoaders();
   void FinishSuspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
+
+  void ReportScriptError(const base::SourceLocation& source_location,
+                         const std::string& error_message);
 
  private:
   class DocumentLoadedObserver;
@@ -439,6 +463,12 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   javascript_engine_ = script::JavaScriptEngine::CreateEngine();
   DCHECK(javascript_engine_);
+
+#if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
+  script::JavaScriptEngine::ErrorHandler error_handler =
+      base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this));
+  javascript_engine_->RegisterErrorHandler(error_handler);
+#endif
 
   javascript_engine_poller_.reset(new base::PollerWithThread(
       base::Bind(&WebModule::Impl::UpdateJavaScriptEngineStats,
@@ -788,6 +818,25 @@ void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   // invalidated with the call to Suspend(), so the layout manager's first task
   // will be to perform a full re-layout.
   layout_manager_->Resume();
+}
+
+void WebModule::Impl::ReportScriptError(
+    const base::SourceLocation& source_location,
+    const std::string& error_message) {
+  std::string file_name =
+      FilePath(source_location.file_path).BaseName().value();
+
+  std::stringstream ss;
+  base::TimeDelta dt = StartupTimer::Instance()->TimeSinceStartup();
+
+  // Create the error output.
+  // Example:
+  //   JS:50250:file.js(29,80): ka(...) is not iterable
+  //   JS:<time millis><js-file-name>(<line>,<column>):<message>
+  ss << "JS:" << dt.InMilliseconds() << ":" << file_name << "("
+     << source_location.line_number << ","
+     << source_location.column_number << "): " << error_message << "\n";
+  SbLogRaw(ss.str().c_str());
 }
 
 WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)

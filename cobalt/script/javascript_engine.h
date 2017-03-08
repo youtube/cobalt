@@ -14,8 +14,12 @@
 #ifndef COBALT_SCRIPT_JAVASCRIPT_ENGINE_H_
 #define COBALT_SCRIPT_JAVASCRIPT_ENGINE_H_
 
+#include <string>
+
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/source_location.h"
 
 namespace cobalt {
 namespace script {
@@ -24,6 +28,9 @@ class GlobalEnvironment;
 
 class JavaScriptEngine {
  public:
+  typedef base::Callback<void(const base::SourceLocation& location,
+                              const std::string& error_message)> ErrorHandler;
+
   // Initialize a JavaScript engine. The JavaScript engine should only be
   // accessed from the thread that called CreateEngine.
   // This function is defined per-implementation.
@@ -43,6 +50,10 @@ class JavaScriptEngine {
   // the engine. This includes the part that is actually occupied by JS objects,
   // and the part that is not yet.
   virtual size_t UpdateMemoryStatsAndReturnReserved() = 0;
+
+  // Installs an ErrorHandler for listening to javascript errors.
+  // Returns true if the error handler could be installed. False otherwise.
+  virtual bool RegisterErrorHandler(ErrorHandler handler) = 0;
 
  protected:
   virtual ~JavaScriptEngine() {}
