@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cssom/mtm_function.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
@@ -24,7 +24,7 @@
 namespace cobalt {
 namespace cssom {
 
-std::string MTMFunction::ToString() const {
+std::string MapToMeshFunction::ToString() const {
   std::string result = "map-to-mesh(";
 
   if (mesh_spec().mesh_type() == kEquirectangular) {
@@ -64,7 +64,7 @@ std::string MTMFunction::ToString() const {
   return result;
 }
 
-MTMFunction::ResolutionMatchedMesh::ResolutionMatchedMesh(
+MapToMeshFunction::ResolutionMatchedMesh::ResolutionMatchedMesh(
     int width_match, int height_match,
     const scoped_refptr<PropertyValue>& mesh_url)
     : width_match_(width_match),
@@ -73,19 +73,19 @@ MTMFunction::ResolutionMatchedMesh::ResolutionMatchedMesh(
   DCHECK(mesh_url_);
 }
 
-bool MTMFunction::ResolutionMatchedMesh::operator==(
-    const MTMFunction::ResolutionMatchedMesh& rhs) const {
+bool MapToMeshFunction::ResolutionMatchedMesh::operator==(
+    const MapToMeshFunction::ResolutionMatchedMesh& rhs) const {
   return mesh_url()->Equals(*rhs.mesh_url()) &&
          width_match() == rhs.width_match() &&
          height_match() == rhs.height_match();
 }
 
-bool MTMFunction::ResolutionMatchedMesh::operator!=(
-    const MTMFunction::ResolutionMatchedMesh& rhs) const {
+bool MapToMeshFunction::ResolutionMatchedMesh::operator!=(
+    const MapToMeshFunction::ResolutionMatchedMesh& rhs) const {
   return !(*this == rhs);
 }
 
-const MTMFunction* MTMFunction::ExtractFromFilterList(
+const MapToMeshFunction* MapToMeshFunction::ExtractFromFilterList(
     PropertyValue* filter_value) {
   if (filter_value && filter_value != cssom::KeywordValue::GetNone()) {
     const cssom::FilterFunctionListValue::Builder& filter_list =
@@ -95,8 +95,8 @@ const MTMFunction* MTMFunction::ExtractFromFilterList(
 
     for (size_t list_index = 0; list_index < filter_list.size(); ++list_index) {
       if (filter_list[list_index]->GetTypeId() ==
-          base::GetTypeId<cssom::MTMFunction>()) {
-        return base::polymorphic_downcast<const cssom::MTMFunction*>(
+          base::GetTypeId<cssom::MapToMeshFunction>()) {
+        return base::polymorphic_downcast<const cssom::MapToMeshFunction*>(
             filter_list[list_index]);
       }
     }
@@ -105,7 +105,7 @@ const MTMFunction* MTMFunction::ExtractFromFilterList(
   return NULL;
 }
 
-bool MTMFunction::operator==(const MTMFunction& rhs) const {
+bool MapToMeshFunction::operator==(const MapToMeshFunction& rhs) const {
   if (mesh_spec().mesh_type() != rhs.mesh_spec().mesh_type() ||
       horizontal_fov() != rhs.horizontal_fov() ||
       horizontal_fov() != rhs.horizontal_fov() ||
