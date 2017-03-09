@@ -15,6 +15,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/byte_queue.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/base/video_decoder_config.h"
@@ -25,7 +26,7 @@ class WebMClusterParser;
 
 class MEDIA_EXPORT WebMStreamParser : public StreamParser {
  public:
-  WebMStreamParser();
+  explicit WebMStreamParser(DecoderBuffer::Allocator* buffer_allocator);
   ~WebMStreamParser() OVERRIDE;
 
   // StreamParser implementation.
@@ -65,6 +66,7 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
   // Fire the encrypted event through the |encrypted_media_init_data_cb_|.
   void OnEncryptedMediaInitData(const std::string& key_id);
 
+  DecoderBuffer::Allocator* buffer_allocator_;
   State state_;
   InitCB init_cb_;
   NewConfigCB config_cb_;

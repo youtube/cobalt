@@ -15,6 +15,7 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/stream_parser.h"
@@ -144,7 +145,8 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   typedef std::map<int, Track> TextTrackMap;
 
  public:
-  WebMClusterParser(int64_t timecode_scale, int audio_track_num,
+  WebMClusterParser(DecoderBuffer::Allocator* buffer_allocator,
+                    int64_t timecode_scale, int audio_track_num,
                     base::TimeDelta audio_default_duration, int video_track_num,
                     base::TimeDelta video_default_duration,
                     const WebMTracksParser::TextTracks& text_tracks,
@@ -247,6 +249,8 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // Reads Opus packet header to determine packet duration. Duration returned
   // as TimeDelta or kNoTimestamp upon failure to read duration from packet.
   base::TimeDelta ReadOpusDuration(const uint8_t* data, int size);
+
+  DecoderBuffer::Allocator* buffer_allocator_;
 
   // Tracks the number of MEDIA_LOGs made in process of reading encoded
   // duration. Useful to prevent log spam.

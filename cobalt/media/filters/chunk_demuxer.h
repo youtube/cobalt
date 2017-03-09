@@ -20,6 +20,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/media/base/byte_queue.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_tracks.h"
@@ -183,7 +184,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // |splice_frames_enabled| Indicates that it's okay to generate splice frames
   //   per the MSE specification.  Renderers must understand DecoderBuffer's
   //   splice_timestamp() field.
-  ChunkDemuxer(const base::Closure& open_cb,
+  ChunkDemuxer(DecoderBuffer::Allocator* buffer_allocator,
+               const base::Closure& open_cb,
                const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
                const scoped_refptr<MediaLog>& media_log,
                bool splice_frames_enabled);
@@ -390,6 +392,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // all objects in |source_state_map_|.
   void ShutdownAllStreams();
 
+  DecoderBuffer::Allocator* buffer_allocator_;
   mutable base::Lock lock_;
   State state_;
   bool cancel_next_seek_;
