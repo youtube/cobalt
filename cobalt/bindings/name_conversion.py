@@ -31,11 +31,18 @@ titlecase_word_delimiter_re = re.compile(
 # neigboring characters.
 word_list = ['html']
 
+# List of special tokens which are always be marked as words.
+special_token_list = ['3d']
+
+# Regular expression to capture all of the special tokens.
+special_token_re = re.compile(
+    '(%s)' % '|'.join(special_token_list), flags=re.IGNORECASE)
+
 # Split tokens on non-alphanumeric characters (excluding underscores).
 enumeration_value_word_delimeter_re = re.compile(r'[^a-zA-Z0-9]')
 
 
-def convert_to_cobalt_name(class_name):
+def convert_to_regular_cobalt_name(class_name):
   cobalt_name = titlecase_word_delimiter_re.sub('_', class_name).lower()
   for term in word_list:
     replacement = [
@@ -45,6 +52,21 @@ def convert_to_cobalt_name(class_name):
     ]
     cobalt_name = '_'.join(replacement)
   return cobalt_name
+
+
+def convert_to_cobalt_name(class_name):
+  replacement = []
+
+  for token in special_token_re.split(class_name):
+    if not token:
+      continue
+
+    if token.lower() in special_token_list:
+      replacement.append(token.lower())
+    else:
+      replacement.append(convert_to_regular_cobalt_name(token))
+
+  return '_'.join(replacement)
 
 
 def capitalize_function_name(operation_name):
