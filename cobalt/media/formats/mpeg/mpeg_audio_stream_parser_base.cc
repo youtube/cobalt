@@ -50,14 +50,17 @@ static int LocateEndOfHeaders(const uint8_t* buf, int buf_len, int i) {
   return -1;
 }
 
-MPEGAudioStreamParserBase::MPEGAudioStreamParserBase(uint32_t start_code_mask,
-                                                     AudioCodec audio_codec,
-                                                     int codec_delay)
-    : state_(UNINITIALIZED),
+MPEGAudioStreamParserBase::MPEGAudioStreamParserBase(
+    DecoderBuffer::Allocator* buffer_allocator, uint32_t start_code_mask,
+    AudioCodec audio_codec, int codec_delay)
+    : buffer_allocator_(buffer_allocator),
+      state_(UNINITIALIZED),
       in_media_segment_(false),
       start_code_mask_(start_code_mask),
       audio_codec_(audio_codec),
-      codec_delay_(codec_delay) {}
+      codec_delay_(codec_delay) {
+  DCHECK(buffer_allocator_);
+}
 
 MPEGAudioStreamParserBase::~MPEGAudioStreamParserBase() {}
 
@@ -225,8 +228,9 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data, int size,
   // TODO(wolenetz/acolwell): Validate and use a common cross-parser TrackId
   // type and allow multiple audio tracks, if applicable. See
   // https://crbug.com/341581.
-  scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
-      data, frame_size, true, DemuxerStream::AUDIO, kMpegAudioTrackId);
+  scoped_refptr<StreamParserBuffer> buffer =
+      StreamParserBuffer::CopyFrom(buffer_allocator_, data, frame_size, true,
+                                   DemuxerStream::AUDIO, kMpegAudioTrackId);
   buffer->set_timestamp(timestamp_helper_->GetTimestamp());
   buffer->set_duration(timestamp_helper_->GetFrameDuration(sample_count));
   buffers->push_back(buffer);

@@ -38,9 +38,11 @@ namespace {
 const int kMaxEmptySampleLogs = 20;
 }  // namespace
 
-MP4StreamParser::MP4StreamParser(const std::set<int>& audio_object_types,
+MP4StreamParser::MP4StreamParser(DecoderBuffer::Allocator* buffer_allocator,
+                                 const std::set<int>& audio_object_types,
                                  bool has_sbr)
-    : state_(kWaitingForInit),
+    : buffer_allocator_(buffer_allocator),
+      state_(kWaitingForInit),
       moof_head_(0),
       mdat_tail_(0),
       highest_end_offset_(0),
@@ -611,8 +613,8 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
       audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
 
   scoped_refptr<StreamParserBuffer> stream_buf = StreamParserBuffer::CopyFrom(
-      &frame_buf[0], frame_buf.size(), runs_->is_keyframe(), buffer_type,
-      runs_->track_id());
+      buffer_allocator_, &frame_buf[0], frame_buf.size(), runs_->is_keyframe(),
+      buffer_type, runs_->track_id());
 
   if (decrypt_config) stream_buf->set_decrypt_config(decrypt_config.Pass());
 

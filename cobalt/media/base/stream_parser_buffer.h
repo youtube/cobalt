@@ -106,19 +106,17 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   // Value used to signal an invalid decoder config ID.
   enum { kInvalidConfigId = -1 };
 
-  typedef DemuxerStream::Type Type;
   typedef StreamParser::TrackId TrackId;
 
   static scoped_refptr<StreamParserBuffer> CreateEOSBuffer();
 
-  static scoped_refptr<StreamParserBuffer> CopyFrom(const uint8_t* data,
-                                                    int data_size,
-                                                    bool is_key_frame,
-                                                    Type type,
-                                                    TrackId track_id);
   static scoped_refptr<StreamParserBuffer> CopyFrom(
-      const uint8_t* data, int data_size, const uint8_t* side_data,
-      int side_data_size, bool is_key_frame, Type type, TrackId track_id);
+      Allocator* allocator, const uint8_t* data, int data_size,
+      bool is_key_frame, Type type, TrackId track_id);
+  static scoped_refptr<StreamParserBuffer> CopyFrom(
+      Allocator* allocator, const uint8_t* data, int data_size,
+      const uint8_t* side_data, int side_data_size, bool is_key_frame,
+      Type type, TrackId track_id);
 
   // Decode timestamp. If not explicitly set, or set to kNoTimestamp, the
   // value will be taken from the normal timestamp.
@@ -133,11 +131,6 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   // |index| is out of range.  Otherwise returns the config ID for the
   // buffer in |splice_buffers_| at position |index|.
   int GetSpliceBufferConfigId(size_t index) const;
-
-  // Gets the parser's media type associated with this buffer. Value is
-  // meaningless for EOS buffers.
-  Type type() const { return type_; }
-  const char* GetTypeName() const;
 
   // Gets the parser's track ID associated with this buffer. Value is
   // meaningless for EOS buffers.
@@ -181,14 +174,15 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   }
 
  private:
-  StreamParserBuffer(const uint8_t* data, int data_size,
+  // The default ctor creates an EOS buffer without specific stream type.
+  StreamParserBuffer();
+  StreamParserBuffer(Allocator* allocator, const uint8_t* data, int data_size,
                      const uint8_t* side_data, int side_data_size,
                      bool is_key_frame, Type type, TrackId track_id);
   ~StreamParserBuffer() OVERRIDE;
 
   DecodeTimestamp decode_timestamp_;
   int config_id_;
-  Type type_;
   TrackId track_id_;
   BufferQueue splice_buffers_;
   scoped_refptr<StreamParserBuffer> preroll_buffer_;
