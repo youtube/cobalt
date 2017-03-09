@@ -101,6 +101,7 @@ typedef base::Callback<void(const std::string&, const std::string&,
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     PipelineWindow window, WebMediaPlayerClient* client,
     WebMediaPlayerDelegate* delegate,
+    DecoderBuffer::Allocator* buffer_allocator,
     const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
     const scoped_refptr<MediaLog>& media_log)
     : pipeline_thread_("media_pipeline"),
@@ -109,6 +110,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       main_loop_(MessageLoop::current()),
       client_(client),
       delegate_(delegate),
+      buffer_allocator_(buffer_allocator),
       video_frame_provider_(video_frame_provider),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
       media_log_(media_log),
@@ -116,6 +118,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false) {
+  DCHECK(buffer_allocator_);
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
 
@@ -198,6 +201,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
   // Media source pipelines can start immediately.
   chunk_demuxer_.reset(new ChunkDemuxer(
+      buffer_allocator_,
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnEncryptedMediaInitData),
       media_log_, true));
@@ -226,7 +230,7 @@ void WebMediaPlayerImpl::LoadProgressive(
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   progressive_demuxer_.reset(
-      new ShellDemuxer(pipeline_thread_.message_loop_proxy(),
+      new ShellDemuxer(pipeline_thread_.message_loop_proxy(), buffer_allocator_,
                        proxy_->data_source(), media_log_));
 
   state_.is_progressive = true;
