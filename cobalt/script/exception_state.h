@@ -24,10 +24,20 @@ namespace script {
 
 class ExceptionState {
  public:
+  // Type with a conversion constructor from MessageType that can be used as the
+  // last (only) parameter before varadic arguments to avoid promoting the enum
+  // to an int, which is an error in newer clang because passing an object that
+  // undergoes default argument promotion to 'va_start' has undefined behavior.
+  struct MessageTypeVar {
+    MessageType value;
+    // NOLINTNEXTLINE(runtime/explicit)
+    MessageTypeVar(MessageType value) : value(value) {}
+  };
+
   // IDL for this object must be an exception interface.
   virtual void SetException(
       const scoped_refptr<ScriptException>& exception) = 0;
-  virtual void SetSimpleException(MessageType message_type, ...) = 0;
+  virtual void SetSimpleException(MessageTypeVar message_type, ...) = 0;
 };
 
 }  // namespace script
