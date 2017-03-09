@@ -65,7 +65,7 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   void Seek(base::TimeDelta time);
 
   void SetVolume(float volume);
-  void SetPause(bool pause);
+  void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time);
 
@@ -132,6 +132,7 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   DecodingBuffers decoding_buffers_;
   int ticket_;
   float volume_;
+  double playback_rate_;
   bool paused_;
   bool seek_pending_;
   DecoderBufferCache decoder_buffer_cache_;
