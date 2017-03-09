@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
 
@@ -30,7 +31,8 @@ class MEDIA_EXPORT StreamParserFactory {
   //   |codecs| are supported.
   // Returns NULL otherwise.
   static scoped_ptr<StreamParser> Create(
-      const std::string& type, const std::vector<std::string>& codecs,
+      DecoderBuffer::Allocator* buffer_allocator, const std::string& type,
+      const std::vector<std::string>& codecs,
       const scoped_refptr<MediaLog>& media_log);
 };
 

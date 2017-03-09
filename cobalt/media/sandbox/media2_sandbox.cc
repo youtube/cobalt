@@ -17,6 +17,7 @@
 #include "base/path_service.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/base/media_log.h"
+#include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "starboard/event.h"
 
@@ -109,10 +110,11 @@ int SandboxMain(int argc, char** argv) {
 
   MessageLoop message_loop;
 
+  DecoderBufferAllocator decoder_buffer_allocator;
   DemuxerHostStub demuxer_host;
   scoped_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
-      base::Bind(OnDemuxerOpen), base::Bind(OnEncryptedMediaInitData),
-      new ::media::MediaLog, false));
+      &decoder_buffer_allocator, base::Bind(OnDemuxerOpen),
+      base::Bind(OnEncryptedMediaInitData), new ::media::MediaLog, false));
   demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus), false);
 
   ChunkDemuxer::Status status =
