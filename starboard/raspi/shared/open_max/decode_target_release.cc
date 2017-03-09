@@ -25,7 +25,7 @@ void SbDecodeTargetRelease(SbDecodeTarget target) {
     SB_DCHECK(target->info.format == kSbDecodeTargetFormat1PlaneRGBA);
     // This may need to change if we support more than just
     // kSbDecodeTargetFormat1PlaneRGBA.
-    const int kNumPlanes = 0;
+    const int kNumPlanes = 1;
 
     for (int plane = 0; plane < kNumPlanes; ++plane) {
       if (target->images[plane] != EGL_NO_IMAGE_KHR) {
