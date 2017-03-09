@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/starboard_utils.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 namespace media {
@@ -43,7 +44,7 @@ StarboardPlayer::StarboardPlayer(
       frame_height_(1),
       ticket_(SB_PLAYER_INITIAL_TICKET),
       volume_(1.0),
-      paused_(true),
+      playback_rate_(0.0),
       seek_pending_(false),
       state_(kPlaying) {
   DCHECK(audio_config.IsValidConfig());
@@ -150,7 +151,9 @@ void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
 void StarboardPlayer::PrepareForSeek() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   ++ticket_;
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, true);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   seek_pending_ = true;
 }
 
@@ -176,9 +179,9 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   ++ticket_;
   SbPlayerSeek(player_, TimeDeltaToSbMediaTime(time), ticket_);
   seek_pending_ = false;
-  if (!paused_) {
-    SbPlayerSetPause(player_, false);
-  }
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPause(player_, playback_rate_ == 0.0);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
 void StarboardPlayer::SetVolume(float volume) {
@@ -195,14 +198,16 @@ void StarboardPlayer::SetVolume(float volume) {
   SbPlayerSetVolume(player_, volume);
 }
 
-void StarboardPlayer::SetPause(bool pause) {
+void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(SbPlayerIsValid(player_));
 
-  paused_ = pause;
-  if (!seek_pending_) {
-    SbPlayerSetPause(player_, pause);
-  }
+  playback_rate_ = playback_rate;
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPause(player_, playback_rate == 0.0);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, playback_rate);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
@@ -252,7 +257,11 @@ void StarboardPlayer::Suspend() {
 
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, true);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, 0.0);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
   base::AutoLock auto_lock(lock_);
 
@@ -428,9 +437,11 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     }
     SbPlayerSeek(player_, TimeDeltaToSbMediaTime(preroll_timestamp_), ticket_);
     SetVolume(volume_);
-    if (paused_) {
-      SetPause(paused_);
-    }
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+    SbPlayerSetPause(player_, playback_rate_ == 0.0);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+    SbPlayerSetPlaybackRate(player_, playback_rate_);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
     return;
   }
   host_->OnPlayerStatus(state);
