@@ -32,9 +32,6 @@
 namespace {
 
 typedef uint16 SerializedCloseStatusCodeType;
-const int kMaxControlPayloadSizeInBytes = 125;
-const int kMaxCloseReasonSize =
-    kMaxControlPayloadSizeInBytes - sizeof(SerializedCloseStatusCodeType);
 
 bool IsURLAbsolute(cobalt::dom::DOMSettings* dom_settings,
                    const std::string& url) {
@@ -275,6 +272,8 @@ void WebSocket::Close(const uint16 code, const std::string& reason,
   switch (ready_state_) {
     case kOpen:
     case kConnecting:
+      DCHECK(impl_);
+      impl_->Close(net::WebSocketError(code), reason);
       ready_state_ = kClosing;
       break;
     case kClosing:
@@ -305,10 +304,16 @@ bool WebSocket::CheckReadyState(script::ExceptionState* exception_state) {
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const std::string& data,
                      script::ExceptionState* exception_state) {
-  UNREFERENCED_PARAMETER(data);
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
+  }
+  std::string error_message;
+  bool success = impl_->SendText(data.data(), data.size(), &buffered_amount_,
+                                 &error_message);
+  if (!success) {
+    DLOG(ERROR) << "Unable to send message: [" << error_message << "]";
   }
 }
 
@@ -316,6 +321,7 @@ void WebSocket::Send(const std::string& data,
 void WebSocket::Send(const scoped_refptr<dom::Blob>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
   }
@@ -323,18 +329,34 @@ void WebSocket::Send(const scoped_refptr<dom::Blob>& data,
   if (!blob) {
     return;
   }
+  std::string error_message;
+  bool success = impl_->SendBinary(reinterpret_cast<const char*>(blob->data()),
+                                   static_cast<std::size_t>(blob->size()),
+                                   &buffered_amount_, &error_message);
+  if (!success) {
+    DLOG(ERROR) << "Unable to send message: [" << error_message << "]";
+  }
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const scoped_refptr<dom::ArrayBuffer>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
   }
+  std::string error_message;
   dom::ArrayBuffer* array_buffer(data.get());
   if (!array_buffer) {
     return;
+  }
+  bool success =
+      impl_->SendBinary(reinterpret_cast<const char*>(array_buffer->data()),
+                        static_cast<std::size_t>(array_buffer->byte_length()),
+                        &buffered_amount_, &error_message);
+  if (!success) {
+    DLOG(ERROR) << "Unable to send message: [" << error_message << "]";
   }
 }
 
@@ -342,6 +364,7 @@ void WebSocket::Send(const scoped_refptr<dom::ArrayBuffer>& data,
 void WebSocket::Send(const scoped_refptr<dom::ArrayBufferView>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
   }
@@ -349,6 +372,13 @@ void WebSocket::Send(const scoped_refptr<dom::ArrayBufferView>& data,
   dom::ArrayBufferView* array_buffer_view(data.get());
   if (!array_buffer_view) {
     return;
+  }
+  bool success = impl_->SendBinary(
+      reinterpret_cast<const char*>(array_buffer_view->base_address()),
+      static_cast<std::size_t>(array_buffer_view->byte_length()),
+      &buffered_amount_, &error_message);
+  if (!success) {
+    DLOG(ERROR) << "Unable to send message: [" << error_message << "]";
   }
 }
 
@@ -366,6 +396,24 @@ std::string WebSocket::GetPortAsString() const {
   }
 
   return base::IntToString(GetPort());
+}
+
+void WebSocket::OnConnected(const std::string& selected_subprotocol) {
+  DLOG(INFO) << "Websockets selected subprotocol: [" << selected_subprotocol
+             << "]";
+  protocol_ = selected_subprotocol;
+  ready_state_ = kOpen;
+  this->DispatchEvent(new dom::Event(base::Tokens::open()));
+}
+
+void WebSocket::OnReceivedData(bool is_text_frame,
+                               scoped_refptr<net::IOBufferWithSize> data) {
+  dom::MessageEvent::ResponseTypeCode response_type_code = binary_type_;
+  if (is_text_frame) {
+    response_type_code = dom::MessageEvent::kText;
+  }
+  this->DispatchEvent(new dom::MessageEvent(base::Tokens::message(), settings_,
+                                            response_type_code, data));
 }
 
 void WebSocket::Initialize(dom::DOMSettings* dom_settings,
@@ -481,11 +529,20 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
 
 void WebSocket::Connect(const GURL& url,
                         const std::vector<std::string>& sub_protocols) {
-  UNREFERENCED_PARAMETER(url);
-  UNREFERENCED_PARAMETER(sub_protocols);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(settings_);
   DCHECK(settings_->network_module());
+
+  GURL origin_gurl = settings_->base_url().GetOrigin();
+  const std::string& origin = origin_gurl.possibly_invalid_spec();
+
+  impl_ = make_scoped_refptr<WebSocketImpl>(
+      new WebSocketImpl(settings_->network_module(), this));
+
+  UNREFERENCED_PARAMETER(origin);
+  UNREFERENCED_PARAMETER(url);
+  UNREFERENCED_PARAMETER(sub_protocols);
+  // impl_->Connect(origin, url, sub_protocols);
 }
 
 }  // namespace websocket

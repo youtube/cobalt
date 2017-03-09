@@ -26,10 +26,12 @@
 
 namespace {
 
-net::WebSocketMaskingKey NullMaskingKeyGenerator() {
-  net::WebSocketMaskingKey key;
-  SbMemorySet(key.key, 0, sizeof(key.key));
-  return key;
+using cobalt::websocket::SecWebSocketKey;
+
+SecWebSocketKey NullMaskingKeyGenerator() {
+  SecWebSocketKey::SecWebSocketKeyBytes key_bytes;
+  SbMemorySet(&key_bytes, 0, sizeof(key_bytes));
+  return SecWebSocketKey(key_bytes);
 }
 
 std::vector<net::HttpRequestHeaders::HeaderKeyValuePair> RequestHeadersToVector(
@@ -41,6 +43,10 @@ std::vector<net::HttpRequestHeaders::HeaderKeyValuePair> RequestHeadersToVector(
         net::HttpRequestHeaders::HeaderKeyValuePair(it.name(), it.value()));
   return result;
 }
+
+const char kTestUserAgent[] =
+    "Mozilla/5.0 (X11; Linux x86_64) Cobalt/9.27875-debug (unlike Gecko) "
+    "Starboard/2";
 
 }  // namespace
 
@@ -56,6 +62,7 @@ std::ostream &operator<<(std::ostream &os,
   os << obj.key << ":" << obj.value;
   return os;
 }
+
 }  // namespace net
 
 namespace cobalt {
@@ -64,23 +71,21 @@ namespace websocket {
 class WebSocketHandshakeHelperTest : public ::testing::Test {
  public:
   WebSocketHandshakeHelperTest()
-      : handshake_helper_(&NullMaskingKeyGenerator) {}
+      : handshake_helper_(kTestUserAgent, &NullMaskingKeyGenerator) {}
 
   WebSocketHandshakeHelper handshake_helper_;
   std::vector<std::string> sub_protocols_;
 };
 
 TEST_F(WebSocketHandshakeHelperTest, null_key) {
-  EXPECT_EQ(static_cast<int>(net::WebSocketFrameHeader::kMaskingKeyLength), 4);
-  EXPECT_EQ(
-      static_cast<std::size_t>(net::WebSocketFrameHeader::kMaskingKeyLength),
-      arraysize(handshake_helper_.sec_websocket_key_.key));
+  EXPECT_EQ(static_cast<int>(SecWebSocketKey::kKeySizeInBytes), 16);
 
   handshake_helper_.GenerateSecWebSocketKey();
-  std::string null_key(net::WebSocketFrameHeader::kMaskingKeyLength, '\0');
+  std::string null_key(SecWebSocketKey::kKeySizeInBytes, '\0');
   EXPECT_EQ(
-      SbMemoryCompare(null_key.data(), handshake_helper_.sec_websocket_key_.key,
-                      net::WebSocketFrameHeader::kMaskingKeyLength),
+      SbMemoryCompare(null_key.data(),
+                      handshake_helper_.sec_websocket_key_.GetRawKeyBytes(),
+                      SecWebSocketKey::kKeySizeInBytes),
       0);
 }
 
@@ -102,7 +107,7 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakeInfo) {
       RequestHeadersToVector(headers);
 
   typedef net::HttpRequestHeaders::HeaderKeyValuePair HeaderKeyValuePair;
-  ASSERT_EQ(9u, request_headers.size());
+  ASSERT_EQ(10u, request_headers.size());
   EXPECT_EQ(HeaderKeyValuePair("Host", "localhost"), request_headers[0]);
   EXPECT_EQ(HeaderKeyValuePair("Connection", "Upgrade"), request_headers[1]);
   EXPECT_EQ(HeaderKeyValuePair("Pragma", "no-cache"), request_headers[2]);
@@ -116,6 +121,8 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakeInfo) {
   EXPECT_EQ(HeaderKeyValuePair("Origin", "http://localhost"),
             request_headers[7]);
   EXPECT_EQ("Sec-WebSocket-Key", request_headers[8].key);
+  EXPECT_EQ(HeaderKeyValuePair("User-Agent", kTestUserAgent),
+            request_headers[9]);
 }
 
 TEST_F(WebSocketHandshakeHelperTest, HandshakeWithPort) {
@@ -136,7 +143,7 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakeWithPort) {
       RequestHeadersToVector(headers);
 
   typedef net::HttpRequestHeaders::HeaderKeyValuePair HeaderKeyValuePair;
-  ASSERT_EQ(9u, request_headers.size());
+  ASSERT_EQ(10u, request_headers.size());
   EXPECT_EQ(HeaderKeyValuePair("Host", "localhost:4541"), request_headers[0]);
   EXPECT_EQ(HeaderKeyValuePair("Connection", "Upgrade"), request_headers[1]);
   EXPECT_EQ(HeaderKeyValuePair("Pragma", "no-cache"), request_headers[2]);
@@ -150,6 +157,8 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakeWithPort) {
   EXPECT_EQ(HeaderKeyValuePair("Origin", "http://localhost"),
             request_headers[7]);
   EXPECT_EQ("Sec-WebSocket-Key", request_headers[8].key);
+  EXPECT_EQ(HeaderKeyValuePair("User-Agent", kTestUserAgent),
+            request_headers[9]);
 }
 
 TEST_F(WebSocketHandshakeHelperTest, HandshakePath) {
@@ -173,7 +182,7 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakePath) {
       RequestHeadersToVector(headers);
 
   typedef net::HttpRequestHeaders::HeaderKeyValuePair HeaderKeyValuePair;
-  ASSERT_EQ(9u, request_headers.size());
+  ASSERT_EQ(10u, request_headers.size());
   EXPECT_EQ(HeaderKeyValuePair("Host", "localhost:4541"), request_headers[0]);
   EXPECT_EQ(HeaderKeyValuePair("Connection", "Upgrade"), request_headers[1]);
   EXPECT_EQ(HeaderKeyValuePair("Pragma", "no-cache"), request_headers[2]);
@@ -187,6 +196,8 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakePath) {
   EXPECT_EQ(HeaderKeyValuePair("Origin", "http://localhost"),
             request_headers[7]);
   EXPECT_EQ("Sec-WebSocket-Key", request_headers[8].key);
+  EXPECT_EQ(HeaderKeyValuePair("User-Agent", kTestUserAgent),
+            request_headers[9]);
 }
 
 TEST_F(WebSocketHandshakeHelperTest, HandshakePathWithQuery) {
@@ -210,7 +221,7 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakePathWithQuery) {
       RequestHeadersToVector(headers);
 
   typedef net::HttpRequestHeaders::HeaderKeyValuePair HeaderKeyValuePair;
-  ASSERT_EQ(9u, request_headers.size());
+  ASSERT_EQ(10u, request_headers.size());
   EXPECT_EQ(HeaderKeyValuePair("Host", "localhost:4541"), request_headers[0]);
   EXPECT_EQ(HeaderKeyValuePair("Connection", "Upgrade"), request_headers[1]);
   EXPECT_EQ(HeaderKeyValuePair("Pragma", "no-cache"), request_headers[2]);
@@ -224,6 +235,8 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakePathWithQuery) {
   EXPECT_EQ(HeaderKeyValuePair("Origin", "http://localhost"),
             request_headers[7]);
   EXPECT_EQ("Sec-WebSocket-Key", request_headers[8].key);
+  EXPECT_EQ(HeaderKeyValuePair("User-Agent", kTestUserAgent),
+            request_headers[9]);
 }
 
 TEST_F(WebSocketHandshakeHelperTest, HandshakePathWithDesiredProtocols) {
@@ -250,7 +263,7 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakePathWithDesiredProtocols) {
       RequestHeadersToVector(headers);
 
   typedef net::HttpRequestHeaders::HeaderKeyValuePair HeaderKeyValuePair;
-  ASSERT_EQ(10u, request_headers.size());
+  ASSERT_EQ(11u, request_headers.size());
   EXPECT_EQ(HeaderKeyValuePair("Host", "localhost"), request_headers[0]);
   EXPECT_EQ(HeaderKeyValuePair("Connection", "Upgrade"), request_headers[1]);
   EXPECT_EQ(HeaderKeyValuePair("Pragma", "no-cache"), request_headers[2]);
@@ -264,8 +277,10 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakePathWithDesiredProtocols) {
   EXPECT_EQ(HeaderKeyValuePair("Origin", "http://localhost"),
             request_headers[7]);
   EXPECT_EQ("Sec-WebSocket-Key", request_headers[8].key);
-  EXPECT_EQ(HeaderKeyValuePair("Sec-WebSocket-Protocol", "chat,superchat"),
+  EXPECT_EQ(HeaderKeyValuePair("User-Agent", kTestUserAgent),
             request_headers[9]);
+  EXPECT_EQ(HeaderKeyValuePair("Sec-WebSocket-Protocol", "chat,superchat"),
+            request_headers[10]);
 }
 
 TEST_F(WebSocketHandshakeHelperTest, CheckValidResponseCode) {
@@ -352,17 +367,16 @@ TEST_F(WebSocketHandshakeHelperTest, CheckValidSecWebSocketAccept) {
   //  In [1]: import struct
   //  In [2]: import hashlib
   //  In [3]: import base64
-  //  In [4]: m = hashlib.sha1()
-  //  In [5]: m.update(struct.pack('I', 0) +
+  //  In [5]: h = hashlib.sha1(base64.b64encode(struct.pack('QQ', 0, 0)) +
   //  b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
-  //  In [6]: base64.b64encode(m.digest())
-  //  Out[6]: '7dUFH23qB2SDSGKF6kztk6+FMIQ='
+  //  In [6]: base64.b64encode(h.digest())
+  //  Out[6]: 'ICX+Yqv66kxgM0FcWaLWlFLwTAI='
 
   char response_on_wire[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
-      "Sec-WebSocket-Accept:7dUFH23qB2SDSGKF6kztk6+FMIQ=\r\n";
+      "Sec-WebSocket-Accept:ICX+Yqv66kxgM0FcWaLWlFLwTAI=\r\n";
 
   std::string handshake_request;
   GURL localhost_websocket_endpoint("ws://localhost:4541/abc?one=1&two=2");
