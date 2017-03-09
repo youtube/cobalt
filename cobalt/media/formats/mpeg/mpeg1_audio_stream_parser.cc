@@ -196,9 +196,10 @@ bool MPEG1AudioStreamParser::ParseHeader(
   return true;
 }
 
-
-MPEG1AudioStreamParser::MPEG1AudioStreamParser()
-    : MPEGAudioStreamParserBase(kMPEG1StartCodeMask, kCodecMP3, kCodecDelay) {}
+MPEG1AudioStreamParser::MPEG1AudioStreamParser(
+    DecoderBuffer::Allocator* buffer_allocator)
+    : MPEGAudioStreamParserBase(buffer_allocator, kMPEG1StartCodeMask,
+                                kCodecMP3, kCodecDelay) {}
 
 MPEG1AudioStreamParser::~MPEG1AudioStreamParser() {}
 

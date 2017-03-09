@@ -387,10 +387,11 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
 }
 
 ChunkDemuxer::ChunkDemuxer(
-    const base::Closure& open_cb,
+    DecoderBuffer::Allocator* buffer_allocator, const base::Closure& open_cb,
     const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
     const scoped_refptr<MediaLog>& media_log, bool splice_frames_enabled)
-    : state_(WAITING_FOR_INIT),
+    : buffer_allocator_(buffer_allocator),
+      state_(WAITING_FOR_INIT),
       cancel_next_seek_(false),
       host_(NULL),
       open_cb_(open_cb),
@@ -404,6 +405,7 @@ ChunkDemuxer::ChunkDemuxer(
       detected_audio_track_count_(0),
       detected_video_track_count_(0),
       detected_text_track_count_(0) {
+  DCHECK(buffer_allocator_);
   DCHECK(!open_cb_.is_null());
   DCHECK(!encrypted_media_init_data_cb_.is_null());
 }
@@ -572,8 +574,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   std::vector<std::string> parsed_codec_ids;
   media::ParseCodecString(codecs, &parsed_codec_ids, false);
 
-  scoped_ptr<media::StreamParser> stream_parser(
-      StreamParserFactory::Create(type, parsed_codec_ids, media_log_));
+  scoped_ptr<media::StreamParser> stream_parser(StreamParserFactory::Create(
+      buffer_allocator_, type, parsed_codec_ids, media_log_));
 
   if (!stream_parser) return ChunkDemuxer::kNotSupported;
 
