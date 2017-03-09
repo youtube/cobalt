@@ -15,6 +15,7 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/formats/common/offset_byte_queue.h"
@@ -28,7 +29,8 @@ class BoxReader;
 
 class MEDIA_EXPORT MP4StreamParser : public StreamParser {
  public:
-  MP4StreamParser(const std::set<int>& audio_object_types, bool has_sbr);
+  MP4StreamParser(DecoderBuffer::Allocator* buffer_allocator,
+                  const std::set<int>& audio_object_types, bool has_sbr);
   ~MP4StreamParser() OVERRIDE;
 
   void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
@@ -85,6 +87,7 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   // computed.
   bool ComputeHighestEndOffset(const MovieFragment& moof);
 
+  DecoderBuffer::Allocator* buffer_allocator_;
   State state_;
   InitCB init_cb_;
   NewConfigCB config_cb_;

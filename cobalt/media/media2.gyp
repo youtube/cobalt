@@ -23,6 +23,8 @@
         '..',
       ],
       'sources': [
+        'decoder_buffer_allocator.cc',
+        'decoder_buffer_allocator.h',
         'fetcher_buffered_data_source.cc',
         'fetcher_buffered_data_source.h',
         'media_module.cc',
@@ -134,8 +136,8 @@
         'filters/shell_parser.h',
         'filters/shell_rbsp_stream.cc',
         'filters/shell_rbsp_stream.h',
+        'filters/source_buffer_platform.cc',
         'filters/source_buffer_platform.h',
-        'filters/source_buffer_platform_lowmem.cc',
         'filters/source_buffer_range.cc',
         'filters/source_buffer_range.h',
         'filters/source_buffer_state.cc',
@@ -221,6 +223,7 @@
       },
       'dependencies': [
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },

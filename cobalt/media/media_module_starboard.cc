@@ -21,6 +21,7 @@
 #include "cobalt/system_window/starboard/system_window.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/media_log.h"
+#include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/media/player/web_media_player_impl.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/filter_collection.h"
@@ -78,8 +79,8 @@ class MediaModuleStarboard : public MediaModule {
                    ->GetSbWindow();
     }
     return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
-        window, client, this, media_platform_.GetVideoFrameProvider(),
-        new ::media::MediaLog));
+        window, client, this, &decoder_buffer_allocator_,
+        media_platform_.GetVideoFrameProvider(), new ::media::MediaLog));
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
     scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
     scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
@@ -104,6 +105,9 @@ class MediaModuleStarboard : public MediaModule {
  private:
   const Options options_;
   system_window::SystemWindow* system_window_;
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  DecoderBufferAllocator decoder_buffer_allocator_;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   ::media::ShellMediaPlatformStarboard media_platform_;
 };
 

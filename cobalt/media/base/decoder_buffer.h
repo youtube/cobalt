@@ -19,8 +19,10 @@
 #include "base/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/decrypt_config.h"
+#include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/memory.h"
 
 namespace media {
 
@@ -36,30 +38,43 @@ namespace media {
 class MEDIA_EXPORT DecoderBuffer
     : public base::RefCountedThreadSafe<DecoderBuffer> {
  public:
-  enum {
-    kPaddingSize = 32,
-#if defined(ARCH_CPU_ARM_FAMILY)
-    kAlignmentSize = 16
-#else
-    kAlignmentSize = 32
-#endif
+  typedef DemuxerStream::Type Type;
+
+  class Allocator {
+   public:
+    typedef DecoderBuffer::Type Type;
+
+    virtual ~Allocator() {}
+
+    // Allocate a memory block that contains at least |size| bytes and its
+    // address is aligned to |alignment|.  It returns NULL on failure.
+    virtual void* Allocate(Type type, size_t size, size_t alignment) = 0;
+    // Free a memory block previously allocated by calling Allocate().  No-op on
+    // NULL.
+    virtual void Free(Type type, void* ptr) = 0;
   };
 
-  // Allocates buffer with |size| >= 0.  Buffer will be padded and aligned
-  // as necessary, and |is_key_frame_| will default to false.
-  explicit DecoderBuffer(size_t size);
+  static const size_t kAlignmentSize = 128;
+
+  // Create a DecoderBuffer whose |data_| points to a memory with at least
+  // |size| bytes.  Buffer will be padded and aligned as necessary.
+  // The buffer's |is_key_frame_| will default to false.
+  static scoped_refptr<DecoderBuffer> Create(Allocator* allocator, Type type,
+                                             size_t size);
 
   // Create a DecoderBuffer whose |data_| is copied from |data|.  Buffer will be
   // padded and aligned as necessary.  |data| must not be NULL and |size| >= 0.
   // The buffer's |is_key_frame_| will default to false.
-  static scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data,
+  static scoped_refptr<DecoderBuffer> CopyFrom(Allocator* allocator, Type type,
+                                               const uint8_t* data,
                                                size_t size);
 
   // Create a DecoderBuffer whose |data_| is copied from |data| and |side_data_|
   // is copied from |side_data|. Buffers will be padded and aligned as necessary
   // Data pointers must not be NULL and sizes must be >= 0. The buffer's
   // |is_key_frame_| will default to false.
-  static scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data, size_t size,
+  static scoped_refptr<DecoderBuffer> CopyFrom(Allocator* allocator, Type type,
+                                               const uint8_t* data, size_t size,
                                                const uint8_t* side_data,
                                                size_t side_data_size);
 
@@ -68,6 +83,15 @@ class MEDIA_EXPORT DecoderBuffer
   // Calling any method other than end_of_stream() on the resulting buffer
   // is disallowed.
   static scoped_refptr<DecoderBuffer> CreateEOSBuffer();
+
+  // Returns the allocator.  This is usually used when creating a copy of the
+  // buffer.
+  Allocator* allocator() const { return allocator_; }
+
+  // Gets the parser's media type associated with this buffer. Value is
+  // meaningless for EOS buffers.
+  Type type() const { return type_; }
+  const char* GetTypeName() const;
 
   base::TimeDelta timestamp() const {
     DCHECK(!end_of_stream());
@@ -96,7 +120,7 @@ class MEDIA_EXPORT DecoderBuffer
     return data_.get();
   }
 
-  uint8_t* writable_data() const {
+  uint8_t* writable_data() {
     DCHECK(!end_of_stream());
     return data_.get();
   }
@@ -149,7 +173,7 @@ class MEDIA_EXPORT DecoderBuffer
   }
 
   // If there's no data in this buffer, it represents end of stream.
-  bool end_of_stream() const { return data_ == NULL; }
+  bool end_of_stream() const { return data_.get() == NULL; }
 
   // Indicates this buffer is part of a splice around |splice_timestamp_|.
   // Returns kNoTimestamp if the buffer is not part of a splice.
@@ -178,36 +202,60 @@ class MEDIA_EXPORT DecoderBuffer
   // Returns a human-readable string describing |*this|.
   std::string AsHumanReadableString();
 
-  // Replaces any existing side data with data copied from |side_data|.
-  void CopySideDataFrom(const uint8_t* side_data, size_t side_data_size);
-
  protected:
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
+
+  // The default ctor creates an EOS buffer without specific stream type.
+  DecoderBuffer();
+
+  // Allocates buffer with |size| >= 0.  Buffer will be padded and aligned
+  // as necessary, and |is_key_frame_| will default to false.
+  DecoderBuffer(Allocator* allocator, Type type, size_t size);
 
   // Allocates a buffer of size |size| >= 0 and copies |data| into it.  Buffer
   // will be padded and aligned as necessary.  If |data| is NULL then |data_| is
   // set to NULL and |buffer_size_| to 0.  |is_key_frame_| will default to
   // false.
-  DecoderBuffer(const uint8_t* data, size_t size, const uint8_t* side_data,
-                size_t side_data_size);
+  DecoderBuffer(Allocator* allocator, Type type, const uint8_t* data,
+                size_t size, const uint8_t* side_data, size_t side_data_size);
   virtual ~DecoderBuffer();
 
  private:
+  class ScopedAllocatorPtr {
+   public:
+    // Extra bytes allocated at the end of a buffer to ensure that the buffer
+    // can be use optimally by specific instructions like SIMD.
+    static const size_t kPaddingSize = 32;
+
+    ScopedAllocatorPtr(Allocator* allocator, Type type, size_t size);
+    ~ScopedAllocatorPtr() { allocator_->Free(type_, ptr_); }
+    uint8_t* get() { return ptr_; }
+    const uint8_t* get() const { return ptr_; }
+
+   private:
+    Allocator* allocator_;
+    Type type_;
+    uint8_t* ptr_;
+
+    DISALLOW_COPY_AND_ASSIGN(ScopedAllocatorPtr);
+  };
+
+  Allocator* allocator_;
+
+  Type type_;
+
   base::TimeDelta timestamp_;
   base::TimeDelta duration_;
 
   const size_t allocated_size_;
   size_t size_;
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> data_;
+  ScopedAllocatorPtr data_;
   size_t side_data_size_;
-  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> side_data_;
+  ScopedAllocatorPtr side_data_;
   scoped_ptr<DecryptConfig> decrypt_config_;
   DiscardPadding discard_padding_;
   base::TimeDelta splice_timestamp_;
   bool is_key_frame_;
-
-  // Constructor helper method for memory allocations.
-  void Initialize();
 
   DISALLOW_COPY_AND_ASSIGN(DecoderBuffer);
 };

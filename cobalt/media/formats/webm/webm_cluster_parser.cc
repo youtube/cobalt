@@ -36,15 +36,16 @@ enum {
 };
 
 WebMClusterParser::WebMClusterParser(
-    int64_t timecode_scale, int audio_track_num,
-    base::TimeDelta audio_default_duration, int video_track_num,
-    base::TimeDelta video_default_duration,
+    DecoderBuffer::Allocator* buffer_allocator, int64_t timecode_scale,
+    int audio_track_num, base::TimeDelta audio_default_duration,
+    int video_track_num, base::TimeDelta video_default_duration,
     const WebMTracksParser::TextTracks& text_tracks,
     const std::set<int64_t>& ignored_tracks,
     const std::string& audio_encryption_key_id,
     const std::string& video_encryption_key_id, const AudioCodec audio_codec,
     const scoped_refptr<MediaLog>& media_log)
-    : num_duration_errors_(0),
+    : buffer_allocator_(buffer_allocator),
+      num_duration_errors_(0),
       timecode_multiplier_(timecode_scale / 1000.0),
       ignored_tracks_(ignored_tracks),
       audio_encryption_key_id_(audio_encryption_key_id),
@@ -66,6 +67,7 @@ WebMClusterParser::WebMClusterParser(
       video_(video_track_num, true, video_default_duration, media_log),
       ready_buffer_upper_bound_(kNoDecodeTimestamp()),
       media_log_(media_log) {
+  DCHECK(buffer_allocator_);
   for (WebMTracksParser::TextTracks::const_iterator it = text_tracks.begin();
        it != text_tracks.end(); ++it) {
     text_track_map_.insert(std::make_pair(
@@ -505,8 +507,8 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
     // type with remapped bytestream track numbers and allow multiple tracks as
     // applicable. See https://crbug.com/341581.
     buffer = StreamParserBuffer::CopyFrom(
-        data + data_offset, size - data_offset, additional, additional_size,
-        is_keyframe, buffer_type, track_num);
+        buffer_allocator_, data + data_offset, size - data_offset, additional,
+        additional_size, is_keyframe, buffer_type, track_num);
 
     if (decrypt_config) buffer->set_decrypt_config(decrypt_config.Pass());
   } else {
@@ -521,8 +523,9 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
     // type with remapped bytestream track numbers and allow multiple tracks as
     // applicable. See https://crbug.com/341581.
     buffer = StreamParserBuffer::CopyFrom(
-        reinterpret_cast<const uint8_t*>(content.data()), content.length(),
-        &side_data[0], side_data.size(), true, buffer_type, track_num);
+        buffer_allocator_, reinterpret_cast<const uint8_t*>(content.data()),
+        content.length(), &side_data[0], side_data.size(), true, buffer_type,
+        track_num);
   }
 
   buffer->set_timestamp(timestamp);
