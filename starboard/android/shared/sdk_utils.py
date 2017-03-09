@@ -28,12 +28,16 @@ import zipfile
 
 import gyp_utils
 
-# Android SDK update filter. Update these if you change the
-# requirements below! Get from "android list sdk --all --extended"
-_ANDROID_SDK_UPDATE_FILTER = (
-    'android-25,build-tools-25.0.1,extra-android-m2repository')
+# Packages to install in the Android SDK.
+# Update these if you change the requirements below!
+# Get available packages from "sdkmanager --list --verbose"
+_ANDROID_SDK_PACKAGES = [
+    'platforms;android-25',
+    'build-tools;25.0.1',
+    'extras;android;m2repository',
+]
 # NDK release to use
-NDK_ZIP_REVISION = 'android-ndk-r13b'
+_NDK_ZIP_REVISION = 'android-ndk-r14'
 # The "--api" to pass to the NDK's make_standalone_toolchain.py
 _ANDROID_NDK_API_LEVEL = '21'
 # The SDK version to compile Java against
@@ -48,20 +52,20 @@ _ANDROID_TARGET_SDK_VERSION = '22'
 # Seconds to sleep before writing "y" for android sdk update license prompt.
 _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 
-NDK_ZIP_FILE = ('%s-%s-x86_64.zip' %
-                (NDK_ZIP_REVISION, platform.system().lower()))
-NDK_URL = 'https://dl.google.com/android/repository/%s' % NDK_ZIP_FILE
+_NDK_ZIP_FILE = ('%s-%s-x86_64.zip' %
+                 (_NDK_ZIP_REVISION, platform.system().lower()))
+_NDK_URL = 'https://dl.google.com/android/repository/%s' % _NDK_ZIP_FILE
 
 _SDK_URL = 'https://dl.google.com/android/repository/tools_r25.2.3-linux.zip'
 
-ANDROID_HOME = os.environ.get('ANDROID_HOME')
-ANDROID_NDK_HOME = os.environ.get('ANDROID_NDK_HOME')
+_ANDROID_HOME = os.environ.get('ANDROID_HOME')
+_ANDROID_NDK_HOME = os.environ.get('ANDROID_NDK_HOME')
 
-SCRIPT_CTIME = os.path.getctime(__file__)
-COBALT_TOOLCHAINS_DIR = gyp_utils.GetToolchainsDir()
+_SCRIPT_CTIME = os.path.getctime(__file__)
+_COBALT_TOOLCHAINS_DIR = gyp_utils.GetToolchainsDir()
 
 # The path to the Android SDK if placed inside of cobalt-toolchains
-_COBALT_TOOLCHAINS_SDK_DIR = os.path.join(COBALT_TOOLCHAINS_DIR, 'AndroidSdk')
+_COBALT_TOOLCHAINS_SDK_DIR = os.path.join(_COBALT_TOOLCHAINS_DIR, 'AndroidSdk')
 # The path to the Android NDK if placed inside of cobalt-toolchains
 _COBALT_TOOLCHAINS_NDK_DIR = os.path.join(_COBALT_TOOLCHAINS_SDK_DIR,
                                           'ndk-bundle')
@@ -79,7 +83,7 @@ def GetToolsPath(abi):
   """Returns the path where the NDK standalone toolchain should be."""
   tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
   tools_dir = 'android_toolchain_api%s_%s' % (_ANDROID_NDK_API_LEVEL, tools_arch)
-  return os.path.realpath(os.path.join(COBALT_TOOLCHAINS_DIR, tools_dir))
+  return os.path.realpath(os.path.join(_COBALT_TOOLCHAINS_DIR, tools_dir))
 
 
 def GetEnvironmentVariables(abi):
@@ -96,7 +100,7 @@ def _CheckStamp(dir_path):
   stamp_path = os.path.join(dir_path, 'ndk.stamp')
   return (
       os.path.exists(stamp_path) and
-      os.path.getctime(stamp_path) > SCRIPT_CTIME and
+      os.path.getctime(stamp_path) > _SCRIPT_CTIME and
       _GetRevisionFromPropertiesFile(stamp_path) == _GetInstalledNdkRevision())
 
 
@@ -112,17 +116,17 @@ def GetNdkPath():
   # Prefer a developer-installed NDK if available
   # TODO: By default (which can be overridden explicitly) make sure all builds
   # happen with same NDK/SDK version.
-  if ANDROID_NDK_HOME:
-    return ANDROID_NDK_HOME
-  elif ANDROID_HOME:
-    return os.path.join(ANDROID_HOME, 'ndk-bundle')
+  if _ANDROID_NDK_HOME:
+    return _ANDROID_NDK_HOME
+  elif _ANDROID_HOME:
+    return os.path.join(_ANDROID_HOME, 'ndk-bundle')
   else:
     return _COBALT_TOOLCHAINS_NDK_DIR
 
 
 def GetSdkPath():
-  if ANDROID_HOME:
-    return ANDROID_HOME
+  if _ANDROID_HOME:
+    return _ANDROID_HOME
   else:
     return _COBALT_TOOLCHAINS_SDK_DIR
 
@@ -191,10 +195,10 @@ def _UnzipFile(zip_path, dest_path):
 
 def _MaybeDownloadAndInstallSdkAndNdk():
   """Download the SDK and NDK if not already available."""
-  # Hold an exclusive advisory lock on the COBALT_TOOLCHAINS_DIR, to
+  # Hold an exclusive advisory lock on the _COBALT_TOOLCHAINS_DIR, to
   # prevent issues with modification for multiple variants.
   try:
-    toolchains_dir_fd = os.open(COBALT_TOOLCHAINS_DIR, os.O_RDONLY)
+    toolchains_dir_fd = os.open(_COBALT_TOOLCHAINS_DIR, os.O_RDONLY)
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_EX)
 
     if _IsSdkUpdateNeeded():
@@ -203,18 +207,18 @@ def _MaybeDownloadAndInstallSdkAndNdk():
       logging.warning('Android SDK up to date.')
 
     ndk_path = GetNdkPath()
-    if not ANDROID_HOME and not ANDROID_NDK_HOME and not _CheckStamp(ndk_path):
+    if not _ANDROID_HOME and not _ANDROID_NDK_HOME and not _CheckStamp(ndk_path):
       logging.warning(
           'NDK not found in either ANDROID_HOME nor ANDROID_NDK_HOME')
-      logging.warning('Downloading NDK from %s to %s', NDK_URL, ndk_path)
+      logging.warning('Downloading NDK from %s to %s', _NDK_URL, ndk_path)
       if os.path.exists(ndk_path):
         shutil.rmtree(ndk_path)
-      # Download to COBALT_TOOLCHAINS_DIR since NDK_ZIP_REVISION directory is
-      # in the zip archive
-      ndk_unzip_path = os.path.join(COBALT_TOOLCHAINS_DIR, NDK_ZIP_REVISION)
+      # Download directly to _COBALT_TOOLCHAINS_DIR since _NDK_ZIP_REVISION
+      # directory is in the zip archive
+      ndk_unzip_path = os.path.join(_COBALT_TOOLCHAINS_DIR, _NDK_ZIP_REVISION)
       if os.path.exists(ndk_unzip_path):
         shutil.rmtree(ndk_unzip_path)
-      _DownloadAndUnzipFile(NDK_URL, COBALT_TOOLCHAINS_DIR)
+      _DownloadAndUnzipFile(_NDK_URL, _COBALT_TOOLCHAINS_DIR)
       # Move NDK into its proper final place.
       os.rename(ndk_unzip_path, ndk_path)
       UpdateStamp(ndk_path)
@@ -229,20 +233,22 @@ def _IsOnBuildbot():
 
 def _DownloadInstallOrUpdateSdk():
   """Downloads (if necessary) and installs/updates the Android SDK."""
-  android_sdk_tool_path = os.path.join(GetSdkPath(), 'tools', 'android')
+  android_sdk_tool_path = os.path.join(GetSdkPath(), 'tools', 'bin', 'sdkmanager')
 
-  # If we can't access the "android" tool, we need to download the SDK
+  # If we can't access the "sdkmanager" tool, we need to download the SDK
   if not os.access(android_sdk_tool_path, os.X_OK):
-    if ANDROID_HOME:
+    if _ANDROID_HOME:
       logging.error('ANDROID_HOME is set but SDK is not present!')
       sys.exit(1)
     logging.warning('Downloading Android SDK to %s', _COBALT_TOOLCHAINS_SDK_DIR)
+    if os.path.exists(_COBALT_TOOLCHAINS_SDK_DIR):
+      shutil.rmtree(_COBALT_TOOLCHAINS_SDK_DIR)
     _DownloadAndUnzipFile(_SDK_URL, _COBALT_TOOLCHAINS_SDK_DIR)
     if not os.access(android_sdk_tool_path, os.X_OK):
       logging.error('SDK download failed.')
       sys.exit(1)
 
-  # Run the "android update sdk" command with the appropriate filter
+  # Run the "sdkmanager" command with the appropriate packages
 
   if _IsOnBuildbot():
     stdin = subprocess.PIPE
@@ -250,10 +256,7 @@ def _DownloadInstallOrUpdateSdk():
     stdin = sys.stdin
 
   p = subprocess.Popen(
-      [
-          android_sdk_tool_path, 'update', 'sdk', '--no-ui', '--all',
-          '--filter', _ANDROID_SDK_UPDATE_FILTER
-      ],
+      [android_sdk_tool_path] + _ANDROID_SDK_PACKAGES,
       stdin=stdin)
 
   if _IsOnBuildbot():
