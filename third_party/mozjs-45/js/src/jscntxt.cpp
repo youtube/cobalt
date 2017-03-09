@@ -780,11 +780,11 @@ js::ReportErrorNumberVA(JSContext* cx, unsigned flags, JSErrorCallback callback,
 static bool
 ExpandErrorArguments(ExclusiveContext* cx, JSErrorCallback callback,
                      void* userRef, const unsigned errorNumber,
-                     char** messagep, JSErrorReport* reportp,
-                     ErrorArgumentsType argumentsType, ...)
+                     char** messagep, ErrorArgumentsType argumentsType,
+                     JSErrorReport* reportp, ...)
 {
     va_list ap;
-    va_start(ap, argumentsType);
+    va_start(ap, reportp);
     bool expanded = js::ExpandErrorArgumentsVA(cx, callback, userRef, errorNumber,
                                                messagep, reportp, argumentsType, ap);
     va_end(ap);
@@ -808,7 +808,7 @@ js::ReportErrorNumberUCArray(JSContext* cx, unsigned flags, JSErrorCallback call
 
     char* message;
     if (!ExpandErrorArguments(cx, callback, userRef, errorNumber,
-                              &message, &report, ArgumentsAreUnicode)) {
+                              &message, ArgumentsAreUnicode, &report)) {
         return false;
     }
 
