@@ -57,6 +57,9 @@ class WebSocketTest : public ::testing::Test {
  protected:
   WebSocketTest() : settings_(new FakeSettings()) {}
 
+  // A nested message loop needs a non-nested message loop to exist.
+  MessageLoop message_loop_;
+
   scoped_ptr<FakeSettings> settings_;
   StrictMock<MockExceptionState> exception_state_;
 };

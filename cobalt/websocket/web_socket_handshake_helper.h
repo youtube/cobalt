@@ -19,9 +19,9 @@
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/string_piece.h"
+#include "cobalt/websocket/sec_web_socket_key.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
 #include "net/websockets/websocket_frame.h"
@@ -31,13 +31,14 @@ namespace websocket {
 
 class WebSocketHandshakeHelper {
  public:
-  typedef net::WebSocketMaskingKey (*WebSocketMaskingKeyGeneratorFunction)();
+  typedef SecWebSocketKey (*SecWebSocketKeyGeneratorFunction)();
 
-  WebSocketHandshakeHelper();
+  explicit WebSocketHandshakeHelper(const base::StringPiece user_agent);
 
   // Overriding the key-generation function is useful for testing.
-  explicit WebSocketHandshakeHelper(
-      WebSocketMaskingKeyGeneratorFunction key_generator_function);
+  WebSocketHandshakeHelper(
+      const base::StringPiece user_agent,
+      SecWebSocketKeyGeneratorFunction sec_websocket_key_generator_function);
 
   void GenerateHandshakeRequest(
       const GURL& connect_url, const std::string& origin,
@@ -54,10 +55,11 @@ class WebSocketHandshakeHelper {
  private:
   // Having key generator function passed is slightly slower, but very useful
   // for testing.
-  WebSocketMaskingKeyGeneratorFunction key_generator_function_;
+  SecWebSocketKeyGeneratorFunction sec_websocket_key_generator_function_;
 
+  std::string user_agent_;
   std::string handshake_challenge_response_;
-  net::WebSocketMaskingKey sec_websocket_key_;
+  SecWebSocketKey sec_websocket_key_;
   std::vector<std::string> requested_sub_protocols_;
   std::string selected_subprotocol_;
 
