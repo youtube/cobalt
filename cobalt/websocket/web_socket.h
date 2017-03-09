@@ -30,6 +30,8 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/message_event.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/websocket/web_socket_event_interface.h"
+#include "cobalt/websocket/web_socket_impl.h"
 
 namespace cobalt {
 namespace websocket {
@@ -37,7 +39,7 @@ namespace websocket {
 // This class represents a WebSocket.  It will abide by RFC 6455 "The WebSocket
 // Protocol", and implements the The WebSocket API spec at
 // https://www.w3.org/TR/websockets/ (as of Jan 2017).
-class WebSocket : public dom::EventTarget {
+class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
  public:
   // Constants.
   static const uint16 kConnecting = 0;
@@ -126,6 +128,20 @@ class WebSocket : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(WebSocket)
 
  private:
+  void OnConnected(const std::string& selected_subprotocol) OVERRIDE;
+
+  void OnDisconnected() OVERRIDE {
+    this->DispatchEvent(new dom::Event(base::Tokens::close()));
+  }
+  void OnSentData(int amount_sent) OVERRIDE {
+    UNREFERENCED_PARAMETER(amount_sent);
+  }
+  void OnReceivedData(bool is_text_frame,
+                      scoped_refptr<net::IOBufferWithSize> data) OVERRIDE;
+  void OnError() OVERRIDE {
+    this->DispatchEvent(new dom::Event(base::Tokens::error()));
+  }
+
   void Initialize(dom::DOMSettings* dom_settings, const std::string& url,
                   const std::vector<std::string>& sub_protocols,
                   script::ExceptionState* exception_state);
@@ -157,6 +173,7 @@ class WebSocket : public dom::EventTarget {
   std::string entry_script_origin_;
 
   dom::DOMSettings* settings_;
+  scoped_refptr<WebSocketImpl> impl_;
 
   FRIEND_TEST(WebSocketTest, GoodOrigin);
 

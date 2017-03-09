@@ -21,10 +21,18 @@
       'target_name': 'websocket',
       'type': 'static_library',
       'sources': [
+        'sec_web_socket_key.h',
         'web_socket.cc',
         'web_socket.h',
+        'web_socket_event_interface.h',
+        'web_socket_frame_container.h',
+        'web_socket_frame_container.cc',
         'web_socket_handshake_helper.h',
         'web_socket_handshake_helper.cc',
+        'web_socket_impl.h',
+        'web_socket_impl.cc',
+        'web_socket_message_container.h',
+        'web_socket_message_container.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -37,8 +45,10 @@
       'target_name': 'websocket_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'web_socket_test.cc',
+        'web_socket_frame_container_test.cc',
         'web_socket_handshake_helper_test.cc',
+        'web_socket_message_container_test.cc',
+        'web_socket_test.cc',
       ],
       'dependencies': [
         'websocket',
