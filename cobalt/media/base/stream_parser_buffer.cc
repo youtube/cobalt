@@ -16,10 +16,10 @@ static scoped_refptr<StreamParserBuffer> CopyBuffer(
   if (buffer.end_of_stream()) return StreamParserBuffer::CreateEOSBuffer();
 
   scoped_refptr<StreamParserBuffer> copied_buffer =
-      StreamParserBuffer::CopyFrom(buffer.data(), buffer.data_size(),
-                                   buffer.side_data(), buffer.side_data_size(),
-                                   buffer.is_key_frame(), buffer.type(),
-                                   buffer.track_id());
+      StreamParserBuffer::CopyFrom(
+          buffer.allocator(), buffer.data(), buffer.data_size(),
+          buffer.side_data(), buffer.side_data_size(), buffer.is_key_frame(),
+          buffer.type(), buffer.track_id());
   copied_buffer->SetDecodeTimestamp(buffer.GetDecodeTimestamp());
   copied_buffer->SetConfigId(buffer.GetConfigId());
   copied_buffer->set_timestamp(buffer.timestamp());
@@ -38,23 +38,23 @@ static scoped_refptr<StreamParserBuffer> CopyBuffer(
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
-  return make_scoped_refptr(new StreamParserBuffer(NULL, 0, NULL, 0, false,
-                                                   DemuxerStream::UNKNOWN, 0));
+  return make_scoped_refptr(new StreamParserBuffer);
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
-    const uint8_t* data, int data_size, bool is_key_frame, Type type,
-    TrackId track_id) {
+    Allocator* allocator, const uint8_t* data, int data_size, bool is_key_frame,
+    Type type, TrackId track_id) {
   return make_scoped_refptr(new StreamParserBuffer(
-      data, data_size, NULL, 0, is_key_frame, type, track_id));
+      allocator, data, data_size, NULL, 0, is_key_frame, type, track_id));
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
-    const uint8_t* data, int data_size, const uint8_t* side_data,
-    int side_data_size, bool is_key_frame, Type type, TrackId track_id) {
-  return make_scoped_refptr(new StreamParserBuffer(data, data_size, side_data,
-                                                   side_data_size, is_key_frame,
-                                                   type, track_id));
+    Allocator* allocator, const uint8_t* data, int data_size,
+    const uint8_t* side_data, int side_data_size, bool is_key_frame, Type type,
+    TrackId track_id) {
+  return make_scoped_refptr(
+      new StreamParserBuffer(allocator, data, data_size, side_data,
+                             side_data_size, is_key_frame, type, track_id));
 }
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
@@ -68,14 +68,21 @@ void StreamParserBuffer::SetDecodeTimestamp(DecodeTimestamp timestamp) {
   if (preroll_buffer_.get()) preroll_buffer_->SetDecodeTimestamp(timestamp);
 }
 
-StreamParserBuffer::StreamParserBuffer(const uint8_t* data, int data_size,
+StreamParserBuffer::StreamParserBuffer()
+    : decode_timestamp_(kNoDecodeTimestamp()),
+      config_id_(kInvalidConfigId),
+      track_id_(0),
+      is_duration_estimated_(false) {}
+
+StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
+                                       const uint8_t* data, int data_size,
                                        const uint8_t* side_data,
                                        int side_data_size, bool is_key_frame,
                                        Type type, TrackId track_id)
-    : DecoderBuffer(data, data_size, side_data, side_data_size),
+    : DecoderBuffer(allocator, type, data, data_size, side_data,
+                    side_data_size),
       decode_timestamp_(kNoDecodeTimestamp()),
       config_id_(kInvalidConfigId),
-      type_(type),
       track_id_(track_id),
       is_duration_estimated_(false) {
   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and
@@ -100,24 +107,6 @@ void StreamParserBuffer::SetConfigId(int config_id) {
 int StreamParserBuffer::GetSpliceBufferConfigId(size_t index) const {
   return index < splice_buffers().size() ? splice_buffers_[index]->GetConfigId()
                                          : GetConfigId();
-}
-
-const char* StreamParserBuffer::GetTypeName() const {
-  switch (type()) {
-    case DemuxerStream::AUDIO:
-      return "audio";
-    case DemuxerStream::VIDEO:
-      return "video";
-    case DemuxerStream::TEXT:
-      return "text";
-    case DemuxerStream::UNKNOWN:
-      return "unknown";
-    case DemuxerStream::NUM_TYPES:
-      // Fall-through to NOTREACHED().
-      break;
-  }
-  NOTREACHED();
-  return "";
 }
 
 void StreamParserBuffer::ConvertToSpliceBuffer(
@@ -160,7 +149,7 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
   SetConfigId(first_splice_buffer->GetConfigId());
   set_timestamp(first_splice_buffer->timestamp());
   set_is_key_frame(first_splice_buffer->is_key_frame());
-  type_ = first_splice_buffer->type();
+  DCHECK_EQ(type(), first_splice_buffer->type());
   track_id_ = first_splice_buffer->track_id();
   set_splice_timestamp(overlapping_buffer->timestamp());
 

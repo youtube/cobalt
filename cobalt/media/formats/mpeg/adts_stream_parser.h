@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/formats/mpeg/mpeg_audio_stream_parser_base.h"
 
@@ -17,7 +18,7 @@ namespace media {
 
 class MEDIA_EXPORT ADTSStreamParser : public MPEGAudioStreamParserBase {
  public:
-  ADTSStreamParser();
+  explicit ADTSStreamParser(DecoderBuffer::Allocator* buffer_allocator);
   ~ADTSStreamParser() OVERRIDE;
 
   // MPEGAudioStreamParserBase overrides.

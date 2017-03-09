@@ -170,8 +170,10 @@ void ShellDemuxerStream::Stop() {
 //
 ShellDemuxer::ShellDemuxer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    DataSource* data_source, const scoped_refptr<MediaLog>& media_log)
+    DecoderBuffer::Allocator* buffer_allocator, DataSource* data_source,
+    const scoped_refptr<MediaLog>& media_log)
     : message_loop_(message_loop),
+      buffer_allocator_(buffer_allocator),
       host_(NULL),
       blocking_thread_("ShellDemuxerBlockingThread"),
       data_source_(data_source),
@@ -180,9 +182,10 @@ ShellDemuxer::ShellDemuxer(
       flushing_(false),
       audio_reached_eos_(false),
       video_reached_eos_(false) {
+  DCHECK(message_loop_);
+  DCHECK(buffer_allocator_);
   DCHECK(data_source_);
   DCHECK(media_log_);
-  DCHECK(message_loop_);
   reader_ = new ShellDataSourceReader();
   reader_->SetDataSource(data_source_);
 }
@@ -342,7 +345,8 @@ void ShellDemuxer::AllocateBuffer() {
     // Note that this relies on "new DecoderBuffer" returns NULL if it is unable
     // to allocate any DecoderBuffer.
     scoped_refptr<DecoderBuffer> decoder_buffer(
-        new DecoderBuffer(requested_au_->GetMaxSize()));
+        DecoderBuffer::Create(buffer_allocator_, requested_au_->GetType(),
+                              requested_au_->GetMaxSize()));
     if (decoder_buffer) {
       decoder_buffer->set_is_key_frame(requested_au_->IsKeyframe());
       Download(decoder_buffer);
