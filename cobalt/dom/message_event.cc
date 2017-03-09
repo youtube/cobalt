@@ -53,8 +53,6 @@ MessageEvent::ResponseTypeCode MessageEvent::GetResponseTypeCode(
 }
 
 MessageEvent::ResponseType MessageEvent::data() const {
-  scoped_refptr<dom::ArrayBuffer> response_buffer;
-
   const char* data_pointer = NULL;
   int data_length = 0;
   if (data_) {
@@ -62,6 +60,7 @@ MessageEvent::ResponseType MessageEvent::data() const {
     data_length = data_->size();
   }
 
+  scoped_refptr<dom::ArrayBuffer> response_buffer;
   if (response_type_ != kText) {
     response_buffer = new dom::ArrayBuffer(
         settings_, reinterpret_cast<const uint8*>(data_pointer), data_length);
