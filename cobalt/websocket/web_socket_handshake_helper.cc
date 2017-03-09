@@ -19,9 +19,9 @@
 #include <set>
 #include <string>
 
-#include "base/base64.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "base/string_piece.h"
 #include "base/string_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
@@ -203,6 +203,15 @@ bool ValidateExtensions(const net::HttpResponseHeaders* headers,
   return true;
 }
 
+cobalt::websocket::SecWebSocketKey GenerateRandomSecWebSocketKey() {
+  using cobalt::websocket::SecWebSocketKey;
+  SecWebSocketKey::SecWebSocketKeyBytes random_data;
+  SbSystemGetRandomData(&random_data,
+                        sizeof(SecWebSocketKey::SecWebSocketKeyBytes));
+  cobalt::websocket::SecWebSocketKey key(random_data);
+  return key;
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -248,7 +257,10 @@ void WebSocketHandshakeHelper::GenerateHandshakeRequest(
   header_string += origin;
   header_string += "\r\n";
   header_string += "Sec-WebSocket-Key:";
-  header_string += sec_websocket_key_.key;
+  header_string += sec_websocket_key_.GetKeyEncodedInBase64();
+  header_string += "\r\n";
+  header_string += "User-Agent:";
+  header_string += user_agent_;
   header_string += "\r\n";
 
   if (!desired_sub_protocols.empty()) {
@@ -261,18 +273,23 @@ void WebSocketHandshakeHelper::GenerateHandshakeRequest(
 
   requested_sub_protocols_ = desired_sub_protocols;
 
-  std::string key_as_string(sec_websocket_key_.key,
-                            arraysize(sec_websocket_key_.key));
-  handshake_challenge_response_ = net::ComputeSecWebSocketAccept(key_as_string);
+  const std::string& sec_websocket_key_base64(
+      sec_websocket_key_.GetKeyEncodedInBase64());
+  handshake_challenge_response_ =
+      net::ComputeSecWebSocketAccept(sec_websocket_key_base64);
 }
 
-WebSocketHandshakeHelper::WebSocketHandshakeHelper()
-    : key_generator_function_(&net::GenerateWebSocketMaskingKey) {}
+WebSocketHandshakeHelper::WebSocketHandshakeHelper(
+    const base::StringPiece user_agent)
+    : sec_websocket_key_generator_function_(&GenerateRandomSecWebSocketKey),
+      user_agent_(user_agent.data(), user_agent.size()) {}
 
 WebSocketHandshakeHelper::WebSocketHandshakeHelper(
-    WebSocketHandshakeHelper::WebSocketMaskingKeyGeneratorFunction
-        key_generator_function)
-    : key_generator_function_(key_generator_function) {}
+    const base::StringPiece user_agent,
+    SecWebSocketKeyGeneratorFunction sec_websocket_key_generator_function)
+    : sec_websocket_key_generator_function_(
+          sec_websocket_key_generator_function),
+      user_agent_(user_agent.data(), user_agent.size()) {}
 
 bool WebSocketHandshakeHelper::IsResponseValid(
     const net::HttpResponseHeaders& headers, std::string* failure_message) {
@@ -311,7 +328,7 @@ bool WebSocketHandshakeHelper::IsResponseValid(
 }
 
 void WebSocketHandshakeHelper::GenerateSecWebSocketKey() {
-  sec_websocket_key_ = key_generator_function_();
+  sec_websocket_key_ = sec_websocket_key_generator_function_();
 }
 
 }  // namespace websocket
