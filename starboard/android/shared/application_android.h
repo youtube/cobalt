@@ -75,6 +75,8 @@ class ApplicationAndroid
   SbWindow window_;
   scoped_ptr<InputEventsGenerator> input_events_generator_;
 
+  bool last_is_accessibility_high_contrast_text_enabled_;
+
   bool exit_on_destroy_;
   int exit_error_level_;
 };
