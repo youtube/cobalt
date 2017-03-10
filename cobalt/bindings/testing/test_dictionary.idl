@@ -16,6 +16,7 @@
 
 dictionary TestDictionary {
   boolean booleanMember;
+  [Clamp] short shortClampMember;
   long longMember;
   double doubleMember;
   DOMString stringMember;
