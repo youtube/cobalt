@@ -18,7 +18,9 @@
 #include <string>
 #include <vector>
 
+#include "base/threading/thread_checker.h"
 #include "cobalt/script/stack_frame.h"
+#include "nb/rewindable_vector.h"
 
 struct JSContext;
 
@@ -60,16 +62,21 @@ class StackTraceGenerator {
   // about the stack.
   bool Valid();
 
-  // Generates stack traces in the raw form.
-  size_t GenerateStackTrace(int depth, std::vector<StackFrame>* out);
+  // Generates stack traces in the raw form. Returns true if any stack
+  // frames were generated. False otherwise. Output vector will be
+  // unconditionally rewound to being empty.
+  bool GenerateStackTrace(int depth, nb::RewindableVector<StackFrame>* out);
 
-  // Returns the number of stack traces written. The output vector will be
-  // expanded if necessary.
+  // Returns true if any stack traces were written. The output vector will be
+  // re-wound to being empty.
   // The first position is the most immediate stack frame.
-  size_t GenerateStackTraceLines(int depth, std::vector<std::string>* out);
+  bool GenerateStackTraceLines(int depth,
+                               nb::RewindableVector<std::string>* out);
 
-  // Pretty printed stack trace string. Returns true on success.
+  // Prints stack trace. Returns true on success.
   bool GenerateStackTraceString(int depth, std::string* out);
+
+  bool GenerateStackTraceString(int depth, char* buff, size_t buff_size);
 
   // Gets the internal data structure used to generate stack traces.
   JSContext* js_context();
@@ -79,6 +86,16 @@ class StackTraceGenerator {
 
  private:
   JSContext* js_context_;
+
+  // Recycles memory so that stack tracing is efficient.
+  struct Scratch {
+    nb::RewindableVector<StackFrame> stack_frames_;
+    nb::RewindableVector<std::string> strings_stack_frames_;
+    std::string symbol_;
+  };
+  Scratch scratch_data_;
+  // Checks that each instance can only be used within the same thread.
+  base::ThreadChecker thread_checker_;
 };
 
 // Get's the thread local StackTraceGenerator.
