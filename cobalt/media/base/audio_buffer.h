@@ -26,6 +26,7 @@ template <typename T>
 class StructPtr;
 };
 
+namespace cobalt {
 namespace media {
 class AudioBus;
 
@@ -171,5 +172,6 @@ class MEDIA_EXPORT AudioBuffer
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_BUFFER_H_

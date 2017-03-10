@@ -23,6 +23,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/data_source.h"
 
+namespace cobalt {
 namespace media {
 
 // Allows sharing of a DataSource object between multiple objects on a single
@@ -65,5 +66,6 @@ class ShellDataSourceReader
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_

@@ -22,7 +22,7 @@
 namespace cobalt {
 namespace media {
 
-class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator {
+class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
   DecoderBufferAllocator();
   ~DecoderBufferAllocator() OVERRIDE;

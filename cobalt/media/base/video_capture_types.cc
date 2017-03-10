@@ -10,6 +10,7 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 
 // This list is ordered by precedence of use.
@@ -111,3 +112,4 @@ bool VideoCaptureParams::IsValid() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

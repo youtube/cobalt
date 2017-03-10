@@ -8,6 +8,7 @@
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 WebMAudioClient::WebMAudioClient(const scoped_refptr<MediaLog>& media_log)
@@ -122,3 +123,4 @@ bool WebMAudioClient::OnFloat(int id, double val) {
 }
 
 }  // namespace media
+}  // namespace cobalt

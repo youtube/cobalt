@@ -25,6 +25,7 @@
 // references, and that *unlike* base::Bind(), BindToCurrentLoop() makes copies
 // of its arguments, and thus can't be used with arrays.
 
+namespace cobalt {
 namespace media {
 
 // Mimic base::internal::CallbackForward, replacing std::move(p) with
@@ -155,5 +156,6 @@ static base::Callback<T> BindToCurrentLoop(const base::Callback<T>& cb) {
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_BIND_TO_CURRENT_LOOP_H_

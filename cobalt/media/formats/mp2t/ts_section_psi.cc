@@ -35,6 +35,7 @@ static bool IsCrcValid(const uint8_t* buf, int size) {
   return (crc == 0);
 }
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -121,3 +122,4 @@ void TsSectionPsi::ResetPsiState() {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

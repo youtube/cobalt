@@ -28,6 +28,7 @@
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
+namespace cobalt {
 namespace media {
 
 class SourceBufferRange;
@@ -495,5 +496,6 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_

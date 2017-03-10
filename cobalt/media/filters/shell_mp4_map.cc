@@ -20,6 +20,7 @@
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/filters/shell_mp4_parser.h"
 
+namespace cobalt {
 namespace media {
 
 // ==== TableCache =============================================================
@@ -1137,3 +1138,4 @@ bool ShellMP4Map::stts_SlipCacheToTime(uint64 timestamp,
 bool ShellMP4Map::stsz_Init() { return stsz_->GetBytesAtEntry(0) != NULL; }
 
 }  // namespace media
+}  // namespace cobalt

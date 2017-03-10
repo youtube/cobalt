@@ -17,6 +17,7 @@
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 // Simple wrapper around base::TimeDelta that represents a decode timestamp.
@@ -192,5 +193,6 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_STREAM_PARSER_BUFFER_H_

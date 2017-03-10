@@ -8,6 +8,7 @@
 #include "build/build_config.h"
 #include "media/base/simd/convert_yuv_to_rgb.h"
 
+namespace cobalt {
 namespace media {
 
 #define packuswb(x) ((x) < 0 ? 0 : ((x) > 255 ? 255 : (x)))
@@ -231,3 +232,4 @@ void ConvertYUVAToARGB_C(const uint8_t* yplane, const uint8_t* uplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

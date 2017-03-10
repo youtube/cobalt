@@ -9,6 +9,7 @@
 
 #include "base/macros.h"
 
+namespace cobalt {
 namespace media {
 
 class BitReader;
@@ -69,5 +70,6 @@ class TsPacket {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_TS_PACKET_H_

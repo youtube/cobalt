@@ -9,6 +9,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 FileDataSource::FileDataSource()
@@ -63,3 +64,4 @@ void FileDataSource::SetBitrate(int bitrate) {}
 FileDataSource::~FileDataSource() {}
 
 }  // namespace media
+}  // namespace cobalt

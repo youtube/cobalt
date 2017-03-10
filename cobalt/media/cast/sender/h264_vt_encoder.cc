@@ -24,6 +24,7 @@
 #include "media/cast/constants.h"
 #include "media/cast/sender/video_frame_factory.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -578,3 +579,4 @@ void H264VideoToolboxEncoder::CompressionCallback(void* encoder_opaque,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

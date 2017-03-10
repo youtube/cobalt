@@ -13,6 +13,7 @@
 #include "base/single_thread_task_runner.h"
 #include "base/test/simple_test_tick_clock.h"
 
+namespace cobalt {
 namespace media {
 
 class FakeSingleThreadTaskRunner : public base::SingleThreadTaskRunner {
@@ -57,5 +58,6 @@ class FakeSingleThreadTaskRunner : public base::SingleThreadTaskRunner {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FAKE_SINGLE_THREAD_TASK_RUNNER_H_

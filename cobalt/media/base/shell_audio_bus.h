@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/export.h"
 
+namespace cobalt {
 namespace media {
 
 // This swiss army knife class encapsulates audio data in multiple channels, in
@@ -154,5 +155,6 @@ class COBALT_EXPORT ShellAudioBus {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_

@@ -8,6 +8,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace mp4 {
@@ -80,3 +81,4 @@ TEST(ESDescriptorTest, FiveByteLengthTest) {
 }  // namespace mp4
 
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 
 #include "cobalt/media/base/decoder_buffer_cache.h"
 
+namespace cobalt {
 namespace media {
 
 DecoderBufferCache::DecoderBufferCache()
@@ -123,3 +124,4 @@ void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
 }
 
 }  // namespace media
+}  // namespace cobalt

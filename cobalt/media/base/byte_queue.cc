@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 
+namespace cobalt {
 namespace media {
 
 // Default starting size for the queue.
@@ -80,3 +81,4 @@ void ByteQueue::Pop(int count) {
 uint8_t* ByteQueue::front() const { return buffer_.get() + offset_; }
 
 }  // namespace media
+}  // namespace cobalt

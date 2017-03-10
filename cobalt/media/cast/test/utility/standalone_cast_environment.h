@@ -10,6 +10,7 @@
 #include "base/threading/thread_checker.h"
 #include "media/cast/cast_environment.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -40,5 +41,6 @@ class StandaloneCastEnvironment : public CastEnvironment,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_STANDALONE_CAST_ENVIRONMENT_H_

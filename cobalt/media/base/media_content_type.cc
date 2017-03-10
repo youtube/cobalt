@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/media_content_type.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -20,3 +21,4 @@ MediaContentType DurationToMediaContentType(base::TimeDelta duration) {
 }
 
 }  // namespace media
+}  // namespace cobalt

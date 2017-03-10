@@ -36,6 +36,7 @@ using ::testing::InSequence;
 using ::testing::StrictMock;
 using base::TimeDelta;
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -576,3 +577,4 @@ TEST_F(MP4StreamParserTest, MultiTrackFile) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

@@ -100,6 +100,7 @@ const uint8_t kFragmentCencSampleGroupKeyId[] = {
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -878,3 +879,4 @@ TEST_F(TrackRunIteratorTest, KeyFrameFlagCombinations) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

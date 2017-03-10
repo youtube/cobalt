@@ -6,6 +6,7 @@
 
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
 
+namespace cobalt {
 namespace media {
 
 InMemoryUrlProtocol::InMemoryUrlProtocol(const uint8_t* data, int64_t size,
@@ -54,3 +55,4 @@ bool InMemoryUrlProtocol::GetSize(int64_t* size_out) {
 bool InMemoryUrlProtocol::IsStreaming() { return streaming_; }
 
 }  // namespace media
+}  // namespace cobalt

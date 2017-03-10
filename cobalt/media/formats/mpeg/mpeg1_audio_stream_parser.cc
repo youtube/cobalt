@@ -6,6 +6,7 @@
 
 #include "cobalt/media/base/media_log.h"
 
+namespace cobalt {
 namespace media {
 
 static const uint32_t kMPEG1StartCodeMask = 0xffe00000;
@@ -257,3 +258,4 @@ int MPEG1AudioStreamParser::ParseFrameHeader(
 }
 
 }  // namespace media
+}  // namespace cobalt

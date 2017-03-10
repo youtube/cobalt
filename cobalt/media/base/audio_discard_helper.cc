@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/audio_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 static void WarnOnNonMonotonicTimestamps(base::TimeDelta last_timestamp,
@@ -237,3 +238,4 @@ bool AudioDiscardHelper::ProcessBuffers(
 }
 
 }  // namespace media
+}  // namespace cobalt

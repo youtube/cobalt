@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/bit_reader.h"
 
+namespace cobalt {
 namespace media {
 
 BitReader::BitReader(const uint8_t* data, int size)
@@ -31,3 +32,4 @@ int BitReader::GetBytes(int max_nbytes, const uint8_t** out) {
 }
 
 }  // namespace media
+}  // namespace cobalt

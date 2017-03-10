@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/audio_bus.h"
 
+namespace cobalt {
 namespace media {
 
 namespace internal {
@@ -255,3 +256,4 @@ void GetSymmetricHanningWindow(int window_length, float* window) {
 }  // namespace internal
 
 }  // namespace media
+}  // namespace cobalt

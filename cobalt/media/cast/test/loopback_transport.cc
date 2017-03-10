@@ -11,6 +11,7 @@
 #include "base/time/tick_clock.h"
 #include "media/cast/test/utility/udp_proxy.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace {
@@ -72,3 +73,4 @@ void LoopBackTransport::Initialize(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

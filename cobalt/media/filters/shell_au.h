@@ -19,6 +19,7 @@
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/shell_data_source_reader.h"
 
+namespace cobalt {
 namespace media {
 
 class ShellParser;
@@ -70,5 +71,6 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_AU_H_

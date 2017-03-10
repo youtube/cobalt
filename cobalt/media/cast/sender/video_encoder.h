@@ -17,6 +17,7 @@
 #include "media/cast/sender/sender_encoded_frame.h"
 #include "media/cast/sender/video_frame_factory.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -76,5 +77,6 @@ class VideoEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_VIDEO_ENCODER_H_

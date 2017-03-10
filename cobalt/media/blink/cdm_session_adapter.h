@@ -21,6 +21,7 @@
 
 class GURL;
 
+namespace cobalt {
 namespace media {
 
 struct CdmConfig;
@@ -149,5 +150,6 @@ class CdmSessionAdapter : public base::RefCounted<CdmSessionAdapter> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_CDM_SESSION_ADAPTER_H_

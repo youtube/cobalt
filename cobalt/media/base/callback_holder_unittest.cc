@@ -6,6 +6,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static void SetBool(bool* var) {
@@ -123,3 +124,4 @@ TEST(CallbackHolderTest, NotHold_Callback) {
 }
 
 }  // namespace media
+}  // namespace cobalt

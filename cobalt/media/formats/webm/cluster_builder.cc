@@ -11,6 +11,7 @@
 #include "cobalt/media/base/data_buffer.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 static const uint8_t kClusterHeader[] = {
@@ -238,3 +239,4 @@ void ClusterBuilder::UpdateUInt64(int offset, int64_t value) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -17,6 +17,7 @@
 // https://code.google.com/p/szl/source/browse/trunk/src/utilities/acmrandom.h
 // for more information.
 
+namespace cobalt {
 namespace media {
 
 class TestRandom {
@@ -41,5 +42,6 @@ class TestRandom {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEST_RANDOM_H_

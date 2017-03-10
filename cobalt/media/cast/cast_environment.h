@@ -14,6 +14,7 @@
 #include "base/time/time.h"
 #include "media/cast/logging/log_event_dispatcher.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -82,5 +83,6 @@ class CastEnvironment : public base::RefCountedThreadSafe<CastEnvironment> {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_CAST_ENVIRONMENT_H_

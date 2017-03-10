@@ -19,6 +19,7 @@
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Use a struct-in-struct approach to ensure that we can calculate the required
@@ -222,5 +223,6 @@ inline bool operator<(const AudioParameters& a, const AudioParameters& b) {
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_PARAMETERS_H_

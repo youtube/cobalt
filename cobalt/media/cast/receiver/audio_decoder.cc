@@ -18,6 +18,7 @@
 #include "build/build_config.h"
 #include "third_party/opus/src/include/opus.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -227,3 +228,4 @@ void AudioDecoder::DecodeFrame(std::unique_ptr<EncodedFrame> encoded_frame,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

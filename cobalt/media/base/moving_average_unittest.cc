@@ -6,6 +6,7 @@
 #include "cobalt/media/base/moving_average.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(MovingAverageTest, AverageAndDeviation) {
@@ -46,3 +47,4 @@ TEST(MovingAverageTest, Reset) {
 }
 
 }  // namespace media
+}  // namespace cobalt

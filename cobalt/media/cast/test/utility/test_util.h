@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -28,5 +29,6 @@ class MeanAndError {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_

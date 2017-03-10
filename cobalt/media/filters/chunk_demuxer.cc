@@ -28,6 +28,7 @@
 
 using base::TimeDelta;
 
+namespace cobalt {
 namespace media {
 
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, bool splice_frames_enabled,
@@ -1286,3 +1287,4 @@ void ChunkDemuxer::ShutdownAllStreams() {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -6,6 +6,7 @@
 
 #include "base/basictypes.h"
 
+namespace cobalt {
 namespace media {
 
 // The following conversion table is extracted from ISO 14496 Part 3 -
@@ -25,3 +26,4 @@ const media::ChannelLayout kADTSChannelLayoutTable[] = {
 const size_t kADTSChannelLayoutTableSize = arraysize(kADTSChannelLayoutTable);
 
 }  // namespace media
+}  // namespace cobalt

@@ -27,6 +27,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 class PipelineControllerTest : public ::testing::Test, public Pipeline::Client {
@@ -326,3 +327,4 @@ TEST_F(PipelineControllerTest, SeekToSeekTimeNotElided) {
 }
 
 }  // namespace media
+}  // namespace cobalt

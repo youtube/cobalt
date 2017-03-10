@@ -45,6 +45,7 @@ extern "C" {
 void EmptyRegisterState_MMX();
 }  // extern "C"
 
+namespace cobalt {
 namespace media {
 
 typedef void (*FilterYUVRowsProc)(uint8_t*, const uint8_t*, const uint8_t*, int,
@@ -632,3 +633,4 @@ void ConvertYUVAToARGB(const uint8_t* yplane, const uint8_t* uplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(DecoderBufferTest, Constructors) {
@@ -137,3 +138,4 @@ TEST(DecoderBufferTest, IsKeyFrame) {
 }
 
 }  // namespace media
+}  // namespace cobalt

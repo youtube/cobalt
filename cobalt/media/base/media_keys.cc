@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/media_keys.h"
 
+namespace cobalt {
 namespace media {
 
 MediaKeys::MediaKeys() {}
@@ -20,3 +21,4 @@ void MediaKeysTraits::Destruct(const MediaKeys* media_keys) {
 }
 
 }  // namespace media
+}  // namespace cobalt

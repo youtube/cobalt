@@ -24,6 +24,7 @@
 #include "cobalt/media/base/shell_video_frame_provider.h"
 #include "starboard/decode_target.h"
 
+namespace cobalt {
 namespace media {
 
 // This class is meant to be the single point to attach platform specific media
@@ -86,8 +87,10 @@ class MEDIA_EXPORT ShellMediaPlatform {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #define REGISTER_SHELL_MEDIA_PLATFORM(ClassName) \
+  namespace cobalt {                             \
   namespace media {                              \
   void ShellMediaPlatform::Initialize() {        \
     DCHECK(!Instance());                         \
@@ -100,6 +103,7 @@ class MEDIA_EXPORT ShellMediaPlatform {
     delete Instance();                           \
     SetInstance(NULL);                           \
   }                                              \
-  }  // namespace media
+  }                                              \
+  }
 
 #endif  // COBALT_MEDIA_BASE_SHELL_MEDIA_PLATFORM_H_

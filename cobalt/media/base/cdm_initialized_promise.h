@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_keys.h"
 
+namespace cobalt {
 namespace media {
 
 // Promise to be resolved when the CDM is initialized. It owns the MediaKeys
@@ -39,5 +40,6 @@ class MEDIA_EXPORT CdmInitializedPromise : public SimpleCdmPromise {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_INITIALIZED_PROMISE_H_

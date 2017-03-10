@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/audio_bus.h"
 
+namespace cobalt {
 namespace media {
 
 AudioBufferQueue::AudioBufferQueue() { Clear(); }
@@ -127,3 +128,4 @@ int AudioBufferQueue::InternalRead(int frames, bool advance_position,
 }
 
 }  // namespace media
+}  // namespace cobalt

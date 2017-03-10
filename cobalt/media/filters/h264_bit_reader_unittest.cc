@@ -5,6 +5,7 @@
 #include "cobalt/media/filters/h264_bit_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(H264BitReaderTest, ReadStreamWithoutEscapeAndTrailingZeroBytes) {
@@ -71,3 +72,4 @@ TEST(H264BitReaderTest, StopBitOccupyFullByte) {
 }
 
 }  // namespace media
+}  // namespace cobalt

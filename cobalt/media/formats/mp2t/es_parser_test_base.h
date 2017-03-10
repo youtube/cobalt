@@ -16,6 +16,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 
+namespace cobalt {
 namespace media {
 class AudioDecoderConfig;
 class StreamParserBuffer;
@@ -88,5 +89,6 @@ class EsParserTestBase {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_TEST_BASE_H_

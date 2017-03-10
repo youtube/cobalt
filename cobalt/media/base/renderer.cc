@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/renderer.h"
 
+namespace cobalt {
 namespace media {
 
 Renderer::Renderer() {}
@@ -11,3 +12,4 @@ Renderer::Renderer() {}
 Renderer::~Renderer() {}
 
 }  // namespace media
+}  // namespace cobalt

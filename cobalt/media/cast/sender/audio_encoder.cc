@@ -31,6 +31,7 @@
 #include <AudioToolbox/AudioToolbox.h>
 #endif
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -772,3 +773,4 @@ void AudioEncoder::InsertAudio(std::unique_ptr<AudioBus> audio_bus,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 typedef StreamParser::TrackId TrackId;
@@ -371,3 +372,4 @@ TEST_F(StreamParserTest, MergeBufferQueues_InvalidAppendToExistingMerge) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -58,3 +59,4 @@ base::TimeDelta ClockDriftSmoother::GetDefaultTimeConstant() {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

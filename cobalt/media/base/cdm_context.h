@@ -9,6 +9,7 @@
 #include "base/callback.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class Decryptor;
@@ -49,5 +50,6 @@ typedef base::Callback<void(bool)> CdmAttachedCB;
 MEDIA_EXPORT void IgnoreCdmAttached(bool success);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_CONTEXT_H_

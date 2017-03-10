@@ -11,6 +11,7 @@
 
 #include "base/time.h"
 
+namespace cobalt {
 namespace media {
 
 // Indicates an invalid or missing timestamp.
@@ -22,5 +23,6 @@ const base::TimeDelta kInfiniteDuration =
     base::TimeDelta::FromMicroseconds(std::numeric_limits<int64_t>::max());
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TIMESTAMP_CONSTANTS_H_

@@ -76,6 +76,7 @@
 
 #endif  // defined(OS_STARBOARD)
 
+namespace cobalt {
 namespace media {
 
 class ChunkDemuxer;
@@ -307,5 +308,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_

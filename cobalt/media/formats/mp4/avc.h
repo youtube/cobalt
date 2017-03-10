@@ -14,6 +14,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/formats/mp4/bitstream_converter.h"
 
+namespace cobalt {
 namespace media {
 
 struct SubsampleEntry;
@@ -80,5 +81,6 @@ class AVCBitstreamConverter : public BitstreamConverter {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_AVC_H_

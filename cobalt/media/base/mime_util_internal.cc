@@ -17,6 +17,7 @@
 #include "cobalt/media/base/android/media_codec_util.h"
 #endif
 
+namespace cobalt {
 namespace media {
 namespace internal {
 
@@ -728,3 +729,4 @@ bool MimeUtil::IsDefaultCodecSupportedLowerCase(
 
 }  // namespace internal
 }  // namespace media
+}  // namespace cobalt

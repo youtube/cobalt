@@ -18,6 +18,7 @@
 #include "media/base/media_export.h"
 #include "media/base/stream_parser_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 class OffsetByteQueue;
@@ -88,5 +89,6 @@ class MEDIA_EXPORT EsParser {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_H_

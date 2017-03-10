@@ -44,10 +44,16 @@
 namespace cobalt {
 namespace media {
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::ShellRawVideoDecoderFactory ShellRawVideoDecoderFactory;
+typedef ::media::WebMediaPlayer WebMediaPlayer;
+typedef ::media::WebMediaPlayerDelegate WebMediaPlayerDelegate;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
+
 // TODO: Collapse MediaModule into ShellMediaPlatform.
 class MediaModule : public CanPlayTypeHandler,
                     public WebMediaPlayerFactory,
-                    public ::media::WebMediaPlayerDelegate {
+                    public WebMediaPlayerDelegate {
  public:
   struct Options {
     Options()
@@ -61,7 +67,6 @@ class MediaModule : public CanPlayTypeHandler,
     bool disable_webm_vp9;
   };
 
-  typedef ::media::WebMediaPlayer WebMediaPlayer;
   typedef render_tree::Image Image;
 
   virtual ~MediaModule() {}
@@ -88,7 +93,7 @@ class MediaModule : public CanPlayTypeHandler,
 
 #if !defined(COBALT_MEDIA_SOURCE_2016)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  virtual ::media::ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
+  virtual ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
     return NULL;
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)

@@ -86,7 +86,7 @@ class SourceBuffer : public dom::EventTarget {
   // Custom, not in any spec.
   //
   SourceBuffer(const std::string& id, MediaSource* media_source,
-               ::media::ChunkDemuxer* chunk_demuxer, EventQueue* event_queue);
+               media::ChunkDemuxer* chunk_demuxer, EventQueue* event_queue);
 
   // Web API: SourceBuffer
   //
@@ -141,7 +141,7 @@ class SourceBuffer : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(SourceBuffer);
 
  private:
-  typedef ::media::MediaTracks MediaTracks;
+  typedef media::MediaTracks MediaTracks;
 
   void InitSegmentReceived(scoped_ptr<MediaTracks> tracks);
   void ScheduleEvent(base::Token event_name);
@@ -168,7 +168,7 @@ class SourceBuffer : public dom::EventTarget {
                                    const std::string& byteStreamTrackID) const;
 
   const std::string id_;
-  ::media::ChunkDemuxer* chunk_demuxer_;
+  media::ChunkDemuxer* chunk_demuxer_;
   MediaSource* media_source_;
   scoped_refptr<TrackDefaultList> track_defaults_;
   EventQueue* event_queue_;

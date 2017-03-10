@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_track.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioDecoderConfig;
@@ -57,5 +58,6 @@ class MEDIA_EXPORT MediaTracks {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_TRACKS_H_

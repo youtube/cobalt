@@ -62,6 +62,7 @@
   } while (0)
 #endif  // !defined(OS_ANDROID)
 
+namespace cobalt {
 namespace media {
 
 // The number of packets to read and then decode from each file.
@@ -631,3 +632,4 @@ INSTANTIATE_TEST_CASE_P(FFmpegAudioDecoderBehavioralTest,
                         testing::ValuesIn(kFFmpegBehavioralTest));
 
 }  // namespace media
+}  // namespace cobalt

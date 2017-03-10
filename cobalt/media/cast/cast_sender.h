@@ -26,6 +26,7 @@ namespace gfx {
 class Size;
 }
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 
@@ -125,5 +126,6 @@ class CastSender {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_CAST_SENDER_H_

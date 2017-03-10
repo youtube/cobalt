@@ -28,6 +28,7 @@
 //   * A static method ConvertToDouble() that takes a ValueType sample value and
 //     converts it to the corresponding double value
 
+namespace cobalt {
 namespace media {
 
 // For float or double.
@@ -205,5 +206,6 @@ using SignedInt16SampleTypeTraits = FixedSampleTypeTraits<int16_t>;
 using SignedInt32SampleTypeTraits = FixedSampleTypeTraits<int32_t>;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_SAMPLE_TYPES_H_

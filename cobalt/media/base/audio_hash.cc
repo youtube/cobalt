@@ -13,6 +13,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/media/base/audio_bus.h"
 
+namespace cobalt {
 namespace media {
 
 AudioHash::AudioHash() : audio_hash_(), sample_count_(0) {}
@@ -63,3 +64,4 @@ bool AudioHash::IsEquivalent(const std::string& other, double tolerance) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

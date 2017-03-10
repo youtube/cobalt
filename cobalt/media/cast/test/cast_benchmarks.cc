@@ -66,6 +66,7 @@
 #include "media/cast/test/utility/video_utility.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -690,6 +691,7 @@ class CastBenchmark {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;

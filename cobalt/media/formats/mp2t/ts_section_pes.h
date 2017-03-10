@@ -14,6 +14,7 @@
 #include "media/base/byte_queue.h"
 #include "media/formats/mp2t/ts_section.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -61,5 +62,6 @@ class TsSectionPes : public TsSection {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PES_H_

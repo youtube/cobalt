@@ -24,6 +24,7 @@
 #include "media/formats/mp2t/ts_section_pes.h"
 #include "media/formats/mp2t/ts_section_pmt.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -630,3 +631,4 @@ bool Mp2tStreamParser::EmitRemainingBuffers() {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

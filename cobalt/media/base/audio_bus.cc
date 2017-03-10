@@ -17,6 +17,7 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/vector_math.h"
 
+namespace cobalt {
 namespace media {
 
 static bool IsAligned(void* ptr) {
@@ -332,3 +333,4 @@ AudioBusRefCounted::AudioBusRefCounted(int channels, int frames)
 AudioBusRefCounted::~AudioBusRefCounted() {}
 
 }  // namespace media
+}  // namespace cobalt

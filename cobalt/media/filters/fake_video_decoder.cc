@@ -8,6 +8,7 @@
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/test_helpers.h"
 
+namespace cobalt {
 namespace media {
 
 FakeVideoDecoder::FakeVideoDecoder(int decoding_delay,
@@ -249,3 +250,4 @@ void FakeVideoDecoder::DoReset() {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -19,6 +19,7 @@
 #include "cobalt/media/base/media_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // These are the (fake) key systems that are registered for these tests.
@@ -764,3 +765,4 @@ TEST_F(KeySystemsPotentiallySupportedNamesTest, PotentiallySupportedNames) {
 }
 
 }  // namespace media
+}  // namespace cobalt

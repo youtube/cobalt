@@ -19,6 +19,7 @@
 #include "cobalt/media/filters/ffmpeg_glue.h"
 #include "cobalt/media/filters/file_data_source.h"
 
+namespace cobalt {
 namespace media {
 
 static const int64_t kMaxCheckTimeInSeconds = 5;
@@ -99,3 +100,4 @@ bool MediaFileChecker::Start(base::TimeDelta check_time) {
 }
 
 }  // namespace media
+}  // namespace cobalt

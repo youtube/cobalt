@@ -13,6 +13,7 @@
 #include "cobalt/media/filters/fake_video_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kTotalBuffers = 12;
@@ -410,3 +411,4 @@ TEST_P(FakeVideoDecoderTest, Destroy_DuringPendingReadAndPendingReset) {
 }
 
 }  // namespace media
+}  // namespace cobalt

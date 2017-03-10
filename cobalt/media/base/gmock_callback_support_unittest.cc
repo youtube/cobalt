@@ -12,6 +12,7 @@
 using testing::ByRef;
 using testing::MockFunction;
 
+namespace cobalt {
 namespace media {
 
 typedef base::Callback<void(const bool& src, bool* dst)> TestCallback;
@@ -79,3 +80,4 @@ TEST(GmockCallbackSupportTest, RunCallbackPassByValue) {
 }
 
 }  // namespace media
+}  // namespace cobalt

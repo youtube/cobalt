@@ -50,6 +50,7 @@ const int64_t kTargetSecondsBufferedBehind = 2;
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 
 template <typename T>
@@ -586,3 +587,4 @@ void MultibufferDataSource::UpdateBufferSizes() {
 }
 
 }  // namespace media
+}  // namespace cobalt

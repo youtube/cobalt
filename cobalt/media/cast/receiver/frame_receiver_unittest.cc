@@ -28,6 +28,7 @@
 
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -453,3 +454,4 @@ TEST_F(FrameReceiverTest, ReceivesFramesRefusingToSkipAny) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

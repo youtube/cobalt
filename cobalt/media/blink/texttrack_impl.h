@@ -20,6 +20,7 @@ class WebInbandTextTrackClient;
 class WebMediaPlayerClient;
 }
 
+namespace cobalt {
 namespace media {
 
 class WebInbandTextTrackImpl;
@@ -53,5 +54,6 @@ class TextTrackImpl : public TextTrack {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_TEXTTRACK_IMPL_H_

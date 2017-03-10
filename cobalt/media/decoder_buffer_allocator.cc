@@ -26,8 +26,8 @@ bool kPreAllocateAllMemory = true;
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
-    : memory_block_(SbMemoryAllocateAligned(
-          ::media::DecoderBuffer::kAlignmentSize, SB_MEDIA_MAIN_BUFFER_BUDGET)),
+    : memory_block_(SbMemoryAllocateAligned(DecoderBuffer::kAlignmentSize,
+                                            SB_MEDIA_MAIN_BUFFER_BUDGET)),
       memory_pool_(memory_block_, SB_MEDIA_MAIN_BUFFER_BUDGET, kThreadSafe,
                    kPreAllocateAllMemory) {}
 

@@ -15,6 +15,7 @@
 #include "cobalt/media/formats/common/stream_parser_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class MPEG1AudioStreamParserTest : public StreamParserTestBase,
@@ -100,3 +101,4 @@ TEST_F(MPEG1AudioStreamParserTest, MetadataParsing) {
 }
 
 }  // namespace media
+}  // namespace cobalt

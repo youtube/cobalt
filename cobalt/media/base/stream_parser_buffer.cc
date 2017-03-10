@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 static scoped_refptr<StreamParserBuffer> CopyBuffer(
@@ -206,3 +207,4 @@ void StreamParserBuffer::set_timestamp(base::TimeDelta timestamp) {
 }
 
 }  // namespace media
+}  // namespace cobalt

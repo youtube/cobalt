@@ -14,6 +14,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 // Default scale factor for mixing two channels together.  We use a different
@@ -298,3 +299,4 @@ void ChannelMixingMatrix::MixWithoutAccounting(Channels input_ch,
 }
 
 }  // namespace media
+}  // namespace cobalt

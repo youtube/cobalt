@@ -14,6 +14,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "cobalt/media/base/bit_reader.h"
 
+namespace cobalt {
 namespace media {
 
 namespace container_names {
@@ -1600,3 +1601,4 @@ MediaContainerName DetermineContainer(const uint8_t* buffer, int buffer_size) {
 }  // namespace container_names
 
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Simple class for calculating a moving average of fixed size.
@@ -53,5 +54,6 @@ class MEDIA_EXPORT MovingAverage {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MOVING_AVERAGE_H_

@@ -9,6 +9,7 @@
 #include "cobalt/media/base/wall_clock_time_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class WallClockTimeSourceTest : public testing::Test {
@@ -178,3 +179,4 @@ TEST_F(WallClockTimeSourceTest, EmptyMediaTimestampsReturnMediaWallClockTime) {
 }
 
 }  // namespace media
+}  // namespace cobalt

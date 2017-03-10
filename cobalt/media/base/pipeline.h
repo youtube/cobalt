@@ -42,6 +42,7 @@ typedef SbWindow PipelineWindow;
 typedef void* PipelineWindow;
 #endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
 
+namespace cobalt {
 namespace media {
 
 class MediaLog;
@@ -179,5 +180,6 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_PIPELINE_H_

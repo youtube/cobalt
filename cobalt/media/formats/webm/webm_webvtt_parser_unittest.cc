@@ -12,6 +12,7 @@
 
 using ::testing::InSequence;
 
+namespace cobalt {
 namespace media {
 
 typedef std::vector<uint8_t> Cue;
@@ -100,3 +101,4 @@ TEST_F(WebMWebVTTParserTest, Content) {
 }
 
 }  // namespace media
+}  // namespace cobalt

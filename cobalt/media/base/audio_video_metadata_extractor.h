@@ -14,6 +14,7 @@
 
 struct AVDictionary;
 
+namespace cobalt {
 namespace media {
 
 class DataSource;
@@ -103,5 +104,6 @@ class MEDIA_EXPORT AudioVideoMetadataExtractor {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_VIDEO_METADATA_EXTRACTOR_H_

@@ -20,6 +20,7 @@
 #include "media/cast/sender/congestion_control.h"
 #include "media/cast/sender/frame_sender.h"
 
+namespace cobalt {
 namespace media {
 
 class VideoFrame;
@@ -118,5 +119,6 @@ class VideoSender : public FrameSender,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_VIDEO_SENDER_H_

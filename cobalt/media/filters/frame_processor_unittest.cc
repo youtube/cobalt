@@ -30,6 +30,7 @@ using ::testing::InSequence;
 using ::testing::StrictMock;
 using ::testing::Values;
 
+namespace cobalt {
 namespace media {
 
 typedef StreamParser::BufferQueue BufferQueue;
@@ -889,3 +890,4 @@ INSTANTIATE_TEST_CASE_P(SequenceMode, FrameProcessorTest, Values(true));
 INSTANTIATE_TEST_CASE_P(SegmentsMode, FrameProcessorTest, Values(false));
 
 }  // namespace media
+}  // namespace cobalt

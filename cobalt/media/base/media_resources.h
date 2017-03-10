@@ -11,6 +11,7 @@
 #include "build/build_config.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // The media layer can't access Chrome's resource bundle directly. This facility
@@ -49,5 +50,6 @@ base::string16 GetLocalizedStringUTF16(MessageId message_id);
 #endif
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_RESOURCES_H_

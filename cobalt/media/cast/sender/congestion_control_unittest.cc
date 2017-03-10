@@ -14,6 +14,7 @@
 #include "media/cast/sender/congestion_control.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -136,3 +137,4 @@ TEST_F(CongestionControlTest, SimpleRun) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

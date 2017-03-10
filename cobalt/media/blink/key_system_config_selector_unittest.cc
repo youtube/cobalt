@@ -20,6 +20,7 @@
 #include "third_party/WebKit/public/platform/WebSecurityOrigin.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -797,3 +798,4 @@ TEST_F(KeySystemConfigSelectorTest,
 }
 
 }  // namespace media
+}  // namespace cobalt

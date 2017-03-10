@@ -16,14 +16,24 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/endian_util.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/endian_util.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace audio {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
 using media::endian_util::load_uint16_little_endian;
 using media::endian_util::load_uint32_big_endian;
 using media::endian_util::load_uint32_little_endian;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+using ::media::endian_util::load_uint16_little_endian;
+using ::media::endian_util::load_uint32_big_endian;
+using ::media::endian_util::load_uint32_little_endian;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 

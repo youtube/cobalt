@@ -14,6 +14,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 // Helper class representing a range of buffered data. All buffers in a
@@ -317,5 +318,6 @@ class SourceBufferRange {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_RANGE_H_

@@ -22,6 +22,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class TextCue;
@@ -126,5 +127,6 @@ class MEDIA_EXPORT TextRenderer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEXT_RENDERER_H_

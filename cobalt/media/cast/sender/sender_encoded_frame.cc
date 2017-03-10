@@ -4,6 +4,7 @@
 
 #include "media/cast/sender/sender_encoded_frame.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 

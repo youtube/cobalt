@@ -8,6 +8,7 @@
 #include "base/utf_string_conversions.h"
 #include "build/build_config.h"
 
+namespace cobalt {
 namespace media {
 
 static LocalizedStringProvider g_localized_string_provider = NULL;
@@ -28,3 +29,4 @@ base::string16 GetLocalizedStringUTF16(MessageId message_id) {
 #endif
 
 }  // namespace media
+}  // namespace cobalt

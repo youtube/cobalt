@@ -6,6 +6,7 @@
 
 #include "base/single_thread_task_runner.h"
 
+namespace cobalt {
 namespace media {
 
 DecoderFactory::DecoderFactory() {}
@@ -22,3 +23,4 @@ void DecoderFactory::CreateVideoDecoders(
     ScopedVector<VideoDecoder>* video_decoders) {}
 
 }  // namespace media
+}  // namespace cobalt

@@ -9,6 +9,7 @@
 #include "base/bind.h"
 #include "base/location.h"
 
+namespace cobalt {
 namespace media {
 
 // Prune 80 blocks per 30 seconds.
@@ -511,3 +512,4 @@ int64_t MultiBuffer::UncommittedBytesAt(const MultiBuffer::BlockId& block) {
 }
 
 }  // namespace media
+}  // namespace cobalt
