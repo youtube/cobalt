@@ -14,11 +14,10 @@
 
 // MediaMetadata interface
 // https://wicg.github.io/mediasession
-[Constructor(optional MediaMetadataInit init), Exposed=Window]
-interface MediaMetadata {
-  attribute DOMString title;
-  attribute DOMString artist;
-  attribute DOMString album;
+dictionary MediaMetadataInit {
+  DOMString title = "";
+  DOMString artist = "";
+  DOMString album = "";
   // TODO FrozenArray not implemented in current IDL parser.
   // attribute FrozenArray<MediaImage> artwork;
 };
