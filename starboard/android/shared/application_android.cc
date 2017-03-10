@@ -95,6 +95,7 @@ SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
   }
   window_ = new SbWindowPrivate;
   window_->native_window = android_state_->window;
+  input_events_generator_.reset(new InputEventsGenerator(window_));
   return window_;
 }
 
@@ -102,6 +103,10 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
   if (!SbWindowIsValid(window)) {
     return false;
   }
+
+  input_events_generator_.reset();
+
+  SB_DCHECK(window == window_);
   delete window_;
   window_ = kSbWindowInvalid;
   return true;
@@ -220,12 +225,15 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
 }
 
 bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
-  Event *event = CreateInputEvent(androidEvent, window_);
-  if (event == NULL) {
-    return false;
+  SB_DCHECK(input_events_generator_);
+  std::vector<Event*> events;
+  bool success =
+      input_events_generator_->CreateInputEvents(androidEvent, &events);
+  for (int i = 0; i < events.size(); ++i) {
+    DispatchAndDelete(events[i]);
   }
-  DispatchAndDelete(event);
-  return true;
+
+  return success && events.size() != 0;
 }
 
 ANativeActivity* ApplicationAndroid::GetActivity() {

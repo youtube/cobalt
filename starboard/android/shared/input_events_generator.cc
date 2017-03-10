@@ -16,8 +16,12 @@
 
 #include <android/input.h>
 #include <android/keycodes.h>
+#include <jni.h>
 
-#include "starboard/input.h"
+#include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/double.h"
 #include "starboard/key.h"
 
 namespace starboard {
@@ -27,8 +31,6 @@ namespace shared {
 using ::starboard::shared::starboard::Application;
 
 namespace {
-
-const int kKeyboardDeviceId = 1;
 
 SbKey AInputEventToSbKey(AInputEvent *event) {
   int32_t keycode = AKeyEvent_getKeyCode(event);
@@ -322,24 +324,129 @@ unsigned int AInputEventToSbModifiers(AInputEvent *event) {
   return modifiers;
 }
 
-}  // namespace
-
-Application::Event*
-CreateInputEvent(AInputEvent *event, SbWindow window) {
-  if (event == NULL
-      || AInputEvent_getType(event) != AINPUT_EVENT_TYPE_KEY
-      || !SbWindowIsValid(window)) {
-    return NULL;
-  }
-
+Application::Event* CreateMoveEventWithKey(int32_t device_id,
+                                           SbWindow window,
+                                           SbKey key,
+                                           const SbInputVector& input_vector) {
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
 
   // window
   data->window = window;
+  data->type = kSbInputEventTypeMove;
+  data->device_type = kSbInputDeviceTypeGamepad;
+  data->device_id = device_id;
+
+  // key
+  data->key = key;
+  data->key_location = kSbKeyLocationUnspecified;
+  data->key_modifiers = kSbKeyModifiersNone;
+  data->position = input_vector;
+
+  return new Application::Event(kSbEventTypeInput, data,
+                                &Application::DeleteDestructor<SbInputData>);
+}
+
+float GetFlat(jobject input_device, int axis) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject motion_range =
+      env->CallObjectMethod(input_device, "getMotionRange",
+                            "(I)Landroid/view/InputDevice$MotionRange;", axis);
+
+  float flat = env->CallFloatMethod(motion_range, "getFlat", "()F");
+  env->DeleteLocalRef(motion_range);
+  SB_DCHECK(flat < 1.0f);
+  return flat;
+}
+
+}  // namespace
+
+InputEventsGenerator::InputEventsGenerator(SbWindow window) : window_(window) {
+  SB_DCHECK(SbWindowIsValid(window_));
+}
+
+InputEventsGenerator::~InputEventsGenerator() {}
+
+// For a left joystick, AMOTION_EVENT_AXIS_X reports the absolute X position of
+// the joystick. The value is normalized to a range from -1.0 (left) to 1.0
+// (right).
+//
+// For a left joystick, AMOTION_EVENT_AXIS_Y reports the absolute Y position of
+// the joystick. The value is normalized to a range from -1.0 (up or far) to 1.0
+// (down or near).
+//
+// On game pads with two analog joysticks, AMOTION_EVENT_AXIS_Z is often
+// reinterpreted to report the absolute X position of the second joystick.
+//
+// On game pads with two analog joysticks, AMOTION_EVENT_AXIS_RZ is often
+// reinterpreted to report the absolute Y position of the second joystick.
+void InputEventsGenerator::ProcessJoyStickEvent(
+    FlatAxis axis,
+    int32_t motion_axis,
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  SB_DCHECK(AMotionEvent_getPointerCount(android_event) > 0);
+
+  int32_t device_id = AInputEvent_getDeviceId(android_event);
+  SB_DCHECK(device_flat_.find(device_id) != device_flat_.end());
+
+  float flat = device_flat_[device_id][axis];
+  float offset = AMotionEvent_getAxisValue(android_event, motion_axis, 0);
+  int sign = offset < 0.0f ? -1 : 1;
+
+  if (SbDoubleAbsolute(offset) < flat) {
+    offset = sign * flat;
+  }
+  // Rescaled the range:
+  // [-1.0f, -flat] to [-1.0f, 0.0f] and [flat, 1.0f] to [0.0f, 1.0f]
+  offset = (offset - sign * flat) / (1 - flat);
+
+  SbInputVector input_vector;
+  SbKey key = kSbKeyUnknown;
+  switch (axis) {
+    case kLeftX: {
+      input_vector.x = -offset;
+      input_vector.y = 0.0f;
+      key = kSbKeyGamepadLeftStickLeft;
+      break;
+    }
+    case kLeftY: {
+      input_vector.x = 0.0f;
+      input_vector.y = -offset;
+      key = kSbKeyGamepadLeftStickUp;
+      break;
+    }
+    case kRightX: {
+      input_vector.x = -offset;
+      input_vector.y = 0.0f;
+      key = kSbKeyGamepadRightStickLeft;
+      break;
+    }
+    case kRightY: {
+      input_vector.x = 0.0f;
+      input_vector.y = -offset;
+      key = kSbKeyGamepadRightStickUp;
+      break;
+    }
+    default:
+      SB_NOTREACHED();
+  }
+
+  events->push_back(
+      CreateMoveEventWithKey(device_id, window_, key, input_vector));
+}
+
+void InputEventsGenerator::ProcessKeyEvent(
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  // window
+  data->window = window_;
 
   // type
-  switch (AKeyEvent_getAction(event)) {
+  switch (AKeyEvent_getAction(android_event)) {
     case AKEY_EVENT_ACTION_DOWN:
       data->type = kSbInputEventTypePress;
       break;
@@ -349,21 +456,77 @@ CreateInputEvent(AInputEvent *event, SbWindow window) {
     default:
       // TODO: send multiple events for AKEY_EVENT_ACTION_MULTIPLE
       delete data;
-      return NULL;
+      return;
   }
 
   // device
   // TODO: differentiate gamepad, remote, etc.
   data->device_type = kSbInputDeviceTypeKeyboard;
-  data->device_id = kKeyboardDeviceId;
+  data->device_id = AInputEvent_getDeviceId(android_event);
 
   // key
-  data->key = AInputEventToSbKey(event);
-  data->key_location = AInputEventToSbKeyLocation(event);
-  data->key_modifiers = AInputEventToSbModifiers(event);
+  data->key = AInputEventToSbKey(android_event);
+  data->key_location = AInputEventToSbKeyLocation(android_event);
+  data->key_modifiers = AInputEventToSbModifiers(android_event);
 
-  return new Application::Event(
+  ApplicationAndroid::Event* event = new Application::Event(
       kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>);
+  events->push_back(event);
+}
+
+void InputEventsGenerator::ProcessMotionEvent(
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  UpdateDeviceFlatMapIfNecessary(android_event);
+  ProcessJoyStickEvent(kLeftX, AMOTION_EVENT_AXIS_X, android_event, events);
+  ProcessJoyStickEvent(kLeftY, AMOTION_EVENT_AXIS_Y, android_event, events);
+  ProcessJoyStickEvent(kRightX, AMOTION_EVENT_AXIS_Z, android_event, events);
+  ProcessJoyStickEvent(kRightY, AMOTION_EVENT_AXIS_RZ, android_event, events);
+}
+
+void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
+    AInputEvent* android_event) {
+  int32_t device_id = AInputEvent_getDeviceId(android_event);
+  if (device_flat_.find(device_id) != device_flat_.end()) {
+    // |device_flat_| is already contains the device flat information.
+    return;
+  }
+
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject input_device =
+      env->CallStaticObjectMethod("android/view/InputDevice", "getDevice",
+                                  "(I)Landroid/view/InputDevice;", device_id);
+  float flats[kNumAxes] = {GetFlat(input_device, AMOTION_EVENT_AXIS_X),
+                           GetFlat(input_device, AMOTION_EVENT_AXIS_Y),
+                           GetFlat(input_device, AMOTION_EVENT_AXIS_Z),
+                           GetFlat(input_device, AMOTION_EVENT_AXIS_RZ)};
+  device_flat_[device_id] = std::vector<float>(flats, flats + kNumAxes);
+  env->DeleteLocalRef(input_device);
+}
+
+bool InputEventsGenerator::CreateInputEvents(
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  if (android_event == NULL ||
+      (AInputEvent_getType(android_event) != AINPUT_EVENT_TYPE_KEY &&
+       AInputEvent_getType(android_event) != AINPUT_EVENT_TYPE_MOTION)) {
+    return false;
+  }
+
+  switch (AInputEvent_getType(android_event)) {
+    case AINPUT_EVENT_TYPE_KEY:
+      ProcessKeyEvent(android_event, events);
+      break;
+    case AINPUT_EVENT_TYPE_MOTION: {
+      // TODO: Handle joystick motion events to generate key press and unpress.
+      ProcessMotionEvent(android_event, events);
+      break;
+    }
+    default:
+      SB_NOTREACHED();
+  }
+
+  return true;
 }
 
 }  // namespace shared
