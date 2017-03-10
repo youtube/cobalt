@@ -38,7 +38,10 @@ void SbEventHandle(const SbEvent* event) {
                     << ", key=0x" << std::hex << data->key
                     << ", character=" << data->character
                     << ", modifiers=0x" << std::hex << data->key_modifiers
-                    << ", location=" << std::dec << data->key_location;
+                    << ", location=" << std::dec << data->key_location
+                    << ", position="
+                    << "[ " << data->position.x << " , " << data->position.y
+                    << " ]";
       break;
     }
     default:
