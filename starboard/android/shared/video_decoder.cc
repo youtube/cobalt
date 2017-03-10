@@ -71,7 +71,6 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
     : video_codec_(video_codec),
       host_(NULL),
       stream_ended_(false),
-      error_occured_(false),
       decoder_thread_(kSbThreadInvalid),
       media_codec_bridge_(NULL),
       current_time_(kSbTimeNone),
@@ -99,7 +98,6 @@ void VideoDecoder::SetHost(Host* host) {
 }
 
 void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
-  SB_DCHECK(event_queue_.Poll().type == kInvalid);
   SB_DCHECK(host_ != NULL);
 
   if (stream_ended_) {
@@ -114,7 +112,7 @@ void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
     SB_DCHECK(SbThreadIsValid(decoder_thread_));
   }
 
-  event_queue_.Put(Event(input_buffer));
+  event_queue_.PushBack(Event(input_buffer));
 }
 
 void VideoDecoder::WriteEndOfStream() {
@@ -123,13 +121,14 @@ void VideoDecoder::WriteEndOfStream() {
   // We have to flush the decoder to decode the rest frames and to ensure that
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
-  event_queue_.Put(Event(kWriteEndOfStream));
+  event_queue_.PushBack(Event(Event::kWriteEndOfStream));
 }
 
 void VideoDecoder::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
   if (SbThreadIsValid(decoder_thread_)) {
-    event_queue_.Put(Event(kReset));
+    event_queue_.Clear();
+    event_queue_.PushBack(Event(Event::kReset));
     SbThreadJoin(decoder_thread_, NULL);
   }
 
@@ -208,50 +207,86 @@ void* VideoDecoder::ThreadEntryPoint(void* context) {
 }
 
 void VideoDecoder::DecoderThreadFunc() {
+  // A second staging queue that holds events of type |kWriteInputBuffer| and
+  // |kWriteEndOfStream| only, and is only accessed from the decoder thread,
+  // so it does not need to be thread-safe.
+  std::deque<Event> pending_work;
+  // A queue of media codec output buffers that we have taken from the media
+  // codec brige.
+  std::deque<OutputBufferHandle> output_buffer_handles;
+
   for (;;) {
-    Event event = event_queue_.Get();
-    if (event.type == kReset) {
+    Event event = event_queue_.PollFront();
+
+    if (event.type == Event::kWriteInputBuffer ||
+        event.type == Event::kWriteEndOfStream) {
+      pending_work.push_back(event);
+    }
+
+    if (event.type == Event::kReset) {
       SB_LOG(INFO) << "Reset event occurred.";
+      while (output_buffer_handles.size() > 0) {
+        OutputBufferHandle& output_buffer_handle =
+            output_buffer_handles.front();
+        media_codec_bridge_->ReleaseOutputBuffer(output_buffer_handle.index,
+                                                 false);
+        output_buffer_handles.pop_front();
+      }
       jint status = media_codec_bridge_->Flush();
       if (status != MEDIA_CODEC_OK) {
         SB_LOG(ERROR) << "Failed to flush video media codec.";
       }
-      while (!pending_work_.empty()) {
-        pending_work_.pop_front();
-      }
+      pending_work.clear();
       return;
     }
-    if (error_occured_) {
-      continue;
+
+    bool did_input = true;
+    bool did_output = true;
+    while (did_input || did_output) {
+      did_input = ProcessOneInputBuffer(&pending_work);
+      did_output = ProcessOneOutputBuffer(&output_buffer_handles);
     }
-    if (event.type == kWriteInputBuffer) {
-      pending_work_.push_back(event.input_buffer);
-      bool did_input = true;
-      bool did_output = true;
-      while (did_input || did_output) {
-        did_input = ProcessOneInputBuffer();
-        did_output = ProcessOneOutputBuffer();
+    host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
+
+    // TODO: This logic should be moved into the video renderer, which we call
+    // into through |host_->OnDecoderStatusUpdate|.  Then, |current_time_|
+    // does not need to be passed into us, and we can also handle seeking
+    // logic properly.
+    while (output_buffer_handles.size() > 0) {
+      // TODO: Carefully tune these values towards the best playback
+      // experience across multiple devices.
+      SbTime lower_bound = current_time_ - 17 * 1000;
+      SbTime upper_bound = current_time_ + 17 * 1000;
+
+      OutputBufferHandle& output_buffer_handle = output_buffer_handles.front();
+
+      if (output_buffer_handle.pts_microseconds < upper_bound) {
+        // TODO: Figure out whether not rendering late frames provides a
+        // better playback experience or not.
+        media_codec_bridge_->ReleaseOutputBuffer(output_buffer_handle.index,
+                                                 true);
+        output_buffer_handles.pop_front();
+      } else {
+        // All the frames later than us will also be above |upper_bound|, so
+        // we can stop.
+        break;
       }
-      host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
-    } else if (event.type == kWriteEndOfStream) {
-      pending_work_.push_back(InputBufferOrEos(InputBufferOrEos::CreateEos()));
-      host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
-    } else {
-      SB_NOTREACHED();
+    }
+
+    if (event.type == Event::kInvalid) {
+      SbThreadSleep(10 * 1000);
+      continue;
     }
   }
 }
 
-bool VideoDecoder::ProcessOneInputBuffer() {
-  if (pending_work_.empty()) {
+bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
+  SB_DCHECK(pending_work);
+  if (pending_work->empty()) {
     return false;
   }
-  InputBufferOrEos input_buffer_or_eos = pending_work_.front();
-  InputBuffer input_buffer = input_buffer_or_eos.input_buffer;
-  bool is_eos = input_buffer_or_eos.is_eos;
-  pending_work_.pop_front();
-  SB_CHECK(media_codec_bridge_);
 
+  SB_CHECK(media_codec_bridge_);
   DequeueInputResult dequeue_input_result =
       media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
   if (dequeue_input_result.index < 0) {
@@ -259,9 +294,17 @@ bool VideoDecoder::ProcessOneInputBuffer() {
       SB_LOG(ERROR) << "|dequeueInputBuffer| failed with status: "
                     << dequeue_input_result.status;
     }
-    pending_work_.push_front(input_buffer_or_eos);
     return false;
   }
+
+  Event event = pending_work->front();
+  SB_DCHECK(event.type == Event::kWriteInputBuffer ||
+            event.type == Event::kWriteEndOfStream);
+  InputBuffer input_buffer = event.input_buffer;
+  bool is_eos = event.type == Event::kWriteEndOfStream;
+  pending_work->pop_front();
+  SB_DCHECK(!is_eos || pending_work->empty());
+
   ScopedJavaByteBuffer byte_buffer(
       media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
   if (!is_eos &&
@@ -274,30 +317,40 @@ bool VideoDecoder::ProcessOneInputBuffer() {
     byte_buffer.CopyInto(input_buffer.data(), input_buffer.size());
   }
 
-  jint status = media_codec_bridge_->QueueInputBuffer(
-      dequeue_input_result.index, /*offset=*/0,
-      is_eos ? 0 : input_buffer.size(),
-      ConvertSbMediaTimeToMicroseconds(input_buffer.pts()),
-      is_eos ? BUFFER_FLAG_END_OF_STREAM : 0);
+  jint status;
+  if (is_eos) {
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, 0, 0, 0, BUFFER_FLAG_END_OF_STREAM);
+  } else {
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, /*offset=*/0, input_buffer.size(),
+        ConvertSbMediaTimeToMicroseconds(input_buffer.pts()), 0);
+  }
+
   if (status != MEDIA_CODEC_OK) {
     SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
     return false;
-  }
-  if (is_eos) {
-    status = media_codec_bridge_->Flush();
-    if (status != MEDIA_CODEC_OK) {
-      SB_LOG(ERROR) << "Failed to flush media codec.";
-    }
-    host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
   }
 
   return true;
 }
 
-bool VideoDecoder::ProcessOneOutputBuffer() {
+bool VideoDecoder::ProcessOneOutputBuffer(
+    std::deque<OutputBufferHandle>* output_buffer_handles) {
+  SB_DCHECK(output_buffer_handles);
   SB_CHECK(media_codec_bridge_);
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
+
+  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
+    host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+    }
+    return true;
+  }
+
   if (dequeue_output_result.index < 0) {
     // Don't bother logging a try again later status, it will happen a lot.
     if (dequeue_output_result.status !=
@@ -308,16 +361,15 @@ bool VideoDecoder::ProcessOneOutputBuffer() {
     return false;
   }
 
-  SbTime delay = (current_time_ == kSbTimeNone)
-                     ? 0
-                     : (dequeue_output_result.presentation_time_microseconds -
-                        GetAdjustedCurrentTime());
+  SbMediaTime out_pts = ConvertMicrosecondsToSbMediaTime(
+      dequeue_output_result.presentation_time_microseconds);
+  host_->OnDecoderStatusUpdate(kBufferFull,
+                               VideoFrame::CreateEmptyFrame(out_pts));
 
-  if (delay > 0) {
-    SbThreadSleep(delay);
-  }
-
-  media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index, true);
+  OutputBufferHandle output_buffer_handle = {
+      dequeue_output_result.index,
+      dequeue_output_result.presentation_time_microseconds};
+  output_buffer_handles->push_back(output_buffer_handle);
 
   // Record the latest width/height of the decoded input.
   SurfaceDimensions output_dimensions =
@@ -325,10 +377,6 @@ bool VideoDecoder::ProcessOneOutputBuffer() {
   frame_width_ = output_dimensions.width;
   frame_height_ = output_dimensions.height;
 
-  SbMediaTime out_pts = ConvertMicrosecondsToSbMediaTime(
-      dequeue_output_result.presentation_time_microseconds);
-  host_->OnDecoderStatusUpdate(kBufferFull,
-                               VideoFrame::CreateEmptyFrame(out_pts));
   return true;
 }
 
