@@ -10,6 +10,7 @@
 
 #include "media/cast/cast_config.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -19,5 +20,6 @@ int ParseVp8HeaderQuantizer(const uint8_t* data, size_t size);
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_VP8_QUANTIZER_PARSER_H_

@@ -21,6 +21,7 @@
 #define MEDIA_MMX_INTRINSICS_AVAILABLE
 #endif
 
+namespace cobalt {
 namespace media {
 
 // Type of YUV surface.
@@ -108,5 +109,6 @@ MEDIA_EXPORT void ConvertRGB24ToYUV(const uint8_t* rgbframe, uint8_t* yplane,
 MEDIA_EXPORT void EmptyRegisterState();
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_YUV_CONVERT_H_

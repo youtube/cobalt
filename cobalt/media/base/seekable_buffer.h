@@ -42,6 +42,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class DataBuffer;
@@ -183,5 +184,6 @@ class MEDIA_EXPORT SeekableBuffer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SEEKABLE_BUFFER_H_

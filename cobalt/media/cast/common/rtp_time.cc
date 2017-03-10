@@ -7,6 +7,7 @@
 #include <limits>
 #include <sstream>
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -72,3 +73,4 @@ RtpTimeTicks RtpTimeTicks::FromTimeDelta(base::TimeDelta delta,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

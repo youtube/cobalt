@@ -89,6 +89,7 @@ using media::cast::proto::IPPModel;
 using media::cast::proto::NetworkSimulationModel;
 using media::cast::proto::NetworkSimulationModelType;
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace {
@@ -671,6 +672,7 @@ NetworkSimulationModel LoadModel(const base::FilePath& model_path) {
 }  // namespace
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;

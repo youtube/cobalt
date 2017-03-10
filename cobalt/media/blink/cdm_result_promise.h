@@ -16,6 +16,7 @@
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 // Used to convert a WebContentDecryptionModuleResult into a CdmPromiseTemplate
@@ -83,5 +84,6 @@ void CdmResultPromise<T...>::reject(MediaKeys::Exception exception_code,
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_CDM_RESULT_PROMISE_H_

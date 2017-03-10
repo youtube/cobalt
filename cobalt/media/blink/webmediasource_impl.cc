@@ -13,6 +13,7 @@
 using ::blink::WebString;
 using ::blink::WebMediaSource;
 
+namespace cobalt {
 namespace media {
 
 #define STATIC_ASSERT_MATCHING_STATUS_ENUM(webkit_name, chromium_name) \
@@ -74,3 +75,4 @@ void WebMediaSourceImpl::markEndOfStream(
 void WebMediaSourceImpl::unmarkEndOfStream() { demuxer_->UnmarkEndOfStream(); }
 
 }  // namespace media
+}  // namespace cobalt

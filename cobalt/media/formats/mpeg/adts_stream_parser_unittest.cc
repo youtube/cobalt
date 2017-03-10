@@ -11,6 +11,7 @@
 #include "cobalt/media/formats/common/stream_parser_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class ADTSStreamParserTest : public StreamParserTestBase, public testing::Test {
@@ -60,3 +61,4 @@ TEST_F(ADTSStreamParserTest, UnalignedAppend512) {
 }
 
 }  // namespace media
+}  // namespace cobalt

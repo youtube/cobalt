@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 const char kIvfHeaderSignature[] = "DKIF";
@@ -81,5 +82,6 @@ class MEDIA_EXPORT IvfParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_IVF_PARSER_H_

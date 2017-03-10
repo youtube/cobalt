@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/cdm_context.h"
 
+namespace cobalt {
 namespace media {
 
 const int CdmContext::kInvalidCdmId = 0;
@@ -15,3 +16,4 @@ CdmContext::~CdmContext() {}
 void IgnoreCdmAttached(bool /* success */) {}
 
 }  // namespace media
+}  // namespace cobalt

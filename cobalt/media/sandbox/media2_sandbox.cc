@@ -25,37 +25,30 @@ namespace cobalt {
 namespace media {
 namespace sandbox {
 
-using ::media::ChunkDemuxer;
-using ::media::DecoderBuffer;
-using ::media::DemuxerStream;
-using ::media::MediaTracks;
-
 namespace {
 
-class DemuxerHostStub : public ::media::DemuxerHost {
+class DemuxerHostStub : public DemuxerHost {
   void OnBufferedTimeRangesChanged(
-      const ::media::Ranges<base::TimeDelta>& ranges) OVERRIDE {}
+      const Ranges<base::TimeDelta>& ranges) OVERRIDE {}
 
   void SetDuration(base::TimeDelta duration) OVERRIDE {}
 
-  void OnDemuxerError(::media::PipelineStatus error) OVERRIDE {}
+  void OnDemuxerError(PipelineStatus error) OVERRIDE {}
 
-  void AddTextStream(::media::DemuxerStream* text_stream,
-                     const ::media::TextTrackConfig& config) OVERRIDE {}
+  void AddTextStream(DemuxerStream* text_stream,
+                     const TextTrackConfig& config) OVERRIDE {}
 
-  void RemoveTextStream(::media::DemuxerStream* text_stream) OVERRIDE {}
+  void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE {}
 };
 
 void OnDemuxerOpen() {}
 
-void OnEncryptedMediaInitData(::media::EmeInitDataType type,
+void OnEncryptedMediaInitData(EmeInitDataType type,
                               const std::vector<uint8_t>& init_data) {}
 
 void OnInitSegmentReceived(scoped_ptr<MediaTracks> tracks) {}
 
-void OnDemuxerStatus(::media::PipelineStatus status) {
-  status = ::media::PIPELINE_OK;
-}
+void OnDemuxerStatus(PipelineStatus status) { status = PIPELINE_OK; }
 
 std::string LoadFile(const std::string& file_name) {
   FilePath file_path(file_name);
@@ -114,7 +107,7 @@ int SandboxMain(int argc, char** argv) {
   DemuxerHostStub demuxer_host;
   scoped_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
       &decoder_buffer_allocator, base::Bind(OnDemuxerOpen),
-      base::Bind(OnEncryptedMediaInitData), new ::media::MediaLog, false));
+      base::Bind(OnEncryptedMediaInitData), new MediaLog, false));
   demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus), false);
 
   ChunkDemuxer::Status status =
@@ -137,7 +130,7 @@ int SandboxMain(int argc, char** argv) {
   demuxer->AppendData("video", reinterpret_cast<uint8*>(&video_content[0]),
                       video_content.size(), base::TimeDelta(),
                       base::TimeDelta::Max(), &timestamp_offset);
-  demuxer->MarkEndOfStream(::media::PIPELINE_OK);
+  demuxer->MarkEndOfStream(PIPELINE_OK);
 
   DemuxerStream* audio_stream = demuxer->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer->GetStream(DemuxerStream::VIDEO);

@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 enum AudioCodec {
@@ -47,5 +48,6 @@ std::string MEDIA_EXPORT GetCodecName(AudioCodec codec);
 MEDIA_EXPORT AudioCodec StringToAudioCodec(const std::string& codec_id);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_CODECS_H_

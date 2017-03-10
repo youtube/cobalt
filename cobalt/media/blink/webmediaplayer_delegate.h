@@ -8,6 +8,7 @@
 namespace blink {
 class WebMediaPlayer;
 }
+namespace cobalt {
 namespace media {
 
 enum class MediaContentType;
@@ -80,5 +81,6 @@ class WebMediaPlayerDelegate {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_DELEGATE_H_

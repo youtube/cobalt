@@ -9,6 +9,7 @@
 #include "cobalt/media/base/audio_parameters.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(AudioParameters, Constructor_Default) {
@@ -224,3 +225,4 @@ TEST(AudioParameters, Constructor_ValidChannelCounts) {
 }
 
 }  // namespace media
+}  // namespace cobalt

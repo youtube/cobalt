@@ -5,6 +5,7 @@
 #include "media/cast/common/expanded_value_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -105,3 +106,4 @@ TEST(ExpandedValueBaseTest, TruncationAndExpansion) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -13,6 +13,7 @@
 #include "cobalt/media/base/video_codecs.h"
 #include "googleurl/src/gurl.h"
 
+namespace cobalt {
 namespace media {
 
 class MediaClient;
@@ -73,5 +74,6 @@ class MEDIA_EXPORT MediaClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_CLIENT_H_

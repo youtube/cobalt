@@ -10,6 +10,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT MediaTrack {
@@ -62,5 +63,6 @@ class MEDIA_EXPORT MediaTrack {
 MEDIA_EXPORT const char* TrackTypeToStr(MediaTrack::Type type);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_TRACK_H_

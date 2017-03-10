@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "cobalt/media/base/demuxer.h"
 
+namespace cobalt {
 namespace media {
 
 PipelineController::PipelineController(
@@ -229,3 +230,4 @@ void PipelineController::Dispatch() {
 }
 
 }  // namespace media
+}  // namespace cobalt

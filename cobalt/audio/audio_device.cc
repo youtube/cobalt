@@ -14,34 +14,40 @@
 
 #include "cobalt/audio/audio_device.h"
 
-#include "base/debug/trace_event.h"
-#include "base/memory/scoped_ptr.h"
-#include "cobalt/audio/audio_helpers.h"
-#if defined(OS_STARBOARD)
-#include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
-#endif  // defined(OS_STARBOARD)
-#include "media/audio/audio_parameters.h"
-#include "media/audio/shell_audio_streamer.h"
-#include "media/base/audio_bus.h"
-
-namespace cobalt {
-namespace audio {
-
-using ::media::AudioBus;
-using ::media::ShellAudioBus;
-
-namespace {
-const int kRenderBufferSizeFrames = 1024;
-const int kFramesPerChannel = kRenderBufferSizeFrames * 4;
-const int kStandardOutputSampleRate = 48000;
-}  // namespace
 
 #if defined(OS_STARBOARD)
 #if SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
 #define SB_USE_SB_AUDIO_SINK 1
 #endif  // SB_CAN(MEDIA_USE_STARBOARD_PIPELINE)
 #endif  // defined(OS_STARBOARD)
+
+#include "base/debug/trace_event.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/audio/audio_helpers.h"
+
+#if defined(SB_USE_SB_AUDIO_SINK)
+#include "starboard/audio_sink.h"
+#else  // defined(SB_USE_SB_AUDIO_SINK)
+#include "media/audio/audio_parameters.h"
+#include "media/audio/shell_audio_streamer.h"
+#include "media/base/audio_bus.h"
+#endif  // defined(SB_USE_SB_AUDIO_SINK)
+
+namespace cobalt {
+namespace audio {
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
+namespace {
+const int kRenderBufferSizeFrames = 1024;
+const int kFramesPerChannel = kRenderBufferSizeFrames * 4;
+const int kStandardOutputSampleRate = 48000;
+}  // namespace
 
 #if defined(SB_USE_SB_AUDIO_SINK)
 

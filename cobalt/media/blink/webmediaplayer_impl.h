@@ -67,6 +67,7 @@ class GLES2Interface;
 }
 }
 
+namespace cobalt {
 namespace media {
 class ChunkDemuxer;
 class GpuVideoAcceleratorFactories;
@@ -560,5 +561,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_

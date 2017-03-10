@@ -7,6 +7,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static base::TimeDelta ToTimeDelta(int seconds) {
@@ -166,3 +167,4 @@ TEST(DecoderBufferQueueTest, DataSize) {
 }
 
 }  // namespace media
+}  // namespace cobalt

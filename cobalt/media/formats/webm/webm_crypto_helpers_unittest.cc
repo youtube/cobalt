@@ -18,6 +18,7 @@ const uint8_t kKeyId[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 
 inline bool operator==(const SubsampleEntry& lhs, const SubsampleEntry& rhs) {
@@ -237,3 +238,4 @@ TEST(WebMCryptoHelpersTest, EncryptedPartitionedOddNumberOfPartitions) {
 }
 
 }  // namespace media
+}  // namespace cobalt

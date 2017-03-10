@@ -25,6 +25,7 @@
 #include "cobalt/media/filters/decrypting_video_decoder.h"
 #endif
 
+namespace cobalt {
 namespace media {
 
 static bool HasValidStreamConfig(DemuxerStream* stream) {
@@ -243,3 +244,4 @@ template class DecoderSelector<DemuxerStream::AUDIO>;
 template class DecoderSelector<DemuxerStream::VIDEO>;
 
 }  // namespace media
+}  // namespace cobalt

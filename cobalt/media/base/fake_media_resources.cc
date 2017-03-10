@@ -7,6 +7,7 @@
 #include "base/utf_string_conversions.h"
 #include "cobalt/media/base/media_resources.h"
 
+namespace cobalt {
 namespace media {
 
 base::string16 FakeLocalizedStringProvider(MessageId message_id) {
@@ -21,3 +22,4 @@ void SetUpFakeMediaResources() {
 }
 
 }  // namespace media
+}  // namespace cobalt

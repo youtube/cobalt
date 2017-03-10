@@ -6,6 +6,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 #if BUILDFLAG(ENABLE_HEVC_DEMUXING)
@@ -149,3 +150,4 @@ TEST(ParseHEVCCodecIdTest, InvalidHEVCCodecIds) {
 #endif
 
 }  // namespace media
+}  // namespace cobalt

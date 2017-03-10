@@ -77,6 +77,7 @@ using gpu::gles2::GLES2Interface;
   static_assert(static_cast<int>(a) == static_cast<int>(b), \
                 "mismatching enums: " #a)
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -1849,3 +1850,4 @@ void WebMediaPlayerImpl::CreateWatchTimeReporter() {
 }
 
 }  // namespace media
+}  // namespace cobalt

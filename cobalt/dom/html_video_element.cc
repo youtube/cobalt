@@ -20,8 +20,13 @@
 namespace cobalt {
 namespace dom {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+using media::ShellVideoFrameProvider;
+using media::WebMediaPlayer;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::ShellVideoFrameProvider;
 using ::media::WebMediaPlayer;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 const char HTMLVideoElement::kTagName[] = "video";
 

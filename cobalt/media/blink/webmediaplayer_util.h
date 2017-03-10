@@ -18,6 +18,7 @@
 #include "third_party/WebKit/public/platform/WebSetSinkIdCallbacks.h"
 #include "third_party/WebKit/public/platform/WebTimeRange.h"
 
+namespace cobalt {
 namespace media {
 
 blink::WebTimeRanges MEDIA_BLINK_EXPORT
@@ -53,5 +54,6 @@ OutputDeviceStatusCB MEDIA_BLINK_EXPORT
 ConvertToOutputDeviceStatusCB(blink::WebSetSinkIdCallbacks* web_callbacks);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_UTIL_H_

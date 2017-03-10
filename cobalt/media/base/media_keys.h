@@ -23,6 +23,7 @@ namespace base {
 class Time;
 }
 
+namespace cobalt {
 namespace media {
 
 class CdmContext;
@@ -201,5 +202,6 @@ typedef base::Callback<void(const std::string& session_id,
     SessionExpirationUpdateCB;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_KEYS_H_

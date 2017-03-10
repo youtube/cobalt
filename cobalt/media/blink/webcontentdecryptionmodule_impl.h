@@ -24,6 +24,7 @@ class WebLocalFrame;
 class WebSecurityOrigin;
 }
 
+namespace cobalt {
 namespace media {
 
 struct CdmConfig;
@@ -73,5 +74,6 @@ inline WebContentDecryptionModuleImpl* ToWebContentDecryptionModuleImpl(
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_

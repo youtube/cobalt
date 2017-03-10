@@ -12,6 +12,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
 
+namespace cobalt {
 namespace media {
 
 class CdmContext;
@@ -58,5 +59,6 @@ class MEDIA_EXPORT AudioRenderer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_RENDERER_H_

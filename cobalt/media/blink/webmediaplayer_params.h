@@ -23,6 +23,7 @@ class WebContentDecryptionModule;
 class WebMediaPlayerClient;
 }
 
+namespace cobalt {
 namespace media {
 
 class SwitchableAudioRendererSink;
@@ -110,5 +111,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerParams {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_PARAMS_H_

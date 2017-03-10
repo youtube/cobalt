@@ -5,6 +5,7 @@
 #include "media/cast/common/rtp_time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -70,3 +71,4 @@ TEST(RtpTimeDeltaTest, ConversionToAndFromTimeDelta) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

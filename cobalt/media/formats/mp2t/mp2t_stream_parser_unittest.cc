@@ -28,6 +28,7 @@
 #include "media/base/video_decoder_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -317,3 +318,4 @@ TEST_F(Mp2tStreamParserTest, AudioInPrivateStream1) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

@@ -9,6 +9,7 @@
 #include "cobalt/media/base/audio_renderer_sink.h"
 #include "cobalt/media/base/media_log.h"
 
+namespace cobalt {
 namespace media {
 
 WebMediaPlayerParams::WebMediaPlayerParams(
@@ -36,3 +37,4 @@ WebMediaPlayerParams::WebMediaPlayerParams(
 WebMediaPlayerParams::~WebMediaPlayerParams() {}
 
 }  // namespace media
+}  // namespace cobalt

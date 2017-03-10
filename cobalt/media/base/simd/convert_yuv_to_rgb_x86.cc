@@ -13,6 +13,7 @@
 #include "media/base/simd/convert_yuv_to_rgb.h"
 #include "media/base/yuv_convert.h"
 
+namespace cobalt {
 namespace media {
 
 void ConvertYUVAToARGB_MMX(const uint8_t* yplane, const uint8_t* uplane,
@@ -54,3 +55,4 @@ void ConvertYUVToRGB32_SSE(const uint8_t* yplane, const uint8_t* uplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

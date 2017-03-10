@@ -39,11 +39,17 @@ namespace media {
 namespace sandbox {
 namespace {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::WebMediaPlayer::AddIdStatus AddIdStatus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 typedef ::media::WebMediaPlayer::AddIdStatus AddIdStatus;
-
-using base::TimeDelta;
+using ::media::Ranges;
 using ::media::VideoFrame;
 using ::media::WebMediaPlayer;
+#endif  // defined(WebMediaPlayerDelegate)
+
+
+using base::TimeDelta;
 using render_tree::Image;
 
 GURL ResolveUrl(const char* arg) {
@@ -130,7 +136,7 @@ void AppendData(const std::string& id, const std::vector<uint8_t>& data,
   const float kLowWaterMarkInSeconds = 5.f;
   const size_t kMaxBytesToAppend = 1024 * 1024;
 
-  ::media::Ranges<TimeDelta> ranges = player->SourceBuffered(id);
+  Ranges<TimeDelta> ranges = player->SourceBuffered(id);
   while (*offset < data.size()) {
     float end_of_buffer =
         ranges.size() == 0 ? 0.f : ranges.end(ranges.size() - 1).InSecondsF();

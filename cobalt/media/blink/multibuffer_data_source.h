@@ -26,6 +26,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 class BufferedDataSourceHost;
 class MediaLog;
@@ -264,5 +265,6 @@ class MEDIA_BLINK_EXPORT MultibufferDataSource : public DataSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_

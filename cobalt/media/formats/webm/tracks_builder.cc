@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 // Returns size of an integer, formatted using Matroska serialization.
@@ -347,3 +348,4 @@ void TracksBuilder::Track::Write(uint8_t** buf, int* buf_size) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

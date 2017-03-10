@@ -7,6 +7,7 @@
 #include "base/lazy_instance.h"
 #include "cobalt/media/base/mime_util_internal.h"
 
+namespace cobalt {
 namespace media {
 
 // This variable is Leaky because it is accessed from WorkerPool threads.
@@ -39,3 +40,4 @@ void RemoveProprietaryMediaTypesAndCodecsForTests() {
 }
 
 }  // namespace media
+}  // namespace cobalt

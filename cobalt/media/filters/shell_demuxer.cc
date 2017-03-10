@@ -30,6 +30,7 @@
 #include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer, Type type)
@@ -554,3 +555,4 @@ bool ShellDemuxer::MessageLoopBelongsToCurrentThread() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

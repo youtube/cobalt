@@ -40,6 +40,7 @@
 #include "net/base/net_errors.h"
 #include "net/udp/udp_socket.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -113,6 +114,7 @@ class QueueManager {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 base::TimeTicks last_printout;
 

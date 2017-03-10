@@ -15,6 +15,7 @@
 #include "base/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // See VideoCadenceEstimator header for more details.
@@ -285,3 +286,4 @@ TEST(VideoCadenceEstimatorTest, CadenceHystersisPreventsOscillation) {
 }
 
 }  // namespace media
+}  // namespace cobalt

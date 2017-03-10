@@ -11,6 +11,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioBus;
@@ -77,5 +78,6 @@ MEDIA_EXPORT void GetSymmetricHanningWindow(int window_length, float* window);
 }  // namespace internal
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_WSOLA_INTERNALS_H_

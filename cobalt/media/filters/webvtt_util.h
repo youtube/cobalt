@@ -9,6 +9,7 @@
 
 #include <vector>
 
+namespace cobalt {
 namespace media {
 
 // Utility function to create side data item for decoder buffer.
@@ -27,5 +28,6 @@ void MakeSideData(T id_begin, T id_end, T settings_begin, T settings_end,
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_WEBVTT_UTIL_H_

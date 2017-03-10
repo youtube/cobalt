@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+namespace cobalt {
 namespace media {
 
 // Defines values that specify registered Initialization Data Types used
@@ -119,5 +120,6 @@ enum EmeConfigRule {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_EME_CONSTANTS_H_

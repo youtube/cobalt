@@ -23,6 +23,7 @@
 #include "googleurl/src/gurl.h"
 #include "third_party/WebKit/public/web/WebFrame.h"
 
+namespace cobalt {
 namespace media {
 
 const int64_t kPositionNotSpecified = -1;
@@ -259,5 +260,6 @@ class MEDIA_BLINK_EXPORT UrlIndex {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_URL_INDEX_H_

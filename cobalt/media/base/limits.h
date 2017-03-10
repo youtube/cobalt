@@ -7,6 +7,7 @@
 #ifndef COBALT_MEDIA_BASE_LIMITS_H_
 #define COBALT_MEDIA_BASE_LIMITS_H_
 
+namespace cobalt {
 namespace media {
 
 namespace limits {
@@ -59,5 +60,6 @@ enum {
 }  // namespace limits
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_LIMITS_H_

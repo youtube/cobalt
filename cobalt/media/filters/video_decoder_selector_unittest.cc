@@ -34,6 +34,7 @@ MATCHER(ClearConfig, "") { return !arg.is_encrypted(); }
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 
 class VideoDecoderSelectorTest : public ::testing::Test {
@@ -377,3 +378,4 @@ TEST_F(VideoDecoderSelectorTest, EncryptedStream_DecryptAndDecode) {
 }
 
 }  // namespace media
+}  // namespace cobalt

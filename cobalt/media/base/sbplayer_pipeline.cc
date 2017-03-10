@@ -39,6 +39,7 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 #if SB_HAS(PLAYER)
@@ -825,3 +826,4 @@ scoped_refptr<Pipeline> Pipeline::Create(
 }
 
 }  // namespace media
+}  // namespace cobalt

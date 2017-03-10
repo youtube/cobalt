@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/media_track.h"
 
+namespace cobalt {
 namespace media {
 
 MediaTrack::MediaTrack(Type type, StreamParser::TrackId bytestream_track_id,
@@ -31,3 +32,4 @@ const char* TrackTypeToStr(MediaTrack::Type type) {
 }
 
 }  // namespace media
+}  // namespace cobalt

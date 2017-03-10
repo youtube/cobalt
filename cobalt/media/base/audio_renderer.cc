@@ -4,9 +4,11 @@
 
 #include "cobalt/media/base/audio_renderer.h"
 
+namespace cobalt {
 namespace media {
 
 AudioRenderer::AudioRenderer() {}
 AudioRenderer::~AudioRenderer() {}
 
 }  // namespace media
+}  // namespace cobalt

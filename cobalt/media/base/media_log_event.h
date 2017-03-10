@@ -11,6 +11,7 @@
 #include "base/time.h"
 #include "base/values.h"
 
+namespace cobalt {
 namespace media {
 
 struct MediaLogEvent {
@@ -106,5 +107,6 @@ struct MediaLogEvent {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_LOG_EVENT_H_

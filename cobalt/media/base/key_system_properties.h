@@ -10,6 +10,7 @@
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Provides an interface for querying the properties of a registered key system.
@@ -57,5 +58,6 @@ class MEDIA_EXPORT KeySystemProperties {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_KEY_SYSTEM_PROPERTIES_H_

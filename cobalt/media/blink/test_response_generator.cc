@@ -16,6 +16,7 @@ using blink::WebString;
 using blink::WebURLError;
 using blink::WebURLResponse;
 
+namespace cobalt {
 namespace media {
 
 TestResponseGenerator::TestResponseGenerator(const GURL& gurl,
@@ -110,3 +111,4 @@ WebURLResponse TestResponseGenerator::GenerateFileResponse(
 }
 
 }  // namespace media
+}  // namespace cobalt

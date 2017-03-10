@@ -16,6 +16,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/vector_math.h"
 
+namespace cobalt {
 namespace media {
 
 // Is the config presented by |buffer| a config change from |params|?
@@ -237,3 +238,4 @@ void AudioBufferConverter::Flush() {
 }
 
 }  // namespace media
+}  // namespace cobalt

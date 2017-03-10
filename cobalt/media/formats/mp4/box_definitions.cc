@@ -18,6 +18,7 @@
 #include "cobalt/media/formats/mp4/hevc.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -1123,3 +1124,4 @@ SampleDependsOn IndependentAndDisposableSamples::sample_depends_on(
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

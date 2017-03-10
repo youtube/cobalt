@@ -10,6 +10,7 @@
 #include "media/base/video_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -78,3 +79,4 @@ TEST(QuantizerEstimator, EstimatesForTrivialFrames) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

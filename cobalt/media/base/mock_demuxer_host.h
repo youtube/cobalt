@@ -10,6 +10,7 @@
 #include "cobalt/media/base/text_track_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 class MockDemuxerHost : public DemuxerHost {
@@ -29,5 +30,6 @@ class MockDemuxerHost : public DemuxerHost {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MOCK_DEMUXER_HOST_H_

@@ -13,6 +13,7 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/blink/webencryptedmediaclient_impl.h"
 
+namespace cobalt {
 namespace media {
 
 // The caller owns the created cdm (passed back using |result|).
@@ -78,3 +79,4 @@ void WebContentDecryptionModuleAccessImpl::createContentDecryptionModule(
 }
 
 }  // namespace media
+}  // namespace cobalt

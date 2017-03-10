@@ -41,6 +41,7 @@ scoped_ptr<MediaModule> MediaModule::Create(
 // the ShellAudioStreamer from ShellMediaPlatform.  But before that's done, we
 // have to have the following stub implementation to ensure that Cobalt links on
 // Windows.
+namespace cobalt {
 namespace media {
 
 // static
@@ -56,3 +57,4 @@ ShellAudioStreamer* ShellAudioStreamer::Instance() {
 }
 
 }  // namespace media
+}  // namespace cobalt

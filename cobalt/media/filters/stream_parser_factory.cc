@@ -27,6 +27,7 @@
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/mp4_stream_parser.h"
 
+namespace cobalt {
 namespace media {
 
 typedef bool (*CodecIDValidatorFunction)(
@@ -388,3 +389,4 @@ scoped_ptr<StreamParser> StreamParserFactory::Create(
 }
 
 }  // namespace media
+}  // namespace cobalt

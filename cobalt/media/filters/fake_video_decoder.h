@@ -30,6 +30,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 typedef base::Callback<void(int)> BytesDecodedCB;
@@ -125,5 +126,6 @@ class FakeVideoDecoder : public VideoDecoder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_

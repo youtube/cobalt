@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/mock_media_log.h"
 
+namespace cobalt {
 namespace media {
 
 MockMediaLog::MockMediaLog() {}
@@ -11,3 +12,4 @@ MockMediaLog::MockMediaLog() {}
 MockMediaLog::~MockMediaLog() {}
 
 }  // namespace media
+}  // namespace cobalt

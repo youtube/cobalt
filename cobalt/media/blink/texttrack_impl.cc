@@ -14,6 +14,7 @@
 #include "third_party/WebKit/public/platform/WebInbandTextTrackClient.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerClient.h"
 
+namespace cobalt {
 namespace media {
 
 TextTrackImpl::TextTrackImpl(
@@ -62,3 +63,4 @@ void TextTrackImpl::OnRemoveTrack(
 }
 
 }  // namespace media
+}  // namespace cobalt

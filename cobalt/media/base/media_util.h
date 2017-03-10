@@ -11,6 +11,7 @@
 #include "cobalt/media/base/encryption_scheme.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Simply returns an empty vector. {Audio|Video}DecoderConfig are often
@@ -23,5 +24,6 @@ MEDIA_EXPORT EncryptionScheme Unencrypted();
 MEDIA_EXPORT EncryptionScheme AesCtrEncryptionScheme();
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_UTIL_H_

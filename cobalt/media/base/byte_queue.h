@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Represents a queue of bytes.
@@ -57,5 +58,6 @@ class MEDIA_EXPORT ByteQueue {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_BYTE_QUEUE_H_

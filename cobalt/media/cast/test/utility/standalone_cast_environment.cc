@@ -7,6 +7,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/time/default_tick_clock.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -44,3 +45,4 @@ void StandaloneCastEnvironment::Shutdown() {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

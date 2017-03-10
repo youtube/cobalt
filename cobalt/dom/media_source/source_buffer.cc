@@ -67,7 +67,7 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
   DCHECK_NE(time, -std::numeric_limits<double>::infinity());
 
   if (time == std::numeric_limits<double>::infinity()) {
-    return ::media::kInfiniteDuration;
+    return media::kInfiniteDuration;
   }
 
   // Don't use base::TimeDelta::Max() here, as we want the largest finite time
@@ -86,7 +86,7 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
 }  // namespace
 
 SourceBuffer::SourceBuffer(const std::string& id, MediaSource* media_source,
-                           ::media::ChunkDemuxer* chunk_demuxer,
+                           media::ChunkDemuxer* chunk_demuxer,
                            EventQueue* event_queue)
     : id_(id),
       chunk_demuxer_(chunk_demuxer),
@@ -144,7 +144,7 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
   }
 
   scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
-  ::media::Ranges<base::TimeDelta> ranges =
+  media::Ranges<base::TimeDelta> ranges =
       chunk_demuxer_->GetBufferedRanges(id_);
   for (size_t i = 0; i < ranges.size(); i++) {
     time_ranges->Add(ranges.start(i).InSecondsF(), ranges.end(i).InSecondsF());

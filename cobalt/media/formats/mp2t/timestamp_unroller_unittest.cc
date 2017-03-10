@@ -12,6 +12,7 @@
 #include "media/formats/mp2t/timestamp_unroller.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -58,3 +59,4 @@ TEST(TimestampUnrollerTest, SingleStream) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

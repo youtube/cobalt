@@ -24,7 +24,11 @@ namespace audio {
 
 namespace {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 void MixAudioBufferBasedOnInterpretation(
     const float* speaker, const float* discrete,

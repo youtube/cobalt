@@ -12,6 +12,7 @@
 #include "cobalt/media/base/audio_renderer_sink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 // Fake RenderCallback which will fill each request with a sine wave.  Sine
@@ -65,5 +66,6 @@ class FakeAudioRenderCallback : public AudioRendererSink::RenderCallback,
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_

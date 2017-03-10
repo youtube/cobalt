@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+namespace cobalt {
 namespace media {
 
 // The Common Encryption spec provides for subsample encryption, where portions
@@ -27,5 +28,6 @@ struct SubsampleEntry {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SUBSAMPLE_ENTRY_H_

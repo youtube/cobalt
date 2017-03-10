@@ -9,6 +9,7 @@
 #include "cobalt/media/base/video_rotation.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 // Metadata describing a pipeline once it has been initialized.
@@ -24,5 +25,6 @@ struct PipelineMetadata {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_PIPELINE_METADATA_H_

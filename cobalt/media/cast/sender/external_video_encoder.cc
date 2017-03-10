@@ -54,6 +54,7 @@ constexpr int kBacklogRedlineThreshold = 4;
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace cast {
 

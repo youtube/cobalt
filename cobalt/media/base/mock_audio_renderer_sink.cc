@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/mock_audio_renderer_sink.h"
 
+namespace cobalt {
 namespace media {
 MockAudioRendererSink::MockAudioRendererSink()
     : MockAudioRendererSink(OUTPUT_DEVICE_STATUS_OK) {}
@@ -43,3 +44,4 @@ OutputDeviceInfo MockAudioRendererSink::GetOutputDeviceInfo() {
 }
 
 }  // namespace media
+}  // namespace cobalt

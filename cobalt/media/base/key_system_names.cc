@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/key_system_names.h"
 
+namespace cobalt {
 namespace media {
 
 const char kClearKey[] = "org.w3.clearkey";
@@ -25,3 +26,4 @@ bool IsExternalClearKey(const std::string& key_system) {
 }
 
 }  // namespace media
+}  // namespace cobalt

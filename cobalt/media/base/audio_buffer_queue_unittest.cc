@@ -17,6 +17,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 const int kSampleRate = 44100;
@@ -345,3 +346,4 @@ TEST(AudioBufferQueueTest, Peek) {
 }
 
 }  // namespace media
+}  // namespace cobalt

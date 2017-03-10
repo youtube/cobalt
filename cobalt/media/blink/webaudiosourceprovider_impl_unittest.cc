@@ -18,6 +18,7 @@
 
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -273,3 +274,4 @@ TEST_F(WebAudioSourceProviderImplTest, CopyAudioCB) {
 }
 
 }  // namespace media
+}  // namespace cobalt

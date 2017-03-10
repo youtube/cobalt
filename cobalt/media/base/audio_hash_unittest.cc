@@ -12,6 +12,7 @@
 #include "cobalt/media/base/fake_audio_render_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kChannelCount = 2;
@@ -168,3 +169,4 @@ TEST_F(AudioHashTest, VerifySimilarHash) {
 }
 
 }  // namespace media
+}  // namespace cobalt

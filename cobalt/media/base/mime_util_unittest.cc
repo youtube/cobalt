@@ -17,6 +17,7 @@
 #include "base/android/build_info.h"
 #endif
 
+namespace cobalt {
 namespace media {
 namespace internal {
 
@@ -428,3 +429,4 @@ TEST(IsCodecSupportedOnPlatformTest, HLSDoesNotSupportMPEG2AAC) {
 
 }  // namespace internal
 }  // namespace media
+}  // namespace cobalt

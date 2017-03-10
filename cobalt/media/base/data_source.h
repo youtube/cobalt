@@ -12,6 +12,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT DataSource {
@@ -54,5 +55,6 @@ class MEDIA_EXPORT DataSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DATA_SOURCE_H_

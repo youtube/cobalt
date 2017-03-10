@@ -18,6 +18,7 @@ using testing::_;
 using testing::DoAll;
 using testing::Return;
 
+namespace cobalt {
 namespace media {
 
 class VideoFrameCompositorTest : public testing::Test,
@@ -261,3 +262,4 @@ TEST_F(VideoFrameCompositorTest, GetCurrentFrameAndUpdateIfStale) {
 }
 
 }  // namespace media
+}  // namespace cobalt

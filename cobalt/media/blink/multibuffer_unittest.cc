@@ -24,6 +24,7 @@
 const int kBlockSizeShift = 8;
 const size_t kBlockSize = 1UL << kBlockSizeShift;
 
+namespace cobalt {
 namespace media {
 
 class FakeMultiBufferDataProvider;
@@ -563,3 +564,4 @@ TEST_F(MultiBufferTest, RandomTest_RangeSupported) {
 }
 
 }  // namespace media
+}  // namespace cobalt

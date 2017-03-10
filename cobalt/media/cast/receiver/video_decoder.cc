@@ -25,6 +25,7 @@
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -253,3 +254,4 @@ void VideoDecoder::DecodeFrame(std::unique_ptr<EncodedFrame> encoded_frame,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

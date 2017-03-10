@@ -21,6 +21,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/opus/src/include/opus.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -233,3 +234,4 @@ INSTANTIATE_TEST_CASE_P(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

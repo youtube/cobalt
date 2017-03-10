@@ -10,6 +10,7 @@
 #include "media/base/audio_bus.h"
 #include "media/cast/test/utility/audio_utility.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -179,3 +180,4 @@ bool DecodeTimestamp(const float* samples, size_t length, uint16_t* timestamp) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

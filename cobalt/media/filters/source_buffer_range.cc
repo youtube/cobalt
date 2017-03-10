@@ -8,6 +8,7 @@
 
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 // Comparison operators for std::upper_bound() and std::lower_bound().
@@ -618,3 +619,4 @@ bool SourceBufferRange::GetBuffersInRange(DecodeTimestamp start,
 }
 
 }  // namespace media
+}  // namespace cobalt

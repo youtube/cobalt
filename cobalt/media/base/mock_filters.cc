@@ -11,6 +11,7 @@ using ::testing::Invoke;
 using ::testing::NotNull;
 using ::testing::Return;
 
+namespace cobalt {
 namespace media {
 
 MockPipelineClient::MockPipelineClient() {}
@@ -134,3 +135,4 @@ MockStreamParser::MockStreamParser() {}
 MockStreamParser::~MockStreamParser() {}
 
 }  // namespace media
+}  // namespace cobalt

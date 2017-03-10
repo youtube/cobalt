@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 MemoryDataSource::MemoryDataSource(const uint8_t* data, size_t size)
@@ -51,3 +52,4 @@ bool MemoryDataSource::IsStreaming() { return false; }
 void MemoryDataSource::SetBitrate(int bitrate) {}
 
 }  // namespace media
+}  // namespace cobalt

@@ -17,10 +17,12 @@
 #include "third_party/libvpx/source/libvpx/vpx/vpx_encoder.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -93,5 +95,6 @@ class Vp8Encoder : public SoftwareVideoEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_VP8_ENCODER_H_

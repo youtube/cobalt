@@ -10,6 +10,7 @@
 #include "cobalt/media/filters/h264_parser.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
 
+namespace cobalt {
 namespace media {
 
 static const uint8_t kStartCodePrefix[3] = {0, 0, 1};
@@ -278,3 +279,4 @@ bool H264ToAnnexBBitstreamConverter::WriteParamSet(
 }
 
 }  // namespace media
+}  // namespace cobalt

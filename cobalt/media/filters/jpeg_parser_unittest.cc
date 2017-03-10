@@ -11,6 +11,7 @@
 #include "cobalt/media/filters/jpeg_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(JpegParserTest, Parsing) {
@@ -113,3 +114,4 @@ TEST(JpegParserTest, ParsingFail) {
 }
 
 }  // namespace media
+}  // namespace cobalt
