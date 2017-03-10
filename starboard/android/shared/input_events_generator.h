@@ -16,7 +16,10 @@
 #define STARBOARD_ANDROID_SHARED_INPUT_EVENTS_GENERATOR_H_
 
 #include <android/input.h>
+#include <map>
+#include <vector>
 
+#include "starboard/input.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/window.h"
 
@@ -24,12 +27,50 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-/**
- * Translates an Android input event into a Starboard application event. The
- * caller owns the new event and must delete it when done with it.
- */
-::starboard::shared::starboard::Application::Event*
-CreateInputEvent(AInputEvent* androidEvent, SbWindow window);
+class InputEventsGenerator {
+ public:
+  explicit InputEventsGenerator(SbWindow window);
+  virtual ~InputEventsGenerator();
+
+  // Translates an Android input event into a series of Starboard application
+  // events. The caller owns the new events and must delete them when done with
+  // them.
+  bool CreateInputEvents(
+      AInputEvent* android_event,
+      std::vector< ::starboard::shared::starboard::Application::Event*>*
+          events);
+
+ private:
+  enum FlatAxis {
+    kLeftX,
+    kLeftY,
+    kRightX,
+    kRightY,
+    kNumAxes,
+  };
+
+  void ProcessKeyEvent(
+      AInputEvent* android_event,
+      std::vector< ::starboard::shared::starboard::Application::Event*>*
+          events);
+  void ProcessMotionEvent(
+      AInputEvent* android_event,
+      std::vector< ::starboard::shared::starboard::Application::Event*>*
+          events);
+  void ProcessJoyStickEvent(
+      FlatAxis axis,
+      int32_t motion_axis,
+      AInputEvent* android_event,
+      std::vector< ::starboard::shared::starboard::Application::Event*>*
+          events);
+  void UpdateDeviceFlatMapIfNecessary(AInputEvent* android_event);
+
+  SbWindow window_;
+
+  // Map the device id with joystick flat position.
+  // Cache the flat area of joystick to avoid calling jni functions frequently.
+  std::map<int32_t, std::vector<float> > device_flat_;
+};
 
 }  // namespace shared
 }  // namespace android
