@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 
 namespace starboard {
 namespace shared {
@@ -21,10 +21,11 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
-  SB_UNREFERENCED_PARAMETER(video_codec);
-  // TODO: Implement a stub that does something.
-  return NULL;
+scoped_ptr<PlayerComponents> PlayerComponents::Create(
+    const AudioParameters& audio_parameters,
+    const VideoParameters& video_parameters) {
+  // TODO: Implement stubs that do something.
+  return scoped_ptr<PlayerComponents>(NULL);
 }
 
 }  // namespace filter
