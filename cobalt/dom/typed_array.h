@@ -72,8 +72,8 @@ class TypedArray : public ArrayBufferView {
              script::ExceptionState* exception_state)
       : ArrayBufferView(buffer) {
     if (buffer->byte_length() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(script::kWrongByteLengthMultiple,
-                                          kBytesPerElement);
+      exception_state->SetSimpleExceptionWithArgs(
+          script::kWrongByteLengthMultiple, 0, kBytesPerElement);
     }
   }
 
@@ -82,11 +82,11 @@ class TypedArray : public ArrayBufferView {
       : ArrayBufferView(buffer, byte_offset,
                         buffer->byte_length() - byte_offset) {
     if (this->byte_offset() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(script::kWrongByteOffsetMultiple,
-                                          kBytesPerElement);
+      exception_state->SetSimpleExceptionWithArgs(
+          script::kWrongByteOffsetMultiple, 0, kBytesPerElement);
     } else if (buffer->byte_length() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(script::kWrongByteLengthMultiple,
-                                          kBytesPerElement);
+      exception_state->SetSimpleExceptionWithArgs(
+          script::kWrongByteLengthMultiple, 0, kBytesPerElement);
     }
   }
 
@@ -94,8 +94,8 @@ class TypedArray : public ArrayBufferView {
              uint32 length, script::ExceptionState* exception_state)
       : ArrayBufferView(buffer, byte_offset, length * kBytesPerElement) {
     if (this->byte_offset() % kBytesPerElement != 0) {
-      exception_state->SetSimpleException(script::kWrongByteOffsetMultiple,
-                                          kBytesPerElement);
+      exception_state->SetSimpleExceptionWithArgs(
+          script::kWrongByteOffsetMultiple, 0, kBytesPerElement);
     } else if (byte_offset + length * kBytesPerElement >
                buffer->byte_length()) {
       exception_state->SetSimpleException(script::kInvalidLength);

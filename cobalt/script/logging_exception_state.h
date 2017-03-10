@@ -30,12 +30,13 @@ class LoggingExceptionState : public ExceptionState {
     LogException(exception->name(), exception->message());
   }
 
-  void SetSimpleException(MessageTypeVar message_type, ...) OVERRIDE {
+  void SetSimpleExceptionWithArgs(MessageType message_type,
+                                  int dummy, ...) OVERRIDE {
     va_list arguments;
-    va_start(arguments, message_type);
+    va_start(arguments, dummy);
     LogException(
-        SimpleExceptionToString(GetSimpleExceptionType(message_type.value)),
-        base::StringPrintV(GetExceptionMessageFormat(message_type.value),
+        SimpleExceptionToString(GetSimpleExceptionType(message_type)),
+        base::StringPrintV(GetExceptionMessageFormat(message_type),
                            arguments));
     va_end(arguments);
   }
