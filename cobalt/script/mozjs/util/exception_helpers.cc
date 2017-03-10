@@ -18,6 +18,7 @@
 
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "third_party/mozjs/js/public/RootingAPI.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jsdbgapi.h"
 #include "third_party/mozjs/js/src/jsscript.h"
@@ -26,6 +27,7 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace util {
+
 std::string GetExceptionString(JSContext* context) {
   if (!JS_IsExceptionPending(context)) {
     return std::string("No exception pending.");
@@ -45,20 +47,23 @@ std::string GetExceptionString(JSContext* context,
   return exception_string;
 }
 
-std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
+void GetStackTrace(JSContext* context, size_t max_frames,
+                   nb::RewindableVector<StackFrame>* output) {
+  output->rewindAll();
   JSAutoRequest auto_request(context);
   JS::StackDescription* stack_description =
       JS::DescribeStack(context, max_frames);
   if (max_frames == 0) {
-    max_frames = static_cast<int>(stack_description->nframes);
+    max_frames = static_cast<size_t>(stack_description->nframes);
   } else {
     max_frames =
-        std::min(max_frames, static_cast<int>(stack_description->nframes));
+        std::min(max_frames, static_cast<size_t>(stack_description->nframes));
   }
   JS::FrameDescription* stack_trace = stack_description->frames;
-  std::vector<StackFrame> stack_frames(max_frames);
-  for (int i = 0; i < max_frames; ++i) {
-    StackFrame sf;
+  for (size_t i = 0; i < max_frames; ++i) {
+    output->grow(1);
+    StackFrame& sf = output->back();
+
     sf.line_number = stack_trace[i].lineno;
     sf.column_number = stack_trace[i].columnno;
     sf.function_name = "global code";
@@ -66,10 +71,15 @@ std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
       JS::RootedString rooted_string(context,
                                      JS_GetFunctionId(stack_trace[i].fun));
       if (rooted_string) {
-        JS::RootedValue rooted_value(context, STRING_TO_JSVAL(rooted_string));
-        MozjsExceptionState exception_state(context);
-        FromJSValue(context, rooted_value, kNoConversionFlags, &exception_state,
-                    &sf.function_name);
+        const jschar* jstring_raw = rooted_string->getChars(context);
+
+        if (!jstring_raw) {
+          sf.function_name = "";
+        } else {
+          // Note, this is a wide-string conversion.
+          sf.function_name.assign(jstring_raw,
+                                  jstring_raw + rooted_string->length());
+        }
       } else {
         // anonymous function
         sf.function_name = "(anonymous function)";
@@ -78,11 +88,10 @@ std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
     if (stack_trace[i].script) {
       sf.source_url = stack_trace[i].script->filename();
     }
-    stack_frames[i] = sf;
   }
   JS::FreeStackDescription(context, stack_description);
-  return stack_frames;
 }
+
 }  // namespace util
 }  // namespace mozjs
 }  // namespace script
