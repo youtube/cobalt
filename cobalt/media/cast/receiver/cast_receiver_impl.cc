@@ -19,6 +19,7 @@
 #include "media/cast/receiver/audio_decoder.h"
 #include "media/cast/receiver/video_decoder.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -213,3 +214,4 @@ void CastReceiverImpl::EmitDecodedVideoFrame(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_rotation.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT VideoFrameMetadata {
@@ -161,5 +162,6 @@ class MEDIA_EXPORT VideoFrameMetadata {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_FRAME_METADATA_H_

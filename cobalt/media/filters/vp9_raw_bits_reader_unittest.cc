@@ -7,6 +7,7 @@
 #include "cobalt/media/filters/vp9_raw_bits_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(Vp9RawBitsReaderTest, ReadBool) {
@@ -66,3 +67,4 @@ TEST(Vp9RawBitsReader, ReadSignedLiteral) {
 }
 
 }  // namespace media
+}  // namespace cobalt

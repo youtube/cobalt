@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 #include "media/base/simd/convert_rgb_to_yuv_ssse3.h"
 
+namespace cobalt {
 namespace media {
 
 void ConvertRGB32ToYUV_SSSE3(const uint8_t* rgbframe, uint8_t* yplane,
@@ -51,3 +52,4 @@ void ConvertRGB24ToYUV_SSSE3(const uint8_t* rgbframe, uint8_t* yplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

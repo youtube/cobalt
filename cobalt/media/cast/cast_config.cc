@@ -4,6 +4,7 @@
 
 #include "media/cast/cast_config.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -59,3 +60,4 @@ FrameReceiverConfig::~FrameReceiverConfig() {}
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

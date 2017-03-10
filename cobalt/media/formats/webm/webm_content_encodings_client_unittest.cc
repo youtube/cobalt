@@ -18,6 +18,7 @@
 
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 // Matchers for verifying common media log entry strings.
@@ -282,3 +283,4 @@ TEST_F(WebMContentEncodingsClientTest, InvalidContentEncAlgo) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -21,6 +21,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 enum ElementType {
@@ -890,3 +891,4 @@ bool WebMListParser::IsSiblingOrAncestor(int id_a, int id_b) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

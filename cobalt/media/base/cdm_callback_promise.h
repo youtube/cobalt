@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_keys.h"
 
+namespace cobalt {
 namespace media {
 
 typedef base::Callback<void(
@@ -45,5 +46,6 @@ class MEDIA_EXPORT CdmCallbackPromise : public CdmPromiseTemplate<T...> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_CALLBACK_PROMISE_H_

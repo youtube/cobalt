@@ -20,6 +20,7 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/vector_math.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -548,3 +549,4 @@ void AudioSplicer::CrossfadePostSplice(
 }
 
 }  // namespace media
+}  // namespace cobalt

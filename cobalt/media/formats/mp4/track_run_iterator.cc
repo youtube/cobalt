@@ -14,6 +14,7 @@
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mp4/sample_to_group_iterator.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -638,3 +639,4 @@ uint8_t TrackRunIterator::GetIvSize(size_t sample_index) const {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

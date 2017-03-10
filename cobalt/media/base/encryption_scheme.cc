@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/encryption_scheme.h"
 
+namespace cobalt {
 namespace media {
 
 EncryptionScheme::Pattern::Pattern() : encrypt_blocks_(0), skip_blocks_(0) {}
@@ -35,3 +36,4 @@ bool EncryptionScheme::Matches(const EncryptionScheme& other) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

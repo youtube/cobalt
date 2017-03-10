@@ -11,6 +11,7 @@
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT ChannelMixingMatrix {
@@ -58,5 +59,6 @@ class MEDIA_EXPORT ChannelMixingMatrix {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CHANNEL_MIXING_MATRIX_H_

@@ -14,6 +14,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_capture_types.h"
 
+namespace cobalt {
 namespace media {
 
 class VideoFrame;
@@ -116,5 +117,6 @@ class MEDIA_EXPORT VideoCapturerSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_CAPTURER_SOURCE_H_

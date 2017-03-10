@@ -5,6 +5,7 @@
 #include "base/logging.h"
 #include "cobalt/media/filters/h264_bit_reader.h"
 
+namespace cobalt {
 namespace media {
 
 H264BitReader::H264BitReader()
@@ -114,3 +115,4 @@ size_t H264BitReader::NumEmulationPreventionBytesRead() {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -15,6 +15,7 @@
 #include "base/strings/stringprintf.h"
 #include "media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -304,3 +305,4 @@ void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

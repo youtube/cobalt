@@ -9,6 +9,7 @@
 #include "cobalt/media/base/pipeline_status.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 // Interface used by Renderer, AudioRenderer, VideoRenderer and
@@ -44,5 +45,6 @@ class RendererClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_RENDERER_CLIENT_H_

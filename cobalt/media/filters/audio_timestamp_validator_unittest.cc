@@ -15,6 +15,7 @@
 
 using ::testing::HasSubstr;
 
+namespace cobalt {
 namespace media {
 
 // Constants to specify the type of audio data used.
@@ -247,3 +248,4 @@ INSTANTIATE_TEST_CASE_P(
                           base::TimeDelta::FromMilliseconds(65))));
 
 }  // namespace media
+}  // namespace cobalt

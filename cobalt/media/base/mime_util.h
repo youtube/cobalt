@@ -10,6 +10,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Check to see if a particular MIME type is in the list of
@@ -63,5 +64,6 @@ MEDIA_EXPORT SupportsType IsSupportedEncryptedMediaFormat(
 MEDIA_EXPORT void RemoveProprietaryMediaTypesAndCodecsForTests();
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MIME_UTIL_H_

@@ -7,6 +7,7 @@
 
 #include "media/cast/cast_config.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -38,5 +39,6 @@ CreateVideoEncodeMemoryCallback CreateDefaultVideoEncodeMemoryCallback();
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_DEFAULT_CONFIG_H_

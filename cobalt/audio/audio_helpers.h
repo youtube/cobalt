@@ -15,7 +15,11 @@
 #ifndef COBALT_AUDIO_AUDIO_HELPERS_H_
 #define COBALT_AUDIO_AUDIO_HELPERS_H_
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/shell_audio_bus.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/shell_audio_bus.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 #if defined(OS_STARBOARD)
 #include "starboard/audio_sink.h"
@@ -25,9 +29,15 @@
 namespace cobalt {
 namespace audio {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ShellAudioBus::SampleType SampleType;
+const SampleType kSampleTypeInt16 = media::ShellAudioBus::kInt16;
+const SampleType kSampleTypeFloat32 = media::ShellAudioBus::kFloat32;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 typedef ::media::ShellAudioBus::SampleType SampleType;
 const SampleType kSampleTypeInt16 = ::media::ShellAudioBus::kInt16;
 const SampleType kSampleTypeFloat32 = ::media::ShellAudioBus::kFloat32;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 const float kMaxInt16AsFloat32 = 32767.0f;
 

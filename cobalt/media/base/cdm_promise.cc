@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/cdm_promise.h"
 
+namespace cobalt {
 namespace media {
 
 CdmPromise::CdmPromise() {}
@@ -11,3 +12,4 @@ CdmPromise::CdmPromise() {}
 CdmPromise::~CdmPromise() {}
 
 }  // namespace media
+}  // namespace cobalt

@@ -8,6 +8,7 @@
 #include "cobalt/media/filters/vp9_bool_decoder.h"
 #include "cobalt/media/filters/vp9_parser.h"
 
+namespace cobalt {
 namespace media {
 
 class Vp9CompressedHeaderParser {
@@ -47,5 +48,6 @@ class Vp9CompressedHeaderParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_VP9_COMPRESSED_HEADER_PARSER_H_

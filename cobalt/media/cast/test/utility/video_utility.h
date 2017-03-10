@@ -9,6 +9,7 @@
 
 #include "media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -35,5 +36,6 @@ bool PopulateVideoFrameFromFile(VideoFrame* frame, FILE* video_file);
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_VIDEO_UTILITY_H_

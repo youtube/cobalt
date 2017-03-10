@@ -20,6 +20,7 @@
 #define SIMD_ALIGNED(var) var __attribute__((aligned(16)))
 #endif
 
+namespace cobalt {
 namespace media {
 
 #define FIX_SHIFT 12
@@ -365,3 +366,4 @@ void ConvertRGB32ToYUV_SSE2_Reference(const uint8_t* rgbframe, uint8_t* yplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -20,13 +20,21 @@
 namespace cobalt {
 namespace audio {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 const int kRenderBufferSizeFrames = 32;
 
 class AudioDestinationNodeMock : public AudioNode,
                                  public AudioDevice::RenderCallback {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
  public:
   explicit AudioDestinationNodeMock(AudioContext* context)

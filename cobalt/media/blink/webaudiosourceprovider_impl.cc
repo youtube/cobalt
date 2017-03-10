@@ -16,6 +16,7 @@
 
 using blink::WebVector;
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -277,3 +278,4 @@ void WebAudioSourceProviderImpl::TeeFilter::OnRenderError() {
 }
 
 }  // namespace media
+}  // namespace cobalt

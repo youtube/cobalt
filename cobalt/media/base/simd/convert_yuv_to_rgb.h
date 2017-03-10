@@ -10,6 +10,7 @@
 
 #include "media/base/yuv_convert.h"
 
+namespace cobalt {
 namespace media {
 
 // These methods are exported for testing purposes only.  Library users should
@@ -71,6 +72,7 @@ MEDIA_EXPORT void LinearScaleYUVToRGB32RowWithRange_C(
     const int16_t* convert_table);
 
 }  // namespace media
+}  // namespace cobalt
 
 // Assembly functions are declared without namespace.
 extern "C" {

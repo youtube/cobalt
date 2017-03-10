@@ -13,6 +13,7 @@
 #include "base/time/time.h"
 #include "media/cast/common/expanded_value_base.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -197,5 +198,6 @@ class RtpTimeTicks : public ExpandedValueBase<int64_t, RtpTimeTicks> {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_COMMON_RTP_TIME_H_

@@ -7,6 +7,7 @@
 #include "cobalt/media/base/time_delta_interpolator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class TimeDeltaInterpolatorTest : public ::testing::Test {
@@ -202,3 +203,4 @@ TEST_F(TimeDeltaInterpolatorTest, SetUpperBound_MultipleTimes) {
 }
 
 }  // namespace media
+}  // namespace cobalt

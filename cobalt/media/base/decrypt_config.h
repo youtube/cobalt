@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/subsample_entry.h"
 
+namespace cobalt {
 namespace media {
 
 // Contains all information that a decryptor needs to decrypt a media sample.
@@ -62,9 +63,10 @@ class MEDIA_EXPORT DecryptConfig {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 inline std::ostream& operator<<(std::ostream& os,
-                                const media::DecryptConfig& obj) {
+                                const cobalt::media::DecryptConfig& obj) {
   return obj.Print(os);
 }
 

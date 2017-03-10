@@ -37,11 +37,14 @@ namespace media {
 
 namespace {
 
-using ::base::polymorphic_downcast;
 #if !defined(COBALT_MEDIA_SOURCE_2016)
-using ::media::FilterCollection;
-using ::media::MessageLoopFactory;
+typedef ::media::FilterCollection FilterCollection;
+typedef ::media::MessageLoopFactory MessageLoopFactory;
+typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
+typedef ::media::ShellMediaPlatformStarboard ShellMediaPlatformStarboard;
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
+
+using ::base::polymorphic_downcast;
 using system_window::SystemWindowStarboard;
 
 class MediaModuleStarboard : public MediaModule {
@@ -71,16 +74,16 @@ class MediaModuleStarboard : public MediaModule {
     return "";
   }
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      ::media::WebMediaPlayerClient* client) OVERRIDE {
+      WebMediaPlayerClient* client) OVERRIDE {
 #if defined(COBALT_MEDIA_SOURCE_2016)
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
       window = polymorphic_downcast<SystemWindowStarboard*>(system_window_)
                    ->GetSbWindow();
     }
-    return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
+    return make_scoped_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
         window, client, this, &decoder_buffer_allocator_,
-        media_platform_.GetVideoFrameProvider(), new ::media::MediaLog));
+        media_platform_.GetVideoFrameProvider(), new media::MediaLog));
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
     scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
     scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
@@ -108,7 +111,7 @@ class MediaModuleStarboard : public MediaModule {
 #if defined(COBALT_MEDIA_SOURCE_2016)
   DecoderBufferAllocator decoder_buffer_allocator_;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
-  ::media::ShellMediaPlatformStarboard media_platform_;
+  ShellMediaPlatformStarboard media_platform_;
 };
 
 }  // namespace

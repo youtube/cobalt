@@ -14,10 +14,12 @@ namespace base {
 class TimeTicks;
 }
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -43,5 +45,6 @@ class SoftwareVideoEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_SOFTWARE_VIDEO_ENCODER_H_

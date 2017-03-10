@@ -23,6 +23,7 @@ class WebSecurityOrigin;
 
 }  // namespace blink
 
+namespace cobalt {
 namespace media {
 
 struct CdmConfig;
@@ -82,5 +83,6 @@ class MEDIA_BLINK_EXPORT WebEncryptedMediaClientImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBENCRYPTEDMEDIACLIENT_IMPL_H_

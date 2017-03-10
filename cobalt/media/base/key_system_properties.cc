@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 SupportedCodecs KeySystemProperties::GetSupportedSecureCodecs() const {
@@ -25,3 +26,4 @@ std::string KeySystemProperties::GetPepperType() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

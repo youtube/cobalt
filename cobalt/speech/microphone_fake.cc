@@ -30,7 +30,14 @@
 namespace cobalt {
 namespace speech {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
 namespace {
+
 const int kMaxBufferSize = 1024 * 1024;
 const int kMinMicrophoneReadInBytes = 1024;
 // The possiblity of microphone creation failed is 1/20.
@@ -124,7 +131,7 @@ bool MicrophoneFake::Open() {
       file_buffer_.reset(new uint8[file_buffer_size]);
       SbMemoryCopy(file_buffer_.get(), audio_input.get(), file_buffer_size);
       file_length_ = file_buffer_size;
-    } else if (reader->sample_type() != ::media::ShellAudioBus::kInt16 ||
+    } else if (reader->sample_type() != ShellAudioBus::kInt16 ||
                reader->sample_rate() != kSupportedSampleRate ||
                reader->number_of_channels() != kSupportedMonoChannel) {
       // If it is a WAV file but it doesn't meet the audio input criteria, treat

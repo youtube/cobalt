@@ -11,6 +11,7 @@
 #include "cobalt/media/base/hdr_metadata.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 
+namespace cobalt {
 namespace media {
 
 // WebM color information, containing HDR metadata:
@@ -87,5 +88,6 @@ class WebMColourParser : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_COLOUR_PARSER_H_

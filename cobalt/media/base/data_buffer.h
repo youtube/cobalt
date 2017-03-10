@@ -14,6 +14,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // A simple buffer that takes ownership of the given data pointer or allocates
@@ -112,5 +113,6 @@ class MEDIA_EXPORT DataBuffer : public base::RefCountedThreadSafe<DataBuffer> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DATA_BUFFER_H_

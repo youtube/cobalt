@@ -8,6 +8,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // The content type of a media player, which will be used by MediaSession to
@@ -32,5 +33,6 @@ MEDIA_EXPORT MediaContentType
 DurationToMediaContentType(base::TimeDelta duration);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_CONTENT_TYPE_H_

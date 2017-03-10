@@ -32,6 +32,7 @@
 static const double kDefaultPlaybackRate = 0.0;
 static const float kDefaultVolume = 1.0f;
 
+namespace cobalt {
 namespace media {
 
 class PipelineImpl::RendererWrapper : public DemuxerHost,
@@ -1245,3 +1246,4 @@ void PipelineImpl::OnSuspendDone() {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -45,6 +45,7 @@ using ::testing::SetArgumentPointee;
 using ::testing::StrictMock;
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 
 const uint8_t kTracksHeader[] = {
@@ -4589,3 +4590,4 @@ TEST_F(ChunkDemuxerTest, RemovingIdMustRemoveStreams) {
 // multiple tracks. crbug.com/646900
 
 }  // namespace media
+}  // namespace cobalt

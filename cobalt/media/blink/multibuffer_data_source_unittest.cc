@@ -41,6 +41,7 @@ using blink::WebURLLoader;
 using blink::WebURLResponse;
 using blink::WebView;
 
+namespace cobalt {
 namespace media {
 
 class TestResourceMultiBuffer;
@@ -1549,3 +1550,4 @@ TEST_F(MultibufferDataSourceTest, Http_CheckLoadingTransition) {
 }
 
 }  // namespace media
+}  // namespace cobalt

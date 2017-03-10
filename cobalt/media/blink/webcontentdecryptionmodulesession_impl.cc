@@ -30,6 +30,7 @@
 #include "cobalt/media/cdm/cenc_utils.h"
 #endif
 
+namespace cobalt {
 namespace media {
 
 const char kCloseSessionUMAName[] = "CloseSession";
@@ -430,3 +431,4 @@ void WebContentDecryptionModuleSessionImpl::OnSessionInitialized(
 }
 
 }  // namespace media
+}  // namespace cobalt

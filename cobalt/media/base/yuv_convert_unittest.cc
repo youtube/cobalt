@@ -100,6 +100,7 @@ static void SwapRedAndBlueChannels(unsigned char* pixels, size_t buffer_size) {
 }
 #endif
 
+namespace cobalt {
 namespace media {
 
 TEST(YUVConvertTest, YV12) {
@@ -799,3 +800,4 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_MMX_X64) {
 #endif  // defined(ARCH_CPU_X86_FAMILY)
 
 }  // namespace media
+}  // namespace cobalt

@@ -19,6 +19,7 @@
 #include "cobalt/media/formats/webm/webm_crypto_helpers.h"
 #include "cobalt/media/formats/webm/webm_webvtt_parser.h"
 
+namespace cobalt {
 namespace media {
 
 const uint16_t WebMClusterParser::kOpusFrameDurationsMu[] = {
@@ -850,3 +851,4 @@ WebMClusterParser::Track* WebMClusterParser::FindTextTrack(int track_num) {
 }
 
 }  // namespace media
+}  // namespace cobalt

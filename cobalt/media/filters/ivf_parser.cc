@@ -6,6 +6,7 @@
 #include "base/sys_byteorder.h"
 #include "cobalt/media/filters/ivf_parser.h"
 
+namespace cobalt {
 namespace media {
 
 void IvfFileHeader::ByteSwap() {
@@ -86,3 +87,4 @@ bool IvfParser::ParseNextFrame(IvfFrameHeader* frame_header,
 }
 
 }  // namespace media
+}  // namespace cobalt

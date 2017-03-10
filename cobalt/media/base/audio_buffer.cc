@@ -12,6 +12,7 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 static base::TimeDelta CalculateDuration(int frames, double sample_rate) {
@@ -271,3 +272,4 @@ void AudioBuffer::TrimRange(int start, int end) {
 }
 
 }  // namespace media
+}  // namespace cobalt

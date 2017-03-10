@@ -38,6 +38,10 @@
 namespace cobalt {
 namespace media {
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::BufferedDataSource BufferedDataSource;
+#endif  // !defined(WebMediaPlayerDelegate)
+
 // TODO: This class requires a large block of memory.  Consider to
 // use ShellBufferFactory for its memory if possible to avoid possible OOM.
 
@@ -56,7 +60,7 @@ namespace media {
 //    from offset 0 will be cached.
 // 4. It assumes that the server supports range request.
 // 5. All data stored are continuous.
-class FetcherBufferedDataSource : public ::media::BufferedDataSource,
+class FetcherBufferedDataSource : public BufferedDataSource,
                                   private net::URLFetcherDelegate {
  public:
   static const int64 kInvalidSize = -1;

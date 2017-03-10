@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/video_capturer_source.h"
 
+namespace cobalt {
 namespace media {
 
 // TODO(mcasas): VideoCapturerSource is implemented in other .dll(s) (e.g.
@@ -14,3 +15,4 @@ namespace media {
 VideoCapturerSource::~VideoCapturerSource() {}
 
 }  // namespace media
+}  // namespace cobalt

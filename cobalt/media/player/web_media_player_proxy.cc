@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "cobalt/media/player/web_media_player_impl.h"
 
+namespace cobalt {
 namespace media {
 
 // Limits the maximum outstanding repaints posted on render thread.
@@ -49,3 +50,4 @@ void WebMediaPlayerProxy::Detach() {
 }
 
 }  // namespace media
+}  // namespace cobalt

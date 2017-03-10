@@ -9,6 +9,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 TextRanges::TextRanges() { Reset(); }
@@ -131,3 +132,4 @@ bool TextRanges::Range::AddCue(base::TimeDelta start_time) {
 base::TimeDelta TextRanges::Range::last_time() const { return last_time_; }
 
 }  // namespace media
+}  // namespace cobalt

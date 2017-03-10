@@ -11,6 +11,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 
+namespace cobalt {
 namespace media {
 
 class TextTrackConfig;
@@ -30,5 +31,6 @@ typedef base::Callback<void(const TextTrackConfig& config,
                             const AddTextTrackDoneCB& done_cb)> AddTextTrackCB;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEXT_TRACK_H_

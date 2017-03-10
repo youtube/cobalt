@@ -12,6 +12,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/filters/ffmpeg_glue.h"
 
+namespace cobalt {
 namespace media {
 
 class DataSource;
@@ -61,5 +62,6 @@ class MEDIA_EXPORT BlockingUrlProtocol : public FFmpegURLProtocol {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_BLOCKING_URL_PROTOCOL_H_

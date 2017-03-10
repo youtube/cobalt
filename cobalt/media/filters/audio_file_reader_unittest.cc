@@ -20,6 +20,7 @@
 #include "cobalt/media/filters/in_memory_url_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioFileReaderTest : public testing::Test {
@@ -193,3 +194,4 @@ TEST_F(AudioFileReaderTest, WaveValidFourChannelLayout) {
 }
 
 }  // namespace media
+}  // namespace cobalt

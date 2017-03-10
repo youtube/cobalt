@@ -130,6 +130,7 @@ bool VerifyCopyWithPadding(const media::VideoFrame& src_frame,
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 
 class VideoUtilTest : public testing::Test {
@@ -508,3 +509,4 @@ TEST_F(VideoUtilTest, I420CopyWithPadding) {
 }
 
 }  // namespace media
+}  // namespace cobalt

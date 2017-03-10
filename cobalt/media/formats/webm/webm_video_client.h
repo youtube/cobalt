@@ -15,6 +15,7 @@
 #include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 
+namespace cobalt {
 namespace media {
 class EncryptionScheme;
 class VideoDecoderConfig;
@@ -67,5 +68,6 @@ class WebMVideoClient : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_

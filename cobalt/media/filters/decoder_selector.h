@@ -21,6 +21,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class CdmContext;
@@ -111,5 +112,6 @@ typedef DecoderSelector<DemuxerStream::VIDEO> VideoDecoderSelector;
 typedef DecoderSelector<DemuxerStream::AUDIO> AudioDecoderSelector;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_DECODER_SELECTOR_H_

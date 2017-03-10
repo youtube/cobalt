@@ -31,6 +31,7 @@
 #include "cobalt/media/base/audio_buffer_queue.h"
 #include "cobalt/media/base/audio_parameters.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioBus;
@@ -213,5 +214,6 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_

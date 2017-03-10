@@ -13,6 +13,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Helper class used by the TextRenderer to filter out text cues that
@@ -93,5 +94,6 @@ class MEDIA_EXPORT TextRanges {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEXT_RANGES_H_

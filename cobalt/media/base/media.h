@@ -15,6 +15,7 @@ namespace base {
 class FilePath;
 }
 
+namespace cobalt {
 namespace media {
 
 // Initializes media libraries (e.g. ffmpeg) as well as CPU specific media
@@ -48,5 +49,6 @@ MEDIA_EXPORT bool ArePlatformDecodersAvailable();
 #endif
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_H_

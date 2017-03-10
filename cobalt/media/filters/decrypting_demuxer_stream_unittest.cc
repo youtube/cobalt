@@ -27,6 +27,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 static const int kFakeBufferSize = 16;
@@ -521,3 +522,4 @@ TEST_F(DecryptingDemuxerStreamTest, Destroy_AfterReset) {
 }
 
 }  // namespace media
+}  // namespace cobalt

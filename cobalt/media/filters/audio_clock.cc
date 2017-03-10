@@ -12,6 +12,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 AudioClock::AudioClock(base::TimeDelta start_timestamp, int sample_rate)
@@ -184,3 +185,4 @@ double AudioClock::ComputeBufferedMediaDurationMicros() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

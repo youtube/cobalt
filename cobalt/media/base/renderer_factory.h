@@ -18,6 +18,7 @@ class SingleThreadTaskRunner;
 class TaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class AudioRendererSink;
@@ -46,5 +47,6 @@ class MEDIA_EXPORT RendererFactory {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_RENDERER_FACTORY_H_

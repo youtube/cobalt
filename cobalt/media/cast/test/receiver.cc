@@ -52,6 +52,7 @@
 #include "media/cast/test/linux_output_window.h"
 #endif  // defined(USE_X11)
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -537,6 +538,7 @@ class NaivePlayer : public InProcessReceiver,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;

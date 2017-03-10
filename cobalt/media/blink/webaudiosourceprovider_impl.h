@@ -22,6 +22,7 @@ namespace blink {
 class WebAudioSourceProviderClient;
 }
 
+namespace cobalt {
 namespace media {
 
 // WebAudioSourceProviderImpl is either one of two things (but not both):
@@ -109,5 +110,6 @@ class MEDIA_BLINK_EXPORT WebAudioSourceProviderImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBAUDIOSOURCEPROVIDER_IMPL_H_

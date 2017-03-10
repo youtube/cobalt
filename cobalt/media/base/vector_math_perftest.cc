@@ -16,6 +16,7 @@
 using base::TimeTicks;
 using std::fill;
 
+namespace cobalt {
 namespace media {
 
 static const int kBenchmarkIterations = 200000;
@@ -143,3 +144,4 @@ TEST_F(VectorMathPerfTest, EWMAAndMaxPower) {
 }
 
 }  // namespace media
+}  // namespace cobalt

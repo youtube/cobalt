@@ -14,6 +14,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 const int kMaxDroppedPrerollWarnings = 10;
@@ -750,3 +751,4 @@ bool FrameProcessor::ProcessFrame(
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -13,6 +13,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 void BoundBoolSet(bool* var, bool val) { *var = val; }
@@ -167,3 +168,4 @@ TEST_F(BindToCurrentLoopTest, Integers) {
 }
 
 }  // namespace media
+}  // namespace cobalt

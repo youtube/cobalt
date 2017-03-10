@@ -15,6 +15,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 class AudioParameters;
 
@@ -306,5 +307,6 @@ class MEDIA_EXPORT AudioBusRefCounted
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_BUS_H_

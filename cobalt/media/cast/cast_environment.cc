@@ -12,6 +12,7 @@
 
 using base::SingleThreadTaskRunner;
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -74,3 +75,4 @@ bool CastEnvironment::CurrentlyOn(ThreadId identifier) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

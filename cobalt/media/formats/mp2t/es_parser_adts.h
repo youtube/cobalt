@@ -20,6 +20,7 @@
 #include "media/formats/mp2t/es_parser.h"
 #include "media/formats/mpeg/adts_stream_parser.h"
 
+namespace cobalt {
 namespace media {
 class AudioTimestampHelper;
 class BitReader;
@@ -27,6 +28,7 @@ class OffsetByteQueue;
 class StreamParserBuffer;
 }
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -86,5 +88,6 @@ class MEDIA_EXPORT EsParserAdts : public EsParser {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_ADTS_H_

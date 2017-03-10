@@ -19,6 +19,7 @@
 #include "cobalt/media/filters/shell_avc_parser.h"
 #include "cobalt/media/filters/shell_mp4_map.h"
 
+namespace cobalt {
 namespace media {
 
 // How many bytes to download from the start of the atom? Should be large
@@ -108,5 +109,6 @@ class ShellMP4Parser : public ShellAVCParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_MP4_PARSER_H_

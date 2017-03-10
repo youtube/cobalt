@@ -47,6 +47,7 @@
 // Line 3: Contains the frame's duration (16.7 milliseconds), resolution, and
 // media timestamp in minutes:seconds.hundredths format.
 
+namespace cobalt {
 namespace media {
 
 class VideoFrame;
@@ -69,5 +70,6 @@ void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_PERFORMANCE_METRICS_OVERLAY_H_

@@ -18,6 +18,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
 
+namespace cobalt {
 namespace media {
 
 class DecryptConfig;
@@ -115,5 +116,6 @@ class MEDIA_EXPORT TrackRunIterator {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_

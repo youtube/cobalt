@@ -7,6 +7,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT AudioLatency {
@@ -38,5 +39,6 @@ class MEDIA_EXPORT AudioLatency {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_LATENCY_H_

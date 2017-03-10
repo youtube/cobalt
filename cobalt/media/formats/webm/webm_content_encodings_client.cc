@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 WebMContentEncodingsClient::WebMContentEncodingsClient(
@@ -269,3 +270,4 @@ bool WebMContentEncodingsClient::OnBinary(int id, const uint8_t* data,
 }
 
 }  // namespace media
+}  // namespace cobalt

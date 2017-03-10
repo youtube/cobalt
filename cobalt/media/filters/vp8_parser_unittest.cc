@@ -12,6 +12,7 @@
 #include "cobalt/media/filters/vp8_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(Vp8ParserTest, StreamFileParsing) {
@@ -48,3 +49,4 @@ TEST(Vp8ParserTest, StreamFileParsing) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -51,8 +51,13 @@
 namespace cobalt {
 namespace layout {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+using media::ShellVideoFrameProvider;
+using media::VideoFrame;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::ShellVideoFrameProvider;
 using ::media::VideoFrame;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 

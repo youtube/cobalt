@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // TODO(jrummell): This file should be folded into key_systems.cc as that is
@@ -25,5 +26,6 @@ MEDIA_EXPORT bool IsChildKeySystemOf(const std::string& key_system,
 MEDIA_EXPORT bool IsExternalClearKey(const std::string& key_system);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_KEY_SYSTEM_NAMES_H_

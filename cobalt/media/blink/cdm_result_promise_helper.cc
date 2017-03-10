@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 
+namespace cobalt {
 namespace media {
 
 CdmResultForUMA ConvertCdmExceptionToResultForUMA(
@@ -63,3 +64,4 @@ void ReportCdmResultUMA(const std::string& uma_name, CdmResultForUMA result) {
 }
 
 }  // namespace media
+}  // namespace cobalt

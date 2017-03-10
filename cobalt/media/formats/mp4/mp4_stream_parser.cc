@@ -31,6 +31,7 @@
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -709,3 +710,4 @@ bool MP4StreamParser::ComputeHighestEndOffset(const MovieFragment& moof) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

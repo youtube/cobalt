@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 
+namespace cobalt {
 namespace media {
 
 // These names come from src/third_party/ffmpeg/libavcodec/codec_desc.c
@@ -63,3 +64,4 @@ AudioCodec StringToAudioCodec(const std::string& codec_id) {
 }
 
 }  // namespace media
+}  // namespace cobalt

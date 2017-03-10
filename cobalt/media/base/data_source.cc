@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 DataSource::DataSource() {}
@@ -13,3 +14,4 @@ DataSource::DataSource() {}
 DataSource::~DataSource() {}
 
 }  // namespace media
+}  // namespace cobalt

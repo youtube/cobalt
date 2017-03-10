@@ -18,6 +18,7 @@
 #include "media/video/video_encode_accelerator.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -159,5 +160,6 @@ class QuantizerEstimator {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_EXTERNAL_VIDEO_ENCODER_H_

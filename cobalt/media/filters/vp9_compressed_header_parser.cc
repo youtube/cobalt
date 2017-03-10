@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -275,3 +276,4 @@ bool Vp9CompressedHeaderParser::Parse(const uint8_t* stream, off_t frame_size,
 }
 
 }  // namespace media
+}  // namespace cobalt

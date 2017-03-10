@@ -10,6 +10,7 @@
 #include "cobalt/media/base/data_buffer.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 SeekableBuffer::SeekableBuffer(int backward_capacity, int forward_capacity)
@@ -264,3 +265,4 @@ void SeekableBuffer::UpdateCurrentTime(BufferQueue::iterator buffer,
 }
 
 }  // namespace media
+}  // namespace cobalt

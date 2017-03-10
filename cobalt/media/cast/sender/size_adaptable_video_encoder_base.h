@@ -18,6 +18,7 @@
 #include "media/cast/sender/video_encoder.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -112,5 +113,6 @@ class SizeAdaptableVideoEncoderBase : public VideoEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_

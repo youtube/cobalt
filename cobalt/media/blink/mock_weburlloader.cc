@@ -9,6 +9,7 @@
 #include "third_party/WebKit/public/platform/WebURLRequest.h"
 #include "third_party/WebKit/public/platform/WebURLResponse.h"
 
+namespace cobalt {
 namespace media {
 
 MockWebURLLoader::MockWebURLLoader() {}
@@ -16,3 +17,4 @@ MockWebURLLoader::MockWebURLLoader() {}
 MockWebURLLoader::~MockWebURLLoader() {}
 
 }  // namespace media
+}  // namespace cobalt

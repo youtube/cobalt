@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/filters/vp8_bool_decoder.h"
 
+namespace cobalt {
 namespace media {
 
 // See spec for definitions of values/fields.
@@ -194,5 +195,6 @@ class MEDIA_EXPORT Vp8Parser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_VP8_PARSER_H_

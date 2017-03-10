@@ -11,6 +11,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 
 // VideoRendererSink is an interface representing the end-point for rendered
@@ -65,5 +66,6 @@ class MEDIA_EXPORT VideoRendererSink {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_RENDERER_SINK_H_

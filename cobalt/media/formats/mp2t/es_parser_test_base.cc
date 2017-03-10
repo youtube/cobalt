@@ -14,6 +14,7 @@
 #include "media/formats/mp2t/es_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -135,3 +136,4 @@ EsParserTestBase::GenerateFixedSizePesPacket(size_t pes_size) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

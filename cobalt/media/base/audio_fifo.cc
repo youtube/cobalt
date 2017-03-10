@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 // Given current position in the FIFO, the maximum number of elements in the
@@ -130,3 +131,4 @@ void AudioFifo::Clear() {
 }
 
 }  // namespace media
+}  // namespace cobalt

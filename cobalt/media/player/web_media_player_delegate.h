@@ -17,6 +17,7 @@
 
 #include "base/compiler_specific.h"
 
+namespace cobalt {
 namespace media {
 
 class WebMediaPlayer;
@@ -31,5 +32,6 @@ class WebMediaPlayerDelegate {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_DELEGATE_H_

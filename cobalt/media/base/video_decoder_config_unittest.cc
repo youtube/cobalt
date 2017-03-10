@@ -8,6 +8,7 @@
 #include "cobalt/media/base/video_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static const VideoPixelFormat kVideoFormat = PIXEL_FORMAT_YV12;
@@ -77,3 +78,4 @@ TEST(VideoDecoderConfigTest, Invalid_AspectRatioDenominatorTooLarge) {
 }
 
 }  // namespace media
+}  // namespace cobalt

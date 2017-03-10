@@ -22,6 +22,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class AudioTimestampHelper;
@@ -122,5 +123,6 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_DECRYPTING_AUDIO_DECODER_H_

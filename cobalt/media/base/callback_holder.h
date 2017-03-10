@@ -10,6 +10,7 @@
 #include "base/callback_helpers.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 
+namespace cobalt {
 namespace media {
 
 // A helper class that can hold a callback from being fired.
@@ -85,5 +86,6 @@ class CallbackHolder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CALLBACK_HOLDER_H_

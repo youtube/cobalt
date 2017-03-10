@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -68,5 +69,6 @@ enum OperationalStatus {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_CONSTANTS_H_

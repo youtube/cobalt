@@ -13,6 +13,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/filters/webvtt_util.h"
 
+namespace cobalt {
 namespace media {
 
 FakeTextTrackStream::FakeTextTrackStream()
@@ -98,3 +99,4 @@ void FakeTextTrackStream::Stop() {
 }
 
 }  // namespace media
+}  // namespace cobalt

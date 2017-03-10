@@ -15,6 +15,7 @@
 #include "base/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Test all possible layout conversions can be constructed and mixed.
@@ -149,3 +150,4 @@ TEST(ChannelMixingMatrixTest, DiscreteToDiscrete) {
 }
 
 }  // namespace media
+}  // namespace cobalt

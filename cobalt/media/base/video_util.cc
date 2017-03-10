@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/yuv_convert.h"
 
+namespace cobalt {
 namespace media {
 
 gfx::Size GetNaturalSize(const gfx::Size& visible_size,
@@ -124,3 +125,4 @@ void RotatePlaneByPixels(const uint8_t* src, uint8_t* dest, int width,
 }
 
 }  // namespace media
+}  // namespace cobalt

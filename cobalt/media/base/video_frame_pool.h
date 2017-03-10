@@ -11,6 +11,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 
 // Simple VideoFrame pool used to avoid unnecessarily allocating and destroying
@@ -51,5 +52,6 @@ class MEDIA_EXPORT VideoFramePool {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_FRAME_POOL_H_

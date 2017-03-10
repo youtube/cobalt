@@ -12,6 +12,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class MediaUrlDemuxerTest : public testing::Test {
@@ -71,3 +72,4 @@ TEST_F(MediaUrlDemuxerTest, SeekReturnsPipelineOk) {
 }
 
 }  // namespace media
+}  // namespace cobalt
