@@ -22,16 +22,22 @@
 #include <string>
 #include <vector>
 
+#include "starboard/accessibility.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/condition_variable.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/string.h"
 
 namespace {
+
+SbConditionVariable app_created_condition;
+SbMutex app_created_mutex;
 
 #ifndef NDEBUG
 std::map<int, const char*> CreateAppCmdNamesMap() {
@@ -71,6 +77,7 @@ typedef ::starboard::shared::starboard::Application::Event Event;
 ApplicationAndroid::ApplicationAndroid(struct android_app* state)
     : android_state_(state),
       window_(kSbWindowInvalid),
+      last_is_accessibility_high_contrast_text_enabled_(false),
       exit_on_destroy_(false),
       exit_error_level_(0) {}
 
@@ -179,6 +186,28 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
         window_->native_window = NULL;
       }
       break;
+    case APP_CMD_GAINED_FOCUS: {
+      // Android does not have a publicly-exposed way to
+      // register for high-contrast text settings changed events.
+      // We assume that it can only change when our focus changes
+      // (because the user exits and enters the app) so we check
+      // for changes here.
+      SbAccessibilityDisplaySettings settings;
+      SbMemorySet(&settings, 0, sizeof(settings));
+      if (!SbAccessibilityGetDisplaySettings(&settings)) {
+        break;
+      }
+
+      bool enabled = settings.has_high_contrast_text_setting &&
+          settings.is_high_contrast_text_enabled;
+
+      if (enabled != last_is_accessibility_high_contrast_text_enabled_) {
+        DispatchAndDelete(new Event(
+            kSbEventTypeAccessiblitySettingsChanged, NULL, NULL));
+      }
+      last_is_accessibility_high_contrast_text_enabled_ = enabled;
+      break;
+    }
     case APP_CMD_DESTROY:
       // Calling exit() on Android is not party-line thinking.
       // However, if exit_on_destroy_ has been set, we're running
@@ -274,6 +303,9 @@ extern "C" void android_main(struct android_app* state) {
   GetArgs(state, &args);
 
   ApplicationAndroid application(state);
+  SbMutexAcquire(&app_created_mutex);
+  SbConditionVariableSignal(&app_created_condition);
+  SbMutexRelease(&app_created_mutex);
   state->userData = &application;
   state->onAppCmd = ApplicationAndroid::HandleCommand;
   state->onInputEvent = ApplicationAndroid::HandleInput;
@@ -301,11 +333,22 @@ int32_t ApplicationAndroid::HandleInput(
   return ToApplication(app)->OnAndroidInput(event) ? 1 : 0;
 }
 
-// TODO: Figure out how to export ANativeActivity_onCreate()
+// This function exists for two reasons:
+// (a) As our toolchain is currently configured, ANativeActivity_onCreate()
+// is not an exported symbol. We export this instead.
+// (b) We do some synchronization to ensure that Application::Get()
+// will definitely work after this function returns.
 extern "C" SB_EXPORT_PLATFORM void CobaltActivity_onCreate(
     ANativeActivity *activity, void *savedState, size_t savedStateSize) {
   SB_DLOG(INFO) << "CobaltActivity_onCreate";
+  SbMutexCreate(&app_created_mutex);
+  SbConditionVariableCreate(&app_created_condition, &app_created_mutex);
+  SbMutexAcquire(&app_created_mutex);
+
   ANativeActivity_onCreate(activity, savedState, savedStateSize);
+
+  SbConditionVariableWait(&app_created_condition, &app_created_mutex);
+  SbMutexRelease(&app_created_mutex);
 }
 
 }  // namespace shared
