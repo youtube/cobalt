@@ -34,6 +34,8 @@ namespace starboard {
 namespace player {
 namespace filter {
 
+// A default implementation of |VideoRenderer| that only depends on the
+// |VideoDecoder| interface, rather than a platform specific implementation.
 class VideoRendererImpl : public VideoRenderer {
  public:
   explicit VideoRendererImpl(scoped_ptr<VideoDecoder> decoder);
