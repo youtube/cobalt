@@ -4,9 +4,11 @@
 
 #include "cobalt/media/base/video_renderer.h"
 
+namespace cobalt {
 namespace media {
 
 VideoRenderer::VideoRenderer() {}
 VideoRenderer::~VideoRenderer() {}
 
 }  // namespace media
+}  // namespace cobalt

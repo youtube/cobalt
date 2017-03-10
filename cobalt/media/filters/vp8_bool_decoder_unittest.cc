@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -124,3 +125,4 @@ TEST_F(Vp8BoolDecoderTest, DecodeBoolsWithParitiesAndIncreasingProbabilities) {
 }
 
 }  // namespace media
+}  // namespace cobalt

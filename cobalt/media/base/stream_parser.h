@@ -22,6 +22,7 @@
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class MediaLog;
@@ -157,5 +158,6 @@ MEDIA_EXPORT bool MergeBufferQueues(const StreamParser::BufferQueueMap& buffers,
                                     StreamParser::BufferQueue* merged_buffers);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_STREAM_PARSER_H_

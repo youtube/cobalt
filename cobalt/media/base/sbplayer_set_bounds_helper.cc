@@ -16,6 +16,7 @@
 
 #include "cobalt/media/base/starboard_player.h"
 
+namespace cobalt {
 namespace media {
 
 void SbPlayerSetBoundsHelper::SetPlayer(StarboardPlayer* player) {
@@ -33,3 +34,4 @@ bool SbPlayerSetBoundsHelper::SetBounds(const gfx::Rect& rect) {
 }
 
 }  // namespace media
+}  // namespace cobalt

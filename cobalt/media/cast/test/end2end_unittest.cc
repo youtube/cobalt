@@ -47,6 +47,7 @@
 #include "media/cast/test/utility/video_utility.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -1249,3 +1250,4 @@ TEST_F(End2EndTest, TestSetPlayoutDelay) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

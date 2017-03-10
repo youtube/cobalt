@@ -11,6 +11,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class OffsetByteQueueTest : public testing::Test {
@@ -92,3 +93,4 @@ TEST_F(OffsetByteQueueTest, Trim) {
 }
 
 }  // namespace media
+}  // namespace cobalt

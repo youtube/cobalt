@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -353,3 +354,4 @@ const uint8* ShellAudioBus::GetSamplePtr(size_t channel, size_t frame) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

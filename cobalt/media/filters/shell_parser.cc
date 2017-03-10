@@ -18,6 +18,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/filters/shell_mp4_parser.h"
 
+namespace cobalt {
 namespace media {
 
 // ==== ShellParser ============================================================
@@ -57,3 +58,4 @@ bool ShellParser::IsConfigComplete() {
 }
 
 }  // namespace media
+}  // namespace cobalt

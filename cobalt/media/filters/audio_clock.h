@@ -14,6 +14,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Models a queue of buffered audio in a playback pipeline for use with
@@ -142,5 +143,6 @@ class MEDIA_EXPORT AudioClock {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_AUDIO_CLOCK_H_

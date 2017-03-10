@@ -21,6 +21,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }  // namespace base
 
+namespace cobalt {
 namespace media {
 
 // Monitors and notifies about mouse movements and keyboard events.
@@ -89,5 +90,6 @@ class MEDIA_EXPORT UserInputMonitor {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_USER_INPUT_MONITOR_H_

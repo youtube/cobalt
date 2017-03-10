@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/demuxer.h"
 
+namespace cobalt {
 namespace media {
 
 DemuxerHost::~DemuxerHost() {}
@@ -13,3 +14,4 @@ Demuxer::Demuxer() {}
 Demuxer::~Demuxer() {}
 
 }  // namespace media
+}  // namespace cobalt

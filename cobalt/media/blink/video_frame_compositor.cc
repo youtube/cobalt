@@ -10,6 +10,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 
 // Amount of time to wait between UpdateCurrentFrame() callbacks before starting
@@ -237,3 +238,4 @@ bool VideoFrameCompositor::CallRender(base::TimeTicks deadline_min,
 }
 
 }  // namespace media
+}  // namespace cobalt

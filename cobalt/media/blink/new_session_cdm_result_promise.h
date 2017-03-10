@@ -15,6 +15,7 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 
+namespace cobalt {
 namespace media {
 
 enum class SessionInitStatus {
@@ -67,5 +68,6 @@ class MEDIA_BLINK_EXPORT NewSessionCdmResultPromise
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_NEW_SESSION_CDM_RESULT_PROMISE_H_

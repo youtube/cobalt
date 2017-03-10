@@ -11,6 +11,7 @@
 #include "media/base/bit_reader.h"
 #include "media/formats/mp2t/mp2t_common.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -117,3 +118,4 @@ void TsSectionPmt::ResetPsiSection() {}
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

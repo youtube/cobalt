@@ -14,6 +14,7 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 // Class for monitoring and reporting watch time in response to various state
@@ -147,5 +148,6 @@ class MEDIA_BLINK_EXPORT WatchTimeReporter : base::PowerObserver {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WATCH_TIME_REPORTER_H_

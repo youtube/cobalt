@@ -16,6 +16,7 @@
 #include "media/cast/constants.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -412,3 +413,4 @@ void Vp8Encoder::GenerateKeyFrame() {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

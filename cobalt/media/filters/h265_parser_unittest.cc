@@ -8,6 +8,7 @@
 #include "cobalt/media/filters/h265_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(H265ParserTest, RawHevcStreamFileParsing) {
@@ -41,3 +42,4 @@ TEST(H265ParserTest, RawHevcStreamFileParsing) {
 }
 
 }  // namespace media
+}  // namespace cobalt

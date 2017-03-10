@@ -7,6 +7,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Enumerates the various representations of the ordering of audio channels.
@@ -144,5 +145,6 @@ MEDIA_EXPORT ChannelLayout GuessChannelLayout(int channels);
 MEDIA_EXPORT const char* ChannelLayoutToString(ChannelLayout layout);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CHANNEL_LAYOUT_H_

@@ -10,6 +10,7 @@
 #include "base/macros.h"
 #include "media/formats/mp2t/ts_section_psi.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -36,5 +37,6 @@ class TsSectionPmt : public TsSectionPsi {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PMT_H_

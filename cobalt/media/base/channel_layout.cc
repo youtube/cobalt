@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kLayoutToChannels[] = {
@@ -266,3 +267,4 @@ const char* ChannelLayoutToString(ChannelLayout layout) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -10,6 +10,7 @@
 #include "cobalt/media/filters/ivf_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(IvfParserTest, StreamFileParsing) {
@@ -57,3 +58,4 @@ TEST(IvfParserTest, StreamFileParsing) {
 }
 
 }  // namespace media
+}  // namespace cobalt

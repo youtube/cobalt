@@ -29,6 +29,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 const int kSampleRate = 44100;
@@ -462,3 +463,4 @@ TEST_F(DecryptingAudioDecoderTest, Reset_AfterReset) {
 }
 
 }  // namespace media
+}  // namespace cobalt

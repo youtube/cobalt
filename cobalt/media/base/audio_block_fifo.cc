@@ -10,6 +10,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 AudioBlockFifo::AudioBlockFifo(int channels, int frames, int blocks)
@@ -114,3 +115,4 @@ void AudioBlockFifo::IncreaseCapacity(int blocks) {
 }
 
 }  // namespace media
+}  // namespace cobalt

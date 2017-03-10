@@ -10,6 +10,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -175,3 +176,4 @@ TEST_F(AudioTimestampHelperTest, GetFramesToTarget) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -36,7 +36,9 @@ namespace sandbox {
 namespace {
 
 using render_tree::Image;
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::VideoFrame;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 GURL ResolveUrl(const char* arg) {
   GURL video_url(arg);

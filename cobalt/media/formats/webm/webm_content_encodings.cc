@@ -5,6 +5,7 @@
 #include "base/logging.h"
 #include "cobalt/media/formats/webm/webm_content_encodings.h"
 
+namespace cobalt {
 namespace media {
 
 ContentEncoding::ContentEncoding()
@@ -25,3 +26,4 @@ void ContentEncoding::SetEncryptionKeyId(const uint8_t* encryption_key_id,
 }
 
 }  // namespace media
+}  // namespace cobalt

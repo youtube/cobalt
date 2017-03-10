@@ -15,6 +15,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class BlockingUrlProtocolTest : public testing::Test {
@@ -116,3 +117,4 @@ TEST_F(BlockingUrlProtocolTest, IsStreaming) {
 }
 
 }  // namespace media
+}  // namespace cobalt

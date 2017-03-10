@@ -6,6 +6,7 @@
 
 #include "base/sys_byteorder.h"
 
+namespace cobalt {
 namespace media {
 
 H264BitstreamBuffer::H264BitstreamBuffer() : data_(NULL) { Reset(); }
@@ -142,3 +143,4 @@ uint8_t* H264BitstreamBuffer::data() {
 }
 
 }  // namespace media
+}  // namespace cobalt

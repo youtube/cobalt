@@ -23,6 +23,7 @@
 #include "starboard/drm.h"
 #include "starboard/media.h"
 
+namespace cobalt {
 namespace media {
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec);
@@ -44,5 +45,6 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 #endif
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_STARBOARD_UTILS_H_

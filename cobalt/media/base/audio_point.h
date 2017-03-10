@@ -11,6 +11,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "ui/gfx/geometry/point3_f.h"
 
+namespace cobalt {
 namespace media {
 
 using Point = gfx::Point3F;
@@ -27,5 +28,6 @@ MEDIA_EXPORT std::vector<Point> ParsePointsFromString(
 MEDIA_EXPORT std::string PointsToString(const std::vector<Point>& points);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_POINT_H_

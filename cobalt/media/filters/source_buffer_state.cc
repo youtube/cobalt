@@ -18,6 +18,7 @@
 #include "cobalt/media/filters/frame_processor.h"
 #include "cobalt/media/filters/source_buffer_stream.h"
 
+namespace cobalt {
 namespace media {
 
 enum {
@@ -929,3 +930,4 @@ void SourceBufferState::OnSourceInitDone(
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/limits.h"
 
+namespace cobalt {
 namespace media {
 
 AudioParameters::AudioParameters()
@@ -102,3 +103,4 @@ AudioParameters AudioParameters::UnavailableDeviceParams() {
 }
 
 }  // namespace media
+}  // namespace cobalt

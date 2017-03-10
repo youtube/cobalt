@@ -21,6 +21,7 @@
 using media::cast::CastTransportStatus;
 using media::cast::UdpTransport;
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -143,3 +144,4 @@ void InProcessReceiver::ReceivePacket(std::unique_ptr<Packet> packet) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -16,6 +16,7 @@
 #include "cobalt/media/base/cdm_promise.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Helps convert CdmPromises to an integer identifier and vice versa. The
@@ -59,5 +60,6 @@ class MEDIA_EXPORT CdmPromiseAdapter {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_PROMISE_ADAPTER_H_

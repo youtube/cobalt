@@ -10,6 +10,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/data_source.h"
 
+namespace cobalt {
 namespace media {
 
 // Basic data source that treats the URL as a file path, and uses the file
@@ -40,5 +41,6 @@ class MEDIA_EXPORT MemoryDataSource : public DataSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_MEMORY_DATA_SOURCE_H_

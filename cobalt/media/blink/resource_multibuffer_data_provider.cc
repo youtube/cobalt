@@ -35,6 +35,7 @@ using blink::WebURLLoaderOptions;
 using blink::WebURLRequest;
 using blink::WebURLResponse;
 
+namespace cobalt {
 namespace media {
 
 // The number of milliseconds to wait before retrying a failed load.
@@ -539,3 +540,4 @@ bool ResourceMultiBufferDataProvider::VerifyPartialResponse(
 }
 
 }  // namespace media
+}  // namespace cobalt

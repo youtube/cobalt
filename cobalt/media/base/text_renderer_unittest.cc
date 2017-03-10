@@ -27,6 +27,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Local implementation of the TextTrack interface.
@@ -1192,3 +1193,4 @@ TEST_F(TextRendererTest, AddRemovePause) {
 }
 
 }  // namespace media
+}  // namespace cobalt

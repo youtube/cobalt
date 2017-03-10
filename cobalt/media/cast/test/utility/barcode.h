@@ -11,6 +11,7 @@
 
 #include "base/memory/ref_counted.h"
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 
@@ -54,5 +55,6 @@ bool DecodeBarcode(scoped_refptr<media::VideoFrame> output_frame, T* data) {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_BARCODE_H_

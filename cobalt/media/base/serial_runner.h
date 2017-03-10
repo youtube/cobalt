@@ -19,6 +19,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 // Runs a series of bound functions accepting Closures or PipelineStatusCB.
@@ -85,5 +86,6 @@ class MEDIA_EXPORT SerialRunner {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SERIAL_RUNNER_H_

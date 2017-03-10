@@ -14,6 +14,7 @@
 #include "cobalt/media/blink/multibuffer_reader.h"
 #include "net/base/net_errors.h"
 
+namespace cobalt {
 namespace media {
 
 MultiBufferReader::MultiBufferReader(
@@ -235,3 +236,4 @@ void MultiBufferReader::PinRange(MultiBuffer::BlockId begin,
 }
 
 }  // namespace media
+}  // namespace cobalt

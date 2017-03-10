@@ -9,6 +9,7 @@
 #include "base/callback.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // An interface for players to register to be notified when a new decryption key
@@ -38,5 +39,6 @@ class MEDIA_EXPORT PlayerTracker {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_PLAYER_TRACKER_H_

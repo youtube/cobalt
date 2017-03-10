@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 AudioPushFifo::AudioPushFifo(const OutputCallback& callback)
@@ -83,3 +84,4 @@ void AudioPushFifo::Flush() {
 }
 
 }  // namespace media
+}  // namespace cobalt

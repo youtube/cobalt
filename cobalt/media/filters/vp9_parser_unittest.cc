@@ -25,6 +25,7 @@
 #include "cobalt/media/filters/vp9_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class Vp9ParserTest : public ::testing::Test {
@@ -312,3 +313,4 @@ TEST_F(Vp9ParserTest, VerifyInterFrame) {
 }
 
 }  // namespace media
+}  // namespace cobalt

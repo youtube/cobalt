@@ -21,6 +21,7 @@
 #include "cobalt/media/base/video_util.h"
 #include "ui/gfx/geometry/point.h"
 
+namespace cobalt {
 namespace media {
 
 // Static POD class for generating unique identifiers for each VideoFrame.
@@ -1077,3 +1078,4 @@ void VideoFrame::AllocateYUV(bool zero_initialize_memory) {
 }
 
 }  // namespace media
+}  // namespace cobalt

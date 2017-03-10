@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/audio_bus.h"
 
+namespace cobalt {
 namespace media {
 
 AudioPullFifo::AudioPullFifo(int channels, int frames, const ReadCB& read_cb)
@@ -64,3 +65,4 @@ int AudioPullFifo::ReadFromFifo(AudioBus* destination, int frames_to_provide,
 }
 
 }  // namespace media
+}  // namespace cobalt

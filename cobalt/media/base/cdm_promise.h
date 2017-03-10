@@ -14,6 +14,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_keys.h"
 
+namespace cobalt {
 namespace media {
 
 // Interface for promises being resolved/rejected in response to various
@@ -126,5 +127,6 @@ class MEDIA_EXPORT CdmPromiseTemplate : public CdmPromise {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_PROMISE_H_

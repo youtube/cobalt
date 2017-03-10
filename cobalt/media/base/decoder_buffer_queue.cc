@@ -8,6 +8,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 DecoderBufferQueue::DecoderBufferQueue()
@@ -78,3 +79,4 @@ base::TimeDelta DecoderBufferQueue::Duration() {
 }
 
 }  // namespace media
+}  // namespace cobalt

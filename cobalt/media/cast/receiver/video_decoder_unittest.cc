@@ -22,6 +22,7 @@
 #include "media/cast/test/utility/video_utility.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -233,3 +234,4 @@ INSTANTIATE_TEST_CASE_P(, VideoDecoderTest, ::testing::Values(CODEC_VIDEO_VP8));
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

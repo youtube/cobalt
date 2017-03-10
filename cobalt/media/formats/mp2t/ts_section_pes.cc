@@ -34,6 +34,7 @@ static int64_t ConvertTimestampSectionToTimestamp(int64_t timestamp_section) {
          (((timestamp_section >> 1) & 0x7fff) << 0);
 }
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -253,3 +254,4 @@ void TsSectionPes::ResetPesState() {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

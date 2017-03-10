@@ -11,6 +11,7 @@
 #include "base/string_piece.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Human-readable output operator, for debugging/testability.
@@ -151,3 +152,4 @@ TEST(RangesTest, IntersectionWith) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 int SampleFormatToBytesPerChannel(SampleFormat sample_format) {
@@ -93,3 +94,4 @@ bool IsInterleaved(SampleFormat sample_format) {
 }
 
 }  // namespace media
+}  // namespace cobalt

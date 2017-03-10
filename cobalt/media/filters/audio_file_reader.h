@@ -20,6 +20,7 @@ namespace base {
 class TimeDelta;
 }
 
+namespace cobalt {
 namespace media {
 
 class AudioBus;
@@ -100,5 +101,6 @@ class MEDIA_EXPORT AudioFileReader {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_AUDIO_FILE_READER_H_

@@ -13,6 +13,7 @@
 #include "cobalt/media/blink/url_index.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class UrlIndexTest : public testing::Test {
@@ -157,3 +158,4 @@ TEST_F(UrlIndexTest, TryInsert) {
 }
 
 }  // namespace media
+}  // namespace cobalt

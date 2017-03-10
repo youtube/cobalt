@@ -9,6 +9,7 @@
 #include "media/base/bit_reader.h"
 #include "media/formats/mp2t/mp2t_common.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -208,3 +209,4 @@ bool TsPacket::ParseAdaptationField(BitReader* bit_reader,
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

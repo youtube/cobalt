@@ -34,6 +34,7 @@ using ::testing::StrictMock;
 using ::testing::Mock;
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 
 typedef WebMTracksParser::TextTracks TextTracks;
@@ -1150,3 +1151,4 @@ TEST_F(WebMClusterParserTest, DontReadEncodedDurationWhenEncrypted) {
 }
 
 }  // namespace media
+}  // namespace cobalt

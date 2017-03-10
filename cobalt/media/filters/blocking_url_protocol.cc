@@ -11,6 +11,7 @@
 #include "cobalt/media/base/data_source.h"
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
 
+namespace cobalt {
 namespace media {
 
 BlockingUrlProtocol::BlockingUrlProtocol(DataSource* data_source,
@@ -93,3 +94,4 @@ void BlockingUrlProtocol::SignalReadCompleted(int size) {
 }
 
 }  // namespace media
+}  // namespace cobalt

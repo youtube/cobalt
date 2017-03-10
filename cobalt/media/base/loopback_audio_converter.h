@@ -8,6 +8,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/audio_converter.h"
 
+namespace cobalt {
 namespace media {
 
 // LoopbackAudioConverter works similar to AudioConverter and converts input
@@ -43,5 +44,6 @@ class LoopbackAudioConverter : public AudioConverter::InputCallback {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_LOOPBACK_AUDIO_CONVERTER_H_

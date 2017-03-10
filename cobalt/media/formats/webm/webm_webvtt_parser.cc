@@ -4,6 +4,7 @@
 
 #include "cobalt/media/formats/webm/webm_webvtt_parser.h"
 
+namespace cobalt {
 namespace media {
 
 void WebMWebVTTParser::Parse(const uint8_t* payload, int payload_size,
@@ -64,3 +65,4 @@ void WebMWebVTTParser::ParseLine(std::string* line) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -13,6 +13,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 // An IntervalMap<KeyType, ValueType> maps every value of KeyType to
@@ -282,5 +283,6 @@ class IntervalMap {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_INTERVAL_MAP_H_

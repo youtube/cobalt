@@ -8,6 +8,7 @@
 
 #include "base/callback_helpers.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -78,3 +79,4 @@ void FakeVideoEncodeAcceleratorFactory::RespondWithSharedMemory() {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

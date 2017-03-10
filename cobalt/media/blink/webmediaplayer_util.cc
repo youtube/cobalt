@@ -15,6 +15,7 @@
 #include "third_party/WebKit/public/platform/URLConversion.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerEncryptedMediaClient.h"
 
+namespace cobalt {
 namespace media {
 
 blink::WebTimeRanges ConvertToWebTimeRanges(
@@ -254,3 +255,4 @@ OutputDeviceStatusCB ConvertToOutputDeviceStatusCB(
 }
 
 }  // namespace media
+}  // namespace cobalt

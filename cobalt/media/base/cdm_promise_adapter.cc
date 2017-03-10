@@ -8,6 +8,7 @@
 
 #include "cobalt/media/base/media_keys.h"
 
+namespace cobalt {
 namespace media {
 
 CdmPromiseAdapter::CdmPromiseAdapter() : next_promise_id_(1) {}
@@ -80,3 +81,4 @@ template MEDIA_EXPORT void CdmPromiseAdapter::ResolvePromise(
     uint32_t, const std::string&);
 
 }  // namespace media
+}  // namespace cobalt

@@ -20,11 +20,14 @@ namespace cobalt {
 namespace media {
 namespace sandbox {
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::BufferedDataSource;
 using ::media::VideoFrame;
+using ::media::WebMediaPlayerClient;
+#endif  // !defined(WebMediaPlayerDelegate)
 
 class WebMediaPlayerHelper::WebMediaPlayerClientStub
-    : public ::media::WebMediaPlayerClient {
+    : public WebMediaPlayerClient {
  public:
   ~WebMediaPlayerClientStub() {}
 
@@ -38,7 +41,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   void SawUnsupportedTracks() OVERRIDE {}
   float Volume() const OVERRIDE { return 1.f; }
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened(::media::ChunkDemuxer*) OVERRIDE {}
+  void SourceOpened(ChunkDemuxer*) OVERRIDE {}
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   void SourceOpened() OVERRIDE {}
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)

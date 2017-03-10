@@ -4,6 +4,7 @@
 
 #include "cobalt/media/filters/audio_timestamp_validator.h"
 
+namespace cobalt {
 namespace media {
 
 // Defines how many milliseconds of DecoderBuffer timestamp gap will be allowed
@@ -140,3 +141,4 @@ void AudioTimestampValidator::RecordOutputDuration(
 }
 
 }  // namespace media
+}  // namespace cobalt

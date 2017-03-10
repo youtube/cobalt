@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "base/tick_clock.h"
 
+namespace cobalt {
 namespace media {
 
 FakeSingleThreadTaskRunner::FakeSingleThreadTaskRunner(
@@ -107,3 +108,4 @@ bool FakeSingleThreadTaskRunner::PostNonNestableDelayedTask(
 }
 
 }  // namespace media
+}  // namespace cobalt

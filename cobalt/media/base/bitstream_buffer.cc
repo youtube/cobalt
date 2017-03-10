@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/bitstream_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 BitstreamBuffer::BitstreamBuffer()
@@ -29,3 +30,4 @@ void BitstreamBuffer::SetDecryptConfig(const DecryptConfig& decrypt_config) {
 }
 
 }  // namespace media
+}  // namespace cobalt

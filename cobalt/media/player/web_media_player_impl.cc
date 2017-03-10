@@ -24,6 +24,9 @@
 #include "cobalt/media/filters/shell_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
 
+namespace cobalt {
+namespace media {
+
 namespace {
 
 // Limits the range of playback rate.
@@ -56,8 +59,7 @@ const char* kMediaEme = "Media.EME.";
 // greater than or equal to duration() - kEndOfStreamEpsilonInSeconds".
 const double kEndOfStreamEpsilonInSeconds = 2.;
 
-bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
-                          double position) {
+bool IsNearTheEndOfStream(const WebMediaPlayerImpl* wmpi, double position) {
   float duration = wmpi->GetDuration();
   if (base::IsFinite(duration)) {
     // If video is very short, we always treat a position as near the end.
@@ -84,8 +86,6 @@ base::TimeDelta ConvertSecondsToTimestamp(float seconds) {
 }
 
 }  // namespace
-
-namespace media {
 
 #define BIND_TO_RENDER_LOOP(function) \
   BindToCurrentLoop(base::Bind(function, AsWeakPtr()))
@@ -742,3 +742,4 @@ void WebMediaPlayerImpl::OnDurationChanged() {
 }
 
 }  // namespace media
+}  // namespace cobalt

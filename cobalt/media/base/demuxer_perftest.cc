@@ -25,6 +25,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_test.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kBenchmarkIterations = 100;
@@ -235,3 +236,4 @@ TEST(DemuxerPerfTest, MAYBE_Demuxer) {
 }
 
 }  // namespace media
+}  // namespace cobalt

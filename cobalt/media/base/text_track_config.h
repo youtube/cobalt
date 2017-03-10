@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Specifies the varieties of text tracks.
@@ -42,5 +43,6 @@ class MEDIA_EXPORT TextTrackConfig {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEXT_TRACK_CONFIG_H_

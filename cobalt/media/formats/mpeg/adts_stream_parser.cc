@@ -11,6 +11,7 @@
 #include "cobalt/media/formats/mp4/aac.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
 
+namespace cobalt {
 namespace media {
 
 static const uint32_t kADTSStartCodeMask = 0xfff00000;
@@ -104,3 +105,4 @@ int ADTSStreamParser::ParseFrameHeader(const uint8_t* data, int size,
 }
 
 }  // namespace media
+}  // namespace cobalt

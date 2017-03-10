@@ -13,6 +13,7 @@ namespace base {
 class TickClock;
 }  // namespace base
 
+namespace cobalt {
 namespace media {
 
 // Interpolates between two TimeDeltas based on the passage of wall clock time
@@ -80,5 +81,6 @@ class MEDIA_EXPORT TimeDeltaInterpolator {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TIME_DELTA_INTERPOLATOR_H_

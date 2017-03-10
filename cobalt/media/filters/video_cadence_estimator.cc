@@ -12,6 +12,7 @@
 
 #include "base/metrics/histogram.h"
 
+namespace cobalt {
 namespace media {
 
 // To prevent oscillation in and out of cadence or between cadence values, we
@@ -254,3 +255,4 @@ std::string VideoCadenceEstimator::CadenceToString(
 }
 
 }  // namespace media
+}  // namespace cobalt

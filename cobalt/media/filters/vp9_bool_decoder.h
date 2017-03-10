@@ -13,6 +13,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class BitReader;
@@ -69,5 +70,6 @@ class MEDIA_EXPORT Vp9BoolDecoder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_VP9_BOOL_DECODER_H_

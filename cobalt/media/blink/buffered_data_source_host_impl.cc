@@ -6,6 +6,7 @@
 
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 BufferedDataSourceHostImpl::BufferedDataSourceHostImpl()
@@ -64,3 +65,4 @@ bool BufferedDataSourceHostImpl::DidLoadingProgress() {
 }
 
 }  // namespace media
+}  // namespace cobalt

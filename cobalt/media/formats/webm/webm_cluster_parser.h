@@ -23,6 +23,7 @@
 #include "cobalt/media/formats/webm/webm_parser.h"
 #include "cobalt/media/formats/webm/webm_tracks_parser.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
@@ -308,5 +309,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CLUSTER_PARSER_H_

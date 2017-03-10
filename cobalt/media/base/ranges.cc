@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/ranges.h"
 
+namespace cobalt {
 namespace media {
 
 template <>
@@ -13,3 +14,4 @@ void Ranges<base::TimeDelta>::DCheckLT(const base::TimeDelta& lhs,
 }
 
 }  // namespace media
+}  // namespace cobalt

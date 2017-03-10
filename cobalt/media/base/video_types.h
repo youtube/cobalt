@@ -10,6 +10,7 @@
 #include "build/build_config.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Pixel formats roughly based on FOURCC labels, see:
@@ -88,5 +89,6 @@ MEDIA_EXPORT bool IsYuvPlanar(VideoPixelFormat format);
 MEDIA_EXPORT bool IsOpaque(VideoPixelFormat format);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_TYPES_H_

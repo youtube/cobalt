@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 ShellRBSPStream::ShellRBSPStream(const uint8* nalu_buffer,
@@ -213,3 +214,4 @@ bool ShellRBSPStream::ReadRBSPByte(uint8* byte_out) {
 }
 
 }  // namespace media
+}  // namespace cobalt

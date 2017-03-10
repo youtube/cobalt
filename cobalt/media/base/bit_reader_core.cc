@@ -12,6 +12,7 @@ namespace {
 const int kRegWidthInBits = sizeof(uint64_t) * 8;
 }
 
+namespace cobalt {
 namespace media {
 
 BitReaderCore::ByteStreamProvider::ByteStreamProvider() {}
@@ -178,3 +179,4 @@ void BitReaderCore::RefillCurrentRegister() {
 }
 
 }  // namespace media
+}  // namespace cobalt

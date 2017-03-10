@@ -13,6 +13,7 @@
 #include "media/cast/net/cast_transport_config.h"
 #include "media/cast/sender/audio_encoder.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -94,3 +95,4 @@ void AudioSender::OnEncodedAudioFrame(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

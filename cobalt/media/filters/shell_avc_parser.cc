@@ -27,6 +27,7 @@
 #include "cobalt/media/filters/shell_rbsp_stream.h"
 #include "cobalt/media/formats/mp4/aac.h"
 
+namespace cobalt {
 namespace media {
 
 // what's the smallest meaningful AVC config we can parse?
@@ -488,3 +489,4 @@ size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
 }
 
 }  // namespace media
+}  // namespace cobalt

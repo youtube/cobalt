@@ -6,6 +6,7 @@
 #include "cobalt/media/blink/buffered_data_source_host_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class BufferedDataSourceHostImplTest : public testing::Test {
@@ -74,3 +75,4 @@ TEST_F(BufferedDataSourceHostImplTest, DidLoadingProgress) {
 }
 
 }  // namespace media
+}  // namespace cobalt
