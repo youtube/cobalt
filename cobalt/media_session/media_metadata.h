@@ -17,12 +17,27 @@
 
 #include <string>
 
+#include "cobalt/media_session/media_metadata_init.h"
+
 namespace cobalt {
 namespace media_session {
 
 class MediaMetadata : public script::Wrappable {
  public:
   MediaMetadata() {}
+  explicit MediaMetadata(const MediaMetadataInit& init) {
+    if (init.has_title()) {
+      title_ = init.title();
+    }
+
+    if (init.has_artist()) {
+      artist_ = init.artist();
+    }
+
+    if (init.has_album()) {
+      album_ = init.album();
+    }
+  }
 
   scoped_refptr<MediaMetadata> metadata() {
     return scoped_refptr<MediaMetadata>();
