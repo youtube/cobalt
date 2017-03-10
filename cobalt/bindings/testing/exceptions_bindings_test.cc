@@ -59,11 +59,12 @@ class ExceptionObjectSetter {
   scoped_refptr<script::ScriptException> exception_object_;
 };
 
-std::string GetExceptionMessageString(script::MessageType message_type, ...) {
+std::string GetExceptionMessageString(
+    script::ExceptionState::MessageTypeVar message_type, ...) {
   va_list arguments;
   va_start(arguments, message_type);
-  std::string error_string =
-      base::StringPrintV(GetExceptionMessageFormat(message_type), arguments);
+  std::string error_string = base::StringPrintV(
+      GetExceptionMessageFormat(message_type.value), arguments);
   va_end(arguments);
   return error_string;
 }
