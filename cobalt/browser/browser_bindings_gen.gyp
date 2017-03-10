@@ -203,6 +203,7 @@
 
     'dictionary_idl_files': [
         '../dom/mutation_observer_init.idl',
+        '../media_session/media_metadata_init.idl',
     ],
 
     # Partial interfaces and the right-side of "implements". Also includes
