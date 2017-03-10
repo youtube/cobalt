@@ -36,7 +36,8 @@ class FakeExceptionState : public script::ExceptionState {
     dom_exception_ = make_scoped_refptr(
         base::polymorphic_downcast<dom::DOMException*>(exception.get()));
   }
-  void SetSimpleException(MessageTypeVar /*message_type*/, ...) OVERRIDE {
+  void SetSimpleExceptionWithArgs(script::MessageType /*message_type*/,
+                                  int /*dummy*/, ...) OVERRIDE {
     // no-op
   }
   dom::DOMException::ExceptionCode GetExceptionCode() {

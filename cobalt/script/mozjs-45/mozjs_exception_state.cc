@@ -72,12 +72,13 @@ void MozjsExceptionState::SetException(
   is_exception_set_ = true;
 }
 
-void MozjsExceptionState::SetSimpleException(MessageType message_type, ...) {
+void MozjsExceptionState::SetSimpleException(MessageType message_type,
+                                             int dummy, ...) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!is_exception_set_);
 
   va_list arguments;
-  va_start(arguments, message_type);
+  va_start(arguments, dummy);
   std::string error_message =
       base::StringPrintV(GetExceptionMessageFormat(message_type), arguments);
   JSErrorFormatString format_string;
