@@ -29,10 +29,10 @@ class MockExceptionState : public ExceptionState {
   MOCK_METHOD1(SetException, void(const scoped_refptr<ScriptException>&));
   MOCK_METHOD2(SetSimpleExceptionVA, void(MessageType, va_list));
 
-  void SetSimpleException(MessageTypeVar message_type, ...) {
+  void SetSimpleExceptionWithArgs(MessageType message_type, int dummy, ...) {
     va_list arguments;
-    va_start(arguments, message_type);
-    SetSimpleExceptionVA(message_type.value, arguments);
+    va_start(arguments, dummy);
+    SetSimpleExceptionVA(message_type, arguments);
     va_end(arguments);
   }
 };
