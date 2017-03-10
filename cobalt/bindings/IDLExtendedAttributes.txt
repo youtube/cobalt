@@ -106,6 +106,14 @@ Conditional=*
 # trigger a notification.
 NotSupported
 
+# If the Clamp extended attribute appears on an operation argument,
+# writable attribute or dictionary member whose type is one of the
+# integer types, it indicates that when an ECMAScript Number is
+# converted to the IDL type, out of range values will be clamped to the
+# range of valid values, rather than using the operators that use a
+# module operation.
+Clamp
+
 # Not yet supported
 ArrayClass
 LenientThis
@@ -118,4 +126,4 @@ Unforgeable
 # when these attributes are present
 NewObject
 SameObject
-Clamp
+

@@ -36,6 +36,8 @@ class TestDictionary {
   TestDictionary() {
     has_boolean_member_ = false;
     boolean_member_ = bool();
+    has_short_clamp_member_ = false;
+    short_clamp_member_ = int16_t();
     has_long_member_ = false;
     long_member_ = int32_t();
     has_double_member_ = false;
@@ -60,6 +62,18 @@ class TestDictionary {
   void set_boolean_member(bool value) {
     has_boolean_member_ = true;
     boolean_member_ = value;
+  }
+
+  bool has_short_clamp_member() const {
+    return has_short_clamp_member_;
+  }
+  int16_t short_clamp_member() const {
+    DCHECK(has_short_clamp_member_);
+    return short_clamp_member_;
+  }
+  void set_short_clamp_member(int16_t value) {
+    has_short_clamp_member_ = true;
+    short_clamp_member_ = value;
   }
 
   bool has_long_member() const {
@@ -137,6 +151,8 @@ class TestDictionary {
  private:
   bool has_boolean_member_;
   bool boolean_member_;
+  bool has_short_clamp_member_;
+  int16_t short_clamp_member_;
   bool has_long_member_;
   int32_t long_member_;
   bool has_double_member_;

@@ -585,6 +585,8 @@ def get_dictionary_member_context(dictionary, dictionary_member):
           typed_object_to_cobalt_type(dictionary, dictionary_member),
       'arg_type':
           typed_object_to_arg_type(dictionary, dictionary_member),
+      'conversion_flags':
+          get_conversion_flags(dictionary_member),
       'default_value':
           idl_literal_to_cobalt_literal(dictionary_member.idl_type,
                                         dictionary_member.default_value)

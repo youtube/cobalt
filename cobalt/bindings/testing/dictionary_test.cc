@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <limits>
+
+#include "base/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/dictionary_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -61,6 +64,19 @@ TEST_F(DictionaryTest, OverrideDefault) {
   EXPECT_TRUE(EvaluateScript(
       "test.dictionaryOperation( {memberWithDefault : 20} );", NULL));
   EXPECT_EQ(20, dictionary.member_with_default());
+}
+
+TEST_F(DictionaryTest, ClampDictionaryMember) {
+  TestDictionary dictionary;
+  EXPECT_CALL(test_mock(), DictionaryOperation(_))
+      .WillOnce(SaveArg<0>(&dictionary));
+
+  EXPECT_TRUE(EvaluateScript(
+      StringPrintf("test.dictionaryOperation( {shortClampMember : %d } );",
+                   std::numeric_limits<int32_t>::max()),
+      NULL));
+  EXPECT_EQ(std::numeric_limits<int16_t>::max(),
+            dictionary.short_clamp_member());
 }
 
 }  // namespace testing
