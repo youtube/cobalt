@@ -22,6 +22,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/base/video_codecs.h"
 
+namespace cobalt {
 namespace media {
 
 using base::TimeDelta;
@@ -224,5 +225,6 @@ class MEDIA_EXPORT SourceBufferState {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_

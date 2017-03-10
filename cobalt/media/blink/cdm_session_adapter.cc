@@ -20,6 +20,7 @@
 #include "cobalt/media/blink/webcontentdecryptionmodulesession_impl.h"
 #include "googleurl/src/gurl.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -215,3 +216,4 @@ void CdmSessionAdapter::ReportTimeToCreateCdmUMA(base::TimeDelta time) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

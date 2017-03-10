@@ -16,6 +16,7 @@
 
 #include <limits.h>  // for ULLONG_MAX
 
+namespace cobalt {
 namespace media {
 
 const int ShellDataSourceReader::kReadError = DataSource::kReadError;
@@ -106,3 +107,4 @@ int64 ShellDataSourceReader::FileSize() {
 }
 
 }  // namespace media
+}  // namespace cobalt

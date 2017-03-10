@@ -19,6 +19,7 @@ class SingleThreadTaskRunner;
 class TickClock;
 }  // namespace base
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -65,5 +66,6 @@ class LoopBackTransport : public PacketTransport {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_LOOPBACK_TRANSPORT_H_

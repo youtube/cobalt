@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 namespace container_names {
@@ -69,5 +70,6 @@ MEDIA_EXPORT MediaContainerName DetermineContainer(const uint8_t* buffer,
 }  // namespace container_names
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CONTAINER_NAMES_H_

@@ -7,6 +7,7 @@
 
 #include "base/callback_forward.h"
 
+namespace cobalt {
 namespace media {
 
 enum BufferingState {
@@ -25,5 +26,6 @@ enum BufferingState {
 typedef base::Callback<void(BufferingState)> BufferingStateCB;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_BUFFERING_STATE_H_

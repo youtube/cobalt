@@ -35,6 +35,7 @@
 #include "cobalt/media/base/video_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 class MockPipelineClient : public Pipeline::Client {
@@ -377,5 +378,6 @@ class MockStreamParser : public StreamParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MOCK_FILTERS_H_

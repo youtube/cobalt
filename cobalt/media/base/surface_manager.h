@@ -10,6 +10,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 using SurfaceCreatedCB = base::Callback<void(int)>;
@@ -41,5 +42,6 @@ class MEDIA_EXPORT SurfaceManager {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SURFACE_MANAGER_H_

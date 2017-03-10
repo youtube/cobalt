@@ -23,6 +23,7 @@
 #include "third_party/WebKit/public/platform/WebURLRequest.h"
 #include "third_party/WebKit/public/web/WebFrame.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_BLINK_EXPORT ResourceMultiBufferDataProvider
@@ -127,5 +128,6 @@ class MEDIA_BLINK_EXPORT ResourceMultiBufferDataProvider
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_

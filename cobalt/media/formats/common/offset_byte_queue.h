@@ -11,6 +11,7 @@
 #include "cobalt/media/base/byte_queue.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // A wrapper around a ByteQueue which maintains a notion of a
@@ -64,5 +65,6 @@ class MEDIA_EXPORT OffsetByteQueue {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_COMMON_OFFSET_BYTE_QUEUE_H_

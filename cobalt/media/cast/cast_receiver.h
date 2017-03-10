@@ -18,6 +18,7 @@
 #include "media/cast/cast_environment.h"
 #include "media/cast/net/cast_transport.h"
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 
@@ -78,5 +79,6 @@ class CastReceiver {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_CAST_RECEIVER_H_

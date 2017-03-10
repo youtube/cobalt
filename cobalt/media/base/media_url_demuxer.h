@@ -16,6 +16,7 @@
 #include "cobalt/media/base/demuxer.h"
 #include "googleurl/src/gurl.h"
 
+namespace cobalt {
 namespace media {
 
 // Class that saves a URL for later retrieval. To be used in conjunction with
@@ -67,5 +68,6 @@ class MEDIA_EXPORT MediaUrlDemuxer : public Demuxer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_URL_DEMUXER_H_

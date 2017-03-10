@@ -21,6 +21,7 @@
 #include "media/formats/mp2t/mp2t_common.h"
 #include "media/formats/mpeg/adts_constants.h"
 
+namespace cobalt {
 namespace media {
 
 static int ExtractAdtsFrameSize(const uint8_t* adts_header) {
@@ -220,3 +221,4 @@ bool EsParserAdts::UpdateAudioConfiguration(const uint8_t* adts_header,
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

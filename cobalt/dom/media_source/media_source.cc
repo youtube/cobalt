@@ -63,7 +63,17 @@
 namespace cobalt {
 namespace dom {
 
-using ::media::ChunkDemuxer;
+#if defined(COBALT_MEDIA_SOURCE_2016)
+using media::PipelineStatus;
+using media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
+using media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
+using media::PIPELINE_OK;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+using ::media::PipelineStatus;
+using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
+using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
+using ::media::PIPELINE_OK;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 
@@ -264,12 +274,12 @@ void MediaSource::EndOfStream(EndOfStreamError error,
 
   SetReadyState(kEnded);
 
-  ::media::PipelineStatus pipeline_status = ::media::PIPELINE_OK;
+  PipelineStatus pipeline_status = PIPELINE_OK;
 
   if (error == kNetwork) {
-    pipeline_status = ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
+    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
   } else if (error == kDecode) {
-    pipeline_status = ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
+    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
   }
 
   chunk_demuxer_->MarkEndOfStream(pipeline_status);
@@ -337,7 +347,7 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
   return true;
 }
 
-void MediaSource::SetChunkDemuxerAndOpen(::media::ChunkDemuxer* chunk_demuxer) {
+void MediaSource::SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
   DCHECK(attached_element_);

@@ -26,6 +26,7 @@
 #include "media/cast/test/utility/audio_utility.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -167,3 +168,4 @@ TEST_F(AudioSenderTest, RtcpTimer) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -15,6 +15,7 @@
 #include "base/time.h"
 #include "third_party/WebKit/public/platform/WebSourceBuffer.h"
 
+namespace cobalt {
 namespace media {
 class ChunkDemuxer;
 class MediaTracks;
@@ -62,5 +63,6 @@ class WebSourceBufferImpl : public blink::WebSourceBuffer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_

@@ -11,6 +11,7 @@
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // First-in first-out container for AudioBus elements.
@@ -65,5 +66,6 @@ class MEDIA_EXPORT AudioFifo {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_FIFO_H_

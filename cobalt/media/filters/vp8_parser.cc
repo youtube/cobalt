@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "cobalt/media/filters/vp8_parser.h"
 
+namespace cobalt {
 namespace media {
 
 #define ERROR_RETURN(what)                           \
@@ -834,3 +835,4 @@ bool Vp8Parser::ParsePartitions(Vp8FrameHeader* fhdr) {
 }
 
 }  // namespace media
+}  // namespace cobalt

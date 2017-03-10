@@ -20,6 +20,7 @@
 #include "media/base/video_decoder_config.h"
 #include "media/formats/mp2t/timestamp_unroller.h"
 
+namespace cobalt {
 namespace media {
 
 class StreamParserBuffer;
@@ -132,5 +133,6 @@ class MEDIA_EXPORT Mp2tStreamParser : public StreamParser {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_MP2T_STREAM_PARSER_H_

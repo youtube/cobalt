@@ -17,6 +17,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/filters/h264_parser.h"
 
+namespace cobalt {
 namespace media {
 
 // Holds one or more NALUs as a raw bitstream buffer in H.264 Annex-B format.
@@ -117,5 +118,6 @@ class MEDIA_EXPORT H264BitstreamBuffer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_

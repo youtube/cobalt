@@ -13,6 +13,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class MemoryDataSourceTest : public ::testing::Test {
@@ -110,3 +111,4 @@ TEST_F(MemoryDataSourceTest, GetSize) {
 }
 
 }  // namespace media
+}  // namespace cobalt

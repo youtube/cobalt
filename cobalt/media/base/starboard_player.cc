@@ -24,6 +24,7 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 StarboardPlayer::StarboardPlayer(
@@ -509,3 +510,4 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 }  // namespace media
+}  // namespace cobalt

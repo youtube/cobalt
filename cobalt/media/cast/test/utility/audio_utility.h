@@ -17,10 +17,12 @@ namespace base {
 class TimeDelta;
 }
 
+namespace cobalt {
 namespace media {
 class AudioBus;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -80,5 +82,6 @@ bool DecodeTimestamp(const float* samples, size_t length, uint16_t* timestamp);
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_AUDIO_UTILITY_H_

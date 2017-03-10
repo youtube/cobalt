@@ -21,6 +21,7 @@
 #include "cobalt/media/formats/common/offset_byte_queue.h"
 #include "cobalt/media/formats/mp4/track_run_iterator.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -134,5 +135,6 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_

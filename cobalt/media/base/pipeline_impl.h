@@ -19,6 +19,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class MediaLog;
@@ -179,5 +180,6 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_PIPELINE_IMPL_H_

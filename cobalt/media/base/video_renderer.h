@@ -11,6 +11,7 @@
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/time_source.h"
 
+namespace cobalt {
 namespace media {
 
 class CdmContext;
@@ -62,5 +63,6 @@ class MEDIA_EXPORT VideoRenderer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_RENDERER_H_

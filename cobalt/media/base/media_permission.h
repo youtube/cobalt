@@ -11,6 +11,7 @@
 
 class GURL;
 
+namespace cobalt {
 namespace media {
 
 // Interface to handle media related permission checks and requests.
@@ -45,5 +46,6 @@ class MEDIA_EXPORT MediaPermission {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_PERMISSION_H_

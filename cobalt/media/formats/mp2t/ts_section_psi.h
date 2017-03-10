@@ -12,6 +12,7 @@
 #include "media/base/byte_queue.h"
 #include "media/formats/mp2t/ts_section.h"
 
+namespace cobalt {
 namespace media {
 
 class BitReader;
@@ -52,5 +53,6 @@ class TsSectionPsi : public TsSection {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PSI_H_

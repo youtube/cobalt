@@ -21,6 +21,7 @@
 #include "base/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class ShellRBSPStreamTest : public testing::Test {
@@ -631,3 +632,4 @@ TEST_F(ShellRBSPStreamTest, SkipBits) {
 }
 
 }  // namespace media
+}  // namespace cobalt

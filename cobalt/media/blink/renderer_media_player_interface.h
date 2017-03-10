@@ -25,6 +25,7 @@ enum MediaPlayerHostMsg_Initialize_Type {
   MEDIA_PLAYER_TYPE_LAST = MEDIA_PLAYER_TYPE_REMOTE_ONLY
 };
 
+namespace cobalt {
 namespace media {
 
 class RendererMediaPlayerInterface {
@@ -112,5 +113,6 @@ class RendererMediaPlayerManagerInterface {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_RENDERER_MEDIA_PLAYER_INTERFACE_H_

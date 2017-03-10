@@ -22,6 +22,7 @@ class Encryptor;
 class SymmetricKey;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -51,5 +52,6 @@ class TransportEncryptionHandler : public base::NonThreadSafe {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_

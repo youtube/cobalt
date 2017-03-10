@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 WebInbandTextTrackImpl::WebInbandTextTrackImpl(Kind kind,
@@ -36,3 +37,4 @@ blink::WebString WebInbandTextTrackImpl::language() const { return language_; }
 blink::WebString WebInbandTextTrackImpl::id() const { return id_; }
 
 }  // namespace media
+}  // namespace cobalt

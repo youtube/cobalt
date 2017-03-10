@@ -7,6 +7,7 @@
 
 #include "base/time/time.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -48,5 +49,6 @@ class ClockDriftSmoother {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_COMMON_CLOCK_DRIFT_SMOOTHER_H_

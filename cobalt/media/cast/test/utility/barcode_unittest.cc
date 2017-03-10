@@ -6,6 +6,7 @@
 #include "media/cast/test/utility/barcode.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -60,3 +61,4 @@ TEST(BarcodeTest, Large) {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

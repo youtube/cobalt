@@ -9,6 +9,7 @@
 #include "cobalt/media/base/video_frame_pool.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 class VideoFramePoolTest : public ::testing::Test {
@@ -92,3 +93,4 @@ TEST_F(VideoFramePoolTest, FrameValidAfterPoolDestruction) {
 }
 
 }  // namespace media
+}  // namespace cobalt

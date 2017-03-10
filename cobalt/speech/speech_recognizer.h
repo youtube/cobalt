@@ -24,7 +24,11 @@
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "content/browser/speech/chunked_byte_buffer.h"
-#include "media/base/audio_bus.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/shell_audio_bus.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "media/base/shell_audio_bus.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 
@@ -40,7 +44,11 @@ namespace speech {
 // manager.
 class SpeechRecognizer : public net::URLFetcherDelegate {
  public:
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
   typedef SpeechRecognitionResultList::SpeechRecognitionResults
       SpeechRecognitionResults;

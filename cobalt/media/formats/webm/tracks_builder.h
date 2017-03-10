@@ -13,6 +13,7 @@
 
 #include "base/basictypes.h"
 
+namespace cobalt {
 namespace media {
 
 class TracksBuilder {
@@ -90,5 +91,6 @@ class TracksBuilder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_TRACKS_BUILDER_H_

@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/output_device_info.h"
 
+namespace cobalt {
 namespace media {
 
 // Output device information returned by GetOutputDeviceInfo() methods of
@@ -37,3 +38,4 @@ std::string OutputDeviceInfo::AsHumanReadableString() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

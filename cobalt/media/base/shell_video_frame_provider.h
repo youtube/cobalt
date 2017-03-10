@@ -20,6 +20,7 @@
 #include "base/time.h"
 #include "starboard/decode_target.h"
 
+namespace cobalt {
 namespace media {
 
 // TODO: The following class is tentative to make the new media stack work.
@@ -91,5 +92,6 @@ class ShellVideoFrameProvider
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SHELL_VIDEO_FRAME_PROVIDER_H_

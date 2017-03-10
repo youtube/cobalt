@@ -22,6 +22,7 @@
 #include "cobalt/media/base/data_source.h"
 #include "googleurl/src/gurl.h"
 
+namespace cobalt {
 namespace media {
 
 enum Preload {
@@ -40,5 +41,6 @@ class BufferedDataSource : public DataSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_PLAYER_BUFFERED_DATA_SOURCE_H_

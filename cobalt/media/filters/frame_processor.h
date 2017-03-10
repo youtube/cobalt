@@ -17,6 +17,7 @@
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
 
+namespace cobalt {
 namespace media {
 
 class MseTrackBuffer;
@@ -180,5 +181,6 @@ class MEDIA_EXPORT FrameProcessor {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_FRAME_PROCESSOR_H_

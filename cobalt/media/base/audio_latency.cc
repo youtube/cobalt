@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -127,3 +128,4 @@ int AudioLatency::GetInteractiveBufferSize(int hardware_buffer_size) {
 }
 
 }  // namespace media
+}  // namespace cobalt

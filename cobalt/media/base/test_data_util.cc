@@ -12,6 +12,7 @@
 #include "base/path_service.h"
 #include "cobalt/media/base/decoder_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 const base::FilePath::CharType kTestDataPath[] =
@@ -54,3 +55,4 @@ scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name) {
 }
 
 }  // namespace media
+}  // namespace cobalt

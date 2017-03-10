@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // WebM element IDs.
@@ -254,5 +255,6 @@ MEDIA_EXPORT extern const char kWebMCodecDescriptions[];
 MEDIA_EXPORT extern const char kWebMCodecMetadata[];
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_

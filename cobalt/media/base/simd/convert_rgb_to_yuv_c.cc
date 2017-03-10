@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
 
+namespace cobalt {
 namespace media {
 
 static int clip_byte(int x) {
@@ -84,3 +85,4 @@ void ConvertRGB24ToYUV_C(const uint8_t* rgbframe, uint8_t* yplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

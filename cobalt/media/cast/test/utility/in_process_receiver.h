@@ -26,6 +26,7 @@ namespace net {
 class IPEndPoint;
 }  // namespace net
 
+namespace cobalt {
 namespace media {
 
 class VideoFrame;
@@ -139,5 +140,6 @@ class InProcessReceiver {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_IN_PROCESS_RECEIVER_H_

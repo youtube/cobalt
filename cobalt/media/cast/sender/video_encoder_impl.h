@@ -13,6 +13,7 @@
 #include "media/cast/sender/software_video_encoder.h"
 #include "media/cast/sender/video_encoder.h"
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 
@@ -59,5 +60,6 @@ class VideoEncoderImpl : public VideoEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_VIDEO_ENCODER_IMPL_H_

@@ -42,6 +42,7 @@ using blink::WebURLError;
 using blink::WebURLResponse;
 using blink::WebView;
 
+namespace cobalt {
 namespace media {
 
 const char kHttpUrl[] = "http://test";
@@ -331,3 +332,4 @@ TEST_F(ResourceMultiBufferDataProviderTest, TestRedirects) {
 }
 
 }  // namespace media
+}  // namespace cobalt

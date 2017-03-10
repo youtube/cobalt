@@ -17,6 +17,7 @@
 #include "cobalt/media/filters/frame_processor.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 using testing::_;
@@ -332,3 +333,4 @@ TEST_F(SourceBufferStateTest, TrackIdsSwappedInSecondInitSegment) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -11,6 +11,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 
+namespace cobalt {
 namespace media {
 
 class VideoFramePool::PoolImpl
@@ -123,3 +124,4 @@ size_t VideoFramePool::GetPoolSizeForTesting() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

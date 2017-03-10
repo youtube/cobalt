@@ -13,6 +13,7 @@
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Provides an interface for querying registered key systems.
@@ -95,5 +96,6 @@ MEDIA_EXPORT void AddMimeTypeCodecMask(const std::string& mime_type,
 #endif  // defined(UNIT_TEST)
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_KEY_SYSTEMS_H_

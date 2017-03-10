@@ -26,6 +26,7 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 const int kStartTimestampMs = 0;
@@ -223,3 +224,4 @@ DemuxerStream* FakeDemuxerStreamProvider::GetStream(DemuxerStream::Type type) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -20,6 +20,7 @@
 #include "cobalt/media/formats/webm/webm_info_parser.h"
 #include "cobalt/media/formats/webm/webm_tracks_parser.h"
 
+namespace cobalt {
 namespace media {
 
 WebMStreamParser::WebMStreamParser(DecoderBuffer::Allocator* buffer_allocator)
@@ -277,3 +278,4 @@ void WebMStreamParser::OnEncryptedMediaInitData(const std::string& key_id) {
 }
 
 }  // namespace media
+}  // namespace cobalt

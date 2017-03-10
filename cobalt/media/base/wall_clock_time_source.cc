@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 WallClockTimeSource::WallClockTimeSource()
@@ -90,3 +91,4 @@ base::TimeDelta WallClockTimeSource::CurrentMediaTime_Locked() {
 }
 
 }  // namespace media
+}  // namespace cobalt

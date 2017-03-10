@@ -14,6 +14,7 @@
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/renderer.h"
 
+namespace cobalt {
 namespace media {
 
 class Demuxer;
@@ -162,5 +163,6 @@ class MEDIA_EXPORT PipelineController {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_PIPELINE_CONTROLLER_H_

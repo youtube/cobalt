@@ -7,6 +7,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // SMPTE ST 2086 mastering metadata.
@@ -55,5 +56,6 @@ struct MEDIA_EXPORT HDRMetadata {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_HDR_METADATA_H_

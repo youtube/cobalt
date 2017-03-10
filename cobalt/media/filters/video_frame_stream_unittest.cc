@@ -31,6 +31,7 @@ using ::testing::StrictMock;
 static const int kNumConfigs = 4;
 static const int kNumBuffersInOneConfig = 5;
 
+namespace cobalt {
 namespace media {
 
 struct VideoFrameStreamTestParams {
@@ -1108,3 +1109,4 @@ TEST_P(VideoFrameStreamTest, Destroy_DuringFallbackDecoderSelection) {
 }
 
 }  // namespace media
+}  // namespace cobalt

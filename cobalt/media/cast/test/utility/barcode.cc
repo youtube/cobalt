@@ -29,6 +29,7 @@
 #include "media/base/video_frame.h"
 #include "media/cast/test/utility/barcode.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -168,3 +169,4 @@ bool DecodeBarcode(const scoped_refptr<VideoFrame>& frame,
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

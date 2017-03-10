@@ -7,6 +7,7 @@
 #include "cobalt/media/base/audio_point.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace {
 
@@ -39,3 +40,4 @@ TEST(PointTest, ParsePointString) {
 
 }  // namespace
 }  // namespace media
+}  // namespace cobalt

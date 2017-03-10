@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/text_track_config.h"
 
+namespace cobalt {
 namespace media {
 
 TextTrackConfig::TextTrackConfig() : kind_(kTextNone) {}
@@ -19,3 +20,4 @@ bool TextTrackConfig::Matches(const TextTrackConfig& config) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -13,6 +13,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/time_source.h"
 
+namespace cobalt {
 namespace media {
 
 // A time source that uses interpolation based on the system clock.
@@ -61,5 +62,6 @@ class MEDIA_EXPORT WallClockTimeSource : public TimeSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_WALL_CLOCK_TIME_SOURCE_H_

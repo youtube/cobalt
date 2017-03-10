@@ -22,6 +22,7 @@
 #include "cobalt/media/base/media_client.h"
 #include "third_party/widevine/cdm/widevine_cdm_common.h"
 
+namespace cobalt {
 namespace media {
 
 const char kClearKeyKeySystem[] = "org.w3.clearkey";
@@ -706,3 +707,4 @@ MEDIA_EXPORT void AddMimeTypeCodecMask(const std::string& mime_type,
 }
 
 }  // namespace media
+}  // namespace cobalt

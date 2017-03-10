@@ -10,6 +10,7 @@
 #include "cobalt/media/filters/in_memory_url_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static const uint8_t kData[] = {0x01, 0x02, 0x03, 0x04};
@@ -54,3 +55,4 @@ TEST(InMemoryUrlProtocolTest, SetPosition) {
 }
 
 }  // namespace media
+}  // namespace cobalt

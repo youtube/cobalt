@@ -12,6 +12,7 @@
 #include "base/stl_util.h"
 #include "cobalt/media/base/decrypt_config.h"
 
+namespace cobalt {
 namespace media {
 
 #define READ_BITS_OR_RETURN(num_bits, out)                                 \
@@ -153,3 +154,4 @@ H265Parser::Result H265Parser::AdvanceToNextNALU(H265NALU* nalu) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -30,6 +30,7 @@
 // this file and we want to keep their parameters.
 MSVC_PUSH_DISABLE_WARNING(4100)
 
+namespace cobalt {
 namespace media {
 
 class WebMediaPlayer {
@@ -266,6 +267,7 @@ class WebMediaPlayerClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 MSVC_POP_WARNING()
 

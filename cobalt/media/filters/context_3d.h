@@ -13,6 +13,7 @@ class GLES2Interface;
 }
 }
 
+namespace cobalt {
 namespace media {
 
 // This struct can be used to make media use gpu::gles2::GLES2Interface and
@@ -32,5 +33,6 @@ struct Context3D {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_CONTEXT_3D_H_

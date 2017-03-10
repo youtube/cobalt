@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -38,5 +39,6 @@ class TsSection {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_H_

@@ -19,6 +19,7 @@
 using base::Time;
 using base::TimeDelta;
 
+namespace cobalt {
 namespace media {
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
@@ -279,3 +280,4 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 #endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 
 }  // namespace media
+}  // namespace cobalt

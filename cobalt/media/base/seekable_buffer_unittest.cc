@@ -17,6 +17,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class SeekableBufferTest : public testing::Test {
@@ -354,3 +355,4 @@ TEST_F(SeekableBufferTest, GetTime) {
 }
 
 }  // namespace media
+}  // namespace cobalt

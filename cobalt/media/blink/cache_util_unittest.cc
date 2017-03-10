@@ -22,6 +22,7 @@
 using blink::WebString;
 using blink::WebURLResponse;
 
+namespace cobalt {
 namespace media {
 
 // Inputs & expected output for GetReasonsForUncacheability.
@@ -83,3 +84,4 @@ TEST(CacheUtilTest, GetReasonsForUncacheability) {
 }
 
 }  // namespace media
+}  // namespace cobalt

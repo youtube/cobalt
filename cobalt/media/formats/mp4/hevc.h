@@ -16,6 +16,7 @@
 #include "cobalt/media/formats/mp4/bitstream_converter.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
 
+namespace cobalt {
 namespace media {
 
 struct SubsampleEntry;
@@ -107,5 +108,6 @@ class HEVCBitstreamConverter : public BitstreamConverter {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_HEVC_H_

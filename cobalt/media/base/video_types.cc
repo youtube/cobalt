@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 std::string VideoPixelFormatToString(VideoPixelFormat format) {
@@ -141,3 +142,4 @@ bool IsOpaque(VideoPixelFormat format) {
 }
 
 }  // namespace media
+}  // namespace cobalt

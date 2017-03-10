@@ -29,6 +29,7 @@ class RunLoop;
 class TimeDelta;
 }
 
+namespace cobalt {
 namespace media {
 
 class AudioBuffer;
@@ -238,5 +239,6 @@ MATCHER(WebMClusterBeforeFirstInfo, "") {
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEST_HELPERS_H_

@@ -22,6 +22,7 @@
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/ranges.h"
 
+namespace cobalt {
 namespace media {
 
 class TextTrackConfig;
@@ -153,5 +154,6 @@ class MEDIA_EXPORT Demuxer : public DemuxerStreamProvider {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DEMUXER_H_

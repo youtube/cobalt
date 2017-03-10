@@ -16,6 +16,7 @@
 #include "cobalt/media/formats/mp4/box_definitions.h"
 #include "cobalt/media/formats/mp4/box_reader.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -245,3 +246,4 @@ bool HEVCBitstreamConverter::ConvertFrame(
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

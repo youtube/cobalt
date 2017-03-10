@@ -21,6 +21,7 @@
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
 #endif
 
+namespace cobalt {
 namespace media {
 
 // Media must only be initialized once, so use a LazyInstance to ensure this.
@@ -96,3 +97,4 @@ bool ArePlatformDecodersAvailable() {
 #endif
 
 }  // namespace media
+}  // namespace cobalt

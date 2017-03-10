@@ -16,6 +16,7 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "cobalt/media/blink/multibuffer.h"
 
+namespace cobalt {
 namespace media {
 
 // Wrapper for MultiBuffer that offers a simple byte-reading
@@ -169,5 +170,6 @@ class MEDIA_BLINK_EXPORT MultiBufferReader
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_MULTIBUFFER_READER_H_

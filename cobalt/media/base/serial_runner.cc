@@ -10,6 +10,7 @@
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 
+namespace cobalt {
 namespace media {
 
 // Converts a Closure into a bound function accepting a PipelineStatusCB.
@@ -103,3 +104,4 @@ void SerialRunner::RunNextInSeries(PipelineStatus last_status) {
 }
 
 }  // namespace media
+}  // namespace cobalt

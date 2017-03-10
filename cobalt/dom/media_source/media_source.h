@@ -111,7 +111,7 @@ class MediaSource : public EventTarget {
   //
   // HTMLMediaSource
   bool AttachToElement(HTMLMediaElement* media_element);
-  void SetChunkDemuxerAndOpen(::media::ChunkDemuxer* chunk_demuxer);
+  void SetChunkDemuxerAndOpen(media::ChunkDemuxer* chunk_demuxer);
   void Close();
   bool IsClosed() const;
   scoped_refptr<TimeRanges> GetBufferedRange() const;

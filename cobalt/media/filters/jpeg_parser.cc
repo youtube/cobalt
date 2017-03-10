@@ -32,6 +32,7 @@ using base::BigEndianReader;
     *(out) = _out;                                                         \
   } while (0)
 
+namespace cobalt {
 namespace media {
 
 static bool InRange(int value, int a, int b) {
@@ -467,3 +468,4 @@ bool ParseJpegStream(const uint8_t* buffer, size_t length,
 }
 
 }  // namespace media
+}  // namespace cobalt

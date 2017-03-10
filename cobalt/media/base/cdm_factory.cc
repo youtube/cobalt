@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/cdm_factory.h"
 
+namespace cobalt {
 namespace media {
 
 CdmFactory::CdmFactory() {}
@@ -11,3 +12,4 @@ CdmFactory::CdmFactory() {}
 CdmFactory::~CdmFactory() {}
 
 }  // namespace media
+}  // namespace cobalt

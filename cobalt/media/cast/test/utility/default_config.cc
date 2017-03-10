@@ -26,6 +26,7 @@ void CreateVideoEncodeMemory(
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -104,3 +105,4 @@ CreateVideoEncodeMemoryCallback CreateDefaultVideoEncodeMemoryCallback() {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

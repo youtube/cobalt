@@ -28,6 +28,7 @@ namespace base {
 class TickClock;
 };
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -188,5 +189,6 @@ std::unique_ptr<InterruptedPoissonProcess> DefaultInterruptedPoissonProcess();
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_UDP_PROXY_H_

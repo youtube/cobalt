@@ -22,7 +22,11 @@
 namespace cobalt {
 namespace audio {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 AudioNodeOutput::~AudioNodeOutput() {
   owner_node_->audio_lock()->AssertLocked();

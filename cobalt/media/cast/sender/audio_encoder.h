@@ -19,6 +19,7 @@ namespace base {
 class TimeTicks;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -59,5 +60,6 @@ class AudioEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_AUDIO_ENCODER_H_

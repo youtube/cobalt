@@ -17,6 +17,7 @@
 #include "media/cast/cast_config.h"
 #include "media/video/fake_video_encode_accelerator.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -83,5 +84,6 @@ class FakeVideoEncodeAcceleratorFactory {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
