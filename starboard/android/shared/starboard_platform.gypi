@@ -93,6 +93,7 @@
         'microphone_impl.cc',
         'opensles_audio_sink_type.cc',
         'opensles_audio_sink_type.h',
+        'player_components_impl.cc',
         'player_create.cc',
         'player_destroy.cc',
         'player_set_pause.cc',

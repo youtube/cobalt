@@ -18,6 +18,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
@@ -99,11 +100,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
 
-  AudioDecoder::Parameters audio_decoder_parameters = {
-      audio_codec_, audio_header_, drm_system_, job_queue_};
-  scoped_ptr<AudioDecoder> audio_decoder(
-      AudioDecoder::Create(audio_decoder_parameters));
-  VideoDecoder::Parameters video_decoder_parameters = {
+  AudioParameters audio_parameters = {audio_codec_, audio_header_, drm_system_,
+                                      job_queue_};
+  VideoParameters video_parameters = {
     video_codec_,
     drm_system_,
     job_queue_
@@ -113,27 +112,21 @@ bool FilterBasedPlayerWorkerHandler::Init(
     decode_target_provider_
 #endif    // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   };      // NOLINT(whitespace/parens)
-  scoped_ptr<VideoDecoder> video_decoder(
-      VideoDecoder::Create(video_decoder_parameters));
-
-  if (!audio_decoder || !video_decoder) {
-    return false;
-  }
 
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
-
-  audio_renderer_.reset(
-      new AudioRenderer(job_queue, audio_decoder.Pass(), audio_header_));
-  video_renderer_ = VideoRenderer::Create(video_decoder.Pass());
-  if (audio_renderer_->is_valid() && video_renderer_) {
-    update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
-    job_queue_->Schedule(update_closure_, kUpdateInterval);
-    return true;
+  scoped_ptr<PlayerComponents> media_components =
+      PlayerComponents::Create(audio_parameters, video_parameters);
+  if (!media_components) {
+    return false;
   }
+  SB_DCHECK(media_components->is_valid());
 
-  audio_renderer_.reset(NULL);
-  video_renderer_.reset(NULL);
-  return false;
+  media_components->GetRenderers(&audio_renderer_, &video_renderer_);
+
+  update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
+  job_queue_->Schedule(update_closure_, kUpdateInterval);
+
+  return true;
 }
 
 bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {

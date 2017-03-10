@@ -297,17 +297,6 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-// static
-VideoDecoder* VideoDecoder::Create(const Parameters& parameters) {
-  ffmpeg::VideoDecoder* decoder =
-      new ffmpeg::VideoDecoder(parameters.video_codec);
-  if (!decoder->is_valid()) {
-    delete decoder;
-    return NULL;
-  }
-  return decoder;
-}
-
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // static
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
