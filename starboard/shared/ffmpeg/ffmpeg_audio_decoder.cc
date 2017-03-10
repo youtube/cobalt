@@ -226,25 +226,5 @@ void AudioDecoder::TeardownCodec() {
 }
 
 }  // namespace ffmpeg
-
-namespace starboard {
-namespace player {
-namespace filter {
-
-// static
-AudioDecoder* AudioDecoder::Create(const Parameters& parameters) {
-  ffmpeg::AudioDecoder* decoder =
-      new ffmpeg::AudioDecoder(parameters.audio_codec, parameters.audio_header);
-  if (!decoder->is_valid()) {
-    delete decoder;
-    return NULL;
-  }
-  return decoder;
-}
-
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-
 }  // namespace shared
 }  // namespace starboard

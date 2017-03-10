@@ -70,21 +70,6 @@ class VideoDecoder {
   // information to the decoder.
   virtual void SetCurrentTime(SbMediaTime current_time) {}
 
-  // A parameter struct to pass into |Create|.
-  struct Parameters {
-    SbMediaVideoCodec video_codec;
-    SbDrmSystem drm_system;
-    JobQueue* job_queue;
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-    SbPlayerOutputMode output_mode;
-    SbDecodeTargetProvider* decode_target_provider;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-  };
-
-  // Individual implementation has to implement this function to create a video
-  // decoder.
-  static VideoDecoder* Create(const Parameters& parameters);
-
 #if SB_API_VERSION >= 3
   // May be called from an arbitrary thread (e.g. a renderer thread).
   virtual SbDecodeTarget GetCurrentDecodeTarget() {
