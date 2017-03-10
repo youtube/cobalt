@@ -20,6 +20,7 @@
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
+namespace cobalt {
 namespace media {
 
 class WebMClusterParser;
@@ -87,5 +88,6 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_STREAM_PARSER_H_

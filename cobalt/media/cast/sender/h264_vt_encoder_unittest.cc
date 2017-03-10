@@ -55,6 +55,7 @@ void MediaTestSuite::Initialize() {
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -411,3 +412,4 @@ TEST_F(H264VideoToolboxEncoderTest,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

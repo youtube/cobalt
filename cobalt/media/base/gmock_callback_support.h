@@ -7,6 +7,7 @@
 
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 // Matchers for base::Callback and base::Closure.
@@ -92,5 +93,6 @@ ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_GMOCK_CALLBACK_SUPPORT_H_

@@ -12,6 +12,7 @@
 #include "media/base/video_frame.h"
 #include "media/cast/sender/video_frame_factory.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -192,3 +193,4 @@ void CastSenderImpl::OnVideoStatusChange(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Do not change this format.  AddInput() and GetValue() only work with float.
@@ -739,3 +740,4 @@ TEST_F(AudioSplicerTest, IncorrectlyMarkedPastSplice) {
 }
 
 }  // namespace media
+}  // namespace cobalt

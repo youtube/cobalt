@@ -29,6 +29,7 @@
 #include "cobalt/media/filters/source_buffer_state.h"
 #include "cobalt/media/filters/source_buffer_stream.h"
 
+namespace cobalt {
 namespace media {
 
 class FFmpegURLProtocol;
@@ -457,5 +458,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_CHUNK_DEMUXER_H_

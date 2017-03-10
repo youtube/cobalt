@@ -20,6 +20,7 @@
 #include "testing/perf/perf_test.h"
 #include "third_party/libyuv/include/libyuv/row.h"
 
+namespace cobalt {
 namespace media {
 #if !defined(ARCH_CPU_ARM_FAMILY) && !defined(ARCH_CPU_MIPS_FAMILY)
 // Size of raw image.
@@ -212,3 +213,4 @@ TEST_F(YUVConvertPerfTest, LinearScaleYUVToRGB32Row_SSE) {
 #endif  // !defined(ARCH_CPU_ARM_FAMILY) && !defined(ARCH_CPU_MIPS_FAMILY)
 
 }  // namespace media
+}  // namespace cobalt

@@ -20,6 +20,7 @@
 //#include "cobalt/media/base/pipeline_impl.h"
 #include "cobalt/media/base/pipeline_status.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
@@ -146,5 +147,6 @@ class MEDIA_EXPORT LogHelper {
                              : "")
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_LOG_H_

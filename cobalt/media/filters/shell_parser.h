@@ -24,6 +24,7 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/filters/shell_au.h"
 
+namespace cobalt {
 namespace media {
 
 // abstract base class to define a stream parser interface used by ShellDemuxer.
@@ -77,5 +78,6 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_PARSER_H_

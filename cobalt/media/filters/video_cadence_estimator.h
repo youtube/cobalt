@@ -15,6 +15,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Estimates whether a given frame duration and render interval length have a
@@ -165,5 +166,6 @@ class MEDIA_EXPORT VideoCadenceEstimator {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_VIDEO_CADENCE_ESTIMATOR_H_

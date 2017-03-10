@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 
+namespace cobalt {
 namespace media {
 
 // Parser for WebM Info element.
@@ -51,5 +52,6 @@ class MEDIA_EXPORT WebMInfoParser : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_INFO_PARSER_H_

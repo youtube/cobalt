@@ -9,6 +9,7 @@
 #include "cobalt/media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace container_names {
@@ -248,3 +249,4 @@ TEST(ContainerNamesTest, FileCheckUNKNOWN) {
 }  // namespace container_names
 
 }  // namespace media
+}  // namespace cobalt

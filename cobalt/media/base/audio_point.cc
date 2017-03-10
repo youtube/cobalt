@@ -12,6 +12,7 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 
+namespace cobalt {
 namespace media {
 
 std::string PointsToString(const std::vector<Point>& points) {
@@ -60,3 +61,4 @@ std::vector<Point> ParsePointsFromString(const std::string& points_string) {
 }
 
 }  // namespace media
+}  // namespace cobalt

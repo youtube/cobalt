@@ -46,6 +46,7 @@ using ::testing::SaveArg;
 using ::testing::StrictMock;
 using ::testing::WithArg;
 
+namespace cobalt {
 namespace media {
 
 ACTION_P(SetDemuxerProperties, duration) { arg0->SetDuration(duration); }
@@ -1091,3 +1092,4 @@ INSTANTIATE_TEARDOWN_TEST(ErrorAndStop, Playing);
 INSTANTIATE_TEARDOWN_TEST(ErrorAndStop, Suspended);
 
 }  // namespace media
+}  // namespace cobalt

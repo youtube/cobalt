@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/renderer_factory.h"
 
+namespace cobalt {
 namespace media {
 
 RendererFactory::RendererFactory() {}
@@ -11,3 +12,4 @@ RendererFactory::RendererFactory() {}
 RendererFactory::~RendererFactory() {}
 
 }  // namespace media
+}  // namespace cobalt

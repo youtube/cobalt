@@ -15,6 +15,7 @@
 #include "cobalt/media/filters/source_buffer_platform.h"
 #include "cobalt/media/filters/source_buffer_range.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -1814,3 +1815,4 @@ bool SourceBufferStream::SetPendingBuffer(
 }
 
 }  // namespace media
+}  // namespace cobalt

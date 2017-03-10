@@ -15,6 +15,7 @@
 #include "third_party/libyuv/include/libyuv/compare.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -164,3 +165,4 @@ bool PopulateVideoFrameFromFile(VideoFrame* frame, FILE* video_file) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

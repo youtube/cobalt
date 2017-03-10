@@ -21,16 +21,21 @@
 namespace cobalt {
 namespace media {
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::BufferedDataSource BufferedDataSource;
+typedef ::media::WebMediaPlayer WebMediaPlayer;
+typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
+using ::media::Ranges;
+#endif  // !defined(WebMediaPlayerDelegate)
+
 namespace {
 
-class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
+class DummyWebMediaPlayer : public WebMediaPlayer {
  private:
-  typedef ::media::BufferedDataSource BufferedDataSource;
-
   void LoadMediaSource() OVERRIDE {}
   void LoadProgressive(const GURL& url,
                        scoped_ptr<BufferedDataSource> data_source,
-                       ::media::WebMediaPlayer::CORSMode cors_mode) OVERRIDE {
+                       WebMediaPlayer::CORSMode cors_mode) OVERRIDE {
     UNREFERENCED_PARAMETER(url);
     UNREFERENCED_PARAMETER(data_source);
     UNREFERENCED_PARAMETER(cors_mode);
@@ -47,7 +52,7 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
   void SetRate(float rate) OVERRIDE { UNREFERENCED_PARAMETER(rate); }
   void SetVolume(float volume) OVERRIDE { UNREFERENCED_PARAMETER(volume); }
   void SetVisible(bool visible) OVERRIDE { UNREFERENCED_PARAMETER(visible); }
-  const ::media::Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE {
+  const Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE {
     return buffer_;
   }
   float GetMaxTimeSeekable() const OVERRIDE { return 0.f; }
@@ -92,12 +97,10 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
   unsigned GetAudioDecodedByteCount() const OVERRIDE { return 0; }
   unsigned GetVideoDecodedByteCount() const OVERRIDE { return 0; }
 
-  ::media::Ranges<base::TimeDelta> buffer_;
+  Ranges<base::TimeDelta> buffer_;
 };
 
 }  // namespace
-
-using ::media::WebMediaPlayer;
 
 std::string MediaModuleStub::CanPlayType(const std::string& mime_type,
                                          const std::string& key_system) {
@@ -107,7 +110,7 @@ std::string MediaModuleStub::CanPlayType(const std::string& mime_type,
 }
 
 scoped_ptr<WebMediaPlayer> MediaModuleStub::CreateWebMediaPlayer(
-    ::media::WebMediaPlayerClient* client) {
+    WebMediaPlayerClient* client) {
   UNREFERENCED_PARAMETER(client);
   return make_scoped_ptr<WebMediaPlayer>(new DummyWebMediaPlayer);
 }

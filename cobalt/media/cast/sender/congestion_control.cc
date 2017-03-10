@@ -23,6 +23,7 @@
 #include "base/trace_event/trace_event.h"
 #include "media/cast/constants.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -385,3 +386,4 @@ int AdaptiveCongestionControl::GetBitrate(base::TimeTicks playout_time,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

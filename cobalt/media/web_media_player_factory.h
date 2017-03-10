@@ -26,10 +26,13 @@ namespace media {
 
 class WebMediaPlayerFactory {
  public:
+#if !defined(COBALT_MEDIA_SOURCE_2016)
   typedef ::media::WebMediaPlayer WebMediaPlayer;
+  typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   virtual scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      ::media::WebMediaPlayerClient* client) = 0;
+      WebMediaPlayerClient* client) = 0;
 
  protected:
   WebMediaPlayerFactory() {}

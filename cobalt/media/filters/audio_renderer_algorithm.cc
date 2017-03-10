@@ -12,6 +12,7 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/filters/wsola_internals.h"
 
+namespace cobalt {
 namespace media {
 
 // Waveform Similarity Overlap-and-add (WSOLA).
@@ -391,3 +392,4 @@ void AudioRendererAlgorithm::PeekAudioWithZeroPrepend(int read_offset_frames,
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 bool H264SliceHeader::IsPSlice() const { return (slice_type % 5 == kPSlice); }
@@ -1380,3 +1381,4 @@ H264Parser::Result H264Parser::ParseSEI(H264SEIMessage* sei_msg) {
 }
 
 }  // namespace media
+}  // namespace cobalt

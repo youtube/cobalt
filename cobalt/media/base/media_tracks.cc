@@ -9,6 +9,7 @@
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
+namespace cobalt {
 namespace media {
 
 MediaTracks::MediaTracks() {}
@@ -62,3 +63,4 @@ const VideoDecoderConfig& MediaTracks::getVideoConfig(
 }
 
 }  // namespace media
+}  // namespace cobalt

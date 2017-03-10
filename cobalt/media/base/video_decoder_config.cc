@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/video_types.h"
 
+namespace cobalt {
 namespace media {
 
 VideoCodec VideoCodecProfileToVideoCodec(VideoCodecProfile profile) {
@@ -125,3 +126,4 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

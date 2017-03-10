@@ -17,6 +17,7 @@
 #include "cobalt/media/base/serial_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class SerialRunnerTest : public ::testing::Test {
@@ -228,3 +229,4 @@ TEST_F(SerialRunnerTest, Closure) {
 }
 
 }  // namespace media
+}  // namespace cobalt

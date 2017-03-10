@@ -17,6 +17,7 @@
 
 #include "base/sys_byteorder.h"
 
+namespace cobalt {
 namespace media {
 namespace endian_util {
 
@@ -135,5 +136,6 @@ inline void store_uint64_little_endian(uint64_t d, uint8_t* p) {
 
 }  // namespace endian_util
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // MEDIA_BASE_ENDIAN_UTIL_H_

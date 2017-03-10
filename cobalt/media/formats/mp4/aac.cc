@@ -14,6 +14,7 @@
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -264,3 +265,4 @@ bool AAC::SkipGASpecificConfig(BitReader* bit_reader) const {
 }  // namespace mp4
 
 }  // namespace media
+}  // namespace cobalt

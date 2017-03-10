@@ -15,6 +15,7 @@
 #include "cobalt/media/base/audio_timestamp_helper.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioBuffer;
@@ -101,5 +102,6 @@ class MEDIA_EXPORT AudioBufferConverter : public AudioConverter::InputCallback {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_BUFFER_CONVERTER_H_

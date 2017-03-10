@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // It's not a full featured JPEG parser implememtation. It only parses JPEG
@@ -119,5 +120,6 @@ MEDIA_EXPORT bool ParseJpegStream(const uint8_t* buffer, size_t length,
                                   JpegParseResult* result);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_JPEG_PARSER_H_

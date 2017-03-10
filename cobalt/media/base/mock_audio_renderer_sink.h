@@ -12,6 +12,7 @@
 #include "cobalt/media/base/audio_renderer_sink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 class MockAudioRendererSink : public SwitchableAudioRendererSink {
@@ -51,5 +52,6 @@ class MockAudioRendererSink : public SwitchableAudioRendererSink {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MOCK_AUDIO_RENDERER_SINK_H_

@@ -13,6 +13,7 @@
 #include "media/cast/sender/fake_software_video_encoder.h"
 #include "media/cast/sender/vp8_encoder.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 

@@ -27,6 +27,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 const uint8_t kFakeKeyId[] = {0x4b, 0x65, 0x79, 0x20, 0x49, 0x44};
@@ -478,3 +479,4 @@ TEST_F(DecryptingVideoDecoderTest, Destroy_AfterReset) {
 }
 
 }  // namespace media
+}  // namespace cobalt

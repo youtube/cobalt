@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/bit_reader.h"
 
+namespace cobalt {
 namespace media {
 
 Vp9RawBitsReader::Vp9RawBitsReader() : valid_(true) {}
@@ -57,3 +58,4 @@ bool Vp9RawBitsReader::ConsumeTrailingBits() {
 }
 
 }  // namespace media
+}  // namespace cobalt

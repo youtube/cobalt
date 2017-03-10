@@ -23,6 +23,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer_stream.h"
 
+namespace cobalt {
 namespace media {
 
 // This class can be used to hold media buffers in decoding order.  It also
@@ -65,5 +66,6 @@ class DecoderBufferCache {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DECODER_BUFFER_CACHE_H_

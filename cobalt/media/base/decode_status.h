@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 enum class DecodeStatus {
@@ -23,5 +24,6 @@ MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
                                       const DecodeStatus& status);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DECODE_STATUS_H_

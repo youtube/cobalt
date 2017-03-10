@@ -7,6 +7,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 enum SampleFormat {
@@ -42,5 +43,6 @@ MEDIA_EXPORT bool IsPlanar(SampleFormat sample_format);
 MEDIA_EXPORT bool IsInterleaved(SampleFormat sample_format);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SAMPLE_FORMAT_H_

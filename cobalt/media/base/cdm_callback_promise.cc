@@ -7,6 +7,7 @@
 #include "base/callback_helpers.h"
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 template <typename... T>
@@ -46,3 +47,4 @@ template class MEDIA_EXPORT CdmCallbackPromise<>;
 template class MEDIA_EXPORT CdmCallbackPromise<std::string>;
 
 }  // namespace media
+}  // namespace cobalt

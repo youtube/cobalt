@@ -21,6 +21,7 @@
 #include "media/cast/net/rtcp/rtcp_defines.h"
 #include "media/cast/sender/congestion_control.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -203,5 +204,6 @@ class FrameSender {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_FRAME_SENDER_H_

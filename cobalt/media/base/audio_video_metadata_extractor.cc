@@ -12,6 +12,7 @@
 #include "cobalt/media/filters/blocking_url_protocol.h"
 #include "cobalt/media/filters/ffmpeg_glue.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -250,3 +251,4 @@ void AudioVideoMetadataExtractor::ExtractDictionary(AVDictionary* metadata,
 }
 
 }  // namespace media
+}  // namespace cobalt

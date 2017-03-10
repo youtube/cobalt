@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -41,3 +42,4 @@ bool SampleToGroupIterator::IsValid() const { return remaining_samples_ > 0; }
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

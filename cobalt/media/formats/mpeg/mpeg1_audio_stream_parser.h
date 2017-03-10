@@ -14,6 +14,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/formats/mpeg/mpeg_audio_stream_parser_base.h"
 
+namespace cobalt {
 namespace media {
 
 // MPEG1AudioStreamParser handles MPEG-1 audio streams (ISO/IEC 11172-3)
@@ -84,5 +85,6 @@ class MEDIA_EXPORT MPEG1AudioStreamParser : public MPEGAudioStreamParserBase {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MPEG_MPEG1_AUDIO_STREAM_PARSER_H_

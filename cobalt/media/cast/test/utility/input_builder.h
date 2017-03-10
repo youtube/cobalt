@@ -9,6 +9,7 @@
 
 #include <string>
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -45,5 +46,6 @@ class InputBuilder {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_INPUT_BUILDER_H_

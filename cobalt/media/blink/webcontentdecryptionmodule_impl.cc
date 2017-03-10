@@ -24,6 +24,7 @@
 #include "third_party/WebKit/public/platform/WebSecurityOrigin.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 void WebContentDecryptionModuleImpl::Create(
@@ -104,3 +105,4 @@ scoped_refptr<MediaKeys> WebContentDecryptionModuleImpl::GetCdm() {
 }
 
 }  // namespace media
+}  // namespace cobalt

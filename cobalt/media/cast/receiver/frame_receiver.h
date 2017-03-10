@@ -27,6 +27,7 @@
 #include "media/cast/net/rtp/rtp_defines.h"
 #include "media/cast/net/rtp/rtp_parser.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -205,5 +206,6 @@ class FrameReceiver : public RtpPayloadFeedback,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_RECEIVER_FRAME_RECEIVER_H_

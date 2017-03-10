@@ -10,6 +10,7 @@
 #include "base/basictypes.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static void SetBit(uint8_t* buf, size_t size, size_t bit_pos) {
@@ -137,3 +138,4 @@ TEST(BitReaderTest, BitsReadTest) {
 }
 
 }  // namespace media
+}  // namespace cobalt

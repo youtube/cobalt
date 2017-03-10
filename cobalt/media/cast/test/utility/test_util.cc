@@ -9,6 +9,7 @@
 #include "base/strings/stringprintf.h"
 #include "media/cast/test/utility/test_util.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -35,3 +36,4 @@ std::string MeanAndError::AsString() const {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

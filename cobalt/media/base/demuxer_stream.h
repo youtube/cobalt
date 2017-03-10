@@ -11,6 +11,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_rotation.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioDecoderConfig;
@@ -115,5 +116,6 @@ class MEDIA_EXPORT DemuxerStream {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DEMUXER_STREAM_H_

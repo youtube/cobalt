@@ -10,6 +10,7 @@
 #include "media/base/video_decoder_config.h"
 #include "media/formats/mp2t/mp2t_common.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -222,3 +223,4 @@ void EsAdapterVideo::ReplaceDiscardedFrames(
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

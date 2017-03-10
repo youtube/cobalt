@@ -23,6 +23,7 @@
 using ::testing::_;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 // Utility mock for testing methods expecting Closures and PipelineStatusCBs.
@@ -261,3 +262,4 @@ bool VerifyFakeVideoBufferForTest(const scoped_refptr<DecoderBuffer>& buffer,
 }
 
 }  // namespace media
+}  // namespace cobalt

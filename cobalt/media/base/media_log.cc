@@ -10,6 +10,7 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 
+namespace cobalt {
 namespace media {
 
 // A count of all MediaLogs created in the current process. Used to generate
@@ -288,3 +289,4 @@ LogHelper::LogHelper(MediaLog::MediaLogLevel level,
 LogHelper::~LogHelper() { media_log_->AddLogEvent(level_, stream_.str()); }
 
 }  // namespace media
+}  // namespace cobalt

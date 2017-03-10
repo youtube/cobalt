@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 #ifdef DISABLE_USER_INPUT_MONITOR
@@ -71,3 +72,4 @@ void UserInputMonitor::DisableKeyPressMonitoring() {
 }
 
 }  // namespace media
+}  // namespace cobalt

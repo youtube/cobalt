@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/decoder_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
@@ -163,3 +164,4 @@ void DecoderBuffer::set_timestamp(base::TimeDelta timestamp) {
 }
 
 }  // namespace media
+}  // namespace cobalt

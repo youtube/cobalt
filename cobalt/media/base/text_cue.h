@@ -12,6 +12,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // A text buffer to carry the components of a text track cue.
@@ -42,5 +43,6 @@ class MEDIA_EXPORT TextCue : public base::RefCountedThreadSafe<TextCue> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEXT_CUE_H_

@@ -18,6 +18,7 @@
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 class ReadCBHandler {
@@ -84,3 +85,4 @@ TEST(FileDataSourceTest, ReadData) {
 }
 
 }  // namespace media
+}  // namespace cobalt

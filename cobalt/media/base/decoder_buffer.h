@@ -24,6 +24,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 // A specialized buffer for interfacing with audio / video decoders.
@@ -261,5 +262,6 @@ class MEDIA_EXPORT DecoderBuffer
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DECODER_BUFFER_H_

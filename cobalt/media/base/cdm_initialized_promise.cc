@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/cdm_initialized_promise.h"
 
+namespace cobalt {
 namespace media {
 
 CdmInitializedPromise::CdmInitializedPromise(
@@ -26,3 +27,4 @@ void CdmInitializedPromise::reject(MediaKeys::Exception exception_code,
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
@@ -75,5 +76,6 @@ class MEDIA_EXPORT DecoderBufferQueue {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DECODER_BUFFER_QUEUE_H_

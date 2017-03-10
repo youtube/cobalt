@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -48,5 +49,6 @@ class MEDIA_EXPORT SampleToGroupIterator {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_SAMPLE_TO_GROUP_ITERATOR_H_

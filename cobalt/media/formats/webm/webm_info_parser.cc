@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 // Default timecode scale if the TimecodeScale element is
@@ -94,3 +95,4 @@ bool WebMInfoParser::OnBinary(int id, const uint8_t* data, int size) {
 bool WebMInfoParser::OnString(int id, const std::string& str) { return true; }
 
 }  // namespace media
+}  // namespace cobalt

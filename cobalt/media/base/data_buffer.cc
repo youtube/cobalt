@@ -6,6 +6,7 @@
 
 #include <utility>
 
+namespace cobalt {
 namespace media {
 
 DataBuffer::DataBuffer(int buffer_size)
@@ -48,3 +49,4 @@ scoped_refptr<DataBuffer> DataBuffer::CreateEOSBuffer() {
   return make_scoped_refptr(new DataBuffer(NULL, 0));
 }
 }  // namespace media
+}  // namespace cobalt

@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/fake_audio_render_callback.h"
 
+namespace cobalt {
 namespace media {
 
 FakeAudioRenderCallback::FakeAudioRenderCallback(double step)
@@ -61,3 +62,4 @@ int FakeAudioRenderCallback::RenderInternal(AudioBus* audio_bus,
 }
 
 }  // namespace media
+}  // namespace cobalt

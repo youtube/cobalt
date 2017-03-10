@@ -17,6 +17,7 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 class H264SPSTest : public ::testing::Test {
@@ -154,3 +155,4 @@ TEST(H264ParserTest, StreamFileParsing) {
 }
 
 }  // namespace media
+}  // namespace cobalt

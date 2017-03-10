@@ -9,6 +9,7 @@
 
 #include "media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // These methods are exported for testing purposes only.  Library users should
@@ -23,5 +24,6 @@ MEDIA_EXPORT void FilterYUVRows_SSE2(uint8_t* ybuf, const uint8_t* y0_ptr,
                                      uint8_t source_y_fraction);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SIMD_FILTER_YUV_H_

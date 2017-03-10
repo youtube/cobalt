@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 
+namespace cobalt {
 namespace media {
 
 DecryptConfig::DecryptConfig(const std::string& key_id, const std::string& iv,
@@ -51,3 +52,4 @@ std::ostream& DecryptConfig::Print(std::ostream& os) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

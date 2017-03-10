@@ -13,6 +13,7 @@
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 namespace {
 
@@ -156,3 +157,4 @@ bool WebMCreateDecryptConfig(const uint8_t* data, int data_size,
 }
 
 }  // namespace media
+}  // namespace cobalt

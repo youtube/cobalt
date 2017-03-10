@@ -12,6 +12,7 @@
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Yet another FIFO for audio data that re-buffers audio to a desired buffer
@@ -70,5 +71,6 @@ class MEDIA_EXPORT AudioPushFifo final {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_PUSH_FIFO_H_

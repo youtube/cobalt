@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -173,3 +174,4 @@ const base::BinaryValue* VideoFrameMetadata::GetBinaryValue(Key key) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

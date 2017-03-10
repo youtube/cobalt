@@ -16,6 +16,7 @@ using ::testing::HasSubstr;
 using ::testing::InSequence;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 namespace mp4 {
@@ -290,3 +291,4 @@ TEST_F(AACTest, UnsupportedExFrequencyIndexTest) {
 }  // namespace mp4
 
 }  // namespace media
+}  // namespace cobalt

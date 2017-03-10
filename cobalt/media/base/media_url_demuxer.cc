@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 
+namespace cobalt {
 namespace media {
 
 MediaUrlDemuxer::MediaUrlDemuxer(
@@ -70,3 +71,4 @@ void MediaUrlDemuxer::OnSelectedVideoTrackChanged(
 }
 
 }  // namespace media
+}  // namespace cobalt

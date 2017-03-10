@@ -20,6 +20,7 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/filters/shell_parser.h"
 
+namespace cobalt {
 namespace media {
 
 // Typical size of an annexB prepend will be around 60 bytes. We make more room
@@ -74,5 +75,6 @@ class ShellAVCParser : public ShellParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_AVC_PARSER_H_

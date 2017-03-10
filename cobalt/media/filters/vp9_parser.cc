@@ -20,6 +20,7 @@
 #include "cobalt/media/filters/vp9_compressed_header_parser.h"
 #include "cobalt/media/filters/vp9_uncompressed_header_parser.h"
 
+namespace cobalt {
 namespace media {
 
 bool Vp9FrameHeader::IsKeyframe() const {
@@ -540,3 +541,4 @@ void Vp9Parser::UpdateSlots() {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 
+namespace cobalt {
 namespace media {
 class AudioDecoderConfig;
 class EncryptionScheme;
@@ -53,5 +54,6 @@ class WebMAudioClient : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_AUDIO_CLIENT_H_

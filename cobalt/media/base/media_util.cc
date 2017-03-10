@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/media_util.h"
 
+namespace cobalt {
 namespace media {
 
 std::vector<uint8_t> EmptyExtraData() { return std::vector<uint8_t>(); }
@@ -16,3 +17,4 @@ EncryptionScheme AesCtrEncryptionScheme() {
 }
 
 }  // namespace media
+}  // namespace cobalt

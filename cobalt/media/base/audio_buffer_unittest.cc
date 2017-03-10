@@ -12,6 +12,7 @@
 #include "cobalt/media/base/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kSampleRate = 4800;
@@ -373,3 +374,4 @@ TEST(AudioBufferTest, TrimRangePlanar) {
 TEST(AudioBufferTest, TrimRangeInterleaved) { TrimRangeTest(kSampleFormatF32); }
 
 }  // namespace media
+}  // namespace cobalt

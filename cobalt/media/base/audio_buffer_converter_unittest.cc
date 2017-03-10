@@ -14,6 +14,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Important: Use an odd buffer size here so SIMD issues are caught.
@@ -238,3 +239,4 @@ TEST_F(AudioBufferConverterTest, LargeBuffersResampling) {
 }
 
 }  // namespace media
+}  // namespace cobalt

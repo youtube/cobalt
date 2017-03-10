@@ -8,6 +8,7 @@
 #include "cobalt/media/filters/vp9_parser.h"
 #include "cobalt/media/filters/vp9_raw_bits_reader.h"
 
+namespace cobalt {
 namespace media {
 
 class Vp9UncompressedHeaderParser {
@@ -44,5 +45,6 @@ class Vp9UncompressedHeaderParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_VP9_UNCOMPRESSED_HEADER_PARSER_H_

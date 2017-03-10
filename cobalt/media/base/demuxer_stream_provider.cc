@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/demuxer_stream_provider.h"
 
+namespace cobalt {
 namespace media {
 
 DemuxerStreamProvider::DemuxerStreamProvider() {}
@@ -20,3 +21,4 @@ DemuxerStreamProvider::Type DemuxerStreamProvider::GetType() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

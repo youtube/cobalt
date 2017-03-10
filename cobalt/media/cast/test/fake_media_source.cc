@@ -68,6 +68,7 @@ int64_t TimeDeltaToPts(base::TimeDelta delta, const AVRational& time_base) {
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -602,3 +603,4 @@ AVCodecContext* FakeMediaSource::av_video_context() {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

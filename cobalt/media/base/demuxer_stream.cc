@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/demuxer_stream.h"
 
+namespace cobalt {
 namespace media {
 
 DemuxerStream::~DemuxerStream() {}
@@ -19,3 +20,4 @@ DemuxerStream::Liveness DemuxerStream::liveness() const {
 void DemuxerStream::EnableBitstreamConverter() {}
 
 }  // namespace media
+}  // namespace cobalt

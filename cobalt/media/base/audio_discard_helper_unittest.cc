@@ -15,6 +15,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static const float kDataStep = 0.01f;
@@ -546,3 +547,4 @@ TEST(AudioDiscardHelperTest, CompleteDiscardWithInitialDiscardDecoderDelay) {
 }
 
 }  // namespace media
+}  // namespace cobalt

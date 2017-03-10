@@ -14,6 +14,7 @@ namespace blink {
 class WebURLLoader;
 }
 
+namespace cobalt {
 namespace media {
 
 // Wraps an active WebURLLoader with some additional state.
@@ -40,5 +41,6 @@ class MEDIA_BLINK_EXPORT ActiveLoader {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_ACTIVE_LOADER_H_

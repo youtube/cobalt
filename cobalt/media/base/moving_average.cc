@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+namespace cobalt {
 namespace media {
 
 MovingAverage::MovingAverage(size_t depth)
@@ -51,3 +52,4 @@ void MovingAverage::Reset() {
 }
 
 }  // namespace media
+}  // namespace cobalt

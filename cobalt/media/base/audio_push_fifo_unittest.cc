@@ -14,6 +14,7 @@
 #include "cobalt/media/base/audio_push_fifo.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -245,3 +246,4 @@ INSTANTIATE_TEST_CASE_P(, AudioPushFifoTest,
 }  // namespace
 
 }  // namespace media
+}  // namespace cobalt

@@ -21,6 +21,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
@@ -149,5 +150,6 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_

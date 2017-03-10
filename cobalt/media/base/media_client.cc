@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 static MediaClient* g_media_client = NULL;
@@ -28,3 +29,4 @@ MediaClient::MediaClient() {}
 MediaClient::~MediaClient() {}
 
 }  // namespace media
+}  // namespace cobalt

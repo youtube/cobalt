@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/mock_demuxer_host.h"
 
+namespace cobalt {
 namespace media {
 
 MockDemuxerHost::MockDemuxerHost() {}
@@ -11,3 +12,4 @@ MockDemuxerHost::MockDemuxerHost() {}
 MockDemuxerHost::~MockDemuxerHost() {}
 
 }  // namespace media
+}  // namespace cobalt

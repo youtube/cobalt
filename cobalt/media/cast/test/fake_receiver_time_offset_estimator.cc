@@ -4,6 +4,7 @@
 
 #include "media/cast/test/fake_receiver_time_offset_estimator.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -34,3 +35,4 @@ bool FakeReceiverTimeOffsetEstimator::GetReceiverOffsetBounds(
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

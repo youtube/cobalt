@@ -7,6 +7,7 @@
 
 #include "net/base/ip_endpoint.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -19,5 +20,6 @@ net::IPEndPoint GetFreeLocalPort();
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_NET_UTILITY_H_
