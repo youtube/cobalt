@@ -18,6 +18,8 @@
 #include <android/native_activity.h>
 #include <android_native_app_glue.h>
 
+#include "starboard/android/shared/input_events_generator.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
@@ -71,6 +73,7 @@ class ApplicationAndroid
 
   // The single open window, if any.
   SbWindow window_;
+  scoped_ptr<InputEventsGenerator> input_events_generator_;
 
   bool exit_on_destroy_;
   int exit_error_level_;
