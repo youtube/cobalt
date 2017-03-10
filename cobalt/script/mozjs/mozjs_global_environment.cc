@@ -280,7 +280,9 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
 
 std::vector<StackFrame> MozjsGlobalEnvironment::GetStackTrace(int max_frames) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return util::GetStackTrace(context_, max_frames);
+  nb::RewindableVector<StackFrame> stack_frames;
+  util::GetStackTrace(context_, max_frames, &stack_frames);
+  return stack_frames.InternalData();
 }
 
 void MozjsGlobalEnvironment::PreventGarbageCollection(

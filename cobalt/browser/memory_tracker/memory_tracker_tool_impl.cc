@@ -1562,12 +1562,11 @@ const std::string* MemoryTrackerLeakFinder::TryGetJavascriptSymbol() {
   if (!js_stack_gen || !js_stack_gen->Valid()) return NULL;
 
   // Only get one symbol.
-  std::string symbol;
-  if (!js_stack_gen->GenerateStackTraceString(1, &symbol)) {
+  char buffer[256];
+  if (!js_stack_gen->GenerateStackTraceString(1, buffer, sizeof(buffer))) {
     return NULL;
   }
-  symbol = RemoveString(symbol, kNewLine);
-  const char* file_name = BaseNameFast(symbol.c_str());
+  const char* file_name = BaseNameFast(buffer);
   return &string_pool_.Intern(file_name);
 }
 

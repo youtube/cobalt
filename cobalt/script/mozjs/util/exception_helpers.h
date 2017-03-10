@@ -18,17 +18,23 @@
 #include <vector>
 
 #include "cobalt/script/stack_frame.h"
+#include "nb/rewindable_vector.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace util {
-std::string GetExceptionString(JSContext* context);
 
+std::string GetExceptionString(JSContext* context);
 std::string GetExceptionString(JSContext* context, JS::HandleValue exception);
 
-std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames);
+// Retrieves the current stack frame. Values are stored in the output vector.
+// RewindableVector<> will be unconditionally rewound and after this call will
+// contain the number of frames retrieved. The output size will be less than
+// or equal to max_frames.
+void GetStackTrace(JSContext* context, size_t max_frames,
+                   nb::RewindableVector<StackFrame>* output);
 }  // namespace util
 }  // namespace mozjs
 }  // namespace script

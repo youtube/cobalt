@@ -21,10 +21,14 @@
 #include <sstream>
 #include <vector>
 
+#include "base/logging.h"
+#include "base/stringprintf.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "cobalt/script/stack_frame.h"
 #include "nb/thread_local_object.h"
+#include "starboard/memory.h"
 #include "starboard/once.h"
+#include "starboard/string.h"
 #include "starboard/types.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
@@ -38,6 +42,12 @@ typedef nb::ThreadLocalObject<StackTraceGenerator> ThreadLocalJsStackTracer;
 
 SB_ONCE_INITIALIZE_FUNCTION(ThreadLocalJsStackTracer,
                             s_thread_local_js_stack_tracer_singelton);
+
+void ToStringAppend(const StackFrame& sf, std::string* out) {
+  base::SStringPrintf(out, "%s(%d,%d):%s", sf.source_url.c_str(),
+                      sf.line_number, sf.column_number,
+                      sf.function_name.c_str());
+}
 
 }  // namespace.
 
@@ -60,64 +70,66 @@ StackTraceGenerator::~StackTraceGenerator() {}
 
 bool StackTraceGenerator::Valid() { return js_context_ != NULL; }
 
-size_t StackTraceGenerator::GenerateStackTrace(int depth,
-                                               std::vector<StackFrame>* out) {
+bool StackTraceGenerator::GenerateStackTrace(
+    int depth, nb::RewindableVector<StackFrame>* out) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  out->rewindAll();
   if (!Valid()) {
-    return 0;
+    return false;
   }
-
-  *out = GetStackTrace(js_context_, depth);
-  return out->size();
+  GetStackTrace(js_context_, depth, out);
+  return !out->empty();
 }
 
-size_t StackTraceGenerator::GenerateStackTraceLines(
-    int depth, std::vector<std::string>* out) {
-  if (!Valid()) {
-    return 0;
+bool StackTraceGenerator::GenerateStackTraceLines(
+    int depth, nb::RewindableVector<std::string>* out) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  out->rewindAll();
+  nb::RewindableVector<StackFrame>& stack_frames = scratch_data_.stack_frames_;
+  if (!GenerateStackTrace(depth, &stack_frames)) {
+    return false;
   }
 
-  std::vector<StackFrame> stack_frame = GetStackTrace(js_context_, depth);
-  const size_t n = stack_frame.size();
-
-  if (n > out->size()) {
-    out->resize(n);
+  for (size_t i = 0; i < stack_frames.size(); ++i) {
+    std::string& current_string = out->grow(1);
+    current_string.assign("");  // Should not deallocate memory.
+    StackFrame& sf = stack_frames[i];
+    ToStringAppend(sf, &current_string);
   }
-
-  for (size_t i = 0; i < n; ++i) {
-    std::stringstream ss;
-
-    StackFrame& sf = stack_frame[i];
-    ss << sf.source_url << "(" << sf.line_number << "," << sf.column_number
-       << "):" << sf.function_name;
-    // Write the string out.
-    (*out)[i] = ss.str();
-  }
-  return n;
+  return true;
 }
 
 bool StackTraceGenerator::GenerateStackTraceString(int depth,
                                                    std::string* out) {
-  if (!Valid()) {
-    return 0;
-  }
+  DCHECK(thread_checker_.CalledOnValidThread());
+  out->assign("");  // Should not deallocate memory.
 
-  std::vector<StackFrame> stack_frame = GetStackTrace(js_context_, depth);
-  const size_t n = stack_frame.size();
-
-  if (n == 0) {
+  nb::RewindableVector<StackFrame>& stack_frames = scratch_data_.stack_frames_;
+  if (!GenerateStackTrace(depth, &stack_frames)) {
     return false;
   }
 
-  std::stringstream ss;
-  for (int i = static_cast<int>(n - 1); i >= 0; --i) {
-    cobalt::script::StackFrame& sf = stack_frame[static_cast<size_t>(i)];
-    for (size_t j = 0; j < i; ++j) {
-      ss << "  ";
+  for (size_t i = 0; i < stack_frames.size(); ++i) {
+    cobalt::script::StackFrame& sf = stack_frames[i];
+    ToStringAppend(sf, out);
+    if (i < stack_frames.size() - 1) {
+      base::SStringPrintf(out, "\n");
     }
-    ss << sf.source_url << "(" << sf.line_number << "," << sf.column_number
-       << "):" << sf.function_name << "\n";
   }
-  *out = ss.str();
+  return true;
+}
+
+bool StackTraceGenerator::GenerateStackTraceString(int depth, char* buff,
+                                                   size_t buff_size) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  SbMemorySet(buff, 0, buff_size);
+  std::string& scratch_symbol = scratch_data_.symbol_;
+
+  if (!GenerateStackTraceString(depth, &scratch_symbol)) {
+    return false;
+  }
+
+  SbStringCopy(buff, scratch_symbol.c_str(), buff_size);
   return true;
 }
 
