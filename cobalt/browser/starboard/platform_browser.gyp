@@ -25,6 +25,9 @@
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
       ],
+      'export_dependent_settings': [
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+      ],
     },
   ],
 }
