@@ -37,6 +37,7 @@ from bindings.scripts.code_generator_v8 import CodeGeneratorBase  # pylint: disa
 # that we can import the jinja2 in third_party.
 import jinja2  # pylint: disable=g-bad-import-order
 
+from bindings.scripts.idl_types import IdlSequenceType
 from bindings.scripts.idl_types import IdlType
 from cobalt.bindings import contexts
 from cobalt.bindings import path_generator
@@ -148,6 +149,10 @@ def get_interface_type_names_from_idl_types(idl_type_list):
       elif idl_type.is_union_type:
         for interface_name in get_interface_type_names_from_idl_types(
             idl_type.member_types):
+          yield interface_name
+      elif isinstance(idl_type, IdlSequenceType):
+        for interface_name in get_interface_type_names_from_idl_types(
+            [idl_type.element_type]):
           yield interface_name
 
 
