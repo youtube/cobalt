@@ -53,34 +53,30 @@ class VideoDecoder
   void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
+
+  // TODO: Remove this from the video decoder interface.
   void SetCurrentTime(SbMediaTime current_time) SB_OVERRIDE {
     current_time_ = ConvertSbMediaTimeToMicroseconds(current_time);
-    current_time_set_at_ = SbTimeGetNow();
   }
 
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
-  // Get |current_time_| accounting for the time that has elapsed since it was
-  // last set.
-  SbTime GetAdjustedCurrentTime() const {
-    return current_time_ + SbTimeGetNow() - current_time_set_at_;
-  }
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
  private:
-  enum EventType {
-    kInvalid,
-    kReset,
-    kWriteInputBuffer,
-    kWriteEndOfStream,
-  };
-
   struct Event {
-    EventType type;
+    enum Type {
+      kInvalid,
+      kReset,
+      kWriteInputBuffer,
+      kWriteEndOfStream,
+    };
+
+    Type type;
     // |input_buffer| is only used when |type| is kWriteInputBuffer.
     InputBuffer input_buffer;
 
-    explicit Event(EventType type = kInvalid) : type(type) {
+    explicit Event(Type type = kInvalid) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer);
     }
 
@@ -88,15 +84,39 @@ class VideoDecoder
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 
-  // Pending work can be either an input buffer or EOS flag to enqueue.
-  struct InputBufferOrEos {
-    struct CreateEos {};
-    InputBufferOrEos() = delete;
-    InputBufferOrEos(const CreateEos&) : is_eos(true) {}
-    InputBufferOrEos(const InputBuffer& input_buffer)
-        : input_buffer(input_buffer), is_eos(false) {}
-    InputBuffer input_buffer;
-    bool is_eos;
+  // A simple thread-safe queue for |Event|s, that supports polling based
+  // access only.
+  class EventQueue {
+   public:
+    Event PollFront() {
+      ScopedLock lock(mutex_);
+      if (!deque_.empty()) {
+        Event event = deque_.front();
+        deque_.pop_front();
+        return event;
+      }
+
+      return Event();
+    }
+
+    void PushBack(const Event& event) {
+      ScopedLock lock(mutex_);
+      deque_.push_back(event);
+    }
+
+    void Clear() {
+      ScopedLock lock(mutex_);
+      deque_.clear();
+    }
+
+   private:
+    ::starboard::Mutex mutex_;
+    std::deque<Event> deque_;
+  };
+
+  struct OutputBufferHandle {
+    jint index;
+    SbTime pts_microseconds;
   };
 
   static void* ThreadEntryPoint(void* context);
@@ -107,22 +127,24 @@ class VideoDecoder
   bool InitializeCodec();
   void TeardownCodec();
 
-  // Attempt to enqueue the front of |pending_work_| into a MediaCodec input
+  // Attempt to enqueue the front of |pending_work| into a MediaCodec input
   // buffer.  Returns true if a buffer was queued.
-  bool ProcessOneInputBuffer();
-  // Attempt to dequeue a media codec output buffer.  Returns whether a buffer
-  // was dequeued.
-  bool ProcessOneOutputBuffer();
+  bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
+  // Attempt to dequeue a media codec output buffer into
+  // |output_buffer_handles|.  Returns whether a buffer was dequeued.
+  bool ProcessOneOutputBuffer(
+      std::deque<OutputBufferHandle>* output_buffer_handles);
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
   Host* host_;
 
-  Queue<Event> event_queue_;
+  // Events are processed in a queue, except for when handling events of type
+  // |kReset|, which are allowed to cut to the front.
+  EventQueue event_queue_;
 
   bool stream_ended_;
-  bool error_occured_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   SbThread decoder_thread_;
@@ -131,8 +153,6 @@ class VideoDecoder
 
   SbTime current_time_;
   SbTime current_time_set_at_;
-
-  std::deque<InputBufferOrEos> pending_work_;
 
   SbPlayerOutputMode output_mode_;
 
