@@ -24,6 +24,8 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/bindings/testing/arbitrary_interface.h"
+#include "cobalt/bindings/testing/mozjs_arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
@@ -47,6 +49,8 @@
 namespace {
 using cobalt::bindings::testing::SequenceUser;
 using cobalt::bindings::testing::MozjsSequenceUser;
+using cobalt::bindings::testing::ArbitraryInterface;
+using cobalt::bindings::testing::MozjsArbitraryInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
