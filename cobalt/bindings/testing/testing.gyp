@@ -125,9 +125,13 @@
       ],
       'defines': [ '<@(bindings_defines)'],
       'dependencies': [
+        'generated_dictionaries',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+      'export_dependent_settings': [
+        'generated_dictionaries',
       ],
     },
     {
