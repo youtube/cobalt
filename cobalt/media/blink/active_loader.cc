@@ -8,6 +8,7 @@
 
 #include "third_party/WebKit/public/platform/WebURLLoader.h"
 
+namespace cobalt {
 namespace media {
 
 ActiveLoader::ActiveLoader(std::unique_ptr<blink::WebURLLoader> loader)
@@ -21,3 +22,4 @@ void ActiveLoader::SetDeferred(bool deferred) {
 }
 
 }  // namespace media
+}  // namespace cobalt

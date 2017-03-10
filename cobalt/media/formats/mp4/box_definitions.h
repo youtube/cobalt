@@ -21,6 +21,7 @@
 #include "cobalt/media/formats/mp4/box_reader.h"
 #include "cobalt/media/formats/mp4/fourccs.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -478,5 +479,6 @@ struct MEDIA_EXPORT MovieFragment : Box {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_

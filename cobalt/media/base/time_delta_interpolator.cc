@@ -12,6 +12,7 @@
 #include "base/tick_clock.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 TimeDeltaInterpolator::TimeDeltaInterpolator(base::TickClock* tick_clock)
@@ -77,3 +78,4 @@ base::TimeDelta TimeDeltaInterpolator::GetInterpolatedTime() {
 }
 
 }  // namespace media
+}  // namespace cobalt

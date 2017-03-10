@@ -11,6 +11,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class BitReader;
@@ -60,5 +61,6 @@ class MEDIA_EXPORT ESDescriptor {
 }  // namespace mp4
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_ES_DESCRIPTOR_H_

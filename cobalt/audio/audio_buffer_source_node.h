@@ -20,7 +20,11 @@
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/base/tokens.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/shell_audio_bus.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/shell_audio_bus.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace audio {
@@ -30,7 +34,11 @@ namespace audio {
 // degree of scheduling flexibility (can playback in rhythmically perfect ways).
 //   https://www.w3.org/TR/webaudio/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioNode {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  typedef media::ShellAudioBus ShellAudioBus;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   typedef ::media::ShellAudioBus ShellAudioBus;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
  public:
   explicit AudioBufferSourceNode(AudioContext* context);

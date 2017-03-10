@@ -6,6 +6,7 @@
 
 #include "cobalt/media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 
 VideoDecoder::VideoDecoder() {}
@@ -19,3 +20,4 @@ bool VideoDecoder::CanReadWithoutStalling() const { return true; }
 int VideoDecoder::GetMaxDecodeRequests() const { return 1; }
 
 }  // namespace media
+}  // namespace cobalt

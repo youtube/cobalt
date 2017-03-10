@@ -15,6 +15,7 @@
 #include "base/time/time.h"
 #include "media/cast/common/frame_id.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -54,5 +55,6 @@ CongestionControl* NewFixedCongestionControl(int bitrate);
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_CONGESTION_CONTROL_H_

@@ -15,6 +15,7 @@
 #include "cobalt/media/base/mime_util.h"
 #include "cobalt/media/base/video_codecs.h"
 
+namespace cobalt {
 namespace media {
 namespace internal {
 
@@ -174,5 +175,6 @@ class MEDIA_EXPORT MimeUtil {
 
 }  // namespace internal
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MIME_UTIL_INTERNAL_H_

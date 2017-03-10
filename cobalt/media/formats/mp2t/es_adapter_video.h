@@ -18,6 +18,7 @@
 #include "media/base/media_export.h"
 #include "media/base/stream_parser_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 class VideoDecoderConfig;
@@ -101,5 +102,6 @@ class MEDIA_EXPORT EsAdapterVideo {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_ES_ADAPTER_VIDEO_H_

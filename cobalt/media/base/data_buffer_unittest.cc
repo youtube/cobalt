@@ -12,6 +12,7 @@
 #include "base/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(DataBufferTest, Constructor_ZeroSize) {
@@ -128,3 +129,4 @@ TEST(DataBufferTest, ReadingWriting) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -20,6 +20,7 @@
 #include "third_party/WebKit/public/platform/WebMediaPlayer.h"
 #include "third_party/WebKit/public/platform/WebSourceBufferClient.h"
 
+namespace cobalt {
 namespace media {
 
 static base::TimeDelta DoubleToTimeDelta(double time) {
@@ -194,3 +195,4 @@ void WebSourceBufferImpl::InitSegmentReceived(
 }
 
 }  // namespace media
+}  // namespace cobalt

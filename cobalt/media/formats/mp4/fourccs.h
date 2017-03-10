@@ -7,6 +7,7 @@
 
 #include <string>
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -122,5 +123,6 @@ const inline std::string FourCCToString(FourCC fourcc) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_FOURCCS_H_

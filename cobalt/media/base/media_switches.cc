@@ -125,6 +125,7 @@ const char kMSEVideoBufferSizeLimit[] = "mse-video-buffer-size-limit";
 
 }  // namespace switches
 
+namespace cobalt {
 namespace media {
 
 #if defined(OS_WIN)
@@ -174,3 +175,4 @@ const base::Feature kExternalClearKeyForTesting{
     "external-clear-key-for-testing", base::FEATURE_DISABLED_BY_DEFAULT};
 
 }  // namespace media
+}  // namespace cobalt

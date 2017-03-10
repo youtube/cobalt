@@ -8,6 +8,7 @@
 #include "cobalt/media/blink/cdm_result_promise_helper.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 static blink::WebContentDecryptionModuleResult::SessionStatus ConvertStatus(
@@ -67,3 +68,4 @@ void NewSessionCdmResultPromise::reject(MediaKeys::Exception exception_code,
 }
 
 }  // namespace media
+}  // namespace cobalt

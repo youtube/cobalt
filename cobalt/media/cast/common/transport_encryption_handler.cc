@@ -11,6 +11,7 @@
 #include "crypto/symmetric_key.h"
 #include "media/cast/net/cast_transport_defines.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -99,3 +100,4 @@ bool TransportEncryptionHandler::Decrypt(FrameId frame_id,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

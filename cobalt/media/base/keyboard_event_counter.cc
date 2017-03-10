@@ -7,6 +7,7 @@
 #include "base/atomicops.h"
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 KeyboardEventCounter::KeyboardEventCounter() : total_key_presses_(0) {}
@@ -39,3 +40,4 @@ size_t KeyboardEventCounter::GetKeyPressCount() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

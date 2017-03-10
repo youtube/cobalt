@@ -12,6 +12,7 @@
 #include "cobalt/media/formats/mp4/box_definitions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class H264ToAnnexBBitstreamConverterTest : public testing::Test {
@@ -471,3 +472,4 @@ TEST_F(H264ToAnnexBBitstreamConverterTest, CorruptedPacket) {
 }
 
 }  // namespace media
+}  // namespace cobalt

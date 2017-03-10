@@ -5,6 +5,7 @@
 #include "base/stl_util.h"
 #include "cobalt/media/base/cdm_key_information.h"
 
+namespace cobalt {
 namespace media {
 
 CdmKeyInformation::CdmKeyInformation()
@@ -31,3 +32,4 @@ CdmKeyInformation::CdmKeyInformation(const CdmKeyInformation& other) = default;
 CdmKeyInformation::~CdmKeyInformation() {}
 
 }  // namespace media
+}  // namespace cobalt

@@ -18,6 +18,7 @@
 #include "cobalt/media/formats/mp4/box_definitions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -442,3 +443,4 @@ TEST_F(AVCConversionTest, InsertParamSetsAnnexB) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

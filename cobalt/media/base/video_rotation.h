@@ -5,6 +5,7 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_ROTATION_H_
 #define COBALT_MEDIA_BASE_VIDEO_ROTATION_H_
 
+namespace cobalt {
 namespace media {
 
 // Enumeration to represent 90 degree video rotation for MP4 videos
@@ -18,5 +19,6 @@ enum VideoRotation {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_ROTATION_H_

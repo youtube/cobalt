@@ -16,6 +16,7 @@
 
 #ifndef OFFICIAL_BUILD
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -81,5 +82,6 @@ void FakeSoftwareVideoEncoder::GenerateKeyFrame() { next_frame_is_key_ = true; }
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif

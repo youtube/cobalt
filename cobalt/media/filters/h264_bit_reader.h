@@ -14,6 +14,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // A class to provide bit-granularity reading of H.264 streams.
@@ -77,5 +78,6 @@ class MEDIA_EXPORT H264BitReader {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_H264_BIT_READER_H_

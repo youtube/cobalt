@@ -17,6 +17,7 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 
 const char DecryptingVideoDecoder::kDecoderName[] = "DecryptingVideoDecoder";
@@ -309,3 +310,4 @@ void DecryptingVideoDecoder::DoReset() {
 }
 
 }  // namespace media
+}  // namespace cobalt

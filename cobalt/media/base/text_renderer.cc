@@ -18,6 +18,7 @@
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/text_cue.h"
 
+namespace cobalt {
 namespace media {
 
 TextRenderer::TextRenderer(
@@ -309,3 +310,4 @@ TextRenderer::TextTrackState::TextTrackState(std::unique_ptr<TextTrack> tt)
 TextRenderer::TextTrackState::~TextTrackState() {}
 
 }  // namespace media
+}  // namespace cobalt

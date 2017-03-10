@@ -4,6 +4,7 @@
 
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 const char kWebMCodecSubtitles[] = "D_WEBVTT/SUBTITLES";
@@ -12,3 +13,4 @@ const char kWebMCodecDescriptions[] = "D_WEBVTT/DESCRIPTIONS";
 const char kWebMCodecMetadata[] = "D_WEBVTT/METADATA";
 
 }  // namespace media
+}  // namespace cobalt

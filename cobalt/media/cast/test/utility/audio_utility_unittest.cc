@@ -8,6 +8,7 @@
 #include "media/cast/test/utility/audio_utility.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -46,3 +47,4 @@ TEST(AudioTimestampTest, CheckPhase) {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -30,6 +30,7 @@
 struct AVCodecContext;
 struct AVFormatContext;
 
+namespace cobalt {
 namespace media {
 
 class AudioBus;
@@ -172,5 +173,6 @@ class FakeMediaSource : public media::AudioConverter::InputCallback {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_

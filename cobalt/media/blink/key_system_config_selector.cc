@@ -23,6 +23,7 @@
 #include "third_party/WebKit/public/platform/WebString.h"
 #include "third_party/WebKit/public/platform/WebVector.h"
 
+namespace cobalt {
 namespace media {
 
 using EmeFeatureRequirement =
@@ -918,3 +919,4 @@ void KeySystemConfigSelector::OnPermissionResult(
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -29,6 +29,7 @@
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/filters/shell_parser.h"
 
+namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
@@ -179,5 +180,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_

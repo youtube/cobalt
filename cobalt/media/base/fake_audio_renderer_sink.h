@@ -14,6 +14,7 @@
 #include "cobalt/media/base/audio_renderer_sink.h"
 #include "cobalt/media/base/output_device_info.h"
 
+namespace cobalt {
 namespace media {
 
 class FakeAudioRendererSink : public AudioRendererSink {
@@ -67,5 +68,6 @@ class FakeAudioRendererSink : public AudioRendererSink {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FAKE_AUDIO_RENDERER_SINK_H_

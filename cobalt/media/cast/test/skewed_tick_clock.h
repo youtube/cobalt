@@ -9,6 +9,7 @@
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -41,5 +42,6 @@ class SkewedTickClock : public base::TickClock {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_SKEWED_TICK_CLOCK_H_

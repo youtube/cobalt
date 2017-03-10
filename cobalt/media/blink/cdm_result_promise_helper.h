@@ -11,6 +11,7 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 
+namespace cobalt {
 namespace media {
 
 // A superset of media::MediaKeys::Exception for UMA reporting. These values
@@ -38,5 +39,6 @@ MEDIA_BLINK_EXPORT void ReportCdmResultUMA(const std::string& uma_name,
                                            CdmResultForUMA result);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_CDM_RESULT_PROMISE_HELPER_H_

@@ -32,6 +32,7 @@ using ::testing::HasSubstr;
 using ::testing::InSequence;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 typedef StreamParser::BufferQueue BufferQueue;
@@ -4848,3 +4849,4 @@ TEST_F(SourceBufferStreamTest, GetHighestPresentationTimestamp) {
 // times.
 
 }  // namespace media
+}  // namespace cobalt

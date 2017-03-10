@@ -32,6 +32,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 
+namespace cobalt {
 namespace media {
 
 // TODO: Add switch to disable caching
@@ -153,5 +154,6 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_STARBOARD_PLAYER_H_

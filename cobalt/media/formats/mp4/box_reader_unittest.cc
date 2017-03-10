@@ -19,6 +19,7 @@
 using ::testing::HasSubstr;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -325,3 +326,4 @@ TEST_F(BoxReaderTest, ReadAllChildrenWithInvalidChild) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

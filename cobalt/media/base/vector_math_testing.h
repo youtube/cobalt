@@ -10,6 +10,7 @@
 #include "build/build_config.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 namespace vector_math {
 
@@ -41,5 +42,6 @@ MEDIA_EXPORT std::pair<float, float> EWMAAndMaxPower_NEON(
 
 }  // namespace vector_math
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VECTOR_MATH_TESTING_H_

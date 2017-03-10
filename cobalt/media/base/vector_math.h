@@ -9,6 +9,7 @@
 
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 namespace vector_math {
 
@@ -38,5 +39,6 @@ MEDIA_EXPORT void Crossfade(const float src[], int len, float dest[]);
 
 }  // namespace vector_math
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VECTOR_MATH_H_

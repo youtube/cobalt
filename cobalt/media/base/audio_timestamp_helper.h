@@ -11,6 +11,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // Generates timestamps for a sequence of audio sample frames. This class should
@@ -79,5 +80,6 @@ class MEDIA_EXPORT AudioTimestampHelper {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_TIMESTAMP_HELPER_H_

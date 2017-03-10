@@ -6,6 +6,7 @@
 
 #include "cobalt/media/base/audio_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 AudioDecoder::AudioDecoder() {}
@@ -15,3 +16,4 @@ AudioDecoder::~AudioDecoder() {}
 bool AudioDecoder::NeedsBitstreamConversion() const { return false; }
 
 }  // namespace media
+}  // namespace cobalt

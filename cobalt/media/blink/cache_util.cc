@@ -23,6 +23,7 @@ using base::TimeDelta;
 using net::HttpVersion;
 using blink::WebURLResponse;
 
+namespace cobalt {
 namespace media {
 
 enum { kHttpOK = 200, kHttpPartialContent = 206 };
@@ -128,3 +129,4 @@ base::TimeDelta GetCacheValidUntil(const WebURLResponse& response) {
 }
 
 }  // namespace media
+}  // namespace cobalt

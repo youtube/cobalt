@@ -12,6 +12,7 @@
 #include "media/cast/sender/h264_vt_encoder.h"
 #endif
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -58,3 +59,4 @@ void VideoEncoder::EmitFrames() {}
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -17,6 +17,7 @@
 
 #include "base/basictypes.h"
 
+namespace cobalt {
 namespace media {
 
 // ISO 14496-10 describes a byte encoding format for NALUs (network abstraction
@@ -67,5 +68,6 @@ class ShellRBSPStream {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_RBSP_STREAM_H_

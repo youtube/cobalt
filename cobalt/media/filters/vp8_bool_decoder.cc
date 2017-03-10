@@ -47,6 +47,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "cobalt/media/filters/vp8_bool_decoder.h"
 
+namespace cobalt {
 namespace media {
 
 #define VP8_BD_VALUE_BIT \
@@ -196,3 +197,4 @@ inline bool Vp8BoolDecoder::OutOfBuffer() {
 }
 
 }  // namespace media
+}  // namespace cobalt

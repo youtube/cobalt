@@ -9,6 +9,7 @@
 
 #include "base/time.h"
 
+namespace cobalt {
 namespace media {
 
 // Utility class for maintaining an exponentially-decaying average of feedback
@@ -105,5 +106,6 @@ class FeedbackSignalAccumulator {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FEEDBACK_SIGNAL_ACCUMULATOR_H_

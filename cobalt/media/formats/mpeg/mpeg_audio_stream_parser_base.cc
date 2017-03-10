@@ -18,6 +18,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kMpegAudioTrackId = 1;
@@ -397,3 +398,4 @@ bool MPEGAudioStreamParserBase::SendBuffers(BufferQueue* buffers,
 }
 
 }  // namespace media
+}  // namespace cobalt

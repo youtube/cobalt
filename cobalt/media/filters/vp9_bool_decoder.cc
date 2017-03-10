@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/bit_reader.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -160,3 +161,4 @@ bool Vp9BoolDecoder::ConsumePaddingBits() {
 }
 
 }  // namespace media
+}  // namespace cobalt

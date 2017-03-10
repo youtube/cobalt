@@ -34,6 +34,7 @@
 #define EWMAAndMaxPower_FUNC EWMAAndMaxPower_C
 #endif
 
+namespace cobalt {
 namespace media {
 namespace vector_math {
 
@@ -285,3 +286,4 @@ std::pair<float, float> EWMAAndMaxPower_NEON(float initial_value,
 
 }  // namespace vector_math
 }  // namespace media
+}  // namespace cobalt

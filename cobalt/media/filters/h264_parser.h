@@ -24,6 +24,7 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 struct SubsampleEntry;
@@ -487,5 +488,6 @@ class MEDIA_EXPORT H264Parser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_H264_PARSER_H_

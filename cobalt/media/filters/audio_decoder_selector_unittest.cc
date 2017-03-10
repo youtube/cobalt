@@ -36,6 +36,7 @@ MATCHER(ClearConfig, "") { return !arg.is_encrypted(); }
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 
 class AudioDecoderSelectorTest : public ::testing::Test {
@@ -382,3 +383,4 @@ TEST_F(AudioDecoderSelectorTest, EncryptedStream_DecryptAndDecode) {
 }
 
 }  // namespace media
+}  // namespace cobalt

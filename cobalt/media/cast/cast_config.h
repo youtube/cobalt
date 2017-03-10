@@ -17,6 +17,7 @@
 #include "base/time/time.h"
 #include "media/cast/net/cast_transport_config.h"
 
+namespace cobalt {
 namespace media {
 class VideoEncodeAccelerator;
 
@@ -218,5 +219,6 @@ typedef base::Callback<void(size_t size,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_CAST_CONFIG_H_

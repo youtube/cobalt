@@ -31,7 +31,11 @@ namespace dom {
 //   https://www.w3.org/TR/html5/embedded-content-0.html#the-video-element
 class HTMLVideoElement : public HTMLMediaElement {
  public:
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  typedef media::ShellVideoFrameProvider ShellVideoFrameProvider;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   typedef ::media::ShellVideoFrameProvider ShellVideoFrameProvider;
+#endif  // defined(WebMediaPlayerDelegate)
 
   static const char kTagName[];
 

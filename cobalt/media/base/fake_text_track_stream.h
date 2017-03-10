@@ -15,6 +15,7 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 // Fake implementation of the DemuxerStream.  These are the stream objects
@@ -56,5 +57,6 @@ class FakeTextTrackStream : public DemuxerStream {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_

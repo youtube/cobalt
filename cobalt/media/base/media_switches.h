@@ -70,6 +70,7 @@ MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimit[];
 
 }  // namespace switches
 
+namespace cobalt {
 namespace media {
 
 // All features in alphabetical order. The features should be documented
@@ -91,5 +92,6 @@ MEDIA_EXPORT extern const base::Feature kVideoColorManagement;
 MEDIA_EXPORT extern const base::Feature kExternalClearKeyForTesting;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_SWITCHES_H_

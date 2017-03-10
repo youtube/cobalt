@@ -19,6 +19,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/filters/shell_parser.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -273,3 +274,4 @@ scoped_refptr<ShellAU> ShellAU::CreateVideoAU(
 }
 
 }  // namespace media
+}  // namespace cobalt

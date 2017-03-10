@@ -31,6 +31,7 @@
 #include "base/mac/scoped_cftyperef.h"
 #endif
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
@@ -512,5 +513,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_FRAME_H_

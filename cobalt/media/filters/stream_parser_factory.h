@@ -13,6 +13,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
 
+namespace cobalt {
 namespace media {
 
 class StreamParser;
@@ -37,5 +38,6 @@ class MEDIA_EXPORT StreamParserFactory {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_STREAM_PARSER_FACTORY_H_

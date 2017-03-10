@@ -13,6 +13,7 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "third_party/WebKit/public/platform/WebMediaSource.h"
 
+namespace cobalt {
 namespace media {
 class ChunkDemuxer;
 
@@ -40,5 +41,6 @@ class MEDIA_BLINK_EXPORT WebMediaSourceImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBMEDIASOURCE_IMPL_H_

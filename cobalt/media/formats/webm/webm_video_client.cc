@@ -7,6 +7,7 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 WebMVideoClient::WebMVideoClient(const scoped_refptr<MediaLog>& media_log)
@@ -166,3 +167,4 @@ bool WebMVideoClient::OnFloat(int id, double val) {
 }
 
 }  // namespace media
+}  // namespace cobalt

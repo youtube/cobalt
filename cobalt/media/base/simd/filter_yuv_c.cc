@@ -6,6 +6,7 @@
 
 #include "media/base/simd/filter_yuv.h"
 
+namespace cobalt {
 namespace media {
 
 void FilterYUVRows_C(uint8_t* ybuf, const uint8_t* y0_ptr,
@@ -39,3 +40,4 @@ void FilterYUVRows_C(uint8_t* ybuf, const uint8_t* y0_ptr,
 }
 
 }  // namespace media
+}  // namespace cobalt

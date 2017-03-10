@@ -6,6 +6,7 @@
 #include "base/macros.h"
 #include "media/cast/sender/vp8_quantizer_parser.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 

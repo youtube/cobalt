@@ -13,6 +13,7 @@ namespace base {
 class TimeDelta;
 }
 
+namespace cobalt {
 namespace media {
 
 // This class tries to determine if a file is a valid media file. The entire
@@ -35,5 +36,6 @@ class MEDIA_EXPORT MediaFileChecker {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_FILE_CHECKER_H_

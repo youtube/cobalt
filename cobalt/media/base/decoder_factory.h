@@ -14,6 +14,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class AudioDecoder;
@@ -44,5 +45,6 @@ class MEDIA_EXPORT DecoderFactory {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DECODER_FACTORY_H_

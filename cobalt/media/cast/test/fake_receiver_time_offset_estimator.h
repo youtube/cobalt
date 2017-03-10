@@ -11,6 +11,7 @@
 #include "media/cast/logging/logging_defines.h"
 #include "media/cast/logging/receiver_time_offset_estimator.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -39,5 +40,6 @@ class FakeReceiverTimeOffsetEstimator : public ReceiverTimeOffsetEstimator {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_FAKE_RECEIVER_TIME_OFFSET_ESTIMATOR_H_

@@ -8,6 +8,7 @@
 #include "base/time/time.h"
 #include "media/cast/net/cast_transport_config.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -48,5 +49,6 @@ struct SenderEncodedFrame : public EncodedFrame {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_SENDER_ENCODED_FRAME_H_

@@ -13,6 +13,7 @@
 
 class GURL;
 
+namespace cobalt {
 namespace media {
 
 // Callback used when CDM is created. |error_message| only used if
@@ -42,5 +43,6 @@ class MEDIA_EXPORT CdmFactory {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_FACTORY_H_

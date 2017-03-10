@@ -6,6 +6,7 @@
 
 #include "cobalt/media/base/stream_parser_buffer.h"
 
+namespace cobalt {
 namespace media {
 
 StreamParser::InitParameters::InitParameters(base::TimeDelta duration)
@@ -134,3 +135,4 @@ bool MergeBufferQueues(const StreamParser::BufferQueueMap& buffer_queue_map,
 }
 
 }  // namespace media
+}  // namespace cobalt

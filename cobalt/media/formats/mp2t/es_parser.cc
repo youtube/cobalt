@@ -7,6 +7,7 @@
 #include "media/base/timestamp_constants.h"
 #include "media/formats/common/offset_byte_queue.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -55,3 +56,4 @@ EsParser::TimingDesc EsParser::GetTimingDescriptor(int64_t es_byte_count) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

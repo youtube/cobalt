@@ -51,6 +51,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // A class to decode the VP8's boolean entropy coded stream. It's a variant of
@@ -131,5 +132,6 @@ class MEDIA_EXPORT Vp8BoolDecoder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_VP8_BOOL_DECODER_H_

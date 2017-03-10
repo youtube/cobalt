@@ -21,6 +21,7 @@
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleSession.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 class CdmSessionAdapter;
@@ -88,5 +89,6 @@ class WebContentDecryptionModuleSessionImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULESESSION_IMPL_H_

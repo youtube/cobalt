@@ -8,6 +8,7 @@
 #include "cobalt/media/base/audio_sample_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 template <typename TestConfig>
@@ -221,3 +222,4 @@ typedef ::testing::Types<
 INSTANTIATE_TYPED_TEST_CASE_P(CommonTypes, SampleTypeTraitsTest, TestConfigs);
 
 }  // namespace media
+}  // namespace cobalt

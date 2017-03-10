@@ -19,6 +19,7 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 
@@ -163,5 +164,6 @@ class MEDIA_BLINK_EXPORT VideoFrameCompositor
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_VIDEO_FRAME_COMPOSITOR_H_

@@ -26,6 +26,7 @@
 #include "cobalt/media/formats/webm/webm_parser.h"
 #include "cobalt/media/formats/webm/webm_video_client.h"
 
+namespace cobalt {
 namespace media {
 
 // Parser for WebM Tracks element.
@@ -141,5 +142,6 @@ class MEDIA_EXPORT WebMTracksParser : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_TRACKS_PARSER_H_

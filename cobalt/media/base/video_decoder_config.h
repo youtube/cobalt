@@ -22,6 +22,7 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 MEDIA_EXPORT VideoCodec
@@ -137,5 +138,6 @@ class MEDIA_EXPORT VideoDecoderConfig {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_DECODER_CONFIG_H_

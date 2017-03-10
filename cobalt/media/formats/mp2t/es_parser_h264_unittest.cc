@@ -21,6 +21,7 @@
 #include "media/formats/mp2t/es_parser_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 class VideoDecoderConfig;
 
@@ -255,3 +256,4 @@ TEST_F(EsParserH264Test, SeveralPesPerAccessUnit) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

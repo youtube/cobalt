@@ -40,6 +40,7 @@ using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 
 int64_t OnAdjustAllocatedMemory(int64_t delta) { return 0; }
@@ -716,3 +717,4 @@ TEST_F(WebMediaPlayerImplTest, AutoplayMuted_SetVolume) {
 }
 
 }  // namespace media
+}  // namespace cobalt

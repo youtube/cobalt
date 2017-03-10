@@ -21,6 +21,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
@@ -117,5 +118,6 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_

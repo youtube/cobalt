@@ -19,6 +19,7 @@
 
 using std::fill;
 
+namespace cobalt {
 namespace media {
 
 // Default test values.
@@ -378,3 +379,4 @@ INSTANTIATE_TEST_CASE_P(
             .HasExpectedResult(0.00031748f, 4.0f)));
 
 }  // namespace media
+}  // namespace cobalt

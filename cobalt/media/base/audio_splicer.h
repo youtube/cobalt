@@ -14,6 +14,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioBuffer;
@@ -124,5 +125,6 @@ class MEDIA_EXPORT AudioSplicer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_SPLICER_H_

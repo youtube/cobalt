@@ -22,6 +22,10 @@
 namespace cobalt {
 namespace media {
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
+#endif  // !defined(WebMediaPlayerDelegate)
+
 class MediaModuleStub : public MediaModule {
  public:
   MediaModuleStub() : MediaModule(math::Size(1920, 1080)) {}
@@ -29,7 +33,7 @@ class MediaModuleStub : public MediaModule {
   std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system) OVERRIDE;
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      ::media::WebMediaPlayerClient* client) OVERRIDE;
+      WebMediaPlayerClient* client) OVERRIDE;
 };
 
 }  // namespace media

@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/player_tracker.h"
 
+namespace cobalt {
 namespace media {
 
 PlayerTracker::PlayerTracker() {}
@@ -11,3 +12,4 @@ PlayerTracker::PlayerTracker() {}
 PlayerTracker::~PlayerTracker() {}
 
 }  // namespace media
+}  // namespace cobalt

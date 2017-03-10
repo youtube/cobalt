@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/text_cue.h"
 
+namespace cobalt {
 namespace media {
 
 TextCue::TextCue(const base::TimeDelta& timestamp,
@@ -18,3 +19,4 @@ TextCue::TextCue(const base::TimeDelta& timestamp,
 TextCue::~TextCue() {}
 
 }  // namespace media
+}  // namespace cobalt

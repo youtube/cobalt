@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 namespace mp4 {
@@ -146,5 +147,6 @@ class MEDIA_EXPORT H264ToAnnexBBitstreamConverter {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_H264_TO_ANNEX_B_BITSTREAM_CONVERTER_H_

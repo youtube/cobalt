@@ -15,6 +15,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 constexpr gfx::Size kSizeJustRight = gfx::Size(201, 201);
@@ -544,3 +545,4 @@ TEST_F(WatchTimeReporterTest, HysteresisPartialExitStillFinalizes) {
 }
 
 }  // namespace media
+}  // namespace cobalt

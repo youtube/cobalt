@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/limits.h"
 
+namespace cobalt {
 namespace media {
 
 AudioDecoderConfig::AudioDecoderConfig()
@@ -86,3 +87,4 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

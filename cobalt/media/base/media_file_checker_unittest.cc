@@ -13,6 +13,7 @@
 #include "cobalt/media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static void RunMediaFileChecker(const std::string& filename, bool expectation) {
@@ -39,3 +40,4 @@ TEST(MediaFileCheckerTest, MP3) { RunMediaFileChecker("sfx.mp3", true); }
 #endif
 
 }  // namespace media
+}  // namespace cobalt

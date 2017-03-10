@@ -19,6 +19,7 @@
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
+namespace cobalt {
 namespace media {
 
 // Test helper for verifying StreamParser behavior.
@@ -75,5 +76,6 @@ class StreamParserTestBase {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_COMMON_STREAM_PARSER_TEST_BASE_H_

@@ -20,6 +20,7 @@
 // StrictMock, in scope of the usage of this macro.
 #define EXPECT_MEDIA_LOG(x) EXPECT_CALL(*media_log_, DoAddEventLogString((x)))
 
+namespace cobalt {
 namespace media {
 
 class MockMediaLog : public MediaLog {
@@ -43,5 +44,6 @@ class MockMediaLog : public MediaLog {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MOCK_MEDIA_LOG_H_

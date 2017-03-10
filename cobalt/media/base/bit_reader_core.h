@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT BitReaderCore {
@@ -122,5 +123,6 @@ class MEDIA_EXPORT BitReaderCore {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_BIT_READER_CORE_H_

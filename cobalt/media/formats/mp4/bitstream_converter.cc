@@ -4,6 +4,7 @@
 
 #include "cobalt/media/formats/mp4/bitstream_converter.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -11,3 +12,4 @@ BitstreamConverter::~BitstreamConverter() {}
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

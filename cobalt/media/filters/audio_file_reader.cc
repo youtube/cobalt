@@ -14,6 +14,7 @@
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
 
+namespace cobalt {
 namespace media {
 
 // AAC(M4A) decoding specific constants.
@@ -294,3 +295,4 @@ const AVStream* AudioFileReader::GetAVStreamForTesting() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

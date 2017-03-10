@@ -13,6 +13,7 @@
 #include "media/cast/sender/audio_sender.h"
 #include "media/cast/sender/video_sender.h"
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 
@@ -66,5 +67,6 @@ class CastSenderImpl : public CastSender {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_CAST_SENDER_IMPL_H_

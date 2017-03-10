@@ -15,6 +15,7 @@
 // We keep the integers small to get lots of re-use of integers.
 const int kTestIntRange = 16;
 
+namespace cobalt {
 namespace media {
 
 class LRUTest;
@@ -232,3 +233,4 @@ TEST_F(LRUTest, RandomTest) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -14,6 +14,7 @@
 #include "base/string_piece.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioBus;
@@ -62,5 +63,6 @@ class MEDIA_EXPORT AudioHash {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_HASH_H_

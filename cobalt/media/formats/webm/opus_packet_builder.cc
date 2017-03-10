@@ -6,6 +6,7 @@
 #include "cobalt/media/formats/webm/opus_packet_builder.h"
 #include "cobalt/media/formats/webm/webm_cluster_parser.h"
 
+namespace cobalt {
 namespace media {
 
 OpusPacket::OpusPacket(uint8_t config, uint8_t frame_count, bool is_VBR) {
@@ -80,3 +81,4 @@ ScopedVector<OpusPacket> BuildAllOpusPackets() {
 }
 
 }  // namespace media
+}  // namespace cobalt

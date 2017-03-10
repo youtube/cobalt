@@ -33,14 +33,16 @@ namespace cobalt {
 namespace media {
 namespace sandbox {
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::VideoFrame VideoFrame;
+typedef ::media::WebMediaPlayer WebMediaPlayer;
+#endif  // !defined(WebMediaPlayerDelegate)
+
 // This class creates and manages a WebMediaPlayer internally.  It provides the
 // necessary WebMediaPlayerClient implementation and helper functions to
 // simplify the using of WebMediaPlayer.
 class WebMediaPlayerHelper {
  public:
-  typedef ::media::VideoFrame VideoFrame;
-  typedef ::media::WebMediaPlayer WebMediaPlayer;
-
   explicit WebMediaPlayerHelper(MediaModule* media_module);
   WebMediaPlayerHelper(MediaModule* media_module,
                        loader::FetcherFactory* fetcher_factory,

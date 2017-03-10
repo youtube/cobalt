@@ -17,6 +17,7 @@
 #include "media/cast/sender/performance_metrics_overlay.h"
 #include "media/cast/sender/video_encoder.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -328,3 +329,4 @@ void VideoSender::OnEncodedVideoFrame(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
