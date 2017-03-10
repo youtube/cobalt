@@ -188,27 +188,3 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-
-// static
-AudioDecoder* AudioDecoder::Create(const Parameters& parameters) {
-  ::starboard::android::shared::AudioDecoder* decoder =
-      new ::starboard::android::shared::AudioDecoder(parameters.audio_codec,
-                                                     parameters.audio_header);
-  if (!decoder->is_valid()) {
-    delete decoder;
-    return NULL;
-  }
-  return decoder;
-}
-
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard

@@ -58,18 +58,6 @@ class AudioDecoder {
   // audio renderer as the sample rate of the underlying audio stream can be
   // different than the sample rate stored in the meta data.
   virtual int GetSamplesPerSecond() const = 0;
-
-  // A parameter struct to pass into |Create|.
-  struct Parameters {
-    SbMediaAudioCodec audio_codec;
-    const SbMediaAudioHeader& audio_header;
-    SbDrmSystem drm_system;
-    JobQueue* job_queue;
-  };
-
-  // Individual implementation has to implement this function to create an
-  // audio decoder.
-  static AudioDecoder* Create(const Parameters& options);
 };
 
 }  // namespace filter

@@ -510,23 +510,6 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(const Parameters& parameters) {
-  ::starboard::android::shared::VideoDecoder* decoder =
-      new ::starboard::android::shared::VideoDecoder(
-          parameters.video_codec
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-          ,
-          parameters.output_mode, parameters.decode_target_provider
-#endif        // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-          );  // NOLINT(whitespace/parens)
-  if (!decoder->is_valid()) {
-    delete decoder;
-    return NULL;
-  }
-  return decoder;
-}
-
-// static
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
                                        SbDrmSystem drm_system) {

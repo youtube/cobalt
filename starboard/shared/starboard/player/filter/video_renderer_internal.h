@@ -47,11 +47,6 @@ class VideoRenderer : protected VideoDecoder::Host {
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
-  // Individual implementation has to implement this function to create a
-  // VideoRenderer.
-  static scoped_ptr<VideoRenderer> Create(
-      scoped_ptr<VideoDecoder> video_decoder);
 };
 
 }  // namespace filter
