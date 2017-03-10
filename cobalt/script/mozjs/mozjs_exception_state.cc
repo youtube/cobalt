@@ -71,28 +71,28 @@ void MozjsExceptionState::SetException(
   is_exception_set_ = true;
 }
 
-void MozjsExceptionState::SetSimpleException(
-    MessageTypeVar message_type, ...) {
+void MozjsExceptionState::SetSimpleExceptionWithArgs(MessageType message_type,
+                                                     int dummy, ...) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!is_exception_set_);
 
   va_list arguments;
-  va_start(arguments, message_type);
-  std::string error_message =
-      base::StringPrintV(GetExceptionMessageFormat(message_type.value),
-                         arguments);
+  va_start(arguments, dummy);
+
+  std::string error_message = base::StringPrintV(
+      GetExceptionMessageFormat(message_type), arguments);
   JSErrorFormatString format_string;
   format_string.format = error_message.c_str();
   // Already fed arguments for format.
   format_string.argCount = 0;
   format_string.exnType =
-      ConvertToMozjsExceptionType(GetSimpleExceptionType(message_type.value));
+      ConvertToMozjsExceptionType(GetSimpleExceptionType(message_type));
 
   // This function creates a JSErrorReport, populate it with an error message
   // obtained from the given JSErrorCallback. The resulting error message is
   // passed to the context's JSErrorReporter callback.
   JS_ReportErrorNumber(context_, GetErrorMessage,
-                       static_cast<void*>(&format_string), message_type.value);
+                       static_cast<void*>(&format_string), message_type);
   va_end(arguments);
 
   is_exception_set_ = true;
