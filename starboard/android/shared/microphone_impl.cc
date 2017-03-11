@@ -43,8 +43,11 @@ bool CheckReturnValue(SLresult result) {
 }
 
 int AudioOutputFramesPerBuffer() {
-  return static_cast<int>(JniEnvExt::Get()->CallActivityIntMethod(
+  JniEnvExt* env = JniEnvExt::Get();
+  int frames = static_cast<int>(env->CallActivityIntMethod(
       "audioOutputFramesPerBuffer", "()I"));
+  env->AbortOnException();
+  return frames;
 }
 
 }  // namespace

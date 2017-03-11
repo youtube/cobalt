@@ -73,6 +73,7 @@ SbSystemPlatformError SbSystemRaisePlatformError(
   jobject error_obj = env->CallActivityObjectMethod(
       "raisePlatformError", "(IJ)Lfoo/cobalt/PlatformError;", jni_error_type,
       reinterpret_cast<jlong>(error_handle));
+  env->AbortOnException();
   error_handle->error_obj = env->NewGlobalRef(error_obj);
 
   return error_handle;
@@ -81,6 +82,7 @@ SbSystemPlatformError SbSystemRaisePlatformError(
 void SbSystemClearPlatformError(SbSystemPlatformError handle) {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallObjectMethod(handle->error_obj, "clear", "()V");
+  env->AbortOnException();
 }
 
 extern "C" SB_EXPORT_PLATFORM void Java_foo_cobalt_PlatformError_onCleared(
