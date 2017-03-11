@@ -16,7 +16,7 @@
 #define COBALT_SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_
 
 #include "base/compiler_specific.h"
-#include "cobalt/system_window/keyboard_event.h"
+#include "cobalt/system_window/input_event.h"
 #include "cobalt/system_window/system_window.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
@@ -53,7 +53,7 @@ class SystemWindowStarboard : public SystemWindow {
 
  private:
   void UpdateModifiers(SbKey key, bool pressed);
-  KeyboardEvent::Modifiers GetModifiers();
+  InputEvent::Modifiers GetModifiers();
 
   SbWindow window_;
 

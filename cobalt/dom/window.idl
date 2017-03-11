@@ -39,6 +39,7 @@
   // Custom, not in any spec.
   //
   readonly attribute Console console;
+  readonly attribute Camera3D camera3D;
   [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
   [CallWith=EnvironmentSettings] void gc();
 };

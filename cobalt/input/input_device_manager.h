@@ -15,6 +15,7 @@
 #ifndef COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 #define COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 
+#include "cobalt/input/input_poller.h"
 #include "cobalt/input/key_event_handler.h"
 
 namespace cobalt {
@@ -39,8 +40,13 @@ class InputDeviceManager {
 
   virtual ~InputDeviceManager() {}
 
+  InputPoller* input_poller() { return input_poller_.get(); }
+
  protected:
   InputDeviceManager() {}
+
+  // Used for polling the input outside of InputDeviceManager.
+  scoped_ptr<InputPoller> input_poller_;
 };
 
 }  // namespace input
