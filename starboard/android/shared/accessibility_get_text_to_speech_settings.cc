@@ -27,10 +27,13 @@ bool SbAccessibilityGetTextToSpeechSettings(
     return false;
   }
 
+  JniEnvExt* env = JniEnvExt::Get();
+
   out_setting->has_text_to_speech_setting = true;
   out_setting->is_text_to_speech_enabled =
-      JniEnvExt::Get()->CallActivityBooleanMethod(
+      env->CallActivityBooleanMethod(
           "isAccessibilityScreenReaderEnabled", "()Z");
+  env->AbortOnException();
 
   return true;
 }

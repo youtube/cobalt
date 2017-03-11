@@ -281,10 +281,12 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
 
   jobjectArray args_array = (jobjectArray)env->CallActivityObjectMethod(
       "getArgs", "()[Ljava/lang/String;");
+  env->AbortOnException();
   jint argc = env->GetArrayLength(args_array);
 
   for (jint i = 0; i < argc; i++) {
     jstring element = (jstring)env->GetObjectArrayElement(args_array, i);
+    env->AbortOnException();
     const char* utf_chars = env->GetStringUTFChars(element, NULL);
     out_args->push_back(SbStringDuplicate(utf_chars));
     env->ReleaseStringUTFChars(element, utf_chars);
