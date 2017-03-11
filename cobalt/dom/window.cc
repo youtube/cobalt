@@ -22,6 +22,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/user_agent_style_sheet.h"
+#include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
@@ -118,6 +119,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
+      camera_3d_(new Camera3D()),
       ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
@@ -304,6 +306,8 @@ const scoped_refptr<Performance>& Window::performance() const {
 }
 
 const scoped_refptr<Console>& Window::console() const { return console_; }
+
+const scoped_refptr<Camera3D>& Window::camera_3d() const { return camera_3d_; }
 
 #if defined(ENABLE_TEST_RUNNER)
 const scoped_refptr<TestRunner>& Window::test_runner() const {
