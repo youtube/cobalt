@@ -49,6 +49,7 @@ void JniEnvExt::Initialize(ANativeActivity* native_activity) {
   jobject loader =
       env->CallObjectMethod(env->GetObjectClass(native_activity->clazz),
                             "getClassLoader", "()Ljava/lang/ClassLoader;");
+  env->AbortOnException();
   activity_class_loader_ = env->ConvertLocalRefToGlobalRef(loader);
 }
 
@@ -75,6 +76,7 @@ jclass JniEnvExt::FindClassExt(const char* name) {
   jobject clazz_obj =
       CallObjectMethod(activity_class_loader_, "loadClass",
                        "(Ljava/lang/String;)Ljava/lang/Class;", jname);
+  AbortOnException();
   DeleteLocalRef(jname);
   return static_cast<jclass>(clazz_obj);
 }

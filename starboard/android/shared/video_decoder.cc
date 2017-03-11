@@ -382,7 +382,9 @@ bool VideoDecoder::ProcessOneOutputBuffer(
 
 namespace {
 void updateTexImage(jobject surface_texture) {
-  JniEnvExt::Get()->CallVoidMethod(surface_texture, "updateTexImage", "()V");
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallVoidMethod(surface_texture, "updateTexImage", "()V");
+  env->AbortOnException();
 }
 
 void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
@@ -393,6 +395,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
 
   env->CallVoidMethod(surface_texture, "getTransformMatrix", "([F)V",
                       java_array);
+  env->AbortOnException();
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   SbMemoryCopy(matrix4x4, array_values, sizeof(float) * 16);
