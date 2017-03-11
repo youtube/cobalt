@@ -16,7 +16,8 @@
 
 #include <string>
 
-#include "cobalt/system_window/keyboard_event.h"
+#include "cobalt/input/input_poller_impl.h"
+#include "cobalt/system_window/input_event.h"
 
 namespace cobalt {
 namespace input {
@@ -26,13 +27,14 @@ InputDeviceManagerDesktop::InputDeviceManagerDesktop(
     system_window::SystemWindow* system_window)
     : system_window_(system_window),
       keyboard_event_callback_(
-          base::Bind(&InputDeviceManagerDesktop::HandleKeyboardEvent,
+          base::Bind(&InputDeviceManagerDesktop::HandleInputEvent,
                      base::Unretained(this))),
       keypress_generator_filter_(callback) {
+  input_poller_.reset(new InputPollerImpl());
   if (system_window_) {
     // Add this object's keyboard event callback to the system window.
     system_window_->event_dispatcher()->AddEventCallback(
-        system_window::KeyboardEvent::TypeId(), keyboard_event_callback_);
+        system_window::InputEvent::TypeId(), keyboard_event_callback_);
   }
 }
 
@@ -40,31 +42,36 @@ InputDeviceManagerDesktop::~InputDeviceManagerDesktop() {
   // If we have an associated system window, remove our callback from it.
   if (system_window_) {
     system_window_->event_dispatcher()->RemoveEventCallback(
-        system_window::KeyboardEvent::TypeId(), keyboard_event_callback_);
+        system_window::InputEvent::TypeId(), keyboard_event_callback_);
   }
 }
 
-void InputDeviceManagerDesktop::HandleKeyboardEvent(const base::Event* event) {
+void InputDeviceManagerDesktop::HandleInputEvent(const base::Event* event) {
   // The user has pressed a key on the keyboard.
-  const system_window::KeyboardEvent* key_event =
-      base::polymorphic_downcast<const system_window::KeyboardEvent*>(event);
-  const int key_code = key_event->key_code();
-  const uint32 modifiers = key_event->modifiers();
+  const system_window::InputEvent* input_event =
+      base::polymorphic_downcast<const system_window::InputEvent*>(event);
+  const int key_code = input_event->key_code();
+  const uint32 modifiers = input_event->modifiers();
 
-  dom::KeyboardEvent::KeyLocationCode location =
-      dom::KeyboardEvent::KeyCodeToKeyLocation(key_code);
-  DCHECK(key_event->type() == system_window::KeyboardEvent::kKeyDown ||
-         key_event->type() == system_window::KeyboardEvent::kKeyUp);
+  if (input_event->type() == system_window::InputEvent::kKeyDown ||
+      input_event->type() == system_window::InputEvent::kKeyUp) {
+    dom::KeyboardEvent::KeyLocationCode location =
+        dom::KeyboardEvent::KeyCodeToKeyLocation(key_code);
 
-  dom::KeyboardEvent::Type key_event_type =
-      key_event->type() == system_window::KeyboardEvent::kKeyDown
-          ? dom::KeyboardEvent::kTypeKeyDown
-          : dom::KeyboardEvent::kTypeKeyUp;
-  dom::KeyboardEvent::Data keyboard_event(key_event_type, location, modifiers,
-                                          key_code, key_code,
-                                          key_event->is_repeat());
+    dom::KeyboardEvent::Type key_event_type =
+        input_event->type() == system_window::InputEvent::kKeyDown
+            ? dom::KeyboardEvent::kTypeKeyDown
+            : dom::KeyboardEvent::kTypeKeyUp;
+    dom::KeyboardEvent::Data keyboard_event(key_event_type, location, modifiers,
+                                            key_code, key_code,
+                                            input_event->is_repeat());
 
-  keypress_generator_filter_.HandleKeyboardEvent(keyboard_event);
+    keypress_generator_filter_.HandleKeyboardEvent(keyboard_event);
+  }
+
+  InputPollerImpl* input_poller_impl =
+      static_cast<InputPollerImpl*>(input_poller_.get());
+  input_poller_impl->UpdateInputEvent(input_event);
 }
 
 }  // namespace input
