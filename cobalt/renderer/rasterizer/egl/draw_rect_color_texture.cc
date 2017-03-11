@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 
 #include <GLES2/gl2.h>
 
@@ -29,39 +29,43 @@ namespace {
 struct VertexAttributes {
   float position[3];
   float texcoord[2];
+  uint32_t color;
 };
 }  // namespace
 
-DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
+DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
-    const math::RectF& rect, const backend::TextureEGL* texture,
+    const math::RectF& rect, const render_tree::ColorRGBA& color,
+    const backend::TextureEGL* texture,
     const math::Matrix3F& texcoord_transform)
     : DrawObject(base_state),
       texcoord_transform_(texcoord_transform),
       rect_(rect),
       texture_(texture),
       vertex_buffer_(NULL) {
+  base_state_.opacity *= color.a();
+  color_ = GetGLRGBA(color.r(), color.g(), color.b(), base_state_.opacity);
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
-void DrawRectTexture::Execute(GraphicsState* graphics_state,
-                              ShaderProgramManager* program_manager,
-                              ExecutionStage stage) {
+void DrawRectColorTexture::Execute(GraphicsState* graphics_state,
+                                   ShaderProgramManager* program_manager,
+                                   ExecutionStage stage) {
   if (stage == kStageUpdateVertexBuffer) {
     VertexAttributes attributes[4] = {
       { { rect_.x(), rect_.bottom(), base_state_.depth },      // uv = (0,1)
         { texcoord_transform_(0, 1) + texcoord_transform_(0, 2),
-          texcoord_transform_(1, 1) + texcoord_transform_(1, 2) } },
+          texcoord_transform_(1, 1) + texcoord_transform_(1, 2) }, color_ },
       { { rect_.right(), rect_.bottom(), base_state_.depth },  // uv = (1,1)
         { texcoord_transform_(0, 0) + texcoord_transform_(0, 1) +
             texcoord_transform_(0, 2),
           texcoord_transform_(1, 0) + texcoord_transform_(1, 1) +
-            texcoord_transform_(1, 2) } },
+            texcoord_transform_(1, 2) }, color_ },
       { { rect_.right(), rect_.y(), base_state_.depth },       // uv = (1,0)
         { texcoord_transform_(0, 0) + texcoord_transform_(0, 2),
-          texcoord_transform_(1, 0) + texcoord_transform_(1, 2) } },
+          texcoord_transform_(1, 0) + texcoord_transform_(1, 2) }, color_ },
       { { rect_.x(), rect_.y(), base_state_.depth },           // uv = (0,0)
-        { texcoord_transform_(0, 2), texcoord_transform_(1, 2) } },
+        { texcoord_transform_(0, 2), texcoord_transform_(1, 2) }, color_ },
     };
     COMPILE_ASSERT(sizeof(attributes) == 4 * sizeof(VertexAttributes),
                    bad_padding);
@@ -69,8 +73,8 @@ void DrawRectTexture::Execute(GraphicsState* graphics_state,
         sizeof(attributes));
     SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
   } else if (stage == kStageRasterizeNormal) {
-    ShaderProgram<ShaderVertexTexcoord,
-                  ShaderFragmentTexcoord>* program;
+    ShaderProgram<ShaderVertexColorTexcoord,
+                  ShaderFragmentColorTexcoord>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     graphics_state->UpdateClipAdjustment(
@@ -84,6 +88,10 @@ void DrawRectTexture::Execute(GraphicsState* graphics_state,
         program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
         sizeof(VertexAttributes), vertex_buffer_ +
         offsetof(VertexAttributes, position));
+    graphics_state->VertexAttribPointer(
+        program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
+        sizeof(VertexAttributes), vertex_buffer_ +
+        offsetof(VertexAttributes, color));
     graphics_state->VertexAttribPointer(
         program->GetVertexShader().a_texcoord(), 2, GL_FLOAT, GL_FALSE,
         sizeof(VertexAttributes), vertex_buffer_ +

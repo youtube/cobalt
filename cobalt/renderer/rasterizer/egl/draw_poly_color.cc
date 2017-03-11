@@ -18,6 +18,7 @@
 
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace renderer {
@@ -45,8 +46,8 @@ void DrawPolyColor::Execute(GraphicsState* graphics_state,
   if (stage == kStageUpdateVertexBuffer) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_.size() * sizeof(VertexAttributes));
-    memcpy(vertex_buffer_, &attributes_[0],
-           attributes_.size() * sizeof(VertexAttributes));
+    SbMemoryCopy(vertex_buffer_, &attributes_[0],
+                 attributes_.size() * sizeof(VertexAttributes));
   } else if (stage == kStageRasterizeNormal) {
     ShaderProgram<ShaderVertexColor,
                   ShaderFragmentColor>* program;
