@@ -21,6 +21,7 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
@@ -38,6 +39,11 @@ math::Rect RoundRectFToInt(const math::RectF& input) {
   int top = static_cast<int>(input.y() + 0.5f);
   int bottom = static_cast<int>(input.bottom() + 0.5f);
   return math::Rect(left, top, right - left, bottom - top);
+}
+
+bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
+  return matrix(2, 0) == 0 && matrix(2, 1) == 0 && matrix(2, 2) == 1 &&
+         matrix(0, 1) == 0 && matrix(1, 0) == 0;
 }
 
 }  // namespace
@@ -92,8 +98,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       !data.blur_filter &&
       !data.map_to_mesh_filter) {
     const math::Matrix3F& transform = draw_state_.transform;
-    if (transform(2, 0) == 0 && transform(2, 1) == 0 && transform(2, 2) == 1 &&
-        transform(0, 1) == 0 && transform(1, 0) == 0) {
+    if (IsOnlyScaleAndTranslate(transform)) {
       // Transform local viewport to world viewport.
       const math::RectF& filter_viewport = data.viewport_filter->viewport();
       math::RectF transformed_viewport(
@@ -145,23 +150,39 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // GPU resource.
   skia_image->EnsureInitialized();
 
+  // Calculate matrix to transform texture coordinates according to the local
+  // transform.
+  math::Matrix3F texcoord_transform(math::Matrix3F::Identity());
+  if (IsOnlyScaleAndTranslate(data.local_transform)) {
+    texcoord_transform(0, 0) = data.local_transform(0, 0) != 0 ?
+        1.0f / data.local_transform(0, 0) : 0;
+    texcoord_transform(1, 1) = data.local_transform(1, 1) != 0 ?
+        1.0f / data.local_transform(1, 1) : 0;
+    texcoord_transform(0, 2) = -texcoord_transform(0, 0) *
+                               data.local_transform(0, 2);
+    texcoord_transform(1, 2) = -texcoord_transform(1, 1) *
+                               data.local_transform(1, 2);
+  } else {
+    texcoord_transform = data.local_transform.Inverse();
+  }
+
   // Different shaders are used depending on whether the image has a single
   // plane or multiple planes.
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
-    math::Matrix3F texcoord_transform =
-        data.local_transform.IsIdentity() ?
-            math::Matrix3F::Identity() :
-            data.local_transform.Inverse();
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
-
     if (hardware_image->IsOpaque() && draw_state_.opacity == 1.0f) {
       scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
           draw_state_, data.destination_rect,
           hardware_image->GetTextureEGL(), texcoord_transform));
       AddDrawObject(draw.Pass(), kDrawRectTexture);
     } else {
-      NOTIMPLEMENTED();
+      scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
+          draw_state_, data.destination_rect,
+          // Treat alpha as premultiplied in the texture.
+          render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, draw_state_.opacity),
+          hardware_image->GetTextureEGL(), texcoord_transform));
+      AddDrawObject(draw.Pass(), kDrawTransparent);
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
