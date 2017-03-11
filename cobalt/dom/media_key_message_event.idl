@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+enum MediaKeyMessageType {
+  "license-request",
+  "license-renewal",
+  "license-release",
+  "individualization-request"
+};
+
+[Constructor (DOMString type, optional MediaKeyMessageEventInit eventInitDict)]
+interface MediaKeyMessageEvent : Event {
+  readonly attribute MediaKeyMessageType messageType;
+  readonly attribute ArrayBuffer message;
+};
+*/
+
 interface MediaKeyMessageEvent : Event {
   readonly attribute DOMString keySystem;
   readonly attribute DOMString sessionId;
