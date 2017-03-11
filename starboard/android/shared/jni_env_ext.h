@@ -51,6 +51,7 @@ struct JniEnvExt : public JNIEnv {
   jmethodID GetObjectMethodID(jobject obj, const char* name, const char* sig) {
     jclass clazz = GetObjectClass(obj);
     jmethodID method_id = GetMethodID(clazz, name, sig);
+    AbortOnException();
     DeleteLocalRef(clazz);
     return method_id;
   }
@@ -67,7 +68,9 @@ struct JniEnvExt : public JNIEnv {
     va_start(argp, sig);
     jclass clazz = FindClassExt(class_name);
     jmethodID methodID = GetMethodID(clazz, "<init>", sig);
+    AbortOnException();
     jobject result = NewObjectV(clazz, methodID, argp);
+    AbortOnException();
     DeleteLocalRef(clazz);
     va_end(argp);
     return result;
@@ -154,6 +157,14 @@ struct JniEnvExt : public JNIEnv {
     jobject global = NewGlobalRef(local);
     DeleteLocalRef(local);
     return global;
+  }
+
+  void AbortOnException() {
+    if (!ExceptionCheck()) {
+      return;
+    }
+    ExceptionDescribe();
+    SbSystemBreakIntoDebugger();
   }
 };
 
