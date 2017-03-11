@@ -41,6 +41,8 @@
         'draw_object.cc',
         'draw_poly_color.h',
         'draw_poly_color.cc',
+        'draw_rect_color_texture.h',
+        'draw_rect_color_texture.cc',
         'draw_rect_texture.h',
         'draw_rect_texture.cc',
         'graphics_state.h',
