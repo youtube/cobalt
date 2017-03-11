@@ -27,10 +27,12 @@ bool SbAccessibilityGetDisplaySettings(
     return false;
   }
 
+  JniEnvExt* env = JniEnvExt::Get();
   out_setting->has_high_contrast_text_setting = true;
   out_setting->is_high_contrast_text_enabled =
-      JniEnvExt::Get()->CallActivityBooleanMethod(
+      env->CallActivityBooleanMethod(
           "isAccessibilityHighContrastTextEnabled", "()Z");
+  env->AbortOnException();
 
   return true;
 }

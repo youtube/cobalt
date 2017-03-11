@@ -25,4 +25,5 @@ void SbSpeechSynthesisSpeak(const char* text) {
 
   env->CallActivityVoidMethod("speechSynthesisSpeak", "(Ljava/lang/String;)V",
                               textString);
+  env->AbortOnException();
 }

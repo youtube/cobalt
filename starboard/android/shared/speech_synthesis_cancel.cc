@@ -22,4 +22,5 @@ void SbSpeechSynthesisCancel() {
   JniEnvExt* env = JniEnvExt::Get();
 
   env->CallActivityVoidMethod("speechSynthesisCancel", "()V");
+  env->AbortOnException();
 }

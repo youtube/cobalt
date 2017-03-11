@@ -20,8 +20,10 @@
 using starboard::android::shared::JniEnvExt;
 
 SbSystemConnectionType SbSystemGetConnectionType() {
-  jboolean isWireless = JniEnvExt::Get()->CallActivityBooleanMethod(
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean isWireless = env->CallActivityBooleanMethod(
       "isCurrentNetworkWireless", "()Z");
+  env->AbortOnException();
 
   if (isWireless) {
     return kSbSystemConnectionTypeWireless;
