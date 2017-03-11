@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SYSTEM_WINDOW_KEYBOARD_EVENT_H_
-#define COBALT_SYSTEM_WINDOW_KEYBOARD_EVENT_H_
+#ifndef COBALT_SYSTEM_WINDOW_INPUT_EVENT_H_
+#define COBALT_SYSTEM_WINDOW_INPUT_EVENT_H_
 
 #include "cobalt/base/event.h"
+#include "cobalt/math/point_f.h"
 
 namespace cobalt {
 namespace system_window {
 
-class KeyboardEvent : public base::Event {
+class InputEvent : public base::Event {
  public:
   enum Type {
     kKeyDown,
     kKeyUp,
+    kKeyMove,
   };
 
   // Bit-mask of key modifiers. These correspond to the |SbKeyModifiers| values
@@ -37,27 +39,31 @@ class KeyboardEvent : public base::Event {
     kShiftKey = 1 << 3,
   };
 
-  KeyboardEvent(Type type, int key_code, uint32 modifiers, bool is_repeat)
+  InputEvent(Type type, int key_code, uint32 modifiers, bool is_repeat,
+             const math::PointF& position = math::PointF())
       : type_(type),
         key_code_(key_code),
         modifiers_(modifiers),
-        is_repeat_(is_repeat) {}
+        is_repeat_(is_repeat),
+        position_(position) {}
 
   Type type() const { return type_; }
   int key_code() const { return key_code_; }
   uint32 modifiers() const { return modifiers_; }
   bool is_repeat() const { return is_repeat_; }
+  const math::PointF& position() const { return position_; }
 
-  BASE_EVENT_SUBCLASS(KeyboardEvent);
+  BASE_EVENT_SUBCLASS(InputEvent);
 
  private:
   Type type_;
   int key_code_;
   uint32 modifiers_;
   bool is_repeat_;
+  math::PointF position_;
 };
 
 }  // namespace system_window
 }  // namespace cobalt
 
-#endif  // COBALT_SYSTEM_WINDOW_KEYBOARD_EVENT_H_
+#endif  // COBALT_SYSTEM_WINDOW_INPUT_EVENT_H_
