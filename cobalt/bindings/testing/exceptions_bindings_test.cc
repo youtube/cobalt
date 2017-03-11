@@ -149,10 +149,10 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
 
 TEST_F(ExceptionsBindingsTest, GetExceptionMessageStringTest) {
   std::string error_message =
-      GetExceptionMessageString(script::kWrongByteLengthMultiple, 8);
+      GetExceptionMessageString(script::kWrongByteLengthMultiple, 0, 8);
   EXPECT_STREQ("Byte length should be a multiple of 8.", error_message.c_str());
   error_message =
-      GetExceptionMessageString(script::kWrongByteOffsetMultiple, 16);
+      GetExceptionMessageString(script::kWrongByteOffsetMultiple, 0, 16);
   EXPECT_STREQ("Byte offset should be a multiple of 16.",
                error_message.c_str());
 }
