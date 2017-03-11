@@ -138,11 +138,14 @@ class GraphicsState {
   bool depth_test_enabled_;
   bool depth_write_enabled_;
 
+  static const int kNumFramesBuffered = 3;
+  int frame_index_;
+
   static const size_t kVertexDataAlignment = 4;
   std::vector<uint8_t> vertex_data_buffer_;
   size_t vertex_data_reserved_;
   size_t vertex_data_allocated_;
-  GLuint vertex_data_buffer_handle_;
+  GLuint vertex_data_buffer_handle_[kNumFramesBuffered];
   bool vertex_data_buffer_updated_;
 };
 
