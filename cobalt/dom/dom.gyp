@@ -35,6 +35,8 @@
         'benchmark_stat_names.cc',
         'benchmark_stat_names.h',
         'blob.h',
+        'camera_3d.cc',
+        'camera_3d.h',
         'cdata_section.cc',
         'cdata_section.h',
         'character_data.cc',

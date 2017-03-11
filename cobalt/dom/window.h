@@ -58,6 +58,7 @@
 namespace cobalt {
 namespace dom {
 
+class Camera3D;
 class Console;
 class Document;
 class Element;
@@ -229,6 +230,8 @@ class Window : public EventTarget {
   //
   const scoped_refptr<Console>& console() const;
 
+  const scoped_refptr<Camera3D>& camera_3d() const;
+
 #if defined(ENABLE_TEST_RUNNER)
   const scoped_refptr<TestRunner>& test_runner() const;
 #endif  // ENABLE_TEST_RUNNER
@@ -277,6 +280,7 @@ class Window : public EventTarget {
   scoped_refptr<Navigator> navigator_;
   scoped_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
+  scoped_refptr<Camera3D> camera_3d_;
   scoped_ptr<WindowTimers> window_timers_;
   scoped_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
