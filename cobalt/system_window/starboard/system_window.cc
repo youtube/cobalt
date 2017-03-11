@@ -16,7 +16,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/event_dispatcher.h"
-#include "cobalt/system_window/keyboard_event.h"
+#include "cobalt/system_window/input_event.h"
 #include "cobalt/system_window/starboard/system_window.h"
 #include "starboard/system.h"
 
@@ -100,18 +100,24 @@ void SystemWindowStarboard::HandleInputEvent(const SbInputData& data) {
     // Starboard handily uses the Microsoft key mapping, which is also what
     // Cobalt uses.
     int key_code = static_cast<int>(data.key);
-    scoped_ptr<KeyboardEvent> keyboard_event(
-        new KeyboardEvent(KeyboardEvent::kKeyDown, key_code, data.key_modifiers,
-                          key_down_ /* is_repeat */));
+    scoped_ptr<InputEvent> input_event(
+        new InputEvent(InputEvent::kKeyDown, key_code, data.key_modifiers,
+                       key_down_ /* is_repeat */));
     key_down_ = true;
-    event_dispatcher()->DispatchEvent(keyboard_event.PassAs<base::Event>());
+    event_dispatcher()->DispatchEvent(input_event.PassAs<base::Event>());
   } else if (data.type == kSbInputEventTypeUnpress) {
     key_down_ = false;
     int key_code = static_cast<int>(data.key);
-    scoped_ptr<KeyboardEvent> keyboard_event(
-        new KeyboardEvent(KeyboardEvent::kKeyUp, key_code, data.key_modifiers,
-                          false /* is_repeat */));
-    event_dispatcher()->DispatchEvent(keyboard_event.PassAs<base::Event>());
+    scoped_ptr<InputEvent> input_event(
+        new InputEvent(InputEvent::kKeyUp, key_code, data.key_modifiers,
+                       false /* is_repeat */));
+    event_dispatcher()->DispatchEvent(input_event.PassAs<base::Event>());
+  } else if (data.type == kSbInputEventTypeMove) {
+    int key_code = static_cast<int>(data.key);
+    scoped_ptr<InputEvent> input_event(new InputEvent(
+        InputEvent::kKeyMove, key_code, data.key_modifiers,
+        false /* is_repeat */, math::PointF(data.position.x, data.position.y)));
+    event_dispatcher()->DispatchEvent(input_event.PassAs<base::Event>());
   }
 }
 

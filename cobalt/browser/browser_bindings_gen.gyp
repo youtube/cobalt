@@ -59,6 +59,7 @@
         '../dom/audio_track.idl',
         '../dom/audio_track_list.idl',
         '../dom/blob.idl',
+        '../dom/camera_3d.idl',
         '../dom/cdata_section.idl',
         '../dom/character_data.idl',
         '../dom/comment.idl',
