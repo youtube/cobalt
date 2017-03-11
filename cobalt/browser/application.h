@@ -16,6 +16,7 @@
 #define COBALT_BROWSER_APPLICATION_H_
 
 #include "base/callback.h"
+#include "base/command_line.h"
 #include "base/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/account/account_manager.h"
@@ -154,6 +155,8 @@ class Application {
 
   void UpdatePeriodicStats();
   void UpdatePeriodicLiteStats();
+
+  math::Size InitSystemWindow(CommandLine* command_line);
 
   static ssize_t available_memory_;
   static int64 lifetime_in_ms_;

@@ -29,6 +29,8 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
+        'memory_settings/memory_settings.cc',
+        'memory_settings/memory_settings.h',
         'memory_tracker/buffered_file_writer.cc',
         'memory_tracker/buffered_file_writer.h',
         'memory_tracker/memory_tracker_tool.cc',
@@ -168,6 +170,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'storage_upgrade_handler_test.cc',
+        'memory_settings/memory_settings_test.cc',
         'memory_tracker/memory_tracker_tool_test.cc',
       ],
       'dependencies': [
