@@ -29,6 +29,7 @@
         'opaque_root_tracker.cc',
         'proxy_handler.cc',
         'referenced_object_map.cc',
+        'util/algorithm_helpers.cc',
         'util/exception_helpers.cc',
         'weak_heap_object.cc',
         'weak_heap_object.h',

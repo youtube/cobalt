@@ -298,14 +298,27 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
-  ffmpeg::VideoDecoder* decoder = new ffmpeg::VideoDecoder(video_codec);
-  if (decoder->is_valid()) {
-    return decoder;
+VideoDecoder* VideoDecoder::Create(const Parameters& parameters) {
+  ffmpeg::VideoDecoder* decoder =
+      new ffmpeg::VideoDecoder(parameters.video_codec);
+  if (!decoder->is_valid()) {
+    delete decoder;
+    return NULL;
   }
-  delete decoder;
-  return NULL;
+  return decoder;
 }
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+// static
+bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
+                                       SbMediaVideoCodec codec,
+                                       SbDrmSystem drm_system) {
+  SB_UNREFERENCED_PARAMETER(codec);
+  SB_UNREFERENCED_PARAMETER(drm_system);
+
+  return output_mode == kSbPlayerOutputModePunchOut;
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 }  // namespace filter
 }  // namespace player

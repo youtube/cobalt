@@ -84,7 +84,7 @@ public:
         desc->setFontIndex(fIndex);
         *serialize = false;
     }
-    virtual SkStream* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
+    virtual SkStreamAsset* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
         *ttcIndex = fIndex;
         return SkStream::NewFromFile(fPathName.c_str());
     }
@@ -98,7 +98,7 @@ public:
 
 class SkTypeface_AndroidStream : public SkTypeface_Android {
 public:
-    SkTypeface_AndroidStream(SkStream* stream,
+    SkTypeface_AndroidStream(SkStreamAsset* stream,
                              int index,
                              Style style,
                              bool isFixedPitch,
@@ -115,13 +115,13 @@ public:
         *serialize = true;
     }
 
-    virtual SkStream* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
+    virtual SkStreamAsset* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
         *ttcIndex = fIndex;
         return fStream->duplicate();
     }
 
 private:
-    SkAutoTUnref<SkStream> fStream;
+    SkAutoTUnref<SkStreamAsset> fStream;
 
     typedef SkTypeface_Android INHERITED;
 };
@@ -427,11 +427,11 @@ static SkTypeface_AndroidSystem* find_family_style_character(
     }
 
     virtual SkTypeface* onCreateFromFile(const char path[], int ttcIndex) const SK_OVERRIDE {
-        SkAutoTUnref<SkStream> stream(SkStream::NewFromFile(path));
+        SkAutoTUnref<SkStreamAsset> stream(SkStream::NewFromFile(path));
         return stream.get() ? this->createFromStream(stream, ttcIndex) : NULL;
     }
 
-    virtual SkTypeface* onCreateFromStream(SkStream* stream, int ttcIndex) const SK_OVERRIDE {
+    virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream, int ttcIndex) const SK_OVERRIDE {
         bool isFixedPitch;
         SkTypeface::Style style;
         SkString name;

@@ -66,8 +66,7 @@ class FeedbackSignalAccumulator {
             std::max(value, update_value_);
         return true;
       }
-      if (value <= update_value_)
-        return true;
+      if (value <= update_value_) return true;
       update_value_ = value;
     } else {
       prior_average_ = average_;

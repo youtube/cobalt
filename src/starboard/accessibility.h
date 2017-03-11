@@ -48,6 +48,23 @@ typedef struct SbAccessibilityTextToSpeechSettings {
 SB_EXPORT bool SbAccessibilityGetTextToSpeechSettings(
     SbAccessibilityTextToSpeechSettings* out_settings);
 
+typedef struct SbAccessibilityDisplaySettings {
+  // Whether this platform has a system setting for high contrast text or not.
+  bool has_high_contrast_text_setting;
+
+  // Whether the high contrast text setting is enabled or not.
+  bool is_high_contrast_text_enabled;
+} SbAccessibilityDisplaySettings;
+
+// Get the platform settings related to high contrast text.
+// This function returns false if |out_settings| is NULL or if it is
+// not zero-initialized.
+//
+// |out_settings|: A pointer to a zero-initialized
+//    SbAccessibilityDisplaySettings* struct.
+SB_EXPORT bool SbAccessibilityGetDisplaySettings(
+    SbAccessibilityDisplaySettings* out_settings);
+
 #endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 
 #ifdef __cplusplus

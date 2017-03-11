@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 
@@ -273,9 +271,11 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
 void FontElementHandler(FontFileInfo* file, const char** attributes) {
   DCHECK(file != NULL);
 
-  // A <font> should have following attributes:
-  // weight (integer), style (normal, italic), font_name (string), and
-  // postscript_name (string).
+  // A <font> must have following attributes:
+  // weight (non-negative integer), style (normal, italic), font_name (string),
+  // and postscript_name (string).
+  // It may have the following attributes:
+  // index (non-negative integer)
   // The element should contain a filename.
 
   enum SeenAttributeFlags {
@@ -319,7 +319,12 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         }
         break;
       case 5:
-        if (strncmp("style", name, 5) == 0) {
+        if (strncmp("index", name, 5) == 0) {
+          if (!ParseNonNegativeInteger(value, &file->index)) {
+            DLOG(WARNING) << "Invalid font index [" << value << "]";
+            file->index = 0;
+          }
+        } else if (strncmp("style", name, 5) == 0) {
           if (strncmp("italic", value, 6) == 0) {
             file->style = FontFileInfo::kItalic_FontStyle;
             seen_attributes_flag |= kSeenStyle;

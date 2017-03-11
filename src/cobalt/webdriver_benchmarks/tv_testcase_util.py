@@ -9,8 +9,8 @@ import json
 import sys
 
 # pylint: disable=C6204
-import urlparse
 from urllib import urlencode
+import urlparse
 
 import container_util
 
@@ -82,7 +82,7 @@ def record_test_result(name, result):
   """Records an individual scalar result of a benchmark test.
 
   Args:
-    name: name of test case
+    name: string name of test case
     result: Test result. Must be JSON encodable scalar.
   """
   value_to_record = result
@@ -92,34 +92,96 @@ def record_test_result(name, result):
   sys.stdout.flush()
 
 
-def record_test_result_mean(name, results):
-  """Records the mean of an array of results.
+class RecordStrategyMean(object):
+  """"Records the mean of an array of values."""
 
-  Args:
-    name: name of test case
-    results: Test results array. Must be array of JSON encodable scalar.
-  """
-  record_test_result(name, container_util.mean(results))
+  def run(self, name, values):
+    """Records the mean of an array of values.
 
-
-def record_test_result_median(name, results):
-  """Records the median of an array of results.
-
-  Args:
-    name: name of test case
-    results: Test results array. Must be array of JSON encodable scalar.
-  """
-  record_test_result(name, container_util.percentile(results, 50))
+    Args:
+      name: string name of test case
+      values: must be array of JSON encodable scalar
+    """
+    record_test_result("{}Mean".format(name), container_util.mean(values))
 
 
-def record_test_result_percentile(name, results, percentile):
-  """Records the percentile of an array of results.
+class RecordStrategyMedian(object):
+  """"Records the median of an array of test results."""
 
-  Args:
-    name: The (string) name of test case.
-    results: Test results array. Must be array of JSON encodable scalars.
-    percentile: A number ranging from 0-100.
-  Raises:
-    RuntimeError: Raised on invalid args.
-  """
-  record_test_result(name, container_util.percentile(results, percentile))
+  def run(self, name, values):
+    """Records the median of an array of values.
+
+    Args:
+      name: string name of test case
+      values: must be array of JSON encodable scalar
+    """
+    record_test_result("{}Median".format(name),
+                       container_util.percentile(values, 50))
+
+
+class RecordStrategyPercentile(object):
+  """"Records the specified percentile of an array of test results."""
+
+  def __init__(self, percentile):
+    """Initializes the record strategy.
+
+    Args:
+      percentile: the percentile to record
+    """
+    self.percentile = percentile
+
+  def run(self, name, values):
+    """Records the percentile of an array of values.
+
+    Args:
+      name: string name of test case
+      values: must be array of JSON encodable scalar
+    Raises:
+      RuntimeError: Raised on invalid args.
+    """
+    record_test_result("{}Pct{}".format(name, self.percentile),
+                       container_util.percentile(values, self.percentile))
+
+
+class RecordStrategyPercentiles(object):
+  """"Records the 25th, 50th, 75th, and 95th percentiles of the values."""
+
+  def run(self, name, values):
+    """"Records the 25th, 50th, 75th, and 95th percentiles of the values.
+
+    Args:
+      name: string name of test case
+      values: must be array of JSON encodable scalar
+    Raises:
+      RuntimeError: Raised on invalid args.
+    """
+    RecordStrategyPercentile(25).run(name, values)
+    RecordStrategyPercentile(50).run(name, values)
+    RecordStrategyPercentile(75).run(name, values)
+    RecordStrategyPercentile(95).run(name, values)
+
+
+class ResultsRecorder(object):
+  """"Collects values and records results after a benchmark test ends."""
+
+  def __init__(self, name, record_strategies):
+    """Initializes the value recorder.
+
+    Args:
+      name: the name to use when recording test results
+      record_strategies: the strategies to use when the test ends
+    """
+    self.name = name
+    self.record_strategies = record_strategies
+    self.values = []
+
+  def collect_value(self, value):
+    self.values.append(value)
+
+  def on_end_test(self):
+    """Handles logic related to the end of the benchmark test."""
+
+    # Only run the strategies if values have been collected.
+    if self.values:
+      for record_strategy in self.record_strategies:
+        record_strategy.run(self.name, self.values)

@@ -56,8 +56,7 @@ class MEDIA_EXPORT VideoCapturerSource {
   // resolution/framerate to generate. |callback| is triggered when the formats
   // have been collected.
   virtual void GetCurrentSupportedFormats(
-      int max_requested_width,
-      int max_requested_height,
+      int max_requested_width, int max_requested_height,
       double max_requested_frame_rate,
       const VideoCaptureDeviceFormatsCB& callback) = 0;
 

@@ -1,18 +1,16 @@
-/*
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/mutation_reporter.h"
 
@@ -31,9 +29,11 @@ namespace {
 // types of mutations.
 class MutationRecordBuilder {
  public:
-  virtual bool IsInterested(const MutationObserverInit& options) = 0;
-  virtual scoped_refptr<MutationRecord> CreateMutationRecord(
-      const scoped_refptr<Node>& target) = 0;
+  // Create a mutation record if the observer is interested in the mutation
+  // according to |options|.
+  virtual scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
+      const scoped_refptr<Node>& target,
+      const MutationObserverInit& options) = 0;
 };
 
 // MutationRecordBuild for attribute mutations.
@@ -43,7 +43,23 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
                                  const base::optional<std::string>& old_value)
       : attribute_name_(attribute_name), old_value_(old_value) {}
 
-  bool IsInterested(const MutationObserverInit& options) OVERRIDE {
+  scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
+      const scoped_refptr<Node>& target,
+      const MutationObserverInit& options) OVERRIDE {
+    if (!IsInterested(options)) {
+      return NULL;
+    }
+
+    base::optional<std::string> old_value;
+    if (options.has_attribute_old_value() && options.attribute_old_value()) {
+      old_value = old_value_;
+    }
+    return MutationRecord::CreateAttributeMutationRecord(
+        target, attribute_name_, old_value);
+  }
+
+ private:
+  bool IsInterested(const MutationObserverInit& options) {
     // https://www.w3.org/TR/dom/#queue-a-mutation-record
     // 2. If type is "attributes" and options's attributes is not true,
     // continue.
@@ -66,13 +82,6 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
     return true;
   }
 
-  scoped_refptr<MutationRecord> CreateMutationRecord(
-      const scoped_refptr<Node>& target) OVERRIDE {
-    return MutationRecord::CreateAttributeMutationRecord(
-        target, attribute_name_, old_value_);
-  }
-
- private:
   std::string attribute_name_;
   base::optional<std::string> old_value_;
 };
@@ -84,16 +93,22 @@ class CharacterDataMutationRecordBuilder : public MutationRecordBuilder {
       const std::string& old_character_data)
       : old_character_data_(old_character_data) {}
 
-  bool IsInterested(const MutationObserverInit& options) OVERRIDE {
+  scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
+      const scoped_refptr<Node>& target,
+      const MutationObserverInit& options) OVERRIDE {
     // https://www.w3.org/TR/dom/#queue-a-mutation-record
     // 4. If type is "characterData" and options's characterData is not true,
     //    continue.
-    return options.has_character_data() && options.character_data();
-  }
-  scoped_refptr<MutationRecord> CreateMutationRecord(
-      const scoped_refptr<Node>& target) OVERRIDE {
-    return MutationRecord::CreateCharacterDataMutationRecord(
-        target, old_character_data_);
+    if (!(options.has_character_data() && options.character_data())) {
+      return NULL;
+    }
+
+    base::optional<std::string> old_value;
+    if (options.has_character_data_old_value() &&
+        options.character_data_old_value()) {
+      old_value = old_character_data_;
+    }
+    return MutationRecord::CreateCharacterDataMutationRecord(target, old_value);
   }
 
  private:
@@ -113,14 +128,14 @@ class ChildListMutationRecordBuilder : public MutationRecordBuilder {
         previous_sibling_(previous_sibling),
         next_sibling_(next_sibling) {}
 
-  bool IsInterested(const MutationObserverInit& options) OVERRIDE {
+  scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
+      const scoped_refptr<Node>& target,
+      const MutationObserverInit& options) OVERRIDE {
     // https://www.w3.org/TR/dom/#queue-a-mutation-record
     // 5. If type is "childList" and options's childList is false, continue.
-    return options.child_list();
-  }
-
-  scoped_refptr<MutationRecord> CreateMutationRecord(
-      const scoped_refptr<Node>& target) OVERRIDE {
+    if (!options.child_list()) {
+      return NULL;
+    }
     return MutationRecord::CreateChildListMutationRecord(
         target, added_nodes_, removed_nodes_, previous_sibling_, next_sibling_);
   }
@@ -156,13 +171,16 @@ void ReportToInterestedObservers(
     if (registered_observer.target() != target && !options.subtree()) {
       continue;
     }
-    // This observer doesn't care about this mutation, so skip it.
-    if (!record_builder->IsInterested(options)) {
-      continue;
+    // Queue a mutation record on the observer, if the observer is interested.
+    scoped_refptr<MutationRecord> record =
+        record_builder->MaybeCreateMutationRecord(target, options);
+    if (record) {
+      // These should be non-NULL.
+      DCHECK(record->added_nodes());
+      DCHECK(record->removed_nodes());
+      observer->QueueMutationRecord(record);
+      reported_observers.insert(observer);
     }
-    // Queue a mutation record on the observer.
-    observer->QueueMutationRecord(record_builder->CreateMutationRecord(target));
-    reported_observers.insert(observer);
   }
 }
 

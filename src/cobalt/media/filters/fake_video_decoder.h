@@ -39,17 +39,14 @@ class FakeVideoDecoder : public VideoDecoder {
   // Constructs an object with a decoding delay of |decoding_delay| frames.
   // |bytes_decoded_cb| is called after each decode. The sum of the byte
   // count over all calls will be equal to total_bytes_decoded().
-  FakeVideoDecoder(int decoding_delay,
-                   int max_parallel_decoding_requests,
+  FakeVideoDecoder(int decoding_delay, int max_parallel_decoding_requests,
                    const BytesDecodedCB& bytes_decoded_cb);
   ~FakeVideoDecoder() OVERRIDE;
 
   // VideoDecoder implementation.
   std::string GetDisplayName() const OVERRIDE;
-  void Initialize(const VideoDecoderConfig& config,
-                  bool low_delay,
-                  CdmContext* cdm_context,
-                  const InitCB& init_cb,
+  void Initialize(const VideoDecoderConfig& config, bool low_delay,
+                  CdmContext* cdm_context, const InitCB& init_cb,
                   const OutputCB& output_cb) OVERRIDE;
   void Decode(const scoped_refptr<DecoderBuffer>& buffer,
               const DecodeCB& decode_cb) OVERRIDE;
@@ -85,8 +82,7 @@ class FakeVideoDecoder : public VideoDecoder {
   };
 
   // Callback for updating |total_bytes_decoded_|.
-  void OnFrameDecoded(int buffer_size,
-                      const DecodeCB& decode_cb,
+  void OnFrameDecoded(int buffer_size, const DecodeCB& decode_cb,
                       DecodeStatus status);
 
   // Runs |decode_cb| or puts it to |held_decode_callbacks_| depending on

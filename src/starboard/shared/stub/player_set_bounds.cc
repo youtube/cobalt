@@ -14,7 +14,8 @@
 
 #include "starboard/player.h"
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
 
 void SbPlayerSetBounds(SbPlayer /*player*/,
                        int /*x*/,
@@ -22,4 +23,5 @@ void SbPlayerSetBounds(SbPlayer /*player*/,
                        int /*width*/,
                        int /*height*/) {}
 
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)

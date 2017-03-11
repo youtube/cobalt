@@ -64,12 +64,9 @@ class CastReceiverImpl : public CastReceiver {
   // AudioDecoder::DecodeFrame().
   static void EmitDecodedAudioFrame(
       const scoped_refptr<CastEnvironment>& cast_environment,
-      const AudioFrameDecodedCallback& callback,
-      FrameId frame_id,
-      RtpTimeTicks rtp_timestamp,
-      const base::TimeTicks& playout_time,
-      std::unique_ptr<AudioBus> audio_bus,
-      bool is_continuous);
+      const AudioFrameDecodedCallback& callback, FrameId frame_id,
+      RtpTimeTicks rtp_timestamp, const base::TimeTicks& playout_time,
+      std::unique_ptr<AudioBus> audio_bus, bool is_continuous);
 
   // Receives a VideoFrame from |video_decoder_|, logs the event, and passes the
   // data on by running the given |callback|.  This method is static to ensure
@@ -78,12 +75,9 @@ class CastReceiverImpl : public CastReceiver {
   // VideoDecoder::DecodeFrame().
   static void EmitDecodedVideoFrame(
       const scoped_refptr<CastEnvironment>& cast_environment,
-      const VideoFrameDecodedCallback& callback,
-      FrameId frame_id,
-      RtpTimeTicks rtp_timestamp,
-      const base::TimeTicks& playout_time,
-      const scoped_refptr<VideoFrame>& video_frame,
-      bool is_continuous);
+      const VideoFrameDecodedCallback& callback, FrameId frame_id,
+      RtpTimeTicks rtp_timestamp, const base::TimeTicks& playout_time,
+      const scoped_refptr<VideoFrame>& video_frame, bool is_continuous);
 
   const scoped_refptr<CastEnvironment> cast_environment_;
   FrameReceiver audio_receiver_;

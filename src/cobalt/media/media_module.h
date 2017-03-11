@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_MEDIA_MEDIA_MODULE_H_
 #define COBALT_MEDIA_MEDIA_MODULE_H_
@@ -35,10 +33,13 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
-#include "media/base/shell_media_platform.h"
-#include "media/base/shell_video_frame_provider.h"
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/player/web_media_player_delegate.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/filters/shell_video_decoder_impl.h"
 #include "media/player/web_media_player_delegate.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {
@@ -80,14 +81,18 @@ class MediaModule : public CanPlayTypeHandler,
   virtual void OnSuspend() {}
   virtual void OnResume() {}
 
+  virtual system_window::SystemWindow* system_window() const { return NULL; }
+
   void Suspend();
   void Resume();
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   virtual ::media::ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
     return NULL;
   }
-#endif  // !defined(COBALT_RELEASE)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.

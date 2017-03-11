@@ -59,8 +59,7 @@ class MEDIA_EXPORT IvfParser {
 
   // Initializes the parser for IVF |stream| with size |size| and parses the
   // file header. Returns true on success.
-  bool Initialize(const uint8_t* stream,
-                  size_t size,
+  bool Initialize(const uint8_t* stream, size_t size,
                   IvfFileHeader* file_header);
 
   // Parses the next frame. Returns true if the next frame is parsed without

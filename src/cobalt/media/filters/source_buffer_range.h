@@ -32,10 +32,7 @@ class SourceBufferRange {
   // audio & video should use NO_GAPS_ALLOWED. Discontinuous media like
   // timed text should use ALLOW_GAPS because large differences in timestamps
   // are common and acceptable.
-  enum GapPolicy {
-    NO_GAPS_ALLOWED,
-    ALLOW_GAPS
-  };
+  enum GapPolicy { NO_GAPS_ALLOWED, ALLOW_GAPS };
 
   // Sequential buffers with the same decode timestamp make sense under certain
   // conditions, typically when the first buffer is a keyframe. Due to some
@@ -59,8 +56,7 @@ class SourceBufferRange {
   // empty and the front of |new_buffers| must be a keyframe.
   // |range_start_time| refers to the starting timestamp for the coded frame
   // group to which these buffers belong.
-  SourceBufferRange(GapPolicy gap_policy,
-                    const BufferQueue& new_buffers,
+  SourceBufferRange(GapPolicy gap_policy, const BufferQueue& new_buffers,
                     DecodeTimestamp range_start_time,
                     const InterbufferDistanceCB& interbuffer_distance_cb);
 
@@ -126,8 +122,8 @@ class SourceBufferRange {
   // starting at the buffer that had been at |next_buffer_index_|.
   // Returns true if everything in the range was deleted. Otherwise
   // returns false.
-  bool TruncateAt(DecodeTimestamp timestamp,
-                  BufferQueue* deleted_buffers, bool is_exclusive);
+  bool TruncateAt(DecodeTimestamp timestamp, BufferQueue* deleted_buffers,
+                  bool is_exclusive);
   // Deletes all buffers in range.
   void DeleteAll(BufferQueue* deleted_buffers);
 
@@ -144,9 +140,9 @@ class SourceBufferRange {
   // Returns the size of the buffers to secure if the buffers of
   // [|start_timestamp|, |end_removal_timestamp|) is removed.
   // Will not update |end_removal_timestamp| if the returned size is 0.
-  size_t GetRemovalGOP(
-      DecodeTimestamp start_timestamp, DecodeTimestamp end_timestamp,
-      size_t bytes_to_free, DecodeTimestamp* end_removal_timestamp);
+  size_t GetRemovalGOP(DecodeTimestamp start_timestamp,
+                       DecodeTimestamp end_timestamp, size_t bytes_to_free,
+                       DecodeTimestamp* end_removal_timestamp);
 
   // Returns true iff the buffered end time of the first GOP in this range is
   // at or before |media_time|.
@@ -249,14 +245,14 @@ class SourceBufferRange {
   // Returns an iterator in |buffers_| pointing to the buffer at |timestamp|.
   // If |skip_given_timestamp| is true, this returns the first buffer with
   // timestamp greater than |timestamp|.
-  BufferQueue::iterator GetBufferItrAt(
-      DecodeTimestamp timestamp, bool skip_given_timestamp);
+  BufferQueue::iterator GetBufferItrAt(DecodeTimestamp timestamp,
+                                       bool skip_given_timestamp);
 
   // Returns an iterator in |keyframe_map_| pointing to the next keyframe after
   // |timestamp|. If |skip_given_timestamp| is true, this returns the first
   // keyframe with a timestamp strictly greater than |timestamp|.
-  KeyframeMap::iterator GetFirstKeyframeAt(
-      DecodeTimestamp timestamp, bool skip_given_timestamp);
+  KeyframeMap::iterator GetFirstKeyframeAt(DecodeTimestamp timestamp,
+                                           bool skip_given_timestamp);
 
   // Returns an iterator in |keyframe_map_| pointing to the first keyframe
   // before or at |timestamp|.

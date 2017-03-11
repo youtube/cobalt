@@ -104,7 +104,7 @@ const inline std::string FourCCToString(FourCC fourcc) {
   buf[0] = (fourcc >> 24) & 0xff;
   buf[1] = (fourcc >> 16) & 0xff;
   buf[2] = (fourcc >> 8) & 0xff;
-  buf[3] = (fourcc) & 0xff;
+  buf[3] = (fourcc)&0xff;
   buf[4] = 0;
 
   // Return hex itself if characters can not be printed. Any character within

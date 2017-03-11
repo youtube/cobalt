@@ -85,7 +85,8 @@ class MEDIA_EXPORT BufferReader {
   uint64_t size_;
   uint64_t pos_;
 
-  template<typename T> bool Read(T* t) WARN_UNUSED_RESULT;
+  template <typename T>
+  bool Read(T* t) WARN_UNUSED_RESULT;
 };
 
 class MEDIA_EXPORT BoxReader : public BufferReader {
@@ -98,8 +99,7 @@ class MEDIA_EXPORT BoxReader : public BufferReader {
   // values are only expected when insufficient data is available.
   //
   // |buf| is retained but not owned, and must outlive the BoxReader instance.
-  static BoxReader* ReadTopLevelBox(const uint8_t* buf,
-                                    const int buf_size,
+  static BoxReader* ReadTopLevelBox(const uint8_t* buf, const int buf_size,
                                     const scoped_refptr<MediaLog>& media_log,
                                     bool* err);
 
@@ -109,11 +109,9 @@ class MEDIA_EXPORT BoxReader : public BufferReader {
   // true. The semantics of |*err| are the same as above.
   //
   // |buf| is not retained.
-  static bool StartTopLevelBox(const uint8_t* buf,
-                               const int buf_size,
+  static bool StartTopLevelBox(const uint8_t* buf, const int buf_size,
                                const scoped_refptr<MediaLog>& media_log,
-                               FourCC* type,
-                               int* box_size,
+                               FourCC* type, int* box_size,
                                bool* err) WARN_UNUSED_RESULT;
 
   // Create a BoxReader from a buffer. |buf| must be the complete buffer, as
@@ -146,12 +144,12 @@ class MEDIA_EXPORT BoxReader : public BufferReader {
   bool MaybeReadChild(Box* child) WARN_UNUSED_RESULT;
 
   // Read at least one child. False means error or no such child present.
-  template<typename T> bool ReadChildren(
-      std::vector<T>* children) WARN_UNUSED_RESULT;
+  template <typename T>
+  bool ReadChildren(std::vector<T>* children) WARN_UNUSED_RESULT;
 
   // Read any number of children. False means error.
-  template<typename T> bool MaybeReadChildren(
-      std::vector<T>* children) WARN_UNUSED_RESULT;
+  template <typename T>
+  bool MaybeReadChildren(std::vector<T>* children) WARN_UNUSED_RESULT;
 
   // Read all children, regardless of FourCC. This is used from exactly one box,
   // corresponding to a rather significant inconsistency in the BMFF spec.
@@ -173,7 +171,7 @@ class MEDIA_EXPORT BoxReader : public BufferReader {
   // the box has been initialized, and does not re-read the main box header.
   bool ReadFullBoxHeader() WARN_UNUSED_RESULT;
 
-  FourCC type() const   { return type_; }
+  FourCC type() const { return type_; }
   uint8_t version() const { return version_; }
   uint32_t flags() const { return flags_; }
 
@@ -182,10 +180,8 @@ class MEDIA_EXPORT BoxReader : public BufferReader {
  private:
   // Create a BoxReader from |buf|. |is_EOS| should be true if |buf| is
   // complete stream (i.e. no additional data is expected to be appended).
-  BoxReader(const uint8_t* buf,
-            const int size,
-            const scoped_refptr<MediaLog>& media_log,
-            bool is_EOS);
+  BoxReader(const uint8_t* buf, const int size,
+            const scoped_refptr<MediaLog>& media_log, bool is_EOS);
 
   // Must be called immediately after init. If the return is false, this
   // indicates that the box header and its contents were not available in the
@@ -220,12 +216,13 @@ class MEDIA_EXPORT BoxReader : public BufferReader {
 };
 
 // Template definitions
-template<typename T> bool BoxReader::ReadChildren(std::vector<T>* children) {
+template <typename T>
+bool BoxReader::ReadChildren(std::vector<T>* children) {
   RCHECK(MaybeReadChildren(children) && !children->empty());
   return true;
 }
 
-template<typename T>
+template <typename T>
 bool BoxReader::MaybeReadChildren(std::vector<T>* children) {
   DCHECK(scanned_);
   DCHECK(children->empty());
@@ -243,8 +240,8 @@ bool BoxReader::MaybeReadChildren(std::vector<T>* children) {
   }
   children_.erase(start_itr, end_itr);
 
-  DVLOG(2) << "Found " << children->size() << " "
-           << FourCCToString(child_type) << " boxes.";
+  DVLOG(2) << "Found " << children->size() << " " << FourCCToString(child_type)
+           << " boxes.";
   return true;
 }
 

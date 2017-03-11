@@ -57,11 +57,8 @@ class MEDIA_BLINK_EXPORT WatchTimeReporter : base::PowerObserver {
   // suspend and resume.
   // TODO(dalecurtis): Should we only report when rate == 1.0? Should we scale
   // the elapsed media time instead?
-  WatchTimeReporter(bool has_audio,
-                    bool has_video,
-                    bool is_mse,
-                    bool is_encrypted,
-                    scoped_refptr<MediaLog> media_log,
+  WatchTimeReporter(bool has_audio, bool has_video, bool is_mse,
+                    bool is_encrypted, scoped_refptr<MediaLog> media_log,
                     const gfx::Size& initial_video_size,
                     const GetMediaTimeCB& get_media_time_cb);
   ~WatchTimeReporter() OVERRIDE;

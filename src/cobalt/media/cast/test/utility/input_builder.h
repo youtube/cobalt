@@ -19,10 +19,8 @@ namespace test {
 // Setting low and high to INT_MIN/INT_MAX is equivalent to not setting a range.
 class InputBuilder {
  public:
-  InputBuilder(const std::string& title,
-               const std::string& default_value,
-               int low_range,
-               int high_range);
+  InputBuilder(const std::string& title, const std::string& default_value,
+               int low_range, int high_range);
   virtual ~InputBuilder();
 
   // Ask the user for input, reads input from the input source and returns

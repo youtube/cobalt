@@ -38,10 +38,8 @@ class CdmSessionAdapter : public base::RefCounted<CdmSessionAdapter> {
   // Creates the CDM for |key_system| using |cdm_factory| and returns the result
   // via |result|.
   void CreateCdm(
-      CdmFactory* cdm_factory,
-      const std::string& key_system,
-      const GURL& security_origin,
-      const CdmConfig& cdm_config,
+      CdmFactory* cdm_factory, const std::string& key_system,
+      const GURL& security_origin, const CdmConfig& cdm_config,
       std::unique_ptr<blink::WebContentDecryptionModuleResult> result);
 
   // Provides a server certificate to be used to encrypt messages to the
@@ -110,8 +108,7 @@ class CdmSessionAdapter : public base::RefCounted<CdmSessionAdapter> {
   ~CdmSessionAdapter();
 
   // Callback for CreateCdm().
-  void OnCdmCreated(const std::string& key_system,
-                    base::TimeTicks start_time,
+  void OnCdmCreated(const std::string& key_system, base::TimeTicks start_time,
                     const scoped_refptr<MediaKeys>& cdm,
                     const std::string& error_message);
 

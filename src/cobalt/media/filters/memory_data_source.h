@@ -22,9 +22,7 @@ class MEDIA_EXPORT MemoryDataSource : public DataSource {
   ~MemoryDataSource() final;
 
   // Implementation of DataSource.
-  void Read(int64_t position,
-            int size,
-            uint8_t* data,
+  void Read(int64_t position, int size, uint8_t* data,
             const DataSource::ReadCB& read_cb) final;
   void Stop() final;
   void Abort() final;

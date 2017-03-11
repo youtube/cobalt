@@ -2,21 +2,19 @@
 //     pump.py mozjs_callback_function.h.pump
 // DO NOT EDIT BY HAND!!!
 
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // clang-format off
 
@@ -28,6 +26,7 @@
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/convert_callback_return_value.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
+#include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
@@ -57,13 +56,21 @@ class MozjsCallbackFunction<R(void)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run()
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -93,7 +100,9 @@ class MozjsCallbackFunction<R(void)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -112,14 +121,22 @@ class MozjsCallbackFunction<R(A1)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -154,7 +171,9 @@ class MozjsCallbackFunction<R(A1)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -173,15 +192,23 @@ class MozjsCallbackFunction<R(A1, A2)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -217,7 +244,9 @@ class MozjsCallbackFunction<R(A1, A2)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -236,16 +265,24 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -282,7 +319,9 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -301,17 +340,25 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -349,7 +396,9 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -369,6 +418,13 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
@@ -376,11 +432,12 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -419,7 +476,9 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -439,6 +498,13 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
@@ -447,11 +513,12 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -491,7 +558,9 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -511,6 +580,13 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     DCHECK(JS_ObjectIsFunction(context_, function));
   }
 
+  explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
+      : context_(context), weak_function_(context, function) {
+    DCHECK(context_);
+    DCHECK(function.isObject());
+    DCHECK(JS_ObjectIsFunction(context_, JSVAL_TO_OBJECT(function)));
+  }
+
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
@@ -520,11 +596,12 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6,
       typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;
     JSAutoRequest auto_request(context_);
-    JS::RootedObject function(context_, weak_function_.Get());
+    JS::RootedObject function(context_, weak_function_.GetObject());
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
@@ -565,7 +642,9 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     return callback_result;
   }
 
-  JSObject* handle() const { return weak_function_.Get(); }
+  JSObject* handle() const { return weak_function_.GetObject(); }
+  const JS::Value& value() const { return weak_function_.GetValue(); }
+  bool WasCollected() const { return weak_function_.WasCollected(); }
 
  private:
   JSContext* context_;
@@ -576,7 +655,7 @@ template <typename Signature>
 struct TypeTraits<CallbackFunction<Signature> > {
   typedef MozjsUserObjectHolder<MozjsCallbackFunction<Signature> >
       ConversionType;
-  typedef const ScriptObject<CallbackFunction<Signature> >* ReturnType;
+  typedef const ScriptValue<CallbackFunction<Signature> >* ReturnType;
 };
 
 }  // namespace mozjs

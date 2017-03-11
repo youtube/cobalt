@@ -74,8 +74,7 @@ class FrameReceiver : public RtpPayloadFeedback,
   friend class FrameReceiverTest;  // Invokes ProcessParsedPacket().
 
   void ProcessParsedPacket(const RtpCastHeader& rtp_header,
-                           const uint8_t* payload_data,
-                           size_t payload_size);
+                           const uint8_t* payload_data, size_t payload_size);
 
   // RtpPayloadFeedback implementation.
   void CastFeedback(const RtcpCastMessage& cast_message) final;
@@ -122,12 +121,9 @@ class FrameReceiver : public RtpPayloadFeedback,
   // |cast_message|. If |rtcp_events| is provided the RTCP receiver report will
   // include event log messages
   void SendRtcpReport(
-      uint32_t rtp_receiver_ssrc,
-      uint32_t rtp_sender_ssrc,
-      const RtcpTimeData& time_data,
-      const RtcpCastMessage* cast_message,
-      const RtcpPliMessage* pli_message,
-      base::TimeDelta target_delay,
+      uint32_t rtp_receiver_ssrc, uint32_t rtp_sender_ssrc,
+      const RtcpTimeData& time_data, const RtcpCastMessage* cast_message,
+      const RtcpPliMessage* pli_message, base::TimeDelta target_delay,
       const ReceiverRtcpEventSubscriber::RtcpEvents* rtcp_events,
       const RtpReceiverStatistics* rtp_receiver_statistics);
 

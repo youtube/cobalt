@@ -65,13 +65,10 @@ class MEDIA_BLINK_EXPORT MultibufferDataSource : public DataSource {
   // will be reported to |host|. |downloading_cb| will be called whenever the
   // downloading/paused state of the source changes.
   MultibufferDataSource(
-      const GURL& url,
-      UrlData::CORSMode cors_mode,
+      const GURL& url, UrlData::CORSMode cors_mode,
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      linked_ptr<UrlIndex> url_index,
-      blink::WebFrame* frame,
-      MediaLog* media_log,
-      BufferedDataSourceHost* host,
+      linked_ptr<UrlIndex> url_index, blink::WebFrame* frame,
+      MediaLog* media_log, BufferedDataSourceHost* host,
       const DownloadingCB& downloading_cb);
   ~MultibufferDataSource() OVERRIDE;
 
@@ -122,9 +119,7 @@ class MEDIA_BLINK_EXPORT MultibufferDataSource : public DataSource {
   void Stop() OVERRIDE;
   void Abort() OVERRIDE;
 
-  void Read(int64_t position,
-            int size,
-            uint8_t* data,
+  void Read(int64_t position, int size, uint8_t* data,
             const DataSource::ReadCB& read_cb) OVERRIDE;
   bool GetSize(int64_t* size_out) OVERRIDE;
   bool IsStreaming() OVERRIDE;
@@ -264,6 +259,7 @@ class MEDIA_BLINK_EXPORT MultibufferDataSource : public DataSource {
   base::WeakPtr<MultibufferDataSource> weak_ptr_;
   base::WeakPtrFactory<MultibufferDataSource> weak_factory_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(MultibufferDataSource);
 };
 

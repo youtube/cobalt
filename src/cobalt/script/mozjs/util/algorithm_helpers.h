@@ -1,18 +1,16 @@
-/*
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #ifndef COBALT_SCRIPT_MOZJS_UTIL_ALGORITHM_HELPERS_H_
 #define COBALT_SCRIPT_MOZJS_UTIL_ALGORITHM_HELPERS_H_
 
@@ -22,6 +20,11 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace util {
+// Whether |value1| and |value2| are both GC things and are the same GC thing.
+// i.e. Returns |false| if either value is not a GC thing.
+bool IsSameGcThing(JSContext* context, JS::HandleValue value1,
+                   JS::HandleValue value2);
+
 // https://tc39.github.io/ecma262/#sec-getiterator
 bool GetIterator(JSContext* context, JS::HandleObject object,
                  JS::MutableHandleObject out_iterator);

@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RESOURCE_PROVIDER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RESOURCE_PROVIDER_H_
@@ -52,7 +50,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
 #if SB_HAS(GRAPHICS)
-#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
@@ -66,7 +64,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return true; }
 
-#elif SB_VERSION(3)  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+#elif SB_API_VERSION >= 3
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
@@ -83,7 +81,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 
-#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
@@ -132,13 +130,15 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   TextShaper text_shaper_;
 
-#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+    SB_HAS(GRAPHICS)
   static SbDecodeTarget DecodeTargetAcquire(void* context,
                                             SbDecodeTargetFormat format,
                                             int width, int height);
   static void DecodeTargetRelease(void* context, SbDecodeTarget decode_target);
   SbDecodeTargetProvider decode_target_provider_;
-#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+           SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was
   // created on.  This message loop is used whenever we need to issue graphics

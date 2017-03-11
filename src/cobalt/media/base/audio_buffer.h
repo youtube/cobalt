@@ -51,8 +51,7 @@ class MEDIA_EXPORT AudioBuffer
   // must be >= 0.
   static scoped_refptr<AudioBuffer> CopyFrom(SampleFormat sample_format,
                                              ChannelLayout channel_layout,
-                                             int channel_count,
-                                             int sample_rate,
+                                             int channel_count, int sample_rate,
                                              int frame_count,
                                              const uint8_t* const* data,
                                              const base::TimeDelta timestamp);
@@ -67,11 +66,8 @@ class MEDIA_EXPORT AudioBuffer
 
   // Create an empty AudioBuffer with |frame_count| frames.
   static scoped_refptr<AudioBuffer> CreateEmptyBuffer(
-      ChannelLayout channel_layout,
-      int channel_count,
-      int sample_rate,
-      int frame_count,
-      const base::TimeDelta timestamp);
+      ChannelLayout channel_layout, int channel_count, int sample_rate,
+      int frame_count, const base::TimeDelta timestamp);
 
   // Create a AudioBuffer indicating we've reached end of stream.
   // Calling any method other than end_of_stream() on the resulting buffer
@@ -89,10 +85,8 @@ class MEDIA_EXPORT AudioBuffer
   // first. |dest_frame_offset| is the frame offset in |dest|. The frames are
   // converted from their source format into planar float32 data (which is all
   // that AudioBus handles).
-  void ReadFrames(int frames_to_copy,
-                  int source_frame_offset,
-                  int dest_frame_offset,
-                  AudioBus* dest);
+  void ReadFrames(int frames_to_copy, int source_frame_offset,
+                  int dest_frame_offset, AudioBus* dest);
 
   // Trim an AudioBuffer by removing |frames_to_trim| frames from the start.
   // Timestamp and duration are adjusted to reflect the fewer frames.
@@ -150,13 +144,9 @@ class MEDIA_EXPORT AudioBuffer
   // [data,data+data_size) to the allocated buffer(s). If |data| is null, no
   // data is copied. If |create_buffer| is false, no data buffer is created (or
   // copied to).
-  AudioBuffer(SampleFormat sample_format,
-              ChannelLayout channel_layout,
-              int channel_count,
-              int sample_rate,
-              int frame_count,
-              bool create_buffer,
-              const uint8_t* const* data,
+  AudioBuffer(SampleFormat sample_format, ChannelLayout channel_layout,
+              int channel_count, int sample_rate, int frame_count,
+              bool create_buffer, const uint8_t* const* data,
               const base::TimeDelta timestamp);
 
   virtual ~AudioBuffer();

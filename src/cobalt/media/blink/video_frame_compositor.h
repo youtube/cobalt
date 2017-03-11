@@ -128,8 +128,7 @@ class MEDIA_BLINK_EXPORT VideoFrameCompositor
   // Updates |is_background_rendering_|, |last_interval_|, and resets
   // |background_rendering_timer_|. Returns true if there's a new frame
   // available via GetCurrentFrame().
-  bool CallRender(base::TimeTicks deadline_min,
-                  base::TimeTicks deadline_max,
+  bool CallRender(base::TimeTicks deadline_min, base::TimeTicks deadline_max,
                   bool background_rendering);
 
   scoped_refptr<base::SingleThreadTaskRunner> compositor_task_runner_;

@@ -33,8 +33,7 @@ class MEDIA_EXPORT VideoRenderer {
   //
   // |wall_clock_time_cb| is used to convert media timestamps into wallclock
   // timestamps.
-  virtual void Initialize(DemuxerStream* stream,
-                          CdmContext* cdm_context,
+  virtual void Initialize(DemuxerStream* stream, CdmContext* cdm_context,
                           RendererClient* client,
                           const TimeSource::WallClockTimeCB& wall_clock_time_cb,
                           const PipelineStatusCB& init_cb) = 0;

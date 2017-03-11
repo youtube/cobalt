@@ -31,8 +31,7 @@ namespace cast {
 // is not available (e.g., bad/missing packet).
 typedef base::Callback<void(std::unique_ptr<AudioBus> audio_bus,
                             const base::TimeTicks& playout_time,
-                            bool is_continuous)>
-    AudioFrameDecodedCallback;
+                            bool is_continuous)> AudioFrameDecodedCallback;
 // TODO(miu): |video_frame| includes a timestamp, so use that instead.
 typedef base::Callback<void(const scoped_refptr<media::VideoFrame>& video_frame,
                             const base::TimeTicks& playout_time,
@@ -50,8 +49,7 @@ class CastReceiver {
   static std::unique_ptr<CastReceiver> Create(
       scoped_refptr<CastEnvironment> cast_environment,
       const FrameReceiverConfig& audio_config,
-      const FrameReceiverConfig& video_config,
-      CastTransport* const transport);
+      const FrameReceiverConfig& video_config, CastTransport* const transport);
 
   // All received RTP and RTCP packets for the call should be sent to this
   // PacketReceiver.  Can be called from any thread.

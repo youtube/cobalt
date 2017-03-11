@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/media/fetcher_buffered_data_source.h"
 
@@ -60,7 +58,9 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
 }
 
 FetcherBufferedDataSource::~FetcherBufferedDataSource() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (cancelable_create_fetcher_closure_) {
+    cancelable_create_fetcher_closure_->Cancel();
+  }
 }
 
 void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
@@ -78,7 +78,7 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
               read_cb);
 }
 
-void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
+void FetcherBufferedDataSource::Stop() {
   {
     base::AutoLock auto_lock(lock_);
 
@@ -96,12 +96,6 @@ void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
     // immediately so it is safe to destroy |fetcher_| inside the dtor.
     error_occured_ = true;
   }
-
-  // We cannot post the callback using the MessageLoop as we share the
-  // same MessageLoop as WebMediaPlayerImpl (WMPI) and WMPI::Destroy()
-  // waits on an event during video Stop.  The posted task will never be
-  // run and will cause dead lock.
-  callback.Run();
 }
 
 bool FetcherBufferedDataSource::GetSize(int64* size_out) {
@@ -405,9 +399,15 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
     last_request_offset_ = buffer_offset_ + buffer_.GetLength();
   }
 
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&FetcherBufferedDataSource::CreateNewFetcher, this));
+  if (cancelable_create_fetcher_closure_) {
+    cancelable_create_fetcher_closure_->Cancel();
+  }
+  base::Closure create_fetcher_closure = base::Bind(
+      &FetcherBufferedDataSource::CreateNewFetcher, base::Unretained(this));
+  cancelable_create_fetcher_closure_ =
+      new CancelableClosure(create_fetcher_closure);
+  message_loop_->PostTask(FROM_HERE,
+                          cancelable_create_fetcher_closure_->AsClosure());
 }
 
 void FetcherBufferedDataSource::ProcessPendingRead_Locked() {
@@ -415,6 +415,30 @@ void FetcherBufferedDataSource::ProcessPendingRead_Locked() {
   if (!pending_read_cb_.is_null()) {
     Read_Locked(pending_read_position_, pending_read_size_, pending_read_data_,
                 base::ResetAndReturn(&pending_read_cb_));
+  }
+}
+
+FetcherBufferedDataSource::CancelableClosure::CancelableClosure(
+    const base::Closure& closure)
+    : closure_(closure) {
+  DCHECK(!closure.is_null());
+}
+
+void FetcherBufferedDataSource::CancelableClosure::Cancel() {
+  base::AutoLock auto_lock(lock_);
+  closure_.Reset();
+}
+
+base::Closure FetcherBufferedDataSource::CancelableClosure::AsClosure() {
+  return base::Bind(&CancelableClosure::Call, this);
+}
+
+void FetcherBufferedDataSource::CancelableClosure::Call() {
+  base::AutoLock auto_lock(lock_);
+  // closure_.Run() has to be called when the lock is acquired to avoid race
+  // condition.
+  if (!closure_.is_null()) {
+    base::ResetAndReturn(&closure_).Run();
   }
 }
 

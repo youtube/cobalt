@@ -116,8 +116,7 @@ class MEDIA_EXPORT MediaKeys
   // 3. UpdateSession(), CloseSession() and RemoveSession() should only be
   //    called after the |promise| is resolved.
   virtual void CreateSessionAndGenerateRequest(
-      SessionType session_type,
-      EmeInitDataType init_data_type,
+      SessionType session_type, EmeInitDataType init_data_type,
       const std::vector<uint8_t>& init_data,
       std::unique_ptr<NewSessionCdmPromise> promise) = 0;
 
@@ -179,10 +178,9 @@ struct MEDIA_EXPORT MediaKeysTraits {
 
 // Called when the CDM needs to queue a message event to the session object.
 // See http://w3c.github.io/encrypted-media/#dom-evt-message
-typedef base::Callback<void(const std::string& session_id,
-                            MediaKeys::MessageType message_type,
-                            const std::vector<uint8_t>& message)>
-    SessionMessageCB;
+typedef base::Callback<void(
+    const std::string& session_id, MediaKeys::MessageType message_type,
+    const std::vector<uint8_t>& message)> SessionMessageCB;
 
 // Called when the session specified by |session_id| is closed. Note that the
 // CDM may close a session at any point, such as in response to a CloseSession()

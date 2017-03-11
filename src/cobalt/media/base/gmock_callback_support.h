@@ -11,26 +11,19 @@ namespace media {
 
 // Matchers for base::Callback and base::Closure.
 
-MATCHER(IsNullCallback, "a null callback") {
-  return (arg.is_null());
-}
+MATCHER(IsNullCallback, "a null callback") { return (arg.is_null()); }
 
-MATCHER(IsNotNullCallback, "a non-null callback") {
-  return (!arg.is_null());
-}
+MATCHER(IsNotNullCallback, "a non-null callback") { return (!arg.is_null()); }
 
 // The RunClosure<N>() action invokes Run() method on the N-th (0-based)
 // argument of the mock function.
 
-ACTION_TEMPLATE(RunClosure,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunClosure, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_0_VALUE_PARAMS()) {
   ::std::tr1::get<k>(args).Run();
 }
 
-ACTION_P(RunClosure, closure) {
-  closure.Run();
-}
+ACTION_P(RunClosure, closure) { closure.Run(); }
 
 // Various overloads for RunCallback<N>().
 //
@@ -58,50 +51,42 @@ ACTION_P(RunClosure, closure) {
 //   to the callback.  This makes it easy for a user to define an
 //   RunCallback action from temporary values and have it performed later.
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_0_VALUE_PARAMS()) {
   return ::std::tr1::get<k>(args).Run();
 }
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_1_VALUE_PARAMS(p0)) {
   return ::std::tr1::get<k>(args).Run(p0);
 }
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_2_VALUE_PARAMS(p0, p1)) {
   return ::std::tr1::get<k>(args).Run(p0, p1);
 }
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_3_VALUE_PARAMS(p0, p1, p2)) {
   return ::std::tr1::get<k>(args).Run(p0, p1, p2);
 }
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_4_VALUE_PARAMS(p0, p1, p2, p3)) {
   return ::std::tr1::get<k>(args).Run(p0, p1, p2, p3);
 }
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_5_VALUE_PARAMS(p0, p1, p2, p3, p4)) {
   return ::std::tr1::get<k>(args).Run(p0, p1, p2, p3, p4);
 }
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_6_VALUE_PARAMS(p0, p1, p2, p3, p4, p5)) {
   return ::std::tr1::get<k>(args).Run(p0, p1, p2, p3, p4, p5);
 }
 
-ACTION_TEMPLATE(RunCallback,
-                HAS_1_TEMPLATE_PARAMS(int, k),
+ACTION_TEMPLATE(RunCallback, HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_7_VALUE_PARAMS(p0, p1, p2, p3, p4, p5, p6)) {
   return ::std::tr1::get<k>(args).Run(p0, p1, p2, p3, p4, p5, p6);
 }

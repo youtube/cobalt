@@ -46,8 +46,7 @@ class MEDIA_EXPORT CdmPromise {
   // specified. |system_code| is a Key System-specific value for the error
   // that occurred, or 0 if there is no associated status code or such status
   // codes are not supported by the Key System. |error_message| is optional.
-  virtual void reject(MediaKeys::Exception exception_code,
-                      uint32_t system_code,
+  virtual void reject(MediaKeys::Exception exception_code, uint32_t system_code,
                       const std::string& error_message) = 0;
 
   // Used to determine the template type of CdmPromiseTemplate<T> so that
@@ -90,8 +89,7 @@ class MEDIA_EXPORT CdmPromiseTemplate : public CdmPromise {
   virtual void resolve(const T&... result) = 0;
 
   // CdmPromise implementation.
-  virtual void reject(MediaKeys::Exception exception_code,
-                      uint32_t system_code,
+  virtual void reject(MediaKeys::Exception exception_code, uint32_t system_code,
                       const std::string& error_message) = 0;
 
   ResolveParameterType GetResolveParameterType() const override {

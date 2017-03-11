@@ -36,10 +36,8 @@ class MEDIA_EXPORT CdmPromiseAdapter {
 
   // Takes the promise for |promise_id| and rejects it with |exception_code|,
   // |system_code| and |error_message|.
-  void RejectPromise(uint32_t promise_id,
-                     MediaKeys::Exception exception_code,
-                     uint32_t system_code,
-                     const std::string& error_message);
+  void RejectPromise(uint32_t promise_id, MediaKeys::Exception exception_code,
+                     uint32_t system_code, const std::string& error_message);
 
   // Rejects and clears all |promises_|.
   void Clear();

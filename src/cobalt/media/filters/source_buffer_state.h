@@ -58,11 +58,8 @@ class MEDIA_EXPORT SourceBufferState {
   // append. |append_window_start| and |append_window_end| correspond to the MSE
   // spec's similarly named source buffer attributes that are used in coded
   // frame processing.
-  bool Append(const uint8_t* data,
-              size_t length,
-              TimeDelta append_window_start,
-              TimeDelta append_window_end,
-              TimeDelta* timestamp_offset);
+  bool Append(const uint8_t* data, size_t length, TimeDelta append_window_start,
+              TimeDelta append_window_end, TimeDelta* timestamp_offset);
 
   // Aborts the current append sequence and resets the parser.
   void ResetParserState(TimeDelta append_window_start,
@@ -121,8 +118,7 @@ class MEDIA_EXPORT SourceBufferState {
 
   typedef std::vector<Ranges<TimeDelta> > RangesList;
   static Ranges<TimeDelta> ComputeRangesIntersection(
-      const RangesList& active_ranges,
-      bool ended);
+      const RangesList& active_ranges, bool ended);
 
   void SetTracksWatcher(const Demuxer::MediaTracksUpdatedCB& tracks_updated_cb);
 
@@ -141,8 +137,7 @@ class MEDIA_EXPORT SourceBufferState {
   // encountered.
   // Returns true on a successful call. Returns false if an error occurred while
   // processing decoder configurations.
-  bool OnNewConfigs(std::string expected_codecs,
-                    scoped_ptr<MediaTracks> tracks,
+  bool OnNewConfigs(std::string expected_codecs, scoped_ptr<MediaTracks> tracks,
                     const StreamParser::TextTrackConfigMap& text_configs);
 
   // Called by the |stream_parser_| at the beginning of a new media segment.

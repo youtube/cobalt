@@ -13,8 +13,7 @@ namespace media {
 
 class WebInbandTextTrackImpl : public blink::WebInbandTextTrack {
  public:
-  WebInbandTextTrackImpl(Kind kind,
-                         const blink::WebString& label,
+  WebInbandTextTrackImpl(Kind kind, const blink::WebString& label,
                          const blink::WebString& language,
                          const blink::WebString& id);
   ~WebInbandTextTrackImpl() OVERRIDE;

@@ -22,12 +22,9 @@ typedef std::pair<int, int> Interval;
 // Dot-product of channels of two AudioBus. For each AudioBus an offset is
 // given. |dot_product[k]| is the dot-product of channel |k|. The caller should
 // allocate sufficient space for |dot_product|.
-MEDIA_EXPORT void MultiChannelDotProduct(const AudioBus* a,
-                                         int frame_offset_a,
-                                         const AudioBus* b,
-                                         int frame_offset_b,
-                                         int num_frames,
-                                         float* dot_product);
+MEDIA_EXPORT void MultiChannelDotProduct(const AudioBus* a, int frame_offset_a,
+                                         const AudioBus* b, int frame_offset_b,
+                                         int num_frames, float* dot_product);
 
 // Energies of sliding windows of channels are interleaved.
 // The number windows is |input->frames()| - (|frames_per_window| - 1), hence,
@@ -42,16 +39,14 @@ MEDIA_EXPORT void MultiChannelMovingBlockEnergies(const AudioBus* input,
 //   f(0) = y[1]
 //   f(1) = y[2]
 // and return the maximum, assuming that y[0] <= y[1] >= y[2].
-MEDIA_EXPORT void QuadraticInterpolation(const float* y_values,
-                                         float* extremum,
+MEDIA_EXPORT void QuadraticInterpolation(const float* y_values, float* extremum,
                                          float* extremum_value);
 
 // Search a subset of all candid blocks. The search is performed every
 // |decimation| frames. This reduces complexity by a factor of about
 // 1 / |decimation|. A cubic interpolation is used to have a better estimate of
 // the best match.
-MEDIA_EXPORT int DecimatedSearch(int decimation,
-                                 Interval exclude_interval,
+MEDIA_EXPORT int DecimatedSearch(int decimation, Interval exclude_interval,
                                  const AudioBus* target_block,
                                  const AudioBus* search_segment,
                                  const float* energy_target_block,
@@ -61,8 +56,7 @@ MEDIA_EXPORT int DecimatedSearch(int decimation,
 // is most similar to |target_block|. |energy_target_block| is the energy of the
 // |target_block|. |energy_candidate_blocks| is the energy of all blocks within
 // |search_block|.
-MEDIA_EXPORT int FullSearch(int low_limit,
-                            int hight_limimit,
+MEDIA_EXPORT int FullSearch(int low_limit, int hight_limimit,
                             Interval exclude_interval,
                             const AudioBus* target_block,
                             const AudioBus* search_block,

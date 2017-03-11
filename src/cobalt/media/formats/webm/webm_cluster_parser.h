@@ -51,9 +51,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // Helper class that manages per-track state.
   class Track {
    public:
-    Track(int track_num,
-          bool is_video,
-          base::TimeDelta default_duration,
+    Track(int track_num, bool is_video, base::TimeDelta default_duration,
           const scoped_refptr<MediaLog>& media_log);
     ~Track();
 
@@ -146,10 +144,8 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   typedef std::map<int, Track> TextTrackMap;
 
  public:
-  WebMClusterParser(int64_t timecode_scale,
-                    int audio_track_num,
-                    base::TimeDelta audio_default_duration,
-                    int video_track_num,
+  WebMClusterParser(int64_t timecode_scale, int audio_track_num,
+                    base::TimeDelta audio_default_duration, int video_track_num,
                     base::TimeDelta video_default_duration,
                     const WebMTracksParser::TextTracks& text_tracks,
                     const std::set<int64_t>& ignored_tracks,
@@ -208,24 +204,12 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   bool OnUInt(int id, int64_t val) OVERRIDE;
   bool OnBinary(int id, const uint8_t* data, int size) OVERRIDE;
 
-  bool ParseBlock(bool is_simple_block,
-                  const uint8_t* buf,
-                  int size,
-                  const uint8_t* additional,
-                  int additional_size,
-                  int duration,
-                  int64_t discard_padding,
-                  bool reference_block_set);
-  bool OnBlock(bool is_simple_block,
-               int track_num,
-               int timecode,
-               int duration,
-               const uint8_t* data,
-               int size,
-               const uint8_t* additional,
-               int additional_size,
-               int64_t discard_padding,
-               bool is_keyframe);
+  bool ParseBlock(bool is_simple_block, const uint8_t* buf, int size,
+                  const uint8_t* additional, int additional_size, int duration,
+                  int64_t discard_padding, bool reference_block_set);
+  bool OnBlock(bool is_simple_block, int track_num, int timecode, int duration,
+               const uint8_t* data, int size, const uint8_t* additional,
+               int additional_size, int64_t discard_padding, bool is_keyframe);
 
   // Resets the Track objects associated with each text track.
   void ResetTextTracks();

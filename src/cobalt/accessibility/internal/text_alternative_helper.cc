@@ -1,18 +1,16 @@
-/*
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/accessibility/internal/text_alternative_helper.h"
 
@@ -81,8 +79,26 @@ scoped_refptr<dom::Element> GetElementById(
 }  // namespace
 
 void TextAlternativeHelper::AppendTextAlternative(
-    const scoped_refptr<dom::Element>& element) {
-  DCHECK(element);
+    const scoped_refptr<dom::Node>& node) {
+  DCHECK(node);
+  // https://www.w3.org/TR/2014/REC-wai-aria-implementation-20140320/#mapping_additional_nd_te
+  // 5.6.1.3. Text Alternative Computation
+
+  if (node->IsText()) {
+    // Rule 3D
+    // Get the contents of the text node.
+    if (node->text_content()) {
+      AppendTextIfNonEmpty(*node->text_content());
+    }
+    return;
+  }
+
+  scoped_refptr<dom::Element> element = node->AsElement();
+  if (!element) {
+    // Since this is neither a Text or Element, ignore it.
+    return;
+  }
+
   if (visited_element_ids_.find(element->id()) != visited_element_ids_.end()) {
     DLOG(INFO) << "Skipping element to prevent reference loop: "
                << element->id();
@@ -90,9 +106,6 @@ void TextAlternativeHelper::AppendTextAlternative(
   }
 
   ScopedIdSetMember scoped_id_set_member(&visited_element_ids_, element->id());
-
-  // https://www.w3.org/TR/2014/REC-wai-aria-implementation-20140320/#mapping_additional_nd_te
-  // 5.6.1.3. Text Alternative Computation
 
   // Rule 1
   // Skip hidden elements unless the author specifies to use them via an
@@ -165,15 +178,7 @@ void TextAlternativeHelper::AppendTextAlternative(
   scoped_refptr<dom::NodeList> children = element->child_nodes();
   for (int i = 0; i < children->length(); ++i) {
     scoped_refptr<dom::Node> child = children->Item(i);
-    if (child->IsElement()) {
-      AppendTextAlternative(child->AsElement());
-    } else if (child->IsText()) {
-      // Rule 3D
-      // Get the contents of the text node.
-      if (child->text_content()) {
-        AppendTextIfNonEmpty(*child->text_content());
-      }
-    }
+    AppendTextAlternative(child);
   }
 }
 

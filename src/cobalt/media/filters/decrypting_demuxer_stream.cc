@@ -381,6 +381,8 @@ void DecryptingDemuxerStream::InitializeDecoderConfig() {
           input_video_config.coded_size(), input_video_config.visible_rect(),
           input_video_config.natural_size(), input_video_config.extra_data(),
           Unencrypted());
+      video_config_->set_webm_color_metadata(
+          input_video_config->webm_color_metadata());
       break;
     }
 

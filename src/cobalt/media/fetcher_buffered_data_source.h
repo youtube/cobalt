@@ -1,33 +1,37 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
 #define COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/circular_buffer_shell.h"
 #include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/player/buffered_data_source.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/player/buffered_data_source.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 
@@ -68,12 +72,27 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
             const ReadCB& read_cb) OVERRIDE;
-  void Stop(const base::Closure& callback) OVERRIDE;
+  void Stop() OVERRIDE;
   bool GetSize(int64* size_out) OVERRIDE;
   bool IsStreaming() OVERRIDE { return false; }
   void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
 
  private:
+  class CancelableClosure
+      : public base::RefCountedThreadSafe<CancelableClosure> {
+   public:
+    explicit CancelableClosure(const base::Closure& closure);
+
+    void Cancel();
+    base::Closure AsClosure();
+
+   private:
+    void Call();
+
+    base::Lock lock_;
+    base::Closure closure_;
+  };
+
   // net::URLFetcherDelegate methods
   void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
   bool ShouldSendDownloadData() OVERRIDE { return true; }
@@ -115,6 +134,7 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   uint8* pending_read_data_;
 
   csp::SecurityCallback security_callback_;
+  scoped_refptr<CancelableClosure> cancelable_create_fetcher_closure_;
 };
 
 }  // namespace media

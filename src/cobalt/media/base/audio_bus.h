@@ -47,8 +47,7 @@ class MEDIA_EXPORT AudioBus {
   // ownership of |channel_data| to AudioBus; i.e., |channel_data| must outlive
   // the returned AudioBus.  Each channel must be aligned by kChannelAlignment.
   static scoped_ptr<AudioBus> WrapVector(
-      int frames,
-      const std::vector<float*>& channel_data);
+      int frames, const std::vector<float*>& channel_data);
 
   // Creates a new AudioBus by wrapping an existing block of memory.  Block must
   // be at least CalculateMemorySize() bytes in size.  |data| must outlive the
@@ -96,8 +95,7 @@ class MEDIA_EXPORT AudioBus {
   template <class SourceSampleTypeTraits>
   void FromInterleavedPartial(
       const typename SourceSampleTypeTraits::ValueType* source_buffer,
-      int write_offset_in_frames,
-      int num_frames_to_write);
+      int write_offset_in_frames, int num_frames_to_write);
 
   // DEPRECATED (https://crbug.com/580391)
   // Please use the version templated with SourceSampleTypeTraits instead.
@@ -124,16 +122,13 @@ class MEDIA_EXPORT AudioBus {
   // offset |read_offset_in_frames|.
   template <class TargetSampleTypeTraits>
   void ToInterleavedPartial(
-      int read_offset_in_frames,
-      int num_frames_to_read,
+      int read_offset_in_frames, int num_frames_to_read,
       typename TargetSampleTypeTraits::ValueType* dest_buffer) const;
 
   // DEPRECATED (https://crbug.com/580391)
   // Please use the version templated with TargetSampleTypeTraits instead.
   // TODO(chfremer): Remove (https://crbug.com/619623)
-  void ToInterleavedPartial(int start_frame,
-                            int frames,
-                            int bytes_per_sample,
+  void ToInterleavedPartial(int start_frame, int frames, int bytes_per_sample,
                             void* dest) const;
 
   // Helper method for copying channel data from one AudioBus to another.  Both
@@ -144,10 +139,8 @@ class MEDIA_EXPORT AudioBus {
   // objects must have the same number of channels(). |source_start_frame| is
   // the starting offset. |dest_start_frame| is the starting offset in |dest|.
   // |frame_count| is the number of frames to copy.
-  void CopyPartialFramesTo(int source_start_frame,
-                           int frame_count,
-                           int dest_start_frame,
-                           AudioBus* dest) const;
+  void CopyPartialFramesTo(int source_start_frame, int frame_count,
+                           int dest_start_frame, AudioBus* dest) const;
 
   // Returns a raw pointer to the requested channel.  Pointer is guaranteed to
   // have a 16-byte alignment.  Warning: Do not rely on having sane (i.e. not
@@ -194,15 +187,11 @@ class MEDIA_EXPORT AudioBus {
   template <class SourceSampleTypeTraits>
   static void CopyConvertFromInterleavedSourceToAudioBus(
       const typename SourceSampleTypeTraits::ValueType* source_buffer,
-      int write_offset_in_frames,
-      int num_frames_to_write,
-      AudioBus* dest);
+      int write_offset_in_frames, int num_frames_to_write, AudioBus* dest);
 
   template <class TargetSampleTypeTraits>
   static void CopyConvertFromAudioBusToInterleavedTarget(
-      const AudioBus* source,
-      int read_offset_in_frames,
-      int num_frames_to_read,
+      const AudioBus* source, int read_offset_in_frames, int num_frames_to_read,
       typename TargetSampleTypeTraits::ValueType* dest_buffer);
 
   // Contiguous block of channel memory.
@@ -235,8 +224,7 @@ void AudioBus::FromInterleaved(
 template <class SourceSampleTypeTraits>
 void AudioBus::FromInterleavedPartial(
     const typename SourceSampleTypeTraits::ValueType* source_buffer,
-    int write_offset_in_frames,
-    int num_frames_to_write) {
+    int write_offset_in_frames, int num_frames_to_write) {
   CheckOverflow(write_offset_in_frames, num_frames_to_write, frames_);
   CopyConvertFromInterleavedSourceToAudioBus<SourceSampleTypeTraits>(
       source_buffer, write_offset_in_frames, num_frames_to_write, this);
@@ -253,8 +241,7 @@ void AudioBus::ToInterleaved(
 
 template <class TargetSampleTypeTraits>
 void AudioBus::ToInterleavedPartial(
-    int read_offset_in_frames,
-    int num_frames_to_read,
+    int read_offset_in_frames, int num_frames_to_read,
     typename TargetSampleTypeTraits::ValueType* dest) const {
   CheckOverflow(read_offset_in_frames, num_frames_to_read, frames_);
   CopyConvertFromAudioBusToInterleavedTarget<TargetSampleTypeTraits>(
@@ -266,9 +253,7 @@ void AudioBus::ToInterleavedPartial(
 template <class SourceSampleTypeTraits>
 void AudioBus::CopyConvertFromInterleavedSourceToAudioBus(
     const typename SourceSampleTypeTraits::ValueType* source_buffer,
-    int write_offset_in_frames,
-    int num_frames_to_write,
-    AudioBus* dest) {
+    int write_offset_in_frames, int num_frames_to_write, AudioBus* dest) {
   const int channels = dest->channels();
   for (int ch = 0; ch < channels; ++ch) {
     float* channel_data = dest->channel(ch);
@@ -287,9 +272,7 @@ void AudioBus::CopyConvertFromInterleavedSourceToAudioBus(
 //                 https://crbug.com/619628
 template <class TargetSampleTypeTraits>
 void AudioBus::CopyConvertFromAudioBusToInterleavedTarget(
-    const AudioBus* source,
-    int read_offset_in_frames,
-    int num_frames_to_read,
+    const AudioBus* source, int read_offset_in_frames, int num_frames_to_read,
     typename TargetSampleTypeTraits::ValueType* dest_buffer) {
   const int channels = source->channels();
   for (int ch = 0; ch < channels; ++ch) {

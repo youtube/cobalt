@@ -14,14 +14,11 @@
 
 #include "starboard/decode_target.h"
 
-#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                               SbDecodeTargetPlane plane) {
   return 0;
 }
-#else  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-uint32_t SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
-                                SbDecodeTargetPlane plane) {
-  return 0;
-}
-#endif  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

@@ -21,8 +21,7 @@ class MockDemuxerHost : public DemuxerHost {
                void(const Ranges<base::TimeDelta>&));
   MOCK_METHOD1(SetDuration, void(base::TimeDelta duration));
   MOCK_METHOD1(OnDemuxerError, void(PipelineStatus error));
-  MOCK_METHOD2(AddTextStream, void(DemuxerStream*,
-                                   const TextTrackConfig&));
+  MOCK_METHOD2(AddTextStream, void(DemuxerStream*, const TextTrackConfig&));
   MOCK_METHOD1(RemoveTextStream, void(DemuxerStream*));
 
  private:

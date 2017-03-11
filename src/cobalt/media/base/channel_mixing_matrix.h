@@ -15,10 +15,8 @@ namespace media {
 
 class MEDIA_EXPORT ChannelMixingMatrix {
  public:
-  ChannelMixingMatrix(ChannelLayout input_layout,
-                      int input_channels,
-                      ChannelLayout output_layout,
-                      int output_channels);
+  ChannelMixingMatrix(ChannelLayout input_layout, int input_channels,
+                      ChannelLayout output_layout, int output_channels);
 
   ~ChannelMixingMatrix();
 

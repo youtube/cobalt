@@ -27,9 +27,7 @@ class MEDIA_EXPORT DataSource {
   // Reads |size| bytes from |position| into |data|. And when the read is done
   // or failed, |read_cb| is called with the number of bytes read or
   // kReadError in case of error.
-  virtual void Read(int64_t position,
-                    int size,
-                    uint8_t* data,
+  virtual void Read(int64_t position, int size, uint8_t* data,
                     const DataSource::ReadCB& read_cb) = 0;
 
   // Stops the DataSource. Once this is called all future Read() calls will

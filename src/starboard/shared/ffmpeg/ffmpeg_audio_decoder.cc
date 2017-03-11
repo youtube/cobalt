@@ -232,15 +232,14 @@ namespace player {
 namespace filter {
 
 // static
-AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
-                                   const SbMediaAudioHeader& audio_header) {
+AudioDecoder* AudioDecoder::Create(const Parameters& parameters) {
   ffmpeg::AudioDecoder* decoder =
-      new ffmpeg::AudioDecoder(audio_codec, audio_header);
-  if (decoder->is_valid()) {
-    return decoder;
+      new ffmpeg::AudioDecoder(parameters.audio_codec, parameters.audio_header);
+  if (!decoder->is_valid()) {
+    delete decoder;
+    return NULL;
   }
-  delete decoder;
-  return NULL;
+  return decoder;
 }
 
 }  // namespace filter

@@ -97,7 +97,7 @@ DEF_TEST(FontHostStream, reporter) {
         }
 
         int ttcIndex;
-        SkAutoTUnref<SkStream> fontData(origTypeface->openStream(&ttcIndex));
+        SkAutoTUnref<SkStreamAsset> fontData(origTypeface->openStream(&ttcIndex));
         SkTypeface* streamTypeface = SkTypeface::CreateFromStream(fontData);
 
         SkFontDescriptor desc;

@@ -243,44 +243,32 @@ private:
 ///////////////////////////////////////////////////////////////////////////
 
 struct SkFaceRec {
-    SkFaceRec*      fNext;
-    FT_Face         fFace;
-    FT_StreamRec    fFTStream;
-    SkStream*       fSkStream;
-    uint32_t        fRefCnt;
-    uint32_t        fFontID;
+    SkFaceRec* fNext;
+    FT_Face fFace;
+    FT_StreamRec fFTStream;
+    SkStreamAsset*  fSkStream;
+    uint32_t fRefCnt;
+    uint32_t fFontID;
 
     // assumes ownership of the stream, will call unref() when its done
-    SkFaceRec(SkStream* strm, uint32_t fontID);
+    SkFaceRec(SkStreamAsset* strm, uint32_t fontID);
     ~SkFaceRec() {
         fSkStream->unref();
     }
 };
 
 extern "C" {
-    static unsigned long sk_stream_read(FT_Stream       stream,
+    static unsigned long sk_ft_stream_io(FT_Stream ftStream,
                                         unsigned long   offset,
                                         unsigned char*  buffer,
                                         unsigned long   count ) {
-        SkStream* str = (SkStream*)stream->descriptor.pointer;
+        SkStreamAsset* stream = static_cast<SkStreamAsset*>(ftStream->descriptor.pointer);
 
         if (count) {
-            if (!str->rewind()) {
-                return 0;
-            } else {
-                unsigned long ret;
-                if (offset) {
-                    ret = str->read(NULL, offset);
-                    if (ret != offset) {
-                        return 0;
-                    }
-                }
-                ret = str->read(buffer, count);
-                if (ret != count) {
-                    return 0;
-                }
-                count = ret;
-            }
+          if (!stream->seek(offset)) {
+            return 0;
+          }
+          count = stream->read(buffer, count);
         }
         return count;
     }
@@ -288,14 +276,12 @@ extern "C" {
     static void sk_stream_close(FT_Stream) {}
 }
 
-SkFaceRec::SkFaceRec(SkStream* strm, uint32_t fontID)
-        : fNext(NULL), fSkStream(strm), fRefCnt(1), fFontID(fontID) {
-//    SkDEBUGF(("SkFaceRec: opening %s (%p)\n", key.c_str(), strm));
-
+SkFaceRec::SkFaceRec(SkStreamAsset* stream, uint32_t fontID)
+        : fNext(NULL), fSkStream(stream), fRefCnt(1), fFontID(fontID) {
     sk_bzero(&fFTStream, sizeof(fFTStream));
     fFTStream.size = fSkStream->getLength();
     fFTStream.descriptor.pointer = fSkStream;
-    fFTStream.read  = sk_stream_read;
+    fFTStream.read  = sk_ft_stream_io;
     fFTStream.close = sk_stream_close;
 }
 
@@ -314,23 +300,22 @@ static SkFaceRec* ref_ft_face(const SkTypeface* typeface) {
     }
 
     int face_index;
-    SkStream* strm = typeface->openStream(&face_index);
-    if (NULL == strm) {
+    SkStreamAsset* stream = typeface->openStream(&face_index);
+    if (NULL == stream) {
         return NULL;
     }
 
-    // this passes ownership of strm to the rec
-    rec = SkNEW_ARGS(SkFaceRec, (strm, fontID));
+    // this passes ownership of stream to the rec
+    rec = SkNEW_ARGS(SkFaceRec, (stream, fontID));
 
     FT_Open_Args    args;
     memset(&args, 0, sizeof(args));
-    const void* memoryBase = strm->getMemoryBase();
-
+    const void* memoryBase = stream->getMemoryBase();
     if (memoryBase) {
 //printf("mmap(%s)\n", keyString.c_str());
         args.flags = FT_OPEN_MEMORY;
         args.memory_base = (const FT_Byte*)memoryBase;
-        args.memory_size = strm->getLength();
+        args.memory_size = stream->getLength();
     } else {
 //printf("fopen(%s)\n", keyString.c_str());
         args.flags = FT_OPEN_STREAM;
@@ -1705,7 +1690,7 @@ size_t SkTypeface_FreeType::onGetTableData(SkFontTableTag tag, size_t offset,
         memset(&streamRec, 0, sizeof(streamRec));
         streamRec.size = stream->getLength();
         streamRec.descriptor.pointer = stream;
-        streamRec.read  = sk_stream_read;
+        streamRec.read  = sk_ft_stream_io;
         streamRec.close = sk_stream_close;
 
         args.flags = FT_OPEN_STREAM;

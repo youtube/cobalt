@@ -92,9 +92,13 @@ class RtpTimeDelta : public ExpandedValueBase<int64_t, RtpTimeDelta> {
     return RtpTimeDelta(value_ / rhs);
   }
   template <typename IntType>
-  RtpTimeDelta& operator*=(IntType rhs) { return (*this = (*this * rhs)); }
+  RtpTimeDelta& operator*=(IntType rhs) {
+    return (*this = (*this * rhs));
+  }
   template <typename IntType>
-  RtpTimeDelta& operator/=(IntType rhs) { return (*this = (*this / rhs)); }
+  RtpTimeDelta& operator/=(IntType rhs) {
+    return (*this = (*this / rhs));
+  }
 
   // Maps this RtpTimeDelta to an approximate TimeDelta using the given
   // RTP timebase.  Assumes a zero-valued TimeDelta corresponds to a zero-valued

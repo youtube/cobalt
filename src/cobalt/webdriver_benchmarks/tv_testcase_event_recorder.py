@@ -6,7 +6,7 @@ from __future__ import division
 from __future__ import print_function
 
 import c_val_names
-import tv_testcase_value_recorder
+import tv_testcase_util
 
 
 class EventRecorderOptions(object):
@@ -48,7 +48,7 @@ class EventRecorder(object):
   def __init__(self, options):
     """Initializes the event recorder.
 
-    Handles setting up this event recorder, including creating all of its CVal
+    Handles setting up this event recorder, including creating all of its
     recorders, based upon the passed in options.
 
     Args:
@@ -70,41 +70,81 @@ class EventRecorder(object):
     self.animations_recorder = None
     self.video_delay_recorder = None
 
+    # Count record strategies
+    count_record_strategies = []
+    count_record_strategies.append(tv_testcase_util.RecordStrategyMean())
+    count_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(50))
+
     # Count recorders
-    self._add_value_dictionary_recorder("CntDomEventListeners")
-    self._add_value_dictionary_recorder("CntDomNodes")
-    self._add_value_dictionary_recorder("CntDomHtmlElements")
-    self._add_value_dictionary_recorder("CntDomHtmlElementsCreated")
-    self._add_value_dictionary_recorder("CntDomHtmlElementsDestroyed")
-    self._add_value_dictionary_recorder("CntDomUpdateMatchingRules")
-    self._add_value_dictionary_recorder("CntDomUpdateComputedStyle")
-    self._add_value_dictionary_recorder("CntDomGenerateHtmlComputedStyle")
-    self._add_value_dictionary_recorder("CntDomGeneratePseudoComputedStyle")
-    self._add_value_dictionary_recorder("CntLayoutBoxes")
-    self._add_value_dictionary_recorder("CntLayoutBoxesCreated")
-    self._add_value_dictionary_recorder("CntLayoutBoxesDestroyed")
+    self._add_value_dictionary_recorder("CntDomEventListeners",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomNodes", count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomHtmlElements",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomHtmlElementsCreated",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomHtmlElementsDestroyed",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomUpdateMatchingRules",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomUpdateComputedStyle",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomGenerateHtmlComputedStyle",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomGeneratePseudoComputedStyle",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntLayoutBoxes",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntLayoutBoxesCreated",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntLayoutBoxesDestroyed",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntLayoutUpdateSize",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntLayoutRenderAndAnimate",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntLayoutUpdateCrossReferences",
+                                        count_record_strategies)
+
+    # Duration record strategies
+    duration_record_strategies = []
+    duration_record_strategies.append(tv_testcase_util.RecordStrategyMean())
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentiles())
 
     # Duration recorders
-    self._add_value_dictionary_recorder("DurTotalUs")
-    self._add_value_dictionary_recorder("DurDomInjectEventUs")
-    self._add_value_dictionary_recorder("DurDomUpdateComputedStyleUs")
-    self._add_value_dictionary_recorder("DurLayoutBoxTreeUs")
-    self._add_value_dictionary_recorder("DurLayoutBoxTreeBoxGenerationUs")
-    self._add_value_dictionary_recorder("DurLayoutBoxTreeUpdateUsedSizesUs")
-    self._add_value_dictionary_recorder("DurLayoutRenderAndAnimateUs")
+    self._add_value_dictionary_recorder("DurTotalUs",
+                                        duration_record_strategies)
+    self._add_value_dictionary_recorder("DurDomInjectEventUs",
+                                        duration_record_strategies)
+    self._add_value_dictionary_recorder("DurDomRunAnimationFrameCallbacksUs",
+                                        duration_record_strategies)
+    self._add_value_dictionary_recorder("DurDomUpdateComputedStyleUs",
+                                        duration_record_strategies)
+    self._add_value_dictionary_recorder("DurLayoutBoxTreeUs",
+                                        duration_record_strategies)
+    self._add_value_dictionary_recorder("DurLayoutBoxTreeBoxGenerationUs",
+                                        duration_record_strategies)
+    self._add_value_dictionary_recorder("DurLayoutBoxTreeUpdateUsedSizesUs",
+                                        duration_record_strategies)
+    self._add_value_dictionary_recorder("DurLayoutRenderAndAnimateUs",
+                                        duration_record_strategies)
 
     # Optional rasterize animations recorders
     if options.record_rasterize_animations:
-      self.animations_recorder = tv_testcase_value_recorder.ValueRecorder(
-          self.event_name + "DurRasterizeAnimationsUs")
+      self.animations_recorder = tv_testcase_util.ResultsRecorder(
+          self.event_name + "DurRasterizeAnimationsUs",
+          duration_record_strategies)
 
     # Optional video start delay recorder
     if options.record_video_start_delay:
-      self.video_delay_recorder = tv_testcase_value_recorder.ValueRecorder(
-          self.event_name + "DurVideoStartDelayUs")
+      self.video_delay_recorder = tv_testcase_util.ResultsRecorder(
+          self.event_name + "DurVideoStartDelayUs", duration_record_strategies)
 
-  def _add_value_dictionary_recorder(self, key):
-    recorder = tv_testcase_value_recorder.ValueRecorder(self.event_name + key)
+  def _add_value_dictionary_recorder(self, key, record_strategies):
+    recorder = tv_testcase_util.ResultsRecorder(self.event_name + key,
+                                                record_strategies)
     self.value_dictionary_recorders.append((key, recorder))
 
   def on_start_event(self):

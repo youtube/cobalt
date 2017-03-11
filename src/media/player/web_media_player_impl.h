@@ -71,7 +71,6 @@
 #if defined(OS_STARBOARD)
 
 #if SB_HAS(PLAYER)
-#define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 #endif  // SB_HAS(PLAYER)
 
@@ -119,7 +118,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   void LoadMediaSource() OVERRIDE;
   void LoadProgressive(const GURL& url,
-                       const scoped_refptr<BufferedDataSource>& data_source,
+                       scoped_ptr<BufferedDataSource> data_source,
                        CORSMode cors_mode) OVERRIDE;
   void CancelLoad() OVERRIDE;
 
@@ -291,10 +290,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   scoped_ptr<FilterCollection> filter_collection_;
   scoped_refptr<Pipeline> pipeline_;
-
-#if defined(COBALT_USE_PUNCHOUT)
-  scoped_refptr<VideoFrame> punch_out_video_frame_;
-#endif  // defined(COBALT_USE_PUNCHOUT)
 
   // The currently selected key system. Empty string means that no key system
   // has been selected.

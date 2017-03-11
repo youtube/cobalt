@@ -35,8 +35,7 @@ class MEDIA_EXPORT AVC {
   // Returns true if the param sets were successfully inserted.
   static bool InsertParamSetsAnnexB(
       const AVCDecoderConfigurationRecord& avc_config,
-      std::vector<uint8_t>* buffer,
-      std::vector<SubsampleEntry>* subsamples);
+      std::vector<uint8_t>* buffer, std::vector<SubsampleEntry>* subsamples);
 
   static bool ConvertConfigToAnnexB(
       const AVCDecoderConfigurationRecord& avc_config,
@@ -51,8 +50,7 @@ class MEDIA_EXPORT AVC {
   // C++11's std::vector<T>::data() method.
   static bool IsValidAnnexB(const std::vector<uint8_t>& buffer,
                             const std::vector<SubsampleEntry>& subsamples);
-  static bool IsValidAnnexB(const uint8_t* buffer,
-                            size_t size,
+  static bool IsValidAnnexB(const uint8_t* buffer, size_t size,
                             const std::vector<SubsampleEntry>& subsamples);
 
   // Given a |buffer| and |subsamples| information and |pts| pointer into the
@@ -72,8 +70,7 @@ class AVCBitstreamConverter : public BitstreamConverter {
       scoped_ptr<AVCDecoderConfigurationRecord> avc_config);
 
   // BitstreamConverter interface
-  bool ConvertFrame(std::vector<uint8_t>* frame_buf,
-                    bool is_keyframe,
+  bool ConvertFrame(std::vector<uint8_t>* frame_buf, bool is_keyframe,
                     std::vector<SubsampleEntry>* subsamples) const OVERRIDE;
 
  private:

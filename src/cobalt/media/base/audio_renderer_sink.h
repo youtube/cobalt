@@ -32,8 +32,7 @@ class AudioRendererSink
     // the consumer has skipped, if any.
     // TODO(jameswest): Change to use the same signature as
     // AudioOutputStream::AudioSourceCallback::OnMoreData.
-    virtual int Render(AudioBus* dest,
-                       uint32_t frames_delayed,
+    virtual int Render(AudioBus* dest, uint32_t frames_delayed,
                        uint32_t frames_skipped) = 0;
 
     // Signals an error has occurred.

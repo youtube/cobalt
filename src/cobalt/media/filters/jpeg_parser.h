@@ -109,15 +109,13 @@ struct JpegParseResult {
 // Parses JPEG picture in |buffer| with |length|.  Returns true iff header is
 // valid and JPEG baseline sequential process is present. If parsed
 // successfully, |result| is the parsed result.
-MEDIA_EXPORT bool ParseJpegPicture(const uint8_t* buffer,
-                                   size_t length,
+MEDIA_EXPORT bool ParseJpegPicture(const uint8_t* buffer, size_t length,
                                    JpegParseResult* result);
 
 // Parses the first image of JPEG stream in |buffer| with |length|.  Returns
 // true iff header is valid and JPEG baseline sequential process is present.
 // If parsed successfully, |result| is the parsed result.
-MEDIA_EXPORT bool ParseJpegStream(const uint8_t* buffer,
-                                  size_t length,
+MEDIA_EXPORT bool ParseJpegStream(const uint8_t* buffer, size_t length,
                                   JpegParseResult* result);
 
 }  // namespace media

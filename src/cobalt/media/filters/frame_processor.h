@@ -115,8 +115,7 @@ class MEDIA_EXPORT FrameProcessor {
   // normally be discarded, |audio_preroll_buffer_| will be set to |buffer| and
   // the method will return false.
   bool HandlePartialAppendWindowTrimming(
-      base::TimeDelta append_window_start,
-      base::TimeDelta append_window_end,
+      base::TimeDelta append_window_start, base::TimeDelta append_window_end,
       const scoped_refptr<StreamParserBuffer>& buffer);
 
   // Helper that processes one frame with the coded frame processing algorithm.

@@ -172,6 +172,7 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 #define strncmp(s1, s2, c) SbStringCompare(s1, s2, c)
 #define strcmp(s1, s2) SbStringCompareAll(s1, s2)
 
+#define memchr(s, c, n) SbMemoryFindByte(s, c, n)
 #define memset(s, c, n) SbMemorySet(s, c, n)
 #define memcpy(d, s, c) SbMemoryCopy(d, s, c)
 #define memcmp(s1, s2, n) SbMemoryCompare(s1, s2, n)

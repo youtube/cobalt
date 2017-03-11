@@ -14,6 +14,7 @@
 
 #include "base/at_exit.h"
 #include "base/path_service.h"
+#include "base/test/main_hook.h"
 #include "base/test/test_suite.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/path_provider.h"
@@ -22,7 +23,7 @@
 
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
-  base::AtExitManager at_exit;
+  MainHook hook(NULL, argc, argv);
   base::TestSuite test_suite(argc, argv);
   PathService::RegisterProvider(&cobalt::PathProvider,
                                 cobalt::paths::PATH_COBALT_START,

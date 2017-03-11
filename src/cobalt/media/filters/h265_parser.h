@@ -110,8 +110,7 @@ class MEDIA_EXPORT H265Parser {
   // |subsamples| contains information about what parts of |stream| are
   // encrypted.
   void SetStream(const uint8_t* stream, off_t stream_size);
-  void SetEncryptedStream(const uint8_t* stream,
-                          off_t stream_size,
+  void SetEncryptedStream(const uint8_t* stream, off_t stream_size,
                           const std::vector<SubsampleEntry>& subsamples);
 
   // Read the stream to find the next NALU, identify it and return

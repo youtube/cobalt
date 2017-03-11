@@ -92,7 +92,7 @@ public:
      *  if the FontRef's data is not available. The caller is responsible for
      *  calling stream->unref() when it is done accessing the data.
      */
-    virtual SkStream* openStream(const FontIdentity&) = 0;
+    virtual SkStreamAsset* openStream(const FontIdentity&) = 0;
 
     /**
      *  Return a singleton instance of a direct subclass that calls into

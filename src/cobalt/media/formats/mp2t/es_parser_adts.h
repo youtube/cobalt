@@ -35,8 +35,7 @@ class MEDIA_EXPORT EsParserAdts : public EsParser {
   typedef base::Callback<void(const AudioDecoderConfig&)> NewAudioConfigCB;
 
   EsParserAdts(const NewAudioConfigCB& new_audio_config_cb,
-               const EmitBufferCB& emit_buffer_cb,
-               bool sbr_in_mimetype);
+               const EmitBufferCB& emit_buffer_cb, bool sbr_in_mimetype);
   ~EsParserAdts() override;
 
   // EsParser implementation.

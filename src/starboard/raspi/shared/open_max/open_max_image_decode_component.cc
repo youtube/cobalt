@@ -119,7 +119,8 @@ void OpenMaxImageDecodeComponent::SetOutputFormat(OMX_COLOR_FORMATTYPE format,
                                                   int height) {
   target_ = SbDecodeTargetAcquireFromProvider(
       target_provider_, kSbDecodeTargetFormat1PlaneRGBA, width, height);
-  target_->is_opaque = (input_format_ == OMX_IMAGE_CodingPNG) ? false : true;
+  target_->info.is_opaque =
+      (input_format_ == OMX_IMAGE_CodingPNG) ? false : true;
   render_component_.SetOutputImage(target_->images[0]);
 }
 

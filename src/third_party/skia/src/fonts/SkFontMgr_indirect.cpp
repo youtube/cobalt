@@ -213,7 +213,7 @@ SkTypeface* SkFontMgr_Indirect::createTypefaceFromFontId(const SkFontIdentity& i
 
     // No exact match, but did find a data match.
     if (dataTypeface.get() != NULL) {
-        SkAutoTUnref<SkStream> stream(dataTypeface->openStream(NULL));
+        SkAutoTUnref<SkStreamAsset> stream(dataTypeface->openStream(NULL));
         if (stream.get() != NULL) {
             return fImpl->createFromStream(stream.get(), dataTypefaceIndex);
         }
@@ -272,7 +272,7 @@ SkTypeface* SkFontMgr_Indirect::onMatchFaceStyle(const SkTypeface* familyMember,
     return this->matchFamilyStyle(familyName.c_str(), fontStyle);
 }
 
-SkTypeface* SkFontMgr_Indirect::onCreateFromStream(SkStream* stream, int ttcIndex) const {
+SkTypeface* SkFontMgr_Indirect::onCreateFromStream(SkStreamAsset* stream, int ttcIndex) const {
     return fImpl->createFromStream(stream, ttcIndex);
 }
 

@@ -17,6 +17,7 @@
 #ifndef NB_HASH_H_
 #define NB_HASH_H_
 
+#include "nb/bit_cast.h"
 #include "starboard/types.h"
 
 namespace nb {
@@ -31,6 +32,25 @@ enum { kDefaultSeed = 0x12345789 };
 uint32_t RuntimeHash32(const char* data,
                        int length,
                        uint32_t prev_hash = kDefaultSeed);
+
+// Convenience functor for hashing plain old data types like int/float etc and
+// POD structs.
+template <typename T>
+struct PODHasher {
+  uint32_t operator()(const T& value) const {
+    return RuntimeHash32(reinterpret_cast<const char*>(&value), sizeof(value));
+  }
+};
+
+// Specialization so that all pointers are PODs.
+template <typename T>
+struct PODHasher<T*> {
+  uint32_t operator()(const void* ptr) const {
+    uintptr_t ptr_value = bit_cast<uintptr_t>(ptr);
+    PODHasher<uintptr_t> pod_hasher;
+    return pod_hasher(ptr_value);
+  }
+};
 
 }  // namespace nb
 

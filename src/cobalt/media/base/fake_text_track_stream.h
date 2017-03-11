@@ -38,8 +38,7 @@ class FakeTextTrackStream : public DemuxerStream {
 
   void SatisfyPendingRead(const base::TimeDelta& start,
                           const base::TimeDelta& duration,
-                          const std::string& id,
-                          const std::string& content,
+                          const std::string& id, const std::string& content,
                           const std::string& settings);
   void AbortPendingRead();
   void SendEosNotification();

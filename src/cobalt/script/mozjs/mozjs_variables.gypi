@@ -16,7 +16,7 @@
   'variables': {
     'conditions': [
       ['javascript_engine == "mozjs"', {
-        'generated_bindings_prefix': 'Mozjs',
+        'generated_bindings_prefix': 'mozjs',
         'engine_include_dirs': [],
         'engine_dependencies': [
           '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
@@ -28,6 +28,7 @@
         'engine_template_files': [
           '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.h.template',
+          '<(DEPTH)/cobalt/bindings/mozjs/templates/dictionary-conversion.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/macros.cc.template',

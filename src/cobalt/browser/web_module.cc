@@ -1,20 +1,20 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/browser/web_module.h"
+
+#include <sstream>
 
 #include "base/bind.h"
 #include "base/command_line.h"
@@ -23,8 +23,9 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
-#include "cobalt/accessibility/focus_observer.h"
+#include "cobalt/accessibility/screen_reader.h"
 #include "cobalt/accessibility/starboard_tts_engine.h"
+#include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
@@ -36,13 +37,19 @@
 #include "cobalt/debug/debug_server_module.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/local_storage_database.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/url.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/system_window/system_window.h"
+#include "starboard/accessibility.h"
+#include "starboard/log.h"
+#include "starboard/once.h"
 
 namespace cobalt {
 namespace browser {
@@ -103,6 +110,44 @@ class JSEngineStats {
   base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory_;
 };
 
+#if SB_HAS(SPEECH_SYNTHESIS)
+bool IsTextToSpeechEnabled() {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  // Check for a command-line override to enable TTS.
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
+    return true;
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  // Check if the tts feature is enabled in Starboard.
+  SbAccessibilityTextToSpeechSettings tts_settings = {0};
+  // Check platform settings.
+  if (SbAccessibilityGetTextToSpeechSettings(&tts_settings)) {
+    return tts_settings.has_text_to_speech_setting &&
+           tts_settings.is_text_to_speech_enabled;
+  }
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  return false;
+}
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
+
+// StartupTimer is designed to measure time since the startup of the app.
+// It is loader initialized to have the most accurate start time as possible.
+class StartupTimer {
+ public:
+  static StartupTimer* Instance();
+  base::TimeDelta TimeSinceStartup() const {
+    return base::TimeTicks::Now() - start_time_;
+  }
+
+ private:
+  StartupTimer() : start_time_(base::TimeTicks::Now()) {}
+  base::TimeTicks start_time_;
+};
+
+SB_ONCE_INITIALIZE_FUNCTION(StartupTimer, StartupTimer::Instance);
+StartupTimer* s_on_startup_init_dont_use = StartupTimer::Instance();
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -160,6 +205,9 @@ class WebModule::Impl {
   void FinishSuspend();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
+  void ReportScriptError(const base::SourceLocation& source_location,
+                         const std::string& error_message);
+
  private:
   class DocumentLoadedObserver;
 
@@ -167,6 +215,9 @@ class WebModule::Impl {
   // object.
   void InjectCustomWindowAttributes(
       const Options::InjectedWindowAttributes& attributes);
+
+  // Called by |layout_mananger_| after it runs the animation frame callbacks.
+  void OnRanAnimationFrameCallbacks();
 
   // Called by |layout_mananger_| when it produces a render tree. May modify
   // the render tree (e.g. to add a debug overlay), then runs the callback
@@ -239,6 +290,9 @@ class WebModule::Impl {
   // tracker are contained within it.
   scoped_ptr<browser::WebModuleStatTracker> web_module_stat_tracker_;
 
+  // Post and run tasks to notify MutationObservers.
+  dom::MutationObserverTaskManager mutation_observer_task_manager_;
+
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
 
@@ -282,8 +336,11 @@ class WebModule::Impl {
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
+  // TTSEngine that the ScreenReader speaks to.
+  scoped_ptr<accessibility::TTSEngine> tts_engine_;
+
   // Utters the text contents of the focused element.
-  scoped_ptr<accessibility::FocusObserver> focus_observer_;
+  scoped_ptr<accessibility::ScreenReader> screen_reader_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
@@ -407,6 +464,12 @@ WebModule::Impl::Impl(const ConstructionData& data)
   javascript_engine_ = script::JavaScriptEngine::CreateEngine();
   DCHECK(javascript_engine_);
 
+#if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
+  script::JavaScriptEngine::ErrorHandler error_handler =
+      base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this));
+  javascript_engine_->RegisterErrorHandler(error_handler);
+#endif
+
   javascript_engine_poller_.reset(new base::PollerWithThread(
       base::Bind(&WebModule::Impl::UpdateJavaScriptEngineStats,
                  base::Unretained(this)),
@@ -441,8 +504,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
       data.options.location_policy, data.options.csp_enforcement_mode,
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
-      data.window_close_callback, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth);
+      base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
+                 base::Unretained(this)),
+      data.window_close_callback, data.system_window_,
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -452,7 +517,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
       data.media_module, window_, media_source_registry_.get(),
       blob_registry_.get(), data.media_module, javascript_engine_.get(),
-      global_environment_.get(), data.options.dom_settings_options));
+      global_environment_.get(), &mutation_observer_task_manager_,
+      data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
@@ -498,23 +564,25 @@ WebModule::Impl::Impl(const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
-  scoped_ptr<accessibility::TTSEngine> tts_engine;
+  // If a TTSEngine was provided through the options, use it.
+  accessibility::TTSEngine* tts_engine = data.options.tts_engine;
+  if (!tts_engine) {
 #if SB_HAS(SPEECH_SYNTHESIS)
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
-    tts_engine.reset(new accessibility::StarboardTTSEngine());
-  }
-#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+    if (IsTextToSpeechEnabled()) {
+      // Create a StarboardTTSEngine if TTS is enabled.
+      tts_engine_.reset(new accessibility::StarboardTTSEngine());
+    }
 #endif  // SB_HAS(SPEECH_SYNTHESIS)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  if (!tts_engine) {
-    tts_engine.reset(new accessibility::TTSLogger());
-  }
+    if (!tts_engine_) {
+      tts_engine_.reset(new accessibility::TTSLogger());
+    }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+    tts_engine = tts_engine_.get();
+  }
   if (tts_engine) {
-    focus_observer_.reset(new accessibility::FocusObserver(window_->document(),
-                                                           tts_engine.Pass()));
+    screen_reader_.reset(new accessibility::ScreenReader(
+        window_->document(), tts_engine, &mutation_observer_task_manager_));
   }
   is_running_ = true;
 }
@@ -539,7 +607,7 @@ WebModule::Impl::~Impl() {
   remote_typeface_cache_->DisableCallbacks();
   image_cache_->DisableCallbacks();
 
-  focus_observer_.reset();
+  screen_reader_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
@@ -582,6 +650,7 @@ void WebModule::Impl::InjectKeyboardEvent(
   }
 
   web_module_stat_tracker_->OnEndInjectEvent(
+      window_->HasPendingAnimationFrameCallbacks(),
       layout_manager_->IsNewRenderTreePending());
 }
 
@@ -601,13 +670,20 @@ void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
   window_->DestroyTimers();
 }
 
+void WebModule::Impl::OnRanAnimationFrameCallbacks() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  // Notify the stat tracker that the animation frame callbacks have finished.
+  // This may end the current event being tracked.
+  web_module_stat_tracker_->OnRanAnimationFrameCallbacks(
+      layout_manager_->IsNewRenderTreePending());
+}
+
 void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
-  // Notify the stat tracker that a render tree has been produced. This signals
-  // the end of previous event tracking, and triggers flushing of periodic
-  // counts.
+  // Notify the stat tracker that a render tree has been produced.
   web_module_stat_tracker_->OnRenderTreeProduced();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -744,6 +820,25 @@ void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   layout_manager_->Resume();
 }
 
+void WebModule::Impl::ReportScriptError(
+    const base::SourceLocation& source_location,
+    const std::string& error_message) {
+  std::string file_name =
+      FilePath(source_location.file_path).BaseName().value();
+
+  std::stringstream ss;
+  base::TimeDelta dt = StartupTimer::Instance()->TimeSinceStartup();
+
+  // Create the error output.
+  // Example:
+  //   JS:50250:file.js(29,80): ka(...) is not iterable
+  //   JS:<time millis><js-file-name>(<line>,<column>):<message>
+  ss << "JS:" << dt.InMilliseconds() << ":" << file_name << "("
+     << source_location.line_number << ","
+     << source_location.column_number << "): " << error_message << "\n";
+  SbLogRaw(ss.str().c_str());
+}
+
 WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)
     : web_module_(web_module) {}
 
@@ -765,7 +860,8 @@ WebModule::Options::Options()
       thread_priority(base::kThreadPriority_Normal),
       software_decoder_thread_priority(base::kThreadPriority_Low),
       hardware_decoder_thread_priority(base::kThreadPriority_High),
-      fetcher_lifetime_thread_priority(base::kThreadPriority_High) {}
+      fetcher_lifetime_thread_priority(base::kThreadPriority_High),
+      tts_engine(NULL) {}
 
 WebModule::WebModule(
     const GURL& initial_url,
@@ -774,13 +870,15 @@ WebModule::WebModule(
     const base::Closure& window_close_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    render_tree::ResourceProvider* resource_provider,
+    system_window::SystemWindow* system_window, float layout_refresh_rate,
     const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, render_tree_produced_callback, error_callback,
       window_close_callback, media_module, network_module, window_dimensions,
-      resource_provider, kDOMMaxElementDepth, layout_refresh_rate, options);
+      resource_provider, kDOMMaxElementDepth, system_window,
+      layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.

@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_SCRIPT_MOZJS_45_CALLBACK_FUNCTION_CONVERSION_H_
 #define COBALT_SCRIPT_MOZJS_45_CALLBACK_FUNCTION_CONVERSION_H_
@@ -22,7 +20,7 @@
 #include "cobalt/script/logging_exception_state.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
@@ -33,7 +31,7 @@ namespace mozjs {
 template <typename Signature>
 void ToJSValue(
     JSContext* context,
-    const ScriptObject<CallbackFunction<Signature> >* callback_function,
+    const ScriptValue<CallbackFunction<Signature> >* callback_function,
     JS::MutableHandleValue out_value) {
   if (!callback_function) {
     out_value.set(JS::NullValue());

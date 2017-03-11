@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/filter_function_list_value.h"
@@ -22,9 +20,9 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -600,44 +598,44 @@ TEST(PropertyValueIsEqualTest, URLsAreNotEqual) {
 
 TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
   FilterFunctionListValue::Builder filter_list_a;
-  filter_list_a.push_back(new MTMFunction(
+  filter_list_a.push_back(new MapToMeshFunction(
       new URLValue("somemesh.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f, 6.28f,
-      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
-                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f,
+      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f,
+                       0.0f, 1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list_a.push_back(new MTMFunction(
+  filter_list_a.push_back(new MapToMeshFunction(
       new URLValue("sphere.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f, 6.28f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f,
+      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                       0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetStereoscopicLeftRight()));
+  filter_list_a.push_back(new MapToMeshFunction(
+      MapToMeshFunction::kEquirectangular, 0.676f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
-  filter_list_a.push_back(
-      new MTMFunction(MTMFunction::kEquirectangular, 0.676f, 6.28f,
-                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-                      KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_a(
       new FilterFunctionListValue(filter_list_a.Pass()));
 
   FilterFunctionListValue::Builder filter_list_b;
-  filter_list_b.push_back(new MTMFunction(
+  filter_list_b.push_back(new MapToMeshFunction(
       new URLValue("somemesh.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f, 6.28f,
-      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f, 0.0f,
-                1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.70707f,
+      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 9.0f, 0.0f,
+                       0.0f, 1.0f, 0.07878f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
-  filter_list_b.push_back(new MTMFunction(
+  filter_list_b.push_back(new MapToMeshFunction(
       new URLValue("sphere.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f, 6.28f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 0.676f,
+      6.28f, glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                       0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetStereoscopicLeftRight()));
+  filter_list_b.push_back(new MapToMeshFunction(
+      MapToMeshFunction::kEquirectangular, 0.676f, 6.28f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetStereoscopicLeftRight()));
-  filter_list_b.push_back(
-      new MTMFunction(MTMFunction::kEquirectangular, 0.676f, 6.28f,
-                      glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-                      KeywordValue::GetStereoscopicLeftRight()));
   scoped_refptr<FilterFunctionListValue> value_b(
       new FilterFunctionListValue(filter_list_b.Pass()));
 
@@ -646,9 +644,9 @@ TEST(PropertyValueIsEqualTest, FilterListsAreEqual) {
 
 TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
   FilterFunctionListValue::Builder filter_list_a;
-  filter_list_a.push_back(new MTMFunction(
+  filter_list_a.push_back(new MapToMeshFunction(
       new URLValue("format.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
@@ -656,9 +654,9 @@ TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
       new FilterFunctionListValue(filter_list_a.Pass()));
 
   FilterFunctionListValue::Builder filter_list_b;
-  filter_list_b.push_back(new MTMFunction(
+  filter_list_b.push_back(new MapToMeshFunction(
       new URLValue("format.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));
@@ -668,18 +666,18 @@ TEST(PropertyValueIsEqualTest, FilterListsAreNotEqual) {
   EXPECT_FALSE(value_a->Equals(*value_b));
 
   FilterFunctionListValue::Builder filter_list_c;
-  filter_list_c.push_back(
-      new MTMFunction(MTMFunction::kEquirectangular, 8.5f, 3.14f,
-                      glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
-                      KeywordValue::GetMonoscopic()));
+  filter_list_c.push_back(new MapToMeshFunction(
+      MapToMeshFunction::kEquirectangular, 8.5f, 3.14f,
+      glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+      KeywordValue::GetMonoscopic()));
   scoped_refptr<FilterFunctionListValue> value_c(
       new FilterFunctionListValue(filter_list_c.Pass()));
 
   FilterFunctionListValue::Builder filter_list_d;
-  filter_list_d.push_back(new MTMFunction(
+  filter_list_d.push_back(new MapToMeshFunction(
       new URLValue("format.msh"),
-      MTMFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
+      MapToMeshFunction::ResolutionMatchedMeshListBuilder().Pass(), 8.5f, 3.14f,
       glm::mat4(1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f),
       KeywordValue::GetMonoscopic()));

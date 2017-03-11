@@ -163,7 +163,8 @@ class SimpleDelayBase : public PacketPipe {
 
 class ConstantDelay : public SimpleDelayBase {
  public:
-  explicit ConstantDelay(double delay_seconds) : delay_seconds_(delay_seconds) {}
+  explicit ConstantDelay(double delay_seconds)
+      : delay_seconds_(delay_seconds) {}
   double GetDelay() final { return delay_seconds_; }
 
  private:

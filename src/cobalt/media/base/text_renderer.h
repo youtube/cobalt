@@ -36,9 +36,8 @@ class MEDIA_EXPORT TextRenderer {
   //
   // |add_text_track_cb] is called when the demuxer requests (via its host)
   // that a new text track be created.
-  TextRenderer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      const AddTextTrackCB& add_text_track_cb);
+  TextRenderer(const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+               const AddTextTrackCB& add_text_track_cb);
 
   // Stops all operations and fires all pending callbacks.
   ~TextRenderer();
@@ -59,8 +58,7 @@ class MEDIA_EXPORT TextRenderer {
 
   // Adds new |text_stream|, having the indicated |config|, to the text stream
   // collection managed by this text renderer.
-  void AddTextStream(DemuxerStream* text_stream,
-                     const TextTrackConfig& config);
+  void AddTextStream(DemuxerStream* text_stream, const TextTrackConfig& config);
 
   // Removes |text_stream| from the text stream collection.
   void RemoveTextStream(DemuxerStream* text_stream);
@@ -71,10 +69,7 @@ class MEDIA_EXPORT TextRenderer {
  private:
   struct TextTrackState {
     // To determine read progress.
-    enum ReadState {
-      kReadIdle,
-      kReadPending
-    };
+    enum ReadState { kReadIdle, kReadPending };
 
     explicit TextTrackState(std::unique_ptr<TextTrack> text_track);
     ~TextTrackState();
@@ -86,8 +81,7 @@ class MEDIA_EXPORT TextRenderer {
 
   // Callback delivered by the demuxer |text_stream| when
   // a read from the stream completes.
-  void BufferReady(DemuxerStream* text_stream,
-                   DemuxerStream::Status status,
+  void BufferReady(DemuxerStream* text_stream, DemuxerStream::Status status,
                    const scoped_refptr<DecoderBuffer>& input);
 
   // Dispatches the decoded cue delivered on the demuxer's |text_stream|.
@@ -112,13 +106,7 @@ class MEDIA_EXPORT TextRenderer {
   base::Closure pause_cb_;
 
   // Simple state tracking variable.
-  enum State {
-    kUninitialized,
-    kPausePending,
-    kPaused,
-    kPlaying,
-    kEnded
-  };
+  enum State { kUninitialized, kPausePending, kPaused, kPlaying, kEnded };
   State state_;
 
   std::map<DemuxerStream*, std::unique_ptr<TextTrackState>>

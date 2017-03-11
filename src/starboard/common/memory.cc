@@ -69,6 +69,11 @@ void* SbMemoryAllocate(size_t size) {
   return memory;
 }
 
+void* SbMemoryAllocateNoReport(size_t size) {
+  void* memory = SbMemoryAllocateImpl(size);
+  return memory;
+}
+
 void* SbMemoryAllocateAligned(size_t alignment, size_t size) {
   void* memory = SbMemoryAllocateAlignedImpl(alignment, size);
   SbReportAllocation(memory, size);
@@ -86,6 +91,10 @@ void SbMemoryDeallocate(void* memory) {
   // Report must happen first or else a race condition allows the memory to
   // be freed and then reported as allocated, before the allocation is removed.
   SbReportDeallocation(memory);
+  SbMemoryFree(memory);
+}
+
+void SbMemoryDeallocateNoReport(void* memory) {
   SbMemoryFree(memory);
 }
 

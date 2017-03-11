@@ -14,6 +14,7 @@
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -24,16 +25,23 @@ namespace open_max {
 namespace {
 
 const size_t kResourcePoolSize = 26;
+// TODO: Make this configurable inside SbPlayerCreate().
+const SbTimeMonotonic kUpdateInterval = 5 * kSbTimeMillisecond;
 
 }  // namespace
 
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
+VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec, JobQueue* job_queue)
     : resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
       host_(NULL),
       eos_written_(false),
       thread_(kSbThreadInvalid),
-      request_thread_termination_(false) {
+      request_thread_termination_(false),
+      job_queue_(job_queue) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
+  SB_DCHECK(job_queue_ != NULL);
+  update_closure_ =
+      ::starboard::shared::starboard::player::Bind(&VideoDecoder::Update, this);
+  job_queue_->Schedule(update_closure_, kUpdateInterval);
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -44,6 +52,7 @@ VideoDecoder::~VideoDecoder() {
     }
     SbThreadJoin(thread_, NULL);
   }
+  job_queue_->Remove(update_closure_);
 }
 
 void VideoDecoder::SetHost(Host* host) {
@@ -80,10 +89,10 @@ void VideoDecoder::Reset() {
 }
 
 void VideoDecoder::Update() {
-  if (!eos_written_) {
-    return;
+  if (eos_written_) {
+    TryToDeliverOneFrame();
   }
-  TryToDeliverOneFrame();
+  job_queue_->Schedule(update_closure_, kUpdateInterval);
 }
 
 bool VideoDecoder::TryToDeliverOneFrame() {
@@ -268,8 +277,16 @@ namespace player {
 namespace filter {
 
 // static
-VideoDecoder* VideoDecoder::Create(SbMediaVideoCodec video_codec) {
-  return new raspi::shared::open_max::VideoDecoder(video_codec);
+VideoDecoder* VideoDecoder::Create(const Parameters& parameters) {
+  return new raspi::shared::open_max::VideoDecoder(parameters.video_codec,
+                                                   parameters.job_queue);
+}
+
+// static
+bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
+                                       SbMediaVideoCodec codec,
+                                       SbDrmSystem drm_system) {
+  return output_mode == kSbPlayerOutputModePunchOut;
 }
 
 }  // namespace filter

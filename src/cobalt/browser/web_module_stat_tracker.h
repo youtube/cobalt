@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_BROWSER_WEB_MODULE_STAT_TRACKER_H_
 #define COBALT_BROWSER_WEB_MODULE_STAT_TRACKER_H_
@@ -51,9 +49,14 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   void OnStartInjectEvent(const scoped_refptr<dom::Event>& event);
 
   // |OnEndInjectEvent| notifies the event stat tracking that the event has
-  // finished being injected. If no render tree is pending, it also ends
-  // tracking of the event.
-  void OnEndInjectEvent(bool is_new_render_tree_pending);
+  // finished being injected. If no animation frame callbacks and also no render
+  // tree is pending, it also ends tracking of the event.
+  void OnEndInjectEvent(bool are_animation_frame_callbacks_pending,
+                        bool is_new_render_tree_pending);
+
+  // |OnRanAnimationFrameCallbacks| ends stat tracking for the current event
+  // if no render tree is pending.
+  void OnRanAnimationFrameCallbacks(bool is_new_render_tree_pending);
 
   // |OnRenderTreeProduced| ends stat tracking for the current event.
   void OnRenderTreeProduced();
@@ -88,10 +91,15 @@ class WebModuleStatTracker : public base::StopWatchOwner {
         count_dom_generate_pseudo_element_computed_style;
     base::CVal<int, base::CValPublic> count_layout_boxes_created;
     base::CVal<int, base::CValPublic> count_layout_boxes_destroyed;
+    base::CVal<int, base::CValPublic> count_layout_update_size;
+    base::CVal<int, base::CValPublic> count_layout_render_and_animate;
+    base::CVal<int, base::CValPublic> count_layout_update_cross_references;
 
     // Duration-related
     base::CVal<base::TimeDelta, base::CValPublic> duration_total;
     base::CVal<base::TimeDelta, base::CValPublic> duration_dom_inject_event;
+    base::CVal<base::TimeDelta, base::CValPublic>
+        duration_dom_run_animation_frame_callbacks;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_dom_update_computed_style;
     base::CVal<base::TimeDelta, base::CValPublic> duration_layout_box_tree;

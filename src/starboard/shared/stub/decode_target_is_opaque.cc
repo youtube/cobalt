@@ -15,6 +15,8 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 #if !(SB_VERSION(3) && SB_HAS(GRAPHICS))
 #error "SbDecodeTargetIsOpaque requires SB_VERSION(3) and SB_HAS(GRAPHICS)."
 #endif
@@ -22,3 +24,5 @@
 bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target) {
   return false;
 }
+
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

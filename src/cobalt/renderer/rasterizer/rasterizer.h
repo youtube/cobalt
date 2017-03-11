@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_RASTERIZER_H_
@@ -81,6 +79,12 @@ class Rasterizer {
   // like images and fonts which can be referenced by render trees that are
   // subsequently submitted to this pipeline.  This call must be thread-safe.
   virtual render_tree::ResourceProvider* GetResourceProvider() = 0;
+
+  // For GL-based rasterizers, some animation updates can require that the
+  // rasterizer's GL context be current when they are executed.  This method
+  // is essentially a hack to allow GL-based rasterizers a chance to set their
+  // context current before we move to update animations.
+  virtual void MakeCurrent() {}
 };
 
 }  // namespace rasterizer

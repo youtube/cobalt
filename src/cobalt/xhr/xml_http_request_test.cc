@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/xhr/xml_http_request.h"
 
@@ -32,7 +30,7 @@ using ::testing::Property;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
-using cobalt::dom::testing::FakeScriptObject;
+using cobalt::dom::testing::FakeScriptValue;
 using cobalt::dom::testing::MockEventListener;
 using cobalt::script::testing::MockExceptionState;
 
@@ -94,7 +92,7 @@ class FakeSettings : public dom::DOMSettings {
  public:
   FakeSettings()
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                         NULL),
+                         NULL, NULL),
         example_("http://example.com") {}
   const GURL& base_url() const OVERRIDE { return example_; }
 
@@ -153,7 +151,7 @@ TEST_F(XhrTest, InvalidMethod) {
 
 TEST_F(XhrTest, Open) {
   scoped_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptObject script_object(listener.get());
+  FakeScriptValue script_object(listener.get());
   xhr_->set_onreadystatechange(script_object);
   EXPECT_CALL(
       *listener,

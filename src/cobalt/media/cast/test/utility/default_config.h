@@ -31,7 +31,7 @@ FrameSenderConfig GetDefaultVideoSenderConfig();
 
 // Returns a callback that does nothing.
 CreateVideoEncodeAcceleratorCallback
-    CreateDefaultVideoEncodeAcceleratorCallback();
+CreateDefaultVideoEncodeAcceleratorCallback();
 
 // Returns a callback that does nothing.
 CreateVideoEncodeMemoryCallback CreateDefaultVideoEncodeMemoryCallback();

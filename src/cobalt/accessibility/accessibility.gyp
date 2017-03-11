@@ -21,8 +21,8 @@
         'internal/live_region.h',
         'internal/text_alternative_helper.cc',
         'internal/text_alternative_helper.h',
-        'focus_observer.cc',
-        'focus_observer.h',
+        'screen_reader.cc',
+        'screen_reader.h',
         'starboard_tts_engine.cc',
         'starboard_tts_engine.h',
         'text_alternative.cc',
@@ -32,6 +32,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
     },
   ]

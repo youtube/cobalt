@@ -82,8 +82,7 @@ class ExpandedValueBase {
       // If the |result| is larger than |value_|, decrement the upper bits by
       // one.  In other words, |x| must always be interpreted as a truncated
       // version of a value less than or equal to |value_|.
-      if (result > value_)
-        result -= short_max + 1;
+      if (result > value_) result -= short_max + 1;
 
       return Subclass(result);
     } else {

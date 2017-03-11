@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/layout/replaced_box.h"
 
@@ -23,7 +21,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/filter_function_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
-#include "cobalt/cssom/mtm_function.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
@@ -91,6 +89,7 @@ ReplacedBox::ReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
+    base::optional<bool> is_video_punched_out,
     LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
@@ -103,7 +102,8 @@ ReplacedBox::ReplacedBox(
       replace_image_cb_(replace_image_cb),
       set_bounds_cb_(set_bounds_cb),
       paragraph_(paragraph),
-      text_position_(text_position) {}
+      text_position_(text_position),
+      is_video_punched_out_(is_video_punched_out) {}
 
 WrapResult ReplacedBox::TryWrapAt(
     WrapAtPolicy /*wrap_at_policy*/,
@@ -192,8 +192,6 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
   return GetMarginBoxHeight();
 }
 
-#if !PUNCH_THROUGH_VIDEO_RENDERING
-
 namespace {
 
 void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
@@ -247,8 +245,6 @@ void AnimateCB(const ReplacedBox::ReplaceImageCB& replace_image_cb,
 
 }  // namespace
 
-#endif  // !PUNCH_THROUGH_VIDEO_RENDERING
-
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
@@ -256,6 +252,16 @@ void ReplacedBox::RenderAndAnimateContent(
   }
 
   if (replace_image_cb_.is_null()) {
+    return;
+  }
+
+  if (is_video_punched_out_ == base::nullopt) {
+    // If we don't have a data stream associated with this video [yet], then
+    // we don't yet know if it is punched out or not, and so render black.
+    border_node_builder->AddChild(new RectNode(
+        math::RectF(content_box_size()),
+        scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+            render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))));
     // Nothing to render.
     return;
   }
@@ -267,33 +273,36 @@ void ReplacedBox::RenderAndAnimateContent(
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
-#if PUNCH_THROUGH_VIDEO_RENDERING
-  // For systems that have their own path to blitting video to the display, we
-  // simply punch a hole through our scene so that the video can appear there.
-  PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
-                                         set_bounds_cb_);
-  Node* frame_node = new PunchThroughVideoNode(builder);
-#else
-  AnimateNode::Builder animate_node_builder;
-  animate_node_builder.Add(
-      composition_node, base::Bind(AnimateCB, replace_image_cb_,
-                                   content_box_size()));
+  scoped_refptr<Node> frame_node;
+  if (*is_video_punched_out_) {
+    // For systems that have their own path to blitting video to the display, we
+    // simply punch a hole through our scene so that the video can appear there.
+    PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
+                                           set_bounds_cb_);
+    frame_node = new PunchThroughVideoNode(builder);
+  } else {
+    AnimateNode::Builder animate_node_builder;
+    animate_node_builder.Add(
+        composition_node,
+        base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
 
-  Node* frame_node = new AnimateNode(animate_node_builder, composition_node);
-#endif  // PUNCH_THROUGH_VIDEO_RENDERING
+    frame_node = new AnimateNode(animate_node_builder, composition_node);
+  }
 
-  const cssom::MTMFunction* mtm_filter_function =
-      cssom::MTMFunction::ExtractFromFilterList(computed_style()->filter());
+  const cssom::MapToMeshFunction* mtm_filter_function =
+      cssom::MapToMeshFunction::ExtractFromFilterList(
+          computed_style()->filter());
 
-  Node* content_node = NULL;
+  scoped_refptr<Node> content_node;
   if (mtm_filter_function) {
-    const cssom::MTMFunction::MeshSpec& spec = mtm_filter_function->mesh_spec();
+    const cssom::MapToMeshFunction::MeshSpec& spec =
+        mtm_filter_function->mesh_spec();
     const scoped_refptr<cssom::KeywordValue>& stereo_mode_keyword_value =
         mtm_filter_function->stereo_mode();
     render_tree::StereoMode stereo_mode =
         ReadStereoMode(stereo_mode_keyword_value);
 
-    if (spec.mesh_type() == cssom::MTMFunction::kUrls) {
+    if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
       // Custom mesh URLs.
       cssom::URLValue* url_value =
           base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
@@ -305,7 +314,7 @@ void ReplacedBox::RenderAndAnimateContent(
 
       content_node =
           new FilterNode(MapToMeshFilter(stereo_mode, mesh), frame_node);
-    } else if (spec.mesh_type() == cssom::MTMFunction::kEquirectangular) {
+    } else if (spec.mesh_type() == cssom::MapToMeshFunction::kEquirectangular) {
       // Default equirectangular mesh.
       content_node = new FilterNode(MapToMeshFilter(stereo_mode), frame_node);
     } else {

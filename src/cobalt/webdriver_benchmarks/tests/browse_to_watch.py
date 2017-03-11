@@ -12,7 +12,6 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # pylint: disable=C6204,C6203
-import tv
 import tv_testcase
 import tv_testcase_event_recorder
 import tv_testcase_util
@@ -50,11 +49,11 @@ class BrowseToWatchTest(tv_testcase.TvTestCase):
       self.load_tv()
 
       for _ in xrange(NUM_ITERATIONS_PER_LOAD_TV_CALL):
-        self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_DOWN)
+        self.send_keys(keys.Keys.ARROW_DOWN)
         self.wait_for_processing_complete_after_focused_shelf()
 
         browse_to_watch_recorder.on_start_event()
-        self.send_keys(tv.FOCUSED_TILE, keys.Keys.ENTER)
+        self.send_keys(keys.Keys.ENTER)
         self.wait_for_media_element_playing()
         browse_to_watch_recorder.on_end_event()
 
@@ -63,7 +62,7 @@ class BrowseToWatchTest(tv_testcase.TvTestCase):
         self.wait_for_title_card_hidden()
 
         watch_to_browse_recorder.on_start_event()
-        self.send_keys(tv.FOCUSED_WATCH, keys.Keys.ESCAPE)
+        self.send_keys(keys.Keys.ESCAPE)
         self.wait_for_processing_complete_after_focused_shelf()
         watch_to_browse_recorder.on_end_event()
 

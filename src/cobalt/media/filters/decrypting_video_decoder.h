@@ -41,10 +41,8 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
 
   // VideoDecoder implementation.
   std::string GetDisplayName() const OVERRIDE;
-  void Initialize(const VideoDecoderConfig& config,
-                  bool low_delay,
-                  CdmContext* cdm_context,
-                  const InitCB& init_cb,
+  void Initialize(const VideoDecoderConfig& config, bool low_delay,
+                  CdmContext* cdm_context, const InitCB& init_cb,
                   const OutputCB& output_cb) OVERRIDE;
   void Decode(const scoped_refptr<DecoderBuffer>& buffer,
               const DecodeCB& decode_cb) OVERRIDE;
@@ -72,8 +70,7 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   void DecodePendingBuffer();
 
   // Callback for Decryptor::DecryptAndDecodeVideo().
-  void DeliverFrame(int buffer_size,
-                    Decryptor::Status status,
+  void DeliverFrame(int buffer_size, Decryptor::Status status,
                     const scoped_refptr<VideoFrame>& frame);
 
   // Callback for the |decryptor_| to notify this object that a new key has been

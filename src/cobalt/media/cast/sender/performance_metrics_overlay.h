@@ -62,8 +62,7 @@ namespace cast {
 // rendering of the entire overlay.
 void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
                                           bool in_low_latency_mode,
-                                          int target_bitrate,
-                                          int frames_ago,
+                                          int target_bitrate, int frames_ago,
                                           double encoder_utilization,
                                           double lossy_utilization,
                                           VideoFrame* frame);

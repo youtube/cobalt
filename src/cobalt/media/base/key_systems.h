@@ -31,21 +31,18 @@ class MEDIA_EXPORT KeySystems {
 
   // Returns whether |init_data_type| is supported by |key_system|.
   virtual bool IsSupportedInitDataType(
-      const std::string& key_system,
-      EmeInitDataType init_data_type) const = 0;
+      const std::string& key_system, EmeInitDataType init_data_type) const = 0;
 
   // Returns the configuration rule for supporting a container and list of
   // codecs.
   virtual EmeConfigRule GetContentTypeConfigRule(
-      const std::string& key_system,
-      EmeMediaType media_type,
+      const std::string& key_system, EmeMediaType media_type,
       const std::string& container_mime_type,
       const std::vector<std::string>& codecs) const = 0;
 
   // Returns the configuration rule for supporting a robustness requirement.
   virtual EmeConfigRule GetRobustnessConfigRule(
-      const std::string& key_system,
-      EmeMediaType media_type,
+      const std::string& key_system, EmeMediaType media_type,
       const std::string& requested_robustness) const = 0;
 
   // Returns the support |key_system| provides for persistent-license sessions.
@@ -66,15 +63,14 @@ class MEDIA_EXPORT KeySystems {
       const std::string& key_system) const = 0;
 
  protected:
-  virtual ~KeySystems() {};
+  virtual ~KeySystems() {}
 };
 
 // TODO(ddorwin): WebContentDecryptionModuleSessionImpl::initializeNewSession()
 // is violating this rule! https://crbug.com/249976.
 // Use for prefixed EME only!
 MEDIA_EXPORT bool IsSupportedKeySystemWithInitDataType(
-    const std::string& key_system,
-    EmeInitDataType init_data_type);
+    const std::string& key_system, EmeInitDataType init_data_type);
 
 // Returns a name for |key_system| suitable to UMA logging.
 MEDIA_EXPORT std::string GetKeySystemNameForUMA(const std::string& key_system);
@@ -93,8 +89,7 @@ MEDIA_EXPORT std::string GetPepperType(const std::string& key_system);
 // Call AddCodecMask() first to ensure the mask values passed to
 // AddMimeTypeCodecMask() already exist.
 MEDIA_EXPORT void AddCodecMask(EmeMediaType media_type,
-                               const std::string& codec,
-                               uint32_t mask);
+                               const std::string& codec, uint32_t mask);
 MEDIA_EXPORT void AddMimeTypeCodecMask(const std::string& mime_type,
                                        uint32_t mask);
 #endif  // defined(UNIT_TEST)

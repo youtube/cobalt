@@ -10,12 +10,12 @@
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
 #include "media/base/audio_decoder_config.h"
-#include "media/base/video_decoder_config.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/pipeline.h"
+#include "media/base/video_decoder_config.h"
 #if defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/shell_media_statistics.h"
 #endif
@@ -358,7 +358,16 @@ void DecryptingDemuxerStream::SetDecoderConfig(
       const VideoDecoderConfig& input_video_config =
           stream->video_decoder_config();
       video_config_.reset(new VideoDecoderConfig());
-      video_config_->CopyFrom(input_video_config);
+      video_config_->Initialize(
+          input_video_config.codec(), input_video_config.profile(),
+          input_video_config.format(), input_video_config.color_space(),
+          input_video_config.coded_size(), input_video_config.visible_rect(),
+          input_video_config.natural_size(), input_video_config.extra_data(),
+          input_video_config.extra_data_size(),
+          false,  // Output video is not encrypted.
+          false);
+      video_config_->set_webm_color_metadata(
+          input_video_config.webm_color_metadata());
       break;
     }
 

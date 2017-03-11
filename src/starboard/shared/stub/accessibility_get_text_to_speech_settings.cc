@@ -23,5 +23,6 @@ bool SbAccessibilityGetTextToSpeechSettings(
                       sizeof(SbAccessibilityTextToSpeechSettings))) {
     return false;
   }
+  out_setting->has_text_to_speech_setting = false;
   return true;
 }

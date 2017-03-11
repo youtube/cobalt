@@ -124,7 +124,8 @@ enum Channels {
   BACK_CENTER,
   SIDE_LEFT,
   SIDE_RIGHT,
-  CHANNELS_MAX = SIDE_RIGHT, // Must always equal the largest value ever logged.
+  CHANNELS_MAX =
+      SIDE_RIGHT,  // Must always equal the largest value ever logged.
 };
 
 // Returns the expected channel position in an interleaved stream.  Values of -1

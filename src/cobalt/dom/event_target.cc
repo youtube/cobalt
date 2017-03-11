@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/event_target.h"
 
@@ -28,21 +26,21 @@ namespace cobalt {
 namespace dom {
 
 void EventTarget::AddEventListener(const std::string& type,
-                                   const EventListenerScriptObject& listener,
+                                   const EventListenerScriptValue& listener,
                                    bool use_capture) {
   // Do nothing if listener is null.
   if (listener.IsNull()) {
     return;
   }
 
-  EventListenerScriptObject::Reference listener_reference(this, listener);
+  EventListenerScriptValue::Reference listener_reference(this, listener);
 
   AddEventListenerInternal(base::Token(type), listener, use_capture,
                            EventListener::kNotAttribute);
 }
 
 void EventTarget::RemoveEventListener(const std::string& type,
-                                      const EventListenerScriptObject& listener,
+                                      const EventListenerScriptValue& listener,
                                       bool use_capture) {
   // Do nothing if listener is null.
   if (listener.IsNull()) {
@@ -53,7 +51,7 @@ void EventTarget::RemoveEventListener(const std::string& type,
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->listener_type == EventListener::kNotAttribute &&
         (*iter)->type == type.c_str() &&
-        (*iter)->listener.referenced_object().EqualTo(listener) &&
+        (*iter)->listener.referenced_value().EqualTo(listener) &&
         (*iter)->use_capture == use_capture) {
       event_listener_infos_.erase(iter);
       return;
@@ -118,7 +116,7 @@ void EventTarget::PostToDispatchEventAndRunCallback(
 }
 
 void EventTarget::SetAttributeEventListener(
-    base::Token type, const EventListenerScriptObject& listener) {
+    base::Token type, const EventListenerScriptValue& listener) {
   // Remove existing attribute listener of the same type.
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
@@ -135,13 +133,13 @@ void EventTarget::SetAttributeEventListener(
   AddEventListenerInternal(type, listener, false, EventListener::kAttribute);
 }
 
-const EventTarget::EventListenerScriptObject*
+const EventTarget::EventListenerScriptValue*
 EventTarget::GetAttributeEventListener(base::Token type) const {
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->listener_type == EventListener::kAttribute &&
         (*iter)->type == type) {
-      return &(*iter)->listener.referenced_object();
+      return &(*iter)->listener.referenced_value();
     }
   }
   return NULL;
@@ -163,7 +161,7 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->type == event->type()) {
       event_listener_infos.push_back(new EventListenerInfo(
-          (*iter)->type, this, (*iter)->listener.referenced_object(),
+          (*iter)->type, this, (*iter)->listener.referenced_value(),
           (*iter)->use_capture, (*iter)->listener_type));
     }
   }
@@ -189,7 +187,7 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
 }
 
 void EventTarget::AddEventListenerInternal(
-    base::Token type, const EventListenerScriptObject& listener,
+    base::Token type, const EventListenerScriptValue& listener,
     bool use_capture, EventListener::Type listener_type) {
   TRACK_MEMORY_SCOPE("DOM");
 
@@ -198,7 +196,7 @@ void EventTarget::AddEventListenerInternal(
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->type == type &&
-        (*iter)->listener.referenced_object().EqualTo(listener) &&
+        (*iter)->listener.referenced_value().EqualTo(listener) &&
         (*iter)->use_capture == use_capture &&
         (*iter)->listener_type == listener_type) {
       // Attribute listeners should have already been removed.
@@ -213,7 +211,7 @@ void EventTarget::AddEventListenerInternal(
 
 EventTarget::EventListenerInfo::EventListenerInfo(
     base::Token type, EventTarget* const event_target,
-    const EventListenerScriptObject& listener, bool use_capture,
+    const EventListenerScriptValue& listener, bool use_capture,
     EventListener::Type listener_type)
     : type(type),
       listener(event_target, listener),

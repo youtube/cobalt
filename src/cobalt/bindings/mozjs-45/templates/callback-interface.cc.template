@@ -35,7 +35,6 @@ using cobalt::script::mozjs::util::GetExceptionString;
 {% endblock using_directives %}
 
 {% block implementation %}
-namespace cobalt {
 {% for component in components %}
 namespace {{component}} {
 {% endfor %}
@@ -45,6 +44,12 @@ namespace {{component}} {
     JS::HandleObject implementing_object)
     : context_(context),
       implementing_object_(context, implementing_object) { }
+
+{{binding_class}}::{{binding_class}}(
+    JSContext* context,
+    JS::HandleValue implementing_object_value)
+    : context_(context),
+      implementing_object_(context, implementing_object_value) { }
 
 {% for operation in operations %}
 {% for overload in operation.overloads %}
@@ -62,7 +67,7 @@ namespace {{component}} {
   JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
 
   // This could be set to NULL if it was garbage collected.
-  JS::RootedObject implementing_object(context_, implementing_object_.Get());
+  JS::RootedObject implementing_object(context_, implementing_object_.GetObject());
   DLOG_IF(WARNING, !implementing_object) << "Implementing object is NULL.";
   if (implementing_object) {
     JSAutoCompartment auto_compartment(context_, implementing_object);
@@ -111,8 +116,7 @@ namespace {{component}} {
 {% endfor %}
 {% endfor %}
 
-{% for component in components %}
+{% for component in components|reverse %}
 }  // namespace {{component}}
 {% endfor %}
-}  // namespace cobalt
 {% endblock implementation %}

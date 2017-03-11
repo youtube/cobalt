@@ -27,11 +27,11 @@
 {% block includes %}
 {{ super() }}
 #include "base/lazy_instance.h"
-#include "cobalt/script/mozjs-45/callback_function_conversion.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/mozjs-45/callback_function_conversion.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
-#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_function.h"
+#include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
@@ -41,6 +41,7 @@
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
 #include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
+#include "cobalt/script/sequence.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 {% if is_exception_interface %}
 #include "third_party/mozjs-45/js/src/jsexn.h"
@@ -52,24 +53,24 @@
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::ExceptionState;
+using cobalt::script::Wrappable;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::InterfaceData;
+using cobalt::script::mozjs::MozjsCallbackFunction;
+using cobalt::script::mozjs::MozjsExceptionState;
+using cobalt::script::mozjs::MozjsGlobalEnvironment;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::ProxyHandler;
+using cobalt::script::mozjs::ToJSValue;
+using cobalt::script::mozjs::TypeTraits;
+using cobalt::script::mozjs::WrapperFactory;
+using cobalt::script::mozjs::WrapperPrivate;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::mozjs::kNoConversionFlags;
-using cobalt::script::mozjs::InterfaceData;
-using cobalt::script::mozjs::MozjsCallbackFunction;
-using cobalt::script::mozjs::MozjsExceptionState;
-using cobalt::script::mozjs::MozjsGlobalEnvironment;
-using cobalt::script::mozjs::MozjsUserObjectHolder;
-using cobalt::script::mozjs::MozjsPropertyEnumerator;
-using cobalt::script::mozjs::ProxyHandler;
-using cobalt::script::mozjs::ToJSValue;
-using cobalt::script::mozjs::TypeTraits;
-using cobalt::script::mozjs::WrapperPrivate;
-using cobalt::script::mozjs::WrapperFactory;
-using cobalt::script::Wrappable;
 {% endblock using_directives %}
 {% block enumeration_declarations %}
 {% if enumerations|length %}
@@ -164,7 +165,6 @@ bool GetNamedProperty(
     vp.set(result_value);
   }
   return !exception_state.is_exception_set();
-
 }
 
 {% endif %}

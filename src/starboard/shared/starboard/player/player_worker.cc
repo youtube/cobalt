@@ -233,14 +233,16 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   }
 }
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
 void PlayerWorker::DoSetBounds(Bounds bounds) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   if (!handler_->SetBounds(bounds)) {
     UpdatePlayerState(kSbPlayerStateError);
   }
 }
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)
 
 void PlayerWorker::DoSetPause(bool pause) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -249,6 +251,16 @@ void PlayerWorker::DoSetPause(bool pause) {
     UpdatePlayerState(kSbPlayerStateError);
   }
 }
+
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (!handler_->SetPlaybackRate(playback_rate)) {
+    UpdatePlayerState(kSbPlayerStateError);
+  }
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
 void PlayerWorker::DoStop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());

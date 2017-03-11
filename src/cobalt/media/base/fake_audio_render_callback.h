@@ -17,9 +17,8 @@ namespace media {
 // Fake RenderCallback which will fill each request with a sine wave.  Sine
 // state is kept across callbacks.  State can be reset to default via reset().
 // Also provide an interface to AudioTransformInput.
-class FakeAudioRenderCallback
-    : public AudioRendererSink::RenderCallback,
-      public AudioConverter::InputCallback {
+class FakeAudioRenderCallback : public AudioRendererSink::RenderCallback,
+                                public AudioConverter::InputCallback {
  public:
   // The function used to fulfill Render() is f(x) = sin(2 * PI * x * |step|),
   // where x = [|number_of_frames| * m, |number_of_frames| * (m + 1)] and m =
@@ -29,8 +28,7 @@ class FakeAudioRenderCallback
 
   // Renders a sine wave into the provided audio data buffer.  If |half_fill_|
   // is set, will only fill half the buffer.
-  int Render(AudioBus* audio_bus,
-             uint32_t frames_delayed,
+  int Render(AudioBus* audio_bus, uint32_t frames_delayed,
              uint32_t frames_skipped) OVERRIDE;
   MOCK_METHOD0(OnRenderError, void());
 
@@ -53,8 +51,7 @@ class FakeAudioRenderCallback
   int last_channel_count() const { return last_channel_count_; }
 
  private:
-  int RenderInternal(AudioBus* audio_bus,
-                     uint32_t frames_delayed,
+  int RenderInternal(AudioBus* audio_bus, uint32_t frames_delayed,
                      double volume);
 
   bool half_fill_;

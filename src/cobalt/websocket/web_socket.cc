@@ -1,17 +1,16 @@
-/* Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/websocket/web_socket.h"
 
@@ -19,18 +18,23 @@
 #include <string>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "base/string_piece.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_constants.h"
 #include "net/base/net_util.h"
+#include "net/websockets/websocket_errors.h"
 
 namespace {
 
-const char kBinaryTypeArrayBuffer[] = "arraybuffer";
-const char kBinaryTypeBlob[] = "blob";
+typedef uint16 SerializedCloseStatusCodeType;
+const int kMaxControlPayloadSizeInBytes = 125;
+const int kMaxCloseReasonSize =
+    kMaxControlPayloadSizeInBytes - sizeof(SerializedCloseStatusCodeType);
 
 bool IsURLAbsolute(cobalt::dom::DOMSettings* dom_settings,
                    const std::string& url) {
@@ -140,6 +144,11 @@ bool AreSubProtocolsUnique(const std::vector<std::string>& sub_protocols) {
   return (all_protocols.size() == sub_protocols.size());
 }
 
+bool IsValidBinaryType(cobalt::dom::MessageEvent::ResponseTypeCode code) {
+  return (code == cobalt::dom::MessageEvent::kBlob) ||
+         (code == cobalt::dom::MessageEvent::kArrayBuffer);
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -156,9 +165,10 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      script::ExceptionState* exception_state)
     : buffered_amount_(0),
       ready_state_(kConnecting),
-      binary_type_(kBinaryTypeBlob),
+      binary_type_(dom::MessageEvent::kBlob),
       is_secure_(false),
-      port_(-1) {
+      port_(-1),
+      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
   const std::vector<std::string> empty;
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
@@ -171,12 +181,22 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      script::ExceptionState* exception_state)
     : buffered_amount_(0),
       ready_state_(kConnecting),
-      binary_type_(kBinaryTypeBlob),
+      binary_type_(dom::MessageEvent::kBlob),
       is_secure_(false),
-      port_(-1) {
+      port_(-1),
+      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
   Initialize(dom_settings, url, sub_protocols, exception_state);
+}
+
+std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
+  if (!IsValidBinaryType(binary_type_)) {
+    NOTREACHED() << "Invalid binary_type_";
+    dom::DOMException::Raise(dom::DOMException::kNone, exception_state);
+    return std::string();
+  }
+  return dom::MessageEvent::GetResponseTypeAsString(binary_type_);
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket.
@@ -185,9 +205,10 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      script::ExceptionState* exception_state)
     : buffered_amount_(0),
       ready_state_(kConnecting),
-      binary_type_(kBinaryTypeBlob),
+      binary_type_(dom::MessageEvent::kBlob),
       is_secure_(false),
-      port_(-1) {
+      port_(-1),
+      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
   std::vector<std::string> sub_protocols;
   sub_protocols.push_back(sub_protocol);
   dom::DOMSettings* dom_settings =
@@ -202,67 +223,133 @@ void WebSocket::set_binary_type(const std::string& binary_type,
   // "On setting, if the new value is either the string "blob" or the string
   // "arraybuffer", then set the IDL attribute to this new value.
   // Otherwise, throw a SyntaxError exception."
-  if ((binary_type.compare(kBinaryTypeArrayBuffer) == 0) ||
-      (binary_type.compare((kBinaryTypeBlob)) == 0)) {
-    binary_type_ = binary_type;
-  } else {
+  base::StringPiece binary_type_string_piece(binary_type);
+  dom::MessageEvent::ResponseTypeCode response_code =
+      dom::MessageEvent::GetResponseTypeCode(binary_type_string_piece);
+  if (!IsValidBinaryType(response_code)) {
     dom::DOMException::Raise(dom::DOMException::kSyntaxErr, exception_state);
+  } else {
+    binary_type_ = response_code;
   }
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-close.
 void WebSocket::Close(script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(exception_state);
+
+  const std::string empty_reason;
+  Close(net::kWebSocketNormalClosure, empty_reason, exception_state);
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-close.
 void WebSocket::Close(const uint16 code,
                       script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(code);
-  UNREFERENCED_PARAMETER(exception_state);
+
+  const std::string empty_reason;
+  Close(code, empty_reason, exception_state);
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-close.
 void WebSocket::Close(const uint16 code, const std::string& reason,
                       script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(code);
-  UNREFERENCED_PARAMETER(reason);
-  UNREFERENCED_PARAMETER(exception_state);
+
+  // Per spec @ https://www.w3.org/TR/websockets/#dom-websocket-close
+  // "If reason is longer than 123 bytes, then throw a SyntaxError exception and
+  // abort these steps."
+  if (reason.size() > kMaxCloseReasonSize) {
+    DLOG(ERROR) << "Reason specified in WebSocket::Close must be less than "
+                << kMaxControlPayloadSizeInBytes << " bytes.";
+
+    dom::DOMException::Raise(dom::DOMException::kSyntaxErr, exception_state);
+    return;
+  }
+
+  if (!net::IsValidCloseStatusCode(code)) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
+                             exception_state);
+    return;
+  }
+
+  switch (ready_state_) {
+    case kOpen:
+    case kConnecting:
+      ready_state_ = kClosing;
+      break;
+    case kClosing:
+    case kClosed:
+      return;
+    default:
+      NOTREACHED() << "Invalid ready_state_ " << ready_state()
+                   << " in WebSocket::Close.";
+  }
+}
+
+bool WebSocket::CheckReadyState(script::ExceptionState* exception_state) {
+  DCHECK(exception_state);
+
+  // Per Websockets API spec:
+  // "If the readyState attribute is CONNECTING, it must throw an
+  // InvalidStateError exception"
+  if (ready_state_ == kConnecting) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             "readyState is not in CONNECTING state",
+                             exception_state);
+    return false;
+  }
+
+  return true;
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const std::string& data,
                      script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
   UNREFERENCED_PARAMETER(data);
-  UNREFERENCED_PARAMETER(exception_state);
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!CheckReadyState(exception_state)) {
+    return;
+  }
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const scoped_refptr<dom::Blob>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(data);
-  UNREFERENCED_PARAMETER(exception_state);
+  if (!CheckReadyState(exception_state)) {
+    return;
+  }
+  dom::Blob* blob(data.get());
+  if (!blob) {
+    return;
+  }
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const scoped_refptr<dom::ArrayBuffer>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(data);
-  UNREFERENCED_PARAMETER(exception_state);
+  if (!CheckReadyState(exception_state)) {
+    return;
+  }
+  dom::ArrayBuffer* array_buffer(data.get());
+  if (!array_buffer) {
+    return;
+  }
 }
 
 // Implements spect at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const scoped_refptr<dom::ArrayBufferView>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(data);
-  UNREFERENCED_PARAMETER(exception_state);
+  if (!CheckReadyState(exception_state)) {
+    return;
+  }
+  std::string error_message;
+  dom::ArrayBufferView* array_buffer_view(data.get());
+  if (!array_buffer_view) {
+    return;
+  }
 }
 
 std::string WebSocket::GetResourceName() const {
@@ -285,6 +372,8 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
                            const std::string& url,
                            const std::vector<std::string>& sub_protocols,
                            script::ExceptionState* exception_state) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
   if (!dom_settings) {
     dom::DOMException::Raise(dom::DOMException::kNone,
                              "Internal error: Unable to get DOM settings.",
@@ -386,11 +475,17 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
                              exception_state);
     return;
   }
+
+  Connect(resolved_url_, sub_protocols);
 }
 
-void WebSocket::Connect(const GURL& url, const std::string& protocols) {
+void WebSocket::Connect(const GURL& url,
+                        const std::vector<std::string>& sub_protocols) {
   UNREFERENCED_PARAMETER(url);
-  UNREFERENCED_PARAMETER(protocols);
+  UNREFERENCED_PARAMETER(sub_protocols);
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(settings_);
+  DCHECK(settings_->network_module());
 }
 
 }  // namespace websocket

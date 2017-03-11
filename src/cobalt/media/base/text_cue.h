@@ -15,13 +15,10 @@
 namespace media {
 
 // A text buffer to carry the components of a text track cue.
-class MEDIA_EXPORT TextCue
-    : public base::RefCountedThreadSafe<TextCue> {
+class MEDIA_EXPORT TextCue : public base::RefCountedThreadSafe<TextCue> {
  public:
-  TextCue(const base::TimeDelta& timestamp,
-          const base::TimeDelta& duration,
-          const std::string& id,
-          const std::string& settings,
+  TextCue(const base::TimeDelta& timestamp, const base::TimeDelta& duration,
+          const std::string& id, const std::string& settings,
           const std::string& text);
 
   // Access to constructor parameters.

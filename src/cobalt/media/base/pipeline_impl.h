@@ -74,15 +74,12 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline {
   ~PipelineImpl() OVERRIDE;
 
   // Pipeline implementation.
-  void Start(Demuxer* demuxer,
-             scoped_ptr<Renderer> renderer,
-             Client* client,
+  void Start(Demuxer* demuxer, scoped_ptr<Renderer> renderer, Client* client,
              const PipelineStatusCB& seek_cb) OVERRIDE;
   void Stop() OVERRIDE;
   void Seek(base::TimeDelta time, const PipelineStatusCB& seek_cb) OVERRIDE;
   void Suspend(const PipelineStatusCB& suspend_cb) OVERRIDE;
-  void Resume(scoped_ptr<Renderer> renderer,
-              base::TimeDelta time,
+  void Resume(scoped_ptr<Renderer> renderer, base::TimeDelta time,
               const PipelineStatusCB& seek_cb) OVERRIDE;
   bool IsRunning() const OVERRIDE;
   double GetPlaybackRate() const OVERRIDE;

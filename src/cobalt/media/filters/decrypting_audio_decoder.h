@@ -43,10 +43,8 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
 
   // AudioDecoder implementation.
   std::string GetDisplayName() const OVERRIDE;
-  void Initialize(const AudioDecoderConfig& config,
-                  CdmContext* cdm_context,
-                  const InitCB& init_cb,
-                  const OutputCB& output_cb) OVERRIDE;
+  void Initialize(const AudioDecoderConfig& config, CdmContext* cdm_context,
+                  const InitCB& init_cb, const OutputCB& output_cb) OVERRIDE;
   void Decode(const scoped_refptr<DecoderBuffer>& buffer,
               const DecodeCB& decode_cb) OVERRIDE;
   void Reset(const base::Closure& closure) OVERRIDE;
@@ -75,8 +73,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   void DecodePendingBuffer();
 
   // Callback for Decryptor::DecryptAndDecodeAudio().
-  void DeliverFrame(int buffer_size,
-                    Decryptor::Status status,
+  void DeliverFrame(int buffer_size, Decryptor::Status status,
                     const Decryptor::AudioFrames& frames);
 
   // Callback for the |decryptor_| to notify this object that a new key has been

@@ -24,6 +24,7 @@ KNOWN_COMPONENTS = frozenset(
         'debug',
         'dom',
         'h5vcc',
+        'media_session',
         'speech',
         'testing',
         'web_animations',
@@ -32,10 +33,27 @@ KNOWN_COMPONENTS = frozenset(
         'xhr',
     ])
 
+# List of regular expressions finding tokens that would appear in a name that
+# was converted from snake_case to TitleCase, but by convention should be in
+# ALL CAPS i.e. html_html_element -> HtmlHtmlElement -> HTMLHtmlElement
+special_token_list = ['3d', 'Br', 'Cdata', 'Css', 'Dom', '^Html', 'Idl?', 'Ui(?!nt)', 'Url', 'Xml']
+
+
+# Regular expression to capture all of the special tokens.
+special_token_re = re.compile('|'.join(special_token_list))
+
 
 def idl_filename_to_interface_name(idl_filename):
-    # interface name is the root of the basename: InterfaceName.idl
-    return os.path.splitext(os.path.basename(idl_filename))[0]
+    """Get InterfaceName from interface_name.idl"""
+    # Convert the name to TitleCase.
+    basename = os.path.splitext(os.path.basename(idl_filename))[0]
+    title_case_name = "".join(token.capitalize() for token in basename.split("_"))
+    # Find any special tokens that should be in UPPER CASE.
+    for match in special_token_re.finditer(title_case_name):
+        title_case_name = (title_case_name[:match.start()] +
+                           title_case_name[match.start():match.end()].upper() +
+                           title_case_name[match.end():])
+    return title_case_name
 
 
 def idl_filename_to_component(idl_filename):

@@ -44,7 +44,7 @@ class SourceBufferStreamState {
   typedef StreamParser::BufferQueue BufferQueue;
   typedef std::list<SourceBufferRange*> RangeList;
 
-  SourceBufferStreamState(bool splice_frames_enabled)
+  explicit SourceBufferStreamState(bool splice_frames_enabled)
       : splice_frames_enabled_(splice_frames_enabled) {
     current_config_index_ = 0;
     append_config_index_ = 0;
@@ -155,18 +155,9 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // kNeedBuffer: Indicates that we need more data before a buffer can be
   //              returned.
   // kConfigChange: Indicates that the next buffer requires a config change.
-  enum Status {
-    kSuccess,
-    kNeedBuffer,
-    kConfigChange,
-    kEndOfStream
-  };
+  enum Status { kSuccess, kNeedBuffer, kConfigChange, kEndOfStream };
 
-  enum Type {
-    kAudio,
-    kVideo,
-    kText
-  };
+  enum Type { kAudio, kVideo, kText };
 
   SourceBufferStream(const AudioDecoderConfig& audio_config,
                      const scoped_refptr<MediaLog>& media_log,
@@ -205,8 +196,7 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
 
   // Frees up space if the SourceBufferStream is taking up too much memory.
   // |media_time| is current playback position.
-  bool GarbageCollectIfNeeded(DecodeTimestamp media_time,
-                              size_t newDataSize);
+  bool GarbageCollectIfNeeded(DecodeTimestamp media_time, size_t newDataSize);
 
   // Changes the SourceBufferStream's state so that it will start returning
   // buffers starting from the closest keyframe before |timestamp|.
@@ -268,9 +258,7 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // yet.
   base::TimeDelta GetMaxInterbufferDistance() const;
 
-  void set_memory_limit(size_t memory_limit) {
-    memory_limit_ = memory_limit;
-  }
+  void set_memory_limit(size_t memory_limit) { memory_limit_ = memory_limit; }
 
  private:
   friend class SourceBufferStreamTest;
@@ -280,8 +268,7 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // through the buffers. Deletes starting from the back if |reverse_direction|
   // is true. |media_time| is current playback position.
   // Returns the number of bytes freed.
-  size_t FreeBuffers(size_t total_bytes_to_free,
-                     DecodeTimestamp media_time,
+  size_t FreeBuffers(size_t total_bytes_to_free, DecodeTimestamp media_time,
                      bool reverse_direction);
 
   // Attempts to delete approximately |total_bytes_to_free| amount of data from
@@ -318,8 +305,8 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
 
   // Returns true if |second_timestamp| is the timestamp of the next buffer in
   // sequence after |first_timestamp|, false otherwise.
-  bool AreAdjacentInSequence(
-      DecodeTimestamp first_timestamp, DecodeTimestamp second_timestamp) const;
+  bool AreAdjacentInSequence(DecodeTimestamp first_timestamp,
+                             DecodeTimestamp second_timestamp) const;
 
   // Helper method that returns the timestamp for the next buffer that
   // |selected_range_| will return from GetNextBuffer() call, or kNoTimestamp
@@ -430,10 +417,8 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // |*deleted_buffers| - Filled with buffers for the current playback position
   // if the removal range included the current playback position. These buffers
   // can be used as candidates for placing in the |track_buffer_|.
-  void RemoveInternal(DecodeTimestamp start,
-                      DecodeTimestamp end,
-                      bool exclude_start,
-                      BufferQueue* deleted_buffers);
+  void RemoveInternal(DecodeTimestamp start, DecodeTimestamp end,
+                      bool exclude_start, BufferQueue* deleted_buffers);
 
   // Helper function used by RemoveInternal() to evaluate whether remove will
   // disrupt the last appended GOP. If disruption is expected, reset state

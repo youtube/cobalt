@@ -131,7 +131,7 @@ protected:
     virtual SkTypeface* onCreateFromData(SkData*, int) const SK_OVERRIDE {
         return NULL;
     }
-    virtual SkTypeface* onCreateFromStream(SkStream*, int) const SK_OVERRIDE {
+    virtual SkTypeface* onCreateFromStream(SkStreamAsset*, int) const SK_OVERRIDE {
         return NULL;
     }
     virtual SkTypeface* onCreateFromFile(const char[], int) const SK_OVERRIDE {
@@ -195,7 +195,7 @@ SkTypeface* SkFontMgr::createFromData(SkData* data, int ttcIndex) const {
     return this->onCreateFromData(data, ttcIndex);
 }
 
-SkTypeface* SkFontMgr::createFromStream(SkStream* stream, int ttcIndex) const {
+SkTypeface* SkFontMgr::createFromStream(SkStreamAsset* stream, int ttcIndex) const {
     if (NULL == stream) {
         return NULL;
     }

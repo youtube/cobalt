@@ -52,9 +52,7 @@ class WebMediaPlayerDelegate {
   virtual void RemoveObserver(int delegate_id) = 0;
 
   // The specified player started playing media.
-  virtual void DidPlay(int delegate_id,
-                       bool has_video,
-                       bool has_audio,
+  virtual void DidPlay(int delegate_id, bool has_video, bool has_audio,
                        bool is_remote,
                        media::MediaContentType media_content_type) = 0;
 

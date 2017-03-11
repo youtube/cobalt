@@ -27,8 +27,7 @@ class TsSectionPes : public TsSection {
   ~TsSectionPes() override;
 
   // TsSection implementation.
-  bool Parse(bool payload_unit_start_indicator,
-             const uint8_t* buf,
+  bool Parse(bool payload_unit_start_indicator, const uint8_t* buf,
              int size) override;
   void Flush() override;
   void Reset() override;

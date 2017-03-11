@@ -23,18 +23,12 @@ extern "C" {
 // issue on at least Win64.
 
 // Convert a row of 24-bit RGB pixels to YV12 pixels.
-void ConvertRGBToYUVRow_SSSE3(const uint8_t* rgb,
-                              uint8_t* y,
-                              uint8_t* u,
-                              uint8_t* v,
-                              ptrdiff_t width);
+void ConvertRGBToYUVRow_SSSE3(const uint8_t* rgb, uint8_t* y, uint8_t* u,
+                              uint8_t* v, ptrdiff_t width);
 
 // Convert a row of 32-bit RGB pixels to YV12 pixels.
-void ConvertARGBToYUVRow_SSSE3(const uint8_t* argb,
-                               uint8_t* y,
-                               uint8_t* u,
-                               uint8_t* v,
-                               ptrdiff_t width);
+void ConvertARGBToYUVRow_SSSE3(const uint8_t* argb, uint8_t* y, uint8_t* u,
+                               uint8_t* v, ptrdiff_t width);
 
 #ifdef __cplusplus
 }

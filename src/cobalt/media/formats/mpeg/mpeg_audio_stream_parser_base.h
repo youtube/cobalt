@@ -28,16 +28,13 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
   // referred to as the sync code in the MP3 and ADTS header specifications.
   // |codec_delay| is the number of samples the decoder will output before the
   // first real frame.
-  MPEGAudioStreamParserBase(uint32_t start_code_mask,
-                            AudioCodec audio_codec,
+  MPEGAudioStreamParserBase(uint32_t start_code_mask, AudioCodec audio_codec,
                             int codec_delay);
   ~MPEGAudioStreamParserBase() OVERRIDE;
 
   // StreamParser implementation.
-  void Init(const InitCB& init_cb,
-            const NewConfigCB& config_cb,
-            const NewBuffersCB& new_buffers_cb,
-            bool ignore_text_tracks,
+  void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
+            const NewBuffersCB& new_buffers_cb, bool ignore_text_tracks,
             const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
             const NewMediaSegmentCB& new_segment_cb,
             const EndMediaSegmentCB& end_of_segment_cb,
@@ -76,23 +73,15 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
   // > 0 : The number of bytes parsed.
   //   0 : If more data is needed to parse the entire frame header.
   // < 0 : An error was encountered during parsing.
-  virtual int ParseFrameHeader(const uint8_t* data,
-                               int size,
-                               int* frame_size,
-                               int* sample_rate,
-                               ChannelLayout* channel_layout,
-                               int* sample_count,
-                               bool* metadata_frame,
+  virtual int ParseFrameHeader(const uint8_t* data, int size, int* frame_size,
+                               int* sample_rate, ChannelLayout* channel_layout,
+                               int* sample_count, bool* metadata_frame,
                                std::vector<uint8_t>* extra_data) const = 0;
 
   const scoped_refptr<MediaLog>& media_log() const { return media_log_; }
 
  private:
-  enum State {
-    UNINITIALIZED,
-    INITIALIZED,
-    PARSE_ERROR
-  };
+  enum State { UNINITIALIZED, INITIALIZED, PARSE_ERROR };
 
   void ChangeState(State state);
 

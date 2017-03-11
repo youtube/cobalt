@@ -42,14 +42,12 @@ class CastEnvironment : public base::RefCountedThreadSafe<CastEnvironment> {
   // They return true iff the thread existed and the task was posted.  Note that
   // even if the task is posted, there's no guarantee that it will run, since
   // the target thread may already have a Quit message in its queue.
-  bool PostTask(ThreadId identifier,
-                const tracked_objects::Location& from_here,
+  bool PostTask(ThreadId identifier, const tracked_objects::Location& from_here,
                 const base::Closure& task);
 
   bool PostDelayedTask(ThreadId identifier,
                        const tracked_objects::Location& from_here,
-                       const base::Closure& task,
-                       base::TimeDelta delay);
+                       const base::Closure& task, base::TimeDelta delay);
 
   bool CurrentlyOn(ThreadId identifier);
 

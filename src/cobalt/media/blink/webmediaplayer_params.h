@@ -66,9 +66,7 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerParams {
     return audio_renderer_sink_;
   }
 
-  const scoped_refptr<MediaLog>& media_log() const {
-    return media_log_;
-  }
+  const scoped_refptr<MediaLog>& media_log() const { return media_log_; }
 
   const scoped_refptr<base::SingleThreadTaskRunner>& media_task_runner() const {
     return media_task_runner_;

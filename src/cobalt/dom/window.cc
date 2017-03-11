@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/window.h"
 
@@ -33,6 +31,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/screen.h"
@@ -84,7 +83,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const std::string& default_security_policy,
                CspEnforcementType csp_enforcement_mode,
                const base::Closure& csp_policy_changed_callback,
+               const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
+               system_window::SystemWindow* system_window,
                int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
       height_(height),
@@ -125,11 +126,28 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
       screen_(new Screen(width, height)),
-      window_close_callback_(window_close_callback) {
+      ran_animation_frame_callbacks_callback_(
+          ran_animation_frame_callbacks_callback),
+      window_close_callback_(window_close_callback),
+      system_window_(system_window) {
 #if defined(ENABLE_TEST_RUNNER)
   test_runner_ = new TestRunner();
 #endif  // ENABLE_TEST_RUNNER
   document_->AddObserver(relay_on_load_event_.get());
+  if (system_window_) {
+    system_window::SystemWindowStarboard* system_window_sb =
+        base::polymorphic_downcast<system_window::SystemWindowStarboard*>(
+            system_window_);
+    SbWindow sb_window = system_window_sb->GetSbWindow();
+    SbWindowSize size;
+    if (SbWindowGetSize(sb_window, &size)) {
+      device_pixel_ratio_ = size.video_pixel_ratio;
+    } else {
+      device_pixel_ratio_ = 1.0f;
+    }
+  } else {
+      device_pixel_ratio_ = 1.0f;
+  }
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
@@ -305,18 +323,36 @@ HTMLElementContext* Window::html_element_context() const {
 }
 
 void Window::RunAnimationFrameCallbacks() {
-  // First grab the current list of frame request callbacks and hold on to it
-  // here locally.
-  scoped_ptr<AnimationFrameRequestCallbackList> frame_request_list =
-      animation_frame_request_callback_list_.Pass();
+  // Scope the StopWatch. It should not include any processing from
+  // |ran_animation_frame_callbacks_callback_|.
+  {
+    base::StopWatch stop_watch_run_animation_frame_callbacks(
+        DomStatTracker::kStopWatchTypeRunAnimationFrameCallbacks,
+        base::StopWatch::kAutoStartOn,
+        html_element_context()->dom_stat_tracker());
 
-  // Then setup the Window's frame request callback list with a freshly created
-  // and empty one.
-  animation_frame_request_callback_list_.reset(
-      new AnimationFrameRequestCallbackList(this));
+    // First grab the current list of frame request callbacks and hold on to it
+    // here locally.
+    scoped_ptr<AnimationFrameRequestCallbackList> frame_request_list =
+        animation_frame_request_callback_list_.Pass();
 
-  // Now, iterate through each of the callbacks and call them.
-  frame_request_list->RunCallbacks(*document_->timeline()->current_time());
+    // Then setup the Window's frame request callback list with a freshly
+    // created and empty one.
+    animation_frame_request_callback_list_.reset(
+        new AnimationFrameRequestCallbackList(this));
+
+    // Now, iterate through each of the callbacks and call them.
+    frame_request_list->RunCallbacks(*document_->timeline()->current_time());
+  }
+
+  // Run the callback if one exists.
+  if (!ran_animation_frame_callbacks_callback_.is_null()) {
+    ran_animation_frame_callbacks_callback_.Run();
+  }
+}
+
+bool Window::HasPendingAnimationFrameCallbacks() const {
+  return animation_frame_request_callback_list_->HasPendingCallbacks();
 }
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {

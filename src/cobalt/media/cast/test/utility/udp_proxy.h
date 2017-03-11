@@ -59,8 +59,7 @@ class PacketPipe {
 class InterruptedPoissonProcess {
  public:
   InterruptedPoissonProcess(const std::vector<double>& average_rates,
-                            double coef_burstiness,
-                            double coef_variance,
+                            double coef_burstiness, double coef_variance,
                             uint32_t rand_seed);
   ~InterruptedPoissonProcess();
 
@@ -118,11 +117,9 @@ class UDPProxy {
  public:
   virtual ~UDPProxy() {}
   static std::unique_ptr<UDPProxy> Create(
-      const net::IPEndPoint& local_port,
-      const net::IPEndPoint& destination,
+      const net::IPEndPoint& local_port, const net::IPEndPoint& destination,
       std::unique_ptr<PacketPipe> to_dest_pipe,
-      std::unique_ptr<PacketPipe> from_dest_pipe,
-      net::NetLog* net_log);
+      std::unique_ptr<PacketPipe> from_dest_pipe, net::NetLog* net_log);
 };
 
 // The following functions create PacketPipes which can be linked
@@ -157,9 +154,7 @@ std::unique_ptr<PacketPipe> NewDuplicateAndDelay(double delay_min,
 // However, every now and then a delay of |big_delay| will be
 // inserted (roughly every |seconds_between_big_delay| seconds).
 std::unique_ptr<PacketPipe> NewRandomSortedDelay(
-    double random_delay,
-    double big_delay,
-    double seconds_between_big_delay);
+    double random_delay, double big_delay, double seconds_between_big_delay);
 
 // This PacketPipe emulates network outages. It basically waits
 // for 0-2*|average_work_time| seconds, then kills the network for

@@ -59,8 +59,7 @@ class MEDIA_EXPORT DecoderBuffer
   // is copied from |side_data|. Buffers will be padded and aligned as necessary
   // Data pointers must not be NULL and sizes must be >= 0. The buffer's
   // |is_key_frame_| will default to false.
-  static scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data,
-                                               size_t size,
+  static scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data, size_t size,
                                                const uint8_t* side_data,
                                                size_t side_data_size);
 
@@ -102,9 +101,15 @@ class MEDIA_EXPORT DecoderBuffer
     return data_.get();
   }
 
+  size_t allocated_size() const { return allocated_size_; }
   size_t data_size() const {
     DCHECK(!end_of_stream());
     return size_;
+  }
+
+  void shrink_to(size_t size) {
+    DCHECK_LE(size, allocated_size_);
+    size_ = size;
   }
 
   const uint8_t* side_data() const {
@@ -144,9 +149,7 @@ class MEDIA_EXPORT DecoderBuffer
   }
 
   // If there's no data in this buffer, it represents end of stream.
-  bool end_of_stream() const {
-    return data_ == NULL;
-  }
+  bool end_of_stream() const { return data_ == NULL; }
 
   // Indicates this buffer is part of a splice around |splice_timestamp_|.
   // Returns kNoTimestamp if the buffer is not part of a splice.
@@ -185,9 +188,7 @@ class MEDIA_EXPORT DecoderBuffer
   // will be padded and aligned as necessary.  If |data| is NULL then |data_| is
   // set to NULL and |buffer_size_| to 0.  |is_key_frame_| will default to
   // false.
-  DecoderBuffer(const uint8_t* data,
-                size_t size,
-                const uint8_t* side_data,
+  DecoderBuffer(const uint8_t* data, size_t size, const uint8_t* side_data,
                 size_t side_data_size);
   virtual ~DecoderBuffer();
 
@@ -195,6 +196,7 @@ class MEDIA_EXPORT DecoderBuffer
   base::TimeDelta timestamp_;
   base::TimeDelta duration_;
 
+  const size_t allocated_size_;
   size_t size_;
   scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> data_;
   size_t side_data_size_;

@@ -114,7 +114,7 @@ GrPathRange* GrGLPathRendering::createGlyphs(const SkTypeface* typeface,
     }
 
     int faceIndex;
-    SkAutoTUnref<SkStream> fontStream(typeface->openStream(&faceIndex));
+    SkAutoTUnref<SkStreamAsset> fontStream(typeface->openStream(&faceIndex));
 
     const size_t fontDataLength = fontStream->getLength();
     if (0 == fontDataLength) {

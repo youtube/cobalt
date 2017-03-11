@@ -14,16 +14,12 @@ namespace media {
 // These methods are exported for testing purposes only.  Library users should
 // only call the methods listed in yuv_convert.h.
 
-MEDIA_EXPORT void FilterYUVRows_C(uint8_t* ybuf,
-                                  const uint8_t* y0_ptr,
-                                  const uint8_t* y1_ptr,
-                                  int source_width,
+MEDIA_EXPORT void FilterYUVRows_C(uint8_t* ybuf, const uint8_t* y0_ptr,
+                                  const uint8_t* y1_ptr, int source_width,
                                   uint8_t source_y_fraction);
 
-MEDIA_EXPORT void FilterYUVRows_SSE2(uint8_t* ybuf,
-                                     const uint8_t* y0_ptr,
-                                     const uint8_t* y1_ptr,
-                                     int source_width,
+MEDIA_EXPORT void FilterYUVRows_SSE2(uint8_t* ybuf, const uint8_t* y0_ptr,
+                                     const uint8_t* y1_ptr, int source_width,
                                      uint8_t source_y_fraction);
 
 }  // namespace media

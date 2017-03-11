@@ -22,9 +22,10 @@
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/window.h"
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION || SB_IS(PLAYER_PUNCHED_OUT)
 #include <X11/extensions/Xrender.h>
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION ||
+        // SB_IS(PLAYER_PUNCHED_OUT)
 
 struct SbWindowPrivate {
   SbWindowPrivate(Display* display, const SbWindowOptions* options);
@@ -32,13 +33,13 @@ struct SbWindowPrivate {
 
   Window window;
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION || SB_IS(PLAYER_PUNCHED_OUT)
   typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
 
   // Composites graphics and the given video frame video for this window. In
-  // PLAYER_PUNCHED_OUT mode, this is the only way any graphics or video is
-  // presented in the window.  The video frame will be rendered according to
-  // boundaries specified by the parameters.
+  // kSbPlayerOutputModePunchOut mode, this is the only way any graphics or
+  // video is presented in the window.  The video frame will be rendered
+  // according to boundaries specified by the parameters.
   void Composite(int bounds_x,
                  int bounds_y,
                  int bounds_width,
@@ -79,7 +80,8 @@ struct SbWindowPrivate {
 
   // A cached XRender Picture wrapper for |gl_window|.
   Picture gl_picture;
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION ||
+        // SB_IS(PLAYER_PUNCHED_OUT)
 
   // The display that this window was created from.
   Display* display;

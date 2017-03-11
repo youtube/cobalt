@@ -17,11 +17,8 @@ namespace media {
 class MEDIA_EXPORT WebMWebVTTParser {
  public:
   // Utility function to parse the WebVTT cue from a byte stream.
-  static void Parse(const uint8_t* payload,
-                    int payload_size,
-                    std::string* id,
-                    std::string* settings,
-                    std::string* content);
+  static void Parse(const uint8_t* payload, int payload_size, std::string* id,
+                    std::string* settings, std::string* content);
 
  private:
   // The payload is the embedded WebVTT cue, stored in a WebM block.

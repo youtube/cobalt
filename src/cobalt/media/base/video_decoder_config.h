@@ -18,6 +18,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_codecs.h"
 #include "cobalt/media/base/video_types.h"
+#include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -34,12 +35,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   // Constructs an initialized object. It is acceptable to pass in NULL for
   // |extra_data|, otherwise the memory is copied.
-  VideoDecoderConfig(VideoCodec codec,
-                     VideoCodecProfile profile,
-                     VideoPixelFormat format,
-                     ColorSpace color_space,
-                     const gfx::Size& coded_size,
-                     const gfx::Rect& visible_rect,
+  VideoDecoderConfig(VideoCodec codec, VideoCodecProfile profile,
+                     VideoPixelFormat format, ColorSpace color_space,
+                     const gfx::Size& coded_size, const gfx::Rect& visible_rect,
                      const gfx::Size& natural_size,
                      const std::vector<uint8_t>& extra_data,
                      const EncryptionScheme& encryption_scheme);
@@ -47,12 +45,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
   ~VideoDecoderConfig();
 
   // Resets the internal state of this object.
-  void Initialize(VideoCodec codec,
-                  VideoCodecProfile profile,
-                  VideoPixelFormat format,
-                  ColorSpace color_space,
-                  const gfx::Size& coded_size,
-                  const gfx::Rect& visible_rect,
+  void Initialize(VideoCodec codec, VideoCodecProfile profile,
+                  VideoPixelFormat format, ColorSpace color_space,
+                  const gfx::Size& coded_size, const gfx::Rect& visible_rect,
                   const gfx::Size& natural_size,
                   const std::vector<uint8_t>& extra_data,
                   const EncryptionScheme& encryption_scheme);
@@ -109,11 +104,13 @@ class MEDIA_EXPORT VideoDecoderConfig {
     return encryption_scheme_;
   }
 
-  void set_color_space_info(const gfx::ColorSpace& color_space_info);
-  gfx::ColorSpace color_space_info() const;
+  void set_webm_color_metadata(const WebMColorMetadata& webm_color_metadata) {
+    webm_color_metadata_ = webm_color_metadata;
+  }
 
-  void set_hdr_metadata(const HDRMetadata& hdr_metadata);
-  base::optional<HDRMetadata> hdr_metadata() const;
+  const WebMColorMetadata& webm_color_metadata() const {
+    return webm_color_metadata_;
+  }
 
  private:
   VideoCodec codec_;
@@ -132,8 +129,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   EncryptionScheme encryption_scheme_;
 
-  gfx::ColorSpace color_space_info_;
-  base::optional<HDRMetadata> hdr_metadata_;
+  WebMColorMetadata webm_color_metadata_;
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is

@@ -28,8 +28,7 @@ class MEDIA_EXPORT CdmInitializedPromise : public SimpleCdmPromise {
 
   // SimpleCdmPromise implementation.
   void resolve() OVERRIDE;
-  void reject(MediaKeys::Exception exception_code,
-              uint32_t system_code,
+  void reject(MediaKeys::Exception exception_code, uint32_t system_code,
               const std::string& error_message) OVERRIDE;
 
  private:

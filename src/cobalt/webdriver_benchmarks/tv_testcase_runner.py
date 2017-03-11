@@ -48,7 +48,11 @@ arg_parser.add_argument(
 # opened.
 RE_WEBDRIVER_LISTEN = re.compile(r"Starting WebDriver server on port (\d+)")
 # Pattern to match Cobalt log line for when a WindowDriver has been created.
-RE_WINDOWDRIVER_CREATED = re.compile(r"Created WindowDriver: ID=\S+")
+RE_WINDOWDRIVER_CREATED = re.compile(
+    r"^\[\d+/\d+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+")
+# Pattern to match Cobalt log line for when a WebModule is has been loaded.
+RE_WEBMODULE_LOADED = re.compile(
+    r"^\[\d+/\d+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule")
 
 STARTUP_TIMEOUT_SECONDS = 2 * 60
 
@@ -64,6 +68,7 @@ COBALT_WEBDRIVER_CAPABILITIES = {
 
 _webdriver = None
 _windowdriver_created = threading.Event()
+_webmodule_loaded = threading.Event()
 
 
 def GetWebDriver():
@@ -74,6 +79,11 @@ def GetWebDriver():
 def GetWindowDriverCreated():
   """Returns the WindowDriver created instance."""
   return _windowdriver_created
+
+
+def GetWebModuleLoaded():
+  """Returns the WebModule loaded instance."""
+  return _webmodule_loaded
 
 
 class TimeoutException(Exception):
@@ -137,9 +147,12 @@ class CobaltRunner(object):
   def _HandleLine(self, line):
     """Internal log line callback."""
 
-    # Check for a WindowDriver being created.
     if RE_WINDOWDRIVER_CREATED.search(line):
       _windowdriver_created.set()
+      return
+
+    if RE_WEBMODULE_LOADED.search(line):
+      _webmodule_loaded.set()
       return
 
     # Wait for WebDriver port here then connect

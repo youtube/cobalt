@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 #define COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
@@ -187,20 +185,22 @@ class ResourceProviderStub : public ResourceProvider {
     return make_scoped_refptr(new ImageStub(skia_source_data.Pass()));
   }
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
     NOTREACHED();
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     SbDecodeTargetDestroy(decode_target);
+#else   // SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    SbDecodeTargetRelease(decode_target);
+#endif  // SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     return NULL;
   }
 
   SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
 
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) OVERRIDE {

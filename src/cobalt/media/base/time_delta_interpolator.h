@@ -50,8 +50,7 @@ class MEDIA_EXPORT TimeDeltaInterpolator {
   //
   // |upper_bound| is typically the media timestamp of the last audio frame
   // buffered by the audio hardware.
-  void SetBounds(base::TimeDelta lower_bound,
-                 base::TimeDelta upper_bound,
+  void SetBounds(base::TimeDelta lower_bound, base::TimeDelta upper_bound,
                  base::TimeTicks capture_time);
 
   // Sets the upper bound used for interpolation. Note that if |upper_bound| is

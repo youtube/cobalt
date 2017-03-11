@@ -25,13 +25,10 @@ class AudioDecoder {
   // operation; and the client should take steps to smooth audio discontinuities
   // in this case.
   typedef base::Callback<void(std::unique_ptr<AudioBus> audio_bus,
-                              bool is_continuous)>
-      DecodeFrameCallback;
+                              bool is_continuous)> DecodeFrameCallback;
 
   AudioDecoder(const scoped_refptr<CastEnvironment>& cast_environment,
-               int channels,
-               int sampling_rate,
-               Codec codec);
+               int channels, int sampling_rate, Codec codec);
   virtual ~AudioDecoder();
 
   // Returns STATUS_INITIALIZED if the decoder was successfully constructed.  If

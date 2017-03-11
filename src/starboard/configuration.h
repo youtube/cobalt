@@ -46,6 +46,49 @@
 // implement the experimental Starboard API version.
 #define SB_EXPERIMENTAL_API_VERSION 4
 
+// --- Experimental Feature Defines ------------------------------------------
+
+// Note that experimental feature comments will be moved into
+// starboard/CHANGELOG.md when released.  Thus, you can find examples of the
+// format your feature comments should take by checking that file.
+
+// Feature introducing support for decode-to-texture player output mode, and
+// runtime player output mode selection and detection.
+// In starboard/configuration.h,
+//   * SB_IS_PLAYER_PUNCHED_OUT, SB_IS_PLAYER_PRODUCING_TEXTURE, and
+//     SB_IS_PLAYER_COMPOSITED now no longer need to be defined (and should not
+//     be defined) by platforms.  Instead, these capabilities are detected at
+//     runtime via SbPlayerOutputModeSupported().
+// In starboard/player.h,
+//   * The enum SbPlayerOutputMode is introduced.
+//   * SbPlayerOutputModeSupported() is introduced to let applications query
+//     for player output mode support.
+//   * SbPlayerCreate() now takes an additional parameter that specifies the
+//     desired output mode.
+//   * The punch out specific function SbPlayerSetBounds() must now be
+//     defined on all platforms, even if they don't support punch out (in which
+//     case they can implement a stub).
+//   * The function SbPlayerGetCompositionHandle() is removed.
+//   * The function SbPlayerGetTextureId() is replaced by the new
+//     SbPlayerGetCurrentFrame(), which returns a SbDecodeTarget.
+// In starboard/decode_target.h,
+//   * All get methods (SbDecodeTargetGetPlane() and SbDecodeTargetGetFormat(),
+//     SbDecodeTargetIsOpaque()) are now replaced with SbDecodeTargetGetInfo().
+//   * The SbDecodeTargetInfo structure is introduced and is the return value
+//     type of SbDecodeTargetGetInfo().
+//   * SbDecdodeTargetCreate() is now responsible for creating all its internal
+//     planes, and so its |planes| parameter is replaced by |width| and
+//     |height| parameters.
+//   * The GLES2 version of SbDecdodeTargetCreate() has its EGL types
+//     (EGLDisplay, EGLContext) replaced by void* types, so that decode_target.h
+//     can avoid #including EGL/GLES2 headers.
+//   * SbDecodeTargetDestroy() is renamed to SbDecodeTargetRelease().
+#define SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Support for setting the playback rate on an SbPlayer.  This allows for
+// control of the playback speed of video at runtime.
+#define SB_PLAYER_SET_PLAYBACK_RATE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
@@ -398,6 +441,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
 #endif
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #if SB_HAS(PLAYER)
 #if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
     !SB_IS(PLAYER_PRODUCING_TEXTURE)
@@ -416,6 +460,12 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your player can't have a composition method if it doesn't exist."
 #endif
 #endif  // SB_HAS(PLAYER)
+#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if defined(SB_IS_PLAYER_COMPOSITITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
+    defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
+#error "New versions of Starboard specify player output mode at runtime."
+#endif
+#endif  // // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 #if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
                             SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \

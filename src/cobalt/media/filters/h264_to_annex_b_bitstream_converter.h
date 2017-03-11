@@ -69,8 +69,7 @@ class MEDIA_EXPORT H264ToAnnexBBitstreamConverter {
   //   to bytestream format, or 0 if could not determine the size of
   //   the output buffer from the data in |input| and |avc_config|.
   uint32_t CalculateNeededOutputBufferSize(
-      const uint8_t* input,
-      uint32_t input_size,
+      const uint8_t* input, uint32_t input_size,
       const mp4::AVCDecoderConfigurationRecord* avc_config) const;
 
   // ConvertAVCDecoderConfigToByteStream converts the
@@ -94,8 +93,7 @@ class MEDIA_EXPORT H264ToAnnexBBitstreamConverter {
   //    false if conversion not successful (|output_size| will hold the amount
   //          of converted data)
   bool ConvertAVCDecoderConfigToByteStream(
-      const mp4::AVCDecoderConfigurationRecord& avc_config,
-      uint8_t* output,
+      const mp4::AVCDecoderConfigurationRecord& avc_config, uint8_t* output,
       uint32_t* output_size);
 
   // ConvertNalUnitStreamToByteStream converts the NAL unit from MP4 format
@@ -122,10 +120,8 @@ class MEDIA_EXPORT H264ToAnnexBBitstreamConverter {
   //    false if conversion not successful (output_size will hold the amount
   //          of converted data)
   bool ConvertNalUnitStreamToByteStream(
-      const uint8_t* input,
-      uint32_t input_size,
-      const mp4::AVCDecoderConfigurationRecord* avc_config,
-      uint8_t* output,
+      const uint8_t* input, uint32_t input_size,
+      const mp4::AVCDecoderConfigurationRecord* avc_config, uint8_t* output,
       uint32_t* output_size);
 
  private:
@@ -136,8 +132,7 @@ class MEDIA_EXPORT H264ToAnnexBBitstreamConverter {
   // written. On a successful write, |*out| is updated to point to the first
   // byte after the data that was written. |*out_size| is updated to reflect
   // the new number of bytes left in |*out|.
-  bool WriteParamSet(const std::vector<uint8_t>& param_set,
-                     uint8_t** out,
+  bool WriteParamSet(const std::vector<uint8_t>& param_set, uint8_t** out,
                      uint32_t* out_size) const;
 
   // Flag for indicating whether global parameter sets have been processed.

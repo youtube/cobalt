@@ -26,21 +26,20 @@ namespace media {
 class DecodeTimestamp {
  public:
   DecodeTimestamp() {}
-  DecodeTimestamp(const DecodeTimestamp& rhs) : ts_(rhs.ts_) { }
+  DecodeTimestamp(const DecodeTimestamp& rhs) : ts_(rhs.ts_) {}
   DecodeTimestamp& operator=(const DecodeTimestamp& rhs) {
-    if (&rhs != this)
-      ts_ = rhs.ts_;
+    if (&rhs != this) ts_ = rhs.ts_;
     return *this;
   }
 
   // Only operators that are actually used by the code have been defined.
   // Reviewers should pay close attention to the addition of new operators.
   bool operator<(const DecodeTimestamp& rhs) const { return ts_ < rhs.ts_; }
-  bool operator>(const DecodeTimestamp& rhs) const  { return ts_ > rhs.ts_; }
-  bool operator==(const DecodeTimestamp& rhs) const  { return ts_ == rhs.ts_; }
-  bool operator!=(const DecodeTimestamp& rhs) const  { return ts_ != rhs.ts_; }
-  bool operator>=(const DecodeTimestamp& rhs) const  { return ts_ >= rhs.ts_; }
-  bool operator<=(const DecodeTimestamp& rhs) const  { return ts_ <= rhs.ts_; }
+  bool operator>(const DecodeTimestamp& rhs) const { return ts_ > rhs.ts_; }
+  bool operator==(const DecodeTimestamp& rhs) const { return ts_ == rhs.ts_; }
+  bool operator!=(const DecodeTimestamp& rhs) const { return ts_ != rhs.ts_; }
+  bool operator>=(const DecodeTimestamp& rhs) const { return ts_ >= rhs.ts_; }
+  bool operator<=(const DecodeTimestamp& rhs) const { return ts_ <= rhs.ts_; }
 
   base::TimeDelta operator-(const DecodeTimestamp& rhs) const {
     return ts_ - rhs.ts_;
@@ -51,7 +50,7 @@ class DecodeTimestamp {
     return *this;
   }
 
-  DecodeTimestamp& operator-=(const base::TimeDelta& rhs)  {
+  DecodeTimestamp& operator-=(const base::TimeDelta& rhs) {
     ts_ -= rhs;
     return *this;
   }
@@ -93,7 +92,7 @@ class DecodeTimestamp {
   base::TimeDelta ToPresentationTime() const { return ts_; }
 
  private:
-  explicit DecodeTimestamp(base::TimeDelta timestamp) : ts_(timestamp) { }
+  explicit DecodeTimestamp(base::TimeDelta timestamp) : ts_(timestamp) {}
 
   base::TimeDelta ts_;
 };
@@ -117,13 +116,9 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
                                                     bool is_key_frame,
                                                     Type type,
                                                     TrackId track_id);
-  static scoped_refptr<StreamParserBuffer> CopyFrom(const uint8_t* data,
-                                                    int data_size,
-                                                    const uint8_t* side_data,
-                                                    int side_data_size,
-                                                    bool is_key_frame,
-                                                    Type type,
-                                                    TrackId track_id);
+  static scoped_refptr<StreamParserBuffer> CopyFrom(
+      const uint8_t* data, int data_size, const uint8_t* side_data,
+      int side_data_size, bool is_key_frame, Type type, TrackId track_id);
 
   // Decode timestamp. If not explicitly set, or set to kNoTimestamp, the
   // value will be taken from the normal timestamp.
@@ -186,13 +181,9 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   }
 
  private:
-  StreamParserBuffer(const uint8_t* data,
-                     int data_size,
-                     const uint8_t* side_data,
-                     int side_data_size,
-                     bool is_key_frame,
-                     Type type,
-                     TrackId track_id);
+  StreamParserBuffer(const uint8_t* data, int data_size,
+                     const uint8_t* side_data, int side_data_size,
+                     bool is_key_frame, Type type, TrackId track_id);
   ~StreamParserBuffer() OVERRIDE;
 
   DecodeTimestamp decode_timestamp_;

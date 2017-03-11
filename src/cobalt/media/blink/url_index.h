@@ -142,8 +142,7 @@ class MEDIA_BLINK_EXPORT UrlData : public base::RefCounted<UrlData> {
   blink::WebFrame* frame() const { return frame_; }
 
  protected:
-  UrlData(const GURL& url,
-          CORSMode cors_mode,
+  UrlData(const GURL& url, CORSMode cors_mode,
           const base::WeakPtr<UrlIndex>& url_index);
   virtual ~UrlData();
 

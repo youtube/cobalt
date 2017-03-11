@@ -36,9 +36,7 @@ class MEDIA_BLINK_EXPORT MultiBufferReader
   // regions of available data in the cache as well.
   // If |end| is not known, use -1.
   MultiBufferReader(
-      MultiBuffer* multibuffer,
-      int64_t start,
-      int64_t end,
+      MultiBuffer* multibuffer, int64_t start, int64_t end,
       const base::Callback<void(int64_t, int64_t)>& progress_callback);
 
   ~MultiBufferReader() OVERRIDE;

@@ -32,6 +32,8 @@
         'referenced_object_map.cc',
         'util/algorithm_helpers.cc',
         'util/exception_helpers.cc',
+        'util/stack_trace_helpers.cc',
+        'util/stack_trace_helpers.h',
         'weak_heap_object.cc',
         'weak_heap_object.h',
         'weak_heap_object_manager.cc',
@@ -88,7 +90,8 @@
         'mozjs_trace_logging.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/mozjs/mozjs.gyp:mozjs_lib',
       ],

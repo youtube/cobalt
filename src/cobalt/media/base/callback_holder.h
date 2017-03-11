@@ -13,7 +13,8 @@
 namespace media {
 
 // A helper class that can hold a callback from being fired.
-template <typename CB> class CallbackHolder {
+template <typename CB>
+class CallbackHolder {
  public:
   CallbackHolder() : hold_(false) {}
 
@@ -31,9 +32,7 @@ template <typename CB> class CallbackHolder {
     original_cb_ = cb;
   }
 
-  bool IsNull() const {
-    return original_cb_.is_null() && held_cb_.is_null();
-  }
+  bool IsNull() const { return original_cb_.is_null() && held_cb_.is_null(); }
 
   // Holds the callback when Run() is called.
   void HoldCallback() { hold_ = true; }
@@ -48,7 +47,8 @@ template <typename CB> class CallbackHolder {
       base::ResetAndReturn(&original_cb_).Run();
   }
 
-  template <typename A1> void RunOrHold(A1 a1) {
+  template <typename A1>
+  void RunOrHold(A1 a1) {
     DCHECK(held_cb_.is_null());
     if (hold_) {
       held_cb_ = base::Bind(base::ResetAndReturn(&original_cb_),
@@ -58,7 +58,8 @@ template <typename CB> class CallbackHolder {
     }
   }
 
-  template <typename A1, typename A2> void RunOrHold(A1 a1, A2 a2) {
+  template <typename A1, typename A2>
+  void RunOrHold(A1 a1, A2 a2) {
     DCHECK(held_cb_.is_null());
     if (hold_) {
       held_cb_ = base::Bind(base::ResetAndReturn(&original_cb_),

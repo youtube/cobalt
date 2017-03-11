@@ -25,8 +25,7 @@ class TsSection {
 
   // Parse the data bytes of the TS packet.
   // Return true if parsing is successful.
-  virtual bool Parse(bool payload_unit_start_indicator,
-                     const uint8_t* buf,
+  virtual bool Parse(bool payload_unit_start_indicator, const uint8_t* buf,
                      int size) = 0;
 
   // Process bytes that have not been processed yet (pending buffers in the

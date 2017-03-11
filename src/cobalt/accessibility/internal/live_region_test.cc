@@ -1,22 +1,21 @@
-/*
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/accessibility/internal/live_region.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/test/empty_document.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,21 +44,21 @@ TEST_F(LiveRegionTest, GetLiveRegionRoot) {
       CreateLiveRegion(base::Tokens::polite().c_str());
   ASSERT_TRUE(live_region_element);
 
-  // GetLiveRegionForElement with the live region root.
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  // GetLiveRegionForNode with the live region root.
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_EQ(live_region->root(), live_region_element);
 
-  // GetLiveRegionForElement with a descendent node of a live region.
+  // GetLiveRegionForNode with a descendent node of a live region.
   scoped_refptr<dom::Element> child = document()->CreateElement("div");
   live_region_element->AppendChild(child);
-  live_region = LiveRegion::GetLiveRegionForElement(child);
+  live_region = LiveRegion::GetLiveRegionForNode(child);
   ASSERT_TRUE(live_region);
   EXPECT_EQ(live_region->root(), live_region_element);
 
   // Element that is not in a live region.
   scoped_refptr<dom::Element> not_live = document()->CreateElement("div");
-  live_region = LiveRegion::GetLiveRegionForElement(not_live);
+  live_region = LiveRegion::GetLiveRegionForNode(not_live);
   EXPECT_FALSE(live_region);
 }
 
@@ -76,15 +75,14 @@ TEST_F(LiveRegionTest, NestedLiveRegion) {
   // The closest ancestor live region is this element's live region.
   scoped_refptr<dom::Element> child = document()->CreateElement("div");
   nested_region_element->AppendChild(child);
-  scoped_ptr<LiveRegion> live_region =
-      LiveRegion::GetLiveRegionForElement(child);
+  scoped_ptr<LiveRegion> live_region = LiveRegion::GetLiveRegionForNode(child);
   ASSERT_TRUE(live_region);
   EXPECT_EQ(live_region->root(), nested_region_element);
 
   // Ignore live regions that are not active.
   nested_region_element->SetAttribute(base::Tokens::aria_live().c_str(),
                                       base::Tokens::off().c_str());
-  live_region = LiveRegion::GetLiveRegionForElement(child);
+  live_region = LiveRegion::GetLiveRegionForNode(child);
   ASSERT_TRUE(live_region);
   EXPECT_EQ(live_region->root(), live_region_element);
 }
@@ -96,7 +94,7 @@ TEST_F(LiveRegionTest, LiveRegionType) {
   scoped_refptr<dom::Element> polite_element =
       CreateLiveRegion(base::Tokens::polite().c_str());
   ASSERT_TRUE(polite_element);
-  live_region = LiveRegion::GetLiveRegionForElement(polite_element);
+  live_region = LiveRegion::GetLiveRegionForNode(polite_element);
   ASSERT_TRUE(live_region);
   EXPECT_FALSE(live_region->IsAssertive());
 
@@ -104,7 +102,7 @@ TEST_F(LiveRegionTest, LiveRegionType) {
   scoped_refptr<dom::Element> assertive_element =
       CreateLiveRegion(base::Tokens::assertive().c_str());
   ASSERT_TRUE(assertive_element);
-  live_region = LiveRegion::GetLiveRegionForElement(assertive_element);
+  live_region = LiveRegion::GetLiveRegionForNode(assertive_element);
   ASSERT_TRUE(live_region);
   EXPECT_TRUE(live_region->IsAssertive());
 
@@ -112,13 +110,13 @@ TEST_F(LiveRegionTest, LiveRegionType) {
   scoped_refptr<dom::Element> off_element =
       CreateLiveRegion(base::Tokens::off().c_str());
   ASSERT_TRUE(off_element);
-  live_region = LiveRegion::GetLiveRegionForElement(off_element);
+  live_region = LiveRegion::GetLiveRegionForNode(off_element);
   EXPECT_FALSE(live_region);
 
   // aria-live=<invalid token>
   scoped_refptr<dom::Element> invalid_element = CreateLiveRegion("banana");
   ASSERT_TRUE(invalid_element);
-  live_region = LiveRegion::GetLiveRegionForElement(invalid_element);
+  live_region = LiveRegion::GetLiveRegionForNode(invalid_element);
   EXPECT_FALSE(live_region);
 }
 
@@ -127,9 +125,9 @@ TEST_F(LiveRegionTest, IsMutationRelevant) {
       CreateLiveRegion(base::Tokens::polite().c_str());
   ASSERT_TRUE(live_region_element);
 
-  // GetLiveRegionForElement with the live region root.
+  // GetLiveRegionForNode with the live region root.
   scoped_ptr<LiveRegion> live_region =
-      LiveRegion::GetLiveRegionForElement(live_region_element);
+      LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   // Default is that additions and text are relevant.
   EXPECT_TRUE(
@@ -141,7 +139,7 @@ TEST_F(LiveRegionTest, IsMutationRelevant) {
   // Only removals are relevant.
   live_region_element->SetAttribute(base::Tokens::aria_relevant().c_str(),
                                     "removals");
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_FALSE(
       live_region->IsMutationRelevant(LiveRegion::kMutationTypeAddition));
@@ -152,7 +150,7 @@ TEST_F(LiveRegionTest, IsMutationRelevant) {
   // Removals and additions are relevant.
   live_region_element->SetAttribute(base::Tokens::aria_relevant().c_str(),
                                     "removals additions");
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_TRUE(
       live_region->IsMutationRelevant(LiveRegion::kMutationTypeAddition));
@@ -163,7 +161,7 @@ TEST_F(LiveRegionTest, IsMutationRelevant) {
   // An invalid token.
   live_region_element->SetAttribute(base::Tokens::aria_relevant().c_str(),
                                     "text dog additions");
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_TRUE(
       live_region->IsMutationRelevant(LiveRegion::kMutationTypeAddition));
@@ -174,7 +172,7 @@ TEST_F(LiveRegionTest, IsMutationRelevant) {
   // "all" token.
   live_region_element->SetAttribute(base::Tokens::aria_relevant().c_str(),
                                     "all");
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_TRUE(
       live_region->IsMutationRelevant(LiveRegion::kMutationTypeAddition));
@@ -191,21 +189,21 @@ TEST_F(LiveRegionTest, IsAtomic) {
   ASSERT_TRUE(live_region_element);
 
   // Default is non-atomic.
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_FALSE(live_region->IsAtomic(live_region_element));
 
   // aria-atomic=true
   live_region_element->SetAttribute(base::Tokens::aria_atomic().c_str(),
                                     "true");
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_TRUE(live_region->IsAtomic(live_region_element));
 
   // aria-atomic=false
   live_region_element->SetAttribute(base::Tokens::aria_atomic().c_str(),
                                     "false");
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_FALSE(live_region->IsAtomic(live_region_element));
 
@@ -214,7 +212,7 @@ TEST_F(LiveRegionTest, IsAtomic) {
                                     "true");
   scoped_refptr<dom::Element> child = document()->CreateElement("div");
   live_region_element->AppendChild(child);
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_TRUE(live_region->IsAtomic(child));
   EXPECT_TRUE(live_region->IsAtomic(live_region_element));
@@ -223,7 +221,7 @@ TEST_F(LiveRegionTest, IsAtomic) {
   live_region_element->SetAttribute(base::Tokens::aria_atomic().c_str(),
                                     "true");
   child->SetAttribute(base::Tokens::aria_atomic().c_str(), "false");
-  live_region = LiveRegion::GetLiveRegionForElement(live_region_element);
+  live_region = LiveRegion::GetLiveRegionForNode(live_region_element);
   ASSERT_TRUE(live_region);
   EXPECT_FALSE(live_region->IsAtomic(child));
   EXPECT_TRUE(live_region->IsAtomic(live_region_element));

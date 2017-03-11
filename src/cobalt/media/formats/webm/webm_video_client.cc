@@ -87,8 +87,7 @@ bool WebMVideoClient::InitializeConfig(
                      encryption_scheme);
   if (colour_parsed_) {
     WebMColorMetadata color_metadata = colour_parser_.GetWebMColorMetadata();
-    config->set_color_space_info(color_metadata.color_space);
-    config->set_hdr_metadata(color_metadata.hdr_metadata);
+    config->set_webm_color_metadata(color_metadata);
   }
   return config->IsValidConfig();
 }

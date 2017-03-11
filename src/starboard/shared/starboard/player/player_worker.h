@@ -66,9 +66,8 @@ class PlayerWorker {
 
     virtual ~Handler() {}
 
-    // All the Process* functions return false to signal a fatal error.  The
+    // All the following functions return false to signal a fatal error.  The
     // event processing loop in PlayerWorker will termimate in this case.
-    // All function returns false on error.
     virtual bool Init(PlayerWorker* player_worker,
                       JobQueue* job_queue,
                       SbPlayer player,
@@ -79,12 +78,19 @@ class PlayerWorker {
     virtual bool WriteSample(InputBuffer input_buffer, bool* written) = 0;
     virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual bool SetPause(bool pause) = 0;
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+    virtual bool SetPlaybackRate(double playback_rate) = 0;
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
     virtual bool SetBounds(const Bounds& bounds) = 0;
 
     // Once this function returns, all processing on the Handler and related
     // objects has to be stopped.  The JobQueue will be destroyed immediately
     // after and is no longer safe to access.
     virtual void Stop() = 0;
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   };
 
   PlayerWorker(Host* host,
@@ -110,19 +116,46 @@ class PlayerWorker {
         Bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
   }
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
   void SetBounds(Bounds bounds) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetBounds, this, bounds));
   }
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)
 
   void SetPause(bool pause) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetPause, this, pause));
   }
 
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  void SetPlaybackRate(double playback_rate) {
+    // Arbitrary values to give the playback rate a valid range.  A particular
+    // implementation may have stricter or looser requirement, or even only
+    // support several discreet values.
+    // Ideally the range of the playback rate should be determined by the audio
+    // graph but that will break the thread invariant of the handler.
+    const double kMinimumNonZeroPlaybackRate = 0.1;
+    const double kMaximumPlaybackRate = 4.0;
+    if (playback_rate > 0.0 && playback_rate < kMinimumNonZeroPlaybackRate) {
+      playback_rate = kMinimumNonZeroPlaybackRate;
+    } else if (playback_rate > kMaximumPlaybackRate) {
+      playback_rate = kMaximumPlaybackRate;
+    }
+    job_queue_->Schedule(
+        Bind(&PlayerWorker::DoSetPlaybackRate, this, playback_rate));
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
   void UpdateDroppedVideoFrames(int dropped_video_frames) {
     host_->UpdateDroppedVideoFrames(dropped_video_frames);
   }
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTarget GetCurrentDecodeTarget() {
+    return handler_->GetCurrentDecodeTarget();
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
  private:
   void UpdateMediaTime(SbMediaTime time);
@@ -137,10 +170,15 @@ class PlayerWorker {
   void DoWriteSample(InputBuffer input_buffer);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);
-#if SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetBounds(Bounds bounds);
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetPause(bool pause);
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  void DoSetPlaybackRate(double rate);
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   void DoStop();
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);

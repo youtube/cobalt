@@ -1,20 +1,20 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
+
+#include <GLES2/gl2ext.h>
 
 #include "base/debug/trace_event.h"
 #include "base/synchronization/waitable_event.h"
@@ -40,50 +40,34 @@ using cobalt::render_tree::RawImageMemory;
 
 namespace {
 
-#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+    SB_HAS(GRAPHICS)
 
 void DecodeTargetAcquireOnRasterizer(
     cobalt::renderer::backend::GraphicsContextEGL* context_egl,
     SbDecodeTargetFormat format, int width, int height,
     SbDecodeTarget* out_decode_target, base::WaitableEvent* done_event) {
-  GLuint planes[3] = { 0, 0, 0 };
-
   cobalt::renderer::backend::GraphicsContextEGL::ScopedMakeCurrent
       scoped_context(context_egl);
 
-  switch (format) {
-    case kSbDecodeTargetFormat1PlaneRGBA:
-      GL_CALL(glGenTextures(1, planes));
-      GL_CALL(glBindTexture(GL_TEXTURE_2D, planes[0]));
-      cobalt::renderer::backend::SetupInitialTextureParameters();
-      GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
-                           GL_RGBA, GL_UNSIGNED_BYTE, NULL));
-      break;
-    case kSbDecodeTargetFormat1PlaneBGRA:
-    case kSbDecodeTargetFormat2PlaneYUVNV12:
-    case kSbDecodeTargetFormat3PlaneYUVI420:
-    default:
-      NOTREACHED() << "Unsupported format " << format;
-      break;
-  }
-
-  *out_decode_target = SbDecodeTargetCreate(
-      context_egl->system_egl()->GetDisplay(),
-      context_egl->GetContext(),
-      format, width, height, planes);
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+  *out_decode_target =
+      SbDecodeTargetCreate(context_egl->system_egl()->GetDisplay(),
+                           context_egl->GetContext(), format, width, height);
 
   done_event->Signal();
 }
 
-void DecodeTargetReleaseOnRasterizer(SbDecodeTarget decode_target) {
-  GLuint plane = SbDecodeTargetGetPlane(decode_target,
-                                        kSbDecodeTargetPlaneRGBA);
-  GL_CALL(glDeleteTextures(1, &plane));
-  SbDecodeTargetDestroy(decode_target);
+void DecodeTargetReleaseOnRasterizer(
+    cobalt::renderer::backend::GraphicsContextEGL* context_egl,
+    SbDecodeTarget decode_target) {
+  cobalt::renderer::backend::GraphicsContextEGL::ScopedMakeCurrent
+      scoped_context(context_egl);
+
+  SbDecodeTargetRelease(decode_target);
 }
 
-#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#endif  // SB_VERSION(SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION) && \
+           SB_HAS(GRAPHICS)
 
 }  // namespace
 
@@ -101,11 +85,13 @@ HardwareResourceProvider::HardwareResourceProvider(
   // on multiple threads simultaneously later.
   SkSafeUnref(SkFontMgr::RefDefault());
 
-#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+    SB_HAS(GRAPHICS)
   decode_target_provider_.acquire = &DecodeTargetAcquire;
   decode_target_provider_.release = &DecodeTargetRelease;
   decode_target_provider_.context = this;
-#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+           SB_HAS(GRAPHICS)
 }
 
 void HardwareResourceProvider::Finish() {
@@ -174,31 +160,41 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
       self_message_loop_));
 }
 
-#if SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+    SB_HAS(GRAPHICS)
 scoped_refptr<render_tree::Image>
     HardwareResourceProvider::CreateImageFromSbDecodeTarget(
         SbDecodeTarget decode_target) {
+  SbDecodeTargetInfo info;
+  SbMemorySet(&info, 0, sizeof(info));
+  CHECK(SbDecodeTargetGetInfo(decode_target, &info));
+
   // There is limited format support at this time.
-  DCHECK(SbDecodeTargetGetFormat(decode_target) ==
-         kSbDecodeTargetFormat1PlaneRGBA);
+  DCHECK_EQ(info.format, kSbDecodeTargetFormat1PlaneRGBA);
+  const SbDecodeTargetInfoPlane& plane = info.planes[kSbDecodeTargetPlaneRGBA];
 
-  int gl_handle = SbDecodeTargetGetPlane(decode_target,
-      kSbDecodeTargetPlaneRGBA);
+  int gl_handle = plane.texture;
   render_tree::AlphaFormat alpha_format =
-      SbDecodeTargetIsOpaque(decode_target) ?
-          render_tree::kAlphaFormatOpaque :
-          render_tree::kAlphaFormatUnpremultiplied;
-  int width = 0;
-  int height = 0;
-  SbDecodeTargetGetSize(decode_target, &width, &height);
-  SbDecodeTargetDestroy(decode_target);
+      info.is_opaque ? render_tree::kAlphaFormatOpaque
+                     : render_tree::kAlphaFormatUnpremultiplied;
 
-  scoped_ptr<backend::TextureEGL> texture(
-      new backend::TextureEGL(cobalt_context_,
-          gl_handle, math::Size(width, height), GL_RGBA));
+  scoped_ptr<math::Rect> content_region;
+  if (plane.content_region.left != 0 || plane.content_region.top != 0 ||
+      plane.content_region.right != plane.width ||
+      plane.content_region.bottom != plane.height) {
+    content_region.reset(
+        new math::Rect(plane.content_region.left, plane.content_region.top,
+                       plane.content_region.right - plane.content_region.left,
+                       plane.content_region.bottom - plane.content_region.top));
+  }
+
+  scoped_ptr<backend::TextureEGL> texture(new backend::TextureEGL(
+      cobalt_context_, gl_handle, math::Size(plane.width, plane.height),
+      GL_RGBA, plane.gl_texture_target,
+      base::Bind(&SbDecodeTargetRelease, decode_target)));
   return make_scoped_refptr(new HardwareFrontendImage(
       texture.Pass(), alpha_format, cobalt_context_, gr_context_,
-      self_message_loop_));
+      content_region.Pass(), self_message_loop_));
 }
 
 // static
@@ -229,10 +225,12 @@ void HardwareResourceProvider::DecodeTargetRelease(void* context,
       reinterpret_cast<HardwareResourceProvider*>(context);
 
   // Texture deletion must occur on the rasterizer thread.
-  provider->self_message_loop_->PostTask(FROM_HERE,
-      base::Bind(&DecodeTargetReleaseOnRasterizer, decode_target));
+  provider->self_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&DecodeTargetReleaseOnRasterizer,
+                            provider->cobalt_context_, decode_target));
 }
-#endif  // SB_VERSION(SB_EXPERIMENTAL_API_VERSION) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+           SB_HAS(GRAPHICS)
 
 scoped_ptr<RawImageMemory> HardwareResourceProvider::AllocateRawImageMemory(
     size_t size_in_bytes, size_t alignment) {
@@ -347,7 +345,7 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
   SkAutoTUnref<SkData> skia_data(SkData::NewWithCopy(
       sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
 
-  SkAutoTUnref<SkStream> stream(new SkMemoryStream(skia_data));
+  SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(skia_data));
   SkAutoTUnref<SkTypeface> typeface(SkTypeface::CreateFromStream(stream));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));

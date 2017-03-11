@@ -36,8 +36,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
 
-  ChunkDemuxerStream(Type type,
-                     bool splice_frames_enabled,
+  ChunkDemuxerStream(Type type, bool splice_frames_enabled,
                      MediaTrack::Id media_track_id);
   ~ChunkDemuxerStream() OVERRIDE;
 
@@ -195,8 +194,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   // |enable_text| Process inband text tracks in the normal way when true,
   //   otherwise ignore them.
-  void Initialize(DemuxerHost* host,
-                  const PipelineStatusCB& init_cb,
+  void Initialize(DemuxerHost* host, const PipelineStatusCB& init_cb,
                   bool enable_text_tracks) OVERRIDE;
   void Stop() OVERRIDE;
   void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
@@ -220,8 +218,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // kNotSupported is returned if |type| is not a supported format.
   // kReachedIdLimit is returned if the demuxer cannot handle another ID right
   //    now.
-  Status AddId(const std::string& id,
-               const std::string& type,
+  Status AddId(const std::string& id, const std::string& type,
                const std::string& codecs);
 
   // Notifies a caller via |tracks_updated_cb| that the set of media tracks
@@ -252,9 +249,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // similarly named source buffer attributes that are used in coded frame
   // processing. Returns true on success, false if the caller needs to run the
   // append error algorithm with decode error parameter set to true.
-  bool AppendData(const std::string& id,
-                  const uint8_t* data,
-                  size_t length,
+  bool AppendData(const std::string& id, const uint8_t* data, size_t length,
                   base::TimeDelta append_window_start,
                   base::TimeDelta append_window_end,
                   base::TimeDelta* timestamp_offset);
@@ -277,8 +272,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // the "Coded Frame Eviction Algorithm" in the Media Source Extensions Spec.
   // Returns false iff buffer is still full after running eviction.
   // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
-  bool EvictCodedFrames(const std::string& id,
-                        base::TimeDelta currentMediaTime,
+  bool EvictCodedFrames(const std::string& id, base::TimeDelta currentMediaTime,
                         size_t newDataSize);
 
   // Returns the current presentation duration.

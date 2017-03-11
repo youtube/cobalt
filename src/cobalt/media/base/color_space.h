@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_DEMUXER_BASE_COLOR_SPACE_H_
-#define COBALT_MEDIA_DEMUXER_BASE_COLOR_SPACE_H_
+#ifndef COBALT_MEDIA_BASE_COLOR_SPACE_H_
+#define COBALT_MEDIA_BASE_COLOR_SPACE_H_
+
+#include "base/logging.h"
 
 // This is a modified version of gfx::ColorSpace with Skia dependency removed.
 // It is tentatively put inside media2 to avoid introducing new code into
@@ -26,6 +28,8 @@ namespace gfx {
 // between any processes.
 class ColorSpace {
  public:
+  typedef float CustomPrimaryMatrix[12];
+
   enum PrimaryID {
     // The first 0-255 values should match the H264 specification (see Table E-3
     // Colour Primaries in https://www.itu.int/rec/T-REC-H.264/en).
@@ -104,7 +108,7 @@ class ColorSpace {
     kMatrixIdSmpte240M = 7,
     kMatrixIdYCgCo = 8,
     kMatrixIdBt2020NonconstantLuminance = 9,
-    kMatrixIdBT2020ConstantLuminance = 10,
+    kMatrixIdBt2020ConstantLuminance = 10,
     kMatrixIdYDzDx = 11,
 
     kMatrixIdLastStandardValue = kMatrixIdYDzDx,
@@ -135,9 +139,7 @@ class ColorSpace {
   };
 
   ColorSpace();
-  ColorSpace(PrimaryID primaries,
-             TransferID transfer,
-             MatrixID matrix,
+  ColorSpace(PrimaryID primaries, TransferID transfer, MatrixID matrix,
              RangeID full_range);
   ColorSpace(const ColorSpace& other);
   ColorSpace(int primaries, int transfer, int matrix, RangeID full_range);
@@ -158,16 +160,26 @@ class ColorSpace {
   bool operator!=(const ColorSpace& other) const;
   bool operator<(const ColorSpace& other) const;
 
+  PrimaryID primaries() const { return primaries_; }
+  TransferID transfer() const { return transfer_; }
+  MatrixID matrix() const { return matrix_; }
+  RangeID range() const { return range_; }
+
+  const CustomPrimaryMatrix& custom_primary_matrix() const {
+    DCHECK_EQ(primaries_, kPrimaryIdCustom);
+    return custom_primary_matrix_;
+  }
+
  private:
   PrimaryID primaries_;
   TransferID transfer_;
   MatrixID matrix_;
   RangeID range_;
 
-  // Only used if primaries_ == PrimaryID::CUSTOM
+  // Only used if primaries_ == kPrimaryIdCustom
   float custom_primary_matrix_[12];
 };
 
 }  // namespace gfx
 
-#endif  // COBALT_MEDIA_DEMUXER_BASE_COLOR_SPACE_H_
+#endif  // COBALT_MEDIA_BASE_COLOR_SPACE_H_

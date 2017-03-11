@@ -52,7 +52,7 @@ class MEDIA_EXPORT StreamParser {
 
   // Stream parameters passed in InitCB.
   struct MEDIA_EXPORT InitParameters {
-    InitParameters(base::TimeDelta duration);
+    explicit InitParameters(base::TimeDelta duration);
 
     // Stream duration.
     base::TimeDelta duration;
@@ -120,10 +120,8 @@ class MEDIA_EXPORT StreamParser {
   // start time, and duration. If |ignore_text_track| is true, then no text
   // buffers should be passed later by the parser to |new_buffers_cb|.
   virtual void Init(
-      const InitCB& init_cb,
-      const NewConfigCB& config_cb,
-      const NewBuffersCB& new_buffers_cb,
-      bool ignore_text_track,
+      const InitCB& init_cb, const NewConfigCB& config_cb,
+      const NewBuffersCB& new_buffers_cb, bool ignore_text_track,
       const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
       const NewMediaSegmentCB& new_segment_cb,
       const EndMediaSegmentCB& end_of_segment_cb,

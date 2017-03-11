@@ -34,7 +34,7 @@ struct SkOTUtils {
       *
       *  fontName and fontNameLen must be specified in terms of ASCII chars.
       */
-    static SkData* RenameFont(SkStream* fontData, const char* fontName, int fontNameLen);
+    static SkData* RenameFont(SkStreamAsset* fontData, const char* fontName, int fontNameLen);
 
     /** An implementation of LocalizedStrings which obtains it's data from a 'name' table. */
     class LocalizedStrings_NameTable : public SkTypeface::LocalizedStrings {

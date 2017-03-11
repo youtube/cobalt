@@ -48,13 +48,13 @@ class BrowseToGuideTest(tv_testcase.TvTestCase):
 
       for _ in xrange(NUM_ITERATIONS_PER_LOAD_TV_CALL):
         browse_to_guide_recorder.on_start_event()
-        self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_LEFT)
+        self.send_keys(keys.Keys.ARROW_LEFT)
         self.wait_for_processing_complete()
         self.assert_displayed(tv.FOCUSED_GUIDE)
         browse_to_guide_recorder.on_end_event()
 
         guide_to_browse_recorder.on_start_event()
-        self.send_keys(tv.FOCUSED_GUIDE, keys.Keys.ARROW_RIGHT)
+        self.send_keys(keys.Keys.ARROW_RIGHT)
         self.wait_for_processing_complete_after_focused_shelf()
         guide_to_browse_recorder.on_end_event()
 

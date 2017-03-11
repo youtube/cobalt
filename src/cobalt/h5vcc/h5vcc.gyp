@@ -29,6 +29,8 @@
         'dial/dial_server.h',
         'h5vcc.cc',
         'h5vcc.h',
+        'h5vcc_accessibility.cc',
+        'h5vcc_accessibility.h',
         'h5vcc_account_info.cc',
         'h5vcc_account_info.h',
         'h5vcc_audio_config.cc',
@@ -57,6 +59,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
       'include_dirs': [
         # For cobalt_build_id.h
@@ -71,6 +74,17 @@
           'direct_dependent_settings': {
             'defines': [
               'COBALT_ENABLE_ACCOUNT_MANAGER',
+            ],
+          },
+        }],
+        ['enable_crash_log == 1', {
+          'sources': [
+            'h5vcc_crash_log.cc',
+            'h5vcc_crash_log.h',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'COBALT_ENABLE_CRASH_LOG',
             ],
           },
         }],

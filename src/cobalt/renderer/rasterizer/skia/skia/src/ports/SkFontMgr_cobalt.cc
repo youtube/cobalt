@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
@@ -115,7 +113,8 @@ SkData* NewDataFromFile(const SkString& file_path) {
   LOG(INFO) << "Loading font file: " << file_path.c_str();
   SkFontMgrCVals::GetInstance()->IncrementFontFilesLoadedCount();
 
-  SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
+  SkAutoTUnref<SkStreamAsset> file_stream(
+      SkStream::NewFromFile(file_path.c_str()));
   if (file_stream == NULL) {
     LOG(ERROR) << "Failed to open font file: " << file_path.c_str();
     return NULL;
@@ -165,7 +164,7 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
 
 class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  public:
-  SkTypeface_CobaltStream(SkStream* stream, int index, Style style,
+  SkTypeface_CobaltStream(SkStreamAsset* stream, int index, Style style,
                           bool is_fixed_pitch, const SkString family_name)
       : INHERITED(index, style, is_fixed_pitch, family_name),
         stream_(SkRef(stream)) {
@@ -184,7 +183,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
     *serialize = true;
   }
 
-  virtual SkStream* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+  virtual SkStreamAsset* onOpenStream(int* ttc_index) const SK_OVERRIDE {
     *ttc_index = index_;
     return stream_->duplicate();
   }
@@ -192,7 +191,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  private:
   typedef SkTypeface_Cobalt INHERITED;
 
-  SkAutoTUnref<SkStream> stream_;
+  SkAutoTUnref<SkStreamAsset> stream_;
 };
 
 class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
@@ -223,7 +222,7 @@ class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
     *serialize = false;
   }
 
-  virtual SkStream* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+  virtual SkStreamAsset* onOpenStream(int* ttc_index) const SK_OVERRIDE {
     TRACE_EVENT0("cobalt::renderer", "SkTypeface_CobaltSystem::onOpenStream()");
     *ttc_index = index_;
 
@@ -479,7 +478,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
         continue;
       }
 
-      GenerateCharacterMapFromData(font_data);
+      GenerateCharacterMapFromData(font_data, closest_style->ttc_index);
 
       // If the character is contained within the font style set, then go ahead
       // and create the typeface with the loaded font data. Otherwise, creating
@@ -507,7 +506,8 @@ bool SkFontStyleSet_Cobalt::CharacterMapContainsCharacter(SkUnichar character) {
              font_character_map::GetPageCharacterIndex(character));
 }
 
-void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data) {
+void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data,
+                                                         int ttc_index) {
   if (is_character_map_generated_) {
     return;
   }
@@ -520,7 +520,7 @@ void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data) {
 
   FT_Face face;
   FT_Error err = FT_New_Memory_Face(freetype_lib, font_data->bytes(),
-                                    font_data->size(), 0, &face);
+                                    font_data->size(), ttc_index, &face);
   if (!err) {
     // map out this font's characters.
     FT_UInt glyph_index;
@@ -584,7 +584,7 @@ void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
   // fallback font (which means that it'll need the character map for character
   // lookups during fallback).
   if (is_fallback_font_) {
-    GenerateCharacterMapFromData(data);
+    GenerateCharacterMapFromData(data, style_entry->ttc_index);
   }
 
   // Pass the SkData into the SkMemoryStream.
@@ -800,11 +800,11 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromData(SkData* data,
                                                int ttc_index) const {
-  SkAutoTUnref<SkStream> stream(new SkMemoryStream(data));
+  SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(data));
   return createFromStream(stream, ttc_index);
 }
 
-SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
+SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStreamAsset* stream,
                                                  int ttc_index) const {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromStream()");
   bool is_fixed_pitch;
@@ -821,7 +821,7 @@ SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
 SkTypeface* SkFontMgr_Cobalt::onCreateFromFile(const char path[],
                                                int ttc_index) const {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromFile()");
-  SkAutoTUnref<SkStream> stream(SkStream::NewFromFile(path));
+  SkAutoTUnref<SkStreamAsset> stream(SkStream::NewFromFile(path));
   return stream.get() ? createFromStream(stream, ttc_index) : NULL;
 }
 

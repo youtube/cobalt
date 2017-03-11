@@ -25,6 +25,7 @@
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
         '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
+        '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/atomic_public.h',
         '<(DEPTH)/starboard/shared/stub/audio_sink_create.cc',
@@ -118,10 +119,13 @@
         '<(DEPTH)/starboard/shared/stub/once.cc',
         '<(DEPTH)/starboard/shared/stub/player_create.cc',
         '<(DEPTH)/starboard/shared/stub/player_destroy.cc',
+        '<(DEPTH)/starboard/shared/stub/player_get_current_frame.cc',
         '<(DEPTH)/starboard/shared/stub/player_get_info.cc',
+        '<(DEPTH)/starboard/shared/stub/player_output_mode_supported.cc',
         '<(DEPTH)/starboard/shared/stub/player_seek.cc',
         '<(DEPTH)/starboard/shared/stub/player_set_bounds.cc',
         '<(DEPTH)/starboard/shared/stub/player_set_pause.cc',
+        '<(DEPTH)/starboard/shared/stub/player_set_playback_rate.cc',
         '<(DEPTH)/starboard/shared/stub/player_set_volume.cc',
         '<(DEPTH)/starboard/shared/stub/player_write_end_of_stream.cc',
         '<(DEPTH)/starboard/shared/stub/player_write_sample.cc',
@@ -247,6 +251,8 @@
         'atomic_public.h',
         'main.cc',
         'thread_types_public.h',
+        # Include private stubs, if present.
+        '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

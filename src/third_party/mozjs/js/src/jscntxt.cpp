@@ -955,11 +955,11 @@ js_ReportErrorNumberVA(JSContext *cx, unsigned flags, JSErrorCallback callback,
 static bool
 js_ExpandErrorArguments(JSContext *cx, JSErrorCallback callback,
                      void *userRef, const unsigned errorNumber,
-                     char **messagep, JSErrorReport *reportp,
-                     ErrorArgumentsType argumentsType, ...)
+                     char **messagep, ErrorArgumentsType argumentsType,
+                     JSErrorReport *reportp, ...)
 {
     va_list ap;
-    va_start(ap, argumentsType);
+    va_start(ap, reportp);
     bool expanded = js_ExpandErrorArgumentsVA(cx, callback, userRef, errorNumber,
                                                messagep, reportp, argumentsType, ap);
     va_end(ap);
@@ -985,7 +985,7 @@ js_ReportErrorNumberUCArray(JSContext *cx, unsigned flags, JSErrorCallback callb
 
     char *message;
     if (!js_ExpandErrorArguments(cx, callback, userRef, errorNumber,
-                                 &message, &report, ArgumentsAreUnicode)) {
+                                 &message, ArgumentsAreUnicode, &report)) {
         return false;
     }
 

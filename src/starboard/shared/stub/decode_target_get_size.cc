@@ -14,6 +14,8 @@
 
 #include "starboard/decode_target.h"
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 void SbDecodeTargetGetSize(SbDecodeTarget decode_target,
                            int* out_width,
                            int* out_height) {
@@ -21,3 +23,5 @@ void SbDecodeTargetGetSize(SbDecodeTarget decode_target,
   SB_UNREFERENCED_PARAMETER(out_width);
   SB_UNREFERENCED_PARAMETER(out_height);
 }
+
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

@@ -31,6 +31,7 @@
 #include "starboard/key.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/player.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/x11/window_internal.h"
@@ -622,11 +623,9 @@ using shared::starboard::player::VideoFrame;
 ApplicationX11::ApplicationX11()
     : wake_up_atom_(None),
       wm_delete_atom_(None),
-#if SB_IS(PLAYER_PUNCHED_OUT)
       composite_event_id_(kSbEventIdInvalid),
       frame_read_index_(0),
       frame_written_(false),
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
       display_(NULL) {
   SbAudioSinkPrivate::Initialize();
 }
@@ -662,7 +661,6 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
   return true;
 }
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
 namespace {
 void CompositeCallback(void* context) {
   ApplicationX11* application = reinterpret_cast<ApplicationX11*>(context);
@@ -735,7 +733,6 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
     frame_written_ = true;
   }
 }
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
 void ApplicationX11::Initialize() {
   // Mesa is installed on Ubuntu machines and will be selected as the default
@@ -805,9 +802,8 @@ bool ApplicationX11::EnsureX() {
   wake_up_atom_ = XInternAtom(display_, "WakeUpAtom", 0);
   wm_delete_atom_ = XInternAtom(display_, "WM_DELETE_WINDOW", True);
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
   Composite();
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+
   return true;
 }
 
@@ -816,10 +812,8 @@ void ApplicationX11::StopX() {
     return;
   }
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
   SbEventCancel(composite_event_id_);
   composite_event_id_ = kSbEventIdInvalid;
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
 
   XCloseDisplay(display_);
   display_ = NULL;

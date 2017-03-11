@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/browser/browser_module.h"
 
@@ -191,7 +189,8 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
       will_quit_(false),
-      suspended_(false) {
+      suspended_(false),
+      system_window_(system_window) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
   // All allocations for media will be tracked by "Media" memory scope.
   {
@@ -336,7 +335,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
-      renderer_module_.pipeline()->GetResourceProvider(),
+      renderer_module_.pipeline()->GetResourceProvider(), system_window_,
       kLayoutMaxRefreshFrequencyInHz, options));
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
@@ -346,7 +345,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 void BrowserModule::OnLoad() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
-  // asynchonrous access to this object by |web_module_| during destruction.
+  // asynchronous access to this object by |web_module_| during destruction.
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnLoad, weak_this_));
@@ -354,6 +353,11 @@ void BrowserModule::OnLoad() {
   }
 
   DestroySplashScreen();
+
+  // This log is relied on by the webdriver benchmark tests, so it shouldn't be
+  // changed unless the corresponding benchmark logic is changed as well.
+  LOG(INFO) << "Loaded WebModule";
+
   web_module_loaded_.Signal();
 }
 

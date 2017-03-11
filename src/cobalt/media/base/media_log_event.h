@@ -16,9 +16,7 @@ namespace media {
 struct MediaLogEvent {
   MediaLogEvent() {}
 
-  MediaLogEvent(const MediaLogEvent& event) {
-    *this = event;
-  }
+  MediaLogEvent(const MediaLogEvent& event) { *this = event; }
 
   MediaLogEvent& operator=(const MediaLogEvent& event) {
     id = event.id;

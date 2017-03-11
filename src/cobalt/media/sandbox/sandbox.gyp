@@ -20,6 +20,23 @@
     'has_zzuf': '<!(python ../../../build/dir_exists.py ../../../third_party/zzuf)',
   },
   'targets': [
+    # This target can choose the correct media dependency.
+    {
+      'target_name': 'media',
+      'type': 'static_library',
+      'conditions': [
+        ['cobalt_media_source_2016==1', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
+        }],
+      ],
+    },
+
     # This target will build a sandbox application that allows for easy
     # experimentation with the media interface on any platform.  This can
     # also be useful for visually inspecting the output that the Cobalt
@@ -35,11 +52,11 @@
         'web_media_player_sandbox.cc',
       ],
       'dependencies': [
+        'media',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         # Use test data from browser to avoid keeping two copies of video files.
         '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
-        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
@@ -73,11 +90,11 @@
         'web_media_player_helper.h',
       ],
       'dependencies': [
+        'media',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         # Use test data from browser to avoid keeping two copies of video files.
         '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
-        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
@@ -115,7 +132,7 @@
         },
       ],
     }],
-    ['OS == "starboard" and has_zzuf == "True"', {
+    ['OS == "starboard" and has_zzuf == "True" and cobalt_media_source_2016!=1', {
       'targets': [
         # This target will build a sandbox application that allows for fuzzing
         # decoder.

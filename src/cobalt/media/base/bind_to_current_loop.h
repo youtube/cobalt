@@ -31,7 +31,9 @@ namespace media {
 // base::Passed(&p) to account for the extra layer of indirection.
 namespace internal {
 template <typename T>
-T& TrampolineForward(T& t) { return t; }
+T& TrampolineForward(T& t) {
+  return t;
+}
 
 template <typename T, typename R>
 base::internal::PassedWrapper<scoped_ptr<T> > TrampolineForward(
@@ -41,12 +43,15 @@ base::internal::PassedWrapper<scoped_ptr<T> > TrampolineForward(
 
 template <typename T>
 base::internal::PassedWrapper<ScopedVector<T> > TrampolineForward(
-    ScopedVector<T>& p) { return base::Passed(&p); }
+    ScopedVector<T>& p) {
+  return base::Passed(&p);
+}
 
 // First, tell the compiler TrampolineHelper is a struct template with one
 // type parameter.  Then define specializations where the type is a function
 // returning void and taking zero or more arguments.
-template <typename Sig> struct TrampolineHelper;
+template <typename Sig>
+struct TrampolineHelper;
 
 template <>
 struct TrampolineHelper<void()> {
@@ -60,8 +65,7 @@ struct TrampolineHelper<void()> {
 template <typename A1>
 struct TrampolineHelper<void(A1)> {
   static void Run(const scoped_refptr<base::SingleThreadTaskRunner>& loop,
-                  const base::Callback<void(A1)>& cb,
-                  A1 a1) {
+                  const base::Callback<void(A1)>& cb, A1 a1) {
     loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1)));
   }
 };
@@ -69,9 +73,7 @@ struct TrampolineHelper<void(A1)> {
 template <typename A1, typename A2>
 struct TrampolineHelper<void(A1, A2)> {
   static void Run(const scoped_refptr<base::SingleThreadTaskRunner>& loop,
-                  const base::Callback<void(A1, A2)>& cb,
-                  A1 a1,
-                  A2 a2) {
+                  const base::Callback<void(A1, A2)>& cb, A1 a1, A2 a2) {
     loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
                                          internal::TrampolineForward(a2)));
   }
@@ -80,9 +82,7 @@ struct TrampolineHelper<void(A1, A2)> {
 template <typename A1, typename A2, typename A3>
 struct TrampolineHelper<void(A1, A2, A3)> {
   static void Run(const scoped_refptr<base::SingleThreadTaskRunner>& loop,
-                  const base::Callback<void(A1, A2, A3)>& cb,
-                  A1 a1,
-                  A2 a2,
+                  const base::Callback<void(A1, A2, A3)>& cb, A1 a1, A2 a2,
                   A3 a3) {
     loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
                                          internal::TrampolineForward(a2),
@@ -93,11 +93,8 @@ struct TrampolineHelper<void(A1, A2, A3)> {
 template <typename A1, typename A2, typename A3, typename A4>
 struct TrampolineHelper<void(A1, A2, A3, A4)> {
   static void Run(const scoped_refptr<base::SingleThreadTaskRunner>& loop,
-                  const base::Callback<void(A1, A2, A3, A4)>& cb,
-                  A1 a1,
-                  A2 a2,
-                  A3 a3,
-                  A4 a4) {
+                  const base::Callback<void(A1, A2, A3, A4)>& cb, A1 a1, A2 a2,
+                  A3 a3, A4 a4) {
     loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
                                          internal::TrampolineForward(a2),
                                          internal::TrampolineForward(a3),
@@ -108,12 +105,8 @@ struct TrampolineHelper<void(A1, A2, A3, A4)> {
 template <typename A1, typename A2, typename A3, typename A4, typename A5>
 struct TrampolineHelper<void(A1, A2, A3, A4, A5)> {
   static void Run(const scoped_refptr<base::SingleThreadTaskRunner>& loop,
-                  const base::Callback<void(A1, A2, A3, A4, A5)>& cb,
-                  A1 a1,
-                  A2 a2,
-                  A3 a3,
-                  A4 a4,
-                  A5 a5) {
+                  const base::Callback<void(A1, A2, A3, A4, A5)>& cb, A1 a1,
+                  A2 a2, A3 a3, A4 a4, A5 a5) {
     loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
                                          internal::TrampolineForward(a2),
                                          internal::TrampolineForward(a3),
@@ -122,21 +115,12 @@ struct TrampolineHelper<void(A1, A2, A3, A4, A5)> {
   }
 };
 
-template <typename A1,
-          typename A2,
-          typename A3,
-          typename A4,
-          typename A5,
+template <typename A1, typename A2, typename A3, typename A4, typename A5,
           typename A6>
 struct TrampolineHelper<void(A1, A2, A3, A4, A5, A6)> {
   static void Run(const scoped_refptr<base::SingleThreadTaskRunner>& loop,
-                  const base::Callback<void(A1, A2, A3, A4, A5, A6)>& cb,
-                  A1 a1,
-                  A2 a2,
-                  A3 a3,
-                  A4 a4,
-                  A5 a5,
-                  A6 a6) {
+                  const base::Callback<void(A1, A2, A3, A4, A5, A6)>& cb, A1 a1,
+                  A2 a2, A3 a3, A4 a4, A5 a5, A6 a6) {
     loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
                                          internal::TrampolineForward(a2),
                                          internal::TrampolineForward(a3),
@@ -146,23 +130,12 @@ struct TrampolineHelper<void(A1, A2, A3, A4, A5, A6)> {
   }
 };
 
-template <typename A1,
-          typename A2,
-          typename A3,
-          typename A4,
-          typename A5,
-          typename A6,
-          typename A7>
+template <typename A1, typename A2, typename A3, typename A4, typename A5,
+          typename A6, typename A7>
 struct TrampolineHelper<void(A1, A2, A3, A4, A5, A6, A7)> {
   static void Run(const scoped_refptr<base::SingleThreadTaskRunner>& loop,
                   const base::Callback<void(A1, A2, A3, A4, A5, A6, A7)>& cb,
-                  A1 a1,
-                  A2 a2,
-                  A3 a3,
-                  A4 a4,
-                  A5 a5,
-                  A6 a6,
-                  A7 a7) {
+                  A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6, A7 a7) {
     loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
                                          internal::TrampolineForward(a2),
                                          internal::TrampolineForward(a3),
@@ -175,9 +148,8 @@ struct TrampolineHelper<void(A1, A2, A3, A4, A5, A6, A7)> {
 
 }  // namespace internal
 
-template<typename T>
-static base::Callback<T> BindToCurrentLoop(
-    const base::Callback<T>& cb) {
+template <typename T>
+static base::Callback<T> BindToCurrentLoop(const base::Callback<T>& cb) {
   return base::Bind(&internal::TrampolineHelper<T>::Run,
                     base::ThreadTaskRunnerHandle::Get(), cb);
 }

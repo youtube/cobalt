@@ -41,6 +41,7 @@ class MEDIA_EXPORT WebMParserClient {
  protected:
   WebMParserClient();
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(WebMParserClient);
 };
 
@@ -101,11 +102,8 @@ class MEDIA_EXPORT WebMListParser {
   // Returns < 0 if the parse fails.
   // Returns 0 if more data is needed.
   // Returning > 0 indicates success & the number of bytes parsed.
-  int ParseListElement(int header_size,
-                       int id,
-                       int64_t element_size,
-                       const uint8_t* data,
-                       int size);
+  int ParseListElement(int header_size, int id, int64_t element_size,
+                       const uint8_t* data, int size);
 
   // Called when starting to parse a new list.
   //
@@ -154,9 +152,7 @@ class MEDIA_EXPORT WebMListParser {
 // |*id| contains the element ID on success and is undefined otherwise.
 // |*element_size| contains the element size on success and is undefined
 //                 otherwise.
-int MEDIA_EXPORT WebMParseElementHeader(const uint8_t* buf,
-                                        int size,
-                                        int* id,
+int MEDIA_EXPORT WebMParseElementHeader(const uint8_t* buf, int size, int* id,
                                         int64_t* element_size);
 
 }  // namespace media

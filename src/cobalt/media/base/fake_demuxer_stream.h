@@ -23,8 +23,7 @@ class FakeDemuxerStream : public DemuxerStream {
   // Constructs an object that outputs |num_configs| different configs in
   // sequence with |num_frames_in_one_config| buffers for each config. The
   // output buffers are encrypted if |is_encrypted| is true.
-  FakeDemuxerStream(int num_configs,
-                    int num_buffers_in_one_config,
+  FakeDemuxerStream(int num_configs, int num_buffers_in_one_config,
                     bool is_encrypted);
   ~FakeDemuxerStream() OVERRIDE;
 

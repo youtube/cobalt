@@ -37,9 +37,7 @@ class MEDIA_EXPORT BitstreamBuffer {
   // |presentation_timestamp| is when the decoded frame should be displayed.
   // When not provided, |presentation_timestamp| will be
   // |media::kNoTimestamp|.
-  BitstreamBuffer(int32_t id,
-                  base::SharedMemoryHandle handle,
-                  size_t size,
+  BitstreamBuffer(int32_t id, base::SharedMemoryHandle handle, size_t size,
                   off_t offset = 0,
                   base::TimeDelta presentation_timestamp = kNoTimestamp);
 

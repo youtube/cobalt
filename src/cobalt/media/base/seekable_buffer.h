@@ -144,9 +144,7 @@ class MEDIA_EXPORT SeekableBuffer {
   // of bytes read. The current read position will be moved forward by the
   // number of bytes read. If |data| is NULL, only the current read position
   // will advance but no data will be copied.
-  int InternalRead(uint8_t* data,
-                   int size,
-                   bool advance_position,
+  int InternalRead(uint8_t* data, int size, bool advance_position,
                    int forward_offset);
 
   // A helper method that moves the current read position forward by |size|

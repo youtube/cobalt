@@ -92,7 +92,8 @@ overridemimetype-open-state-force-utf-8.htm,PASS
 overridemimetype-open-state-force-xml.htm,DISABLE
 # Check failed: IsStringUTF8()
 overridemimetype-unsent-state-force-shiftjis.htm,DISABLE
-preserve-ua-header-on-redirect.htm,FAIL
+preserve-ua-header-on-redirect.htm,PASS
+preserve-ua-header-on-redirect.htm,FAIL,XMLHttpRequest: User-Agent header is preserved on redirect 1
 progress-events-response-data-gzip.htm,PASS
 response-data-arraybuffer.htm,PASS
 response-data-blob.htm,FAIL
@@ -102,14 +103,16 @@ response-data-deflate.htm,FAIL
 response-data-gzip.htm,FAIL
 response-data-progress.htm,PASS
 response-invalid-responsetype.htm,PASS
-response-json.htm,FAIL
+response-json.htm,PASS
+response-json.htm,FAIL,JSON object roundtrip
+response-json.htm,FAIL,JSON roundtrip with Japanese text
 # Synchronous
 response-method.htm,FAIL
 # Check failed: IsStringUTF8()
 responsetext-decoding.htm,DISABLE
 responseText-status.html,PASS
 # Synchronous
-responsetype.html,FAIL
+responsetype.html,DISABLE
 responsexml-basic.htm,FAIL
 responsexml-document-properties.htm,FAIL
 responsexml-media-type.htm,FAIL
@@ -141,8 +144,7 @@ send-content-type-charset.htm,FAIL
 send-content-type-string.htm,FAIL
 send-data-arraybuffer.htm,FAIL
 send-data-blob.htm,FAIL
-send-data-es-object.htm,FAIL
-send-data-formdata.htm,FAIL
+send-data-es-object.htm,DISABLE
 send-data-unexpected-tostring.htm,FAIL
 # Synchronous
 send-entity-body-basic.htm,FAIL
@@ -191,13 +193,14 @@ setrequestheader-allow-whitespace-in-value.htm,FAIL
 setrequestheader-before-open.htm,PASS
 setrequestheader-bogus-name.htm,FAIL
 setrequestheader-bogus-value.htm,FAIL
+setrequestheader-bogus-value.htm,PASS,Omitted value argument
 setrequestheader-case-insensitive.htm,FAIL
 # Synchronous
 setrequestheader-content-type.htm,FAIL
 setrequestheader-header-allowed.htm,FAIL
 setrequestheader-header-forbidden.htm,FAIL
 setrequestheader-open-setrequestheader.htm,PASS
-status-async.htm,FAIL
+status-async.htm,DISABLE
 status-basic.htm,FAIL
 status-error.htm,PASS
 # Flaky.
@@ -224,5 +227,7 @@ xmlhttprequest-timeout-worker-simple.html,DISABLE
 xmlhttprequest-timeout-worker-synconworker.html,DISABLE
 xmlhttprequest-timeout-worker-twice.html,DISABLE
 xmlhttprequest-unsent.htm,PASS
+XMLHttpRequest-withCredentials.html,PASS
 # Synchronous
-XMLHttpRequest-withCredentials.html,FAIL
+XMLHttpRequest-withCredentials.html,FAIL,setting on synchronous XHR
+XMLHttpRequest-withCredentials.html,FAIL,setting withCredentials when in DONE state (synchronous)

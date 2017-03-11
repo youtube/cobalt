@@ -21,21 +21,15 @@ import tv_testcase_util
 
 # selenium imports
 # pylint: disable=C0103
-WebDriverWait = tv_testcase_util.import_selenium_module(
-    submodule="webdriver.support.ui").WebDriverWait
-
-ElementNotVisibleException = tv_testcase_util.import_selenium_module(
-    submodule="common.exceptions").ElementNotVisibleException
+ActionChains = tv_testcase_util.import_selenium_module(
+    submodule="webdriver.common.action_chains").ActionChains
 
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
+WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 15
 MEDIA_TIMEOUT_SECONDS = 30
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
-# Currently, after loading a new URL with cookies enabled, Kabuki randomizes
-# the shelf entries when the page finishes loading. Sleep for a bit to allow
-# this to occur before starting any additional logic.
-COBALT_POST_NAVIGATE_SLEEP_SECONDS = 5
 
 _is_initialized = False
 
@@ -49,6 +43,9 @@ class TvTestCase(unittest.TestCase):
 
   class WindowDriverCreatedTimeoutException(BaseException):
     """Exception thrown when WindowDriver was not created in time."""
+
+  class WebModuleLoadedTimeoutException(BaseException):
+    """Exception thrown when WebModule was not loaded in time."""
 
   class ProcessingTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
@@ -81,9 +78,6 @@ class TvTestCase(unittest.TestCase):
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
 
-  def get_windowdriver_created(self):
-    return tv_testcase_runner.GetWindowDriverCreated()
-
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
 
@@ -99,7 +93,19 @@ class TvTestCase(unittest.TestCase):
     else:
       return json.loads(json_result)
 
-  def load_tv(self, label=None, additional_query_params=None,
+  def load_blank(self):
+    """Loads about:blank and waits for it to finish.
+
+    Raises:
+      Underlying WebDriver exceptions
+    """
+    self.clear_url_loaded_events()
+    self.get_webdriver().get("about:blank")
+    self.wait_for_url_loaded_events()
+
+  def load_tv(self,
+              label=None,
+              additional_query_params=None,
               triggers_reload=False):
     """Loads the main TV page and waits for it to display.
 
@@ -115,13 +121,12 @@ class TvTestCase(unittest.TestCase):
       query_params = {"label": label}
     if additional_query_params is not None:
       query_params.update(additional_query_params)
-    self.get_windowdriver_created().clear()
+    self.clear_url_loaded_events()
     self.get_webdriver().get(tv_testcase_util.get_tv_url(query_params))
-    self.wait_for_windowdriver_created()
+    self.wait_for_url_loaded_events()
     if triggers_reload:
-      self.get_windowdriver_created().clear()
-      self.wait_for_windowdriver_created()
-    time.sleep(COBALT_POST_NAVIGATE_SLEEP_SECONDS)
+      self.clear_url_loaded_events()
+      self.wait_for_url_loaded_events()
     # Note that the internal tests use "expect_transition" which is
     # a mechanism that sets a maximum timeout for a "@with_retries"
     # decorator-driven success retry loop for subsequent webdriver requests.
@@ -186,39 +191,31 @@ class TvTestCase(unittest.TestCase):
       self.assertEqual(len(elements), expected_num)
     return elements
 
-  def send_keys(self, css_selector, keys):
-    """Sends keys to an element uniquely identified by a selector.
-
-    This method retries for a timeout period if the selected element
-    could not be immediately found. If the retries do not succeed,
-    the underlying exception is passed through.
+  def send_keys(self, keys):
+    """Sends keys to whichever element currently has focus.
 
     Args:
-      css_selector: A CSS selector
       keys: key events
 
     Raises:
       Underlying WebDriver exceptions
     """
-    start_time = time.time()
-    while True:
-      try:
-        element = self.unique_find(css_selector)
-        element.send_keys(keys)
-        return
-      except ElementNotVisibleException:
-        # TODO ElementNotVisibleException seems to be considered
-        # a "falsy" exception in the internal tests, which seems to mean
-        # it would not be retried. But here, it seems essential.
-        if time.time() - start_time >= PAGE_LOAD_WAIT_SECONDS:
-          raise
-        time.sleep(1)
+    ActionChains(self.get_webdriver()).send_keys(keys).perform()
 
-  def wait_for_windowdriver_created(self):
-    """Waits for Cobalt to create a WindowDriver."""
-    windowdriver_created = self.get_windowdriver_created()
+  def clear_url_loaded_events(self):
+    """Clear the events that indicate that Cobalt finished loading a URL."""
+    tv_testcase_runner.GetWindowDriverCreated().clear()
+    tv_testcase_runner.GetWebModuleLoaded().clear()
+
+  def wait_for_url_loaded_events(self):
+    """Wait for the events indicating that Cobalt finished loading a URL."""
+    windowdriver_created = tv_testcase_runner.GetWindowDriverCreated()
     if not windowdriver_created.wait(WINDOWDRIVER_CREATED_TIMEOUT_SECONDS):
       raise TvTestCase.WindowDriverCreatedTimeoutException()
+
+    webmodule_loaded = tv_testcase_runner.GetWebModuleLoaded()
+    if not webmodule_loaded.wait(WEBMODULE_LOADED_TIMEOUT_SECONDS):
+      raise TvTestCase.WebModuleLoadedTimeoutException()
 
   def wait_for_processing_complete_after_focused_shelf(self):
     """Waits for Cobalt to focus on a shelf and complete pending layouts."""

@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/script/mozjs-45/weak_heap_object_manager.h"
 
@@ -20,8 +18,7 @@
 
 #include "base/logging.h"
 #include "cobalt/script/mozjs-45/weak_heap_object.h"
-#include "third_party/mozjs-45/js/src/gc/Barrier.h"
-#include "third_party/mozjs-45/js/src/gc/Marking.h"
+#include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
@@ -48,6 +45,7 @@ WeakHeapObjectManager::~WeakHeapObjectManager() {
 }
 
 void WeakHeapObjectManager::StartTracking(WeakHeapObject* weak_object) {
+  TRACK_MEMORY_SCOPE("Javascript");
   std::pair<WeakHeapObjects::iterator, bool> pib =
       weak_objects_.insert(weak_object);
   DCHECK(pib.second) << "WeakHeapObject was already being tracked.";
@@ -63,8 +61,8 @@ void WeakHeapObjectManager::StopTracking(WeakHeapObject* weak_object) {
 }
 
 bool WeakHeapObjectManager::MaybeSweep(WeakHeapObject* weak_object) {
-  JS_UpdateWeakPointerAfterGC(&weak_object->heap_);
-  return weak_object->heap_ == NULL;
+  weak_object->UpdateWeakPointerAfterGc();
+  return weak_object->WasCollected();
 }
 
 }  // namespace mozjs

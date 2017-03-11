@@ -28,7 +28,7 @@ bool DecodeBarcode(const scoped_refptr<media::VideoFrame>& frame,
 
 // Convenience templates that allows you to encode/decode numeric
 // types directly.
-template<class T>
+template <class T>
 bool EncodeBarcode(T data, scoped_refptr<media::VideoFrame> output_frame) {
   std::vector<bool> bits(sizeof(T) * 8);
   for (size_t i = 0; i < bits.size(); i++) {
@@ -37,7 +37,7 @@ bool EncodeBarcode(T data, scoped_refptr<media::VideoFrame> output_frame) {
   return EncodeBarcode(bits, output_frame);
 }
 
-template<class T>
+template <class T>
 bool DecodeBarcode(scoped_refptr<media::VideoFrame> output_frame, T* data) {
   std::vector<bool> bits(sizeof(T) * 8);
   bool ret = DecodeBarcode(output_frame, &bits);

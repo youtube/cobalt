@@ -58,9 +58,7 @@ class MEDIA_EXPORT AudioClock {
   // |frames_written| amount of audio data scaled to |playback_rate| written.
   // |frames_requested| amount of audio data requested by hardware.
   // |delay_frames| is the current amount of hardware delay.
-  void WroteAudio(int frames_written,
-                  int frames_requested,
-                  int delay_frames,
+  void WroteAudio(int frames_written, int frames_requested, int delay_frames,
                   double playback_rate);
 
   // If WroteAudio() calls are suspended (i.e. due to playback being paused) the
@@ -106,8 +104,7 @@ class MEDIA_EXPORT AudioClock {
   base::TimeDelta TimeUntilPlayback(base::TimeDelta timestamp) const;
 
   void ContiguousAudioDataBufferedForTesting(
-      base::TimeDelta* total,
-      base::TimeDelta* same_rate_total) const;
+      base::TimeDelta* total, base::TimeDelta* same_rate_total) const;
 
  private:
   // Even with a ridiculously high sample rate of 256kHz, using 64 bits will

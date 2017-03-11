@@ -30,10 +30,7 @@ class AudioEncoder {
       base::Callback<void(std::unique_ptr<SenderEncodedFrame>, int)>;
 
   AudioEncoder(const scoped_refptr<CastEnvironment>& cast_environment,
-               int num_channels,
-               int sampling_rate,
-               int bitrate,
-               Codec codec,
+               int num_channels, int sampling_rate, int bitrate, Codec codec,
                const FrameEncodedCallback& frame_encoded_callback);
   virtual ~AudioEncoder();
 

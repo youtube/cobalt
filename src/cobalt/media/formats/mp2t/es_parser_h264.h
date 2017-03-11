@@ -63,10 +63,8 @@ class MEDIA_EXPORT EsParserH264 : public EsParser {
 
   // Emit a frame whose position in the ES queue starts at |access_unit_pos|.
   // Returns true if successful, false if no PTS is available for the frame.
-  bool EmitFrame(int64_t access_unit_pos,
-                 int access_unit_size,
-                 bool is_key_frame,
-                 int pps_id);
+  bool EmitFrame(int64_t access_unit_pos, int access_unit_size,
+                 bool is_key_frame, int pps_id);
 
   // Update the video decoder config based on an H264 SPS.
   // Return true if successful.

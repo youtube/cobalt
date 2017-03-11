@@ -36,7 +36,9 @@ extern "C" void _sanitizer_options_link_helper() { }
 // http://clang.llvm.org/docs/AddressSanitizer.html#issue-suppression
 // http://llvm.org/svn/llvm-project/compiler-rt/trunk/lib/sanitizer_common/sanitizer_suppressions.cc
 SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
-  return "leak:*eglibc-2.19*\n";
+  return
+      // DirectFB leaks __strdup data at initialization time.
+      "leak:__strdup\n"
 }
 
 #endif  // defined(ADDRESS_SANITIZER)

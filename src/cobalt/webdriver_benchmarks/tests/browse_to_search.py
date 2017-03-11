@@ -50,13 +50,13 @@ class BrowseToSearchTest(tv_testcase.TvTestCase):
 
       for _ in xrange(NUM_ITERATIONS_PER_LOAD_TV_CALL):
         browse_to_search_recorder.on_start_event()
-        self.send_keys(tv.SEARCH_LEGEND, "s")
+        self.send_keys("s")
         self.wait_for_processing_complete(False)
         self.assert_displayed(tv.FOCUSED_SEARCH)
         browse_to_search_recorder.on_end_event()
 
         search_to_browse_recorder.on_start_event()
-        self.send_keys(tv.SEARCH, keys.Keys.ESCAPE)
+        self.send_keys(keys.Keys.ESCAPE)
         self.wait_for_processing_complete_after_focused_shelf()
         search_to_browse_recorder.on_end_event()
 

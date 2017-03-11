@@ -32,8 +32,9 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
   def __init__(self, platform):
     super(PlatformConfig, self).__init__(platform)
-
-    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
+    goma_supports_compiler = True
+    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment(
+        goma_supports_compiler)
 
   def GetVariables(self, configuration):
     return super(PlatformConfig, self).GetVariables(configuration, use_clang=1)

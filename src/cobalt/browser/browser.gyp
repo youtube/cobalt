@@ -73,7 +73,7 @@
         '<(DEPTH)/cobalt/input/input.gyp:input',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',
-        '<(DEPTH)/cobalt/media/media.gyp:media',
+        '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
@@ -88,12 +88,33 @@
         'browser_bindings.gyp:bindings',
         'screen_shot_writer',
       ],
+      # This target doesn't generate any headers, but it exposes generated
+      # header files (for idl dictionaries) through this module's public header
+      # files. So mark this target as a hard dependency to ensure that any
+      # dependent targets wait until this target (and its hard dependencies) are
+      # built.
+      #'hard_dependency': 1,
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+      ],
       'conditions': [
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
         }],
         ['enable_mtm == 1', {
           'defines' : ['ENABLE_MTM'],
+        }],
+        ['cobalt_media_source_2016==1', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
         }],
       ],
     },
@@ -134,12 +155,12 @@
         'memory_tracker/memory_tracker_tool_test.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage_upgrade_copy_test_data',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'browser',

@@ -77,10 +77,8 @@ class H264VideoToolboxEncoder : public VideoEncoder,
   void UpdateFrameSize(const gfx::Size& size_needed);
 
   // Compression session callback function to handle compressed frames.
-  static void CompressionCallback(void* encoder_opaque,
-                                  void* request_opaque,
-                                  OSStatus status,
-                                  VTEncodeInfoFlags info,
+  static void CompressionCallback(void* encoder_opaque, void* request_opaque,
+                                  OSStatus status, VTEncodeInfoFlags info,
                                   CMSampleBufferRef sbuf);
 
   // The cast environment (contains worker threads & more).

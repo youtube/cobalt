@@ -144,8 +144,8 @@ struct MEDIA_EXPORT H264SPS {
   int frame_crop_bottom_offset;
 
   bool vui_parameters_present_flag;
-  int sar_width;    // Set to 0 when not specified.
-  int sar_height;   // Set to 0 when not specified.
+  int sar_width;   // Set to 0 when not specified.
+  int sar_height;  // Set to 0 when not specified.
   bool bitstream_restriction_flag;
   int max_num_reorder_frames;
   int max_dec_frame_buffering;
@@ -234,10 +234,7 @@ struct MEDIA_EXPORT H264DecRefPicMarking {
 struct MEDIA_EXPORT H264SliceHeader {
   H264SliceHeader();
 
-  enum {
-    kRefListSize = 32,
-    kRefListModSize = kRefListSize
-  };
+  enum { kRefListSize = 32, kRefListModSize = kRefListSize };
 
   enum Type {
     kPSlice = 0,
@@ -253,11 +250,11 @@ struct MEDIA_EXPORT H264SliceHeader {
   bool IsSPSlice() const;
   bool IsSISlice() const;
 
-  bool idr_pic_flag;       // from NAL header
-  int nal_ref_idc;         // from NAL header
+  bool idr_pic_flag;         // from NAL header
+  int nal_ref_idc;           // from NAL header
   const uint8_t* nalu_data;  // from NAL header
-  off_t nalu_size;         // from NAL header
-  off_t header_bit_size;   // calculated
+  off_t nalu_size;           // from NAL header
+  off_t header_bit_size;     // calculated
 
   int first_mb_in_slice;
   int slice_type;
@@ -358,19 +355,15 @@ class MEDIA_EXPORT H264Parser {
   // - |*offset| is between 0 and |data_size| included.
   //   It is strictly less than |data_size| if |data_size| > 0.
   // - |*start_code_size| is either 0, 3 or 4.
-  static bool FindStartCode(const uint8_t* data,
-                            off_t data_size,
-                            off_t* offset,
+  static bool FindStartCode(const uint8_t* data, off_t data_size, off_t* offset,
                             off_t* start_code_size);
 
   // Wrapper for FindStartCode() that skips over start codes that
   // may appear inside of |encrypted_ranges_|.
   // Returns true if a start code was found. Otherwise returns false.
-  static bool FindStartCodeInClearRanges(const uint8_t* data,
-                                         off_t data_size,
+  static bool FindStartCodeInClearRanges(const uint8_t* data, off_t data_size,
                                          const Ranges<const uint8_t*>& ranges,
-                                         off_t* offset,
-                                         off_t* start_code_size);
+                                         off_t* offset, off_t* start_code_size);
 
   static VideoCodecProfile ProfileIDCToVideoCodecProfile(int profile_idc);
 
@@ -383,8 +376,7 @@ class MEDIA_EXPORT H264Parser {
   // |subsamples| contains information about what parts of |stream| are
   // encrypted.
   void SetStream(const uint8_t* stream, off_t stream_size);
-  void SetEncryptedStream(const uint8_t* stream,
-                          off_t stream_size,
+  void SetEncryptedStream(const uint8_t* stream, off_t stream_size,
                           const std::vector<SubsampleEntry>& subsamples);
 
   // Read the stream to find the next NALU, identify it and return

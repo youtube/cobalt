@@ -32,16 +32,13 @@ class MEDIA_EXPORT Decryptor {
   // TODO(xhwang): Replace kNeedMoreData with kNotEnoughData.
   enum Status {
     kSuccess,  // Decryption successfully completed. Decrypted buffer ready.
-    kNoKey,  // No key is available to decrypt.
+    kNoKey,    // No key is available to decrypt.
     kNeedMoreData,  // Decoder needs more data to produce a frame.
-    kError  // Key is available but an error occurred during decryption.
+    kError          // Key is available but an error occurred during decryption.
   };
 
   // TODO(xhwang): Unify this with DemuxerStream::Type.
-  enum StreamType {
-    kAudio,
-    kVideo
-  };
+  enum StreamType { kAudio, kVideo };
 
   Decryptor();
   virtual ~Decryptor();
@@ -72,8 +69,8 @@ class MEDIA_EXPORT Decryptor {
   // - Only |data|, |data_size| and |timestamp| are set in the returned
   //   DecoderBuffer. The callback handler is responsible for setting other
   //   fields as appropriate.
-  typedef base::Callback<void(Status,
-                              const scoped_refptr<DecoderBuffer>&)> DecryptCB;
+  typedef base::Callback<void(Status, const scoped_refptr<DecoderBuffer>&)>
+      DecryptCB;
 
   // Decrypts the |encrypted| buffer. The decrypt status and decrypted buffer
   // are returned via the provided callback |decrypt_cb|. The |encrypted| buffer
@@ -124,8 +121,8 @@ class MEDIA_EXPORT Decryptor {
   //   returned frame(s) must be NULL/empty.
   // Second parameter: The decoded video frame or audio buffers.
   typedef base::Callback<void(Status, const AudioFrames&)> AudioDecodeCB;
-  typedef base::Callback<void(Status,
-                              const scoped_refptr<VideoFrame>&)> VideoDecodeCB;
+  typedef base::Callback<void(Status, const scoped_refptr<VideoFrame>&)>
+      VideoDecodeCB;
 
   // Decrypts and decodes the |encrypted| buffer. The status and the decrypted
   // buffer are returned via the provided callback.

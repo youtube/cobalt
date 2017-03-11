@@ -12,7 +12,6 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # pylint: disable=C6204,C6203
-import tv
 import tv_testcase
 import tv_testcase_event_recorder
 import tv_testcase_util
@@ -36,12 +35,12 @@ class BrowseVerticalTest(tv_testcase.TvTestCase):
 
     for _ in xrange(NUM_LOAD_TV_CALLS):
       self.load_tv()
-      self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_DOWN)
+      self.send_keys(keys.Keys.ARROW_DOWN)
       self.wait_for_processing_complete_after_focused_shelf()
 
       for _ in xrange(NUM_ITERATIONS_PER_LOAD_TV_CALL):
         recorder.on_start_event()
-        self.send_keys(tv.FOCUSED_SHELF, keys.Keys.ARROW_DOWN)
+        self.send_keys(keys.Keys.ARROW_DOWN)
         self.wait_for_processing_complete_after_focused_shelf()
         recorder.on_end_event()
 

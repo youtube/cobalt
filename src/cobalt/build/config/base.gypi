@@ -87,6 +87,9 @@
     # Set to 1 to enable H5vccAccountManager.
     'enable_account_manager%': 0,
 
+    # Set to 1 to enable H5vccCrashLog.
+    'enable_crash_log%': 0,
+
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
 
@@ -268,6 +271,7 @@
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
     'sb_libevent_method%': 'epoll',
+    'cobalt_media_source_2016%': 0,
   },
 
   'target_defaults': {
@@ -337,6 +341,15 @@
           'COBALT_WEBKIT_SHARED=1',
         ],
       }],
+      ['cobalt_media_source_2016 == 1', {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2016=1',
+        ],
+      }, {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2012=1',
+        ],
+      }],
       ['OS == "lb_shell"', {
         'defines': [
           '__LB_SHELL__',
@@ -395,6 +408,7 @@
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
+          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
           '_DEBUG',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
@@ -419,6 +433,7 @@
           '_DEBUG',
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_DEVEL',
+          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
@@ -441,6 +456,7 @@
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_QA',
+          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
