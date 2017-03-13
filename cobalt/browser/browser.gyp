@@ -58,7 +58,6 @@
         'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
         'COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES=<(remote_typeface_cache_size_in_bytes)',
         'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)',
-        'COBALT_MESH_CACHE_SIZE_IN_BYTES=<(mesh_cache_size_in_bytes)',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/accessibility/accessibility.gyp:accessibility',
@@ -104,8 +103,8 @@
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
         }],
-        ['enable_mtm == 1', {
-          'defines' : ['ENABLE_MTM'],
+        ['enable_map_to_mesh == 1', {
+          'defines' : ['ENABLE_MAP_TO_MESH'],
         }],
         ['cobalt_media_source_2016==1', {
           'dependencies': [
@@ -114,6 +113,23 @@
         }, {
           'dependencies': [
             '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
+        }],
+        ['mesh_cache_size_in_bytes == "auto"', {
+          'conditions': [
+            ['enable_map_to_mesh==1', {
+              'defines': [
+                'COBALT_MESH_CACHE_SIZE_IN_BYTES=1*1024*1024',
+              ],
+            }, {
+              'defines': [
+                'COBALT_MESH_CACHE_SIZE_IN_BYTES=0',
+              ],
+            }],
+          ],
+        }, {
+          'defines': [
+            'COBALT_MESH_CACHE_SIZE_IN_BYTES=<(mesh_cache_size_in_bytes)',
           ],
         }],
       ],

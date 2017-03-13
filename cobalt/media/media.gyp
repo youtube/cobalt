@@ -71,9 +71,8 @@
             'shell_media_platform_ps3.h',
           ],
         }],
-        # TODO: refactor this for multiple platforms.
-        ['sb_media_platform == "ps4" and enable_mtm == 1', {
-          'defines' : ['ENABLE_MTM'],
+        ['enable_map_to_mesh == 1', {
+          'defines' : ['ENABLE_MAP_TO_MESH'],
         }],
       ],
     },
