@@ -177,21 +177,21 @@ void TransitionSet::UpdateTransitionForProperty(
   int transition_index = GetPropertyTransitionIndex(
       property, transition_style.transition_property());
 
-  if (transition_index != -1) {
-    // The property should be animated, though we check now to see if the
-    // corresponding transition-duration is set to 0 or not, since 0 implies
-    // that it would not be animated.
-    const TimeListValue* transition_duration =
-        base::polymorphic_downcast<const TimeListValue*>(
-            transition_style.transition_duration().get());
+  // The property is only animated if its transition duration is greater than 0.
+  const TimeListValue* transition_duration =
+      base::polymorphic_downcast<const TimeListValue*>(
+          transition_style.transition_duration().get());
 
-    // Get animation parameters by using the transition_index modulo the
-    // specific property sizes.  This is inline with the specification which
-    // states that list property values should be repeated to calculate values
-    // for indices larger than the list's size.
-    base::TimeDelta duration =
-        transition_duration->get_item_modulo_size(transition_index);
+  // Get animation parameters by using the transition_index modulo the
+  // specific property sizes.  This is inline with the specification which
+  // states that list property values should be repeated to calculate values
+  // for indices larger than the list's size.
+  base::TimeDelta duration =
+      transition_index < 0
+          ? base::TimeDelta()
+          : transition_duration->get_item_modulo_size(transition_index);
 
+  if (!duration.is_zero()) {
     if (duration.InMilliseconds() != 0 && !start_value->Equals(*end_value)) {
       TimeListValue* delay_list = base::polymorphic_downcast<TimeListValue*>(
           transition_style.transition_delay().get());
