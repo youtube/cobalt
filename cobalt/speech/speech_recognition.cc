@@ -14,6 +14,7 @@
 
 #include "cobalt/speech/speech_recognition.h"
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 
 namespace cobalt {

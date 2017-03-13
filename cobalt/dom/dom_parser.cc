@@ -18,6 +18,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/dom/xml_document.h"
 
 namespace cobalt {
