@@ -344,5 +344,27 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
       *transition);
 }
 
+// Make sure that we successfully remove transitions when the 'transition'
+// CSS property is removed (and so we return to the default setting of
+// 'all' for transition an '0' for duration).
+TEST_F(TransitionSetTest, ClearingTransitionsWorks) {
+  end_->set_background_color(new RGBAColorValue(0x00000000));
+  end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
+  end_->set_transition_property(
+      MakePropertyNameListWithSingleProperty(kAllProperty));
+  scoped_refptr<CSSComputedStyleData> end2 = CreateTestComputedData();
+  end2->set_background_color(new RGBAColorValue(0x000000ff));
+  end2->set_transition_duration(MakeTimeListWithSingleTime(0.0f));
+  end2->set_transition_property(
+      MakePropertyNameListWithSingleProperty(kAllProperty));
+
+  TransitionSet transition_set;
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta::FromSecondsD(0.5), *end_,
+                                   *end2);
+
+  EXPECT_TRUE(transition_set.empty());
+}
+
 }  // namespace cssom
 }  // namespace cobalt
