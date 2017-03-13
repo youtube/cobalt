@@ -29,6 +29,7 @@
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/mozjs_value_handle.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/union_type_conversion_forward.h"
 #include "cobalt/script/mozjs/util/algorithm_helpers.h"
@@ -436,6 +437,15 @@ void ToJSValue(JSContext* context,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  MozjsObjectHandleHolder* out_holder);
+
+// ValueHandle -> JSValue
+void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
+               JS::MutableHandleValue out_value);
+
+// JSValue -> ValueHandle
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 MozjsValueHandleHolder* out_holder);
 
 // object -> JSValue
 template <typename T>
