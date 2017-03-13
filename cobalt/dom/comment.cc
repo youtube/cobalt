@@ -18,6 +18,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/window.h"
 
 namespace cobalt {
 namespace dom {
