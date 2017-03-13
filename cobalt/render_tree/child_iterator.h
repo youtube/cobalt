@@ -18,6 +18,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
@@ -181,6 +182,41 @@ class ChildIterator<FilterNode> {
   Node* source_;
 
   base::optional<FilterNode::Builder> modified_children_builder_;
+};
+
+// MatrixTransform3DNodes can have up to 1 child.
+template <>
+class ChildIterator<MatrixTransform3DNode> {
+ public:
+  static const bool has_children = true;
+
+  explicit ChildIterator(
+      MatrixTransform3DNode* matrix_transform_3d,
+      ChildIteratorDirection direction = kChildIteratorDirectionForwards)
+      : matrix_transform_3d_node_(matrix_transform_3d),
+        source_(matrix_transform_3d->data().source.get()) {
+    UNREFERENCED_PARAMETER(direction);
+  }
+
+  Node* GetCurrent() const { return source_; }
+  void Next() { source_ = NULL; }
+
+  void ReplaceCurrent(const scoped_refptr<Node>& new_child) {
+    DCHECK(GetCurrent());
+    if (!modified_children_builder_) {
+      modified_children_builder_ = matrix_transform_3d_node_->data();
+    }
+    modified_children_builder_->source = new_child;
+  }
+  MatrixTransform3DNode::Builder TakeReplacedChildrenBuilder() {
+    return *modified_children_builder_;
+  }
+
+ private:
+  MatrixTransform3DNode* matrix_transform_3d_node_;
+  Node* source_;
+
+  base::optional<MatrixTransform3DNode::Builder> modified_children_builder_;
 };
 
 // MatrixTransformNodes can have up to 1 child.
