@@ -30,8 +30,8 @@
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
-#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/url_registry.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
 #if defined(ENABLE_TEST_RUNNER)
@@ -66,6 +66,7 @@ class History;
 class HTMLElementContext;
 class LocalStorageDatabase;
 class Location;
+class MediaSource;
 class Navigator;
 class Performance;
 class Screen;
@@ -86,6 +87,7 @@ class Window : public EventTarget {
       const base::SourceLocation&, const base::Closure&,
       const base::Callback<void(const std::string&)>&)>
       HTMLDecoderCreatorCallback;
+  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
   Window(int width, int height, cssom::CSSParser* css_parser,
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
@@ -100,7 +102,7 @@ class Window : public EventTarget {
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,
          script::ScriptRunner* script_runner,
-         MediaSource::Registry* media_source_registry,
+         MediaSourceRegistry* media_source_registry,
          DomStatTracker* dom_stat_tracker, const GURL& url,
          const std::string& user_agent, const std::string& language,
          const base::Callback<void(const GURL&)> navigation_callback,

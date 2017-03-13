@@ -158,6 +158,11 @@
     # Directory containing generated IDL files.
     'generated_idls_output_dir': '<(bindings_output_dir)/idl',
 
+    # Base directory into which generated bindings source files will be
+    # generated. Directory structure will mirror the directory structure
+    # that the .idl files came from.
+    'generated_source_output_dir': '<(bindings_output_dir)/source',
+
     # File containing a whitelist of Extended Attributes that the code generation
     # pipeline understands
     'extended_attributes_file': 'IDLExtendedAttributes.txt',
@@ -174,7 +179,7 @@
     # All source files that will be generated from the source IDL files.
     'generated_sources':
         ['<!@pymod_do_main(cobalt.build.path_conversion -s'
-         ' --output_directory <(SHARED_INTERMEDIATE_DIR)'
+         ' --output_directory <(generated_source_output_dir)'
          ' --output_extension cc --output_prefix <(prefix)_'
          ' --base_directory <(DEPTH)'
          ' <@(source_idl_files))'],
@@ -247,9 +252,9 @@
         ],
         'outputs': [
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e cc -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
+              '-e cc -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e h -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
+              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
           'python',
@@ -257,7 +262,7 @@
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
           '--output-dir',
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
           '--interfaces-info',
           '<(interfaces_info_combined_pickle)',
           '--extended-attributes',
@@ -273,7 +278,7 @@
         'defines': [ '<@(bindings_defines)' ],
         'include_dirs': [
           '<@(bindings_include_dirs)',
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
         ],
         'sources': [
           '<@(generated_sources)',
@@ -299,7 +304,7 @@
       ],
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
         ]
       },
       'rules': [{
@@ -335,9 +340,9 @@
         ],
         'outputs': [
           '<!@pymod_do_main(cobalt.build.path_conversion -s '
-              '-e h -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
+              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e h -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
+              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
           'python',
@@ -345,7 +350,7 @@
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
           '--output-dir',
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
           '--interfaces-info',
           '<(interfaces_info_combined_pickle)',
           '--extended-attributes',
