@@ -61,6 +61,7 @@ struct StartTaskParameters {
   PipelineStatusCB seek_cb;
   Pipeline::BufferingStateCB buffering_state_cb;
   base::Closure duration_change_cb;
+  bool prefer_decode_to_texture;
 };
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
@@ -83,7 +84,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
              const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
-             const base::Closure& duration_change_cb) OVERRIDE;
+             const base::Closure& duration_change_cb,
+             bool prefer_decode_to_texture) OVERRIDE;
 
   void Stop(const base::Closure& stop_cb) OVERRIDE;
   void Seek(TimeDelta time, const PipelineStatusCB& seek_cb);
@@ -195,6 +197,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   PipelineStatusCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
+  bool prefer_decode_to_texture_;
 
   // Demuxer reference used for setting the preload value.
   scoped_refptr<Demuxer> demuxer_;
@@ -234,7 +237,8 @@ SbPlayerPipeline::SbPlayerPipeline(
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
-      suspended_(false) {}
+      suspended_(false),
+      prefer_decode_to_texture_(false) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() {
   DCHECK(!player_);
@@ -268,7 +272,8 @@ void SbPlayerPipeline::Start(scoped_ptr<FilterCollection> filter_collection,
                              const PipelineStatusCB& error_cb,
                              const PipelineStatusCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
-                             const base::Closure& duration_change_cb) {
+                             const base::Closure& duration_change_cb,
+                             bool prefer_decode_to_texture) {
   DCHECK(filter_collection);
 
   StartTaskParameters parameters;
@@ -279,6 +284,7 @@ void SbPlayerPipeline::Start(scoped_ptr<FilterCollection> filter_collection,
   parameters.seek_cb = seek_cb;
   parameters.buffering_state_cb = buffering_state_cb;
   parameters.duration_change_cb = duration_change_cb;
+  parameters.prefer_decode_to_texture = prefer_decode_to_texture;
 
   message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
@@ -456,7 +462,11 @@ Pipeline::SetBoundsCB SbPlayerPipeline::GetSetBoundsCB() {
 bool SbPlayerPipeline::IsPunchOutMode() {
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   base::AutoLock auto_lock(lock_);
-  return player_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut;
+  if (player_) {
+    return player_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut;
+  } else {
+    return true;
+  }
 #else  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   return true;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
@@ -477,6 +487,7 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   }
   buffering_state_cb_ = parameters.buffering_state_cb;
   duration_change_cb_ = parameters.duration_change_cb;
+  prefer_decode_to_texture_ = parameters.prefer_decode_to_texture;
 
   demuxer_->Initialize(
       this, BindToCurrentLoop(
@@ -563,9 +574,9 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
 
   {
     base::AutoLock auto_lock(lock_);
-    player_.reset(new StarboardPlayer(message_loop_, audio_config, video_config,
-                                      window_, drm_system, this,
-                                      set_bounds_helper_.get()));
+    player_.reset(new StarboardPlayer(
+        message_loop_, audio_config, video_config, window_, drm_system, this,
+        set_bounds_helper_.get(), prefer_decode_to_texture_));
     SetPlaybackRateTask(playback_rate_);
     SetVolumeTask(volume_);
   }
