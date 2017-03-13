@@ -41,6 +41,7 @@
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/mozjs_value_handle.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -64,6 +65,7 @@ using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
+using cobalt::script::ValueHandle;
 using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
