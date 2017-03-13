@@ -25,6 +25,7 @@
 #include "base/message_loop_proxy.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/base/user_log.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
@@ -1513,6 +1514,18 @@ void HTMLMediaElement::SourceOpened() {
 
 std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
+}
+
+bool HTMLMediaElement::PreferDecodeToTexture() const {
+  if (!computed_style()) {
+    return false;
+  }
+
+  const cssom::MapToMeshFunction* map_to_mesh_filter =
+      cssom::MapToMeshFunction::ExtractFromFilterList(
+          computed_style()->filter());
+
+  return map_to_mesh_filter;
 }
 
 void HTMLMediaElement::KeyAdded(const std::string& key_system,
