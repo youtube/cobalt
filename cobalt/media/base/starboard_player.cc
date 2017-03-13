@@ -32,7 +32,7 @@ StarboardPlayer::StarboardPlayer(
     const AudioDecoderConfig& audio_config,
     const VideoDecoderConfig& video_config, SbWindow window,
     SbDrmSystem drm_system, Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper)
+    SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture)
     : message_loop_(message_loop),
       audio_config_(audio_config),
       video_config_(video_config),
@@ -55,7 +55,8 @@ StarboardPlayer::StarboardPlayer(
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   output_mode_ = ComputeSbPlayerOutputMode(
-      MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system);
+      MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
+      prefer_decode_to_texture);
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   CreatePlayer();
@@ -495,15 +496,22 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
-    SbMediaVideoCodec codec, SbDrmSystem drm_system) {
-  // If available, choose punch-out mode, since it will almost always be
-  // the most performant.  If it is unavailable, then fallback to
-  // decode-to-texture.
-  SbPlayerOutputMode output_mode = kSbPlayerOutputModeDecodeToTexture;
+    SbMediaVideoCodec codec, SbDrmSystem drm_system,
+    bool prefer_decode_to_texture) {
+  // Try to choose the output mode according to the passed in value of
+  // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
+  // though, fallback to an output mode that is available.
+  SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
   if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
                                   drm_system)) {
     output_mode = kSbPlayerOutputModePunchOut;
   }
+  if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
+      SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
+                                  drm_system)) {
+    output_mode = kSbPlayerOutputModeDecodeToTexture;
+  }
+  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
 
   return output_mode;
 }
