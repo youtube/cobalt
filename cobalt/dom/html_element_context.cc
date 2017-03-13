@@ -24,7 +24,7 @@ HTMLElementContext::HTMLElementContext(
     Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
     script::ScriptRunner* script_runner,
-    MediaSource::Registry* media_source_registry,
+    MediaSourceRegistry* media_source_registry,
     render_tree::ResourceProvider** resource_provider,
     loader::image::ImageCache* image_cache,
     loader::image::ReducedCacheCapacityManager*

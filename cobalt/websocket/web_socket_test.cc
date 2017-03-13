@@ -18,8 +18,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
