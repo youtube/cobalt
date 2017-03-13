@@ -51,7 +51,8 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
                   const AudioDecoderConfig& audio_config,
                   const VideoDecoderConfig& video_config, SbWindow window,
                   SbDrmSystem drm_system, Host* host,
-                  SbPlayerSetBoundsHelper* set_bounds_helper);
+                  SbPlayerSetBoundsHelper* set_bounds_helper,
+                  bool prefer_decode_to_texture);
   ~StarboardPlayer();
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
@@ -112,8 +113,9 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   // Returns the output mode that should be used for a video with the given
   // specifications.
-  static SbPlayerOutputMode ComputeSbPlayerOutputMode(SbMediaVideoCodec codec,
-                                                      SbDrmSystem drm_system);
+  static SbPlayerOutputMode ComputeSbPlayerOutputMode(
+      SbMediaVideoCodec codec, SbDrmSystem drm_system,
+      bool prefer_decode_to_texture);
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   // The following variables are initialized in the ctor and never changed.
