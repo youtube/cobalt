@@ -50,6 +50,7 @@
 #include "cobalt/bindings/testing/global_interface_parent.h"
 #include "cobalt/bindings/testing/implemented_interface.h"
 #include "cobalt/bindings/testing/indexed_getter_interface.h"
+#include "cobalt/bindings/testing/interface_with_any.h"
 #include "cobalt/bindings/testing/interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/mozjs_anonymous_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/mozjs_anonymous_named_getter_interface.h"
@@ -77,6 +78,7 @@
 #include "cobalt/bindings/testing/mozjs_global_interface_parent.h"
 #include "cobalt/bindings/testing/mozjs_implemented_interface.h"
 #include "cobalt/bindings/testing/mozjs_indexed_getter_interface.h"
+#include "cobalt/bindings/testing/mozjs_interface_with_any.h"
 #include "cobalt/bindings/testing/mozjs_interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/mozjs_named_constructor_interface.h"
 #include "cobalt/bindings/testing/mozjs_named_getter_interface.h"
@@ -129,6 +131,7 @@
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/mozjs_value_handle.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -171,6 +174,7 @@ using cobalt::bindings::testing::GetOpaqueRootInterface;
 using cobalt::bindings::testing::GlobalInterfaceParent;
 using cobalt::bindings::testing::ImplementedInterface;
 using cobalt::bindings::testing::IndexedGetterInterface;
+using cobalt::bindings::testing::InterfaceWithAny;
 using cobalt::bindings::testing::InterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::MozjsAnonymousIndexedGetterInterface;
 using cobalt::bindings::testing::MozjsAnonymousNamedGetterInterface;
@@ -202,6 +206,7 @@ using cobalt::bindings::testing::MozjsGetOpaqueRootInterface;
 using cobalt::bindings::testing::MozjsGlobalInterfaceParent;
 using cobalt::bindings::testing::MozjsImplementedInterface;
 using cobalt::bindings::testing::MozjsIndexedGetterInterface;
+using cobalt::bindings::testing::MozjsInterfaceWithAny;
 using cobalt::bindings::testing::MozjsInterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::MozjsNamedConstructorInterface;
 using cobalt::bindings::testing::MozjsNamedGetterInterface;
@@ -248,6 +253,7 @@ using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
+using cobalt::script::ValueHandle;
 using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
@@ -955,6 +961,10 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
       IndexedGetterInterface::IndexedGetterInterfaceWrappableType(),
       base::Bind(MozjsIndexedGetterInterface::CreateProxy),
       base::Bind(MozjsIndexedGetterInterface::PrototypeClass));
+  wrapper_factory->RegisterWrappableType(
+      InterfaceWithAny::InterfaceWithAnyWrappableType(),
+      base::Bind(MozjsInterfaceWithAny::CreateProxy),
+      base::Bind(MozjsInterfaceWithAny::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       InterfaceWithUnsupportedProperties::InterfaceWithUnsupportedPropertiesWrappableType(),
       base::Bind(MozjsInterfaceWithUnsupportedProperties::CreateProxy),
