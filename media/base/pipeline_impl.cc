@@ -138,7 +138,9 @@ void PipelineImpl::Start(scoped_ptr<FilterCollection> collection,
                          const PipelineStatusCB& error_cb,
                          const PipelineStatusCB& seek_cb,
                          const BufferingStateCB& buffering_state_cb,
-                         const base::Closure& duration_change_cb) {
+                         const base::Closure& duration_change_cb,
+                         bool prefer_decode_to_texture) {
+  UNREFERENCED_PARAMETER(prefer_decode_to_texture);
   DCHECK_EQ(collection->GetAudioDecoders()->size(), 1);
   DCHECK_EQ(collection->GetVideoDecoders()->size(), 1);
 
