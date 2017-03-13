@@ -67,6 +67,7 @@ using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
+using cobalt::script::ValueHandle;
 using cobalt::script::Wrappable;
 {% endblock using_directives %}
 {% if enumerations|length %}
