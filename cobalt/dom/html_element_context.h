@@ -21,8 +21,8 @@
 #include "base/threading/thread.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/dom_stat_tracker.h"
-#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/url_registry.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
@@ -35,18 +35,21 @@ namespace cobalt {
 namespace dom {
 
 class HTMLElementFactory;
+class MediaSource;
 
 // This class contains references to several objects that are required by HTML
 // elements, including HTML element factory, which is used to create new
 // HTML elements.
 class HTMLElementContext {
  public:
+  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
+
   HTMLElementContext(loader::FetcherFactory* fetcher_factory,
                      cssom::CSSParser* css_parser, Parser* dom_parser,
                      media::CanPlayTypeHandler* can_play_type_handler,
                      media::WebMediaPlayerFactory* web_media_player_factory,
                      script::ScriptRunner* script_runner,
-                     MediaSource::Registry* media_source_registry,
+                     MediaSourceRegistry* media_source_registry,
                      render_tree::ResourceProvider** resource_provider,
                      loader::image::ImageCache* image_cache,
                      loader::image::ReducedCacheCapacityManager*
@@ -71,7 +74,7 @@ class HTMLElementContext {
   }
 
   script::ScriptRunner* script_runner() { return script_runner_; }
-  MediaSource::Registry* media_source_registry() {
+  MediaSourceRegistry* media_source_registry() {
     return media_source_registry_;
   }
 
@@ -109,7 +112,7 @@ class HTMLElementContext {
   media::CanPlayTypeHandler* can_play_type_handler_;
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
-  MediaSource::Registry* const media_source_registry_;
+  MediaSourceRegistry* const media_source_registry_;
   render_tree::ResourceProvider** resource_provider_;
   loader::image::ImageCache* const image_cache_;
   loader::image::ReducedCacheCapacityManager* const
