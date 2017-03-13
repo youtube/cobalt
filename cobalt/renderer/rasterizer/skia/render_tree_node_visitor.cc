@@ -739,6 +739,24 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(
+    render_tree::MatrixTransform3DNode* matrix_transform_3d_node) {
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
+  TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransform3DNode)");
+#endif
+
+  glm::mat4 before = draw_state_.transform_3d;
+  draw_state_.transform_3d *= matrix_transform_3d_node->data().transform;
+
+  matrix_transform_3d_node->data().source->Accept(this);
+
+  draw_state_.transform_3d = before;
+
+#if ENABLE_FLUSH_AFTER_EVERY_NODE
+  draw_state_.render_target->flush();
+#endif
+}
+
+void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
 #if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransformNode)");

@@ -19,6 +19,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/node_visitor.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
@@ -45,6 +46,7 @@ class DebugTreePrinter : public NodeVisitor {
   void Visit(CompositionNode* composition) OVERRIDE;
   void Visit(FilterNode* text) OVERRIDE;
   void Visit(ImageNode* image) OVERRIDE;
+  void Visit(MatrixTransform3DNode* transform) OVERRIDE;
   void Visit(MatrixTransformNode* transform) OVERRIDE;
   void Visit(PunchThroughVideoNode* punch_through) OVERRIDE;
   void Visit(RectNode* rect) OVERRIDE;
@@ -123,6 +125,15 @@ void DebugTreePrinter::Visit(FilterNode* filter) {
 void DebugTreePrinter::Visit(ImageNode* image) {
   AddNamedNodeString(image, "ImageNode");
   result_ << "\n";
+}
+
+void DebugTreePrinter::Visit(MatrixTransform3DNode* transform) {
+  AddNamedNodeString(transform, "MatrixTransform3DNode");
+  result_ << "\n";
+
+  ScopedIncrement scoped_increment(&indent_);
+
+  transform->data().source->Accept(this);
 }
 
 void DebugTreePrinter::Visit(MatrixTransformNode* transform) {

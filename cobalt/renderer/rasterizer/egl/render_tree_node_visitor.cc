@@ -76,6 +76,12 @@ void RenderTreeNodeVisitor::Visit(
 }
 
 void RenderTreeNodeVisitor::Visit(
+    render_tree::MatrixTransform3DNode* transform_3d_node) {
+  // TODO: Ignore the 3D transform matrix for now.
+  transform_3d_node->data().source->Accept(this);
+}
+
+void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* transform_node) {
   const render_tree::MatrixTransformNode::Builder& data =
       transform_node->data();
