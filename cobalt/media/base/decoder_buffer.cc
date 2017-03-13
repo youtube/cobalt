@@ -13,7 +13,9 @@ DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
     DCHECK(allocator_);
     ptr_ = static_cast<uint8_t*>(
         allocator_->Allocate(type_, size + kPaddingSize, kAlignmentSize));
-    SbMemorySet(ptr_ + size, 0, kPaddingSize);
+    if (ptr_) {
+      SbMemorySet(ptr_ + size, 0, kPaddingSize);
+    }
   }
 }
 
@@ -74,7 +76,12 @@ DecoderBuffer::~DecoderBuffer() {}
 scoped_refptr<DecoderBuffer> DecoderBuffer::Create(Allocator* allocator,
                                                    Type type, size_t size) {
   DCHECK_GT(size, 0);
-  return make_scoped_refptr(new DecoderBuffer(allocator, type, size));
+  scoped_refptr<DecoderBuffer> decoder_buffer =
+      new DecoderBuffer(allocator, type, size);
+  if (decoder_buffer.data()) {
+    return decoder_buffer;
+  }
+  return NULL;
 }
 
 // static
@@ -84,8 +91,12 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(Allocator* allocator,
                                                      size_t data_size) {
   // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
   CHECK(data);
-  return make_scoped_refptr(
-      new DecoderBuffer(allocator, type, data, data_size, NULL, 0));
+  scoped_refptr<DecoderBuffer> decoder_buffer =
+      new DecoderBuffer(allocator, type, data, data_size, NULL, 0);
+  if (decoder_buffer.data()) {
+    return decoder_buffer;
+  }
+  return NULL;
 }
 
 // static
@@ -95,8 +106,12 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
   // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
   CHECK(data);
   CHECK(side_data);
-  return make_scoped_refptr(new DecoderBuffer(allocator, type, data, data_size,
-                                              side_data, side_data_size));
+  scoped_refptr<DecoderBuffer> decoder_buffer = new DecoderBuffer(
+      allocator, type, data, data_size, side_data, side_data_size);
+  if (decoder_buffer.data() && decoder_buffer.side_data()) {
+    return decoder_buffer;
+  }
+  return NULL;
 }
 
 // static
