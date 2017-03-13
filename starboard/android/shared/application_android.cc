@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/android/shared/input_event.h"
+#include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/event.h"
