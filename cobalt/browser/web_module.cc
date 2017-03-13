@@ -387,9 +387,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   resource_provider_ = data.resource_provider;
 
   // Currently we rely on a platform to explicitly specify that it supports
-  // the map-to-mesh filter via the ENABLE_MTM define (and the 'enable_mtm' gyp
-  // variable).  When we have better support for checking for decode to texture
-  // support, it would be nice to switch this logic to something like:
+  // the map-to-mesh filter via the ENABLE_MAP_TO_MESH define (and the
+  // 'enable_map_to_mesh' gyp variable).  When we have better support for
+  // checking for decode to texture support, it would be nice to switch this
+  // logic to something like:
   //
   //   supports_map_to_mesh =
   //      (resource_provider_->Supports3D() && SbPlayerSupportsDecodeToTexture()
@@ -400,7 +401,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // cannot render them, since web apps may check for map-to-mesh support by
   // testing whether it parses or not via the CSS.supports() Web API.
   css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
-#if defined(ENABLE_MTM)
+#if defined(ENABLE_MAP_TO_MESH)
       css_parser::Parser::kSupportsMapToMesh;
 #else
       css_parser::Parser::kDoesNotSupportMapToMesh;
