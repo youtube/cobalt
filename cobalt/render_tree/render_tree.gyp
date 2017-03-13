@@ -45,6 +45,8 @@
         'image_node.cc',
         'image_node.h',
         'map_to_mesh_filter.h',
+        'matrix_transform_3d_node.cc',
+        'matrix_transform_3d_node.h',
         'matrix_transform_node.cc',
         'matrix_transform_node.h',
         'mesh.h',

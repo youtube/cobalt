@@ -269,6 +269,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(
+    render_tree::MatrixTransform3DNode* matrix_transform_3d_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(MatrixTransform3DNode)");
+  // Ignore the 3D transform matrix, it cannot be implemented within the Blitter
+  // API.
+  matrix_transform_3d_node->data().source->Accept(this);
+}
+
+void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
   TRACE_EVENT0_IF_ENABLED("Visit(MatrixTransformNode)");
 

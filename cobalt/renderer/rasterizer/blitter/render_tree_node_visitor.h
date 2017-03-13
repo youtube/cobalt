@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/node_visitor.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
@@ -74,6 +75,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
   void Visit(render_tree::ImageNode* image_node) OVERRIDE;
+  void Visit(
+      render_tree::MatrixTransform3DNode* matrix_transform_3d_node) OVERRIDE;
   void Visit(render_tree::MatrixTransformNode* matrix_transform_node) OVERRIDE;
   void Visit(
       render_tree::PunchThroughVideoNode* punch_through_video_node) OVERRIDE;
