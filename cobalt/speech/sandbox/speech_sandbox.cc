@@ -15,6 +15,7 @@
 #include "cobalt/speech/sandbox/speech_sandbox.h"
 
 #include "base/path_service.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/script/environment_settings.h"
 
 namespace cobalt {

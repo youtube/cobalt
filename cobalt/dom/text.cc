@@ -17,6 +17,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/window.h"
 
 namespace cobalt {
 namespace dom {
