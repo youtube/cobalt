@@ -72,6 +72,9 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
   void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
   void Visit(FilterNode* text) OVERRIDE { VisitNode(text); }
   void Visit(ImageNode* image) OVERRIDE { VisitNode(image); }
+  void Visit(MatrixTransform3DNode* transform) OVERRIDE {
+    VisitNode(transform);
+  }
   void Visit(MatrixTransformNode* transform) OVERRIDE { VisitNode(transform); }
   void Visit(PunchThroughVideoNode* punch_through) OVERRIDE {
     VisitNode(punch_through);
@@ -233,6 +236,9 @@ class AnimateNode::BoundsVisitor : public NodeVisitor {
   void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
   void Visit(FilterNode* text) OVERRIDE { VisitNode(text); }
   void Visit(ImageNode* image) OVERRIDE { VisitNode(image); }
+  void Visit(MatrixTransform3DNode* transform) OVERRIDE {
+    VisitNode(transform);
+  }
   void Visit(MatrixTransformNode* transform) OVERRIDE { VisitNode(transform); }
   void Visit(PunchThroughVideoNode* punch_through) OVERRIDE {
     VisitNode(punch_through);
@@ -381,6 +387,9 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
   void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
   void Visit(FilterNode* text) OVERRIDE { VisitNode(text); }
   void Visit(ImageNode* image) OVERRIDE { VisitNode(image); }
+  void Visit(MatrixTransform3DNode* transform) OVERRIDE {
+    VisitNode(transform);
+  }
   void Visit(MatrixTransformNode* transform) OVERRIDE { VisitNode(transform); }
   void Visit(PunchThroughVideoNode* punch_through) OVERRIDE {
     VisitNode(punch_through);
