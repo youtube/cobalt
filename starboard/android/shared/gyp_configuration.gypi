@@ -26,6 +26,8 @@
 
     'gl_type': 'system_gles2',
 
+    'enable_map_to_mesh': 1,
+
     # The 'android_system' font package installs only minimal fonts, with a
     # fonts.xml referencing the superset of font files we expect to find on any
     # Android platform. The Android SbFileOpen implementation falls back to
