@@ -15,6 +15,5 @@
 #include "starboard/audio_sink.h"
 
 int SbAudioSinkGetMaxChannels() {
-  // TODO: Support 5.1 surround sound.
-  return 2;
+  return 8;
 }
