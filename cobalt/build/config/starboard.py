@@ -33,7 +33,7 @@ class PlatformConfigStarboard(PlatformConfigBase):
   def GetVariables(self, config, use_clang=0):
     use_asan = 0
     use_tsan = 0
-    mtm_enabled = 0
+    vr_enabled = 0
     if use_clang:
       use_tsan = int(os.environ.get('USE_TSAN', 0))
       # Enable ASAN by default for debug and devel builds only if USE_TSAN was
@@ -42,11 +42,11 @@ class PlatformConfigStarboard(PlatformConfigBase):
           Configs.DEBUG, Configs.DEVEL) else 0
       use_asan = int(os.environ.get('USE_ASAN', use_asan_default))
 
-      # Set environmental variable to enable_mtm: 'USE_MTM'
+      # Set environmental variable to enable_vr: 'USE_VR'
       # Terminal: `export {varname}={value}`
       # Note: must also edit gyp_configuration.gypi per internal instructions.
-      mtm_on_by_default = 0
-      mtm_enabled = int(os.environ.get('USE_MTM', mtm_on_by_default))
+      vr_on_by_default = 0
+      vr_enabled = int(os.environ.get('USE_VR', vr_on_by_default))
 
     if use_asan == 1 and use_tsan == 1:
       raise RuntimeError('ASAN and TSAN are mutually exclusive')
@@ -67,7 +67,7 @@ class PlatformConfigStarboard(PlatformConfigBase):
         'use_asan': use_asan,
         # Whether to build with clang's Thread Sanitizer instrumentation.
         'use_tsan': use_tsan,
-        # Whether to emable MTM.
-        'enable_mtm': mtm_enabled,
+        # Whether to emable VR.
+        'enable_vr': vr_enabled,
     }
     return variables
