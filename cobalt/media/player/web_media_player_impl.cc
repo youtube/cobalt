@@ -137,6 +137,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
 
+  if (video_frame_provider_) {
+    video_frame_provider_->SetOutputMode(
+        ShellVideoFrameProvider::kOutputModeInvalid);
+  }
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
   }
@@ -649,7 +653,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
+      client_->PreferDecodeToTexture());
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
