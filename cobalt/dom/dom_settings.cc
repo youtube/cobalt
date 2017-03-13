@@ -15,6 +15,7 @@
 #include "cobalt/dom/dom_settings.h"
 
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/window.h"
 
 namespace cobalt {
 namespace dom {
@@ -23,7 +24,7 @@ DOMSettings::DOMSettings(
     const int max_dom_element_depth, loader::FetcherFactory* fetcher_factory,
     network::NetworkModule* network_module, media::MediaModule* media_module,
     const scoped_refptr<Window>& window,
-    MediaSource::Registry* media_source_registry, Blob::Registry* blob_registry,
+    MediaSourceRegistry* media_source_registry, Blob::Registry* blob_registry,
     media::CanPlayTypeHandler* can_play_type_handler,
     script::JavaScriptEngine* engine,
     script::GlobalEnvironment* global_environment,
@@ -51,6 +52,11 @@ DOMSettings::DOMSettings(
 }
 
 DOMSettings::~DOMSettings() {}
+
+void DOMSettings::set_window(const scoped_refptr<Window>& window) {
+  window_ = window;
+}
+scoped_refptr<Window> DOMSettings::window() const { return window_; }
 
 const GURL& DOMSettings::base_url() const {
   return window()->document()->url_as_gurl();

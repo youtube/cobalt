@@ -19,9 +19,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/blob.h"
-#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
-#include "cobalt/dom/window.h"
+#include "cobalt/dom/url_registry.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/script/environment_settings.h"
@@ -40,11 +39,14 @@ class GlobalEnvironment;
 class JavaScriptEngine;
 }
 namespace dom {
+class MediaSource;
+class Window;
 
 // A package of global state to be passed around to script objects
 // that ask for it in their IDL custom attributes.
 class DOMSettings : public script::EnvironmentSettings {
  public:
+  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   // Hold optional settings for DOMSettings.
   struct Options {
     Options() : array_buffer_allocator(NULL), array_buffer_cache(NULL) {}
@@ -67,7 +69,7 @@ class DOMSettings : public script::EnvironmentSettings {
               network::NetworkModule* network_module,
               media::MediaModule* media_module,
               const scoped_refptr<Window>& window,
-              MediaSource::Registry* media_source_registry,
+              MediaSourceRegistry* media_source_registry,
               Blob::Registry* blob_registry,
               media::CanPlayTypeHandler* can_play_type_handler,
               script::JavaScriptEngine* engine,
@@ -81,8 +83,8 @@ class DOMSettings : public script::EnvironmentSettings {
     return microphone_options_;
   }
 
-  void set_window(const scoped_refptr<Window>& window) { window_ = window; }
-  scoped_refptr<Window> window() const { return window_; }
+  void set_window(const scoped_refptr<Window>& window);
+  scoped_refptr<Window> window() const;
 
   ArrayBuffer::Allocator* array_buffer_allocator() const {
     return array_buffer_allocator_;
@@ -105,7 +107,7 @@ class DOMSettings : public script::EnvironmentSettings {
   script::GlobalEnvironment* global_environment() const {
     return global_environment_;
   }
-  MediaSource::Registry* media_source_registry() const {
+  MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
   }
   media::CanPlayTypeHandler* can_play_type_handler() const {
@@ -128,7 +130,7 @@ class DOMSettings : public script::EnvironmentSettings {
   scoped_refptr<Window> window_;
   ArrayBuffer::Allocator* array_buffer_allocator_;
   ArrayBuffer::Cache* array_buffer_cache_;
-  MediaSource::Registry* media_source_registry_;
+  MediaSourceRegistry* media_source_registry_;
   Blob::Registry* blob_registry_;
   media::CanPlayTypeHandler* can_play_type_handler_;
   script::JavaScriptEngine* javascript_engine_;
