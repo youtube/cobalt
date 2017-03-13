@@ -35,7 +35,6 @@
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
 #include "third_party/glm/glm/gtc/matrix_inverse.hpp"
 #include "third_party/glm/glm/mat3x3.hpp"
-#include "third_party/glm/glm/gtx/transform.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
@@ -130,9 +129,6 @@ class HardwareRasterizer::Impl {
 
   scoped_ptr<VertexBufferObject> equirectangular_vbo_;
   scoped_refptr<Mesh> equirectangular_mesh_;
-  // Used to spin the camera around a 360 video as a "demo mode".
-  // TODO: Remove this as soon as the 3D camera is in.
-  base::optional<base::TimeTicks> start_time_;
 };
 
 namespace {
@@ -306,41 +302,11 @@ void HardwareRasterizer::Impl::RenderTextureEquirectangularEGL(
     content_region = *image->GetContentRegion();
   }
 
-  // Temporary code to have the camera animated to demo 360 video without input.
-  // TODO: This should be removed once a camera is officially hooked up.  This
-  // code causes the camera to rotate around its y-axis at a constant speed
-  // while rotating up and down around its x-axis.
-  if (!start_time_) {
-    start_time_ = base::TimeTicks::Now();
-  }
-  float t = (base::TimeTicks::Now() - *start_time_).InSecondsF();
-  float y_angle = (t * 2 * M_PI) / 4.0f;
-  float x_angle = sin(t * 2 * M_PI / 3.0f) * (M_PI / 6);
-  glm::mat4 camera_rotations = glm::rotate(x_angle, glm::vec3(1, 0, 0)) *
-                               glm::rotate(y_angle, glm::vec3(0, 1, 0));
-
-  // Setup a perspective projection matrix, the same way that gluPerspective()
-  // does:
-  // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
-  const float kVerticalFOVInDegrees = 60.0f;
-  const float kVerticalFOVInRadians =
-      (kVerticalFOVInDegrees / 360.0f) * 2 * M_PI;
-  const float f = 1.0f / tan(kVerticalFOVInRadians / 2);
-  const float kNearZ = 0.01f;
-  const float kFarZ = 1000.0f;
-  const float kRangeZ = kNearZ - kFarZ;
-  float aspect_ratio =
-      static_cast<float>(destination_rect.width()) / destination_rect.height();
-  glm::mat4 projection = glm::mat4(f / aspect_ratio, 0, 0, 0, 0, f, 0, 0, 0, 0,
-                                   (kFarZ + kNearZ) / kRangeZ, -1.0f, 0, 0,
-                                   (2.0f * kFarZ * kNearZ) / kRangeZ, 0.0f);
-
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderVBO(equirectangular_vbo_->GetHandle(),
-                                     equirectangular_mesh_->vertices().size(),
-                                     equirectangular_mesh_->draw_mode(),
-                                     texture, content_region,
-                                     projection * camera_rotations);
+  textured_mesh_renderer_->RenderVBO(
+      equirectangular_vbo_->GetHandle(), equirectangular_mesh_->vertices().size(),
+      equirectangular_mesh_->draw_mode(), texture, content_region,
+      draw_state->transform_3d);
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();

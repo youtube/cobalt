@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_RENDER_TREE_NODE_VISITOR_DRAW_STATE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_RENDER_TREE_NODE_VISITOR_DRAW_STATE_H_
 
+#include "third_party/glm/glm/mat4x4.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 
 namespace cobalt {
@@ -24,7 +25,10 @@ namespace skia {
 
 struct RenderTreeNodeVisitorDrawState {
   explicit RenderTreeNodeVisitorDrawState(SkCanvas* render_target)
-      : render_target(render_target), opacity(1.0f), clip_is_rect(true) {}
+      : render_target(render_target),
+        opacity(1.0f),
+        clip_is_rect(true),
+        transform_3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1) {}
 
   SkCanvas* render_target;
   float opacity;
@@ -32,6 +36,8 @@ struct RenderTreeNodeVisitorDrawState {
   // True if the current clip is a rectangle or not.  If it is not, we need
   // to enable blending when rendering clipped rectangles.
   bool clip_is_rect;
+
+  glm::mat4 transform_3d;
 };
 
 }  // namespace skia
