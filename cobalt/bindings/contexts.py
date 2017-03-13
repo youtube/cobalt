@@ -107,7 +107,8 @@ def cobalt_type_is_optional(idl_type):
 
   # These never need base::optional<>
   if (idl_type.is_interface_type or idl_type.is_callback_function or
-      idl_type.is_callback_interface or is_object_type(idl_type)):
+      idl_type.is_callback_interface or is_object_type(idl_type) or
+      is_any_type(idl_type)):
     return False
 
   # We consider a union type to be nullable if either the entire union is
@@ -119,6 +120,10 @@ def cobalt_type_is_optional(idl_type):
 
 def is_object_type(idl_type):
   return str(idl_type) == 'object'
+
+
+def is_any_type(idl_type):
+  return idl_type.name == 'Any'
 
 
 def is_sequence_type(idl_type):
@@ -144,6 +149,8 @@ def idl_type_to_cobalt_type(idl_type):
     cobalt_type = 'void'
   elif is_object_type(idl_type):
     cobalt_type = 'OpaqueHandle'
+  elif is_any_type(idl_type):
+    cobalt_type = 'ValueHandle'
   elif idl_type.is_dictionary:
     cobalt_type = get_interface_name(idl_type)
 
