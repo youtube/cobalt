@@ -28,26 +28,29 @@ import zipfile
 
 import gyp_utils
 
-# Packages to install in the Android SDK.
-# Update these if you change the requirements below!
-# Get available packages from "sdkmanager --list --verbose"
-_ANDROID_SDK_PACKAGES = [
-    'platforms;android-25',
-    'build-tools;25.0.1',
-    'extras;android;m2repository',
-]
-# NDK release to use
-_NDK_ZIP_REVISION = 'android-ndk-r14'
-# The "--api" to pass to the NDK's make_standalone_toolchain.py
-_ANDROID_NDK_API_LEVEL = '21'
-# The SDK version to compile Java against
-_ANDROID_COMPILE_SDK_VERSION = '25'
-# Version of Android build-tools to use
-_ANDROID_BUILD_TOOLS_VERSION = '25.0.1'
 # Min SDK for Java build
 _ANDROID_MIN_SDK_VERSION = '21'
 # Target SDK for Java build
 _ANDROID_TARGET_SDK_VERSION = '22'
+# The SDK version to compile Java against
+_ANDROID_COMPILE_SDK_VERSION = '25'
+# Version of Android build-tools to use
+_ANDROID_BUILD_TOOLS_VERSION = '25.0.2'
+# Version of the support annotations library to use
+_ANDROID_SUPPORT_ANNOTATIONS_VERSION = '25.2.0'
+# NDK release to use
+_NDK_ZIP_REVISION = 'android-ndk-r14'
+# The "--api" to pass to the NDK's make_standalone_toolchain.py
+_ANDROID_NDK_API_LEVEL = _ANDROID_TARGET_SDK_VERSION
+
+# Packages to install in the Android SDK.
+# Check these if you change the requirements above!
+# Get available packages from "sdkmanager --list --verbose"
+_ANDROID_SDK_PACKAGES = [
+    'platforms;android-{}'.format(_ANDROID_COMPILE_SDK_VERSION),
+    'build-tools;{}'.format(_ANDROID_BUILD_TOOLS_VERSION),
+    'extras;android;m2repository',
+]
 
 # Seconds to sleep before writing "y" for android sdk update license prompt.
 _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
@@ -159,8 +162,10 @@ def GetJavacClasspath():
       os.path.join(GetSdkPath(), 'platforms', android_platform_dir,
                    'android.jar'),
       os.path.join(GetSdkPath(), 'extras', 'android', 'm2repository', 'com',
-                   'android', 'support', 'support-annotations', '25.0.1',
-                   'support-annotations-25.0.1.jar')
+                   'android', 'support', 'support-annotations',
+                   _ANDROID_SUPPORT_ANNOTATIONS_VERSION,
+                   'support-annotations-{}.jar'.format(
+                       _ANDROID_SUPPORT_ANNOTATIONS_VERSION))
   ])
 
 
@@ -202,6 +207,7 @@ def _MaybeDownloadAndInstallSdkAndNdk():
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_EX)
 
     if _IsSdkUpdateNeeded():
+      logging.warning('Updating Android SDK.')
       _DownloadInstallOrUpdateSdk()
     else:
       logging.warning('Android SDK up to date.')
