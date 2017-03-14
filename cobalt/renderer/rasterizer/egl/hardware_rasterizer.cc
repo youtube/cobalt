@@ -26,6 +26,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/frame_rate_throttler.h"
+#include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
@@ -140,11 +141,12 @@ void HardwareRasterizer::Impl::Submit(
   graphics_state_->Scissor(0, 0, target_size.width(), target_size.height());
 
   {
+    DrawObjectManager draw_object_manager;
     RenderTreeNodeVisitor::FallbackRasterizeFunction fallback_rasterize =
         base::Bind(&HardwareRasterizer::Impl::SubmitToFallbackRasterizer,
                    base::Unretained(this));
     RenderTreeNodeVisitor visitor(graphics_state_.get(),
-                                  shader_program_manager_.get(),
+                                  &draw_object_manager,
                                   &fallback_rasterize);
 
     {
@@ -154,23 +156,25 @@ void HardwareRasterizer::Impl::Submit(
 
     graphics_state_->BeginFrame();
 
-    // Update vertex data buffer.
     {
       TRACE_EVENT0("cobalt::renderer", "UpdateVertexBuffer");
-      visitor.ExecuteDraw(DrawObject::kStageUpdateVertexBuffer);
+      draw_object_manager.ExecuteUpdateVertexBuffer(graphics_state_.get(),
+          shader_program_manager_.get());
       graphics_state_->UpdateVertexData();
     }
 
     {
       TRACE_EVENT0("cobalt::renderer", "RasterizeOffscreen");
-      visitor.ExecuteDraw(DrawObject::kStageRasterizeOffscreen);
+      draw_object_manager.ExecuteRasterizeOffscreen(graphics_state_.get(),
+          shader_program_manager_.get());
     }
 
     graphics_state_->Clear();
 
     {
       TRACE_EVENT0("cobalt::renderer", "RasterizeNormal");
-      visitor.ExecuteDraw(DrawObject::kStageRasterizeNormal);
+      draw_object_manager.ExecuteRasterizeNormal(graphics_state_.get(),
+          shader_program_manager_.get());
     }
 
     graphics_state_->EndFrame();
