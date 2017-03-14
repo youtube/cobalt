@@ -36,9 +36,10 @@ class DrawRectColorTexture : public DrawObject {
                        const backend::TextureEGL* texture,
                        const math::Matrix3F& texcoord_transform);
 
-  void Execute(GraphicsState* graphics_state,
-               ShaderProgramManager* program_manager,
-               ExecutionStage stage) OVERRIDE;
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
 
  private:
   math::Matrix3F texcoord_transform_;
