@@ -20,6 +20,13 @@ DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
   }
 }
 
+DecoderBuffer::ScopedAllocatorPtr::~ScopedAllocatorPtr() {
+  // |allocator_| can be NULL for EOS buffer.
+  if (allocator_ && ptr_) {
+    allocator_->Free(type_, ptr_);
+  }
+}
+
 DecoderBuffer::DecoderBuffer()
     : allocator_(NULL),
       type_(DemuxerStream::UNKNOWN),

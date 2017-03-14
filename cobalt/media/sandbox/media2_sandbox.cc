@@ -20,6 +20,7 @@
 #include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "starboard/event.h"
+#include "starboard/string.h"
 
 namespace cobalt {
 namespace media {
@@ -101,9 +102,8 @@ int SandboxMain(int argc, char** argv) {
     return 1;
   }
 
-  MessageLoop message_loop;
-
   DecoderBufferAllocator decoder_buffer_allocator;
+  MessageLoop message_loop;
   DemuxerHostStub demuxer_host;
   scoped_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
       &decoder_buffer_allocator, base::Bind(OnDemuxerOpen),
@@ -113,8 +113,16 @@ int SandboxMain(int argc, char** argv) {
   ChunkDemuxer::Status status =
       demuxer->AddId("audio", "audio/mp4", "mp4a.40.2");
   DCHECK_EQ(status, ChunkDemuxer::kOk);
-  status = demuxer->AddId("video", "video/mp4", "avc1.640028");
+
+  int video_url_length = SbStringGetLength(argv[2]);
+  if (video_url_length > 5 &&
+      SbStringCompare(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
+    status = demuxer->AddId("video", "video/webm", "vp9");
+  } else {
+    status = demuxer->AddId("video", "video/mp4", "avc1.640028");
+  }
   DCHECK_EQ(status, ChunkDemuxer::kOk);
+
   base::TimeDelta timestamp_offset;
 
   std::string audio_content = LoadFile(argv[1]);

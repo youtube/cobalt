@@ -229,7 +229,7 @@ class MEDIA_EXPORT DecoderBuffer
     static const size_t kPaddingSize = 32;
 
     ScopedAllocatorPtr(Allocator* allocator, Type type, size_t size);
-    ~ScopedAllocatorPtr() { allocator_->Free(type_, ptr_); }
+    ~ScopedAllocatorPtr();
     uint8_t* get() { return ptr_; }
     const uint8_t* get() const { return ptr_; }
 
