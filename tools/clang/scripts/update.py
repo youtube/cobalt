@@ -41,39 +41,51 @@ PACKAGE_VERSION = "%s-%s" % (CLANG_REVISION, CLANG_SUB_REVISION)
 # Path constants. (All of these should be absolute paths.)
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 CHROMIUM_DIR = os.path.abspath(os.path.join(THIS_DIR, '..', '..', '..'))
-THIRD_PARTY_DIR = os.path.join(CHROMIUM_DIR, 'third_party')
-LLVM_DIR = os.path.join(THIRD_PARTY_DIR, 'llvm')
-LLVM_BOOTSTRAP_DIR = os.path.join(THIRD_PARTY_DIR, 'llvm-bootstrap')
-LLVM_BOOTSTRAP_INSTALL_DIR = os.path.join(THIRD_PARTY_DIR,
-                                          'llvm-bootstrap-install')
-LLVM_LTO_GOLD_PLUGIN_DIR = os.path.join(THIRD_PARTY_DIR, 'llvm-lto-gold-plugin')
-CHROME_TOOLS_SHIM_DIR = os.path.join(LLVM_DIR, 'tools', 'chrometools')
-LLVM_BUILD_DIR = os.path.join(CHROMIUM_DIR, 'third_party', 'llvm-build',
-                              'Release+Asserts')
-COMPILER_RT_BUILD_DIR = os.path.join(LLVM_BUILD_DIR, 'compiler-rt')
-CLANG_DIR = os.path.join(LLVM_DIR, 'tools', 'clang')
-LLD_DIR = os.path.join(LLVM_DIR, 'tools', 'lld')
-# compiler-rt is built as part of the regular LLVM build on Windows to get
-# the 64-bit runtime, and out-of-tree elsewhere.
-# TODO(thakis): Try to unify this.
-if sys.platform == 'win32':
-  COMPILER_RT_DIR = os.path.join(LLVM_DIR, 'projects', 'compiler-rt')
-else:
-  COMPILER_RT_DIR = os.path.join(LLVM_DIR, 'compiler-rt')
-LIBCXX_DIR = os.path.join(LLVM_DIR, 'projects', 'libcxx')
-LIBCXXABI_DIR = os.path.join(LLVM_DIR, 'projects', 'libcxxabi')
-LLVM_BUILD_TOOLS_DIR = os.path.abspath(
-    os.path.join(LLVM_DIR, '..', 'llvm-build-tools'))
-STAMP_FILE = os.path.normpath(
-    os.path.join(LLVM_DIR, '..', 'llvm-build', 'cr_build_revision'))
-BINUTILS_DIR = os.path.join(THIRD_PARTY_DIR, 'binutils')
-BINUTILS_BIN_DIR = os.path.join(BINUTILS_DIR, BINUTILS_DIR,
-                                'Linux_x64', 'Release', 'bin')
-BFD_PLUGINS_DIR = os.path.join(BINUTILS_DIR, 'Linux_x64', 'Release',
-                               'lib', 'bfd-plugins')
 VERSION = '5.0.0'
-ANDROID_NDK_DIR = os.path.join(
-    CHROMIUM_DIR, 'third_party', 'android_tools', 'ndk')
+
+
+def SetGlobalVariables(base_dir):
+  global THIRD_PARTY_DIR, LLVM_DIR, LLVM_BOOTSTRAP_DIR
+  global LLVM_BOOTSTRAP_INSTALL_DIR, LLVM_LTO_GOLD_PLUGIN_DIR
+  global CHROME_TOOLS_SHIM_DIR, LLVM_BUILD_DIR, COMPILER_RT_BUILD_DIR
+  global CLANG_DIR, LLD_DIR, COMPILER_RT_DIR, LIBCXX_DIR, LIBCXXABI_DIR
+  global LLVM_BUILD_TOOLS_DIR, STAMP_FILE, BINUTILS_DIR, BINUTILS_BIN_DIR
+  global BFD_PLUGINS_DIR, ANDROID_NDK_DIR
+  THIRD_PARTY_DIR = base_dir
+  LLVM_DIR = os.path.join(THIRD_PARTY_DIR, 'llvm')
+  LLVM_BOOTSTRAP_DIR = os.path.join(THIRD_PARTY_DIR, 'llvm-bootstrap')
+  LLVM_BOOTSTRAP_INSTALL_DIR = os.path.join(THIRD_PARTY_DIR,
+                                            'llvm-bootstrap-install')
+  LLVM_LTO_GOLD_PLUGIN_DIR = os.path.join(THIRD_PARTY_DIR,
+                                          'llvm-lto-gold-plugin')
+  CHROME_TOOLS_SHIM_DIR = os.path.join(LLVM_DIR, 'tools', 'chrometools')
+  LLVM_BUILD_DIR = os.path.join(THIRD_PARTY_DIR, 'llvm-build',
+                                'Release+Asserts')
+  COMPILER_RT_BUILD_DIR = os.path.join(LLVM_BUILD_DIR, 'compiler-rt')
+  CLANG_DIR = os.path.join(LLVM_DIR, 'tools', 'clang')
+  LLD_DIR = os.path.join(LLVM_DIR, 'tools', 'lld')
+  # compiler-rt is built as part of the regular LLVM build on Windows to get
+  # the 64-bit runtime, and out-of-tree elsewhere.
+  # TODO(thakis): Try to unify this.
+  if sys.platform == 'win32':
+    COMPILER_RT_DIR = os.path.join(LLVM_DIR, 'projects', 'compiler-rt')
+  else:
+    COMPILER_RT_DIR = os.path.join(LLVM_DIR, 'compiler-rt')
+  LIBCXX_DIR = os.path.join(LLVM_DIR, 'projects', 'libcxx')
+  LIBCXXABI_DIR = os.path.join(LLVM_DIR, 'projects', 'libcxxabi')
+  LLVM_BUILD_TOOLS_DIR = os.path.abspath(
+      os.path.join(LLVM_DIR, '..', 'llvm-build-tools'))
+  STAMP_FILE = os.path.normpath(
+      os.path.join(LLVM_DIR, '..', 'llvm-build', 'cr_build_revision'))
+  BINUTILS_DIR = os.path.join(THIRD_PARTY_DIR, 'binutils')
+  BINUTILS_BIN_DIR = os.path.join(BINUTILS_DIR, BINUTILS_DIR, 'Linux_x64',
+                                  'Release', 'bin')
+  BFD_PLUGINS_DIR = os.path.join(BINUTILS_DIR, 'Linux_x64', 'Release', 'lib',
+                                 'bfd-plugins')
+  ANDROID_NDK_DIR = os.path.join(THIRD_PARTY_DIR, 'android_tools', 'ndk')
+
+
+SetGlobalVariables(os.path.join(CHROMIUM_DIR, 'third_party'))
 
 # URL for pre-built binaries.
 CDS_URL = os.environ.get('CDS_CLANG_BUCKET_OVERRIDE',
@@ -148,7 +160,7 @@ def DownloadAndUnpack(url, output_dir):
       tarfile.open(mode='r:gz', fileobj=f).extractall(path=output_dir)
 
 
-def ReadStampFile(path=STAMP_FILE):
+def ReadStampFile(path):
   """Return the contents of the stamp file, or '' if it doesn't exist."""
   try:
     with open(path, 'r') as f:
@@ -157,7 +169,7 @@ def ReadStampFile(path=STAMP_FILE):
     return ''
 
 
-def WriteStampFile(s, path=STAMP_FILE):
+def WriteStampFile(s, path):
   """Write s to the stamp file."""
   EnsureDirExists(os.path.dirname(path))
   with open(path, 'w') as f:
@@ -395,19 +407,19 @@ def VeryifyVersionOfBuiltClangMatchesVERSION():
 
 
 def UpdateClang(args):
-  print 'Updating Clang to %s...' % PACKAGE_VERSION
 
   # Required for LTO, which is used when is_official_build = true.
   need_gold_plugin = sys.platform.startswith('linux')
 
-  if ReadStampFile() == PACKAGE_VERSION and not args.force_local_build:
-    print 'Clang is already up to date.'
+  if ReadStampFile(
+      STAMP_FILE) == PACKAGE_VERSION and not args.force_local_build:
     if not need_gold_plugin or os.path.exists(
         os.path.join(LLVM_BUILD_DIR, "lib/LLVMgold.so")):
       return 0
 
+  print 'Updating Clang to %s...' % PACKAGE_VERSION
   # Reset the stamp file in case the build is unsuccessful.
-  WriteStampFile('')
+  WriteStampFile('', STAMP_FILE)
 
   if not args.force_local_build:
     cds_file = "clang-%s.tgz" %  PACKAGE_VERSION
@@ -431,8 +443,11 @@ def UpdateClang(args):
       # This is used by the CFI ClusterFuzz bot, and it's required for official
       # builds on linux.
       if need_gold_plugin:
-        RunCommand(['python', CHROMIUM_DIR+'/build/download_gold_plugin.py'])
-      WriteStampFile(PACKAGE_VERSION)
+        RunCommand([
+            'python', CHROMIUM_DIR + '/build/download_gold_plugin.py',
+            LLVM_BUILD_DIR, PACKAGE_VERSION
+        ])
+      WriteStampFile(PACKAGE_VERSION, STAMP_FILE)
       return 0
     except urllib2.URLError:
       print 'Failed to download prebuilt clang %s' % cds_file
@@ -832,7 +847,7 @@ def UpdateClang(args):
     os.chdir(LLVM_BUILD_DIR)
     RunCommand(['ninja', 'check-all'], msvc_arch='x64')
 
-  WriteStampFile(PACKAGE_VERSION)
+  WriteStampFile(PACKAGE_VERSION, STAMP_FILE)
   print 'Clang update was successful.'
   return 0
 
@@ -865,6 +880,12 @@ def main():
                       help='don\'t build Android ASan runtime (linux only)',
                       dest='with_android',
                       default=sys.platform.startswith('linux'))
+  parser.add_argument('--force-clang-revision', nargs=1,
+                      help=('force the given clang revision'))
+  parser.add_argument('--clang-version', nargs=1,
+                      help=('clang version to check for'))
+  parser.add_argument('--force-base-dir', nargs=1,
+                      help=('force the base dir for toolchain installation'))
   args = parser.parse_args()
 
   if args.lto_gold_plugin and not args.bootstrap:
@@ -881,6 +902,17 @@ def main():
       return 0
 
   global CLANG_REVISION, PACKAGE_VERSION
+  if args.force_clang_revision:
+    CLANG_REVISION, CLANG_SUB_REVISION = args.force_clang_revision[0].split('-')
+    PACKAGE_VERSION = '%s-%s' % (CLANG_REVISION, CLANG_SUB_REVISION)
+
+  if args.force_base_dir:
+    SetGlobalVariables(args.force_base_dir[0])
+
+  global VERSION
+  if args.clang_version:
+    VERSION = args.clang_version[0]
+
   if args.print_revision:
     if use_head_revision or args.llvm_force_head_revision:
       print GetSvnRevision(LLVM_DIR)
