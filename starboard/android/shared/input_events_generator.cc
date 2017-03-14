@@ -477,6 +477,11 @@ void InputEventsGenerator::ProcessKeyEvent(
 void InputEventsGenerator::ProcessMotionEvent(
     AInputEvent* android_event,
     std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  if (AInputEvent_getSource(android_event) != AINPUT_SOURCE_JOYSTICK) {
+    // Only handles joystick motion events.
+    return;
+  }
+
   UpdateDeviceFlatMapIfNecessary(android_event);
   ProcessJoyStickEvent(kLeftX, AMOTION_EVENT_AXIS_X, android_event, events);
   ProcessJoyStickEvent(kLeftY, AMOTION_EVENT_AXIS_Y, android_event, events);
