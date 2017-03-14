@@ -19,6 +19,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
@@ -30,7 +31,9 @@ class MozjsEngine : public JavaScriptEngine {
   MozjsEngine();
   ~MozjsEngine() OVERRIDE;
 
-  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
+  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment(
+      const JavaScriptEngine::Options& options) OVERRIDE;
+
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
   size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
