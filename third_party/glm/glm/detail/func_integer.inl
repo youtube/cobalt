@@ -12,7 +12,7 @@
 #endif//(GLM_ARCH & GLM_ARCH_X86 && GLM_COMPILER & GLM_COMPILER_VC)
 #include <limits>
 
-#if !GLM_HAS_EXTENDED_INTEGER_TYPE
+#if !GLM_HAS_EXTENDED_INTEGER_TYPE && !defined(STARBOARD)
 #	if GLM_COMPILER & GLM_COMPILER_GCC
 #		pragma GCC diagnostic ignored "-Wlong-long"
 #	endif
