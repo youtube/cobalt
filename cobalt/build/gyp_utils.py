@@ -29,6 +29,7 @@ from cobalt.tools import paths
 from starboard.tools import platform
 
 _CLANG_REVISION = '264915-1'
+_CLANG_VERSION = '3.9.0'
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -174,8 +175,11 @@ def EnsureClangAvailable(base_dir, bin_path):
   # Run the clang update script to get the correct version of clang.
   # Then check that clang is in the path.
   update_script = os.path.join(paths.REPOSITORY_ROOT, 'tools', 'clang',
-                               'scripts', 'update.sh')
-  update_proc = subprocess.Popen([update_script, _CLANG_REVISION, base_dir])
+                               'scripts', 'update.py')
+  update_proc = subprocess.Popen([
+      update_script, '--force-clang-revision', _CLANG_REVISION,
+      '--clang-version', _CLANG_VERSION, '--force-base-dir', base_dir
+  ])
   rc = update_proc.wait()
   if rc != 0:
     raise RuntimeError('%s failed.' % update_script)
