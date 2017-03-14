@@ -34,9 +34,10 @@ class DrawPolyColor : public DrawObject {
                 const math::RectF& rect,
                 const render_tree::ColorRGBA& color);
 
-  void Execute(GraphicsState* graphics_state,
-               ShaderProgramManager* program_manager,
-               ExecutionStage stage) OVERRIDE;
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
 
  private:
   void AddVertex(float x, float y, uint32_t color);

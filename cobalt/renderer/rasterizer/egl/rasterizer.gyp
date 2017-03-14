@@ -39,6 +39,8 @@
       'sources': [
         'draw_object.h',
         'draw_object.cc',
+        'draw_object_manager.h',
+        'draw_object_manager.cc',
         'draw_poly_color.h',
         'draw_poly_color.cc',
         'draw_rect_color_texture.h',
