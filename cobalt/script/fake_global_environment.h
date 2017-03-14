@@ -51,6 +51,7 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
   void SetReportEvalCallback(const base::Closure& /*report_eval*/) OVERRIDE {}
   void Bind(const std::string& /*identifier*/,
             const scoped_refptr<Wrappable>& /*impl*/) OVERRIDE {}
+  ScriptValueFactory* script_value_factory() { return NULL; }
 };
 
 }  // namespace script

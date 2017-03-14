@@ -21,6 +21,7 @@
 #include "base/optional.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/stack_frame.h"
 #include "cobalt/script/wrappable.h"
 
@@ -103,6 +104,11 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // implementation
   virtual void Bind(const std::string& identifier,
                     const scoped_refptr<Wrappable>& impl) = 0;
+
+  // Get the ScriptValueFactory for this global environment. The
+  // GlobalEnvironment instance retains ownership of the ScriptValueFactory and
+  // should live longer than any ScriptValueFactory pointer.
+  virtual ScriptValueFactory* script_value_factory() = 0;
 
  protected:
   virtual ~GlobalEnvironment() {}
