@@ -22,6 +22,7 @@
 #include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/embedded_resources.h"
 #include "cobalt/script/mozjs/mozjs_exception_state.h"
+#include "cobalt/script/mozjs/mozjs_script_value_factory.h"
 #include "cobalt/script/mozjs/mozjs_source_code.h"
 #include "cobalt/script/mozjs/mozjs_wrapper_handle.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
@@ -159,6 +160,7 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(
   JS_SetErrorReporter(context_, &MozjsGlobalEnvironment::ReportErrorHandler);
 
   wrapper_factory_.reset(new WrapperFactory(context_));
+  script_value_factory_.reset(new MozjsScriptValueFactory(this));
   referenced_objects_.reset(new ReferencedObjectMap(context_));
   opaque_root_tracker_.reset(new OpaqueRootTracker(
       context_, referenced_objects_.get(), wrapper_factory_.get()));
@@ -353,6 +355,11 @@ void MozjsGlobalEnvironment::Bind(const std::string& identifier,
   bool success = JS_SetProperty(context_, global_object, identifier.c_str(),
                                 &wrapper_value);
   DCHECK(success);
+}
+
+ScriptValueFactory* MozjsGlobalEnvironment::script_value_factory() {
+  DCHECK(script_value_factory_);
+  return script_value_factory_.get();
 }
 
 void MozjsGlobalEnvironment::EvaluateAutomatics() {
