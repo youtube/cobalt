@@ -49,10 +49,10 @@ bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
 }  // namespace
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
-    ShaderProgramManager* shader_program_manager,
+    DrawObjectManager* draw_object_manager,
     const FallbackRasterizeFunction* fallback_rasterize)
     : graphics_state_(graphics_state),
-      shader_program_manager_(shader_program_manager),
+      draw_object_manager_(draw_object_manager),
       fallback_rasterize_(fallback_rasterize) {
   // Let the first draw object render in front of the clear depth.
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
@@ -181,14 +181,15 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
       scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
           draw_state_, data.destination_rect,
           hardware_image->GetTextureEGL(), texcoord_transform));
-      AddDrawObject(draw.Pass(), kDrawRectTexture);
+      AddOpaqueDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture);
     } else {
       scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
           draw_state_, data.destination_rect,
           // Treat alpha as premultiplied in the texture.
           render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, draw_state_.opacity),
           hardware_image->GetTextureEGL(), texcoord_transform));
-      AddDrawObject(draw.Pass(), kDrawTransparent);
+      AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectColorTexture,
+                         image_node->GetBounds());
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
@@ -236,9 +237,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
       scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
           draw_state_, content_rect, solid_brush->color()));
       if (draw_state_.opacity * solid_brush->color().a() == 1.0f) {
-        AddDrawObject(draw.Pass(), kDrawPolyColor);
+        AddOpaqueDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor);
       } else {
-        AddDrawObject(draw.Pass(), kDrawTransparent);
+        AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor,
+                           rect_node->GetBounds());
       }
     }
   }
@@ -260,32 +262,22 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   NOTIMPLEMENTED();
 }
 
-void RenderTreeNodeVisitor::ExecuteDraw(DrawObject::ExecutionStage stage) {
-  for (int type = 0; type < kDrawCount; ++type) {
-    if (type == kDrawTransparent) {
-      graphics_state_->EnableBlend();
-      graphics_state_->DisableDepthWrite();
-    } else {
-      graphics_state_->DisableBlend();
-      graphics_state_->EnableDepthWrite();
-    }
-
-    for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->Execute(graphics_state_,
-                                          shader_program_manager_, stage);
-    }
-  }
-}
-
 bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
   math::RectF intersection = IntersectRects(
       draw_state_.transform.MapRect(bounds), draw_state_.scissor);
   return !intersection.IsEmpty();
 }
 
-void RenderTreeNodeVisitor::AddDrawObject(scoped_ptr<DrawObject> object,
-                                          DrawType type) {
-  draw_objects_[type].push_back(object.release());
+void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
+    DrawObjectManager::DrawType type) {
+  draw_object_manager_->AddOpaqueDraw(object.Pass(), type);
+  draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
+}
+
+void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
+    DrawObjectManager::DrawType type, const math::RectF& local_bounds) {
+  draw_object_manager_->AddTransparentDraw(object.Pass(), type,
+      draw_state_.transform.MapRect(local_bounds));
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
 }
 
