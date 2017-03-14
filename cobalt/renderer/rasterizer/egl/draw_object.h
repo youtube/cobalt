@@ -40,18 +40,15 @@ class DrawObject {
     float opacity;
   };
 
-  enum ExecutionStage {
-    kStageUpdateVertexBuffer,
-    kStageRasterizeOffscreen,
-    kStageRasterizeNormal,
-  };
-
   virtual ~DrawObject() {}
 
   // Issue GL commands to rasterize the object.
-  virtual void Execute(GraphicsState* graphics_state,
-                       ShaderProgramManager* program_manager,
-                       ExecutionStage stage) = 0;
+  virtual void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) = 0;
+  virtual void ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) {}
+  virtual void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) = 0;
 
  protected:
   explicit DrawObject(const BaseState& base_state);

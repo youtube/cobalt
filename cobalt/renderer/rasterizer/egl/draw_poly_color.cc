@@ -40,37 +40,39 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
                                     sizeof(VertexAttributes));
 }
 
-void DrawPolyColor::Execute(GraphicsState* graphics_state,
-                            ShaderProgramManager* program_manager,
-                            ExecutionStage stage) {
-  if (stage == kStageUpdateVertexBuffer) {
-    vertex_buffer_ = graphics_state->AllocateVertexData(
-        attributes_.size() * sizeof(VertexAttributes));
-    SbMemoryCopy(vertex_buffer_, &attributes_[0],
-                 attributes_.size() * sizeof(VertexAttributes));
-  } else if (stage == kStageRasterizeNormal) {
-    ShaderProgram<ShaderVertexColor,
-                  ShaderFragmentColor>* program;
-    program_manager->GetProgram(&program);
-    graphics_state->UseProgram(program->GetHandle());
-    graphics_state->UpdateClipAdjustment(
-        program->GetVertexShader().u_clip_adjustment());
-    graphics_state->UpdateTransformMatrix(
-        program->GetVertexShader().u_view_matrix(),
-        base_state_.transform);
-    graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
-        base_state_.scissor.width(), base_state_.scissor.height());
-    graphics_state->VertexAttribPointer(
-        program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
-        sizeof(VertexAttributes), vertex_buffer_ +
-        offsetof(VertexAttributes, position));
-    graphics_state->VertexAttribPointer(
-        program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
-        sizeof(VertexAttributes), vertex_buffer_ +
-        offsetof(VertexAttributes, color));
-    graphics_state->VertexAttribFinish();
-    GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
-  }
+void DrawPolyColor::ExecuteUpdateVertexBuffer(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  vertex_buffer_ = graphics_state->AllocateVertexData(
+      attributes_.size() * sizeof(VertexAttributes));
+  SbMemoryCopy(vertex_buffer_, &attributes_[0],
+               attributes_.size() * sizeof(VertexAttributes));
+}
+
+void DrawPolyColor::ExecuteRasterizeNormal(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  ShaderProgram<ShaderVertexColor,
+                ShaderFragmentColor>* program;
+  program_manager->GetProgram(&program);
+  graphics_state->UseProgram(program->GetHandle());
+  graphics_state->UpdateClipAdjustment(
+      program->GetVertexShader().u_clip_adjustment());
+  graphics_state->UpdateTransformMatrix(
+      program->GetVertexShader().u_view_matrix(),
+      base_state_.transform);
+  graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
+      base_state_.scissor.width(), base_state_.scissor.height());
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, position));
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, color));
+  graphics_state->VertexAttribFinish();
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
 }
 
 void DrawPolyColor::AddVertex(float x, float y, uint32_t color) {

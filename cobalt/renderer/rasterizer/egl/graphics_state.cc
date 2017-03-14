@@ -56,7 +56,6 @@ void GraphicsState::EndFrame() {
   vertex_data_allocated_ = 0;
   vertex_data_buffer_updated_ = false;
   frame_index_ = (frame_index_ + 1) % kNumFramesBuffered;
-  UseProgram(0);
 }
 
 void GraphicsState::Clear() {
@@ -189,7 +188,7 @@ void GraphicsState::UpdateClipAdjustment(GLint handle) {
 }
 
 void GraphicsState::UpdateTransformMatrix(GLint handle,
-                                             const math::Matrix3F& transform) {
+                                          const math::Matrix3F& transform) {
   // Manually transpose our row-major matrix to column-major. Don't rely on
   // glUniformMatrix3fv to do it, since the driver may not support that.
   float transpose[] = {
@@ -254,6 +253,7 @@ void GraphicsState::VertexAttribPointer(GLint index, GLint size, GLenum type,
 }
 
 void GraphicsState::VertexAttribFinish() {
+  enabled_vertex_attrib_array_mask_ &= ~disable_vertex_attrib_array_mask_;
   for (int index = 0; disable_vertex_attrib_array_mask_ != 0; ++index) {
     if ((disable_vertex_attrib_array_mask_ & 1) != 0) {
       GL_CALL(glDisableVertexAttribArray(index));
