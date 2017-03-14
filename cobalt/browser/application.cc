@@ -370,6 +370,10 @@ Application::Application(const base::Closure& quit_closure)
   options.web_module_options.image_cache_capacity =
       static_cast<int>(memory_settings::GetImageCacheSize(window_size));
 
+  if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
+    options.web_module_options.javascript_options.disable_jit = true;
+  }
+
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
     options.storage_manager_options.savegame_options.factory =

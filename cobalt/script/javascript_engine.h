@@ -28,6 +28,13 @@ class GlobalEnvironment;
 
 class JavaScriptEngine {
  public:
+  struct Options {
+    Options() : disable_jit(false) {}
+    // Default false. When set to true then the javascript engine should
+    // disable the just-in-time compiler.
+    bool disable_jit;
+  };
+
   typedef base::Callback<void(const base::SourceLocation& location,
                               const std::string& error_message)> ErrorHandler;
 
@@ -37,7 +44,8 @@ class JavaScriptEngine {
   static scoped_ptr<JavaScriptEngine> CreateEngine();
 
   // Create a new JavaScript global object proxy.
-  virtual scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() = 0;
+  virtual scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment(
+      const Options& options) = 0;
 
   // Kick off the engine's garbage collection synchronously.
   virtual void CollectGarbage() = 0;
