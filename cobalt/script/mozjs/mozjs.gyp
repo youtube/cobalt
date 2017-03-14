@@ -25,8 +25,10 @@
         'mozjs_exception_state.cc',
         'mozjs_global_environment.cc',
         'mozjs_property_enumerator.cc',
+        'mozjs_script_value_factory.cc',
         'mozjs_source_code.cc',
         'mozjs_trace_logging.cc',
+        'native_promise.cc',
         'opaque_root_tracker.cc',
         'proxy_handler.cc',
         'referenced_object_map.cc',
@@ -86,10 +88,11 @@
       'target_name': 'mozjs_engine_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'native_promise_test.cc',
         '<(DEPTH)/third_party/mozjs/test/jscustomallocator_test.cc',
-        'mozjs_trace_logging.cc',
       ],
       'dependencies': [
+        'engine',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gtest.gyp:gtest',
