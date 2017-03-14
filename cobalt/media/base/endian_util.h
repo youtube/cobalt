@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_ENDIAN_UTIL_H_
-#define MEDIA_BASE_ENDIAN_UTIL_H_
+#ifndef COBALT_MEDIA_BASE_ENDIAN_UTIL_H_
+#define COBALT_MEDIA_BASE_ENDIAN_UTIL_H_
 
 #include "base/sys_byteorder.h"
 
@@ -138,4 +138,4 @@ inline void store_uint64_little_endian(uint64_t d, uint8_t* p) {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // MEDIA_BASE_ENDIAN_UTIL_H_
+#endif  // COBALT_MEDIA_BASE_ENDIAN_UTIL_H_

@@ -68,7 +68,7 @@ bool TextRanges::AddCue(base::TimeDelta start_time) {
       // There is now no ambiguity about where the current time range
       // ends, and so we coalesce the current and next ranges.
 
-      Merge(curr_range, next_range_itr);
+      Merge(next_range_itr, &curr_range);
       return false;
     }
   }
@@ -97,10 +97,11 @@ void TextRanges::NewRange(base::TimeDelta start_time) {
   curr_range_itr_ = result.first;
 }
 
-void TextRanges::Merge(Range& curr_range,
-                       const RangeMap::iterator& next_range_itr) {
-  curr_range = next_range_itr->second;
-  curr_range.ResetCount(next_range_itr->first);
+void TextRanges::Merge(const RangeMap::iterator& next_range_itr,
+                       Range* curr_range) {
+  DCHECK(curr_range);
+  *curr_range = next_range_itr->second;
+  curr_range->ResetCount(next_range_itr->first);
   range_map_.erase(next_range_itr);
 }
 
