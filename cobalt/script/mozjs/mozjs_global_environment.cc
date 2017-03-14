@@ -121,7 +121,8 @@ ProxyHandler::IndexedPropertyHooks MozjsStubHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsStubHandler> proxy_handler;
 }  // namespace
 
-MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
+MozjsGlobalEnvironment::MozjsGlobalEnvironment(
+     JSRuntime* runtime, const JavaScriptEngine::Options& options)
     : context_(NULL),
       garbage_collection_count_(0),
       cached_interface_data_deleter_(&cached_interface_data_),
@@ -137,20 +138,23 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
 
   JS_SetGCParameterForThread(context_, JSGC_MAX_CODE_CACHE_BYTES,
                              kMaxCodeCacheBytes);
-  uint32_t options =
+  uint32_t moz_options =
       JSOPTION_TYPE_INFERENCE |
       JSOPTION_VAROBJFIX |       // Recommended to enable this in the API docs.
       JSOPTION_COMPILE_N_GO |    // Compiled scripts will be run only once.
       JSOPTION_UNROOTED_GLOBAL;  // Global handle must be visited to ensure it
                                  // is not GC'd.
 #if ENGINE_SUPPORTS_JIT
-  options |= JSOPTION_BASELINE |  // Enable baseline compiler.
-             JSOPTION_ION;        // Enable IonMonkey
-  // This is required by baseline and IonMonkey.
-  js::SetDOMProxyInformation(0 /*domProxyHandlerFamily*/, kJSProxySlotExpando,
-                             DOMProxyShadowsCheck);
+  if (!options.disable_jit) {
+    moz_options |= JSOPTION_BASELINE |  // Enable baseline compiler.
+                   JSOPTION_ION;        // Enable IonMonkey
+    // This is required by baseline and IonMonkey.
+    js::SetDOMProxyInformation(0 /*domProxyHandlerFamily*/, kJSProxySlotExpando,
+                               DOMProxyShadowsCheck);
+  }
 #endif
-  JS_SetOptions(context_, options);
+
+  JS_SetOptions(context_, moz_options);
 
   JS_SetErrorReporter(context_, &MozjsGlobalEnvironment::ReportErrorHandler);
 

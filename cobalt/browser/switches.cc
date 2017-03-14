@@ -158,6 +158,9 @@ const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
 // Specifies the viewport size: width ['x' height]
 const char kViewport[] = "viewport";
 
+// Specifies that javascript jit should be disabled.
+const char kDisableJavaScriptJit[] = "disable_javascript_jit";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt
