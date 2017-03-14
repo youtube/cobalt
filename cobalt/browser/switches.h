@@ -55,6 +55,7 @@ extern const char kSkiaCacheSizeInBytes[];
 extern const char kSoftwareSurfaceCacheSizeInBytes[];
 extern const char kSurfaceCacheSizeInBytes[];
 extern const char kViewport[];
+extern const char kDisableJavaScriptJit[];
 
 }  // namespace switches
 }  // namespace browser

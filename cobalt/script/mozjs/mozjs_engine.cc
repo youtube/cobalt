@@ -156,10 +156,11 @@ MozjsEngine::~MozjsEngine() {
   JS_DestroyRuntime(runtime_);
 }
 
-scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
+scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment(
+    const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new MozjsGlobalEnvironment(runtime_);
+  return new MozjsGlobalEnvironment(runtime_, options);
 }
 
 void MozjsEngine::CollectGarbage() {

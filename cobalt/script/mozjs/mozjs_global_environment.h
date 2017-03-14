@@ -23,6 +23,7 @@
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/mozjs/interface_data.h"
 #include "cobalt/script/mozjs/opaque_root_tracker.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
@@ -43,7 +44,8 @@ class WeakHandle;
 class MozjsGlobalEnvironment : public GlobalEnvironment,
                                public Wrappable::CachedWrapperAccessor {
  public:
-  explicit MozjsGlobalEnvironment(JSRuntime* runtime);
+  MozjsGlobalEnvironment(JSRuntime* runtime,
+                         const JavaScriptEngine::Options& options);
   ~MozjsGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;
