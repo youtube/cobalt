@@ -476,7 +476,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
 
-  global_environment_ = javascript_engine_->CreateGlobalEnvironment();
+  global_environment_ = javascript_engine_->CreateGlobalEnvironment(
+      data.options.javascript_options);
   DCHECK(global_environment_);
 
   execution_state_ =
