@@ -20,11 +20,12 @@ CHROME_SRC = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir))
 DEPOT_PATH = find_depot_tools.add_depot_tools_to_path()
 GSUTIL_PATH = os.path.join(DEPOT_PATH, 'gsutil.py')
 
-LLVM_BUILD_PATH = os.path.join(CHROME_SRC, 'third_party', 'llvm-build',
-                               'Release+Asserts')
+LLVM_BUILD_PATH = sys.argv[1] or os.path.join(CHROME_SRC, 'third_party',
+                                              'llvm-build', 'Release+Asserts')
 CLANG_UPDATE_PY = os.path.join(CHROME_SRC, 'tools', 'clang', 'scripts',
                                'update.py')
-CLANG_REVISION = os.popen(CLANG_UPDATE_PY + ' --print-revision').read().rstrip()
+CLANG_REVISION = sys.argv[2] or os.popen(CLANG_UPDATE_PY +
+                                         ' --print-revision').read().rstrip()
 
 CLANG_BUCKET = 'gs://chromium-browser-clang/Linux_x64'
 
