@@ -73,8 +73,10 @@ def GetShaderClassName(filename):
 def GetDataDefinitionStringForFile(filename):
   """Returns a string containing C++ array definition for file contents."""
   with open(filename, 'rb') as f:
-    # Read the file contents and add a null terminator at the end.
-    file_contents = f.read() + '\0'
+    # Read the file contents; remove carriage return (apitrace doesn't handle
+    # shader sources with that character very well); and add a null terminator
+    # at the end.
+    file_contents = f.read().replace('\r', '') + '\0'
     def GetChunk(contents, chunk_size):
       # Yield successive |chunk_size|-sized chunks from |contents|.
       for i in xrange(0, len(contents), chunk_size):
