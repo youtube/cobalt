@@ -222,12 +222,6 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateSeekEvent(float seconds) {
   return event.Pass();
 }
 
-/*scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineStateChangedEvent(
-    PipelineImpl::State state) {
-  NOTREACHED();
-  return scoped_ptr<MediaLogEvent>();
-}*/
-
 scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineErrorEvent(
     PipelineStatus error) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::PIPELINE_ERROR));
