@@ -81,7 +81,7 @@ class MEDIA_EXPORT TextRanges {
   void NewRange(base::TimeDelta start_time);
 
   // Coalesce curr_range with the range that immediately follows.
-  void Merge(Range& curr_range, const RangeMap::iterator& next_range_itr);
+  void Merge(const RangeMap::iterator& next_range_itr, Range* curr_range);
 
   // The collection of time ranges, each of which is bounded
   // (inclusive) by the key and Range::last_time.
