@@ -56,9 +56,13 @@ class ContainingBlock;
 
 class UsedStyleProvider {
  public:
+  typedef base::Callback<scoped_refptr<render_tree::Node>(
+      const scoped_refptr<render_tree::Node>&)> AttachCameraNodeFunction;
+
   UsedStyleProvider(dom::HTMLElementContext* html_element_context,
                     loader::image::ImageCache* image_cache,
                     dom::FontCache* font_cache,
+                    const AttachCameraNodeFunction& attach_camera_node_function,
                     loader::mesh::MeshCache* mesh_cache = NULL);
 
   scoped_refptr<dom::FontList> GetUsedFontList(
@@ -78,6 +82,10 @@ class UsedStyleProvider {
     return html_element_context_;
   }
 
+  const AttachCameraNodeFunction attach_camera_node_function() const {
+    return attach_camera_node_function_;
+  }
+
  private:
   // Called after layout is completed so that it can perform any necessary
   // cleanup. Its primary current purpose is making a request to the font cache
@@ -87,6 +95,7 @@ class UsedStyleProvider {
   dom::HTMLElementContext* html_element_context_;
   loader::image::ImageCache* const image_cache_;
   dom::FontCache* const font_cache_;
+  AttachCameraNodeFunction attach_camera_node_function_;
   loader::mesh::MeshCache* const mesh_cache_;
 
   // |font_list_key_| is retained in between lookups so that the font names
