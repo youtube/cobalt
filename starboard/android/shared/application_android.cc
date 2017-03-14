@@ -256,13 +256,13 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
 bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
   SB_DCHECK(input_events_generator_);
   std::vector<Event*> events;
-  bool success =
+  bool handled =
       input_events_generator_->CreateInputEvents(androidEvent, &events);
   for (int i = 0; i < events.size(); ++i) {
     DispatchAndDelete(events[i]);
   }
 
-  return success && events.size() != 0;
+  return handled;
 }
 
 ANativeActivity* ApplicationAndroid::GetActivity() {
