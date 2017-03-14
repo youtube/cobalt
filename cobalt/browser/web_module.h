@@ -173,6 +173,8 @@ class WebModule {
     // InputPoller to use for constantly polling the input key position or
     // state. For example, this is used to support 3D camera movements.
     scoped_refptr<input::InputPoller> input_poller;
+
+    script::JavaScriptEngine::Options javascript_options;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
