@@ -48,7 +48,6 @@ using ::media::VideoFrame;
 using ::media::WebMediaPlayer;
 #endif  // defined(WebMediaPlayerDelegate)
 
-
 using base::TimeDelta;
 using render_tree::Image;
 

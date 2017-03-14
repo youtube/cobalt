@@ -13,7 +13,7 @@ namespace media {
 
 class Vp9UncompressedHeaderParser {
  public:
-  Vp9UncompressedHeaderParser(Vp9Parser::Context* context);
+  explicit Vp9UncompressedHeaderParser(Vp9Parser::Context* context);
 
   // Parses VP9 uncompressed header in |stream| with |frame_size| into |fhdr|.
   // Returns true if no error.
