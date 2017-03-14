@@ -116,6 +116,8 @@ class MEDIA_EXPORT DecoderBuffer
     duration_ = duration;
   }
 
+  bool has_data() const { return data_.get() != NULL; }
+
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
     return data_.get();
@@ -136,6 +138,8 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK_LE(size, allocated_size_);
     size_ = size;
   }
+
+  bool has_side_data() const { return side_data_.get() != NULL; }
 
   const uint8_t* side_data() const {
     DCHECK(!end_of_stream());

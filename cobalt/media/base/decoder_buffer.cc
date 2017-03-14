@@ -86,7 +86,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::Create(Allocator* allocator,
   DCHECK_GT(size, 0);
   scoped_refptr<DecoderBuffer> decoder_buffer =
       new DecoderBuffer(allocator, type, size);
-  if (decoder_buffer->data()) {
+  if (decoder_buffer->has_data()) {
     return decoder_buffer;
   }
   return NULL;
@@ -101,7 +101,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(Allocator* allocator,
   CHECK(data);
   scoped_refptr<DecoderBuffer> decoder_buffer =
       new DecoderBuffer(allocator, type, data, data_size, NULL, 0);
-  if (decoder_buffer->data()) {
+  if (decoder_buffer->has_data()) {
     return decoder_buffer;
   }
   return NULL;
@@ -116,7 +116,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
   CHECK(side_data);
   scoped_refptr<DecoderBuffer> decoder_buffer = new DecoderBuffer(
       allocator, type, data, data_size, side_data, side_data_size);
-  if (decoder_buffer->data() && decoder_buffer->side_data()) {
+  if (decoder_buffer->has_data() && decoder_buffer->has_side_data()) {
     return decoder_buffer;
   }
   return NULL;
