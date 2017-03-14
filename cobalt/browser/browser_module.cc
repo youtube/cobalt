@@ -244,7 +244,8 @@ BrowserModule::BrowserModule(const GURL& url,
       renderer_module_.render_target()->GetSize(),
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
-      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
+      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
+      web_module_options_.javascript_options));
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Always render the debug console. It will draw nothing if disabled.
