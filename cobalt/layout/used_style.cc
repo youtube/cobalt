@@ -408,10 +408,12 @@ float GetFontSize(const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
 UsedStyleProvider::UsedStyleProvider(
     dom::HTMLElementContext* html_element_context,
     loader::image::ImageCache* image_cache, dom::FontCache* font_cache,
+    const AttachCameraNodeFunction& attach_camera_node_function,
     loader::mesh::MeshCache* mesh_cache)
     : html_element_context_(html_element_context),
       image_cache_(image_cache),
       font_cache_(font_cache),
+      attach_camera_node_function_(attach_camera_node_function),
       mesh_cache_(mesh_cache) {}
 
 scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(

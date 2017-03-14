@@ -30,6 +30,7 @@
 #include "cobalt/layout/layout.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/matrix_transform_3d_node.h"
+#include "third_party/glm/glm/gtc/matrix_transform.hpp"
 #include "third_party/glm/glm/gtx/transform.hpp"
 #include "third_party/icu/source/common/unicode/brkiter.h"
 #include "third_party/icu/source/common/unicode/locid.h"
@@ -67,9 +68,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   void DoTestRunnerLayoutCallback();
 #endif  // ENABLE_TEST_RUNNER
 
-  scoped_refptr<render_tree::Node> AttachCameraNodes(
-      scoped_refptr<render_tree::Node> tree);
-
   const scoped_refptr<dom::Window> window_;
   const icu::Locale locale_;
   const scoped_ptr<UsedStyleProvider> used_style_provider_;
@@ -104,6 +102,59 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(Impl);
 };
 
+namespace {
+
+void UpdateCamera(
+    const math::SizeF& window_size,
+    render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
+    base::TimeDelta time) {
+  // Setup a temporary demo camera animation to show that this functionality
+  // works.  This should eventually be replaced by camera adjustments driven
+  // by input.
+  const float kPiF = static_cast<float>(M_PI);
+  float t = static_cast<float>(time.InSecondsF());
+  float y_angle = (t * 2 * kPiF) / 4.0f;
+  float x_angle = sinf(t * 2 * kPiF / 3.0f) * (kPiF / 6.0f);
+  glm::mat4 camera_rotations = glm::rotate(x_angle, glm::vec3(1, 0, 0)) *
+                               glm::rotate(y_angle, glm::vec3(0, 1, 0));
+
+  // Setup a perspective projection matrix, the same way that gluPerspective()
+  // does:
+  // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
+  const float kVerticalFOVInDegrees = 60.0f;
+  const float kVerticalFOVInRadians =
+      (kVerticalFOVInDegrees / 360.0f) * 2 * kPiF;
+  const float kNearZ = 0.01f;
+  const float kFarZ = 1000.0f;
+  float aspect_ratio =
+      static_cast<float>(window_size.width()) / window_size.height();
+  glm::mat4 projection =
+      glm::perspective(kVerticalFOVInRadians, aspect_ratio, kNearZ, kFarZ);
+  transform_node_builder->transform = projection * camera_rotations;
+}
+
+scoped_refptr<render_tree::Node> AttachCameraNodes(
+    const scoped_refptr<dom::Window> window,
+    const scoped_refptr<render_tree::Node>& source) {
+  // Attach a 3D transform node that applies the current camera matrix transform
+  // to the rest of the render tree.
+  scoped_refptr<render_tree::MatrixTransform3DNode> transform_node =
+      new render_tree::MatrixTransform3DNode(
+          source, glm::mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+
+  // We setup an animation on the camera transform node such that the camera
+  // is driven by the renderer thread and can bypass layout entirely.
+  render_tree::animations::AnimateNode::Builder animate_node_builder;
+  animate_node_builder.Add(
+      transform_node,
+      base::Bind(&UpdateCamera,
+                 math::SizeF(window->inner_width(), window->inner_height())));
+  return new render_tree::animations::AnimateNode(animate_node_builder,
+                                                  transform_node);
+}
+
+}  // namespace
+
 LayoutManager::Impl::Impl(
     const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
@@ -116,6 +167,7 @@ LayoutManager::Impl::Impl(
           new UsedStyleProvider(window->html_element_context(),
                                 window->html_element_context()->image_cache(),
                                 window->document()->font_cache(),
+                                base::Bind(&AttachCameraNodes, window),
                                 window->html_element_context()->mesh_cache())),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
@@ -308,76 +360,16 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 #endif  // ENABLE_TEST_RUNNER
 
-    // Attach a 3D camera to the root of the tree.
-    scoped_refptr<render_tree::Node> root_with_camera_matrix =
-        AttachCameraNodes(render_tree_root);
-
     if (run_on_render_tree_produced_callback) {
       on_render_tree_produced_callback_.Run(LayoutResults(
-          root_with_camera_matrix, base::TimeDelta::FromMillisecondsD(
-                                       *document->timeline()->current_time())));
+          render_tree_root, base::TimeDelta::FromMillisecondsD(
+                                *document->timeline()->current_time())));
     }
 
     layout_dirty_ = false;
 
     TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatLayout);
   }
-}
-
-namespace {
-
-void UpdateCamera(
-    const math::SizeF& window_size,
-    render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
-    base::TimeDelta time) {
-  // Setup a temporary demo camera animation to show that this functionality
-  // works.  This should eventually be replaced by camera adjustments driven
-  // by input.
-  const float kPiF = static_cast<float>(M_PI);
-  float t = static_cast<float>(time.InSecondsF());
-  float y_angle = (t * 2 * kPiF) / 4.0f;
-  float x_angle = sinf(t * 2 * kPiF / 3.0f) * (kPiF / 6.0f);
-  glm::mat4 camera_rotations = glm::rotate(x_angle, glm::vec3(1, 0, 0)) *
-                               glm::rotate(y_angle, glm::vec3(0, 1, 0));
-
-  // Setup a perspective projection matrix, the same way that gluPerspective()
-  // does:
-  // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
-  const float kVerticalFOVInDegrees = 60.0f;
-  const float kVerticalFOVInRadians =
-      (kVerticalFOVInDegrees / 360.0f) * 2 * kPiF;
-  const float f = 1.0f / tanf(kVerticalFOVInRadians / 2);
-  const float kNearZ = 0.01f;
-  const float kFarZ = 1000.0f;
-  const float kRangeZ = kNearZ - kFarZ;
-  float aspect_ratio =
-      static_cast<float>(window_size.width()) / window_size.height();
-  glm::mat4 projection = glm::mat4(f / aspect_ratio, 0, 0, 0, 0, f, 0, 0, 0, 0,
-                                   (kFarZ + kNearZ) / kRangeZ, -1.0f, 0, 0,
-                                   (2.0f * kFarZ * kNearZ) / kRangeZ, 0.0f);
-
-  transform_node_builder->transform = projection * camera_rotations;
-}
-
-}  // namespace
-
-scoped_refptr<render_tree::Node> LayoutManager::Impl::AttachCameraNodes(
-    scoped_refptr<render_tree::Node> source) {
-  // Attach a 3D transform node that applies the current camera matrix transform
-  // to the rest of the render tree.
-  scoped_refptr<render_tree::MatrixTransform3DNode> transform_node =
-      new render_tree::MatrixTransform3DNode(
-          source, glm::mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
-
-  // We setup an animation on the camera transform node such that the camera
-  // is driven by the renderer thread and can bypass layout entirely.
-  render_tree::animations::AnimateNode::Builder animate_node_builder;
-  animate_node_builder.Add(
-      transform_node,
-      base::Bind(&UpdateCamera,
-                 math::SizeF(window_->inner_width(), window_->inner_height())));
-  return new render_tree::animations::AnimateNode(animate_node_builder,
-                                                  transform_node);
 }
 
 LayoutManager::LayoutManager(

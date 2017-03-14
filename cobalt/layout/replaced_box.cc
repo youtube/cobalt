@@ -567,6 +567,7 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
 
   // Setup the MapToMeshFilter differently depending on whether or not the mesh
   // is specified via a URL versus the "equirectangular" keyword.
+  scoped_refptr<render_tree::Node> filter_node;
   if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
     // Custom mesh URLs.
     cssom::URLValue* url_value =
@@ -577,17 +578,20 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
 
     DCHECK(mesh) << "Could not load mesh specified by map-to-mesh filter.";
 
-    border_node_builder->AddChild(
-        new FilterNode(MapToMeshFilter(stereo_mode, mesh), animate_node));
+    filter_node =
+        new FilterNode(MapToMeshFilter(stereo_mode, mesh), animate_node);
   } else if (spec.mesh_type() == cssom::MapToMeshFunction::kEquirectangular) {
     // Default equirectangular mesh.
-    border_node_builder->AddChild(
-        new FilterNode(MapToMeshFilter(stereo_mode), animate_node));
+    filter_node = new FilterNode(MapToMeshFilter(stereo_mode), animate_node);
   } else {
     NOTREACHED() << "Invalid mesh specification type. Expected"
                     "'equirectangular' keyword or list of URLs.";
-    border_node_builder->AddChild(animate_node);
+    filter_node = animate_node;
   }
+
+  // Attach a 3D camera to the map-to-mesh node.
+  border_node_builder->AddChild(
+      used_style_provider()->attach_camera_node_function().Run(filter_node));
 }
 
 void ReplacedBox::RenderAndAnimateContentWithLetterboxing(
