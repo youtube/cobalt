@@ -436,7 +436,7 @@ void InputEventsGenerator::ProcessJoyStickEvent(
       CreateMoveEventWithKey(device_id, window_, key, input_vector));
 }
 
-void InputEventsGenerator::ProcessKeyEvent(
+bool InputEventsGenerator::ProcessKeyEvent(
     AInputEvent* android_event,
     std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
   SbInputData* data = new SbInputData();
@@ -456,7 +456,7 @@ void InputEventsGenerator::ProcessKeyEvent(
     default:
       // TODO: send multiple events for AKEY_EVENT_ACTION_MULTIPLE
       delete data;
-      return;
+      return false;
   }
 
   // device
@@ -469,17 +469,23 @@ void InputEventsGenerator::ProcessKeyEvent(
   data->key_location = AInputEventToSbKeyLocation(android_event);
   data->key_modifiers = AInputEventToSbModifiers(android_event);
 
+  if (data->key == kSbKeyUnknown) {
+    delete data;
+    return false;
+  }
+
   ApplicationAndroid::Event* event = new Application::Event(
       kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>);
   events->push_back(event);
+  return true;
 }
 
-void InputEventsGenerator::ProcessMotionEvent(
+bool InputEventsGenerator::ProcessMotionEvent(
     AInputEvent* android_event,
     std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
   if (AInputEvent_getSource(android_event) != AINPUT_SOURCE_JOYSTICK) {
     // Only handles joystick motion events.
-    return;
+    return false;
   }
 
   UpdateDeviceFlatMapIfNecessary(android_event);
@@ -487,6 +493,11 @@ void InputEventsGenerator::ProcessMotionEvent(
   ProcessJoyStickEvent(kLeftY, AMOTION_EVENT_AXIS_Y, android_event, events);
   ProcessJoyStickEvent(kRightX, AMOTION_EVENT_AXIS_Z, android_event, events);
   ProcessJoyStickEvent(kRightY, AMOTION_EVENT_AXIS_RZ, android_event, events);
+
+  // Lie to Android and tell it that we did not process the motion event.
+  // That way Android will also process joystick motion events to generate
+  // equivalent key events for us.
+  return false;
 }
 
 void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
@@ -520,18 +531,15 @@ bool InputEventsGenerator::CreateInputEvents(
 
   switch (AInputEvent_getType(android_event)) {
     case AINPUT_EVENT_TYPE_KEY:
-      ProcessKeyEvent(android_event, events);
-      break;
+      return ProcessKeyEvent(android_event, events);
     case AINPUT_EVENT_TYPE_MOTION: {
-      // TODO: Handle joystick motion events to generate key press and unpress.
-      ProcessMotionEvent(android_event, events);
-      break;
+      return ProcessMotionEvent(android_event, events);
     }
     default:
       SB_NOTREACHED();
   }
 
-  return true;
+  return false;
 }
 
 }  // namespace shared
