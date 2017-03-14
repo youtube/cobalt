@@ -148,6 +148,8 @@ class FakeScriptValue : public script::ScriptValue<EventListener> {
 
   void RegisterOwner(script::Wrappable*) OVERRIDE {}
   void DeregisterOwner(script::Wrappable*) OVERRIDE {}
+  void PreventGarbageCollection() OVERRIDE {}
+  void AllowGarbageCollection() OVERRIDE {}
   const EventListener* GetScriptValue(void) const OVERRIDE {
     return mock_listener_;
   }
