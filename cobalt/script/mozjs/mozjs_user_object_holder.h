@@ -23,9 +23,8 @@
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/script_value.h"
-#include "third_party/mozjs/js/src/jsapi.h"
-
 #include "nb/memory_scope.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -43,19 +42,29 @@ class MozjsUserObjectHolder
  public:
   typedef ScriptValue<typename MozjsUserObjectType::BaseType> BaseClass;
 
-  MozjsUserObjectHolder() : context_(NULL), wrapper_factory_(NULL) {}
+  MozjsUserObjectHolder()
+      : context_(NULL),
+        wrapper_factory_(NULL),
+        prevent_garbage_collection_count_(0) {}
 
   MozjsUserObjectHolder(JS::HandleObject object, JSContext* context,
                         WrapperFactory* wrapper_factory)
       : handle_(MozjsUserObjectType(context, object)),
         context_(context),
-        wrapper_factory_(wrapper_factory) {}
+        wrapper_factory_(wrapper_factory),
+        prevent_garbage_collection_count_(0) {}
 
   MozjsUserObjectHolder(JS::HandleValue value, JSContext* context,
                         WrapperFactory* wrapper_factory)
       : handle_(MozjsUserObjectType(context, value)),
         context_(context),
-        wrapper_factory_(wrapper_factory) {}
+        wrapper_factory_(wrapper_factory),
+        prevent_garbage_collection_count_(0) {}
+
+  ~MozjsUserObjectHolder() {
+    DCHECK_EQ(prevent_garbage_collection_count_, 0);
+    DCHECK(!persistent_root_);
+  }
 
   void RegisterOwner(Wrappable* owner) OVERRIDE {
     JSAutoRequest auto_request(context_);
@@ -83,6 +92,25 @@ class MozjsUserObjectHolder
       intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->RemoveReferencedObject(
           key, owned_value);
+    }
+  }
+
+  void PreventGarbageCollection() OVERRIDE {
+    if (prevent_garbage_collection_count_++ == 0 && handle_) {
+      JSAutoRequest auto_request(context_);
+      persistent_root_ = handle_->value();
+      JSBool result = JS_AddNamedValueRoot(
+          context_, &persistent_root_.value(),
+          "MozjsUserObjectHolder::PreventGarbageCollection");
+      DCHECK(result);
+    }
+  }
+
+  void AllowGarbageCollection() OVERRIDE {
+    if (--prevent_garbage_collection_count_ == 0 && handle_) {
+      JSAutoRequest auto_request(context_);
+      JS_RemoveValueRoot(context_, &persistent_root_.value());
+      persistent_root_ = base::nullopt;
     }
   }
 
@@ -134,6 +162,8 @@ class MozjsUserObjectHolder
   JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;
   WrapperFactory* wrapper_factory_;
+  int prevent_garbage_collection_count_;
+  base::optional<JS::Value> persistent_root_;
 };
 
 }  // namespace mozjs

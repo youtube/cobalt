@@ -78,6 +78,36 @@ class ScriptValue {
     DISALLOW_COPY_AND_ASSIGN(Reference);
   };
 
+  // Prevent garbage collection of the ScriptValue. This should be used with
+  // care as it can result in resource leaks if not managed appropriately.
+  // A common use case is to create a StrongReference on the stack when a
+  // ScriptValue is passed into a function, but a reference to the ScriptValue
+  // doesn't need to be retained past the scope of the function.
+  class StrongReference {
+   public:
+    explicit StrongReference(const ScriptValue& script_value)
+        : referenced_value_(script_value.MakeCopy()) {
+      DCHECK(referenced_value_);
+      referenced_value_->PreventGarbageCollection();
+    }
+
+    const T& value() const { return *(referenced_value_->GetScriptValue()); }
+
+    // Return the referenced ScriptValue. This ScriptValue can
+    // be passed back into the JavaScript bindings layer where the referenced
+    // JavaScript object can be extracted from the ScriptValue.
+    const ScriptValue<T>& referenced_value() const {
+      return *(referenced_value_.get());
+    }
+
+    ~StrongReference() { referenced_value_->AllowGarbageCollection(); }
+
+   private:
+    scoped_ptr<ScriptValue> referenced_value_;
+
+    DISALLOW_COPY_AND_ASSIGN(StrongReference);
+  };
+
   // Return true iff |other| refers to the same underlying JavaScript object.
   virtual bool EqualTo(const ScriptValue& other) const = 0;
 
@@ -99,6 +129,13 @@ class ScriptValue {
   // object.
   virtual void RegisterOwner(Wrappable* owner) = 0;
   virtual void DeregisterOwner(Wrappable* owner) = 0;
+
+  // Prevent/Allow garbage collection of the underlying ScriptValue. Calls must
+  // be balanced and are not idempodent. While the number of calls to |Prevent|
+  // are greater than the number of calls to |Allow|, the underlying object
+  // will never be garbage collected.
+  virtual void PreventGarbageCollection() = 0;
+  virtual void AllowGarbageCollection() = 0;
 
   // Return a pointer to the object that wraps the underlying JavaScript object.
   virtual const T* GetScriptValue() const = 0;
