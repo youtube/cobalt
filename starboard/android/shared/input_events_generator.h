@@ -49,11 +49,11 @@ class InputEventsGenerator {
     kNumAxes,
   };
 
-  void ProcessKeyEvent(
+  bool ProcessKeyEvent(
       AInputEvent* android_event,
       std::vector< ::starboard::shared::starboard::Application::Event*>*
           events);
-  void ProcessMotionEvent(
+  bool ProcessMotionEvent(
       AInputEvent* android_event,
       std::vector< ::starboard::shared::starboard::Application::Event*>*
           events);
