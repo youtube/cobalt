@@ -116,7 +116,7 @@
     },
   ],
   'conditions': [
-    ['OS=="starboard" and sb_media_platform == "starboard"', {
+    ['sb_media_platform == "starboard"', {
       'targets': [
         {
           'target_name': 'media2_sandbox',
@@ -129,6 +129,17 @@
             '<(DEPTH)/cobalt/math/math.gyp:math',
             '<(DEPTH)/cobalt/media/media2.gyp:media2',
           ],
+        },
+        {
+          'target_name': 'media2_sandbox_deploy',
+          'type': 'none',
+          'dependencies': [
+            'media2_sandbox',
+          ],
+          'variables': {
+            'executable_name': 'media2_sandbox',
+          },
+          'includes': [ '../../../starboard/build/deploy.gypi' ],
         },
       ],
     }],
