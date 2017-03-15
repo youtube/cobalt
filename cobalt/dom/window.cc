@@ -88,8 +88,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
                system_window::SystemWindow* system_window,
-               input::InputPoller* input_poller, int csp_insecure_allowed_token,
-               int dom_max_element_depth)
+               const scoped_refptr<input::InputPoller>& input_poller,
+               int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(

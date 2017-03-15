@@ -40,13 +40,13 @@ class InputDeviceManager {
 
   virtual ~InputDeviceManager() {}
 
-  InputPoller* input_poller() { return input_poller_.get(); }
+  scoped_refptr<InputPoller> input_poller() { return input_poller_; }
 
  protected:
   InputDeviceManager() {}
 
   // Used for polling the input outside of InputDeviceManager.
-  scoped_ptr<InputPoller> input_poller_;
+  scoped_refptr<InputPoller> input_poller_;
 };
 
 }  // namespace input
