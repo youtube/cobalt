@@ -35,7 +35,7 @@ size_t GetImageCacheSize(const math::Size& dimensions);
 size_t CalculateImageCacheSize(const math::Size& dimensions);
 
 /////////////////////////////// Implementation ///////////////////////////////
-enum {
+enum MemorySizes {
   kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
   kMaxImageCacheSize = 64 * 1024 * 1024   // 64mb
 };
