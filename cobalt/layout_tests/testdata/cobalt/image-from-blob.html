@@ -36,10 +36,7 @@
       image_array[i] = image_bytes[i];
     }
 
-    // TODO(jsalvadorp): When the proper Blob constructor that takes an array
-    // of arguments is supported, change the following to reflect the new
-    // signature.
-    var image_blob = new Blob(image_array.buffer);
+    var image_blob = new Blob([image_array.buffer]);
     var image_url = URL.createObjectURL(image_blob);
 
     var image = new Image();
