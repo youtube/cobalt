@@ -5,7 +5,7 @@
 import StringIO
 import unittest
 
-from webkitpy.common.system.systemhost_mock import MockSystemHost
+from webkitpy.common.system.system_host_mock import MockSystemHost
 from webkitpy.formatter.main import main
 
 
@@ -16,7 +16,7 @@ def foo():
         bar = "bar"
         long_list = ['this is a list of strings that should be wrapped', "and consistently quoted"]
         longer_list = ['this is a list of strings that should be wrapped', "and consistently quoted", "because it's important to test quoting"]
-    except Exception, e:
+    except Exception, error:
         pass
 '''
 
@@ -31,7 +31,7 @@ def foo():
             'this is a list of strings that should be wrapped',
             'and consistently quoted',
             "because it's important to test quoting"]
-    except Exception as e:
+    except Exception as error:
         pass
 '''
 
@@ -48,7 +48,7 @@ def foo():
         'this is a list of strings that should be wrapped',
         'and consistently quoted',
         "because it's important to test quoting"]
-  except Exception as e:
+  except Exception as error:
     pass
 '''
 
@@ -59,7 +59,7 @@ def foo():
         bar = "bar"
         long_list = ["this is a list of strings that should be wrapped", "and consistently quoted"]
         longer_list = ["this is a list of strings that should be wrapped", "and consistently quoted", "because it's important to test quoting"]
-    except Exception, e:
+    except Exception, error:
         pass
 '''
 
@@ -107,3 +107,46 @@ class TestMain(unittest.TestCase):
         host.stdin = StringIO.StringIO(ACTUAL_INPUT)
         main(host, ['--no-autopep8', '--double-quote-strings', '-'])
         self.assertMultiLineEqual(host.stdout.getvalue(), EXPECTED_ONLY_DOUBLE_QUOTED_OUTPUT)
+
+    def test_format_docstrings(self):
+        host = MockSystemHost()
+        host.stdin = StringIO.StringIO('''
+def f():
+    """
+    triple-quoted docstring
+    with multiple lines
+
+    """
+    x = """
+    this is a regular multi-line string, not a docstring
+    """
+    return x
+''')
+        main(host, ['-'])
+        self.assertMultiLineEqual(host.stdout.getvalue(), '''
+def f():
+    """triple-quoted docstring
+    with multiple lines
+    """
+    x = """
+    this is a regular multi-line string, not a docstring
+    """
+    return x
+''')
+
+    def test_format_docstrings_indentation(self):
+        host = MockSystemHost()
+        host.stdin = StringIO.StringIO('''
+def f():
+    """This is a docstring
+       With extra indentation on this line.
+
+     """
+''')
+        main(host, ['-'])
+        self.assertMultiLineEqual(host.stdout.getvalue(), '''
+def f():
+    """This is a docstring
+       With extra indentation on this line.
+    """
+''')
