@@ -16,6 +16,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 
 namespace starboard {
@@ -45,16 +46,10 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  AudioRenderer* audio_renderer =
-      new AudioRenderer(audio_parameters.job_queue,
-                        scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
-                        audio_parameters.audio_header);
-
-  if (!audio_renderer->is_valid()) {
-    delete audio_renderer;
-    return scoped_ptr<PlayerComponents>(NULL);
-  }
-
+  AudioRendererImpl* audio_renderer =
+      new AudioRendererImpl(audio_parameters.job_queue,
+                            scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
+                            audio_parameters.audio_header);
   VideoRendererImpl* video_renderer =
       new VideoRendererImpl(scoped_ptr<VideoDecoder>(video_decoder).Pass());
 
