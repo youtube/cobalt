@@ -25,18 +25,18 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-import os
 import re
 import unittest
 
 from webkitpy.common.host import Host
-from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.common.webkit_finder import WebKitFinder
-from webkitpy.thirdparty.BeautifulSoup import BeautifulSoup
-from webkitpy.w3c.test_converter import _W3CTestConverter
+from webkitpy.w3c.test_converter import _W3CTestConverter, convert_for_webkit
+from webkitpy.common.system.system_host_mock import MockSystemHost
+from webkitpy.common.system.filesystem_mock import MockFileSystem
 
 DUMMY_FILENAME = 'dummy.html'
 DUMMY_PATH = 'dummy/testharness/path'
+
 
 class W3CTestConverterTest(unittest.TestCase):
 
@@ -45,10 +45,10 @@ class W3CTestConverterTest(unittest.TestCase):
     def fake_dir_path(self, dirname):
         filesystem = Host().filesystem
         webkit_root = WebKitFinder(filesystem).webkit_base()
-        return filesystem.abspath(filesystem.join(webkit_root, "LayoutTests", "css", dirname))
+        return filesystem.abspath(filesystem.join(webkit_root, 'LayoutTests', 'css', dirname))
 
     def test_read_prefixed_property_list(self):
-        """ Tests that the current list of properties requiring the -webkit- prefix load correctly """
+        """Tests that the current list of properties requiring the -webkit- prefix load correctly."""
 
         # FIXME: We should be passing in a MockHost here ...
         converter = _W3CTestConverter(DUMMY_PATH, DUMMY_FILENAME, None)
@@ -56,7 +56,7 @@ class W3CTestConverterTest(unittest.TestCase):
         self.assertTrue(prop_list, 'No prefixed properties found')
 
     def test_convert_for_webkit_nothing_to_convert(self):
-        """ Tests convert_for_webkit() using a basic test that has nothing to convert """
+        """Tests convert_for_webkit() using a basic test that has nothing to convert."""
 
         test_html = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -78,37 +78,14 @@ CONTENT OF TEST
 """
         converter = _W3CTestConverter(DUMMY_PATH, DUMMY_FILENAME, None)
 
-        oc = OutputCapture()
-        oc.capture_output()
-        try:
-            converter.feed(test_html)
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
-
-        self.verify_no_conversion_happened(converted, test_html)
-
-    def test_convert_for_webkit_harness_only(self):
-        """ Tests convert_for_webkit() using a basic JS test that uses testharness.js only and has no prefixed properties """
-
-        test_html = """<head>
-<link href="/resources/testharness.css" rel="stylesheet" type="text/css">
-<script src="/resources/testharness.js"></script>
-</head>
-"""
-        fake_dir_path = self.fake_dir_path("harnessonly")
-        converter = _W3CTestConverter(fake_dir_path, DUMMY_FILENAME, None)
         converter.feed(test_html)
         converter.close()
         converted = converter.output()
 
-        self.verify_conversion_happened(converted)
-        self.verify_test_harness_paths(converter, converted[1], fake_dir_path, 1, 1)
-        self.verify_prefixed_properties(converted, [])
+        self.verify_no_conversion_happened(converted, test_html)
 
     def test_convert_for_webkit_properties_only(self):
-        """ Tests convert_for_webkit() using a test that has 2 prefixed properties: 1 in a style block + 1 inline style """
+        """Tests convert_for_webkit() using a test that has 2 prefixed properties: 1 in a style block + 1 inline style."""
 
         test_html = """<html>
 <head>
@@ -129,112 +106,21 @@ CONTENT OF TEST
         converter = _W3CTestConverter(fake_dir_path, DUMMY_FILENAME, None)
         test_content = self.generate_test_content(converter.prefixed_properties, 1, test_html)
 
-        oc = OutputCapture()
-        oc.capture_output()
-        try:
-            converter.feed(test_content[1])
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
+        converter.feed(test_content[1])
+        converter.close()
+        converted = converter.output()
 
         self.verify_conversion_happened(converted)
-        self.verify_test_harness_paths(converter, converted[1], fake_dir_path, 1, 1)
         self.verify_prefixed_properties(converted, test_content[0])
-
-    def test_convert_for_webkit_harness_and_properties(self):
-        """ Tests convert_for_webkit() using a basic JS test that uses testharness.js and testharness.css and has 4 prefixed properties: 3 in a style block + 1 inline style """
-
-        test_html = """<html>
-<head>
-<link href="/resources/testharness.css" rel="stylesheet" type="text/css">
-<script src="/resources/testharness.js"></script>
-<style type="text/css">
-
-#block1 { @test0@: propvalue; }
-#block2 { @test1@: propvalue; }
-#block3 { @test2@: propvalue; }
-
-</style>
-</head>
-<body>
-<div id="elem1" style="@test3@: propvalue;"></div>
-</body>
-</html>
-"""
-        fake_dir_path = self.fake_dir_path('harnessandprops')
-        converter = _W3CTestConverter(fake_dir_path, DUMMY_FILENAME, None)
-
-        oc = OutputCapture()
-        oc.capture_output()
-        try:
-            test_content = self.generate_test_content(converter.prefixed_properties, 2, test_html)
-            converter.feed(test_content[1])
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
-
-        self.verify_conversion_happened(converted)
-        self.verify_test_harness_paths(converter, converted[1], fake_dir_path, 1, 1)
-        self.verify_prefixed_properties(converted, test_content[0])
-
-    def test_convert_test_harness_paths(self):
-        """ Tests convert_testharness_paths() with a test that uses all three testharness files """
-
-        test_html = """<head>
-<link href="/resources/testharness.css" rel="stylesheet" type="text/css">
-<script src="/resources/testharness.js"></script>
-<script src="/resources/testharnessreport.js"></script>
-</head>
-"""
-        fake_dir_path = self.fake_dir_path('testharnesspaths')
-        converter = _W3CTestConverter(fake_dir_path, DUMMY_FILENAME, None)
-
-        oc = OutputCapture()
-        oc.capture_output()
-        try:
-            converter.feed(test_html)
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
-
-        self.verify_conversion_happened(converted)
-        self.verify_test_harness_paths(converter, converted[1], fake_dir_path, 2, 1)
-
-    def test_convert_vendor_prefix_js_paths(self):
-        test_html = """<head>
-<script src="/common/vendor-prefix.js">
-</head>
-"""
-        fake_dir_path = self.fake_dir_path('adapterjspaths')
-        converter = _W3CTestConverter(fake_dir_path, DUMMY_FILENAME, None)
-
-        oc = OutputCapture()
-        oc.capture_output()
-        try:
-            converter.feed(test_html)
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
-
-        new_html = BeautifulSoup(converted[1])
-
-        # Verify the original paths are gone, and the new paths are present.
-        orig_path_pattern = re.compile('\"/common/vendor-prefix.js')
-        self.assertEquals(len(new_html.findAll(src=orig_path_pattern)), 0, 'vendor-prefix.js path was not converted')
-
-        resources_dir = converter.path_from_webkit_root("LayoutTests", "resources")
-        new_relpath = os.path.relpath(resources_dir, fake_dir_path)
-        relpath_pattern = re.compile(new_relpath)
-        self.assertEquals(len(new_html.findAll(src=relpath_pattern)), 1, 'vendor-prefix.js relative path not correct')
 
     def test_convert_prefixed_properties(self):
-        """ Tests convert_prefixed_properties() file that has 20 properties requiring the -webkit- prefix:
+        """Tests convert_prefixed_properties() file that has 20 properties requiring the -webkit- prefix.
+
+        The properties are:
         10 in one style block + 5 in another style
         block + 5 inline styles, including one with multiple prefixed properties.
+        2 when prefixed properties appear in comments without ending ';'.
+
         The properties in the test content are in all sorts of wack formatting.
         """
 
@@ -291,56 +177,26 @@ CONTENT OF TEST
     @test19@: propvalue;
 }
 
+#missing-semicolon-in-comments {
+    /* @test20@: propvalue */
+    @test21@: propvalue;
+}
+
 ]]></style>
 </html>
 """
         converter = _W3CTestConverter(DUMMY_PATH, DUMMY_FILENAME, None)
-        test_content = self.generate_test_content(converter.prefixed_properties, 20, test_html)
+        test_content = self.generate_test_content(converter.prefixed_properties, 4, test_html)
 
-        oc = OutputCapture()
-        oc.capture_output()
-        try:
-            converter.feed(test_content[1])
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
+        converter.feed(test_content[1])
+        converter.close()
+        converted = converter.output()
 
         self.verify_conversion_happened(converted)
         self.verify_prefixed_properties(converted, test_content[0])
 
-    def test_hides_all_instructions_for_manual_testers(self):
-        test_html = """<body>
-<h1 class="instructions">Hello manual tester!</h1>
-<p class="instructions some_other_class">This is how you run this test.</p>
-<p style="willbeoverwritten" class="instructions">...</p>
-<doesntmatterwhichtagitis class="some_other_class instructions">...</p>
-<p>Legit content may contain the instructions string</p>
-</body>
-"""
-        expected_test_html = """<body>
-<h1 class="instructions" style="display:none">Hello manual tester!</h1>
-<p class="instructions some_other_class" style="display:none">This is how you run this test.</p>
-<p class="instructions" style="display:none">...</p>
-<doesntmatterwhichtagitis class="some_other_class instructions" style="display:none">...</p>
-<p>Legit content may contain the instructions string</p>
-</body>
-"""
-        converter = _W3CTestConverter(DUMMY_PATH, DUMMY_FILENAME, None)
-
-        oc = OutputCapture()
-        oc.capture_output()
-        try:
-            converter.feed(test_html)
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
-
-        self.assertEqual(converted[1], expected_test_html)
-
     def test_convert_attributes_if_needed(self):
-        """ Tests convert_attributes_if_needed() using a reference file that has some relative src paths """
+        """Tests convert_attributes_if_needed() using a reference file that has some relative src paths."""
 
         test_html = """<html>
  <head>
@@ -352,18 +208,16 @@ CONTENT OF TEST
  </body>
  </html>
  """
-        test_reference_support_info = {'reference_relpath': '../', 'files': ['../../some-script.js', '../../../some-style.css', '../../../../some-image.jpg'], 'elements': ['script', 'style', 'img']}
+        test_reference_support_info = {
+            'reference_relpath': '../',
+            'files': ['../../some-script.js', '../../../some-style.css', '../../../../some-image.jpg'],
+            'elements': ['script', 'style', 'img']
+        }
         converter = _W3CTestConverter(DUMMY_PATH, DUMMY_FILENAME, test_reference_support_info)
 
-        oc = OutputCapture()
-        oc.capture_output()
-
-        try:
-            converter.feed(test_html)
-            converter.close()
-            converted = converter.output()
-        finally:
-            oc.restore_output()
+        converter.feed(test_html)
+        converter.close()
+        converted = converter.output()
 
         self.verify_conversion_happened(converted)
         self.verify_reference_relative_paths(converted, test_reference_support_info)
@@ -373,22 +227,6 @@ CONTENT OF TEST
 
     def verify_no_conversion_happened(self, converted, original):
         self.assertEqual(converted[1], original, 'test should not have been converted')
-
-    def verify_test_harness_paths(self, converter, converted, test_path, num_src_paths, num_href_paths):
-        if isinstance(converted, basestring):
-            converted = BeautifulSoup(converted)
-
-        resources_dir = converter.path_from_webkit_root("LayoutTests", "resources")
-
-        # Verify the original paths are gone, and the new paths are present.
-        orig_path_pattern = re.compile('\"/resources/testharness')
-        self.assertEquals(len(converted.findAll(src=orig_path_pattern)), 0, 'testharness src path was not converted')
-        self.assertEquals(len(converted.findAll(href=orig_path_pattern)), 0, 'testharness href path was not converted')
-
-        new_relpath = os.path.relpath(resources_dir, test_path)
-        relpath_pattern = re.compile(new_relpath)
-        self.assertEquals(len(converted.findAll(src=relpath_pattern)), num_src_paths, 'testharness src relative path not correct')
-        self.assertEquals(len(converted.findAll(href=relpath_pattern)), num_href_paths, 'testharness href relative path not correct')
 
     def verify_prefixed_properties(self, converted, test_properties):
         self.assertEqual(len(set(converted[0])), len(set(test_properties)), 'Incorrect number of properties converted')
@@ -401,7 +239,7 @@ CONTENT OF TEST
             expected_path = re.sub(reference_support_info['reference_relpath'], '', path, 1)
             element = reference_support_info['elements'][idx]
             expected_tag = '<' + element + ' src=\"' + expected_path + '\">'
-            self.assertTrue(expected_tag in converted[1], 'relative path ' + path + ' was not converted correcty')
+            self.assertTrue(expected_tag in converted[1], 'relative path ' + path + ' was not converted correctly')
             idx += 1
 
     def generate_test_content(self, full_property_list, num_test_properties, html):
@@ -423,3 +261,26 @@ CONTENT OF TEST
             index -= 1
 
         return (test_properties, html)
+
+    def test_convert_for_webkit_with_non_utf8(self):
+        files = {'/file': 'e\x87[P', }
+        host = MockSystemHost(filesystem=MockFileSystem(files=files))
+        convert_for_webkit('', '/file', '', host)
+
+    # This test passes if no Exception is raised
+    def test_convert_for_webkit_with_utf8(self):
+        files = {'/file': 'foo', }
+        host = MockSystemHost(filesystem=MockFileSystem(files=files))
+        convert_for_webkit('', '/file', '', host)
+
+    def test_for_capital_end_tags(self):
+        test_html = """<FONT></FONT>"""
+        converter = _W3CTestConverter(DUMMY_PATH, DUMMY_FILENAME, None)
+        converter.feed(test_html)
+        self.assertEqual(converter.output(), ([], """<FONT></FONT>"""))
+
+    def test_for_comments(self):
+        test_html = """<!--abc--><!-- foo -->"""
+        converter = _W3CTestConverter(DUMMY_PATH, DUMMY_FILENAME, None)
+        converter.feed(test_html)
+        self.assertEqual(converter.output(), ([], """<!--abc--><!-- foo -->"""))

@@ -1216,7 +1216,7 @@ def _ctcp_dequote(message):
         return _low_level_mapping.get(ch, ch)
 
     if _LOW_LEVEL_QUOTE in message:
-        # Yup, there was a quote.  Release the dequoter, man!
+        # Yup, there was a quote.  Release the dequoter!
         message = _low_level_regexp.sub(_low_level_replace, message)
 
     if _CTCP_DELIMITER not in message:

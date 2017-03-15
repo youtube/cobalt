@@ -32,23 +32,23 @@ import re
 
 def plural(noun):
     # This is a dumb plural() implementation that is just enough for our uses.
-    if re.search("h$", noun):
-        return noun + "es"
+    if re.search('h$', noun):
+        return noun + 'es'
     else:
-        return noun + "s"
+        return noun + 's'
 
 
 def pluralize(noun, count):
     if count != 1:
         noun = plural(noun)
-    return "%d %s" % (count, noun)
+    return '%d %s' % (count, noun)
 
 
-def join_with_separators(list_of_strings, separator=', ', only_two_separator=" and ", last_separator=', and '):
+def join_with_separators(list_of_strings, separator=', ', only_two_separator=' and ', last_separator=', and '):
     if not list_of_strings:
-        return ""
+        return ''
     if len(list_of_strings) == 1:
         return list_of_strings[0]
     if len(list_of_strings) == 2:
         return only_two_separator.join(list_of_strings)
-    return "%s%s%s" % (separator.join(list_of_strings[:-1]), last_separator, list_of_strings[-1])
+    return '%s%s%s' % (separator.join(list_of_strings[:-1]), last_separator, list_of_strings[-1])
