@@ -153,6 +153,29 @@ struct JniEnvExt : public JNIEnv {
     va_end(argp);
   }
 
+// Convenience method to create a j[Type]Array from raw, native data. It is
+// the responsibility of clients to free the returned array when done with it
+// by manually calling |DeleteLocalRef| on it.
+#define X(_jtype, _jname)                                                   \
+  _jtype##Array New##_jname##ArrayFromRaw(const _jtype* data, jsize size) { \
+    SB_DCHECK(data);                                                        \
+    SB_DCHECK(size >= 0);                                                   \
+    _jtype##Array j_array = New##_jname##Array(size);                       \
+    Set##_jname##ArrayRegion(j_array, 0, size, data);                       \
+    return j_array;                                                         \
+  }
+
+  X(jboolean, Boolean)
+  X(jbyte, Byte)
+  X(jchar, Char)
+  X(jshort, Short)
+  X(jint, Int)
+  X(jlong, Long)
+  X(jfloat, Float)
+  X(jdouble, Double)
+
+#undef X
+
   jobject ConvertLocalRefToGlobalRef(jobject local) {
     jobject global = NewGlobalRef(local);
     DeleteLocalRef(local);
