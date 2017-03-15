@@ -20,7 +20,9 @@
 #include <map>
 #include <utility>
 
+#include "cobalt/input/input_poller.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
 namespace dom {
@@ -46,7 +48,7 @@ class Camera3D : public script::Wrappable {
     float degrees_per_second;
   };
 
-  Camera3D();
+  explicit Camera3D(input::InputPoller* input_poller);
 
   // Creates a mapping between the specified keyCode and the specified camera
   // axis, such that while the key is pressed, the cameraAxis will rotate at a
@@ -59,11 +61,14 @@ class Camera3D : public script::Wrappable {
   // Clears all key mappings created by previous calls to |CreateKeyMapping|.
   void ClearAllKeyMappings();
 
+  glm::mat4 CalculateViewMatrix(float seconds);
+
   DEFINE_WRAPPABLE_TYPE(Camera3D);
 
  private:
   typedef std::map<int, KeycodeMappingInfo> KeycodeMap;
   KeycodeMap keycode_map_;
+  input::InputPoller* input_poller_;
 
   DISALLOW_COPY_AND_ASSIGN(Camera3D);
 };
