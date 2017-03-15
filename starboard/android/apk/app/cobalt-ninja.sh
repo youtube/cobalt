@@ -21,14 +21,14 @@
 # Allow for a developer-specific environment setup from .cobaltrc
 # e.g., it may set DEPOT_TOOLS and/or setup some distrubited build tools.
 RC_FILE=$(dirname $0)/.cobaltrc
-[ -r $RC_FILE ] && source $RC_FILE
+[ -r ${RC_FILE} ] && source ${RC_FILE}
 
 # DEPOT_TOOLS may be set in .cobaltrc, otherwise assume it's in $HOME.
-[ -x $DEPOT_TOOLS/ninja ] || DEPOT_TOOLS=$HOME/depot_tools
+[ -x ${DEPOT_TOOLS}/ninja ] || DEPOT_TOOLS=${HOME}/depot_tools
 
 # Use Cobalt's clang if it's not anywhere earlier in the PATH.
 SRC_DIR=$(cd $(dirname $0)/../../../..; pwd)
-PATH=$PATH:$SRC_DIR/third_party/llvm-build/Release+Asserts/bin
+PATH=$PATH:${SRC_DIR}/third_party/llvm-build/Release+Asserts/bin
 
 # Execute the ninja we found, or fail if we didn't find it.
-exec $DEPOT_TOOLS/ninja "$@"
+exec ${DEPOT_TOOLS}/ninja "$@"
