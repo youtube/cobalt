@@ -28,20 +28,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import errno
 import logging
 import math
 import re
-import os
-import signal
-import socket
-import subprocess
-import sys
-import time
 
-from webkitpy.layout_tests.controllers.test_result_writer import TestResultWriter
 from webkitpy.layout_tests.port.driver import DriverInput
-from webkitpy.layout_tests.port.driver import DriverOutput
 
 DEFAULT_TEST_RUNNER_COUNT = 4
 
@@ -49,6 +40,7 @@ _log = logging.getLogger(__name__)
 
 
 class PerfTestMetric(object):
+
     def __init__(self, metric, unit=None, iterations=None):
         # FIXME: Fix runner.js to report correct metric names
         self._iterations = iterations or []
@@ -107,9 +99,6 @@ class PerfTest(object):
     def description(self):
         return self._description
 
-    def prepare(self, time_out_ms):
-        return True
-
     def _create_driver(self):
         return self._port.create_driver(worker_number=0, no_timeout=True)
 
@@ -124,7 +113,7 @@ class PerfTest(object):
 
         should_log = not self._port.get_option('profile')
         if should_log and self._description:
-            _log.info('DESCRIPTION: %s' % self._description)
+            _log.info('DESCRIPTION: %s', self._description)
 
         results = {}
         for metric_name in self._ordered_metrics_name:
@@ -133,7 +122,7 @@ class PerfTest(object):
             if should_log:
                 legacy_chromium_bot_compatible_name = self.test_name_without_file_extension().replace('/', ': ')
                 self.log_statistics(legacy_chromium_bot_compatible_name + ': ' + metric.name(),
-                    metric.flattened_iteration_values(), metric.unit())
+                                    metric.flattened_iteration_values(), metric.unit())
 
         return results
 
@@ -155,9 +144,9 @@ class PerfTest(object):
         median = sorted_values[middle] if len(sorted_values) % 2 else (sorted_values[middle - 1] + sorted_values[middle]) / 2
         stdev = math.sqrt(square_sum / (len(sorted_values) - 1)) if len(sorted_values) > 1 else 0
 
-        _log.info('RESULT %s= %s %s' % (test_name, mean, unit))
-        _log.info('median= %s %s, stdev= %s %s, min= %s %s, max= %s %s' %
-            (median, unit, stdev, unit, sorted_values[0], unit, sorted_values[-1], unit))
+        _log.info('RESULT %s= %s %s', test_name, mean, unit)
+        _log.info('median= %s %s, stdev= %s %s, min= %s %s, max= %s %s',
+                  median, unit, stdev, unit, sorted_values[0], unit, sorted_values[-1], unit)
 
     _description_regex = re.compile(r'^Description: (?P<description>.*)$', re.IGNORECASE)
     _metrics_regex = re.compile(r'^(?P<metric>Time|Malloc|JS Heap):')
@@ -204,18 +193,24 @@ class PerfTest(object):
         return self._metrics[metric_name]
 
     def run_single(self, driver, test_path, time_out_ms, should_run_pixel_test=False):
-        return driver.run_test(DriverInput(test_path, time_out_ms, image_hash=None, should_run_pixel_test=should_run_pixel_test, args=[]), stop_when_done=False)
+        return driver.run_test(
+            DriverInput(test_path,
+                        time_out_ms,
+                        image_hash=None,
+                        should_run_pixel_test=should_run_pixel_test,
+                        args=[]),
+            stop_when_done=False)
 
     def run_failed(self, output):
         if output.error:
-            _log.error('error: %s\n%s' % (self.test_name(), output.error))
+            _log.error('error: %s\n%s', self.test_name(), output.error)
 
-        if output.text == None:
+        if output.text is None:
             pass
         elif output.timeout:
-            _log.error('timeout: %s' % self.test_name())
+            _log.error('timeout: %s', self.test_name())
         elif output.crash:
-            _log.error('crash: %s' % self.test_name())
+            _log.error('crash: %s', self.test_name())
         else:
             return False
 
@@ -251,7 +246,9 @@ class PerfTest(object):
         re.compile(re.escape("""frame "<!--framePath //<!--frame0-->/<!--frame0-->-->" - has 1 onunload handler(s)""")),
         # Following is for html5.html
         re.compile(re.escape("""Blocked access to external URL http://www.whatwg.org/specs/web-apps/current-work/""")),
-        re.compile(r"CONSOLE MESSAGE: (line \d+: )?Blocked script execution in '[A-Za-z0-9\-\.:]+' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."),
+        re.compile(
+            r"CONSOLE MESSAGE: (line \d+: )?Blocked script execution in '[A-Za-z0-9\-\.:]+' "
+            "because the document's frame is sandboxed and the 'allow-scripts' permission is not set."),
         re.compile(r"CONSOLE MESSAGE: (line \d+: )?Not allowed to load local resource"),
         # Dromaeo reports values for subtests. Ignore them for now.
         re.compile(r'(?P<name>.+): \[(?P<values>(\d+(.\d+)?,\s+)*\d+(.\d+)?)\]'),
@@ -259,12 +256,15 @@ class PerfTest(object):
 
     def _filter_output(self, output):
         if output.error:
-            output.error = '\n'.join([line for line in re.split('\n', output.error) if not self._should_ignore_line(self._lines_to_ignore_in_stderr, line)])
+            output.error = '\n'.join([line for line in re.split('\n', output.error)
+                                      if not self._should_ignore_line(self._lines_to_ignore_in_stderr, line)])
         if output.text:
-            output.text = '\n'.join([line for line in re.split('\n', output.text) if not self._should_ignore_line(self._lines_to_ignore_in_parser_result, line)])
+            output.text = '\n'.join([line for line in re.split('\n', output.text)
+                                     if not self._should_ignore_line(self._lines_to_ignore_in_parser_result, line)])
 
 
 class SingleProcessPerfTest(PerfTest):
+
     def __init__(self, port, test_name, test_path, test_runner_count=1):
         super(SingleProcessPerfTest, self).__init__(port, test_name, test_path, test_runner_count)
 

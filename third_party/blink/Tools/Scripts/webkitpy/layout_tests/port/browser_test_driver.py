@@ -26,15 +26,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from webkitpy.layout_tests.port import driver
-import time
-import shutil
+from webkitpy.layout_tests.port.driver import Driver
 
 
-class BrowserTestDriver(driver.Driver):
+class BrowserTestDriver(Driver):
     """Object for running print preview test(s) using browser_tests."""
+
     def __init__(self, port, worker_number, pixel_tests, no_timeout=False):
-        """Invokes the constructor of driver.Driver."""
+        """Invokes the constructor of Driver."""
         super(BrowserTestDriver, self).__init__(port, worker_number, pixel_tests, no_timeout)
 
     def start(self, pixel_tests, per_test_args, deadline):
@@ -82,7 +81,7 @@ class BrowserTestDriver(driver.Driver):
         cmd.append('--run-manual')
         cmd.append('--single_process')
         cmd.extend(per_test_args)
-        cmd.extend(self._port.get_option('additional_drt_flag', []))
+        cmd.extend(self._port.get_option('additional_driver_flag', []))
         return cmd
 
     def stop(self):

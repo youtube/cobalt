@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#
 # Copyright (C) 2013 Google Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +41,7 @@ def main(host, argv):
 
     options, args = parser.parse_args(argv)
     finder = layout_test_finder.LayoutTestFinder(port, options)
-    _, tests = finder.find_tests(options, args)
+    _, tests, _ = finder.find_tests(args, test_list=options.test_list)
 
     for test_name in tests:
         test_type = port.test_type(test_name)
