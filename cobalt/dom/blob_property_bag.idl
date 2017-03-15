@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/FileAPI/#dfn-Blob
-
-[
-  Constructor,
-  // TODO: Accept DOMString blob parts in the following union.
-  Constructor(sequence<(ArrayBuffer or ArrayBufferView or DataView or Blob)> blobParts, optional BlobPropertyBag options),
-  ConstructorCallWith=EnvironmentSettings
-]
-interface Blob {
-  readonly attribute unsigned long long size;
-  // TODO: Expose type and use for blob fetching and decoding.
-  // readonly attribute DOMString type;
+// https://www.w3.org/TR/FileAPI/#dfn-BlobPropertyBag
+dictionary BlobPropertyBag {
+  DOMString type = "";
 };
