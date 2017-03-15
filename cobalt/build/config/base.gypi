@@ -170,7 +170,10 @@
     # Determines the capacity of the image cache which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
     # ideally) these images are cached within GPU memory.
-    'image_cache_size_in_bytes%': 32 * 1024 * 1024,
+    # Set to -1 to automatically calculate the value at runtime, based on
+    # features like windows dimensions and the value of
+    # SbSystemGetTotalGPUMemory().
+    'image_cache_size_in_bytes%': -1,
 
     # Determines the capacity of the remote typefaces cache which manages all
     # typefaces downloaded from a web page.
