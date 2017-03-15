@@ -67,7 +67,7 @@ class RewindableVector {
     if (i <= size_) {
       size_ -= i;
     } else {
-      SB_NOTREACHED << "underflow condition.";
+      SB_NOTREACHED() << "underflow condition.";
       rewindAll();
     }
   }
