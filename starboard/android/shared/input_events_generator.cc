@@ -352,8 +352,11 @@ float GetFlat(jobject input_device, int axis) {
   jobject motion_range =
       env->CallObjectMethod(input_device, "getMotionRange",
                             "(I)Landroid/view/InputDevice$MotionRange;", axis);
+  env->AbortOnException();
 
   float flat = env->CallFloatMethod(motion_range, "getFlat", "()F");
+  env->AbortOnException();
+
   env->DeleteLocalRef(motion_range);
   SB_DCHECK(flat < 1.0f);
   return flat;
@@ -512,6 +515,7 @@ void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
   jobject input_device =
       env->CallStaticObjectMethod("android/view/InputDevice", "getDevice",
                                   "(I)Landroid/view/InputDevice;", device_id);
+  env->AbortOnException();
   float flats[kNumAxes] = {GetFlat(input_device, AMOTION_EVENT_AXIS_X),
                            GetFlat(input_device, AMOTION_EVENT_AXIS_Y),
                            GetFlat(input_device, AMOTION_EVENT_AXIS_Z),
