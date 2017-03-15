@@ -508,7 +508,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.system_window_,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
+      data.options.input_poller, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
