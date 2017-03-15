@@ -26,7 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import json
 import unittest
 
 from webkitpy.layout_tests.generate_results_dashboard import ProcessJsonData
@@ -35,26 +34,141 @@ from webkitpy.layout_tests.generate_results_dashboard import ProcessJsonData
 class ProcessJsonDataTester(unittest.TestCase):
 
     def test_check_failing_results(self):
-        valid_json_data = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name': {u'test.html': {u'expected': u'PASS', u'actual': u'TEXT', u'is_unexpected': True}}}}}}
-        valid_json_data_1 = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name': {u'test.html': {u'expected': u'TEXT', u'actual': u'TEXT', u'is_unexpected': True}}}}}}
-        valid_json_data_2 = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name_2': {u'test_2.html': {u'expected': u'PASS', u'actual': u'TEXT', u'is_unexpected': True}}, u'test_name': {u'test.html': {u'expected': u'TEXT', u'actual': u'TEXT', u'is_unexpected': True}}}}}}
-        expected_result = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name': {u'test.html': {u'archived_results': [u'TEXT', u'PASS']}}}}}}
+        valid_json_data = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name': {
+                            'test.html': {'expected': 'PASS', 'actual': 'TEXT', 'is_unexpected': True}
+                        }
+                    }
+                }
+            }
+        }
+
+        valid_json_data_1 = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name': {
+                            'test.html': {'expected': 'TEXT', 'actual': 'TEXT', 'is_unexpected': True}
+                        }
+                    }
+                }
+            }
+        }
+
+        valid_json_data_2 = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name_2': {
+                            'test_2.html': {'expected': 'PASS', 'actual': 'TEXT', 'is_unexpected': True}
+                        },
+                        'test_name': {
+                            'test.html': {'expected': 'TEXT', 'actual': 'TEXT', 'is_unexpected': True}
+                        }
+                    }
+                }
+            }
+        }
+
+        expected_result = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name': {
+                            'test.html': {'archived_results': ['TEXT', 'PASS']}
+                        }
+                    }
+                }
+            }
+        }
+
         process_json_data = ProcessJsonData(valid_json_data, [valid_json_data_1], [valid_json_data_2])
         actual_result = process_json_data.generate_archived_result()
         self.assertEqual(expected_result, actual_result)
 
     def test_check_full_results(self):
-        valid_json_data = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name_2': {u'test_2.html': {u'expected': u'PASS', u'actual': u'TEXT', u'is_unexpected': True}}}}}}
-        valid_json_data_1 = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name': {u'test.html': {u'expected': u'TEXT', u'actual': u'TEXT', u'is_unexpected': True}}}}}}
-        valid_json_data_2 = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name_2': {u'test_2.html': {u'expected': u'PASS', u'actual': u'TEXT', u'is_unexpected': True}}, u'test_name': {u'test.html': {u'expected': u'TEXT', u'actual': u'TEXT', u'is_unexpected': True}}}}}}
-        expected_result = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name_2': {u'test_2.html': {u'archived_results': [u'TEXT', u'TEXT']}}}}}}
+        valid_json_data = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name_2': {
+                            'test_2.html': {'expected': 'PASS', 'actual': 'TEXT', 'is_unexpected': True}
+                        }
+                    }
+                }
+            }
+        }
+
+        valid_json_data_1 = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name': {
+                            'test.html': {'expected': 'TEXT', 'actual': 'TEXT', 'is_unexpected': True}
+                        }
+                    }
+                }
+            }
+        }
+
+        valid_json_data_2 = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name_2': {
+                            'test_2.html': {'expected': 'PASS', 'actual': 'TEXT', 'is_unexpected': True}
+                        },
+                        'test_name': {
+                            'test.html': {'expected': 'TEXT', 'actual': 'TEXT', 'is_unexpected': True}
+                        }
+                    }
+                }
+            }
+        }
+
+        expected_result = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name_2': {
+                            'test_2.html': {'archived_results': ['TEXT', 'TEXT']}
+                        }
+                    }
+                }
+            }
+        }
+
         process_json_data = ProcessJsonData(valid_json_data, [valid_json_data_1], [valid_json_data_2])
         actual_result = process_json_data.generate_archived_result()
         self.assertEqual(expected_result, actual_result)
 
     def test_null_check(self):
-        valid_json_data = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name': {u'test.html': {u'expected': u'PASS', u'actual': u'TEXT', u'is_unexpected': True}}}}}}
-        expected_result = {u'tests': {u'test_category': {u'test_sub_category': {u'test_name': {u'test.html': {u'archived_results': [u'TEXT']}}}}}}
+        valid_json_data = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name': {
+                            'test.html': {'expected': 'PASS', 'actual': 'TEXT', 'is_unexpected': True}
+                        }
+                    }
+                }
+            }
+        }
+
+        expected_result = {
+            'tests': {
+                'test_category': {
+                    'test_sub_category': {
+                        'test_name': {
+                            'test.html': {'archived_results': ['TEXT']}}
+                    }
+                }
+            }
+        }
+
         process_json_data = ProcessJsonData(valid_json_data, [], [])
         actual_result = process_json_data.generate_archived_result()
         self.assertEqual(expected_result, actual_result)

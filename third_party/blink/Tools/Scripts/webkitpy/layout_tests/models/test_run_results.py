@@ -28,7 +28,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import logging
-import re
 import signal
 import time
 
@@ -68,13 +67,16 @@ ERROR_CODES = (
 # the value returned by num_regressions
 MAX_FAILURES_EXIT_STATUS = 101
 
+
 class TestRunException(Exception):
+
     def __init__(self, code, msg):
         self.code = code
         self.msg = msg
 
 
 class TestRunResults(object):
+
     def __init__(self, expectations, num_tests):
         self.total = num_tests
         self.remaining = self.total
@@ -135,12 +137,15 @@ class TestRunResults(object):
 
 
 class RunDetails(object):
-    def __init__(self, exit_code, summarized_full_results=None, summarized_failing_results=None, initial_results=None, retry_results=None, enabled_pixel_tests_in_retry=False):
+
+    def __init__(self, exit_code, summarized_full_results=None,
+                 summarized_failing_results=None, initial_results=None,
+                 all_retry_results=None, enabled_pixel_tests_in_retry=False):
         self.exit_code = exit_code
         self.summarized_full_results = summarized_full_results
         self.summarized_failing_results = summarized_failing_results
         self.initial_results = initial_results
-        self.retry_results = retry_results
+        self.all_retry_results = all_retry_results or []
         self.enabled_pixel_tests_in_retry = enabled_pixel_tests_in_retry
 
 
@@ -164,26 +169,21 @@ def _interpret_test_failures(failures):
     return test_dict
 
 
-def _chromium_commit_position(scm, path):
-    log = scm.most_recent_log_matching('Cr-Commit-Position:', path)
-    match = re.search('^\s*Cr-Commit-Position:.*@\{#(?P<commit_position>\d+)\}', log, re.MULTILINE)
-    if not match:
-        return ""
-    return str(match.group('commit_position'))
-
-
-def summarize_results(port_obj, expectations, initial_results, retry_results, enabled_pixel_tests_in_retry, only_include_failing=False):
+def summarize_results(port_obj, expectations, initial_results,
+                      all_retry_results, enabled_pixel_tests_in_retry,
+                      only_include_failing=False):
     """Returns a dictionary containing a summary of the test runs, with the following fields:
         'version': a version indicator
         'fixable': The number of fixable tests (NOW - PASS)
         'skipped': The number of skipped tests (NOW & SKIPPED)
         'num_regressions': The number of non-flaky failures
         'num_flaky': The number of flaky failures
-        'num_passes': The number of unexpected passes
+        'num_passes': The number of expected and unexpected passes
         'tests': a dict of tests -> {'expected': '...', 'actual': '...'}
     """
     results = {}
     results['version'] = 3
+    all_retry_results = all_retry_results or []
 
     tbe = initial_results.tests_by_expectation
     tbt = initial_results.tests_by_timeline
@@ -195,8 +195,8 @@ def summarize_results(port_obj, expectations, initial_results, retry_results, en
     num_flaky = 0
     num_regressions = 0
     keywords = {}
-    for expecation_string, expectation_enum in test_expectations.TestExpectations.EXPECTATIONS.iteritems():
-        keywords[expectation_enum] = expecation_string.upper()
+    for expectation_string, expectation_enum in test_expectations.TestExpectations.EXPECTATIONS.iteritems():
+        keywords[expectation_enum] = expectation_string.upper()
 
     num_failures_by_type = {}
     for expectation in initial_results.tests_by_expectation:
@@ -211,36 +211,52 @@ def summarize_results(port_obj, expectations, initial_results, retry_results, en
 
     for test_name, result in initial_results.results_by_name.iteritems():
         expected = expectations.get_expectations_string(test_name)
-        result_type = result.type
-        actual = [keywords[result_type]]
+        actual = [keywords[result.type]]
+        actual_types = [result.type]
 
         if only_include_failing and result.type == test_expectations.SKIP:
             continue
 
-        if result_type == test_expectations.PASS:
+        if result.type == test_expectations.PASS:
             num_passes += 1
             if not result.has_stderr and only_include_failing:
                 continue
-        elif result_type != test_expectations.SKIP and test_name in initial_results.unexpected_results_by_name:
-            if retry_results:
-                if test_name not in retry_results.unexpected_results_by_name:
-                    # The test failed unexpectedly at first, but ran as expected the second time -> flaky.
-                    actual.extend(expectations.get_expectations_string(test_name).split(" "))
-                    num_flaky += 1
-                else:
-                    retry_result_type = retry_results.unexpected_results_by_name[test_name].type
+        elif (result.type != test_expectations.SKIP and
+              test_name in initial_results.unexpected_results_by_name):
+            # Loop through retry results to collate results and determine
+            # whether this is a regression, unexpected pass, or flaky test.
+            is_flaky = False
+            has_unexpected_pass = False
+            for retry_attempt_results in all_retry_results:
+                # If a test passes on one of the retries, it won't be in the subsequent retries.
+                if test_name not in retry_attempt_results.results_by_name:
+                    break
+
+                retry_result_type = retry_attempt_results.results_by_name[test_name].type
+                actual.append(keywords[retry_result_type])
+                actual_types.append(retry_result_type)
+                if test_name in retry_attempt_results.unexpected_results_by_name:
                     if retry_result_type == test_expectations.PASS:
-                        #  The test failed unexpectedly at first, then passed unexpectedly -> unexpected pass.
-                        num_passes += 1
-                        if not result.has_stderr and only_include_failing:
-                            continue
-                    else:
-                        # The test failed unexpectedly both times -> regression.
-                        num_regressions += 1
-                        if not keywords[retry_result_type] in actual:
-                            actual.append(keywords[retry_result_type])
+                        # The test failed unexpectedly at first, then passed
+                        # unexpectedly on a subsequent run -> unexpected pass.
+                        has_unexpected_pass = True
+                else:
+                    # The test failed unexpectedly at first but then ran as
+                    # expected on a subsequent run -> flaky.
+                    is_flaky = True
+
+            if len(set(actual)) == 1:
+                actual = [actual[0]]
+                actual_types = [actual_types[0]]
+
+            if is_flaky:
+                num_flaky += 1
+            elif has_unexpected_pass:
+                num_passes += 1
+                if not result.has_stderr and only_include_failing:
+                    continue
             else:
-                # The test failed unexpectedly, but we didn't do any retries -> regression.
+                # Either no retries or all retries failed unexpectedly.
                 num_regressions += 1
 
         test_dict = {}
@@ -260,25 +276,25 @@ def summarize_results(port_obj, expectations, initial_results, retry_results, en
             test_dict.update(reftest_type=list(result.reftest_type))
 
         test_dict['expected'] = expected
-        test_dict['actual'] = " ".join(actual)
+        test_dict['actual'] = ' '.join(actual)
 
         def is_expected(actual_result):
-            return expectations.matches_an_expected_result(test_name, result_type,
-                port_obj.get_option('pixel_tests') or result.reftest_type,
-                port_obj.get_option('enable_sanitizer'))
+            return expectations.matches_an_expected_result(test_name, actual_result,
+                                                           port_obj.get_option('pixel_tests') or result.reftest_type,
+                                                           port_obj.get_option('enable_sanitizer'))
 
         # To avoid bloating the output results json too much, only add an entry for whether the failure is unexpected.
-        if not all(is_expected(actual_result) for actual_result in actual):
+        if not any(is_expected(actual_result) for actual_result in actual_types):
             test_dict['is_unexpected'] = True
 
         test_dict.update(_interpret_test_failures(result.failures))
 
-        if retry_results:
-            retry_result = retry_results.unexpected_results_by_name.get(test_name)
+        for retry_attempt_results in all_retry_results:
+            retry_result = retry_attempt_results.unexpected_results_by_name.get(test_name)
             if retry_result:
                 test_dict.update(_interpret_test_failures(retry_result.failures))
 
-        if (result.has_repaint_overlay):
+        if result.has_repaint_overlay:
             test_dict['has_repaint_overlay'] = True
 
         # Store test hierarchically by directory. e.g.
@@ -308,32 +324,29 @@ def summarize_results(port_obj, expectations, initial_results, retry_results, en
     results['num_flaky'] = num_flaky
     # FIXME: Remove this. It is redundant with results['num_failures_by_type'].
     results['num_regressions'] = num_regressions
-    results['interrupted'] = initial_results.interrupted  # Does results.html have enough information to compute this itself? (by checking total number of results vs. total number of tests?)
+    # Does results.html have enough information to compute this itself? (by
+    # checking total number of results vs. total number of tests?)
+    results['interrupted'] = initial_results.interrupted
     results['layout_tests_dir'] = port_obj.layout_tests_dir()
-    results['has_wdiff'] = port_obj.wdiff_available()
-    results['has_pretty_patch'] = port_obj.pretty_patch_available()
     results['pixel_tests_enabled'] = port_obj.get_option('pixel_tests')
     results['seconds_since_epoch'] = int(time.time())
     results['build_number'] = port_obj.get_option('build_number')
     results['builder_name'] = port_obj.get_option('builder_name')
+    if port_obj.get_option('order') == 'random':
+        results['random_order_seed'] = port_obj.get_option('seed')
+    results['path_delimiter'] = '/'
 
     # Don't do this by default since it takes >100ms.
-    # It's only used for uploading data to the flakiness dashboard.
+    # It's only used for rebaselining and uploading data to the flakiness dashboard.
     results['chromium_revision'] = ''
-    results['blink_revision'] = ''
     if port_obj.get_option('builder_name'):
-        for (name, path) in port_obj.repository_paths():
-            scm = port_obj.host.scm_for_path(path)
-            if scm:
-                if name.lower() == 'chromium':
-                    rev = _chromium_commit_position(scm, path)
-                else:
-                    rev = scm.svn_revision(path)
-            if rev:
-                results[name.lower() + '_revision'] = rev
-            else:
-                _log.warn('Failed to determine svn revision for %s, '
-                          'leaving "%s_revision" key blank in full_results.json.'
-                          % (path, name))
+        path = port_obj.repository_path()
+        git = port_obj.host.git(path=path)
+        if git:
+            results['chromium_revision'] = str(git.commit_position(path))
+        else:
+            _log.warning('Failed to determine chromium commit position for %s, '
+                         'leaving "chromium_revision" key blank in full_results.json.',
+                         path)
 
     return results

@@ -26,8 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
-This is an implementation of the Port interface that overrides other
+"""This is an implementation of the Port interface that overrides other
 ports and changes the Driver binary to "MockDRT".
 
 The MockDRT objects emulate what a real DRT would do. In particular, they
@@ -37,7 +36,6 @@ MockDRT to crash).
 """
 
 import base64
-import logging
 import optparse
 import os
 import sys
@@ -50,11 +48,10 @@ if script_dir not in sys.path:
     sys.path.append(script_dir)
 
 from webkitpy.common import read_checksum_from_png
-from webkitpy.common.system.systemhost import SystemHost
+from webkitpy.common.system.system_host import SystemHost
+from webkitpy.layout_tests.models import test_run_results
 from webkitpy.layout_tests.port.driver import DriverInput, DriverOutput
 from webkitpy.layout_tests.port.factory import PortFactory
-
-_log = logging.getLogger(__name__)
 
 
 class MockDRTPort(object):
@@ -73,10 +70,10 @@ class MockDRTPort(object):
         return getattr(self.__delegate, name)
 
     def check_build(self, needs_http, printer):
-        return True
+        return test_run_results.OK_EXIT_STATUS
 
     def check_sys_deps(self, needs_http):
-        return True
+        return test_run_results.OK_EXIT_STATUS
 
     def _driver_class(self, delegate):
         return self._mocked_driver_maker
@@ -101,9 +98,6 @@ class MockDRTPort(object):
 
         return new_cmd_line
 
-    def start_helper(self):
-        pass
-
     def start_http_server(self, additional_dirs, number_of_servers):
         pass
 
@@ -111,9 +105,6 @@ class MockDRTPort(object):
         pass
 
     def acquire_http_lock(self):
-        pass
-
-    def stop_helper(self):
         pass
 
     def stop_http_server(self):
@@ -125,18 +116,20 @@ class MockDRTPort(object):
     def release_http_lock(self):
         pass
 
-    def _make_wdiff_available(self):
-        self.__delegate._wdiff_available = True
-
-    def setup_environ_for_server(self, server_name):
+    def setup_environ_for_server(self):
         env = self.__delegate.setup_environ_for_server()
         # We need to propagate PATH down so the python code can find the checkout.
-        env['PATH'] = os.environ['PATH']
+        env['PATH'] = self.host.environ.get('PATH')
         return env
 
     def lookup_virtual_test_args(self, test_name):
         suite = self.__delegate.lookup_virtual_suite(test_name)
         return suite.args + ['--virtual-test-suite-name', suite.name, '--virtual-test-suite-base', suite.base]
+
+    def lookup_virtual_reference_args(self, test_name):
+        suite = self.__delegate.lookup_virtual_suite(test_name)
+        return suite.reference_args + ['--virtual-test-suite-name', suite.name, '--virtual-test-suite-base', suite.base]
+
 
 def main(argv, host, stdin, stdout, stderr):
     """Run the tests."""
@@ -158,8 +151,8 @@ def parse_options(argv):
         return None
 
     options = optparse.Values({
-        'actual_directory':        get_arg('--actual-directory'),
-        'platform':                get_arg('--platform'),
+        'actual_directory': get_arg('--actual-directory'),
+        'platform': get_arg('--platform'),
         'virtual_test_suite_base': get_arg('--virtual-test-suite-base'),
         'virtual_test_suite_name': get_arg('--virtual-test-suite-name'),
     })
@@ -167,6 +160,7 @@ def parse_options(argv):
 
 
 class MockDRT(object):
+
     def __init__(self, options, args, host, stdin, stdout, stderr):
         self._options = options
         self._args = args
@@ -182,6 +176,8 @@ class MockDRT(object):
         self._driver = self._port.create_driver(0)
 
     def run(self):
+        self._stdout.write('#READY\n')
+        self._stdout.flush()
         while True:
             line = self._stdin.readline()
             if not line:
@@ -189,7 +185,7 @@ class MockDRT(object):
             driver_input = self.input_from_line(line)
             dirname, basename = self._port.split_test(driver_input.test_name)
             is_reftest = (self._port.reference_files(driver_input.test_name) or
-                          self._port.is_reference_html_file(self._port._filesystem, dirname, basename))
+                          self._port.is_reference_html_file(self._port.host.filesystem, dirname, basename))
             output = self.output_for_test(driver_input, is_reftest)
             self.write_test_output(driver_input, output, is_reftest)
 
@@ -216,7 +212,8 @@ class MockDRT(object):
     def output_for_test(self, test_input, is_reftest):
         port = self._port
         if self._options.virtual_test_suite_name:
-            test_input.test_name = test_input.test_name.replace(self._options.virtual_test_suite_base, self._options.virtual_test_suite_name)
+            test_input.test_name = test_input.test_name.replace(
+                self._options.virtual_test_suite_base, self._options.virtual_test_suite_name)
         actual_text = port.expected_text(test_input.test_name)
         actual_audio = port.expected_audio(test_input.test_name)
         actual_image = None
@@ -235,18 +232,18 @@ class MockDRT(object):
             actual_image = port.expected_image(test_input.test_name)
 
         if self._options.actual_directory:
-            actual_path = port._filesystem.join(self._options.actual_directory, test_input.test_name)
-            root, _ = port._filesystem.splitext(actual_path)
+            actual_path = port.host.filesystem.join(self._options.actual_directory, test_input.test_name)
+            root, _ = port.host.filesystem.splitext(actual_path)
             text_path = root + '-actual.txt'
-            if port._filesystem.exists(text_path):
-                actual_text = port._filesystem.read_binary_file(text_path)
+            if port.host.filesystem.exists(text_path):
+                actual_text = port.host.filesystem.read_binary_file(text_path)
             audio_path = root + '-actual.wav'
-            if port._filesystem.exists(audio_path):
-                actual_audio = port._filesystem.read_binary_file(audio_path)
+            if port.host.filesystem.exists(audio_path):
+                actual_audio = port.host.filesystem.read_binary_file(audio_path)
             image_path = root + '-actual.png'
-            if port._filesystem.exists(image_path):
-                actual_image = port._filesystem.read_binary_file(image_path)
-                with port._filesystem.open_binary_file_for_reading(image_path) as filehandle:
+            if port.host.filesystem.exists(image_path):
+                actual_image = port.host.filesystem.read_binary_file(image_path)
+                with port.host.filesystem.open_binary_file_for_reading(image_path) as filehandle:
                     actual_checksum = read_checksum_from_png.read_checksum(filehandle)
 
         return DriverOutput(actual_text, actual_image, actual_checksum, actual_audio)
