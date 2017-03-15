@@ -20,7 +20,6 @@
     'enable_webdriver': 0,
     'in_app_dial%': 0,
     'gl_type%': 'system_gles3',
-    'image_cache_size_in_bytes': 32 * 1024 * 1024,
 
     'scratch_surface_cache_size_in_bytes' : 0,
 
