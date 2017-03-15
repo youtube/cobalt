@@ -220,6 +220,7 @@
 
     'dictionary_idl_files': [
         '../dom/mutation_observer_init.idl',
+        '../dom/blob_property_bag.idl',
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
     ],
