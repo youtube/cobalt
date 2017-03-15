@@ -506,8 +506,7 @@ void HardwareRasterizer::Impl::SubmitOffscreen(
     SkCanvas* canvas) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  // Reset the graphics context since we're starting from an unknown state.
-  gr_context_->resetContext();
+  // Caller is expected to reset gr_context as needed.
 
   {
     TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");

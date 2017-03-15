@@ -20,6 +20,7 @@
 
 #include "base/debug/trace_event.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/framebuffer.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -58,7 +59,7 @@ class HardwareRasterizer::Impl {
 
   backend::TextureEGL* SubmitToFallbackRasterizer(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::Size& viewport_size);
+      const math::RectF& viewport);
 
   render_tree::ResourceProvider* GetResourceProvider() {
     return fallback_rasterizer_->GetResourceProvider();
@@ -165,8 +166,16 @@ void HardwareRasterizer::Impl::Submit(
 
     {
       TRACE_EVENT0("cobalt::renderer", "RasterizeOffscreen");
+
+      // Reset the skia graphics context since the egl rasterizer dirtied it.
+      GetGrContext()->resetContext();
+
       draw_object_manager.ExecuteRasterizeOffscreen(graphics_state_.get(),
           shader_program_manager_.get());
+      GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+      // Reset the egl graphics state since skia dirtied it.
+      graphics_state_->SetDirty();
     }
 
     graphics_state_->Clear();
@@ -201,10 +210,11 @@ void HardwareRasterizer::Impl::Submit(
 
 backend::TextureEGL* HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const math::Size& viewport_size) {
+    const math::RectF& viewport) {
   TRACE_EVENT0("cobalt::renderer", "SubmitToFallbackRasterizer");
 
   // Get an offscreen target for rendering.
+  math::Size viewport_size(viewport.width(), viewport.height());
   OffscreenTarget* offscreen_target = NULL;
   for (OffscreenTargetList::iterator iter = unused_offscreen_targets_.begin();
        iter != unused_offscreen_targets_.end(); ++iter) {
@@ -227,7 +237,7 @@ backend::TextureEGL* HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     skia_desc.fWidth = viewport_size.width();
     skia_desc.fHeight = viewport_size.height();
     skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
-    skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
+    skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
     skia_desc.fSampleCnt = 0;
     skia_desc.fStencilBits = 0;
     skia_desc.fRenderTargetHandle = offscreen_target->framebuffer->gl_handle();
@@ -245,11 +255,11 @@ backend::TextureEGL* HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
   backend::FramebufferEGL* framebuffer = offscreen_target->framebuffer.get();
   SkCanvas* canvas = offscreen_target->skia_surface->getCanvas();
 
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->gl_handle()));
   canvas->save();
+  canvas->clear(SkColorSetARGB(0, 0, 0, 0));
+  canvas->translate(viewport.x(), viewport.y());
   fallback_rasterizer_->SubmitOffscreen(render_tree, canvas);
   canvas->restore();
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
   return framebuffer->GetColorTexture();
 }
