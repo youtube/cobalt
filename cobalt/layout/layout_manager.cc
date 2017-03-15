@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/cssom/cascade_precedence.h"
+#include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"
@@ -30,8 +31,6 @@
 #include "cobalt/layout/layout.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/matrix_transform_3d_node.h"
-#include "third_party/glm/glm/gtc/matrix_transform.hpp"
-#include "third_party/glm/glm/gtx/transform.hpp"
 #include "third_party/icu/source/common/unicode/brkiter.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 
@@ -105,32 +104,12 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 namespace {
 
 void UpdateCamera(
-    const math::SizeF& window_size,
+    float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3D> camera,
     render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
     base::TimeDelta time) {
-  // Setup a temporary demo camera animation to show that this functionality
-  // works.  This should eventually be replaced by camera adjustments driven
-  // by input.
-  const float kPiF = static_cast<float>(M_PI);
-  float t = static_cast<float>(time.InSecondsF());
-  float y_angle = (t * 2 * kPiF) / 4.0f;
-  float x_angle = sinf(t * 2 * kPiF / 3.0f) * (kPiF / 6.0f);
-  glm::mat4 camera_rotations = glm::rotate(x_angle, glm::vec3(1, 0, 0)) *
-                               glm::rotate(y_angle, glm::vec3(0, 1, 0));
-
-  // Setup a perspective projection matrix, the same way that gluPerspective()
-  // does:
-  // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
-  const float kVerticalFOVInDegrees = 60.0f;
-  const float kVerticalFOVInRadians =
-      (kVerticalFOVInDegrees / 360.0f) * 2 * kPiF;
-  const float kNearZ = 0.01f;
-  const float kFarZ = 1000.0f;
-  float aspect_ratio =
-      static_cast<float>(window_size.width()) / window_size.height();
-  glm::mat4 projection =
-      glm::perspective(kVerticalFOVInRadians, aspect_ratio, kNearZ, kFarZ);
-  transform_node_builder->transform = projection * camera_rotations;
+  UNREFERENCED_PARAMETER(time);
+  transform_node_builder->transform =
+      camera->QueryViewPerspectiveMatrix(width_to_height_aspect_ratio);
 }
 
 scoped_refptr<render_tree::Node> AttachCameraNodes(
@@ -147,8 +126,8 @@ scoped_refptr<render_tree::Node> AttachCameraNodes(
   render_tree::animations::AnimateNode::Builder animate_node_builder;
   animate_node_builder.Add(
       transform_node,
-      base::Bind(&UpdateCamera,
-                 math::SizeF(window->inner_width(), window->inner_height())));
+      base::Bind(&UpdateCamera, window->inner_width() / window->inner_height(),
+                 window->camera_3d()));
   return new render_tree::animations::AnimateNode(animate_node_builder,
                                                   transform_node);
 }

@@ -20,6 +20,8 @@
 #include <map>
 #include <utility>
 
+#include "base/optional.h"
+#include "base/synchronization/lock.h"
 #include "cobalt/input/input_poller.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/glm/glm/mat4x4.hpp"
@@ -61,14 +63,46 @@ class Camera3D : public script::Wrappable {
   // Clears all key mappings created by previous calls to |CreateKeyMapping|.
   void ClearAllKeyMappings();
 
-  glm::mat4 CalculateViewMatrix(float seconds);
+  // Custom, not in any spec.
+
+  // Returns the camera's view-perspective matrix, setup according to the passed
+  // in width/height aspect ratio.  It is likely that this function will be
+  // called from another thread, like a renderer thread.
+  glm::mat4 QueryViewPerspectiveMatrix(float width_to_height_aspect_ratio);
 
   DEFINE_WRAPPABLE_TYPE(Camera3D);
 
  private:
   typedef std::map<int, KeycodeMappingInfo> KeycodeMap;
+
+  // Structure to keep track of the current orientation state.
+  struct Orientation {
+    Orientation() : roll(0.0f), pitch(0.0f), yaw(0.0f) {}
+
+    float roll;
+    float pitch;
+    float yaw;
+  };
+
+  void AccumulateOrientation();
+
+  // The Camera3D's WebAPI will be accessed from the WebModule thread, but
+  // the internal camera orientation will be accessed on the renderer thread
+  // via QueryViewPerspectiveMatrix().  So, we do need a mutex to guard against
+  // these potentially parallel accesses.
+  base::Lock mutex_;
+
+  // A map of keys bound to camera movements.
   KeycodeMap keycode_map_;
+
+  // The input poller from which we can check the state of a given key.
   input::InputPoller* input_poller_;
+
+  // The current accumulated camera orientation state.
+  Orientation orientation_;
+
+  // The time that the last update to the camera's state has occurred.
+  base::optional<base::TimeTicks> last_update_;
 
   DISALLOW_COPY_AND_ASSIGN(Camera3D);
 };
