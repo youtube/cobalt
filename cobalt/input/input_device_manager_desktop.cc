@@ -30,7 +30,7 @@ InputDeviceManagerDesktop::InputDeviceManagerDesktop(
           base::Bind(&InputDeviceManagerDesktop::HandleInputEvent,
                      base::Unretained(this))),
       keypress_generator_filter_(callback) {
-  input_poller_.reset(new InputPollerImpl());
+  input_poller_ = new InputPollerImpl();
   if (system_window_) {
     // Add this object's keyboard event callback to the system window.
     system_window_->event_dispatcher()->AddEventCallback(
