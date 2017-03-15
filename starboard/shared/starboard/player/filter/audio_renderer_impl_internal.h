@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_IMPL_INTERNAL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_IMPL_INTERNAL_H_
 
 #include <vector>
 
@@ -26,6 +26,7 @@
 #include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
@@ -36,30 +37,32 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class AudioRenderer {
+// A default implementation of |AudioRenderer| that only depends on the
+// |AudioDecoder| interface, rather than a platform specific implementation.
+class AudioRendererImpl : public AudioRenderer {
  public:
-  AudioRenderer(JobQueue* job_queue,
-                scoped_ptr<AudioDecoder> decoder,
-                const SbMediaAudioHeader& audio_header);
-  ~AudioRenderer();
+  AudioRendererImpl(JobQueue* job_queue,
+                    scoped_ptr<AudioDecoder> decoder,
+                    const SbMediaAudioHeader& audio_header);
+  ~AudioRendererImpl() SB_OVERRIDE;
 
-  bool is_valid() const { return true; }
+  void WriteSample(const InputBuffer& input_buffer) SB_OVERRIDE;
+  void WriteEndOfStream() SB_OVERRIDE;
 
-  void WriteSample(const InputBuffer& input_buffer);
-  void WriteEndOfStream();
-
-  void Play();
-  void Pause();
+  void Play() SB_OVERRIDE;
+  void Pause() SB_OVERRIDE;
 #if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
-  void SetPlaybackRate(double playback_rate);
+  void SetPlaybackRate(double playback_rate) SB_OVERRIDE;
 #endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
-  void Seek(SbMediaTime seek_to_pts);
+  void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
 
-  bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
-  bool IsEndOfStreamPlayed() const;
-  bool CanAcceptMoreData() const;
-  bool IsSeekingInProgress() const;
-  SbMediaTime GetCurrentTime();
+  bool IsEndOfStreamWritten() const SB_OVERRIDE {
+    return end_of_stream_written_;
+  };
+  bool IsEndOfStreamPlayed() const SB_OVERRIDE;
+  bool CanAcceptMoreData() const SB_OVERRIDE;
+  bool IsSeekingInProgress() const SB_OVERRIDE;
+  SbMediaTime GetCurrentTime() SB_OVERRIDE;
 
  private:
   // Preroll considered finished after either kPrerollFrames is cached or EOS
@@ -121,4 +124,4 @@ class AudioRenderer {
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_IMPL_INTERNAL_H_

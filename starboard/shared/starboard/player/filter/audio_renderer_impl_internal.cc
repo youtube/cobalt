@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
 
 #include <algorithm>
 
@@ -26,9 +26,9 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-AudioRenderer::AudioRenderer(JobQueue* job_queue,
-                             scoped_ptr<AudioDecoder> decoder,
-                             const SbMediaAudioHeader& audio_header)
+AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
+                                     scoped_ptr<AudioDecoder> decoder,
+                                     const SbMediaAudioHeader& audio_header)
     : job_queue_(job_queue),
       channels_(audio_header.number_of_channels),
       bytes_per_frame_(
@@ -53,7 +53,7 @@ AudioRenderer::AudioRenderer(JobQueue* job_queue,
   frame_buffers_[0] = &frame_buffer_[0];
 }
 
-AudioRenderer::~AudioRenderer() {
+AudioRendererImpl::~AudioRendererImpl() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   if (audio_sink_ != kSbAudioSinkInvalid) {
@@ -65,7 +65,7 @@ AudioRenderer::~AudioRenderer() {
   }
 }
 
-void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
+void AudioRendererImpl::WriteSample(const InputBuffer& input_buffer) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   if (end_of_stream_written_) {
@@ -78,12 +78,13 @@ void AudioRenderer::WriteSample(const InputBuffer& input_buffer) {
 
   ScopedLock lock(mutex_);
   if (!read_from_decoder_closure_.is_valid()) {
-    read_from_decoder_closure_ = Bind(&AudioRenderer::ReadFromDecoder, this);
+    read_from_decoder_closure_ =
+        Bind(&AudioRendererImpl::ReadFromDecoder, this);
     job_queue_->Schedule(read_from_decoder_closure_);
   }
 }
 
-void AudioRenderer::WriteEndOfStream() {
+void AudioRendererImpl::WriteEndOfStream() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   SB_LOG_IF(WARNING, end_of_stream_written_)
@@ -102,14 +103,14 @@ void AudioRenderer::WriteEndOfStream() {
   }
 }
 
-void AudioRenderer::Play() {
+void AudioRendererImpl::Play() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
   paused_ = false;
 }
 
-void AudioRenderer::Pause() {
+void AudioRendererImpl::Pause() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
@@ -117,7 +118,7 @@ void AudioRenderer::Pause() {
 }
 
 #if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
-void AudioRenderer::SetPlaybackRate(double playback_rate) {
+void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   playback_rate_ = playback_rate;
@@ -128,7 +129,7 @@ void AudioRenderer::SetPlaybackRate(double playback_rate) {
 }
 #endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
-void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
+void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   SB_DCHECK(seek_to_pts >= 0);
 
@@ -149,14 +150,14 @@ void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
   decoder_->Reset();
 }
 
-bool AudioRenderer::IsEndOfStreamPlayed() const {
+bool AudioRendererImpl::IsEndOfStreamPlayed() const {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
   return end_of_stream_decoded_ && frames_in_buffer_ == 0;
 }
 
-bool AudioRenderer::CanAcceptMoreData() const {
+bool AudioRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
@@ -166,12 +167,12 @@ bool AudioRenderer::CanAcceptMoreData() const {
   return pending_decoded_audio_ == NULL;
 }
 
-bool AudioRenderer::IsSeekingInProgress() const {
+bool AudioRendererImpl::IsSeekingInProgress() const {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   return seeking_;
 }
 
-SbMediaTime AudioRenderer::GetCurrentTime() {
+SbMediaTime AudioRendererImpl::GetCurrentTime() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   if (seeking_) {
@@ -182,10 +183,10 @@ SbMediaTime AudioRenderer::GetCurrentTime() {
              decoder_->GetSamplesPerSecond();
 }
 
-void AudioRenderer::UpdateSourceStatus(int* frames_in_buffer,
-                                       int* offset_in_frames,
-                                       bool* is_playing,
-                                       bool* is_eos_reached) {
+void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
+                                           int* offset_in_frames,
+                                           bool* is_playing,
+                                           bool* is_eos_reached) {
   ScopedLock lock(mutex_);
 
   *is_eos_reached = end_of_stream_decoded_;
@@ -201,7 +202,7 @@ void AudioRenderer::UpdateSourceStatus(int* frames_in_buffer,
   *offset_in_frames = offset_in_frames_;
 }
 
-void AudioRenderer::ConsumeFrames(int frames_consumed) {
+void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
   ScopedLock lock(mutex_);
 
   SB_DCHECK(frames_consumed <= frames_in_buffer_);
@@ -214,7 +215,8 @@ void AudioRenderer::ConsumeFrames(int frames_consumed) {
       pending_decoded_audio_ ||
       (end_of_stream_written_ && !end_of_stream_decoded_);
   if (decoded_audio_available && !read_from_decoder_closure_.is_valid()) {
-    read_from_decoder_closure_ = Bind(&AudioRenderer::ReadFromDecoder, this);
+    read_from_decoder_closure_ =
+        Bind(&AudioRendererImpl::ReadFromDecoder, this);
     job_queue_->Schedule(read_from_decoder_closure_);
   }
 }
@@ -223,7 +225,7 @@ void AudioRenderer::ConsumeFrames(int frames_consumed) {
 // valid across seeking.  If a seek happens immediately after a ReadFromDecoder
 // request is scheduled, the seek will reset the decoder.  So the
 // ReadFromDecoder request will not read stale data.
-void AudioRenderer::ReadFromDecoder() {
+void AudioRendererImpl::ReadFromDecoder() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
@@ -270,8 +272,8 @@ void AudioRenderer::ReadFromDecoder() {
         channels_, sample_rate, decoder_->GetSampleType(),
         kSbMediaAudioFrameStorageTypeInterleaved,
         reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
-        kMaxCachedFrames, &AudioRenderer::UpdateSourceStatusFunc,
-        &AudioRenderer::ConsumeFramesFunc, this);
+        kMaxCachedFrames, &AudioRendererImpl::UpdateSourceStatusFunc,
+        &AudioRendererImpl::ConsumeFramesFunc, this);
 #if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
     audio_sink_->SetPlaybackRate(playback_rate_);
 #endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
@@ -280,7 +282,7 @@ void AudioRenderer::ReadFromDecoder() {
 
 // TODO: This function should be executed when lock is not acquired as it copies
 // relatively large amount of data.
-bool AudioRenderer::AppendDecodedAudio_Locked(
+bool AudioRendererImpl::AppendDecodedAudio_Locked(
     const scoped_refptr<DecodedAudio>& decoded_audio) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
@@ -310,12 +312,12 @@ bool AudioRenderer::AppendDecodedAudio_Locked(
 }
 
 // static
-void AudioRenderer::UpdateSourceStatusFunc(int* frames_in_buffer,
-                                           int* offset_in_frames,
-                                           bool* is_playing,
-                                           bool* is_eos_reached,
-                                           void* context) {
-  AudioRenderer* audio_renderer = static_cast<AudioRenderer*>(context);
+void AudioRendererImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
+                                               int* offset_in_frames,
+                                               bool* is_playing,
+                                               bool* is_eos_reached,
+                                               void* context) {
+  AudioRendererImpl* audio_renderer = static_cast<AudioRendererImpl*>(context);
   SB_DCHECK(audio_renderer);
   SB_DCHECK(frames_in_buffer);
   SB_DCHECK(offset_in_frames);
@@ -327,8 +329,8 @@ void AudioRenderer::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void AudioRenderer::ConsumeFramesFunc(int frames_consumed, void* context) {
-  AudioRenderer* audio_renderer = static_cast<AudioRenderer*>(context);
+void AudioRendererImpl::ConsumeFramesFunc(int frames_consumed, void* context) {
+  AudioRendererImpl* audio_renderer = static_cast<AudioRendererImpl*>(context);
   SB_DCHECK(audio_renderer);
 
   audio_renderer->ConsumeFrames(frames_consumed);
