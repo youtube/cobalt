@@ -42,6 +42,10 @@ const jint MEDIA_CODEC_ERROR = 9;
 const jint BUFFER_FLAG_CODEC_CONFIG = 2;
 const jint BUFFER_FLAG_END_OF_STREAM = 4;
 
+const jint CRYPTO_MODE_UNENCRYPTED = 0;
+const jint CRYPTO_MODE_AES_CTR = 1;
+const jint CRYPTO_MODE_AES_CBC = 2;
+
 struct DequeueInputResult {
   jint status;
   jint index;
@@ -65,7 +69,8 @@ class MediaCodecBridge {
  public:
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       const std::string& mime,
-      const SbMediaAudioHeader& audio_header);
+      const SbMediaAudioHeader& audio_header,
+      jobject j_media_crypto);
 
   static scoped_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
       const std::string& mime,
@@ -85,6 +90,10 @@ class MediaCodecBridge {
                         jint size,
                         jlong presentation_time_microseconds,
                         jint flags);
+  jint QueueSecureInputBuffer(jint index,
+                              jint offset,
+                              const SbDrmSampleInfo& drm_sample_info,
+                              jlong presentation_time_microseconds);
 
   DequeueOutputResult DequeueOutputBuffer(jlong timeout_us);
   // It is the responsibility of the client to manage the lifetime of the

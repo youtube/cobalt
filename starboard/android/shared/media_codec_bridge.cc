@@ -21,14 +21,16 @@ namespace shared {
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const std::string& mime,
-    const SbMediaAudioHeader& audio_header) {
+    const SbMediaAudioHeader& audio_header,
+    jobject j_media_crypto) {
   JniEnvExt* env = JniEnvExt::Get();
   jstring j_mime = env->NewStringUTFOrAbort(mime.c_str());
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
-      "(Ljava/lang/String;ZZII)Lfoo/cobalt/media/MediaCodecBridge;", j_mime,
-      false, false, audio_header.samples_per_second,
-      audio_header.number_of_channels);
+      "(Ljava/lang/String;ZZIILandroid/media/MediaCrypto;)Lfoo/cobalt/media/"
+      "MediaCodecBridge;",
+      j_mime, false, false, audio_header.samples_per_second,
+      audio_header.number_of_channels, j_media_crypto);
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);
@@ -97,6 +99,41 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
   return JniEnvExt::Get()->CallIntMethodOrAbort(
       j_media_codec_bridge_, "queueInputBuffer", "(IIIJI)I", index, offset,
       size, presentation_time_microseconds, flags);
+}
+
+jint MediaCodecBridge::QueueSecureInputBuffer(
+    jint index,
+    jint offset,
+    const SbDrmSampleInfo& drm_sample_info,
+    jlong presentation_time_microseconds) {
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef j_iv(env->NewByteArrayFromRaw(
+      reinterpret_cast<const jbyte*>(drm_sample_info.initialization_vector),
+      drm_sample_info.initialization_vector_size));
+  ScopedLocalJavaRef j_key_id(env->NewByteArrayFromRaw(
+      reinterpret_cast<const jbyte*>(drm_sample_info.identifier),
+      drm_sample_info.identifier_size));
+
+  // Reshape the sub sample mapping like this:
+  // [(c0, e0), (c1, e1), ...] -> [c0, c1, ...] and [e0, e1, ...]
+  int32_t subsample_count = drm_sample_info.subsample_count;
+  scoped_array<jint> clear_bytes(new jint[subsample_count]);
+  scoped_array<jint> encrypted_bytes(new jint[subsample_count]);
+  for (int i = 0; i < subsample_count; ++i) {
+    clear_bytes[i] = drm_sample_info.subsample_mapping[i].clear_byte_count;
+    encrypted_bytes[i] =
+        drm_sample_info.subsample_mapping[i].encrypted_byte_count;
+  }
+  ScopedLocalJavaRef j_clear_bytes(
+      env->NewIntArrayFromRaw(clear_bytes.get(), subsample_count));
+  ScopedLocalJavaRef j_encrypted_bytes(
+      env->NewIntArrayFromRaw(encrypted_bytes.get(), subsample_count));
+
+  return env->CallIntMethod(
+      j_media_codec_bridge_, "queueSecureInputBuffer", "(II[B[B[I[IIIIIJ)I",
+      index, offset, j_iv.Get(), j_key_id.Get(), j_clear_bytes.Get(),
+      j_encrypted_bytes.Get(), subsample_count, CRYPTO_MODE_AES_CTR, 0, 0,
+      presentation_time_microseconds);
 }
 
 DequeueOutputResult MediaCodecBridge::DequeueOutputBuffer(jlong timeout_us) {

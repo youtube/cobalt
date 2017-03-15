@@ -106,8 +106,9 @@ void AudioDecoder::Reset() {
 }
 
 bool AudioDecoder::InitializeCodec() {
+  jobject j_media_crypto = NULL;
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      kMimeTypeAac, audio_header_);
+      kMimeTypeAac, audio_header_, j_media_crypto);
   if (!media_codec_bridge_) {
     return false;
   }
