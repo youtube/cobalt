@@ -19,7 +19,8 @@
 namespace cobalt {
 namespace dom {
 
-Camera3D::Camera3D() {}
+Camera3D::Camera3D(input::InputPoller* input_poller)
+    : input_poller_(input_poller) {}
 
 void Camera3D::CreateKeyMapping(int keycode, uint32 camera_axis,
                                 float degrees_per_second) {
@@ -29,6 +30,13 @@ void Camera3D::CreateKeyMapping(int keycode, uint32 camera_axis,
 void Camera3D::ClearKeyMapping(int keycode) { keycode_map_.erase(keycode); }
 
 void Camera3D::ClearAllKeyMappings() { keycode_map_.clear(); }
+
+glm::mat4 Camera3D::CalculateViewMatrix(float seconds) {
+  UNREFERENCED_PARAMETER(seconds);
+  // TODO: Accumulate roll, pitch and yaw degrees based on the key settings
+  // to construct a view matrix.
+  return glm::mat4(1.0f);
+}
 
 }  // namespace dom
 }  // namespace cobalt
