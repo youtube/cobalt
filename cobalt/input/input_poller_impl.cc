@@ -40,8 +40,12 @@ bool InputPollerImpl::IsPressed(SbKey keycode) {
 float InputPollerImpl::AnalogInput(SbKey analog_input_id) {
   starboard::ScopedLock lock(input_mutex_);
 
-  DCHECK(key_offset_map_.find(analog_input_id) == key_offset_map_.end());
-  return key_offset_map_[analog_input_id];
+  KeyOffsetMap::const_iterator found = key_offset_map_.find(analog_input_id);
+  if (found == key_offset_map_.end()) {
+    return 0.0f;
+  } else {
+    return found->second;
+  }
 }
 
 void InputPollerImpl::UpdateInputEvent(
