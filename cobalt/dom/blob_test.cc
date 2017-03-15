@@ -38,7 +38,7 @@ TEST(BlobTest, Constructors) {
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
   data_view->SetInt16(0, static_cast<int16>(0x0607), &exception_state);
-
+  data_view->SetInt16(3, static_cast<int16>(0xABCD), &exception_state);
   scoped_refptr<Blob> blob_with_buffer = new Blob(NULL, array_buffer);
 
   ASSERT_EQ(5, blob_with_buffer->size());
@@ -47,8 +47,24 @@ TEST(BlobTest, Constructors) {
   EXPECT_EQ(0x6, blob_with_buffer->data()[0]);
   EXPECT_EQ(0x7, blob_with_buffer->data()[1]);
   EXPECT_EQ(0, blob_with_buffer->data()[2]);
-  EXPECT_EQ(0, blob_with_buffer->data()[3]);
-  EXPECT_EQ(0, blob_with_buffer->data()[4]);
+  EXPECT_EQ(0xAB, blob_with_buffer->data()[3]);
+  EXPECT_EQ(0xCD, blob_with_buffer->data()[4]);
+
+  scoped_refptr<DataView> data_view_mid_3 =
+      new DataView(array_buffer, 1, 3, &exception_state);
+  script::Sequence<Blob::BlobPart> parts;
+  parts.push_back(Blob::BlobPart(blob_with_buffer));
+  parts.push_back(Blob::BlobPart(data_view_mid_3));
+  parts.push_back(Blob::BlobPart(array_buffer));
+  scoped_refptr<Blob> blob_with_parts = new Blob(NULL, parts);
+
+  ASSERT_EQ(13UL, blob_with_parts->size());
+  ASSERT_TRUE(blob_with_parts->data());
+  EXPECT_EQ(0x6, blob_with_parts->data()[0]);
+  EXPECT_EQ(0x7, blob_with_parts->data()[5]);
+  EXPECT_EQ(0, blob_with_parts->data()[6]);
+  EXPECT_EQ(0xAB, blob_with_parts->data()[11]);
+  EXPECT_EQ(0xCD, blob_with_parts->data()[12]);
 }
 
 // Tests that further changes to a buffer from which a blob was constructed
