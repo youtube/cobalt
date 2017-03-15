@@ -172,7 +172,7 @@ class WebModule {
 
     // InputPoller to use for constantly polling the input key position or
     // state. For example, this is used to support 3D camera movements.
-    input::InputPoller* input_poller;
+    scoped_refptr<input::InputPoller> input_poller;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

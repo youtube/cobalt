@@ -17,14 +17,9 @@
 #ifndef COBALT_DOM_CAMERA_3D_H_
 #define COBALT_DOM_CAMERA_3D_H_
 
-#include <map>
-#include <utility>
-
-#include "base/optional.h"
-#include "base/synchronization/lock.h"
+#include "cobalt/dom/camera_3d_impl.h"
 #include "cobalt/input/input_poller.h"
 #include "cobalt/script/wrappable.h"
-#include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
 namespace dom {
@@ -34,23 +29,14 @@ class Camera3D : public script::Wrappable {
  public:
   enum CameraAxes {
     // Restricted to [0deg, 360deg]
-    kDomCameraRoll = 0x00,
+    kDomCameraRoll = Camera3DImpl::kCameraRoll,
     // Restricted to [-90deg, 90deg]
-    kDomCameraPitch = 0x01,
+    kDomCameraPitch = Camera3DImpl::kCameraPitch,
     // Restricted to [0deg, 360deg]
-    kDomCameraYaw = 0x02,
+    kDomCameraYaw = Camera3DImpl::kCameraYaw,
   };
 
-  struct KeycodeMappingInfo {
-    KeycodeMappingInfo() : axis(0), degrees_per_second(0.0f) {}
-    KeycodeMappingInfo(uint32 axis, float degrees_per_second)
-        : axis(axis), degrees_per_second(degrees_per_second) {}
-
-    uint32 axis;
-    float degrees_per_second;
-  };
-
-  explicit Camera3D(input::InputPoller* input_poller);
+  explicit Camera3D(const scoped_refptr<input::InputPoller>& input_poller);
 
   // Creates a mapping between the specified keyCode and the specified camera
   // axis, such that while the key is pressed, the cameraAxis will rotate at a
@@ -64,45 +50,18 @@ class Camera3D : public script::Wrappable {
   void ClearAllKeyMappings();
 
   // Custom, not in any spec.
-
-  // Returns the camera's view-perspective matrix, setup according to the passed
-  // in width/height aspect ratio.  It is likely that this function will be
-  // called from another thread, like a renderer thread.
-  glm::mat4 QueryViewPerspectiveMatrix(float width_to_height_aspect_ratio);
+  scoped_refptr<Camera3DImpl> impl() { return impl_; }
 
   DEFINE_WRAPPABLE_TYPE(Camera3D);
 
  private:
-  typedef std::map<int, KeycodeMappingInfo> KeycodeMap;
-
-  // Structure to keep track of the current orientation state.
-  struct Orientation {
-    Orientation() : roll(0.0f), pitch(0.0f), yaw(0.0f) {}
-
-    float roll;
-    float pitch;
-    float yaw;
-  };
-
-  void AccumulateOrientation();
-
-  // The Camera3D's WebAPI will be accessed from the WebModule thread, but
-  // the internal camera orientation will be accessed on the renderer thread
-  // via QueryViewPerspectiveMatrix().  So, we do need a mutex to guard against
-  // these potentially parallel accesses.
-  base::Lock mutex_;
-
-  // A map of keys bound to camera movements.
-  KeycodeMap keycode_map_;
-
-  // The input poller from which we can check the state of a given key.
-  input::InputPoller* input_poller_;
-
-  // The current accumulated camera orientation state.
-  Orientation orientation_;
-
-  // The time that the last update to the camera's state has occurred.
-  base::optional<base::TimeTicks> last_update_;
+  // We delegate all calls to an Impl version of Camera3D so that all camera
+  // state is stored within an object that is *not* a script::Wrappable.  This
+  // is important because Camera3DImpl will typically be attached to a render
+  // tree, and render trees passed to the rasterizer have the potential to
+  // outlive the WebModule that created them, and the Camera3DImpl class is
+  // designed for just this.
+  scoped_refptr<Camera3DImpl> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(Camera3D);
 };

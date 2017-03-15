@@ -104,7 +104,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 namespace {
 
 void UpdateCamera(
-    float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3D> camera,
+    float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3DImpl> camera,
     render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
     base::TimeDelta time) {
   UNREFERENCED_PARAMETER(time);
@@ -127,7 +127,7 @@ scoped_refptr<render_tree::Node> AttachCameraNodes(
   animate_node_builder.Add(
       transform_node,
       base::Bind(&UpdateCamera, window->inner_width() / window->inner_height(),
-                 window->camera_3d()));
+                 window->camera_3d()->impl()));
   return new render_tree::animations::AnimateNode(animate_node_builder,
                                                   transform_node);
 }
