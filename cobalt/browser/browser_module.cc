@@ -329,6 +329,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
+  options.input_poller = input_device_manager_->input_poller();
   web_module_.reset(new WebModule(
       url, base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
                       base::Unretained(this)),
