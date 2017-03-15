@@ -27,7 +27,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
-import logging
 
 
 class ProcessJsonData(object):
@@ -60,9 +59,9 @@ class ProcessJsonData(object):
         row = []
         length = len(self._old_failing_results_list)
         for index in range(0, length):
-            result = self._recurse_json_object(self._old_failing_results_list[index]["tests"], key_list)
+            result = self._recurse_json_object(self._old_failing_results_list[index]['tests'], key_list)
             if result == 'NOTFOUND':
-                result = self._recurse_json_object(self._old_full_results_list[index]["tests"], key_list)
+                result = self._recurse_json_object(self._old_full_results_list[index]['tests'], key_list)
             row.append(result)
         return row
 
@@ -71,7 +70,7 @@ class ProcessJsonData(object):
 
     def _process_json_object(self, json_object, keyList):
         for key, subdict in json_object.iteritems():
-            if type(subdict) == dict:
+            if isinstance(subdict, dict):
                 self._process_json_object(subdict, keyList + [key])
             else:
                 row = [self._get_test_result(json_object)]
@@ -81,8 +80,8 @@ class ProcessJsonData(object):
                 return
 
     def generate_archived_result(self):
-        for key in self._current_result_json_dict["tests"]:
-            self._process_json_object(self._current_result_json_dict["tests"][key], [key])
+        for key in self._current_result_json_dict['tests']:
+            self._process_json_object(self._current_result_json_dict['tests'][key], [key])
         return self._current_result_json_dict
 
 
@@ -105,7 +104,8 @@ class DashBoardGenerator(object):
 
     def _copy_dashboard_html(self):
         dashboard_file = self._filesystem.join(self._results_directory, 'dashboard.html')
-        dashboard_html_file_path = self._filesystem.join(self._port.layout_tests_dir(), 'fast/harness/archived-results-dashboard.html')
+        dashboard_html_file_path = self._filesystem.join(
+            self._port.layout_tests_dir(), 'fast/harness/archived-results-dashboard.html')
         if not self._filesystem.exists(dashboard_file):
             if self._filesystem.exists(dashboard_html_file_path):
                 self._filesystem.copyfile(dashboard_html_file_path, dashboard_file)
@@ -121,7 +121,7 @@ class DashBoardGenerator(object):
         results_directories.sort(reverse=True, key=lambda x: self._filesystem.mtime(x))
         current_failing_results_json_file = self._filesystem.join(results_directories[0], 'failing_results.json')
         input_json_string = self._filesystem.read_text_file(current_failing_results_json_file)
-        input_json_string = input_json_string[12:-2]   # Remove preceeding string ADD_RESULTS( and ); at the end
+        input_json_string = input_json_string[12:-2]   # Remove preceding string ADD_RESULTS( and ); at the end
         self._current_result_json_dict['tests'] = json.loads(input_json_string)['tests']
         results_directories = results_directories[1:]
 
@@ -133,7 +133,7 @@ class DashBoardGenerator(object):
             failing_json_file_path = self._filesystem.join(json_file, 'failing_results.json')
             full_json_file_path = self._filesystem.join(json_file, 'full_results.json')
             json_string = self._filesystem.read_text_file(failing_json_file_path)
-            json_string = json_string[12:-2]   # Remove preceeding string ADD_RESULTS( and ); at the end
+            json_string = json_string[12:-2]   # Remove preceding string ADD_RESULTS( and ); at the end
             self._old_failing_results_list.append(json.loads(json_string))
             json_string_full_result = self._filesystem.read_text_file(full_json_file_path)
             self._old_full_results_list.append(json.loads(json_string_full_result))
@@ -142,9 +142,10 @@ class DashBoardGenerator(object):
     def generate(self):
         self._initialize()
 
-        # There must be atleast one archived result to be processed
+        # There must be at least one archived result to be processed
         if self._current_result_json_dict:
-            process_json_data = ProcessJsonData(self._current_result_json_dict, self._old_failing_results_list, self._old_full_results_list)
+            process_json_data = ProcessJsonData(self._current_result_json_dict,
+                                                self._old_failing_results_list, self._old_full_results_list)
             self._final_result = process_json_data.generate_archived_result()
             final_json = json.dumps(self._final_result)
             final_json = 'ADD_RESULTS(' + final_json + ');'

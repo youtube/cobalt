@@ -26,8 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# FIXME: remove this whitespace diff.
-#
 [MASTER]
 
 # Specify a configuration file.
@@ -64,57 +62,32 @@ load-plugins=
 # multiple time (only on the command line, not in the configuration file where
 # it should appear only once).
 # CHANGED:
-# C0103: Invalid name ""
-# C0111: Missing docstring
-# C0301: Line too long
-# C0302: Too many lines in module (N)
-# I0010: Unable to consider inline option ''
-# I0011: Locally disabling WNNNN
-#
-# R0201: Method could be a function
-# R0801: Similar lines in N files
-# R0901: Too many ancestors (8/7)
-# R0902: Too many instance attributes (N/7)
-# R0903: Too few public methods (N/2)
-# R0904: Too many public methods (N/20)
-# R0911: Too many return statements (N/6)
-# R0912: Too many branches (N/12)
-# R0913: Too many arguments (N/5)
-# R0914: Too many local variables (N/15)
-# R0915: Too many statements (N/50)
-# R0921: Abstract class not referenced
-# R0922: Abstract class is only referenced 1 times
-# W0122: Use of the exec statement
-# W0141: Used builtin function ''
-# W0212: Access to a protected member X of a client class
-# W0142: Used * or ** magic
-# W0401: Wildcard import X
-# W0402: Uses of a deprecated module 'string'
-# W0404: 41: Reimport 'XX' (imported line NN)
-# W0511: TODO
-# W0603: Using the global statement
-# W0614: Unused import X from wildcard import
-# W0703: Catch "Exception"
-# W1201: Specify string format arguments as logging function parameters
-disable=C0103,C0111,C0301,C0302,I0010,I0011,R0201,R0801,R0901,R0902,R0903,R0904,R0911,R0912,R0913,R0914,R0915,R0921,R0922,W0122,W0141,W0142,W0212,W0401,W0402,W0404,W0511,W0603,W0614,W0703,W1201
+# The "design" disable below disables all of the "too-many-*" checks,
+# e.g. too-many-arguments, too-many-branches.
+disable=
+  design,
+  missing-docstring,
+  locally-disabled,
+  locally-enabled,
+  star-args,
+  wildcard-import,
+  fixme,
+  global-statement,
+  no-self-use,
 
 
 [REPORTS]
 
 # Set the output format. Available formats are text, parseable, colorized, msvs
-# (visual studio) and html
+# (visual studio) and html.
 output-format=text
-
-# Include message's id in output
-include-ids=yes
 
 # Put messages in a separate file for each module / package specified on the
 # command line instead of printing them on stdout. Reports (if any) will be
 # written in a file name "pylint_global.[txt|html]".
 files-output=no
 
-# Tells whether to display a full report or only the messages
-# CHANGED:
+# Tells whether to display a full report or only the messages.
 reports=no
 
 # Python expression which should return a note less than 10 (10 is the highest
@@ -184,83 +157,89 @@ ignore-docstrings=yes
 [FORMAT]
 
 # Maximum number of characters on a single line.
-max-line-length=200
+max-line-length=132
 
-# Maximum number of lines in a module
-max-module-lines=1000
+# Maximum number of lines in a module.
+max-module-lines=4000
 
-# String used as indentation unit. This is usually " " (4 spaces) or "\t" (1
-# tab).
-# CHANGED:
+# String used as indentation unit.
 indent-string='    '
 
 
 [BASIC]
 
-# Required attributes for module, separated by a comma
+# Required attributes for module, separated by a comma.
 required-attributes=
 
-# List of builtins function names that should not be used, separated by a comma
-bad-functions=map,filter,apply,input
+# List of builtins function names that should not be used, separated by a comma.
+bad-functions=apply
 
-# Regular expression which should only match correct module names
-module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
+# Regular expression which should only match correct module names.
+module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+)|([a-z-][a-z0-9-]*))$
 
-# Regular expression which should only match correct module level names
+# Regular expression which should only match correct module level names.
 const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
 
-# Regular expression which should only match correct class names
+# Regular expression which should only match correct class names.
 class-rgx=[A-Z_][a-zA-Z0-9]+$
 
 # Regular expression which should only match correct function names
-function-rgx=[a-z_][a-z0-9_]{2,30}$
+function-rgx=[a-z_][a-z0-9_]{2,60}$
 
 # Regular expression which should only match correct method names
-method-rgx=[a-z_][a-z0-9_]{2,30}$
+method-rgx=[a-z_][a-z0-9_]{2,60}$
 
-# Regular expression which should only match correct instance attribute names
-attr-rgx=[a-z_][a-z0-9_]{2,30}$
+# Regular expression which should only match correct instance attribute names.
+attr-rgx=[a-z_][a-z0-9_]{1,30}$
 
-# Regular expression which should only match correct argument names
-argument-rgx=[a-z_][a-z0-9_]{2,30}$
+# Regular expression which should only match correct argument names.
+argument-rgx=[a-z_][a-z0-9_]{1,30}$
 
-# Regular expression which should only match correct variable names
-variable-rgx=[a-z_][a-z0-9_]{2,30}$
+# Regular expression which should only match correct variable names.
+variable-rgx=[a-z_][a-z0-9_]{1,30}$
 
-# Regular expression which should only match correct list comprehension /
-# generator expression variable names
+# Regular expression which should only match correct list comprehension or
+# generator expression variable names.
 inlinevar-rgx=[A-Za-z_][A-Za-z0-9_]*$
 
-# Good variable names which should always be accepted, separated by a comma
-good-names=i,j,k,ex,Run,_
+# Good variable names which should always be accepted, separated by a comma.
+# These short names are acceptable in the following cases:
+#  _        - unused value
+#  i/j/k    - for XXX in range():
+#  k/v      - for k, v in x.items():
+#  x/y/z    - coordinates
+#  e        - except XXXError as e:
+#  f/fd     - with open('blah') as f:
+#  _log/Run - webkitpy functions
+good-names=_,i,j,k,v,x,y,z,e,f,fd,_log,Run
 
-# Bad variable names which should always be refused, separated by a comma
+# Bad variable names which should always be refused, separated by a comma.
 bad-names=foo,bar,baz,toto,tutu,tata
 
 # Regular expression which should only match functions or classes name which do
-# not require a docstring
+# not require a docstring.
 no-docstring-rgx=__.*__
 
 
 [DESIGN]
 
-# Maximum number of arguments for function / method
+# Maximum number of arguments for function / method.
 max-args=5
 
 # Argument names that match this expression will be ignored. Default to name
-# with leading underscore
+# with leading underscore.
 ignored-argument-names=_.*
 
-# Maximum number of locals for function / method body
+# Maximum number of locals for function / method body.
 max-locals=15
 
-# Maximum number of return / yield for function / method body
+# Maximum number of return / yield for function / method body.
 max-returns=6
 
-# Maximum number of branch for function / method body
+# Maximum number of branch for function / method body.
 max-branchs=12
 
-# Maximum number of statements in function / method body
+# Maximum number of statements in function / method body.
 max-statements=50
 
 # Maximum number of parents for a class (see R0901).
@@ -291,24 +270,24 @@ valid-classmethod-first-arg=cls
 
 [IMPORTS]
 
-# Deprecated modules which should not be used, separated by a comma
+# Deprecated modules which should not be used, separated by a comma.
 deprecated-modules=regsub,string,TERMIOS,Bastion,rexec
 
 # Create a graph of every (i.e. internal and external) dependencies in the
-# given file (report RP0402 must not be disabled)
+# given file (report RP0402 must not be disabled).
 import-graph=
 
 # Create a graph of external dependencies in the given file (report RP0402 must
-# not be disabled)
+# not be disabled).
 ext-import-graph=
 
 # Create a graph of internal dependencies in the given file (report RP0402 must
-# not be disabled)
+# not be disabled).
 int-import-graph=
 
 
 [EXCEPTIONS]
 
 # Exceptions that will emit a warning when being caught. Defaults to
-# "Exception"
+# "Exception".
 overgeneral-exceptions=Exception

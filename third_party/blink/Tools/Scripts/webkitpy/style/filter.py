@@ -37,20 +37,19 @@ def validate_filter_rules(filter_rules, all_categories):
                   with "+" or "-" or if a filter rule does not match
                   the beginning of some category name in the list
                   of all available categories.
-
     """
     for rule in filter_rules:
         if not (rule.startswith('+') or rule.startswith('-')):
             raise ValueError('Invalid filter rule "%s": every rule '
-                             "must start with + or -." % rule)
+                             'must start with + or -.' % rule)
 
         for category in all_categories:
             if category.startswith(rule[1:]):
                 break
         else:
             raise ValueError('Suspected incorrect filter rule "%s": '
-                             "the rule does not match the beginning "
-                             "of any category name." % rule)
+                             'the rule does not match the beginning '
+                             'of any category name.' % rule)
 
 
 class _CategoryFilter(object):
@@ -70,16 +69,15 @@ class _CategoryFilter(object):
         Raises:
           ValueError: Invalid filter rule if a rule does not start with
                       plus ("+") or minus ("-").
-
         """
         if filter_rules is None:
             filter_rules = []
 
         self._filter_rules = filter_rules
-        self._should_check_category = {} # Cached dictionary of category to True/False
+        self._should_check_category = {}  # Cached dictionary of category to True/False
 
     def __str__(self):
-        return ",".join(self._filter_rules)
+        return ','.join(self._filter_rules)
 
     # Useful for unit testing.
     def __eq__(self, other):
@@ -103,17 +101,16 @@ class _CategoryFilter(object):
         leading plus/minus (+/-) matches the beginning of the category
         name.  A plus (+) means the category should be checked, while a
         minus (-) means the category should not be checked.
-
         """
         if category in self._should_check_category:
             return self._should_check_category[category]
 
-        should_check = True # All categories checked by default.
+        should_check = True  # All categories checked by default.
         for rule in self._filter_rules:
             if not category.startswith(rule[1:]):
                 continue
             should_check = rule.startswith('+')
-        self._should_check_category[category] = should_check # Update cache.
+        self._should_check_category[category] = should_check  # Update cache.
         return should_check
 
 
@@ -147,7 +144,6 @@ class FilterConfiguration(object):
                       words, the user rules take precedence over the
                       everything.  In practice, the user rules are
                       provided by the user from the command line.
-
         """
         if base_rules is None:
             base_rules = []
@@ -174,6 +170,7 @@ class FilterConfiguration(object):
         """Cached dictionary of file path to CategoryFilter instance."""
 
     # Useful for unit testing.
+
     def __eq__(self, other):
         """Return whether this FilterConfiguration is equal to another."""
         if self._base_rules != other._base_rules:
@@ -206,14 +203,13 @@ class FilterConfiguration(object):
 
          This method returns a tuple rather than a list so the return
          value can be passed to _filter_from_path_rules() without change.
-
         """
         path = path.lower()
         for (sub_paths, path_rules) in self._get_path_specific_lower():
             for sub_path in sub_paths:
                 if path.find(sub_path) > -1:
                     return tuple(path_rules)
-        return () # Default to the empty tuple.
+        return ()  # Default to the empty tuple.
 
     def _filter_from_path_rules(self, path_rules):
         """Return the CategoryFilter associated to the given path rules.
@@ -222,12 +218,11 @@ class FilterConfiguration(object):
           path_rules: A tuple of path rules.  We require a tuple rather
                       than a list so the value can be used as a dictionary
                       key in self._path_rules_to_filter.
-
         """
         # We reuse the same CategoryFilter where possible to take
         # advantage of the caching they do.
         if path_rules not in self._path_rules_to_filter:
-            rules = list(self._base_rules) # Make a copy
+            rules = list(self._base_rules)  # Make a copy
             rules.extend(path_rules)
             rules.extend(self._user_rules)
             self._path_rules_to_filter[path_rules] = _CategoryFilter(rules)
@@ -272,7 +267,5 @@ class FilterConfiguration(object):
         Args:
           category: The category name.
           path: The path of the file being checked.
-
         """
         return self._filter_from_path(path).should_check(category)
-
