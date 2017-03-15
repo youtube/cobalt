@@ -17,7 +17,7 @@
 #ifndef COBALT_INPUT_INPUT_POLLER_H_
 #define COBALT_INPUT_INPUT_POLLER_H_
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "starboard/key.h"
 
 namespace cobalt {
@@ -25,7 +25,7 @@ namespace input {
 
 // Thread safe InputPoller provides the owner's ability to get the key state
 // and analog key position.
-class InputPoller {
+class InputPoller : public base::RefCountedThreadSafe<InputPoller> {
  public:
   InputPoller() {}
   virtual ~InputPoller() {}
