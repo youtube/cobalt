@@ -104,25 +104,25 @@ TEST(MemorySettings, CalculateImageCacheSize) {
 }
 
 TEST(MemorySettings, GetImageCacheSize) {
-#ifdef COBALT_IMAGE_CACHE_SIZE_IN_BYTES
-  // Expect that regardless of the display size, the value returned will
-  // be equal to COBALT_IMAGE_CACHE_SIZE_IN_BYTES
-  EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-            GetImageCacheSize(GetDimensions(k720p)));
-  EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-            GetImageCacheSize(GetDimensions(k1080p)));
-  EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-            GetImageCacheSize(GetDimensions(kUHD4k)));
-#else
-  // ... otherwise expect that the GetImageCacheSize() is equal to
-  // CalculateImageCacheSize().
-  EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k720p)),
-            GetImageCacheSize(GetDimensions(k720p)));
-  EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k1080p)),
-            GetImageCacheSize(GetDimensions(k1080p)));
-  EXPECT_EQ(CalculateImageCacheSize(GetDimensions(kUHD4k)),
-            GetImageCacheSize(GetDimensions(kUHD4k)));
-#endif
+  if (COBALT_IMAGE_CACHE_SIZE_IN_BYTES >= 0) {
+    // Expect that regardless of the display size, the value returned will
+    // be equal to COBALT_IMAGE_CACHE_SIZE_IN_BYTES
+    EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
+              GetImageCacheSize(GetDimensions(k720p)));
+    EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
+              GetImageCacheSize(GetDimensions(k1080p)));
+    EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
+              GetImageCacheSize(GetDimensions(kUHD4k)));
+  } else {
+    // ... otherwise expect that the GetImageCacheSize() is equal to
+    // CalculateImageCacheSize().
+    EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k720p)),
+              GetImageCacheSize(GetDimensions(k720p)));
+    EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k1080p)),
+              GetImageCacheSize(GetDimensions(k1080p)));
+    EXPECT_EQ(CalculateImageCacheSize(GetDimensions(kUHD4k)),
+              GetImageCacheSize(GetDimensions(kUHD4k)));
+  }
 }
 
 }  // namespace memory_settings

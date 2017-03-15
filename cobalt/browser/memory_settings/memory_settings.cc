@@ -40,13 +40,11 @@ double DisplayScaleTo1080p(const math::Size& dimensions) {
 }  // namespace
 
 size_t GetImageCacheSize(const math::Size& dimensions) {
-#ifdef COBALT_IMAGE_CACHE_SIZE_IN_BYTES
-  UNREFERENCED_PARAMETER(dimensions);
-  return COBALT_IMAGE_CACHE_SIZE_IN_BYTES;
-#else
+  if (COBALT_IMAGE_CACHE_SIZE_IN_BYTES >= 0) {
+    return COBALT_IMAGE_CACHE_SIZE_IN_BYTES;
+  }
   size_t return_val = CalculateImageCacheSize(dimensions);
   return static_cast<int>(return_val);
-#endif
 }
 
 size_t CalculateImageCacheSize(const math::Size& dimensions) {
