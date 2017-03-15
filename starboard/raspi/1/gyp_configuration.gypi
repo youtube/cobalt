@@ -20,7 +20,6 @@
     'in_app_dial%': 0,
     'sysroot%': '/',
     'gl_type': 'system_gles2',
-    'image_cache_size_in_bytes': 32 * 1024 * 1024,
 
     # VideoCore's tiled renderer will do a render for every tile of a render
     # target even if only part of that target was rendered to.  Since the
