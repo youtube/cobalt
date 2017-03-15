@@ -8,23 +8,38 @@ from webkitpy.layout_tests.controllers import repaint_overlay
 
 
 LAYER_TREE = """{
-  "bounds":[800.00,600.00],
-  "children":[
+  "layers": [
     {
+      "name": "layer1",
+      "bounds": [800.00, 600.00],
+    }, {
+      "name": "layer2",
       "position": [8.00, 80.00],
       "bounds": [800.00, 600.00],
       "contentsOpaque": true,
       "drawsContent": true,
-      "repaintRects": [
-        [8, 108, 100, 100],
-        [0, 216, 800, 100]
+      "paintInvalidations": [
+        {
+          "object": "object1",
+          "rect": [8, 108, 100, 100],
+          "reason": "full"
+        }, {
+          "object": "object2",
+          "rect": [0, 216, 800, 100],
+          "reason": "full"
+        }, {
+          "object": "object1",
+          "reason": "location change"
+        }
       ]
     }
   ]
 }
 """
 
+
 class TestRepaintOverlay(unittest.TestCase):
+
     def test_result_contains_repaint_rects(self):
         self.assertTrue(repaint_overlay.result_contains_repaint_rects(LAYER_TREE))
         self.assertFalse(repaint_overlay.result_contains_repaint_rects('ABCD'))

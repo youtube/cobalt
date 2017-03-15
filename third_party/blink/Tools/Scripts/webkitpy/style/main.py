@@ -24,40 +24,40 @@ import codecs
 import logging
 import sys
 
-import webkitpy.style.checker as checker
-from webkitpy.style.patchreader import PatchReader
+from webkitpy.common.host import Host
+from webkitpy.style import checker
 from webkitpy.style.checker import StyleProcessor
 from webkitpy.style.filereader import TextFileReader
-from webkitpy.common.host import Host
+from webkitpy.style.patchreader import PatchReader
 
 
 _log = logging.getLogger(__name__)
 
 
 def change_directory(filesystem, checkout_root, paths):
-    """Change the working directory to the WebKit checkout root, if possible.
+    """Change the working directory to the checkout root, if possible.
 
     If every path in the paths parameter is below the checkout root (or if
     the paths parameter is empty or None), this method changes the current
     working directory to the checkout root and converts the paths parameter
     as described below.
-        This allows the paths being checked to be displayed relative to the
+
+    This allows the paths being checked to be displayed relative to the
     checkout root, and for path-specific style checks to work as expected.
     Path-specific checks include whether files should be skipped, whether
     custom style rules should apply to certain files, etc.
 
-    Returns:
-      paths: A copy of the paths parameter -- possibly converted, as follows.
-             If this method changed the current working directory to the
-             checkout root, then the list is the paths parameter converted to
-             normalized paths relative to the checkout root.
-
     Args:
-      paths: A list of paths to the files that should be checked for style.
-             This argument can be None or the empty list if a git commit
-             or all changes under the checkout root should be checked.
-      checkout_root: The path to the root of the WebKit checkout.
+        paths: A list of paths to the files that should be checked for style.
+            This argument can be None or the empty list if a git commit
+            or all changes under the checkout root should be checked.
+        checkout_root: The path to the root of the repository.
 
+    Returns:
+        A copy of the paths parameter -- possibly converted, as follows.
+        If this method changed the current working directory to the
+        checkout root, then the list is the paths parameter converted to
+        normalized paths relative to the checkout root.
     """
     if paths is not None:
         paths = list(paths)
@@ -75,10 +75,10 @@ def change_directory(filesystem, checkout_root, paths):
                 # checkout root.  Interpret all of them relative to the
                 # current working directory, and do not change the current
                 # working directory.
-                _log.warn(
-"""Path-dependent style checks may not work correctly:
+                _log.warning(
+                    """Path-dependent style checks may not work correctly:
 
-  One of the given paths is outside the WebKit checkout of the current
+  One of the given paths is outside the repository of the current
   working directory:
 
     Path: %s
@@ -86,21 +86,22 @@ def change_directory(filesystem, checkout_root, paths):
 
   Pass only files below the checkout root to ensure correct results.
   See the help documentation for more info.
-"""
-                          % (path, checkout_root))
+""",
+                    path, checkout_root)
 
                 return paths
             rel_paths.append(rel_path)
         # If we got here, the conversion was successful.
         paths = rel_paths
 
-    _log.debug("Changing to checkout root: " + checkout_root)
+    _log.debug('Changing to checkout root: ' + checkout_root)
     filesystem.chdir(checkout_root)
 
     return paths
 
 
 class CheckWebKitStyle(object):
+
     def _engage_awesome_stderr_hacks(self):
         # Change stderr to write with replacement characters so we don't die
         # if we try to print something containing non-ASCII characters.
@@ -111,7 +112,7 @@ class CheckWebKitStyle(object):
         # Setting an "encoding" attribute on the stream is necessary to
         # prevent the logging module from raising an error.  See
         # the checker.configure_logging() function for more information.
-        stderr.encoding = "UTF-8"
+        stderr.encoding = 'UTF-8'
 
         # FIXME: Change webkitpy.style so that we do not need to overwrite
         #        the global sys.stderr.  This involves updating the code to
@@ -124,23 +125,22 @@ class CheckWebKitStyle(object):
         args = sys.argv[1:]
 
         host = Host()
-        host.initialize_scm()
 
         stderr = self._engage_awesome_stderr_hacks()
 
         # Checking for the verbose flag before calling check_webkit_style_parser()
         # lets us enable verbose logging earlier.
-        is_verbose = "-v" in args or "--verbose" in args
+        is_verbose = '-v' in args or '--verbose' in args
 
         checker.configure_logging(stream=stderr, is_verbose=is_verbose)
-        _log.debug("Verbose logging enabled.")
+        _log.debug('Verbose logging enabled.')
 
         parser = checker.check_webkit_style_parser()
         (paths, options) = parser.parse(args)
 
         configuration = checker.check_webkit_style_configuration(options)
 
-        paths = change_directory(host.filesystem, checkout_root=host.scm().checkout_root, paths=paths)
+        paths = change_directory(host.filesystem, checkout_root=host.git().checkout_root, paths=paths)
 
         style_processor = StyleProcessor(configuration)
         file_reader = TextFileReader(host.filesystem, style_processor)
@@ -149,7 +149,7 @@ class CheckWebKitStyle(object):
             file_reader.process_paths(paths)
         else:
             changed_files = paths if options.diff_files else None
-            patch = host.scm().create_patch(options.git_commit, changed_files=changed_files)
+            patch = host.git().create_patch(options.git_commit, changed_files=changed_files)
             patch_checker = PatchReader(file_reader)
             patch_checker.check(patch)
 
@@ -157,6 +157,6 @@ class CheckWebKitStyle(object):
         file_count = file_reader.file_count
         delete_only_file_count = file_reader.delete_only_file_count
 
-        _log.info("Total errors found: %d in %d files" % (error_count, file_count))
+        _log.info('Total errors found: %d in %d files', error_count, file_count)
         # We fail when style errors are found or there are no checked files.
         return error_count > 0 or (file_count == 0 and delete_only_file_count == 0)

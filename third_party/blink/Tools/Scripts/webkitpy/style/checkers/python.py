@@ -26,7 +26,6 @@ import os
 import re
 import sys
 
-from StringIO import StringIO
 
 from webkitpy.common.system.filesystem import FileSystem
 from webkitpy.common.system.executive import Executive
@@ -36,15 +35,16 @@ from webkitpy.thirdparty import pep8
 
 class PythonChecker(object):
     """Processes text lines for checking style."""
+
     def __init__(self, file_path, handle_style_error):
         self._file_path = file_path
         self._handle_style_error = handle_style_error
 
-    def check(self, lines):
-        self._check_pep8(lines)
-        self._check_pylint(lines)
+    def check(self, lines_unused=None):
+        self._check_pep8()
+        self._check_pylint()
 
-    def _check_pep8(self, lines):
+    def _check_pep8(self):
         # Initialize pep8.options, which is necessary for
         # Checker.check_all() to execute.
         pep8.process_options(arglist=[self._file_path])
@@ -58,35 +58,39 @@ class PythonChecker(object):
             pep8_code = text[:4]
             pep8_message = text[5:]
 
-            category = "pep8/" + pep8_code
+            category = 'pep8/' + pep8_code
 
             self._handle_style_error(line_number, category, 5, pep8_message)
 
         pep8_checker.report_error = _pep8_handle_error
-        pep8_errors = pep8_checker.check_all()
+        pep8_checker.check_all()
 
-    def _check_pylint(self, lines):
-        output = self._run_pylint(self._file_path)
+    def _check_pylint(self):
+        output = self.run_pylint(self._file_path)
         errors = self._parse_pylint_output(output)
         for line_number, category, message in errors:
             self._handle_style_error(line_number, category, 5, message)
 
-    def _run_pylint(self, path):
+    def run_pylint(self, path):
         wkf = WebKitFinder(FileSystem())
         executive = Executive()
         env = os.environ.copy()
-        env['PYTHONPATH'] = ('%s%s%s%s%s' % (wkf.path_from_webkit_base('Tools', 'Scripts'),
-                                         os.pathsep,
-                                         wkf.path_from_webkit_base('Source', 'build', 'scripts'),
-                                         os.pathsep,
-                                         wkf.path_from_webkit_base('Tools', 'Scripts', 'webkitpy', 'thirdparty')))
-        return executive.run_command([sys.executable, wkf.path_from_depot_tools_base('pylint.py'),
-                                      '--output-format=parseable',
-                                      '--errors-only',
-                                      '--rcfile=' + wkf.path_from_webkit_base('Tools', 'Scripts', 'webkitpy', 'pylintrc'),
-                                      path],
-                                     env=env,
-                                     error_handler=executive.ignore_error)
+        env['PYTHONPATH'] = os.pathsep.join([
+            wkf.path_from_webkit_base('Tools', 'Scripts'),
+            wkf.path_from_webkit_base('Source', 'build', 'scripts'),
+            wkf.path_from_webkit_base('Tools', 'Scripts', 'webkitpy', 'thirdparty'),
+            wkf.path_from_webkit_base('Source', 'bindings', 'scripts'),
+            wkf.path_from_chromium_base('build', 'android'),
+            wkf.path_from_chromium_base('third_party', 'catapult', 'devil'),
+            wkf.path_from_chromium_base('third_party', 'pymock'),
+        ])
+        return executive.run_command([
+            sys.executable,
+            wkf.path_from_depot_tools_base('pylint.py'),
+            '--output-format=parseable',
+            '--rcfile=' + wkf.path_from_webkit_base('Tools', 'Scripts', 'webkitpy', 'pylintrc'),
+            path,
+        ], env=env, error_handler=executive.ignore_error)
 
     def _parse_pylint_output(self, output):
         # We filter out these messages because they are bugs in pylint that produce false positives.
@@ -101,7 +105,7 @@ class PythonChecker(object):
             "Instance of 'Popen' has no 'wait' member",
         ]
 
-        lint_regex = re.compile('([^:]+):([^:]+): \[([^]]+)\] (.*)')
+        lint_regex = re.compile(r'([^:]+):([^:]+): \[([^]]+)\] (.*)')
         errors = []
         for line in output.splitlines():
             if any(msg in line for msg in FALSE_POSITIVES):
