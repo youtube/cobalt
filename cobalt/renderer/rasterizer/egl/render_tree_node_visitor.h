@@ -20,7 +20,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/math/rect_f.h"
-#include "cobalt/math/size.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
@@ -48,7 +47,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   typedef base::Callback<backend::TextureEGL*(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::Size& viewport_size)>
+      const math::RectF& viewport)>
       FallbackRasterizeFunction;
 
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
@@ -69,6 +68,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
+  void FallbackRasterize(render_tree::Node* node);
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
                      DrawObjectManager::DrawType type);
