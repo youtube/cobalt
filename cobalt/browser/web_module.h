@@ -169,6 +169,10 @@ class WebModule {
 
     // TTSEngine instance to use for text-to-speech.
     accessibility::TTSEngine* tts_engine;
+
+    // InputPoller to use for constantly polling the input key position or
+    // state. For example, this is used to support 3D camera movements.
+    input::InputPoller* input_poller;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

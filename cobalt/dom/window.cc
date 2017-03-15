@@ -88,7 +88,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
                system_window::SystemWindow* system_window,
-               int csp_insecure_allowed_token, int dom_max_element_depth)
+               input::InputPoller* input_poller, int csp_insecure_allowed_token,
+               int dom_max_element_depth)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
@@ -119,7 +120,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
-      camera_3d_(new Camera3D()),
+      camera_3d_(new Camera3D(input_poller)),
       ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
