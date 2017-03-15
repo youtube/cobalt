@@ -173,6 +173,9 @@
         'memory_settings/memory_settings_test.cc',
         'memory_tracker/memory_tracker_tool_test.cc',
       ],
+      'defines': [
+        'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
+      ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
