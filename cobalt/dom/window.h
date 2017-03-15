@@ -117,8 +117,8 @@ class Window : public EventTarget {
          const base::Closure& ran_animation_frame_callbacks_callback,
          const base::Closure& window_close_callback,
          system_window::SystemWindow* system_window,
-         input::InputPoller* input_poller, int csp_insecure_allowed_token = 0,
-         int dom_max_element_depth = 0);
+         const scoped_refptr<input::InputPoller>& input_poller,
+         int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
   //
