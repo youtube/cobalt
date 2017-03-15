@@ -5,7 +5,7 @@
 import argparse
 import lib2to3.refactor
 
-from webkitpy.common.system.systemhost import SystemHost
+from webkitpy.common.system.system_host import SystemHost
 from webkitpy.thirdparty import autopep8
 
 
@@ -37,7 +37,8 @@ def main(host=None, args=None):
         options.quoting = None
 
     autopep8_options = _autopep8_options_for_style(options.style)
-    fixers = _fixers_for_quoting(options.quoting)
+    fixers = ['webkitpy.formatter.fix_docstrings']
+    fixers.extend(_fixers_for_quoting(options.quoting))
 
     if options.files == ['-']:
         host = host or SystemHost()
@@ -56,14 +57,20 @@ def main(host=None, args=None):
 def _autopep8_options_for_style(style):
     return {
         None: [],
-        'blink': autopep8.parse_args(['--aggressive',
-                                      '--max-line-length', '132',
-                                      '--indent-size', '4',
-                                      '']),
-        'chromium': autopep8.parse_args(['--aggressive',
-                                         '--max-line-length', '80',
-                                         '--indent-size', '2',
-                                         '']),
+        'blink': autopep8.parse_args([
+            '--aggressive',
+            '--max-line-length', '132',
+            '--ignore=E309',
+            '--indent-size', '4',
+            '',
+        ]),
+        'chromium': autopep8.parse_args([
+            '--aggressive',
+            '--max-line-length', '80',
+            '--ignore=E309',
+            '--indent-size', '2',
+            '',
+        ]),
     }.get(style)
 
 

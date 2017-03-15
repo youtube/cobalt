@@ -2,13 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""
-A 2to3 fixer that converts all string literals to use double quotes.
+"""A 2to3 fixer that converts all string literals to use double quotes.
 
 Strings that contain double quotes will not be modified. Prefixed string
 literals will also not be modified. This affects both single-quoted strings
 and triple-single-quoted strings.
-
 """
 
 from lib2to3.fixer_base import BaseFix
