@@ -5,11 +5,11 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_UTIL_H_
 #define COBALT_MEDIA_BASE_MEDIA_UTIL_H_
 
-#include <stdint.h>
 #include <vector>
 
 #include "cobalt/media/base/encryption_scheme.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

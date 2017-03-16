@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "cobalt/media/base/fake_audio_render_callback.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -54,8 +55,8 @@ int FakeAudioRenderCallback::RenderInternal(AudioBus* audio_bus,
 
   // Copy first channel into the rest of the channels.
   for (int i = 1; i < audio_bus->channels(); ++i) {
-    memcpy(audio_bus->channel(i), audio_bus->channel(0),
-           number_of_frames * sizeof(*audio_bus->channel(i)));
+    SbMemoryCopy(audio_bus->channel(i), audio_bus->channel(0),
+                 number_of_frames * sizeof(*audio_bus->channel(i)));
   }
 
   return number_of_frames;

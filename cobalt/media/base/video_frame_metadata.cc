@@ -4,11 +4,12 @@
 
 #include "cobalt/media/base/video_frame_metadata.h"
 
-#include <stdint.h>
 #include <utility>
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
@@ -120,7 +121,8 @@ bool ToTimeValue(const base::BinaryValue& binary_value, TimeType* value) {
   DCHECK(value);
   int64_t internal_value;
   if (binary_value.GetSize() != sizeof(internal_value)) return false;
-  memcpy(&internal_value, binary_value.GetBuffer(), sizeof(internal_value));
+  SbMemoryCopy(&internal_value, binary_value.GetBuffer(),
+               sizeof(internal_value));
   *value = TimeType::FromInternalValue(internal_value);
   return true;
 }

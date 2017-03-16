@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
@@ -20,6 +19,8 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "media/cast/test/utility/udp_proxy.h"
 #include "net/base/ip_address.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 class ByteCounter {
  public:
@@ -141,13 +142,13 @@ int main(int argc, char** argv) {
 
   net::IPAddress remote_ip_address;
   std::string network_type;
-  int local_port = atoi(argv[1]);
+  int local_port = SbStringAToI(argv[1]);
   int remote_port = 0;
 
   if (argc == 5) {
     // V2 proxy
     CHECK(remote_ip_address.AssignFromIPLiteral(argv[2]));
-    remote_port = atoi(argv[3]);
+    remote_port = SbStringAToI(argv[3]);
     network_type = argv[4];
   } else {
     // V1 proxy

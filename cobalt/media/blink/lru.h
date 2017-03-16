@@ -5,12 +5,11 @@
 #ifndef COBALT_MEDIA_BLINK_LRU_H_
 #define COBALT_MEDIA_BLINK_LRU_H_
 
-#include <stddef.h>
-
 #include <list>
 
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

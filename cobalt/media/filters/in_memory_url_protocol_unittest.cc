@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
 #include "cobalt/media/filters/in_memory_url_protocol.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -21,7 +21,7 @@ TEST(InMemoryUrlProtocolTest, ReadFromLargeBuffer) {
 
   uint8_t out[sizeof(kData)];
   EXPECT_EQ(4, protocol.Read(sizeof(out), out));
-  EXPECT_EQ(0, memcmp(out, kData, sizeof(out)));
+  EXPECT_EQ(0, SbMemoryCompare(out, kData, sizeof(out)));
 }
 
 TEST(InMemoryUrlProtocolTest, ReadWithNegativeSize) {

@@ -4,7 +4,6 @@
 
 #include "cobalt/media/formats/mp4/box_reader.h"
 
-#include <stddef.h>
 #include <string.h>
 
 #include <algorithm>
@@ -13,6 +12,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

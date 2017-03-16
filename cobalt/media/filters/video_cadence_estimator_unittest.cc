@@ -4,8 +4,6 @@
 
 #include "cobalt/media/filters/video_cadence_estimator.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -13,6 +11,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/stringprintf.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

@@ -5,6 +5,7 @@
 #include "cobalt/media/base/audio_fifo.h"
 
 #include "base/logging.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -73,10 +74,10 @@ void AudioFifo::Push(const AudioBus* source) {
     const float* src = source->channel(ch);
 
     // Append part of (or the complete) source to the FIFO.
-    memcpy(&dest[write_pos_], &src[0], append_size * sizeof(src[0]));
+    SbMemoryCopy(&dest[write_pos_], &src[0], append_size * sizeof(src[0]));
     if (wrap_size > 0) {
       // Wrapping is needed: copy remaining part from the source to the FIFO.
-      memcpy(&dest[0], &src[append_size], wrap_size * sizeof(src[0]));
+      SbMemoryCopy(&dest[0], &src[append_size], wrap_size * sizeof(src[0]));
     }
   }
 
@@ -111,11 +112,12 @@ void AudioFifo::Consume(AudioBus* destination, int start_frame,
     const float* src = audio_bus_->channel(ch);
 
     // Copy a selected part of the FIFO to the destination.
-    memcpy(&dest[start_frame], &src[read_pos_], consume_size * sizeof(src[0]));
+    SbMemoryCopy(&dest[start_frame], &src[read_pos_],
+                 consume_size * sizeof(src[0]));
     if (wrap_size > 0) {
       // Wrapping is needed: copy remaining part to the destination.
-      memcpy(&dest[consume_size + start_frame], &src[0],
-             wrap_size * sizeof(src[0]));
+      SbMemoryCopy(&dest[consume_size + start_frame], &src[0],
+                   wrap_size * sizeof(src[0]));
     }
   }
 

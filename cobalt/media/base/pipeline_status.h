@@ -5,11 +5,10 @@
 #ifndef COBALT_MEDIA_BASE_PIPELINE_STATUS_H_
 #define COBALT_MEDIA_BASE_PIPELINE_STATUS_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/callback.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

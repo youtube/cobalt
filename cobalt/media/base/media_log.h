@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_LOG_H_
 #define COBALT_MEDIA_BASE_MEDIA_LOG_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <sstream>
 #include <string>
 
@@ -18,6 +15,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log_event.h"
 #include "cobalt/media/base/pipeline_status.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

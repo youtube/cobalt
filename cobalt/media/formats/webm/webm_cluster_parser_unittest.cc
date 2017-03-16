@@ -4,9 +4,6 @@
 
 #include "cobalt/media/formats/webm/webm_cluster_parser.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstdlib>
 #include <string>
@@ -24,6 +21,7 @@
 #include "cobalt/media/formats/webm/cluster_builder.h"
 #include "cobalt/media/formats/webm/opus_packet_builder.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -5,10 +5,8 @@
 #ifndef COBALT_MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
 #define COBALT_MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "media/base/yuv_convert.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

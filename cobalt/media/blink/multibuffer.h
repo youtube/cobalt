@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_MULTIBUFFER_H_
 #define COBALT_MEDIA_BLINK_MULTIBUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 #include <map>
 #include <memory>
@@ -26,6 +23,7 @@
 #include "cobalt/media/blink/interval_map.h"
 #include "cobalt/media/blink/lru.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

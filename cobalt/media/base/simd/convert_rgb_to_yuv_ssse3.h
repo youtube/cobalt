@@ -5,8 +5,7 @@
 #ifndef COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_
 #define COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_SSSE3_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

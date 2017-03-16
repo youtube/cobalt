@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_TRACKS_PARSER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_TRACKS_PARSER_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <set>
 #include <string>
@@ -25,6 +23,7 @@
 #include "cobalt/media/formats/webm/webm_content_encodings_client.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 #include "cobalt/media/formats/webm/webm_video_client.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

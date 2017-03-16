@@ -4,7 +4,6 @@
 
 #include "cobalt/media/blink/resource_multibuffer_data_provider.h"
 
-#include <stdint.h>
 #include <algorithm>
 #include <string>
 #include <utility>
@@ -22,6 +21,8 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 #include "third_party/WebKit/public/platform/WebURLError.h"
 #include "third_party/WebKit/public/platform/WebURLRequest.h"
@@ -208,7 +209,7 @@ class ResourceMultiBufferDataProviderTest : public testing::Test {
 
   // Verifies that data in buffer[0...size] is equal to data_[pos...pos+size].
   void VerifyBuffer(uint8_t* buffer, int pos, int size) {
-    EXPECT_EQ(0, memcmp(buffer, data_ + pos, size));
+    EXPECT_EQ(0, SbMemoryCompare(buffer, data_ + pos, size));
   }
 
   bool HasActiveLoader() { return loader_->active_loader_ != NULL; }

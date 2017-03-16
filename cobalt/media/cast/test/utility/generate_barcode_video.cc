@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <cstdio>
 #include <cstdlib>
 
 #include "base/logging.h"
 #include "media/base/video_frame.h"
 #include "media/cast/test/utility/barcode.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 void DumpPlane(scoped_refptr<media::VideoFrame> frame, int plane) {
   for (int row = 0; row < frame->rows(plane); row++) {
@@ -27,10 +26,10 @@ int main(int argc, char **argv) {
             "<width> <height> <fps> <frames> >output.y4m\n");
     exit(1);
   }
-  int width = atoi(argv[1]);
-  int height = atoi(argv[2]);
-  int fps = atoi(argv[3]);
-  uint16_t wanted_frames = atoi(argv[4]);
+  int width = SbStringAToI(argv[1]);
+  int height = SbStringAToI(argv[2]);
+  int fps = SbStringAToI(argv[3]);
+  uint16_t wanted_frames = SbStringAToI(argv[4]);
   scoped_refptr<media::VideoFrame> frame =
       media::VideoFrame::CreateBlackFrame(gfx::Size(width, height));
   printf("YUV4MPEG2 W%d H%d F%d:1 Ip C420mpeg2\n", width, height, fps);

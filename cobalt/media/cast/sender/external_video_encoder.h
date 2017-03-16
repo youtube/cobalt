@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_EXTERNAL_VIDEO_ENCODER_H_
 #define COBALT_MEDIA_CAST_SENDER_EXTERNAL_VIDEO_ENCODER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/macros.h"
@@ -16,6 +13,7 @@
 #include "media/cast/sender/size_adaptable_video_encoder_base.h"
 #include "media/cast/sender/video_encoder.h"
 #include "media/video/video_encode_accelerator.h"
+#include "starboard/types.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {

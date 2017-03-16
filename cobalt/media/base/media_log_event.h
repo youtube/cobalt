@@ -5,11 +5,10 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_LOG_EVENT_H_
 #define COBALT_MEDIA_BASE_MEDIA_LOG_EVENT_H_
 
-#include <stdint.h>
-
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
