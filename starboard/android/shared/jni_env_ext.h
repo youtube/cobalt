@@ -48,31 +48,60 @@ struct JniEnvExt : public JNIEnv {
   jobject GetActivityObject();
 
   // Lookup the class of an object and find a method in it.
-  jmethodID GetObjectMethodID(jobject obj, const char* name, const char* sig) {
+  jmethodID GetObjectMethodIDOrAbort(jobject obj,
+                                     const char* name,
+                                     const char* sig) {
     jclass clazz = GetObjectClass(obj);
+    AbortOnException();
     jmethodID method_id = GetMethodID(clazz, name, sig);
     AbortOnException();
     DeleteLocalRef(clazz);
     return method_id;
   }
 
+  jmethodID GetStaticMethodIDOrAbort(jclass clazz,
+                                     const char* name,
+                                     const char* sig) {
+    jmethodID method = GetStaticMethodID(clazz, name, sig);
+    AbortOnException();
+    return method;
+  }
+
+  jobject GetObjectArrayElementOrAbort(jobjectArray array, jsize index) {
+    jobject result = GetObjectArrayElement(array, index);
+    AbortOnException();
+    return result;
+  }
+
   // Find a class by name using the Activity's class loader. This can load
   // both system classes and application classes, even when not in a JNI
   // stack frame (e.g. in a native thread that was attached the the JVM).
   // https://developer.android.com/training/articles/perf-jni.html#faq_FindClass
-  jclass FindClassExt(const char* name);
+  jclass FindClassExtOrAbort(const char* name);
+
+  jclass FindClassOrAbort(const char* name) {
+    jclass result = FindClass(name);
+    AbortOnException();
+    return result;
+  }
 
   // Convienience method to lookup and call a constructor.
-  jobject NewObject(const char* class_name, const char* sig, ...) {
+  jobject NewObjectOrAbort(const char* class_name, const char* sig, ...) {
     va_list argp;
     va_start(argp, sig);
-    jclass clazz = FindClassExt(class_name);
+    jclass clazz = FindClassExtOrAbort(class_name);
     jmethodID methodID = GetMethodID(clazz, "<init>", sig);
     AbortOnException();
     jobject result = NewObjectV(clazz, methodID, argp);
     AbortOnException();
     DeleteLocalRef(clazz);
     va_end(argp);
+    return result;
+  }
+
+  jstring NewStringUTFOrAbort(const char* bytes) {
+    jstring result = NewStringUTF(bytes);
+    AbortOnException();
     return result;
   }
 
@@ -84,8 +113,18 @@ struct JniEnvExt : public JNIEnv {
                               ...) {                                           \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
-    _jtype result =                                                            \
-        Call##_jname##MethodV(obj, GetObjectMethodID(obj, name, sig), argp);   \
+    _jtype result = Call##_jname##MethodV(                                     \
+        obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
+    va_end(argp);                                                              \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
+  _jtype Call##_jname##MethodOrAbort(jobject obj, const char* name,            \
+                                     const char* sig, ...) {                   \
+    va_list argp;                                                              \
+    va_start(argp, sig);                                                       \
+    _jtype result = Call##_jname##MethodVOrAbort(                              \
+        obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
     va_end(argp);                                                              \
     return result;                                                             \
   }                                                                            \
@@ -95,8 +134,19 @@ struct JniEnvExt : public JNIEnv {
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
     jobject obj = GetActivityObject();                                         \
-    _jtype result =                                                            \
-        Call##_jname##MethodV(obj, GetObjectMethodID(obj, name, sig), argp);   \
+    _jtype result = Call##_jname##MethodV(                                     \
+        obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
+    va_end(argp);                                                              \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
+  _jtype CallActivity##_jname##MethodOrAbort(const char* name,                 \
+                                             const char* sig, ...) {           \
+    va_list argp;                                                              \
+    va_start(argp, sig);                                                       \
+    jobject obj = GetActivityObject();                                         \
+    _jtype result = Call##_jname##MethodVOrAbort(                              \
+        obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
     va_end(argp);                                                              \
     return result;                                                             \
   }                                                                            \
@@ -105,11 +155,37 @@ struct JniEnvExt : public JNIEnv {
       const char* class_name, const char* method_name, const char* sig, ...) { \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
-    jclass clazz = FindClassExt(class_name);                                   \
+    jclass clazz = FindClassExtOrAbort(class_name);                            \
     _jtype result = CallStatic##_jname##MethodV(                               \
-        clazz, GetStaticMethodID(clazz, method_name, sig), argp);              \
+        clazz, GetStaticMethodIDOrAbort(clazz, method_name, sig), argp);       \
     DeleteLocalRef(clazz);                                                     \
     va_end(argp);                                                              \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
+  _jtype CallStatic##_jname##MethodOrAbort(                                    \
+      const char* class_name, const char* method_name, const char* sig, ...) { \
+    va_list argp;                                                              \
+    va_start(argp, sig);                                                       \
+    jclass clazz = FindClassExtOrAbort(class_name);                            \
+    _jtype result = CallStatic##_jname##MethodVOrAbort(                        \
+        clazz, GetStaticMethodIDOrAbort(clazz, method_name, sig), argp);       \
+    DeleteLocalRef(clazz);                                                     \
+    va_end(argp);                                                              \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
+  _jtype Call##_jname##MethodVOrAbort(jobject obj, jmethodID methodID,         \
+                                      va_list args) {                          \
+    _jtype result = Call##_jname##MethodV(obj, methodID, args);                \
+    AbortOnException();                                                        \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
+  _jtype CallStatic##_jname##MethodVOrAbort(jclass clazz, jmethodID methodID,  \
+                                            va_list args) {                    \
+    _jtype result = CallStatic##_jname##MethodV(clazz, methodID, args);        \
+    AbortOnException();                                                        \
     return result;                                                             \
   }
 
@@ -128,15 +204,38 @@ struct JniEnvExt : public JNIEnv {
   void CallVoidMethod(jobject obj, const char* name, const char* sig, ...) {
     va_list argp;
     va_start(argp, sig);
-    CallVoidMethodV(obj, GetObjectMethodID(obj, name, sig), argp);
+    CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
     va_end(argp);
+  }
+
+  void CallVoidMethodOrAbort(jobject obj,
+                             const char* name,
+                             const char* sig,
+                             ...) {
+    va_list argp;
+    va_start(argp, sig);
+    CallVoidMethodVOrAbort(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
+    va_end(argp);
+  }
+
+  void CallVoidMethodVOrAbort(jobject obj, jmethodID methodID, va_list args) {
+    CallVoidMethodV(obj, methodID, args);
+    AbortOnException();
   }
 
   void CallActivityVoidMethod(const char* name, const char* sig, ...) {
     va_list argp;
     va_start(argp, sig);
     jobject obj = GetActivityObject();
-    CallVoidMethodV(obj, GetObjectMethodID(obj, name, sig), argp);
+    CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
+    va_end(argp);
+  }
+
+  void CallActivityVoidMethodOrAbort(const char* name, const char* sig, ...) {
+    va_list argp;
+    va_start(argp, sig);
+    jobject obj = GetActivityObject();
+    CallVoidMethodVOrAbort(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
     va_end(argp);
   }
 
@@ -146,9 +245,23 @@ struct JniEnvExt : public JNIEnv {
                             ...) {
     va_list argp;
     va_start(argp, sig);
-    jclass clazz = FindClassExt(class_name);
-    CallStaticVoidMethodV(clazz, GetStaticMethodID(clazz, method_name, sig),
-                          argp);
+    jclass clazz = FindClassExtOrAbort(class_name);
+    CallStaticVoidMethodV(
+        clazz, GetStaticMethodIDOrAbort(clazz, method_name, sig), argp);
+    DeleteLocalRef(clazz);
+    va_end(argp);
+  }
+
+  void CallStaticVoidMethodOrAbort(const char* class_name,
+                                   const char* method_name,
+                                   const char* sig,
+                                   ...) {
+    va_list argp;
+    va_start(argp, sig);
+    jclass clazz = FindClassExtOrAbort(class_name);
+    CallStaticVoidMethodV(
+        clazz, GetStaticMethodIDOrAbort(clazz, method_name, sig), argp);
+    AbortOnException();
     DeleteLocalRef(clazz);
     va_end(argp);
   }
@@ -161,6 +274,7 @@ struct JniEnvExt : public JNIEnv {
     SB_DCHECK(data);                                                        \
     SB_DCHECK(size >= 0);                                                   \
     _jtype##Array j_array = New##_jname##Array(size);                       \
+    SB_CHECK(j_array) << "Out of memory making new array";                  \
     Set##_jname##ArrayRegion(j_array, 0, size, data);                       \
     return j_array;                                                         \
   }
