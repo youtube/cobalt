@@ -407,7 +407,6 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
 // that the input float was already near an integer value.
 int RoundToNearInteger(float x) {
   int rounded = static_cast<int>(x + 0.5f);
-  SB_DCHECK(std::abs(static_cast<float>(x - rounded)) < 0.01f);
   return rounded;
 }
 
