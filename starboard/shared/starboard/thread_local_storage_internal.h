@@ -15,9 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 
-#include <map>
-#include <vector>
-
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
@@ -76,15 +74,8 @@ class TLSKeyManager {
   // can be updated by any thread at any time.
   Mutex mutex_;
 
-  // The key record tracks all key values among all threads, along with their
-  // destructors, if specified.
-  std::vector<KeyRecord> key_table_;
-
-  // Tracks all thread IDs that are still available.
-  std::vector<int> available_thread_ids_;
-
-  // This maps Starboard thread IDs to TLS thread ids.
-  std::map<SbThreadId, int> thread_id_map_;
+  struct InternalData;
+  scoped_ptr<InternalData> data_;
 };
 
 }  // namespace shared
