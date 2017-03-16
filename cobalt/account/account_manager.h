@@ -24,36 +24,23 @@
 namespace cobalt {
 namespace account {
 
-// Platform-specific user account management.
+// Glue for h5vcc to get properites for the current user.
 // The AccountManager will be owned by BrowserModule.
 class AccountManager {
  public:
-  virtual ~AccountManager() {}
+  AccountManager();
 
-  // To be implemented by each platform.
-  // Platforms may wish to dispatch AccountEvents to any registered listeners.
-  // Use the event_dispatcher for this.
-  static scoped_ptr<AccountManager> Create(
-      base::EventDispatcher* event_dispatcher);
+  ~AccountManager() {}
 
   // Get the avatar URL associated with the account, if any.
-  virtual std::string GetAvatarURL() = 0;
+  std::string GetAvatarURL();
 
   // Get the username associated with the account. Due to restrictions on
   // some platforms, this may return the user ID or an empty string.
-  virtual std::string GetUsername() = 0;
+  std::string GetUsername();
 
   // Get the user ID associated with the account.
-  virtual std::string GetUserId() = 0;
-
-  // Initiate user sign-in (e.g. open a sign-in dialog)
-  virtual void StartSignIn() = 0;
-
-  // Is access by the currently signed-in user restricted by age?
-  virtual bool IsAgeRestricted() = 0;
-
- protected:
-  AccountManager() {}
+  std::string GetUserId();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(AccountManager);
