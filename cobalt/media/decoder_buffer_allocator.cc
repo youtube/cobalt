@@ -33,7 +33,7 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
   DCHECK_EQ(memory_pool_.GetAllocated(), 0);
-  SbMemoryFreeAligned(memory_block_);
+  SbMemoryDeallocateAligned(memory_block_);
 }
 
 void* DecoderBufferAllocator::Allocate(Type type, size_t size,
