@@ -60,6 +60,7 @@ class WebMVideoClient : public WebMParserClient {
   int64_t display_height_;
   int64_t display_unit_;
   int64_t alpha_mode_;
+  bool inside_projection_list_;
 
   WebMColourParser colour_parser_;
   bool colour_parsed_;
