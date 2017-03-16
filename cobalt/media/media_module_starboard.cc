@@ -15,10 +15,9 @@
 #include "cobalt/media/media_module.h"
 
 #include "base/compiler_specific.h"
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/shell_media_platform_starboard.h"
-#include "cobalt/system_window/starboard/system_window.h"
+#include "cobalt/system_window/system_window.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
@@ -43,9 +42,6 @@ typedef ::media::MessageLoopFactory MessageLoopFactory;
 typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 typedef ::media::ShellMediaPlatformStarboard ShellMediaPlatformStarboard;
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
-
-using ::base::polymorphic_downcast;
-using system_window::SystemWindowStarboard;
 
 class MediaModuleStarboard : public MediaModule {
  public:
@@ -78,8 +74,7 @@ class MediaModuleStarboard : public MediaModule {
 #if defined(COBALT_MEDIA_SOURCE_2016)
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
-      window = polymorphic_downcast<SystemWindowStarboard*>(system_window_)
-                   ->GetSbWindow();
+      window = system_window_->GetSbWindow();
     }
     return make_scoped_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
         window, client, this, &decoder_buffer_allocator_,
@@ -91,8 +86,7 @@ class MediaModuleStarboard : public MediaModule {
 
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
-      window = polymorphic_downcast<SystemWindowStarboard*>(system_window_)
-                   ->GetSbWindow();
+      window = system_window_->GetSbWindow();
     }
     return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
         window, client, this, media_platform_.GetVideoFrameProvider(),
