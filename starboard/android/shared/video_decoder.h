@@ -117,6 +117,7 @@ class VideoDecoder
   struct OutputBufferHandle {
     jint index;
     SbTime pts_microseconds;
+    jint flags;
   };
 
   static void* ThreadEntryPoint(void* context);
