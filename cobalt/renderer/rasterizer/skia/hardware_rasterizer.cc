@@ -260,28 +260,26 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
 void HardwareRasterizer::Impl::RenderTextureEquirectangularEGL(
     const render_tree::ImageNode* image_node,
     RenderTreeNodeVisitorDrawState* draw_state) {
+  if (!image_node->data().source) {
+    return;
+  }
+
   HardwareFrontendImage* image =
       base::polymorphic_downcast<HardwareFrontendImage*>(
           image_node->data().source.get());
 
   const backend::TextureEGL* texture = image->GetTextureEGL();
 
-  SkIRect canvas_boundsi;
-  draw_state->render_target->getClipDeviceBounds(&canvas_boundsi);
-  const math::Rect& destination_rect =
-      math::Rect(canvas_boundsi.x(), canvas_boundsi.y(), canvas_boundsi.width(),
-                 canvas_boundsi.height());
+  SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
 
   // Flush the Skia draw state to ensure that all previously issued Skia calls
   // are rendered so that the following draw command will appear in the correct
   // order.
   draw_state->render_target->flush();
 
-  // We setup our viewport to fill the entire destination rectangle.
-  GL_CALL(glViewport(destination_rect.x(), destination_rect.y(),
-                     destination_rect.width(), destination_rect.height()));
-  GL_CALL(glScissor(destination_rect.x(), destination_rect.y(),
-                    destination_rect.width(), destination_rect.height()));
+  // We setup our viewport to fill the entire canvas.
+  GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
+  GL_CALL(glScissor(0, 0, canvas_size.width(), canvas_size.height()));
 
   if (image->IsOpaque()) {
     GL_CALL(glDisable(GL_BLEND));
@@ -303,10 +301,11 @@ void HardwareRasterizer::Impl::RenderTextureEquirectangularEGL(
   }
 
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderVBO(
-      equirectangular_vbo_->GetHandle(), equirectangular_mesh_->vertices().size(),
-      equirectangular_mesh_->draw_mode(), texture, content_region,
-      draw_state->transform_3d);
+  textured_mesh_renderer_->RenderVBO(equirectangular_vbo_->GetHandle(),
+                                     equirectangular_mesh_->vertices().size(),
+                                     equirectangular_mesh_->draw_mode(),
+                                     texture, content_region,
+                                     draw_state->transform_3d);
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();
