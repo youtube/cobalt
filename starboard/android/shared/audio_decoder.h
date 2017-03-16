@@ -26,6 +26,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 namespace android {
@@ -34,11 +35,14 @@ namespace shared {
 class AudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder {
  public:
+  typedef ::starboard::shared::starboard::player::Closure Closure;
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
 
   AudioDecoder(SbMediaAudioCodec audio_codec,
-               const SbMediaAudioHeader& audio_header);
+               const SbMediaAudioHeader& audio_header,
+               JobQueue* job_queue);
   ~AudioDecoder() SB_OVERRIDE;
 
   void Decode(const InputBuffer& input_buffer) SB_OVERRIDE;
@@ -52,26 +56,45 @@ class AudioDecoder
   int GetSamplesPerSecond() const SB_OVERRIDE {
     return audio_header_.samples_per_second;
   }
+
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
  private:
+  struct Event {
+    enum Type {
+      kWriteCodecConfig,
+      kWriteInputBuffer,
+      kWriteEndOfStream,
+    };
+
+    explicit Event(Type type) : type(type) {
+      SB_DCHECK(type != kWriteInputBuffer);
+    }
+    explicit Event(const InputBuffer& input_buffer)
+        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
+
+    Type type;
+    InputBuffer input_buffer;
+  };
+
   bool InitializeCodec();
   void TeardownCodec();
 
-  bool ProcessOneInputBuffer(const InputBuffer& input_buffer);
-  bool ProcessOneInputRawData(const void* data,
-                              int size,
-                              SbMediaTime pts,
-                              jint flags);
+  bool ProcessOneInputBuffer();
   bool ProcessOneOutputBuffer();
+  void Update();
 
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
   SbMediaAudioSampleType sample_type_;
 
   bool stream_ended_;
+  std::queue<Event> pending_work_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   SbMediaAudioHeader audio_header_;
+
+  JobQueue* job_queue_;
+  Closure update_closure_;
 };
 
 }  // namespace shared
