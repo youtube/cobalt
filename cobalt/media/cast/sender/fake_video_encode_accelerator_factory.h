@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
 #define COBALT_MEDIA_CAST_SENDER_FAKE_VIDEO_ENCODE_ACCELERATOR_FACTORY_H_
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/callback.h"
@@ -16,6 +14,7 @@
 #include "base/single_thread_task_runner.h"
 #include "media/cast/cast_config.h"
 #include "media/video/fake_video_encode_accelerator.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

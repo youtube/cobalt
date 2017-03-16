@@ -5,9 +5,8 @@
 #ifndef COBALT_MEDIA_FILTERS_JPEG_PARSER_H_
 #define COBALT_MEDIA_FILTERS_JPEG_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

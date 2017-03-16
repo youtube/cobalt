@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_INFO_PARSER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_INFO_PARSER_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
@@ -14,6 +12,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

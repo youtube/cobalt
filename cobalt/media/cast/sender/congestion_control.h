@@ -5,15 +5,13 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_CONGESTION_CONTROL_H_
 #define COBALT_MEDIA_CAST_SENDER_CONGESTION_CONTROL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "media/cast/common/frame_id.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

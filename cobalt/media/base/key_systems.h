@@ -5,13 +5,12 @@
 #ifndef COBALT_MEDIA_BASE_KEY_SYSTEMS_H_
 #define COBALT_MEDIA_BASE_KEY_SYSTEMS_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
 #define COBALT_MEDIA_FORMATS_MP4_MP4_STREAM_PARSER_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <set>
 #include <vector>
@@ -20,6 +18,7 @@
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/formats/common/offset_byte_queue.h"
 #include "cobalt/media/formats/mp4/track_run_iterator.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

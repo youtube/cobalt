@@ -5,6 +5,7 @@
 #include "cobalt/media/filters/h264_bitstream_buffer.h"
 
 #include "base/sys_byteorder.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -12,12 +13,12 @@ namespace media {
 H264BitstreamBuffer::H264BitstreamBuffer() : data_(NULL) { Reset(); }
 
 H264BitstreamBuffer::~H264BitstreamBuffer() {
-  free(data_);
+  SbMemoryDeallocate(data_);
   data_ = NULL;
 }
 
 void H264BitstreamBuffer::Reset() {
-  free(data_);
+  SbMemoryDeallocate(data_);
   data_ = NULL;
 
   capacity_ = 0;
@@ -30,7 +31,8 @@ void H264BitstreamBuffer::Reset() {
 }
 
 void H264BitstreamBuffer::Grow() {
-  data_ = static_cast<uint8_t*>(realloc(data_, capacity_ + kGrowBytes));
+  data_ =
+      static_cast<uint8_t*>(SbMemoryReallocate(data_, capacity_ + kGrowBytes));
   CHECK(data_) << "Failed growing the buffer";
   capacity_ += kGrowBytes;
 }
@@ -50,7 +52,7 @@ void H264BitstreamBuffer::FlushReg() {
   // Make sure we have enough space. Grow() will CHECK() on allocation failure.
   if (pos_ + bytes_in_reg < capacity_) Grow();
 
-  memcpy(data_ + pos_, &reg_, bytes_in_reg);
+  SbMemoryCopy(data_ + pos_, &reg_, bytes_in_reg);
   pos_ += bytes_in_reg;
 
   reg_ = 0;

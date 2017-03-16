@@ -4,10 +4,9 @@
 
 #include "cobalt/media/base/decrypt_config.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

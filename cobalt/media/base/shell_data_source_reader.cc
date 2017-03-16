@@ -14,7 +14,7 @@
 
 #include "cobalt/media/base/shell_data_source_reader.h"
 
-#include <limits.h>  // for ULLONG_MAX
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

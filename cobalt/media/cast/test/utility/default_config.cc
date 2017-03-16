@@ -4,12 +4,11 @@
 
 #include "media/cast/test/utility/default_config.h"
 
-#include <stddef.h>
-
 #include "base/bind.h"
 #include "media/cast/cast_config.h"
 #include "media/cast/constants.h"
 #include "media/cast/net/cast_transport_config.h"
+#include "starboard/types.h"
 
 namespace {
 

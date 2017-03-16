@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/message_loop.h"
@@ -12,6 +10,8 @@
 #include "cobalt/media/base/fake_audio_render_callback.h"
 #include "cobalt/media/base/mock_audio_renderer_sink.h"
 #include "cobalt/media/blink/webaudiosourceprovider_impl.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/WebKit/public/platform/WebAudioSourceProviderClient.h"
@@ -77,8 +77,8 @@ class WebAudioSourceProviderImplTest
     EXPECT_EQ(bus1->channels(), bus2->channels());
     EXPECT_EQ(bus1->frames(), bus2->frames());
     for (int ch = 0; ch < bus1->channels(); ++ch) {
-      if (memcmp(bus1->channel(ch), bus2->channel(ch),
-                 sizeof(*bus1->channel(ch)) * bus1->frames()) != 0) {
+      if (SbMemoryCompare(bus1->channel(ch), bus2->channel(ch),
+                          sizeof(*bus1->channel(ch)) * bus1->frames()) != 0) {
         return false;
       }
     }

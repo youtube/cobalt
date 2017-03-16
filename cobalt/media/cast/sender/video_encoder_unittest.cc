@@ -4,8 +4,6 @@
 
 #include "media/cast/sender/video_encoder.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -22,6 +20,7 @@
 #include "media/cast/sender/video_frame_factory.h"
 #include "media/cast/test/utility/default_config.h"
 #include "media/cast/test/utility/video_utility.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_MACOSX)

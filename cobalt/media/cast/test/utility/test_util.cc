@@ -8,6 +8,7 @@
 
 #include "base/strings/stringprintf.h"
 #include "media/cast/test/utility/test_util.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -5,14 +5,13 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_AUDIO_CLIENT_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_AUDIO_CLIENT_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

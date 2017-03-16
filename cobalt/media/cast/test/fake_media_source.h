@@ -10,8 +10,6 @@
 #ifndef COBALT_MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_
 #define COBALT_MEDIA_CAST_TEST_FAKE_MEDIA_SOURCE_H_
 
-#include <stdint.h>
-
 #include <queue>
 
 #include "base/files/file_path.h"
@@ -26,6 +24,7 @@
 #include "media/cast/cast_config.h"
 #include "media/filters/audio_renderer_algorithm.h"
 #include "media/filters/ffmpeg_demuxer.h"
+#include "starboard/types.h"
 
 struct AVCodecContext;
 struct AVFormatContext;

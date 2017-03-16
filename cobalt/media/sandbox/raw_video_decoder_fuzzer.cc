@@ -26,6 +26,7 @@
 #include "cobalt/media/sandbox/media_source_demuxer.h"
 #include "cobalt/media/sandbox/zzuf_fuzzer.h"
 #include "media/base/bind_to_loop.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -65,8 +66,8 @@ class VideoDecoderFuzzer {
       current_au_buffer_ =
           ::media::ShellBufferFactory::Instance()->AllocateBufferNow(
               desc.size, desc.is_keyframe);
-      memcpy(current_au_buffer_->GetWritableData(), &au_data_[0] + desc.offset,
-             desc.size);
+      SbMemoryCopy(current_au_buffer_->GetWritableData(),
+                   &au_data_[0] + desc.offset, desc.size);
       ++au_index_;
     } else if (!current_au_buffer_->IsEndOfStream()) {
       current_au_buffer_ =

@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 #define COBALT_MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <deque>
 
 #include "base/basictypes.h"
@@ -16,6 +13,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

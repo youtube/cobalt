@@ -4,8 +4,6 @@
 
 #include "cobalt/media/blink/websourcebuffer_impl.h"
 
-#include <stdint.h>
-
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -17,6 +15,7 @@
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayer.h"
 #include "third_party/WebKit/public/platform/WebSourceBufferClient.h"
 

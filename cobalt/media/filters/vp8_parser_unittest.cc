@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "cobalt/media/base/test_data_util.h"
 #include "cobalt/media/filters/ivf_parser.h"
 #include "cobalt/media/filters/vp8_parser.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

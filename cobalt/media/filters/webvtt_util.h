@@ -5,9 +5,9 @@
 #ifndef COBALT_MEDIA_FILTERS_WEBVTT_UTIL_H_
 #define COBALT_MEDIA_FILTERS_WEBVTT_UTIL_H_
 
-#include <stdint.h>
-
 #include <vector>
+
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

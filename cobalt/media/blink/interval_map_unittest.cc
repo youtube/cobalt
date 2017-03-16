@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/stringprintf.h"
 #include "cobalt/media/base/test_random.h"
 #include "cobalt/media/blink/interval_map.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

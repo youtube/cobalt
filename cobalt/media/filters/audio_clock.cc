@@ -4,13 +4,11 @@
 
 #include "cobalt/media/filters/audio_clock.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <cmath>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

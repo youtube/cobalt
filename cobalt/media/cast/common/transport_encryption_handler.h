@@ -7,8 +7,6 @@
 
 // Helper class to handle encryption for the Cast Transport library.
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -16,6 +14,7 @@
 #include "base/strings/string_piece.h"
 #include "base/threading/non_thread_safe.h"
 #include "media/cast/common/frame_id.h"
+#include "starboard/types.h"
 
 namespace crypto {
 class Encryptor;

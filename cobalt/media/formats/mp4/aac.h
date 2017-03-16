@@ -5,14 +5,13 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_AAC_H_
 #define COBALT_MEDIA_FORMATS_MP4_AAC_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "build/build_config.h"
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

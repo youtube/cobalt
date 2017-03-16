@@ -5,11 +5,10 @@
 #ifndef COBALT_MEDIA_CAST_TEST_UTILITY_BARCODE_H_
 #define COBALT_MEDIA_CAST_TEST_UTILITY_BARCODE_H_
 
-#include <stddef.h>
-
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

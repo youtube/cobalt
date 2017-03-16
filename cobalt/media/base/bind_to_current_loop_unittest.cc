@@ -11,6 +11,7 @@
 #include "base/message_loop.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -117,7 +118,7 @@ TEST_F(BindToCurrentLoopTest, PassedScopedArrayBool) {
 TEST_F(BindToCurrentLoopTest, BoundScopedPtrFreeDeleterBool) {
   bool bool_val = false;
   std::unique_ptr<bool, base::FreeDeleter> scoped_ptr_free_deleter_bool(
-      static_cast<bool*>(malloc(sizeof(bool))));
+      static_cast<bool*>(SbMemoryAllocate(sizeof(bool))));
   *scoped_ptr_free_deleter_bool = true;
   base::Closure cb = BindToCurrentLoop(
       base::Bind(&BoundBoolSetFromScopedPtrFreeDeleter, &bool_val,
@@ -131,7 +132,7 @@ TEST_F(BindToCurrentLoopTest, BoundScopedPtrFreeDeleterBool) {
 TEST_F(BindToCurrentLoopTest, PassedScopedPtrFreeDeleterBool) {
   bool bool_val = false;
   std::unique_ptr<bool, base::FreeDeleter> scoped_ptr_free_deleter_bool(
-      static_cast<bool*>(malloc(sizeof(bool))));
+      static_cast<bool*>(SbMemoryAllocate(sizeof(bool))));
   *scoped_ptr_free_deleter_bool = true;
   base::Callback<void(std::unique_ptr<bool, base::FreeDeleter>)> cb =
       BindToCurrentLoop(

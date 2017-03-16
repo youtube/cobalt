@@ -4,11 +4,10 @@
 
 #include "cobalt/media/base/audio_block_fifo.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

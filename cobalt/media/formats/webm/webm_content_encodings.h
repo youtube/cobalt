@@ -5,12 +5,11 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_CONTENT_ENCODINGS_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
