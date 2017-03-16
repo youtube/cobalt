@@ -77,21 +77,16 @@ DequeueInputResult MediaCodecBridge::DequeueInputBuffer(jlong timeout_us) {
   ScopedLocalJavaRef j_dequeue_input_result(env->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "dequeueInputBuffer",
       "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueInputResult;", timeout_us));
-  DequeueInputResult result;
-  result.status =
-      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "status", "()I");
-  result.index =
-      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "index", "()I");
-
-  return result;
+  return {
+      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "status", "()I"),
+      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "index", "()I")};
 }
 
 jobject MediaCodecBridge::GetInputBuffer(jint index) {
   SB_DCHECK(index >= 0);
-  jobject result = JniEnvExt::Get()->CallObjectMethodOrAbort(
+  return JniEnvExt::Get()->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "getInputBuffer", "(I)Ljava/nio/ByteBuffer;",
       index);
-  return result;
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -99,10 +94,9 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jint size,
                                         jlong presentation_time_microseconds,
                                         jint flags) {
-  jint result = JniEnvExt::Get()->CallIntMethodOrAbort(
+  return JniEnvExt::Get()->CallIntMethodOrAbort(
       j_media_codec_bridge_, "queueInputBuffer", "(IIIJI)I", index, offset,
       size, presentation_time_microseconds, flags);
-  return result;
 }
 
 DequeueOutputResult MediaCodecBridge::DequeueOutputBuffer(jlong timeout_us) {
@@ -111,24 +105,21 @@ DequeueOutputResult MediaCodecBridge::DequeueOutputBuffer(jlong timeout_us) {
       j_media_codec_bridge_, "dequeueOutputBuffer",
       "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueOutputResult;",
       timeout_us));
-  DequeueOutputResult result;
   jobject obj = j_dequeue_output_result.Get();
-  result.status = env->CallIntMethodOrAbort(obj, "status", "()I");
-  result.index = env->CallIntMethodOrAbort(obj, "index", "()I");
-  result.flags = env->CallIntMethodOrAbort(obj, "flags", "()I");
-  result.offset = env->CallIntMethodOrAbort(obj, "offset", "()I");
-  result.presentation_time_microseconds =
+  return {
+      env->CallIntMethodOrAbort(obj, "status", "()I"),
+      env->CallIntMethodOrAbort(obj, "index", "()I"),
+      env->CallIntMethodOrAbort(obj, "flags", "()I"),
+      env->CallIntMethodOrAbort(obj, "offset", "()I"),
       env->CallLongMethodOrAbort(obj, "presentationTimeMicroseconds", "()J"),
-  result.num_bytes = env->CallIntMethodOrAbort(obj, "numBytes", "()I");
-  return result;
+      env->CallIntMethodOrAbort(obj, "numBytes", "()I")};
 }
 
 jobject MediaCodecBridge::GetOutputBuffer(jint index) {
   SB_DCHECK(index >= 0);
-  jobject result = JniEnvExt::Get()->CallObjectMethodOrAbort(
+  return JniEnvExt::Get()->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "getOutputBuffer", "(I)Ljava/nio/ByteBuffer;",
       index);
-  return result;
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
@@ -137,9 +128,8 @@ void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
 }
 
 jint MediaCodecBridge::Flush() {
-  jint result = JniEnvExt::Get()->CallIntMethodOrAbort(j_media_codec_bridge_,
-                                                       "flush", "()I");
-  return result;
+  return JniEnvExt::Get()->CallIntMethodOrAbort(j_media_codec_bridge_, "flush",
+                                                "()I");
 }
 
 SurfaceDimensions MediaCodecBridge::GetOutputDimensions() {
@@ -147,12 +137,10 @@ SurfaceDimensions MediaCodecBridge::GetOutputDimensions() {
   ScopedLocalJavaRef j_get_output_format_result(env->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "getOutputFormat",
       "()Lfoo/cobalt/media/MediaCodecBridge$GetOutputFormatResult;"));
-  SurfaceDimensions result;
-  result.width = env->CallIntMethodOrAbort(j_get_output_format_result.Get(),
-                                           "width", "()I"),
-  result.height = env->CallIntMethodOrAbort(j_get_output_format_result.Get(),
-                                            "height", "()I");
-  return result;
+  return {env->CallIntMethodOrAbort(j_get_output_format_result.Get(), "width",
+                                    "()I"),
+          env->CallIntMethodOrAbort(j_get_output_format_result.Get(), "height",
+                                    "()I")};
 }
 
 MediaCodecBridge::MediaCodecBridge(jobject j_media_codec_bridge)
