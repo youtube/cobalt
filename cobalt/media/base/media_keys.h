@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_KEYS_H_
 #define COBALT_MEDIA_BASE_MEDIA_KEYS_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,6 +16,7 @@
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/media_export.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 
 namespace base {
 class Time;

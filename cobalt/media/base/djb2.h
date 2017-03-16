@@ -5,10 +5,8 @@
 #ifndef COBALT_MEDIA_BASE_DJB2_H_
 #define COBALT_MEDIA_BASE_DJB2_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 // DJB2 is a hash algorithm with excellent distribution and speed
 // on many different sets.

@@ -9,6 +9,8 @@
 
 #include <string>
 
+#include "starboard/types.h"
+
 namespace cobalt {
 namespace media {
 namespace cast {

@@ -5,14 +5,13 @@
 #ifndef COBALT_MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_
 #define COBALT_MEDIA_BLINK_WEBSOURCEBUFFER_IMPL_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/time.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebSourceBuffer.h"
 
 namespace cobalt {

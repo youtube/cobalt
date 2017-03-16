@@ -4,8 +4,6 @@
 
 #include "media/cast/sender/fake_software_video_encoder.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/json/json_writer.h"
@@ -13,6 +11,7 @@
 #include "media/base/video_frame.h"
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/constants.h"
+#include "starboard/types.h"
 
 #ifndef OFFICIAL_BUILD
 

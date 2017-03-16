@@ -4,9 +4,6 @@
 
 #include "cobalt/media/formats/mp4/mp4_stream_parser.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -29,6 +26,7 @@
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/fourccs.h"
 #include "cobalt/media/media_features.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

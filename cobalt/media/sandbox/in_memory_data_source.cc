@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/media/sandbox/in_memory_data_source.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -43,7 +44,7 @@ void InMemoryDataSource::Read(int64 position, int size, uint8* data,
     return;
   }
 
-  memcpy(data, &content_[0] + position, size);
+  SbMemoryCopy(data, &content_[0] + position, size);
   read_cb.Run(size);
 }
 

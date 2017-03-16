@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <map>
 #include <sstream>
@@ -12,6 +9,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

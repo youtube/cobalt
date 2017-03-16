@@ -4,9 +4,6 @@
 
 #include "cobalt/media/filters/source_buffer_stream.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -26,6 +23,7 @@
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/filters/webvtt_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::HasSubstr;

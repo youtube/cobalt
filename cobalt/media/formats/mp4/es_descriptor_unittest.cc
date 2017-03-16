@@ -4,8 +4,7 @@
 
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 
-#include <stdint.h>
-
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

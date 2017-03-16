@@ -4,8 +4,6 @@
 
 #include "cobalt/media/blink/webmediaplayer_impl.h"
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/bind.h"
@@ -26,6 +24,7 @@
 #include "cobalt/media/blink/webmediaplayer_params.h"
 #include "cobalt/media/renderers/default_renderer_factory.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerClient.h"

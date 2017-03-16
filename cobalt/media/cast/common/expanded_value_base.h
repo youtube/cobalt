@@ -5,11 +5,10 @@
 #ifndef COBALT_MEDIA_CAST_COMMON_EXPANDED_VALUE_BASE_H_
 #define COBALT_MEDIA_CAST_COMMON_EXPANDED_VALUE_BASE_H_
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

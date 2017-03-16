@@ -4,9 +4,6 @@
 
 #include "media/cast/sender/audio_encoder.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <sstream>
 #include <string>
@@ -22,6 +19,7 @@
 #include "media/cast/cast_environment.h"
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/test/utility/audio_utility.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

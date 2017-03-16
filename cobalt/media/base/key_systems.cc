@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/key_systems.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
@@ -20,6 +18,7 @@
 #include "cobalt/media/base/key_system_properties.h"
 #include "cobalt/media/base/media.h"
 #include "cobalt/media/base/media_client.h"
+#include "starboard/types.h"
 #include "third_party/widevine/cdm/widevine_cdm_common.h"
 
 namespace cobalt {

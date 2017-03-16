@@ -5,12 +5,11 @@
 #ifndef COBALT_MEDIA_FILTERS_BLOCKING_URL_PROTOCOL_H_
 #define COBALT_MEDIA_FILTERS_BLOCKING_URL_PROTOCOL_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/filters/ffmpeg_glue.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

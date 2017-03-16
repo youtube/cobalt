@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_RECEIVER_CAST_RECEIVER_IMPL_H_
 #define COBALT_MEDIA_CAST_RECEIVER_CAST_RECEIVER_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/macros.h"
@@ -16,6 +14,7 @@
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/net/pacing/paced_sender.h"
 #include "media/cast/receiver/frame_receiver.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

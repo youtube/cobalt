@@ -4,9 +4,6 @@
 
 #include "cobalt/media/blink/cache_util.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
@@ -15,6 +12,7 @@
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 #include "third_party/WebKit/public/platform/WebURLResponse.h"

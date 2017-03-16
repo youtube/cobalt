@@ -10,8 +10,6 @@
 #ifndef COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 #define COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 
-#include <stddef.h>
-
 #include <deque>
 #include <list>
 #include <string>
@@ -27,6 +25,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

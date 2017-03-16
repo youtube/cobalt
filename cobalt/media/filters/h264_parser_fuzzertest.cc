@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include "base/numerics/safe_conversions.h"
 #include "base/optional.h"
 #include "cobalt/media/filters/h264_parser.h"
+#include "starboard/types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 

@@ -4,8 +4,6 @@
 
 #include "media/cast/receiver/audio_decoder.h"
 
-#include <stdint.h>
-
 #include <utility>
 
 #include "base/bind.h"
@@ -16,6 +14,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "third_party/opus/src/include/opus.h"
 
 namespace cobalt {
