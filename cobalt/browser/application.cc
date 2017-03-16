@@ -716,8 +716,8 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
     }
   }
 
-  system_window_ =
-      system_window::CreateSystemWindow(&event_dispatcher_, viewport_size);
+  system_window_.reset(
+      new system_window::SystemWindow(&event_dispatcher_, viewport_size));
 
   math::Size window_size = system_window_->GetWindowSize();
   if (viewport_size) {
