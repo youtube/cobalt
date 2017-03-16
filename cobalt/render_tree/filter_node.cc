@@ -56,6 +56,15 @@ FilterNode::FilterNode(const MapToMeshFilter& map_to_mesh_filter,
 void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 math::RectF FilterNode::Builder::GetBounds() const {
+  if (map_to_mesh_filter) {
+    // This hack is introduced because the MapToMeshFilter, which generates a
+    // 3D object, does not fit well into the render_tree's existing 2D bounds
+    // framework.  The 3D object will be rendered into the viewport, so it is
+    // essentially always on the screen.  So, that is hereby indicated by
+    // assigning it a radically large bounding rectangle.
+    return math::RectF(-10000.0f, -10000.0f, 20000.0f, 20000.0f);
+  }
+
   math::RectF source_bounds = source->GetBounds();
   math::RectF destination_bounds;
 
