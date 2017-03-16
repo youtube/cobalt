@@ -26,7 +26,6 @@
 #include "base/string_split.h"
 #include "base/time.h"
 #include "build/build_config.h"
-#include "cobalt/account/account_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/init_cobalt.h"
@@ -445,7 +444,7 @@ Application::Application(const base::Closure& quit_closure)
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-  account_manager_ = account::AccountManager::Create(&event_dispatcher_);
+  account_manager_.reset(new account::AccountManager());
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
                                           account_manager_.get(), options));
   UpdateAndMaybeRegisterUserAgent();
@@ -453,10 +452,6 @@ Application::Application(const base::Closure& quit_closure)
   app_status_ = kRunningAppStatus;
 
   // Register event callbacks.
-  account_event_callback_ =
-      base::Bind(&Application::OnAccountEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(account::AccountEvent::TypeId(),
-                                     account_event_callback_);
   network_event_callback_ =
       base::Bind(&Application::OnNetworkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(network::NetworkEvent::TypeId(),
@@ -518,8 +513,6 @@ Application::~Application() {
   memory_tracker_tool_.reset(NULL);
 
   // Unregister event callbacks.
-  event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
-                                        account_event_callback_);
   event_dispatcher_.RemoveEventCallback(network::NetworkEvent::TypeId(),
                                         network_event_callback_);
   event_dispatcher_.RemoveEventCallback(
@@ -543,21 +536,6 @@ void Application::Quit() {
   }
 
   app_status_ = kQuitAppStatus;
-}
-
-void Application::OnAccountEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnAccountEvent()");
-  const account::AccountEvent* account_event =
-      base::polymorphic_downcast<const account::AccountEvent*>(event);
-  if (account_event->type() == account::AccountEvent::kSignedIn) {
-    DLOG(INFO) << "Got signed in event, checking for age restriction.";
-    if (account_manager_->IsAgeRestricted()) {
-      browser_module_->Navigate(GURL("h5vcc://age-restricted"));
-    }
-  } else if (account_event->type() == account::AccountEvent::kSignedOut) {
-    DLOG(INFO) << "Got signed out event.";
-    browser_module_->Navigate(GURL("h5vcc://signed-out"));
-  }
 }
 
 void Application::OnNetworkEvent(const base::Event* event) {
