@@ -21,9 +21,8 @@ using starboard::android::shared::JniEnvExt;
 void SbSpeechSynthesisSpeak(const char* text) {
   JniEnvExt* env = JniEnvExt::Get();
 
-  jstring textString = env->NewStringUTF(text);
+  jstring textString = env->NewStringUTFOrAbort(text);
 
-  env->CallActivityVoidMethod("speechSynthesisSpeak", "(Ljava/lang/String;)V",
-                              textString);
-  env->AbortOnException();
+  env->CallActivityVoidMethodOrAbort("speechSynthesisSpeak",
+                                     "(Ljava/lang/String;)V", textString);
 }
