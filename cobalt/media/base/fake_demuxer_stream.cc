@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/fake_demuxer_stream.h"
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -23,6 +21,7 @@
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/video_frame.h"
+#include "starboard/types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 

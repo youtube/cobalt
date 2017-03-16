@@ -10,12 +10,10 @@
 #ifndef COBALT_MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_
 #define COBALT_MEDIA_FILTERS_H264_BITSTREAM_BUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/gtest_prod_util.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/filters/h264_parser.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

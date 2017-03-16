@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -118,7 +119,7 @@ static void WriteStringElement(uint8_t** buf_ptr, int* buf_size_ptr,
   const uint64_t size = value.length();
   WriteUInt(&buf, &buf_size, size);
 
-  memcpy(buf, value.data(), size);
+  SbMemoryCopy(buf, value.data(), size);
   buf += size;
   buf_size -= size;
 }

@@ -4,8 +4,6 @@
 
 #include "cobalt/media/blink/resource_multibuffer_data_provider.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <utility>
 
@@ -24,6 +22,8 @@
 #include "cobalt/media/blink/url_index.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_request_headers.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebURLError.h"
 #include "third_party/WebKit/public/platform/WebURLResponse.h"
 
@@ -371,7 +371,8 @@ void ResourceMultiBufferDataProvider::didReceiveData(WebURLLoader* loader,
     int last_block_size = fifo_.back()->data_size();
     int to_append = std::min<int>(data_length, block_size() - last_block_size);
     DCHECK_GT(to_append, 0);
-    memcpy(fifo_.back()->writable_data() + last_block_size, data, to_append);
+    SbMemoryCopy(fifo_.back()->writable_data() + last_block_size, data,
+                 to_append);
     data += to_append;
     fifo_.back()->set_data_size(last_block_size + to_append);
     data_length -= to_append;

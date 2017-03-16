@@ -5,9 +5,8 @@
 #ifndef COBALT_MEDIA_BASE_TEST_RANDOM_H_
 #define COBALT_MEDIA_BASE_TEST_RANDOM_H_
 
-#include <stdint.h>
-
 #include "base/logging.h"
+#include "starboard/types.h"
 
 // Vastly simplified ACM random class meant to only be used for testing.
 // This class is meant to generate predictable sequences of pseudorandom

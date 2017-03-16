@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_STREAM_PARSER_H_
 #define COBALT_MEDIA_BASE_STREAM_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <deque>
 #include <map>
 #include <string>
@@ -21,6 +18,7 @@
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

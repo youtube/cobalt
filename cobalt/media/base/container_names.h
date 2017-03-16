@@ -5,9 +5,8 @@
 #ifndef COBALT_MEDIA_BASE_CONTAINER_NAMES_H_
 #define COBALT_MEDIA_BASE_CONTAINER_NAMES_H_
 
-#include <stdint.h>
-
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include <memory>
 #include <vector>
 
@@ -15,6 +13,7 @@
 #include "base/single_thread_task_runner.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/serial_runner.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

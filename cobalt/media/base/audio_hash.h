@@ -5,14 +5,12 @@
 #ifndef COBALT_MEDIA_BASE_AUDIO_HASH_H_
 #define COBALT_MEDIA_BASE_AUDIO_HASH_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

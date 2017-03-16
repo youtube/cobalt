@@ -5,8 +5,6 @@
 // Test application that simulates a cast sender - Data can be either generated
 // or read from a file.
 
-#include <stdint.h>
-
 #include <memory>
 #include <queue>
 #include <utility>
@@ -42,6 +40,7 @@
 #include "media/cast/test/fake_media_source.h"
 #include "media/cast/test/utility/default_config.h"
 #include "media/cast/test/utility/input_builder.h"
+#include "starboard/types.h"
 
 namespace {
 

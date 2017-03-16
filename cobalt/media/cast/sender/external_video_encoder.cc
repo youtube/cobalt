@@ -36,6 +36,7 @@
 #include "media/cast/net/cast_transport_config.h"
 #include "media/cast/sender/vp8_quantizer_parser.h"
 #include "media/filters/h264_parser.h"
+#include "starboard/memory.h"
 
 namespace {
 
@@ -754,7 +755,7 @@ double QuantizerEstimator::EstimateForKeyFrame(const VideoFrame& frame) {
   // neighboring pixels were different by a specific amount.  511 buckets are
   // needed, one for each integer in the range [-255,255].
   int histogram[511];
-  memset(histogram, 0, sizeof(histogram));
+  SbMemorySet(histogram, 0, sizeof(histogram));
   const int row_skip = size.height() / rows_in_subset;
   int y = 0;
   for (int i = 0; i < rows_in_subset; ++i, y += row_skip) {
@@ -772,8 +773,8 @@ double QuantizerEstimator::EstimateForKeyFrame(const VideoFrame& frame) {
 
     // Copy the row of pixels into the buffer.  This will be used when
     // generating histograms for future delta frames.
-    memcpy(last_frame_pixel_buffer_.get() + i * size.width(), row_begin,
-           size.width());
+    SbMemoryCopy(last_frame_pixel_buffer_.get() + i * size.width(), row_begin,
+                 size.width());
   }
 
   // Estimate a quantizer value depending on the difference data in the
@@ -799,7 +800,7 @@ double QuantizerEstimator::EstimateForDeltaFrame(const VideoFrame& frame) {
   // amount.  511 buckets are needed, one for each integer in the range
   // [-255,255].
   int histogram[511];
-  memset(histogram, 0, sizeof(histogram));
+  SbMemorySet(histogram, 0, sizeof(histogram));
   const int row_skip = size.height() / rows_in_subset;
   int y = 0;
   for (int i = 0; i < rows_in_subset; ++i, y += row_skip) {
@@ -817,7 +818,7 @@ double QuantizerEstimator::EstimateForDeltaFrame(const VideoFrame& frame) {
 
     // Copy the row of pixels into the buffer.  This will be used when
     // generating histograms for future delta frames.
-    memcpy(last_frame_row_begin, row_begin, size.width());
+    SbMemoryCopy(last_frame_row_begin, row_begin, size.width());
   }
 
   // Estimate a quantizer value depending on the difference data in the

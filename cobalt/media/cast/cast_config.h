@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_CAST_CONFIG_H_
 #define COBALT_MEDIA_CAST_CAST_CONFIG_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/callback.h"
@@ -16,6 +13,7 @@
 #include "base/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "media/cast/net/cast_transport_config.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

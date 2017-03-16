@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
 #define COBALT_MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -17,6 +15,7 @@
 #include "cobalt/media/base/encryption_scheme.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/sample_format.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

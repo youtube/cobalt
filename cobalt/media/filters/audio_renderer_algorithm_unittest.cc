@@ -10,9 +10,6 @@
 
 #include "cobalt/media/filters/audio_renderer_algorithm.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>  // For std::min().
 #include <cmath>
 #include <memory>
@@ -27,6 +24,8 @@
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/filters/wsola_internals.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -520,9 +519,9 @@ TEST_F(AudioRendererAlgorithmTest, FullAndDecimatedSearch) {
   std::unique_ptr<AudioBus> search_region =
       AudioBus::Create(kChannels, kFramesInSearchRegion);
   float* ch = search_region->channel(0);
-  memcpy(ch, ch_0, sizeof(float) * kFramesInSearchRegion);
+  SbMemoryCopy(ch, ch_0, sizeof(float) * kFramesInSearchRegion);
   ch = search_region->channel(1);
-  memcpy(ch, ch_1, sizeof(float) * kFramesInSearchRegion);
+  SbMemoryCopy(ch, ch_1, sizeof(float) * kFramesInSearchRegion);
 
   const int kFramePerBlock = 4;
   float target_0[] = {1.0f, 1.0f, 1.0f, 0.0f};
@@ -534,9 +533,9 @@ TEST_F(AudioRendererAlgorithmTest, FullAndDecimatedSearch) {
   std::unique_ptr<AudioBus> target =
       AudioBus::Create(kChannels, kFramePerBlock);
   ch = target->channel(0);
-  memcpy(ch, target_0, sizeof(float) * kFramePerBlock);
+  SbMemoryCopy(ch, target_0, sizeof(float) * kFramePerBlock);
   ch = target->channel(1);
-  memcpy(ch, target_1, sizeof(float) * kFramePerBlock);
+  SbMemoryCopy(ch, target_1, sizeof(float) * kFramePerBlock);
 
   std::unique_ptr<float[]> energy_target(new float[kChannels]);
 

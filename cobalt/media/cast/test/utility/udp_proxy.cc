@@ -22,6 +22,7 @@
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
 #include "net/udp/udp_server_socket.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

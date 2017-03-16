@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_
 #define COBALT_MEDIA_BLINK_MULTIBUFFER_DATA_SOURCE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +19,7 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "cobalt/media/blink/url_index.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;

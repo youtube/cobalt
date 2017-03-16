@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_
 #define COBALT_MEDIA_FILTERS_FAKE_VIDEO_DECODER_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <string>
 
@@ -22,6 +20,7 @@
 #include "cobalt/media/base/video_decoder.h"
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/base/video_frame.h"
+#include "starboard/types.h"
 #include "ui/gfx/size.h"
 
 using base::ResetAndReturn;

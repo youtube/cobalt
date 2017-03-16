@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_RANGES_H_
 #define COBALT_MEDIA_BASE_RANGES_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <ostream>
 #include <utility>
@@ -16,6 +13,7 @@
 #include "base/logging.h"
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

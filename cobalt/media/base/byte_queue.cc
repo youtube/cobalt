@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -43,18 +44,18 @@ void ByteQueue::Push(const uint8_t* data, int size) {
     scoped_array<uint8_t> new_buffer(new uint8_t[new_size]);
 
     // Copy the data from the old buffer to the start of the new one.
-    if (used_ > 0) memcpy(new_buffer.get(), front(), used_);
+    if (used_ > 0) SbMemoryCopy(new_buffer.get(), front(), used_);
 
     buffer_ = new_buffer.Pass();
     size_ = new_size;
     offset_ = 0;
   } else if ((offset_ + used_ + size) > size_) {
     // The buffer is big enough, but we need to move the data in the queue.
-    memmove(buffer_.get(), front(), used_);
+    SbMemoryMove(buffer_.get(), front(), used_);
     offset_ = 0;
   }
 
-  memcpy(front() + used_, data, size);
+  SbMemoryCopy(front() + used_, data, size);
   used_ += size;
 }
 

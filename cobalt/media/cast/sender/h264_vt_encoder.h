@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_H264_VT_ENCODER_H_
 #define COBALT_MEDIA_CAST_SENDER_H264_VT_ENCODER_H_
 
-#include <stdint.h>
-
 #include "base/mac/scoped_cftyperef.h"
 #include "base/macros.h"
 #include "base/power_monitor/power_observer.h"
@@ -15,6 +13,7 @@
 #include "media/base/mac/videotoolbox_helpers.h"
 #include "media/cast/sender/size_adaptable_video_encoder_base.h"
 #include "media/cast/sender/video_encoder.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

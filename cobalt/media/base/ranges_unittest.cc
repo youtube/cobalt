@@ -4,11 +4,10 @@
 
 #include "cobalt/media/base/ranges.h"
 
-#include <stddef.h>
-
 #include <sstream>
 
 #include "base/string_piece.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

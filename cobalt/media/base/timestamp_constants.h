@@ -5,11 +5,10 @@
 #ifndef COBALT_MEDIA_BASE_TIMESTAMP_CONSTANTS_H_
 #define COBALT_MEDIA_BASE_TIMESTAMP_CONSTANTS_H_
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/time.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

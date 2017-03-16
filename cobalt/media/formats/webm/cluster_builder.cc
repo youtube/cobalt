@@ -10,6 +10,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/data_buffer.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -91,7 +92,7 @@ void ClusterBuilder::AddSimpleBlock(int track_num, int64_t timecode, int flags,
 
   uint8_t* buf = buffer_.get() + bytes_used_;
   int block_offset = bytes_used_;
-  memcpy(buf, kSimpleBlockHeader, sizeof(kSimpleBlockHeader));
+  SbMemoryCopy(buf, kSimpleBlockHeader, sizeof(kSimpleBlockHeader));
   UpdateUInt64(block_offset + kSimpleBlockSizeOffset, block_size);
   buf += sizeof(kSimpleBlockHeader);
 
@@ -137,13 +138,13 @@ void ClusterBuilder::AddBlockGroupInternal(int track_num, int64_t timecode,
   uint8_t* buf = buffer_.get() + bytes_used_;
   int block_group_offset = bytes_used_;
   if (include_block_duration) {
-    memcpy(buf, kBlockGroupHeader, sizeof(kBlockGroupHeader));
+    SbMemoryCopy(buf, kBlockGroupHeader, sizeof(kBlockGroupHeader));
     UpdateUInt64(block_group_offset + kBlockGroupDurationOffset, duration);
     UpdateUInt64(block_group_offset + kBlockGroupBlockSizeOffset, block_size);
     buf += sizeof(kBlockGroupHeader);
   } else {
-    memcpy(buf, kBlockGroupHeaderWithoutBlockDuration,
-           sizeof(kBlockGroupHeaderWithoutBlockDuration));
+    SbMemoryCopy(buf, kBlockGroupHeaderWithoutBlockDuration,
+                 sizeof(kBlockGroupHeaderWithoutBlockDuration));
     UpdateUInt64(
         block_group_offset + kBlockGroupWithoutBlockDurationBlockSizeOffset,
         block_size);
@@ -160,7 +161,8 @@ void ClusterBuilder::AddBlockGroupInternal(int track_num, int64_t timecode,
   buf += size + 4;
 
   if (!is_key_frame) {
-    memcpy(buf, kBlockGroupReferenceBlock, sizeof(kBlockGroupReferenceBlock));
+    SbMemoryCopy(buf, kBlockGroupReferenceBlock,
+                 sizeof(kBlockGroupReferenceBlock));
   }
 
   bytes_used_ += bytes_needed;
@@ -184,7 +186,7 @@ void ClusterBuilder::WriteBlock(uint8_t* buf, int track_num, int64_t timecode,
   buf[1] = (timecode_delta >> 8) & 0xff;
   buf[2] = timecode_delta & 0xff;
   buf[3] = flags & 0xff;
-  memcpy(buf + 4, data, size);
+  SbMemoryCopy(buf + 4, data, size);
 }
 
 scoped_ptr<Cluster> ClusterBuilder::Finish() {
@@ -210,7 +212,7 @@ scoped_ptr<Cluster> ClusterBuilder::FinishWithUnknownSize() {
 void ClusterBuilder::Reset() {
   buffer_size_ = kInitialBufferSize;
   buffer_.reset(new uint8_t[buffer_size_]);
-  memcpy(buffer_.get(), kClusterHeader, sizeof(kClusterHeader));
+  SbMemoryCopy(buffer_.get(), kClusterHeader, sizeof(kClusterHeader));
   bytes_used_ = sizeof(kClusterHeader);
   cluster_timecode_ = -1;
 }
@@ -222,7 +224,7 @@ void ClusterBuilder::ExtendBuffer(int bytes_needed) {
 
   scoped_array<uint8_t> new_buffer(new uint8_t[new_buffer_size]);
 
-  memcpy(new_buffer.get(), buffer_.get(), bytes_used_);
+  SbMemoryCopy(new_buffer.get(), buffer_.get(), bytes_used_);
   buffer_ = new_buffer.Pass();
   buffer_size_ = new_buffer_size;
 }

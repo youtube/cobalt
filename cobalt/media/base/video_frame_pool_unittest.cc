@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <memory>
 
 #include "cobalt/media/base/video_frame_pool.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
@@ -88,8 +88,9 @@ TEST_F(VideoFramePoolTest, FrameValidAfterPoolDestruction) {
 
   // Write to the Y plane. The memory tools should detect a
   // use-after-free if the storage was actually removed by pool destruction.
-  memset(frame->data(VideoFrame::kYPlane), 0xff,
-         frame->rows(VideoFrame::kYPlane) * frame->stride(VideoFrame::kYPlane));
+  SbMemorySet(
+      frame->data(VideoFrame::kYPlane), 0xff,
+      frame->rows(VideoFrame::kYPlane) * frame->stride(VideoFrame::kYPlane));
 }
 
 }  // namespace media
