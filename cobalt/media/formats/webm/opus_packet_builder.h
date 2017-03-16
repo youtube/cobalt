@@ -5,13 +5,12 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_OPUS_PACKET_BUILDER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_OPUS_PACKET_BUILDER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_vector.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

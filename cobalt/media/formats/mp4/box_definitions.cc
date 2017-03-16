@@ -17,6 +17,7 @@
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/hevc.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -144,7 +145,7 @@ bool SampleEncryptionEntry::Parse(BufferReader* reader, uint8_t iv_size,
   // 64-bit (8-byte) or 128-bit (16-byte).
   RCHECK(iv_size == 8 || iv_size == 16);
 
-  memset(initialization_vector, 0, sizeof(initialization_vector));
+  SbMemorySet(initialization_vector, 0, sizeof(initialization_vector));
   for (uint8_t i = 0; i < iv_size; i++)
     RCHECK(reader->Read1(initialization_vector + i));
 

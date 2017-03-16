@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/numerics/safe_conversions.h"
 #include "cobalt/media/filters/ivf_parser.h"
 #include "cobalt/media/filters/vp9_parser.h"
+#include "starboard/types.h"
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

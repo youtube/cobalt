@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/audio_discard_helper.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "cobalt/media/base/audio_buffer.h"
@@ -13,6 +11,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

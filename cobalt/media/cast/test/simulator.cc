@@ -34,9 +34,6 @@
 // - Raw event log of the simulation session tagged with the unique test ID,
 //   written out to the specified file path.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <utility>
 
 #include "base/at_exit.h"
@@ -84,6 +81,7 @@
 #include "media/cast/test/utility/test_util.h"
 #include "media/cast/test/utility/udp_proxy.h"
 #include "media/cast/test/utility/video_utility.h"
+#include "starboard/types.h"
 
 using media::cast::proto::IPPModel;
 using media::cast::proto::NetworkSimulationModel;

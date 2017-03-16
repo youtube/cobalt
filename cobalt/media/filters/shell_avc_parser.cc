@@ -26,6 +26,7 @@
 #include "cobalt/media/filters/shell_au.h"
 #include "cobalt/media/filters/shell_rbsp_stream.h"
 #include "cobalt/media/formats/mp4/aac.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -60,7 +61,7 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
   }
   if (au->GetType() == DemuxerStream::VIDEO) {
     if (au->AddPrepend())
-      memcpy(prepend_buffer, video_prepend_, video_prepend_size_);
+      SbMemoryCopy(prepend_buffer, video_prepend_, video_prepend_size_);
   } else if (au->GetType() == DemuxerStream::AUDIO) {
 #if defined(COBALT_WIN)
     // We use raw AAC instead of ADTS on these platforms.
@@ -75,7 +76,7 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     if (buffer_size & 0xffffe000) {
       return false;
     }
-    memcpy(prepend_buffer, &audio_prepend_[0], audio_prepend_.size());
+    SbMemoryCopy(prepend_buffer, &audio_prepend_[0], audio_prepend_.size());
     // OR size into buffer, byte 3 gets 2 MSb of 13-bit size
     prepend_buffer[3] |= (uint8)((buffer_size & 0x00001800) >> 11);
     // byte 4 gets bits 10-3 of size
@@ -425,7 +426,7 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
   // start code for sps comes first
   endian_util::store_uint32_big_endian(kAnnexBStartCode, video_prepend_);
   // followed by sps body
-  memcpy(video_prepend_ + kAnnexBStartCodeSize, sps, sps_size);
+  SbMemoryCopy(video_prepend_ + kAnnexBStartCodeSize, sps, sps_size);
   int prepend_offset = kAnnexBStartCodeSize + sps_size;
   if (pps_size > 0) {
     // pps start code comes next
@@ -433,7 +434,7 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
                                          video_prepend_ + prepend_offset);
     prepend_offset += kAnnexBStartCodeSize;
     // followed by pps
-    memcpy(video_prepend_ + prepend_offset, pps, pps_size);
+    SbMemoryCopy(video_prepend_ + prepend_offset, pps, pps_size);
     prepend_offset += pps_size;
   }
 

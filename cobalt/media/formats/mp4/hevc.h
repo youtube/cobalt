@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_HEVC_H_
 #define COBALT_MEDIA_FORMATS_MP4_HEVC_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
@@ -15,6 +12,7 @@
 #include "cobalt/media/base/video_codecs.h"
 #include "cobalt/media/formats/mp4/bitstream_converter.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

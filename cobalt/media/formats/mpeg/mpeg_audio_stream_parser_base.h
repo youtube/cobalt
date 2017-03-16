@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_
 #define COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_
 
-#include <stdint.h>
-
 #include <set>
 #include <vector>
 
@@ -20,6 +18,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

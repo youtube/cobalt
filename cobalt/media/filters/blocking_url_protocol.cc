@@ -4,12 +4,11 @@
 
 #include "cobalt/media/filters/blocking_url_protocol.h"
 
-#include <stddef.h>
-
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "cobalt/media/base/data_source.h"
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

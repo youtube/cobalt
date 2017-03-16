@@ -9,6 +9,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "cobalt/media/base/yuv_convert.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -68,12 +69,12 @@ void RotatePlaneByPixels(const uint8_t* src, uint8_t* dest, int width,
         // Fast copy by rows.
         dest += width * (height - 1);
         for (int row = 0; row < height; ++row) {
-          memcpy(dest, src, width);
+          SbMemoryCopy(dest, src, width);
           src += width;
           dest -= width;
         }
       } else {
-        memcpy(dest, src, width * height);
+        SbMemoryCopy(dest, src, width * height);
       }
       return;
     }

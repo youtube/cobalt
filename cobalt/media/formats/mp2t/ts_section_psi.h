@@ -5,12 +5,11 @@
 #ifndef COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PSI_H_
 #define COBALT_MEDIA_FORMATS_MP2T_TS_SECTION_PSI_H_
 
-#include <stdint.h>
-
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "media/base/byte_queue.h"
 #include "media/formats/mp2t/ts_section.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

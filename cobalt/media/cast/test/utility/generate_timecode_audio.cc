@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -13,6 +10,8 @@
 
 #include "base/logging.h"
 #include "media/cast/test/utility/audio_utility.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 const size_t kSamplingFrequency = 48000;
 
@@ -21,8 +20,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Usage: %s <fps> <frames> >output.s16le\n", argv[0]);
     exit(1);
   }
-  int fps = atoi(argv[1]);
-  const uint32_t frames = static_cast<uint32_t>(std::max(0, atoi(argv[2])));
+  int fps = SbStringAToI(argv[1]);
+  const uint32_t frames =
+      static_cast<uint32_t>(std::max(0, SbStringAToI(argv[2])));
   std::vector<float> samples(kSamplingFrequency / fps);
   size_t num_samples = 0;
   for (uint32_t frame_id = 1; frame_id <= frames; frame_id++) {

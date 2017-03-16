@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_FILTERS_CHUNK_DEMUXER_H_
 #define COBALT_MEDIA_FILTERS_CHUNK_DEMUXER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <deque>
 #include <map>
 #include <set>
@@ -28,6 +25,7 @@
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/filters/source_buffer_state.h"
 #include "cobalt/media/filters/source_buffer_stream.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

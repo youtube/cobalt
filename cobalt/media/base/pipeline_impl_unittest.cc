@@ -4,7 +4,6 @@
 
 #include "cobalt/media/base/pipeline_impl.h"
 
-#include <stddef.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -28,6 +27,7 @@
 #include "cobalt/media/base/text_renderer.h"
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/time_delta_interpolator.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/size.h"
 

@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_
 #define COBALT_MEDIA_CAST_SENDER_SIZE_ADAPTABLE_VIDEO_ENCODER_BASE_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/macros.h"
@@ -16,6 +14,7 @@
 #include "media/cast/cast_environment.h"
 #include "media/cast/constants.h"
 #include "media/cast/sender/video_encoder.h"
+#include "starboard/types.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {

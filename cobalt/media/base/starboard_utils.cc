@@ -15,6 +15,7 @@
 #include "cobalt/media/base/starboard_utils.h"
 
 #include "base/logging.h"
+#include "starboard/memory.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -105,10 +106,11 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
     return;
   }
 
-  memcpy(drm_info->initialization_vector, &config->iv()[0],
-         config->iv().size());
+  SbMemoryCopy(drm_info->initialization_vector, &config->iv()[0],
+               config->iv().size());
   drm_info->initialization_vector_size = config->iv().size();
-  memcpy(drm_info->identifier, &config->key_id()[0], config->key_id().size());
+  SbMemoryCopy(drm_info->identifier, &config->key_id()[0],
+               config->key_id().size());
   drm_info->identifier_size = config->key_id().size();
   drm_info->subsample_count = config->subsamples().size();
 

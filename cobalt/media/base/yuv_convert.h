@@ -5,10 +5,9 @@
 #ifndef COBALT_MEDIA_BASE_YUV_CONVERT_H_
 #define COBALT_MEDIA_BASE_YUV_CONVERT_H_
 
-#include <stdint.h>
-
 #include "build/build_config.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 // Visual Studio 2010 does not support MMX intrinsics on x64.
 // Some win64 yuv_convert code paths use SSE+MMX yasm, so without rewriting

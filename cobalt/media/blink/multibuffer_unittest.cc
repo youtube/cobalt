@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 
 #include <deque>
@@ -19,6 +16,7 @@
 #include "cobalt/media/base/test_random.h"
 #include "cobalt/media/blink/multibuffer.h"
 #include "cobalt/media/blink/multibuffer_reader.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 const int kBlockSizeShift = 8;

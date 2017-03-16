@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_STREAM_PARSER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_STREAM_PARSER_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
@@ -19,6 +17,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -4,9 +4,8 @@
 
 #include "media/cast/common/clock_drift_smoother.h"
 
-#include <stdint.h>
-
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

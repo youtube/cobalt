@@ -23,6 +23,7 @@
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/filters/shell_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

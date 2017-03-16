@@ -4,8 +4,6 @@
 
 #include "cobalt/media/filters/frame_processor.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstdlib>
 
@@ -13,6 +11,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
