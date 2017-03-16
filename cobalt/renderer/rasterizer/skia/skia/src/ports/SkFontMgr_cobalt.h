@@ -56,8 +56,8 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
         : font_file_path(file_path),
           ttc_index(index),
           font_style(style),
-          full_font_name(full_name.data(), full_name.size()),
-          font_postscript_name(postscript_name.data(), postscript_name.size()),
+          full_font_name(full_name),
+          font_postscript_name(postscript_name),
           typeface(NULL) {}
 
     const SkString font_file_path;
@@ -114,7 +114,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   SkMutex* const manager_owned_mutex_;
 
   SkString family_name_;
-  bool is_fallback_font_;
+  bool is_fallback_family_;
   SkLanguage language_;
   font_character_map::PageRanges page_ranges_;
 
