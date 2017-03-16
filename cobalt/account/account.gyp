@@ -21,7 +21,6 @@
       'target_name': 'account',
       'type': 'static_library',
       'sources': [
-        'account_event.h',
         'account_manager.h',
         'account_manager.cc',
       ],

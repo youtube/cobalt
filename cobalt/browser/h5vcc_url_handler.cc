@@ -71,20 +71,16 @@ std::string GetH5vccUrlQueryParam(const GURL& url, const std::string& name) {
 
 const char kH5vccScheme[] = "h5vcc";
 const char kNetworkFailure[] = "network-failure";
-const char kSignedOut[] = "signed-out";
-const char kAgeRestricted[] = "age-restricted";
 
 const char kRetryParam[] = "retry-url";
 }  // namespace
 
 H5vccURLHandler::H5vccURLHandler(BrowserModule* browser_module,
-                                 system_window::SystemWindow* system_window,
-                                 account::AccountManager* account_manager)
+                                 system_window::SystemWindow* system_window)
     : ALLOW_THIS_IN_INITIALIZER_LIST(URLHandler(
           browser_module,
           base::Bind(&H5vccURLHandler::HandleURL, base::Unretained(this)))),
-      system_window_(system_window),
-      account_manager_(account_manager) {}
+      system_window_(system_window) {}
 
 bool H5vccURLHandler::HandleURL(const GURL& url) {
   bool was_handled = false;
@@ -93,10 +89,6 @@ bool H5vccURLHandler::HandleURL(const GURL& url) {
     const std::string type = GetH5vccUrlType(url);
     if (type == kNetworkFailure) {
       was_handled = HandleNetworkFailure();
-    } else if (type == kSignedOut) {
-      was_handled = HandleSignedOut();
-    } else if (type == kAgeRestricted) {
-      was_handled = HandleAgeRestricted();
     } else {
       LOG(WARNING) << "Unknown h5vcc URL type: " << type;
     }
@@ -114,24 +106,6 @@ bool H5vccURLHandler::HandleNetworkFailure() {
   return true;
 }
 
-bool H5vccURLHandler::HandleSignedOut() {
-  system_window::SystemWindow::DialogOptions dialog_options;
-  dialog_options.message_code =
-      system_window::SystemWindow::kDialogUserSignedOut;
-  dialog_options.callback = base::Bind(
-      &H5vccURLHandler::OnSignedOutDialogResponse, base::Unretained(this));
-  system_window_->ShowDialog(dialog_options);
-  return true;
-}
-
-bool H5vccURLHandler::HandleAgeRestricted() {
-  system_window::SystemWindow::DialogOptions dialog_options;
-  dialog_options.message_code =
-      system_window::SystemWindow::kDialogUserAgeRestricted;
-  system_window_->ShowDialog(dialog_options);
-  return true;
-}
-
 void H5vccURLHandler::OnNetworkFailureDialogResponse(
     system_window::SystemWindow::DialogResponse response) {
   UNREFERENCED_PARAMETER(response);
@@ -142,12 +116,6 @@ void H5vccURLHandler::OnNetworkFailureDialogResponse(
       browser_module()->Navigate(GURL(retry_url));
     }
   }
-}
-
-void H5vccURLHandler::OnSignedOutDialogResponse(
-    system_window::SystemWindow::DialogResponse response) {
-  UNREFERENCED_PARAMETER(response);
-  account_manager_->StartSignIn();
 }
 
 }  // namespace browser
