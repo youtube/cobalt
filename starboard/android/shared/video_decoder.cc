@@ -260,6 +260,21 @@ void VideoDecoder::DecoderThreadFunc() {
 
       OutputBufferHandle& output_buffer_handle = output_buffer_handles.front();
 
+      if (output_buffer_handle.flags & BUFFER_FLAG_END_OF_STREAM) {
+        media_codec_bridge_->ReleaseOutputBuffer(output_buffer_handle.index,
+                                                 false);
+        jint status = media_codec_bridge_->Flush();
+        if (status != MEDIA_CODEC_OK) {
+          SB_LOG(ERROR) << "Failed to flush media codec.";
+        }
+
+        host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
+        output_buffer_handles.pop_front();
+        SB_DCHECK(output_buffer_handles.empty())
+            << "Expected end of stream output buffer to be the last buffer.";
+        break;
+      }
+
       if (output_buffer_handle.pts_microseconds < upper_bound) {
         // TODO: Figure out whether not rendering late frames provides a
         // better playback experience or not.
@@ -342,15 +357,6 @@ bool VideoDecoder::ProcessOneOutputBuffer(
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
 
-  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
-    host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
-    jint status = media_codec_bridge_->Flush();
-    if (status != MEDIA_CODEC_OK) {
-      SB_LOG(ERROR) << "Failed to flush media codec.";
-    }
-    return true;
-  }
-
   if (dequeue_output_result.index < 0) {
     // Don't bother logging a try again later status, it will happen a lot.
     if (dequeue_output_result.status !=
@@ -368,7 +374,8 @@ bool VideoDecoder::ProcessOneOutputBuffer(
 
   OutputBufferHandle output_buffer_handle = {
       dequeue_output_result.index,
-      dequeue_output_result.presentation_time_microseconds};
+      dequeue_output_result.presentation_time_microseconds,
+      dequeue_output_result.flags};
   output_buffer_handles->push_back(output_buffer_handle);
 
   // Record the latest width/height of the decoded input.
