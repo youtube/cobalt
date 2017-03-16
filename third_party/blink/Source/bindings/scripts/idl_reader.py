@@ -68,10 +68,21 @@ def validate_blink_idl_definitions(idl_filename, idl_file_basename,
                 'No definition found in %s' % idl_filename)
         return
     target = targets[0]
-    if not target.is_partial and target.name != idl_file_basename:
-        raise Exception(
-            'Definition name "{0}" disagrees with IDL file basename "{1}".'
-            .format(target.name, idl_file_basename))
+    idl_interface_name = idl_filename_to_interface_name(idl_filename)
+    if not target.is_partial and target.name != idl_interface_name:
+        if target.name.lower() == idl_interface_name.lower():
+            # Names differ only by capitalization. This could indicate a
+            # problem with the special tokens in the snake_case->TitleCase
+            # conversion in
+            raise Exception(
+                '"Unexpected capitalization of definition name "{0}" for IDL file name "{1}". '
+                'Does a special token need to be added to '
+                'idl_filename_to_interface_name in utilities.py?'
+                .format(target.name, os.path.basename(idl_filename)))
+        else:
+            raise Exception(
+                'Definition name "{0}" disagrees with IDL file name "{1}".'
+                .format(target.name, os.path.basename(idl_filename)))
 
 
 class IdlReader(object):
