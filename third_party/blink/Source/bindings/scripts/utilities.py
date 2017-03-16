@@ -129,6 +129,34 @@ class ComponentInfoProvider(object):
         return {}
 
 
+class ComponentInfoProviderCobalt(ComponentInfoProvider):
+    def __init__(self, interfaces_info, component_info):
+        super(ComponentInfoProviderCobalt, self).__init__()
+        self._interfaces_info = interfaces_info
+        self._component_info = component_info
+
+    @property
+    def interfaces_info(self):
+        return self._interfaces_info
+
+    @property
+    def component_info(self):
+        return self._component_info
+
+    @property
+    def enumerations(self):
+        return self._component_info['enumerations']
+
+    @property
+    def typedefs(self):
+        return self._component_info['typedefs']
+
+    @property
+    def callback_functions(self):
+        return self._component_info['callback_functions']
+
+
+
 class ComponentInfoProviderCore(ComponentInfoProvider):
     def __init__(self, interfaces_info, component_info):
         super(ComponentInfoProviderCore, self).__init__()
