@@ -14,15 +14,18 @@
 
 #include "starboard/media.h"
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/media_common.h"
 
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system) {
   using starboard::android::shared::IsWidevine;
+  using starboard::android::shared::JniEnvExt;
   if (!IsWidevine(key_system)) {
     return false;
   }
-  // TODO: Ask MediaDrmBridge if we actually support Widevine DRM.
-  return true;
+  return JniEnvExt::Get()->CallStaticBooleanMethod(
+             "foo/cobalt/media/MediaDrmBridge",
+             "isWidevineCryptoSchemeSupported", "()Z") == JNI_TRUE;
 }
