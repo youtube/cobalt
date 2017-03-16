@@ -24,31 +24,6 @@
 namespace cobalt {
 namespace account {
 
-class AccountManagerStarboard : public AccountManager {
- public:
-  explicit AccountManagerStarboard(base::EventDispatcher* event_dispatcher)
-      : event_dispatcher_(event_dispatcher) {}
-  ~AccountManagerStarboard() {}
-
-  std::string GetAvatarURL() OVERRIDE;
-  std::string GetUsername() OVERRIDE;
-  std::string GetUserId() OVERRIDE;
-  void StartSignIn() OVERRIDE;
-  bool IsAgeRestricted() OVERRIDE;
-
- private:
-  base::EventDispatcher* event_dispatcher_;
-
-  DISALLOW_COPY_AND_ASSIGN(AccountManagerStarboard);
-};
-
-scoped_ptr<AccountManager> AccountManager::Create(
-    base::EventDispatcher* event_dispatcher) {
-  scoped_ptr<AccountManager> account_manager(
-      new AccountManagerStarboard(event_dispatcher));
-  return account_manager.Pass();
-}
-
 namespace {
 const int kMaxValueLength = 64 * 1024;
 
@@ -75,25 +50,18 @@ std::string GetCurrentUserProperty(SbUserPropertyId property_id) {
 
 }  // namespace
 
-std::string AccountManagerStarboard::GetAvatarURL() {
+AccountManager::AccountManager() {}
+
+std::string AccountManager::GetAvatarURL() {
   return GetCurrentUserProperty(kSbUserPropertyAvatarUrl);
 }
 
-std::string AccountManagerStarboard::GetUsername() {
+std::string AccountManager::GetUsername() {
   return GetCurrentUserProperty(kSbUserPropertyUserName);
 }
 
-std::string AccountManagerStarboard::GetUserId() {
+std::string AccountManager::GetUserId() {
   return GetCurrentUserProperty(kSbUserPropertyUserId);
-}
-
-void AccountManagerStarboard::StartSignIn() {
-  NOTREACHED() << "Should be handled internally by platform.";
-}
-
-bool AccountManagerStarboard::IsAgeRestricted() {
-  NOTREACHED() << "Should be handled internally by platform.";
-  return false;
 }
 
 }  // namespace account
