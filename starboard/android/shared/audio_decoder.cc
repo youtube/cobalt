@@ -27,7 +27,8 @@ namespace shared {
 
 namespace {
 
-const jlong kDequeueTimeout = kSecondInMicroseconds;
+const jlong kDequeueTimeout = 0;
+const SbTimeMonotonic kUpdateInterval = 10 * kSbTimeMillisecond;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
   SB_DCHECK(
@@ -42,37 +43,45 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 }  // namespace
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioHeader& audio_header)
+                           const SbMediaAudioHeader& audio_header,
+                           JobQueue* job_queue)
     : stream_ended_(false),
       audio_header_(audio_header),
+      job_queue_(job_queue),
       sample_type_(GetSupportedSampleType()) {
   SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
+  SB_DCHECK(job_queue_);
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
     TeardownCodec();
+    return;
   }
+
+  update_closure_ =
+      ::starboard::shared::starboard::player::Bind(&AudioDecoder::Update, this);
+  job_queue_->Schedule(update_closure_, kUpdateInterval);
 }
 
 AudioDecoder::~AudioDecoder() {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
   TeardownCodec();
+  job_queue_->Remove(update_closure_);
 }
 
 void AudioDecoder::Decode(const InputBuffer& input_buffer) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
   }
 
-  ProcessOneInputBuffer(input_buffer);
-  ProcessOneOutputBuffer();
+  pending_work_.push(Event(input_buffer));
 }
 
 void AudioDecoder::WriteEndOfStream() {
-  // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
-  // to ensure that Decode() is not called when the stream is ended.
-  stream_ended_ = true;
-  // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio());
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+  pending_work_.push(Event(Event::kWriteEndOfStream));
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
@@ -102,14 +111,9 @@ bool AudioDecoder::InitializeCodec() {
   if (!media_codec_bridge_) {
     return false;
   }
-
-  if (audio_header_.audio_specific_config_size > 0 &&
-      !ProcessOneInputRawData(audio_header_.audio_specific_config,
-                              audio_header_.audio_specific_config_size, 0,
-                              BUFFER_FLAG_CODEC_CONFIG)) {
-    return false;
+  if (audio_header_.audio_specific_config_size > 0) {
+    pending_work_.push(Event(Event::kWriteCodecConfig));
   }
-
   return true;
 }
 
@@ -117,15 +121,28 @@ void AudioDecoder::TeardownCodec() {
   media_codec_bridge_.reset();
 }
 
-bool AudioDecoder::ProcessOneInputBuffer(const InputBuffer& input_buffer) {
-  return ProcessOneInputRawData(input_buffer.data(), input_buffer.size(),
-                                input_buffer.pts(), 0);
-}
+bool AudioDecoder::ProcessOneInputBuffer() {
+  if (pending_work_.empty()) {
+    return false;
+  }
 
-bool AudioDecoder::ProcessOneInputRawData(const void* data,
-                                          int size,
-                                          SbMediaTime pts,
-                                          jint flags) {
+  const Event& event = pending_work_.front();
+  const void* data = NULL;
+  int size = 0;
+  if (event.type == Event::kWriteCodecConfig) {
+    data = audio_header_.audio_specific_config;
+    size = audio_header_.audio_specific_config_size;
+  } else if (event.type == Event::kWriteInputBuffer) {
+    const InputBuffer& input_buffer = event.input_buffer;
+    data = input_buffer.data();
+    size = input_buffer.size();
+  } else if (event.type == Event::kWriteEndOfStream) {
+    data = NULL;
+    size = 0;
+  } else {
+    SB_NOTREACHED();
+  }
+
   SB_CHECK(media_codec_bridge_);
   DequeueInputResult dequeue_input_result =
       media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
@@ -141,16 +158,31 @@ bool AudioDecoder::ProcessOneInputRawData(const void* data,
     return false;
   }
 
-  byte_buffer.CopyInto(data, size);
+  if (data) {
+    byte_buffer.CopyInto(data, size);
+  }
 
-  jint status = media_codec_bridge_->QueueInputBuffer(
-      dequeue_input_result.index, /*offset=*/0, size,
-      ConvertSbMediaTimeToMicroseconds(pts), flags);
+  jint status;
+  if (event.type == Event::kWriteCodecConfig) {
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, 0, size, 0, BUFFER_FLAG_CODEC_CONFIG);
+  } else if (event.type == Event::kWriteInputBuffer) {
+    jlong pts_us = ConvertSbMediaTimeToMicroseconds(event.input_buffer.pts());
+    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
+                                                   0, size, pts_us, 0);
+  } else if (event.type == Event::kWriteEndOfStream) {
+    status = media_codec_bridge_->QueueInputBuffer(
+        dequeue_input_result.index, 0, size, 0, BUFFER_FLAG_END_OF_STREAM);
+  } else {
+    SB_NOTREACHED();
+  }
+
   if (status != MEDIA_CODEC_OK) {
     SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
     return false;
   }
 
+  pending_work_.pop();
   return true;
 }
 
@@ -158,9 +190,23 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
   SB_CHECK(media_codec_bridge_);
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
+
+  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
+    if (dequeue_output_result.index >= 0) {
+      media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index,
+                                               false);
+    }
+    stream_ended_ = true;
+    decoded_audios_.push(new DecodedAudio());
+    return false;
+  }
+
   if (dequeue_output_result.index < 0) {
-    SB_LOG(ERROR) << "|dequeueOutputBuffer| failed with status: "
-                  << dequeue_output_result.status;
+    if (dequeue_output_result.status !=
+        MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER) {
+      SB_LOG(ERROR) << "|dequeueOutputBuffer| failed with status: "
+                    << dequeue_output_result.status;
+    }
     return false;
   }
 
@@ -183,6 +229,17 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
   media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index, false);
 
   return true;
+}
+
+void AudioDecoder::Update() {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+  bool did_input = true;
+  bool did_output = true;
+  while (did_input || did_output) {
+    did_input = ProcessOneInputBuffer();
+    did_output = ProcessOneOutputBuffer();
+  }
+  job_queue_->Schedule(update_closure_, kUpdateInterval);
 }
 
 }  // namespace shared
