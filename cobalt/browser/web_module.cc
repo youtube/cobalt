@@ -862,7 +862,11 @@ WebModule::Options::Options()
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
       software_decoder_thread_priority(base::kThreadPriority_Low),
-      hardware_decoder_thread_priority(base::kThreadPriority_High),
+#if SB_HAS(1_CORE)
+      hardware_decoder_thread_priority(base::kThreadPriority_Low),
+#else
+      hardware_decoder_thread_priority(base::kThreadPriority_Normal),
+#endif
       fetcher_lifetime_thread_priority(base::kThreadPriority_High),
       tts_engine(NULL) {}
 
