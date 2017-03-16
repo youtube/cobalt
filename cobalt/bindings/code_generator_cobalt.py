@@ -22,26 +22,16 @@ from datetime import date
 import os
 import sys
 
-import bootstrap_path  # pylint: disable=g-bad-import-order,unused-import
+import bootstrap_path  # pylint: disable=unused-import
 
-# Add blink's binding scripts to the path, so we can import
-module_path, module_filename = os.path.split(os.path.realpath(__file__))
-blink_script_dir = os.path.normpath(
-    os.path.join(module_path, os.pardir, os.pardir, 'third_party', 'blink',
-                 'Source'))
-sys.path.append(blink_script_dir)
-
-from bindings.scripts.code_generator_v8 import CodeGeneratorBase  # pylint: disable=g-import-not-at-top
-
-# the code_generator_v8 module import in the line above updates sys.path, so
-# that we can import the jinja2 in third_party.
-import jinja2  # pylint: disable=g-bad-import-order
-
-from bindings.scripts.idl_types import IdlSequenceType
-from bindings.scripts.idl_types import IdlType
-from cobalt.bindings import contexts
 from cobalt.bindings import path_generator
+from cobalt.bindings.contexts import ContextBuilder
 from cobalt.bindings.name_conversion import get_interface_name
+from code_generator import CodeGeneratorBase
+from code_generator import jinja2
+from idl_definitions import IdlTypedef
+from idl_types import IdlSequenceType
+from idl_types import IdlType
 
 module_path, module_filename = os.path.split(os.path.realpath(__file__))
 
@@ -139,32 +129,36 @@ def get_named_property_deleter(interface):
   return deleter_operation
 
 
-def get_interface_type_names_from_idl_types(idl_type_list):
+def get_interface_type_names_from_idl_types(info_provider, idl_type_list):
   for idl_type in idl_type_list:
     if idl_type:
+      idl_type = idl_type.resolve_typedefs(info_provider.typedefs)
+      if isinstance(idl_type, IdlTypedef):
+        idl_type = idl_type.idl_type
       if idl_type.is_interface_type:
         yield get_interface_name(idl_type)
       if idl_type.is_dictionary:
         yield idl_type.name
       elif idl_type.is_union_type:
         for interface_name in get_interface_type_names_from_idl_types(
-            idl_type.member_types):
+            info_provider, idl_type.member_types):
           yield interface_name
       elif isinstance(idl_type, IdlSequenceType):
         for interface_name in get_interface_type_names_from_idl_types(
-            [idl_type.element_type]):
+            info_provider, [idl_type.element_type]):
           yield interface_name
 
 
-def get_interface_type_names_from_typed_objects(typed_object_list):
+def get_interface_type_names_from_typed_objects(info_provider,
+                                                typed_object_list):
   for typed_object in typed_object_list:
     for interface_name in get_interface_type_names_from_idl_types(
-        [typed_object.idl_type]):
+        info_provider, [typed_object.idl_type]):
       yield interface_name
 
     if hasattr(typed_object, 'arguments'):
       for interface_name in get_interface_type_names_from_typed_objects(
-          typed_object.arguments):
+          info_provider, typed_object.arguments):
         yield interface_name
 
 
@@ -187,8 +181,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
   """
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, interfaces_info, templates_dir, cache_dir, output_dir):
-    CodeGeneratorBase.__init__(self, interfaces_info, cache_dir, output_dir)
+  def __init__(self, templates_dir, info_provider, cache_dir, output_dir):
+    super(CodeGeneratorCobalt, self).__init__(
+        'CodeGeneratorCobalt', info_provider, cache_dir, output_dir)
     # CodeGeneratorBase inititalizes this with the v8 template path, so
     # reinitialize it with cobalt's template path
 
@@ -198,7 +193,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     self.jinja_env = initialize_jinja_env(cache_dir,
                                           os.path.abspath(templates_dir))
     self.path_builder = path_generator.PathBuilder(
-        self.generated_file_prefix, interfaces_info, cobalt_dir, output_dir)
+        self.generated_file_prefix, self.info_provider.interfaces_info,
+        cobalt_dir, output_dir)
 
   @abc.abstractproperty
   def generated_file_prefix(self):
@@ -216,7 +212,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     rendered_text = template.render(template_context)
     return rendered_text
 
-  def generate_code_internal(self, definitions, definition_name):
+  def generate_code(self, definitions, definition_name):
     if definition_name in definitions.interfaces:
       return self.generate_interface_code(
           definitions, definition_name, definitions.interfaces[definition_name])
@@ -227,7 +223,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     raise ValueError('%s is not in IDL definitions' % definition_name)
 
   def generate_interface_code(self, definitions, interface_name, interface):
-    interface_info = self.interfaces_info[interface_name]
+    interface_info = self.info_provider.interfaces_info[interface_name]
     # Select appropriate Jinja template and contents function
     if interface.is_callback:
       header_template_filename = 'callback-interface.h.template'
@@ -283,7 +279,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     referenced_classes = []
     # Iterate over it as a set to uniquify the list.
     for interface_name in set(interface_names):
-      interface_info = self.interfaces_info[interface_name]
+      interface_info = self.info_provider.interfaces_info[interface_name]
       is_dictionary = interface_info['is_dictionary']
       namespace = '::'.join(
           self.path_builder.NamespaceComponents(interface_name))
@@ -345,18 +341,20 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     return context
 
   def build_dictionary_context(self, dictionary, definitions):
+    context_builder = ContextBuilder(self.info_provider)
     context = {
         'class_name':
             dictionary.name,
         'header_file':
             self.path_builder.DictionaryHeaderIncludePath(dictionary.name),
         'members': [
-            contexts.get_dictionary_member_context(dictionary, member)
+            context_builder.get_dictionary_member_context(dictionary, member)
             for member in dictionary.members
         ]
     }
     referenced_interface_names = set(
-        get_interface_type_names_from_typed_objects(dictionary.members))
+        get_interface_type_names_from_typed_objects(self.info_provider,
+                                                    dictionary.members))
     referenced_class_contexts = self.referenced_class_contexts(
         referenced_interface_names, True)
     context['includes'] = sorted((interface['include']
@@ -368,6 +366,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     return context
 
   def build_interface_context(self, interface, interface_info, definitions):
+    context_builder = ContextBuilder(self.info_provider)
+
     context = {
         # Parameters used for template rendering.
         'today':
@@ -395,27 +395,30 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         'get_opaque_root':
             interface.extended_attributes.get('GetOpaqueRoot', None),
     }
+    interfaces_info = self.info_provider.interfaces_info
     if is_global_interface(interface):
       # Global interface references all interfaces.
       referenced_interface_names = set(
-          interface_name
-          for interface_name in self.interfaces_info['all_interfaces']
-          if not self.interfaces_info[interface_name]['unsupported'] and
-          not self.interfaces_info[interface_name]['is_callback_interface'] and
-          not self.interfaces_info[interface_name]['is_dictionary'])
+          interface_name for interface_name in interfaces_info['all_interfaces']
+          if not interfaces_info[interface_name]['unsupported'] and
+          not interfaces_info[interface_name]['is_callback_interface'] and
+          not interfaces_info[interface_name]['is_dictionary'])
       referenced_interface_names.update(IdlType.callback_interfaces)
     else:
       # Build the set of referenced interfaces from this interface's members.
       referenced_interface_names = set()
       referenced_interface_names.update(
-          get_interface_type_names_from_typed_objects(interface.attributes))
+          get_interface_type_names_from_typed_objects(self.info_provider,
+                                                      interface.attributes))
       referenced_interface_names.update(
-          get_interface_type_names_from_typed_objects(interface.operations))
+          get_interface_type_names_from_typed_objects(self.info_provider,
+                                                      interface.operations))
       referenced_interface_names.update(
-          get_interface_type_names_from_typed_objects(interface.constructors))
+          get_interface_type_names_from_typed_objects(self.info_provider,
+                                                      interface.constructors))
       referenced_interface_names.update(
           get_interface_type_names_from_typed_objects(
-              definitions.callback_functions.values()))
+              self.info_provider, definitions.callback_functions.values()))
 
     # Build the set of #includes in the header file. Try to keep this small
     # to avoid circular dependency problems.
@@ -428,13 +431,16 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         self.path_builder.ImplementationHeaderPath(interface.name))
 
     attributes = [
-        contexts.attribute_context(interface, attribute, definitions)
+        context_builder.attribute_context(interface, attribute, definitions)
         for attribute in interface.attributes
     ]
-    constructor = contexts.get_constructor_context(self.expression_generator,
-                                                   interface)
-    methods = contexts.get_method_contexts(self.expression_generator, interface)
-    constants = [contexts.constant_context(c) for c in interface.constants]
+    constructor = context_builder.get_constructor_context(
+        self.expression_generator, interface)
+    methods = context_builder.get_method_contexts(self.expression_generator,
+                                                  interface)
+    constants = [
+        context_builder.constant_context(c) for c in interface.constants
+    ]
 
     # Get a list of all the unsupported property names, and remove the
     # unsupported ones from their respective lists
@@ -451,11 +457,11 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     all_interfaces = []
     for interface_name in referenced_interface_names:
       if (interface_name not in IdlType.callback_interfaces and
-          not self.interfaces_info[interface_name]['unsupported'] and
-          not self.interfaces_info[interface_name]['is_dictionary']):
+          not interfaces_info[interface_name]['unsupported'] and
+          not interfaces_info[interface_name]['is_dictionary']):
         all_interfaces.append({
             'name': interface_name,
-            'conditional': self.interfaces_info[interface_name]['conditional'],
+            'conditional': interfaces_info[interface_name]['conditional'],
         })
 
     context['implementation_includes'] = sorted(
@@ -484,24 +490,25 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     context['all_interfaces'] = sorted(all_interfaces, key=lambda x: x['name'])
     context['callback_functions'] = definitions.callback_functions.values()
     context['enumerations'] = [
-        contexts.enumeration_context(enumeration)
+        context_builder.enumeration_context(enumeration)
         for enumeration in definitions.enumerations.values()
     ]
     context['components'] = self.path_builder.NamespaceComponents(
         interface.name)
 
-    context['stringifier'] = contexts.stringifier_context(interface)
-    context['indexed_property_getter'] = contexts.special_method_context(
+    context['stringifier'] = context_builder.stringifier_context(interface)
+    context['indexed_property_getter'] = context_builder.special_method_context(
         interface, get_indexed_property_getter(interface))
-    context['indexed_property_setter'] = contexts.special_method_context(
+    context['indexed_property_setter'] = context_builder.special_method_context(
         interface, get_indexed_property_setter(interface))
-    context['indexed_property_deleter'] = contexts.special_method_context(
-        interface, get_indexed_property_deleter(interface))
-    context['named_property_getter'] = contexts.special_method_context(
+    context[
+        'indexed_property_deleter'] = context_builder.special_method_context(
+            interface, get_indexed_property_deleter(interface))
+    context['named_property_getter'] = context_builder.special_method_context(
         interface, get_named_property_getter(interface))
-    context['named_property_setter'] = contexts.special_method_context(
+    context['named_property_setter'] = context_builder.special_method_context(
         interface, get_named_property_setter(interface))
-    context['named_property_deleter'] = contexts.special_method_context(
+    context['named_property_deleter'] = context_builder.special_method_context(
         interface, get_named_property_deleter(interface))
 
     context['supports_indexed_properties'] = (
