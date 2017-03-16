@@ -17,6 +17,7 @@
 
 #include "cobalt/base/event.h"
 #include "cobalt/math/point_f.h"
+#include "starboard/event.h"
 
 namespace cobalt {
 namespace system_window {
@@ -62,6 +63,11 @@ class InputEvent : public base::Event {
   bool is_repeat_;
   math::PointF position_;
 };
+
+// The Starboard Event handler SbHandleEvent should call this function on
+// unrecognized events. It will extract Input events and dispatch them to the
+// appropriate SystemWindow for further routing.
+void HandleInputEvent(const SbEvent* event);
 
 }  // namespace system_window
 }  // namespace cobalt

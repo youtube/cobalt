@@ -42,7 +42,7 @@ class RendererBenchmarkRunner {
  public:
   RendererBenchmarkRunner()
       : done_gathering_samples_(true, false),
-        system_window_(system_window::CreateSystemWindow(
+        system_window_(new system_window::SystemWindow(
             &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight))) {
     // Since we'd like to measure the renderer, we force it to rasterize each
     // frame despite the fact that the render tree may not be changing.
