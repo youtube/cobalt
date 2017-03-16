@@ -25,6 +25,7 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/filters/frame_processor.h"
 #include "cobalt/media/filters/stream_parser_factory.h"
+#include "starboard/configuration.h"
 
 using base::TimeDelta;
 
@@ -83,6 +84,11 @@ bool ChunkDemuxerStream::IsSeekWaitingForData() const {
   DCHECK_NE(type_, DemuxerStream::TEXT);
 
   return stream_->IsSeekPending();
+}
+
+base::TimeDelta ChunkDemuxerStream::GetSeekKeyframeTimestamp() const {
+  base::AutoLock auto_lock(lock_);
+  return stream_->GetSeekKeyframeTimestamp();
 }
 
 void ChunkDemuxerStream::Seek(TimeDelta time) {
@@ -466,11 +472,46 @@ void ChunkDemuxer::Seek(TimeDelta time, const PipelineStatusCB& cb) {
   }
 
   SeekAllSources(time);
-  StartReturningData();
+
+#if SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+  const bool kReturningDataUntilSeekFinished = true;
+#else   // SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+  const bool kReturningDataUntilSeekFinished = false;
+#endif  // SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+
+  // Usually all encoded audio frames are key frames while not all encoded video
+  // frames are key frames.
+  //
+  // After a seek to |time|, the audio ChunkDemuxerStream will return encoded
+  // audio frames right before |time|.  The audio decoder can decode them
+  // without knowledge of prior encoded audio frames.  However, the video
+  // ChunkDemuxerStream has to return encoded video frames from the key frame
+  // whose timestamp is at or before |time|.  Depending on the structure of the
+  // video stream, the gap between the timestamp of the key frame and |time| can
+  // be several seconds or more.  So there is a difference between the
+  // timestamps of the first audio frame and the first video frame returned
+  // after a seek.  Most modern platforms can play the audio data as is and
+  // quickly decode the video frames whose timestamp is earlier than the first
+  // audio frame without displaying them.  This allows the video playback to
+  // "catch up" with the audio playback.
+  //
+  // SB_HAS_QUIRK(SEEK_TO_KEYFRAME) is enabled on platforms that don't support
+  // such "catch up" behaviour, where the audio ChunkDemuxerStream should start
+  // to return audio frame whose timestamp is earlier than the video key frame,
+  // instead of |time|.  So StartReturningData() should be delayed until all
+  // ChunkDemuxerStreams are seeked.
+  if (!kReturningDataUntilSeekFinished) {
+    StartReturningData();
+  }
 
   if (IsSeekWaitingForData_Locked()) {
     DVLOG(1) << "Seek() : waiting for more data to arrive.";
     return;
+  }
+
+  if (kReturningDataUntilSeekFinished) {
+    AdjustSeekOnAudioSource();
+    StartReturningData();
   }
 
   base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
@@ -799,6 +840,10 @@ bool ChunkDemuxer::AppendData(const std::string& id, const uint8_t* data,
     // indicates we have parsed enough data to complete the seek.
     if (old_waiting_for_data && !IsSeekWaitingForData_Locked() &&
         !seek_cb_.is_null()) {
+#if SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+      AdjustSeekOnAudioSource();
+      StartReturningData();
+#endif  // SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
       base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
     }
 
@@ -1269,6 +1314,50 @@ void ChunkDemuxer::SeekAllSources(TimeDelta seek_time) {
   for (SourceBufferStateMap::iterator itr = source_state_map_.begin();
        itr != source_state_map_.end(); ++itr) {
     itr->second->Seek(seek_time);
+  }
+}
+
+void ChunkDemuxer::AdjustSeekOnAudioSource() {
+  // This function assumes that there is only one audio and one video stream in
+  // the video.  As we won't be able to align seek to more than one video
+  // streams unless their keyframes are aligned.
+
+  // Find the timestamp of the video keyframe just before the seek timestamp of
+  // the first video stream.
+  TimeDelta adjusted_seek_time = kNoTimestamp;
+  for (SourceBufferStateMap::iterator itr = source_state_map_.begin();
+       itr != source_state_map_.end(); ++itr) {
+    TimeDelta seek_keyframe_timestamp =
+        itr->second->GetVideoSeekKeyframeTimestamp();
+    if (seek_keyframe_timestamp == kNoTimestamp) {
+      continue;
+    }
+    adjusted_seek_time = seek_keyframe_timestamp;
+    break;
+  }
+
+  if (adjusted_seek_time == kNoTimestamp) {
+    return;
+  }
+
+  for (SourceBufferStateMap::iterator itr = source_state_map_.begin();
+       itr != source_state_map_.end(); ++itr) {
+    Ranges<TimeDelta> ranges_list =
+        itr->second->GetAudioBufferedRanges(duration_, state_ == ENDED);
+    if (ranges_list.size() == 0) {
+      continue;
+    }
+    // Note that in rare situations the seek may fail as the append after seek
+    // may eject some audio buffer and no longer be able to fulfill the seek.
+    // Avoid calling Seek() in this case so the demuxer won't hang.  The video
+    // can continue to play, just with some leading silence.
+    for (size_t i = 0; i < ranges_list.size(); ++i) {
+      if (adjusted_seek_time >= ranges_list.start(i) &&
+          adjusted_seek_time <= ranges_list.end(i)) {
+        itr->second->Seek(adjusted_seek_time);
+      }
+    }
+    return;
   }
 }
 
