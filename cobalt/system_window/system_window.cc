@@ -17,7 +17,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/system_window/input_event.h"
-#include "cobalt/system_window/starboard/system_window.h"
+#include "cobalt/system_window/system_window.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -25,42 +25,30 @@ namespace system_window {
 
 namespace {
 
-SystemWindowStarboard* g_the_window = NULL;
+SystemWindow* g_the_window = NULL;
 
-// Unbound callback handler for SbWindowShowDialog.
-void StarboardDialogCallback(SbSystemPlatformErrorResponse response) {
-  DCHECK(g_the_window);
-  g_the_window->HandleDialogClose(response);
-}
 }  // namespace
 
-SystemWindowStarboard::SystemWindowStarboard(
-    base::EventDispatcher* event_dispatcher)
-    : SystemWindow(event_dispatcher),
+SystemWindow::SystemWindow(base::EventDispatcher* event_dispatcher,
+                           const base::optional<math::Size>& window_size)
+    : event_dispatcher_(event_dispatcher),
       window_(kSbWindowInvalid),
       key_down_(false) {
-  window_ = SbWindowCreate(NULL);
+  if (!window_size) {
+    window_ = SbWindowCreate(NULL);
+  } else {
+    SbWindowOptions options;
+    SbWindowSetDefaultOptions(&options);
+    options.size.width = window_size->width();
+    options.size.height = window_size->height();
+    window_ = SbWindowCreate(&options);
+  }
   DCHECK(SbWindowIsValid(window_));
   DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
   g_the_window = this;
 }
 
-SystemWindowStarboard::SystemWindowStarboard(
-    base::EventDispatcher* event_dispatcher, const math::Size& window_size)
-    : SystemWindow(event_dispatcher),
-      window_(kSbWindowInvalid),
-      key_down_(false) {
-  SbWindowOptions options;
-  SbWindowSetDefaultOptions(&options);
-  options.size.width = window_size.width();
-  options.size.height = window_size.height();
-  window_ = SbWindowCreate(&options);
-  DCHECK(SbWindowIsValid(window_));
-  DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
-  g_the_window = this;
-}
-
-SystemWindowStarboard::~SystemWindowStarboard() {
+SystemWindow::~SystemWindow() {
   DCHECK_EQ(this, g_the_window);
 
   if (g_the_window == this) {
@@ -69,7 +57,7 @@ SystemWindowStarboard::~SystemWindowStarboard() {
   SbWindowDestroy(window_);
 }
 
-math::Size SystemWindowStarboard::GetWindowSize() const {
+math::Size SystemWindow::GetWindowSize() const {
   SbWindowSize window_size;
   if (!SbWindowGetSize(window_, &window_size)) {
     DLOG(WARNING) << "SbWindowGetSize() failed.";
@@ -78,7 +66,7 @@ math::Size SystemWindowStarboard::GetWindowSize() const {
   return math::Size(window_size.width, window_size.height);
 }
 
-float SystemWindowStarboard::GetVideoPixelRatio() const {
+float SystemWindow::GetVideoPixelRatio() const {
   SbWindowSize window_size;
   if (!SbWindowGetSize(window_, &window_size)) {
     DLOG(WARNING) << "SbWindowGetSize() failed.";
@@ -87,13 +75,13 @@ float SystemWindowStarboard::GetVideoPixelRatio() const {
   return window_size.video_pixel_ratio;
 }
 
-SbWindow SystemWindowStarboard::GetSbWindow() { return window_; }
+SbWindow SystemWindow::GetSbWindow() { return window_; }
 
-void* SystemWindowStarboard::GetWindowHandle() {
+void* SystemWindow::GetWindowHandle() {
   return SbWindowGetPlatformHandle(window_);
 }
 
-void SystemWindowStarboard::HandleInputEvent(const SbInputData& data) {
+void SystemWindow::HandleInputEvent(const SbInputData& data) {
   DCHECK_EQ(window_, data.window);
 
   if (data.type == kSbInputEventTypePress) {
@@ -123,23 +111,17 @@ void SystemWindowStarboard::HandleInputEvent(const SbInputData& data) {
 
 void OnDialogClose(SbSystemPlatformErrorResponse response, void* user_data) {
   DCHECK(user_data);
-  SystemWindowStarboard* system_window =
-      static_cast<SystemWindowStarboard*>(user_data);
+  SystemWindow* system_window =
+      static_cast<SystemWindow*>(user_data);
   system_window->HandleDialogClose(response);
 }
 
-void SystemWindowStarboard::ShowDialog(
+void SystemWindow::ShowDialog(
     const SystemWindow::DialogOptions& options) {
   SbSystemPlatformErrorType error_type;
   switch (options.message_code) {
     case kDialogConnectionError:
       error_type = kSbSystemPlatformErrorTypeConnectionError;
-      break;
-    case kDialogUserSignedOut:
-      error_type = kSbSystemPlatformErrorTypeUserSignedOut;
-      break;
-    case kDialogUserAgeRestricted:
-      error_type = kSbSystemPlatformErrorTypeUserAgeRestricted;
       break;
     default:
       NOTREACHED();
@@ -156,7 +138,7 @@ void SystemWindowStarboard::ShowDialog(
   }
 }
 
-void SystemWindowStarboard::HandleDialogClose(
+void SystemWindow::HandleDialogClose(
     SbSystemPlatformErrorResponse response) {
   DCHECK(!current_dialog_callback_.is_null());
   switch (response) {
@@ -175,19 +157,6 @@ void SystemWindowStarboard::HandleDialogClose(
   }
 }
 
-scoped_ptr<SystemWindow> CreateSystemWindow(
-    base::EventDispatcher* event_dispatcher,
-    const base::optional<math::Size>& window_size) {
-  if (window_size) {
-    return scoped_ptr<SystemWindow>(
-        new SystemWindowStarboard(event_dispatcher, *window_size));
-  } else {
-    return scoped_ptr<SystemWindow>(
-        new SystemWindowStarboard(event_dispatcher));
-  }
-}
-
-// Returns true if the event was handled.
 void HandleInputEvent(const SbEvent* event) {
   if (event->type != kSbEventTypeInput) {
     return;
