@@ -101,7 +101,7 @@ struct FontFileInfo {
   };
   typedef uint32_t FontStyle;
 
-  FontFileInfo() : index(0), weight(0), style(kNormal_FontStyle) {}
+  FontFileInfo() : index(0), weight(400), style(kNormal_FontStyle) {}
 
   SkString file_name;
   int index;
@@ -121,13 +121,12 @@ struct FontFileInfo {
 // cannot possible contain a character, without needing to load the font file
 // and generate a full mapping of the font's characters.
 struct FontFamily {
-  FontFamily() : order(-1), is_fallback_font(false) {}
+  FontFamily() : is_fallback_family(true) {}
 
   SkTArray<SkString> names;
   SkTArray<FontFileInfo> fonts;
   SkLanguage language;
-  int order;  // internal to SkFontConfigParser
-  bool is_fallback_font;
+  bool is_fallback_family;
   font_character_map::PageRanges page_ranges;
 };
 
