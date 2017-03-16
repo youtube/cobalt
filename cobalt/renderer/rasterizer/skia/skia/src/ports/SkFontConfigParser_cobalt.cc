@@ -242,9 +242,19 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
     return;
   }
 
-  // A <family> tag must have a canonical name attribute, a fallback attribute
-  // set to true, or both in order to be usable. If it is a fallback family,
-  // then it may have lang and pages attributes for use during fallback.
+  // A <family> may have the following attributes:
+  // name (string), fallback (true, false), lang (string), pages (comma
+  // delimited int ranges)
+  // A <family> tag must have a canonical name attribute or be a fallback
+  // family in order to be usable.
+  // If the fallback attribute exists, then it alone determines whether the
+  // family is a fallback family.  However, if it does not exist, then the
+  // lack of a name attribute makes it a fallback family.
+  // The lang and pages attributes are only used by fallback families.
+
+  bool encountered_fallback_attribute = false;
+  family->is_fallback_family = true;
+
   for (size_t i = 0; attributes[i] != NULL && attributes[i + 1] != NULL;
        i += 2) {
     const char* name = attributes[i];
@@ -254,6 +264,11 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
     if (name_len == 4 && strncmp(name, "name", name_len) == 0) {
       SkAutoAsciiToLC to_lowercase(value);
       family->names.push_back().set(to_lowercase.lc());
+      // As long as no fallback attribute is encountered, then the existence of
+      // a name attribute removes this family from fallback.
+      if (!encountered_fallback_attribute) {
+        family->is_fallback_family = false;
+      }
     } else if (name_len == 4 && strncmp("lang", name, name_len) == 0) {
       family->language = SkLanguage(value);
     } else if (name_len == 5 && strncmp("pages", name, name_len) == 0) {
@@ -262,7 +277,8 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
         family->page_ranges.reset();
       }
     } else if (name_len == 8 && strncmp("fallback", name, name_len) == 0) {
-      family->is_fallback_font =
+      encountered_fallback_attribute = true;
+      family->is_fallback_family =
           strcmp("true", value) == 0 || strcmp("1", value) == 0;
     }
   }
@@ -271,22 +287,11 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
 void FontElementHandler(FontFileInfo* file, const char** attributes) {
   DCHECK(file != NULL);
 
-  // A <font> must have following attributes:
+  // A <font> may have following attributes:
   // weight (non-negative integer), style (normal, italic), font_name (string),
-  // and postscript_name (string).
-  // It may have the following attributes:
-  // index (non-negative integer)
+  // postscript_name (string), and index (non-negative integer)
   // The element should contain a filename.
 
-  enum SeenAttributeFlags {
-    kSeenNone = 0,
-    kSeenFontFullName = 1,
-    kSeenFontPostscriptName = 1 << 1,
-    kSeenWeight = 1 << 2,
-    kSeenStyle = 1 << 3
-  };
-
-  uint32_t seen_attributes_flag = kSeenNone;
   for (size_t i = 0; attributes[i] != NULL && attributes[i + 1] != NULL;
        i += 2) {
     const char* name = attributes[i];
@@ -296,14 +301,12 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
       case 9:
         if (strncmp("font_name", name, 9) == 0) {
           file->full_font_name = value;
-          seen_attributes_flag |= kSeenFontFullName;
           continue;
         }
         break;
       case 15:
         if (strncmp("postscript_name", name, 15) == 0) {
           file->postscript_name = value;
-          seen_attributes_flag |= kSeenFontPostscriptName;
           continue;
         }
         break;
@@ -311,9 +314,6 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         if (strncmp("weight", name, 6) == 0) {
           if (!ParseNonNegativeInteger(value, &file->weight)) {
             DLOG(WARNING) << "Invalid font weight [" << value << "]";
-            file->weight = 0;
-          } else {
-            seen_attributes_flag |= kSeenWeight;
           }
           continue;
         }
@@ -322,16 +322,14 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         if (strncmp("index", name, 5) == 0) {
           if (!ParseNonNegativeInteger(value, &file->index)) {
             DLOG(WARNING) << "Invalid font index [" << value << "]";
-            file->index = 0;
           }
+          continue;
         } else if (strncmp("style", name, 5) == 0) {
           if (strncmp("italic", value, 6) == 0) {
             file->style = FontFileInfo::kItalic_FontStyle;
-            seen_attributes_flag |= kSeenStyle;
             continue;
           } else if (strncmp("normal", value, 6) == 0) {
             file->style = FontFileInfo::kNormal_FontStyle;
-            seen_attributes_flag |= kSeenStyle;
             continue;
           } else {
             NOTREACHED() << "Unsupported style [" << value << "]";
@@ -344,11 +342,6 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
 
     NOTREACHED() << "Unsupported attribute [" << name << "]";
   }
-
-  DCHECK_EQ(seen_attributes_flag, kSeenFontFullName | kSeenFontPostscriptName |
-                                      kSeenWeight | kSeenStyle);
-  DCHECK(!file->full_font_name.isEmpty());
-  DCHECK(!file->postscript_name.isEmpty());
 }
 
 FontFamily* FindFamily(FamilyData* family_data, const char* family_name) {
@@ -368,10 +361,7 @@ FontFamily* FindFamily(FamilyData* family_data, const char* family_name) {
 
 void AliasElementHandler(FamilyData* family_data, const char** attributes) {
   // An <alias> must have name and to attributes.
-  //   It may have weight (integer).
-  // If it *does not* have a weight, it is a variant name for a <family>.
-  // If it *does* have a weight, it names the <font>(s) of a specific weight
-  //   from a <family>.
+  // It is a variant name for a <family>.
 
   SkString alias_name;
   SkString to;
