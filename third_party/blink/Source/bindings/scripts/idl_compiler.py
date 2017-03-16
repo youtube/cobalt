@@ -39,13 +39,13 @@ from optparse import OptionParser
 import os
 import sys
 
-from code_generator_cobalt import CodeGeneratorCobalt
 from code_generator_v8 import CodeGeneratorDictionaryImpl
 from code_generator_v8 import CodeGeneratorV8
 from code_generator_v8 import CodeGeneratorUnionType
 from code_generator_v8 import CodeGeneratorCallbackFunction
 from idl_reader import IdlReader
 from utilities import create_component_info_provider
+from utilities import idl_filename_to_interface_name
 from utilities import read_idl_files_list_from_file, idl_filename_to_component
 from utilities import write_file
 

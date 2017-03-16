@@ -46,6 +46,7 @@ from idl_compiler import (generate_bindings,
                           generate_union_type_containers,
                           generate_dictionary_impl,
                           generate_callback_function_impl)
+from utilities import ComponentInfoProviderCobalt
 from utilities import ComponentInfoProviderCore
 from utilities import ComponentInfoProviderModules
 
@@ -85,12 +86,6 @@ COMPONENT_DIRECTORY = frozenset(['core', 'modules'])
 SOURCE_PATH = webkit_finder.get_source_dir()
 TEST_INPUT_DIRECTORY = os.path.join(SOURCE_PATH, 'bindings', 'tests', 'idls')
 REFERENCE_DIRECTORY = os.path.join(SOURCE_PATH, 'bindings', 'tests', 'results')
-
-# component -> ComponentInfoProvider.
-# Note that this dict contains information about testing idl files, which live
-# in Source/bindings/tests/idls/{core,modules}, not in Source/{core,modules}.
-component_info_providers = {}
-
 
 @contextmanager
 def TemporaryDirectory():
@@ -160,7 +155,7 @@ def generate_interface_dependencies(test_input_directory, component_directories,
     test_idl_paths = {}
     for component in component_directories:
         test_idl_paths[component] = idl_paths_recursive(
-            os.path.join(TEST_INPUT_DIRECTORY, component))
+            os.path.join(test_input_directory, component))
     # 2nd-stage computation: individual, then overall
     #
     # Properly should compute separately by component (currently test
@@ -172,20 +167,18 @@ def generate_interface_dependencies(test_input_directory, component_directories,
     test_component_info = {}
     for component, paths in test_idl_paths.iteritems():
         test_interfaces_info[component], test_component_info[component] = collect_interfaces_info(paths)
-    # In order to allow test IDL files to override the production IDL files if
-    # they have the same interface name, process the test IDL files after the
-    # non-test IDL files.
+
+
+    # Cobalt change: Just merge everything together, since we don't really care
+    # about components. Return the ComponentInfoProvider instead of setting
+    # a global.
+    all_component_info = {}
+    all_component_info.update(non_test_component_info)
+    for component, paths in test_idl_paths.iteritems():
+        all_component_info.update(test_component_info[component])
     info_individuals = [non_test_interfaces_info] + test_interfaces_info.values()
     compute_interfaces_info_overall(info_individuals)
-    # Add typedefs which are specified in the actual IDL files to the testing
-    # component info.
-    test_component_info['core']['typedefs'].update(
-        non_test_component_info['typedefs'])
-    component_info_providers['core'] = ComponentInfoProviderCore(
-        interfaces_info, test_component_info['core'])
-    component_info_providers['modules'] = ComponentInfoProviderModules(
-        interfaces_info, test_component_info['core'],
-        test_component_info['modules'])
+    return ComponentInfoProviderCobalt(interfaces_info, all_component_info)
 
 
 class IdlCompilerOptions(object):
@@ -260,7 +253,7 @@ def bindings_tests(output_directory, verbose, reference_directory,
         return True
 
     def identical_output_files(output_files):
-        reference_files = [os.path.join(REFERENCE_DIRECTORY,
+        reference_files = [os.path.join(reference_directory,
                                         os.path.relpath(path, output_directory))
                            for path in output_files]
         return all([identical_file(reference_filename, output_filename)
@@ -274,8 +267,8 @@ def bindings_tests(output_directory, verbose, reference_directory,
             generated_files.add(os.path.join(component, '.svn'))
 
         excess_files = []
-        for path in list_files(REFERENCE_DIRECTORY):
-            relpath = os.path.relpath(path, REFERENCE_DIRECTORY)
+        for path in list_files(reference_directory):
+            relpath = os.path.relpath(path, reference_directory)
             if relpath not in generated_files:
                 excess_files.append(relpath)
         if excess_files:
@@ -286,7 +279,7 @@ def bindings_tests(output_directory, verbose, reference_directory,
         return True
 
     try:
-        generate_interface_dependencies(test_input_directory, component_directories, ignore_idl_files, root_directory, extended_attributes_path)
+        info_provider = generate_interface_dependencies(test_input_directory, component_directories, ignore_idl_files, root_directory, extended_attributes_path)
         for component in component_directories:
             output_dir = os.path.join(output_directory, component)
             if not os.path.exists(output_dir):
@@ -312,7 +305,7 @@ def bindings_tests(output_directory, verbose, reference_directory,
             idl_filenames = []
             dictionary_impl_filenames = []
             partial_interface_filenames = []
-            input_directory = os.path.join(TEST_INPUT_DIRECTORY, component)
+            input_directory = os.path.join(test_input_directory, component)
             for filename in os.listdir(input_directory):
                 if (filename.endswith('.idl') and
                         # Dependencies aren't built
@@ -331,33 +324,12 @@ def bindings_tests(output_directory, verbose, reference_directory,
                                 'dependencies_other_component_full_paths']:
                             partial_interface_filenames.append(idl_path)
 
-            info_provider = component_info_providers[component]
-            partial_interface_info_provider = component_info_providers['modules']
-
-            generate_union_type_containers(CodeGeneratorUnionType,
-                                           info_provider, options)
-            generate_callback_function_impl(CodeGeneratorCallbackFunction,
-                                            info_provider, options)
+            # Cobalt change: The same code generator is used for everything.
             generate_bindings(
-                CodeGeneratorV8,
+                code_generator_constructor,
                 info_provider,
                 options,
                 idl_filenames)
-            generate_bindings(
-                CodeGeneratorWebAgentAPI,
-                info_provider,
-                options,
-                idl_filenames)
-            generate_bindings(
-                CodeGeneratorV8,
-                partial_interface_info_provider,
-                partial_interface_options,
-                partial_interface_filenames)
-            generate_dictionary_impl(
-                CodeGeneratorDictionaryImpl,
-                info_provider,
-                options,
-                dictionary_impl_filenames)
 
     finally:
         delete_cache_files()
