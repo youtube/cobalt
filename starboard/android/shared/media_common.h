@@ -19,6 +19,7 @@
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/string.h"
 
 namespace starboard {
 namespace android {
@@ -34,6 +35,11 @@ inline SbMediaTime ConvertMicrosecondsToSbMediaTime(
 
 inline int64_t ConvertSbMediaTimeToMicroseconds(SbMediaTime media_time) {
   return media_time * kSecondInMicroseconds / kSbMediaTimeSecond;
+}
+
+inline bool IsWidevine(const char* key_system) {
+  return SbStringCompareAll(key_system, "com.widevine") == 0 ||
+         SbStringCompareAll(key_system, "com.widevine.alpha") == 0;
 }
 
 }  // namespace shared
