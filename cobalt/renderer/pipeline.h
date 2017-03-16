@@ -51,14 +51,22 @@ class Pipeline {
   typedef base::Callback<void(scoped_array<uint8>, const math::Size&)>
       RasterizationCompleteCallback;
 
+  enum ShutdownClearMode {
+    kClearToBlack,
+    kNoClear,
+  };
+
   // Using the provided rasterizer creation function, a rasterizer will be
   // created within the Pipeline on a separate rasterizer thread.  Thus,
   // the rasterizer created by the provided function should only reference
-  // thread safe objects.
+  // thread safe objects.  If |clear_to_black_on_shutdown| is specified,
+  // the provided render_target_ (if not NULL) will be cleared to black when
+  // the pipeline is destroyed.
   Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
            const scoped_refptr<backend::RenderTarget>& render_target,
            backend::GraphicsContext* graphics_context,
-           bool submit_even_if_render_tree_is_unchanged);
+           bool submit_even_if_render_tree_is_unchanged,
+           ShutdownClearMode clear_on_shutdown_mode);
   ~Pipeline();
 
   // Submit a new render tree to the renderer pipeline.  After calling this
@@ -199,6 +207,10 @@ class Pipeline {
   base::ConsoleCommandManager::CommandHandler
       dump_current_render_tree_command_handler_;
 #endif
+
+  // If true, Pipeline's destructor will clear its render target to black on
+  // shutdown.
+  const ShutdownClearMode clear_on_shutdown_mode_;
 };
 
 }  // namespace renderer
