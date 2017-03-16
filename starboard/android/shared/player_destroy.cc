@@ -25,6 +25,5 @@ void SbPlayerDestroy(SbPlayer player) {
   }
   delete player;
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallActivityVoidMethod("onMediaStop", "()V");
-  env->AbortOnException();
+  env->CallActivityVoidMethodOrAbort("onMediaStop", "()V");
 }

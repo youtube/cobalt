@@ -65,8 +65,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallActivityVoidMethod("onMediaStart", "()V");
-  env->AbortOnException();
+  env->CallActivityVoidMethodOrAbort("onMediaStart", "()V");
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,

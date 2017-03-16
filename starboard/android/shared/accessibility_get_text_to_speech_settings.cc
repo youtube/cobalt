@@ -31,9 +31,8 @@ bool SbAccessibilityGetTextToSpeechSettings(
 
   out_setting->has_text_to_speech_setting = true;
   out_setting->is_text_to_speech_enabled =
-      env->CallActivityBooleanMethod(
+      env->CallActivityBooleanMethodOrAbort(
           "isAccessibilityScreenReaderEnabled", "()Z");
-  env->AbortOnException();
 
   return true;
 }

@@ -67,12 +67,12 @@ jobject JniEnvExt::GetActivityObject() {
   return native_activity_->clazz;
 }
 
-jclass JniEnvExt::FindClassExt(const char* name) {
+jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   // Convert the JNI FindClass name with slashes to the "binary name" with dots
   // for ClassLoader.loadClass().
   ::std::string dot_name = name;
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
-  jstring jname = NewStringUTF(dot_name.c_str());
+  jstring jname = NewStringUTFOrAbort(dot_name.c_str());
   jobject clazz_obj =
       CallObjectMethod(activity_class_loader_, "loadClass",
                        "(Ljava/lang/String;)Ljava/lang/Class;", jname);

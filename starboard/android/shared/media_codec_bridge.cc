@@ -23,13 +23,12 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const std::string& mime,
     const SbMediaAudioHeader& audio_header) {
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTF(mime.c_str());
-  jobject j_media_codec_bridge = env->CallStaticObjectMethod(
+  jstring j_mime = env->NewStringUTFOrAbort(mime.c_str());
+  jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
       "(Ljava/lang/String;ZZII)Lfoo/cobalt/media/MediaCodecBridge;", j_mime,
       false, false, audio_header.samples_per_second,
       audio_header.number_of_channels);
-  env->AbortOnException();
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);
@@ -48,15 +47,13 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     jobject j_surface,
     jobject j_media_crypto) {
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTF(mime.c_str());
-  env->AbortOnException();
+  jstring j_mime = env->NewStringUTFOrAbort(mime.c_str());
 
-  jobject j_media_codec_bridge = env->CallStaticObjectMethod(
+  jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
       "(Ljava/lang/String;ZZIILandroid/view/Surface;Landroid/media/"
       "MediaCrypto;)Lfoo/cobalt/media/MediaCodecBridge;",
       j_mime, false, false, width, height, j_surface, j_media_crypto);
-  env->AbortOnException();
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);
@@ -70,35 +67,30 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 MediaCodecBridge::~MediaCodecBridge() {
   JniEnvExt* env = JniEnvExt::Get();
   SB_DCHECK(j_media_codec_bridge_);
-  env->CallVoidMethod(j_media_codec_bridge_, "release", "()V");
-  env->AbortOnException();
+  env->CallVoidMethodOrAbort(j_media_codec_bridge_, "release", "()V");
   env->DeleteGlobalRef(j_media_codec_bridge_);
   j_media_codec_bridge_ = NULL;
 }
 
 DequeueInputResult MediaCodecBridge::DequeueInputBuffer(jlong timeout_us) {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef j_dequeue_input_result(env->CallObjectMethod(
+  ScopedLocalJavaRef j_dequeue_input_result(env->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "dequeueInputBuffer",
       "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueInputResult;", timeout_us));
-  env->AbortOnException();
   DequeueInputResult result;
   result.status =
-      env->CallIntMethod(j_dequeue_input_result.Get(), "status", "()I");
-  env->AbortOnException();
+      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "status", "()I");
   result.index =
-      env->CallIntMethod(j_dequeue_input_result.Get(), "index", "()I");
-  env->AbortOnException();
+      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "index", "()I");
 
   return result;
 }
 
 jobject MediaCodecBridge::GetInputBuffer(jint index) {
   SB_DCHECK(index >= 0);
-  jobject result = JniEnvExt::Get()->CallObjectMethod(
+  jobject result = JniEnvExt::Get()->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "getInputBuffer", "(I)Ljava/nio/ByteBuffer;",
       index);
-  JniEnvExt::Get()->AbortOnException();
   return result;
 }
 
@@ -107,73 +99,59 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jint size,
                                         jlong presentation_time_microseconds,
                                         jint flags) {
-  jint result = JniEnvExt::Get()->CallIntMethod(
+  jint result = JniEnvExt::Get()->CallIntMethodOrAbort(
       j_media_codec_bridge_, "queueInputBuffer", "(IIIJI)I", index, offset,
       size, presentation_time_microseconds, flags);
-  JniEnvExt::Get()->AbortOnException();
   return result;
 }
 
 DequeueOutputResult MediaCodecBridge::DequeueOutputBuffer(jlong timeout_us) {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef j_dequeue_output_result(env->CallObjectMethod(
+  ScopedLocalJavaRef j_dequeue_output_result(env->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "dequeueOutputBuffer",
       "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueOutputResult;",
       timeout_us));
-  env->AbortOnException();
   DequeueOutputResult result;
   jobject obj = j_dequeue_output_result.Get();
-  result.status = env->CallIntMethod(obj, "status", "()I");
-  env->AbortOnException();
-  result.index = env->CallIntMethod(obj, "index", "()I");
-  env->AbortOnException();
-  result.flags = env->CallIntMethod(obj, "flags", "()I");
-  env->AbortOnException();
-  result.offset = env->CallIntMethod(obj, "offset", "()I");
-  env->AbortOnException();
+  result.status = env->CallIntMethodOrAbort(obj, "status", "()I");
+  result.index = env->CallIntMethodOrAbort(obj, "index", "()I");
+  result.flags = env->CallIntMethodOrAbort(obj, "flags", "()I");
+  result.offset = env->CallIntMethodOrAbort(obj, "offset", "()I");
   result.presentation_time_microseconds =
-      env->CallLongMethod(obj, "presentationTimeMicroseconds", "()J"),
-  env->AbortOnException();
-  result.num_bytes = env->CallIntMethod(obj, "numBytes", "()I");
-  env->AbortOnException();
+      env->CallLongMethodOrAbort(obj, "presentationTimeMicroseconds", "()J"),
+  result.num_bytes = env->CallIntMethodOrAbort(obj, "numBytes", "()I");
   return result;
 }
 
 jobject MediaCodecBridge::GetOutputBuffer(jint index) {
   SB_DCHECK(index >= 0);
-  jobject result = JniEnvExt::Get()->CallObjectMethod(
+  jobject result = JniEnvExt::Get()->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "getOutputBuffer", "(I)Ljava/nio/ByteBuffer;",
       index);
-  JniEnvExt::Get()->AbortOnException();
   return result;
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
-  JniEnvExt::Get()->CallVoidMethod(j_media_codec_bridge_, "releaseOutputBuffer",
-                                   "(IZ)V", index, render);
-  JniEnvExt::Get()->AbortOnException();
+  JniEnvExt::Get()->CallVoidMethodOrAbort(
+      j_media_codec_bridge_, "releaseOutputBuffer", "(IZ)V", index, render);
 }
 
 jint MediaCodecBridge::Flush() {
-  jint result =
-      JniEnvExt::Get()->CallIntMethod(j_media_codec_bridge_, "flush", "()I");
-  JniEnvExt::Get()->AbortOnException();
+  jint result = JniEnvExt::Get()->CallIntMethodOrAbort(j_media_codec_bridge_,
+                                                       "flush", "()I");
   return result;
 }
 
 SurfaceDimensions MediaCodecBridge::GetOutputDimensions() {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef j_get_output_format_result(env->CallObjectMethod(
+  ScopedLocalJavaRef j_get_output_format_result(env->CallObjectMethodOrAbort(
       j_media_codec_bridge_, "getOutputFormat",
       "()Lfoo/cobalt/media/MediaCodecBridge$GetOutputFormatResult;"));
-  env->AbortOnException();
   SurfaceDimensions result;
-  result.width =
-      env->CallIntMethod(j_get_output_format_result.Get(), "width", "()I"),
-  env->AbortOnException();
-  result.height =
-      env->CallIntMethod(j_get_output_format_result.Get(), "height", "()I");
-  env->AbortOnException();
+  result.width = env->CallIntMethodOrAbort(j_get_output_format_result.Get(),
+                                           "width", "()I"),
+  result.height = env->CallIntMethodOrAbort(j_get_output_format_result.Get(),
+                                            "height", "()I");
   return result;
 }
 
