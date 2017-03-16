@@ -42,17 +42,24 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   void CloseSession(const void* session_id, int session_id_size) SB_OVERRIDE;
   DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
 
-  bool is_valid() const { return false; }
+  jobject GetMediaCrypto() const { return j_media_crypto_; }
+  void CallUpdateRequestCallback(const void* session_id,
+                                 int session_id_size,
+                                 const void* content,
+                                 int content_size,
+                                 const char* url);
 
-  jobject GetMediaCrypto() const {
-    SB_NOTIMPLEMENTED();
-    return NULL;
+  bool is_valid() const {
+    return j_media_drm_bridge_ != NULL && j_media_crypto_ != NULL;
   }
 
  private:
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
   SbDrmSessionUpdatedFunc session_updated_callback_;
+
+  jobject j_media_drm_bridge_;
+  jobject j_media_crypto_;
 };
 
 }  // namespace shared
