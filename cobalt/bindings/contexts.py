@@ -18,15 +18,35 @@ Extract the relevant information from the IdlParser objects and store them in
 dicts that will be used by Jinja in JS bindings generation.
 """
 
-from bindings.scripts.idl_types import IdlSequenceType
-from bindings.scripts.v8_attributes import is_constructor_attribute
-from bindings.scripts.v8_interface import method_overloads_by_name
+from idl_definitions import IdlTypedef
+from idl_types import IdlSequenceType
 from name_conversion import capitalize_function_name
 from name_conversion import convert_to_cobalt_constant_name
 from name_conversion import convert_to_cobalt_enumeration_value
 from name_conversion import convert_to_cobalt_name
 from name_conversion import get_interface_name
 from overload_context import get_overload_contexts
+from v8_attributes import is_constructor_attribute
+from v8_interface import method_overloads_by_name
+
+
+def is_object_type(idl_type):
+  return str(idl_type) == 'object'
+
+
+def is_any_type(idl_type):
+  return idl_type.name == 'Any'
+
+
+def is_sequence_type(idl_type):
+  return isinstance(idl_type, IdlSequenceType)
+
+
+def idl_literal_to_cobalt_literal(idl_type, idl_literal):
+  """Map IDL literal to the corresponding cobalt value."""
+  if idl_literal.is_null and not idl_type.is_interface_type:
+    return 'base::nullopt'
+  return str(idl_literal)
 
 
 def idl_primitive_type_to_cobalt(idl_type):
@@ -48,47 +68,6 @@ def idl_primitive_type_to_cobalt(idl_type):
   }
   assert idl_type.is_primitive_type, 'Expected primitive type.'
   return type_map[idl_type.base_type]
-
-
-def idl_sequence_type_to_cobalt(idl_type):
-  """Map IDL sequence type to C++ sequence type implementation."""
-  assert is_sequence_type(idl_type), 'Expected sequence type.'
-  element_idl_type = idl_type.element_type
-  assert not is_object_type(element_idl_type), 'Object type not supported.'
-  assert (not element_idl_type.is_callback_function and
-          not idl_type.is_callback_interface), 'Callback types not supported.'
-  element_cobalt_type = idl_type_to_cobalt_type(element_idl_type)
-  return 'script::Sequence< %s >' % element_cobalt_type
-
-
-def idl_union_type_to_cobalt(idl_type):
-  """Map IDL union type to C++ union type implementation."""
-  # Flatten the union type. Order matters for our implementation.
-  assert idl_type.is_union_type, 'Expected union type.'
-  flattened_types = []
-  for member in idl_type.member_types:
-    if member.is_nullable:
-      member = member.inner_type
-
-    if member.is_union_type:
-      flattened_types.extend(idl_union_type_to_cobalt(member))
-    else:
-      flattened_types.append(member)
-
-  cobalt_types = [idl_type_to_cobalt_type(t) for t in flattened_types]
-  return 'script::UnionType%d<%s >' % (len(cobalt_types),
-                                       ', '.join(cobalt_types))
-
-
-def idl_union_type_has_nullable_member(idl_type):
-  """Return True iff the idl_type is a union with a nullable member."""
-  assert idl_type.is_union_type, 'Expected union type.'
-  for member in idl_type.member_types:
-    if member.is_nullable:
-      return True
-    elif member.is_union_type and idl_union_type_has_nullable_member(member):
-      return True
-  return False
 
 
 def cobalt_type_is_optional(idl_type):
@@ -118,136 +97,9 @@ def cobalt_type_is_optional(idl_type):
            (idl_union_type_has_nullable_member(idl_type))))
 
 
-def is_object_type(idl_type):
-  return str(idl_type) == 'object'
-
-
-def is_any_type(idl_type):
-  return idl_type.name == 'Any'
-
-
-def is_sequence_type(idl_type):
-  return isinstance(idl_type, IdlSequenceType)
-
-
-def idl_type_to_cobalt_type(idl_type):
-  """Map IDL type to C++ type."""
-  cobalt_type = None
-  if idl_type.is_primitive_type:
-    cobalt_type = idl_primitive_type_to_cobalt(idl_type)
-  elif idl_type.is_string_type:
-    cobalt_type = 'std::string'
-  elif idl_type.is_callback_interface:
-    cobalt_type = 'CallbackInterfaceTraits<%s >' % get_interface_name(idl_type)
-  elif idl_type.is_interface_type:
-    cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
-  elif idl_type.is_union_type:
-    cobalt_type = idl_union_type_to_cobalt(idl_type)
-  elif is_sequence_type(idl_type):
-    cobalt_type = idl_sequence_type_to_cobalt(idl_type)
-  elif idl_type.name == 'void':
-    cobalt_type = 'void'
-  elif is_object_type(idl_type):
-    cobalt_type = 'OpaqueHandle'
-  elif is_any_type(idl_type):
-    cobalt_type = 'ValueHandle'
-  elif idl_type.is_dictionary:
-    cobalt_type = get_interface_name(idl_type)
-
-  assert cobalt_type, 'Unsupported idl_type %s' % idl_type
-
-  if cobalt_type_is_optional(idl_type):
-    cobalt_type = 'base::optional<%s >' % cobalt_type
-
-  return cobalt_type
-
-
-def typed_object_to_cobalt_type(interface, typed_object):
-  """Map type of IDL TypedObject to C++ type."""
-  if typed_object.idl_type.is_callback_function:
-    cobalt_type = interface.name + '::' + get_interface_name(
-        typed_object.idl_type)
-  elif typed_object.idl_type.is_enum:
-    cobalt_type = '%s::%s' % (interface.name,
-                              get_interface_name(typed_object.idl_type))
-  else:
-    cobalt_type = idl_type_to_cobalt_type(typed_object.idl_type)
-  if getattr(typed_object, 'is_variadic', False):
-    cobalt_type = 'std::vector<%s>' % cobalt_type
-  return cobalt_type
-
-
-def typed_object_to_arg_type(interface, typed_object):
-  """Map type of IDL TypedObject to C++ type that is a function argument."""
-  base_type = typed_object_to_cobalt_type(interface, typed_object)
-
-  idl_type = typed_object.idl_type
-  if (idl_type.is_callback_function or idl_type.is_object_type or
-      idl_type.is_callback_interface):
-    return base_type + '*'
-  if idl_type.is_string_type or idl_type.is_interface_type:
-    return 'const %s&' % base_type
-  return base_type
-
-
-def idl_literal_to_cobalt_literal(idl_type, idl_literal):
-  """Map IDL literal to the corresponding cobalt value."""
-  if idl_literal.is_null and not idl_type.is_interface_type:
-    return 'base::nullopt'
-  return str(idl_literal)
-
-
-def get_conversion_flags(typed_object):
-  """Build an expression setting a bitmask of flags used for conversion."""
-  flags = []
-  idl_type = typed_object.idl_type
-  # Flags must correspond to the enumeration in
-  # scripts/javascriptcore/conversion_helpers.h
-  if (idl_type.is_numeric_type and not idl_type.is_integer_type and
-      not idl_type.base_type.startswith('unrestricted ')):
-    flags.append('kConversionFlagRestricted')
-  if idl_type.is_nullable and not cobalt_type_is_optional(idl_type.inner_type):
-    # Other types use base::optional<> so there is no need for a flag to check
-    # if null values are allowed.
-    flags.append('kConversionFlagNullable')
-  if idl_type.is_string_type:
-    if typed_object.extended_attributes.get('TreatNullAs', '') == 'EmptyString':
-      flags.append('kConversionFlagTreatNullAsEmptyString')
-    elif (typed_object.extended_attributes.get('TreatUndefinedAs',
-                                               '') == 'EmptyString'):
-      flags.append('kConversionFlagTreatUndefinedAsEmptyString')
-
-  if typed_object.extended_attributes.has_key('Clamp'):
-    flags.append('kConversionFlagClamped')
-
-  if flags:
-    return '(%s)' % ' | '.join(flags)
-  else:
-    return 'kNoConversionFlags'
-
-
-def argument_context(interface, argument):
-  """Create template values for method/constructor arguments."""
-  return {
-      'idl_type_object':
-          argument.idl_type,
-      'name':
-          argument.name,
-      'type':
-          typed_object_to_cobalt_type(interface, argument),
-      'arg_type':
-          typed_object_to_arg_type(interface, argument),
-      'conversion_flags':
-          get_conversion_flags(argument),
-      'is_optional':
-          argument.is_optional,
-      'is_variadic':
-          argument.is_variadic,
-      'default_value':
-          idl_literal_to_cobalt_literal(argument.idl_type,
-                                        argument.default_value)
-          if argument.default_value else None,
-  }
+def get_optional_arguments(arguments):
+  """Create optional arguments list."""
+  return [argument for argument in arguments if argument['is_optional']]
 
 
 def get_non_optional_arguments(arguments):
@@ -256,11 +108,6 @@ def get_non_optional_arguments(arguments):
       argument for argument in arguments
       if not argument['is_optional'] and not argument['is_variadic']
   ]
-
-
-def get_optional_arguments(arguments):
-  """Create optional arguments list."""
-  return [argument for argument in arguments if argument['is_optional']]
 
 
 def get_num_default_arguments(optional_arguments):
@@ -284,311 +131,465 @@ def get_variadic_argument(arguments):
     return []
 
 
-def partial_context(interface, operation):
-  """Create partial template values for generating bindings."""
-  arguments = [argument_context(interface, a) for a in operation.arguments]
-  optional_arguments = get_optional_arguments(arguments)
-  num_default_arguments = get_num_default_arguments(optional_arguments)
-  return {
-      'arguments':
-          arguments,
-      'non_optional_arguments':
-          get_non_optional_arguments(arguments),
-      'optional_arguments':
-          optional_arguments,
-      'num_default_arguments':
-          num_default_arguments,
-      'variadic_argument':
-          get_variadic_argument(arguments),
-      'has_non_default_optional_arguments':
-          len(optional_arguments) > num_default_arguments,
-  }
+def idl_union_type_has_nullable_member(idl_type):
+  """Return True iff the idl_type is a union with a nullable member."""
+  assert idl_type.is_union_type, 'Expected union type.'
+  for member in idl_type.member_types:
+    if member.is_nullable:
+      return True
+    elif member.is_union_type and idl_union_type_has_nullable_member(member):
+      return True
+  return False
 
 
-def constructor_context(interface, constructor):
-  """Create template values for generating constructor bindings."""
-  context = {
-      'call_with':
-          interface.extended_attributes.get('ConstructorCallWith', None),
-      'raises_exception': (interface.extended_attributes.get(
-          'RaisesException', None) == 'Constructor'),
-  }
+class ContextBuilder(object):
+  """Build jinja2 contexts (python dicts) for use in bindings generation."""
 
-  context.update(partial_context(interface, constructor))
-  return context
+  def __init__(self, info_provider):
+    self.info_provider = info_provider
 
+  def idl_sequence_type_to_cobalt(self, idl_type):
+    """Map IDL sequence type to C++ sequence type implementation."""
+    assert is_sequence_type(idl_type), 'Expected sequence type.'
+    element_idl_type = idl_type.element_type
+    assert not is_object_type(element_idl_type), 'Object type not supported.'
+    assert (not element_idl_type.is_callback_function and
+            not idl_type.is_callback_interface), 'Callback types not supported.'
+    element_cobalt_type = self.idl_type_to_cobalt_type(element_idl_type)
+    return 'script::Sequence< %s >' % element_cobalt_type
 
-def method_context(interface, operation):
-  """Create template values for generating method bindings."""
-  context = {
-      'idl_name':
-          operation.name,
-      'name':
-          capitalize_function_name(operation.name),
-      'type':
-          typed_object_to_cobalt_type(interface, operation),
-      'is_static':
-          operation.is_static,
-      'call_with':
-          operation.extended_attributes.get('CallWith', None),
-      'raises_exception':
-          operation.extended_attributes.has_key('RaisesException'),
-      'conditional':
-          operation.extended_attributes.get('Conditional', None),
-      'unsupported':
-          'NotSupported' in operation.extended_attributes,
-  }
+  def idl_union_type_to_cobalt(self, idl_type):
+    """Map IDL union type to C++ union type implementation."""
+    # Flatten the union type. Order matters for our implementation.
+    assert idl_type.is_union_type, 'Expected union type.'
+    flattened_types = []
+    for member in idl_type.member_types:
+      if member.is_nullable:
+        member = member.inner_type
 
-  context.update(partial_context(interface, operation))
-  return context
+      if member.is_union_type:
+        flattened_types.extend(self.idl_union_type_to_cobalt(member))
+      else:
+        flattened_types.append(member)
 
+    cobalt_types = [self.idl_type_to_cobalt_type(t) for t in flattened_types]
+    return 'script::UnionType%d<%s >' % (len(cobalt_types),
+                                         ', '.join(cobalt_types))
 
-def stringifier_context(interface):
-  """Create template values for generating stringifier."""
-  if not interface.stringifier:
-    return None
-  if interface.stringifier.attribute:
-    cobalt_name = convert_to_cobalt_name(interface.stringifier.attribute.name)
-  elif interface.stringifier.operation:
-    cobalt_name = capitalize_function_name(interface.stringifier.operation.name)
-  else:
-    cobalt_name = 'AnonymousStringifier'
-  return {
-      'name': cobalt_name,
-  }
+  def idl_type_to_cobalt_type(self, idl_type):
+    """Map IDL type to C++ type."""
+    cobalt_type = None
+    idl_type = idl_type.resolve_typedefs(self.info_provider.typedefs)
+    if isinstance(idl_type, IdlTypedef):
+      idl_type = idl_type.idl_type
+    if idl_type.is_primitive_type:
+      cobalt_type = idl_primitive_type_to_cobalt(idl_type)
+    elif idl_type.is_string_type:
+      cobalt_type = 'std::string'
+    elif idl_type.is_callback_interface:
+      cobalt_type = 'CallbackInterfaceTraits<%s >' % get_interface_name(
+          idl_type)
+    elif idl_type.is_interface_type:
+      cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
+    elif idl_type.is_union_type:
+      cobalt_type = self.idl_union_type_to_cobalt(idl_type)
+    elif is_sequence_type(idl_type):
+      cobalt_type = self.idl_sequence_type_to_cobalt(idl_type)
+    elif idl_type.name == 'void':
+      cobalt_type = 'void'
+    elif is_object_type(idl_type):
+      cobalt_type = 'OpaqueHandle'
+    elif is_any_type(idl_type):
+      cobalt_type = 'ValueHandle'
+    elif idl_type.is_dictionary:
+      cobalt_type = get_interface_name(idl_type)
 
+    assert cobalt_type, 'Unsupported idl_type %s' % idl_type
 
-def special_method_context(interface, operation):
-  """Create template values for getter and setter bindings."""
-  if not operation or not operation.specials:
-    return None
+    if cobalt_type_is_optional(idl_type):
+      cobalt_type = 'base::optional<%s >' % cobalt_type
 
-  assert operation.arguments
-  is_indexed = str(operation.arguments[0].idl_type) == 'unsigned long'
-  is_named = str(operation.arguments[0].idl_type) == 'DOMString'
+    return cobalt_type
 
-  assert len(operation.specials) == 1
-  special_type = operation.specials[0]
-  assert special_type in ('getter', 'setter', 'deleter')
+  def typed_object_to_cobalt_type(self, interface, typed_object):
+    """Map type of IDL TypedObject to C++ type."""
+    if typed_object.idl_type.is_callback_function:
+      cobalt_type = interface.name + '::' + get_interface_name(
+          typed_object.idl_type)
+    elif typed_object.idl_type.is_enum:
+      cobalt_type = '%s::%s' % (interface.name,
+                                get_interface_name(typed_object.idl_type))
+    else:
+      cobalt_type = self.idl_type_to_cobalt_type(typed_object.idl_type)
+    if getattr(typed_object, 'is_variadic', False):
+      cobalt_type = 'std::vector<%s>' % cobalt_type
+    return cobalt_type
 
-  function_suffix = {
-      'getter': 'Getter',
-      'setter': 'Setter',
-      'deleter': 'Deleter',
-  }
+  def typed_object_to_arg_type(self, interface, typed_object):
+    """Map type of IDL TypedObject to C++ type that is a function argument."""
+    base_type = self.typed_object_to_cobalt_type(interface, typed_object)
 
-  if operation.name:
-    cobalt_name = capitalize_function_name(operation.name)
-  elif is_indexed:
-    cobalt_name = 'AnonymousIndexed%s' % function_suffix[special_type]
-  else:
-    assert is_named
-    cobalt_name = 'AnonymousNamed%s' % function_suffix[special_type]
+    idl_type = typed_object.idl_type
+    if (idl_type.is_callback_function or idl_type.is_object_type or
+        idl_type.is_callback_interface):
+      return base_type + '*'
+    if idl_type.is_string_type or idl_type.is_interface_type:
+      return 'const %s&' % base_type
+    return base_type
 
-  context = {
-      'name':
-          cobalt_name,
-      'raises_exception':
-          operation.extended_attributes.has_key('RaisesException'),
-  }
+  def get_conversion_flags(self, typed_object):
+    """Build an expression setting a bitmask of flags used for conversion."""
+    flags = []
+    idl_type = typed_object.idl_type
+    # Flags must correspond to the enumeration in
+    # scripts/javascriptcore/conversion_helpers.h
+    if (idl_type.is_numeric_type and not idl_type.is_integer_type and
+        not idl_type.base_type.startswith('unrestricted ')):
+      flags.append('kConversionFlagRestricted')
+    if idl_type.is_nullable and not cobalt_type_is_optional(
+        idl_type.inner_type):
+      # Other types use base::optional<> so there is no need for a flag to check
+      # if null values are allowed.
+      flags.append('kConversionFlagNullable')
+    if idl_type.is_string_type:
+      if typed_object.extended_attributes.get('TreatNullAs',
+                                              '') == 'EmptyString':
+        flags.append('kConversionFlagTreatNullAsEmptyString')
+      elif (typed_object.extended_attributes.get('TreatUndefinedAs',
+                                                 '') == 'EmptyString'):
+        flags.append('kConversionFlagTreatUndefinedAsEmptyString')
 
-  if special_type in ('getter', 'deleter'):
-    context['type'] = typed_object_to_cobalt_type(interface, operation)
-  else:
-    context['type'] = typed_object_to_cobalt_type(interface,
-                                                  operation.arguments[1])
-    context['conversion_flags'] = get_conversion_flags(operation.arguments[1])
+    if typed_object.extended_attributes.has_key('Clamp'):
+      flags.append('kConversionFlagClamped')
 
-  return context
+    if flags:
+      return '(%s)' % ' | '.join(flags)
+    else:
+      return 'kNoConversionFlags'
 
+  def argument_context(self, interface, argument):
+    """Create template values for method/constructor arguments."""
+    return {
+        'idl_type_object':
+            argument.idl_type,
+        'name':
+            argument.name,
+        'type':
+            self.typed_object_to_cobalt_type(interface, argument),
+        'arg_type':
+            self.typed_object_to_arg_type(interface, argument),
+        'conversion_flags':
+            self.get_conversion_flags(argument),
+        'is_optional':
+            argument.is_optional,
+        'is_variadic':
+            argument.is_variadic,
+        'default_value':
+            idl_literal_to_cobalt_literal(argument.idl_type,
+                                          argument.default_value)
+            if argument.default_value else None,
+    }
 
-def attribute_context(interface, attribute, definitions):
-  """Create template values for attribute bindings."""
-  context = {
-      'idl_name':
-          attribute.name,
-      'getter_function_name':
-          convert_to_cobalt_name(attribute.name),
-      'setter_function_name':
-          'set_' + convert_to_cobalt_name(attribute.name),
-      'type':
-          typed_object_to_cobalt_type(interface, attribute),
-      'is_static':
-          attribute.is_static,
-      'is_read_only':
-          attribute.is_read_only,
-      'call_with':
-          attribute.extended_attributes.get('CallWith', None),
-      'raises_exception':
-          attribute.extended_attributes.has_key('RaisesException'),
-      'conversion_flags':
-          get_conversion_flags(attribute),
-      'conditional':
-          attribute.extended_attributes.get('Conditional', None),
-      'unsupported':
-          'NotSupported' in attribute.extended_attributes,
-  }
-  forwarded_attribute_name = attribute.extended_attributes.get('PutForwards')
-  if forwarded_attribute_name:
-    assert attribute.idl_type.is_interface_type, (
-        'PutForwards must be declared on a property of interface type.')
-    assert attribute.is_read_only, (
-        'PutForwards must be on a readonly attribute.')
-    forwarded_interface = definitions.interfaces[get_interface_name(
-        attribute.idl_type)]
-    matching_attributes = [
-        a for a in forwarded_interface.attributes
-        if a.name == forwarded_attribute_name
+  def partial_context(self, interface, operation):
+    """Create partial template values for generating bindings."""
+    arguments = [
+        self.argument_context(interface, a) for a in operation.arguments
     ]
-    assert len(matching_attributes) == 1
-    context['put_forwards'] = attribute_context(
-        forwarded_interface, matching_attributes[0], definitions)
-  context['has_setter'] = not attribute.is_read_only or forwarded_attribute_name
-  if is_constructor_attribute(attribute):
-    context['is_constructor_attribute'] = True
-    context['interface_name'] = get_interface_name(attribute.idl_type)
-    # Blink's IDL parser uses the convention that attributes ending with
-    # 'ConstructorConstructor' are for Named Constructors.
-    context['is_named_constructor_attribute'] = (
-        attribute.idl_type.name.endswith('ConstructorConstructor'))
-  return context
+    optional_arguments = get_optional_arguments(arguments)
+    num_default_arguments = get_num_default_arguments(optional_arguments)
+    return {
+        'arguments':
+            arguments,
+        'non_optional_arguments':
+            get_non_optional_arguments(arguments),
+        'optional_arguments':
+            optional_arguments,
+        'num_default_arguments':
+            num_default_arguments,
+        'variadic_argument':
+            get_variadic_argument(arguments),
+        'has_non_default_optional_arguments':
+            len(optional_arguments) > num_default_arguments,
+    }
 
+  def constructor_context(self, interface, constructor):
+    """Create template values for generating constructor bindings."""
+    context = {
+        'call_with':
+            interface.extended_attributes.get('ConstructorCallWith', None),
+        'raises_exception': (interface.extended_attributes.get(
+            'RaisesException', None) == 'Constructor'),
+    }
 
-def enumeration_context(enumeration):
-  """Create template values for IDL enumeration type bindings."""
-  return {
-      'name':
-          enumeration.name,
-      'value_pairs': [(convert_to_cobalt_enumeration_value(value), value,)
-                      for value in enumeration.values],
-  }
+    context.update(self.partial_context(interface, constructor))
+    return context
 
+  def method_context(self, interface, operation):
+    """Create template values for generating method bindings."""
+    context = {
+        'idl_name':
+            operation.name,
+        'name':
+            capitalize_function_name(operation.name),
+        'type':
+            self.typed_object_to_cobalt_type(interface, operation),
+        'is_static':
+            operation.is_static,
+        'call_with':
+            operation.extended_attributes.get('CallWith', None),
+        'raises_exception':
+            operation.extended_attributes.has_key('RaisesException'),
+        'conditional':
+            operation.extended_attributes.get('Conditional', None),
+        'unsupported':
+            'NotSupported' in operation.extended_attributes,
+    }
 
-def constant_context(constant):
-  """Create template values for IDL constant bindings."""
-  assert constant.idl_type.is_primitive_type, ('Only primitive types can be '
-                                               'declared as constants.')
-  return {
-      'name': convert_to_cobalt_constant_name(constant.name),
-      'idl_name': constant.name,
-      'value': constant.value,
-      'can_use_compile_assert': constant.idl_type.is_integer_type,
-      'unsupported': 'NotSupported' in constant.extended_attributes,
-  }
+    context.update(self.partial_context(interface, operation))
+    return context
 
+  def stringifier_context(self, interface):
+    """Create template values for generating stringifier."""
+    if not interface.stringifier:
+      return None
+    if interface.stringifier.attribute:
+      cobalt_name = convert_to_cobalt_name(interface.stringifier.attribute.name)
+    elif interface.stringifier.operation:
+      cobalt_name = capitalize_function_name(
+          interface.stringifier.operation.name)
+    else:
+      cobalt_name = 'AnonymousStringifier'
+    return {
+        'name': cobalt_name,
+    }
 
-def get_method_contexts(expression_generator, interface):
-  """Return a list of overload contexts for generating method bindings.
+  def special_method_context(self, interface, operation):
+    """Create template values for getter and setter bindings."""
+    if not operation or not operation.specials:
+      return None
 
-  The 'overloads' key of the overload_contexts will be the list of
-  method_contexts that are overloaded to this name. In the case that
-  a function is not overloaded, the length of this list will be one.
+    assert operation.arguments
+    is_indexed = str(operation.arguments[0].idl_type) == 'unsigned long'
+    is_named = str(operation.arguments[0].idl_type) == 'DOMString'
 
-  Arguments:
-      expression_generator: An ExpressionGenerator object.
-      interface: an IdlInterface object
-  Returns:
-      [overload_contexts]
-  """
+    assert len(operation.specials) == 1
+    special_type = operation.specials[0]
+    assert special_type in ('getter', 'setter', 'deleter')
 
-  # Get the method contexts for all operations.
-  methods = [
-      method_context(interface, operation) for operation in interface.operations
-      if operation.name
-  ]
+    function_suffix = {
+        'getter': 'Getter',
+        'setter': 'Setter',
+        'deleter': 'Deleter',
+    }
 
-  # Create overload sets for static and non-static methods seperately.
-  # Each item in the list is a pair of (name, [method_contexts]) where for
-  # each method_context m in the list, m['name'] == name.
-  static_method_overloads = method_overloads_by_name(
-      [m for m in methods if m['is_static']])
-  non_static_method_overloads = method_overloads_by_name(
-      [m for m in methods if not m['is_static']])
-  static_overload_contexts = get_overload_contexts(expression_generator, [
-      contexts for _, contexts in static_method_overloads
-  ])
-  non_static_overload_contexts = get_overload_contexts(expression_generator, [
-      contexts for _, contexts in non_static_method_overloads
-  ])
+    if operation.name:
+      cobalt_name = capitalize_function_name(operation.name)
+    elif is_indexed:
+      cobalt_name = 'AnonymousIndexed%s' % function_suffix[special_type]
+    else:
+      assert is_named
+      cobalt_name = 'AnonymousNamed%s' % function_suffix[special_type]
 
-  # Set is_static on each of these appropriately.
-  for context in static_overload_contexts:
-    context['is_static'] = True
-  for context in non_static_overload_contexts:
-    context['is_static'] = False
+    context = {
+        'name':
+            cobalt_name,
+        'raises_exception':
+            operation.extended_attributes.has_key('RaisesException'),
+    }
 
-  # Append the lists and add the idl_name of the operation to the
-  # top-level overload context.
-  overload_contexts = static_overload_contexts + non_static_overload_contexts
-  for context in overload_contexts:
-    context['idl_name'] = context['overloads'][0]['idl_name']
-    context['conditional'] = context['overloads'][0]['conditional']
-    context['unsupported'] = context['overloads'][0]['unsupported']
-    for overload in context['overloads']:
-      assert context['conditional'] == overload['conditional'], (
-          'All overloads must have the same conditional.')
-    for overload in context['overloads']:
-      assert context['unsupported'] == overload['unsupported'], (
-          'All overloads must have the value for NotSupported.')
+    if special_type in ('getter', 'deleter'):
+      context['type'] = self.typed_object_to_cobalt_type(interface, operation)
+    else:
+      context['type'] = self.typed_object_to_cobalt_type(
+          interface, operation.arguments[1])
+      context['conversion_flags'] = self.get_conversion_flags(
+          operation.arguments[1])
 
-  return overload_contexts
+    return context
 
+  def attribute_context(self, interface, attribute, definitions):
+    """Create template values for attribute bindings."""
+    context = {
+        'idl_name':
+            attribute.name,
+        'getter_function_name':
+            convert_to_cobalt_name(attribute.name),
+        'setter_function_name':
+            'set_' + convert_to_cobalt_name(attribute.name),
+        'type':
+            self.typed_object_to_cobalt_type(interface, attribute),
+        'is_static':
+            attribute.is_static,
+        'is_read_only':
+            attribute.is_read_only,
+        'call_with':
+            attribute.extended_attributes.get('CallWith', None),
+        'raises_exception':
+            attribute.extended_attributes.has_key('RaisesException'),
+        'conversion_flags':
+            self.get_conversion_flags(attribute),
+        'conditional':
+            attribute.extended_attributes.get('Conditional', None),
+        'unsupported':
+            'NotSupported' in attribute.extended_attributes,
+    }
+    forwarded_attribute_name = attribute.extended_attributes.get('PutForwards')
+    if forwarded_attribute_name:
+      assert attribute.idl_type.is_interface_type, (
+          'PutForwards must be declared on a property of interface type.')
+      assert attribute.is_read_only, (
+          'PutForwards must be on a readonly attribute.')
+      forwarded_interface = definitions.interfaces[get_interface_name(
+          attribute.idl_type)]
+      matching_attributes = [
+          a for a in forwarded_interface.attributes
+          if a.name == forwarded_attribute_name
+      ]
+      assert len(matching_attributes) == 1
+      context['put_forwards'] = self.attribute_context(
+          forwarded_interface, matching_attributes[0], definitions)
+    context[
+        'has_setter'] = not attribute.is_read_only or forwarded_attribute_name
+    if is_constructor_attribute(attribute):
+      context['is_constructor_attribute'] = True
+      context['interface_name'] = get_interface_name(attribute.idl_type)
+      # Blink's IDL parser uses the convention that attributes ending with
+      # 'ConstructorConstructor' are for Named Constructors.
+      context['is_named_constructor_attribute'] = (
+          attribute.idl_type.name.endswith('ConstructorConstructor'))
+    return context
 
-def get_constructor_context(expression_generator, interface):
-  """Return an overload_context for generating constructor bindings.
+  def enumeration_context(self, enumeration):
+    """Create template values for IDL enumeration type bindings."""
+    return {
+        'name':
+            enumeration.name,
+        'value_pairs': [(convert_to_cobalt_enumeration_value(value), value,)
+                        for value in enumeration.values],
+    }
 
-  The 'overloads' key for the overloads_context will be a list of
-  constructor_contexts representing all constructor overloads. In the
-  case that the constructor is not overloaded, the length of this list
-  will be one.
-  The overload_context also has a 'length' key which can be used to
-  specify the 'length' property for the constructor.
+  def constant_context(self, constant):
+    """Create template values for IDL constant bindings."""
+    assert constant.idl_type.is_primitive_type, ('Only primitive types can be '
+                                                 'declared as constants.')
+    return {
+        'name': convert_to_cobalt_constant_name(constant.name),
+        'idl_name': constant.name,
+        'value': constant.value,
+        'can_use_compile_assert': constant.idl_type.is_integer_type,
+        'unsupported': 'NotSupported' in constant.extended_attributes,
+    }
 
-  Arguments:
-      expression_generator: An ExpressionGenerator object.
-      interface: An IdlInterface object.
-  Returns:
-      overload_context
-  """
+  def get_method_contexts(self, expression_generator, interface):
+    """Return a list of overload contexts for generating method bindings.
 
-  constructors = [
-      constructor_context(interface, constructor)
-      for constructor in interface.constructors
-  ]
-  if not constructors:
-    return None
-  else:
-    overload_contexts = get_overload_contexts(expression_generator,
-                                              [constructors])
-    assert len(overload_contexts) == 1, (
-        'Expected exactly one overload context for constructor.')
-    return overload_contexts[0]
+    The 'overloads' key of the overload_contexts will be the list of
+    method_contexts that are overloaded to this name. In the case that
+    a function is not overloaded, the length of this list will be one.
 
+    Arguments:
+        expression_generator: An ExpressionGenerator object.
+        interface: an IdlInterface object
+    Returns:
+        [overload_contexts]
+    """
 
-def get_dictionary_member_context(dictionary, dictionary_member):
-  """Returns a jinja context for a dictionary member.
+    # Get the method contexts for all operations.
+    methods = [
+        self.method_context(interface, operation)
+        for operation in interface.operations if operation.name
+    ]
 
-  Arguments:
-      dictionary: An IdlDictionary object
-      dictionary_member: An IdlDictionaryMember object.
-  Returns:
-    dictionary_member_context (dict)
-  """
-  return {
-      'idl_type_object':
-          dictionary_member.idl_type,
-      'name':
-          convert_to_cobalt_name(dictionary_member.name),
-      'idl_name':
-          dictionary_member.name,
-      'type':
-          typed_object_to_cobalt_type(dictionary, dictionary_member),
-      'arg_type':
-          typed_object_to_arg_type(dictionary, dictionary_member),
-      'conversion_flags':
-          get_conversion_flags(dictionary_member),
-      'default_value':
-          idl_literal_to_cobalt_literal(dictionary_member.idl_type,
-                                        dictionary_member.default_value)
-          if dictionary_member.default_value else None,
-  }
+    # Create overload sets for static and non-static methods seperately.
+    # Each item in the list is a pair of (name, [method_contexts]) where for
+    # each method_context m in the list, m['name'] == name.
+    static_method_overloads = method_overloads_by_name(
+        [m for m in methods if m['is_static']])
+    non_static_method_overloads = method_overloads_by_name(
+        [m for m in methods if not m['is_static']])
+    static_overload_contexts = get_overload_contexts(expression_generator, [
+        contexts for _, contexts in static_method_overloads
+    ])
+    non_static_overload_contexts = get_overload_contexts(
+        expression_generator,
+        [contexts for _, contexts in non_static_method_overloads])
+
+    # Set is_static on each of these appropriately.
+    for context in static_overload_contexts:
+      context['is_static'] = True
+    for context in non_static_overload_contexts:
+      context['is_static'] = False
+
+    # Append the lists and add the idl_name of the operation to the
+    # top-level overload context.
+    overload_contexts = static_overload_contexts + non_static_overload_contexts
+    for context in overload_contexts:
+      context['idl_name'] = context['overloads'][0]['idl_name']
+      context['conditional'] = context['overloads'][0]['conditional']
+      context['unsupported'] = context['overloads'][0]['unsupported']
+      for overload in context['overloads']:
+        assert context['conditional'] == overload['conditional'], (
+            'All overloads must have the same conditional.')
+      for overload in context['overloads']:
+        assert context['unsupported'] == overload['unsupported'], (
+            'All overloads must have the value for NotSupported.')
+
+    return overload_contexts
+
+  def get_constructor_context(self, expression_generator, interface):
+    """Return an overload_context for generating constructor bindings.
+
+    The 'overloads' key for the overloads_context will be a list of
+    constructor_contexts representing all constructor overloads. In the
+    case that the constructor is not overloaded, the length of this list
+    will be one.
+    The overload_context also has a 'length' key which can be used to
+    specify the 'length' property for the constructor.
+
+    Arguments:
+        expression_generator: An ExpressionGenerator object.
+        interface: An IdlInterface object.
+    Returns:
+        overload_context
+    """
+
+    constructors = [
+        self.constructor_context(interface, constructor)
+        for constructor in interface.constructors
+    ]
+    if not constructors:
+      return None
+    else:
+      overload_contexts = get_overload_contexts(expression_generator,
+                                                [constructors])
+      assert len(overload_contexts) == 1, (
+          'Expected exactly one overload context for constructor.')
+      return overload_contexts[0]
+
+  def get_dictionary_member_context(self, dictionary, dictionary_member):
+    """Returns a jinja context for a dictionary member.
+
+    Arguments:
+        dictionary: An IdlDictionary object
+        dictionary_member: An IdlDictionaryMember object.
+    Returns:
+      dictionary_member_context (dict)
+    """
+    return {
+        'idl_type_object':
+            dictionary_member.idl_type,
+        'name':
+            convert_to_cobalt_name(dictionary_member.name),
+        'idl_name':
+            dictionary_member.name,
+        'type':
+            self.typed_object_to_cobalt_type(dictionary, dictionary_member),
+        'arg_type':
+            self.typed_object_to_arg_type(dictionary, dictionary_member),
+        'conversion_flags':
+            self.get_conversion_flags(dictionary_member),
+        'default_value':
+            idl_literal_to_cobalt_literal(dictionary_member.idl_type,
+                                          dictionary_member.default_value)
+            if dictionary_member.default_value else None,
+    }
