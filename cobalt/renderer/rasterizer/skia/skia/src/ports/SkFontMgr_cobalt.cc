@@ -299,7 +299,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     const char* base_path, SkMutex* const manager_owned_mutex)
     : font_manager_(manager),
       manager_owned_mutex_(manager_owned_mutex),
-      is_fallback_font_(family.is_fallback_font),
+      is_fallback_family_(family.is_fallback_family),
       language_(family.language),
       page_ranges_(family.page_ranges),
       is_character_map_generated_(false) {
@@ -329,10 +329,16 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
                           ? SkFontStyle::kItalic_Slant
                           : SkFontStyle::kUpright_Slant);
 
-    std::string full_font_name(font_file.full_font_name.c_str(),
-                               font_file.full_font_name.size());
-    std::string postscript_name(font_file.postscript_name.c_str(),
-                                font_file.postscript_name.size());
+    std::string full_font_name;
+    if (!font_file.full_font_name.isEmpty()) {
+      full_font_name = std::string(font_file.full_font_name.c_str(),
+                                   font_file.full_font_name.size());
+    }
+    std::string postscript_name;
+    if (!font_file.postscript_name.isEmpty()) {
+      postscript_name = std::string(font_file.postscript_name.c_str(),
+                                    font_file.postscript_name.size());
+    }
 
     styles_.push_back().reset(SkNEW_ARGS(
         SkFontStyleSetEntry_Cobalt,
@@ -583,7 +589,7 @@ void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
   // Since the font data is available, generate the character map if this is a
   // fallback font (which means that it'll need the character map for character
   // lookups during fallback).
-  if (is_fallback_font_) {
+  if (is_fallback_family_) {
     GenerateCharacterMapFromData(data, style_entry->ttc_index);
   }
 
@@ -842,10 +848,10 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::BuildNameToFamilyMap()");
   for (int i = 0; i < families->count(); i++) {
     FontFamily& family = *(*families)[i];
-    bool named_font = family.names.count() > 0;
+    bool named_family = family.names.count() > 0;
 
-    if (family.is_fallback_font) {
-      if (!named_font) {
+    if (family.is_fallback_family) {
+      if (!named_family) {
         SkString& fallback_name = family.names.push_back();
         fallback_name.printf("%.2x##fallback", i);
       }
@@ -859,42 +865,9 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
       continue;
     }
 
-    for (SkAutoTUnref<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
-             font_style_set_entry = new_set->styles_.begin();
-         font_style_set_entry != new_set->styles_.end();
-         ++font_style_set_entry) {
-      // On the first pass through, process the full font name.
-      // On the second pass through, process the font postscript name.
-      for (int i = 0; i <= 1; ++i) {
-        const std::string font_face_name_type_description =
-            i == 0 ? "Full Font" : "Postscript";
-        const std::string& font_face_name =
-            i == 0 ? (*font_style_set_entry)->full_font_name
-                   : (*font_style_set_entry)->font_postscript_name;
-        NameToStyleSetMap& font_face_name_style_set_map =
-            i == 0 ? full_font_name_to_style_set_map_
-                   : font_postscript_name_to_style_set_map_;
-
-        DCHECK(!font_face_name.empty());
-        if (font_face_name_style_set_map.find(font_face_name) ==
-            font_face_name_style_set_map.end()) {
-          DLOG(INFO) << "Adding " << font_face_name_type_description
-                     << " name [" << font_face_name << "].";
-          font_face_name_style_set_map[font_face_name] = new_set.get();
-        } else {
-          // Purposely, not overwriting the entry gives priority to the
-          // earlier entry.  This is consistent with how fonts.xml gives
-          // priority to fonts that are specified earlier in the file.
-          NOTREACHED() << font_face_name_type_description << " name ["
-                       << font_face_name
-                       << "] already registered in BuildNameToFamilyMap.";
-        }
-      }
-    }
-
     font_style_sets_.push_back().reset(SkRef(new_set.get()));
 
-    if (named_font) {
+    if (named_family) {
       for (int j = 0; j < family.names.count(); j++) {
         family_names_.push_back(family.names[j]);
         name_to_family_map_.insert(
@@ -902,8 +875,45 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
       }
     }
 
-    if (family.is_fallback_font) {
+    if (family.is_fallback_family) {
       fallback_families_.push_back(new_set.get());
+    }
+
+    // Handle adding the font face names for the style set entries. These are
+    // optional, so many may not have them.
+    for (SkAutoTUnref<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
+             font_style_set_entry = new_set->styles_.begin();
+         font_style_set_entry != new_set->styles_.end();
+         ++font_style_set_entry) {
+      // On the first pass through, process the full font name.
+      // On the second pass through, process the font postscript name.
+      for (int i = 0; i <= 1; ++i) {
+        const std::string& font_face_name =
+            i == 0 ? (*font_style_set_entry)->full_font_name
+                   : (*font_style_set_entry)->font_postscript_name;
+        // If there is no font face name for this style entry, then there's
+        // nothing to add. Simply skip past it.
+        if (font_face_name.empty()) {
+          continue;
+        }
+
+        NameToStyleSetMap& font_face_name_style_set_map =
+            i == 0 ? full_font_name_to_style_set_map_
+                   : font_postscript_name_to_style_set_map_;
+
+        if (font_face_name_style_set_map.find(font_face_name) ==
+            font_face_name_style_set_map.end()) {
+          font_face_name_style_set_map[font_face_name] = new_set.get();
+        } else {
+          // Purposely, not overwriting the entry gives priority to the
+          // earlier entry.  This is consistent with how fonts.xml gives
+          // priority to fonts that are specified earlier in the file.
+          const std::string font_face_name_type =
+              i == 0 ? "Full Font" : "Postscript";
+          NOTREACHED() << font_face_name_type << " name [" << font_face_name
+                       << "] already registered in BuildNameToFamilyMap.";
+        }
+      }
     }
   }
 }
