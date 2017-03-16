@@ -185,7 +185,7 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          h5vcc_url_handler_(this, system_window, account_manager)),
+          h5vcc_url_handler_(this, system_window)),
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
       will_quit_(false),

@@ -58,9 +58,6 @@ class Application {
   base::Closure quit_closure_;
 
  protected:
-  // Called to handle an event from the account manager.
-  void OnAccountEvent(const base::Event* event);
-
   // Called to handle a network event.
   void OnNetworkEvent(const base::Event* event);
 
@@ -81,14 +78,13 @@ class Application {
   // on desktop systems.
   scoped_ptr<system_window::SystemWindow> system_window_;
 
-  // Account manager with platform-specific implementation (e.g. PSN on PS3).
+  // Account manager.
   scoped_ptr<account::AccountManager> account_manager_;
 
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;
 
   // Event callbacks.
-  base::EventCallback account_event_callback_;
   base::EventCallback network_event_callback_;
   base::EventCallback application_event_callback_;
   base::EventCallback deep_link_event_callback_;
