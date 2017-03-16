@@ -337,6 +337,25 @@ Ranges<TimeDelta> SourceBufferState::GetBufferedRanges(TimeDelta duration,
   return ComputeRangesIntersection(ranges_list, ended);
 }
 
+Ranges<TimeDelta> SourceBufferState::GetAudioBufferedRanges(TimeDelta duration,
+                                                            bool ended) const {
+  RangesList ranges_list;
+  for (DemuxerStreamMap::const_iterator it = audio_streams_.begin();
+       it != audio_streams_.end(); ++it) {
+    ranges_list.push_back(it->second->GetBufferedRanges(duration));
+  }
+
+  return ComputeRangesIntersection(ranges_list, ended);
+}
+
+TimeDelta SourceBufferState::GetVideoSeekKeyframeTimestamp() const {
+  if (video_streams_.empty()) {
+    return kNoTimestamp;
+  }
+  DCHECK_EQ(video_streams_.size(), 1);
+  return video_streams_.begin()->second->GetSeekKeyframeTimestamp();
+}
+
 TimeDelta SourceBufferState::GetHighestPresentationTimestamp() const {
   TimeDelta max_pts;
 
