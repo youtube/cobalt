@@ -11,7 +11,7 @@
 // non-POD constants, functions, interfaces, or any logic to this module.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <stdint.h>
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

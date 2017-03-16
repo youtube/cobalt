@@ -5,9 +5,9 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_CODECS_H_
 #define COBALT_MEDIA_BASE_VIDEO_CODECS_H_
 
-#include <stdint.h>
 #include <string>
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

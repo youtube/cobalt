@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "cobalt/media/base/decoder_buffer.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -67,7 +68,7 @@ DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
     return;
   }
 
-  memcpy(data_.get(), data, size_);
+  SbMemoryCopy(data_.get(), data, size_);
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -75,7 +76,7 @@ DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
   }
 
   DCHECK_GT(side_data_size_, 0u);
-  memcpy(side_data_.get(), side_data, side_data_size_);
+  SbMemoryCopy(side_data_.get(), side_data, side_data_size_);
 }
 
 DecoderBuffer::~DecoderBuffer() {}

@@ -5,14 +5,13 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
 #define COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
 #include "build/build_config.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_types.h"
+#include "starboard/types.h"
 #include "ui/gfx/size.h"
 
 namespace cobalt {

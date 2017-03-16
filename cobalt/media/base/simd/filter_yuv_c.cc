@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "media/base/simd/filter_yuv.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

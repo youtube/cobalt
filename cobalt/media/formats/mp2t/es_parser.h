@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_H_
 #define COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_H_
 
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 #include <utility>
@@ -17,6 +15,7 @@
 #include "base/time/time.h"
 #include "media/base/media_export.h"
 #include "media/base/stream_parser_buffer.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

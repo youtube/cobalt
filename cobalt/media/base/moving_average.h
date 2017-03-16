@@ -5,14 +5,12 @@
 #ifndef COBALT_MEDIA_BASE_MOVING_AVERAGE_H_
 #define COBALT_MEDIA_BASE_MOVING_AVERAGE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

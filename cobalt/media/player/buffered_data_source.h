@@ -15,12 +15,11 @@
 #ifndef COBALT_MEDIA_PLAYER_BUFFERED_DATA_SOURCE_H_
 #define COBALT_MEDIA_PLAYER_BUFFERED_DATA_SOURCE_H_
 
-#include <stdio.h>
-
 #include "base/basictypes.h"
 #include "base/message_loop.h"
 #include "cobalt/media/base/data_source.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

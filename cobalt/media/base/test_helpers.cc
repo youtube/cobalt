@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/test_helpers.h"
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/logging.h"
@@ -18,6 +16,7 @@
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_util.h"
+#include "starboard/types.h"
 #include "ui/gfx/rect.h"
 
 using ::testing::_;

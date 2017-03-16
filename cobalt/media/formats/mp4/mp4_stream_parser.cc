@@ -4,8 +4,6 @@
 
 #include "cobalt/media/formats/mp4/mp4_stream_parser.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <limits>
 #include <utility>
@@ -30,6 +28,8 @@
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
@@ -469,7 +469,8 @@ void MP4StreamParser::OnEncryptedMediaInitData(
   std::vector<uint8_t> init_data(total_size);
   size_t pos = 0;
   for (size_t i = 0; i < headers.size(); i++) {
-    memcpy(&init_data[pos], &headers[i].raw_box[0], headers[i].raw_box.size());
+    SbMemoryCopy(&init_data[pos], &headers[i].raw_box[0],
+                 headers[i].raw_box.size());
     pos += headers[i].raw_box.size();
   }
   encrypted_media_init_data_cb_.Run(kEmeInitDataTypeCenc, init_data);

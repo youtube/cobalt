@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CLUSTER_PARSER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_CLUSTER_PARSER_H_
 
-#include <stdint.h>
-
 #include <deque>
 #include <map>
 #include <set>
@@ -22,6 +20,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 #include "cobalt/media/formats/webm/webm_tracks_parser.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

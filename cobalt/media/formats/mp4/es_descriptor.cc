@@ -4,10 +4,9 @@
 
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 
-#include <stddef.h>
-
 #include "cobalt/media/base/bit_reader.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

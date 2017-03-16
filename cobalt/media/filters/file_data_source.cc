@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -47,7 +48,7 @@ void FileDataSource::Read(int64_t position, int size, uint8_t* data,
   int64_t clamped_size =
       std::min(static_cast<int64_t>(size), file_size - position);
 
-  memcpy(data, file_.data() + position, clamped_size);
+  SbMemoryCopy(data, file_.data() + position, clamped_size);
   bytes_read_ += clamped_size;
   read_cb.Run(clamped_size);
 }

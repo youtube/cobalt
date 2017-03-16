@@ -12,6 +12,7 @@
 #include "media/base/test_data_util.h"
 #include "media/base/timestamp_constants.h"
 #include "media/formats/mp2t/es_parser.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -32,7 +33,7 @@ void EsParserTestBase::LoadStream(const char* filename) {
                                             << file_path.MaybeAsASCII();
 
   stream_.resize(stream.length());
-  memcpy(&stream_[0], stream.data(), stream_.size());
+  SbMemoryCopy(&stream_[0], stream.data(), stream_.size());
 }
 
 std::vector<EsParserTestBase::Packet> EsParserTestBase::LoadPacketsFromFiles(

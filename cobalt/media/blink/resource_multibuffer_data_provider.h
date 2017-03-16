@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_
 #define COBALT_MEDIA_BLINK_RESOURCE_MULTIBUFFER_DATA_PROVIDER_H_
 
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 #include <string>
@@ -18,6 +16,7 @@
 #include "cobalt/media/blink/multibuffer.h"
 #include "cobalt/media/blink/url_index.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebURLLoader.h"
 #include "third_party/WebKit/public/platform/WebURLLoaderClient.h"
 #include "third_party/WebKit/public/platform/WebURLRequest.h"

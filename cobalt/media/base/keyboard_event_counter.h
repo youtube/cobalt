@@ -5,13 +5,12 @@
 #ifndef COBALT_MEDIA_BASE_KEYBOARD_EVENT_COUNTER_H_
 #define COBALT_MEDIA_BASE_KEYBOARD_EVENT_COUNTER_H_
 
-#include <stddef.h>
-
 #include <set>
 
 #include "base/basictypes.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 

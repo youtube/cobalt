@@ -4,12 +4,13 @@
 
 #include "cobalt/media/base/data_buffer.h"
 
-#include <stdint.h>
 #include <memory>
 #include <utility>
 
 #include "base/basictypes.h"
 #include "base/string_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -58,9 +59,9 @@ TEST(DataBufferTest, CopyFrom) {
   EXPECT_FALSE(buffer->end_of_stream());
 
   // Ensure we are copying the data, not just pointing to the original data.
-  EXPECT_EQ(0, memcmp(buffer->data(), kTestData, kTestDataSize));
+  EXPECT_EQ(0, SbMemoryCompare(buffer->data(), kTestData, kTestDataSize));
   buffer->writable_data()[0] = 0xFF;
-  EXPECT_NE(0, memcmp(buffer->data(), kTestData, kTestDataSize));
+  EXPECT_NE(0, SbMemoryCompare(buffer->data(), kTestData, kTestDataSize));
 }
 
 TEST(DataBufferTest, CreateEOSBuffer) {
@@ -110,22 +111,22 @@ TEST(DataBufferTest, ReadingWriting) {
 
   uint8_t* data = buffer->writable_data();
   ASSERT_TRUE(data);
-  memcpy(data, kData, kDataSize);
+  SbMemoryCopy(data, kData, kDataSize);
   buffer->set_data_size(kDataSize);
   const uint8_t* read_only_data = buffer->data();
   ASSERT_EQ(data, read_only_data);
-  ASSERT_EQ(0, memcmp(read_only_data, kData, kDataSize));
+  ASSERT_EQ(0, SbMemoryCompare(read_only_data, kData, kDataSize));
   EXPECT_FALSE(buffer->end_of_stream());
 
   scoped_refptr<DataBuffer> buffer2(new DataBuffer(kNewDataSize + 10));
   data = buffer2->writable_data();
   ASSERT_TRUE(data);
-  memcpy(data, kNewData, kNewDataSize);
+  SbMemoryCopy(data, kNewData, kNewDataSize);
   buffer2->set_data_size(kNewDataSize);
   read_only_data = buffer2->data();
   EXPECT_EQ(kNewDataSize, buffer2->data_size());
   ASSERT_EQ(data, read_only_data);
-  EXPECT_EQ(0, memcmp(read_only_data, kNewData, kNewDataSize));
+  EXPECT_EQ(0, SbMemoryCompare(read_only_data, kNewData, kNewDataSize));
 }
 
 }  // namespace media

@@ -5,14 +5,13 @@
 #ifndef COBALT_MEDIA_CAST_TEST_LOOPBACK_TRANSPORT_H_
 #define COBALT_MEDIA_CAST_TEST_LOOPBACK_TRANSPORT_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "media/cast/cast_environment.h"
 #include "media/cast/net/cast_transport_config.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;

@@ -5,10 +5,9 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_UTIL_H_
 #define COBALT_MEDIA_BASE_VIDEO_UTIL_H_
 
-#include <stdint.h>
-
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 

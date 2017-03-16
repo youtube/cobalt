@@ -5,12 +5,11 @@
 #ifndef COBALT_MEDIA_BASE_DATA_SOURCE_H_
 #define COBALT_MEDIA_BASE_DATA_SOURCE_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

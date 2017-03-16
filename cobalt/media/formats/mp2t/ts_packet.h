@@ -5,9 +5,8 @@
 #ifndef COBALT_MEDIA_FORMATS_MP2T_TS_PACKET_H_
 #define COBALT_MEDIA_FORMATS_MP2T_TS_PACKET_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

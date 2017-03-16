@@ -4,12 +4,11 @@
 
 #include "cobalt/media/base/audio_latency.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -43,13 +43,12 @@
 #ifndef COBALT_MEDIA_FILTERS_VP8_BOOL_DECODER_H_
 #define COBALT_MEDIA_FILTERS_VP8_BOOL_DECODER_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

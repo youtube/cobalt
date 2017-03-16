@@ -5,14 +5,13 @@
 #ifndef COBALT_MEDIA_BLINK_CDM_RESULT_PROMISE_H_
 #define COBALT_MEDIA_BLINK_CDM_RESULT_PROMISE_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
 #include "cobalt/media/base/cdm_promise.h"
 #include "cobalt/media/base/media_keys.h"
 #include "cobalt/media/blink/cdm_result_promise_helper.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 

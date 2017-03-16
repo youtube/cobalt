@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <set>
 
 #include "base/basictypes.h"
@@ -21,6 +18,8 @@
 #include "cobalt/media/blink/multibuffer_reader.h"
 #include "cobalt/media/blink/resource_multibuffer_data_provider.h"
 #include "cobalt/media/blink/test_response_generator.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebURLResponse.h"
 #include "third_party/WebKit/public/web/WebFrameClient.h"
 #include "third_party/WebKit/public/web/WebLocalFrame.h"
@@ -308,7 +307,7 @@ class MultibufferDataSourceTest : public testing::Test {
     EXPECT_TRUE(url_loader());
     if (!url_loader()) return;
     std::unique_ptr<char[]> data(new char[size]);
-    memset(data.get(), 0xA5, size);  // Arbitrary non-zero value.
+    SbMemorySet(data.get(), 0xA5, size);  // Arbitrary non-zero value.
 
     data_provider()->didReceiveData(url_loader(), data.get(), size, size, size);
   }

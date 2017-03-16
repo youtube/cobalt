@@ -4,8 +4,6 @@
 
 #include "media/formats/mp2t/es_parser_adts.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <vector>
 
@@ -20,6 +18,7 @@
 #include "media/formats/common/offset_byte_queue.h"
 #include "media/formats/mp2t/mp2t_common.h"
 #include "media/formats/mpeg/adts_constants.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

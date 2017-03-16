@@ -4,14 +4,13 @@
 
 #include "cobalt/media/base/fake_text_track_stream.h"
 
-#include <stdint.h>
-
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/filters/webvtt_util.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
