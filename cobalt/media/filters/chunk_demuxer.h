@@ -49,6 +49,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // SourceBufferStream manipulation methods.
   void Seek(base::TimeDelta time);
   bool IsSeekWaitingForData() const;
+  base::TimeDelta GetSeekKeyframeTimestamp() const;
 
   // Add buffers to this stream.  Buffers are stored in SourceBufferStreams,
   // which handle ordering and overlap resolution.
@@ -383,6 +384,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   // Seeks all SourceBufferStreams to |seek_time|.
   void SeekAllSources(base::TimeDelta seek_time);
+
+  // Adjust the previous seek on audio SourceBufferStream to make it more
+  // conform to the time of the first keyframe of the video stream before the
+  // seek time.  This function assumes that there is only one audio and one
+  // video stream in the video.
+  void AdjustSeekOnAudioSource();
 
   // Generates and returns a unique media track id.
   static MediaTrack::Id GenerateMediaTrackId();
