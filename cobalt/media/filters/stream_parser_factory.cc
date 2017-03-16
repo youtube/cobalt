@@ -72,7 +72,7 @@ struct SupportedTypeInfo {
 
 static const CodecInfo kVP8CodecInfo = {"vp8", CodecInfo::VIDEO, NULL,
                                         CodecInfo::HISTOGRAM_VP8};
-static const CodecInfo kVP9CodecInfo = {"vp9", CodecInfo::VIDEO, NULL,
+static const CodecInfo kVP9CodecInfo = {"vp9*", CodecInfo::VIDEO, NULL,
                                         CodecInfo::HISTOGRAM_VP9};
 static const CodecInfo kVorbisCodecInfo = {"vorbis", CodecInfo::AUDIO, NULL,
                                            CodecInfo::HISTOGRAM_VORBIS};
