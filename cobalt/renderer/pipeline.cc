@@ -71,7 +71,8 @@ void DestructSubmissionOnMessageLoop(MessageLoop* message_loop,
 Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
                    const scoped_refptr<backend::RenderTarget>& render_target,
                    backend::GraphicsContext* graphics_context,
-                   bool submit_even_if_render_tree_is_unchanged)
+                   bool submit_even_if_render_tree_is_unchanged,
+                   ShutdownClearMode clear_on_shutdown_mode)
     : rasterizer_created_event_(true, false),
       render_target_(render_target),
       graphics_context_(graphics_context),
@@ -99,7 +100,8 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
           "is specified, or to a file with the specified filename relative to "
           "the debug output folder."))
 #endif
-{
+      ,
+      clear_on_shutdown_mode_(clear_on_shutdown_mode) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
@@ -407,12 +409,14 @@ void Pipeline::ShutdownRasterizerThread() {
   // down.  This can be helpful if we quit while playing a video via
   // punch-through, which may result in unexpected images/colors appearing for
   // a flicker behind the display.
-  rasterizer_->Submit(
-      new render_tree::RectNode(
-          math::RectF(render_target_->GetSize()),
-          scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
-              render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))),
-      render_target_);
+  if (render_target_ && (clear_on_shutdown_mode_ == kClearToBlack)) {
+    rasterizer_->Submit(
+        new render_tree::RectNode(
+            math::RectF(render_target_->GetSize()),
+            scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+                render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))),
+        render_target_);
+  }
 
   // Finally, destroy the rasterizer.
   rasterizer_.reset();
