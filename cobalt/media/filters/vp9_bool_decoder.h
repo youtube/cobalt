@@ -5,13 +5,11 @@
 #ifndef COBALT_MEDIA_FILTERS_VP9_BOOL_DECODER_H_
 #define COBALT_MEDIA_FILTERS_VP9_BOOL_DECODER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

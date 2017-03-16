@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_AUDIO_DISCARD_HELPER_H_
 #define COBALT_MEDIA_BASE_AUDIO_DISCARD_HELPER_H_
 
-#include <stddef.h>
-
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
@@ -14,6 +12,7 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

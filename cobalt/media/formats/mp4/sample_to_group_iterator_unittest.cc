@@ -4,12 +4,10 @@
 
 #include "cobalt/media/formats/mp4/sample_to_group_iterator.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

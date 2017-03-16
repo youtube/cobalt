@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_CDM_PROMISE_ADAPTER_H_
 #define COBALT_MEDIA_BASE_CDM_PROMISE_ADAPTER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -15,6 +13,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/media/base/cdm_promise.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

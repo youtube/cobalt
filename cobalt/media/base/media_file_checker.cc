@@ -4,9 +4,6 @@
 
 #include "cobalt/media/base/media_file_checker.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -18,6 +15,7 @@
 #include "cobalt/media/filters/blocking_url_protocol.h"
 #include "cobalt/media/filters/ffmpeg_glue.h"
 #include "cobalt/media/filters/file_data_source.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

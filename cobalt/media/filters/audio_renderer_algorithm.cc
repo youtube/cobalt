@@ -11,6 +11,7 @@
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/filters/wsola_internals.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -259,8 +260,8 @@ bool AudioRendererAlgorithm::RunOneWsolaIteration(double playback_rate) {
     }
 
     // Copy the second half to the output.
-    memcpy(&ch_output[ola_hop_size_], &ch_opt_frame[ola_hop_size_],
-           sizeof(*ch_opt_frame) * ola_hop_size_);
+    SbMemoryCopy(&ch_output[ola_hop_size_], &ch_opt_frame[ola_hop_size_],
+                 sizeof(*ch_opt_frame) * ola_hop_size_);
   }
 
   num_complete_frames_ += ola_hop_size_;
@@ -308,7 +309,7 @@ int AudioRendererAlgorithm::WriteCompletedFramesTo(int requested_frames,
   int frames_to_move = wsola_output_->frames() - rendered_frames;
   for (int k = 0; k < channels_; ++k) {
     float* ch = wsola_output_->channel(k);
-    memmove(ch, &ch[rendered_frames], sizeof(*ch) * frames_to_move);
+    SbMemoryMove(ch, &ch[rendered_frames], sizeof(*ch) * frames_to_move);
   }
   num_complete_frames_ -= rendered_frames;
   return rendered_frames;

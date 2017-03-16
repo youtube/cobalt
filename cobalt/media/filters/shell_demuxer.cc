@@ -29,6 +29,7 @@
 #include "cobalt/media/base/data_source.h"
 #include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -5,10 +5,9 @@
 #ifndef COBALT_MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_
 #define COBALT_MEDIA_BLINK_TEST_RESPONSE_GENERATOR_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebURLError.h"
 #include "third_party/WebKit/public/platform/WebURLResponse.h"
 

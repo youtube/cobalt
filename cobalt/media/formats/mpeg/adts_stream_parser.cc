@@ -4,12 +4,11 @@
 
 #include "cobalt/media/formats/mpeg/adts_stream_parser.h"
 
-#include <stddef.h>
-
 #include "build/build_config.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/formats/mp4/aac.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

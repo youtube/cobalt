@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_
 #define COBALT_MEDIA_FORMATS_MP4_BOX_DEFINITIONS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -20,6 +17,7 @@
 #include "cobalt/media/formats/mp4/avc.h"
 #include "cobalt/media/formats/mp4/box_reader.h"
 #include "cobalt/media/formats/mp4/fourccs.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

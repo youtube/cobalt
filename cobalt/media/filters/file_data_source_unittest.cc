@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/base_paths.h"
@@ -14,6 +12,7 @@
 #include "base/utf_string_conversions.h"
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/filters/file_data_source.h"
+#include "starboard/types.h"
 
 using ::testing::NiceMock;
 using ::testing::StrictMock;

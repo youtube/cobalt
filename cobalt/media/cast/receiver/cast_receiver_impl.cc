@@ -4,8 +4,6 @@
 
 #include "media/cast/receiver/cast_receiver_impl.h"
 
-#include <stddef.h>
-
 #include <utility>
 
 #include "base/bind.h"
@@ -18,6 +16,7 @@
 #include "media/cast/net/rtcp/rtcp_utility.h"
 #include "media/cast/receiver/audio_decoder.h"
 #include "media/cast/receiver/video_decoder.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

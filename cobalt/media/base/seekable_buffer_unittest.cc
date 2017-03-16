@@ -4,9 +4,6 @@
 
 #include "cobalt/media/base/seekable_buffer.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstdlib>
 
@@ -15,6 +12,8 @@
 #include "base/time.h"
 #include "cobalt/media/base/data_buffer.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -65,13 +64,15 @@ TEST_F(SeekableBufferTest, RandomReadWrite) {
     int copy_size = GetRandomInt(kBufferSize);
     int bytes_copied = buffer_.Peek(write_buffer_, copy_size);
     EXPECT_GE(copy_size, bytes_copied);
-    EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_copied));
+    EXPECT_EQ(
+        0, SbMemoryCompare(write_buffer_, data_ + read_position, bytes_copied));
 
     // Read a random amount of data.
     int read_size = GetRandomInt(kBufferSize);
     int bytes_read = buffer_.Read(write_buffer_, read_size);
     EXPECT_GE(read_size, bytes_read);
-    EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_read));
+    EXPECT_EQ(
+        0, SbMemoryCompare(write_buffer_, data_ + read_position, bytes_read));
     read_position += bytes_read;
     EXPECT_GE(write_position, read_position);
     EXPECT_EQ(write_position - read_position, buffer_.forward_bytes());
@@ -99,7 +100,8 @@ TEST_F(SeekableBufferTest, ReadWriteSeek) {
       EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
-      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+      EXPECT_EQ(
+          0, SbMemoryCompare(write_buffer_, data_ + read_position, kReadSize));
       read_position += kReadSize;
 
       // Seek forward.
@@ -111,13 +113,15 @@ TEST_F(SeekableBufferTest, ReadWriteSeek) {
       // Copy.
       EXPECT_EQ(kReadSize, buffer_.Peek(write_buffer_, kReadSize));
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
-      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+      EXPECT_EQ(
+          0, SbMemoryCompare(write_buffer_, data_ + read_position, kReadSize));
 
       // Read.
       EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
-      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+      EXPECT_EQ(
+          0, SbMemoryCompare(write_buffer_, data_ + read_position, kReadSize));
       read_position += kReadSize;
 
       // Seek backward.
@@ -129,25 +133,29 @@ TEST_F(SeekableBufferTest, ReadWriteSeek) {
       // Copy.
       EXPECT_EQ(kReadSize, buffer_.Peek(write_buffer_, kReadSize));
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
-      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+      EXPECT_EQ(
+          0, SbMemoryCompare(write_buffer_, data_ + read_position, kReadSize));
 
       // Read.
       EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
-      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+      EXPECT_EQ(
+          0, SbMemoryCompare(write_buffer_, data_ + read_position, kReadSize));
       read_position += kReadSize;
 
       // Copy.
       EXPECT_EQ(kReadSize, buffer_.Peek(write_buffer_, kReadSize));
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
-      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+      EXPECT_EQ(
+          0, SbMemoryCompare(write_buffer_, data_ + read_position, kReadSize));
 
       // Read.
       EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
-      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+      EXPECT_EQ(
+          0, SbMemoryCompare(write_buffer_, data_ + read_position, kReadSize));
       read_position += kReadSize;
 
       // Seek forward.
@@ -182,7 +190,8 @@ TEST_F(SeekableBufferTest, BufferFull) {
     int read_size = GetRandomInt(kBufferSize);
     int forward_bytes = buffer_.forward_bytes();
     int bytes_read = buffer_.Read(write_buffer_, read_size);
-    EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_read));
+    EXPECT_EQ(
+        0, SbMemoryCompare(write_buffer_, data_ + read_position, bytes_read));
     if (read_size > forward_bytes)
       EXPECT_EQ(forward_bytes, bytes_read);
     else
@@ -214,7 +223,7 @@ TEST_F(SeekableBufferTest, SeekBackward) {
   // Read until buffer is empty.
   for (int i = 0; i < kBufferSize; i += kReadSize) {
     EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
-    EXPECT_EQ(0, memcmp(write_buffer_, data_ + i, kReadSize));
+    EXPECT_EQ(0, SbMemoryCompare(write_buffer_, data_ + i, kReadSize));
   }
 
   // Seek backward.
@@ -224,7 +233,7 @@ TEST_F(SeekableBufferTest, SeekBackward) {
   // Read again.
   for (int i = 0; i < kBufferSize; i += kReadSize) {
     EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
-    EXPECT_EQ(0, memcmp(write_buffer_, data_ + i, kReadSize));
+    EXPECT_EQ(0, SbMemoryCompare(write_buffer_, data_ + i, kReadSize));
   }
 }
 
@@ -275,7 +284,8 @@ TEST_F(SeekableBufferTest, SeekForward) {
     int read_size = GetRandomInt(kBufferSize);
     int bytes_read = buffer_.Read(write_buffer_, read_size);
     EXPECT_GE(read_size, bytes_read);
-    EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_read));
+    EXPECT_EQ(
+        0, SbMemoryCompare(write_buffer_, data_ + read_position, bytes_read));
     read_position += bytes_read;
     EXPECT_GE(write_position, read_position);
     EXPECT_EQ(write_position - read_position, buffer_.forward_bytes());

@@ -7,12 +7,11 @@
 
 #include "cobalt/media/base/channel_mixing_matrix.h"
 
-#include <stddef.h>
-
 #include <cmath>
 
 #include "base/basictypes.h"
 #include "base/stringprintf.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

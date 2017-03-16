@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_TEST_UTILITY_UDP_PROXY_H_
 #define COBALT_MEDIA_CAST_TEST_UTILITY_UDP_PROXY_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -18,6 +15,7 @@
 #include "base/single_thread_task_runner.h"
 #include "media/cast/net/cast_transport_config.h"
 #include "net/base/ip_endpoint.h"
+#include "starboard/types.h"
 #include "third_party/mt19937ar/mt19937ar.h"
 
 namespace net {

@@ -4,8 +4,6 @@
 
 #include "cobalt/media/filters/stream_parser_factory.h"
 
-#include <stddef.h>
-
 #include <set>
 
 #include "base/basictypes.h"
@@ -26,6 +24,7 @@
 
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/mp4_stream_parser.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -5,10 +5,9 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_CLUSTER_BUILDER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_CLUSTER_BUILDER_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

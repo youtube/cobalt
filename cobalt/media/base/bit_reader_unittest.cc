@@ -4,10 +4,8 @@
 
 #include "cobalt/media/base/bit_reader.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/basictypes.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

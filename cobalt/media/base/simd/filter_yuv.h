@@ -5,9 +5,8 @@
 #ifndef COBALT_MEDIA_BASE_SIMD_FILTER_YUV_H_
 #define COBALT_MEDIA_BASE_SIMD_FILTER_YUV_H_
 
-#include <stdint.h>
-
 #include "media/base/media_export.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

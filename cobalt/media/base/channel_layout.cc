@@ -4,10 +4,9 @@
 
 #include "cobalt/media/base/channel_layout.h"
 
-#include <stddef.h>
-
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

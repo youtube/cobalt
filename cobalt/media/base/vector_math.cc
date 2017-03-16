@@ -7,6 +7,8 @@
 
 #include <algorithm>
 
+#include "starboard/types.h"
+
 #include "base/logging.h"
 #include "build/build_config.h"
 

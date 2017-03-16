@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_DECRYPT_CONFIG_H_
 #define COBALT_MEDIA_BASE_DECRYPT_CONFIG_H_
 
-#include <stdint.h>
-
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -14,6 +12,7 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/subsample_entry.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {

@@ -21,6 +21,7 @@
 #include "media/cast/cast_sender.h"
 #include "media/cast/test/utility/audio_utility.h"
 #include "media/cast/test/utility/video_utility.h"
+#include "starboard/types.h"
 #include "ui/gfx/geometry/size.h"
 
 // TODO(miu): Figure out why _mkdir() and _rmdir() are missing when compiling

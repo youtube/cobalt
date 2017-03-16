@@ -5,12 +5,11 @@
 #ifndef COBALT_MEDIA_BLINK_CACHE_UTIL_H_
 #define COBALT_MEDIA_BLINK_CACHE_UTIL_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/time.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 
 namespace blink {
 class WebURLResponse;

@@ -11,8 +11,6 @@
 // encrypted request for comments specification is here
 // http://wiki.webmproject.org/encryption/webm-encryption-rfc
 
-#include <stddef.h>
-
 #include <iomanip>
 #include <limits>
 
@@ -20,6 +18,8 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
@@ -579,7 +579,8 @@ static int ParseBinary(const uint8_t* buf, int size, int id,
 
 static int ParseString(const uint8_t* buf, int size, int id,
                        WebMParserClient* client) {
-  const uint8_t* end = static_cast<const uint8_t*>(memchr(buf, '\0', size));
+  const uint8_t* end =
+      static_cast<const uint8_t*>(SbMemoryFindByte(buf, '\0', size));
   int length = (end != NULL) ? static_cast<int>(end - buf) : size;
   std::string str(reinterpret_cast<const char*>(buf), length);
   return client->OnString(id, str) ? size : -1;
