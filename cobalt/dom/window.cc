@@ -139,10 +139,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
 #endif  // ENABLE_TEST_RUNNER
   document_->AddObserver(relay_on_load_event_.get());
   if (system_window_) {
-    system_window::SystemWindowStarboard* system_window_sb =
-        base::polymorphic_downcast<system_window::SystemWindowStarboard*>(
-            system_window_);
-    SbWindow sb_window = system_window_sb->GetSbWindow();
+    SbWindow sb_window = system_window_->GetSbWindow();
     SbWindowSize size;
     if (SbWindowGetSize(sb_window, &size)) {
       device_pixel_ratio_ = size.video_pixel_ratio;

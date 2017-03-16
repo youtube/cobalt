@@ -14,9 +14,8 @@
 
 #include "cobalt/renderer/backend/default_graphics_system.h"
 
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
-#include "cobalt/system_window/starboard/system_window.h"
+#include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
 namespace renderer {
@@ -28,14 +27,7 @@ scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem() {
 
 EGLNativeWindowType GetHandleFromSystemWindow(
     system_window::SystemWindow* system_window) {
-  // The assumption here is that because we are in the Starboard-specific
-  // implementation of this function, the passed-in SystemWindow pointer will be
-  // the Starboard-specific subclass.
-  system_window::SystemWindowStarboard* system_window_starboard =
-      base::polymorphic_downcast<system_window::SystemWindowStarboard*>(
-          system_window);
-
-  return (EGLNativeWindowType)(system_window_starboard->GetWindowHandle());
+  return (EGLNativeWindowType)(system_window->GetWindowHandle());
 }
 
 }  // namespace backend

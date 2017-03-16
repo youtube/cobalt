@@ -19,7 +19,7 @@
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/network/network_event.h"
 #include "cobalt/system_window/application_event.h"
-#include "cobalt/system_window/starboard/system_window.h"
+#include "cobalt/system_window/input_event.h"
 
 namespace cobalt {
 namespace browser {
