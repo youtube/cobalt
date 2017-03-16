@@ -24,21 +24,10 @@
         'application_event.h',
         'keyboard_event.h',
         'system_window.h',
-        'system_window_common.cc',
+        'system_window.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-      ],
-      'conditions': [
-        ['OS=="starboard"', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/system_window/starboard/platform_system_window.gyp:platform_system_window',
-          ],
-        }, {
-          'dependencies': [
-            '<(DEPTH)/cobalt/system_window/<(actual_target_arch)/platform_system_window.gyp:platform_system_window',
-          ],
-        }],
       ],
     },
   ],
