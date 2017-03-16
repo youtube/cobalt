@@ -44,9 +44,8 @@ bool CheckReturnValue(SLresult result) {
 
 int AudioOutputFramesPerBuffer() {
   JniEnvExt* env = JniEnvExt::Get();
-  int frames = static_cast<int>(env->CallActivityIntMethod(
-      "audioOutputFramesPerBuffer", "()I"));
-  env->AbortOnException();
+  int frames = static_cast<int>(
+      env->CallActivityIntMethodOrAbort("audioOutputFramesPerBuffer", "()I"));
   return frames;
 }
 

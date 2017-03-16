@@ -21,6 +21,5 @@ using starboard::android::shared::JniEnvExt;
 void SbSpeechSynthesisCancel() {
   JniEnvExt* env = JniEnvExt::Get();
 
-  env->CallActivityVoidMethod("speechSynthesisCancel", "()V");
-  env->AbortOnException();
+  env->CallActivityVoidMethodOrAbort("speechSynthesisCancel", "()V");
 }
