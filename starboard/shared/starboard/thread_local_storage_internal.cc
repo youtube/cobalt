@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/thread_local_storage_internal.h"
+
+#include <functional>
+#include <limits>
+#include <map>
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
-#include "starboard/shared/starboard/thread_local_storage_internal.h"
 
 struct SbThreadLocalKeyPrivate {
   int index;
@@ -32,7 +40,70 @@ void InitializeTLS() {
   s_instance = new TLSKeyManager();
 }
 
+// RawAllocator uses the SbMemoryAllocateNoReport() and
+// SbMemoryDeallocateNoReport() allocation functions. This allows the
+// TLSKeyManager to be used with the memory tracking system.
+// Without this allocator, the TLSKeyManager could receive an event for memory
+// allocation, which will cause memory to be allocated in the map, which will
+// generate an event for memory allocation ... which results in an infinite
+// loop and a crash.
+template <typename T>
+class RawAllocator : public std::allocator<T> {
+ public:
+  typedef typename std::allocator<T>::pointer pointer;
+  typedef typename std::allocator<T>::const_pointer const_pointer;
+  typedef typename std::allocator<T>::reference reference;
+  typedef typename std::allocator<T>::const_reference const_reference;
+  typedef typename std::allocator<T>::size_type size_type;
+  typedef typename std::allocator<T>::value_type value_type;
+  typedef typename std::allocator<T>::difference_type difference_type;
+
+  RawAllocator() {}
+
+  // Constructor used for rebinding
+  template <typename U>
+  RawAllocator(const RawAllocator<U>& x) {}
+
+  pointer allocate(size_type n,
+                   std::allocator<void>::const_pointer hint = NULL) {
+    void* ptr = SbMemoryAllocateNoReport(n * sizeof(value_type));
+    return static_cast<pointer>(ptr);
+  }
+
+  void deallocate(pointer p, size_type n) { SbMemoryDeallocateNoReport(p); }
+  template <typename U>
+  struct rebind {
+    typedef RawAllocator<U> other;
+  };
+};
+
 }  // namespace
+
+struct TLSKeyManager::InternalData {
+  // These data structures bypass memory reporting. If this wasn't here then
+  // any platform using this TLSKeyManager will crash during memory reporting.
+  typedef std::vector<KeyRecord, RawAllocator<KeyRecord> > VectorKeyRecord;
+  typedef std::vector<int, RawAllocator<int> > VectorInt;
+  typedef std::map<SbThreadId,
+                   int,
+                   std::less<SbThreadId>,
+                   RawAllocator<std::pair<const SbThreadId, int> > >
+      ThreadIdMap;
+
+  // Overrides new/delete for InternalData to bypass memory reporting.
+  static void* operator new(size_t n) { return SbMemoryAllocateNoReport(n); }
+  static void operator delete(void* p) { SbMemoryDeallocateNoReport(p); }
+
+  // The key record tracks all key values among all threads, along with their
+  // destructors, if specified.
+  VectorKeyRecord key_table_;
+
+  // Tracks all thread IDs that are still available.
+  VectorInt available_thread_ids_;
+
+  // This maps Starboard thread IDs to TLS thread ids.
+  ThreadIdMap thread_id_map_;
+};
 
 TLSKeyManager* TLSKeyManager::Get() {
   SbOnce(&s_instance_control, &InitializeTLS);
@@ -40,9 +111,10 @@ TLSKeyManager* TLSKeyManager::Get() {
 }
 
 TLSKeyManager::TLSKeyManager() {
-  available_thread_ids_.reserve(kMaxThreads);
+  data_.reset(new InternalData);
+  data_->available_thread_ids_.reserve(kMaxThreads);
   for (int i = 0; i < kMaxThreads; ++i) {
-    available_thread_ids_.push_back(i);
+    data_->available_thread_ids_.push_back(i);
   }
 }
 
@@ -52,7 +124,7 @@ SbThreadLocalKey TLSKeyManager::CreateKey(SbThreadLocalDestructor destructor) {
   ScopedLock lock(mutex_);
   key->index = GetUnusedKeyIndex();
 
-  KeyRecord* record = &key_table_[key->index];
+  KeyRecord* record = &data_->key_table_[key->index];
 
   record->destructor = destructor;
   SbMemorySet(record->values, 0, sizeof(record->values));
@@ -69,7 +141,7 @@ void TLSKeyManager::DestroyKey(SbThreadLocalKey key) {
   ScopedLock lock(mutex_);
 
   SB_DCHECK(IsKeyActive(key));
-  key_table_[key->index].valid = false;
+  data_->key_table_[key->index].valid = false;
 
   delete key;
 }
@@ -85,7 +157,7 @@ bool TLSKeyManager::SetLocalValue(SbThreadLocalKey key, void* value) {
     return false;
   }
 
-  key_table_[key->index].values[GetCurrentThreadId()] = value;
+  data_->key_table_[key->index].values[GetCurrentThreadId()] = value;
 
   return true;
 }
@@ -101,7 +173,7 @@ void* TLSKeyManager::GetLocalValue(SbThreadLocalKey key) {
     return NULL;
   }
 
-  return key_table_[key->index].values[GetCurrentThreadId()];
+  return data_->key_table_[key->index].values[GetCurrentThreadId()];
 }
 
 void TLSKeyManager::InitializeTLSForThread() {
@@ -109,8 +181,9 @@ void TLSKeyManager::InitializeTLSForThread() {
 
   int current_thread_id = GetCurrentThreadId();
 
-  for (int i = 0; i < key_table_.size(); ++i) {
-    KeyRecord* key_record = &key_table_[i];
+  const size_t table_size = data_->key_table_.size();
+  for (int i = 0; i < table_size; ++i) {
+    KeyRecord* key_record = &data_->key_table_[i];
     if (key_record->valid) {
       key_record->values[current_thread_id] = NULL;
     }
@@ -129,8 +202,10 @@ void TLSKeyManager::ShutdownTLSForThread() {
     // Move the map into a new temporary map so that we can iterate
     // through that while the original s_tls_thread_keys may have more
     // values added to it via destructor calls.
-    for (int i = 0; i < key_table_.size(); ++i) {
-      KeyRecord* key_record = &key_table_[i];
+    const size_t table_size = data_->key_table_.size();
+
+    for (int i = 0; i < table_size; ++i) {
+      KeyRecord* key_record = &data_->key_table_[i];
       if (key_record->valid) {
         void* value = key_record->values[current_thread_id];
         key_record->values[current_thread_id] = NULL;
@@ -145,39 +220,39 @@ void TLSKeyManager::ShutdownTLSForThread() {
     }
   }
 
-  thread_id_map_.erase(SbThreadGetId());
-  available_thread_ids_.push_back(current_thread_id);
+  data_->thread_id_map_.erase(SbThreadGetId());
+  data_->available_thread_ids_.push_back(current_thread_id);
 }
 
 bool TLSKeyManager::IsKeyActive(SbThreadLocalKey key) {
-  return key_table_[key->index].valid;
+  return data_->key_table_[key->index].valid;
 }
 
 int TLSKeyManager::GetUnusedKeyIndex() {
-  for (int i = 0; i < key_table_.size(); ++i) {
-    if (!key_table_[i].valid) {
+  const size_t key_table_size = data_->key_table_.size();
+  for (int i = 0; i < key_table_size; ++i) {
+    if (!data_->key_table_[i].valid) {
       return i;
     }
   }
 
-  key_table_.push_back(KeyRecord());
-  key_table_.back().valid = false;
+  data_->key_table_.push_back(KeyRecord());
+  data_->key_table_.back().valid = false;
 
-  return key_table_.size() - 1;
+  return data_->key_table_.size() - 1;
 }
 
 int TLSKeyManager::GetCurrentThreadId() {
-  std::map<SbThreadId, int>::const_iterator found =
-      thread_id_map_.find(SbThreadGetId());
-  if (found != thread_id_map_.end()) {
+  InternalData::ThreadIdMap::const_iterator found =
+      data_->thread_id_map_.find(SbThreadGetId());
+  if (found != data_->thread_id_map_.end()) {
     return found->second;
   }
 
-  SB_DCHECK(!available_thread_ids_.empty());
-  int thread_tls_id = available_thread_ids_.back();
-  available_thread_ids_.pop_back();
-
-  thread_id_map_.insert(std::make_pair(SbThreadGetId(), thread_tls_id));
+  SB_DCHECK(!data_->available_thread_ids_.empty());
+  int thread_tls_id = data_->available_thread_ids_.back();
+  data_->available_thread_ids_.pop_back();
+  data_->thread_id_map_.insert(std::make_pair(SbThreadGetId(), thread_tls_id));
 
   return thread_tls_id;
 }
