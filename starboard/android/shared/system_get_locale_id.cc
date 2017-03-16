@@ -33,9 +33,8 @@ class LocaleInfo {
   LocaleInfo() {
     JniEnvExt* env = JniEnvExt::Get();
 
-    jstring result = static_cast<jstring>(env->CallActivityObjectMethod(
+    jstring result = static_cast<jstring>(env->CallActivityObjectMethodOrAbort(
         "systemGetLocaleId", "()Ljava/lang/String;"));
-    env->AbortOnException();
     const char* utf_chars = env->GetStringUTFChars(result, NULL);
     locale_id = utf_chars;
     env->ReleaseStringUTFChars(result, utf_chars);

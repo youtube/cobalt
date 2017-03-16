@@ -31,9 +31,8 @@ namespace {
 jobject CreateSurfaceTexture(int gl_texture_id) {
   JniEnvExt* env = JniEnvExt::Get();
 
-  jobject local_surface_texture =
-      env->NewObject("android/graphics/SurfaceTexture", "(I)V", gl_texture_id);
-  env->AbortOnException();
+  jobject local_surface_texture = env->NewObjectOrAbort(
+      "android/graphics/SurfaceTexture", "(I)V", gl_texture_id);
 
   jobject global_surface_texture =
       env->ConvertLocalRefToGlobalRef(local_surface_texture);
@@ -44,10 +43,9 @@ jobject CreateSurfaceTexture(int gl_texture_id) {
 jobject CreateSurfaceFromSurfaceTexture(jobject surface_texture) {
   JniEnvExt* env = JniEnvExt::Get();
 
-  jobject local_surface =
-      env->NewObject("android/view/Surface",
-                     "(Landroid/graphics/SurfaceTexture;)V", surface_texture);
-  env->AbortOnException();
+  jobject local_surface = env->NewObjectOrAbort(
+      "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
+      surface_texture);
 
   jobject global_surface = env->ConvertLocalRefToGlobalRef(local_surface);
 

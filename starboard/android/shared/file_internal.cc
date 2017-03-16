@@ -38,9 +38,8 @@ AAssetManager* g_asset_manager;
 // buffer with the result.
 const char* GetAbsolutePath(JniEnvExt* env, jobject file_obj) {
   SB_DCHECK(file_obj);
-  jstring abs_path = (jstring)env->CallObjectMethod(file_obj, "getAbsolutePath",
-                                                    "()Ljava/lang/String;");
-  env->AbortOnException();
+  jstring abs_path = (jstring)env->CallObjectMethodOrAbort(
+      file_obj, "getAbsolutePath", "()Ljava/lang/String;");
   const char* utf_chars = env->GetStringUTFChars(abs_path, 0);
   const char* result = SbStringDuplicate(utf_chars);
   env->ReleaseStringUTFChars(abs_path, utf_chars);
@@ -57,14 +56,14 @@ void SbFileAndroidInitialize(ANativeActivity* activity) {
   jobject file_obj;
 
   SB_DCHECK(g_app_files_dir == NULL);
-  file_obj = env->CallActivityObjectMethod("getFilesDir", "()Ljava/io/File;");
-  env->AbortOnException();
+  file_obj =
+      env->CallActivityObjectMethodOrAbort("getFilesDir", "()Ljava/io/File;");
   g_app_files_dir = GetAbsolutePath(env, file_obj);
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK(g_app_cache_dir == NULL);
-  file_obj = env->CallActivityObjectMethod("getCacheDir", "()Ljava/io/File;");
-  env->AbortOnException();
+  file_obj =
+      env->CallActivityObjectMethodOrAbort("getCacheDir", "()Ljava/io/File;");
   g_app_cache_dir = GetAbsolutePath(env, file_obj);
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 }
