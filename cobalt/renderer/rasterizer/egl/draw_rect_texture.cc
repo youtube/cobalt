@@ -47,15 +47,22 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
 DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
     const math::RectF& rect,
-    const GenerateTextureFunction& generate_texture,
-    const math::Matrix3F& texcoord_transform)
+    const GenerateTextureFunction& generate_texture)
     : DrawObject(base_state),
-      texcoord_transform_(texcoord_transform),
+      texcoord_transform_(math::Matrix3F::Identity()),
       rect_(rect),
       texture_(NULL),
       generate_texture_(generate_texture),
       vertex_buffer_(NULL) {
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
+}
+
+void DrawRectTexture::ExecutePreVertexBuffer(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  if (!generate_texture_.is_null()) {
+    generate_texture_.Run(&texture_, &texcoord_transform_);
+  }
 }
 
 void DrawRectTexture::ExecuteUpdateVertexBuffer(
@@ -81,14 +88,6 @@ void DrawRectTexture::ExecuteUpdateVertexBuffer(
   vertex_buffer_ = graphics_state->AllocateVertexData(
       sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
-}
-
-void DrawRectTexture::ExecuteRasterizeOffscreen(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  if (!generate_texture_.is_null()) {
-    texture_ = generate_texture_.Run();
-  }
 }
 
 void DrawRectTexture::ExecuteRasterizeNormal(

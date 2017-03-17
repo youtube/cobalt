@@ -29,7 +29,8 @@ namespace egl {
 // Handles drawing a textured rectangle.
 class DrawRectTexture : public DrawObject {
  public:
-  typedef base::Callback<backend::TextureEGL*(void)>
+  typedef base::Callback<void(const backend::TextureEGL** out_texture,
+                              math::Matrix3F* out_texcoord_transform)>
       GenerateTextureFunction;
 
   DrawRectTexture(GraphicsState* graphics_state,
@@ -41,12 +42,11 @@ class DrawRectTexture : public DrawObject {
   DrawRectTexture(GraphicsState* graphics_state,
                   const BaseState& base_state,
                   const math::RectF& rect,
-                  const GenerateTextureFunction& generate_texture,
-                  const math::Matrix3F& texcoord_transform);
+                  const GenerateTextureFunction& generate_texture);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecutePreVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
   void ExecuteRasterizeNormal(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
