@@ -15,6 +15,7 @@
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -44,18 +45,6 @@ math::Rect RoundRectFToInt(const math::RectF& input) {
 bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
   return matrix(2, 0) == 0 && matrix(2, 1) == 0 && matrix(2, 2) == 1 &&
          matrix(0, 1) == 0 && matrix(1, 0) == 0;
-}
-
-int32_t NextPowerOf2(int32_t num) {
-  // Return the smallest power of 2 that is greater than or equal to num.
-  // This flips on all bits <= num, then num+1 will be the next power of 2.
-  --num;
-  num |= num >> 1;
-  num |= num >> 2;
-  num |= num >> 4;
-  num |= num >> 8;
-  num |= num >> 16;
-  return num + 1;
 }
 
 }  // namespace
@@ -278,32 +267,23 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node) {
   // Use fallback_rasterize_ to render to an offscreen target. Add a small
   // buffer to allow anti-aliased edges (e.g. rendered text).
   const int kBorderWidth = 1;
-
   math::RectF node_bounds(node->GetBounds());
-
-  // Use power-of-2 texture sizes to ensure good performance on most GPUs.
-  // Some nodes, like TextNode, may have an internal offset for rendering,
-  // so the offscreen target must accommodate that.
   math::RectF viewport(kBorderWidth, kBorderWidth,
-      NextPowerOf2(node_bounds.right() + 2 * kBorderWidth),
-      NextPowerOf2(node_bounds.bottom() + 2 * kBorderWidth));
-
-  // Adjust the draw rect to accomodate the extra border.
-  math::RectF draw_rect(-kBorderWidth, -kBorderWidth,
       node_bounds.right() + 2 * kBorderWidth,
       node_bounds.bottom() + 2 * kBorderWidth);
 
-  // Use the texcoord transform matrix to handle the change in offscreen
-  // target size to the next power of 2.
-  math::Matrix3F texcoord_transform(math::Matrix3F::FromValues(
-      draw_rect.width() / viewport.width(), 0, 0,
-      0, draw_rect.height() / viewport.height(), 0,
-      0, 0, 1));
+  // Adjust the draw rect to accomodate the extra border and align texels with
+  // pixels. Perform the smallest fractional pixel shift for alignment.
+  float trans_x = std::floor(draw_state_.transform(0, 2) + 0.5f) -
+      draw_state_.transform(0, 2);
+  float trans_y = std::floor(draw_state_.transform(1, 2) + 0.5f) -
+      draw_state_.transform(1, 2);
+  math::RectF draw_rect(-kBorderWidth + trans_x, -kBorderWidth + trans_y,
+      viewport.width(), viewport.height());
 
   scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
       draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
-          scoped_refptr<render_tree::Node>(node), viewport),
-      texcoord_transform));
+          scoped_refptr<render_tree::Node>(node), viewport)));
   AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture,
                      draw_rect);
 }

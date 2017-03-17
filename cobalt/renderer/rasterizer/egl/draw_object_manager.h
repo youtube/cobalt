@@ -45,9 +45,9 @@ class DrawObjectManager {
   void AddTransparentDraw(scoped_ptr<DrawObject> object, DrawType type,
                           const math::RectF& bounds);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecutePreVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
-  void ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
   void ExecuteRasterizeNormal(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
