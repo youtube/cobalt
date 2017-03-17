@@ -96,6 +96,13 @@
 // Deleted the vestigal struct SbUserApplicationTokenResults from user.h.
 #define SB_DELETE_USER_APPLICATION_TOKEN_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Enables the SbPlayer implementation to provide instructions to its user on
+// how to store audio/video data.  Encoded audio/video data is cached once being
+// demuxed and may occupy a significant amount of memory.  Enabling this feature
+// allows the SbPlayer implementation to have better control on where encoded
+// audio/video data is stored.
+#define SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Use a unified implementation of SbMediaCanPlayMimeAndKeySystem() based on
 // SbMediaIsSupported(), SbMediaIsAudioSupported(), and
 // SbMediaIsVideoSupported().
