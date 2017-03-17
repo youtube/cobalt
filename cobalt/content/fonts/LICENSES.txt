@@ -10,10 +10,6 @@ DroidSansMono
 https://www.google.com/fonts/specimen/Droid+Sans+Mono
 Digitized data copyright © 2007, Google Corporation.
 
-MTLmr3m
-https://github.com/android/platform_frameworks_base/tree/master/data/fonts
-Copyright(C)2010 MOTOYA CO.,LTD.
-
 Roboto
 https://www.google.com/fonts/specimen/Roboto
 Copyright 2011 Google Inc. All Rights Reserved.
@@ -48,11 +44,6 @@ DancingScript-Regular.ttf: Copyright (c) 2011 by Pablo Impallari.
 www.impallari.com. All rights reserved.
 DancingScript-Bold.ttf: Copyright (c) 2011 by Pablo Impallari.
 www.impallari.com Igino Marini. www.ikern.com. All rights reserved.
-
-NanumGothic
-https://www.google.com/fonts/earlyaccess
-Copyright 2010 NHN Corporation. All rights reserved. Font designed by
-Sandoll Communications Inc.
 
 Noto
 https://www.google.com/get/noto/
