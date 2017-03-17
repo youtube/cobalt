@@ -30,6 +30,10 @@ namespace {
 const jlong kDequeueTimeout = 0;
 const SbTimeMonotonic kUpdateInterval = 10 * kSbTimeMillisecond;
 
+const jint kNoOffset = 0;
+const jlong kNoPts = 0;
+const jint kNoBufferFlags = 0;
+
 SbMediaAudioSampleType GetSupportedSampleType() {
   SB_DCHECK(
       SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16));
@@ -44,10 +48,12 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            const SbMediaAudioHeader& audio_header,
-                           JobQueue* job_queue)
+                           JobQueue* job_queue,
+                           SbDrmSystem drm_system)
     : stream_ended_(false),
       audio_header_(audio_header),
       job_queue_(job_queue),
+      drm_system_(static_cast<DrmSystem*>(drm_system)),
       sample_type_(GetSupportedSampleType()) {
   SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
   SB_DCHECK(job_queue_);
@@ -106,7 +112,8 @@ void AudioDecoder::Reset() {
 }
 
 bool AudioDecoder::InitializeCodec() {
-  jobject j_media_crypto = NULL;
+  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
       kMimeTypeAac, audio_header_, j_media_crypto);
   if (!media_codec_bridge_) {
@@ -165,21 +172,30 @@ bool AudioDecoder::ProcessOneInputBuffer() {
 
   jint status;
   if (event.type == Event::kWriteCodecConfig) {
-    status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, 0, size, 0, BUFFER_FLAG_CODEC_CONFIG);
+    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
+                                                   kNoOffset, size, kNoPts,
+                                                   BUFFER_FLAG_CODEC_CONFIG);
   } else if (event.type == Event::kWriteInputBuffer) {
     jlong pts_us = ConvertSbMediaTimeToMicroseconds(event.input_buffer.pts());
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   0, size, pts_us, 0);
+    if (drm_system_ && event.input_buffer.drm_info()) {
+      status = media_codec_bridge_->QueueSecureInputBuffer(
+          dequeue_input_result.index, kNoOffset, *event.input_buffer.drm_info(),
+          pts_us);
+    } else {
+      status = media_codec_bridge_->QueueInputBuffer(
+          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
+    }
   } else if (event.type == Event::kWriteEndOfStream) {
-    status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, 0, size, 0, BUFFER_FLAG_END_OF_STREAM);
+    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
+                                                   kNoOffset, size, kNoPts,
+                                                   BUFFER_FLAG_END_OF_STREAM);
   } else {
     SB_NOTREACHED();
   }
 
   if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
+    SB_LOG(ERROR) << "|queue(Secure)?InputBuffer| failed with status: "
+                  << status;
     return false;
   }
 
