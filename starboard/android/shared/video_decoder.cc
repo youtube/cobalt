@@ -38,6 +38,10 @@ const jlong kDequeueTimeout = 0;
 const SbMediaTime kOutputBufferWorkFailure = -1;
 const SbTime kSbTimeNone = -1;
 
+const jint kNoOffset = 0;
+const jlong kNoPts = 0;
+const jint kNoBufferFlags = 0;
+
 // Map an |SbMediaVideoCodec| into its corresponding mime type string.
 const char* GetMimeTypeFromCodecType(const SbMediaVideoCodec type) {
   switch (type) {
@@ -66,9 +70,11 @@ const char* GetMimeTypeFromCodecType(const SbMediaVideoCodec type) {
 }  // namespace
 
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
+                           SbDrmSystem drm_system,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetProvider* decode_target_provider)
     : video_codec_(video_codec),
+      drm_system_(static_cast<DrmSystem*>(drm_system)),
       host_(NULL),
       stream_ended_(false),
       decoder_thread_(kSbThreadInvalid),
@@ -101,7 +107,7 @@ void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
   SB_DCHECK(host_ != NULL);
 
   if (stream_ended_) {
-    SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
+    SB_LOG(ERROR) << "WriteInputBuffer() was called after WriteEndOfStream().";
     return;
   }
 
@@ -117,9 +123,6 @@ void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
 
 void VideoDecoder::WriteEndOfStream() {
   SB_DCHECK(host_ != NULL);
-
-  // We have to flush the decoder to decode the rest frames and to ensure that
-  // Decode() is not called when the stream is ended.
   stream_ended_ = true;
   event_queue_.PushBack(Event(Event::kWriteEndOfStream));
 }
@@ -177,7 +180,8 @@ bool VideoDecoder::InitializeCodec() {
   int width = ANativeWindow_getWidth(video_window);
   int height = ANativeWindow_getHeight(video_window);
 
-  jobject j_media_crypto = NULL;
+  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
       mime, width, height, j_output_surface, j_media_crypto);
   if (!media_codec_bridge_) {
@@ -333,17 +337,23 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
   }
 
   jint status;
-  if (is_eos) {
-    status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, 0, 0, 0, BUFFER_FLAG_END_OF_STREAM);
+  if (!is_eos && drm_system_ && input_buffer.drm_info()) {
+    status = media_codec_bridge_->QueueSecureInputBuffer(
+        dequeue_input_result.index, kNoOffset, *input_buffer.drm_info(),
+        ConvertSbMediaTimeToMicroseconds(input_buffer.pts()));
+  } else if (is_eos) {
+    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
+                                                   kNoOffset, 0, kNoPts,
+                                                   BUFFER_FLAG_END_OF_STREAM);
   } else {
     status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, /*offset=*/0, input_buffer.size(),
-        ConvertSbMediaTimeToMicroseconds(input_buffer.pts()), 0);
+        dequeue_input_result.index, kNoOffset, input_buffer.size(),
+        ConvertSbMediaTimeToMicroseconds(input_buffer.pts()), kNoBufferFlags);
   }
 
   if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
+    SB_LOG(ERROR) << "|queue(Secure)?InputBuffer| failed with status: "
+                  << status;
     return false;
   }
 

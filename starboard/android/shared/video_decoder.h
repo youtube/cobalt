@@ -19,6 +19,7 @@
 
 #include <deque>
 
+#include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_common.h"
@@ -45,6 +46,7 @@ class VideoDecoder
   typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
 
   explicit VideoDecoder(SbMediaVideoCodec video_codec,
+                        SbDrmSystem drm_system,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetProvider* decode_target_provider);
   ~VideoDecoder() SB_OVERRIDE;
@@ -140,6 +142,7 @@ class VideoDecoder
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
   Host* host_;
+  DrmSystem* drm_system_;
 
   // Events are processed in a queue, except for when handling events of type
   // |kReset|, which are allowed to cut to the front.
@@ -153,7 +156,6 @@ class VideoDecoder
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
   SbTime current_time_;
-  SbTime current_time_set_at_;
 
   SbPlayerOutputMode output_mode_;
 
