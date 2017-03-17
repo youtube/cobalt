@@ -615,6 +615,10 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 
   switch (buffering_state) {
     case Pipeline::kHaveMetadata:
+      video_frame_provider_->SetOutputMode(
+          (pipeline_->IsPunchOutMode()
+               ? ShellVideoFrameProvider::kOutputModePunchOut
+               : ShellVideoFrameProvider::kOutputModeDecodeToTexture));
       SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
       break;
     case Pipeline::kPrerollCompleted:
