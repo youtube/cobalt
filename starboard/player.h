@@ -352,6 +352,52 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
                             SbMediaTime seek_to_pts,
                             int ticket);
 
+#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+
+// Writes a sample of the given media type to |player|'s input stream. The
+// lifetime of |sample_buffers|, |sample_buffers|, |video_sample_info|, and
+// |sample_drm_info| (as well as member |subsample_mapping| contained inside it)
+// are not guaranteed past the call to SbPlayerWriteSample. That means that
+// before returning, the implementation must synchronously copy any information
+// it wants to retain from those structures.
+//
+// |player|: The player to which the sample is written.
+// |sample_type|: The type of sample being written. See the |SbMediaType|
+//   enum in media.h.
+// |sample_buffers|: A pointer to an array of buffers with
+//   |number_of_sample_buffers| elements that hold the data for this sample. The
+//   buffers are expected to be a portion of a bytestream of the codec type that
+//   the player was created with. The buffers should contain a sequence of whole
+//   NAL Units for video, or a complete audio frame.  |sample_buffers| cannot be
+//   assumed to live past the call into SbPlayerWriteSample(), so it must be
+//   copied if its content will be used after SbPlayerWriteSample() returns.
+// |sample_buffer_sizes|: A pointer to an array of sizes with
+//   |number_of_sample_buffers| elements.  Each of them specify the number of
+//   bytes in the corresponding buffer contained in |sample_buffers|.  None of
+//   them can be 0.  |sample_buffer_sizes| cannot be assumed to live past the
+//   call into SbPlayerWriteSample(), so it must be copied if its content will
+//   be used after SbPlayerWriteSample() returns.
+// |number_of_sample_buffers|: Specify the number of elements contained inside
+//   |sample_buffers| and |sample_buffer_sizes|.  It has to be at least one.
+// |sample_pts|: The timestamp of the sample in 90KHz ticks (PTS). Note that
+//   samples MAY be written "slightly" out of order.
+// |video_sample_info|: Information about a video sample. This value is
+//   required if |sample_type| is |kSbMediaTypeVideo|. Otherwise, it must be
+//   |NULL|.
+// |sample_drm_info|: The DRM system for the media sample. This value is
+//   required for encrypted samples. Otherwise, it must be |NULL|.
+SB_EXPORT void SbPlayerWriteSample(
+    SbPlayer player,
+    SbMediaType sample_type,
+    const void** sample_buffers,
+    int* sample_buffer_sizes,
+    int number_of_sample_buffers,
+    SbMediaTime sample_pts,
+    const SbMediaVideoSampleInfo* video_sample_info,
+    const SbDrmSampleInfo* sample_drm_info);
+
+#else  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+
 // Writes a sample of the given media type to |player|'s input stream. The
 // lifetime of |video_sample_info| and |sample_drm_info| (as well as member
 // |subsample_mapping| contained inside it) are not guaranteed past the call
@@ -382,6 +428,8 @@ SB_EXPORT void SbPlayerWriteSample(
     SbMediaTime sample_pts,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* sample_drm_info);
+
+#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
 
 // Writes a marker to |player|'s input stream of |stream_type| indicating that
 // there are no more samples for that media type for the remainder of this
