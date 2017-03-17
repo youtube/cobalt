@@ -19,6 +19,7 @@
 
 #include <queue>
 
+#include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
@@ -42,7 +43,8 @@ class AudioDecoder
 
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header,
-               JobQueue* job_queue);
+               JobQueue* job_queue,
+               SbDrmSystem drm_system);
   ~AudioDecoder() SB_OVERRIDE;
 
   void Decode(const InputBuffer& input_buffer) SB_OVERRIDE;
@@ -95,6 +97,8 @@ class AudioDecoder
 
   JobQueue* job_queue_;
   Closure update_closure_;
+
+  DrmSystem* drm_system_;
 };
 
 }  // namespace shared

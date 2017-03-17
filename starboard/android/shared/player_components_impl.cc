@@ -34,15 +34,15 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
 
   AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
       audio_parameters.audio_codec, audio_parameters.audio_header,
-      audio_parameters.job_queue);
+      audio_parameters.job_queue, audio_parameters.drm_system);
   if (!audio_decoder->is_valid()) {
     delete audio_decoder;
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
   VideoDecoderImpl* video_decoder = new VideoDecoderImpl(
-      video_parameters.video_codec, video_parameters.output_mode,
-      video_parameters.decode_target_provider);
+      video_parameters.video_codec, video_parameters.drm_system,
+      video_parameters.output_mode, video_parameters.decode_target_provider);
 
   if (!video_decoder->is_valid()) {
     delete video_decoder;
