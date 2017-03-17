@@ -21,12 +21,12 @@ Example:
 
 ## Profiles
 
-1.  `10megabytes`: Use this set of fonts if the target space allocated for fonts
-is approximately 10 megabytes.  This directory contains DroidSansFallback, which
-will render many Chinese, and Korean characters at lower quality.  The benefit
-of using this font is space savings at the cost of reduced quality.
-1.  `minimal`: Use this if minimizing space is a goal, and Cobalt should rely
-on web fonts.
 1.  `unlimited`: This font set is preferred, and default.  This will enable the
 use the fonts with highest quality and coverage, without the network latency of
 fetching fonts from the server.
+2.  `10megabytes`: Use this set of fonts if the target space allocated for fonts
+is approximately 10 megabytes.  This directory contains DroidSansFallback, which
+will render many Chinese, and Korean characters at lower quality.  The benefit
+of using this font is space savings at the cost of reduced quality.
+3.  `minimal`: Use this if minimizing space is a goal, and Cobalt should rely
+on web fonts.
