@@ -519,11 +519,6 @@ void HardwareRasterizer::Impl::SubmitOffscreen(
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
   }
-
-  {
-    TRACE_EVENT0("cobalt::renderer", "Skia Flush");
-    canvas->flush();
-  }
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
