@@ -41,7 +41,6 @@
         [ 'cobalt_font_package == "minimal"', {
           'files+': [
             '<(source_all_fonts_dir)/MinimalRoboto.ttf',
-            '<(source_all_fonts_dir)/CarroisGothicSC-Regular.ttf',
           ],
         }], # minimal
         [ 'cobalt_font_package == "10megabytes"', {
@@ -76,7 +75,6 @@
             '<(source_all_fonts_dir)/NotoSansSyriacEstrangela-Regular.ttf',
             '<(source_all_fonts_dir)/NotoSansBengaliUI-Regular.ttf',
             '<(source_all_fonts_dir)/NotoSansThaiUI-Regular.ttf',
-            '<(source_all_fonts_dir)/CarroisGothicSC-Regular.ttf',
             '<(source_all_fonts_dir)/NotoSansNKo-Regular.ttf',
             '<(source_all_fonts_dir)/NotoSansGeorgian-Regular.ttf',
             '<(source_all_fonts_dir)/NotoSansSymbols-Regular-Subsetted.ttf',
