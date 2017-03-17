@@ -49,21 +49,21 @@ void DrawObjectManager::AddTransparentDraw(scoped_ptr<DrawObject> object,
       object.release());
 }
 
-void DrawObjectManager::ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+void DrawObjectManager::ExecutePreVertexBuffer(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   for (int type = 0; type < kDrawCount; ++type) {
     for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->ExecuteUpdateVertexBuffer(graphics_state,
+      draw_objects_[type][index]->ExecutePreVertexBuffer(graphics_state,
           program_manager);
     }
   }
 }
 
-void DrawObjectManager::ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+void DrawObjectManager::ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   for (int type = 0; type < kDrawCount; ++type) {
     for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->ExecuteRasterizeOffscreen(graphics_state,
+      draw_objects_[type][index]->ExecuteUpdateVertexBuffer(graphics_state,
           program_manager);
     }
   }
