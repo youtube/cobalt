@@ -17,6 +17,10 @@
 
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
+#include <jni.h>
+
+#include "starboard/log.h"
+
 namespace starboard {
 namespace android {
 namespace shared {
@@ -39,6 +43,11 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
 
   bool is_valid() const { return false; }
+
+  jobject GetMediaCrypto() const {
+    SB_NOTIMPLEMENTED();
+    return NULL;
+  }
 
  private:
   void* context_;
