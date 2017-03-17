@@ -14,6 +14,19 @@
 
 #include "starboard/player.h"
 
+#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+
+void SbPlayerWriteSample(SbPlayer /*player*/,
+                         SbMediaType /*sample_type*/,
+                         const void** /*sample_buffers*/,
+                         int* /*sample_buffer_sizes*/,
+                         int /*number_of_sample_buffers*/,
+                         SbMediaTime /*sample_pts*/,
+                         const SbMediaVideoSampleInfo* /*video_sample_info*/,
+                         const SbDrmSampleInfo* /*sample_drm_info*/) {}
+
+#else  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+
 void SbPlayerWriteSample(SbPlayer /*player*/,
                          SbMediaType /*sample_type*/,
                          const void* /*sample_buffer*/,
@@ -21,3 +34,5 @@ void SbPlayerWriteSample(SbPlayer /*player*/,
                          SbMediaTime /*sample_pts*/,
                          const SbMediaVideoSampleInfo* /*video_sample_info*/,
                          const SbDrmSampleInfo* /*sample_drm_info*/) {}
+
+#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
