@@ -42,11 +42,34 @@ class DrawObject {
 
   virtual ~DrawObject() {}
 
-  // Issue GL commands to rasterize the object.
+  // This stage is executed before vertex data is calculated. This allows
+  // processing which may impact vertex data (such as vertex or texture
+  // coordinates).
+  //
+  // The most common use is to allocate space in an offscreen atlas, then
+  // render to it using a different rasterizer. Since the location in the
+  // offscreen atlas impacts the texture coordinates used for onscreen
+  // rendering, offscreen rendering to a texture atlas needs to happen here.
+  //
+  // If this stage ever needs to use a vertex buffer of its own in order
+  // to perform offscreen rendering, then a new stage, similar to the current
+  // "ExecuteUpdateVertexBuffer" stage, should be added and executed before
+  // this stage.
+  virtual void ExecutePreVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) {}
+
+  // This stage is used to update the vertex buffer for a later stage to use.
+  // Vertex data is handled by the GraphicsState to minimize the number of
+  // vertex buffers needed. Once this stage is executed, the rasterizer will
+  // then notify the GraphicsState to send all vertex data from all draw
+  // objects to the GPU.
   virtual void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) = 0;
-  virtual void ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) {}
+
+  // This stage is used to render onscreen. Although it can be used to
+  // rasterize to any number of render targets, it is best to use a different
+  // stage for offscreen rendering in order to minimize the cost of switching
+  // render targets.
   virtual void ExecuteRasterizeNormal(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) = 0;
 

@@ -51,6 +51,8 @@
         'graphics_state.cc',
         'hardware_rasterizer.cc',
         'hardware_rasterizer.h',
+        'rect_allocator.h',
+        'rect_allocator.cc',
         'render_tree_node_visitor.h',
         'render_tree_node_visitor.cc',
         'shader_base.h',
