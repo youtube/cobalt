@@ -19,7 +19,7 @@
     contained within page 3.
 -->
     <!-- first family is default -->
-    <family name="Minimal Roboto">
-        <font style="normal" weight="400">MinimalRoboto.ttf</font>
+    <family>
+        <font weight="400" style="normal">Roboto-Regular-Subsetted.ttf</font>
     </family>
 </familyset>

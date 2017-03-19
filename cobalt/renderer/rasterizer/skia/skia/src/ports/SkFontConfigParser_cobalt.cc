@@ -246,7 +246,7 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
   // name (string), fallback (true, false), lang (string), pages (comma
   // delimited int ranges)
   // A <family> tag must have a canonical name attribute or be a fallback
-  // family in order to be usable.
+  // family in order to be usable, unless it is the default family.
   // If the fallback attribute exists, then it alone determines whether the
   // family is a fallback family.  However, if it does not exist, then the
   // lack of a name attribute makes it a fallback family.
