@@ -34,13 +34,13 @@
             # contains a superset of what we expect to find on Android devices.
             # The Android SbFile implementation falls back to system font files
             # for those not in cobalt content.
-            '<(source_all_fonts_dir)/MinimalRoboto.ttf',
+            '<(source_all_fonts_dir)/Roboto-Regular-Subsetted.ttf',
             '<(source_all_fonts_dir)/NotoEmoji-Regular.ttf',
           ],
         }], # android_system
         [ 'cobalt_font_package == "minimal"', {
           'files+': [
-            '<(source_all_fonts_dir)/MinimalRoboto.ttf',
+            '<(source_all_fonts_dir)/Roboto-Regular-Subsetted.ttf',
           ],
         }], # minimal
         [ 'cobalt_font_package == "10megabytes"', {
