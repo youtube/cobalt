@@ -115,6 +115,9 @@
     # moved to starboard.
     'starboard_path%': 'starboard/<(target_arch)',
 
+    # List of platform-specific targets that get compiled into cobalt.
+    'cobalt_platform_dependencies%': [],
+
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
     #   'none'   - No EGL + GLES implementation is available on this platform.
