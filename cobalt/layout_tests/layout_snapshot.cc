@@ -70,7 +70,7 @@ browser::WebModule::LayoutResults SnapshotURL(
 
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options;
+  browser::WebModule::Options web_module_options(viewport_size);
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
   // Use 128M of image cache to minimize the effect of image loading.
   web_module_options.image_cache_capacity = 128 * 1024 * 1024;
