@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// MediaMetadata interface
-// https://wicg.github.io/mediasession
-[Constructor(optional MediaMetadataInit init), Exposed=Window]
-interface MediaMetadata {
-  attribute DOMString title;
-  attribute DOMString artist;
-  attribute DOMString album;
-  // TODO make this be FrozenArray<MediaImage> when available
-  attribute sequence<MediaImage> artwork;
+// MediaMetadata MediaImage
+// https://wicg.github.io/mediasession/#dictdef-mediaimage
+dictionary MediaImage {
+  // TODO 'src' is "required", but our idl parser does not yet support that.
+  USVString src;
+  DOMString sizes = "";
+  DOMString type = "";
 };
