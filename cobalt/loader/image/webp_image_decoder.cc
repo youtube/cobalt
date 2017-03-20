@@ -27,8 +27,7 @@ WEBPImageDecoder::WEBPImageDecoder(
     render_tree::ResourceProvider* resource_provider)
     : ImageDataDecoder(resource_provider),
       internal_decoder_(NULL),
-      has_animation_(false),
-      data_buffer_(new std::vector<uint8>()) {
+      has_animation_(false) {
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
   WebPInitDecoderConfig(&config_);
@@ -48,6 +47,10 @@ WEBPImageDecoder::~WEBPImageDecoder() {
   DeleteInternalDecoder();
 }
 
+uint8_t* WEBPImageDecoder::GetOriginalMemory() {
+  return config_.output.u.RGBA.rgba;
+}
+
 size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
   TRACE_EVENT0("cobalt::loader::image",
@@ -58,9 +61,6 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
     }
 
     if (!config_.input.has_animation) {
-      // For static images, we don't need to store the encoded data.
-      data_buffer_.reset();
-
       if (!AllocateImageData(
               math::Size(config_.input.width, config_.input.height),
               !!config_.input.has_alpha)) {
@@ -89,7 +89,6 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
         DCHECK(config_.output.u.RGBA.rgba);
         SbMemoryCopy(image_data()->GetMemory(), config_.output.u.RGBA.rgba,
                      config_.output.u.RGBA.size);
-        DeleteInternalDecoder();
         set_state(kDone);
       } else if (status != VP8_STATUS_SUSPENDED) {
         DLOG(ERROR) << "WebPIAppend error, status code: " << status;
