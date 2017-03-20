@@ -17,45 +17,131 @@
 #ifndef COBALT_SCRIPT_MOZJS_NATIVE_PROMISE_H_
 #define COBALT_SCRIPT_MOZJS_NATIVE_PROMISE_H_
 
+#include "cobalt/script/mozjs/conversion_helpers.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/promise_wrapper.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
 #include "cobalt/script/promise.h"
+#include "third_party/mozjs/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
-// SpiderMonkey implementation of the Promise interface.
-class NativePromise : public Promise {
+
+// Shared functionality for NativePromise<T>. Does not implement the Resolve
+// function, since that needs to be specialized for Promise<T>.
+template <typename T>
+class NativePromiseBase : public Promise<T> {
  public:
-  static JSObject* Create(JSContext* context, JS::HandleObject global_object);
-
-  void Reject() const OVERRIDE;
-  void Resolve() const OVERRIDE;
-
   // ScriptObject boilerplate.
-  typedef Promise BaseType;
-  JSObject* handle() const { return weak_native_promise_.GetObject(); }
-  const JS::Value& value() const { return weak_native_promise_.GetValue(); }
-  bool WasCollected() const { return weak_native_promise_.WasCollected(); }
+  typedef Promise<T> BaseType;
+  JSObject* handle() const { return promise_resolver_->get().GetObject(); }
+  const JS::Value& value() const { return promise_resolver_->get().GetValue(); }
+  bool WasCollected() const { return promise_resolver_->get().WasCollected(); }
 
- private:
-  NativePromise(JSContext* context, JS::HandleObject object);
-  NativePromise(JSContext* context, JS::HandleValue object);
+  // The Promise JS object (not the resolver).
+  JSObject* promise() const { return promise_resolver_->GetPromise(); }
+
+  void Reject() const OVERRIDE {
+    JS::RootedObject promise_resolver(context_,
+                                      promise_resolver_->get().GetObject());
+    if (promise_resolver) {
+      JSAutoRequest auto_request(context_);
+      JSAutoCompartment auto_compartment(context_, promise_resolver);
+      promise_resolver_->Reject(JS::UndefinedHandleValue);
+    }
+  }
+
+ protected:
+  NativePromiseBase(JSContext* context, JS::HandleObject resolver_object)
+      : context_(context) {
+    promise_resolver_.emplace(context, resolver_object);
+  }
+
+  NativePromiseBase(JSContext* context, JS::HandleValue resolver_value)
+      : context_(context) {
+    DCHECK(resolver_value.isObject());
+    JS::RootedObject resolver_object(context, &resolver_value.toObject());
+    promise_resolver_.emplace(context, resolver_object);
+  }
 
   JSContext* context_;
-  WeakHeapObject weak_native_promise_;
-
-  friend class MozjsUserObjectHolder<NativePromise>;
+  base::optional<PromiseWrapper> promise_resolver_;
 };
 
-typedef MozjsUserObjectHolder<NativePromise> MozjsPromiseHolder;
+// Implements the Resolve() function for T != void.
+template <typename T>
+class NativePromise : public NativePromiseBase<T> {
+ public:
+  NativePromise(JSContext* context, JS::HandleObject resolver_object)
+      : NativePromiseBase<T>(context, resolver_object) {}
 
+  NativePromise(JSContext* context, JS::HandleValue resolver_value)
+      : NativePromiseBase<T>(context, resolver_value) {}
+
+  void Resolve(const T& value) const OVERRIDE {
+    JS::RootedObject promise_wrapper(
+        this->context_, this->promise_resolver_->get().GetObject());
+    if (promise_wrapper) {
+      JSAutoRequest auto_request(this->context_);
+      JSAutoCompartment auto_compartment(this->context_, promise_wrapper);
+      JS::RootedValue converted_value(this->context_);
+      ToJSValue(this->context_, value, &converted_value);
+      this->promise_resolver_->Resolve(converted_value);
+    }
+  }
+};
+
+// Implements the Resolve() function for T == void.
 template <>
-struct TypeTraits<OpaqueHandle> {
-  typedef MozjsPromiseHolder ConversionType;
-  typedef const ScriptValue<Promise>* ReturnType;
+class NativePromise<void> : public NativePromiseBase<void> {
+ public:
+  NativePromise(JSContext* context, JS::HandleObject resolver_object)
+      : NativePromiseBase<void>(context, resolver_object) {}
+
+  NativePromise(JSContext* context, JS::HandleValue resolver_value)
+      : NativePromiseBase<void>(context, resolver_value) {}
+
+  void Resolve() const OVERRIDE {
+    JS::RootedObject promise_wrapper(context_,
+                                     promise_resolver_->get().GetObject());
+    if (promise_wrapper) {
+      JSAutoRequest auto_request(context_);
+      JSAutoCompartment auto_compartment(context_, promise_wrapper);
+      promise_resolver_->Resolve(JS::UndefinedHandleValue);
+    }
+  }
 };
+
+template <typename T>
+struct TypeTraits<NativePromise<T> > {
+  typedef MozjsUserObjectHolder<NativePromise<T> > ConversionType;
+  typedef const ScriptValue<Promise<T> >* ReturnType;
+};
+
+// Promise<T> -> JSValue
+// Note that JSValue -> Promise<T> is not yet supported.
+template <typename T>
+inline void ToJSValue(JSContext* context,
+                      const ScriptValue<Promise<T> >* promise_holder,
+                      JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  if (!promise_holder) {
+    out_value.set(JS::NullValue());
+    return;
+  }
+  const MozjsUserObjectHolder<NativePromise<T> >* user_object_holder =
+      base::polymorphic_downcast<
+          const MozjsUserObjectHolder<NativePromise<T> >*>(promise_holder);
+
+  const NativePromise<T>* native_promise =
+      base::polymorphic_downcast<const NativePromise<T>*>(
+          user_object_holder->GetScriptValue());
+
+  DCHECK(native_promise);
+  out_value.setObjectOrNull(native_promise->promise());
+}
 
 }  // namespace mozjs
 }  // namespace script

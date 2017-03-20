@@ -85,6 +85,8 @@ class BindingsTestBase : public ::testing::Test {
 
   void CollectGarbage() { engine_->CollectGarbage(); }
 
+  Window* window() { return window_.get(); }
+
  protected:
   const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   const scoped_ptr<script::JavaScriptEngine> engine_;
