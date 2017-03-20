@@ -295,7 +295,7 @@ BASE_EXPORT bool WideToLatin1(const std::wstring& wide, std::string* latin1);
 // to have the maximum 'discriminating' power from other encodings. If
 // there's a use case for just checking the structural validity, we have to
 // add a new function for that.
-BASE_EXPORT bool IsStringUTF8(const std::string& str);
+BASE_EXPORT bool IsStringUTF8(const base::StringPiece& str);
 BASE_EXPORT bool IsStringASCII(const std::wstring& str);
 BASE_EXPORT bool IsStringASCII(const base::StringPiece& str);
 BASE_EXPORT bool IsStringASCII(const string16& str);
