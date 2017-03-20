@@ -26,6 +26,7 @@
 
     'gl_type': 'system_gles2',
 
+    'enable_account_manager': 1,
     'enable_map_to_mesh': 1,
 
     # The 'android_system' font package installs only minimal fonts, with a
@@ -38,6 +39,11 @@
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
     'cobalt_enable_jit': 0,
+
+    # Platform-specific implementations to compile into cobalt.
+    'cobalt_platform_dependencies': [
+      '<(DEPTH)/starboard/android/shared/cobalt/cobalt_platform.gyp:cobalt_platform',
+    ],
 
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.

@@ -56,6 +56,7 @@ typedef enum SbUserPropertyId {
   kSbUserPropertyUserId,
 } SbUserPropertyId;
 
+#if SB_API_VERSION < SB_DELETE_USER_APPLICATION_TOKEN_VERSION
 #if SB_HAS(USER_APPLICATION_LINKING_SUPPORT)
 // Information about an application-specific authorization token.
 typedef struct SbUserApplicationTokenResults {
@@ -75,6 +76,7 @@ typedef struct SbUserApplicationTokenResults {
   // |expiry| only if |has_expiry| is true.
   SbTime expiry;
 } SbUserApplicationTokenResults;
+#endif
 #endif
 
 // Well-defined value for an invalid user.
