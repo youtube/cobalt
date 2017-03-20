@@ -29,12 +29,13 @@ namespace script {
 // execute JavaScript.
 class StandaloneJavascriptRunner {
  public:
-  StandaloneJavascriptRunner();
+  explicit StandaloneJavascriptRunner(const JavaScriptEngine::Options& options);
 
   template <typename GlobalInterface>
   explicit StandaloneJavascriptRunner(
+      const JavaScriptEngine::Options& options,
       const scoped_refptr<GlobalInterface>& global_object) {
-    CommonInitialization();
+    CommonInitialization(options);
     global_environment_->CreateGlobalObject(global_object,
                                             environment_settings_.get());
   }
@@ -51,7 +52,7 @@ class StandaloneJavascriptRunner {
   }
 
  private:
-  void CommonInitialization();
+  void CommonInitialization(const JavaScriptEngine::Options& options);
   void ExecuteAndPrintResult(const base::SourceLocation& source_location,
                              const std::string& script);
 
