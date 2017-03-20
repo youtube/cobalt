@@ -17,7 +17,9 @@
 
 #include <string>
 
+#include "cobalt/media_session/media_image.h"
 #include "cobalt/media_session/media_metadata_init.h"
+#include "cobalt/script/sequence.h"
 
 namespace cobalt {
 namespace media_session {
@@ -55,12 +57,19 @@ class MediaMetadata : public script::Wrappable {
 
   void set_album(const std::string& value) { album_ = value; }
 
+  MediaImage const artwork() { return image_; }
+
+  void set_artwork(script::Sequence<MediaImage> value) {
+    UNREFERENCED_PARAMETER(value);
+  }
+
   DEFINE_WRAPPABLE_TYPE(MediaMetadata);
 
  private:
   std::string title_;
   std::string artist_;
   std::string album_;
+  MediaImage image_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaMetadata);
 };
