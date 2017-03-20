@@ -17,6 +17,7 @@
 
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/bindings/testing/window.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/standalone_javascript_runner.h"
 
 using cobalt::bindings::testing::Window;
@@ -26,7 +27,8 @@ namespace {
 
 int SandboxMain(int argc, char** argv) {
   scoped_refptr<Window> test_window = new Window();
-  StandaloneJavascriptRunner standalone_runner(test_window);
+  cobalt::script::JavaScriptEngine::Options js_options;
+  StandaloneJavascriptRunner standalone_runner(js_options, test_window);
   standalone_runner.RunInteractive();
   return 0;
 }
