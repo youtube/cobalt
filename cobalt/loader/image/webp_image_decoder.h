@@ -34,6 +34,9 @@ class WEBPImageDecoder : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const OVERRIDE { return "WEBPImageDecoder"; }
 
+  // Returns a pointer to the original decoded image memory.
+  uint8_t* GetOriginalMemory();
+
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) OVERRIDE;
@@ -51,7 +54,6 @@ class WEBPImageDecoder : public ImageDataDecoder {
   WebPDecoderConfig config_;
   bool has_animation_;
   scoped_refptr<AnimatedWebPImage> animated_webp_image_;
-  scoped_ptr<std::vector<uint8> > data_buffer_;
 };
 
 }  // namespace image
