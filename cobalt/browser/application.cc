@@ -357,8 +357,10 @@ Application::Application(const base::Closure& quit_closure)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   math::Size window_size = InitSystemWindow(command_line);
 
+  WebModule::Options web_options(window_size);
+
   // Create the main components of our browser.
-  BrowserModule::Options options;
+  BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
   options.language = language;
   options.initial_deep_link = GetInitialDeepLink();
@@ -366,9 +368,6 @@ Application::Application(const base::Closure& quit_closure)
 
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
   ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
-
-  options.web_module_options.image_cache_capacity =
-      static_cast<int>(memory_settings::GetImageCacheSize(window_size));
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
     options.web_module_options.javascript_options.disable_jit = true;

@@ -32,7 +32,7 @@ SplashScreen::SplashScreen(
     const SplashScreen::Options& options)
     : render_tree_produced_callback_(render_tree_produced_callback)
     , is_ready_(true, false) {
-  WebModule::Options web_module_options;
+  WebModule::Options web_module_options(window_dimensions);
   web_module_options.name = "SplashScreenWebModule";
 
   // We want the splash screen to load and appear as quickly as possible, so
