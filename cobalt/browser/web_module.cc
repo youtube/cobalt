@@ -30,6 +30,7 @@
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
@@ -849,10 +850,11 @@ void WebModule::DestructionObserver::WillDestroyCurrentMessageLoop() {
   web_module_->impl_.reset();
 }
 
-WebModule::Options::Options()
+WebModule::Options::Options(const math::Size& ui_dimensions)
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-      image_cache_capacity(COBALT_IMAGE_CACHE_SIZE_IN_BYTES),
+      image_cache_capacity(
+          static_cast<int>(memory_settings::GetImageCacheSize(ui_dimensions))),
       remote_typeface_cache_capacity(
           COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
       mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
