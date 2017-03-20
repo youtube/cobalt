@@ -1,236 +1,237 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/shi.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/shi.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/shi.xml
- */
 shi{
     Currencies{
         AED{
             "AED",
-            "adrim n limarat",
+            "ⴰⴷⵔⵉⵎ ⵏ ⵍⵉⵎⴰⵔⴰⵜ",
         }
         AOA{
-            "Kz",
-            "kwanza n angula",
+            "AOA",
+            "ⴽⵡⴰⵏⵣⴰ ⵏ ⴰⵏⴳⵓⵍⴰ",
         }
         AUD{
-            "AU$",
-            "adular n ustralya",
+            "A$",
+            "ⴰⴷⵓⵍⴰⵔ ⵏ ⵓⵙⵜⵔⴰⵍⵢⴰ",
         }
         BHD{
-            "BD",
-            "adinar n bḥrayn",
+            "BHD",
+            "ⴰⴷⵉⵏⴰⵔ ⵏ ⴱⵃⵔⴰⵢⵏ",
         }
         BIF{
-            "FBu",
-            "frank n burundi",
+            "BIF",
+            "ⴼⵔⴰⵏⴽ ⵏ ⴱⵓⵔⵓⵏⴷⵉ",
         }
         BWP{
             "BWP",
-            "abula n butswana",
+            "ⴰⴱⵓⵍⴰ ⵏ ⴱⵓⵜⵙⵡⴰⵏⴰ",
         }
         CAD{
             "CA$",
-            "adular n kanada",
+            "ⴰⴷⵓⵍⴰⵔ ⵏ ⴽⴰⵏⴰⴷⴰ",
         }
         CDF{
             "CDF",
-            "frank n kungu",
+            "ⴼⵔⴰⵏⴽ ⵏ ⴽⵓⵏⴳⵓ",
         }
         CHF{
             "CHF",
-            "afrank n swisra",
+            "ⴰⴼⵔⴰⵏⴽ ⵏ ⵙⵡⵉⵙⵔⴰ",
         }
         CNY{
             "CN¥",
-            "ayan n ccinwa",
+            "ⴰⵢⴰⵏ ⵏ ⵛⵛⵉⵏⵡⴰ",
         }
         CVE{
-            "CV$",
-            "iskudu n kabbirdi",
+            "CVE",
+            "ⵉⵙⴽⵓⴷⵓ ⵏ ⴽⴰⴱⴱⵉⵔⴷⵉ",
         }
         DJF{
-            "Fdj",
-            "frank n djibuti",
+            "DJF",
+            "ⴼⵔⴰⵏⴽ ⵏ ⴷⵊⵉⴱⵓⵜⵉ",
         }
         DZD{
-            "DA",
-            "adinar n dzayr",
+            "DZD",
+            "ⴰⴷⵉⵏⴰⵔ ⵏ ⴷⵣⴰⵢⵔ",
         }
         EGP{
             "EGP",
-            "ajnih n miṣṛ",
+            "ⴰⵊⵏⵉⵀ ⵏ ⵎⵉⵚⵕ",
         }
         ERN{
-            "Nfk",
-            "nafka n iritirya",
+            "ERN",
+            "ⵏⴰⴼⴽⴰ ⵏ ⵉⵔⵉⵜⵉⵔⵢⴰ",
         }
         ETB{
-            "Br",
-            "bir n ityubya",
+            "ETB",
+            "ⴱⵉⵔ ⵏ ⵉⵜⵢⵓⴱⵢⴰ",
         }
         EUR{
             "€",
-            "uru",
+            "ⵓⵔⵓ",
         }
         GBP{
             "£",
-            "ajnih astrlini n nngliz",
+            "ⴰⵊⵏⵉⵀ ⴰⵙⵜⵔⵍⵉⵏⵉ ⵏ ⵏⵏⴳⵍⵉⵣ",
         }
         GHC{
-            "₵",
-            "sidi n ɣana",
+            "GHC",
+            "ⵙⵉⴷⵉ ⵏ ⵖⴰⵏⴰ",
         }
         GMD{
             "GMD",
-            "dalasi n gambya",
+            "ⴷⴰⵍⴰⵙⵉ ⵏ ⴳⴰⵎⴱⵢⴰ",
         }
         GNS{
-            "GNS" /** ===  */,
-            "frank n ɣinya",
+            "GNS",
+            "ⴼⵔⴰⵏⴽ ⵏ ⵖⵉⵏⵢⴰ",
         }
         INR{
-            "Rs",
-            "arubi n lhind",
+            "₹",
+            "ⴰⵔⵓⴱⵉ ⵏ ⵍⵀⵉⵏⴷ",
         }
         JPY{
             "JP¥",
-            "ayan n lyaban",
+            "ⴰⵢⴰⵏ ⵏ ⵍⵢⴰⴱⴰⵏ",
         }
         KES{
-            "Ksh",
-            "acilin n kinya",
+            "KES",
+            "ⴰⵛⵉⵍⵉⵏ ⵏ ⴽⵉⵏⵢⴰ",
         }
         KMF{
-            "CF",
-            "frank n qumuṛ",
+            "KMF",
+            "ⴼⵔⴰⵏⴽ ⵏ ⵇⵓⵎⵓⵕ",
         }
         LRD{
-            "L$",
-            "adular n libirya",
+            "LRD",
+            "ⴰⴷⵓⵍⴰⵔ ⵏ ⵍⵉⴱⵉⵔⵢⴰ",
         }
         LSL{
             "LSL",
-            "luti n liṣuṭu",
+            "ⵍⵓⵜⵉ ⵏ ⵍⵉⵚⵓⵟⵓ",
         }
         LYD{
-            "LD",
-            "adinar n libya",
+            "LYD",
+            "ⴰⴷⵉⵏⴰⵔ ⵏ ⵍⵉⴱⵢⴰ",
         }
         MAD{
             "MAD",
-            "adrim n lmɣrib",
+            "ⴰⴷⵔⵉⵎ ⵏ ⵍⵎⵖⵔⵉⴱ",
         }
         MGA{
             "MGA",
-            "frank n madaɣacqar",
+            "ⴼⵔⴰⵏⴽ ⵏ ⵎⴰⴷⴰⵖⴰⵛⵇⴰⵔ",
         }
         MRO{
-            "UM",
-            "uqiyya n muṛiṭanya",
+            "MRO",
+            "ⵓⵇⵉⵢⵢⴰ ⵏ ⵎⵓⵕⵉⵟⴰⵏⵢⴰ",
         }
         MUR{
-            "MURs",
-            "arubi n muris",
+            "MUR",
+            "ⴰⵔⵓⴱⵉ ⵏ ⵎⵓⵔⵉⵙ",
         }
         MWK{
             "MWK",
-            "kwaca n malawi",
+            "ⴽⵡⴰⵛⴰ ⵏ ⵎⴰⵍⴰⵡⵉ",
         }
         MZM{
-            "Mt",
-            "amitikl n muznbiq",
+            "MZM",
+            "ⴰⵎⵉⵜⵉⴽⵍ ⵏ ⵎⵓⵣⵏⴱⵉⵇ",
         }
         NAD{
-            "N$",
-            "adular n namibya",
+            "NAD",
+            "ⴰⴷⵓⵍⴰⵔ ⵏ ⵏⴰⵎⵉⴱⵢⴰ",
         }
         NGN{
-            "₦",
-            "nayra n nijirya",
+            "NGN",
+            "ⵏⴰⵢⵔⴰ ⵏ ⵏⵉⵊⵉⵔⵢⴰ",
         }
         RWF{
             "RWF",
-            "afrank n rwanda",
+            "ⴰⴼⵔⴰⵏⴽ ⵏ ⵔⵡⴰⵏⴷⴰ",
         }
         SAR{
-            "SR",
-            "aryal n ssaɛudiya",
+            "SAR",
+            "ⴰⵔⵢⴰⵍ ⵏ ⵙⵙⴰⵄⵓⴷⵉⵢⴰ",
         }
         SCR{
-            "SRe",
-            "arubi n ssicil",
+            "SCR",
+            "ⴰⵔⵓⴱⵉ ⵏ ⵙⵙⵉⵛⵉⵍ",
         }
         SDG{
             "SDG",
-            "adinar n ssudan",
+            "ⴰⴷⵉⵏⴰⵔ ⵏ ⵙⵙⵓⴷⴰⵏ",
         }
         SDP{
-            "SDP" /** ===  */,
-            "ajnih n ssudan",
+            "SDP",
+            "ⴰⵊⵏⵉⵀ ⵏ ⵙⵙⵓⴷⴰⵏ",
         }
         SHP{
-            "SH£",
-            "ajnih n santilin",
+            "SHP",
+            "ⴰⵊⵏⵉⵀ ⵏ ⵙⴰⵏⵜⵉⵍⵉⵏ",
         }
         SLL{
-            "Le",
-            "liyun",
+            "SLL",
+            "ⵍⵉⵢⵓⵏ",
         }
         SOS{
-            "Ssh",
-            "acilin n ṣṣumal",
+            "SOS",
+            "ⴰⵛⵉⵍⵉⵏ ⵏ ⵚⵚⵓⵎⴰⵍ",
         }
         STD{
-            "Db",
-            "adubra n sanṭumi",
+            "STD",
+            "ⴰⴷⵓⴱⵔⴰ ⵏ ⵙⴰⵏⵟⵓⵎⵉ",
         }
         SZL{
             "SZL",
-            "lilanjini",
+            "ⵍⵉⵍⴰⵏⵊⵉⵏⵉ",
         }
         TND{
-            "DT",
-            "adinar n tuns",
+            "TND",
+            "ⴰⴷⵉⵏⴰⵔ ⵏ ⵜⵓⵏⵙ",
         }
         TZS{
-            "TSh",
-            "acilin n ṭanẓanya",
+            "TZS",
+            "ⴰⵛⵉⵍⵉⵏ ⵏ ⵟⴰⵏⵥⴰⵏⵢⴰ",
         }
         UGX{
-            "USh",
-            "acilin n uɣanda",
+            "UGX",
+            "ⴰⵛⵉⵍⵉⵏ ⵏ ⵓⵖⴰⵏⴷⴰ",
         }
         USD{
             "US$",
-            "adular n iwunak imunn",
+            "ⴰⴷⵓⵍⴰⵔ ⵏ ⵉⵡⵓⵏⴰⴽ ⵉⵎⵓⵏⵏ",
         }
         XAF{
             "FCFA",
-            "frank ṣifa",
+            "ⴼⵔⴰⵏⴽ ⵚⵉⴼⴰ",
         }
         XOF{
             "CFA",
-            "frank ṣifa bisaw",
+            "ⴼⵔⴰⵏⴽ ⵚⵉⴼⴰ ⴱⵉⵙⴰⵡ",
         }
         ZAR{
-            "R",
-            "arand n afriqya n iffus",
+            "ZAR",
+            "ⴰⵔⴰⵏⴷ ⵏ ⴰⴼⵔⵉⵇⵢⴰ ⵏ ⵉⴼⴼⵓⵙ",
         }
         ZMK{
-            "ZK",
-            "akwaca n zambya",
+            "ZMK",
+            "ⴰⴽⵡⴰⵛⴰ ⵏ ⵣⴰⵎⴱⵢⴰ (1968–2012)",
+        }
+        ZMW{
+            "ZMW",
+            "ⴰⴽⵡⴰⵛⴰ ⵏ ⵣⴰⵎⴱⵢⴰ",
         }
         ZWD{
-            "Z$",
-            "adular n zimbabwi",
+            "ZWD",
+            "ⴰⴷⵓⵍⴰⵔ ⵏ ⵣⵉⵎⴱⴰⴱⵡⵉ",
         }
     }
-    Version{"2.0.45.90"}
+    Version{"2.1.19.14"}
 }

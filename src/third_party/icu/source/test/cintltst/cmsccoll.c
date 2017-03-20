@@ -1,7 +1,7 @@
 
 /********************************************************************
  * COPYRIGHT:
- * Copyright (c) 2001-2010, International Business Machines Corporation and
+ * Copyright (c) 2001-2015, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /*******************************************************************************
@@ -29,7 +29,6 @@
 #include "unicode/ustring.h"
 #include "string.h"
 #include "ucol_imp.h"
-#include "ucol_tok.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "uassert.h"
@@ -37,6 +36,7 @@
 #include "unicode/ucnv.h"
 #include "unicode/ures.h"
 #include "unicode/uscript.h"
+#include "unicode/utf16.h"
 #include "uparse.h"
 #include "putilimp.h"
 
@@ -412,1088 +412,6 @@ static void BillFairmanTest(void) {
     }
 }
 
-static void testPrimary(UCollator* col, const UChar* p,const UChar* q){
-    UChar source[256] = { '\0'};
-    UChar target[256] = { '\0'};
-    UChar preP = 0x31a3;
-    UChar preQ = 0x310d;
-/*
-    UChar preP = (*p>0x0400 && *p<0x0500)?0x00e1:0x491;
-    UChar preQ = (*p>0x0400 && *p<0x0500)?0x0041:0x413;
-*/
-    /*log_verbose("Testing primary\n");*/
-
-    doTest(col, p, q, UCOL_LESS);
-/*
-    UCollationResult result = ucol_strcoll(col,p,u_strlen(p),q,u_strlen(q));
-
-    if(result!=UCOL_LESS){
-       aescstrdup(p,utfSource,256);
-       aescstrdup(q,utfTarget,256);
-       fprintf(file,"Primary failed  source: %s target: %s \n", utfSource,utfTarget);
-    }
-*/
-    source[0] = preP;
-    u_strcpy(source+1,p);
-    target[0] = preQ;
-    u_strcpy(target+1,q);
-    doTest(col, source, target, UCOL_LESS);
-/*
-    fprintf(file,"Primary swamps 2nd failed  source: %s target: %s \n", utfSource,utfTarget);
-*/
-}
-
-static void testSecondary(UCollator* col, const UChar* p,const UChar* q){
-    UChar source[256] = { '\0'};
-    UChar target[256] = { '\0'};
-
-    /*log_verbose("Testing secondary\n");*/
-
-    doTest(col, p, q, UCOL_LESS);
-/*
-    fprintf(file,"secondary failed  source: %s target: %s \n", utfSource,utfTarget);
-*/
-    source[0] = 0x0053;
-    u_strcpy(source+1,p);
-    target[0]= 0x0073;
-    u_strcpy(target+1,q);
-
-    doTest(col, source, target, UCOL_LESS);
-/*
-    fprintf(file,"secondary swamps 3rd failed  source: %s target: %s \n",utfSource,utfTarget);
-*/
-
-
-    u_strcpy(source,p);
-    source[u_strlen(p)] = 0x62;
-    source[u_strlen(p)+1] = 0;
-
-
-    u_strcpy(target,q);
-    target[u_strlen(q)] = 0x61;
-    target[u_strlen(q)+1] = 0;
-
-    doTest(col, source, target, UCOL_GREATER);
-
-/*
-    fprintf(file,"secondary is swamped by 1  failed  source: %s target: %s \n",utfSource,utfTarget);
-*/
-}
-
-static void testTertiary(UCollator* col, const UChar* p,const UChar* q){
-    UChar source[256] = { '\0'};
-    UChar target[256] = { '\0'};
-
-    /*log_verbose("Testing tertiary\n");*/
-
-    doTest(col, p, q, UCOL_LESS);
-/*
-    fprintf(file,"Tertiary failed  source: %s target: %s \n",utfSource,utfTarget);
-*/
-    source[0] = 0x0020;
-    u_strcpy(source+1,p);
-    target[0]= 0x002D;
-    u_strcpy(target+1,q);
-
-    doTest(col, source, target, UCOL_LESS);
-/*
-    fprintf(file,"Tertiary swamps 4th failed  source: %s target: %s \n", utfSource,utfTarget);
-*/
-
-    u_strcpy(source,p);
-    source[u_strlen(p)] = 0xE0;
-    source[u_strlen(p)+1] = 0;
-
-    u_strcpy(target,q);
-    target[u_strlen(q)] = 0x61;
-    target[u_strlen(q)+1] = 0;
-
-    doTest(col, source, target, UCOL_GREATER);
-
-/*
-    fprintf(file,"Tertiary is swamped by 3rd failed  source: %s target: %s \n",utfSource,utfTarget);
-*/
-}
-
-static void testEquality(UCollator* col, const UChar* p,const UChar* q){
-/*
-    UChar source[256] = { '\0'};
-    UChar target[256] = { '\0'};
-*/
-
-    doTest(col, p, q, UCOL_EQUAL);
-/*
-    fprintf(file,"Primary failed  source: %s target: %s \n", utfSource,utfTarget);
-*/
-}
-
-static void testCollator(UCollator *coll, UErrorCode *status) {
-  const UChar *rules = NULL, *current = NULL;
-  int32_t ruleLen = 0;
-  uint32_t strength = 0;
-  uint32_t chOffset = 0; uint32_t chLen = 0;
-  uint32_t exOffset = 0; uint32_t exLen = 0;
-  uint32_t prefixOffset = 0; uint32_t prefixLen = 0;
-  uint32_t firstEx = 0;
-/*  uint32_t rExpsLen = 0; */
-  uint32_t firstLen = 0;
-  UBool varT = FALSE; UBool top_ = TRUE;
-  uint16_t specs = 0;
-  UBool startOfRules = TRUE;
-  UBool lastReset = FALSE;
-  UBool before = FALSE;
-  uint32_t beforeStrength = 0;
-  UColTokenParser src;
-  UColOptionSet opts;
-
-  UChar first[256];
-  UChar second[256];
-  UChar tempB[256];
-  uint32_t tempLen;
-  UChar *rulesCopy = NULL;
-  UParseError parseError;
-
-  uprv_memset(&src, 0, sizeof(UColTokenParser));
-
-  src.opts = &opts;
-
-  rules = ucol_getRules(coll, &ruleLen);
-  if(U_SUCCESS(*status) && ruleLen > 0) {
-    rulesCopy = (UChar *)uprv_malloc((ruleLen+UCOL_TOK_EXTRA_RULE_SPACE_SIZE)*sizeof(UChar));
-    uprv_memcpy(rulesCopy, rules, ruleLen*sizeof(UChar));
-    src.current = src.source = rulesCopy;
-    src.end = rulesCopy+ruleLen;
-    src.extraCurrent = src.end;
-    src.extraEnd = src.end+UCOL_TOK_EXTRA_RULE_SPACE_SIZE;
-    *first = *second = 0;
-
-	/* Note that as a result of tickets 7015 or 6912, ucol_tok_parseNextToken can cause the pointer to
-	   the rules copy in src.source to get reallocated, freeing the original pointer in rulesCopy */
-    while ((current = ucol_tok_parseNextToken(&src, startOfRules,&parseError, status)) != NULL) {
-      strength = src.parsedToken.strength;
-      chOffset = src.parsedToken.charsOffset;
-      chLen = src.parsedToken.charsLen;
-      exOffset = src.parsedToken.extensionOffset;
-      exLen = src.parsedToken.extensionLen;
-      prefixOffset = src.parsedToken.prefixOffset;
-      prefixLen = src.parsedToken.prefixLen;
-      specs = src.parsedToken.flags;
-
-      startOfRules = FALSE;
-      varT = (UBool)((specs & UCOL_TOK_VARIABLE_TOP) != 0);
-      top_ = (UBool)((specs & UCOL_TOK_TOP) != 0);
-      if(top_) { /* if reset is on top, the sequence is broken. We should have an empty string */
-        second[0] = 0;
-      } else {
-        u_strncpy(second,src.source+chOffset, chLen);
-        second[chLen] = 0;
-
-        if(exLen > 0 && firstEx == 0) {
-          u_strncat(first, src.source+exOffset, exLen);
-          first[firstLen+exLen] = 0;
-        }
-
-        if(lastReset == TRUE && prefixLen != 0) {
-          u_strncpy(first+prefixLen, first, firstLen);
-          u_strncpy(first, src.source+prefixOffset, prefixLen);
-          first[firstLen+prefixLen] = 0;
-          firstLen = firstLen+prefixLen;
-        }
-
-        if(before == TRUE) { /* swap first and second */
-          u_strcpy(tempB, first);
-          u_strcpy(first, second);
-          u_strcpy(second, tempB);
-
-          tempLen = firstLen;
-          firstLen = chLen;
-          chLen = tempLen;
-
-          tempLen = firstEx;
-          firstEx = exLen;
-          exLen = tempLen;
-          if(beforeStrength < strength) {
-            strength = beforeStrength;
-          }
-        }
-      }
-      lastReset = FALSE;
-
-      switch(strength){
-      case UCOL_IDENTICAL:
-          testEquality(coll,first,second);
-          break;
-      case UCOL_PRIMARY:
-          testPrimary(coll,first,second);
-          break;
-      case UCOL_SECONDARY:
-          testSecondary(coll,first,second);
-          break;
-      case UCOL_TERTIARY:
-          testTertiary(coll,first,second);
-          break;
-      case UCOL_TOK_RESET:
-        lastReset = TRUE;
-        before = (UBool)((specs & UCOL_TOK_BEFORE) != 0);
-        if(before) {
-          beforeStrength = (specs & UCOL_TOK_BEFORE)-1;
-        }
-        break;
-      default:
-          break;
-      }
-
-      if(before == TRUE && strength != UCOL_TOK_RESET) { /* first and second were swapped */
-        before = FALSE;
-      } else {
-        firstLen = chLen;
-        firstEx = exLen;
-        u_strcpy(first, second);
-      }
-    }
-    uprv_free(src.source);
-  }
-}
-
-static UCollationResult ucaTest(void *collator, const int object, const UChar *source, const int sLen, const UChar *target, const int tLen) {
-  UCollator *UCA = (UCollator *)collator;
-  return ucol_strcoll(UCA, source, sLen, target, tLen);
-}
-
-/*
-static UCollationResult winTest(void *collator, const int object, const UChar *source, const int sLen, const UChar *target, const int tLen) {
-#ifdef U_WINDOWS
-  LCID lcid = (LCID)collator;
-  return (UCollationResult)CompareString(lcid, 0, source, sLen, target, tLen);
-#else
-  return 0;
-#endif
-}
-*/
-
-static UCollationResult swampEarlier(tst_strcoll* func, void *collator, int opts,
-                                     UChar s1, UChar s2,
-                                     const UChar *s, const uint32_t sLen,
-                                     const UChar *t, const uint32_t tLen) {
-  UChar source[256] = {0};
-  UChar target[256] = {0};
-
-  source[0] = s1;
-  u_strcpy(source+1, s);
-  target[0] = s2;
-  u_strcpy(target+1, t);
-
-  return func(collator, opts, source, sLen+1, target, tLen+1);
-}
-
-static UCollationResult swampLater(tst_strcoll* func, void *collator, int opts,
-                                   UChar s1, UChar s2,
-                                   const UChar *s, const uint32_t sLen,
-                                   const UChar *t, const uint32_t tLen) {
-  UChar source[256] = {0};
-  UChar target[256] = {0};
-
-  u_strcpy(source, s);
-  source[sLen] = s1;
-  u_strcpy(target, t);
-  target[tLen] = s2;
-
-  return func(collator, opts, source, sLen+1, target, tLen+1);
-}
-
-static uint32_t probeStrength(tst_strcoll* func, void *collator, int opts,
-                              const UChar *s, const uint32_t sLen,
-                              const UChar *t, const uint32_t tLen,
-                              UCollationResult result) {
-  /*UChar fPrimary = 0x6d;*/
-  /*UChar sPrimary = 0x6e;*/
-  UChar fSecondary = 0x310d;
-  UChar sSecondary = 0x31a3;
-  UChar fTertiary = 0x310f;
-  UChar sTertiary = 0x31b7;
-
-  UCollationResult oposite;
-  if(result == UCOL_EQUAL) {
-    return UCOL_IDENTICAL;
-  } else if(result == UCOL_GREATER) {
-    oposite = UCOL_LESS;
-  } else {
-    oposite = UCOL_GREATER;
-  }
-
-  if(swampEarlier(func, collator, opts, sSecondary, fSecondary, s, sLen, t, tLen) == result) {
-    return UCOL_PRIMARY;
-  } else if((swampEarlier(func, collator, opts, sTertiary, 0x310f, s, sLen, t, tLen) == result) &&
-    (swampEarlier(func, collator, opts, 0x310f, sTertiary, s, sLen, t, tLen) == result)) {
-    return UCOL_SECONDARY;
-  } else if((swampLater(func, collator, opts, sTertiary, fTertiary, s, sLen, t, tLen) == result) &&
-    (swampLater(func, collator, opts, fTertiary, sTertiary, s, sLen, t, tLen) == result)) {
-    return UCOL_TERTIARY;
-  } else if((swampLater(func, collator, opts, sTertiary, 0x310f, s, sLen, t, tLen) == oposite) &&
-    (swampLater(func, collator, opts, fTertiary, sTertiary, s, sLen, t, tLen) == oposite)) {
-    return UCOL_QUATERNARY;
-  } else {
-    return UCOL_IDENTICAL;
-  }
-}
-
-static char *getRelationSymbol(UCollationResult res, uint32_t strength, char *buffer) {
-  uint32_t i = 0;
-
-  if(res == UCOL_EQUAL || strength == 0xdeadbeef) {
-    buffer[0] = '=';
-    buffer[1] = '=';
-    buffer[2] = '\0';
-  } else if(res == UCOL_GREATER) {
-    for(i = 0; i<strength+1; i++) {
-      buffer[i] = '>';
-    }
-    buffer[strength+1] = '\0';
-  } else {
-    for(i = 0; i<strength+1; i++) {
-      buffer[i] = '<';
-    }
-    buffer[strength+1] = '\0';
-  }
-
-  return buffer;
-}
-
-
-
-static void logFailure (const char *platform, const char *test,
-                        const UChar *source, const uint32_t sLen,
-                        const UChar *target, const uint32_t tLen,
-                        UCollationResult realRes, uint32_t realStrength,
-                        UCollationResult expRes, uint32_t expStrength, UBool error) {
-
-  uint32_t i = 0;
-
-  char sEsc[256], s[256], tEsc[256], t[256], b[256], output[512], relation[256];
-  static int32_t maxOutputLength = 0;
-  int32_t outputLength;
-
-  *sEsc = *tEsc = *s = *t = 0;
-  if(error == TRUE) {
-    log_err("Difference between expected and generated order. Run test with -v for more info\n");
-  } else if(getTestOption(VERBOSITY_OPTION) == 0) {
-    return;
-  }
-  for(i = 0; i<sLen; i++) {
-    sprintf(b, "%04X", source[i]);
-    strcat(sEsc, "\\u");
-    strcat(sEsc, b);
-    strcat(s, b);
-    strcat(s, " ");
-    if(source[i] < 0x80) {
-      sprintf(b, "(%c)", source[i]);
-      strcat(sEsc, b);
-    }
-  }
-  for(i = 0; i<tLen; i++) {
-    sprintf(b, "%04X", target[i]);
-    strcat(tEsc, "\\u");
-    strcat(tEsc, b);
-    strcat(t, b);
-    strcat(t, " ");
-    if(target[i] < 0x80) {
-      sprintf(b, "(%c)", target[i]);
-      strcat(tEsc, b);
-    }
-  }
-/*
-  strcpy(output, "[[ ");
-  strcat(output, sEsc);
-  strcat(output, getRelationSymbol(expRes, expStrength, relation));
-  strcat(output, tEsc);
-
-  strcat(output, " : ");
-
-  strcat(output, sEsc);
-  strcat(output, getRelationSymbol(realRes, realStrength, relation));
-  strcat(output, tEsc);
-  strcat(output, " ]] ");
-
-  log_verbose("%s", output);
-*/
-
-
-  strcpy(output, "DIFF: ");
-
-  strcat(output, s);
-  strcat(output, " : ");
-  strcat(output, t);
-
-  strcat(output, test);
-  strcat(output, ": ");
-
-  strcat(output, sEsc);
-  strcat(output, getRelationSymbol(expRes, expStrength, relation));
-  strcat(output, tEsc);
-
-  strcat(output, " ");
-
-  strcat(output, platform);
-  strcat(output, ": ");
-
-  strcat(output, sEsc);
-  strcat(output, getRelationSymbol(realRes, realStrength, relation));
-  strcat(output, tEsc);
-
-  outputLength = (int32_t)strlen(output);
-  if(outputLength > maxOutputLength) {
-    maxOutputLength = outputLength;
-    U_ASSERT(outputLength < sizeof(output));
-  }
-
-  log_verbose("%s\n", output);
-
-}
-
-/*
-static void printOutRules(const UChar *rules) {
-  uint32_t len = u_strlen(rules);
-  uint32_t i = 0;
-  char toPrint;
-  uint32_t line = 0;
-
-  fprintf(stdout, "Rules:");
-
-  for(i = 0; i<len; i++) {
-    if(rules[i]<0x7f && rules[i]>=0x20) {
-      toPrint = (char)rules[i];
-      if(toPrint == '&') {
-        line = 1;
-        fprintf(stdout, "\n&");
-      } else if(toPrint == ';') {
-        fprintf(stdout, "<<");
-        line+=2;
-      } else if(toPrint == ',') {
-        fprintf(stdout, "<<<");
-        line+=3;
-      } else {
-        fprintf(stdout, "%c", toPrint);
-        line++;
-      }
-    } else if(rules[i]<0x3400 || rules[i]>=0xa000) {
-      fprintf(stdout, "\\u%04X", rules[i]);
-      line+=6;
-    }
-    if(line>72) {
-      fprintf(stdout, "\n");
-      line = 0;
-    }
-  }
-
-  log_verbose("\n");
-
-}
-*/
-
-static uint32_t testSwitch(tst_strcoll* func, void *collator, int opts, uint32_t strength, const UChar *first, const UChar *second, const char* msg, UBool error) {
-  uint32_t diffs = 0;
-  UCollationResult realResult;
-  uint32_t realStrength;
-
-  uint32_t sLen = u_strlen(first);
-  uint32_t tLen = u_strlen(second);
-
-  realResult = func(collator, opts, first, sLen, second, tLen);
-  realStrength = probeStrength(func, collator, opts, first, sLen, second, tLen, realResult);
-
-  if(strength == UCOL_IDENTICAL && realResult != UCOL_IDENTICAL) {
-    logFailure(msg, "tailoring", first, sLen, second, tLen, realResult, realStrength, UCOL_EQUAL, strength, error);
-    diffs++;
-  } else if(realResult != UCOL_LESS || realStrength != strength) {
-    logFailure(msg, "tailoring", first, sLen, second, tLen, realResult, realStrength, UCOL_LESS, strength, error);
-    diffs++;
-  }
-  return diffs;
-}
-
-
-static void testAgainstUCA(UCollator *coll, UCollator *UCA, const char *refName, UBool error, UErrorCode *status) {
-  const UChar *rules = NULL, *current = NULL;
-  int32_t ruleLen = 0;
-  uint32_t strength = 0;
-  uint32_t chOffset = 0; uint32_t chLen = 0;
-  uint32_t exOffset = 0; uint32_t exLen = 0;
-  uint32_t prefixOffset = 0; uint32_t prefixLen = 0;
-/*  uint32_t rExpsLen = 0; */
-  uint32_t firstLen = 0, secondLen = 0;
-  UBool varT = FALSE; UBool top_ = TRUE;
-  uint16_t specs = 0;
-  UBool startOfRules = TRUE;
-  UColTokenParser src;
-  UColOptionSet opts;
-
-  UChar first[256];
-  UChar second[256];
-  UChar *rulesCopy = NULL;
-
-  uint32_t UCAdiff = 0;
-  uint32_t Windiff = 1;
-  UParseError parseError;
-
-  uprv_memset(&src, 0, sizeof(UColTokenParser));
-  src.opts = &opts;
-
-  rules = ucol_getRules(coll, &ruleLen);
-
-  /*printOutRules(rules);*/
-
-  if(U_SUCCESS(*status) && ruleLen > 0) {
-    rulesCopy = (UChar *)uprv_malloc((ruleLen+UCOL_TOK_EXTRA_RULE_SPACE_SIZE)*sizeof(UChar));
-    uprv_memcpy(rulesCopy, rules, ruleLen*sizeof(UChar));
-    src.current = src.source = rulesCopy;
-    src.end = rulesCopy+ruleLen;
-    src.extraCurrent = src.end;
-    src.extraEnd = src.end+UCOL_TOK_EXTRA_RULE_SPACE_SIZE;
-    *first = *second = 0;
-
-    /* Note that as a result of tickets 7015 or 6912, ucol_tok_parseNextToken can cause the pointer to
-       the rules copy in src.source to get reallocated, freeing the original pointer in rulesCopy */
-    while ((current = ucol_tok_parseNextToken(&src, startOfRules, &parseError,status)) != NULL) {
-      strength = src.parsedToken.strength;
-      chOffset = src.parsedToken.charsOffset;
-      chLen = src.parsedToken.charsLen;
-      exOffset = src.parsedToken.extensionOffset;
-      exLen = src.parsedToken.extensionLen;
-      prefixOffset = src.parsedToken.prefixOffset;
-      prefixLen = src.parsedToken.prefixLen;
-      specs = src.parsedToken.flags;
-
-      startOfRules = FALSE;
-      varT = (UBool)((specs & UCOL_TOK_VARIABLE_TOP) != 0);
-      top_ = (UBool)((specs & UCOL_TOK_TOP) != 0);
-
-      u_strncpy(second,src.source+chOffset, chLen);
-      second[chLen] = 0;
-      secondLen = chLen;
-
-      if(exLen > 0) {
-        u_strncat(first, src.source+exOffset, exLen);
-        first[firstLen+exLen] = 0;
-        firstLen += exLen;
-      }
-
-      if(strength != UCOL_TOK_RESET) {
-        if((*first<0x3400 || *first>=0xa000) && (*second<0x3400 || *second>=0xa000)) {
-          UCAdiff += testSwitch(&ucaTest, (void *)UCA, 0, strength, first, second, refName, error);
-          /*Windiff += testSwitch(&winTest, (void *)lcid, 0, strength, first, second, "Win32");*/
-        }
-      }
-
-
-      firstLen = chLen;
-      u_strcpy(first, second);
-
-    }
-    if(UCAdiff != 0 && Windiff != 0) {
-      log_verbose("\n");
-    }
-    if(UCAdiff == 0) {
-      log_verbose("No immediate difference with %s!\n", refName);
-    }
-    if(Windiff == 0) {
-      log_verbose("No immediate difference with Win32!\n");
-    }
-    uprv_free(src.source);
-  }
-}
-
-/*
- * Takes two CEs (lead and continuation) and
- * compares them as CEs should be compared:
- * primary vs. primary, secondary vs. secondary
- * tertiary vs. tertiary
- */
-static int32_t compareCEs(uint32_t s1, uint32_t s2,
-                   uint32_t t1, uint32_t t2) {
-  uint32_t s = 0, t = 0;
-  if(s1 == t1 && s2 == t2) {
-    return 0;
-  }
-  s = (s1 & 0xFFFF0000)|((s2 & 0xFFFF0000)>>16);
-  t = (t1 & 0xFFFF0000)|((t2 & 0xFFFF0000)>>16);
-  if(s < t) {
-    return -1;
-  } else if(s > t) {
-    return 1;
-  } else {
-    s = (s1 & 0x0000FF00) | (s2 & 0x0000FF00)>>8;
-    t = (t1 & 0x0000FF00) | (t2 & 0x0000FF00)>>8;
-    if(s < t) {
-      return -1;
-    } else if(s > t) {
-      return 1;
-    } else {
-      s = (s1 & 0x000000FF)<<8 | (s2 & 0x000000FF);
-      t = (t1 & 0x000000FF)<<8 | (t2 & 0x000000FF);
-      if(s < t) {
-        return -1;
-      } else {
-        return 1;
-      }
-    }
-  }
-}
-
-typedef struct {
-  uint32_t startCE;
-  uint32_t startContCE;
-  uint32_t limitCE;
-  uint32_t limitContCE;
-} indirectBoundaries;
-
-/* these values are used for finding CE values for indirect positioning. */
-/* Indirect positioning is a mechanism for allowing resets on symbolic   */
-/* values. It only works for resets and you cannot tailor indirect names */
-/* An indirect name can define either an anchor point or a range. An     */
-/* anchor point behaves in exactly the same way as a code point in reset */
-/* would, except that it cannot be tailored. A range (we currently only  */
-/* know for the [top] range will explicitly set the upper bound for      */
-/* generated CEs, thus allowing for better control over how many CEs can */
-/* be squeezed between in the range without performance penalty.         */
-/* In that respect, we use [top] for tailoring of locales that use CJK   */
-/* characters. Other indirect values are currently a pure convenience,   */
-/* they can be used to assure that the CEs will be always positioned in  */
-/* the same place relative to a point with known properties (e.g. first  */
-/* primary ignorable). */
-static indirectBoundaries ucolIndirectBoundaries[15];
-static UBool indirectBoundariesSet = FALSE;
-static void setIndirectBoundaries(uint32_t indexR, uint32_t *start, uint32_t *end) {
-    /* Set values for the top - TODO: once we have values for all the indirects, we are going */
-    /* to initalize here. */
-    ucolIndirectBoundaries[indexR].startCE = start[0];
-    ucolIndirectBoundaries[indexR].startContCE = start[1];
-    if(end) {
-        ucolIndirectBoundaries[indexR].limitCE = end[0];
-        ucolIndirectBoundaries[indexR].limitContCE = end[1];
-    } else {
-        ucolIndirectBoundaries[indexR].limitCE = 0;
-        ucolIndirectBoundaries[indexR].limitContCE = 0;
-    }
-}
-
-static void testCEs(UCollator *coll, UErrorCode *status) {
-    const UChar *rules = NULL, *current = NULL;
-    int32_t ruleLen = 0;
-
-    uint32_t strength = 0;
-    uint32_t maxStrength = UCOL_IDENTICAL;
-    uint32_t baseCE, baseContCE, nextCE, nextContCE, currCE, currContCE;
-    uint32_t lastCE;
-    uint32_t lastContCE;
-
-    int32_t result = 0;
-    uint32_t chOffset = 0; uint32_t chLen = 0;
-    uint32_t exOffset = 0; uint32_t exLen = 0;
-    uint32_t prefixOffset = 0; uint32_t prefixLen = 0;
-    uint32_t oldOffset = 0;
-
-    /* uint32_t rExpsLen = 0; */
-    /* uint32_t firstLen = 0; */
-    uint16_t specs = 0;
-    UBool varT = FALSE; UBool top_ = TRUE;
-    UBool startOfRules = TRUE;
-    UBool before = FALSE;
-    UColTokenParser src;
-    UColOptionSet opts;
-    UParseError parseError;
-    UChar *rulesCopy = NULL;
-    collIterate *c = uprv_new_collIterate(status);
-    UCAConstants *consts = NULL;
-    uint32_t UCOL_RESET_TOP_VALUE, /*UCOL_RESET_TOP_CONT, */
-        UCOL_NEXT_TOP_VALUE, UCOL_NEXT_TOP_CONT;
-    const char *colLoc;
-    UCollator *UCA = ucol_open("root", status);
-
-    if (U_FAILURE(*status)) {
-        log_err("Could not open root collator %s\n", u_errorName(*status));
-        uprv_delete_collIterate(c);
-        return;
-    }
-
-    colLoc = ucol_getLocaleByType(coll, ULOC_ACTUAL_LOCALE, status);
-    if (U_FAILURE(*status)) {
-        log_err("Could not get collator name: %s\n", u_errorName(*status));
-        ucol_close(UCA);
-        uprv_delete_collIterate(c);
-        return;
-    }
-
-    uprv_memset(&src, 0, sizeof(UColTokenParser));
-
-    consts = (UCAConstants *)((uint8_t *)UCA->image + UCA->image->UCAConsts);
-    UCOL_RESET_TOP_VALUE = consts->UCA_LAST_NON_VARIABLE[0];
-    /*UCOL_RESET_TOP_CONT = consts->UCA_LAST_NON_VARIABLE[1]; */
-    UCOL_NEXT_TOP_VALUE = consts->UCA_FIRST_IMPLICIT[0];
-    UCOL_NEXT_TOP_CONT = consts->UCA_FIRST_IMPLICIT[1];
-
-    baseCE=baseContCE=nextCE=nextContCE=currCE=currContCE=lastCE=lastContCE = UCOL_NOT_FOUND;
-
-    src.opts = &opts;
-
-    rules = ucol_getRules(coll, &ruleLen);
-
-    src.invUCA = ucol_initInverseUCA(status);
-
-    if(indirectBoundariesSet == FALSE) {
-        /* UCOL_RESET_TOP_VALUE */
-        setIndirectBoundaries(0, consts->UCA_LAST_NON_VARIABLE, consts->UCA_FIRST_IMPLICIT);
-        /* UCOL_FIRST_PRIMARY_IGNORABLE */
-        setIndirectBoundaries(1, consts->UCA_FIRST_PRIMARY_IGNORABLE, 0);
-        /* UCOL_LAST_PRIMARY_IGNORABLE */
-        setIndirectBoundaries(2, consts->UCA_LAST_PRIMARY_IGNORABLE, 0);
-        /* UCOL_FIRST_SECONDARY_IGNORABLE */
-        setIndirectBoundaries(3, consts->UCA_FIRST_SECONDARY_IGNORABLE, 0);
-        /* UCOL_LAST_SECONDARY_IGNORABLE */
-        setIndirectBoundaries(4, consts->UCA_LAST_SECONDARY_IGNORABLE, 0);
-        /* UCOL_FIRST_TERTIARY_IGNORABLE */
-        setIndirectBoundaries(5, consts->UCA_FIRST_TERTIARY_IGNORABLE, 0);
-        /* UCOL_LAST_TERTIARY_IGNORABLE */
-        setIndirectBoundaries(6, consts->UCA_LAST_TERTIARY_IGNORABLE, 0);
-        /* UCOL_FIRST_VARIABLE */
-        setIndirectBoundaries(7, consts->UCA_FIRST_VARIABLE, 0);
-        /* UCOL_LAST_VARIABLE */
-        setIndirectBoundaries(8, consts->UCA_LAST_VARIABLE, 0);
-        /* UCOL_FIRST_NON_VARIABLE */
-        setIndirectBoundaries(9, consts->UCA_FIRST_NON_VARIABLE, 0);
-        /* UCOL_LAST_NON_VARIABLE */
-        setIndirectBoundaries(10, consts->UCA_LAST_NON_VARIABLE, consts->UCA_FIRST_IMPLICIT);
-        /* UCOL_FIRST_IMPLICIT */
-        setIndirectBoundaries(11, consts->UCA_FIRST_IMPLICIT, 0);
-        /* UCOL_LAST_IMPLICIT */
-        setIndirectBoundaries(12, consts->UCA_LAST_IMPLICIT, consts->UCA_FIRST_TRAILING);
-        /* UCOL_FIRST_TRAILING */
-        setIndirectBoundaries(13, consts->UCA_FIRST_TRAILING, 0);
-        /* UCOL_LAST_TRAILING */
-        setIndirectBoundaries(14, consts->UCA_LAST_TRAILING, 0);
-        ucolIndirectBoundaries[14].limitCE = (consts->UCA_PRIMARY_SPECIAL_MIN<<24);
-        indirectBoundariesSet = TRUE;
-    }
-
-
-    if(U_SUCCESS(*status) && ruleLen > 0) {
-        rulesCopy = (UChar *)uprv_malloc((ruleLen+UCOL_TOK_EXTRA_RULE_SPACE_SIZE)*sizeof(UChar));
-        uprv_memcpy(rulesCopy, rules, ruleLen*sizeof(UChar));
-        src.current = src.source = rulesCopy;
-        src.end = rulesCopy+ruleLen;
-        src.extraCurrent = src.end;
-        src.extraEnd = src.end+UCOL_TOK_EXTRA_RULE_SPACE_SIZE;
-
-	    /* Note that as a result of tickets 7015 or 6912, ucol_tok_parseNextToken can cause the pointer to
-	       the rules copy in src.source to get reallocated, freeing the original pointer in rulesCopy */
-        while ((current = ucol_tok_parseNextToken(&src, startOfRules, &parseError,status)) != NULL) {
-            strength = src.parsedToken.strength;
-            chOffset = src.parsedToken.charsOffset;
-            chLen = src.parsedToken.charsLen;
-            exOffset = src.parsedToken.extensionOffset;
-            exLen = src.parsedToken.extensionLen;
-            prefixOffset = src.parsedToken.prefixOffset;
-            prefixLen = src.parsedToken.prefixLen;
-            specs = src.parsedToken.flags;
-
-            startOfRules = FALSE;
-            varT = (UBool)((specs & UCOL_TOK_VARIABLE_TOP) != 0);
-            top_ = (UBool)((specs & UCOL_TOK_TOP) != 0);
-
-            uprv_init_collIterate(coll, src.source+chOffset, chLen, c, status);
-
-            currCE = ucol_getNextCE(coll, c, status);
-            if(currCE == 0 && UCOL_ISTHAIPREVOWEL(*(src.source+chOffset))) {
-                log_verbose("Thai prevowel detected. Will pick next CE\n");
-                currCE = ucol_getNextCE(coll, c, status);
-            }
-
-            currContCE = ucol_getNextCE(coll, c, status);
-            if(!isContinuation(currContCE)) {
-                currContCE = 0;
-            }
-
-            /* we need to repack CEs here */
-
-            if(strength == UCOL_TOK_RESET) {
-                before = (UBool)((specs & UCOL_TOK_BEFORE) != 0);
-                if(top_ == TRUE) {
-                    int32_t tokenIndex = src.parsedToken.indirectIndex;
-
-                    nextCE = baseCE = currCE = ucolIndirectBoundaries[tokenIndex].startCE;
-                    nextContCE = baseContCE = currContCE = ucolIndirectBoundaries[tokenIndex].startContCE;
-                } else {
-                    nextCE = baseCE = currCE;
-                    nextContCE = baseContCE = currContCE;
-                }
-                maxStrength = UCOL_IDENTICAL;
-            } else {
-                if(strength < maxStrength) {
-                    maxStrength = strength;
-                    if(baseCE == UCOL_RESET_TOP_VALUE) {
-                        log_verbose("Resetting to [top]\n");
-                        nextCE = UCOL_NEXT_TOP_VALUE;
-                        nextContCE = UCOL_NEXT_TOP_CONT;
-                    } else {
-                        result = ucol_inv_getNextCE(&src, baseCE & 0xFFFFFF3F, baseContCE, &nextCE, &nextContCE, maxStrength);
-                    }
-                    if(result < 0) {
-                        if(ucol_isTailored(coll, *(src.source+oldOffset), status)) {
-                            log_verbose("Reset is tailored codepoint %04X, don't know how to continue, taking next test\n", *(src.source+oldOffset));
-                            return;
-                        } else {
-                            log_err("%s: couldn't find the CE\n", colLoc);
-                            return;
-                        }
-                    }
-                }
-
-                currCE &= 0xFFFFFF3F;
-                currContCE &= 0xFFFFFFBF;
-
-                if(maxStrength == UCOL_IDENTICAL) {
-                    if(baseCE != currCE || baseContCE != currContCE) {
-                        log_err("%s: current CE  (initial strength UCOL_EQUAL)\n", colLoc);
-                    }
-                } else {
-                    if(strength == UCOL_IDENTICAL) {
-                        if(lastCE != currCE || lastContCE != currContCE) {
-                            log_err("%s: current CE  (initial strength UCOL_EQUAL)\n", colLoc);
-                        }
-                    } else {
-                        if(compareCEs(currCE, currContCE, nextCE, nextContCE) > 0) {
-                            /*if(currCE > nextCE || (currCE == nextCE && currContCE >= nextContCE)) {*/
-                            log_err("%s: current CE is not less than base CE\n", colLoc);
-                        }
-                        if(!before) {
-                            if(compareCEs(currCE, currContCE, lastCE, lastContCE) < 0) {
-                                /*if(currCE < lastCE || (currCE == lastCE && currContCE <= lastContCE)) {*/
-                                log_err("%s: sequence of generated CEs is broken\n", colLoc);
-                            }
-                        } else {
-                            before = FALSE;
-                            if(compareCEs(currCE, currContCE, lastCE, lastContCE) > 0) {
-                                /*if(currCE < lastCE || (currCE == lastCE && currContCE <= lastContCE)) {*/
-                                log_err("%s: sequence of generated CEs is broken\n", colLoc);
-                            }
-                        }
-                    }
-                }
-
-            }
-
-            oldOffset = chOffset;
-            lastCE = currCE & 0xFFFFFF3F;
-            lastContCE = currContCE & 0xFFFFFFBF;
-        }
-        uprv_free(src.source);
-    }
-    ucol_close(UCA);
-    uprv_delete_collIterate(c);
-}
-
-#if 0
-/* these locales are now picked from index RB */
-static const char* localesToTest[] = {
-"ar", "bg", "ca", "cs", "da",
-"el", "en_BE", "en_US_POSIX",
-"es", "et", "fi", "fr", "hi",
-"hr", "hu", "is", "iw", "ja",
-"ko", "lt", "lv", "mk", "mt",
-"nb", "nn", "nn_NO", "pl", "ro",
-"ru", "sh", "sk", "sl", "sq",
-"sr", "sv", "th", "tr", "uk",
-"vi", "zh", "zh_TW"
-};
-#endif
-
-static const char* rulesToTest[] = {
-  /* Funky fa rule */
-  "&\\u0622 < \\u0627 << \\u0671 < \\u0621",
-  /*"& Z < p, P",*/
-    /* Cui Mins rules */
-    "&[top]<o,O<p,P<q,Q<'?'/u<r,R<u,U", /*"<o,O<p,P<q,Q<r,R<u,U & Qu<'?'",*/
-    "&[top]<o,O<p,P<q,Q;'?'/u<r,R<u,U", /*"<o,O<p,P<q,Q<r,R<u,U & Qu;'?'",*/
-    "&[top]<o,O<p,P<q,Q,'?'/u<r,R<u,U", /*"<o,O<p,P<q,Q<r,R<u,U&'Qu','?'",*/
-    "&[top]<3<4<5<c,C<f,F<m,M<o,O<p,P<q,Q;'?'/u<r,R<u,U",  /*"<'?'<3<4<5<a,A<f,F<m,M<o,O<p,P<q,Q<r,R<u,U & Qu;'?'",*/
-    "&[top]<'?';Qu<3<4<5<c,C<f,F<m,M<o,O<p,P<q,Q<r,R<u,U",  /*"<'?'<3<4<5<a,A<f,F<m,M<o,O<p,P<q,Q<r,R<u,U & '?';Qu",*/
-    "&[top]<3<4<5<c,C<f,F<m,M<o,O<p,P<q,Q;'?'/um<r,R<u,U", /*"<'?'<3<4<5<a,A<f,F<m,M<o,O<p,P<q,Q<r,R<u,U & Qum;'?'",*/
-    "&[top]<'?';Qum<3<4<5<c,C<f,F<m,M<o,O<p,P<q,Q<r,R<u,U"  /*"<'?'<3<4<5<a,A<f,F<m,M<o,O<p,P<q,Q<r,R<u,U & '?';Qum"*/
-};
-
-
-static void TestCollations(void) {
-    int32_t noOfLoc = uloc_countAvailable();
-    int32_t i = 0, j = 0;
-
-    UErrorCode status = U_ZERO_ERROR;
-    char cName[256];
-    UChar name[256];
-    int32_t nameSize;
-
-
-    const char *locName = NULL;
-    UCollator *coll = NULL;
-    UCollator *UCA = ucol_open("", &status);
-    UColAttributeValue oldStrength = ucol_getAttribute(UCA, UCOL_STRENGTH, &status);
-    if (U_FAILURE(status)) {
-        log_err_status(status, "Could not open UCA collator %s\n", u_errorName(status));
-        return;
-    }
-    ucol_setAttribute(UCA, UCOL_STRENGTH, UCOL_QUATERNARY, &status);
-
-    for(i = 0; i<noOfLoc; i++) {
-        status = U_ZERO_ERROR;
-        locName = uloc_getAvailable(i);
-        if(uprv_strcmp("ja", locName) == 0) {
-            log_verbose("Don't know how to test prefixes\n");
-            continue;
-        }
-        if(hasCollationElements(locName)) {
-            nameSize = uloc_getDisplayName(locName, NULL, name, 256, &status);
-            for(j = 0; j<nameSize; j++) {
-                cName[j] = (char)name[j];
-            }
-            cName[nameSize] = 0;
-            log_verbose("\nTesting locale %s (%s)\n", locName, cName);
-            coll = ucol_open(locName, &status);
-            if(U_SUCCESS(status)) {
-                testAgainstUCA(coll, UCA, "UCA", FALSE, &status);
-                ucol_close(coll);
-            } else {
-                log_err("Couldn't instantiate collator for locale %s, error: %s\n", locName, u_errorName(status));
-                status = U_ZERO_ERROR;
-            }
-        }
-    }
-    ucol_setAttribute(UCA, UCOL_STRENGTH, oldStrength, &status);
-    ucol_close(UCA);
-}
-
-static void RamsRulesTest(void) {
-    UErrorCode status = U_ZERO_ERROR;
-    int32_t i = 0;
-    UCollator *coll = NULL;
-    UChar rule[2048];
-    uint32_t ruleLen;
-    int32_t noOfLoc = uloc_countAvailable();
-    const char *locName = NULL;
-
-    log_verbose("RamsRulesTest\n");
-
-    if (uprv_strcmp("km", uloc_getDefault())==0 || uprv_strcmp("km_KH", uloc_getDefault())==0) {
-        /* This test will fail if the default locale is "km" or "km_KH". Enable after trac#6040. */
-        return;
-    }
-
-    for(i = 0; i<noOfLoc; i++) {
-        locName = uloc_getAvailable(i);
-        if(hasCollationElements(locName)) {
-            if (uprv_strcmp("ja", locName)==0) {
-                log_verbose("Don't know how to test Japanese because of prefixes\n");
-                continue;
-            }
-            if (uprv_strcmp("de__PHONEBOOK", locName)==0) {
-                log_verbose("Don't know how to test Phonebook because the reset is on an expanding character\n");
-                continue;
-            }
-            if (uprv_strcmp("bn", locName)==0 ||
-                uprv_strcmp("en_US_POSIX", locName)==0 ||
-                uprv_strcmp("km", locName)==0 ||
-                uprv_strcmp("km_KH", locName)==0 ||
-                uprv_strcmp("my", locName)==0 ||
-                uprv_strcmp("si", locName)==0 ||
-                uprv_strcmp("si_LK", locName)==0 ||
-                uprv_strcmp("zh", locName)==0 ||
-                uprv_strcmp("zh_Hant", locName)==0
-            ) {
-                log_verbose("Don't know how to test %s. "
-                            "TODO: Fix ticket #6040 and reenable RamsRulesTest for this locale.\n", locName);
-                continue;
-            }
-            log_verbose("Testing locale %s\n", locName);
-            status = U_ZERO_ERROR;
-            coll = ucol_open(locName, &status);
-            if(U_SUCCESS(status)) {
-              if((status != U_USING_DEFAULT_WARNING) && (status != U_USING_FALLBACK_WARNING)) {
-                if(coll->image->jamoSpecial == TRUE) {
-                  log_err("%s has special JAMOs\n", locName);
-                }
-                ucol_setAttribute(coll, UCOL_CASE_FIRST, UCOL_OFF, &status);
-                testCollator(coll, &status);
-                testCEs(coll, &status);
-              } else {
-                log_verbose("Skipping %s: %s\n", locName, u_errorName(status));
-              }
-              ucol_close(coll);
-            } else {
-              log_err("Could not open %s: %s\n", locName, u_errorName(status));
-            }
-        }
-    }
-
-    for(i = 0; i<sizeof(rulesToTest)/sizeof(rulesToTest[0]); i++) {
-        log_verbose("Testing rule: %s\n", rulesToTest[i]);
-        ruleLen = u_unescape(rulesToTest[i], rule, 2048);
-        status = U_ZERO_ERROR;
-        coll = ucol_openRules(rule, ruleLen, UCOL_OFF, UCOL_TERTIARY, NULL,&status);
-        if(U_SUCCESS(status)) {
-            testCollator(coll, &status);
-            testCEs(coll, &status);
-            ucol_close(coll);
-        } else {
-          log_err_status(status, "Could not test rule: %s: '%s'\n", u_errorName(status), rulesToTest[i]);
-        }
-    }
-
-}
-
-static void IsTailoredTest(void) {
-    UErrorCode status = U_ZERO_ERROR;
-    uint32_t i = 0;
-    UCollator *coll = NULL;
-    UChar rule[2048];
-    UChar tailored[2048];
-    UChar notTailored[2048];
-    uint32_t ruleLen, tailoredLen, notTailoredLen;
-
-    log_verbose("IsTailoredTest\n");
-
-    u_uastrcpy(rule, "&Z < A, B, C;c < d");
-    ruleLen = u_strlen(rule);
-
-    u_uastrcpy(tailored, "ABCcd");
-    tailoredLen = u_strlen(tailored);
-
-    u_uastrcpy(notTailored, "ZabD");
-    notTailoredLen = u_strlen(notTailored);
-
-    coll = ucol_openRules(rule, ruleLen, UCOL_OFF, UCOL_TERTIARY, NULL,&status);
-    if(U_SUCCESS(status)) {
-        for(i = 0; i<tailoredLen; i++) {
-            if(!ucol_isTailored(coll, tailored[i], &status)) {
-                log_err("%i: %04X should be tailored - it is reported as not\n", i, tailored[i]);
-            }
-        }
-        for(i = 0; i<notTailoredLen; i++) {
-            if(ucol_isTailored(coll, notTailored[i], &status)) {
-                log_err("%i: %04X should not be tailored - it is reported as it is\n", i, notTailored[i]);
-            }
-        }
-        ucol_close(coll);
-    }
-    else {
-        log_err_status(status, "Can't tailor rules\n");
-    }
-    /* Code coverage */
-    status = U_ZERO_ERROR;
-    coll = ucol_open("ja", &status);
-    if(!ucol_isTailored(coll, 0x4E9C, &status)) {
-        log_err_status(status, "0x4E9C should be tailored - it is reported as not\n");
-    }
-    ucol_close(coll);
-}
-
-
 const static char chTest[][20] = {
   "c",
   "C",
@@ -1543,6 +461,7 @@ static void TestChMove(void) {
 
 
 
+/*
 const static char impTest[][20] = {
   "\\u4e00",
     "a",
@@ -1551,6 +470,7 @@ const static char impTest[][20] = {
     "B",
     "\\u4e01"
 };
+*/
 
 
 static void TestImplicitTailoring(void) {
@@ -1559,7 +479,12 @@ static void TestImplicitTailoring(void) {
     const char *data[10];
     const uint32_t len;
   } tests[] = {
-      { "&[before 1]\\u4e00 < b < c &[before 1]\\u4e00 < d < e", { "d", "e", "b", "c", "\\u4e00"}, 5 },
+      {
+        /* Tailor b and c before U+4E00. */
+        "&[before 1]\\u4e00 < b < c "
+        /* Now, before U+4E00 is c; put d and e after that. */
+        "&[before 1]\\u4e00 < d < e",
+        { "b", "c", "d", "e", "\\u4e00"}, 5 },
       { "&\\u4e00 < a <<< A < b <<< B",   { "\\u4e00", "a", "A", "b", "B", "\\u4e01"}, 6 },
       { "&[before 1]\\u4e00 < \\u4e01 < \\u4e02", { "\\u4e01", "\\u4e02", "\\u4e00"}, 3},
       { "&[before 1]\\u4e01 < \\u4e02 < \\u4e03", { "\\u4e02", "\\u4e03", "\\u4e01"}, 3}
@@ -1671,14 +596,14 @@ static void TestComposeDecompose(void) {
         log_err("Set was zero. Missing data?\n");
         return;
     }
-    t = malloc(charsToTestSize * sizeof(tester *));
+    t = (tester **)malloc(charsToTestSize * sizeof(tester *));
     t[0] = (tester *)malloc(sizeof(tester));
     log_verbose("Testing UCA extensively for %d characters\n", charsToTestSize);
 
     for(u = 0; u < charsToTestSize; u++) {
         UChar32 ch = uset_charAt(charsToTest, u);
         len = 0;
-        UTF_APPEND_CHAR_UNSAFE(comp, len, ch);
+        U16_APPEND_UNSAFE(comp, len, ch);
         nfcSize = unorm_normalize(comp, len, UNORM_NFC, 0, t[noCases]->NFC, NORM_BUFFER_TEST_LEN, &status);
         nfdSize = unorm_normalize(comp, len, UNORM_NFD, 0, t[noCases]->NFD, NORM_BUFFER_TEST_LEN, &status);
 
@@ -1712,7 +637,7 @@ static void TestComposeDecompose(void) {
       uprv_memset(t[noCases], 0, sizeof(tester));
       t[noCases]->u = u;
       len = 0;
-      UTF_APPEND_CHAR_UNSAFE(comp, len, u);
+      U16_APPEND_UNSAFE(comp, len, u);
       comp[len] = 0;
       nfcSize = unorm_normalize(comp, len, UNORM_NFC, 0, t[noCases]->NFC, NORM_BUFFER_TEST_LEN, &status);
       nfdSize = unorm_normalize(comp, len, UNORM_NFD, 0, t[noCases]->NFD, NORM_BUFFER_TEST_LEN, &status);
@@ -1904,205 +829,6 @@ static void TestJ815(void) {
 }
 
 
-/*
-"& a < b < c < d& r < c",                                   "& a < b < d& r < c",
-"& a < b < c < d& c < m",                                   "& a < b < c < m < d",
-"& a < b < c < d& a < m",                                   "& a < m < b < c < d",
-"& a <<< b << c < d& a < m",                                "& a <<< b << c < m < d",
-"& a < b < c < d& [before 1] c < m",                        "& a < b < m < c < d",
-"& a < b <<< c << d <<< e& [before 3] e <<< x",            "& a < b <<< c << d <<< x <<< e",
-"& a < b <<< c << d <<< e& [before 2] e <<< x",            "& a < b <<< c <<< x << d <<< e",
-"& a < b <<< c << d <<< e& [before 1] e <<< x",            "& a <<< x < b <<< c << d <<< e",
-"& a < b <<< c << d <<< e <<< f < g& [before 1] g < x",    "& a < b <<< c << d <<< e <<< f < x < g",
-*/
-static void TestRedundantRules(void) {
-  int32_t i;
-
-  static const struct {
-      const char *rules;
-      const char *expectedRules;
-      const char *testdata[8];
-      uint32_t testdatalen;
-  } tests[] = {
-    /* this test conflicts with positioning of CODAN placeholder */
-       /*{
-        "& a <<< b <<< c << d <<< e& [before 1] e <<< x",
-        "&\\u2089<<<x",
-        {"\\u2089", "x"}, 2
-       }, */
-    /* this test conflicts with the [before x] syntax tightening */
-      /*{
-        "& b <<< c <<< d << e <<< f& [before 1] f <<< x",
-        "&\\u0252<<<x",
-        {"\\u0252", "x"}, 2
-      }, */
-    /* this test conflicts with the [before x] syntax tightening */
-      /*{
-         "& a < b <<< c << d <<< e& [before 1] e <<< x",
-         "& a <<< x < b <<< c << d <<< e",
-        {"a", "x", "b", "c", "d", "e"}, 6
-      }, */
-      {
-        "& a < b < c < d& [before 1] c < m",
-        "& a < b < m < c < d",
-        {"a", "b", "m", "c", "d"}, 5
-      },
-      {
-        "& a < b <<< c << d <<< e& [before 3] e <<< x",
-        "& a < b <<< c << d <<< x <<< e",
-        {"a", "b", "c", "d", "x", "e"}, 6
-      },
-    /* this test conflicts with the [before x] syntax tightening */
-      /* {
-        "& a < b <<< c << d <<< e& [before 2] e <<< x",
-        "& a < b <<< c <<< x << d <<< e",
-        {"a", "b", "c", "x", "d", "e"},, 6
-      }, */
-      {
-        "& a < b <<< c << d <<< e <<< f < g& [before 1] g < x",
-        "& a < b <<< c << d <<< e <<< f < x < g",
-        {"a", "b", "c", "d", "e", "f", "x", "g"}, 8
-      },
-      {
-        "& a <<< b << c < d& a < m",
-        "& a <<< b << c < m < d",
-        {"a", "b", "c", "m", "d"}, 5
-      },
-      {
-        "&a<b<<b\\u0301 &z<b",
-        "&a<b\\u0301 &z<b",
-        {"a", "b\\u0301", "z", "b"}, 4
-      },
-      {
-        "&z<m<<<q<<<m",
-        "&z<q<<<m",
-        {"z", "q", "m"},3
-      },
-      {
-        "&z<<<m<q<<<m",
-        "&z<q<<<m",
-        {"z", "q", "m"}, 3
-      },
-      {
-        "& a < b < c < d& r < c",
-        "& a < b < d& r < c",
-        {"a", "b", "d"}, 3
-      },
-      {
-        "& a < b < c < d& r < c",
-        "& a < b < d& r < c",
-        {"r", "c"}, 2
-      },
-      {
-        "& a < b < c < d& c < m",
-        "& a < b < c < m < d",
-        {"a", "b", "c", "m", "d"}, 5
-      },
-      {
-        "& a < b < c < d& a < m",
-        "& a < m < b < c < d",
-        {"a", "m", "b", "c", "d"}, 5
-      }
-  };
-
-
-  UCollator *credundant = NULL;
-  UCollator *cresulting = NULL;
-  UErrorCode status = U_ZERO_ERROR;
-  UChar rlz[2048] = { 0 };
-  uint32_t rlen = 0;
-
-  for(i = 0; i<sizeof(tests)/sizeof(tests[0]); i++) {
-    log_verbose("testing rule %s, expected to be %s\n", tests[i].rules, tests[i].expectedRules);
-    rlen = u_unescape(tests[i].rules, rlz, 2048);
-
-    credundant = ucol_openRules(rlz, rlen, UCOL_DEFAULT, UCOL_DEFAULT, NULL,&status);
-    if(status == U_FILE_ACCESS_ERROR) {
-      log_data_err("Is your data around?\n");
-      return;
-    } else if(U_FAILURE(status)) {
-      log_err("Error opening collator\n");
-      return;
-    }
-
-    rlen = u_unescape(tests[i].expectedRules, rlz, 2048);
-    cresulting = ucol_openRules(rlz, rlen, UCOL_DEFAULT, UCOL_DEFAULT, NULL,&status);
-
-    testAgainstUCA(cresulting, credundant, "expected", TRUE, &status);
-
-    ucol_close(credundant);
-    ucol_close(cresulting);
-
-    log_verbose("testing using data\n");
-
-    genericRulesStarter(tests[i].rules, tests[i].testdata, tests[i].testdatalen);
-  }
-
-}
-
-static void TestExpansionSyntax(void) {
-  int32_t i;
-
-  const static char *rules[] = {
-    "&AE <<< a << b <<< c &d <<< f",
-    "&AE <<< a <<< b << c << d < e < f <<< g",
-    "&AE <<< B <<< C / D <<< F"
-  };
-
-  const static char *expectedRules[] = {
-    "&A <<< a / E << b / E <<< c /E  &d <<< f",
-    "&A <<< a / E <<< b / E << c / E << d / E < e < f <<< g",
-    "&A <<< B / E <<< C / ED <<< F / E"
-  };
-
-  const static char *testdata[][8] = {
-    {"AE", "a", "b", "c"},
-    {"AE", "a", "b", "c", "d", "e", "f", "g"},
-    {"AE", "B", "C"} /* / ED <<< F / E"},*/
-  };
-
-  const static uint32_t testdatalen[] = {
-      4,
-      8,
-      3
-  };
-
-
-
-  UCollator *credundant = NULL;
-  UCollator *cresulting = NULL;
-  UErrorCode status = U_ZERO_ERROR;
-  UChar rlz[2048] = { 0 };
-  uint32_t rlen = 0;
-
-  for(i = 0; i<sizeof(rules)/sizeof(rules[0]); i++) {
-    log_verbose("testing rule %s, expected to be %s\n", rules[i], expectedRules[i]);
-    rlen = u_unescape(rules[i], rlz, 2048);
-
-    credundant = ucol_openRules(rlz, rlen, UCOL_DEFAULT, UCOL_DEFAULT, NULL, &status);
-    if(status == U_FILE_ACCESS_ERROR) {
-      log_data_err("Is your data around?\n");
-      return;
-    } else if(U_FAILURE(status)) {
-      log_err("Error opening collator\n");
-      return;
-    }
-    rlen = u_unescape(expectedRules[i], rlz, 2048);
-    cresulting = ucol_openRules(rlz, rlen, UCOL_DEFAULT, UCOL_DEFAULT, NULL,&status);
-
-    /* testAgainstUCA still doesn't handle expansions correctly, so this is not run */
-    /* as a hard error test, but only in information mode */
-    testAgainstUCA(cresulting, credundant, "expected", FALSE, &status);
-
-    ucol_close(credundant);
-    ucol_close(cresulting);
-
-    log_verbose("testing using data\n");
-
-    genericRulesStarter(rules[i], testdata[i], testdatalen[i]);
-  }
-}
-
 static void TestCase(void)
 {
     const static UChar gRules[MAX_TOKEN_LEN] =
@@ -2216,13 +942,13 @@ static void TestCase(void)
       };
       log_verbose("mixed case test\n");
       log_verbose("lower first, case level off\n");
-      genericRulesStarter("[casefirst lower]&H<ch<<<Ch<<<CH", lowerFirst, sizeof(lowerFirst)/sizeof(lowerFirst[0]));
+      genericRulesStarter("[caseFirst lower]&H<ch<<<Ch<<<CH", lowerFirst, sizeof(lowerFirst)/sizeof(lowerFirst[0]));
       log_verbose("upper first, case level off\n");
-      genericRulesStarter("[casefirst upper]&H<ch<<<Ch<<<CH", upperFirst, sizeof(upperFirst)/sizeof(upperFirst[0]));
+      genericRulesStarter("[caseFirst upper]&H<ch<<<Ch<<<CH", upperFirst, sizeof(upperFirst)/sizeof(upperFirst[0]));
       log_verbose("lower first, case level on\n");
-      genericRulesStarter("[casefirst lower][caselevel on]&H<ch<<<Ch<<<CH", lowerFirst, sizeof(lowerFirst)/sizeof(lowerFirst[0]));
+      genericRulesStarter("[caseFirst lower][caseLevel on]&H<ch<<<Ch<<<CH", lowerFirst, sizeof(lowerFirst)/sizeof(lowerFirst[0]));
       log_verbose("upper first, case level on\n");
-      genericRulesStarter("[casefirst upper][caselevel on]&H<ch<<<Ch<<<CH", upperFirst, sizeof(upperFirst)/sizeof(upperFirst[0]));
+      genericRulesStarter("[caseFirst upper][caseLevel on]&H<ch<<<Ch<<<CH", upperFirst, sizeof(upperFirst)/sizeof(upperFirst[0]));
     }
 
 }
@@ -2530,25 +1256,32 @@ static void TestHangulTailoring(void) {
     log_err("Unable to open collator with rules %s\n", rules);
   }
 
-  log_verbose("Setting jamoSpecial to TRUE and testing once more\n");
-  ((UCATableHeader *)coll->image)->jamoSpecial = TRUE; /* don't try this at home  */
-  genericOrderingTest(coll, koreanData, sizeof(koreanData)/sizeof(koreanData[0]));
-
   ucol_close(coll);
 
   log_verbose("Using ko__LOTUS locale\n");
   genericLocaleStarter("ko__LOTUS", koreanData, sizeof(koreanData)/sizeof(koreanData[0]));
 }
 
+/*
+ * The secondary/tertiary compression middle byte
+ * as used by the current implementation.
+ * Subject to change as the sort key compression changes.
+ * See class CollationKeys.
+ */
+enum {
+    SEC_COMMON_MIDDLE = 0x25,  /* range 05..45 */
+    TER_ONLY_COMMON_MIDDLE = 0x65  /* range 05..C5 */
+};
+
 static void TestCompressOverlap(void) {
     UChar       secstr[150];
     UChar       tertstr[150];
     UErrorCode  status = U_ZERO_ERROR;
     UCollator  *coll;
-    char        result[200];
+    uint8_t     result[500];
     uint32_t    resultlen;
     int         count = 0;
-    char       *tempptr;
+    uint8_t    *tempptr;
 
     coll = ucol_open("", &status);
 
@@ -2568,28 +1301,29 @@ static void TestCompressOverlap(void) {
 
     /* no compression secstr should have 150 secondary bytes, tertstr should
     have 150 tertiary bytes.
-    with correct overlapping compression, secstr should have 4 secondary
-    bytes, tertstr should have > 2 tertiary bytes */
-    resultlen = ucol_getSortKey(coll, secstr, 150, (uint8_t *)result, 250);
-    tempptr = uprv_strchr(result, 1) + 1;
+    with correct compression, secstr should have 6 secondary
+    bytes (149/33 rounded up + accent), tertstr should have > 2 tertiary bytes */
+    resultlen = ucol_getSortKey(coll, secstr, 150, result, LEN(result));
+    (void)resultlen;    /* Suppress set but not used warning. */
+    tempptr = (uint8_t *)uprv_strchr((char *)result, 1) + 1;
     while (*(tempptr + 1) != 1) {
         /* the last secondary collation element is not checked since it is not
         part of the compression */
-        if (*tempptr < UCOL_COMMON_TOP2 - UCOL_TOP_COUNT2) {
-            log_err("Secondary compression overlapped\n");
+        if (*tempptr < SEC_COMMON_MIDDLE) {
+            log_err("Secondary top down compression overlapped\n");
         }
         tempptr ++;
     }
 
     /* tertiary top/bottom/common for en_US is similar to the secondary
     top/bottom/common */
-    resultlen = ucol_getSortKey(coll, tertstr, 150, (uint8_t *)result, 250);
-    tempptr = uprv_strrchr(result, 1) + 1;
+    resultlen = ucol_getSortKey(coll, tertstr, 150, result, LEN(result));
+    tempptr = (uint8_t *)uprv_strrchr((char *)result, 1) + 1;
     while (*(tempptr + 1) != 0) {
         /* the last secondary collation element is not checked since it is not
         part of the compression */
-        if (*tempptr < coll->tertiaryTop - coll->tertiaryTopCount) {
-            log_err("Tertiary compression overlapped\n");
+        if (*tempptr < TER_ONLY_COMMON_MIDDLE) {
+            log_err("Tertiary top down compression overlapped\n");
         }
         tempptr ++;
     }
@@ -2597,26 +1331,26 @@ static void TestCompressOverlap(void) {
     /* bottom up compression ------------------------------------- */
     secstr[count] = 0;
     tertstr[count] = 0;
-    resultlen = ucol_getSortKey(coll, secstr, 150, (uint8_t *)result, 250);
-    tempptr = uprv_strchr(result, 1) + 1;
+    resultlen = ucol_getSortKey(coll, secstr, 150, result, LEN(result));
+    tempptr = (uint8_t *)uprv_strchr((char *)result, 1) + 1;
     while (*(tempptr + 1) != 1) {
         /* the last secondary collation element is not checked since it is not
         part of the compression */
-        if (*tempptr > UCOL_COMMON_BOT2 + UCOL_BOT_COUNT2) {
-            log_err("Secondary compression overlapped\n");
+        if (*tempptr > SEC_COMMON_MIDDLE) {
+            log_err("Secondary bottom up compression overlapped\n");
         }
         tempptr ++;
     }
 
     /* tertiary top/bottom/common for en_US is similar to the secondary
     top/bottom/common */
-    resultlen = ucol_getSortKey(coll, tertstr, 150, (uint8_t *)result, 250);
-    tempptr = uprv_strrchr(result, 1) + 1;
+    resultlen = ucol_getSortKey(coll, tertstr, 150, result, LEN(result));
+    tempptr = (uint8_t *)uprv_strrchr((char *)result, 1) + 1;
     while (*(tempptr + 1) != 0) {
         /* the last secondary collation element is not checked since it is not
         part of the compression */
-        if (*tempptr > coll->tertiaryBottom + coll->tertiaryBottomCount) {
-            log_err("Tertiary compression overlapped\n");
+        if (*tempptr > TER_ONLY_COMMON_MIDDLE) {
+            log_err("Tertiary bottom up compression overlapped\n");
         }
         tempptr ++;
     }
@@ -2634,13 +1368,17 @@ static void TestCyrillicTailoring(void) {
     /* Russian overrides contractions, so this test is not valid anymore */
     /*genericLocaleStarter("ru", test, 3);*/
 
-    genericLocaleStarter("root", test, 3);
-    genericRulesStarter("&\\u0410 = \\u0410", test, 3);
-    genericRulesStarter("&Z < \\u0410", test, 3);
+    // Most of the following are commented out because UCA 8.0
+    // drops most of the Cyrillic contractions from the default order.
+    // See CLDR ticket #7246 "root collation: remove Cyrillic contractions".
+
+    // genericLocaleStarter("root", test, 3);
+    // genericRulesStarter("&\\u0410 = \\u0410", test, 3);
+    // genericRulesStarter("&Z < \\u0410", test, 3);
     genericRulesStarter("&\\u0410 = \\u0410 < \\u04d0", test, 3);
     genericRulesStarter("&Z < \\u0410 < \\u04d0", test, 3);
-    genericRulesStarter("&\\u0410 = \\u0410 < \\u0410\\u0301", test, 3);
-    genericRulesStarter("&Z < \\u0410 < \\u0410\\u0301", test, 3);
+    // genericRulesStarter("&\\u0410 = \\u0410 < \\u0410\\u0301", test, 3);
+    // genericRulesStarter("&Z < \\u0410 < \\u0410\\u0301", test, 3);
 }
 
 static void TestSuppressContractions(void) {
@@ -2676,6 +1414,13 @@ static void TestContraction(void) {
         {0x0063 /* 'c' */, 0x0068 /* 'h' */},
         {0x0063 /* 'c' */, 0x006C /* 'l' */}
     };
+#if 0
+    /*
+     * These pairs of rule strings are not guaranteed to yield the very same mappings.
+     * In fact, LDML 24 recommends an improved way of creating mappings
+     * which always yields different mappings for such pairs. See
+     * http://www.unicode.org/reports/tr35/tr35-33/tr35-collation.html#Orderings
+     */
     const static char *testrules3[] = {
         "&z < xyz &xyzw << B",
         "&z < xyz &xyz << B / w",
@@ -2686,6 +1431,7 @@ static void TestContraction(void) {
         "&a\\ud800\\udc00m << B",
         "&a << B / \\ud800\\udc00m",
     };
+#endif
 
     UErrorCode  status   = U_ZERO_ERROR;
     UCollator  *coll;
@@ -2751,8 +1497,9 @@ static void TestContraction(void) {
         return;
     }
     ucol_close(coll);
-
+#if 0  /* see above */
     for (i = 0; i < sizeof(testrules3) / sizeof(testrules3[0]); i += 2) {
+        log_verbose("testrules3 i==%d  \"%s\" vs. \"%s\"\n", i, testrules3[i], testrules3[i + 1]);
         UCollator          *coll1,
                            *coll2;
         UCollationElements *iter1,
@@ -2779,8 +1526,11 @@ static void TestContraction(void) {
             return;
         }
         while (ce != UCOL_NULLORDER) {
-            if (ce != (uint32_t)ucol_next(iter2, &status)) {
-                log_err("CEs does not match\n");
+            uint32_t ce2 = (uint32_t)ucol_next(iter2, &status);
+            if (ce == ce2) {
+                log_verbose("CEs match: %08x\n", ce);
+            } else {
+                log_err("CEs do not match: %08x vs. %08x\n", ce, ce2);
                 return;
             }
             ce = ucol_next(iter1, &status);
@@ -2798,11 +1548,23 @@ static void TestContraction(void) {
         ucol_close(coll1);
         ucol_close(coll2);
     }
+#endif
 }
 
 static void TestExpansion(void) {
     const static char *testrules[] = {
+#if 0
+        /*
+         * This seems to have tested that M was not mapped to an expansion.
+         * I believe the old builder just did that because it computed the extension CEs
+         * at the very end, which was a bug.
+         * Among other problems, it violated the core tailoring principle
+         * by making an earlier rule depend on a later one.
+         * And, of course, if M did not get an expansion, then it was primary different from K,
+         * unlike what the rule &K<<M says.
+         */
         "&J << K / B & K << M",
+#endif
         "&J << K / B << M"
     };
     const static UChar testdata[][3] = {
@@ -2942,6 +1704,7 @@ static void TestBocsuCoverage(void) {
   ucol_setAttribute(coll, UCOL_STRENGTH, UCOL_IDENTICAL, &status);
 
   klen = ucol_getSortKey(coll, test, tlen, key, 256);
+  (void)klen;    /* Suppress set but not used warning. */
 
   ucol_close(coll);
   } else {
@@ -2951,195 +1714,81 @@ static void TestBocsuCoverage(void) {
 
 static void TestVariableTopSetting(void) {
   UErrorCode status = U_ZERO_ERROR;
-  const UChar *current = NULL;
   uint32_t varTopOriginal = 0, varTop1, varTop2;
   UCollator *coll = ucol_open("", &status);
   if(U_SUCCESS(status)) {
 
-  uint32_t strength = 0;
-  uint16_t specs = 0;
-  uint32_t chOffset = 0;
-  uint32_t chLen = 0;
-  uint32_t exOffset = 0;
-  uint32_t exLen = 0;
-  uint32_t oldChOffset = 0;
-  uint32_t oldChLen = 0;
-  uint32_t oldExOffset = 0;
-  uint32_t oldExLen = 0;
-  uint32_t prefixOffset = 0;
-  uint32_t prefixLen = 0;
+  static const UChar nul = 0;
+  static const UChar space = 0x20;
+  static const UChar dot = 0x2e;  /* punctuation */
+  static const UChar degree = 0xb0;  /* symbol */
+  static const UChar dollar = 0x24;  /* currency symbol */
+  static const UChar zero = 0x30;  /* digit */
 
-  UBool startOfRules = TRUE;
-  UColTokenParser src;
-  UColOptionSet opts;
+  varTopOriginal = ucol_getVariableTop(coll, &status);
+  log_verbose("ucol_getVariableTop(root) -> %08x\n", varTopOriginal);
+  ucol_setAttribute(coll, UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, &status);
 
-  UChar *rulesCopy = NULL;
-  uint32_t rulesLen;
-
-  UCollationResult result;
-
-  UChar first[256] = { 0 };
-  UChar second[256] = { 0 };
-  UParseError parseError;
-  int32_t myQ = getTestOption(QUICK_OPTION);
-
-  uprv_memset(&src, 0, sizeof(UColTokenParser));
-
-  src.opts = &opts;
-
-  if(getTestOption(QUICK_OPTION) <= 0) {
-    setTestOption(QUICK_OPTION, 1);
+  varTop1 = ucol_setVariableTop(coll, &space, 1, &status);
+  varTop2 = ucol_getVariableTop(coll, &status);
+  log_verbose("ucol_setVariableTop(space) -> %08x\n", varTop1);
+  if(U_FAILURE(status) || varTop1 != varTop2 ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      ucol_equal(coll, &nul, 0, &dot, 1) ||
+      ucol_equal(coll, &nul, 0, &degree, 1) ||
+      ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &space, 1, &dot, 1)) {
+    log_err("ucol_setVariableTop(space) did not work - %s\n", u_errorName(status));
   }
 
-  /* this test will fail when normalization is turned on */
-  /* therefore we always turn off exhaustive mode for it */
-  { /* QUICK > 0*/
-    log_verbose("Slide variable top over UCARules\n");
-    rulesLen = ucol_getRulesEx(coll, UCOL_FULL_RULES, rulesCopy, 0);
-    rulesCopy = (UChar *)uprv_malloc((rulesLen+UCOL_TOK_EXTRA_RULE_SPACE_SIZE)*sizeof(UChar));
-    rulesLen = ucol_getRulesEx(coll, UCOL_FULL_RULES, rulesCopy, rulesLen+UCOL_TOK_EXTRA_RULE_SPACE_SIZE);
-
-    if(U_SUCCESS(status) && rulesLen > 0) {
-      ucol_setAttribute(coll, UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, &status);
-      src.current = src.source = rulesCopy;
-      src.end = rulesCopy+rulesLen;
-      src.extraCurrent = src.end;
-      src.extraEnd = src.end+UCOL_TOK_EXTRA_RULE_SPACE_SIZE;
-
-	  /* Note that as a result of tickets 7015 or 6912, ucol_tok_parseNextToken can cause the pointer to
-	   the rules copy in src.source to get reallocated, freeing the original pointer in rulesCopy */
-      while ((current = ucol_tok_parseNextToken(&src, startOfRules, &parseError,&status)) != NULL) {
-        strength = src.parsedToken.strength;
-        chOffset = src.parsedToken.charsOffset;
-        chLen = src.parsedToken.charsLen;
-        exOffset = src.parsedToken.extensionOffset;
-        exLen = src.parsedToken.extensionLen;
-        prefixOffset = src.parsedToken.prefixOffset;
-        prefixLen = src.parsedToken.prefixLen;
-        specs = src.parsedToken.flags;
-
-        startOfRules = FALSE;
-        {
-          log_verbose("%04X %d ", *(src.source+chOffset), chLen);
-        }
-        if(strength == UCOL_PRIMARY) {
-          status = U_ZERO_ERROR;
-          varTopOriginal = ucol_getVariableTop(coll, &status);
-          varTop1 = ucol_setVariableTop(coll, src.source+oldChOffset, oldChLen, &status);
-          if(U_FAILURE(status)) {
-            char buffer[256];
-            char *buf = buffer;
-            uint32_t i = 0, j;
-            uint32_t CE = UCOL_NO_MORE_CES;
-
-            /* before we start screaming, let's see if there is a problem with the rules */
-            UErrorCode collIterateStatus = U_ZERO_ERROR;
-            collIterate *s = uprv_new_collIterate(&collIterateStatus);
-            uprv_init_collIterate(coll, src.source+oldChOffset, oldChLen, s, &collIterateStatus);
-
-            CE = ucol_getNextCE(coll, s, &status);
-
-            for(i = 0; i < oldChLen; i++) {
-              j = sprintf(buf, "%04X ", *(src.source+oldChOffset+i));
-              buf += j;
-            }
-            if(status == U_PRIMARY_TOO_LONG_ERROR) {
-              log_verbose("= Expected failure for %s =", buffer);
-            } else {
-              if(uprv_collIterateAtEnd(s)) {
-                log_err("Unexpected failure setting variable top at offset %d. Error %s. Codepoints: %s\n",
-                  oldChOffset, u_errorName(status), buffer);
-              } else {
-                log_verbose("There is a goofy contraction in UCA rules that does not appear in the fractional UCA. Codepoints: %s\n",
-                  buffer);
-              }
-            }
-            uprv_delete_collIterate(s);
-          }
-          varTop2 = ucol_getVariableTop(coll, &status);
-          if((varTop1 & 0xFFFF0000) != (varTop2 & 0xFFFF0000)) {
-            log_err("cannot retrieve set varTop value!\n");
-            continue;
-          }
-
-          if((varTop1 & 0xFFFF0000) > 0 && oldExLen == 0) {
-
-            u_strncpy(first, src.source+oldChOffset, oldChLen);
-            u_strncpy(first+oldChLen, src.source+chOffset, chLen);
-            u_strncpy(first+oldChLen+chLen, src.source+oldChOffset, oldChLen);
-            first[2*oldChLen+chLen] = 0;
-
-            if(oldExLen == 0) {
-              u_strncpy(second, src.source+chOffset, chLen);
-              second[chLen] = 0;
-            } else { /* This is skipped momentarily, but should work once UCARules are fully UCA conformant */
-              u_strncpy(second, src.source+oldExOffset, oldExLen);
-              u_strncpy(second+oldChLen, src.source+chOffset, chLen);
-              u_strncpy(second+oldChLen+chLen, src.source+oldExOffset, oldExLen);
-              second[2*oldExLen+chLen] = 0;
-            }
-            result = ucol_strcoll(coll, first, -1, second, -1);
-            if(result == UCOL_EQUAL) {
-              doTest(coll, first, second, UCOL_EQUAL);
-            } else {
-              log_verbose("Suspicious strcoll result for %04X and %04X\n", *(src.source+oldChOffset), *(src.source+chOffset));
-            }
-          }
-        }
-        if(strength != UCOL_TOK_RESET) {
-          oldChOffset = chOffset;
-          oldChLen = chLen;
-          oldExOffset = exOffset;
-          oldExLen = exLen;
-        }
-      }
-      status = U_ZERO_ERROR;
-    }
-    else {
-      log_err("Unexpected failure getting rules %s\n", u_errorName(status));
-      return;
-    }
-    if (U_FAILURE(status)) {
-        log_err("Error parsing rules %s\n", u_errorName(status));
-        return;
-    }
-    status = U_ZERO_ERROR;
+  varTop1 = ucol_setVariableTop(coll, &dot, 1, &status);
+  varTop2 = ucol_getVariableTop(coll, &status);
+  log_verbose("ucol_setVariableTop(dot) -> %08x\n", varTop1);
+  if(U_FAILURE(status) || varTop1 != varTop2 ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      !ucol_equal(coll, &nul, 0, &dot, 1) ||
+      ucol_equal(coll, &nul, 0, &degree, 1) ||
+      ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &dot, 1, &degree, 1)) {
+    log_err("ucol_setVariableTop(dot) did not work - %s\n", u_errorName(status));
   }
 
-  setTestOption(QUICK_OPTION, myQ);
+  varTop1 = ucol_setVariableTop(coll, &degree, 1, &status);
+  varTop2 = ucol_getVariableTop(coll, &status);
+  log_verbose("ucol_setVariableTop(degree) -> %08x\n", varTop1);
+  if(U_FAILURE(status) || varTop1 != varTop2 ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      !ucol_equal(coll, &nul, 0, &dot, 1) ||
+      !ucol_equal(coll, &nul, 0, &degree, 1) ||
+      ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &degree, 1, &dollar, 1)) {
+    log_err("ucol_setVariableTop(degree) did not work - %s\n", u_errorName(status));
+  }
+
+  varTop1 = ucol_setVariableTop(coll, &dollar, 1, &status);
+  varTop2 = ucol_getVariableTop(coll, &status);
+  log_verbose("ucol_setVariableTop(dollar) -> %08x\n", varTop1);
+  if(U_FAILURE(status) || varTop1 != varTop2 ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      !ucol_equal(coll, &nul, 0, &dot, 1) ||
+      !ucol_equal(coll, &nul, 0, &degree, 1) ||
+      !ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &dollar, 1, &zero, 1)) {
+    log_err("ucol_setVariableTop(dollar) did not work - %s\n", u_errorName(status));
+  }
 
   log_verbose("Testing setting variable top to contractions\n");
   {
-    /* uint32_t tailoredCE = UCOL_NOT_FOUND; */
-    /*UChar *conts = (UChar *)((uint8_t *)coll->image + coll->image->UCAConsts+sizeof(UCAConstants));*/
-    UChar *conts = (UChar *)((uint8_t *)coll->image + coll->image->contractionUCACombos);
-    while(*conts != 0) {
-      if((*(conts+2) == 0) || (*(conts+1)==0)) { /* contracts or pre-context contractions */
-        varTop1 = ucol_setVariableTop(coll, conts, -1, &status);
-      } else {
-        varTop1 = ucol_setVariableTop(coll, conts, 3, &status);
-      }
-      if(U_FAILURE(status)) {
-        if(status == U_PRIMARY_TOO_LONG_ERROR) {
-          /* ucol_setVariableTop() is documented to not accept 3-byte primaries,
-           * therefore it is not an error when it complains about them. */
-          log_verbose("Couldn't set variable top to a contraction %04X %04X %04X - U_PRIMARY_TOO_LONG_ERROR\n",
-                      *conts, *(conts+1), *(conts+2));
-        } else {
-          log_err("Couldn't set variable top to a contraction %04X %04X %04X - %s\n",
-                  *conts, *(conts+1), *(conts+2), u_errorName(status));
-        }
-        status = U_ZERO_ERROR;
-      }
-      conts+=3;
-    }
-
-    status = U_ZERO_ERROR;
-
+    UChar first[4] = { 0 };
     first[0] = 0x0040;
     first[1] = 0x0050;
     first[2] = 0x0000;
 
+    status = U_ZERO_ERROR;
     ucol_setVariableTop(coll, first, -1, &status);
 
     if(U_SUCCESS(status)) {
@@ -3159,21 +1808,110 @@ static void TestVariableTopSetting(void) {
   log_verbose("Testing calling with error set\n");
 
   status = U_INTERNAL_PROGRAM_ERROR;
-  varTop1 = ucol_setVariableTop(coll, first, 1, &status);
+  varTop1 = ucol_setVariableTop(coll, &space, 1, &status);
   varTop2 = ucol_getVariableTop(coll, &status);
   ucol_restoreVariableTop(coll, varTop2, &status);
-  varTop1 = ucol_setVariableTop(NULL, first, 1, &status);
+  varTop1 = ucol_setVariableTop(NULL, &dot, 1, &status);
   varTop2 = ucol_getVariableTop(NULL, &status);
   ucol_restoreVariableTop(NULL, varTop2, &status);
   if(status != U_INTERNAL_PROGRAM_ERROR) {
     log_err("Bad reaction to passed error!\n");
   }
-  uprv_free(src.source);
   ucol_close(coll);
   } else {
     log_data_err("Couldn't open UCA collator\n");
   }
+}
 
+static void TestMaxVariable() {
+  UErrorCode status = U_ZERO_ERROR;
+  UColReorderCode oldMax, max;
+  UCollator *coll;
+
+  static const UChar nul = 0;
+  static const UChar space = 0x20;
+  static const UChar dot = 0x2e;  /* punctuation */
+  static const UChar degree = 0xb0;  /* symbol */
+  static const UChar dollar = 0x24;  /* currency symbol */
+  static const UChar zero = 0x30;  /* digit */
+
+  coll = ucol_open("", &status);
+  if(U_FAILURE(status)) {
+    log_data_err("Couldn't open root collator\n");
+    return;
+  }
+
+  oldMax = ucol_getMaxVariable(coll);
+  log_verbose("ucol_getMaxVariable(root) -> %04x\n", oldMax);
+  ucol_setAttribute(coll, UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, &status);
+
+  ucol_setMaxVariable(coll, UCOL_REORDER_CODE_SPACE, &status);
+  max = ucol_getMaxVariable(coll);
+  log_verbose("ucol_setMaxVariable(space) -> %04x\n", max);
+  if(U_FAILURE(status) || max != UCOL_REORDER_CODE_SPACE ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      ucol_equal(coll, &nul, 0, &dot, 1) ||
+      ucol_equal(coll, &nul, 0, &degree, 1) ||
+      ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &space, 1, &dot, 1)) {
+    log_err("ucol_setMaxVariable(space) did not work - %s\n", u_errorName(status));
+  }
+
+  ucol_setMaxVariable(coll, UCOL_REORDER_CODE_PUNCTUATION, &status);
+  max = ucol_getMaxVariable(coll);
+  log_verbose("ucol_setMaxVariable(punctuation) -> %04x\n", max);
+  if(U_FAILURE(status) || max != UCOL_REORDER_CODE_PUNCTUATION ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      !ucol_equal(coll, &nul, 0, &dot, 1) ||
+      ucol_equal(coll, &nul, 0, &degree, 1) ||
+      ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &dot, 1, &degree, 1)) {
+    log_err("ucol_setMaxVariable(punctuation) did not work - %s\n", u_errorName(status));
+  }
+
+  ucol_setMaxVariable(coll, UCOL_REORDER_CODE_SYMBOL, &status);
+  max = ucol_getMaxVariable(coll);
+  log_verbose("ucol_setMaxVariable(symbol) -> %04x\n", max);
+  if(U_FAILURE(status) || max != UCOL_REORDER_CODE_SYMBOL ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      !ucol_equal(coll, &nul, 0, &dot, 1) ||
+      !ucol_equal(coll, &nul, 0, &degree, 1) ||
+      ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &degree, 1, &dollar, 1)) {
+    log_err("ucol_setMaxVariable(symbol) did not work - %s\n", u_errorName(status));
+  }
+
+  ucol_setMaxVariable(coll, UCOL_REORDER_CODE_CURRENCY, &status);
+  max = ucol_getMaxVariable(coll);
+  log_verbose("ucol_setMaxVariable(currency) -> %04x\n", max);
+  if(U_FAILURE(status) || max != UCOL_REORDER_CODE_CURRENCY ||
+      !ucol_equal(coll, &nul, 0, &space, 1) ||
+      !ucol_equal(coll, &nul, 0, &dot, 1) ||
+      !ucol_equal(coll, &nul, 0, &degree, 1) ||
+      !ucol_equal(coll, &nul, 0, &dollar, 1) ||
+      ucol_equal(coll, &nul, 0, &zero, 1) ||
+      ucol_greaterOrEqual(coll, &dollar, 1, &zero, 1)) {
+    log_err("ucol_setMaxVariable(currency) did not work - %s\n", u_errorName(status));
+  }
+
+  log_verbose("Test restoring maxVariable\n");
+  status = U_ZERO_ERROR;
+  ucol_setMaxVariable(coll, oldMax, &status);
+  if(oldMax != ucol_getMaxVariable(coll)) {
+    log_err("Couldn't restore old maxVariable\n");
+  }
+
+  log_verbose("Testing calling with error set\n");
+  status = U_INTERNAL_PROGRAM_ERROR;
+  ucol_setMaxVariable(coll, UCOL_REORDER_CODE_SPACE, &status);
+  max = ucol_getMaxVariable(coll);
+  if(max != oldMax || status != U_INTERNAL_PROGRAM_ERROR) {
+    log_err("Bad reaction to passed error!\n");
+  }
+  ucol_close(coll);
 }
 
 static void TestNonChars(void) {
@@ -3658,6 +2396,8 @@ static void TestRuleOptions(void) {
     const char *data[10];
     const uint32_t len;
   } tests[] = {
+#if 0
+    /* "you cannot go before ...": The parser now sets an error for such nonsensical rules. */
     /* - all befores here amount to zero */
     { "&[before 3][first tertiary ignorable]<<<a",
         { "\\u0000", "a"}, 2
@@ -3666,25 +2406,35 @@ static void TestRuleOptions(void) {
     { "&[before 3][last tertiary ignorable]<<<a",
         { "\\u0000", "a"}, 2
     }, /* you cannot go before last tertiary ignorable */
-
+#endif
+    /*
+     * However, there is a real secondary ignorable (artificial addition in FractionalUCA.txt),
+     * and it *is* possible to "go before" that.
+     */
     { "&[before 3][first secondary ignorable]<<<a",
         { "\\u0000", "a"}, 2
-    }, /* you cannot go before first secondary ignorable */
+    },
 
     { "&[before 3][last secondary ignorable]<<<a",
         { "\\u0000", "a"}, 2
-    }, /* you cannot go before first secondary ignorable */
+    },
 
     /* 'normal' befores */
 
-    { "&[before 3][first primary ignorable]<<<c<<<b &[first primary ignorable]<a",
+    /*
+     * Note: With a "SPACE first primary" boundary CE in FractionalUCA.txt,
+     * it is not possible to tailor &[first primary ignorable]<a or &[last primary ignorable]<a
+     * because there is no tailoring space before that boundary.
+     * Made the tests work by tailoring to a space instead.
+     */
+    { "&[before 3][first primary ignorable]<<<c<<<b &' '<a",  /* was &[first primary ignorable]<a */
         {  "c", "b", "\\u0332", "a" }, 4
     },
 
     /* we don't have a code point that corresponds to
      * the last primary ignorable
      */
-    { "&[before 3][last primary ignorable]<<<c<<<b &[last primary ignorable]<a",
+    { "&[before 3][last primary ignorable]<<<c<<<b &' '<a",  /* was &[last primary ignorable]<a */
         {  "\\u0332", "\\u20e3", "c", "b", "a" }, 5
     },
 
@@ -3710,14 +2460,14 @@ static void TestRuleOptions(void) {
       "&[first implicit]<a",
         { "b", "\\u4e00", "a", "\\u4e01"}, 4
     },
-
+#if 0  /* The current builder does not support tailoring to unassigned-implicit CEs (seems unnecessary, adds complexity). */
     { "&[before 1][last implicit]<b"
       "&[last implicit]<a",
         { "b", "\\U0010FFFD", "a" }, 3
     },
-
+#endif
     { "&[last variable]<z"
-      "&[last primary ignorable]<x"
+      "&' '<x"  /* was &[last primary ignorable]<x, see above */
       "&[last secondary ignorable]<<y"
       "&[last tertiary ignorable]<<<w"
       "&[top]<u",
@@ -3882,6 +2632,8 @@ static void Alexis2(void) {
 
     U16BELenS = ucnv_fromUChars(conv, U16BESource, CMSCOLL_ALEXIS2_BUFFER_SIZE, U16Source, U16LenS, &status);
     U16BELenT = ucnv_fromUChars(conv, U16BETarget, CMSCOLL_ALEXIS2_BUFFER_SIZE, U16Target, U16LenT, &status);
+    (void)U16BELenS;    /* Suppress set but not used warnings. */
+    (void)U16BELenT;
 
     /* use the original sizes, as the result from converter is in bytes */
     uiter_setUTF16BE(&U16BEItS, U16BESource, U16LenS);
@@ -3961,7 +2713,7 @@ static void TestPartialSortKeyTermination(void) {
     "\\udc00\\ud800\\ud800"
   };
 
-  int32_t i = sizeof(UCollator);
+  int32_t i;
 
   UErrorCode status = U_ZERO_ERROR;
 
@@ -3980,6 +2732,7 @@ static void TestPartialSortKeyTermination(void) {
     length = u_unescape(cases[i], currCase, 256);
     uiter_setString(&iter, currCase, length);
     pKeyLen = ucol_nextSortKeyPart(coll, &iter, state, key, 256, &status);
+    (void)pKeyLen;   /* Suppress set but not used warning. */
 
     log_verbose("Done\n");
 
@@ -4024,22 +2777,18 @@ static void TestSettings(void) {
 static int32_t TestEqualsForCollator(const char* locName, UCollator *source, UCollator *target) {
     UErrorCode status = U_ZERO_ERROR;
     int32_t errorNo = 0;
-    /*const UChar *sourceRules = NULL;*/
-    /*int32_t sourceRulesLen = 0;*/
+    const UChar *sourceRules = NULL;
+    int32_t sourceRulesLen = 0;
+    UParseError parseError;
     UColAttributeValue french = UCOL_OFF;
-    int32_t cloneSize = 0;
 
     if(!ucol_equals(source, target)) {
         log_err("Same collators, different address not equal\n");
         errorNo++;
     }
     ucol_close(target);
-    if(uprv_strcmp(ucol_getLocaleByType(source, ULOC_REQUESTED_LOCALE, &status), ucol_getLocaleByType(source, ULOC_ACTUAL_LOCALE, &status)) == 0) {
-        /* currently, safeClone is implemented through getRules/openRules
-        * so it is the same as the test below - I will comment that test out.
-        */
-        /* real thing */
-        target = ucol_safeClone(source, NULL, &cloneSize, &status);
+    if(uprv_strcmp(locName, ucol_getLocaleByType(source, ULOC_ACTUAL_LOCALE, &status)) == 0) {
+        target = ucol_safeClone(source, NULL, NULL, &status);
         if(U_FAILURE(status)) {
             log_err("Error creating clone\n");
             errorNo++;
@@ -4065,21 +2814,20 @@ static int32_t TestEqualsForCollator(const char* locName, UCollator *source, UCo
             errorNo++;
         }
         ucol_close(target);
-        /* commented out since safeClone uses exactly the same technique */
-        /*
+
         sourceRules = ucol_getRules(source, &sourceRulesLen);
         target = ucol_openRules(sourceRules, sourceRulesLen, UCOL_DEFAULT, UCOL_DEFAULT, &parseError, &status);
         if(U_FAILURE(status)) {
-        log_err("Error instantiating target from rules\n");
-        errorNo++;
-        return errorNo;
+            log_err("Error instantiating target from rules - %s\n", u_errorName(status));
+            errorNo++;
+            return errorNo;
         }
-        if(!ucol_equals(source, target)) {
-        log_err("Collator different from collator that was created from the same rules\n");
-        errorNo++;
+        /* Note: The tailoring rule string is an optional data item. */
+        if(!ucol_equals(source, target) && sourceRulesLen != 0) {
+            log_err("Collator different from collator that was created from the same rules\n");
+            errorNo++;
         }
         ucol_close(target);
-        */
     }
     return errorNo;
 }
@@ -4087,7 +2835,7 @@ static int32_t TestEqualsForCollator(const char* locName, UCollator *source, UCo
 
 static void TestEquals(void) {
     /* ucol_equals is not currently a public API. There is a chance that it will become
-    * something like this, but currently it is only used by RuleBasedCollator::operator==
+    * something like this.
     */
     /* test whether the two collators instantiated from the same locale are equal */
     UErrorCode status = U_ZERO_ERROR;
@@ -4142,8 +2890,8 @@ static void TestEquals(void) {
     if(!ucol_equals(source, source)) {
         log_err("Same collator not equal\n");
     }
-    if(TestEqualsForCollator(locName, source, target)) {
-        log_err("Errors for root\n", locName);
+    if(TestEqualsForCollator("root", source, target)) {
+        log_err("Errors for root\n");
     }
     ucol_close(source);
 
@@ -4358,81 +3106,6 @@ static void TestPinyinProblem(void) {
     genericLocaleStarter("zh__PINYIN", test, sizeof(test)/sizeof(test[0]));
 }
 
-#define TST_UCOL_MAX_INPUT 0x220001
-#define topByte 0xFF000000;
-#define bottomByte 0xFF;
-#define fourBytes 0xFFFFFFFF;
-
-
-static void showImplicit(UChar32 i) {
-    if (i >= 0 && i <= TST_UCOL_MAX_INPUT) {
-        log_verbose("%08X\t%08X\n", i, uprv_uca_getImplicitFromRaw(i));
-    }
-}
-
-static void TestImplicitGeneration(void) {
-    UErrorCode status = U_ZERO_ERROR;
-    UChar32 last = 0;
-    UChar32 current;
-    UChar32 i = 0, j = 0;
-    UChar32 roundtrip = 0;
-    UChar32 lastBottom = 0;
-    UChar32 currentBottom = 0;
-    UChar32 lastTop = 0;
-    UChar32 currentTop = 0;
-
-    UCollator *coll = ucol_open("root", &status);
-    if(U_FAILURE(status)) {
-        log_err_status(status, "Couldn't open UCA -> %s\n", u_errorName(status));
-        return;
-    }
-
-    uprv_uca_getRawFromImplicit(0xE20303E7);
-
-    for (i = 0; i <= TST_UCOL_MAX_INPUT; ++i) {
-        current = uprv_uca_getImplicitFromRaw(i) & fourBytes;
-
-        /* check that it round-trips AND that all intervening ones are illegal*/
-        roundtrip = uprv_uca_getRawFromImplicit(current);
-        if (roundtrip != i) {
-            log_err("No roundtrip %08X\n", i);
-        }
-        if (last != 0) {
-            for (j = last + 1; j < current; ++j) {
-                roundtrip = uprv_uca_getRawFromImplicit(j);
-                /* raise an error if it *doesn't* find an error*/
-                if (roundtrip != -1) {
-                    log_err("Fails to recognize illegal %08X\n", j);
-                }
-            }
-        }
-        /* now do other consistency checks*/
-        lastBottom = last & bottomByte;
-        currentBottom = current & bottomByte;
-        lastTop = last & topByte;
-        currentTop = current & topByte;
-
-        /* print out some values for spot-checking*/
-        if (lastTop != currentTop || i == 0x10000 || i == 0x110000) {
-            showImplicit(i-3);
-            showImplicit(i-2);
-            showImplicit(i-1);
-            showImplicit(i);
-            showImplicit(i+1);
-            showImplicit(i+2);
-        }
-        last = current;
-
-        if(uprv_uca_getCodePointFromRaw(uprv_uca_getRawFromCodePoint(i)) != i) {
-            log_err("No raw <-> code point roundtrip for 0x%08X\n", i);
-        }
-    }
-    showImplicit(TST_UCOL_MAX_INPUT-2);
-    showImplicit(TST_UCOL_MAX_INPUT-1);
-    showImplicit(TST_UCOL_MAX_INPUT);
-    ucol_close(coll);
-}
-
 /**
  * Iterate through the given iterator, checking to see that all the strings
  * in the expected array are present.
@@ -4500,6 +3173,7 @@ static void TestSeparateTrees(void) {
         assertSuccess("ucol_openAvailableLocales", &ec);
         assertTrue("ucol_openAvailableLocales!=0", e!=0);
         n = checkUEnumeration("ucol_openAvailableLocales", e, AVAIL, LEN(AVAIL));
+        (void)n;    /* Suppress set but not used warnings. */
         /* Don't need to check n because we check list */
         uenum_close(e);
     } else {
@@ -4549,7 +3223,7 @@ ucol_getFunctionalEquivalent(char* result, int32_t resultCapacity,
     n = ucol_getFunctionalEquivalent(loc, sizeof(loc), "collation", "de",
                                      &isAvailable, &ec);
     if (assertSuccess("getFunctionalEquivalent", &ec)) {
-        assertEquals("getFunctionalEquivalent(de)", "de", loc);
+        assertEquals("getFunctionalEquivalent(de)", "root", loc);
         assertTrue("getFunctionalEquivalent(de).isAvailable==TRUE",
                    isAvailable == TRUE);
     }
@@ -4557,9 +3231,9 @@ ucol_getFunctionalEquivalent(char* result, int32_t resultCapacity,
     n = ucol_getFunctionalEquivalent(loc, sizeof(loc), "collation", "de_DE",
                                      &isAvailable, &ec);
     if (assertSuccess("getFunctionalEquivalent", &ec)) {
-        assertEquals("getFunctionalEquivalent(de_DE)", "de", loc);
-        assertTrue("getFunctionalEquivalent(de_DE).isAvailable==TRUE",
-                   isAvailable == TRUE);
+        assertEquals("getFunctionalEquivalent(de_DE)", "root", loc);
+        assertTrue("getFunctionalEquivalent(de_DE).isAvailable==FALSE",
+                   isAvailable == FALSE);
     }
 }
 
@@ -4666,7 +3340,7 @@ static void TestBeforeTightening(void) {
 
 }
 
-#if 0
+/*
 &m < a
 &[before 1] a < x <<< X << q <<< Q < z
 assert: m <<< M < x <<< X << q <<< Q < z < a < n
@@ -4724,7 +3398,7 @@ assert:  x <<< X << q <<< Q << m <<< \u24DC <<< M < z < n
 
 &[before 3] \u24DC <<< x <<< X << q <<< Q < z
 assert: m <<< x <<< X <<< \u24DC <<< M  << q <<< Q < z < n
-#endif
+*/
 
 
 #if 0
@@ -4911,9 +3585,20 @@ TestVI5913(void)
     UCollator *coll =NULL;
     uint8_t  resColl[100], expColl[100];
     int32_t  rLen, tLen, ruleLen, sLen, kLen;
-    UChar rule[256]={0x26, 0x62, 0x3c, 0x1FF3, 0};  /* &a<0x1FF3-omega with Ypogegrammeni*/
+    UChar rule[256]={0x26, 0x62, 0x3c, 0x1FF3, 0};  /* &b<0x1FF3-omega with Ypogegrammeni*/
     UChar rule2[256]={0x26, 0x7a, 0x3c, 0x0161, 0};  /* &z<s with caron*/
-    UChar rule3[256]={0x26, 0x7a, 0x3c, 0x0061, 0x00ea, 0};  /* &z<a+e with circumflex.*/
+    /*
+     * Note: Just tailoring &z<ae^ does not work as expected:
+     * The UCA spec requires for discontiguous contractions that they
+     * extend an *existing match* by one combining mark at a time.
+     * Therefore, ae must be a contraction so that the builder finds
+     * discontiguous contractions for ae^, for example with an intervening underdot.
+     * Only then do we get the expected tail closure with a\u1EC7, a\u1EB9\u0302, etc.
+     */
+    UChar rule3[256]={
+        0x26, 0x78, 0x3c, 0x61, 0x65,      /* &x<ae */
+        0x26, 0x7a, 0x3c, 0x0061, 0x00ea,  /* &z<a+e with circumflex.*/
+        0};
     static const UChar tData[][20]={
         {0x1EAC, 0},
         {0x0041, 0x0323, 0x0302, 0},
@@ -5054,18 +3739,22 @@ TestVI5913(void)
     coll = ucol_openRules(rule3, ruleLen, UCOL_OFF, UCOL_TERTIARY, NULL,&status);
     tLen = u_strlen(tailorData3[3]);
     kLen=ucol_getSortKey(coll, tailorData3[3], tLen, expColl, 100);
+    log_verbose("\n Test Data[3] :%s  \tlen: %d key: ", aescstrdup(tailorData3[3], tLen), tLen);
+    for(i = 0; i<kLen; i++) {
+        log_verbose(" %02X", expColl[i]);
+    }
     for (j=4; j<6; j++) {
         tLen = u_strlen(tailorData3[j]);
         rLen = ucol_getSortKey(coll, tailorData3[j], tLen, resColl, 100);
 
         if ( kLen!=rLen || uprv_memcmp(expColl, resColl, rLen*sizeof(uint8_t))!=0 ) {
-            log_err("\n After tailoring Data[%d] :%s  \tlen: %d key: ", j, tailorData[j], tLen);
+            log_err("\n After tailoring Data[%d] :%s  \tlen: %d key: ", j, aescstrdup(tailorData3[j], tLen), tLen);
             for(i = 0; i<rLen; i++) {
                 log_err(" %02X", resColl[i]);
             }
         }
 
-        log_verbose("\n Test Data[%d] :%s  \tlen: %d key: ", j, tailorData[j], tLen);
+        log_verbose("\n Test Data[%d] :%s  \tlen: %d key: ", j, aescstrdup(tailorData3[j], tLen), tLen);
          for(i = 0; i<rLen; i++) {
              log_verbose(" %02X", resColl[i]);
          }
@@ -5082,40 +3771,46 @@ TestTailor6179(void)
     uint8_t  resColl[100];
     int32_t  rLen, tLen, ruleLen;
     /* &[last primary ignorable]<< a  &[first primary ignorable]<<b */
-    UChar rule1[256]={0x26,0x5B,0x6C,0x61,0x73,0x74,0x20,0x70,0x72,0x69,0x6D,0x61,0x72,0x79,
+    static const UChar rule1[]={
+            0x26,0x5B,0x6C,0x61,0x73,0x74,0x20,0x70,0x72,0x69,0x6D,0x61,0x72,0x79,
             0x20,0x69,0x67,0x6E,0x6F,0x72,0x61,0x62,0x6C,0x65,0x5D,0x3C,0x3C,0x20,0x61,0x20,
             0x26,0x5B,0x66,0x69,0x72,0x73,0x74,0x20,0x70,0x72,0x69,0x6D,0x61,0x72,0x79,0x20,
             0x69,0x67,0x6E,0x6F,0x72,0x61,0x62,0x6C,0x65,0x5D,0x3C,0x3C,0x62,0x20, 0};
     /* &[last secondary ignorable]<<< a &[first secondary ignorable]<<<b */
-    UChar rule2[256]={0x26,0x5B,0x6C,0x61,0x73,0x74,0x20,0x73,0x65,0x63,0x6F,0x6E,0x64,0x61,
+    static const UChar rule2[]={
+            0x26,0x5B,0x6C,0x61,0x73,0x74,0x20,0x73,0x65,0x63,0x6F,0x6E,0x64,0x61,
             0x72,0x79,0x20,0x69,0x67,0x6E,0x6F,0x72,0x61,0x62,0x6C,0x65,0x5D,0x3C,0x3C,0x3C,
             0x61,0x20,0x26,0x5B,0x66,0x69,0x72,0x73,0x74,0x20,0x73,0x65,0x63,0x6F,0x6E,
             0x64,0x61,0x72,0x79,0x20,0x69,0x67,0x6E,0x6F,0x72,0x61,0x62,0x6C,0x65,0x5D,0x3C,
             0x3C,0x3C,0x20,0x62,0};
 
-    UChar tData1[][20]={
+    static const UChar tData1[][4]={
         {0x61, 0},
         {0x62, 0},
         { 0xFDD0,0x009E, 0}
     };
-    UChar tData2[][20]={
-            {0x61, 0},
-            {0x62, 0},
-            { 0xFDD0,0x009E, 0}
+    static const UChar tData2[][4]={
+        {0x61, 0},
+        {0x62, 0},
+        { 0xFDD0,0x009E, 0}
      };
 
     /*
      * These values from FractionalUCA.txt will change,
      * and need to be updated here.
+     * TODO: Make this not check for particular sort keys.
+     * Instead, test that we get CEs before & after other ignorables; see ticket #6179.
      */
-    uint8_t firstPrimaryIgnCE[6]={1, 87, 1, 5, 1, 0};
-    uint8_t lastPrimaryIgnCE[6]={1, 0xE3, 0xC9, 1, 5, 0};
-    uint8_t firstSecondaryIgnCE[6]={1, 1, 0x3f, 0x03, 0};
-    uint8_t lastSecondaryIgnCE[6]={1, 1, 0x3f, 0x03, 0};
+    static const uint8_t firstPrimaryIgnCE[]={1, 0x83, 1, 5, 0};
+    static const uint8_t lastPrimaryIgnCE[]={1, 0xFC, 1, 5, 0};
+    static const uint8_t firstSecondaryIgnCE[]={1, 1, 0xfe, 0};
+    static const uint8_t lastSecondaryIgnCE[]={1, 1, 0xff, 0};
+
+    UParseError parseError;
 
     /* Test [Last Primary ignorable] */
 
-    log_verbose("\n\nTailoring test: &[last primary ignorable]<<a  &[first primary ignorable]<<b ");
+    log_verbose("Tailoring test: &[last primary ignorable]<<a  &[first primary ignorable]<<b\n");
     ruleLen = u_strlen(rule1);
     coll = ucol_openRules(rule1, ruleLen, UCOL_OFF, UCOL_TERTIARY, NULL,&status);
     if (U_FAILURE(status)) {
@@ -5124,54 +3819,52 @@ TestTailor6179(void)
     }
     tLen = u_strlen(tData1[0]);
     rLen = ucol_getSortKey(coll, tData1[0], tLen, resColl, 100);
-    if (uprv_memcmp(resColl, lastPrimaryIgnCE, uprv_min(rLen,6)) < 0) {
-        log_err("\n Data[%d] :%s  \tlen: %d key: ", 0, tData1[0], rLen);
+    if (rLen != LEN(lastPrimaryIgnCE) || uprv_memcmp(resColl, lastPrimaryIgnCE, rLen) != 0) {
+        log_err("Bad result for &[lpi]<<a...: Data[%d] :%s  \tlen: %d key: ", 0, tData1[0], rLen);
         for(i = 0; i<rLen; i++) {
             log_err(" %02X", resColl[i]);
         }
+        log_err("\n");
     }
     tLen = u_strlen(tData1[1]);
     rLen = ucol_getSortKey(coll, tData1[1], tLen, resColl, 100);
-    if (uprv_memcmp(resColl, firstPrimaryIgnCE, uprv_min(rLen, 6)) < 0) {
-        log_err("\n Data[%d] :%s  \tlen: %d key: ", 1, tData1[1], rLen);
+    if (rLen != LEN(firstPrimaryIgnCE) || uprv_memcmp(resColl, firstPrimaryIgnCE, rLen) != 0) {
+        log_err("Bad result for &[lpi]<<a...: Data[%d] :%s  \tlen: %d key: ", 1, tData1[1], rLen);
         for(i = 0; i<rLen; i++) {
             log_err(" %02X", resColl[i]);
         }
+        log_err("\n");
     }
     ucol_close(coll);
 
 
     /* Test [Last Secondary ignorable] */
-    log_verbose("\n\nTailoring test: &[last secondary ignorable]<<<a  &[first secondary ignorable]<<<b ");
-    ruleLen = u_strlen(rule1);
-    coll = ucol_openRules(rule2, ruleLen, UCOL_OFF, UCOL_TERTIARY, NULL,&status);
+    log_verbose("Tailoring test: &[last secondary ignorable]<<<a  &[first secondary ignorable]<<<b\n");
+    ruleLen = u_strlen(rule2);
+    coll = ucol_openRules(rule2, ruleLen, UCOL_OFF, UCOL_TERTIARY, &parseError, &status);
     if (U_FAILURE(status)) {
-        log_err("Tailoring test: &[last primary ignorable] failed!");
+        log_err("Tailoring test: &[last secondary ignorable] failed! -> %s\n", u_errorName(status));
+        log_info("  offset=%d  \"%s\" | \"%s\"\n",
+                 parseError.offset, aescstrdup(parseError.preContext, -1), aescstrdup(parseError.postContext, -1));
         return;
     }
     tLen = u_strlen(tData2[0]);
     rLen = ucol_getSortKey(coll, tData2[0], tLen, resColl, 100);
-    log_verbose("\n Data[%d] :%s  \tlen: %d key: ", 0, tData2[0], rLen);
-    for(i = 0; i<rLen; i++) {
-        log_verbose(" %02X", resColl[i]);
-    }
-    if (uprv_memcmp(resColl, lastSecondaryIgnCE, uprv_min(rLen, 3)) < 0) {
-        log_err("\n Data[%d] :%s  \tlen: %d key: ", 0, tData2[0], rLen);
+    if (rLen != LEN(lastSecondaryIgnCE) || uprv_memcmp(resColl, lastSecondaryIgnCE, rLen) != 0) {
+        log_err("Bad result for &[lsi]<<<a...: Data[%d] :%s  \tlen: %d key: ", 0, tData2[0], rLen);
         for(i = 0; i<rLen; i++) {
             log_err(" %02X", resColl[i]);
         }
+        log_err("\n");
     }
     tLen = u_strlen(tData2[1]);
     rLen = ucol_getSortKey(coll, tData2[1], tLen, resColl, 100);
-    log_verbose("\n Data[%d] :%s  \tlen: %d key: ", 1, tData2[1], rLen);
-    for(i = 0; i<rLen; i++) {
-        log_verbose(" %02X", resColl[i]);
-    }
-    if (uprv_memcmp(resColl, firstSecondaryIgnCE, uprv_min(rLen, 4)) < 0) {
-        log_err("\n Data[%d] :%s  \tlen: %d key: ", 1, tData2[1], rLen);
-        for(i = 0; i<rLen; i++) {
-            log_err(" %02X", resColl[i]);
-        }
+    if (rLen != LEN(firstSecondaryIgnCE) || uprv_memcmp(resColl, firstSecondaryIgnCE, rLen) != 0) {
+      log_err("Bad result for &[lsi]<<<a...: Data[%d] :%s  \tlen: %d key: ", 1, tData2[1], rLen);
+      for(i = 0; i<rLen; i++) {
+        log_err(" %02X", resColl[i]);
+      }
+      log_err("\n");
     }
     ucol_close(coll);
 }
@@ -5538,6 +4231,10 @@ static void doTestOneTestCase(const OneTestCase testcases[],
     myCollation = ucol_openRules(rule, length, UCOL_ON, UCOL_TERTIARY, &parse_error, &status);
     if(U_FAILURE(status)){
         log_err_status(status, "ERROR: in creation of rule based collator: %s\n", myErrorName(status));
+        log_info("  offset=%d  \"%s\" | \"%s\"\n",
+                 parse_error.offset,
+                 aescstrdup(parse_error.preContext, -1),
+                 aescstrdup(parse_error.postContext, -1));
         return;
     }
     log_verbose("Testing the <<* syntax\n");
@@ -5583,13 +4280,13 @@ const static OneTestCase rangeTestcases[] = {
 static int nRangeTestcases = LEN(rangeTestcases);
 
 const static OneTestCase rangeTestcasesSupplemental[] = {
-  { {0xfffe},                            {0xffff},                          UCOL_LESS }, /* U+FFFE < U+FFFF */
-  { {0xffff},                            {0xd800, 0xdc00},                  UCOL_LESS }, /* U+FFFF < U+10000 */
+  { {0x4e00},                            {0xfffb},                          UCOL_LESS }, /* U+4E00 < U+FFFB */
+  { {0xfffb},                            {0xd800, 0xdc00},                  UCOL_LESS }, /* U+FFFB < U+10000 */
   { {0xd800, 0xdc00},                    {0xd800, 0xdc01},                  UCOL_LESS }, /* U+10000 < U+10001 */
-  { {0xfffe},                            {0xd800, 0xdc01},                  UCOL_LESS }, /* U+FFFE < U+10001 */
+  { {0x4e00},                            {0xd800, 0xdc01},                  UCOL_LESS }, /* U+4E00 < U+10001 */
   { {0xd800, 0xdc01},                    {0xd800, 0xdc02},                  UCOL_LESS }, /* U+10000 < U+10001 */
   { {0xd800, 0xdc01},                    {0xd800, 0xdc02},                  UCOL_LESS }, /* U+10000 < U+10001 */
-  { {0xfffe},                            {0xd800, 0xdc02},                  UCOL_LESS }, /* U+FFFE < U+10001 */
+  { {0x4e00},                            {0xd800, 0xdc02},                  UCOL_LESS }, /* U+4E00 < U+10001 */
 };
 
 static int nRangeTestcasesSupplemental = LEN(rangeTestcasesSupplemental);
@@ -5646,10 +4343,10 @@ static void TestSameStrengthListQuoted(void)
 static void TestSameStrengthListSupplemental(void)
 {
   const char* strRules[] = {
-    "&\\ufffe<\\uffff<\\U00010000<\\U00010001<\\U00010002",
-    "&\\ufffe<\\uffff<\\ud800\\udc00<\\ud800\\udc01<\\ud800\\udc02",
-    "&\\ufffe<*\\uffff\\U00010000\\U00010001\\U00010002",
-    "&\\ufffe<*\\uffff\\ud800\\udc00\\ud800\\udc01\\ud800\\udc02",
+    "&\\u4e00<\\ufffb<\\U00010000<\\U00010001<\\U00010002",
+    "&\\u4e00<\\ufffb<\\ud800\\udc00<\\ud800\\udc01<\\ud800\\udc02",
+    "&\\u4e00<*\\ufffb\\U00010000\\U00010001\\U00010002",
+    "&\\u4e00<*\\ufffb\\ud800\\udc00\\ud800\\udc01\\ud800\\udc02",
   };
   doTestOneTestCase(rangeTestcasesSupplemental, nRangeTestcasesSupplemental, strRules, LEN(strRules));
 }
@@ -5697,7 +4394,8 @@ static void TestSameStrengthListRanges(void)
 static void TestSameStrengthListSupplementalRanges(void)
 {
   const char* strRules[] = {
-    "&\\ufffe<*\\uffff-\\U00010002",
+    /* Note: U+FFFD..U+FFFF are not tailorable, so a range cannot include them. */
+    "&\\u4e00<*\\ufffb\\U00010000-\\U00010002",
   };
   doTestOneTestCase(rangeTestcasesSupplemental, nRangeTestcasesSupplemental, strRules, LEN(strRules));
 }
@@ -5819,6 +4517,7 @@ static void TestInvalidListsAndRanges(void)
         return;
     }
     myCollation = ucol_openRules(rule, length, UCOL_ON, UCOL_TERTIARY, &parse_error, &status);
+    (void)myCollation;      /* Suppress set but not used warning. */
     if(!U_FAILURE(status)){
       log_err("ERROR: Could not cause a failure as expected: \n");
     }
@@ -5857,6 +4556,8 @@ static void TestBeforeRuleWithScriptReordering(void)
     
     log_verbose("Testing the &[before 1] rule with [reorder grek]\n");
 
+    (void)beforeKeyLength;   /* Suppress set but not used warnings. */
+    (void)baseKeyLength;
 
     /* build collator */
     log_verbose("Testing the &[before 1] rule with [scriptReorder grek]\n");
@@ -5912,7 +4613,6 @@ static void TestNonLeadBytesDuringCollationReordering(void)
     UErrorCode status = U_ZERO_ERROR;
     UCollator  *myCollation;
     int32_t reorderCodes[1] = {USCRIPT_GREEK};
-    UCollationResult collResult;
 
     uint8_t baseKey[256];
     uint32_t baseKeyLength;
@@ -5921,7 +4621,7 @@ static void TestNonLeadBytesDuringCollationReordering(void)
 
     UChar testString[] = { 0x03b1, 0x03b2, 0x03b3 };
     
-    int i;
+    uint32_t i;
 
 
     log_verbose("Testing non-lead bytes in a sort key with and without reordering\n");
@@ -5943,7 +4643,7 @@ static void TestNonLeadBytesDuringCollationReordering(void)
     reorderKeyLength = ucol_getSortKey(myCollation, testString, LEN(testString), reorderKey, 256);
     
     if (baseKeyLength != reorderKeyLength) {
-        log_err("Key lengths not the same during reordering.\n", collResult);
+        log_err("Key lengths not the same during reordering.\n");
         return;
     }
     
@@ -5972,7 +4672,7 @@ static void TestNonLeadBytesDuringCollationReordering(void)
     reorderKeyLength = ucol_getSortKey(myCollation, testString, LEN(testString), reorderKey, 256);
     
     if (baseKeyLength != reorderKeyLength) {
-        log_err("Key lengths not the same during reordering.\n", collResult);
+        log_err("Key lengths not the same during reordering.\n");
         return;
     }
     
@@ -5993,10 +4693,15 @@ static void TestReorderingAPI(void)
     UErrorCode status = U_ZERO_ERROR;
     UCollator  *myCollation;
     int32_t reorderCodes[3] = {USCRIPT_GREEK, USCRIPT_HAN, UCOL_REORDER_CODE_PUNCTUATION};
+    int32_t duplicateReorderCodes[] = {USCRIPT_HIRAGANA, USCRIPT_GREEK, UCOL_REORDER_CODE_CURRENCY, USCRIPT_KATAKANA};
+    int32_t reorderCodesStartingWithDefault[] = {UCOL_REORDER_CODE_DEFAULT, USCRIPT_GREEK, USCRIPT_HAN, UCOL_REORDER_CODE_PUNCTUATION};
+    int32_t reorderCodeNone = UCOL_REORDER_CODE_NONE;
     UCollationResult collResult;
     int32_t retrievedReorderCodesLength;
+    int32_t retrievedReorderCodes[10];
     UChar greekString[] = { 0x03b1 };
     UChar punctuationString[] = { 0x203e };
+    int loopIndex;
 
     log_verbose("Testing non-lead bytes in a sort key with and without reordering\n");
 
@@ -6015,6 +4720,7 @@ static void TestReorderingAPI(void)
         return;
     }
     
+    /* get the reordering */
     retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, NULL, 0, &status);
     if (status != U_BUFFER_OVERFLOW_ERROR) {
         log_err_status(status, "ERROR: getting error codes should have returned U_BUFFER_OVERFLOW_ERROR : %s\n", myErrorName(status));
@@ -6024,6 +4730,22 @@ static void TestReorderingAPI(void)
     if (retrievedReorderCodesLength != LEN(reorderCodes)) {
         log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, LEN(reorderCodes));
         return;
+    }
+    /* now let's really get it */
+    retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, retrievedReorderCodes, LEN(retrievedReorderCodes), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: getting reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (retrievedReorderCodesLength != LEN(reorderCodes)) {
+        log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, LEN(reorderCodes));
+        return;
+    }
+    for (loopIndex = 0; loopIndex < retrievedReorderCodesLength; loopIndex++) {
+        if (retrievedReorderCodes[loopIndex] != reorderCodes[loopIndex]) {
+            log_err_status(status, "ERROR: retrieved reorder code doesn't match set reorder code at index %d\n", loopIndex);
+            return;
+        }
     }
     collResult = ucol_strcoll(myCollation, greekString, LEN(greekString), punctuationString, LEN(punctuationString));
     if (collResult != UCOL_LESS) {
@@ -6038,6 +4760,7 @@ static void TestReorderingAPI(void)
         return;
     }
 
+    /* get the reordering again */
     retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, NULL, 0, &status);
     if (retrievedReorderCodesLength != 0) {
         log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, 0);
@@ -6050,43 +4773,386 @@ static void TestReorderingAPI(void)
         return;
     }
 
+    /* clear the reordering using [NONE] */
+    ucol_setReorderCodes(myCollation, &reorderCodeNone, 1, &status);    
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: setting reorder codes to [NONE]: %s\n", myErrorName(status));
+        return;
+    }
+
+    /* get the reordering again */
+    retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, NULL, 0, &status);
+    if (retrievedReorderCodesLength != 0) {
+        log_err_status(status,
+                       "ERROR: [NONE] retrieved reorder codes length was %d but should have been 0\n",
+                       retrievedReorderCodesLength);
+        return;
+    }
+
+    /* test for error condition on duplicate reorder codes */
+    ucol_setReorderCodes(myCollation, duplicateReorderCodes, LEN(duplicateReorderCodes), &status);
+    if (!U_FAILURE(status)) {
+        log_err_status(status, "ERROR: setting duplicate reorder codes did not generate a failure\n");
+        return;
+    }
+    
+    status = U_ZERO_ERROR;
+    /* test for reorder codes after a reset code */
+    ucol_setReorderCodes(myCollation, reorderCodesStartingWithDefault, LEN(reorderCodesStartingWithDefault), &status);
+    if (!U_FAILURE(status)) {
+        log_err_status(status, "ERROR: reorderd code sequence starting with default and having following codes didn't cause an error\n");
+        return;
+    }
+    
     ucol_close(myCollation);
 }
 
 /*
- * Utility function to test one collation reordering test case.
+ * Test reordering API.
+ */
+static void TestReorderingAPIWithRuleCreatedCollator(void)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    UCollator  *myCollation;
+    UChar rules[90];
+    static const int32_t rulesReorderCodes[2] = {USCRIPT_HAN, USCRIPT_GREEK};
+    static const int32_t reorderCodes[3] = {USCRIPT_GREEK, USCRIPT_HAN, UCOL_REORDER_CODE_PUNCTUATION};
+    static const int32_t onlyDefault[1] = {UCOL_REORDER_CODE_DEFAULT};
+    UCollationResult collResult;
+    int32_t retrievedReorderCodesLength;
+    int32_t retrievedReorderCodes[10];
+    static const UChar greekString[] = { 0x03b1 };
+    static const UChar punctuationString[] = { 0x203e };
+    static const UChar hanString[] = { 0x65E5, 0x672C };
+    int loopIndex;
+
+    log_verbose("Testing non-lead bytes in a sort key with and without reordering\n");
+
+    /* build collator from rules */
+    u_uastrcpy(rules, "[reorder Hani Grek]");
+    myCollation = ucol_openRules(rules, u_strlen(rules), UCOL_DEFAULT, UCOL_TERTIARY, NULL, &status);
+    if(U_FAILURE(status)) {
+        log_err_status(status, "ERROR: in creation of collator: %s\n", myErrorName(status));
+        return;
+    }
+
+    /* get the reordering */
+    retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, retrievedReorderCodes, LEN(retrievedReorderCodes), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: getting reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (retrievedReorderCodesLength != LEN(rulesReorderCodes)) {
+        log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, LEN(rulesReorderCodes));
+        return;
+    }
+    for (loopIndex = 0; loopIndex < retrievedReorderCodesLength; loopIndex++) {
+        if (retrievedReorderCodes[loopIndex] != rulesReorderCodes[loopIndex]) {
+            log_err_status(status, "ERROR: retrieved reorder code doesn't match set reorder code at index %d\n", loopIndex);
+            return;
+        }
+    }
+    collResult = ucol_strcoll(myCollation, greekString, LEN(greekString), hanString, LEN(hanString));
+    if (collResult != UCOL_GREATER) {
+        log_err_status(status, "ERROR: collation result should have been UCOL_GREATER\n");
+        return;
+    }
+
+    /* set the reordering */
+    ucol_setReorderCodes(myCollation, reorderCodes, LEN(reorderCodes), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: setting reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+
+    /* get the reordering */
+    retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, NULL, 0, &status);
+    if (status != U_BUFFER_OVERFLOW_ERROR) {
+        log_err_status(status, "ERROR: getting error codes should have returned U_BUFFER_OVERFLOW_ERROR : %s\n", myErrorName(status));
+        return;
+    }
+    status = U_ZERO_ERROR;
+    if (retrievedReorderCodesLength != LEN(reorderCodes)) {
+        log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, LEN(reorderCodes));
+        return;
+    }
+    /* now let's really get it */
+    retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, retrievedReorderCodes, LEN(retrievedReorderCodes), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: getting reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (retrievedReorderCodesLength != LEN(reorderCodes)) {
+        log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, LEN(reorderCodes));
+        return;
+    }
+    for (loopIndex = 0; loopIndex < retrievedReorderCodesLength; loopIndex++) {
+        if (retrievedReorderCodes[loopIndex] != reorderCodes[loopIndex]) {
+            log_err_status(status, "ERROR: retrieved reorder code doesn't match set reorder code at index %d\n", loopIndex);
+            return;
+        }
+    }
+    collResult = ucol_strcoll(myCollation, greekString, LEN(greekString), punctuationString, LEN(punctuationString));
+    if (collResult != UCOL_LESS) {
+        log_err_status(status, "ERROR: collation result should have been UCOL_LESS\n");
+        return;
+    }
+
+    /* clear the reordering */
+    ucol_setReorderCodes(myCollation, NULL, 0, &status);    
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: setting reorder codes to NULL: %s\n", myErrorName(status));
+        return;
+    }
+
+    /* get the reordering again */
+    retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, NULL, 0, &status);
+    if (retrievedReorderCodesLength != 0) {
+        log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, 0);
+        return;
+    }
+
+    collResult = ucol_strcoll(myCollation, greekString, LEN(greekString), punctuationString, LEN(punctuationString));
+    if (collResult != UCOL_GREATER) {
+        log_err_status(status, "ERROR: collation result should have been UCOL_GREATER\n");
+        return;
+    }
+
+    /* reset the reordering */
+    ucol_setReorderCodes(myCollation, onlyDefault, 1, &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: setting reorder codes to {default}: %s\n", myErrorName(status));
+        return;
+    }
+    retrievedReorderCodesLength = ucol_getReorderCodes(myCollation, retrievedReorderCodes, LEN(retrievedReorderCodes), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: getting reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (retrievedReorderCodesLength != LEN(rulesReorderCodes)) {
+        log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, LEN(rulesReorderCodes));
+        return;
+    }
+    for (loopIndex = 0; loopIndex < retrievedReorderCodesLength; loopIndex++) {
+        if (retrievedReorderCodes[loopIndex] != rulesReorderCodes[loopIndex]) {
+            log_err_status(status, "ERROR: retrieved reorder code doesn't match set reorder code at index %d\n", loopIndex);
+            return;
+        }
+    }
+
+    ucol_close(myCollation);
+}
+
+static UBool containsExpectedScript(const int32_t scripts[], int32_t length, int32_t expectedScript) {
+    int32_t i;
+    for (i = 0; i < length; ++i) {
+        if (expectedScript == scripts[i]) { return TRUE; }
+    }
+    return FALSE;
+}
+
+static void TestEquivalentReorderingScripts(void) {
+    // Beginning with ICU 55, collation reordering moves single scripts
+    // rather than groups of scripts,
+    // except where scripts share a range and sort primary-equal.
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t equivalentScripts[100];
+    int32_t length;
+    int i;
+    int32_t prevScript;
+    /* These scripts are expected to be equivalent. */
+    static const int32_t expectedScripts[] = {
+        USCRIPT_HIRAGANA,
+        USCRIPT_KATAKANA,
+        USCRIPT_KATAKANA_OR_HIRAGANA
+    };
+
+    equivalentScripts[0] = 0;
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_GOTHIC, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR/Gothic: retrieving equivalent reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (length != 1 || equivalentScripts[0] != USCRIPT_GOTHIC) {
+        log_err("ERROR/Gothic: retrieved equivalent scripts wrong: "
+                "length expected 1, was = %d; expected [%d] was [%d]\n",
+                length, USCRIPT_GOTHIC, equivalentScripts[0]);
+    }
+
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_HIRAGANA, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR/Hiragana: retrieving equivalent reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (length != LEN(expectedScripts)) {
+        log_err("ERROR/Hiragana: retrieved equivalent script length wrong: "
+                "expected %d, was = %d\n",
+                LEN(expectedScripts), length);
+    }
+    prevScript = -1;
+    for (i = 0; i < length; ++i) {
+        int32_t script = equivalentScripts[i];
+        if (script <= prevScript) {
+            log_err("ERROR/Hiragana: equivalent scripts out of order at index %d\n", i);
+        }
+        prevScript = script;
+    }
+    for (i = 0; i < LEN(expectedScripts); i++) {
+        if (!containsExpectedScript(equivalentScripts, length, expectedScripts[i])) {
+            log_err("ERROR/Hiragana: equivalent scripts do not contain %d\n",
+                    expectedScripts[i]);
+        }
+    }
+
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_KATAKANA, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR/Katakana: retrieving equivalent reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (length != LEN(expectedScripts)) {
+        log_err("ERROR/Katakana: retrieved equivalent script length wrong: "
+                "expected %d, was = %d\n",
+                LEN(expectedScripts), length);
+    }
+    for (i = 0; i < LEN(expectedScripts); i++) {
+        if (!containsExpectedScript(equivalentScripts, length, expectedScripts[i])) {
+            log_err("ERROR/Katakana: equivalent scripts do not contain %d\n",
+                    expectedScripts[i]);
+        }
+    }
+
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_KATAKANA_OR_HIRAGANA, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status) || length != LEN(expectedScripts)) {
+        log_err("ERROR/Hrkt: retrieved equivalent script length wrong: "
+                "expected %d, was = %d\n",
+                LEN(expectedScripts), length);
+    }
+
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_HAN, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status) || length != 3) {
+        log_err("ERROR/Hani: retrieved equivalent script length wrong: "
+                "expected 3, was = %d\n", length);
+    }
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_SIMPLIFIED_HAN, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status) || length != 3) {
+        log_err("ERROR/Hans: retrieved equivalent script length wrong: "
+                "expected 3, was = %d\n", length);
+    }
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_TRADITIONAL_HAN, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status) || length != 3) {
+        log_err("ERROR/Hant: retrieved equivalent script length wrong: "
+                "expected 3, was = %d\n", length);
+    }
+
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_MEROITIC_CURSIVE, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status) || length != 2) {
+        log_err("ERROR/Merc: retrieved equivalent script length wrong: "
+                "expected 2, was = %d\n", length);
+    }
+    length = ucol_getEquivalentReorderCodes(
+            USCRIPT_MEROITIC_HIEROGLYPHS, equivalentScripts, LEN(equivalentScripts), &status);
+    if (U_FAILURE(status) || length != 2) {
+        log_err("ERROR/Mero: retrieved equivalent script length wrong: "
+                "expected 2, was = %d\n", length);
+    }
+}
+
+static void TestReorderingAcrossCloning(void) 
+{
+    UErrorCode status = U_ZERO_ERROR;
+    UCollator  *myCollation;
+    int32_t reorderCodes[3] = {USCRIPT_GREEK, USCRIPT_HAN, UCOL_REORDER_CODE_PUNCTUATION};
+    UCollator *clonedCollation;
+    int32_t retrievedReorderCodesLength;
+    int32_t retrievedReorderCodes[10];
+    int loopIndex;
+
+    log_verbose("Testing non-lead bytes in a sort key with and without reordering\n");
+
+    /* build collator tertiary */
+    myCollation = ucol_open("", &status);
+    ucol_setStrength(myCollation, UCOL_TERTIARY);
+    if(U_FAILURE(status)) {
+        log_err_status(status, "ERROR: in creation of collator: %s\n", myErrorName(status));
+        return;
+    }
+
+    /* set the reorderding */
+    ucol_setReorderCodes(myCollation, reorderCodes, LEN(reorderCodes), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: setting reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    
+    /* clone the collator */
+    clonedCollation = ucol_safeClone(myCollation, NULL, NULL, &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: cloning collator: %s\n", myErrorName(status));
+        return;
+    }
+    
+    /* get the reordering */
+    retrievedReorderCodesLength = ucol_getReorderCodes(clonedCollation, retrievedReorderCodes, LEN(retrievedReorderCodes), &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: getting reorder codes: %s\n", myErrorName(status));
+        return;
+    }
+    if (retrievedReorderCodesLength != LEN(reorderCodes)) {
+        log_err_status(status, "ERROR: retrieved reorder codes length was %d but should have been %d\n", retrievedReorderCodesLength, LEN(reorderCodes));
+        return;
+    }
+    for (loopIndex = 0; loopIndex < retrievedReorderCodesLength; loopIndex++) {
+        if (retrievedReorderCodes[loopIndex] != reorderCodes[loopIndex]) {
+            log_err_status(status, "ERROR: retrieved reorder code doesn't match set reorder code at index %d\n", loopIndex);
+            return;
+        }
+    }
+    
+    /*uprv_free(buffer);*/
+    ucol_close(myCollation);
+    ucol_close(clonedCollation);
+}
+
+/*
+ * Utility function to test one collation reordering test case set.
  * @param testcases Array of test cases.
  * @param n_testcases Size of the array testcases.
- * @param str_rules Array of rules.  These rules should be specifying the same rule in different formats.
- * @param n_rules Size of the array str_rules.
+ * @param reorderTokens Array of reordering codes.
+ * @param reorderTokensLen Size of the array reorderTokens.
  */
 static void doTestOneReorderingAPITestCase(const OneTestCase testCases[], uint32_t testCasesLen, const int32_t reorderTokens[], int32_t reorderTokensLen)
 {
-    int testCaseNum;
+    uint32_t testCaseNum;
     UErrorCode status = U_ZERO_ERROR;
     UCollator  *myCollation;
 
-    for (testCaseNum = 0; testCaseNum < testCasesLen; ++testCaseNum) {
-        myCollation = ucol_open("", &status);
-        if (U_FAILURE(status)) {
-            log_err_status(status, "ERROR: in creation of collator: %s\n", myErrorName(status));
-            return;
-        }
-        ucol_setReorderCodes(myCollation, reorderTokens, reorderTokensLen, &status);
-        if(U_FAILURE(status)) {
-            log_err_status(status, "ERROR: while setting script order: %s\n", myErrorName(status));
-            return;
-        }
-        
-        for (testCaseNum = 0; testCaseNum < testCasesLen; ++testCaseNum) {
-            doTest(myCollation,
-                testCases[testCaseNum].source,
-                testCases[testCaseNum].target,
-                testCases[testCaseNum].result
-            );
-        }
-        ucol_close(myCollation);
+    myCollation = ucol_open("", &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: in creation of collator: %s\n", myErrorName(status));
+        return;
     }
+    ucol_setReorderCodes(myCollation, reorderTokens, reorderTokensLen, &status);
+    if(U_FAILURE(status)) {
+        log_err_status(status, "ERROR: while setting script order: %s\n", myErrorName(status));
+        return;
+    }
+        
+    for (testCaseNum = 0; testCaseNum < testCasesLen; ++testCaseNum) {
+        doTest(myCollation,
+            testCases[testCaseNum].source,
+            testCases[testCaseNum].target,
+            testCases[testCaseNum].result
+        );
+    }
+    ucol_close(myCollation);
 }
 
 static void TestGreekFirstReorder(void)
@@ -6193,6 +5259,134 @@ static void TestHaniReorder(void)
     doTestOneReorderingAPITestCase(privateUseCharacterStrings, LEN(privateUseCharacterStrings), apiRules, LEN(apiRules));
 }
 
+static void TestHaniReorderWithOtherRules(void)
+{
+    const char* strRules[] = {
+        "[reorder Hani] &b<a"
+    };
+    /*const int32_t apiRules[] = {
+        USCRIPT_HAN
+    };*/
+
+    const static OneTestCase privateUseCharacterStrings[] = {
+        { {0x4e00}, {0x0041}, UCOL_LESS },
+        { {0x4e00}, {0x0060}, UCOL_GREATER },
+        { {0xD86D, 0xDF40}, {0x0041}, UCOL_LESS },
+        { {0xD86D, 0xDF40}, {0x0060}, UCOL_GREATER },
+        { {0x4e00}, {0xD86D, 0xDF40}, UCOL_LESS },
+        { {0xfa27}, {0x0041}, UCOL_LESS },
+        { {0xD869, 0xDF00}, {0x0041}, UCOL_LESS },
+        { {0x0062}, {0x0061}, UCOL_LESS },
+    };
+    
+    /* Test rules creation */
+    doTestOneTestCase(privateUseCharacterStrings, LEN(privateUseCharacterStrings), strRules, LEN(strRules));
+}
+
+static void TestMultipleReorder(void)
+{
+    const char* strRules[] = {
+        "[reorder Grek Zzzz DIGIT Latn Hani]"
+    };
+
+    const int32_t apiRules[] = {
+        USCRIPT_GREEK, USCRIPT_UNKNOWN, UCOL_REORDER_CODE_DIGIT, USCRIPT_LATIN, USCRIPT_HAN
+    };
+        
+    const static OneTestCase collationTestCases[] = {
+        { {0x0391}, {0x0041}, UCOL_LESS},
+        { {0x0031}, {0x0041}, UCOL_LESS},
+        { {0x0041}, {0x4e00}, UCOL_LESS},
+    };
+
+    /* Test rules creation */
+    doTestOneTestCase(collationTestCases, LEN(collationTestCases), strRules, LEN(strRules));
+
+    /* Test collation reordering API */
+    doTestOneReorderingAPITestCase(collationTestCases, LEN(collationTestCases), apiRules, LEN(apiRules));
+}
+
+/*
+ * Test that covers issue reported in ticket 8814
+ */
+static void TestReorderWithNumericCollation(void)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    UCollator  *myCollation;
+    UCollator  *myReorderCollation;
+    int32_t reorderCodes[] = {UCOL_REORDER_CODE_SPACE, UCOL_REORDER_CODE_PUNCTUATION, UCOL_REORDER_CODE_SYMBOL, UCOL_REORDER_CODE_DIGIT, USCRIPT_GREEK,USCRIPT_LATIN, USCRIPT_HEBREW, UCOL_REORDER_CODE_OTHERS};
+    /* UChar fortyS[] = { 0x0034, 0x0030, 0x0053 };
+    UChar fortyThreeP[] = { 0x0034, 0x0033, 0x0050 }; */
+    UChar fortyS[] = { 0x0053 };
+    UChar fortyThreeP[] = { 0x0050 };
+    uint8_t fortyS_sortKey[128];
+    int32_t fortyS_sortKey_Length;
+    uint8_t fortyThreeP_sortKey[128];
+    int32_t fortyThreeP_sortKey_Length;
+    uint8_t fortyS_sortKey_reorder[128];
+    int32_t fortyS_sortKey_reorder_Length;
+    uint8_t fortyThreeP_sortKey_reorder[128];
+    int32_t fortyThreeP_sortKey_reorder_Length;
+    UCollationResult collResult;
+    UCollationResult collResultReorder;
+
+    log_verbose("Testing reordering with and without numeric collation\n");
+
+    /* build collator tertiary with numeric */
+    myCollation = ucol_open("", &status);
+    /*
+    ucol_setStrength(myCollation, UCOL_TERTIARY);
+    */
+    ucol_setAttribute(myCollation, UCOL_NUMERIC_COLLATION, UCOL_ON, &status);
+    if(U_FAILURE(status)) {
+        log_err_status(status, "ERROR: in creation of collator: %s\n", myErrorName(status));
+        return;
+    }
+    
+    /* build collator tertiary with numeric and reordering */
+    myReorderCollation = ucol_open("", &status);
+    /*
+    ucol_setStrength(myReorderCollation, UCOL_TERTIARY);
+    */
+    ucol_setAttribute(myReorderCollation, UCOL_NUMERIC_COLLATION, UCOL_ON, &status);
+    ucol_setReorderCodes(myReorderCollation, reorderCodes, LEN(reorderCodes), &status);
+    if(U_FAILURE(status)) {
+        log_err_status(status, "ERROR: in creation of collator: %s\n", myErrorName(status));
+        return;
+    }
+    
+    fortyS_sortKey_Length = ucol_getSortKey(myCollation, fortyS, LEN(fortyS), fortyS_sortKey, 128);
+    fortyThreeP_sortKey_Length = ucol_getSortKey(myCollation, fortyThreeP, LEN(fortyThreeP), fortyThreeP_sortKey, 128);
+    fortyS_sortKey_reorder_Length = ucol_getSortKey(myReorderCollation, fortyS, LEN(fortyS), fortyS_sortKey_reorder, 128);
+    fortyThreeP_sortKey_reorder_Length = ucol_getSortKey(myReorderCollation, fortyThreeP, LEN(fortyThreeP), fortyThreeP_sortKey_reorder, 128);
+
+    if (fortyS_sortKey_Length < 0 || fortyThreeP_sortKey_Length < 0 || fortyS_sortKey_reorder_Length < 0 || fortyThreeP_sortKey_reorder_Length < 0) {
+        log_err_status(status, "ERROR: couldn't generate sort keys\n");
+        return;
+    }
+    collResult = ucol_strcoll(myCollation, fortyS, LEN(fortyS), fortyThreeP, LEN(fortyThreeP));
+    collResultReorder = ucol_strcoll(myReorderCollation, fortyS, LEN(fortyS), fortyThreeP, LEN(fortyThreeP));
+    /*
+    fprintf(stderr, "\tcollResult = %x\n", collResult);
+    fprintf(stderr, "\tcollResultReorder = %x\n", collResultReorder);
+    fprintf(stderr, "\nfortyS\n");
+    for (i = 0; i < fortyS_sortKey_Length; i++) {
+        fprintf(stderr, "%x --- %x\n", fortyS_sortKey[i], fortyS_sortKey_reorder[i]);
+    }
+    fprintf(stderr, "\nfortyThreeP\n");
+    for (i = 0; i < fortyThreeP_sortKey_Length; i++) {
+        fprintf(stderr, "%x --- %x\n", fortyThreeP_sortKey[i], fortyThreeP_sortKey_reorder[i]);
+    }
+    */
+    if (collResult != collResultReorder) {
+        log_err_status(status, "ERROR: collation results should have been the same.\n");
+        return;
+    }
+    
+    ucol_close(myCollation);
+    ucol_close(myReorderCollation);
+}
+
 static int compare_uint8_t_arrays(const uint8_t* a, const uint8_t* b)
 {
   for (; *a == *b; ++a, ++b) {
@@ -6202,6 +5396,134 @@ static int compare_uint8_t_arrays(const uint8_t* a, const uint8_t* b)
   }
   return (*a < *b ? -1 : 1);
 }
+
+static void TestImportRulesDeWithPhonebook(void)
+{
+  const char* normalRules[] = {
+    "&a<\\u00e6<\\u00c6<\\u00dc<\\u00fc",
+    "&a<<\\u00e6<<\\u00c6<<\\u00dc<<\\u00fc",
+    "&a<<\\u00e6<<<\\u00c6<<\\u00dc<<\\u00fc",
+  };
+  const OneTestCase normalTests[] = {
+    { {0x00e6}, {0x00c6}, UCOL_LESS},
+    { {0x00fc}, {0x00dc}, UCOL_GREATER},
+  };
+
+  const char* importRules[] = {
+    "&a<\\u00e6<\\u00c6<\\u00dc<\\u00fc[import de-u-co-phonebk]",
+    "&a<<\\u00e6<<\\u00c6<<\\u00dc<<\\u00fc[import de-u-co-phonebk]",
+    "&a<<\\u00e6<<<\\u00c6<<\\u00dc<<\\u00fc[import de-u-co-phonebk]",
+  };
+  const OneTestCase importTests[] = {
+    { {0x00e6}, {0x00c6}, UCOL_LESS},
+    { {0x00fc}, {0x00dc}, UCOL_LESS},
+  };
+
+  doTestOneTestCase(normalTests, LEN(normalTests), normalRules, LEN(normalRules));
+  doTestOneTestCase(importTests, LEN(importTests), importRules, LEN(importRules));
+}
+
+#if 0
+static void TestImportRulesFiWithEor(void)
+{
+  /* DUCET. */
+  const char* defaultRules[] = {
+    "&a<b",                                    /* Dummy rule. */
+  };
+
+  const OneTestCase defaultTests[] = {
+    { {0x0110}, {0x00F0}, UCOL_LESS},
+    { {0x00a3}, {0x00a5}, UCOL_LESS},
+    { {0x0061}, {0x0061, 0x00a3}, UCOL_LESS},
+  };
+
+  /* European Ordering rules: ignore currency characters. */
+  const char* eorRules[] = {
+    "[import root-u-co-eor]",
+  };
+
+  const OneTestCase eorTests[] = {
+    { {0x0110}, {0x00F0}, UCOL_LESS},
+    { {0x00a3}, {0x00a5}, UCOL_EQUAL},
+    { {0x0061}, {0x0061, 0x00a3}, UCOL_EQUAL},
+  };
+
+  const char* fiStdRules[] = {
+    "[import fi-u-co-standard]",
+  };
+
+  const OneTestCase fiStdTests[] = {
+    { {0x0110}, {0x00F0}, UCOL_GREATER},
+    { {0x00a3}, {0x00a5}, UCOL_LESS},
+    { {0x0061}, {0x0061, 0x00a3}, UCOL_LESS},
+  };
+
+  /* Both European Ordering Rules and Fi Standard Rules. */
+  const char* eorFiStdRules[] = {
+    "[import root-u-co-eor][import fi-u-co-standard]",
+  };
+
+  /* This is essentially same as the one before once fi.txt is updated with import. */
+  const char* fiEorRules[] = {
+    "[import fi-u-co-eor]",
+  };
+
+  const OneTestCase fiEorTests[] = {
+    { {0x0110}, {0x00F0}, UCOL_GREATER},
+    { {0x00a3}, {0x00a5}, UCOL_EQUAL},
+    { {0x0061}, {0x0061, 0x00a3}, UCOL_EQUAL},
+  };
+
+  doTestOneTestCase(defaultTests, LEN(defaultTests), defaultRules, LEN(defaultRules));
+  doTestOneTestCase(eorTests, LEN(eorTests), eorRules, LEN(eorRules));
+  doTestOneTestCase(fiStdTests, LEN(fiStdTests), fiStdRules, LEN(fiStdRules));
+  doTestOneTestCase(fiEorTests, LEN(fiEorTests), eorFiStdRules, LEN(eorFiStdRules));
+
+  log_knownIssue("8962", NULL);
+  /* TODO: Fix ICU ticket #8962 by uncommenting the following test after fi.txt is updated with the following rule:
+        eor{
+            Sequence{
+                "[import root-u-co-eor][import fi-u-co-standard]"
+            }
+            Version{"21.0"}
+        }
+  */
+  /* doTestOneTestCase(fiEorTests, LEN(fiEorTests), fiEorRules, LEN(fiEorRules)); */
+
+}
+#endif
+
+#if 0
+/*
+ * This test case tests inclusion with the unihan rules, but this cannot be included now, unless
+ * the resource files are built with -includeUnihanColl option.
+ * TODO: Uncomment this function and make it work when unihan rules are built by default.
+ */
+static void TestImportRulesCJKWithUnihan(void)
+{
+  /* DUCET. */
+  const char* defaultRules[] = {
+    "&a<b",                                    /* Dummy rule. */
+  };
+
+  const OneTestCase defaultTests[] = {
+    { {0x3402}, {0x4e1e}, UCOL_GREATER},
+  };
+
+  /* European Ordering rules: ignore currency characters. */
+  const char* unihanRules[] = {
+    "[import ko-u-co-unihan]",
+  };
+
+  const OneTestCase unihanTests[] = {
+    { {0x3402}, {0x4e1e}, UCOL_LESS},
+  };
+
+  doTestOneTestCase(defaultTests, LEN(defaultTests), defaultRules, LEN(defaultRules));
+  doTestOneTestCase(unihanTests, LEN(unihanTests), unihanRules, LEN(unihanRules));
+
+}
+#endif
 
 static void TestImport(void)
 {
@@ -6242,6 +5564,11 @@ static void TestImport(void)
     }
 
     virules = (UChar*) ucol_getRules(vicoll, &viruleslength);
+    if(viruleslength == 0) {
+        log_data_err("missing vi tailoring rule string\n");
+        ucol_close(vicoll);
+        return;
+    }
     escoll = ucol_open("es", &status);
     esrules = (UChar*) ucol_getRules(escoll, &esruleslength);
     viesrules = (UChar*)uprv_malloc((viruleslength+esruleslength+1)*sizeof(UChar*));
@@ -6276,6 +5603,7 @@ static void TestImport(void)
             for (; start <= end; start++){
                 k = 0;
                 U16_APPEND(str, k, 500, start, b);
+                (void)b;    /* Suppress set but not used warning. */
                 ucol_getSortKey(viescoll, str, 1, sk1, 500);
                 ucol_getSortKey(importviescoll, str, 1, sk2, 500);
                 if(compare_uint8_t_arrays(sk1, sk2) != 0){
@@ -6340,6 +5668,11 @@ static void TestImportWithType(void)
         return;
     }
     virules = ucol_getRules(vicoll, &viruleslength);
+    if(viruleslength == 0) {
+        log_data_err("missing vi tailoring rule string\n");
+        ucol_close(vicoll);
+        return;
+    }
     /* decoll = ucol_open("de@collation=phonebook", &status); */
     decoll = ucol_open("de-u-co-phonebk", &status);
     if(U_FAILURE(status)){
@@ -6407,9 +5740,132 @@ static void TestImportWithType(void)
     ucol_close(importvidecoll);
     ucol_close(vicoll);
     ucol_close(decoll);
-
 }
 
+/* 'IV INTERNATIONAL SCIENTIFIC - PRACTICAL CONFERENCE "GEOPOLITICS, GEOECONOMICS AND INTERNATIONAL RELATIONS PROBLEMS" 22-23 June 2010, St. Petersburg, Russia' */
+static const UChar longUpperStr1[]= { /* 155 chars */
+    0x49, 0x56, 0x20, 0x49, 0x4E, 0x54, 0x45, 0x52, 0x4E, 0x41, 0x54, 0x49, 0x4F, 0x4E, 0x41, 0x4C,
+    0x20, 0x53, 0x43, 0x49, 0x45, 0x4E, 0x54, 0x49, 0x46, 0x49, 0x43, 0x20, 0x2D, 0x20, 0x50, 0x52,
+    0x41, 0x43, 0x54, 0x49, 0x43, 0x41, 0x4C, 0x20, 0x43, 0x4F, 0x4E, 0x46, 0x45, 0x52, 0x45, 0x4E,
+    0x43, 0x45, 0x20, 0x22, 0x47, 0x45, 0x4F, 0x50, 0x4F, 0x4C, 0x49, 0x54, 0x49, 0x43, 0x53, 0x2C,
+    0x20, 0x47, 0x45, 0x4F, 0x45, 0x43, 0x4F, 0x4E, 0x4F, 0x4D, 0x49, 0x43, 0x53, 0x20, 0x41, 0x4E,
+    0x44, 0x20, 0x49, 0x4E, 0x54, 0x45, 0x52, 0x4E, 0x41, 0x54, 0x49, 0x4F, 0x4E, 0x41, 0x4C, 0x20,
+    0x52, 0x45, 0x4C, 0x41, 0x54, 0x49, 0x4F, 0x4E, 0x53, 0x20, 0x50, 0x52, 0x4F, 0x42, 0x4C, 0x45,
+    0x4D, 0x53, 0x22, 0x20, 0x32, 0x32, 0x2D, 0x32, 0x33, 0x20, 0x4A, 0x75, 0x6E, 0x65, 0x20, 0x32,
+    0x30, 0x31, 0x30, 0x2C, 0x20, 0x53, 0x74, 0x2E, 0x20, 0x50, 0x65, 0x74, 0x65, 0x72, 0x73, 0x62,
+    0x75, 0x72, 0x67, 0x2C, 0x20, 0x52, 0x75, 0x73, 0x73, 0x69, 0x61
+};
+
+/* 'BACEDIFOGUHAJEKILOMUNAPE ' with diacritics on vowels, repeated 5 times */
+static const UChar longUpperStr2[]= { /* 125 chars, > 128 collation elements */
+    0x42,0xC1,0x43,0xC9,0x44,0xCD,0x46,0xD3,0x47,0xDA,0x48,0xC0,0x4A,0xC8,0x4B,0xCC,0x4C,0xD2,0x4D,0xD9,0x4E,0xC2,0x50,0xCA,0x20,
+    0x42,0xC1,0x43,0xC9,0x44,0xCD,0x46,0xD3,0x47,0xDA,0x48,0xC0,0x4A,0xC8,0x4B,0xCC,0x4C,0xD2,0x4D,0xD9,0x4E,0xC2,0x50,0xCA,0x20,
+    0x42,0xC1,0x43,0xC9,0x44,0xCD,0x46,0xD3,0x47,0xDA,0x48,0xC0,0x4A,0xC8,0x4B,0xCC,0x4C,0xD2,0x4D,0xD9,0x4E,0xC2,0x50,0xCA,0x20,
+    0x42,0xC1,0x43,0xC9,0x44,0xCD,0x46,0xD3,0x47,0xDA,0x48,0xC0,0x4A,0xC8,0x4B,0xCC,0x4C,0xD2,0x4D,0xD9,0x4E,0xC2,0x50,0xCA,0x20,
+    0x42,0xC1,0x43,0xC9,0x44,0xCD,0x46,0xD3,0x47,0xDA,0x48,0xC0,0x4A,0xC8,0x4B,0xCC,0x4C,0xD2,0x4D,0xD9,0x4E,0xC2,0x50,0xCA,0x20
+};
+
+/* 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ' repeated 12 times */
+static const UChar longUpperStr3[]= { /* 324 chars */
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20,
+    0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5A,0x20
+};
+
+#define MY_ARRAY_LEN(array) (sizeof(array)/sizeof(array[0]))
+
+typedef struct {
+    const UChar * longUpperStrPtr;
+    int32_t       longUpperStrLen;
+} LongUpperStrItem;
+
+/* String pointers must be in reverse collation order of the corresponding strings */
+static const LongUpperStrItem longUpperStrItems[] = {
+    { longUpperStr1, MY_ARRAY_LEN(longUpperStr1) },
+    { longUpperStr2, MY_ARRAY_LEN(longUpperStr2) },
+    { longUpperStr3, MY_ARRAY_LEN(longUpperStr3) },
+    { NULL,          0                           }
+};
+
+enum { kCollKeyLenMax = 850 }; /* may change with collation changes */
+
+/* Text fix for #8445; without fix, could have crash due to stack or heap corruption */
+static void TestCaseLevelBufferOverflow(void)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    UCollator * ucol = ucol_open("root", &status);
+    if ( U_SUCCESS(status) ) {
+        ucol_setAttribute(ucol, UCOL_CASE_LEVEL, UCOL_ON, &status);
+        if ( U_SUCCESS(status) ) {
+            const LongUpperStrItem * itemPtr;
+            uint8_t sortKeyA[kCollKeyLenMax], sortKeyB[kCollKeyLenMax];
+            for ( itemPtr = longUpperStrItems; itemPtr->longUpperStrPtr != NULL; itemPtr++ ) {
+                int32_t sortKeyLen;
+                if (itemPtr > longUpperStrItems) {
+                    uprv_strcpy((char *)sortKeyB, (char *)sortKeyA);
+                }
+                sortKeyLen = ucol_getSortKey(ucol, itemPtr->longUpperStrPtr, itemPtr->longUpperStrLen, sortKeyA, kCollKeyLenMax);
+                if (sortKeyLen <= 0 || sortKeyLen > kCollKeyLenMax) {
+                    log_err("ERROR sort key length from ucol_getSortKey is %d\n", sortKeyLen);
+                    break;
+                }
+                if ( itemPtr > longUpperStrItems ) {
+                    int compareResult = uprv_strcmp((char *)sortKeyA, (char *)sortKeyB);
+                    if (compareResult >= 0) {
+                        log_err("ERROR in sort key comparison result, expected -1, got %d\n", compareResult);
+                    }
+                }
+            }
+        } else {
+            log_err_status(status, "ERROR in ucol_setAttribute UCOL_CASE_LEVEL on: %s\n", myErrorName(status));
+        }
+        ucol_close(ucol);
+    } else {
+        log_err_status(status, "ERROR in ucol_open for root: %s\n", myErrorName(status));
+    }
+}
+
+/* Test for #10595 */
+static const UChar testJapaneseName[] = {0x4F50, 0x3005, 0x6728, 0x002C, 0x6B66, 0}; /* Sa sa Ki, Takeshi */
+#define KEY_PART_SIZE 16
+
+static void TestNextSortKeyPartJaIdentical(void)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    UCollator *coll;
+    uint8_t keyPart[KEY_PART_SIZE];
+    UCharIterator iter;
+    uint32_t state[2] = {0, 0};
+    int32_t keyPartLen;
+    
+    coll = ucol_open("ja", &status);
+    ucol_setAttribute(coll, UCOL_STRENGTH, UCOL_IDENTICAL, &status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "ERROR: in creation of Japanese collator with identical strength: %s\n", myErrorName(status));
+        return;
+    }
+
+    uiter_setString(&iter, testJapaneseName, 5);
+    keyPartLen = KEY_PART_SIZE;
+    while (keyPartLen == KEY_PART_SIZE) {
+        keyPartLen = ucol_nextSortKeyPart(coll, &iter, state, keyPart, KEY_PART_SIZE, &status);
+        if (U_FAILURE(status)) {
+            log_err_status(status, "ERROR: in iterating next sort key part: %s\n", myErrorName(status));
+            break;
+        }
+    }
+
+    ucol_close(coll);
+}
 
 #define TEST(x) addTest(root, &x, "tscoll/cmsccoll/" # x)
 
@@ -6427,6 +5883,7 @@ void addMiscCollTest(TestNode** root)
     TEST(TestExtremeCompression);
     TEST(TestSurrogates);
     TEST(TestVariableTopSetting);
+    TEST(TestMaxVariable);
     TEST(TestBocsuCoverage);
     TEST(TestCyrillicTailoring);
     TEST(TestCase);
@@ -6434,9 +5891,6 @@ void addMiscCollTest(TestNode** root)
     TEST(BlackBirdTest);
     TEST(FunkyATest);
     TEST(BillFairmanTest);
-    TEST(RamsRulesTest);
-    TEST(IsTailoredTest);
-    TEST(TestCollations);
     TEST(TestChMove);
     TEST(TestImplicitTailoring);
     TEST(TestFCDProblem);
@@ -6445,8 +5899,6 @@ void addMiscCollTest(TestNode** root)
     TEST(TestJ815);
     /*TEST(TestJ831);*/ /* we changed lv locale */
     TEST(TestBefore);
-    TEST(TestRedundantRules);
-    TEST(TestExpansionSyntax);
     TEST(TestHangulTailoring);
     TEST(TestUCARules);
     TEST(TestIncrementalNormalize);
@@ -6468,7 +5920,6 @@ void addMiscCollTest(TestNode** root)
     TEST(TestNumericCollation);
     TEST(TestTibetanConformance);
     TEST(TestPinyinProblem);
-    TEST(TestImplicitGeneration);
     TEST(TestSeparateTrees);
     TEST(TestBeforePinyin);
     TEST(TestBeforeTightening);
@@ -6499,16 +5950,28 @@ void addMiscCollTest(TestNode** root)
     TEST(TestPrivateUseCharactersInList);
     TEST(TestPrivateUseCharactersInRange);
     TEST(TestInvalidListsAndRanges);
+    TEST(TestImportRulesDeWithPhonebook);
+    /* TEST(TestImportRulesFiWithEor); EOR rules removed from CLDR 21 */
+    /* TEST(TestImportRulesCJKWithUnihan); */
     TEST(TestImport);
     TEST(TestImportWithType);
 
     TEST(TestBeforeRuleWithScriptReordering);
     TEST(TestNonLeadBytesDuringCollationReordering);
     TEST(TestReorderingAPI);
+    TEST(TestReorderingAPIWithRuleCreatedCollator);
+    TEST(TestEquivalentReorderingScripts);
     TEST(TestGreekFirstReorder);
     TEST(TestGreekLastReorder);
     TEST(TestNonScriptReorder);
     TEST(TestHaniReorder);
+    TEST(TestHaniReorderWithOtherRules);
+    TEST(TestMultipleReorder);
+    TEST(TestReorderingAcrossCloning);
+    TEST(TestReorderWithNumericCollation);
+    
+    TEST(TestCaseLevelBufferOverflow);
+    TEST(TestNextSortKeyPartJaIdentical);
 }
 
 #endif /* #if !UCONFIG_NO_COLLATION */

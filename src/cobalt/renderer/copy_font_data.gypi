@@ -28,6 +28,16 @@
         '<(static_contents_source_dir)/fonts/<(cobalt_font_package)/fonts.xml',
       ],
       'conditions': [
+        [ 'cobalt_font_package == "android_system"', {
+          'files+': [
+            # Only include minimal fonts in cobalt content, but fonts.xml
+            # contains a superset of what we expect to find on Android devices.
+            # The Android SbFile implementation falls back to system font files
+            # for those not in cobalt content.
+            '<(source_all_fonts_dir)/MinimalRoboto.ttf',
+            '<(source_all_fonts_dir)/NotoEmoji-Regular.ttf',
+          ],
+        }], # android_system
         [ 'cobalt_font_package == "minimal"', {
           'files+': [
             '<(source_all_fonts_dir)/MinimalRoboto.ttf',

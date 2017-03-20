@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- *   Copyright (C) 1999-2008, International Business Machines
+ *   Copyright (C) 1999-2014, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  *
  *******************************************************************************
@@ -413,17 +413,18 @@ static void checkFontVersion(PortableFontInstance *fontInstance, const char *tes
 const char *getSourceTestData() {
     const char *srcDataDir = NULL;
 #ifdef U_TOPSRCDIR
-    srcDataDir = U_TOPSRCDIR U_FILE_SEP_STRING"test"U_FILE_SEP_STRING"testdata"U_FILE_SEP_STRING;
+    srcDataDir = U_TOPSRCDIR U_FILE_SEP_STRING "test" U_FILE_SEP_STRING "testdata" U_FILE_SEP_STRING;
 #else
-    srcDataDir = ".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING"test"U_FILE_SEP_STRING"testdata"U_FILE_SEP_STRING;
-    FILE *f = fopen(".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING"test"U_FILE_SEP_STRING"testdata"U_FILE_SEP_STRING"rbbitst.txt", "r");
+    srcDataDir = ".." U_FILE_SEP_STRING ".." U_FILE_SEP_STRING "test" U_FILE_SEP_STRING "testdata" U_FILE_SEP_STRING;
+    FILE *f = fopen(".." U_FILE_SEP_STRING ".." U_FILE_SEP_STRING "test" U_FILE_SEP_STRING "testdata" U_FILE_SEP_STRING "rbbitst.txt", "r");
 
     if (f != NULL) {
         /* We're in icu/source/test/letest/ */
         fclose(f);
     } else {
         /* We're in icu/source/test/letest/(Debug|Release) */
-        srcDataDir = ".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING"test"U_FILE_SEP_STRING"testdata"U_FILE_SEP_STRING;
+        srcDataDir =  ".." U_FILE_SEP_STRING ".." U_FILE_SEP_STRING ".." U_FILE_SEP_STRING "test" 
+                      U_FILE_SEP_STRING "testdata" U_FILE_SEP_STRING;
     }
 #endif
 
@@ -712,6 +713,7 @@ static void U_CALLCONV DataDrivenTest(void)
 
             delete engine;
 
+            log_verbose("OK - %4d glyphs: %s\n", actual.glyphCount, id);
 free_expected:
             DELETE_ARRAY(expected.positions);
             DELETE_ARRAY(expected.indices);
@@ -747,6 +749,7 @@ U_CDECL_BEGIN
  */
 static void U_CALLCONV GlyphToCharTest(void)
 {
+#if !UCONFIG_NO_BREAK_ITERATION
     LEErrorCode status = LE_NO_ERROR;
     LEFontInstance *font;
     FontRuns fontRuns(0);
@@ -957,6 +960,7 @@ close_font:
 
 finish:
     return;
+#endif
 }
 U_CDECL_END
 
@@ -969,7 +973,9 @@ static void addAllTests(TestNode **root)
     addTest(root, &DataDrivenTest,  "layout/DataDrivenTest");
     addTest(root, &GlyphToCharTest, "paragraph/GlyphToCharTest");
 
+#ifndef USING_ICULEHB
     addCTests(root);
+#endif
 }
 
 /* returns the path to icu/source/data/out */
@@ -991,7 +997,7 @@ static const char *ctest_dataOutDir()
     */
 #if defined (U_TOPBUILDDIR)
     {
-        dataOutDir = U_TOPBUILDDIR "data"U_FILE_SEP_STRING"out"U_FILE_SEP_STRING;
+        dataOutDir = U_TOPBUILDDIR "data" U_FILE_SEP_STRING "out" U_FILE_SEP_STRING;
     }
 #else
 
@@ -1023,13 +1029,13 @@ static const char *ctest_dataOutDir()
         }
         else {
             /* __FILE__ on MSVC7 does not contain the directory */
-            FILE *file = fopen(".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING "data" U_FILE_SEP_STRING "Makefile.in", "r");
+            FILE *file = fopen(".." U_FILE_SEP_STRING ".." U_FILE_SEP_STRING "data" U_FILE_SEP_STRING "Makefile.in", "r");
             if (file) {
                 fclose(file);
-                dataOutDir = ".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING "data" U_FILE_SEP_STRING "out" U_FILE_SEP_STRING;
+                dataOutDir = ".." U_FILE_SEP_STRING ".." U_FILE_SEP_STRING "data" U_FILE_SEP_STRING "out" U_FILE_SEP_STRING;
             }
             else {
-                dataOutDir = ".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING".."U_FILE_SEP_STRING "data" U_FILE_SEP_STRING "out" U_FILE_SEP_STRING;
+                dataOutDir = ".." U_FILE_SEP_STRING".." U_FILE_SEP_STRING".." U_FILE_SEP_STRING "data" U_FILE_SEP_STRING "out" U_FILE_SEP_STRING;
             }
         }
     }

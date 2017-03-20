@@ -50,9 +50,7 @@ class MEDIA_EXPORT AAC {
   // unchanged.
   bool ConvertEsdsToADTS(std::vector<uint8>* buffer) const;
 
-#if defined(COBALT_WIN)
   const std::vector<uint8>& raw_data() const { return raw_data_; }
-#endif  // COBALT_WIN
 
  private:
   bool SkipDecoderGASpecificConfig(BitReader* bit_reader) const;
@@ -73,9 +71,7 @@ class MEDIA_EXPORT AAC {
   int extension_frequency_;
   ChannelLayout channel_layout_;
 
-#if defined(COBALT_WIN)
   std::vector<uint8> raw_data_;
-#endif  // COBALT_WIN
 };
 
 }  // namespace mp4

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_LOADER_IMAGE_IMAGE_DECODER_H_
 #define COBALT_LOADER_IMAGE_IMAGE_DECODER_H_
@@ -38,13 +36,25 @@ class ImageDecoder : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
       SuccessCallback;
-  typedef base::Callback<void(const std::string&)> FailureCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ImageDecoder(render_tree::ResourceProvider* resource_provider,
                const SuccessCallback& success_callback,
-               const FailureCallback& failure_callback,
                const ErrorCallback& error_callback);
+
+  // Ensure that the image data decoder is initialized so that
+  // IsHardwareDecoder() can be queried to call DecodeChunk() from an
+  // appropriate thread. Returns whether DecodeChunk() is ready to be called.
+  //
+  // Optionally, DecodeChunk() will initialize the image data decoder as
+  // needed, but care must be taken to call the function from one consistent
+  // thread when using this approach.
+  bool EnsureDecoderIsInitialized(const char* data, size_t size);
+
+  // Returns whether the current image data decoder is a software or hardware
+  // decoder. This is intended to help decide which thread should be used to
+  // call DecodeChunk().
+  bool IsHardwareDecoder() const;
 
   // From Decoder.
   LoadResponseType OnResponseStarted(
@@ -83,12 +93,13 @@ class ImageDecoder : public Decoder {
 
   render_tree::ResourceProvider* resource_provider_;
   const SuccessCallback success_callback_;
-  const FailureCallback failure_callback_;
   const ErrorCallback error_callback_;
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
-  std::string failure_message_;
+  size_t data_consumed_size;
+  std::string error_message_;
+  std::string mime_type_;
 };
 
 }  // namespace image

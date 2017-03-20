@@ -32,5 +32,14 @@ void SbMemoryFlush(void* virtual_address, int64_t size_bytes) {
   SB_DCHECK(result == 0) << "msync failed: 0x" << std::hex << result << " ("
                          << std::dec << result << "d)";
 #endif
+
+#if !defined(__has_builtin)
+#define __has_builtin(a) (0)
+#endif
+
+#if __has_builtin(__builtin___clear_cache)
   __builtin___clear_cache(memory, memory + size_bytes);
+#elif defined(__clear_cache)
+  __clear_cache(memory, memory + size_bytes);
+#endif
 }

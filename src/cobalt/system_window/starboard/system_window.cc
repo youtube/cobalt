@@ -1,24 +1,21 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/event_dispatcher.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/system_window/keyboard_event.h"
 #include "cobalt/system_window/starboard/system_window.h"
 #include "starboard/system.h"
@@ -35,25 +32,6 @@ void StarboardDialogCallback(SbSystemPlatformErrorResponse response) {
   DCHECK(g_the_window);
   g_the_window->HandleDialogClose(response);
 }
-
-void UpdateVideoContainerSizeOverride(SbWindow window) {
-  SbWindowSize window_size;
-  if (!SbWindowGetSize(window, &window_size)) {
-    DLOG(WARNING) << "SbWindowGetSize() failed.";
-    return;
-  }
-  if (window_size.video_pixel_ratio == 1.0f) {
-    return;
-  }
-
-  deprecated::PlatformDelegate::Get()->SetVideoContainerSizeOverride(
-      base::StringPrintf(
-          "%dx%d",
-          static_cast<int>(window_size.width * window_size.video_pixel_ratio),
-          static_cast<int>(window_size.height *
-                           window_size.video_pixel_ratio)));
-}
-
 }  // namespace
 
 SystemWindowStarboard::SystemWindowStarboard(
@@ -64,7 +42,6 @@ SystemWindowStarboard::SystemWindowStarboard(
   window_ = SbWindowCreate(NULL);
   DCHECK(SbWindowIsValid(window_));
   DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
-  UpdateVideoContainerSizeOverride(window_);
   g_the_window = this;
 }
 
@@ -80,7 +57,6 @@ SystemWindowStarboard::SystemWindowStarboard(
   window_ = SbWindowCreate(&options);
   DCHECK(SbWindowIsValid(window_));
   DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
-  UpdateVideoContainerSizeOverride(window_);
   g_the_window = this;
 }
 
@@ -88,7 +64,6 @@ SystemWindowStarboard::~SystemWindowStarboard() {
   DCHECK_EQ(this, g_the_window);
 
   if (g_the_window == this) {
-    deprecated::PlatformDelegate::Get()->SetVideoContainerSizeOverride("");
     g_the_window = NULL;
   }
   SbWindowDestroy(window_);
@@ -101,6 +76,15 @@ math::Size SystemWindowStarboard::GetWindowSize() const {
     return math::Size(0, 0);
   }
   return math::Size(window_size.width, window_size.height);
+}
+
+float SystemWindowStarboard::GetVideoPixelRatio() const {
+  SbWindowSize window_size;
+  if (!SbWindowGetSize(window_, &window_size)) {
+    DLOG(WARNING) << "SbWindowGetSize() failed.";
+    return 1.0;
+  }
+  return window_size.video_pixel_ratio;
 }
 
 SbWindow SystemWindowStarboard::GetSbWindow() { return window_; }

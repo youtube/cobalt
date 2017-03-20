@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/storage/savegame.h"
 
@@ -42,7 +40,7 @@ class SavegameFile : public Savegame {
  public:
   explicit SavegameFile(const Options& options);
   ~SavegameFile() OVERRIDE;
-  bool PlatformRead(ByteVector* bytes) OVERRIDE;
+  bool PlatformRead(size_t max_to_read, ByteVector* bytes) OVERRIDE;
   bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
   bool PlatformDelete() OVERRIDE;
 
@@ -64,7 +62,7 @@ SavegameFile::~SavegameFile() {
   }
 }
 
-bool SavegameFile::PlatformRead(ByteVector* bytes_ptr) {
+bool SavegameFile::PlatformRead(ByteVector* bytes_ptr, size_t max_to_read) {
   if (!file_util::PathExists(savegame_path_)) {
     return false;
   }
@@ -74,6 +72,12 @@ bool SavegameFile::PlatformRead(ByteVector* bytes_ptr) {
     DLOG(WARNING) << "GetFileSize of " << savegame_path_.value() << " failed";
     return false;
   }
+
+  if (max_to_read < static_cast<size_t>(file_size) {
+    DLOG(WARNING) << "Savegame larger than max allowed size";
+    return false;
+  }
+
   ByteVector& bytes = *bytes_ptr;
   bytes.resize(static_cast<size_t>(file_size));
   if (!bytes.empty()) {

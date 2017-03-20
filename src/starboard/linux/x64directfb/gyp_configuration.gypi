@@ -24,6 +24,11 @@
     ],
 
     'gl_type': 'none',
+
+    # This should have a default value in cobalt/base.gypi. See the comment
+    # there for acceptable values for this variable.
+    'javascript_engine': 'mozjs',
+    'cobalt_enable_jit': 1,
   },
 
   'target_defaults': {
@@ -45,6 +50,7 @@
   },
 
   'includes': [
+    '../shared/compiler_flags.gypi',
     '../shared/gyp_configuration.gypi',
   ],
 }

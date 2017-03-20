@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // This file contains a definition of CSS grammar.
 
@@ -198,6 +196,7 @@
 %token kEllipseToken                    // ellipse
 %token kEllipsisToken                   // ellipsis
 %token kEndToken                        // end
+%token kEquirectangularToken            // equirectangular
 %token kFantasyToken                    // fantasy
 %token kFarthestCornerToken             // farthest-corner
 %token kFarthestSideToken               // farthest-side
@@ -356,6 +355,7 @@
 %token kFormatFunctionToken             // format(
 %token kLinearGradientFunctionToken     // linear-gradient(
 %token kLocalFunctionToken              // local(
+%token kMapToMeshFunctionToken          // map-to-mesh(
 %token kMatrixFunctionToken             // matrix(
 %token kMatrix3dFunctionToken           // matrix3d(
 %token kNotFunctionToken                // not(
@@ -635,8 +635,12 @@
 %type <rule_list> rule_list rule_list_block
 %destructor { SafeRelease($$); } <rule_list>
 
+%union { cssom::AttributeSelector::ValueMatchType attribute_match; }
+%type <attribute_match> attribute_match
+
 %union { cssom::SimpleSelector* simple_selector; }
-%type <simple_selector> class_selector_token
+%type <simple_selector> attribute_selector_token
+                        class_selector_token
                         id_selector_token
                         pseudo_class_token
                         pseudo_element_token
@@ -788,11 +792,16 @@
 %destructor { delete $$; } <cobalt_mtm_filter_functions>
 
 %union {
-  cssom::MTMFunction::ResolutionMatchedMeshListBuilder* cobalt_mtm_resolution_matched_meshes; }
+  cssom::MapToMeshFunction::MeshSpec* cobalt_map_to_mesh_spec; }
+%type <cobalt_map_to_mesh_spec> cobalt_map_to_mesh_spec
+%destructor { delete $$; } <cobalt_map_to_mesh_spec>
+
+%union {
+  cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder* cobalt_mtm_resolution_matched_meshes; }
 %type <cobalt_mtm_resolution_matched_meshes> cobalt_mtm_resolution_matched_mesh_list
 %destructor { delete $$; } <cobalt_mtm_resolution_matched_meshes>
 
-%union { cssom::MTMFunction::ResolutionMatchedMesh* cobalt_mtm_resolution_matched_mesh; }
+%union { cssom::MapToMeshFunction::ResolutionMatchedMesh* cobalt_mtm_resolution_matched_mesh; }
 %type <cobalt_mtm_resolution_matched_mesh> cobalt_mtm_resolution_matched_mesh
 %destructor { delete $$; } <cobalt_mtm_resolution_matched_mesh>
 
@@ -1910,6 +1919,43 @@ type_selector_token:
   }
   ;
 
+attribute_match:
+    '=' maybe_whitespace {
+    $$ = cssom::AttributeSelector::kEquals;
+  }
+  | kIncludesToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kIncludes;
+  }
+  | kDashMatchToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kDashMatch;
+  }
+  | kBeginsWithToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kBeginsWith;
+  }
+  | kEndsWithToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kEndsWith;
+  }
+  | kContainsToken maybe_whitespace {
+    $$ = cssom::AttributeSelector::kContains;
+  }
+
+// An attribute selector represents an element that has an attribute that
+// matches the attribute represented by the attribute selector.
+//   https://www.w3.org/TR/selectors4/#attribute-selector
+attribute_selector_token:
+    '[' maybe_whitespace identifier_token maybe_whitespace ']' {
+    $$ = new cssom::AttributeSelector($3.ToString());
+  }
+  | '[' maybe_whitespace identifier_token maybe_whitespace
+      attribute_match kStringToken maybe_whitespace ']' {
+    $$ = new cssom::AttributeSelector($3.ToString(), $5, $6.ToString());
+  }
+  | '[' maybe_whitespace identifier_token maybe_whitespace
+      attribute_match identifier_token maybe_whitespace ']' {
+    $$ = new cssom::AttributeSelector($3.ToString(), $5, $6.ToString());
+  }
+  ;
+
 // The class selector represents an element belonging to the class identified by
 // the identifier.
 //   https://www.w3.org/TR/selectors4/#class-selector
@@ -2031,7 +2077,8 @@ pseudo_element_token:
 // A simple selector represents an aspect of an element to be matched against.
 //   https://www.w3.org/TR/selectors4/#simple
 simple_selector_token:
-    class_selector_token
+    attribute_selector_token
+  | class_selector_token
   | id_selector_token
   | pseudo_class_token
   | pseudo_element_token
@@ -6499,27 +6546,53 @@ filter_function:
 
 cobalt_mtm_filter_function:
   // Encodes an mtm filter. Currently the only type of filter function supported.
-    kCobaltMtmFunctionToken maybe_whitespace url
-        cobalt_mtm_resolution_matched_mesh_list comma angle angle comma
-        cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
+    cobalt_mtm_function_name maybe_whitespace cobalt_map_to_mesh_spec comma angle
+        angle comma cobalt_mtm_transform_function maybe_cobalt_mtm_stereo_mode
         ')' maybe_whitespace {
-    scoped_ptr<cssom::MTMFunction::ResolutionMatchedMeshListBuilder>
-        resolution_matched_mesh_urls($4);
-    scoped_ptr<glm::mat4> transform($9);
+    scoped_ptr<cssom::MapToMeshFunction::MeshSpec>
+        mesh_spec($3);
+    scoped_ptr<glm::mat4> transform($8);
+    scoped_refptr<cssom::KeywordValue> stereo_mode =
+        MakeScopedRefPtrAndRelease($9);
 
-    $$ = new cssom::MTMFunction(
-        MakeScopedRefPtrAndRelease($3),
-        resolution_matched_mesh_urls->Pass(),
-        $6,
-        $7,
-        *transform,
-        MakeScopedRefPtrAndRelease($10));
+    if (!parser_impl->supports_map_to_mesh()) {
+      YYERROR;
+    } else {
+      $$ = new cssom::MapToMeshFunction(
+          mesh_spec.Pass(),
+          $5,
+          $6,
+          *transform,
+          stereo_mode);
+    }
   }
+  ;
+
+cobalt_map_to_mesh_spec:
+    kEquirectangularToken {
+    $$ = new cssom::MapToMeshFunction::MeshSpec(
+        cssom::MapToMeshFunction::kEquirectangular);
+  }
+  | url cobalt_mtm_resolution_matched_mesh_list {
+    scoped_refptr<cssom::PropertyValue> url = MakeScopedRefPtrAndRelease($1);
+    scoped_ptr<cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder>
+        resolution_matched_mesh_urls($2);
+
+    $$ = new cssom::MapToMeshFunction::MeshSpec(
+        cssom::MapToMeshFunction::kUrls,
+        url,
+        resolution_matched_mesh_urls->Pass());
+  }
+  ;
+
+cobalt_mtm_function_name:
+    kCobaltMtmFunctionToken
+  | kMapToMeshFunctionToken
   ;
 
 cobalt_mtm_resolution_matched_mesh_list:
     /* empty */ {
-    $$ = new cssom::MTMFunction::ResolutionMatchedMeshListBuilder();
+    $$ = new cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder();
   }
   // Specifies a different mesh for a particular image resolution.
   | cobalt_mtm_resolution_matched_mesh_list cobalt_mtm_resolution_matched_mesh {
@@ -6530,7 +6603,7 @@ cobalt_mtm_resolution_matched_mesh_list:
 
 cobalt_mtm_resolution_matched_mesh:
     non_negative_integer non_negative_integer url {
-    $$ = new cssom::MTMFunction::ResolutionMatchedMesh($1, $2,
+    $$ = new cssom::MapToMeshFunction::ResolutionMatchedMesh($1, $2,
       MakeScopedRefPtrAndRelease($3));
   }
   ;

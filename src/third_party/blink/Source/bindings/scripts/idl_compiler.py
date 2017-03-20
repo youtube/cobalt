@@ -41,7 +41,7 @@ import sys
 from code_generator_cobalt import CodeGeneratorCobalt
 from code_generator_v8 import CodeGeneratorDictionaryImpl, CodeGeneratorV8, CodeGeneratorUnionType
 from idl_reader import IdlReader
-from utilities import read_idl_files_list_from_file, write_file, idl_filename_to_component
+from utilities import read_idl_files_list_from_file, write_file, idl_filename_to_component, idl_filename_to_interface_name
 
 
 def parse_options():
@@ -72,12 +72,6 @@ def parse_options():
         parser.error('Must specify exactly 1 input file as argument, but %d given.' % len(args))
     idl_filename = os.path.realpath(args[0])
     return options, idl_filename
-
-
-def idl_filename_to_interface_name(idl_filename):
-    basename = os.path.basename(idl_filename)
-    interface_name, _ = os.path.splitext(basename)
-    return interface_name
 
 
 class IdlCompiler(object):

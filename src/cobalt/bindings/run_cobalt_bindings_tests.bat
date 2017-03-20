@@ -14,5 +14,4 @@
 @rem limitations under the License.
 @rem
 
-@python run_cobalt_bindings_tests.py jsc %*
 @python run_cobalt_bindings_tests.py mozjs %*

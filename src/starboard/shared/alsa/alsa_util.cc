@@ -52,7 +52,7 @@ class AutoClose {
     SB_DCHECK(valid_);
     return value_;
   }
-  T* operator&() {
+  T* operator&() {  // NOLINT(runtime/operator)
     SB_DCHECK(!valid_);
     return &value_;
   }
@@ -76,18 +76,22 @@ class AutoClose {
 class HWParams
     : public AutoClose<snd_pcm_hw_params_t*, void (*)(snd_pcm_hw_params_t*)> {
  public:
-  HWParams() : AutoClose(snd_pcm_hw_params_free) {}
+  HWParams()
+      : AutoClose<snd_pcm_hw_params_t*, void (*)(snd_pcm_hw_params_t*)>(
+            snd_pcm_hw_params_free) {}
 };
 
 class SWParams
     : public AutoClose<snd_pcm_sw_params_t*, void (*)(snd_pcm_sw_params_t*)> {
  public:
-  SWParams() : AutoClose(snd_pcm_sw_params_free) {}
+  SWParams()
+      : AutoClose<snd_pcm_sw_params_t*, void (*)(snd_pcm_sw_params_t*)>(
+            snd_pcm_sw_params_free) {}
 };
 
 class PcmHandle : public AutoClose<snd_pcm_t*, int (*)(snd_pcm_t*)> {
  public:
-  PcmHandle() : AutoClose(snd_pcm_close) {}
+  PcmHandle() : AutoClose<snd_pcm_t*, int (*)(snd_pcm_t*)>(snd_pcm_close) {}
 };
 
 }  // namespace
@@ -172,15 +176,16 @@ int AlsaWriteFrames(void* playback_handle,
     return 0;
   }
 
+  int error;
+  snd_pcm_t* handle = reinterpret_cast<snd_pcm_t*>(playback_handle);
+
   int frames = 0;
   for (;;) {
-    frames = snd_pcm_writei(reinterpret_cast<snd_pcm_t*>(playback_handle),
-                            buffer, frames_to_write);
+    frames = snd_pcm_writei(handle, buffer, frames_to_write);
     if (frames > 0) {
       return frames;
     } else if (frames == -EPIPE) {
-      int error =
-          snd_pcm_prepare(reinterpret_cast<snd_pcm_t*>(playback_handle));
+      error = snd_pcm_prepare(handle);
       ALSA_CHECK(error, snd_pcm_prepare, 0);
     } else {
       ALSA_CHECK(frames, snd_pcm_writei, 0);
@@ -195,13 +200,16 @@ int AlsaWriteFrames(void* playback_handle,
 int AlsaGetBufferedFrames(void* playback_handle) {
   int error;
   snd_pcm_t* handle = reinterpret_cast<snd_pcm_t*>(playback_handle);
-  // snd_pcm_delay() isn't able to catch xrun, so we explicitly check for xrun.
-  if (snd_pcm_state(handle) == SND_PCM_STATE_XRUN) {
+  int state = snd_pcm_state(handle);
+  // snd_pcm_delay() isn't able to catch xrun or setup, so we explicitly check
+  // for them.
+  if (state == SND_PCM_STATE_XRUN || state == SND_PCM_STATE_SETUP) {
     error = snd_pcm_prepare(handle);
     ALSA_CHECK(error, snd_pcm_prepare, -1);
     // The buffer has already been reset, so the delay is 0.
     return 0;
   }
+
   snd_pcm_sframes_t delay;
   error = snd_pcm_delay(handle, &delay);
   if (error == 0) {
@@ -220,6 +228,16 @@ void AlsaCloseDevice(void* playback_handle) {
   if (playback_handle) {
     snd_pcm_drain(reinterpret_cast<snd_pcm_t*>(playback_handle));
     snd_pcm_close(reinterpret_cast<snd_pcm_t*>(playback_handle));
+  }
+}
+
+void AlsaDrain(void* playback_handle) {
+  if (playback_handle) {
+    snd_pcm_t* handle = reinterpret_cast<snd_pcm_t*>(playback_handle);
+
+    int error;
+    error = snd_pcm_drain(handle);
+    SB_DCHECK(error >= 0);
   }
 }
 

@@ -19,11 +19,14 @@
 // which will define None to be 0L, which conflicts with gtest.
 #include "starboard/decode_target.h"  // NOLINT(build/include_order)
 
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
 #include "starboard/nplb/blitter_helpers.h"
+#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
 #endif
 
 namespace starboard {
@@ -39,12 +42,29 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
 
   ASSERT_TRUE(SbBlitterSetRenderTarget(env.context(), env.render_target()));
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTarget target = SbDecodeTargetCreate(
+      env.device(), kSbDecodeTargetFormat1PlaneRGBA, kWidth, kHeight);
+  if (SbDecodeTargetIsValid(target)) {
+    SbDecodeTargetInfo info;
+    SbMemorySet(&info, 0, sizeof(info));
+    SbDecodeTargetGetInfo(target, &info);
+
+    EXPECT_EQ(kWidth, info.width);
+    EXPECT_EQ(kHeight, info.height);
+    EXPECT_EQ(kSbDecodeTargetFormat1PlaneRGBA, info.format);
+    EXPECT_EQ(kWidth, info.planes[kSbDecodeTargetPlaneRGBA].width);
+    EXPECT_EQ(kHeight, info.planes[kSbDecodeTargetPlaneRGBA].height);
+    EXPECT_TRUE(
+        SbBlitterIsSurfaceValid(info.planes[kSbDecodeTargetPlaneRGBA].surface));
+  }
+  SbDecodeTargetRelease(target);
+#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   SbBlitterSurface surface =
       CreateArbitraryRenderTargetSurface(env.device(), kWidth, kHeight);
 
   SbDecodeTarget target =
       SbDecodeTargetCreate(kSbDecodeTargetFormat1PlaneRGBA, &surface);
-  EXPECT_TRUE(SbDecodeTargetIsValid(target));
   if (SbDecodeTargetIsValid(target)) {
     SbBlitterSurface plane =
         SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
@@ -52,8 +72,9 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
   }
   SbDecodeTargetDestroy(target);
   EXPECT_TRUE(SbBlitterDestroySurface(surface));
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 }
-#else  // SB_HAS(BLITTER)
+#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
 // clang-format off
 EGLint const kAttributeList[] = {
   EGL_RED_SIZE, 8,
@@ -66,7 +87,7 @@ EGLint const kAttributeList[] = {
   EGL_COLOR_BUFFER_TYPE, EGL_RGB_BUFFER,
   EGL_CONFORMANT, EGL_OPENGL_ES2_BIT,
   EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-  EGL_NONE
+  EGL_NONE,
 };
 // clang-format on
 
@@ -154,21 +175,67 @@ class SbDecodeTargetTest : public testing::Test {
   SbWindow window_;
 };
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
+  const int kTextureWidth = 256;
+  const int kTextureHeight = 256;
+
+  SbDecodeTarget target =
+      SbDecodeTargetCreate(display_, context_, kSbDecodeTargetFormat1PlaneRGBA,
+                           kTextureWidth, kTextureHeight);
+  if (SbDecodeTargetIsValid(target)) {
+    SbDecodeTargetInfo info;
+    SbMemorySet(&info, 0, sizeof(info));
+    SbDecodeTargetGetInfo(target, &info);
+    EXPECT_EQ(kSbDecodeTargetFormat1PlaneRGBA, info.format);
+
+    EXPECT_NE(0, info.planes[kSbDecodeTargetPlaneRGBA].texture);
+
+    glBindTexture(info.planes[kSbDecodeTargetPlaneRGBA].gl_texture_target,
+                  info.planes[kSbDecodeTargetPlaneRGBA].texture);
+    EXPECT_TRUE(glGetError() == GL_NO_ERROR);
+    glBindTexture(info.planes[kSbDecodeTargetPlaneRGBA].gl_texture_target, 0);
+    EXPECT_TRUE(glGetError() == GL_NO_ERROR);
+
+    SbDecodeTargetRelease(target);
+  }
+}
+#else   // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
   // Generate a texture to put in the SbDecodeTarget.
+  const int kTextureWidth = 256;
+  const int kTextureHeight = 256;
+
   GLuint texture_handle;
   glGenTextures(1, &texture_handle);
   glBindTexture(GL_TEXTURE_2D, texture_handle);
-  glTexImage2D(GL_TEXTURE_2D, 0 /*level*/, GL_RGBA, 256, 256, 0 /*border*/,
-               GL_RGBA8, GL_UNSIGNED_BYTE, NULL /*data*/);
+  glTexImage2D(GL_TEXTURE_2D, 0 /*level*/, GL_RGBA, kTextureWidth,
+               kTextureHeight, 0 /*border*/, GL_RGBA, GL_UNSIGNED_BYTE,
+               NULL /*data*/);
   glBindTexture(GL_TEXTURE_2D, 0);
 
-  SbDecodeTarget target = SbDecodeTargetCreate(
-      display_, context_, kSbDecodeTargetFormat1PlaneRGBA, &texture_handle);
-  GLuint plane = SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
-  EXPECT_EQ(texture_handle, plane);
-  SbDecodeTargetDestroy(target);
+  SbDecodeTarget target =
+      SbDecodeTargetCreate(display_, context_, kSbDecodeTargetFormat1PlaneRGBA,
+                           &texture_handle);
+  if (SbDecodeTargetIsValid(target)) {
+    GLuint plane = SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
+    EXPECT_EQ(texture_handle, plane);
+    SbDecodeTargetDestroy(target);
+  }
   glDeleteTextures(1, &texture_handle);
+}
+#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+#else  // SB_HAS(BLITTER)
+
+TEST(SbDecodeTargetTest, SunnyDayCreate) {
+  // When graphics are not enabled, we expect to always create a
+  // kSbDecodeTargetInvalid, and get NULL back for planes.
+  EXPECT_EQ(SbDecodeTargetCreate(kSbDecodeTargetFormat1PlaneRGBA),
+            kSbDecodeTargetInvalid);
+  SbDecodeTargetInfo info;
+  SbMemorySet(&info, 0, sizeof(info));
+  EXPECT_FALSE(SbDecodeTargetGetInfo(kSbDecodeTargetInvalid, &info));
 }
 
 #endif  // SB_HAS(BLITTER)
@@ -177,4 +244,4 @@ TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)

@@ -5,6 +5,7 @@
 #include "media/webm/webm_video_client.h"
 
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_types.h"
 #include "media/webm/webm_constants.h"
 
 namespace media {
@@ -28,6 +29,8 @@ void WebMVideoClient::Reset() {
   display_height_ = -1;
   display_unit_ = -1;
   alpha_mode_ = -1;
+  inside_projection_list_ = false;
+  colour_parsed_ = false;
 }
 
 bool WebMVideoClient::InitializeConfig(
@@ -99,12 +102,23 @@ bool WebMVideoClient::InitializeConfig(
   }
 
   config->Initialize(
-      video_codec, profile, format, coded_size, visible_rect, natural_size,
-      extra_data, extra_data_size, is_encrypted, true);
+      video_codec, profile, format, COLOR_SPACE_HD_REC709, coded_size,
+      visible_rect, natural_size, extra_data, extra_data_size, is_encrypted,
+      true);
+  if (colour_parsed_) {
+    WebMColorMetadata color_metadata = colour_parser_.GetWebMColorMetadata();
+    config->set_webm_color_metadata(color_metadata);
+  }
   return config->IsValidConfig();
 }
 
 bool WebMVideoClient::OnUInt(int id, int64 val) {
+  if (inside_projection_list_) {
+    // Accept and ignore all integer fields under kWebMIdProjection list. This
+    // currently includes the kWebMIdProjectionType field.
+    return true;
+  }
+
   int64* dst = NULL;
 
   switch (id) {
@@ -153,13 +167,49 @@ bool WebMVideoClient::OnUInt(int id, int64 val) {
 }
 
 bool WebMVideoClient::OnBinary(int id, const uint8* data, int size) {
+  if (inside_projection_list_) {
+    // Accept and ignore all binary fields under kWebMIdProjection list. This
+    // currently includes the kWebMIdProjectionPrivate field.
+    return true;
+  }
+
   // Accept binary fields we don't care about for now.
   return true;
 }
 
 bool WebMVideoClient::OnFloat(int id, double val) {
+  if (inside_projection_list_) {
+    // Accept and ignore float fields under kWebMIdProjection list. This
+    // currently includes the kWebMIdProjectionPosePitch,
+    // kWebMIdProjectionPoseYaw, kWebMIdProjectionPoseRoll fields.
+    return true;
+  }
   // Accept float fields we don't care about for now.
   return true;
+}
+
+WebMParserClient* WebMVideoClient::OnListStart(int id) {
+  if (id == kWebMIdProjection && !inside_projection_list_) {
+    inside_projection_list_ = true;
+    return this;
+  } else if (id == kWebMIdColour) {
+    colour_parsed_ = false;
+    return &colour_parser_;
+  } else {
+    return WebMParserClient::OnListStart(id);
+  }
+}
+
+bool WebMVideoClient::OnListEnd(int id) {
+  if (id == kWebMIdProjection && inside_projection_list_) {
+    inside_projection_list_ = false;
+    return true;
+  } else if (id == kWebMIdColour) {
+    colour_parsed_ = true;
+    return true;
+  } else {
+    return WebMParserClient::OnListEnd(id);
+  }
 }
 
 }  // namespace media

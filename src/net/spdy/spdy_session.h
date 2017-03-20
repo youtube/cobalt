@@ -292,6 +292,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   }
 
   void set_spdy_session_pool(SpdySessionPool* pool) {
+    // Not sure why pool is not referenced, so I added UNREFERENCED_PARAMETER
+    // here.  It is likely a bug, but not worth investigating as Cobalt does
+    // not support SPDY, and it is unlikely if it ever will.
+    UNREFERENCED_PARAMETER(pool);
     spdy_session_pool_ = NULL;
   }
 

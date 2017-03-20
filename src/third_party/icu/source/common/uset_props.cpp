@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2002-2006, International Business Machines
+*   Copyright (C) 2002-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -17,6 +17,7 @@
 *   uniset_props.cpp, split off for modularization.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
 #include "unicode/uset.h"
@@ -38,7 +39,7 @@ uset_openPattern(const UChar* pattern, int32_t patternLength,
         *ec = U_MEMORY_ALLOCATION_ERROR;
         return 0;
     }
-    
+
     if (U_FAILURE(*ec)) {
         delete set;
         set = NULL;
@@ -58,7 +59,7 @@ uset_openPatternOptions(const UChar* pattern, int32_t patternLength,
         *ec = U_MEMORY_ALLOCATION_ERROR;
         return 0;
     }
-    
+
     if (U_FAILURE(*ec)) {
         delete set;
         set = NULL;
@@ -133,4 +134,9 @@ uset_toPattern(const USet* set,
     UnicodeString pat;
     ((const UnicodeSet*) set)->toPattern(pat, escapeUnprintable);
     return pat.extract(result, resultCapacity, *ec);
+}
+
+U_CAPI void U_EXPORT2
+uset_closeOver(USet* set, int32_t attributes) {
+    ((UnicodeSet*) set)->UnicodeSet::closeOver(attributes);
 }

@@ -1,6 +1,6 @@
 /*
 *******************************************************************************
-* Copyright (C) 2007-2010, International Business Machines Corporation and    *
+* Copyright (C) 2007-2014, International Business Machines Corporation and    *
 * others. All Rights Reserved.                                                *
 *******************************************************************************
 */
@@ -18,10 +18,13 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/datefmt.h"
+#include "unicode/smpdtfmt.h"
+#include "unicode/brkiter.h"
 
 U_NAMESPACE_BEGIN
 
 // forward declarations
+class DateFormatSymbols;
 class MessageFormat;
 
 // internal structure used for caching strings
@@ -34,7 +37,7 @@ struct URelativeString;
  * Example:
  *     DateFormat *fullrelative = DateFormat::createDateInstance(DateFormat::kFullRelative, loc);
  *
- * @draft ICU 3.8
+ * @internal ICU 3.8
  */
 
 class RelativeDateFormat : public DateFormat {
@@ -44,19 +47,19 @@ public:
     // overrides
     /**
      * Copy constructor.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     RelativeDateFormat(const RelativeDateFormat&);
 
     /**
      * Assignment operator.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     RelativeDateFormat& operator=(const RelativeDateFormat&);
 
     /**
      * Destructor.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual ~RelativeDateFormat();
 
@@ -64,7 +67,7 @@ public:
      * Clone this Format object polymorphically. The caller owns the result and
      * should delete it when done.
      * @return    A copy of the object.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual Format* clone(void) const;
 
@@ -73,7 +76,7 @@ public:
      * of different subclasses are considered unequal.
      * @param other    the object to be compared with.
      * @return         true if the given Format objects are semantically equal.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual UBool operator==(const Format& other) const;
 
@@ -94,7 +97,7 @@ public:
      * @param pos       The formatting position. On input: an alignment field,
      *                  if desired. On output: the offsets of the alignment field.
      * @return          Reference to 'appendTo' parameter.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual UnicodeString& format(  Calendar& cal,
                                     UnicodeString& appendTo,
@@ -112,7 +115,7 @@ public:
      *                  On output: the offsets of the alignment field.
      * @param status    Output param filled with success/failure status.
      * @return          Reference to 'appendTo' parameter.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
@@ -137,7 +140,7 @@ public:
      *              output, the position at which parsing terminated, or the
      *              start position if the parse failed.
      * @return      A valid UDate if the input could be parsed.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual void parse( const UnicodeString& text,
                         Calendar& cal,
@@ -160,7 +163,7 @@ public:
      *              output, the position at which parsing terminated, or the
      *              start position if the parse failed.
      * @return      A valid UDate if the input could be parsed.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     UDate parse( const UnicodeString& text,
                  ParsePosition& pos) const;
@@ -179,7 +182,7 @@ public:
      * @param status Filled in with U_ZERO_ERROR if the parse was successful, and with
      *              an error value if there was a parse error.
      * @return      A valid UDate if the input could be parsed.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual UDate parse( const UnicodeString& text,
                         UErrorCode& status) const;
@@ -220,14 +223,36 @@ public:
      */
     virtual void applyPatterns(const UnicodeString& datePattern, const UnicodeString& timePattern, UErrorCode &status);
 
+    /**
+     * Gets the date/time formatting symbols (this is an object carrying
+     * the various strings and other symbols used in formatting: e.g., month
+     * names and abbreviations, time zone names, AM/PM strings, etc.)
+     * @return a copy of the date-time formatting data associated
+     * with this date-time formatter.
+     * @internal ICU 4.8
+     */
+    virtual const DateFormatSymbols* getDateFormatSymbols(void) const;
+
+    /* Cannot use #ifndef U_HIDE_DRAFT_API for the following draft method since it is virtual */
+    /**
+     * Set a particular UDisplayContext value in the formatter, such as
+     * UDISPCTX_CAPITALIZATION_FOR_STANDALONE. Note: For getContext, see
+     * DateFormat.
+     * @param value The UDisplayContext value to set.
+     * @param status Input/output status. If at entry this indicates a failure
+     *               status, the function will do nothing; otherwise this will be
+     *               updated with any new status from the function. 
+     * @internal ICU 53
+     */
+    virtual void setContext(UDisplayContext value, UErrorCode& status);
 
 private:
-    DateFormat *fDateFormat; // the held date format
-    DateFormat *fTimeFormat; // the held time format
+    SimpleDateFormat *fDateTimeFormatter;
+    UnicodeString fDatePattern;
+    UnicodeString fTimePattern;
     MessageFormat *fCombinedFormat; //  the {0} {1} format.
 
     UDateFormatStyle fDateStyle;
-    UDateFormatStyle fTimeStyle;
     Locale  fLocale;
 
     int32_t fDayMin;    // day id of lowest #
@@ -235,6 +260,11 @@ private:
     int32_t fDatesLen;    // Length of array
     URelativeString *fDates; // array of strings
 
+    UBool fCombinedHasDateAtStart;
+    UBool fCapitalizationInfoSet;
+    UBool fCapitalizationOfRelativeUnitsForUIListMenu;
+    UBool fCapitalizationOfRelativeUnitsForStandAlone;
+    BreakIterator* fCapitalizationBrkIter;
 
     /**
      * Get the string at a specific offset.
@@ -250,6 +280,11 @@ private:
     void loadDates(UErrorCode &status);
 
     /**
+     * Set fCapitalizationOfRelativeUnitsForUIListMenu, fCapitalizationOfRelativeUnitsForStandAlone
+     */
+    void initCapitalizationContextInfo(const Locale& thelocale);
+
+    /**
      * @return the number of days in "until-now"
      */
     static int32_t dayDifference(Calendar &until, UErrorCode &status);
@@ -260,7 +295,7 @@ private:
      * @param locale Locale of the calendar
      * @param status Error code
      * @return the newly constructed fCalendar
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     Calendar* initializeCalendar(TimeZone* adoptZone, const Locale& locale, UErrorCode& status);
 
@@ -274,7 +309,7 @@ public:
      * .       erived::getStaticClassID()) ...
      * </pre>
      * @return          The class ID for all objects of this class.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
 
@@ -287,7 +322,7 @@ public:
      * @return          The class ID for this object. All objects of a
      *                  given class have the same class ID.  Objects of
      *                  other classes have different class IDs.
-     * @draft ICU 3.8
+     * @internal ICU 3.8
      */
     virtual UClassID getDynamicClassID(void) const;
 };

@@ -93,7 +93,10 @@ class NET_EXPORT SocketStream
     // Called when an error occured.
     // This is only for error reporting to the delegate.
     // |error| is net::Error.
-    virtual void OnError(const SocketStream* socket, int error) {}
+    virtual void OnError(const SocketStream* socket, int error) {
+      UNREFERENCED_PARAMETER(socket);
+      UNREFERENCED_PARAMETER(error);
+    }
 
     // Called when reading cookies to allow the delegate to block access to the
     // cookie.

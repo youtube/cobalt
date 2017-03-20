@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/audio/audio_file_reader_wav.h"
 
@@ -46,15 +44,15 @@ uint32 kWAVfmtChunkHeaderSize = 16;
 }  // namespace
 
 // static
-scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(const uint8* data,
-                                                          size_t size) {
+scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(
+    const uint8* data, size_t size, SampleType sample_type) {
   // Need at least the |kWAVChunkSize| bytes for this to be a WAV.
   if (size < kWAVChunkSize) {
     return scoped_ptr<AudioFileReader>();
   }
 
   scoped_ptr<AudioFileReaderWAV> audio_file_reader_wav(
-      new AudioFileReaderWAV(data, size));
+      new AudioFileReaderWAV(data, size, sample_type));
 
   if (!audio_file_reader_wav->is_valid()) {
     return scoped_ptr<AudioFileReader>();
@@ -63,8 +61,12 @@ scoped_ptr<AudioFileReader> AudioFileReaderWAV::TryCreate(const uint8* data,
   return make_scoped_ptr<AudioFileReader>(audio_file_reader_wav.release());
 }
 
-AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size)
-    : sample_rate_(0.f), number_of_frames_(0), number_of_channels_(0) {
+AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size,
+                                       SampleType sample_type)
+    : sample_rate_(0.f),
+      number_of_frames_(0),
+      number_of_channels_(0),
+      sample_type_(sample_type) {
   DCHECK_GE(size, kWAVRIFFChunkHeaderSize);
 
   if (ParseRIFFHeader(data, size)) {
@@ -149,6 +151,10 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
 
   // Load channel count.
   number_of_channels_ = load_uint16_little_endian(data + offset + 2);
+  if (number_of_channels_ == 0) {
+    DLOG(ERROR) << "No channel on WAV.";
+    return false;
+  }
 
   // Load sample rate.
   sample_rate_ =
@@ -179,7 +185,6 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
       static_cast<int32>(is_sample_in_float ? sizeof(float) : sizeof(int16));
   number_of_frames_ =
       static_cast<int32>(size / (bytes_per_src_sample * number_of_channels_));
-  sample_type_ = GetPreferredOutputSampleType();
   const int32 bytes_per_dest_sample =
       static_cast<int32>(GetSampleTypeSize(sample_type_));
   const bool is_dest_float = sample_type_ == kSampleTypeFloat32;

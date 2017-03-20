@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1997-2010, International Business Machines
+*   Copyright (C) 1997-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -24,35 +24,65 @@
 #ifndef CMEMORY_H
 #define CMEMORY_H
 
-#if defined(STARBOARD)
-#include "starboard/memory.h"
-#else
+#include "unicode/utypes.h"
+
+#if !defined(STARBOARD)
 #include <stddef.h>
 #include <string.h>
 #endif
-#include "unicode/utypes.h"
 #include "unicode/localpointer.h"
 
-#if defined(STARBOARD)
-#define uprv_memcpy(dst, src, size) SbMemoryCopy(dst, src, size)
-#define uprv_memmove(dst, src, size) SbMemoryMove(dst, src, size)
-#define uprv_memset(buffer, mark, size) SbMemorySet(buffer, mark, size)
-#define uprv_memcmp(buffer1, buffer2, size) SbMemoryCompare(buffer1, buffer2, size)
-#else
-#define uprv_memcpy(dst, src, size) U_STANDARD_CPP_NAMESPACE memcpy(dst, src, size)
-#define uprv_memmove(dst, src, size) U_STANDARD_CPP_NAMESPACE memmove(dst, src, size)
-#define uprv_memset(buffer, mark, size) U_STANDARD_CPP_NAMESPACE memset(buffer, mark, size)
-#define uprv_memcmp(buffer1, buffer2, size) U_STANDARD_CPP_NAMESPACE memcmp(buffer1, buffer2,size)
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+#include <stdio.h>
 #endif
 
-U_CAPI void * U_EXPORT2
-uprv_malloc(size_t s);
+#if U_DEBUG
+
+/*
+ * The C++ standard requires that the source pointer for memcpy() & memmove()
+ * is valid, not NULL, and not at the end of an allocated memory block.
+ * In debug mode, we read one byte from the source point to verify that it's
+ * a valid, readable pointer.
+ */
+
+U_CAPI void uprv_checkValidMemory(const void *p, size_t n);
+
+#define uprv_memcpy(dst, src, size) ( \
+    uprv_checkValidMemory(src, 1), \
+    U_STANDARD_CPP_NAMESPACE memcpy(dst, src, size))
+#define uprv_memmove(dst, src, size) ( \
+    uprv_checkValidMemory(src, 1), \
+    U_STANDARD_CPP_NAMESPACE memmove(dst, src, size))
+
+#else
+
+#define uprv_memcpy(dst, src, size) U_STANDARD_CPP_NAMESPACE memcpy(dst, src, size)
+#define uprv_memmove(dst, src, size) U_STANDARD_CPP_NAMESPACE memmove(dst, src, size)
+
+#endif  /* U_DEBUG */
+
+/**
+ * \def UPRV_LENGTHOF
+ * Convenience macro to determine the length of a fixed array at compile-time.
+ * @param array A fixed length array
+ * @return The length of the array, in elements
+ * @internal
+ */
+#define UPRV_LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
+#define uprv_memset(buffer, mark, size) U_STANDARD_CPP_NAMESPACE memset(buffer, mark, size)
+#define uprv_memcmp(buffer1, buffer2, size) U_STANDARD_CPP_NAMESPACE memcmp(buffer1, buffer2,size)
 
 U_CAPI void * U_EXPORT2
-uprv_realloc(void *mem, size_t size);
+uprv_malloc(size_t s) U_MALLOC_ATTR U_ALLOC_SIZE_ATTR(1);
+
+U_CAPI void * U_EXPORT2
+uprv_realloc(void *mem, size_t size) U_ALLOC_SIZE_ATTR(2);
 
 U_CAPI void U_EXPORT2
 uprv_free(void *mem);
+
+U_CAPI void * U_EXPORT2
+uprv_calloc(size_t num, size_t size) U_MALLOC_ATTR U_ALLOC_SIZE_ATTR2(1,2);
 
 /**
  * This should align the memory properly on any machine.
@@ -88,13 +118,6 @@ typedef union {
 #define U_ALIGNMENT_OFFSET_UP(ptr) (sizeof(UAlignedMemory) - U_ALIGNMENT_OFFSET(ptr))
 
 /**
-  *  Indicate whether the ICU allocation functions have been used.
-  *  This is used to determine whether ICU is in an initial, unused state.
-  */
-U_CFUNC UBool 
-cmemory_inUse(void);
-
-/**
   *  Heap clean up function, called from u_cleanup()
   *    Clears any user heap functions from u_setMemoryFunctions()
   *    Does NOT deallocate any remaining allocated memory.
@@ -102,7 +125,23 @@ cmemory_inUse(void);
 U_CFUNC UBool 
 cmemory_cleanup(void);
 
-#ifdef XP_CPLUSPLUS
+/**
+ * A function called by <TT>uhash_remove</TT>,
+ * <TT>uhash_close</TT>, or <TT>uhash_put</TT> to delete
+ * an existing key or value.
+ * @param obj A key or value stored in a hashtable
+ * @see uprv_deleteUObject
+ */
+typedef void U_CALLCONV UObjectDeleter(void* obj);
+
+/**
+ * Deleter for UObject instances.
+ * Works for all subclasses of UObject because it has a virtual destructor.
+ */
+U_CAPI void U_EXPORT2
+uprv_deleteUObject(void *obj);
+
+#ifdef __cplusplus
 
 U_NAMESPACE_BEGIN
 
@@ -121,11 +160,62 @@ public:
      * @param p simple pointer to an array of T items that is adopted
      */
     explicit LocalMemory(T *p=NULL) : LocalPointerBase<T>(p) {}
+#if U_HAVE_RVALUE_REFERENCES
+    /**
+     * Move constructor, leaves src with isNull().
+     * @param src source smart pointer
+     */
+    LocalMemory(LocalMemory<T> &&src) U_NOEXCEPT : LocalPointerBase<T>(src.ptr) {
+        src.ptr=NULL;
+    }
+#endif
     /**
      * Destructor deletes the memory it owns.
      */
     ~LocalMemory() {
         uprv_free(LocalPointerBase<T>::ptr);
+    }
+#if U_HAVE_RVALUE_REFERENCES
+    /**
+     * Move assignment operator, leaves src with isNull().
+     * The behavior is undefined if *this and src are the same object.
+     * @param src source smart pointer
+     * @return *this
+     */
+    LocalMemory<T> &operator=(LocalMemory<T> &&src) U_NOEXCEPT {
+        return moveFrom(src);
+    }
+#endif
+    /**
+     * Move assignment, leaves src with isNull().
+     * The behavior is undefined if *this and src are the same object.
+     *
+     * Can be called explicitly, does not need C++11 support.
+     * @param src source smart pointer
+     * @return *this
+     */
+    LocalMemory<T> &moveFrom(LocalMemory<T> &src) U_NOEXCEPT {
+        delete[] LocalPointerBase<T>::ptr;
+        LocalPointerBase<T>::ptr=src.ptr;
+        src.ptr=NULL;
+        return *this;
+    }
+    /**
+     * Swap pointers.
+     * @param other other smart pointer
+     */
+    void swap(LocalMemory<T> &other) U_NOEXCEPT {
+        T *temp=LocalPointerBase<T>::ptr;
+        LocalPointerBase<T>::ptr=other.ptr;
+        other.ptr=temp;
+    }
+    /**
+     * Non-member LocalMemory swap function.
+     * @param p1 will get p2's pointer
+     * @param p2 will get p1's pointer
+     */
+    friend inline void swap(LocalMemory<T> &p1, LocalMemory<T> &p2) U_NOEXCEPT {
+        p1.swap(p2);
     }
     /**
      * Deletes the array it owns,
@@ -239,12 +329,15 @@ public:
      * @return getAlias()+getCapacity()
      */
     T *getArrayLimit() const { return getAlias()+capacity; }
+    // No "operator T *() const" because that can make
+    // expressions like mbs[index] ambiguous for some compilers.
     /**
-     * Access without ownership change. Same as getAlias().
-     * A class instance can be used directly in expressions that take a T *.
-     * @return the array pointer
+     * Array item access (const).
+     * No index bounds check.
+     * @param i array index
+     * @return reference to the array item
      */
-    operator T *() const { return ptr; }
+    const T &operator[](ptrdiff_t i) const { return ptr[i]; }
     /**
      * Array item access (writable).
      * No index bounds check.
@@ -265,7 +358,7 @@ public:
             capacity=otherCapacity;
             needToRelease=FALSE;
         }
-    };
+    }
     /**
      * Deletes the array (if owned) and allocates a new one, copying length T items.
      * Returns the new array pointer.
@@ -286,7 +379,6 @@ public:
      * @param resultCapacity will be set to the returned array's capacity (output-only)
      * @return the array pointer;
      *         caller becomes responsible for deleting the array
-     * @draft ICU 4.4
      */
     inline T *orphanOrClone(int32_t length, int32_t &resultCapacity);
 private:
@@ -300,11 +392,11 @@ private:
         }
     }
     /* No comparison operators with other MaybeStackArray's. */
-    bool operator==(const MaybeStackArray & /*other*/) {return FALSE;};
-    bool operator!=(const MaybeStackArray & /*other*/) {return TRUE;};
+    bool operator==(const MaybeStackArray & /*other*/) {return FALSE;}
+    bool operator!=(const MaybeStackArray & /*other*/) {return TRUE;}
     /* No ownership transfer: No copy constructor, no assignment operator. */
-    MaybeStackArray(const MaybeStackArray & /*other*/) {};
-    void operator=(const MaybeStackArray & /*other*/) {};
+    MaybeStackArray(const MaybeStackArray & /*other*/) {}
+    void operator=(const MaybeStackArray & /*other*/) {}
 
     // No heap allocation. Use only on the stack.
     //   (Declaring these functions private triggers a cascade of problems:
@@ -324,6 +416,9 @@ private:
 template<typename T, int32_t stackCapacity>
 inline T *MaybeStackArray<T, stackCapacity>::resize(int32_t newCapacity, int32_t length) {
     if(newCapacity>0) {
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+      ::fprintf(::stderr,"MaybeStacArray (resize) alloc %d * %lu\n", newCapacity,sizeof(T));
+#endif
         T *p=(T *)uprv_malloc(newCapacity*sizeof(T));
         if(p!=NULL) {
             if(length>0) {
@@ -358,6 +453,9 @@ inline T *MaybeStackArray<T, stackCapacity>::orphanOrClone(int32_t length, int32
             length=capacity;
         }
         p=(T *)uprv_malloc(length*sizeof(T));
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+      ::fprintf(::stderr,"MaybeStacArray (orphan) alloc %d * %lu\n", length,sizeof(T));
+#endif
         if(p==NULL) {
             return NULL;
         }
@@ -437,7 +535,7 @@ public:
             capacity=otherCapacity;
             needToRelease=FALSE;
         }
-    };
+    }
     /**
      * Deletes the memory block (if owned) and allocates a new one,
      * copying the header and length T array items.
@@ -459,7 +557,6 @@ public:
      * @param resultCapacity will be set to the returned array's capacity (output-only)
      * @return the header pointer;
      *         caller becomes responsible for deleting the array
-     * @draft ICU 4.4
      */
     inline H *orphanOrClone(int32_t length, int32_t &resultCapacity);
 private:
@@ -475,11 +572,11 @@ private:
         }
     }
     /* No comparison operators with other MaybeStackHeaderAndArray's. */
-    bool operator==(const MaybeStackHeaderAndArray & /*other*/) {return FALSE;};
-    bool operator!=(const MaybeStackHeaderAndArray & /*other*/) {return TRUE;};
+    bool operator==(const MaybeStackHeaderAndArray & /*other*/) {return FALSE;}
+    bool operator!=(const MaybeStackHeaderAndArray & /*other*/) {return TRUE;}
     /* No ownership transfer: No copy constructor, no assignment operator. */
-    MaybeStackHeaderAndArray(const MaybeStackHeaderAndArray & /*other*/) {};
-    void operator=(const MaybeStackHeaderAndArray & /*other*/) {};
+    MaybeStackHeaderAndArray(const MaybeStackHeaderAndArray & /*other*/) {}
+    void operator=(const MaybeStackHeaderAndArray & /*other*/) {}
 
     // No heap allocation. Use only on the stack.
     //   (Declaring these functions private triggers a cascade of problems;
@@ -495,6 +592,9 @@ template<typename H, typename T, int32_t stackCapacity>
 inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::resize(int32_t newCapacity,
                                                                 int32_t length) {
     if(newCapacity>=0) {
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+      ::fprintf(::stderr,"MaybeStackHeaderAndArray alloc %d + %d * %ul\n", sizeof(H),newCapacity,sizeof(T));
+#endif
         H *p=(H *)uprv_malloc(sizeof(H)+newCapacity*sizeof(T));
         if(p!=NULL) {
             if(length<0) {
@@ -531,6 +631,9 @@ inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::orphanOrClone(int32_t l
         } else if(length>capacity) {
             length=capacity;
         }
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+      ::fprintf(::stderr,"MaybeStackHeaderAndArray (orphan) alloc %ul + %d * %lu\n", sizeof(H),length,sizeof(T));
+#endif
         p=(H *)uprv_malloc(sizeof(H)+length*sizeof(T));
         if(p==NULL) {
             return NULL;
@@ -546,5 +649,5 @@ inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::orphanOrClone(int32_t l
 
 U_NAMESPACE_END
 
-#endif  /* XP_CPLUSPLUS */
+#endif  /* __cplusplus */
 #endif  /* CMEMORY_H */

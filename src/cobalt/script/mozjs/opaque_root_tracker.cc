@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/script/mozjs/opaque_root_tracker.h"
 
@@ -39,20 +37,23 @@ class OpaqueRootStateImpl : public OpaqueRootTracker::OpaqueRootState {
   void TrackReachability(WrapperPrivate* from, WrapperPrivate* to) {
     intptr_t from_key = ReferencedObjectMap::GetKeyForWrappable(
         from->wrappable<Wrappable>().get());
-    JS::RootedObject to_object(context_, to->js_object_proxy());
+    JSObject* to_proxy = to->js_object_proxy();
+    DCHECK(to_proxy);
+    JS::RootedValue to_value(context_, JS::ObjectValue(*to_proxy));
     referenced_objects_.push_back(
-        std::make_pair(from_key, WeakHeapObject(context_, to_object)));
-    referenced_object_map_->AddReferencedObject(from_key, to_object);
+        std::make_pair(from_key, WeakHeapObject(context_, to_value)));
+    referenced_object_map_->AddReferencedObject(from_key, to_value);
   }
 
   ~OpaqueRootStateImpl() {
     JSAutoRequest auto_request(context_);
     for (ReferencedObjectPairVector::iterator it = referenced_objects_.begin();
          it != referenced_objects_.end(); ++it) {
-      if (it->second.Get()) {
-        JS::RootedObject reachable_object(context_, it->second.Get());
+      WeakHeapObject &value = it->second;
+      if (value.IsGcThing() && !value.WasCollected()) {
+        JS::RootedValue reachable_value(context_, value.GetValue());
         referenced_object_map_->RemoveReferencedObject(it->first,
-                                                       reachable_object);
+                                                       reachable_value);
       }
     }
   }

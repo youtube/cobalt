@@ -36,7 +36,7 @@ namespace net {
 WebSocketFrameParser::WebSocketFrameParser()
     : current_read_pos_(0),
       frame_offset_(0),
-      websocket_error_(WEB_SOCKET_OK) {
+      websocket_error_(kWebSocketNormalClosure) {
   std::fill(masking_key_.key,
             masking_key_.key + WebSocketFrameHeader::kMaskingKeyLength,
             '\0');
@@ -49,7 +49,7 @@ bool WebSocketFrameParser::Decode(
     const char* data,
     size_t length,
     ScopedVector<WebSocketFrameChunk>* frame_chunks) {
-  if (websocket_error_ != WEB_SOCKET_OK)
+  if (websocket_error_ != kWebSocketNormalClosure)
     return false;
   if (!length)
     return true;
@@ -61,7 +61,7 @@ bool WebSocketFrameParser::Decode(
     bool first_chunk = false;
     if (!current_frame_header_.get()) {
       DecodeFrameHeader();
-      if (websocket_error_ != WEB_SOCKET_OK)
+      if (websocket_error_ != kWebSocketNormalClosure)
         return false;
       // If frame header is incomplete, then carry over the remaining
       // data to the next round of Decode().
@@ -117,7 +117,7 @@ void WebSocketFrameParser::DecodeFrameHeader() {
   bool reserved1 = (first_byte & kReserved1Bit) != 0;
   bool reserved2 = (first_byte & kReserved2Bit) != 0;
   bool reserved3 = (first_byte & kReserved3Bit) != 0;
-  OpCode opcode = first_byte & kOpCodeMask;
+  OpCode opcode = OpCode(first_byte & kOpCodeMask);
 
   bool masked = (second_byte & kMaskBit) != 0;
   uint64 payload_length = second_byte & kPayloadLengthMask;
@@ -129,7 +129,7 @@ void WebSocketFrameParser::DecodeFrameHeader() {
     current += 2;
     payload_length = payload_length_16;
     if (payload_length <= kMaxPayloadLengthWithoutExtendedLengthField)
-      websocket_error_ = WEB_SOCKET_ERR_PROTOCOL_ERROR;
+      websocket_error_ = kWebSocketErrorProtocolError;
   } else if (payload_length == kPayloadLengthWithEightByteExtendedLengthField) {
     if (end - current < 8)
       return;
@@ -137,12 +137,12 @@ void WebSocketFrameParser::DecodeFrameHeader() {
     current += 8;
     if (payload_length <= kuint16max ||
         payload_length > static_cast<uint64>(kint64max)) {
-      websocket_error_ = WEB_SOCKET_ERR_PROTOCOL_ERROR;
+      websocket_error_ = kWebSocketErrorProtocolError;
     } else if (payload_length > static_cast<uint64>(kint32max)) {
-      websocket_error_ = WEB_SOCKET_ERR_MESSAGE_TOO_BIG;
+      websocket_error_ = kWebSocketErrorMessageTooBig;
     }
   }
-  if (websocket_error_ != WEB_SOCKET_OK) {
+  if (websocket_error_ != kWebSocketNormalClosure) {
     buffer_.clear();
     current_read_pos_ = 0;
     current_frame_header_.reset();
@@ -190,7 +190,7 @@ scoped_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
   if (next_size) {
     frame_chunk->data = new IOBufferWithSize(static_cast<int>(next_size));
     char* io_data = frame_chunk->data->data();
-    memcpy(io_data, current, next_size);
+    SbMemoryCopy(io_data, current, next_size);
     if (current_frame_header_->masked) {
       // The masking function is its own inverse, so we use the same function to
       // unmask as to mask.

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
@@ -46,6 +44,11 @@ class SkTypeface_CobaltSystem;
 class SkFontStyleSet_Cobalt : public SkFontStyleSet {
  public:
   struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
+    // NOTE: |SkFontStyleSetEntry_Cobalt| objects are not guaranteed to last for
+    // the lifetime of |SkFontMgr_Cobalt| and can be removed by their owning
+    // |SkFontStyleSet_Cobalt| if their typeface fails to load properly. As a
+    // result, it is not safe to store their pointers outside of
+    // |SkFontStyleSet_Cobalt|.
     SkFontStyleSetEntry_Cobalt(const SkString& file_path, const int index,
                                const SkFontStyle& style,
                                const std::string& full_name,
@@ -92,11 +95,14 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   // calling any of the non-const private functions.
 
   SkTypeface* MatchStyleWithoutLocking(const SkFontStyle& pattern);
+  SkTypeface* MatchFullFontName(const std::string& name);
+  SkTypeface* MatchFontPostScriptName(const std::string& name);
+  SkTypeface* TryRetrieveTypefaceAndRemoveStyleOnFailure(int style_index);
   bool ContainsTypeface(const SkTypeface* typeface);
 
   bool ContainsCharacter(const SkFontStyle& style, SkUnichar character);
   bool CharacterMapContainsCharacter(SkUnichar character);
-  void GenerateCharacterMapFromData(SkData* font_data);
+  void GenerateCharacterMapFromData(SkData* font_data, int ttc_index);
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
   void CreateSystemTypeface(SkFontStyleSetEntry_Cobalt* style);
@@ -138,33 +144,30 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   SkFontMgr_Cobalt(const char* directory,
                    const SkTArray<SkString, true>& default_fonts);
 
-  // Note: Unlike the other similar onMatch* functions, this function can return
-  // NULL.  This is so that we can try other things in case the match is not
-  // found.
-  SkTypeface* matchFaceNameOnlyIfFound(const std::string& font_face_name) const;
+  // NOTE: This returns NULL if a match is not found.
+  SkTypeface* matchFaceName(const std::string& font_face_name);
 
  protected:
-  // Note: These match*Name helper functions can return NULL.
-  SkTypeface* matchFullFontFaceName(const std::string& font_face_name) const;
-  SkTypeface* matchPostScriptName(const std::string& font_face_name) const;
-  SkTypeface* matchFullFontFaceNameHelper(
-      SkFontStyleSet_Cobalt* style_set,
-      SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* style) const;
-
   // From SkFontMgr
   virtual int onCountFamilies() const SK_OVERRIDE;
 
   virtual void onGetFamilyName(int index,
                                SkString* family_name) const SK_OVERRIDE;
 
+  // NOTE: This returns NULL if there is no accessible style set at the index.
   virtual SkFontStyleSet_Cobalt* onCreateStyleSet(int index) const SK_OVERRIDE;
 
+  // NOTE: This returns NULL if there is no family match.
   virtual SkFontStyleSet_Cobalt* onMatchFamily(const char family_name[]) const
       SK_OVERRIDE;
 
+  // NOTE: This always returns a non-NULL value. If the family name cannot be
+  // found, then the best match among the default family is returned.
   virtual SkTypeface* onMatchFamilyStyle(
       const char family_name[], const SkFontStyle& style) const SK_OVERRIDE;
 
+// NOTE: This always returns a non-NULL value. If no match can be found, then
+// the best match among the default family is returned.
 #ifdef SK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER
   virtual SkTypeface* onMatchFamilyStyleCharacter(
       const char family_name[], const SkFontStyle& style, const char* bcp47[],
@@ -175,19 +178,25 @@ class SkFontMgr_Cobalt : public SkFontMgr {
       SkUnichar character) const SK_OVERRIDE;
 #endif
 
+  // NOTE: This returns NULL if a match is not found.
   virtual SkTypeface* onMatchFaceStyle(const SkTypeface* family_member,
                                        const SkFontStyle& font_style) const
       SK_OVERRIDE;
 
+  // NOTE: This returns NULL if the typeface cannot be created.
   virtual SkTypeface* onCreateFromData(SkData* data,
                                        int ttc_index) const SK_OVERRIDE;
 
-  virtual SkTypeface* onCreateFromStream(SkStream* stream,
+  // NOTE: This returns NULL if the typeface cannot be created.
+  virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream,
                                          int ttc_index) const SK_OVERRIDE;
 
+  // NOTE: This returns NULL if the typeface cannot be created.
   virtual SkTypeface* onCreateFromFile(const char path[],
                                        int ttc_index) const SK_OVERRIDE;
 
+  // NOTE: This always returns a non-NULL value. If no match can be found, then
+  // the best match among the default family is returned.
   virtual SkTypeface* onLegacyCreateTypeface(
       const char family_name[], unsigned style_bits) const SK_OVERRIDE;
 
@@ -201,23 +210,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
     base::TimeTicks time;
   };
 
-  //  Map names to the back end so that all names for a given family refer to
-  //  the same (non-replicated) set of typefaces.
-  typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToFamilyMap;
-
-  struct FontFaceInfo {
-    FontFaceInfo() : style_set_entry(NULL), style_set_entry_parent(NULL) {}
-    FontFaceInfo(SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* entry,
-                 SkFontStyleSet_Cobalt* parent)
-        : style_set_entry(entry), style_set_entry_parent(parent) {}
-
-    SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* style_set_entry;
-    SkFontStyleSet_Cobalt* style_set_entry_parent;
-  };
-
-  typedef base::hash_map<std::string, FontFaceInfo>
-      FullFontNameToFontFaceInfoMap;
-  typedef base::hash_map<std::string, FontFaceInfo> PostScriptToFontFaceInfoMap;
+  typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToStyleSetMap;
 
   void BuildNameToFamilyMap(const char* base_path,
                             SkTDArray<FontFamily*>* families);
@@ -257,9 +250,11 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> font_style_sets_;
 
   SkTArray<SkString> family_names_;
-  NameToFamilyMap name_to_family_map_;
-  FullFontNameToFontFaceInfoMap fullfontname_to_fontface_info_map_;
-  PostScriptToFontFaceInfoMap postscriptname_to_fontface_info_map_;
+  //  Map names to the back end so that all names for a given family refer to
+  //  the same (non-replicated) set of typefaces.
+  NameToStyleSetMap name_to_family_map_;
+  NameToStyleSetMap full_font_name_to_style_set_map_;
+  NameToStyleSetMap font_postscript_name_to_style_set_map_;
 
   SkTArray<SkFontStyleSet_Cobalt*> fallback_families_;
 

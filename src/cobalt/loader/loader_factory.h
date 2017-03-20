@@ -1,30 +1,30 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_LOADER_LOADER_FACTORY_H_
 #define COBALT_LOADER_LOADER_FACTORY_H_
 
 #include <set>
 
+#include "base/memory/scoped_vector.h"
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/typeface_decoder.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/loader.h"
+#include "cobalt/loader/mesh/mesh_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
 
@@ -37,21 +37,28 @@ namespace loader {
 class LoaderFactory {
  public:
   LoaderFactory(FetcherFactory* fetcher_factory,
-                render_tree::ResourceProvider* resource_provider);
+                render_tree::ResourceProvider* resource_provider,
+                base::ThreadPriority software_decoder_thread_priority,
+                base::ThreadPriority hardware_decoder_thread_priority,
+                base::ThreadPriority fetcher_thread_priority);
 
   // Creates a loader that fetches and decodes a render_tree::Image.
   scoped_ptr<Loader> CreateImageLoader(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::SuccessCallback& success_callback,
-      const image::ImageDecoder::FailureCallback& failure_callback,
       const image::ImageDecoder::ErrorCallback& error_callback);
 
   // Creates a loader that fetches and decodes a render_tree::Typeface.
   scoped_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       const font::TypefaceDecoder::SuccessCallback& success_callback,
-      const font::TypefaceDecoder::FailureCallback& failure_callback,
       const font::TypefaceDecoder::ErrorCallback& error_callback);
+
+  // Creates a loader that fetches and decodes a Mesh.
+  scoped_ptr<Loader> CreateMeshLoader(
+      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      const mesh::MeshDecoder::SuccessCallback& success_callback,
+      const mesh::MeshDecoder::ErrorCallback& error_callback);
 
   // Clears out the loader factory's resource provider, aborting any in-progress
   // loads.
@@ -66,7 +73,8 @@ class LoaderFactory {
   void OnLoaderDestroyed(Loader* loader);
 
   Loader::FetcherCreator MakeFetcherCreator(
-      const GURL& url, const csp::SecurityCallback& url_security_callback);
+      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      MessageLoop* message_loop);
 
   // Ensures that the LoaderFactory methods are only called from the same
   // thread.
@@ -83,9 +91,12 @@ class LoaderFactory {
   typedef std::set<Loader*> LoaderSet;
   LoaderSet active_loaders_;
 
-  // Thread to run asynchronous fetchers and decoders on.  At the moment,
-  // image decoding is the only thing done on this thread.
-  base::Thread load_thread_;
+  // Threads that run asynchronous decoders.
+  scoped_ptr<base::Thread> software_decoder_thread_;
+  scoped_ptr<base::Thread> hardware_decoder_thread_;
+
+  // Thread that runs creates and deletes NetFetchers fetchers.
+  scoped_ptr<base::Thread> fetcher_thread_;
 };
 
 }  // namespace loader

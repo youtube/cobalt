@@ -40,6 +40,8 @@
 #include "net/socket/tcp_client_socket.h"
 #include "net/socket_stream/socket_stream_metrics.h"
 #include "net/url_request/url_request.h"
+#include "starboard/memory.h"
+#include "starboard/client_porting/poem/string_poem.h"
 
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
 static const int kReadBufferSize = 4096;
@@ -79,7 +81,8 @@ bool SocketStream::Delegate::CanSetCookie(SocketStream* request,
 SocketStream::ResponseHeaders::ResponseHeaders() : IOBuffer() {}
 
 void SocketStream::ResponseHeaders::Realloc(size_t new_size) {
-  headers_.reset(static_cast<char*>(realloc(headers_.release(), new_size)));
+  headers_.reset(
+      static_cast<char*>(SbMemoryReallocate(headers_.release(), new_size)));
 }
 
 SocketStream::ResponseHeaders::~ResponseHeaders() { data_ = NULL; }

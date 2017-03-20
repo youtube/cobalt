@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-* Copyright (c) 2002-2010,International Business Machines
+* Copyright (c) 2002-2014,International Business Machines
 * Corporation and others.  All Rights Reserved.
 **********************************************************************
 **********************************************************************
@@ -33,15 +33,30 @@ UPerfFunction* DateFormatPerfTest::runIndexedTest(int32_t index, UBool exec,cons
     switch (index) {
         TESTCASE(0,DateFmt250);
         TESTCASE(1,DateFmt10000);
-		TESTCASE(2,DateFmt100000);
+        TESTCASE(2,DateFmt100000);
         TESTCASE(3,BreakItWord250);
-		TESTCASE(4,BreakItWord10000);
-		TESTCASE(5,BreakItChar250);
-		TESTCASE(6,BreakItChar10000);
+        TESTCASE(4,BreakItWord10000);
+        TESTCASE(5,BreakItChar250);
+        TESTCASE(6,BreakItChar10000);
         TESTCASE(7,NumFmt10000);
         TESTCASE(8,NumFmt100000);
         TESTCASE(9,Collation10000);
         TESTCASE(10,Collation100000);
+        TESTCASE(11, DIFCreate250);
+        TESTCASE(12, DIFCreate10000);
+        TESTCASE(13, TimeZoneCreate250);
+        TESTCASE(14, TimeZoneCreate10000);
+        TESTCASE(15, DTPatternGeneratorCreate250);
+        TESTCASE(16, DTPatternGeneratorCreate10000);
+        TESTCASE(17, DTPatternGeneratorCopy250);
+        TESTCASE(18, DTPatternGeneratorCopy10000);
+        TESTCASE(19, DTPatternGeneratorBestValue250);
+        TESTCASE(20, DTPatternGeneratorBestValue10000);
+        TESTCASE(21,DateFmtCopy250);
+        TESTCASE(22,DateFmtCopy10000);
+        TESTCASE(23,DateFmtCreate250);
+        TESTCASE(24,DateFmtCreate10000);
+
 
         default: 
             name = ""; 
@@ -107,6 +122,64 @@ UPerfFunction* DateFormatPerfTest::Collation100000(){
 }
 
 
+UPerfFunction *DateFormatPerfTest::DIFCreate250() {
+    DIFCreateFunction* func = new DIFCreateFunction(250, locale);
+    return func;
+}
+
+UPerfFunction *DateFormatPerfTest::DIFCreate10000() {
+    DIFCreateFunction* func = new DIFCreateFunction(10000, locale);
+    return func;
+}
+
+UPerfFunction *DateFormatPerfTest::TimeZoneCreate250() {
+    return new TimeZoneCreateFunction(250, locale);
+}
+
+UPerfFunction *DateFormatPerfTest::TimeZoneCreate10000() {
+    return new TimeZoneCreateFunction(10000, locale);
+}
+
+UPerfFunction *DateFormatPerfTest::DTPatternGeneratorCreate250() {
+    return new DTPatternGeneratorCreateFunction(250, locale);
+}
+
+UPerfFunction *DateFormatPerfTest::DTPatternGeneratorCreate10000() {
+    return new DTPatternGeneratorCreateFunction(10000, locale);
+}
+
+UPerfFunction *DateFormatPerfTest::DTPatternGeneratorCopy250() {
+    return new DTPatternGeneratorCopyFunction(250, locale);
+}
+
+UPerfFunction *DateFormatPerfTest::DTPatternGeneratorCopy10000() {
+    return new DTPatternGeneratorCopyFunction(10000, locale);
+}
+
+UPerfFunction *DateFormatPerfTest::DTPatternGeneratorBestValue250() {
+    return new DTPatternGeneratorBestValueFunction(250, locale);
+}
+
+UPerfFunction *DateFormatPerfTest::DTPatternGeneratorBestValue10000() {
+    return new DTPatternGeneratorBestValueFunction(10000, locale);
+}
+
+UPerfFunction* DateFormatPerfTest::DateFmtCopy250(){
+    return new DateFmtCopyFunction(250, locale);
+}
+
+UPerfFunction* DateFormatPerfTest::DateFmtCopy10000(){
+    return new DateFmtCopyFunction(10000, locale);
+}
+
+UPerfFunction* DateFormatPerfTest::DateFmtCreate250(){
+    return new DateFmtCreateFunction(250, locale);
+}
+
+UPerfFunction* DateFormatPerfTest::DateFmtCreate10000(){
+    return new DateFmtCreateFunction(10000, locale);
+}
+
 
 int main(int argc, const char* argv[]){
 
@@ -122,49 +195,73 @@ int main(int argc, const char* argv[]){
 		cout << "ICU version - " << U_ICU_VERSION << endl;
         UErrorCode status = U_ZERO_ERROR;
 
+#define FUNCTION_COUNT 6
         // Declare functions
-        UPerfFunction *functions[5];
+        UPerfFunction *functions[FUNCTION_COUNT];
+
         functions[0] = new DateFmtFunction(40, "en");
         functions[1] = new BreakItFunction(10000, true); // breakIterator word
         functions[2] = new BreakItFunction(10000, false); // breakIterator char
         functions[3] = new NumFmtFunction(100000, "en");
         functions[4] = new CollationFunction(400, "en");
-        
+        functions[5] = new StdioNumFmtFunction(100000, "en");
+
         // Perform time recording
-        double t[5];
-        for(int i = 0; i < 5; i++) t[i] = 0;
+        double t[FUNCTION_COUNT];
+        for(int i = 0; i < FUNCTION_COUNT; i++) t[i] = 0;
 
-        for(int i = 0; i < 10; i++)
-            for(int j = 0; j < 5; j++)
-               t[j] += (functions[j]->time(1, &status) / 10);
+#define ITER_COUNT 10
+#ifdef U_DEBUG
+        cout << "Doing " << ITER_COUNT << " iterations:" << endl;
+        cout << "__________| Running...\r";
+        cout.flush();
+#endif
+        for(int i = 0; i < ITER_COUNT; i++) {
+#ifdef U_DEBUG
+          cout << '*' << flush;
+#endif
+          for(int j = 0; U_SUCCESS(status)&& j < FUNCTION_COUNT; j++)
+            t[j] += (functions[j]->time(1, &status) / ITER_COUNT);
+        }
+#ifdef U_DEBUG
+        cout << " Done                   " << endl;
+#endif
 
+        if(U_SUCCESS(status)) {
 
-        // Output results as .xml
-        ofstream out;
-        out.open(argv[2]);
+          // Output results as .xml
+          ofstream out;
+          out.open(argv[2]);
 
-        out << "<perfTestResults icu=\"c\" version=\"" << U_ICU_VERSION << "\">" << endl;
+          out << "<perfTestResults icu=\"c\" version=\"" << U_ICU_VERSION << "\">" << endl;
 
-        for(int i = 0; i < 5; i++)
-        {
-            out << "    <perfTestResult" << endl;
-            out << "        test=\"";
-            switch(i)
+          for(int i = 0; i < FUNCTION_COUNT; i++)
             {
+              out << "    <perfTestResult" << endl;
+              out << "        test=\"";
+              switch(i)
+                {
                 case 0: out << "DateFormat"; break;
                 case 1: out << "BreakIterator Word"; break;
                 case 2: out << "BreakIterator Char"; break;
                 case 3: out << "NumbFormat"; break;
                 case 4: out << "Collation"; break;
+                case 5: out << "StdioNumbFormat"; break;
+                default: out << "Unknown "  << i; break;
+                }
+              out << "\"" << endl;
+              out << "        iterations=\"" << functions[i]->getOperationsPerIteration() << "\"" << endl;
+              out << "        time=\"" << t[i] << "\" />" << endl;
             }
-            out << "\"" << endl;
-            int iter = 10000;
-            if(i > 2) iter = 100000;
-            out << "        iterations=\"" << iter << "\"" << endl;
-            out << "        time=\"" << t[i] << "\" />" << endl;
+          out << "</perfTestResults>" << endl;
+          out.close();
+          cout << " Wrote to " << argv[2] << endl;
         }
-        out << "</perfTestResults>" << endl;
-        out.close();
+
+        if(U_FAILURE(status)) {
+          cout << "Error! " << u_errorName(status) << endl;
+          return 1;
+        }
 
         return 0;
     }

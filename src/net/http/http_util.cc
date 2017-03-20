@@ -426,6 +426,13 @@ bool HttpUtil::IsQuote(char c) {
   return c == '"' || c == '\'';
 }
 
+bool HttpUtil::IsTokenChar(char c) {
+  return !(c >= 0x7F || c <= 0x20 || c == '(' || c == ')' || c == '<' ||
+           c == '>' || c == '@' || c == ',' || c == ';' || c == ':' ||
+           c == '\\' || c == '"' || c == '/' || c == '[' || c == ']' ||
+           c == '?' || c == '=' || c == '{' || c == '}');
+}
+
 // See RFC 2616 Sec 2.2 for the definition of |token|.
 bool HttpUtil::IsToken(string::const_iterator begin,
                        string::const_iterator end) {

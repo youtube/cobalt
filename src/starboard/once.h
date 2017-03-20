@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Module Overview: Starboard Once module
+//
 // Onces represent initializations that should only ever happen once per
-// process, in a thread safe way.
+// process, in a thread-safe way.
 
 #ifndef STARBOARD_ONCE_H_
 #define STARBOARD_ONCE_H_
@@ -26,15 +28,45 @@
 extern "C" {
 #endif
 
-// Function pointer type for methods that can be called va the SbOnce() system.
+// Function pointer type for methods that can be called via the SbOnce() system.
 typedef void (*SbOnceInitRoutine)(void);
 
-// If SbOnce() was never called before on with |once_control|, this function
-// will run |init_routine| in a thread-safe way and then returns true.  If
-// SbOnce() was called before, the function returns (true) immediately.
-// If |once_control| or |init_routine| are invalid, the function returns false.
+// Thread-safely runs |init_routine| only once.
+// - If this |once_control| has not run a function yet, this function runs
+//   |init_routine| in a thread-safe way and then returns |true|.
+// - If SbOnce() was called with |once_control| before, the function returns
+//   |true| immediately.
+// - If |once_control| or |init_routine| is invalid, the function returns
+//   |false|.
 SB_EXPORT bool SbOnce(SbOnceControl* once_control,
                       SbOnceInitRoutine init_routine);
+
+#ifdef __cplusplus
+// Defines a function that will initialize the indicated type once and return
+// it. This initialization is thread safe if the type being created is side
+// effect free.
+//
+// These macros CAN ONLY BE USED IN A CC file, never in a header file.
+//
+// Example (in cc file):
+//   SB_ONCE_INITIALIZE_FUNCTION(MyClass, GetOrCreateMyClass)
+//   ..
+//   MyClass* instance = GetOrCreateMyClass();
+//   MyClass* instance2 = GetOrCreateMyClass();
+//   DCHECK_EQ(instance, instance2);
+#define SB_ONCE_INITIALIZE_FUNCTION(Type, FunctionName)    \
+Type* FunctionName() {                                     \
+  static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;  \
+  static Type* s_singleton = NULL;                         \
+  struct Local {                                           \
+    static void Init() {                                   \
+      s_singleton = new Type();                            \
+    }                                                      \
+  };                                                       \
+  SbOnce(&s_once_flag, Local::Init);                       \
+  return s_singleton;                                      \
+}
+#endif  // __cplusplus
 
 #ifdef __cplusplus
 }

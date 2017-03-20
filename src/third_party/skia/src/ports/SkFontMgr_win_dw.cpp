@@ -272,7 +272,7 @@ protected:
                                            const SkFontStyle& fontstyle) const SK_OVERRIDE;
     virtual SkTypeface* onMatchFaceStyle(const SkTypeface* familyMember,
                                          const SkFontStyle& fontstyle) const SK_OVERRIDE;
-    virtual SkTypeface* onCreateFromStream(SkStream* stream, int ttcIndex) const SK_OVERRIDE;
+    virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream, int ttcIndex) const SK_OVERRIDE;
     virtual SkTypeface* onCreateFromData(SkData* data, int ttcIndex) const SK_OVERRIDE;
     virtual SkTypeface* onCreateFromFile(const char path[], int ttcIndex) const SK_OVERRIDE;
     virtual SkTypeface* onLegacyCreateTypeface(const char familyName[],
@@ -523,7 +523,7 @@ private:
     T* fUnregister;
 };
 
-SkTypeface* SkFontMgr_DirectWrite::onCreateFromStream(SkStream* stream, int ttcIndex) const {
+SkTypeface* SkFontMgr_DirectWrite::onCreateFromStream(SkStreamAsset* stream, int ttcIndex) const {
     SkTScopedComPtr<StreamFontFileLoader> fontFileLoader;
     HRN(StreamFontFileLoader::Create(stream, &fontFileLoader));
     HRN(fFactory->RegisterFontFileLoader(fontFileLoader.get()));

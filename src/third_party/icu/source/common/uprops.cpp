@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2002-2010, International Business Machines
+*   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -28,14 +28,11 @@
 #include "unicode/ustring.h"
 #include "cstring.h"
 #include "normalizer2impl.h"
-#include "ucln_cmn.h"
 #include "umutex.h"
 #include "ubidi_props.h"
 #include "uprops.h"
 #include "ucase.h"
 #include "ustr_imp.h"
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 
 U_NAMESPACE_USE
 
@@ -109,7 +106,7 @@ static UBool changesWhenCasefolded(const BinaryProperty &, UChar32, UProperty) {
 static UBool changesWhenCasefolded(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
     UnicodeString nfd;
     UErrorCode errorCode=U_ZERO_ERROR;
-    const Normalizer2 *nfcNorm2=Normalizer2Factory::getNFCInstance(errorCode);
+    const Normalizer2 *nfcNorm2=Normalizer2::getNFCInstance(errorCode);
     if(U_FAILURE(errorCode)) {
         return FALSE;
     }
@@ -136,7 +133,7 @@ static UBool changesWhenCasefolded(const BinaryProperty &/*prop*/, UChar32 c, UP
         /* guess some large but stack-friendly capacity */
         UChar dest[2*UCASE_MAX_STRING_LENGTH];
         int32_t destLength;
-        destLength=u_strFoldCase(dest, LENGTHOF(dest),
+        destLength=u_strFoldCase(dest, UPRV_LENGTHOF(dest),
                                   nfd.getBuffer(), nfd.length(),
                                   U_FOLD_CASE_DEFAULT, &errorCode);
         return (UBool)(U_SUCCESS(errorCode) &&
@@ -214,7 +211,7 @@ static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
      * Must be in order of corresponding UProperty,
      * and there must be exactly one entry per binary UProperty.
      *
-     * Properties with mask==0 and contains==NULL are handled in code.
+     * Properties with mask==0 are handled in code.
      * For them, column is the UPropertySource value.
      */
     { 1,                U_MASK(UPROPS_ALPHABETIC), defaultContains },
@@ -273,7 +270,11 @@ static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     { UPROPS_SRC_CASE,  0, caseBinaryPropertyContains },  // UCHAR_CHANGES_WHEN_TITLECASED
     { UPROPS_SRC_CASE_AND_NORM,  0, changesWhenCasefolded },
     { UPROPS_SRC_CASE,  0, caseBinaryPropertyContains },  // UCHAR_CHANGES_WHEN_CASEMAPPED
-    { UPROPS_SRC_NFKC_CF, 0, changesWhenNFKC_Casefolded }
+    { UPROPS_SRC_NFKC_CF, 0, changesWhenNFKC_Casefolded },
+    { 2,                U_MASK(UPROPS_2_EMOJI), defaultContains },
+    { 2,                U_MASK(UPROPS_2_EMOJI_PRESENTATION), defaultContains },
+    { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER), defaultContains },
+    { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER_BASE), defaultContains },
 };
 
 U_CAPI UBool U_EXPORT2
@@ -287,32 +288,6 @@ u_hasBinaryProperty(UChar32 c, UProperty which) {
         return prop.contains(prop, c, which);
     }
 }
-
-#if !UCONFIG_NO_NORMALIZATION
-
-U_CAPI uint8_t U_EXPORT2
-u_getCombiningClass(UChar32 c) {
-    UErrorCode errorCode=U_ZERO_ERROR;
-    const Normalizer2Impl *impl=Normalizer2Factory::getNFCImpl(errorCode);
-    if(U_SUCCESS(errorCode)) {
-        return impl->getCC(impl->getNorm16(c));
-    } else {
-        return 0;
-    }
-}
-
-static uint16_t
-getFCD16(UChar32 c) {
-    UErrorCode errorCode=U_ZERO_ERROR;
-    const UTrie2 *trie=Normalizer2Factory::getFCDTrie(errorCode);
-    if(U_SUCCESS(errorCode)) {
-        return UTRIE2_GET16(trie, c);
-    } else {
-        return 0;
-    }
-}
-
-#endif
 
 struct IntProperty;
 
@@ -344,6 +319,10 @@ static int32_t getBiDiClass(const IntProperty &/*prop*/, UChar32 c, UProperty /*
     return (int32_t)u_charDirection(c);
 }
 
+static int32_t getBiDiPairedBracketType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    return (int32_t)ubidi_getPairedBracketType(GET_BIDI_PROPS(), c);
+}
+
 static int32_t biDiGetMaxValue(const IntProperty &/*prop*/, UProperty which) {
     return ubidi_getMaxValue(GET_BIDI_PROPS(), which);
 }
@@ -371,7 +350,7 @@ static int32_t getJoiningType(const IntProperty &/*prop*/, UChar32 c, UProperty 
 }
 
 static int32_t getNumericType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    int32_t ntv=(int32_t)GET_NUMERIC_TYPE_VALUE(u_getUnicodeProperties(c, -1));
+    int32_t ntv=(int32_t)GET_NUMERIC_TYPE_VALUE(u_getMainProperties(c));
     return UPROPS_NTV_GET_TYPE(ntv);
 }
 
@@ -404,7 +383,7 @@ static const UHangulSyllableType gcbToHst[]={
 static int32_t getHangulSyllableType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
     /* see comments on gcbToHst[] above */
     int32_t gcb=(int32_t)(u_getUnicodeProperties(c, 2)&UPROPS_GCB_MASK)>>UPROPS_GCB_SHIFT;
-    if(gcb<LENGTHOF(gcbToHst)) {
+    if(gcb<UPRV_LENGTHOF(gcbToHst)) {
         return gcbToHst[gcb];
     } else {
         return U_HST_NOT_APPLICABLE;
@@ -427,7 +406,7 @@ static int32_t getLeadCombiningClass(const IntProperty &, UChar32, UProperty) {
 }
 #else
 static int32_t getLeadCombiningClass(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return getFCD16(c)>>8;
+    return unorm_getFCD16(c)>>8;
 }
 #endif
 
@@ -437,7 +416,7 @@ static int32_t getTrailCombiningClass(const IntProperty &, UChar32, UProperty) {
 }
 #else
 static int32_t getTrailCombiningClass(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return getFCD16(c)&0xff;
+    return unorm_getFCD16(c)&0xff;
 }
 #endif
 
@@ -447,7 +426,7 @@ static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
      * Must be in order of corresponding UProperty,
      * and there must be exactly one entry per int UProperty.
      *
-     * Properties with mask==0 and getValue==NULL are handled in code.
+     * Properties with mask==0 are handled in code.
      * For them, column is the UPropertySource value.
      */
     { UPROPS_SRC_BIDI,  0, 0,                               getBiDiClass, biDiGetMaxValue },
@@ -474,7 +453,8 @@ static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     { UPROPS_SRC_NFC,   0, 0xff,                            getTrailCombiningClass, getMaxValueFromShift },
     { 2,                UPROPS_GCB_MASK, UPROPS_GCB_SHIFT,  defaultGetValue, defaultGetMaxValue },
     { 2,                UPROPS_SB_MASK, UPROPS_SB_SHIFT,    defaultGetValue, defaultGetMaxValue },
-    { 2,                UPROPS_WB_MASK, UPROPS_WB_SHIFT,    defaultGetValue, defaultGetMaxValue }
+    { 2,                UPROPS_WB_MASK, UPROPS_WB_SHIFT,    defaultGetValue, defaultGetMaxValue },
+    { UPROPS_SRC_BIDI,  0, 0,                               getBiDiPairedBracketType, biDiGetMaxValue },
 };
 
 U_CAPI int32_t U_EXPORT2
@@ -593,7 +573,7 @@ u_getFC_NFKC_Closure(UChar32 c, UChar *dest, int32_t destCapacity, UErrorCode *p
     // (What could be useful is a custom normalization table that combines
     // case folding and NFKC.)
     // For the derivation, see Unicode's DerivedNormalizationProps.txt.
-    const Normalizer2 *nfkc=Normalizer2Factory::getNFKCInstance(*pErrorCode);
+    const Normalizer2 *nfkc=Normalizer2::getNFKCInstance(*pErrorCode);
     const UCaseProps *csp=ucase_getSingleton();
     if(U_FAILURE(*pErrorCode)) {
         return 0;

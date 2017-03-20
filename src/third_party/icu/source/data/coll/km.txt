@@ -1,21 +1,20 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/collation/km.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/collation/km.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/collation/km.xml
- */
 km{
-    Version{"1.5"}
+    Version{"2.1.19.14"}
     collations{
         standard{
             Sequence{
-                " [normalization on ]"
-                "&[last tertiary ignorable ]='\u17B4'='\u17B5'&។<ៗ<៓<។<៕<៖<៘<៙<៚<ៜ"
+                "[normalization on]"
+                "[reorder Khmr]"
+                "&[last tertiary ignorable]=\u17b4=\u17b5"
+                "&។ល។<<<៘"
                 "&ៈ<<៎<<៏<<៑<<័<<ៈ<<៝<<់<<៉<<៊<<៍"
                 "&រ<ឫ<ឬ"
                 "&ល<ឭ<ឮ"
@@ -57,21 +56,23 @@ km{
                 "&រ្ស<<ស៌"
                 "&រ្ហ<<ហ៌"
                 "&រ្ឡ<<ឡ៌"
-                "&រ្អ<<អ៌<<<ឣ៌"
-                "&អ<<<ឣ"
+                "&រ្អ<<អ៌=ឣ៌"
+                "&អ=ឣ"
                 "&អា=ឤ"
-                "&អិ=ឥ"
-                "&អី=ឦ"
-                "&អុ=ឧ<<<ឨ"
-                "&អូ=ឩ"
-                "&អុអ=ឪ"
-                "&អែ=ឯ"
-                "&អៃ=ឰ"
-                "&អោ=ឱ<<<ឲ"
-                "&អៅ=ឳ"
-                "&ៅ<ុំ<ំ<ាំ<ះ"
+                "&អិ<<ឥ"
+                "&អី<<ឦ"
+                "&អុ<<ឧ"
+                "&អូ<<ឩ"
+                "&អែ<<ឯ"
+                "&អៃ<<ឰ"
+                "&អោ<<ឱ"
+                "&អៅ<<ឳ"
+                "&ឧក<<<ឨ"
+                "&ឩវ<<<ឪ"
+                "&ឱ<<<ឲ"
+                "&ៅ<ុំ<ំ<ាំ<ះ<ិះ<ុះ<េះ<ោះ"
             }
-            Version{"1.9"}
+            Version{"28"}
         }
     }
 }

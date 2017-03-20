@@ -1,5 +1,5 @@
 /********************************************************************
- * Copyright (c) 1999-2010, International Business Machines
+ * Copyright (c) 1999-2014, International Business Machines
  * Corporation and others. All Rights Reserved.
  ********************************************************************
  *   Date        Name        Description
@@ -19,20 +19,24 @@
 #include "rbbidata.h"
 #include "cstring.h"
 #include "ubrkimpl.h"
+#include "unicode/locid.h"
 #include "unicode/ustring.h"
 #include "unicode/utext.h"
 #include "cmemory.h"
-
+#if !UCONFIG_NO_BREAK_ITERATION && U_HAVE_STD_STRING
+#include "unicode/filteredbrk.h"
+#include <stdio.h> // for sprintf
+#endif
 /**
  * API Test the RuleBasedBreakIterator class
  */
 
 
 #define TEST_ASSERT_SUCCESS(status) {if (U_FAILURE(status)) {\
-errln("Failure at file %s, line %d, error = %s", __FILE__, __LINE__, u_errorName(status));}}
+dataerrln("Failure at file %s, line %d, error = %s", __FILE__, __LINE__, u_errorName(status));}}
 
-#define TEST_ASSERT(expr) {if ((expr)==FALSE) { \
-errln("Test Failure at file %s, line %d", __FILE__, __LINE__);}}
+#define TEST_ASSERT(expr) {if ((expr) == FALSE) { \
+    errln("Test Failure at file %s, line %d: \"%s\" is false.\n", __FILE__, __LINE__, #expr);};}
 
 void RBBIAPITest::TestCloneEquals()
 {
@@ -156,14 +160,13 @@ void RBBIAPITest::TestBoilerPlate()
     if(*a!=*b){
         errln("Failed: boilerplate method operator!= does not return correct results");
     }
-    // Japanese word break iteratos is identical to root with
-    // a dictionary-based break iterator, but Thai character break iterator
-    // is still different from Root. 
+    // Japanese word break iterators are identical to root with
+    // a dictionary-based break iterator
     BreakIterator* c = BreakIterator::createCharacterInstance(Locale("ja"),status);
-    BreakIterator* d = BreakIterator::createCharacterInstance(Locale("th"),status);
+    BreakIterator* d = BreakIterator::createCharacterInstance(Locale("root"),status);
     if(c && d){
-        if(*c==*d){
-            errln("Failed: boilerplate method opertator== does not return correct results");
+        if(*c!=*d){
+            errln("Failed: boilerplate method operator== does not return correct results");
         }
     }else{
         errln("creation of break iterator failed");
@@ -643,8 +646,8 @@ void RBBIAPITest::TestRuleStatus() {
      //no longer test Han or hiragana breaking here: ruleStatusVec would return nothing
      // changed UBRK_WORD_KANA to UBRK_WORD_IDEO
      u_unescape("plain word 123.45 \\u30a1\\u30a2 ",
-              // 012345678901234567  8      9    0      
-              //                     Katakana      
+              // 012345678901234567  8      9    0
+              //                     Katakana
                 str, 30);
      UnicodeString testString1(str);
      int32_t bounds1[] = {0, 5, 6, 10, 11, 17, 18, 20, 21};
@@ -658,7 +661,7 @@ void RBBIAPITest::TestRuleStatus() {
 
      UErrorCode status=U_ZERO_ERROR;
 
-     RuleBasedBreakIterator *bi = (RuleBasedBreakIterator *)BreakIterator::createWordInstance(Locale::getEnglish(), status);
+     BreakIterator *bi = BreakIterator::createWordInstance(Locale::getEnglish(), status);
      if(U_FAILURE(status)) {
          errcheckln(status, "Fail : in construction - %s", u_errorName(status));
      } else {
@@ -695,8 +698,7 @@ void RBBIAPITest::TestRuleStatus() {
      testString1 =   "test line. \n";
      // break type    s    s     h
 
-     bi = (RuleBasedBreakIterator *)
-         BreakIterator::createLineInstance(Locale::getEnglish(), status);
+     bi = BreakIterator::createLineInstance(Locale::getEnglish(), status);
      if(U_FAILURE(status)) {
          errcheckln(status, "failed to create word break iterator. - %s", u_errorName(status));
      } else {
@@ -875,19 +877,19 @@ void RBBIAPITest::TestRegistration() {
 #if !UCONFIG_NO_SERVICE
     UErrorCode status = U_ZERO_ERROR;
     BreakIterator* ja_word = BreakIterator::createWordInstance("ja_JP", status);
-
     // ok to not delete these if we exit because of error?
     BreakIterator* ja_char = BreakIterator::createCharacterInstance("ja_JP", status);
     BreakIterator* root_word = BreakIterator::createWordInstance("", status);
     BreakIterator* root_char = BreakIterator::createCharacterInstance("", status);
-    
+
     if (status == U_MISSING_RESOURCE_ERROR || status == U_FILE_ACCESS_ERROR) {
         dataerrln("Error creating instances of break interactors - %s", u_errorName(status));
+
         delete ja_word;
         delete ja_char;
         delete root_word;
         delete root_char;
-        
+
         return;
     }
 
@@ -1052,14 +1054,13 @@ void RBBIAPITest::TestRoundtripRules() {
     RoundtripRule("line");
     RoundtripRule("char");
     if (!quick) {
-        RoundtripRule("word_ja");
         RoundtripRule("word_POSIX");
     }
 }
 
 // Try out the RuleBasedBreakIterator constructors that take RBBIDataHeader*
 // (these are protected so we access them via a local class RBBIWithProtectedFunctions).
-// This is just a sanity check, not a thorough test (e.g. we don't check that the 
+// This is just a sanity check, not a thorough test (e.g. we don't check that the
 // first delete actually frees rulesCopy).
 void RBBIAPITest::TestCreateFromRBBIData() {
     // Get some handy RBBIData
@@ -1085,7 +1086,7 @@ void RBBIAPITest::TestCreateFromRBBIData() {
                 uprv_free( rulesCopy );
             }
         }
-        
+
         // Now try the non-adopting constructor
         brkItr = new RBBIWithProtectedFunctions(builtRules, RBBIWithProtectedFunctions::kDontAdopt, status);
         if ( U_SUCCESS(status) ) {
@@ -1097,6 +1098,327 @@ void RBBIAPITest::TestCreateFromRBBIData() {
             errln("create RuleBasedBreakIterator from RBBIData (non-adopted): ICU Error \"%s\"\n", u_errorName(status) );
         }
     }
+
+    // getBinaryRules() and RuleBasedBreakIterator(uint8_t binaryRules, ...)
+    //
+    status = U_ZERO_ERROR;
+    RuleBasedBreakIterator *rb = (RuleBasedBreakIterator *)BreakIterator::createWordInstance(Locale::getEnglish(), status);
+    if (rb == NULL || U_FAILURE(status)) {
+        dataerrln("Unable to create BreakIterator::createWordInstance (Locale::getEnglish) - %s", u_errorName(status));
+    } else {
+        uint32_t length;
+        const uint8_t *rules = rb->getBinaryRules(length);
+        RuleBasedBreakIterator *rb2 = new RuleBasedBreakIterator(rules, length, status);
+        TEST_ASSERT_SUCCESS(status);
+        TEST_ASSERT(*rb == *rb2);
+        UnicodeString words = "one two three ";
+        rb2->setText(words);
+        int wordCounter = 0;
+        while (rb2->next() != UBRK_DONE) {
+            wordCounter++;
+        }
+        TEST_ASSERT(wordCounter == 6);
+
+        status = U_ZERO_ERROR;
+        RuleBasedBreakIterator *rb3 = new RuleBasedBreakIterator(rules, length-1, status);
+        TEST_ASSERT(status == U_ILLEGAL_ARGUMENT_ERROR);
+
+        delete rb;
+        delete rb2;
+        delete rb3;
+    }
+}
+
+
+void RBBIAPITest::TestRefreshInputText() {
+    /*
+     *  RefreshInput changes out the input of a Break Iterator without
+     *    changing anything else in the iterator's state.  Used with Java JNI,
+     *    when Java moves the underlying string storage.   This test
+     *    runs BreakIterator::next() repeatedly, moving the text in the middle of the sequence.
+     *    The right set of boundaries should still be found.
+     */
+    UChar testStr[]  = {0x20, 0x41, 0x20, 0x42, 0x20, 0x43, 0x20, 0x44, 0x0};  /* = " A B C D"  */
+    UChar movedStr[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,  0};
+    UErrorCode status = U_ZERO_ERROR;
+    UText ut1 = UTEXT_INITIALIZER;
+    UText ut2 = UTEXT_INITIALIZER;
+    RuleBasedBreakIterator *bi = (RuleBasedBreakIterator *)BreakIterator::createLineInstance(Locale::getEnglish(), status);
+    TEST_ASSERT_SUCCESS(status);
+
+    utext_openUChars(&ut1, testStr, -1, &status);
+    TEST_ASSERT_SUCCESS(status);
+
+    if (U_SUCCESS(status)) {
+        bi->setText(&ut1, status);
+        TEST_ASSERT_SUCCESS(status);
+
+        /* Line boundaries will occur before each letter in the original string */
+        TEST_ASSERT(1 == bi->next());
+        TEST_ASSERT(3 == bi->next());
+
+        /* Move the string, kill the original string.  */
+        u_strcpy(movedStr, testStr);
+        u_memset(testStr, 0x20, u_strlen(testStr));
+        utext_openUChars(&ut2, movedStr, -1, &status);
+        TEST_ASSERT_SUCCESS(status);
+        RuleBasedBreakIterator *returnedBI = &bi->refreshInputText(&ut2, status);
+        TEST_ASSERT_SUCCESS(status);
+        TEST_ASSERT(bi == returnedBI);
+
+        /* Find the following matches, now working in the moved string. */
+        TEST_ASSERT(5 == bi->next());
+        TEST_ASSERT(7 == bi->next());
+        TEST_ASSERT(8 == bi->next());
+        TEST_ASSERT(UBRK_DONE == bi->next());
+
+        utext_close(&ut1);
+        utext_close(&ut2);
+    }
+    delete bi;
+
+}
+
+#if !UCONFIG_NO_BREAK_ITERATION && U_HAVE_STD_STRING && !UCONFIG_NO_FILTERED_BREAK_ITERATION
+static void prtbrks(BreakIterator* brk, const UnicodeString &ustr, IntlTest &it) {
+  static const UChar PILCROW=0x00B6, CHSTR=0x3010, CHEND=0x3011; // lenticular brackets
+  it.logln(UnicodeString("String:'")+ustr+UnicodeString("'"));
+
+  int32_t *pos = new int32_t[ustr.length()];
+  int32_t posCount = 0;
+
+  // calculate breaks up front, so we can print out
+  // sans any debugging
+  for(int32_t n = 0; (n=brk->next())!=UBRK_DONE; ) {
+    pos[posCount++] = n;
+    if(posCount>=ustr.length()) {
+      it.errln("brk count exceeds string length!");
+      return;
+    }
+  }
+  UnicodeString out;
+  out.append((UChar)CHSTR);
+  int32_t prev = 0;
+  for(int32_t i=0;i<posCount;i++) {
+    int32_t n=pos[i];
+    out.append(ustr.tempSubString(prev,n-prev));
+    out.append((UChar)PILCROW);
+    prev=n;
+  }
+  out.append(ustr.tempSubString(prev,ustr.length()-prev));
+  out.append((UChar)CHEND);
+  it.logln(out);
+
+  out.remove();
+  for(int32_t i=0;i<posCount;i++) {
+    char tmp[100];
+    sprintf(tmp,"%d ",pos[i]);
+    out.append(UnicodeString(tmp));
+  }
+  it.logln(out);
+  delete [] pos;
+}
+#endif
+
+void RBBIAPITest::TestFilteredBreakIteratorBuilder() {
+#if !UCONFIG_NO_BREAK_ITERATION && U_HAVE_STD_STRING && !UCONFIG_NO_FILTERED_BREAK_ITERATION
+  UErrorCode status = U_ZERO_ERROR;
+  LocalPointer<FilteredBreakIteratorBuilder> builder;
+  LocalPointer<BreakIterator> baseBI;
+  LocalPointer<BreakIterator> filteredBI;
+  LocalPointer<BreakIterator> frenchBI;
+
+  const UnicodeString text("In the meantime Mr. Weston arrived with his small ship, which he had now recovered. Capt. Gorges, who informed the Sgt. here that one purpose of his going east was to meet with Mr. Weston, took this opportunity to call him to account for some abuses he had to lay to his charge."); // (William Bradford, public domain. http://catalog.hathitrust.org/Record/008651224 ) - edited.
+  const UnicodeString ABBR_MR("Mr.");
+  const UnicodeString ABBR_CAPT("Capt.");
+
+  {
+    logln("Constructing empty builder\n");
+    builder.adoptInstead(FilteredBreakIteratorBuilder::createInstance(status));
+    TEST_ASSERT_SUCCESS(status);
+
+    logln("Constructing base BI\n");
+    baseBI.adoptInstead(BreakIterator::createSentenceInstance(Locale::getEnglish(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+	logln("Building new BI\n");
+    filteredBI.adoptInstead(builder->build(baseBI.orphan(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+	if (U_SUCCESS(status)) {
+        logln("Testing:");
+        filteredBI->setText(text);
+        TEST_ASSERT(20 == filteredBI->next()); // Mr.
+        TEST_ASSERT(84 == filteredBI->next()); // recovered.
+        TEST_ASSERT(90 == filteredBI->next()); // Capt.
+        TEST_ASSERT(181 == filteredBI->next()); // Mr.
+        TEST_ASSERT(278 == filteredBI->next()); // charge.
+        filteredBI->first();
+        prtbrks(filteredBI.getAlias(), text, *this);
+    }
+  }
+
+  {
+    logln("Constructing empty builder\n");
+    builder.adoptInstead(FilteredBreakIteratorBuilder::createInstance(status));
+    TEST_ASSERT_SUCCESS(status);
+
+    if (U_SUCCESS(status)) {
+        logln("Adding Mr. as an exception\n");
+        TEST_ASSERT(TRUE == builder->suppressBreakAfter(ABBR_MR, status));
+        TEST_ASSERT(FALSE == builder->suppressBreakAfter(ABBR_MR, status)); // already have it
+        TEST_ASSERT(TRUE == builder->unsuppressBreakAfter(ABBR_MR, status));
+        TEST_ASSERT(FALSE == builder->unsuppressBreakAfter(ABBR_MR, status)); // already removed it
+        TEST_ASSERT(TRUE == builder->suppressBreakAfter(ABBR_MR, status));
+        TEST_ASSERT_SUCCESS(status);
+
+        logln("Constructing base BI\n");
+        baseBI.adoptInstead(BreakIterator::createSentenceInstance(Locale::getEnglish(), status));
+        TEST_ASSERT_SUCCESS(status);
+
+        logln("Building new BI\n");
+        filteredBI.adoptInstead(builder->build(baseBI.orphan(), status));
+        TEST_ASSERT_SUCCESS(status);
+
+        logln("Testing:");
+        filteredBI->setText(text);
+        TEST_ASSERT(84 == filteredBI->next());
+        TEST_ASSERT(90 == filteredBI->next());// Capt.
+        TEST_ASSERT(278 == filteredBI->next());
+        filteredBI->first();
+        prtbrks(filteredBI.getAlias(), text, *this);
+    }
+  }
+
+
+  {
+    logln("Constructing empty builder\n");
+    builder.adoptInstead(FilteredBreakIteratorBuilder::createInstance(status));
+    TEST_ASSERT_SUCCESS(status);
+
+    if (U_SUCCESS(status)) {
+        logln("Adding Mr. and Capt as an exception\n");
+        TEST_ASSERT(TRUE == builder->suppressBreakAfter(ABBR_MR, status));
+        TEST_ASSERT(TRUE == builder->suppressBreakAfter(ABBR_CAPT, status));
+        TEST_ASSERT_SUCCESS(status);
+
+        logln("Constructing base BI\n");
+        baseBI.adoptInstead(BreakIterator::createSentenceInstance(Locale::getEnglish(), status));
+        TEST_ASSERT_SUCCESS(status);
+
+        logln("Building new BI\n");
+        filteredBI.adoptInstead(builder->build(baseBI.orphan(), status));
+        TEST_ASSERT_SUCCESS(status);
+
+        logln("Testing:");
+        filteredBI->setText(text);
+        TEST_ASSERT(84 == filteredBI->next());
+        TEST_ASSERT(278 == filteredBI->next());
+        filteredBI->first();
+        prtbrks(filteredBI.getAlias(), text, *this);
+    }
+  }
+
+
+  {
+    logln("Constructing English builder\n");
+    builder.adoptInstead(FilteredBreakIteratorBuilder::createInstance(Locale::getEnglish(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+    logln("Constructing base BI\n");
+    baseBI.adoptInstead(BreakIterator::createSentenceInstance(Locale::getEnglish(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+    if (U_SUCCESS(status)) {
+        logln("unsuppressing 'Capt'");
+        TEST_ASSERT(TRUE == builder->unsuppressBreakAfter(ABBR_CAPT, status));
+
+        logln("Building new BI\n");
+        filteredBI.adoptInstead(builder->build(baseBI.orphan(), status));
+        TEST_ASSERT_SUCCESS(status);
+
+        if(filteredBI.isValid()) {
+          logln("Testing:");
+          filteredBI->setText(text);
+          TEST_ASSERT(84 == filteredBI->next());
+          TEST_ASSERT(90 == filteredBI->next());
+          TEST_ASSERT(278 == filteredBI->next());
+          filteredBI->first();
+          prtbrks(filteredBI.getAlias(), text, *this);
+        }
+    }
+  }
+
+
+  {
+    logln("Constructing English builder\n");
+    builder.adoptInstead(FilteredBreakIteratorBuilder::createInstance(Locale::getEnglish(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+    logln("Constructing base BI\n");
+    baseBI.adoptInstead(BreakIterator::createSentenceInstance(Locale::getEnglish(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+    if (U_SUCCESS(status)) {
+        logln("Building new BI\n");
+        filteredBI.adoptInstead(builder->build(baseBI.orphan(), status));
+        TEST_ASSERT_SUCCESS(status);
+
+        if(filteredBI.isValid()) {
+          logln("Testing:");
+          filteredBI->setText(text);
+          TEST_ASSERT(84 == filteredBI->next());
+          TEST_ASSERT(278 == filteredBI->next());
+          filteredBI->first();
+          prtbrks(filteredBI.getAlias(), text, *this);
+        }
+    }
+  }
+
+  // reenable once french is in
+  {
+    logln("Constructing French builder");
+    builder.adoptInstead(FilteredBreakIteratorBuilder::createInstance(Locale::getFrench(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+    logln("Constructing base BI\n");
+    baseBI.adoptInstead(BreakIterator::createSentenceInstance(Locale::getFrench(), status));
+    TEST_ASSERT_SUCCESS(status);
+
+    if (U_SUCCESS(status)) {
+        logln("Building new BI\n");
+        frenchBI.adoptInstead(builder->build(baseBI.orphan(), status));
+        TEST_ASSERT_SUCCESS(status);
+    }
+
+    if(frenchBI.isValid()) {
+      logln("Testing:");
+      UnicodeString frText("C'est MM. Duval.");
+      frenchBI->setText(frText);
+      TEST_ASSERT(16 == frenchBI->next());
+      TEST_ASSERT(BreakIterator::DONE == frenchBI->next());
+      frenchBI->first();
+      prtbrks(frenchBI.getAlias(), frText, *this);
+      logln("Testing against English:");
+      filteredBI->setText(frText);
+      TEST_ASSERT(10 == filteredBI->next()); // wrong for french, but filterBI is english.
+      TEST_ASSERT(16 == filteredBI->next());
+      TEST_ASSERT(BreakIterator::DONE == filteredBI->next());
+      filteredBI->first();
+      prtbrks(filteredBI.getAlias(), frText, *this);
+
+      // Verify ==
+      TEST_ASSERT_TRUE(*frenchBI   == *frenchBI);
+      TEST_ASSERT_TRUE(*filteredBI != *frenchBI);
+      TEST_ASSERT_TRUE(*frenchBI   != *filteredBI);
+    } else {
+      dataerrln("French BI: not valid.");
+	}
+  }
+
+#else
+  logln("Skipped- not: !UCONFIG_NO_BREAK_ITERATION && U_HAVE_STD_STRING && !UCONFIG_NO_FILTERED_BREAK_ITERATION");
+#endif
 }
 
 //---------------------------------------------
@@ -1130,7 +1452,13 @@ void RBBIAPITest::runIndexedTest( int32_t index, UBool exec, const char* &name, 
 #else
         case  9: case 10: case 11: case 12: case 13: name = "skip"; break;
 #endif
+        case 14: name = "TestRefreshInputText"; if (exec) TestRefreshInputText(); break;
 
+#if !UCONFIG_NO_BREAK_ITERATION && U_HAVE_STD_STRING
+    case 15: name = "TestFilteredBreakIteratorBuilder"; if(exec) TestFilteredBreakIteratorBuilder(); break;
+#else
+    case 15: name="skip"; break;
+#endif
         default: name = ""; break; // needed to end loop
     }
 }
@@ -1139,7 +1467,7 @@ void RBBIAPITest::runIndexedTest( int32_t index, UBool exec, const char* &name, 
 //Internal subroutines
 //---------------------------------------------
 
-void RBBIAPITest::doBoundaryTest(RuleBasedBreakIterator& bi, UnicodeString& text, int32_t *boundaries){
+void RBBIAPITest::doBoundaryTest(BreakIterator& bi, UnicodeString& text, int32_t *boundaries){
      logln((UnicodeString)"testIsBoundary():");
         int32_t p = 0;
         UBool isB;

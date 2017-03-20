@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DOM_TESTING_MOCK_EVENT_LISTENER_H_
 #define COBALT_DOM_TESTING_MOCK_EVENT_LISTENER_H_
@@ -22,7 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -142,24 +140,24 @@ class MockEventListener : public EventListener {
   }
 };
 
-class FakeScriptObject : public script::ScriptObject<EventListener> {
+class FakeScriptValue : public script::ScriptValue<EventListener> {
  public:
-  typedef script::ScriptObject<EventListener> BaseClass;
-  explicit FakeScriptObject(const MockEventListener* listener)
+  typedef script::ScriptValue<EventListener> BaseClass;
+  explicit FakeScriptValue(const MockEventListener* listener)
       : mock_listener_(listener) {}
 
   void RegisterOwner(script::Wrappable*) OVERRIDE {}
   void DeregisterOwner(script::Wrappable*) OVERRIDE {}
-  const EventListener* GetScriptObject(void) const OVERRIDE {
+  const EventListener* GetScriptValue(void) const OVERRIDE {
     return mock_listener_;
   }
   scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
-    return make_scoped_ptr<BaseClass>(new FakeScriptObject(mock_listener_));
+    return make_scoped_ptr<BaseClass>(new FakeScriptValue(mock_listener_));
   }
 
   bool EqualTo(const BaseClass& other) const OVERRIDE {
-    const FakeScriptObject* other_script_object =
-        base::polymorphic_downcast<const FakeScriptObject*>(&other);
+    const FakeScriptValue* other_script_object =
+        base::polymorphic_downcast<const FakeScriptValue*>(&other);
     return mock_listener_ == other_script_object->mock_listener_;
   }
 

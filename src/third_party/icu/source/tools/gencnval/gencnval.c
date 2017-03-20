@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1999-2009, International Business Machines
+*   Copyright (C) 1999-2015 International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -135,6 +135,7 @@ static uint16_t aliasListsSize = 0;
 /* Were the standard tags declared before the aliases. */
 static UBool standardTagsUsed = FALSE;
 static UBool verbose = FALSE;
+static UBool quiet = FALSE;
 static int lineNum = 1;
 
 static UConverterAliasOptions tableOptions = {
@@ -203,7 +204,8 @@ enum
     VERBOSE,
     COPYRIGHT,
     DESTDIR,
-    SOURCEDIR
+    SOURCEDIR,
+    QUIET
 };
 
 static UOption options[]={
@@ -212,11 +214,13 @@ static UOption options[]={
     UOPTION_VERBOSE,
     UOPTION_COPYRIGHT,
     UOPTION_DESTDIR,
-    UOPTION_SOURCEDIR
+    UOPTION_SOURCEDIR,
+    UOPTION_QUIET
 };
 
 extern int
 main(int argc, char* argv[]) {
+    int i, n;
     char pathBuf[512];
     FileStream *in;
     UNewDataMemory *out;
@@ -241,6 +245,7 @@ main(int argc, char* argv[]) {
             "options:\n"
             "\t-h or -? or --help  this usage text\n"
             "\t-v or --verbose     prints out extra information about the alias table\n"
+            "\t-q or --quiet       do not display warnings and progress\n"
             "\t-c or --copyright   include a copyright notice\n"
             "\t-d or --destdir     destination directory, followed by the path\n"
             "\t-s or --sourcedir   source directory, followed by the path\n",
@@ -250,6 +255,10 @@ main(int argc, char* argv[]) {
 
     if(options[VERBOSE].doesOccur) {
         verbose = TRUE;
+    }
+
+    if(options[QUIET].doesOccur) {
+        quiet = TRUE;
     }
 
     if(argc>=2) {
@@ -305,6 +314,15 @@ main(int argc, char* argv[]) {
         exit(errorCode);
     }
 
+    /* clean up tags */
+    for (i = 0; i < MAX_TAG_COUNT; i++) {
+        for (n = 0; n < MAX_CONV_COUNT; n++) {
+            if (tags[i].aliasList[n].aliases!=NULL) {
+                uprv_free(tags[i].aliasList[n].aliases);
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -330,7 +348,7 @@ parseFile(FileStream *in) {
         /* Read non-empty lines that don't start with a space character. */
         while (T_FileStream_readLine(in, lastLine, MAX_LINE_SIZE) != NULL) {
             lastLineSize = chomp(lastLine);
-            if (lineSize == 0 || (lastLineSize > 0 && isspace(*lastLine))) {
+            if (lineSize == 0 || (lastLineSize > 0 && isspace((int)*lastLine))) {
                 uprv_strcpy(line + lineSize, lastLine);
                 lineSize += lastLineSize;
             } else if (lineSize > 0) {
@@ -341,7 +359,7 @@ parseFile(FileStream *in) {
         }
 
         if (validParse || lineSize > 0) {
-            if (isspace(*line)) {
+            if (isspace((int)*line)) {
                 fprintf(stderr, "%s:%d: error: cannot start an alias with a space\n", path, lineNum-1);
                 exit(U_PARSE_ERROR);
             } else if (line[0] == '{') {
@@ -386,7 +404,7 @@ chomp(char *line) {
             *s = 0;
             break;
         }
-        if (!isspace(*s)) {
+        if (!isspace((int)*s)) {
             lastNonSpace = s;
         }
         ++s;
@@ -417,7 +435,7 @@ parseLine(const char *line) {
 
     /* get the converter name */
     start=pos;
-    while(line[pos]!=0 && !isspace(line[pos])) {
+    while(line[pos]!=0 && !isspace((int)line[pos])) {
         ++pos;
     }
     limit=pos;
@@ -436,7 +454,7 @@ parseLine(const char *line) {
     for(;;) {
 
         /* skip white space */
-        while(line[pos]!=0 && isspace(line[pos])) {
+        while(line[pos]!=0 && isspace((int)line[pos])) {
             ++pos;
         }
 
@@ -447,7 +465,7 @@ parseLine(const char *line) {
 
         /* get an alias name */
         start=pos;
-        while(line[pos]!=0 && line[pos]!='{' && !isspace(line[pos])) {
+        while(line[pos]!=0 && line[pos]!='{' && !isspace((int)line[pos])) {
             ++pos;
         }
         limit=pos;
@@ -469,7 +487,7 @@ parseLine(const char *line) {
         /* addAlias(alias, 0, cnv, FALSE);*/
 
         /* skip whitespace */
-        while (line[pos] && isspace(line[pos])) {
+        while (line[pos] && isspace((int)line[pos])) {
             ++pos;
         }
 
@@ -478,7 +496,7 @@ parseLine(const char *line) {
             ++pos;
             do {
                 start = pos;
-                while (line[pos] && line[pos] != '}' && !isspace( line[pos])) {
+                while (line[pos] && line[pos] != '}' && !isspace((int)line[pos])) {
                     ++pos;
                 }
                 limit = pos;
@@ -489,7 +507,7 @@ parseLine(const char *line) {
                     addAlias(alias, tag, cnv, (UBool)(line[limit-1] == '*'));
                 }
 
-                while (line[pos] && isspace(line[pos])) {
+                while (line[pos] && isspace((int)line[pos])) {
                     ++pos;
                 }
             } while (line[pos] && line[pos] != '}');
@@ -644,7 +662,6 @@ addToKnownAliases(const char *alias) {
 static uint16_t
 addAlias(const char *alias, uint16_t standard, uint16_t converter, UBool defaultName) {
     uint32_t idx, idx2;
-    UBool dupFound = FALSE;
     UBool startEmptyWithoutDefault = FALSE;
     AliasList *aliasList;
 
@@ -713,7 +730,6 @@ addAlias(const char *alias, uint16_t standard, uint16_t converter, UBool default
                             GET_ALIAS_STR(converters[converter].converter),
                             GET_ALIAS_STR(converters[idx].converter));
                     }
-                    dupFound = TRUE;
                     break;
                 }
             }
@@ -921,7 +937,7 @@ createOneAliasList(uint16_t *aliasArrLists, uint32_t tag, uint32_t converter, ui
                 value = aliasList->aliases[aliasNum] + offset;
             } else {
                 value = 0;
-                if (tag != 0) { /* Only show the warning when it's not the leftover tag. */
+                if (tag != 0 && !quiet) { /* Only show the warning when it's not the leftover tag. */
                     fprintf(stderr, "%s: warning: tag %s does not have a default alias for %s\n",
                             path,
                             GET_TAG_STR(tags[tag].tag),
@@ -1054,8 +1070,9 @@ writeAliasTable(UNewDataMemory *out) {
         uprv_free(normalizedStrings);
     }
 
-    uprv_free(aliasArrLists);
+    uprv_free(uniqueAliasesToConverter);
     uprv_free(uniqueAliases);
+    uprv_free(aliasArrLists);
 }
 
 static char *

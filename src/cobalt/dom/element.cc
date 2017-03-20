@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/element.h"
 
@@ -32,11 +30,13 @@
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/mutation_reporter.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/math/rect_f.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -80,6 +80,7 @@ Element::Element(Document* document, base::Token tag_name)
 }
 
 base::optional<std::string> Element::text_content() const {
+  TRACK_MEMORY_SCOPE("DOM");
   std::string content;
 
   const Node* child = first_child();
@@ -95,6 +96,7 @@ base::optional<std::string> Element::text_content() const {
 
 void Element::set_text_content(
     const base::optional<std::string>& text_content) {
+  TRACK_MEMORY_SCOPE("DOM");
   // Remove all children and replace them with a single Text node.
   while (HasChildNodes()) {
     RemoveChild(first_child());
@@ -108,6 +110,7 @@ void Element::set_text_content(
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
 
 scoped_refptr<NamedNodeMap> Element::attributes() {
+  TRACK_MEMORY_SCOPE("DOM");
   scoped_refptr<NamedNodeMap> named_node_map = named_node_map_.get();
   if (!named_node_map) {
     // Create a new instance and store a weak reference.
@@ -118,6 +121,7 @@ scoped_refptr<NamedNodeMap> Element::attributes() {
 }
 
 const scoped_refptr<DOMTokenList>& Element::class_list() {
+  TRACK_MEMORY_SCOPE("DOM");
   if (!class_list_) {
     // Create a new instance and store a reference to it. Because of the
     // negative performance impact of having to constantly recreate DomTokenList
@@ -131,6 +135,7 @@ const scoped_refptr<DOMTokenList>& Element::class_list() {
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-getattribute
 base::optional<std::string> Element::GetAttribute(
     const std::string& name) const {
+  TRACK_MEMORY_SCOPE("DOM");
   Document* document = node_document();
 
   // 1. If the context object is in the HTML namespace and its node document is
@@ -163,6 +168,7 @@ base::optional<std::string> Element::GetAttribute(
 // Algorithm for SetAttribute:
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-setattribute
 void Element::SetAttribute(const std::string& name, const std::string& value) {
+  TRACK_MEMORY_SCOPE("DOM");
   Document* document = node_document();
 
   // 1. Not needed by Cobalt.
@@ -180,6 +186,11 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    value is value, and then append this attribute to the context object and
   //    terminate these steps.
   // 5. Change attribute from context object to value.
+
+  base::optional<std::string> old_value = GetAttribute(attr_name);
+  MutationReporter mutation_reporter(this, GatherInclusiveAncestorsObservers());
+  mutation_reporter.ReportAttributesMutation(attr_name, old_value);
+
   switch (attr_name.size()) {
     case 5:
       if (attr_name == kStyleAttributeName) {
@@ -235,6 +246,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
 // Algorithm for RemoveAttribute:
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-removeattribute
 void Element::RemoveAttribute(const std::string& name) {
+  TRACK_MEMORY_SCOPE("DOM");
   Document* document = node_document();
 
   // 1. If the context object is in the HTML namespace and its node document is
@@ -242,6 +254,13 @@ void Element::RemoveAttribute(const std::string& name) {
   std::string attr_name = name;
   if (document && !document->IsXMLDocument()) {
     StringToLowerASCII(&attr_name);
+  }
+
+  base::optional<std::string> old_value = GetAttribute(attr_name);
+  if (old_value) {
+    MutationReporter mutation_reporter(this,
+                                       GatherInclusiveAncestorsObservers());
+    mutation_reporter.ReportAttributesMutation(attr_name, old_value);
   }
 
   // 2. Remove the first attribute from the context object whose name is name,
@@ -292,6 +311,7 @@ void Element::RemoveAttribute(const std::string& name) {
 // Algorithm for HasAttribute:
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-hasattribute
 bool Element::HasAttribute(const std::string& name) const {
+  TRACK_MEMORY_SCOPE("DOM");
   Document* document = node_document();
 
   // 1. If the context object is in the HTML namespace and its node document is
@@ -343,6 +363,7 @@ math::RectF GetBoundingRectangle(const scoped_refptr<DOMRect>& dom_rect) {
 // Algorithm for getBoundingClientRect:
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
 scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
+  TRACK_MEMORY_SCOPE("DOM");
   // 1. Let list be the result of invoking getClientRects() on the same element
   // this method was invoked on.
   scoped_refptr<DOMRectList> list = GetClientRects();
@@ -409,6 +430,7 @@ float Element::client_height() {
 // Algorithm for inner_html:
 //   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 std::string Element::inner_html() const {
+  TRACK_MEMORY_SCOPE("DOM");
   std::ostringstream oss;
   Serializer serializer(&oss);
   serializer.SerializeDescendantsOnly(this);
@@ -418,6 +440,7 @@ std::string Element::inner_html() const {
 // Algorithm for set_inner_html:
 //   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 void Element::set_inner_html(const std::string& inner_html) {
+  TRACK_MEMORY_SCOPE("DOM");
   // 1. Let fragment be the result of invoking the fragment parsing algorithm
   // with the new value as markup, and the context object as the context
   // element.
@@ -442,6 +465,7 @@ void Element::set_inner_html(const std::string& inner_html) {
 //   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 std::string Element::outer_html(
     script::ExceptionState* /*exception_state*/) const {
+  TRACK_MEMORY_SCOPE("DOM");
   std::ostringstream oss;
   Serializer serializer(&oss);
   serializer.Serialize(this);
@@ -452,6 +476,7 @@ std::string Element::outer_html(
 //   https://www.w3.org/TR/DOM-Parsing/#widl-Element-outerHTML
 void Element::set_outer_html(const std::string& outer_html,
                              script::ExceptionState* exception_state) {
+  TRACK_MEMORY_SCOPE("DOM");
   // 1. Let parent be the context object's parent.
   scoped_refptr<Node> parent = parent_node();
 
@@ -494,6 +519,7 @@ void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
+  TRACK_MEMORY_SCOPE("DOM");
   Element* new_element = new Element(node_document(), tag_name());
   new_element->CopyAttributes(*this);
   return new_element;
@@ -553,6 +579,7 @@ void Element::CopyAttributes(const Element& other) {
 }
 
 HTMLElementContext* Element::html_element_context() {
+  TRACK_MEMORY_SCOPE("DOM");
   Document* document = node_document();
   return document ? document->html_element_context() : NULL;
 }

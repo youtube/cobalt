@@ -25,6 +25,10 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
 
   size->width = window->width;
   size->height = window->height;
+#if SB_HAS_MEDIA_4K_SUPPORT
+  size->video_pixel_ratio = 2.0f;
+#else
   size->video_pixel_ratio = 1.0f;
+#endif
   return true;
 }

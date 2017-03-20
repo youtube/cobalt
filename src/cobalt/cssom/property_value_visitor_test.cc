@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/cssom/property_value_visitor.h"
 
@@ -28,8 +26,8 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/local_src_value.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_key_list_value.h"
@@ -115,14 +113,14 @@ TEST(PropertyValueVisitorTest, VisitsCalcValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsFilterListValue) {
-  MTMFunction::ResolutionMatchedMeshListBuilder resMs;
-  resMs.push_back(
-      new MTMFunction::ResolutionMatchedMesh(22, 22, new URLValue("a.msh")));
+  MapToMeshFunction::ResolutionMatchedMeshListBuilder resMs;
+  resMs.push_back(new MapToMeshFunction::ResolutionMatchedMesh(
+      22, 22, new URLValue("a.msh")));
 
   FilterFunctionListValue::Builder builder;
-  builder.push_back(new MTMFunction(new URLValue("p.msh"), resMs.Pass(), 120,
-                                    60, glm::mat4(1.0f),
-                                    KeywordValue::GetMonoscopic()));
+  builder.push_back(new MapToMeshFunction(new URLValue("p.msh"), resMs.Pass(),
+                                          120, 60, glm::mat4(1.0f),
+                                          KeywordValue::GetMonoscopic()));
 
   scoped_refptr<FilterFunctionListValue> filter_list_value =
       new FilterFunctionListValue(builder.Pass());

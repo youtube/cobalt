@@ -105,12 +105,13 @@
       # Scanner exposes UChar32 in a header.
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(DEPTH)/third_party/icu/public/common',
+          '<(DEPTH)/third_party/icu/source/common',
         ],
       },
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
+        '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         'css_grammar',
       ],
@@ -126,8 +127,8 @@
         'trivial_string_piece_test.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'css_grammar',

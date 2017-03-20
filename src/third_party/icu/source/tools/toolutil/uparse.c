@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2000-2010, International Business Machines
+*   Copyright (C) 2000-2012, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -19,11 +19,12 @@
 */
 
 #include "unicode/utypes.h"
+#include "unicode/uchar.h"
+#include "unicode/ustring.h"
+#include "unicode/utf16.h"
 #include "cstring.h"
 #include "filestrm.h"
 #include "uparse.h"
-#include "unicode/uchar.h"
-#include "unicode/ustring.h"
 #include "ustr_imp.h"
 
 #include <stdio.h>
@@ -244,6 +245,7 @@ u_parseString(const char *s,
     }
     if(s==NULL || destCapacity<0 || (destCapacity>0 && dest==NULL)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
     }
 
     if(pFirst!=NULL) {

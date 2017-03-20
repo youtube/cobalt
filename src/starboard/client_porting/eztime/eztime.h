@@ -15,7 +15,9 @@
 #ifndef STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
 #define STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
 
+#include "starboard/log.h"
 #include "starboard/time.h"
+#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,7 +121,12 @@ static SB_C_FORCE_INLINE SbTime EzTimeTToSbTime(EzTimeT in_time) {
 // Converts SbTime to EzTimeValue.
 static SB_C_FORCE_INLINE EzTimeValue EzTimeValueFromSbTime(SbTime in_time) {
   EzTimeT sec = EzTimeTFromSbTime(in_time);
-  EzTimeValue value = {sec, in_time - EzTimeTToSbTime(sec)};
+  SbTime diff = in_time - EzTimeTToSbTime(sec);
+  SB_DCHECK(diff >= INT_MIN);
+  SB_DCHECK(diff <= INT_MAX);
+  EzTimeValue value = {sec, (int)diff};  // Some compilers do not support
+                                         // returning the initializer list
+                                         // directly.
   return value;
 }
 

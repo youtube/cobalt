@@ -12,12 +12,23 @@
 #include <math.h>
 #include "jsnum.h"
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
+
 /*
  * Use system provided math routines.
  */
 
+#if defined(STARBOARD)
+#if SB_HAS_QUIRK(COMPILER_SAYS_GNUC_BUT_ISNT)
+#define ENABLE_COMPILER_SAYS_GNUC_BUT_ISNT_WORKAROUND
+#endif
+#endif
+
 /* The right copysign function is not always named the same thing. */
-#ifdef __GNUC__
+// Check for quirk COMPILER_SAYS_GNUC_BUT_ISNT when picking copysign function.
+#if defined(__GNUC__) && !defined(ENABLE_COMPILER_SAYS_GNUC_BUT_ISNT_WORKAROUND)
 #define js_copysign __builtin_copysign
 #elif defined _WIN32
 #define js_copysign _copysign
@@ -65,7 +76,7 @@ NumberDiv(double a, double b)
 
 inline double
 NumberMod(double a, double b) {
-    if (b == 0) 
+    if (b == 0)
         return js_NaN;
     return js_fmod(a, b);
 }

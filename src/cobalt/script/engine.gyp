@@ -27,19 +27,12 @@
       ],
     },
     {
-      # Empty target to ensure all targets for all engines are built when
+      # Empty target to ensure all targets for enabled engines are built when
       # building 'all'.
       'target_name': 'all_engines',
       'type': 'none',
       'dependencies': [
-        'javascriptcore/javascriptcore.gyp:*',
-      ],
-      'conditions': [
-        ['OS == "starboard"', {
-          'dependencies': [
-            'mozjs/mozjs.gyp:*',
-          ],
-        }],
+        'mozjs/mozjs.gyp:*',
       ],
     },
   ],

@@ -1,0 +1,3 @@
+recursive-include lib/python/slavealloc/contrib *
+recursive-include lib/python/slavealloc/www *
+

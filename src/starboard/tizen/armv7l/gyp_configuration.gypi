@@ -16,13 +16,17 @@
   'variables': {
     'target_arch': 'arm',
     'target_os': 'linux',
+    'tizen_os': 1,
 
-    'gl_type': 'system_tizen',
+    'gl_type': 'system_gles2',
 
     # Tizen uses ARMv7
     'arm_version': 7,
     'armv7': 1,
     'arm_neon': 0,
+
+    # Temporary disable debug build. we remove this later!!
+    'cobalt_fastbuild': 1,
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
@@ -35,6 +39,7 @@
       '-lavformat',
       '-lavresample',
       '-lavutil',
+      '-ldlog',
     ],
     'linker_flags': [
     ],
@@ -47,12 +52,10 @@
     'compiler_flags_qa': [
       '-fno-rtti',
       '-O2',
-      '-gline-tables-only',
     ],
     'compiler_flags_gold': [
       '-fno-rtti',
       '-O2',
-      '-gline-tables-only',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
@@ -63,10 +66,12 @@
           '-g',
         ],
         'compiler_flags_qa': [
-          '-gline-tables-only',
+          '-g',
+          #'-gline-tables-only',
         ],
         'compiler_flags_gold': [
-          '-gline-tables-only',
+          '-g',
+          #'-gline-tables-only',
         ],
       }],
       ['use_asan==0', {

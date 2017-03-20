@@ -437,6 +437,8 @@ TEST_F(FileStreamTest, AsyncWrite) {
     drainable->DidConsume(rv);
     total_bytes_written += rv;
   }
+  rv = stream.FlushSync();
+  EXPECT_EQ(OK, rv);
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
   EXPECT_EQ(file_size, total_bytes_written);
@@ -533,6 +535,8 @@ TEST_F(FileStreamTest, AsyncWrite_FromOffset) {
     drainable->DidConsume(rv);
     total_bytes_written += rv;
   }
+  rv = stream.FlushSync();
+  EXPECT_EQ(OK, rv);
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
   EXPECT_EQ(file_size, kTestDataSize * 2);
@@ -881,6 +885,8 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
   EXPECT_LT(0, rv);
   EXPECT_EQ(kTestDataSize, total_bytes_written);
 
+  rv = stream->FlushSync();
+  EXPECT_EQ(OK, rv);
   stream.reset();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);

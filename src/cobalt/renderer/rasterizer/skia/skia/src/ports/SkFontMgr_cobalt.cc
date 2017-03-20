@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
@@ -21,6 +19,7 @@
 
 #include "base/at_exit.h"
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
 #include "cobalt/base/c_val.h"
@@ -38,15 +37,88 @@
 
 namespace {
 
+#ifndef SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT
+#define SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT (10 * 1024 * 1024)
+#endif
+
 const int32_t kPeriodicProcessingTimerDelayMs = 5000;
 const int32_t kReleaseInactiveSystemTypefaceOpenStreamsDelayMs = 300000;
 const int32_t kPeriodicFontCachePurgeDelayMs = 900000;
 
+#if defined(USE_SAMSUNGTV_FONT)
+const char* kSystemFontPath = "/usr/share/fonts";
+#endif
+
+// base::CVal tracking specific to fonts.
+// NOTE: These are put in their own Singleton, because Skia's lazy instance
+// implementation does not guarantee that only one SkFontMgr_Cobalt will be
+// created at a time (see skia/src/core/SkLazyPtr.h), and we cannot have
+// multiple copies of the same CVal.
+class SkFontMgrCVals {
+ public:
+  static SkFontMgrCVals* GetInstance() {
+    return Singleton<SkFontMgrCVals,
+                     DefaultSingletonTraits<SkFontMgrCVals> >::get();
+  }
+
+  const base::CVal<base::cval::SizeInBytes, base::CValPublic>&
+  system_typeface_open_stream_cache_limit_in_bytes() {
+    return system_typeface_open_stream_cache_limit_in_bytes_;
+  }
+
+  base::CVal<base::cval::SizeInBytes, base::CValPublic>&
+  system_typeface_open_stream_cache_size_in_bytes() {
+    return system_typeface_open_stream_cache_size_in_bytes_;
+  }
+
+  void IncrementFontFilesLoadedCount() { ++font_files_loaded_count_; }
+
+ private:
+  SkFontMgrCVals()
+      : system_typeface_open_stream_cache_limit_in_bytes_(
+            "Memory.Font.SystemTypeface.Capacity",
+            SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT,
+            "The capacity, in bytes, of the system fonts. Exceeding this "
+            "results in *inactive* fonts being released."),
+        system_typeface_open_stream_cache_size_in_bytes_(
+            "Memory.Font.SystemTypeface.Size", 0,
+            "Total number of bytes currently used by the cache."),
+        font_files_loaded_count_(
+            "Count.Font.FilesLoaded", 0,
+            "Total number of font file loads that have occurred.") {}
+
+  const base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      system_typeface_open_stream_cache_limit_in_bytes_;
+  mutable base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      system_typeface_open_stream_cache_size_in_bytes_;
+
+  base::CVal<int> font_files_loaded_count_;
+
+  friend struct DefaultSingletonTraits<SkFontMgrCVals>;
+  DISALLOW_COPY_AND_ASSIGN(SkFontMgrCVals);
+};
+
+// The timer used to trigger periodic processing of open streams, which
+// handles moving open streams from the active to the inactive list and
+// releasing inactive open streams. Create it as a lazy instance to ensure it
+// gets cleaned up correctly at exit, even though the SkFontMgr_Cobalt may be
+// created multiple times and the surviving instance isn't deleted until after
+// the thread has been stopped.
+base::LazyInstance<scoped_ptr<base::PollerWithThread> >
+    process_system_typefaces_with_open_streams_poller =
+        LAZY_INSTANCE_INITIALIZER;
+
+base::LazyInstance<base::Lock> poller_lock = LAZY_INSTANCE_INITIALIZER;
+
 // NOTE: It is the responsibility of the caller to call Unref() on the SkData.
 SkData* NewDataFromFile(const SkString& file_path) {
+  TRACE_EVENT1("cobalt::renderer", "SkFontMgr_cobalt::NewDataFromFile()",
+               "file_path", TRACE_STR_COPY(file_path.c_str()));
   LOG(INFO) << "Loading font file: " << file_path.c_str();
+  SkFontMgrCVals::GetInstance()->IncrementFontFilesLoadedCount();
 
-  SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
+  SkAutoTUnref<SkStreamAsset> file_stream(
+      SkStream::NewFromFile(file_path.c_str()));
   if (file_stream == NULL) {
     LOG(ERROR) << "Failed to open font file: " << file_path.c_str();
     return NULL;
@@ -96,7 +168,7 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
 
 class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  public:
-  SkTypeface_CobaltStream(SkStream* stream, int index, Style style,
+  SkTypeface_CobaltStream(SkStreamAsset* stream, int index, Style style,
                           bool is_fixed_pitch, const SkString family_name)
       : INHERITED(index, style, is_fixed_pitch, family_name),
         stream_(SkRef(stream)) {
@@ -115,7 +187,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
     *serialize = true;
   }
 
-  virtual SkStream* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+  virtual SkStreamAsset* onOpenStream(int* ttc_index) const SK_OVERRIDE {
     *ttc_index = index_;
     return stream_->duplicate();
   }
@@ -123,7 +195,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  private:
   typedef SkTypeface_Cobalt INHERITED;
 
-  SkAutoTUnref<SkStream> stream_;
+  SkAutoTUnref<SkStreamAsset> stream_;
 };
 
 class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
@@ -154,7 +226,8 @@ class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
     *serialize = false;
   }
 
-  virtual SkStream* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+  virtual SkStreamAsset* onOpenStream(int* ttc_index) const SK_OVERRIDE {
+    TRACE_EVENT0("cobalt::renderer", "SkTypeface_CobaltSystem::onOpenStream()");
     *ttc_index = index_;
 
     // Scope the initial mutex lock.
@@ -171,6 +244,7 @@ class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
       }
     }
 
+    TRACE_EVENT0("cobalt::renderer", "Load data from file");
     // This is where the bulk of the time will be spent, so load the font data
     // outside of a mutex lock.
     SkAutoTUnref<SkData> data(NewDataFromFile(path_name_));
@@ -233,6 +307,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
       language_(family.language),
       page_ranges_(family.page_ranges),
       is_character_map_generated_(false) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt()");
   DCHECK(manager_owned_mutex_);
 
   if (family.names.count() == 0) {
@@ -244,11 +320,15 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   for (int i = 0; i < family.fonts.count(); ++i) {
     const FontFileInfo& font_file = family.fonts[i];
 
+#if defined(USE_SAMSUNGTV_FONT)
+    SkString path_name(
+        SkOSPath::Join(kSystemFontPath, font_file.file_name.c_str()));
+#else
     SkString path_name(SkOSPath::Join(base_path, font_file.file_name.c_str()));
+#endif
 
     // Sanity check that something exists at this location.
-    struct stat status;
-    if (0 != stat(path_name.c_str(), &status)) {
+    if (!sk_exists(path_name.c_str(), kRead_SkFILE_Flag)) {
       LOG(ERROR) << "Failed to find font file: " << path_name.c_str();
       continue;
     }
@@ -260,12 +340,12 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
 
     std::string full_font_name(font_file.full_font_name.c_str(),
                                font_file.full_font_name.size());
-    std::string postcript_name(font_file.postcript_name.c_str(),
-                               font_file.postcript_name.size());
+    std::string postscript_name(font_file.postscript_name.c_str(),
+                                font_file.postscript_name.size());
 
     styles_.push_back().reset(SkNEW_ARGS(
         SkFontStyleSetEntry_Cobalt,
-        (path_name, font_file.index, style, full_font_name, postcript_name)));
+        (path_name, font_file.index, style, full_font_name, postscript_name)));
   }
 }
 
@@ -297,25 +377,49 @@ SkTypeface* SkFontStyleSet_Cobalt::matchStyle(const SkFontStyle& pattern) {
 
 SkTypeface* SkFontStyleSet_Cobalt::MatchStyleWithoutLocking(
     const SkFontStyle& pattern) {
-  while (styles_.count() > 0) {
-    int style_index = GetClosestStyleIndex(pattern);
-    SkFontStyleSetEntry_Cobalt* style = styles_[style_index];
-    if (style->typeface == NULL) {
-      CreateSystemTypeface(style);
-
-      // Check to see if the typeface is still NULL. If this is the case, then
-      // the style can't be created. Remove it from the array.
-      if (style->typeface == NULL) {
-        styles_[style_index].swap(&styles_.back());
-        styles_.pop_back();
-        continue;
-      }
-    }
-
-    return SkRef(style->typeface.get());
+  SkTypeface* typeface = NULL;
+  while (typeface == NULL && styles_.count() > 0) {
+    typeface = TryRetrieveTypefaceAndRemoveStyleOnFailure(
+        GetClosestStyleIndex(pattern));
   }
+  return typeface;
+}
 
+SkTypeface* SkFontStyleSet_Cobalt::MatchFullFontName(const std::string& name) {
+  for (int i = 0; i < styles_.count(); ++i) {
+    if (styles_[i]->full_font_name == name) {
+      return TryRetrieveTypefaceAndRemoveStyleOnFailure(i);
+    }
+  }
   return NULL;
+}
+
+SkTypeface* SkFontStyleSet_Cobalt::MatchFontPostScriptName(
+    const std::string& name) {
+  for (int i = 0; i < styles_.count(); ++i) {
+    if (styles_[i]->font_postscript_name == name) {
+      return TryRetrieveTypefaceAndRemoveStyleOnFailure(i);
+    }
+  }
+  return NULL;
+}
+
+SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
+    int style_index) {
+  DCHECK(style_index >= 0 && style_index < styles_.count());
+  SkFontStyleSetEntry_Cobalt* style = styles_[style_index];
+  // If the typeface doesn't already exist, then attempt to create it.
+  if (style->typeface == NULL) {
+    CreateSystemTypeface(style);
+    // If the creation attempt failed and the typeface is still NULL, then
+    // remove the entry from the set's styles.
+    if (style->typeface == NULL) {
+      styles_[style_index].swap(&styles_.back());
+      styles_.pop_back();
+      return NULL;
+    }
+  }
+  return SkRef(style->typeface.get());
 }
 
 bool SkFontStyleSet_Cobalt::ContainsTypeface(const SkTypeface* typeface) {
@@ -324,7 +428,6 @@ bool SkFontStyleSet_Cobalt::ContainsTypeface(const SkTypeface* typeface) {
       return true;
     }
   }
-
   return false;
 }
 
@@ -362,6 +465,9 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
   // The character map is lazily generated. Generate it now if it isn't already
   // generated.
   if (!is_character_map_generated_) {
+    TRACE_EVENT0("cobalt::renderer",
+                 "SkFontStyleSet_Cobalt::ContainsCharacter() and "
+                 "!is_character_map_generated_");
     // Attempt to load the closest font style from the set. If it fails to load,
     // it will be removed from the set and, as long as font styles remain in the
     // set, the logic will be attempted again.
@@ -381,7 +487,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
         continue;
       }
 
-      GenerateCharacterMapFromData(font_data);
+      GenerateCharacterMapFromData(font_data, closest_style->ttc_index);
 
       // If the character is contained within the font style set, then go ahead
       // and create the typeface with the loaded font data. Otherwise, creating
@@ -409,10 +515,12 @@ bool SkFontStyleSet_Cobalt::CharacterMapContainsCharacter(SkUnichar character) {
              font_character_map::GetPageCharacterIndex(character));
 }
 
-void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data) {
+void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data,
+                                                         int ttc_index) {
   if (is_character_map_generated_) {
     return;
   }
+  TRACE_EVENT0("cobalt::renderer", "GenerateCharacterMapFromData()");
 
   FT_Library freetype_lib;
   if (FT_Init_FreeType(&freetype_lib) != 0) {
@@ -421,7 +529,7 @@ void SkFontStyleSet_Cobalt::GenerateCharacterMapFromData(SkData* font_data) {
 
   FT_Face face;
   FT_Error err = FT_New_Memory_Face(freetype_lib, font_data->bytes(),
-                                    font_data->size(), 0, &face);
+                                    font_data->size(), ttc_index, &face);
   if (!err) {
     // map out this font's characters.
     FT_UInt glyph_index;
@@ -467,6 +575,8 @@ int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
 
 void SkFontStyleSet_Cobalt::CreateSystemTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SkFontStyleSet_Cobalt::CreateSystemTypeface()");
   SkAutoTUnref<SkData> font_data(NewDataFromFile(style_entry->font_file_path));
   if (font_data != NULL) {
     CreateSystemTypefaceFromData(style_entry, font_data);
@@ -475,13 +585,15 @@ void SkFontStyleSet_Cobalt::CreateSystemTypeface(
 
 void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
     SkFontStyleSetEntry_Cobalt* style_entry, SkData* data) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData()");
   DCHECK(!style_entry->typeface);
 
   // Since the font data is available, generate the character map if this is a
   // fallback font (which means that it'll need the character map for character
   // lookups during fallback).
   if (is_fallback_font_) {
-    GenerateCharacterMapFromData(data);
+    GenerateCharacterMapFromData(data, style_entry->ttc_index);
   }
 
   // Pass the SkData into the SkMemoryStream.
@@ -508,78 +620,21 @@ void SkFontStyleSet_Cobalt::CreateSystemTypefaceFromData(
 //  SkFontMgr_Cobalt
 //
 
-#ifndef SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT
-#define SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT (10 * 1024 * 1024)
-#endif
-
-namespace {
-// Tracking of the cache limit and current cache size. These are stored as
-// base::CVal, so that we can easily monitor the system font memory usage.
-// We have to put the CVals used by SkFontMgr_Cobalt into their own Singleton,
-// because Skia's lazy instance implementation does not guarantee that only one
-// SkFontMgr_Cobalt will be created at a time (see skia/src/core/SkLazyPtr.h),
-// and we cannot have multiple copies of the same CVal.
-class SkFontMgrCVals {
- public:
-  static SkFontMgrCVals* GetInstance() {
-    return Singleton<SkFontMgrCVals,
-                     DefaultSingletonTraits<SkFontMgrCVals> >::get();
-  }
-
-  const base::CVal<base::cval::SizeInBytes, base::CValPublic>&
-  system_typeface_open_stream_cache_limit_in_bytes() {
-    return system_typeface_open_stream_cache_limit_in_bytes_;
-  }
-
-  base::CVal<base::cval::SizeInBytes, base::CValPublic>&
-  system_typeface_open_stream_cache_size_in_bytes() {
-    return system_typeface_open_stream_cache_size_in_bytes_;
-  }
-
- private:
-  SkFontMgrCVals()
-      : system_typeface_open_stream_cache_limit_in_bytes_(
-            "Memory.SystemTypeface.Capacity",
-            SK_TYPEFACE_COBALT_SYSTEM_OPEN_STREAM_CACHE_LIMIT,
-            "The capacity, in bytes, of the system fonts. Exceeding this "
-            "results in *inactive* fonts being released."),
-        system_typeface_open_stream_cache_size_in_bytes_(
-            "Memory.SystemTypeface.Size", 0,
-            "Total number of bytes currently used by the cache.") {}
-
-  const base::CVal<base::cval::SizeInBytes, base::CValPublic>
-      system_typeface_open_stream_cache_limit_in_bytes_;
-  mutable base::CVal<base::cval::SizeInBytes, base::CValPublic>
-      system_typeface_open_stream_cache_size_in_bytes_;
-
-  friend struct DefaultSingletonTraits<SkFontMgrCVals>;
-  DISALLOW_COPY_AND_ASSIGN(SkFontMgrCVals);
-};
-
-// The timer used to trigger periodic processing of open streams, which
-// handles moving open streams from the active to the inactive list and
-// releasing inactive open streams. Create it as a lazy instance to ensure it
-// gets cleaned up correctly at exit, even though the SkFontMgr_Cobalt may be
-// created multiple times and the surviving instance isn't deleted until after
-// the thread has been stopped.
-base::LazyInstance<scoped_ptr<base::PollerWithThread> >
-    process_system_typefaces_with_open_streams_poller =
-        LAZY_INSTANCE_INITIALIZER;
-
-base::LazyInstance<base::Lock> poller_lock = LAZY_INSTANCE_INITIALIZER;
-}  // namespace
-
 SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* directory, const SkTArray<SkString, true>& default_fonts)
     : default_family_(NULL),
       last_font_cache_purge_time_(base::TimeTicks::Now()) {
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::SkFontMgr_Cobalt()");
   // Ensure that both the CValManager and SkFontMgrCVals are initialized. The
   // CValManager is created first as it must outlast the SkFontMgrCVals.
   base::CValManager::GetInstance();
   SkFontMgrCVals::GetInstance();
 
   SkTDArray<FontFamily*> font_families;
-  SkFontConfigParser::GetFontFamilies(directory, &font_families);
+  {
+    TRACE_EVENT0("cobalt::renderer", "SkFontConfigParser::GetFontFamilies()");
+    SkFontConfigParser::GetFontFamilies(directory, &font_families);
+  }
   BuildNameToFamilyMap(directory, &font_families);
   font_families.deleteAll();
 
@@ -601,6 +656,41 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   }
 }
 
+SkTypeface* SkFontMgr_Cobalt::matchFaceName(const std::string& font_face_name) {
+  if (font_face_name.empty()) {
+    return NULL;
+  }
+
+  // Lock the style sets mutex prior to accessing them.
+  SkAutoMutexAcquire scoped_mutex(style_sets_mutex_);
+
+  // Prioritize looking up the postscript name first since some of our client
+  // applications prefer this method to specify face names.
+  for (int i = 0; i <= 1; ++i) {
+    NameToStyleSetMap& name_to_style_set_map =
+        i == 0 ? font_postscript_name_to_style_set_map_
+               : full_font_name_to_style_set_map_;
+
+    NameToStyleSetMap::iterator style_set_iterator =
+        name_to_style_set_map.find(font_face_name);
+    if (style_set_iterator != name_to_style_set_map.end()) {
+      SkFontStyleSet_Cobalt* style_set = style_set_iterator->second;
+      SkTypeface* typeface =
+          i == 0 ? style_set->MatchFontPostScriptName(font_face_name)
+                 : style_set->MatchFullFontName(font_face_name);
+      if (typeface != NULL) {
+        return typeface;
+      } else {
+        // If no typeface was successfully created then remove the entry from
+        // the map. It won't provide a successful result in subsequent calls
+        // either.
+        name_to_style_set_map.erase(style_set_iterator);
+      }
+    }
+  }
+  return NULL;
+}
+
 int SkFontMgr_Cobalt::onCountFamilies() const { return family_names_.count(); }
 
 void SkFontMgr_Cobalt::onGetFamilyName(int index, SkString* family_name) const {
@@ -617,7 +707,7 @@ SkFontStyleSet_Cobalt* SkFontMgr_Cobalt::onCreateStyleSet(int index) const {
     return NULL;
   }
 
-  NameToFamilyMap::const_iterator family_iterator =
+  NameToStyleSetMap::const_iterator family_iterator =
       name_to_family_map_.find(family_names_[index].c_str());
   if (family_iterator != name_to_family_map_.end()) {
     return SkRef(family_iterator->second);
@@ -634,83 +724,10 @@ SkFontStyleSet_Cobalt* SkFontMgr_Cobalt::onMatchFamily(
 
   SkAutoAsciiToLC tolc(family_name);
 
-  NameToFamilyMap::const_iterator family_iterator =
+  NameToStyleSetMap::const_iterator family_iterator =
       name_to_family_map_.find(tolc.lc());
   if (family_iterator != name_to_family_map_.end()) {
     return SkRef(family_iterator->second);
-  }
-
-  return NULL;
-}
-
-SkTypeface* SkFontMgr_Cobalt::matchFullFontFaceNameHelper(
-    SkFontStyleSet_Cobalt* style_set,
-    SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt* style) const {
-  DCHECK(style_set != NULL);
-  if (!style) {
-    NOTREACHED() << "style should not be NULL.";
-    return NULL;
-  }
-
-  if (style->typeface == NULL) {
-    if (!style_set) {
-      return NULL;
-    }
-    style_set->CreateSystemTypeface(style);
-  }
-
-  if (style->typeface != NULL) {
-    return SkRef(style->typeface.get());
-  }
-
-  return NULL;
-}
-
-SkTypeface* SkFontMgr_Cobalt::matchFaceNameOnlyIfFound(
-    const std::string& font_face_name) const {
-  // Prioritize looking it up postscript name first since some of our client
-  // applications prefer this method to specify face names.
-  SkTypeface* typeface = matchPostScriptName(font_face_name);
-  if (typeface != NULL) return typeface;
-
-  typeface = matchFullFontFaceName(font_face_name);
-  if (typeface != NULL) return typeface;
-
-  return NULL;
-}
-
-SkTypeface* SkFontMgr_Cobalt::matchFullFontFaceName(
-    const std::string& font_face_name) const {
-  SkAutoMutexAcquire scoped_mutex(style_sets_mutex_);
-
-  if (font_face_name.empty()) {
-    return NULL;
-  }
-
-  FullFontNameToFontFaceInfoMap::const_iterator font_face_iterator =
-      fullfontname_to_fontface_info_map_.find(font_face_name);
-
-  if (font_face_iterator != fullfontname_to_fontface_info_map_.end()) {
-    return matchFullFontFaceNameHelper(
-        font_face_iterator->second.style_set_entry_parent,
-        font_face_iterator->second.style_set_entry);
-  }
-
-  return NULL;
-}
-
-SkTypeface* SkFontMgr_Cobalt::matchPostScriptName(
-    const std::string& font_face_name) const {
-  if (font_face_name.empty()) {
-    return NULL;
-  }
-
-  PostScriptToFontFaceInfoMap::const_iterator font_face_iterator =
-      postscriptname_to_fontface_info_map_.find(font_face_name);
-  if (font_face_iterator != postscriptname_to_fontface_info_map_.end()) {
-    return matchFullFontFaceNameHelper(
-        font_face_iterator->second.style_set_entry_parent,
-        font_face_iterator->second.style_set_entry);
   }
 
   return NULL;
@@ -792,12 +809,13 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromData(SkData* data,
                                                int ttc_index) const {
-  SkAutoTUnref<SkStream> stream(new SkMemoryStream(data));
+  SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(data));
   return createFromStream(stream, ttc_index);
 }
 
-SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
+SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStreamAsset* stream,
                                                  int ttc_index) const {
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromStream()");
   bool is_fixed_pitch;
   SkTypeface::Style style;
   SkString name;
@@ -811,7 +829,8 @@ SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStream* stream,
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromFile(const char path[],
                                                int ttc_index) const {
-  SkAutoTUnref<SkStream> stream(SkStream::NewFromFile(path));
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromFile()");
+  SkAutoTUnref<SkStreamAsset> stream(SkStream::NewFromFile(path));
   return stream.get() ? createFromStream(stream, ttc_index) : NULL;
 }
 
@@ -829,6 +848,7 @@ SkTypeface* SkFontMgr_Cobalt::onLegacyCreateTypeface(
 
 void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
                                             SkTDArray<FontFamily*>* families) {
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::BuildNameToFamilyMap()");
   for (int i = 0; i < families->count(); i++) {
     FontFamily& family = *(*families)[i];
     bool named_font = family.names.count() > 0;
@@ -852,47 +872,32 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(const char* base_path,
              font_style_set_entry = new_set->styles_.begin();
          font_style_set_entry != new_set->styles_.end();
          ++font_style_set_entry) {
-      if (!font_style_set_entry) {
-        NOTREACHED() << " Font Style entry is invalid";
-        continue;
-      } else if ((*font_style_set_entry).get() == NULL) {
-        NOTREACHED() << " Font Style entry is NULL";
-        continue;
-      }
+      // On the first pass through, process the full font name.
+      // On the second pass through, process the font postscript name.
+      for (int i = 0; i <= 1; ++i) {
+        const std::string font_face_name_type_description =
+            i == 0 ? "Full Font" : "Postscript";
+        const std::string& font_face_name =
+            i == 0 ? (*font_style_set_entry)->full_font_name
+                   : (*font_style_set_entry)->font_postscript_name;
+        NameToStyleSetMap& font_face_name_style_set_map =
+            i == 0 ? full_font_name_to_style_set_map_
+                   : font_postscript_name_to_style_set_map_;
 
-      const std::string& full_font_name =
-          (*font_style_set_entry)->full_font_name;
-      DCHECK(!full_font_name.empty());
-      if (fullfontname_to_fontface_info_map_.find(full_font_name) ==
-          fullfontname_to_fontface_info_map_.end()) {
-        DLOG(INFO) << "Adding Full font name [" << full_font_name << "].";
-        fullfontname_to_fontface_info_map_[full_font_name] =
-            FullFontNameToFontFaceInfoMap::mapped_type(
-                font_style_set_entry->get(), new_set.get());
-      } else {
-        // Purposely, not overwriting the entry gives priority to the
-        // earlier entry.  This is consistent with how fonts.xml gives
-        // priority to fonts that are specified earlier in the file.
-        NOTREACHED() << "Full font name [" << full_font_name
-                     << "] already registered in BuildNameToFamilyMap.";
-      }
-
-      const std::string& postscript_font_name =
-          (*font_style_set_entry)->font_postscript_name;
-      DCHECK(!postscript_font_name.empty());
-      if (postscriptname_to_fontface_info_map_.find(postscript_font_name) ==
-          postscriptname_to_fontface_info_map_.end()) {
-        DLOG(INFO) << "Adding Postscript name [" << postscript_font_name
-                   << "].";
-        postscriptname_to_fontface_info_map_[postscript_font_name] =
-            PostScriptToFontFaceInfoMap::mapped_type(
-                font_style_set_entry->get(), new_set.get());
-      } else {
-        // Purposely, not overwriting the entry gives priority to the
-        // earlier entry.  This is consistent with how fonts.xml gives
-        // priority to fonts that are specified earlier in the file.
-        NOTREACHED() << "Adding Postscript name [" << postscript_font_name
-                     << "] already registered in BuildNameToFamilyMap.";
+        DCHECK(!font_face_name.empty());
+        if (font_face_name_style_set_map.find(font_face_name) ==
+            font_face_name_style_set_map.end()) {
+          DLOG(INFO) << "Adding " << font_face_name_type_description
+                     << " name [" << font_face_name << "].";
+          font_face_name_style_set_map[font_face_name] = new_set.get();
+        } else {
+          // Purposely, not overwriting the entry gives priority to the
+          // earlier entry.  This is consistent with how fonts.xml gives
+          // priority to fonts that are specified earlier in the file.
+          NOTREACHED() << font_face_name_type_description << " name ["
+                       << font_face_name
+                       << "] already registered in BuildNameToFamilyMap.";
+        }
       }
     }
 
@@ -979,6 +984,29 @@ SkTypeface* SkFontMgr_Cobalt::FindFamilyStyleCharacter(
   return NULL;
 }
 
+void SkFontMgr_Cobalt::HandlePeriodicProcessing() {
+  base::TimeTicks current_time = base::TimeTicks::Now();
+
+  ProcessSystemTypefacesWithOpenStreams(current_time);
+
+  // If the required delay has elapsed since the last font cache purge, then
+  // it's time to force another. This is accomplished by setting the limit to
+  // 1 byte smaller than it's current size, which initiates a partial purge (it
+  // always purges at least 25% of its contents). After this is done, the cache
+  // is set back to its previous size.
+  if ((current_time - last_font_cache_purge_time_).InMilliseconds() >=
+      kPeriodicFontCachePurgeDelayMs) {
+    last_font_cache_purge_time_ = current_time;
+
+    size_t font_cache_used = SkGraphics::GetFontCacheUsed();
+    if (font_cache_used > 0) {
+      size_t font_cache_limit = SkGraphics::GetFontCacheLimit();
+      SkGraphics::SetFontCacheLimit(font_cache_used - 1);
+      SkGraphics::SetFontCacheLimit(font_cache_limit);
+    }
+  }
+}
+
 // NOTE: It is the responsibility of the caller to lock
 // |system_typeface_stream_mutex_|
 void SkFontMgr_Cobalt::AddSystemTypefaceWithActiveOpenStream(
@@ -1012,26 +1040,6 @@ void SkFontMgr_Cobalt::NotifySystemTypefaceOfOpenStreamActivity(
       system_typefaces_with_inactive_open_streams_.removeShuffle(i);
       break;
     }
-  }
-}
-
-void SkFontMgr_Cobalt::HandlePeriodicProcessing() {
-  base::TimeTicks current_time = base::TimeTicks::Now();
-
-  ProcessSystemTypefacesWithOpenStreams(current_time);
-
-  // If the required delay has elapsed since the last font cache purge, then
-  // it's time to force another. This is accomplished by setting the limit to
-  // 1 byte smaller than it's current size, which initiates a partial purge (it
-  // always purges at least 25% of its contents). After this is done, the cache
-  // is set back to its previous size.
-  if ((current_time - last_font_cache_purge_time_).InMilliseconds() >=
-      kPeriodicFontCachePurgeDelayMs) {
-    last_font_cache_purge_time_ = current_time;
-
-    size_t font_cache_limit = SkGraphics::GetFontCacheLimit();
-    SkGraphics::SetFontCacheLimit(SkGraphics::GetFontCacheUsed() - 1);
-    SkGraphics::SetFontCacheLimit(font_cache_limit);
   }
 }
 

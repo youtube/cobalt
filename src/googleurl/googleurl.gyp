@@ -38,6 +38,7 @@
         'src/url_canon_relative.cc',
         'src/url_canon_stdstring.h',
         'src/url_canon_stdurl.cc',
+        'src/url_constants.cc',
         'src/url_file.h',
         'src/url_parse.cc',
         'src/url_parse.h',

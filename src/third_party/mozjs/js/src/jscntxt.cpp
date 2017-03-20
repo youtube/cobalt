@@ -57,6 +57,8 @@
 #include <unicode/uloc.h>
 #endif
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 
@@ -293,6 +295,7 @@ js::CloneFunctionAtCallsite(JSContext *cx, HandleFunction fun, HandleScript scri
 JSContext *
 js::NewContext(JSRuntime *rt, size_t stackChunkSize)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_AbortIfWrongThread(rt);
 
     JSContext *cx = js_new<JSContext>(rt);
@@ -743,7 +746,7 @@ js_strdup(JSContext *cx, const char *s)
  * Returns true if the expansion succeeds (can fail if out of memory).
  */
 JSBool
-js_ExpandErrorArguments(JSContext *cx, JSErrorCallback callback,
+js_ExpandErrorArgumentsVA(JSContext *cx, JSErrorCallback callback,
                         void *userRef, const unsigned errorNumber,
                         char **messagep, JSErrorReport *reportp,
                         ErrorArgumentsType argumentsType, va_list ap)
@@ -922,7 +925,7 @@ js_ReportErrorNumberVA(JSContext *cx, unsigned flags, JSErrorCallback callback,
     report.errorNumber = errorNumber;
     PopulateReportBlame(cx, &report);
 
-    if (!js_ExpandErrorArguments(cx, callback, userRef, errorNumber,
+    if (!js_ExpandErrorArgumentsVA(cx, callback, userRef, errorNumber,
                                  &message, &report, argumentsType, ap)) {
         return JS_FALSE;
     }
@@ -933,7 +936,7 @@ js_ReportErrorNumberVA(JSContext *cx, unsigned flags, JSErrorCallback callback,
         js_free(message);
     if (report.messageArgs) {
         /*
-         * js_ExpandErrorArguments owns its messageArgs only if it had to
+         * js_ExpandErrorArgumentsVA owns its messageArgs only if it had to
          * inflate the arguments (from regular |char *|s).
          */
         if (argumentsType == ArgumentsAreASCII) {
@@ -948,6 +951,21 @@ js_ReportErrorNumberVA(JSContext *cx, unsigned flags, JSErrorCallback callback,
 
     return warning;
 }
+
+static bool
+js_ExpandErrorArguments(JSContext *cx, JSErrorCallback callback,
+                     void *userRef, const unsigned errorNumber,
+                     char **messagep, ErrorArgumentsType argumentsType,
+                     JSErrorReport *reportp, ...)
+{
+    va_list ap;
+    va_start(ap, reportp);
+    bool expanded = js_ExpandErrorArgumentsVA(cx, callback, userRef, errorNumber,
+                                               messagep, reportp, argumentsType, ap);
+    va_end(ap);
+    return expanded;
+}
+
 
 bool
 js_ReportErrorNumberUCArray(JSContext *cx, unsigned flags, JSErrorCallback callback,
@@ -966,9 +984,8 @@ js_ReportErrorNumberUCArray(JSContext *cx, unsigned flags, JSErrorCallback callb
     report.messageArgs = args;
 
     char *message;
-    va_list dummy;
     if (!js_ExpandErrorArguments(cx, callback, userRef, errorNumber,
-                                 &message, &report, ArgumentsAreUnicode, dummy)) {
+                                 &message, ArgumentsAreUnicode, &report)) {
         return false;
     }
 
@@ -1258,7 +1275,7 @@ JSRuntime::getDefaultLocale()
         return defaultLocale;
 
     char *locale, *lang, *p;
-#if defined(STARBOARD)
+#if defined(STARBOARD) && !SB_IS(TIZEN_OS)
     locale = const_cast<char*>(uloc_getDefault());
 #elif defined(HAVE_SETLOCALE)
     locale = setlocale(LC_ALL, NULL);

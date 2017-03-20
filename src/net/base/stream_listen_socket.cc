@@ -30,10 +30,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
-#if defined(__LB_SHELL__)
-#include "lb_network_helpers.h"
-#endif
-
 using std::string;
 
 #if defined(OS_WIN)

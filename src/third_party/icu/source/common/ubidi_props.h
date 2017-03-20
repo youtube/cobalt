@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2004-2010, International Business Machines
+*   Copyright (C) 2004-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -21,6 +21,7 @@
 
 #include "unicode/utypes.h"
 #include "unicode/uset.h"
+#include "putilimp.h"
 #include "uset_imp.h"
 #include "udataswp.h"
 
@@ -33,11 +34,6 @@ typedef struct UBiDiProps UBiDiProps;
 
 U_CFUNC const UBiDiProps *
 ubidi_getSingleton(void);
-
-U_CAPI int32_t
-ubidi_swap(const UDataSwapper *ds,
-           const void *inData, int32_t length, void *outData,
-           UErrorCode *pErrorCode);
 
 U_CFUNC void
 ubidi_addPropertyStarts(const UBiDiProps *bdp, const USetAdder *sa, UErrorCode *pErrorCode);
@@ -68,6 +64,12 @@ ubidi_getJoiningType(const UBiDiProps *bdp, UChar32 c);
 U_CFUNC UJoiningGroup
 ubidi_getJoiningGroup(const UBiDiProps *bdp, UChar32 c);
 
+U_CFUNC UBidiPairedBracketType
+ubidi_getPairedBracketType(const UBiDiProps *bdp, UChar32 c);
+
+U_CFUNC UChar32
+ubidi_getPairedBracket(const UBiDiProps *bdp, UChar32 c);
+
 /* file definitions --------------------------------------------------------- */
 
 #define UBIDI_DATA_NAME "ubidi"
@@ -88,6 +90,8 @@ enum {
 
     UBIDI_IX_JG_START,
     UBIDI_IX_JG_LIMIT,
+    UBIDI_IX_JG_START2,  /* new in format version 2.2, ICU 54 */
+    UBIDI_IX_JG_LIMIT2,
 
     UBIDI_MAX_VALUES_INDEX=15,
     UBIDI_IX_TOP=16
@@ -99,7 +103,7 @@ enum {
  /* UBIDI_CLASS_SHIFT=0, */     /* bidi class: 5 bits (4..0) */
     UBIDI_JT_SHIFT=5,           /* joining type: 3 bits (7..5) */
 
-    /* UBIDI__SHIFT=8, reserved: 2 bits (9..8) */
+    UBIDI_BPT_SHIFT=8,          /* Bidi_Paired_Bracket_Type(bpt): 2 bits (9..8) */
 
     UBIDI_JOIN_CONTROL_SHIFT=10,
     UBIDI_BIDI_CONTROL_SHIFT=11,
@@ -112,11 +116,18 @@ enum {
 
 #define UBIDI_CLASS_MASK        0x0000001f
 #define UBIDI_JT_MASK           0x000000e0
+#define UBIDI_BPT_MASK          0x00000300
 
 #define UBIDI_MAX_JG_MASK       0x00ff0000
 
 #define UBIDI_GET_CLASS(props) ((props)&UBIDI_CLASS_MASK)
 #define UBIDI_GET_FLAG(props, shift) (((props)>>(shift))&1)
+
+#if U_SIGNED_RIGHT_SHIFT_IS_ARITHMETIC
+#   define UBIDI_GET_MIRROR_DELTA(props) ((int16_t)(props)>>UBIDI_MIRROR_DELTA_SHIFT)
+#else
+#   define UBIDI_GET_MIRROR_DELTA(props) (int16_t)(((props)&0x8000) ? (((props)>>UBIDI_MIRROR_DELTA_SHIFT)|0xe000) : ((props)>>UBIDI_MIRROR_DELTA_SHIFT))
+#endif
 
 enum {
     UBIDI_ESC_MIRROR_DELTA=-4,

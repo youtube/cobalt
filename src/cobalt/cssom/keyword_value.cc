@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/cssom/keyword_value.h"
 
@@ -44,6 +42,7 @@ struct KeywordValue::NonTrivialStaticFields {
         cursive_value(new KeywordValue(KeywordValue::kCursive)),
         ellipsis_value(new KeywordValue(KeywordValue::kEllipsis)),
         end_value(new KeywordValue(KeywordValue::kEnd)),
+        equirectangular_value(new KeywordValue(KeywordValue::kEquirectangular)),
         fantasy_value(new KeywordValue(KeywordValue::kFantasy)),
         forwards_value(new KeywordValue(KeywordValue::kForwards)),
         fixed_value(new KeywordValue(KeywordValue::kFixed)),
@@ -100,6 +99,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> cursive_value;
   const scoped_refptr<KeywordValue> ellipsis_value;
   const scoped_refptr<KeywordValue> end_value;
+  const scoped_refptr<KeywordValue> equirectangular_value;
   const scoped_refptr<KeywordValue> fantasy_value;
   const scoped_refptr<KeywordValue> forwards_value;
   const scoped_refptr<KeywordValue> fixed_value;
@@ -217,6 +217,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetEllipsis() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetEnd() {
   return non_trivial_static_fields.Get().end_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetEquirectangular() {
+  return non_trivial_static_fields.Get().equirectangular_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetFantasy() {
@@ -401,6 +405,8 @@ std::string KeywordValue::ToString() const {
       return kEllipsisKeywordName;
     case kEnd:
       return kEndKeywordName;
+    case kEquirectangular:
+      return kEquirectangularKeywordName;
     case kFantasy:
       return kFantasyKeywordName;
     case kForwards:

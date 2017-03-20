@@ -79,7 +79,17 @@
 #define NEED_GLOBAL_LOCK_INIT
 
 #define HAVE_MREMAP 0
+
+#if defined(STARBOARD)
+#if SB_HAS_QUIRK(NO_FFS)
+#define USE_BUILTIN_FFS 0
+#else
 #define USE_BUILTIN_FFS 1
+#endif  // SB_HAS_QUIRK(NO_FFS)
+#else
+#define USE_BUILTIN_FFS 1
+#endif  // defined(STARBOARD)
+
 #if defined(STARBOARD)
 #define malloc_getpagesize SB_MEMORY_PAGE_SIZE
 #else
@@ -135,7 +145,9 @@
 #define LACKS_STDLIB_H 1
 #define LACKS_SCHED_H 1
 #define LACKS_TIME_H 1
+#undef EINVAL
 #define EINVAL 1
+#undef ENOMEM
 #define ENOMEM 1
 
 // Compatibility patching back to LBShell names.

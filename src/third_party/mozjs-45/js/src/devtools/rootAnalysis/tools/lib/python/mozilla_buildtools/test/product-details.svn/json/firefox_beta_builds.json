@@ -1,0 +1,98 @@
+{
+    "ku": {
+        "3.6.28": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        },
+        "33.0b8": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        },
+        "34.0a2": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        },
+        "24.8.1esr": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        }
+    },
+    "rm": {
+        "3.6.28": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        }
+    },
+    "or": {
+        "3.6.28": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        }
+    },
+    "sw": {
+        "34.0a2": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        },
+        "33.0b8": {
+            "Windows": {
+                "filesize": 0
+            },
+            "OS X": {
+                "filesize": 0
+            },
+            "Linux": {
+                "filesize": 0
+            }
+        }
+    }
+}

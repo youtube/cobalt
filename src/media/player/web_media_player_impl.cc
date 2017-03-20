@@ -161,17 +161,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   filter_collection_->AddVideoRenderer(video_renderer);
   proxy_->set_frame_provider(video_renderer);
 
-#if defined(COBALT_USE_PUNCHOUT)
-  // The size passed to CreatePunchOutFrame is used to pass the natural size of
-  // the video to the pipeline. The pipeline already gets the natural size of
-  // the video from the underlying player so we set this to gfx::Size() to avoid
-  // propagating the frame size through the media stack.
-  punch_out_video_frame_ = VideoFrame::CreatePunchOutFrame(gfx::Size());
-#else   // defined(COBALT_USE_PUNCHOUT)
-  DCHECK(audio_renderer_sink);
-  filter_collection_->AddAudioRenderer(ShellAudioRenderer::Create(
-      audio_renderer_sink, set_decryptor_ready_cb, pipeline_message_loop));
-#endif  // defined(COBALT_USE_PUNCHOUT)
+  if (audio_renderer_sink) {
+    filter_collection_->AddAudioRenderer(ShellAudioRenderer::Create(
+        audio_renderer_sink, set_decryptor_ready_cb, pipeline_message_loop));
+  }
 
   if (video_frame_provider_) {
     media_time_and_seeking_state_cb_ =
@@ -286,7 +279,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
 void WebMediaPlayerImpl::LoadProgressive(
     const GURL& url,
-    const scoped_refptr<BufferedDataSource>& data_source,
+    scoped_ptr<BufferedDataSource> data_source,
     CORSMode cors_mode) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   DCHECK(filter_collection_);
@@ -303,7 +296,7 @@ void WebMediaPlayerImpl::LoadProgressive(
   scoped_refptr<base::MessageLoopProxy> message_loop =
       message_loop_factory_->GetMessageLoop(MessageLoopFactory::kPipeline);
 
-  proxy_->set_data_source(data_source);
+  proxy_->set_data_source(data_source.Pass());
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
@@ -606,25 +599,11 @@ scoped_refptr<VideoFrame> WebMediaPlayerImpl::GetCurrentFrame() {
   if (video_frame_provider_) {
     return video_frame_provider_->GetCurrentFrame();
   }
-#if defined(COBALT_USE_PUNCHOUT)
-  // We want to give proxy_ a chance to produce a valid frame before returning
-  // the punch out frame
-  return punch_out_video_frame_;
-#else   // defined(COBALT_USE_PUNCHOUT)
   return NULL;
-#endif  // defined(COBALT_USE_PUNCHOUT)
 }
 
 void WebMediaPlayerImpl::PutCurrentFrame(
     const scoped_refptr<VideoFrame>& video_frame) {
-#if defined(COBALT_USE_PUNCHOUT)
-  if (video_frame == punch_out_video_frame_) {
-    // This happens when proxy_ returns NULL in getCurrentFrame() so we make
-    // sure that it gets a NULL back as well
-    proxy_->PutCurrentFrame(NULL);
-    return;
-  }
-#endif  // defined(COBALT_USE_PUNCHOUT)
   if (video_frame) {
     proxy_->PutCurrentFrame(video_frame);
   } else {
@@ -986,6 +965,10 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 
   switch (buffering_state) {
     case Pipeline::kHaveMetadata:
+      video_frame_provider_->SetOutputMode(
+          (pipeline_->IsPunchOutMode() ?
+               ShellVideoFrameProvider::kOutputModePunchOut :
+               ShellVideoFrameProvider::kOutputModeDecodeToTexture));
       SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
       break;
     case Pipeline::kPrerollCompleted:

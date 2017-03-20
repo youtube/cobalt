@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_MEDIA_MEDIA_MODULE_H_
 #define COBALT_MEDIA_MEDIA_MODULE_H_
@@ -35,10 +33,13 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
-#include "media/base/shell_media_platform.h"
-#include "media/base/shell_video_frame_provider.h"
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/player/web_media_player_delegate.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/filters/shell_video_decoder_impl.h"
 #include "media/player/web_media_player_delegate.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace media {
@@ -63,10 +64,6 @@ class MediaModule : public CanPlayTypeHandler,
   typedef ::media::WebMediaPlayer WebMediaPlayer;
   typedef render_tree::Image Image;
 
-  MediaModule() : thread_("media_module") {
-    thread_.Start();
-    message_loop_ = thread_.message_loop_proxy();
-  }
   virtual ~MediaModule() {}
 
   // Returns true when the setting is set successfully or if the setting has
@@ -78,14 +75,24 @@ class MediaModule : public CanPlayTypeHandler,
     return false;
   }
 
+  // The following functions will be called inside Suspend() and Resume()
+  // from the main thread.  Sub-classes can override these functions for
+  // platform specific tasks.
+  virtual void OnSuspend() {}
+  virtual void OnResume() {}
+
+  virtual system_window::SystemWindow* system_window() const { return NULL; }
+
   void Suspend();
   void Resume();
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   virtual ::media::ShellRawVideoDecoderFactory* GetRawVideoDecoderFactory() {
     return NULL;
   }
-#endif  // !defined(COBALT_RELEASE)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.
@@ -93,12 +100,21 @@ class MediaModule : public CanPlayTypeHandler,
   void RegisterPlayer(WebMediaPlayer* player) OVERRIDE;
   void UnregisterPlayer(WebMediaPlayer* player) OVERRIDE;
 
+  const math::Size& output_size() const { return output_size_; }
+
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
       system_window::SystemWindow* system_window, const math::Size& output_size,
       render_tree::ResourceProvider* resource_provider,
       const Options& options = Options());
+
+ protected:
+  explicit MediaModule(const math::Size& output_size)
+      : thread_("media_module"), output_size_(output_size) {
+    thread_.Start();
+    message_loop_ = thread_.message_loop_proxy();
+  }
 
  private:
   void RegisterDebugState(WebMediaPlayer* player);
@@ -116,6 +132,7 @@ class MediaModule : public CanPlayTypeHandler,
   base::Thread thread_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   Players players_;
+  math::Size output_size_;
 };
 
 }  // namespace media

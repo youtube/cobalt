@@ -17,6 +17,8 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
 void SbPlayerSetPause(SbPlayer player, bool pause) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -24,3 +26,5 @@ void SbPlayerSetPause(SbPlayer player, bool pause) {
   }
   player->SetPause(pause);
 }
+
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION

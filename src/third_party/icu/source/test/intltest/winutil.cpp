@@ -1,6 +1,6 @@
 /*
 ********************************************************************************
-*   Copyright (C) 2005-2009, International Business Machines
+*   Copyright (C) 2005-2013, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 ********************************************************************************
 *
@@ -11,7 +11,7 @@
 
 #include "unicode/utypes.h"
 
-#ifdef U_WINDOWS
+#if U_PLATFORM_HAS_WIN32_API
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -35,7 +35,8 @@ static int32_t lcidMax = 0;
 
 BOOL CALLBACK EnumLocalesProc(LPSTR lpLocaleString)
 {
-    const char* localeID = NULL;
+    char localeID[ULOC_FULLNAME_CAPACITY];
+	int32_t localeIDLen;
     UErrorCode status = U_ZERO_ERROR;
 
     if (lcidCount >= lcidMax) {
@@ -52,11 +53,14 @@ BOOL CALLBACK EnumLocalesProc(LPSTR lpLocaleString)
 
     sscanf(lpLocaleString, "%8x", &lcidRecords[lcidCount].lcid);
 
-    localeID = uprv_convertToPosix(lcidRecords[lcidCount].lcid, &status);
-
-    lcidRecords[lcidCount].localeID = new char[strlen(localeID)];
-
-    strcpy(lcidRecords[lcidCount].localeID, localeID);
+    localeIDLen = uprv_convertToPosix(lcidRecords[lcidCount].lcid, localeID, sizeof(localeID)/sizeof(localeID[0]), &status);
+    if (U_SUCCESS(status)) {
+        lcidRecords[lcidCount].localeID = new char[localeIDLen + 1];
+        memcpy(lcidRecords[lcidCount].localeID, localeID, localeIDLen);
+        lcidRecords[lcidCount].localeID[localeIDLen] = 0;
+    } else {
+        lcidRecords[lcidCount].localeID = NULL;
+    }
 
     lcidCount += 1;
 
@@ -88,4 +92,4 @@ void Win32Utilities::freeLocales(LCIDRecord *records)
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif /* #ifdef U_WINDOWS */
+#endif /* U_PLATFORM_HAS_WIN32_API */

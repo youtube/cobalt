@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "base/optional.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
@@ -22,9 +20,9 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::ContainsRegex;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::StartsWith;
 using ::testing::_;
 
 namespace cobalt {
@@ -35,7 +33,7 @@ namespace {
 class CallbackInterfaceTest
     : public InterfaceBindingsTest<CallbackInterfaceInterface> {
  public:
-  typedef ScriptObjectOwner<script::ScriptObject<SingleOperationInterface> >
+  typedef ScriptObjectOwner<script::ScriptValue<SingleOperationInterface> >
       InterfaceOwner;
   CallbackInterfaceTest()
       : callback_arg_(new ArbitraryInterface()), had_exception_(true) {}
@@ -165,7 +163,7 @@ TEST_F(CallbackInterfaceTest, NotAnObjectOrFunction) {
   // TypeError should occur.
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.registerCallback(\"foo\");", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(CallbackInterfaceTest, ExceptionInCallback) {
@@ -211,8 +209,8 @@ TEST_F(CallbackInterfaceTest, FunctionsAreEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_TRUE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_TRUE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, FunctionsAreNotEqual) {
@@ -234,8 +232,8 @@ TEST_F(CallbackInterfaceTest, FunctionsAreNotEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_FALSE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_FALSE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, ObjectsAreEqual) {
@@ -256,8 +254,8 @@ TEST_F(CallbackInterfaceTest, ObjectsAreEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_TRUE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_TRUE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, ObjectsAreNotEqual) {
@@ -279,8 +277,8 @@ TEST_F(CallbackInterfaceTest, ObjectsAreNotEqual) {
   ASSERT_TRUE(interface_owner_first.IsSet());
   ASSERT_TRUE(interface_owner_second.IsSet());
 
-  EXPECT_FALSE(interface_owner_first.reference().referenced_object().EqualTo(
-      interface_owner_second.reference().referenced_object()));
+  EXPECT_FALSE(interface_owner_first.reference().referenced_value().EqualTo(
+      interface_owner_second.reference().referenced_value()));
 }
 
 TEST_F(CallbackInterfaceTest, GetAndSetAttribute) {
@@ -298,7 +296,7 @@ TEST_F(CallbackInterfaceTest, GetAndSetAttribute) {
 
   // Get the attribute value and check that it's equal.
   EXPECT_CALL(test_mock(), callback_attribute())
-      .WillOnce(Return(&interface_owner.reference().referenced_object()));
+      .WillOnce(Return(&interface_owner.reference().referenced_value()));
   EXPECT_TRUE(
       EvaluateScript("test.callbackAttribute === implementer;", &result));
   EXPECT_STREQ("true", result.c_str());

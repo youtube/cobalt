@@ -1,20 +1,20 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/time_ranges.h"
+
+#include <limits>
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
@@ -23,6 +23,7 @@
 namespace cobalt {
 namespace dom {
 namespace {
+
 class FakeExceptionState : public script::ExceptionState {
  public:
   void SetException(
@@ -30,7 +31,7 @@ class FakeExceptionState : public script::ExceptionState {
     dom_exception_ = make_scoped_refptr(
         base::polymorphic_downcast<DOMException*>(exception.get()));
   }
-  void SetSimpleException(script::MessageType /*message_type*/, ...) OVERRIDE {
+  void SetSimpleException(MessageTypeVar /*message_type*/, ...) OVERRIDE {
     // no-op
   }
   dom::DOMException::ExceptionCode GetExceptionCode() {
@@ -42,6 +43,16 @@ class FakeExceptionState : public script::ExceptionState {
  private:
   scoped_refptr<dom::DOMException> dom_exception_;
 };
+
+void CheckEqual(const scoped_refptr<TimeRanges>& time_ranges1,
+                const scoped_refptr<TimeRanges>& time_ranges2) {
+  ASSERT_EQ(time_ranges1->length(), time_ranges2->length());
+  for (uint32 i = 0; i < time_ranges1->length(); ++i) {
+    EXPECT_EQ(time_ranges1->Start(i, NULL), time_ranges2->Start(i, NULL));
+    EXPECT_EQ(time_ranges1->End(i, NULL), time_ranges2->End(i, NULL));
+  }
+}
+
 }  // namespace
 
 TEST(TimeRangesTest, Constructors) {
@@ -194,6 +205,122 @@ TEST(TimeRangesTest, IndexOutOfRangeException) {
     time_ranges->End(2, &exception_state);
     EXPECT_EQ(DOMException::kIndexSizeErr, exception_state.GetExceptionCode());
   }
+}
+
+TEST(TimeRangesTest, Clone) {
+  scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
+  scoped_refptr<TimeRanges> cloned = time_ranges->Clone();
+  EXPECT_NE(time_ranges, cloned);
+  scoped_refptr<TimeRanges> another_cloned = time_ranges->Clone();
+  EXPECT_NE(cloned, another_cloned);
+
+  time_ranges->Add(0.0, 1.0);
+  time_ranges->Add(2.0, 3.0);
+
+  cloned = time_ranges->Clone();
+  EXPECT_NE(time_ranges, cloned);
+  EXPECT_EQ(time_ranges->length(), cloned->length());
+
+  for (uint32 i = 0; i < cloned->length(); ++i) {
+    EXPECT_EQ(time_ranges->Start(i, NULL), cloned->Start(i, NULL));
+    EXPECT_EQ(time_ranges->End(i, NULL), cloned->End(i, NULL));
+  }
+}
+
+TEST(TimeRangesTest, UnionWithSelf) {
+  scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
+  scoped_refptr<TimeRanges> unioned = time_ranges->UnionWith(time_ranges);
+  EXPECT_NE(time_ranges, unioned);
+  CheckEqual(time_ranges, unioned);
+}
+
+TEST(TimeRangesTest, UnionWith) {
+  const double kInfinity = std::numeric_limits<double>::infinity();
+
+  scoped_refptr<TimeRanges> time_ranges1 = new TimeRanges;
+  time_ranges1->Add(-kInfinity, 1.0);
+  time_ranges1->Add(4.0, 6.0);
+  time_ranges1->Add(8.0, 10.0);
+
+  // 1:******************   **  **
+  // ===================0123456789A==================
+  // 2:                   *  **   *******************
+  // U:****************** * *** *********************
+  scoped_refptr<TimeRanges> time_ranges2 = new TimeRanges;
+  time_ranges2->Add(2.0, 3.0);
+  time_ranges2->Add(5.0, 7.0);
+  time_ranges2->Add(10.0, kInfinity);
+
+  scoped_refptr<TimeRanges> cloned_time_ranges1 = time_ranges1->Clone();
+  scoped_refptr<TimeRanges> cloned_time_ranges2 = time_ranges2->Clone();
+  scoped_refptr<TimeRanges> unioned = time_ranges1->UnionWith(time_ranges2);
+
+  CheckEqual(cloned_time_ranges1, time_ranges1);
+  CheckEqual(cloned_time_ranges2, time_ranges2);
+
+  EXPECT_EQ(4, unioned->length());
+
+  EXPECT_EQ(-kInfinity, unioned->Start(0, NULL));
+  EXPECT_EQ(1, unioned->End(0, NULL));
+
+  EXPECT_EQ(2, unioned->Start(1, NULL));
+  EXPECT_EQ(3, unioned->End(1, NULL));
+
+  EXPECT_EQ(4, unioned->Start(2, NULL));
+  EXPECT_EQ(7, unioned->End(2, NULL));
+
+  EXPECT_EQ(8, unioned->Start(3, NULL));
+  EXPECT_EQ(kInfinity, unioned->End(3, NULL));
+}
+
+TEST(TimeRangesTest, IntersectWithEmptyRange) {
+  const double kInfinity = std::numeric_limits<double>::infinity();
+
+  scoped_refptr<TimeRanges> time_ranges1 = new TimeRanges;
+  scoped_refptr<TimeRanges> intersection =
+      time_ranges1->IntersectWith(time_ranges1);
+  EXPECT_NE(time_ranges1, intersection);
+  CheckEqual(time_ranges1, intersection);
+
+  scoped_refptr<TimeRanges> time_ranges2 = new TimeRanges;
+  time_ranges2->Add(-kInfinity, kInfinity);
+
+  intersection = time_ranges1->IntersectWith(time_ranges2);
+  CheckEqual(time_ranges1, intersection);
+}
+
+TEST(TimeRangesTest, IntersectWith) {
+  const double kInfinity = std::numeric_limits<double>::infinity();
+
+  scoped_refptr<TimeRanges> time_ranges1 = new TimeRanges;
+  time_ranges1->Add(-kInfinity, 1.0);
+  time_ranges1->Add(4.0, 6.0);
+  time_ranges1->Add(8.0, kInfinity);
+
+  // 1:******************   **  *********************
+  // ===================0123456789A==================
+  // 2:                   *  **   *******************
+  // I:                      *    *******************
+  scoped_refptr<TimeRanges> time_ranges2 = new TimeRanges;
+  time_ranges2->Add(2.0, 3.0);
+  time_ranges2->Add(5.0, 7.0);
+  time_ranges2->Add(10.0, kInfinity);
+
+  scoped_refptr<TimeRanges> cloned_time_ranges1 = time_ranges1->Clone();
+  scoped_refptr<TimeRanges> cloned_time_ranges2 = time_ranges2->Clone();
+  scoped_refptr<TimeRanges> intersection =
+      time_ranges1->IntersectWith(time_ranges2);
+
+  CheckEqual(cloned_time_ranges1, time_ranges1);
+  CheckEqual(cloned_time_ranges2, time_ranges2);
+
+  EXPECT_EQ(2, intersection->length());
+
+  EXPECT_EQ(5, intersection->Start(0, NULL));
+  EXPECT_EQ(6, intersection->End(0, NULL));
+
+  EXPECT_EQ(10, intersection->Start(1, NULL));
+  EXPECT_EQ(kInfinity, intersection->End(1, NULL));
 }
 
 }  // namespace dom

@@ -25,7 +25,6 @@
 #include "base/threading/thread.h"
 #include "net/base/net_util.h"
 #include "net/base/tcp_listen_socket.h"
-#include "net/base/winsock_init.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_STARBOARD)

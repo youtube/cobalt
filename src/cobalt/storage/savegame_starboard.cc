@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/storage/savegame.h"
 
@@ -33,7 +31,7 @@ class SavegameStarboard : public Savegame {
  public:
   explicit SavegameStarboard(const Options& options);
   ~SavegameStarboard() OVERRIDE;
-  bool PlatformRead(ByteVector* bytes) OVERRIDE;
+  bool PlatformRead(ByteVector* bytes, size_t max_to_read) OVERRIDE;
   bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
   bool PlatformDelete() OVERRIDE;
 
@@ -52,7 +50,8 @@ SavegameStarboard::~SavegameStarboard() {
   }
 }
 
-bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr) {
+bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr,
+                                     size_t max_to_read) {
   if (!record_->IsValid()) {
     DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord";
     return false;
@@ -61,6 +60,11 @@ bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr) {
   int64_t size = record_->GetSize();
   if (size < 0) {
     DLOG(WARNING) << "StorageRecord::GetSize failed";
+    return false;
+  }
+
+  if (static_cast<size_t>(size) > max_to_read) {
+    DLOG(WARNING) << "Savegame larger than max allowed size";
     return false;
   }
 

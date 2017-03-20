@@ -1,6 +1,6 @@
 ﻿# ***************************************************************************
 # *
-# *  Copyright (C) 2004-2010, International Business Machines
+# *  Copyright (C) 2004-2015, International Business Machines
 # *  Corporation; Unicode, Inc.; and others.  All Rights Reserved.
 # *
 # ***************************************************************************
@@ -87,5 +87,6 @@
 ૭→\uE06D; # DIGIT SEVEN
 ૮→\uE06E; # DIGIT EIGHT
 ૯→\uE06F; # DIGIT NINE
-।→\uE064;        # DANDA
-॥→\uE065;        # DOUBLE DANDA
+।→\uE064; # DANDA
+॥→\uE065; # DOUBLE DANDA
+૰→\uE070; # ABBREVIATION SIGN

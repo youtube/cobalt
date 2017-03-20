@@ -16,9 +16,13 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #include "./vp8enci.h"
 

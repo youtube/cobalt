@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2002-2010, International Business Machines
+*   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -65,13 +65,29 @@ enum {
 
 /* constants for the storage form of numeric types and values */
 enum {
+    /** No numeric value. */
     UPROPS_NTV_NONE=0,
+    /** Decimal digits: nv=0..9 */
     UPROPS_NTV_DECIMAL_START=1,
+    /** Other digits: nv=0..9 */
     UPROPS_NTV_DIGIT_START=11,
+    /** Small integers: nv=0..154 */
     UPROPS_NTV_NUMERIC_START=21,
+    /** Fractions: ((ntv>>4)-12) / ((ntv&0xf)+1) = -1..17 / 1..16 */
     UPROPS_NTV_FRACTION_START=0xb0,
+    /**
+     * Large integers:
+     * ((ntv>>5)-14) * 10^((ntv&0x1f)+2) = (1..9)*(10^2..10^33)
+     * (only one significant decimal digit)
+     */
     UPROPS_NTV_LARGE_START=0x1e0,
-    UPROPS_NTV_RESERVED_START=0x300,
+    /**
+     * Sexagesimal numbers:
+     * ((ntv>>2)-0xbf) * 60^((ntv&3)+1) = (1..9)*(60^1..60^4)
+     */
+    UPROPS_NTV_BASE60_START=0x300,
+    /** No numeric value (yet). */
+    UPROPS_NTV_RESERVED_START=UPROPS_NTV_BASE60_START+36,  /* 0x300+9*4=0x324 */
 
     UPROPS_NTV_MAX_SMALL_INT=UPROPS_NTV_FRACTION_START-UPROPS_NTV_NUMERIC_START-1
 };
@@ -171,13 +187,21 @@ enum {
 /*
  * Properties in vector word 2
  * Bits
- * 31..26   reserved
+ * 31..28   http://www.unicode.org/reports/tr51/#Emoji_Properties
+ * 27..26   reserved
  * 25..20   Line Break
  * 19..15   Sentence Break
  * 14..10   Word Break
  *  9.. 5   Grapheme Cluster Break
  *  4.. 0   Decomposition Type
  */
+enum {
+    UPROPS_2_EMOJI=28,
+    UPROPS_2_EMOJI_PRESENTATION,
+    UPROPS_2_EMOJI_MODIFIER,
+    UPROPS_2_EMOJI_MODIFIER_BASE,
+};
+
 #define UPROPS_LB_MASK          0x03f00000
 #define UPROPS_LB_SHIFT         20
 
@@ -193,9 +217,15 @@ enum {
 #define UPROPS_DT_MASK          0x0000001f
 
 /**
+ * Gets the main properties value for a code point.
+ * Implemented in uchar.c for uprops.cpp.
+ */
+U_CFUNC uint32_t
+u_getMainProperties(UChar32 c);
+
+/**
  * Get a properties vector word for a code point.
- * Implemented in uchar.c for uprops.c.
- * column==-1 gets the 32-bit main properties word instead.
+ * Implemented in uchar.c for uprops.cpp.
  * @return 0 if no data or illegal argument
  */
 U_CFUNC uint32_t
@@ -398,15 +428,6 @@ uprv_getInclusions(const USetAdder *sa, UErrorCode *pErrorCode);
 */
 
 /**
- * Swap the ICU Unicode properties file. See uchar.c.
- * @internal
- */
-U_CAPI int32_t U_EXPORT2
-uprops_swap(const UDataSwapper *ds,
-            const void *inData, int32_t length, void *outData,
-            UErrorCode *pErrorCode);
-
-/**
  * Swap the ICU Unicode character names file. See uchar.c.
  * @internal
  */
@@ -415,7 +436,7 @@ uchar_swapNames(const UDataSwapper *ds,
                 const void *inData, int32_t length, void *outData,
                 UErrorCode *pErrorCode);
 
-#ifdef XP_CPLUSPLUS
+#ifdef __cplusplus
 
 U_NAMESPACE_BEGIN
 

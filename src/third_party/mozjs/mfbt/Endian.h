@@ -71,6 +71,10 @@
 
 #include <string.h>
 
+#if defined(STARBOARD)
+#include "starboard/byte_swap.h"
+#endif
+
 #if defined(_MSC_VER) && _MSC_VER >= 1300
 #  include <stdlib.h>
 #  pragma intrinsic(_byteswap_ushort)
@@ -154,6 +158,30 @@
 #    define MOZ_HAVE_BUILTIN_BYTESWAP16 _byteswap_ushort
 #endif
 
+#if defined(__clang__)
+#  if __has_builtin(__builtin_bswap32)
+#    define MOZ_HAVE_BUILTIN_BYTESWAP32 __builtin_bswap32
+#  endif
+#elif defined(__GNUC__)
+#  if MOZ_GCC_VERSION_AT_LEAST(4, 5, 0)
+#    define MOZ_HAVE_BUILTIN_BYTESWAP32 __builtin_bswap32
+#  endif
+#elif defined(_MSC_VER)
+#    define MOZ_HAVE_BUILTIN_BYTESWAP32 _byteswap_ulong
+#endif
+
+#if defined(__clang__)
+#  if __has_builtin(__builtin_bswap64)
+#    define MOZ_HAVE_BUILTIN_BYTESWAP64 __builtin_bswap64
+#  endif
+#elif defined(__GNUC__)
+#  if MOZ_GCC_VERSION_AT_LEAST(4, 5, 0)
+#    define MOZ_HAVE_BUILTIN_BYTESWAP64 __builtin_bswap64
+#  endif
+#elif defined(_MSC_VER)
+#    define MOZ_HAVE_BUILTIN_BYTESWAP64 _byteswap_uint64
+#endif
+
 namespace mozilla {
 
 namespace detail {
@@ -184,10 +212,10 @@ struct Swapper<T, 4>
 {
   static T swap(T value)
   {
-#if defined(__clang__) || defined(__GNUC__)
-    return T(__builtin_bswap32(value));
-#elif defined(_MSC_VER)
-    return T(_byteswap_ulong(value));
+#if defined(STARBOARD)
+    return static_cast<T>(SbByteSwapU32(value));
+#elif defined(MOZ_HAVE_BUILTIN_BYTESWAP32)
+    return MOZ_HAVE_BUILTIN_BYTESWAP32(value);
 #else
     return T(((value & 0x000000ffU) << 24) |
              ((value & 0x0000ff00U) << 8) |
@@ -202,10 +230,10 @@ struct Swapper<T, 8>
 {
   static inline T swap(T value)
   {
-#if defined(__clang__) || defined(__GNUC__)
-    return T(__builtin_bswap64(value));
-#elif defined(_MSC_VER)
-    return T(_byteswap_uint64(value));
+#if defined(STARBOARD)
+    return static_cast<T>(SbByteSwapU64(value));
+#elif defined(MOZ_HAVE_BUILTIN_BYTESWAP64)
+    return MOZ_HAVE_BUILTIN_BYTESWAP64(value);
 #else
     return T(((value & 0x00000000000000ffULL) << 56) |
              ((value & 0x000000000000ff00ULL) << 40) |

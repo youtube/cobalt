@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns="http://tizen.org/ns/packages" api-version="3.0" package="com.youtube.cobalt" version="1.0.0" install-location="internal-only">
+  <label>Cobalt</label>
+  <!-- TODO icon -->
+    <icon>org.tizen.browser.png</icon>
+    <author email="zapati.ahn@samsung.com" href="www.samsung.com">Youngjoon Ahn</author>
+    <description>Cobalt</description>
+    <ui-application  type="capp"  multiple="false" taskmanage="true" nodisplay="false" exec="/usr/apps/com.youtube.cobalt/bin/cobalt" appid="com.youtube.cobalt" process-pool="true">
+      <icon>org.tizen.browser.png</icon>
+      <label>Cobalt</label>
+    </ui-application>
+  <!-- Adding needed privileges as per Tizen 3.0 guide. Some may not be required. Revisit and remove unnecessary ones -->
+  <privileges>
+    <privilege>http://tizen.org/privilege/appmanager.launch</privilege>
+    <privilege>http://tizen.org/privilege/appmanager.kill</privilege>
+    <privilege>http://tizen.org/privilege/appmanager.kill.bgapp</privilege>
+    <privilege>http://tizen.org/privilege/network.get</privilege>
+    <privilege>http://tizen.org/privilege/internet</privilege>
+    <privilege>http://tizen.org/privilege/window.priority.set</privilege>
+    <privilege>http://tizen.org/privilege/web-history.admin</privilege>
+    <privilege>http://tizen.org/privilege/screenshot</privilege>
+    <privilege>http://tizen.org/privilege/keygrab</privilege>
+    <privilege>http://tizen.org/privilege/download</privilege>
+    <privilege>http://tizen.org/privilege/bookmark.admin</privilege>
+    <privilege>http://tizen.org/privilege/notification</privilege>
+    <privilege>http://tizen.org/privilege/systemsettings.admin</privilege>
+    <privilege>http://tizen.org/privilege/externalstorage</privilege>
+    <privilege>http://tizen.org/privilege/mediastorage</privilege>
+    <privilege>http://tizen.org/privilege/keymanager</privilege>
+    <privilege>http://tizen.org/privilege/mediahistory.read</privilege>
+    <privilege>http://tizen.org/privilege/recorder</privilege>
+  </privileges>
+</manifest>

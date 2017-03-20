@@ -1,14 +1,17 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/mo.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ro_MD.xml
 // *
 // ***************************************************************************
 ro_MD{
-    /**
-     * empty target resource
-     */
-    ___{""}
+    Currencies{
+        MDL{
+            "L",
+            "leu moldovenesc",
+        }
+    }
+    Version{"2.1.19.14"}
 }

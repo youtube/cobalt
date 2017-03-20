@@ -1,6 +1,6 @@
 /********************************************************************
- * COPYRIGHT: 
- * Copyright (c) 2005-2010, International Business Machines Corporation and
+ * COPYRIGHT:
+ * Copyright (c) 2005-2016, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /************************************************************************
@@ -16,6 +16,8 @@
 #include "unicode/utf8.h"
 #include "unicode/ustring.h"
 #include "unicode/uchriter.h"
+#include "cmemory.h"
+#include "cstr.h"
 #include "utxttest.h"
 
 static UBool  gFailed = FALSE;
@@ -57,8 +59,12 @@ UTextTest::runIndexedTest(int32_t index, UBool exec,
             if (exec) Ticket5560();  break;
         case 4: name = "Ticket6847";
             if (exec) Ticket6847();  break;
-        case 5: name = "ComparisonTest";
-            if (exec) ComparisonTest(); break;
+        case 5: name = "Ticket10562";
+            if (exec) Ticket10562();  break;
+        case 6: name = "Ticket10983";
+            if (exec) Ticket10983();  break;
+        case 7: name = "Ticket12130";
+            if (exec) Ticket12130(); break;
         default: name = "";          break;
     }
 }
@@ -128,7 +134,7 @@ void  UTextTest::TextTest() {
     for (i=0; i<1000; i++) {
         int len8 = m_rand()%4 + 1;
         switch (len8) {
-            case 1: 
+            case 1:
                 c1 = (c1+1)%0x80;
                 // don't put 0 into string (0 terminated strings for some tests)
                 // don't put '\', will cause unescape() to fail.
@@ -180,7 +186,7 @@ void UTextTest::TestString(const UnicodeString &s) {
         j++;
         cpCount++;
     }
-    cpMap[j].nativeIdx = i;   // position following the last char in utf-16 string.    
+    cpMap[j].nativeIdx = i;   // position following the last char in utf-16 string.
 
 
     // UChar * test, null terminated
@@ -241,7 +247,7 @@ void UTextTest::TestString(const UnicodeString &s) {
     TestAccess(sa, ut, cpCount, cpMap);
     utext_close(ut);
     delete ci;
-    
+
 
     // Fragmented UnicodeString  (Chunk size of one)
     //
@@ -293,13 +299,13 @@ void UTextTest::TestString(const UnicodeString &s) {
 //
 //     This function runs a whole series of opertions on each incoming UText.
 //     The UText is deep-cloned prior to each operation, so that the original UText remains unchanged.
-//     
+//
 void UTextTest::TestCMR(const UnicodeString &us, UText *ut, int cpCount, m *nativeMap, m *u16Map) {
     TEST_ASSERT(utext_isWritable(ut) == TRUE);
 
     int  srcLengthType;       // Loop variables for selecting the postion and length
     int  srcPosType;          //   of the block to operate on within the source text.
-    int  destPosType; 
+    int  destPosType;
 
     int  srcIndex  = 0;       // Code Point indexes of the block to operate on for
     int  srcLength = 0;       //   a specific test.
@@ -332,7 +338,7 @@ void UTextTest::TestCMR(const UnicodeString &us, UText *ut, int cpCount, m *nati
                 case 5: srcIndex = cpCount / 2; break;
             }
             if (srcIndex < 0 || srcIndex + srcLength > cpCount) {
-                // filter out bogus test cases - 
+                // filter out bogus test cases -
                 //   those with a source range that falls of an edge of the string.
                 continue;
             }
@@ -403,7 +409,7 @@ void UTextTest::TestCMR(const UnicodeString &us, UText *ut, int cpCount, m *nati
 //
 void UTextTest::TestCopyMove(const UnicodeString &us, UText *ut, UBool move,
                     int32_t nativeStart, int32_t nativeLimit, int32_t nativeDest,
-                    int32_t u16Start, int32_t u16Limit, int32_t u16Dest) 
+                    int32_t u16Start, int32_t u16Limit, int32_t u16Dest)
 {
     UErrorCode      status   = U_ZERO_ERROR;
     UText          *targetUT = NULL;
@@ -440,7 +446,7 @@ void UTextTest::TestCopyMove(const UnicodeString &us, UText *ut, UBool move,
         // Compare the results of the two parallel tests
         int32_t  usi = 0;    // UnicodeString postion, utf-16 index.
         int64_t  uti = 0;    // UText position, native index.
-        int32_t  cpi;        // char32 position (code point index) 
+        int32_t  cpi;        // char32 position (code point index)
         UChar32  usc;        // code point from Unicode String
         UChar32  utc;        // code point from UText
         utext_setNativeIndex(targetUT, 0);
@@ -469,15 +475,15 @@ void UTextTest::TestCopyMove(const UnicodeString &us, UText *ut, UBool move,
 cleanupAndReturn:
     utext_close(targetUT);
 }
-    
+
 
 //
 //  TestReplace   Test a single Replace operation.
 //
 void UTextTest::TestReplace(
-            const UnicodeString &us,     // reference UnicodeString in which to do the replace 
+            const UnicodeString &us,     // reference UnicodeString in which to do the replace
             UText         *ut,                // UnicodeText object under test.
-            int32_t       nativeStart,        // Range to be replaced, in UText native units. 
+            int32_t       nativeStart,        // Range to be replaced, in UText native units.
             int32_t       nativeLimit,
             int32_t       u16Start,           // Range to be replaced, in UTF-16 units
             int32_t       u16Limit,           //    for use in the reference UnicodeString.
@@ -497,7 +503,7 @@ void UTextTest::TestReplace(
     UnicodeString targetUS(us);    // And copy the reference string.
 
     //
-    // Do the replace operation in the Unicode String, to 
+    // Do the replace operation in the Unicode String, to
     //   produce a reference result.
     //
     targetUS.replace(u16Start, u16Limit-u16Start, repStr);
@@ -516,7 +522,7 @@ void UTextTest::TestReplace(
     //
     int32_t  usi = 0;    // UnicodeString postion, utf-16 index.
     int64_t  uti = 0;    // UText position, native index.
-    int32_t  cpi;        // char32 position (code point index) 
+    int32_t  cpi;        // char32 position (code point index)
     UChar32  usc;        // code point from Unicode String
     UChar32  utc;        // code point from UText
     int64_t  expectedNativeLength = 0;
@@ -574,7 +580,7 @@ void UTextTest::TestAccess(const UnicodeString &us, UText *ut, int cpCount, m *c
     }
     utext_close(deepClone);
 }
-    
+
 
 //
 //  TestAccessNoClone()    Test the read only access functions on a UText.
@@ -609,7 +615,7 @@ void UTextTest::TestAccessNoClone(const UnicodeString &us, UText *ut, int cpCoun
         foundIndex    = utext_getNativeIndex(ut);
         TEST_ASSERT(expectedIndex == foundIndex);
         expectedC     = cpMap[i].cp;
-        foundC        = utext_next32(ut);    
+        foundC        = utext_next32(ut);
         TEST_ASSERT(expectedC == foundC);
         foundIndex    = utext_getPreviousNativeIndex(ut);
         TEST_ASSERT(expectedIndex == foundIndex);
@@ -619,7 +625,7 @@ void UTextTest::TestAccessNoClone(const UnicodeString &us, UText *ut, int cpCoun
     }
     foundC = utext_next32(ut);
     TEST_ASSERT(foundC == U_SENTINEL);
-    
+
     // Repeat above, using macros
     utext_setNativeIndex(ut, 0);
     for (i=0; i<cpCount; i++) {
@@ -627,7 +633,7 @@ void UTextTest::TestAccessNoClone(const UnicodeString &us, UText *ut, int cpCoun
         foundIndex    = UTEXT_GETNATIVEINDEX(ut);
         TEST_ASSERT(expectedIndex == foundIndex);
         expectedC     = cpMap[i].cp;
-        foundC        = UTEXT_NEXT32(ut);    
+        foundC        = UTEXT_NEXT32(ut);
         TEST_ASSERT(expectedC == foundC);
         if (gFailed) {
             return;
@@ -836,488 +842,14 @@ void UTextTest::TestAccessNoClone(const UnicodeString &us, UText *ut, int cpCoun
     delete []buf;
 }
 
-
-//
-//  ComparisonTest()    Check the string comparison functions. Based on UnicodeStringTest::TestCompare()
-//
-void UTextTest::ComparisonTest()
-{
-    UErrorCode status = U_ZERO_ERROR;
-    UnicodeString   test1Str("this is a test");
-    UnicodeString   test2Str("this is a test");
-    UnicodeString   test3Str("this is a test of the emergency broadcast system");
-    UnicodeString   test4Str("never say, \"this is a test\"!!");
-    
-    UText test1 = UTEXT_INITIALIZER;
-    UText test2 = UTEXT_INITIALIZER;
-    UText test3 = UTEXT_INITIALIZER;
-    UText test4 = UTEXT_INITIALIZER;
-    
-    UChar        uniChars[] = { 0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 
-                                0x20, 0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0 };
-    char            chars[] = { 0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 
-                                0x20, 0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0 };
-    
-    UText uniCharText = UTEXT_INITIALIZER;
-    UText charText = UTEXT_INITIALIZER;
-    
-    utext_openUnicodeString(&test1, &test1Str, &status);
-    utext_openUnicodeString(&test2, &test2Str, &status);
-    utext_openUnicodeString(&test3, &test3Str, &status);
-    utext_openUnicodeString(&test4, &test4Str, &status);
-
-    utext_openUChars(&uniCharText, uniChars, -1, &status);
-    utext_openUTF8(&charText, chars, -1, &status);
-    
-    TEST_SUCCESS(status);
-        
-    // test utext_compare(), simple
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test1, -1, &test2, -1) != 0) errln("utext_compare() failed, simple setup");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compare(&test1, -1, &test3, -1) >= 0) errln("utext_compare() failed, simple setup");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 0);
-    if (utext_compare(&test1, -1, &test4, -1) <= 0) errln("utext_compare() failed, simple setup");
-    
-    // test utext_compareNativeLimit(), simple
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test1, -1, &test2, -1) != 0) errln("utext_compareNativeLimit() failed, simple setup");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compareNativeLimit(&test1, -1, &test3, -1) >= 0) errln("utext_compareNativeLimit() failed, simple setup");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 0);
-    if (utext_compareNativeLimit(&test1, -1, &test4, -1) <= 0) errln("utext_compareNativeLimit() failed, simple setup");
-    
-    // test utext_compare(), one explicit length
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test1, 14, &test2, -1) != 0) errln("utext_compare() failed, one explicit length");
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compare(&test3, 14, &test2, -1) != 0) errln("utext_compare() failed, one explicit length");
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 12);
-    if (utext_compare(&test4, 14, &test2, -1) != 0) errln("utext_compare() failed, one explicit length and offset");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compare(&test3, 18, &test2, -1) <= 0) errln("utext_compare() failed, one explicit length");
-    
-    // test utext_compareNativeLimit(), one explicit length
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test1, 14, &test2, -1) != 0) errln("utext_compareNativeLimit() failed, one explicit length");
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compareNativeLimit(&test3, 14, &test2, -1) != 0) errln("utext_compareNativeLimit() failed, one explicit length");
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 12);
-    if (utext_compareNativeLimit(&test4, 26, &test2, -1) != 0) errln("utext_compareNativeLimit() failed, one explicit length and limit");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compareNativeLimit(&test3, 18, &test2, -1) <= 0) errln("utext_compareNativeLimit() failed, one explicit length");
-    
-    // test utext_compare(), UChar-based UText
-    UTEXT_SETNATIVEINDEX(&uniCharText, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test2, -1, &uniCharText, -1) != 0) errln("utext_compare() failed, UChar-based UText");
-    UTEXT_SETNATIVEINDEX(&uniCharText, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compare(&test3, -1, &uniCharText, -1) <= 0) errln("utext_compare() failed, UChar-based UText");
-    UTEXT_SETNATIVEINDEX(&uniCharText, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 0);
-    if (utext_compare(&test4, -1, &uniCharText, -1) >= 0) errln("utext_compare() failed, UChar-based UText");
-    
-    // test utext_compareNativeLimit(), UChar-based UText
-    UTEXT_SETNATIVEINDEX(&uniCharText, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test2, -1, &uniCharText, -1) != 0) errln("utext_compareNativeLimit() failed, UChar-based UText");
-    UTEXT_SETNATIVEINDEX(&uniCharText, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compareNativeLimit(&test3, -1, &uniCharText, -1) <= 0) errln("utext_compareNativeLimit() failed, UChar-based UText");
-    UTEXT_SETNATIVEINDEX(&uniCharText, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 0);
-    if (utext_compareNativeLimit(&test4, -1, &uniCharText, -1) >= 0) errln("utext_compareNativeLimit() failed, UChar-based UText");
-    
-    // test utext_compare(), UTF8-based UText
-    UTEXT_SETNATIVEINDEX(&charText, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test2, -1, &charText, -1) != 0) errln("utext_compare() failed, UTF8-based UText");
-    UTEXT_SETNATIVEINDEX(&charText, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compare(&test3, -1, &charText, -1) <= 0) errln("utext_compare() failed, UTF8-based UText");
-    UTEXT_SETNATIVEINDEX(&charText, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 0);
-    if (utext_compare(&test4, -1, &charText, -1) >= 0) errln("utext_compare() failed, UTF8-based UText");
-    
-    // test utext_compareNativeLimit(), UTF8-based UText
-    UTEXT_SETNATIVEINDEX(&charText, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test2, -1, &charText, -1) != 0) errln("utext_compareNativeLimit() failed, UTF8-based UText");
-    UTEXT_SETNATIVEINDEX(&charText, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compareNativeLimit(&test3, -1, &charText, -1) <= 0) errln("utext_compareNativeLimit() failed, UTF8-based UText");
-    UTEXT_SETNATIVEINDEX(&charText, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 0);
-    if (utext_compareNativeLimit(&test4, -1, &charText, -1) >= 0) errln("utext_compareNativeLimit() failed, UTF8-based UText");
-    
-    // test utext_compare(), length
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test1, -1, &test2, 4) != 0) errln("utext_compare() failed, one length");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test1, 5, &test2, 4) <= 0) errln("utext_compare() failed, both lengths");
-    
-    // test utext_compareNativeLimit(), limit
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test1, -1, &test2, 4) != 0) errln("utext_compareNativeLimit() failed, one limit");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test1, 5, &test2, 4) <= 0) errln("utext_compareNativeLimit() failed, both limits");
-    
-    // test utext_compare(), both explicit offsets and lengths
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test1, 14, &test2, 14) != 0) errln("utext_compare() failed, both explicit offsets and lengths");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compare(&test1, 14, &test3, 14) != 0) errln("utext_compare() failed, both explicit offsets and lengths");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 12);
-    if (utext_compare(&test1, 14, &test4, 14) != 0) errln("utext_compare() failed, both explicit offsets and lengths");
-    UTEXT_SETNATIVEINDEX(&test1, 10);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compare(&test1, 4, &test2, 4) >= 0) errln("utext_compare() failed, both explicit offsets and lengths");
-    UTEXT_SETNATIVEINDEX(&test1, 10);
-    UTEXT_SETNATIVEINDEX(&test3, 22);
-    if (utext_compare(&test1, 4, &test3, 9) <= 0) errln("utext_compare() failed, both explicit offsets and lengths");
-    UTEXT_SETNATIVEINDEX(&test1, 10);
-    UTEXT_SETNATIVEINDEX(&test4, 22);
-    if (utext_compare(&test1, 4, &test4, 4) != 0) errln("utext_compare() failed, both explicit offsets and lengths");
-    
-    // test utext_compareNativeLimit(), both explicit offsets and limits
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test1, 14, &test2, 14) != 0) errln("utext_compareNativeLimit() failed, both explicit offsets and limits");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test3, 0);
-    if (utext_compareNativeLimit(&test1, 14, &test3, 14) != 0) errln("utext_compareNativeLimit() failed, both explicit offsets and limits");
-    UTEXT_SETNATIVEINDEX(&test1, 0);
-    UTEXT_SETNATIVEINDEX(&test4, 12);
-    if (utext_compareNativeLimit(&test1, 14, &test4, 26) != 0) errln("utext_compareNativeLimit() failed, both explicit offsets and limits");
-    UTEXT_SETNATIVEINDEX(&test1, 10);
-    UTEXT_SETNATIVEINDEX(&test2, 0);
-    if (utext_compareNativeLimit(&test1, 14, &test2, 4) >= 0) errln("utext_compareNativeLimit() failed, both explicit offsets and limits");
-    UTEXT_SETNATIVEINDEX(&test1, 10);
-    UTEXT_SETNATIVEINDEX(&test3, 22);
-    if (utext_compareNativeLimit(&test1, 14, &test3, 31) <= 0) errln("utext_compareNativeLimit() failed, both explicit offsets and limits");
-    UTEXT_SETNATIVEINDEX(&test1, 10);
-    UTEXT_SETNATIVEINDEX(&test4, 22);
-    if (utext_compareNativeLimit(&test1, 14, &test4, 26) != 0) errln("utext_compareNativeLimit() failed, both explicit offsets and limits");
-    
-    /* test caseCompare() */
-    {
-        static const UChar
-        _mixed[]=               { 0x61, 0x42, 0x131, 0x3a3, 0xdf,       0x130,       0x49,  0xfb03,           0xd93f, 0xdfff, 0 },
-        _otherDefault[]=        { 0x41, 0x62, 0x131, 0x3c3, 0x73, 0x53, 0x69, 0x307, 0x69,  0x46, 0x66, 0x49, 0xd93f, 0xdfff, 0 },
-        _otherExcludeSpecialI[]={ 0x41, 0x62, 0x131, 0x3c3, 0x53, 0x73, 0x69,        0x131, 0x66, 0x46, 0x69, 0xd93f, 0xdfff, 0 },
-        _different[]=           { 0x41, 0x62, 0x131, 0x3c3, 0x73, 0x53, 0x130,       0x49,  0x46, 0x66, 0x49, 0xd93f, 0xdffd, 0 };
-        
-        UText
-        mixed = UTEXT_INITIALIZER,
-        otherDefault = UTEXT_INITIALIZER,
-        otherExcludeSpecialI = UTEXT_INITIALIZER,
-        different = UTEXT_INITIALIZER;
-        
-        utext_openUChars(&mixed, _mixed, -1, &status);
-        utext_openUChars(&otherDefault, _otherDefault, -1, &status);
-        utext_openUChars(&otherExcludeSpecialI, _otherExcludeSpecialI, -1, &status);
-        utext_openUChars(&different, _different, -1, &status);
-        
-        TEST_SUCCESS(status);
-        
-        int32_t result;
-        
-        /* test default options */
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&otherDefault, 0);
-        result = utext_caseCompare(&mixed, -1, &otherDefault, -1, U_FOLD_CASE_DEFAULT, &status);
-        if (0 != result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare (other, default) gives %ld (should be 0) (%s)\n", result, u_errorName(status));
-        }
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&otherDefault, 0);
-        result = utext_caseCompareNativeLimit(&mixed, -1, &otherDefault, -1, U_FOLD_CASE_DEFAULT, &status);
-        if (0 != result || U_FAILURE(status)) {
-            errln("error: utext_caseCompareNativeLimit (other, default) gives %ld (should be 0) (%s)\n", result, u_errorName(status));
-        }
-        
-        /* test excluding special I */
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&otherExcludeSpecialI, 0);
-        result = utext_caseCompare(&mixed, -1, &otherExcludeSpecialI, -1, U_FOLD_CASE_EXCLUDE_SPECIAL_I, &status);
-        if (0 != result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare (otherExcludeSpecialI, U_FOLD_CASE_EXCLUDE_SPECIAL_I) gives %ld (should be 0) (%s)\n", result, u_errorName(status));
-        }
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&otherExcludeSpecialI, 0);
-        result = utext_caseCompareNativeLimit(&mixed, -1, &otherExcludeSpecialI, -1, U_FOLD_CASE_EXCLUDE_SPECIAL_I, &status);
-        if (0 != result || U_FAILURE(status)) {
-            errln("error: utext_caseCompareNativeLimit (otherExcludeSpecialI, U_FOLD_CASE_EXCLUDE_SPECIAL_I) gives %ld (should be 0) (%s)\n", result, u_errorName(status));
-        }
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&otherDefault, 0);
-        result = utext_caseCompare(&mixed, -1, &otherDefault, -1, U_FOLD_CASE_EXCLUDE_SPECIAL_I, &status);
-        if (0 == result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare (other, U_FOLD_CASE_EXCLUDE_SPECIAL_I) gives %ld (should be nonzero) (%s)\n", result, u_errorName(status));
-        }
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&otherDefault, 0);
-        result = utext_caseCompareNativeLimit(&mixed, -1, &otherDefault, -1, U_FOLD_CASE_EXCLUDE_SPECIAL_I, &status);
-        if (0 == result || U_FAILURE(status)) {
-            errln("error: utext_caseCompareNativeLimit (other, U_FOLD_CASE_EXCLUDE_SPECIAL_I) gives %ld (should be nonzero) (%s)\n", result, u_errorName(status));
-        }
-        
-        /* test against different string */
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&different, 0);
-        result = utext_caseCompare(&mixed, -1, &different, -1, U_FOLD_CASE_DEFAULT, &status);
-        if (0 >= result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare (different, default) gives %ld (should be positive) (%s)\n", result, u_errorName(status));
-        }
-        UTEXT_SETNATIVEINDEX(&mixed, 0);
-        UTEXT_SETNATIVEINDEX(&different, 0);
-        result = utext_caseCompareNativeLimit(&mixed, -1, &different, -1, U_FOLD_CASE_DEFAULT, &status);
-        if (0 >= result || U_FAILURE(status)) {
-            errln("error: utext_caseCompareNativeLimit (different, default) gives %ld (should be positive) (%s)\n", result, u_errorName(status));
-        }
-
-        /* test caseCompare() - include the folded sharp s (U+00df) with different lengths */
-        UTEXT_SETNATIVEINDEX(&mixed, 1);
-        UTEXT_SETNATIVEINDEX(&different, 1);
-        result = utext_caseCompare(&mixed, 4, &different, 5, U_FOLD_CASE_DEFAULT, &status);
-        if (0 != result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare (mixed[1-5), different[1-6), default) gives %ld (should be 0) (%s)\n", result, u_errorName(status));
-        }
-        UTEXT_SETNATIVEINDEX(&mixed, 1);
-        UTEXT_SETNATIVEINDEX(&different, 1);
-        result = utext_caseCompareNativeLimit(&mixed, 5, &different, 6, U_FOLD_CASE_DEFAULT, &status);
-        if (0 != result || U_FAILURE(status)) {
-            errln("error: utext_caseCompareNativeLimit (mixed[1-5), different[1-6), default) gives %ld (should be 0) (%s)\n", result, u_errorName(status));
-        }
-
-        /* test caseCompare() - stop in the middle of the sharp s (U+00df) */
-        UTEXT_SETNATIVEINDEX(&mixed, 1);
-        UTEXT_SETNATIVEINDEX(&different, 1);
-        result = utext_caseCompare(&mixed, 4, &different, 4, U_FOLD_CASE_DEFAULT, &status);
-        if (0 >= result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare (mixed[1-5), different[1-5), default) gives %ld (should be positive) (%s)\n", result, u_errorName(status));
-        }
-        UTEXT_SETNATIVEINDEX(&mixed, 1);
-        UTEXT_SETNATIVEINDEX(&different, 1);
-        result = utext_caseCompareNativeLimit(&mixed, 5, &different, 5, U_FOLD_CASE_DEFAULT, &status);
-        if (0 >= result || U_FAILURE(status)) {
-            errln("error: utext_caseCompareNativeLimit (mixed[1-5), different[1-5), default) gives %ld (should be positive) (%s)\n", result, u_errorName(status));
-        }
-    }
-    
-    /* test surrogates in comparison */
-    {
-        static const UChar
-        _before[] = { 0x65, 0xd800, 0xd800, 0xdc01, 0x65, 0x00 },
-        _after[]  = { 0x65, 0xd800, 0xdc00, 0x65, 0x00 };
-        
-        UText
-        before = UTEXT_INITIALIZER,
-        after  = UTEXT_INITIALIZER;
-        
-        utext_openUChars(&before, _before, -1, &status);
-        utext_openUChars(&after, _after, -1, &status);
-        
-        TEST_SUCCESS(status);
-        int32_t result;
-        
-        UTEXT_SETNATIVEINDEX(&before, 1);
-        UTEXT_SETNATIVEINDEX(&after, 1);
-        result = utext_compare(&before, -1, &after, -1);
-        if (0 <= result || U_FAILURE(status)) {
-            errln("error: utext_compare ({ 65, d800, 10001, 65 }, { 65, 10000, 65 }) gives %ld (should be negative) (%s)\n", result, u_errorName(status));
-        }
-        
-        UTEXT_SETNATIVEINDEX(&before, 1);
-        UTEXT_SETNATIVEINDEX(&after, 1);
-        result = utext_compare(&before, 3, &after, 3);
-        if (0 <= result || U_FAILURE(status)) {
-            errln("error: utext_compare with lengths ({ 65, d800, 10001, 65 }, { 65, 10000, 65 }) gives %ld (should be negative) (%s)\n", result, u_errorName(status));
-        }
-        
-        UTEXT_SETNATIVEINDEX(&before, 1);
-        UTEXT_SETNATIVEINDEX(&after, 1);
-        result = utext_caseCompare(&before, -1, &after, -1, U_FOLD_CASE_DEFAULT, &status);
-        if (0 <= result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare ({ 65, d800, 10001, 65 }, { 65, 10000, 65 }) gives %ld (should be negative) (%s)\n", result, u_errorName(status));
-        }
-        
-        UTEXT_SETNATIVEINDEX(&before, 1);
-        UTEXT_SETNATIVEINDEX(&after, 1);
-        result = utext_caseCompare(&before, 3, &after, 3, U_FOLD_CASE_DEFAULT, &status);
-        if (0 <= result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare with lengths ({ 65, d800, 10001, 65 }, { 65, 10000, 65 }) gives %ld (should be negative) (%s)\n", result, u_errorName(status));
-        }
-        
-        utext_close(&before);
-        utext_close(&after);
-    }
-    
-    /* test surrogates at end of string */
-    {
-        static const UChar
-        _before[] = { 0x65, 0xd800, 0xd800, 0xdc01, 0x00 },
-        _after[]  = { 0x65, 0xd800, 0xdc00, 0x00 };
-        
-        UText
-        before = UTEXT_INITIALIZER,
-        after  = UTEXT_INITIALIZER;
-        
-        utext_openUChars(&before, _before, -1, &status);
-        utext_openUChars(&after, _after, -1, &status);
-        
-        TEST_SUCCESS(status);
-        int32_t result;
-        
-        UTEXT_SETNATIVEINDEX(&before, 1);
-        UTEXT_SETNATIVEINDEX(&after, 1);
-        result = utext_compare(&before, -1, &after, -1);
-        if (0 <= result || U_FAILURE(status)) {
-            errln("error: utext_compare ({ 65, d800, 10001 }, { 65, 10000 }) gives %ld (should be negative) (%s)\n", result, u_errorName(status));
-        }
-        
-        UTEXT_SETNATIVEINDEX(&before, 1);
-        UTEXT_SETNATIVEINDEX(&after, 1);
-        result = utext_caseCompare(&before, -1, &after, -1, U_FOLD_CASE_DEFAULT, &status);
-        if (0 <= result || U_FAILURE(status)) {
-            errln("error: utext_caseCompare ({ 65, d800, 10001 }, { 65, 10000 }) gives %ld (should be negative) (%s)\n", result, u_errorName(status));
-        }
-        
-        utext_close(&before);
-        utext_close(&after);
-    }
-    
-    /* test empty strings */
-    {
-        UChar zero16 = 0;
-        char zero8 = 0;
-        UText emptyUChar = UTEXT_INITIALIZER;
-        UText emptyUTF8 = UTEXT_INITIALIZER;
-        UText nullUChar = UTEXT_INITIALIZER;
-        UText nullUTF8 = UTEXT_INITIALIZER;
-        
-        utext_openUChars(&emptyUChar, &zero16, -1, &status);
-        utext_openUTF8(&emptyUTF8, &zero8, -1, &status);
-        utext_openUChars(&nullUChar, NULL, 0, &status);
-        utext_openUTF8(&nullUTF8, NULL, 0, &status);
-        
-        if (utext_compare(&emptyUChar, -1, &emptyUTF8, -1) != 0) {
-            errln("error: utext_compare(&emptyUChar, -1, &emptyUTF8, -1) != 0");
-        }
-        if (utext_compare(&emptyUChar, -1, &nullUChar, -1) != 0) {
-            errln("error: utext_compare(&emptyUChar, -1, &nullUChar, -1) != 0");
-        }
-        if (utext_compare(&emptyUChar, -1, &nullUTF8, -1) != 0) {
-            errln("error: utext_compare(&emptyUChar, -1, &nullUTF8, -1) != 0");
-        }
-        if (utext_compare(&emptyUTF8, -1, &nullUChar, -1) != 0) {
-            errln("error: utext_compare(&emptyUTF8, -1, &nullUChar, -1) != 0");
-        }
-        if (utext_compare(&emptyUTF8, -1, &nullUTF8, -1) != 0) {
-            errln("error: utext_compare(&emptyUTF8, -1, &nullUTF8, -1) != 0");
-        }
-        if (utext_compare(&nullUChar, -1, &nullUTF8, -1) != 0) {
-            errln("error: utext_compare(&nullUChar, -1, &nullUTF8, -1) != 0");
-        }
-
-        if (utext_compareNativeLimit(&emptyUChar, -1, &emptyUTF8, -1) != 0) {
-            errln("error: utext_compareNativeLimit(&emptyUChar, -1, &emptyUTF8, -1) != 0");
-        }
-        if (utext_compareNativeLimit(&emptyUChar, -1, &nullUChar, -1) != 0) {
-            errln("error: utext_compareNativeLimit(&emptyUChar, -1, &nullUChar, -1) != 0");
-        }
-        if (utext_compareNativeLimit(&emptyUChar, -1, &nullUTF8, -1) != 0) {
-            errln("error: utext_compareNativeLimit(&emptyUChar, -1, &nullUTF8, -1) != 0");
-        }
-        if (utext_compareNativeLimit(&emptyUTF8, -1, &nullUChar, -1) != 0) {
-            errln("error: utext_compareNativeLimit(&emptyUTF8, -1, &nullUChar, -1) != 0");
-        }
-        if (utext_compareNativeLimit(&emptyUTF8, -1, &nullUTF8, -1) != 0) {
-            errln("error: utext_compareNativeLimit(&emptyUTF8, -1, &nullUTF8, -1) != 0");
-        }
-        if (utext_compareNativeLimit(&nullUChar, -1, &nullUTF8, -1) != 0) {
-            errln("error: utext_compareNativeLimit(&nullUChar, -1, &nullUTF8, -1) != 0");
-        }
-
-        if (utext_caseCompare(&emptyUChar, -1, &emptyUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompare(&emptyUChar, -1, &emptyUTF8, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompare(&emptyUChar, -1, &nullUChar, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompare(&emptyUChar, -1, &nullUChar, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompare(&emptyUChar, -1, &nullUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompare(&emptyUChar, -1, &nullUTF8, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompare(&emptyUTF8, -1, &nullUChar, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompare(&emptyUTF8, -1, &nullUChar, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompare(&emptyUTF8, -1, &nullUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompare(&emptyUTF8, -1, &nullUTF8, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompare(&nullUChar, -1, &nullUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompare(&nullUChar, -1, &nullUTF8, -1, 0, &status) != 0");
-        }
-
-        if (utext_caseCompareNativeLimit(&emptyUChar, -1, &emptyUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompareNativeLimit(&emptyUChar, -1, &emptyUTF8, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompareNativeLimit(&emptyUChar, -1, &nullUChar, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompareNativeLimit(&emptyUChar, -1, &nullUChar, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompareNativeLimit(&emptyUChar, -1, &nullUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompareNativeLimit(&emptyUChar, -1, &nullUTF8, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompareNativeLimit(&emptyUTF8, -1, &nullUChar, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompareNativeLimit(&emptyUTF8, -1, &nullUChar, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompareNativeLimit(&emptyUTF8, -1, &nullUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompareNativeLimit(&emptyUTF8, -1, &nullUTF8, -1, 0, &status) != 0");
-        }
-        if (utext_caseCompareNativeLimit(&nullUChar, -1, &nullUTF8, -1, 0, &status) != 0) {
-            errln("error: utext_caseCompareNativeLimit(&nullUChar, -1, &nullUTF8, -1, 0, &status) != 0");
-        }
-        
-        utext_close(&emptyUChar);
-        utext_close(&emptyUTF8);
-        utext_close(&nullUChar);
-        utext_close(&nullUTF8);
-        utext_close(&charText);
-        utext_close(&uniCharText);
-    }
-}
-
-
-
 //
 //  ErrorTest()    Check various error and edge cases.
 //
-void UTextTest::ErrorTest() 
+void UTextTest::ErrorTest()
 {
     // Close of an unitialized UText.  Shouldn't blow up.
     {
-        UText  ut;  
+        UText  ut;
         memset(&ut, 0, sizeof(UText));
         utext_close(&ut);
         utext_close(NULL);
@@ -1382,7 +914,7 @@ void UTextTest::ErrorTest()
     {
         UErrorCode status = U_ZERO_ERROR;
         UText ut = UTEXT_INITIALIZER;
-        
+
         utext_openUChars(&ut, NULL, 5, &status);
         TEST_ASSERT(status == U_ILLEGAL_ARGUMENT_ERROR);
 
@@ -1406,7 +938,7 @@ void UTextTest::ErrorTest()
     {
         UErrorCode status = U_ZERO_ERROR;
         UText *ut = NULL;
-        const char *badUTF8 = "\x41\x81\x42\xf0\x81\x81\x43";   
+        const char *badUTF8 = "\x41\x81\x42\xf0\x81\x81\x43";
         UChar32  c;
 
         ut = utext_openUTF8(NULL, badUTF8, -1, &status);
@@ -1469,8 +1001,8 @@ void UTextTest::ErrorTest()
         int32_t startMap[] =        {   0,  0,  2,  2,  2,  5,  5,  5,  5,  9,  9};
         int32_t nextMap[]  =        {   2,  2,  5,  5,  5,  9,  9,  9,  9,  9,  9};
         int32_t prevMap[]  =        {   0,  0,  0,  0,  0,  2,  2,  2,  2,  5,  5};
-        UChar32  c32Map[] =    {0x201, 0x201, 0x1083, 0x1083, 0x1083, 0x044146, 0x044146, 0x044146, 0x044146, -1, -1}; 
-        UChar32  pr32Map[] =   {    -1,   -1,  0x201,  0x201,  0x201,   0x1083,   0x1083,   0x1083,   0x1083, 0x044146, 0x044146}; 
+        UChar32  c32Map[] =    {0x201, 0x201, 0x1083, 0x1083, 0x1083, 0x044146, 0x044146, 0x044146, 0x044146, -1, -1};
+        UChar32  pr32Map[] =   {    -1,   -1,  0x201,  0x201,  0x201,   0x1083,   0x1083,   0x1083,   0x1083, 0x044146, 0x044146};
 
         // extractLen is the size, in UChars, of what will be extracted between index and index+1.
         //  is zero when both index positions lie within the same code point.
@@ -1507,7 +1039,7 @@ void UTextTest::ErrorTest()
             int64_t cpIndex = utext_getNativeIndex(ut);
             TEST_ASSERT(cpIndex == nextMap[i]);
         }
-        
+
         // check utext_previous32From
         for (i=0; i<startMapLimit; i++) {
             gTestNum++;
@@ -1540,13 +1072,13 @@ void UTextTest::ErrorTest()
 
     {    //  Similar test, with utf16 instead of utf8
          //  TODO:  merge the common parts of these tests.
-        
+
         UnicodeString u16str("\\u1000\\U00011000\\u2000\\U00022000", -1, US_INV);
         int32_t startMap[]  ={ 0,     1,   1,    3,     4,  4,     6,  6};
         int32_t nextMap[]  = { 1,     3,   3,    4,     6,  6,     6,  6};
         int32_t prevMap[]  = { 0,     0,   0,    1,     3,  3,     4,  4};
-        UChar32  c32Map[] =  {0x1000, 0x11000, 0x11000, 0x2000,  0x22000, 0x22000, -1, -1}; 
-        UChar32  pr32Map[] = {    -1, 0x1000,  0x1000,  0x11000, 0x2000,  0x2000,   0x22000,   0x22000}; 
+        UChar32  c32Map[] =  {0x1000, 0x11000, 0x11000, 0x2000,  0x22000, 0x22000, -1, -1};
+        UChar32  pr32Map[] = {    -1, 0x1000,  0x1000,  0x11000, 0x2000,  0x2000,   0x22000,   0x22000};
         int32_t  exLen[] =   {   1,  0,   2,  1,  0,  2,  0,  0,};
 
         u16str = u16str.unescape();
@@ -1577,7 +1109,7 @@ void UTextTest::ErrorTest()
             int64_t cpIndex = utext_getNativeIndex(ut);
             TEST_ASSERT(cpIndex == nextMap[i]);
         }
-        
+
         // check utext_previous32From
         for (i=0; i<startMapLimit; i++) {
             UChar32 c32 = utext_previous32From(ut, i);
@@ -1608,13 +1140,13 @@ void UTextTest::ErrorTest()
 
     {    //  Similar test, with UText over Replaceable
          //  TODO:  merge the common parts of these tests.
-        
+
         UnicodeString u16str("\\u1000\\U00011000\\u2000\\U00022000", -1, US_INV);
         int32_t startMap[]  ={ 0,     1,   1,    3,     4,  4,     6,  6};
         int32_t nextMap[]  = { 1,     3,   3,    4,     6,  6,     6,  6};
         int32_t prevMap[]  = { 0,     0,   0,    1,     3,  3,     4,  4};
-        UChar32  c32Map[] =  {0x1000, 0x11000, 0x11000, 0x2000,  0x22000, 0x22000, -1, -1}; 
-        UChar32  pr32Map[] = {    -1, 0x1000,  0x1000,  0x11000, 0x2000,  0x2000,   0x22000,   0x22000}; 
+        UChar32  c32Map[] =  {0x1000, 0x11000, 0x11000, 0x2000,  0x22000, 0x22000, -1, -1};
+        UChar32  pr32Map[] = {    -1, 0x1000,  0x1000,  0x11000, 0x2000,  0x2000,   0x22000,   0x22000};
         int32_t  exLen[] =   {   1,  0,   2,  1,  0,  2,  0,  0,};
 
         u16str = u16str.unescape();
@@ -1645,7 +1177,7 @@ void UTextTest::ErrorTest()
             int64_t cpIndex = utext_getNativeIndex(ut);
             TEST_ASSERT(cpIndex == nextMap[i]);
         }
-        
+
         // check utext_previous32From
         for (i=0; i<startMapLimit; i++) {
             UChar32 c32 = utext_previous32From(ut, i);
@@ -1681,7 +1213,7 @@ void UTextTest::FreezeTest() {
     //
 
     UnicodeString  ustr("Hello, World.");
-    const char u8str[] = {char(0x31), (char)0x32, (char)0x33, 0};  
+    const char u8str[] = {char(0x31), (char)0x32, (char)0x33, 0};
     const UChar u16str[] = {(UChar)0x31, (UChar)0x32, (UChar)0x44, 0};
 
     UErrorCode status = U_ZERO_ERROR;
@@ -1713,7 +1245,7 @@ void UTextTest::FreezeTest() {
     TEST_ASSERT(writable == FALSE);
     utext_copy(ut, 1, 2, 0, TRUE, &status);
     TEST_ASSERT(status == U_NO_WRITE_PERMISSION);
-    
+
     status = U_ZERO_ERROR;
     ut = utext_openUnicodeString(ut, &ustr, &status);
     TEST_SUCCESS(status);
@@ -1796,7 +1328,7 @@ fragTextAccess(UText *ut, int64_t index, UBool forward) {
         ut->chunkNativeStart = index-1;
         ut->chunkNativeLimit = index;
         return true;
-    } 
+    }
     ut->b = 0;
     ut->chunkOffset = 0;
     ut->chunkLength = 0;
@@ -1863,7 +1395,7 @@ openFragmentedUnicodeString(UText *ut, UnicodeString *s, UErrorCode *status) {
 //     1.  Create an inital UText
 //     2.  Deep clone it.  Contents should match original.
 //     3.  Reset original to something different.
-//     4.  Check that clone contents did not change.  
+//     4.  Check that clone contents did not change.
 //
 void UTextTest::Ticket5560() {
     /* The following two strings are in UTF-8 even on EBCDIC platforms. */
@@ -1910,7 +1442,7 @@ void UTextTest::Ticket6847() {
     utext_setNativeIndex(ut, 0);
     int32_t count = 0;
     UChar32 c = 0;
-    int32_t nativeIndex = UTEXT_GETNATIVEINDEX(ut);
+    int64_t nativeIndex = UTEXT_GETNATIVEINDEX(ut);
     TEST_ASSERT(nativeIndex == 0);
     while ((c = utext_next32(ut)) != U_SENTINEL) {
         TEST_ASSERT(c == 0x41);
@@ -1928,3 +1460,124 @@ void UTextTest::Ticket6847() {
     utext_close(ut);
 }
 
+
+void UTextTest::Ticket10562() {
+    // Note: failures show as a heap error when the test is run under valgrind.
+    UErrorCode status = U_ZERO_ERROR;
+
+    const char *utf8_string = "\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41";
+    UText *utf8Text = utext_openUTF8(NULL, utf8_string, -1, &status);
+    TEST_SUCCESS(status);
+    UText *deepClone = utext_clone(NULL, utf8Text, TRUE, FALSE, &status);
+    TEST_SUCCESS(status);
+    UText *shallowClone = utext_clone(NULL, deepClone, FALSE, FALSE, &status);
+    TEST_SUCCESS(status);
+    utext_close(shallowClone);
+    utext_close(deepClone);
+    utext_close(utf8Text);
+
+    status = U_ZERO_ERROR;
+    UnicodeString usString("Hello, World.");
+    UText *usText = utext_openUnicodeString(NULL, &usString, &status);
+    TEST_SUCCESS(status);
+    UText *usDeepClone = utext_clone(NULL, usText, TRUE, FALSE, &status);
+    TEST_SUCCESS(status);
+    UText *usShallowClone = utext_clone(NULL, usDeepClone, FALSE, FALSE, &status);
+    TEST_SUCCESS(status);
+    utext_close(usShallowClone);
+    utext_close(usDeepClone);
+    utext_close(usText);
+}
+
+
+void UTextTest::Ticket10983() {
+    // Note: failure shows as a seg fault when the defect is present.
+
+    UErrorCode status = U_ZERO_ERROR;
+    UnicodeString s("Hello, World");
+    UText *ut = utext_openConstUnicodeString(NULL, &s, &status);
+    TEST_SUCCESS(status);
+
+    status = U_INVALID_STATE_ERROR;
+    UText *cloned = utext_clone(NULL, ut, TRUE, TRUE, &status);
+    TEST_ASSERT(cloned == NULL);
+    TEST_ASSERT(status == U_INVALID_STATE_ERROR);
+
+    utext_close(ut);
+}
+
+// Ticket 12130 - extract on a UText wrapping a null terminated UChar * string
+//                leaves the iteration position set incorrectly when the
+//                actual string length is not yet known.
+//
+//                The test text needs to be long enough that UText defers getting the length.
+
+void UTextTest::Ticket12130() {
+    UErrorCode status = U_ZERO_ERROR;
+    
+    const char *text8 =
+        "Fundamentally, computers just deal with numbers. They store letters and other characters "
+        "by assigning a number for each one. Before Unicode was invented, there were hundreds "
+        "of different encoding systems for assigning these numbers. No single encoding could "
+        "contain enough characters: for example, the European Union alone requires several "
+        "different encodings to cover all its languages. Even for a single language like "
+        "English no single encoding was adequate for all the letters, punctuation, and technical "
+        "symbols in common use.";
+
+    UnicodeString str(text8);
+    const UChar *ustr = str.getTerminatedBuffer();
+    UText ut = UTEXT_INITIALIZER;
+    utext_openUChars(&ut, ustr, -1, &status);
+    UChar extractBuffer[50];
+
+    for (int32_t startIdx = 0; startIdx<str.length(); ++startIdx) {
+        int32_t endIdx = startIdx + 20;
+
+        u_memset(extractBuffer, 0, UPRV_LENGTHOF(extractBuffer));
+        utext_extract(&ut, startIdx, endIdx, extractBuffer, UPRV_LENGTHOF(extractBuffer), &status);
+        if (U_FAILURE(status)) {
+            errln("%s:%d %s", __FILE__, __LINE__, u_errorName(status));
+            return;
+        }
+        int64_t ni  = utext_getNativeIndex(&ut);
+        int64_t expectedni = startIdx + 20;
+        if (expectedni > str.length()) {
+            expectedni = str.length();
+        }
+        if (expectedni != ni) {
+            errln("%s:%d utext_getNativeIndex() expected %d, got %d", __FILE__, __LINE__, expectedni, ni);
+        }
+        if (0 != str.tempSubString(startIdx, 20).compare(extractBuffer)) { 
+            errln("%s:%d utext_extract() failed. expected \"%s\", got \"%s\"",
+                    __FILE__, __LINE__, CStr(str.tempSubString(startIdx, 20))(), CStr(UnicodeString(extractBuffer))());
+        }
+    }
+    utext_close(&ut);
+
+    // Similar utext extract, this time with the string length provided to the UText in advance,
+    // and a buffer of larger than required capacity.
+   
+    utext_openUChars(&ut, ustr, str.length(), &status);
+    for (int32_t startIdx = 0; startIdx<str.length(); ++startIdx) {
+        int32_t endIdx = startIdx + 20;
+        u_memset(extractBuffer, 0, UPRV_LENGTHOF(extractBuffer));
+        utext_extract(&ut, startIdx, endIdx, extractBuffer, UPRV_LENGTHOF(extractBuffer), &status);
+        if (U_FAILURE(status)) {
+            errln("%s:%d %s", __FILE__, __LINE__, u_errorName(status));
+            return;
+        }
+        int64_t ni  = utext_getNativeIndex(&ut);
+        int64_t expectedni = startIdx + 20;
+        if (expectedni > str.length()) {
+            expectedni = str.length();
+        }
+        if (expectedni != ni) {
+            errln("%s:%d utext_getNativeIndex() expected %d, got %d", __FILE__, __LINE__, expectedni, ni);
+        }
+        if (0 != str.tempSubString(startIdx, 20).compare(extractBuffer)) { 
+            errln("%s:%d utext_extract() failed. expected \"%s\", got \"%s\"",
+                    __FILE__, __LINE__, CStr(str.tempSubString(startIdx, 20))(), CStr(UnicodeString(extractBuffer))());
+        }
+    }
+    utext_close(&ut);
+}

@@ -27,12 +27,12 @@ const int64_t kStorageSize = 1025;
 const int64_t kStorageSize2 = kStorageSize * 2 + kStorageOffset;
 
 // Deletes the storage for the current user.
-SB_C_INLINE void ClearStorageRecord() {
+static SB_C_INLINE void ClearStorageRecord() {
   SbStorageDeleteRecord(SbUserGetCurrent());
 }
 
 // Opens the storage record for the current user, validating that it is valid.
-SB_C_INLINE SbStorageRecord OpenStorageRecord() {
+static SB_C_INLINE SbStorageRecord OpenStorageRecord() {
   SbStorageRecord record = SbStorageOpenRecord(SbUserGetCurrent());
   EXPECT_TRUE(SbStorageIsValidRecord(record));
   return record;
@@ -40,7 +40,8 @@ SB_C_INLINE SbStorageRecord OpenStorageRecord() {
 
 // Writes a standard pattern of |size| bytes into the given open storage
 // |record|.
-SB_C_INLINE void WriteStorageRecord(SbStorageRecord record, int64_t size) {
+static SB_C_INLINE void WriteStorageRecord(SbStorageRecord record,
+                                           int64_t size) {
   char* data = new char[size];
   for (int64_t i = 0; i < size; ++i) {
     data[i] = static_cast<char>(i + 2 % 0xFF);
@@ -52,7 +53,8 @@ SB_C_INLINE void WriteStorageRecord(SbStorageRecord record, int64_t size) {
 
 // Ensures that the storage record for the current user is initialized with the
 // standard pattern for exactly |length| bytes.
-SB_C_INLINE void InitializeStorageRecord(int64_t length) {
+
+static SB_C_INLINE void InitializeStorageRecord(int64_t length) {
   ClearStorageRecord();
   SbStorageRecord record = OpenStorageRecord();
   WriteStorageRecord(record, length);
@@ -62,7 +64,7 @@ SB_C_INLINE void InitializeStorageRecord(int64_t length) {
 // Checks a buffer of |total| size for the expected pattern (written in
 // WriteStorageRecord) to start at |offset| and continue for |length|, and the
 // rest of the buffer, before and after, should be set to 0.
-SB_C_INLINE void CheckStorageBuffer(char* data,
+static SB_C_INLINE void CheckStorageBuffer(char* data,
                                     int64_t offset,
                                     int64_t length,
                                     int64_t total) {
@@ -83,7 +85,7 @@ SB_C_INLINE void CheckStorageBuffer(char* data,
 // |offset| and reporting the buffer size as |length|, checks that the number of
 // read bytes is |expected_length| and then checks the buffer for the expected
 // pattern written in WriteStorageRecord over the expected range of the buffer.
-SB_C_INLINE void ReadAndCheckStorage(SbStorageRecord record,
+static SB_C_INLINE void ReadAndCheckStorage(SbStorageRecord record,
                                      int64_t offset,
                                      int64_t expected_length,
                                      int64_t length,

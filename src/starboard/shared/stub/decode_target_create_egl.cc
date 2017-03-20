@@ -14,9 +14,19 @@
 
 #include "starboard/decode_target.h"
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 SbDecodeTarget SbDecodeTargetCreate(EGLDisplay /*display*/,
                                     EGLContext /*context*/,
                                     SbDecodeTargetFormat /*format*/,
                                     GLuint* /*planes*/) {
   return kSbDecodeTargetInvalid;
 }
+#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+SbDecodeTarget SbDecodeTargetCreate(void* /*display*/,
+                                    void* /*context*/,
+                                    SbDecodeTargetFormat /*format*/,
+                                    int /*width*/,
+                                    int /*height*/) {
+  return kSbDecodeTargetInvalid;
+}
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

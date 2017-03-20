@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_IMAGE_H_
@@ -53,7 +51,7 @@ class SoftwareImage : public SinglePlaneImage {
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
-  const SkBitmap& GetBitmap() const OVERRIDE { return bitmap_; }
+  const SkBitmap* GetBitmap() const OVERRIDE { return &bitmap_; }
 
   bool EnsureInitialized() OVERRIDE { return false; }
 
@@ -94,7 +92,7 @@ class SoftwareMultiPlaneImage : public MultiPlaneImage {
   render_tree::MultiPlaneImageFormat GetFormat() const OVERRIDE {
     return format_;
   }
-  const SkBitmap& GetBitmap(int plane_index) const OVERRIDE {
+  const SkBitmap* GetBitmap(int plane_index) const OVERRIDE {
     return planes_[plane_index]->GetBitmap();
   }
 

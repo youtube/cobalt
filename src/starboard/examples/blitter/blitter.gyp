@@ -19,7 +19,7 @@
   'targets': [
     {
       'target_name': 'starboard_blitter_example',
-      'type': 'executable',
+      'type': '<(final_executable_type)',
       'sources': [
         'main.cc',
       ],

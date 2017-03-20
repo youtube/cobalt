@@ -1,30 +1,35 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_IMAGE_H_
 
 #include "cobalt/base/type_id.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "starboard/decode_target.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
 namespace cobalt {
 namespace renderer {
+
+namespace backend {
+class TextureEGL;
+}  // namespace backend
+
 namespace rasterizer {
 namespace skia {
 
@@ -61,11 +66,25 @@ class Image : public render_tree::Image {
 // is stored contiguously.  This style of image is by far the most common.
 class SinglePlaneImage : public Image {
  public:
-  virtual const SkBitmap& GetBitmap() const = 0;
+  virtual const SkBitmap* GetBitmap() const = 0;
 
   base::TypeId GetTypeId() const OVERRIDE {
     return base::GetTypeId<SinglePlaneImage>();
   }
+
+  // If GLES2 is backing this image, this function can be called to return a
+  // reference to that EGL texture.
+  virtual const backend::TextureEGL* GetTextureEGL() const { return NULL; }
+
+  // If not-null, indicates a rectangle within the image in which the valid
+  // pixel data is to be found.
+  virtual const math::Rect* GetContentRegion() const { return NULL; }
+
+  // While of course most skia::Image objects can be rendered in Skia, sometimes
+  // this is not true, such as when they are backed by SbDecodeTarget objects
+  // that assume a specific rasterizer such as GLES2.  In this case, we can
+  // fallback to a rasterizer-provided renderer function.
+  virtual bool CanRenderInSkia() const { return true; }
 };
 
 // A multi-plane image is one where different channels may have different planes
@@ -74,7 +93,10 @@ class SinglePlaneImage : public Image {
 class MultiPlaneImage : public Image {
  public:
   virtual render_tree::MultiPlaneImageFormat GetFormat() const = 0;
-  virtual const SkBitmap& GetBitmap(int plane_index) const = 0;
+  virtual const SkBitmap* GetBitmap(int plane_index) const = 0;
+  virtual const backend::TextureEGL* GetTextureEGL(int plane_index) const {
+    return NULL;
+  }
 
   base::TypeId GetTypeId() const OVERRIDE {
     return base::GetTypeId<MultiPlaneImage>();

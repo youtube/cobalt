@@ -1,24 +1,27 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/storage/savegame_thread.h"
 
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
+
+// An arbitrary max size for the save game file so that, eg, a
+// corrupt filesystem cannot cause us to allocate a fatally large
+// memory buffer.
+static size_t kMaxSaveGameSizeBytes = 4 * 1024 * 1024;
 
 namespace cobalt {
 namespace storage {
@@ -54,6 +57,14 @@ scoped_ptr<Savegame::ByteVector> SavegameThread::GetLoadedRawBytes() {
 void SavegameThread::Flush(scoped_ptr<Savegame::ByteVector> raw_bytes_ptr,
                            const base::Closure& on_flush_complete) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(raw_bytes_ptr->size() < kMaxSaveGameSizeBytes);
+  if (raw_bytes_ptr->size() > kMaxSaveGameSizeBytes) {
+    // We must not save a file larger than kMaxSaveGameSizeBytes
+    // because we won't be able to reload it. Something must have
+    // gone wrong, and it's far better to leave any existing readable
+    // data that's persisted than it is to risk making it unreadable.
+    return;
+  }
   thread_->message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&SavegameThread::FlushOnIOThread, base::Unretained(this),
@@ -69,7 +80,7 @@ void SavegameThread::InitializeOnIOThread() {
 
   // Load the save data into our VFS, if it exists.
   loaded_raw_bytes_.reset(new Savegame::ByteVector());
-  savegame_->Read(loaded_raw_bytes_.get());
+  savegame_->Read(loaded_raw_bytes_.get(), kMaxSaveGameSizeBytes);
 
   // Signal storage is ready. Anyone waiting for the load will now be unblocked.
   initialized_.Signal();

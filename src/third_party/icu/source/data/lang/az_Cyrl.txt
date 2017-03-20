@@ -1,27 +1,27 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/az_Cyrl.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/az_Cyrl.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/az_Cyrl.xml
- */
 az_Cyrl{
-    %%ParentIsRoot:int{1}
+    %%Parent{"root"}
     Languages{
-        az{"Азәрбајҹан"}
-        de{"алманҹа"}
-        en{"инҝилисҹә"}
-        es{"испанҹа"}
-        fr{"франсызҹа"}
-        it{"италјанҹа"}
-        ja{"јапонҹа"}
-        pt{"португалҹа"}
-        ru{"русҹа"}
-        zh{"чинҹә"}
+        az{"азәрбајҹан дили"}
+        de{"алман дили"}
+        en{"инҝилис дили"}
+        es{"испан дили"}
+        fr{"франсыз дили"}
+        it{"италјан дили"}
+        ja{"јапон дили"}
+        pt{"португал дили"}
+        ru{"рус дили"}
+        zh{"чин дили"}
     }
-    Version{"2.0.47.53"}
+    Scripts{
+        Cyrl{"Кирил"}
+    }
+    Version{"2.1.19.14"}
 }

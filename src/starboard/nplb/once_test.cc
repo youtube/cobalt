@@ -22,6 +22,7 @@
 
 namespace starboard {
 namespace nplb {
+namespace {
 
 int s_global_value;
 
@@ -149,5 +150,14 @@ TEST(SbOnceTest, RainyDayBadInitRoutine) {
   EXPECT_EQ(0, s_global_value);
 }
 
-}  // namespace nplb
-}  // namespace starboard
+SB_ONCE_INITIALIZE_FUNCTION(int, GetIntSingleton);
+TEST(SbOnceTest, InitializeOnceMacroFunction) {
+  int* int_singelton = GetIntSingleton();
+  ASSERT_TRUE(int_singelton);
+  EXPECT_EQ(0, *int_singelton)
+      << "Singleton Macro does not default initialize.";
+}
+
+}  // namespace.
+}  // namespace nplb.
+}  // namespace starboard.

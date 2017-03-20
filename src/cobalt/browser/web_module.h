@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_BROWSER_WEB_MODULE_H_
 #define COBALT_BROWSER_WEB_MODULE_H_
@@ -27,6 +25,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
@@ -52,6 +51,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
 
@@ -122,11 +122,14 @@ class WebModule {
     // can't be changed from the whitelisted origins.
     std::string location_policy;
 
-    // Image cache capaticy in bytes.
+    // Image cache capacity in bytes.
     int image_cache_capacity;
 
     // Typeface cache capacity in bytes.
     int remote_typeface_cache_capacity;
+
+    // Mesh cache capacity in bytes.
+    int mesh_cache_capacity;
 
     // Content Security Policy enforcement mode for this web module.
     dom::CspEnforcementType csp_enforcement_mode;
@@ -142,6 +145,30 @@ class WebModule {
     // must be less than or equal to 1.0f) until the video ends.  This can
     // help for platforms that are low on image memory while playing a video.
     float image_cache_capacity_multiplier_when_playing_video;
+
+    // Specifies the priority of the web module's thread.  This is the thread
+    // that is responsible for executing JavaScript, managing the DOM, and
+    // performing layouts.  The default value is base::kThreadPriority_Normal.
+    base::ThreadPriority thread_priority;
+
+    // Specifies the priority that the web module's corresponding software
+    // decoder thread will be assigned.  This is the thread responsible for
+    // performing resource decoding, such as image decoding, with a software
+    // codec.  The default value is base::kThreadPriority_Low.
+    base::ThreadPriority software_decoder_thread_priority;
+
+    // Specifies the priority that the web module's hardware decoder thread
+    // will use.  The default value is base::kThreadPriority_High.
+    base::ThreadPriority hardware_decoder_thread_priority;
+
+    // Specifies the priority that the web module's corresponding fetcher
+    // lifetime thread will be assigned.  This is the thread responsible for
+    // fetcher creation and handling callbacks from NetFetcher.
+    // The default value is base::kThreadPriority_High.
+    base::ThreadPriority fetcher_lifetime_thread_priority;
+
+    // TTSEngine instance to use for text-to-speech.
+    accessibility::TTSEngine* tts_engine;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -157,15 +184,9 @@ class WebModule {
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
+            system_window::SystemWindow* system_window,
             float layout_refresh_rate, const Options& options = Options());
   ~WebModule();
-
-  // Call this to inject a keyboard event into the web module.
-  // Event is directed at a specific element if the element is non-null.
-  // Otherwise, the currently focused element receives the event.
-  // If element is specified, we must be on the WebModule's message loop
-  void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
-                           const dom::KeyboardEvent::Data& event);
 
   // Call this to inject a keyboard event into the web module.
   void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
@@ -198,15 +219,6 @@ class WebModule {
   // can only be called if we have previously suspended the WebModule.
   void Resume(render_tree::ResourceProvider* resource_provider);
 
-#if defined(COBALT_BUILD_TYPE_DEBUG)
-  // Non-optimized builds require a bigger stack size.
-  static const size_t kBaseStackSize = 2 * 1024 * 1024;
-#else
-  static const size_t kBaseStackSize = 256 * 1024;
-#endif
-  static const size_t kWebModuleStackSize =
-      kBaseStackSize + base::kAsanAdditionalStackSize;
-
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.
@@ -220,8 +232,8 @@ class WebModule {
         network::NetworkModule* network_module,
         const math::Size& window_dimensions,
         render_tree::ResourceProvider* resource_provider,
-        int dom_max_element_depth, float layout_refresh_rate,
-        const Options& options)
+        int dom_max_element_depth, system_window::SystemWindow* system_window,
+        float layout_refresh_rate, const Options& options)
         : initial_url(initial_url),
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
@@ -231,6 +243,7 @@ class WebModule {
           window_dimensions(window_dimensions),
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
+          system_window_(system_window),
           layout_refresh_rate(layout_refresh_rate),
           options(options) {}
 
@@ -243,6 +256,7 @@ class WebModule {
     math::Size window_dimensions;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
+    system_window::SystemWindow* system_window_;
     float layout_refresh_rate;
     Options options;
   };

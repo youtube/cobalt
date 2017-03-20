@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_BACKEND_EGL_GRAPHICS_CONTEXT_H_
 #define COBALT_RENDERER_BACKEND_EGL_GRAPHICS_CONTEXT_H_
@@ -45,6 +43,8 @@ class GraphicsContextEGL : public GraphicsContext {
 
   GraphicsSystemEGL* system_egl();
 
+  EGLContext GetContext() { return context_; }
+
   scoped_ptr<TextureEGL> CreateTexture(scoped_ptr<TextureDataEGL> texture_data);
 
   scoped_ptr<TextureEGL> CreateTextureFromRawMemory(
@@ -54,6 +54,8 @@ class GraphicsContextEGL : public GraphicsContext {
 
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE;
+
+  void InitializeDebugContext() OVERRIDE;
 
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
@@ -108,17 +110,11 @@ class GraphicsContextEGL : public GraphicsContext {
 
   void Blit(GLuint texture, int x, int y, int width, int height);
 
-  bool ReadPixelsNeedVerticalFlip() {
-    if (!read_pixels_needs_vertical_flip_) {
-      read_pixels_needs_vertical_flip_ = ComputeReadPixelsNeedVerticalFlip();
-    }
-    return *read_pixels_needs_vertical_flip_;
-  }
-
  private:
   // Performs a test to determine if the pixel data returned by glReadPixels
-  // needs to be vertically flipped or not.  This test is expensive and so
-  // it should be only done once and the results cached.
+  // needs to be vertically flipped or not.  This test is expensive, so it
+  // caches the results the first time it is computed and simply returns the
+  // cached value on subsequent calls.
   bool ComputeReadPixelsNeedVerticalFlip();
 
   // Sets up all structures (like Shaders and vertex buffers) required to

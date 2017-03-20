@@ -85,7 +85,6 @@
       'js/src/memory_allocator_reporter.cpp',
       'js/src/perf/jsperf.cpp',
       'js/src/perf/pm_stub.cpp',
-      'js/src/pr_starboard.cc',
       'js/src/prmjtime.cpp',
       'js/src/vm/ArgumentsObject.cpp',
       'js/src/vm/CharacterEncoding.cpp',

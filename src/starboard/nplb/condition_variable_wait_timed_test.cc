@@ -80,7 +80,7 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
 
 TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   {
-    TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
+    TakeThenSignalContext context = {TestSemaphore(0), SB_MUTEX_INITIALIZER,
                                      SB_CONDITION_VARIABLE_INITIALIZER, 0};
     DoSunnyDay(&context, true);
   }
@@ -90,7 +90,7 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   // this mode, hoping to have the auto-initting contend in various ways.
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
-    TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
+    TakeThenSignalContext context = {TestSemaphore(0), SB_MUTEX_INITIALIZER,
                                      SB_CONDITION_VARIABLE_INITIALIZER, 0};
     DoSunnyDay(&context, false);
   }
@@ -98,7 +98,7 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
 
 TEST(SbConditionVariableWaitTimedTest, SunnyDayNearMaxTime) {
   const SbTime kOtherDelay = kSbTimeMillisecond * 10;
-  TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
+  TakeThenSignalContext context = {TestSemaphore(0), SB_MUTEX_INITIALIZER,
                                    SB_CONDITION_VARIABLE_INITIALIZER,
                                    kOtherDelay};
   EXPECT_TRUE(SbMutexCreate(&context.mutex));

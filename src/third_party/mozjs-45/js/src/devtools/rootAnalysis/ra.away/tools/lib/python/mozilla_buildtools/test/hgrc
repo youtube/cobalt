@@ -1,0 +1,15 @@
+[extensions]
+mq =
+purge =
+rebase =
+share =
+transplant =
+
+[ui]
+username = tester <tester@example.com>
+
+# Pin date when committing so test results are deterministic.
+[defaults]
+backout = -d "0 0"
+commit = -d "0 0"
+tag = -d "0 0"

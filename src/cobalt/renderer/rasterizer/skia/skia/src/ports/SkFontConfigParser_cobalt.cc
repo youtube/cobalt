@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 
@@ -24,7 +22,9 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "SkData.h"
 #include "SkOSFile.h"
+#include "SkStream.h"
 #include "SkTSearch.h"
 
 namespace {
@@ -271,9 +271,11 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
 void FontElementHandler(FontFileInfo* file, const char** attributes) {
   DCHECK(file != NULL);
 
-  // A <font> should have following attributes:
-  // weight (integer), style (normal, italic), font_name (string), and
-  // postscript_name (string).
+  // A <font> must have following attributes:
+  // weight (non-negative integer), style (normal, italic), font_name (string),
+  // and postscript_name (string).
+  // It may have the following attributes:
+  // index (non-negative integer)
   // The element should contain a filename.
 
   enum SeenAttributeFlags {
@@ -300,7 +302,7 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         break;
       case 15:
         if (strncmp("postscript_name", name, 15) == 0) {
-          file->postcript_name = value;
+          file->postscript_name = value;
           seen_attributes_flag |= kSeenFontPostscriptName;
           continue;
         }
@@ -317,7 +319,12 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         }
         break;
       case 5:
-        if (strncmp("style", name, 5) == 0) {
+        if (strncmp("index", name, 5) == 0) {
+          if (!ParseNonNegativeInteger(value, &file->index)) {
+            DLOG(WARNING) << "Invalid font index [" << value << "]";
+            file->index = 0;
+          }
+        } else if (strncmp("style", name, 5) == 0) {
           if (strncmp("italic", value, 6) == 0) {
             file->style = FontFileInfo::kItalic_FontStyle;
             seen_attributes_flag |= kSeenStyle;
@@ -341,7 +348,7 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
   DCHECK_EQ(seen_attributes_flag, kSeenFontFullName | kSeenFontPostscriptName |
                                       kSeenWeight | kSeenStyle);
   DCHECK(!file->full_font_name.isEmpty());
-  DCHECK(!file->postcript_name.isEmpty());
+  DCHECK(!file->postscript_name.isEmpty());
 }
 
 FontFamily* FindFamily(FamilyData* family_data, const char* family_name) {
@@ -520,38 +527,24 @@ void ParserFatal(void* context, const char* message, ...) {
 void ParseConfigFile(const char* directory, const char* filename,
                      SkTDArray<FontFamily*>* families) {
   SkString file_path = SkOSPath::Join(directory, filename);
-  FILE* file = fopen(file_path.c_str(), "r");
 
-  if (NULL == file) {
+  SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
+  if (file_stream == NULL) {
     SkDebugf("---- Failed to open %s", file_path.c_str());
     return;
   }
 
-  FamilyData family_data(families);
-
-  xmlParserCtxtPtr xml_parser_context =
-      xmlCreatePushParserCtxt(&xml_sax_handler, &family_data, NULL, 0, NULL);
-
-  if (!xml_parser_context) {
-    SkDebugf("---- Unable to create parsing context!");
+  SkAutoDataUnref file_data(
+      SkData::NewFromStream(file_stream, file_stream->getLength()));
+  if (file_data == NULL) {
+    SkDebugf("---- Failed to read %s", file_path.c_str());
     return;
   }
 
-  char buffer[512];
-  bool done = false;
-  while (!done) {
-    fgets(buffer, sizeof(buffer), file);
-    size_t len = strlen(buffer);
-    if (feof(file) != 0) {
-      done = true;
-    }
-    xmlParseChunk(xml_parser_context, buffer, static_cast<int>(len),
-                  0 /*do not terminate*/);
-  }
-  xmlParseChunk(xml_parser_context, NULL, 0, 1 /*terminate*/);
-  xmlFreeParserCtxt(xml_parser_context);
-
-  fclose(file);
+  FamilyData family_data(families);
+  xmlSAXUserParseMemory(&xml_sax_handler, &family_data,
+                        static_cast<const char*>(file_data->data()),
+                        static_cast<int>(file_data->size()));
 }
 
 void GetSystemFontFamilies(const char* directory,

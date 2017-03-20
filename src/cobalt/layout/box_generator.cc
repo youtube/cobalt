@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/layout/box_generator.h"
 
@@ -43,7 +41,12 @@
 #include "cobalt/layout/white_space_processing.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/shell_video_frame_provider.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/shell_video_frame_provider.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "starboard/decode_target.h"
 
 namespace cobalt {
 namespace layout {
@@ -54,16 +57,32 @@ using ::media::VideoFrame;
 namespace {
 
 scoped_refptr<render_tree::Image> GetVideoFrame(
-    const scoped_refptr<ShellVideoFrameProvider>& frame_provider) {
-  DCHECK(frame_provider);
-  scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
-  if (video_frame && video_frame->texture_id()) {
-    scoped_refptr<render_tree::Image> image =
-        reinterpret_cast<render_tree::Image*>(video_frame->texture_id());
-    return image;
-  }
+    const scoped_refptr<ShellVideoFrameProvider>& frame_provider,
+    render_tree::ResourceProvider* resource_provider) {
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTarget decode_target = frame_provider->GetCurrentSbDecodeTarget();
+  if (SbDecodeTargetIsValid(decode_target)) {
+#if SB_HAS(GRAPHICS)
+    return resource_provider->CreateImageFromSbDecodeTarget(decode_target);
+#else  // SB_HAS(GRAPHICS)
+    UNREFERENCED_PARAMETER(resource_provider);
+    return NULL;
+#endif
+  } else {
+#else  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  UNREFERENCED_PARAMETER(resource_provider);
+  {
+#endif
+    DCHECK(frame_provider);
+    scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
+    if (video_frame && video_frame->texture_id()) {
+      scoped_refptr<render_tree::Image> image =
+          reinterpret_cast<render_tree::Image*>(video_frame->texture_id());
+      return image;
+    }
 
-  return NULL;
+    return NULL;
+  }
 }
 
 }  // namespace
@@ -163,7 +182,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
                        const base::optional<LayoutUnit>& maybe_intrinsic_width,
                        const base::optional<LayoutUnit>& maybe_intrinsic_height,
                        const base::optional<float>& maybe_intrinsic_ratio,
-                       const BoxGenerator::Context* context)
+                       const BoxGenerator::Context* context,
+                       base::optional<bool> is_video_punched_out)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
         set_bounds_cb_(set_bounds_cb),
@@ -172,7 +192,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         maybe_intrinsic_width_(maybe_intrinsic_width),
         maybe_intrinsic_height_(maybe_intrinsic_height),
         maybe_intrinsic_ratio_(maybe_intrinsic_ratio),
-        context_(context) {}
+        context_(context),
+        is_video_punched_out_(is_video_punched_out) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
@@ -189,6 +210,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const base::optional<LayoutUnit> maybe_intrinsic_height_;
   const base::optional<float> maybe_intrinsic_ratio_;
   const BoxGenerator::Context* context_;
+  base::optional<bool> is_video_punched_out_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
 };
@@ -202,7 +224,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, context_->layout_stat_tracker));
+          context_->used_style_provider, is_video_punched_out_,
+          context_->layout_stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
     // between inline replaced elements and inline-block replaced elements
@@ -214,7 +237,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, context_->layout_stat_tracker));
+          context_->used_style_provider, is_video_punched_out_,
+          context_->layout_stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -290,16 +314,34 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
       (*paragraph_)->AppendCodePoint(
           Paragraph::kObjectReplacementCharacterCodePoint);
 
+  render_tree::ResourceProvider* resource_provider =
+      *video_element->node_document()
+           ->html_element_context()
+           ->resource_provider();
+
+  // If the optional is disengaged, then we don't know if punch out is enabled
+  // or not.
+  base::optional<bool> is_punch_out;
+  if (video_element->GetVideoFrameProvider()) {
+    ShellVideoFrameProvider::OutputMode output_mode =
+        video_element->GetVideoFrameProvider()->GetOutputMode();
+    if (output_mode != ShellVideoFrameProvider::kOutputModeInvalid) {
+      is_punch_out =
+          output_mode ==  ShellVideoFrameProvider::kOutputModePunchOut;
+    }
+  }
+
   // Unlike in Chromium, we do not set the intrinsic width, height, or ratio
   // based on the video frame. This allows to avoid relayout while playing
   // adaptive videos.
   ReplacedBoxGenerator replaced_box_generator(
       video_element->css_computed_style_declaration(),
       video_element->GetVideoFrameProvider()
-          ? base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider())
+          ? base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider(),
+                       resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
-      base::nullopt, base::nullopt, base::nullopt, context_);
+      base::nullopt, base::nullopt, base::nullopt, context_, is_punch_out);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =

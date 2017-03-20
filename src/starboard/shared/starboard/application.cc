@@ -20,6 +20,8 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
+#include "starboard/shared/starboard/command_line.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -39,19 +41,10 @@ void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
   }
 }
 
-// Dispatches a Start event to the system event handler.
-void DispatchStart(int argc, char** argv, const char* link) {
-  SbEventStartData start_data;
-  start_data.argument_values = argv;
-  start_data.argument_count = argc;
-  start_data.link = link;
-  Dispatch(kSbEventTypeStart, &start_data, NULL);
-}
+}  // namespace
 
 // The next event ID to use for Schedule().
 volatile SbAtomic32 g_next_event_id = 0;
-
-}  // namespace
 
 Application* Application::g_instance = NULL;
 
@@ -63,7 +56,7 @@ Application::Application()
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(NULL),
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
           reinterpret_cast<SbAtomicPtr>(this)));
   SB_DCHECK(!old_instance);
 }
@@ -73,7 +66,7 @@ Application::~Application() {
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
           reinterpret_cast<SbAtomicPtr>(this),
-          reinterpret_cast<SbAtomicPtr>(NULL)));
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
   SbMemoryDeallocate(start_link_);
@@ -81,17 +74,24 @@ Application::~Application() {
 
 int Application::Run(int argc, char** argv) {
   Initialize();
-  DispatchStart(argc, argv, start_link_);
-  state_ = kStateStarted;
+  command_line_.reset(new CommandLine(argc, argv));
+  if (IsStartImmediate()) {
+    DispatchStart();
+  }
 
   for (;;) {
-    if (!DispatchAndDelete(GetNextEvent())) {
+    if (!DispatchNextEvent()) {
       break;
     }
   }
 
+  CallTeardownCallbacks();
   Teardown();
   return error_level_;
+}
+
+CommandLine* Application::GetCommandLine() {
+  return command_line_.get();
 }
 
 void Application::Pause(void* context, EventHandledCallback callback) {
@@ -128,16 +128,21 @@ void Application::Cancel(SbEventId id) {
   CancelTimedEvent(id);
 }
 
-#if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_HAS(PLAYER) &&                                             \
+    (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+     SB_IS(PLAYER_PUNCHED_OUT))
+
 void Application::HandleFrame(SbPlayer player,
-                              const player::VideoFrame& frame,
+                              const scoped_refptr<VideoFrame>& frame,
                               int x,
                               int y,
                               int width,
                               int height) {
   AcceptFrame(player, frame, x, y, width, height);
 }
-#endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_HAS(PLAYER) && \
+           (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+            SB_IS(PLAYER_PUNCHED_OUT))
 
 void Application::SetStartLink(const char* start_link) {
   SbMemoryDeallocate(start_link_);
@@ -148,10 +153,24 @@ void Application::SetStartLink(const char* start_link) {
   }
 }
 
+void Application::DispatchStart() {
+  SB_DCHECK(state_ == kStateUnstarted);
+  SbEventStartData start_data;
+  start_data.argument_values =
+      const_cast<char**>(command_line_->GetOriginalArgv());
+  start_data.argument_count = command_line_->GetOriginalArgc();
+  start_data.link = start_link_;
+  Dispatch(kSbEventTypeStart, &start_data, NULL);
+  state_ = kStateStarted;
+}
+
 bool Application::DispatchAndDelete(Application::Event* event) {
   if (!event) {
     return true;
   }
+
+  // DispatchStart() must be called first
+  SB_DCHECK(state_ != kStateUnstarted);
 
   // Ensure that we go through the the appropriate lifecycle events based on the
   // current state.
@@ -249,6 +268,13 @@ bool Application::DispatchAndDelete(Application::Event* event) {
 
   delete event;
   return should_continue;
+}
+
+void Application::CallTeardownCallbacks() {
+  ScopedLock lock(callbacks_lock_);
+  for (size_t i = 0; i < teardown_callbacks_.size(); ++i) {
+    teardown_callbacks_[i]();
+  }
 }
 
 }  // namespace starboard

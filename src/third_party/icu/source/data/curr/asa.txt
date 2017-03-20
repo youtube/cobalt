@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/asa.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/asa.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/asa.xml
- */
 asa{
     Currencies{
         AED{
@@ -16,19 +13,19 @@ asa{
             "dirham ya Falme dha Kiarabu",
         }
         AOA{
-            "Kz",
+            "AOA",
             "kwandha ya Angola",
         }
         AUD{
-            "AU$",
+            "A$",
             "dola ya Authtralia",
         }
         BHD{
-            "BD",
+            "BHD",
             "dinari ya Bahareni",
         }
         BIF{
-            "FBu",
+            "BIF",
             "faranga ya Burundi",
         }
         BWP{
@@ -52,15 +49,15 @@ asa{
             "yuan renminbi ya China",
         }
         CVE{
-            "CV$",
+            "CVE",
             "ethkudo ya Kepuvede",
         }
         DJF{
-            "Fdj",
+            "DJF",
             "faranga ya Jibuti",
         }
         DZD{
-            "DA",
+            "DZD",
             "dinari ya Aljeria",
         }
         EGP{
@@ -68,11 +65,11 @@ asa{
             "pauni ya Mithri",
         }
         ERN{
-            "Nfk",
+            "ERN",
             "nakfa ya Eritrea",
         }
         ETB{
-            "Br",
+            "ETB",
             "bir ya Uhabeshi",
         }
         EUR{
@@ -84,7 +81,7 @@ asa{
             "pauni ya Uingeredha",
         }
         GHC{
-            "₵",
+            "GHC",
             "thedi ya Ghana",
         }
         GMD{
@@ -92,11 +89,11 @@ asa{
             "dalathi ya Gambia",
         }
         GNS{
-            "GNS" /** ===  */,
+            "GNS",
             "faranga ya Gine",
         }
         INR{
-            "Rs",
+            "₹",
             "rupia ya India",
         }
         JPY{
@@ -104,15 +101,15 @@ asa{
             "tharafu ya Kijapani",
         }
         KES{
-            "Ksh",
+            "KES",
             "shilingi ya Kenya",
         }
         KMF{
-            "CF",
+            "KMF",
             "faranga ya Komoro",
         }
         LRD{
-            "L$",
+            "LRD",
             "dola ya Liberia",
         }
         LSL{
@@ -120,7 +117,7 @@ asa{
             "loti ya Lethoto",
         }
         LYD{
-            "LD",
+            "LYD",
             "dinari ya Libya",
         }
         MAD{
@@ -132,11 +129,11 @@ asa{
             "faranga ya Bukini",
         }
         MRO{
-            "UM",
+            "MRO",
             "ugwiya ya Moritania",
         }
         MUR{
-            "MURs",
+            "MUR",
             "rupia ya Morithi",
         }
         MWK{
@@ -144,15 +141,15 @@ asa{
             "kwacha ya Malawi",
         }
         MZM{
-            "Mt",
+            "MZM",
             "metikali ya Mthumbiji",
         }
         NAD{
-            "N$",
+            "NAD",
             "dola ya Namibia",
         }
         NGN{
-            "₦",
+            "NGN",
             "naira ya Nijeria",
         }
         RWF{
@@ -160,11 +157,11 @@ asa{
             "faranga ya Rwanda",
         }
         SAR{
-            "SR",
+            "SAR",
             "riyal ya Thaudia",
         }
         SCR{
-            "SRe",
+            "SCR",
             "rupia ya Shelisheli",
         }
         SDG{
@@ -172,23 +169,23 @@ asa{
             "dinari ya Thudani",
         }
         SDP{
-            "SDP" /** ===  */,
+            "SDP",
             "pauni ya Thudani",
         }
         SHP{
-            "SH£",
+            "SHP",
             "pauni ya Thantahelena",
         }
         SLL{
-            "Le",
+            "SLL",
             "leoni",
         }
         SOS{
-            "Ssh",
+            "SOS",
             "shilingi ya Thomalia",
         }
         STD{
-            "Db",
+            "STD",
             "dobra ya Thao Tome na Principe",
         }
         SZL{
@@ -196,7 +193,7 @@ asa{
             "lilangeni",
         }
         TND{
-            "DT",
+            "TND",
             "dinari ya Tunithia",
         }
         TZS{
@@ -204,7 +201,7 @@ asa{
             "shilingi ya Tandhania",
         }
         UGX{
-            "USh",
+            "UGX",
             "shilingi ya Uganda",
         }
         USD{
@@ -220,17 +217,21 @@ asa{
             "faranga CFA BCEAO",
         }
         ZAR{
-            "R",
+            "ZAR",
             "randi ya Afrika Kuthini",
         }
         ZMK{
-            "ZK",
+            "ZMK",
+            "kwacha ya Dhambia (1968–2012)",
+        }
+        ZMW{
+            "ZMW",
             "kwacha ya Dhambia",
         }
         ZWD{
-            "Z$",
+            "ZWD",
             "dola ya Dhimbabwe",
         }
     }
-    Version{"2.0.47.53"}
+    Version{"2.1.19.14"}
 }

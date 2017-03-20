@@ -1,6 +1,6 @@
 /*
  **********************************************************************
- *   Copyright (C) 2005-2008, International Business Machines
+ *   Copyright (C) 2005-2012, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  **********************************************************************
  */
@@ -9,9 +9,14 @@
 
 #if !UCONFIG_NO_CONVERSION
 
+#include "csmatch.h"
 #include "csrmbcs.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/math_poem.h"
+#else
 #include <math.h>
+#endif
 
 U_NAMESPACE_BEGIN
 
@@ -143,7 +148,7 @@ CharsetRecog_mbcs::~CharsetRecog_mbcs()
     // nothing to do.
 }
 
-int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars[], int32_t commonCharsLen) {
+int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars[], int32_t commonCharsLen) const {
     int32_t singleByteCharCount = 0;
     int32_t doubleByteCharCount = 0;
     int32_t commonCharCount     = 0;
@@ -220,9 +225,9 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         // Frequency of occurence statistics exist.
         //
 
-        double maxVal = log10((double)doubleByteCharCount / 4); /*(float)?*/
+        double maxVal = log((double)doubleByteCharCount / 4); /*(float)?*/
         double scaleFactor = 90.0 / maxVal;
-        confidence = (int32_t)(log10((double)commonCharCount+1) * scaleFactor + 10.0);
+        confidence = (int32_t)(log((double)commonCharCount+1) * scaleFactor + 10.0);
 
         confidence = min(confidence, 100);
     }
@@ -239,7 +244,7 @@ CharsetRecog_sjis::~CharsetRecog_sjis()
     // nothing to do
 }
 
-UBool CharsetRecog_sjis::nextChar(IteratedChar* it, InputText* det) {
+UBool CharsetRecog_sjis::nextChar(IteratedChar* it, InputText* det) const {
     it->index = it->nextIndex;
     it->error = FALSE;
 
@@ -267,9 +272,10 @@ UBool CharsetRecog_sjis::nextChar(IteratedChar* it, InputText* det) {
     return TRUE;
 }
 
-int32_t CharsetRecog_sjis::match(InputText* det)
-{
-    return match_mbcs(det, commonChars_sjis, ARRAY_SIZE(commonChars_sjis));
+UBool CharsetRecog_sjis::match(InputText* det, CharsetMatch *results) const {
+    int32_t confidence = match_mbcs(det, commonChars_sjis, ARRAY_SIZE(commonChars_sjis));
+    results->set(det, this, confidence);
+    return (confidence > 0);
 }
 
 const char *CharsetRecog_sjis::getName() const
@@ -287,7 +293,7 @@ CharsetRecog_euc::~CharsetRecog_euc()
     // nothing to do
 }
 
-UBool CharsetRecog_euc::nextChar(IteratedChar* it, InputText* det) {
+UBool CharsetRecog_euc::nextChar(IteratedChar* it, InputText* det) const {
     int32_t firstByte  = 0;
     int32_t secondByte = 0;
     int32_t thirdByte  = 0;
@@ -366,9 +372,11 @@ const char *CharsetRecog_euc_jp::getLanguage() const
     return "ja";
 }
 
-int32_t CharsetRecog_euc_jp::match(InputText *det)
+UBool CharsetRecog_euc_jp::match(InputText *det, CharsetMatch *results) const
 {
-    return match_mbcs(det, commonChars_euc_jp, ARRAY_SIZE(commonChars_euc_jp));
+    int32_t confidence = match_mbcs(det, commonChars_euc_jp, ARRAY_SIZE(commonChars_euc_jp));
+    results->set(det, this, confidence);
+    return (confidence > 0);
 }
 
 CharsetRecog_euc_kr::~CharsetRecog_euc_kr()
@@ -386,9 +394,11 @@ const char *CharsetRecog_euc_kr::getLanguage() const
     return "ko";
 }
 
-int32_t CharsetRecog_euc_kr::match(InputText *det)
+UBool CharsetRecog_euc_kr::match(InputText *det, CharsetMatch *results) const
 {
-    return match_mbcs(det, commonChars_euc_kr, ARRAY_SIZE(commonChars_euc_kr));
+    int32_t confidence =  match_mbcs(det, commonChars_euc_kr, ARRAY_SIZE(commonChars_euc_kr));
+    results->set(det, this, confidence);
+    return (confidence > 0);
 }
 
 CharsetRecog_big5::~CharsetRecog_big5()
@@ -396,7 +406,7 @@ CharsetRecog_big5::~CharsetRecog_big5()
     // nothing to do
 }
 
-UBool CharsetRecog_big5::nextChar(IteratedChar* it, InputText* det)
+UBool CharsetRecog_big5::nextChar(IteratedChar* it, InputText* det) const
 {
     int32_t firstByte;
 
@@ -436,9 +446,11 @@ const char *CharsetRecog_big5::getLanguage() const
     return "zh";
 }
 
-int32_t CharsetRecog_big5::match(InputText *det)
+UBool CharsetRecog_big5::match(InputText *det, CharsetMatch *results) const
 {
-    return match_mbcs(det, commonChars_big5, ARRAY_SIZE(commonChars_big5));
+    int32_t confidence = match_mbcs(det, commonChars_big5, ARRAY_SIZE(commonChars_big5));
+    results->set(det, this, confidence);
+    return (confidence > 0);
 }
 
 CharsetRecog_gb_18030::~CharsetRecog_gb_18030()
@@ -446,7 +458,7 @@ CharsetRecog_gb_18030::~CharsetRecog_gb_18030()
     // nothing to do
 }
 
-UBool CharsetRecog_gb_18030::nextChar(IteratedChar* it, InputText* det) {
+UBool CharsetRecog_gb_18030::nextChar(IteratedChar* it, InputText* det) const {
     int32_t firstByte  = 0;
     int32_t secondByte = 0;
     int32_t thirdByte  = 0;
@@ -510,9 +522,11 @@ const char *CharsetRecog_gb_18030::getLanguage() const
     return "zh";
 }
 
-int32_t CharsetRecog_gb_18030::match(InputText *det)
+UBool CharsetRecog_gb_18030::match(InputText *det, CharsetMatch *results) const
 {
-    return match_mbcs(det, commonChars_gb_18030, ARRAY_SIZE(commonChars_gb_18030));
+    int32_t confidence = match_mbcs(det, commonChars_gb_18030, ARRAY_SIZE(commonChars_gb_18030));
+    results->set(det, this, confidence);
+    return (confidence > 0);
 }
 
 U_NAMESPACE_END

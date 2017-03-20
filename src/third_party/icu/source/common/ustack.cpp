@@ -1,10 +1,11 @@
 /*
 **********************************************************************
-*   Copyright (C) 2003-2004, International Business Machines
+*   Copyright (C) 2003-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "uvector.h"
 
 U_NAMESPACE_BEGIN
@@ -21,12 +22,12 @@ UStack::UStack(int32_t initialCapacity, UErrorCode &status) :
 {
 }
 
-UStack::UStack(UObjectDeleter *d, UKeyComparator *c, UErrorCode &status) :
+UStack::UStack(UObjectDeleter *d, UElementsAreEqual *c, UErrorCode &status) :
     UVector(d, c, status)
 {
 }
 
-UStack::UStack(UObjectDeleter *d, UKeyComparator *c, int32_t initialCapacity, UErrorCode &status) :
+UStack::UStack(UObjectDeleter *d, UElementsAreEqual *c, int32_t initialCapacity, UErrorCode &status) :
     UVector(d, c, initialCapacity, status)
 {
 }

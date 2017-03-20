@@ -42,6 +42,8 @@
         'cobalt_blitter_conversions.cc',
         'hardware_rasterizer.cc',
         'image.cc',
+        'linear_gradient.cc',
+        'linear_gradient_cache.cc',
         'render_state.cc',
         'render_tree_blitter_conversions.cc',
         'render_tree_node_visitor.cc',
@@ -52,6 +54,7 @@
 
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/renderer/rasterizer/common/common.gyp:common',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/software_rasterizer.gyp:software_rasterizer',
@@ -79,6 +82,34 @@
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         'common',
       ],
+    },
+
+    {
+      'target_name': 'blitter_rasterizer_tests',
+      'type': '<(gtest_target_type)',
+
+      'sources': [
+        'linear_gradient_cache_test.cc',
+      ],
+
+      'dependencies': [
+        'hardware_rasterizer',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest'
+      ],
+    },
+
+    {
+      'target_name': 'blitter_rasterizer_tests_deploy',
+      'type': 'none',
+      'dependencies': [
+        'blitter_rasterizer_tests',
+      ],
+      'variables': {
+        'executable_name': 'blitter_rasterizer_tests',
+      },
+      'includes': [ '../../../../starboard/build/deploy.gypi' ],
     },
   ],
 }

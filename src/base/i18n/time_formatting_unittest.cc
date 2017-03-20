@@ -77,6 +77,8 @@ TEST(TimeFormattingTest, MAYBE_TimeFormatTimeOfDayDefault12h) {
                                                  kDropAmPm));
 }
 
+// Note: this function was updated on Dec 19, 2016 to match latest test in the
+// Chromium repository.  This needed to be done after ICU was upgraded to ICU56.
 TEST(TimeFormattingTest, MAYBE_TimeFormatTimeOfDayDefault24h) {
   // Test for a locale defaulted to 24h clock.
   // As an instance, we use third_party/icu/source/data/locales/en_GB.txt.
@@ -84,8 +86,9 @@ TEST(TimeFormattingTest, MAYBE_TimeFormatTimeOfDayDefault24h) {
 
   Time time(Time::FromLocalExploded(kTestDateTimeExploded));
   string16 clock24h(ASCIIToUTF16("15:42"));
-  string16 clock12h_pm(ASCIIToUTF16("3:42 PM"));
+  string16 clock12h_pm(ASCIIToUTF16("3:42 pm"));
   string16 clock12h(ASCIIToUTF16("3:42"));
+  string16 clock24h_millis(ASCIIToUTF16("15:42:07.000"));
 
   // The default is 24h clock.
   EXPECT_EQ(clock24h, TimeFormatTimeOfDay(time));
@@ -143,6 +146,8 @@ TEST(TimeFormattingTest, MAYBE_TimeFormatTimeOfDayJP) {
                                                  kDropAmPm));
 }
 
+// Note: this function was updated on Dec 19, 2016 to match latest test in the
+// Chromium repository.  This needed to be done after ICU was upgraded to ICU56.
 TEST(TimeFormattingTest, MAYBE_TimeFormatDateUS) {
   // See third_party/icu/source/data/locales/en.txt.
   // The date patterns are "EEEE, MMMM d, y", "MMM d, y", and "M/d/yy".
@@ -152,14 +157,19 @@ TEST(TimeFormattingTest, MAYBE_TimeFormatDateUS) {
 
   EXPECT_EQ(ASCIIToUTF16("Apr 30, 2011"), TimeFormatShortDate(time));
   EXPECT_EQ(ASCIIToUTF16("4/30/11"), TimeFormatShortDateNumeric(time));
-  EXPECT_EQ(ASCIIToUTF16("4/30/11 3:42:07 PM"),
+
+  EXPECT_EQ(ASCIIToUTF16("4/30/11, 3:42:07 PM"),
             TimeFormatShortDateAndTime(time));
-  EXPECT_EQ(ASCIIToUTF16("Saturday, April 30, 2011 3:42:07 PM"),
+
+  EXPECT_EQ(ASCIIToUTF16("Saturday, April 30, 2011 at 3:42:07 PM"),
             TimeFormatFriendlyDateAndTime(time));
+
   EXPECT_EQ(ASCIIToUTF16("Saturday, April 30, 2011"),
             TimeFormatFriendlyDate(time));
 }
 
+// Note: this function was updated on Dec 19, 2016 to match latest test in the
+// Chromium repository.  This needed to be done after ICU was upgraded to ICU56.
 TEST(TimeFormattingTest, MAYBE_TimeFormatDateGB) {
   // See third_party/icu/source/data/locales/en_GB.txt.
   // The date patterns are "EEEE, d MMMM y", "d MMM y", and "dd/MM/yyyy".
@@ -169,13 +179,12 @@ TEST(TimeFormattingTest, MAYBE_TimeFormatDateGB) {
 
   EXPECT_EQ(ASCIIToUTF16("30 Apr 2011"), TimeFormatShortDate(time));
   EXPECT_EQ(ASCIIToUTF16("30/04/2011"), TimeFormatShortDateNumeric(time));
-  EXPECT_EQ(ASCIIToUTF16("30/04/2011 15:42:07"),
+  EXPECT_EQ(ASCIIToUTF16("30/04/2011, 15:42:07"),
             TimeFormatShortDateAndTime(time));
-  EXPECT_EQ(ASCIIToUTF16("Saturday, 30 April 2011 15:42:07"),
+  EXPECT_EQ(ASCIIToUTF16("Saturday, 30 April 2011 at 15:42:07"),
             TimeFormatFriendlyDateAndTime(time));
   EXPECT_EQ(ASCIIToUTF16("Saturday, 30 April 2011"),
             TimeFormatFriendlyDate(time));
 }
-
 }  // namespace
 }  // namespace base

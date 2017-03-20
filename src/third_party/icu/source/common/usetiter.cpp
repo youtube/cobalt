@@ -4,6 +4,7 @@
 * Corporation and others.  All Rights Reserved.
 **********************************************************************
 */
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/usetiter.h"
 #include "unicode/uniset.h"
 #include "unicode/unistr.h"

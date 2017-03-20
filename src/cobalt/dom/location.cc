@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/location.h"
 
@@ -40,10 +38,6 @@ void Location::Replace(const std::string& url) {
   // that is successful, navigate the browsing context to the specified url with
   // replacement enabled and exceptions enabled.
 
-  DCHECK(!hashchange_callback_.is_null());
-  DCHECK(!navigation_callback_.is_null());
-  DCHECK(!security_callback_.is_null());
-
   GURL new_url = url_utils_.url().Resolve(url);
   if (!new_url.is_valid()) {
     DLOG(WARNING) << "New url is invalid, aborting the navigation.";
@@ -63,7 +57,8 @@ void Location::Replace(const std::string& url) {
   }
 
   // Check new URL against security policy.
-  if (!security_callback_.Run(new_url, false /* did redirect */)) {
+  if (!security_callback_.is_null() &&
+      !security_callback_.Run(new_url, false /* did redirect */)) {
     DLOG(WARNING) << "URL " << new_url
                   << " is rejected by policy, aborting the navigation.";
     return;
@@ -76,9 +71,20 @@ void Location::Replace(const std::string& url) {
           old_url.ReplaceComponents(replacements) &&
       new_url.has_ref() && new_url.ref() != old_url.ref()) {
     url_utils_.set_url(new_url);
-    hashchange_callback_.Run();
+    if (!hashchange_callback_.is_null()) {
+      hashchange_callback_.Run();
+    }
   } else {
-    navigation_callback_.Run(new_url);
+    if (!navigation_callback_.is_null()) {
+      navigation_callback_.Run(new_url);
+    }
+  }
+}
+
+void Location::Reload() {
+  if (!navigation_callback_.is_null()) {
+    LOG(INFO) << "Reloading URL: " << url();
+    navigation_callback_.Run(url());
   }
 }
 

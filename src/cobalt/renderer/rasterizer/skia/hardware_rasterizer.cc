@@ -1,26 +1,30 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 
 #include <algorithm>
 
+#include "base/containers/linked_hash_map.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/backend/egl/graphics_system.h"
+#include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
+#include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
@@ -32,6 +36,13 @@
 #include "third_party/skia/include/gpu/GrTexture.h"
 #include "third_party/skia/include/gpu/SkGrPixelRef.h"
 #include "third_party/skia/src/gpu/SkGpuDevice.h"
+
+namespace {
+  // Some clients call Submit() multiple times with up to 2 different render
+  // targets each frame, so the max must be at least 2 to avoid constantly
+  // generating new surfaces.
+  static const size_t kMaxSkSurfaceCount = 2;
+}
 
 namespace cobalt {
 namespace renderer {
@@ -45,13 +56,26 @@ class HardwareRasterizer::Impl {
        int surface_cache_size_in_bytes);
   ~Impl();
 
+  void AdvanceFrame();
+
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              int options);
+              const Options& options);
+
+  void SubmitOffscreen(const scoped_refptr<render_tree::Node>& render_tree,
+                       SkCanvas* canvas);
 
   render_tree::ResourceProvider* GetResourceProvider();
+  GrContext* GetGrContext();
+
+  void MakeCurrent();
 
  private:
+  // Note: We cannot store a SkAutoTUnref<SkSurface> in the map because it is
+  // not copyable; so we must manually manage our references when adding /
+  // removing SkSurfaces from it.
+  typedef base::linked_hash_map<
+    backend::RenderTarget*, SkSurface*> SkSurfaceMap;
   class CachedScratchSurfaceHolder
       : public RenderTreeNodeVisitor::ScratchSurface {
    public:
@@ -72,6 +96,9 @@ class HardwareRasterizer::Impl {
 
   void ResetSkiaState();
 
+  void RenderTextureEGL(const render_tree::ImageNode* image_node,
+                        RenderTreeNodeVisitorDrawState* draw_state);
+
   base::ThreadChecker thread_checker_;
 
   backend::GraphicsContextEGL* graphics_context_;
@@ -79,12 +106,16 @@ class HardwareRasterizer::Impl {
 
   SkAutoTUnref<GrContext> gr_context_;
 
-  SkAutoTUnref<SkSurface> sk_output_surface_;
+  SkSurfaceMap sk_output_surface_map_;
 
   base::optional<ScratchSurfaceCache> scratch_surface_cache_;
 
   base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
   base::optional<common::SurfaceCache> surface_cache_;
+
+  base::optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
+
+  FrameRateThrottler frame_rate_throttler_;
 };
 
 namespace {
@@ -121,6 +152,50 @@ GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
 }
 
 }  // namespace
+
+void HardwareRasterizer::Impl::RenderTextureEGL(
+    const render_tree::ImageNode* image_node,
+    RenderTreeNodeVisitorDrawState* draw_state) {
+  HardwareFrontendImage* image =
+      base::polymorphic_downcast<HardwareFrontendImage*>(
+          image_node->data().source.get());
+
+  const backend::TextureEGL* texture = image->GetTextureEGL();
+  const math::RectF& destination_rect = image_node->data().destination_rect;
+
+  // Flush the Skia draw state to ensure that all previously issued Skia calls
+  // are rendered so that the following draw command will appear in the correct
+  // order.
+  draw_state->render_target->flush();
+
+  // Render a texture to the specified output rectangle on the render target.
+  GL_CALL(glViewport(destination_rect.x(), destination_rect.y(),
+                     destination_rect.width(), destination_rect.height()));
+  GL_CALL(glScissor(destination_rect.x(), destination_rect.y(),
+                    destination_rect.width(), destination_rect.height()));
+
+  if (image->IsOpaque()) {
+    GL_CALL(glDisable(GL_BLEND));
+  } else {
+    GL_CALL(glEnable(GL_BLEND));
+  }
+  GL_CALL(glDisable(GL_DEPTH_TEST));
+  GL_CALL(glDisable(GL_STENCIL_TEST));
+  GL_CALL(glEnable(GL_SCISSOR_TEST));
+
+  if (!textured_mesh_renderer_) {
+    textured_mesh_renderer_.emplace(graphics_context_);
+  }
+  math::Rect content_region(image->GetSize());
+  if (image->GetContentRegion()) {
+    content_region = *image->GetContentRegion();
+  }
+  // Invoke out TexturedMeshRenderer to actually perform the draw call.
+  textured_mesh_renderer_->RenderQuad(texture, content_region);
+
+  // Let Skia know that we've modified GL state.
+  gr_context_->resetContext();
+}
 
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_cache_size_in_bytes,
@@ -181,7 +256,12 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
 HardwareRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
-  sk_output_surface_.reset(NULL);
+  textured_mesh_renderer_ = base::nullopt;
+
+  for (SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
+    iter != sk_output_surface_map_.end(); iter++) {
+    iter->second->unref();
+  }
   surface_cache_ = base::nullopt;
   surface_cache_delegate_ = base::nullopt;
   scratch_surface_cache_ = base::nullopt;
@@ -189,14 +269,30 @@ HardwareRasterizer::Impl::~Impl() {
   graphics_context_->ReleaseCurrentContext();
 }
 
+void HardwareRasterizer::Impl::AdvanceFrame() {
+  // Update our surface cache to do per-frame calculations such as deciding
+  // which render tree nodes are candidates for caching in this upcoming
+  // frame.
+  if (surface_cache_) {
+    surface_cache_->Frame();
+  }
+}
+
 void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    const Options& options) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  backend::RenderTargetEGL* render_target_egl =
+  scoped_refptr<backend::RenderTargetEGL> render_target_egl(
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
-          render_target.get());
+          render_target.get()));
+
+  // Skip rendering if we lost the surface. This can happen just before suspend
+  // on Android, so now we're just waiting for the suspend to clean up.
+  if (render_target_egl->is_surface_bad()) {
+    return;
+  }
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
@@ -205,14 +301,21 @@ void HardwareRasterizer::Impl::Submit(
   // draw calls, in case we have modified state in between.
   gr_context_->resetContext();
 
-  // Update our surface cache to do per-frame calculations such as deciding
-  // which render tree nodes are candidates for caching in this upcoming
-  // frame.
-  if (surface_cache_) {
-    surface_cache_->Frame();
-  }
+  AdvanceFrame();
 
-  if (!sk_output_surface_) {
+  SkSurface* sk_output_surface;
+  SkSurfaceMap::iterator iter = sk_output_surface_map_.find(render_target);
+  if (iter == sk_output_surface_map_.end()) {
+    // Remove the least recently used SkSurface from the map if we exceed the
+    // max allowed saved surfaces.
+    if (sk_output_surface_map_.size() > kMaxSkSurfaceCount) {
+      SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
+      DLOG(WARNING) << "Erasing the SkSurface for RenderTarget " << iter->first
+        << " this should not happen often or else it means the surface map is"
+        << " probably thrashing.";
+      iter->second->unref();
+      sk_output_surface_map_.erase(iter);
+    }
     // Setup a Skia render target that wraps the passed in Cobalt render target.
     SkAutoTUnref<GrRenderTarget> skia_render_target(
         gr_context_->wrapBackendRenderTarget(
@@ -221,14 +324,29 @@ void HardwareRasterizer::Impl::Submit(
 
     // Create an SkSurface from the render target so that we can acquire a
     // SkCanvas object from it in Submit().
-    sk_output_surface_.reset(CreateSkiaRenderTargetSurface(skia_render_target));
+    sk_output_surface = CreateSkiaRenderTargetSurface(skia_render_target);
+    sk_output_surface_map_[render_target] = sk_output_surface;
+  } else {
+    sk_output_surface = sk_output_surface_map_[render_target];
+    // Mark this RenderTarget/SkCanvas pair as the most recently used by
+    // popping it and re-adding it.
+    sk_output_surface_map_.erase(iter);
+    sk_output_surface_map_[render_target] = sk_output_surface;
   }
 
   // Get a SkCanvas that outputs to our hardware render target.
-  SkCanvas* canvas = sk_output_surface_->getCanvas();
+  SkCanvas* canvas = sk_output_surface->getCanvas();
+  canvas->save();
 
-  if (options & Rasterizer::kSubmitOptions_Clear) {
+  if (options.flags & Rasterizer::kSubmitFlags_Clear) {
     canvas->clear(SkColorSetARGB(0, 0, 0, 0));
+  } else if (options.dirty) {
+    // Only a portion of the display is dirty. Reuse the previous frame
+    // if possible.
+    if (render_target_egl->IsContentPreservedOnSwap() &&
+        render_target_egl->swap_count() >= 3) {
+      canvas->clipRect(CobaltRectFToSkiaRect(*options.dirty));
+    }
   }
 
   {
@@ -242,6 +360,8 @@ void HardwareRasterizer::Impl::Submit(
         canvas, &create_scratch_surface_function,
         base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
                    base::Unretained(this)),
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
+                   base::Unretained(this)),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
@@ -252,11 +372,54 @@ void HardwareRasterizer::Impl::Submit(
     canvas->flush();
   }
 
+  frame_rate_throttler_.EndInterval();
   graphics_context_->SwapBuffers(render_target_egl);
+  frame_rate_throttler_.BeginInterval();
+  canvas->restore();
+}
+
+void HardwareRasterizer::Impl::SubmitOffscreen(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    SkCanvas* canvas) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  // Reset the graphics context since we're starting from an unknown state.
+  gr_context_->resetContext();
+
+  {
+    TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
+    // Rasterize the passed in render tree to our hardware render target.
+    RenderTreeNodeVisitor::CreateScratchSurfaceFunction
+        create_scratch_surface_function =
+            base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
+                       base::Unretained(this));
+    RenderTreeNodeVisitor visitor(
+        canvas, &create_scratch_surface_function,
+        base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
+                   base::Unretained(this)),
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
+                   base::Unretained(this)),
+        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
+        surface_cache_ ? &surface_cache_.value() : NULL);
+    render_tree->Accept(&visitor);
+  }
+
+  {
+    TRACE_EVENT0("cobalt::renderer", "Skia Flush");
+    canvas->flush();
+  }
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
+}
+
+GrContext* HardwareRasterizer::Impl::GetGrContext() {
+  return gr_context_.get();
+}
+
+void HardwareRasterizer::Impl::MakeCurrent() {
+  graphics_context_->MakeCurrent();
 }
 
 SkSurface* HardwareRasterizer::Impl::CreateSkSurface(const math::Size& size) {
@@ -321,15 +484,33 @@ HardwareRasterizer::~HardwareRasterizer() {}
 
 void HardwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    const Options& options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Submit()");
   impl_->Submit(render_tree, render_target, options);
 }
 
+void HardwareRasterizer::SubmitOffscreen(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    SkCanvas* canvas) {
+  TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::SubmitOffscreen()");
+  impl_->SubmitOffscreen(render_tree, canvas);
+}
+
+void HardwareRasterizer::AdvanceFrame() {
+  impl_->AdvanceFrame();
+}
+
 render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
 }
+
+GrContext* HardwareRasterizer::GetGrContext() {
+  return impl_->GetGrContext();
+}
+
+void HardwareRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
 
 }  // namespace skia
 }  // namespace rasterizer

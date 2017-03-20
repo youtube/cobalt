@@ -1,7 +1,7 @@
 
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * Copyright (c) 1997-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -229,7 +229,7 @@ void IntlTestSimpleDateFormatAPI::testAPI(/*char *par*/)
     status = U_ZERO_ERROR;
     pat.applyLocalizedPattern(p1, status);
     if(U_FAILURE(status)) {
-        errln("ERROR: applyPattern() failed with " + (int32_t) status);
+        errln("ERROR: applyPattern() failed with %s", u_errorName(status));
     }
     UnicodeString s3;
     status = U_ZERO_ERROR;
@@ -268,6 +268,12 @@ void IntlTestSimpleDateFormatAPI::testAPI(/*char *par*/)
     UDate udDate = object.parse("2007W014", pp);
     if ((double)udDate == 0.0) {
         errln("ERROR: Parsing failed using 'Y' and 'e'");
+    }
+
+// ====== Test ticket 11295 getNumberFormatForField returns wild pointer
+    if (object.getNumberFormatForField('B') != NULL) {
+        errln("B is not a valid field, "
+              "getNumberFormatForField should return NULL");
     }
 }
 

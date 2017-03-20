@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
+#include "media/base/video_types.h"
 
 namespace media {
 
@@ -14,20 +15,21 @@ VideoDecoderConfig::VideoDecoderConfig()
       profile_(VIDEO_CODEC_PROFILE_UNKNOWN),
       format_(VideoFrame::INVALID),
       extra_data_size_(0),
-      is_encrypted_(false) {
-}
+      is_encrypted_(false),
+      color_space_(COLOR_SPACE_UNSPECIFIED) {}
 
 VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
                                        VideoCodecProfile profile,
                                        VideoFrame::Format format,
+                                       ColorSpace color_space,
                                        const gfx::Size& coded_size,
                                        const gfx::Rect& visible_rect,
                                        const gfx::Size& natural_size,
                                        const uint8* extra_data,
                                        size_t extra_data_size,
                                        bool is_encrypted) {
-  Initialize(codec, profile, format, coded_size, visible_rect, natural_size,
-             extra_data, extra_data_size, is_encrypted, true);
+  Initialize(codec, profile, format, color_space, coded_size, visible_rect,
+             natural_size, extra_data, extra_data_size, is_encrypted, true);
 }
 
 VideoDecoderConfig::~VideoDecoderConfig() {}
@@ -57,6 +59,7 @@ static void UmaHistogramAspectRatio(const char* name, const T& size) {
 void VideoDecoderConfig::Initialize(VideoCodec codec,
                                     VideoCodecProfile profile,
                                     VideoFrame::Format format,
+                                    ColorSpace color_space,
                                     const gfx::Size& coded_size,
                                     const gfx::Rect& visible_rect,
                                     const gfx::Size& natural_size,
@@ -82,6 +85,7 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   codec_ = codec;
   profile_ = profile;
   format_ = format;
+  color_space_ = color_space;
   coded_size_ = coded_size;
   visible_rect_ = visible_rect;
   natural_size_ = natural_size;
@@ -95,19 +99,33 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   }
 
   is_encrypted_ = is_encrypted;
+
+  switch (color_space) {
+    case COLOR_SPACE_JPEG:
+      webm_color_metadata_.color_space = gfx::ColorSpace::CreateJpeg();
+      break;
+    case COLOR_SPACE_HD_REC709:
+      webm_color_metadata_.color_space = gfx::ColorSpace::CreateREC709();
+      break;
+    case COLOR_SPACE_SD_REC601:
+      webm_color_metadata_.color_space = gfx::ColorSpace::CreateREC601();
+      break;
+    case COLOR_SPACE_UNSPECIFIED:
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
 }
 
 void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
-  Initialize(video_config.codec(),
-             video_config.profile(),
-             video_config.format(),
-             video_config.coded_size(),
-             video_config.visible_rect(),
-             video_config.natural_size(),
-             video_config.extra_data(),
-             video_config.extra_data_size(),
-             video_config.is_encrypted(),
+  Initialize(video_config.codec(), video_config.profile(),
+             video_config.format(), video_config.color_space_,
+             video_config.coded_size(), video_config.visible_rect(),
+             video_config.natural_size(), video_config.extra_data(),
+             video_config.extra_data_size(), video_config.is_encrypted(),
              false);
+  webm_color_metadata_ = video_config.webm_color_metadata_;
 }
 
 bool VideoDecoderConfig::IsValidConfig() const {
@@ -119,15 +137,15 @@ bool VideoDecoderConfig::IsValidConfig() const {
 }
 
 bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
-  return ((codec() == config.codec()) &&
-          (format() == config.format()) &&
+  return ((codec() == config.codec()) && (format() == config.format()) &&
+          (webm_color_metadata_ == config.webm_color_metadata()) &&
           (profile() == config.profile()) &&
           (coded_size() == config.coded_size()) &&
           (visible_rect() == config.visible_rect()) &&
           (natural_size() == config.natural_size()) &&
           (extra_data_size() == config.extra_data_size()) &&
-          (!extra_data() || !memcmp(extra_data(), config.extra_data(),
-                                    extra_data_size())) &&
+          (!extra_data() ||
+           !memcmp(extra_data(), config.extra_data(), extra_data_size())) &&
           (is_encrypted() == config.is_encrypted()));
 }
 

@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1998-2010, International Business Machines
+*   Copyright (C) 1998-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -29,6 +29,9 @@
 #include "unicode/ucnv.h"
 #include "unicode/utrans.h"
 #include "unicode/localpointer.h"
+#include "unicode/unum.h"
+
+#if !UCONFIG_NO_CONVERSION
 
 /*
     TODO
@@ -241,6 +244,29 @@ u_fopen(const char    *filename,
     const char    *codepage);
 
 /**
+ * Open a UFILE with a UChar* filename
+ * A UFILE is a wrapper around a FILE* that is locale and codepage aware.
+ * That is, data written to a UFILE will be formatted using the conventions
+ * specified by that UFILE's Locale; this data will be in the character set
+ * specified by that UFILE's codepage.
+ * @param filename The name of the file to open.
+ * @param perm The read/write permission for the UFILE; one of "r", "w", "rw"
+ * @param locale The locale whose conventions will be used to format
+ * and parse output. If this parameter is NULL, the default locale will
+ * be used.
+ * @param codepage The codepage in which data will be written to and
+ * read from the file. If this paramter is NULL the system default codepage
+ * will be used.
+ * @return A new UFILE, or NULL if an error occurred.
+ * @stable ICU 54
+ */
+U_STABLE UFILE* U_EXPORT2
+u_fopen_u(const UChar    *filename,
+    const char    *perm,
+    const char    *locale,
+    const char    *codepage);
+
+/**
  * Open a UFILE on top of an existing FILE* stream. The FILE* stream
  * ownership remains with the caller. To have the UFILE take over
  * ownership and responsibility for the FILE* stream, use the
@@ -364,7 +390,7 @@ u_frewind(UFILE *file);
 /**
  * Get the FILE* associated with a UFILE.
  * @param f The UFILE
- * @return A FILE*, owned by the UFILE.  The FILE <EM>must not</EM> be closed.
+ * @return A FILE*, owned by the UFILE. (The FILE <EM>must not</EM> be modified or closed)
  * @stable ICU 3.0
  */
 U_STABLE FILE* U_EXPORT2
@@ -432,14 +458,32 @@ u_fsetcodepage(const char   *codepage,
 /**
  * Returns an alias to the converter being used for this file.
  * @param f The UFILE to get the value from
- * @return alias to the converter
+ * @return alias to the converter (The converter <EM>must not</EM> be modified or closed)
  * @stable ICU 3.0
  */
 U_STABLE UConverter* U_EXPORT2 u_fgetConverter(UFILE *f);
 
 #if !UCONFIG_NO_FORMATTING
+/**
+ * Returns an alias to the number formatter being used for this file.
+ * @param f The UFILE to get the value from
+ * @return alias to the number formatter (The formatter <EM>must not</EM> be modified or closed)
+ * @stable ICU 51
+*/
+ U_STABLE const UNumberFormat* U_EXPORT2 u_fgetNumberFormat(UFILE *f);
 
 /* Output functions */
+
+/**
+ * Write formatted data to <TT>stdout</TT>.
+ * @param patternSpecification A pattern specifying how <TT>u_printf</TT> will
+ * interpret the variable arguments received and format the data.
+ * @return The number of Unicode characters written to <TT>stdout</TT>
+ * @stable ICU 49
+ */
+U_STABLE int32_t U_EXPORT2
+u_printf(const char *patternSpecification,
+         ... );
 
 /**
  * Write formatted data to a UFILE.
@@ -470,6 +514,25 @@ U_STABLE int32_t U_EXPORT2
 u_vfprintf(UFILE        *f,
            const char   *patternSpecification,
            va_list      ap);
+
+/**
+ * Write formatted data to <TT>stdout</TT>.
+ * @param patternSpecification A pattern specifying how <TT>u_printf_u</TT> will
+ * interpret the variable arguments received and format the data.
+ * @return The number of Unicode characters written to <TT>stdout</TT>
+ * @stable ICU 49
+ */
+U_STABLE int32_t U_EXPORT2
+u_printf_u(const UChar *patternSpecification,
+           ... );
+
+/**
+ * Get a UFILE for <TT>stdout</TT>.
+ * @return UFILE that writes to <TT>stdout</TT>
+ * @stable ICU 49
+ */
+U_STABLE UFILE * U_EXPORT2
+u_get_stdout(void);
 
 /**
  * Write formatted data to a UFILE.
@@ -945,6 +1008,8 @@ u_vsscanf_u(const UChar *buffer,
         const UChar     *patternSpecification,
         va_list         ap);
 
+
+#endif
 #endif
 #endif
 

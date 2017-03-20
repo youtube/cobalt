@@ -21,6 +21,7 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/file_util.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/platform_file.h"
@@ -38,7 +39,9 @@
 #include "net/base/net_util.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_error_job.h"
+#if !defined(COBALT)
 #include "net/url_request/url_request_file_dir_job.h"
+#endif
 
 #if defined(OS_WIN)
 #include "base/win/shortcut.h"

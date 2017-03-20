@@ -16,12 +16,12 @@ implements starboard/tizen platform APIs.
 ## Building
 
 0. libavresample, libavresample-devel
-    $ mv libavresample-11.4-0.armv7l.rpm $HOME/GBS-ROOT-COBALT/local/repos/cobalt/armv7l/RPMS/
-	$ mv libavresample-devel-11.4-0.armv7l.rpm $HOME/GBS-ROOT-COBALT/local/repos/cobalt/armv7l/RPMS/
-      You should create directory or build is generated automatically this directory.
+    $ cp -f libavresample-11.4-0.armv7l.rpm $HOME/GBS-ROOT-COBALT/local/repos/cobalt/armv7l/RPMS/
+    $ cp -f libavresample-devel-11.4-0.armv7l.rpm $HOME/GBS-ROOT-COBALT/local/repos/cobalt/armv7l/RPMS/
+    You should create directory or build is generated automatically this directory.
 
 1. Build commands:
-  * armv7l
+  - armv7l
     $ gbs -c packaging/gbs.conf -v build -A armv7l -P profile.cobalt [options]
     Detail option see "gbs --help" and "gbs -v build --help"
 

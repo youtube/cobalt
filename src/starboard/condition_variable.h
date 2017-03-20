@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Condition variables.
+// Module Overview: Starboard Condition Variable module
+//
+// Defines an interface for condition variables.
 
 #ifndef STARBOARD_CONDITION_VARIABLE_H_
 #define STARBOARD_CONDITION_VARIABLE_H_
@@ -51,18 +53,18 @@ static SB_C_INLINE bool SbConditionVariableIsSignaled(
 }
 
 // Creates a new condition variable to work with |opt_mutex|, which may be null,
-// placing the newly created condition variable in |out_condition|. Returns
-// whether the condition variable could be created.
-// TODO: It looks like WTF does not have the mutex available when creating
-// the condition variable, and pthreads doesn't appear to require the mutex on
-// condvar creation, so we should just remove the parameter.
+// placing the newly created condition variable in |out_condition|.
+//
+// The return value indicates whether the condition variable could be created.
 SB_EXPORT bool SbConditionVariableCreate(SbConditionVariable* out_condition,
                                          SbMutex* opt_mutex);
 
-// Destroys a condition variable, returning whether the destruction was
-// successful. The condition variable specified by |condition| is
-// invalidated. Behavior is undefined if other threads are currently waiting
-// on this condition variable.
+// Destroys the specified SbConditionVariable. The return value indicates
+// whether the destruction was successful. The behavior is undefined if other
+// threads are currently waiting on this condition variable.
+//
+// |condition|: The SbConditionVariable to be destroyed. This invalidates the
+// condition variable.
 SB_EXPORT bool SbConditionVariableDestroy(SbConditionVariable* condition);
 
 // Waits for |condition|, releasing the held lock |mutex|, blocking
@@ -72,19 +74,30 @@ SB_EXPORT SbConditionVariableResult
 SbConditionVariableWait(SbConditionVariable* condition, SbMutex* mutex);
 
 // Waits for |condition|, releasing the held lock |mutex|, blocking up to
-// |timeout_duration|, and returning the acquisition result. If
-// |timeout_duration| is less than or equal to zero, it will return as quickly
-// as possible with a kSbConditionVariableTimedOut result. Behavior is undefined
-// if |mutex| is not held.
+// |timeout_duration|, and returning the acquisition result. Behavior is
+// undefined if |mutex| is not held.
+//
+// |timeout_duration|: The maximum amount of time that function should wait
+// for |condition|. If the |timeout_duration| value is less than or equal to
+// zero, the function returns as quickly as possible with a
+// kSbConditionVariableTimedOut result.
 SB_EXPORT SbConditionVariableResult
 SbConditionVariableWaitTimed(SbConditionVariable* condition,
                              SbMutex* mutex,
                              SbTime timeout_duration);
 
-// Broadcasts to all current waiters of |condition| to stop waiting.
+// Broadcasts to all current waiters of |condition| to stop waiting. This
+// function wakes all of the threads waiting on |condition| while
+// SbConditionVariableSignal wakes a single thread.
+//
+// |condition|: The condition that should no longer be waited for.
 SB_EXPORT bool SbConditionVariableBroadcast(SbConditionVariable* condition);
 
-// Signals the next waiter of |condition| to stop waiting.
+// Signals the next waiter of |condition| to stop waiting. This function wakes
+// a single thread waiting on |condition| while SbConditionVariableBroadcast
+// wakes all threads waiting on it.
+//
+// |condition|: The condition that the waiter should stop waiting for.
 SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
 
 #ifdef __cplusplus
@@ -98,17 +111,29 @@ namespace starboard {
 class ConditionVariable {
  public:
   explicit ConditionVariable(const Mutex& mutex)
-      : mutex_(mutex.mutex()), condition_() {
-    SbConditionVariableCreate(&condition_, mutex_);
+      : mutex_(&mutex), condition_() {
+    SbConditionVariableCreate(&condition_, mutex_->mutex());
   }
 
   ~ConditionVariable() { SbConditionVariableDestroy(&condition_); }
 
-  void Wait() const { SbConditionVariableWait(&condition_, mutex_); }
+  // Releases the mutex and waits for the condition to become true. When this
+  // function returns the mutex will have been re-acquired.
+  void Wait() const {
+    mutex_->debugSetReleased();
+    SbConditionVariableWait(&condition_, mutex_->mutex());
+    mutex_->debugSetAcquired();
+  }
 
+  // Returns |true| if this condition variable was signaled. Otherwise |false|
+  // means that the condition variable timed out. In either case the
+  // mutex has been re-acquired once this function returns.
   bool WaitTimed(SbTime duration) const {
-    return SbConditionVariableIsSignaled(
-        SbConditionVariableWaitTimed(&condition_, mutex_, duration));
+    mutex_->debugSetReleased();
+    bool was_signaled = SbConditionVariableIsSignaled(
+        SbConditionVariableWaitTimed(&condition_, mutex_->mutex(), duration));
+    mutex_->debugSetAcquired();
+    return was_signaled;
   }
 
   void Broadcast() const { SbConditionVariableBroadcast(&condition_); }
@@ -116,7 +141,7 @@ class ConditionVariable {
   void Signal() const { SbConditionVariableSignal(&condition_); }
 
  private:
-  mutable SbMutex* mutex_;
+  const Mutex* mutex_;
   mutable SbConditionVariable condition_;
 };
 

@@ -1,11 +1,11 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * Copyright (c) 1997-2015, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 /*****************************************************************************
 *
-* File CU_CAPITST.C
+* File ccapitst.c
 *
 * Modification History:
 *        Name                      Description            
@@ -26,64 +26,17 @@
 #include "cmemory.h"  /* for UAlignedMemory */
 #include "cintltst.h"
 #include "ccapitst.h"
-
-/* for not including "cstring.h" -begin*/    
-#ifdef U_WINDOWS
-#   define ctest_stricmp(str1, str2) U_STANDARD_CPP_NAMESPACE _stricmp(str1, str2)
-#elif defined(POSIX) 
-#   define ctest_stricmp(str1, str2) U_STANDARD_CPP_NAMESPACE strcasecmp(str1, str2) 
-#else
-#   define ctest_stricmp(str1, str2) T_CString_stricmp(str1, str2)
-#endif
-
-static int U_EXPORT2
-T_CString_stricmp(const char *str1, const char *str2) {
-    if(str1==NULL) {
-        if(str2==NULL) {
-            return 0;
-        } else {
-            return -1;
-        }
-    } else if(str2==NULL) {
-        return 1;
-    } else {
-        /* compare non-NULL strings lexically with lowercase */
-        int rc;
-        unsigned char c1, c2;
-        for(;;) {
-            c1=(unsigned char)*str1;
-            c2=(unsigned char)*str2;
-            if(c1==0) {
-                if(c2==0) {
-                    return 0;
-                } else {
-                    return -1;
-                }
-            } else if(c2==0) {
-                return 1;
-            } else {
-                /* compare non-zero characters with lowercase */
-                rc=(int)(unsigned char)tolower(c1)-(int)(unsigned char)tolower(c2);
-                if(rc!=0) {
-                    return rc;
-                }
-            }
-            ++str1;
-            ++str2;
-        }
-    }
-}
-/* for not including "cstring.h"  -end*/    
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
+#include "cstring.h"
 
 #define NUM_CODEPAGE 1
 #define MAX_FILE_LEN 1024*20
 #define UCS_FILE_NAME_SIZE 512
 
 /*returns an action other than the one provided*/
+#if !UCONFIG_NO_LEGACY_CONVERSION
 static UConverterFromUCallback otherUnicodeAction(UConverterFromUCallback MIA);
 static UConverterToUCallback otherCharAction(UConverterToUCallback MIA);
+#endif
 
 static UConverter *
 cnv_open(const char *name, UErrorCode *pErrorCode) {
@@ -101,7 +54,9 @@ static void TestDuplicateAlias(void);
 static void TestCCSID(void);
 static void TestJ932(void);
 static void TestJ1968(void);
+#if !UCONFIG_NO_FILE_IO && !UCONFIG_NO_LEGACY_CONVERSION
 static void TestLMBCSMaxChar(void);
+#endif
 
 #if !UCONFIG_NO_LEGACY_CONVERSION
 static void TestConvertSafeCloneCallback(void);
@@ -296,7 +251,6 @@ static void TestConvert()
     UChar*                my_ucs_file_buffer; /*    [MAX_FILE_LEN] */
     UChar*                my_ucs_file_buffer_1;
     int8_t                ii                  =   0;
-    int32_t             j                   =   0;
     uint16_t            codepage_index      =   0;
     int32_t             cp                  =   0;
     UErrorCode          err                 =   U_ZERO_ERROR;
@@ -594,8 +548,8 @@ static void TestConvert()
         if (!myConverter || U_FAILURE(err))   
         {
             log_data_err("Error creating the ibm-949 converter - %s \n", u_errorName(err));
-
-            return;
+            fclose(ucs_file_in);
+            break;
         }
 
         /*testing for ucnv_getName()  */
@@ -607,7 +561,7 @@ static void TestConvert()
         {
             log_verbose("getName o.k. %s\n", ucnv_getName(myConverter, &err));
         }
-        if (ctest_stricmp(ucnv_getName(myConverter, &err), CodePagesToTest[codepage_index]))
+        if (uprv_stricmp(ucnv_getName(myConverter, &err), CodePagesToTest[codepage_index]))
             log_err("getName failed\n");
         else 
             log_verbose("getName ok\n");
@@ -881,11 +835,16 @@ static void TestConvert()
 
 
         /*Reads the BOM*/
-        fread(&BOM, sizeof(UChar), 1, ucs_file_in);
+        {
+            // Note: gcc produces a compile warning if the return value from fread() is ignored.
+            size_t numRead = fread(&BOM, sizeof(UChar), 1, ucs_file_in);
+            (void)numRead;
+        }
         if (BOM!=0xFEFF && BOM!=0xFFFE) 
         {
             log_err("File Missing BOM...Bailing!\n");
-            return;
+            fclose(ucs_file_in);
+            break;
         }
 
 
@@ -1011,7 +970,6 @@ static void TestConvert()
 
         /*testing for ucnv_fromUnicode() and ucnv_toUnicode() */
         /*Clean up re-usable vars*/
-        j=0;
         log_verbose("Testing ucnv_fromUnicode().....\n");
         tmp_ucs_buf=ucs_file_buffer_use; 
         ucnv_fromUnicode(myConverter, &mytarget_1,
@@ -1022,6 +980,7 @@ static void TestConvert()
                  TRUE,
                  &err);
         consumedUni = (UChar*)tmp_consumedUni;
+        (void)consumedUni;   /* Suppress set but not used warning. */
 
         if (U_FAILURE(err)) 
         {
@@ -1088,16 +1047,17 @@ static void TestConvert()
 #endif
 }
 
+#if !UCONFIG_NO_LEGACY_CONVERSION
 static UConverterFromUCallback otherUnicodeAction(UConverterFromUCallback MIA)
 {
     return (MIA==(UConverterFromUCallback)UCNV_FROM_U_CALLBACK_STOP)?(UConverterFromUCallback)UCNV_FROM_U_CALLBACK_SUBSTITUTE:(UConverterFromUCallback)UCNV_FROM_U_CALLBACK_STOP;
 }
 
-
 static UConverterToUCallback otherCharAction(UConverterToUCallback MIA)
 {
     return (MIA==(UConverterToUCallback)UCNV_TO_U_CALLBACK_STOP)?(UConverterToUCallback)UCNV_TO_U_CALLBACK_SUBSTITUTE:(UConverterToUCallback)UCNV_TO_U_CALLBACK_STOP;
 }
+#endif
 
 static void TestFlushCache(void) {
 #if !UCONFIG_NO_LEGACY_CONVERSION
@@ -1189,13 +1149,11 @@ static void TestAlias() {
     const char* ISO_2022_NAMES[] = 
         {"ISO_2022,locale=ja,version=2", "ISO-2022-JP-2", "csISO2022JP2",
          "Iso-2022jP2", "isO-2022_Jp_2", "iSo--2022,locale=ja,version=2"};
-    int32_t ISO_2022_NAMES_LENGTH =
-        sizeof(ISO_2022_NAMES) / sizeof(ISO_2022_NAMES[0]);
+    int32_t ISO_2022_NAMES_LENGTH = UPRV_LENGTHOF(ISO_2022_NAMES);
     const char *UTF8_NAMES[] =
         { "UTF-8", "utf-8", "utf8", "ibm-1208",
           "utf_8", "ibm1208", "cp1208" };
-    int32_t UTF8_NAMES_LENGTH =
-        sizeof(UTF8_NAMES) / sizeof(UTF8_NAMES[0]);
+    int32_t UTF8_NAMES_LENGTH = UPRV_LENGTHOF(UTF8_NAMES);
 
     struct {
         const char *name;
@@ -1236,7 +1194,7 @@ static void TestAlias() {
             if (strcmp(ucnv_getName(cnv, &status), name) != 0 
                 && (strstr(name, "PlatformEndian") == 0 && strstr(name, "OppositeEndian") == 0)) {
                 log_err("FAIL: Converter \"%s\" returned \"%s\" for getName. "
-                        "The should be the same\n",
+                        "They should be the same\n",
                         name, ucnv_getName(cnv, &status));
             }
         }
@@ -1397,6 +1355,7 @@ static TSCCContext *TSCC_clone(TSCCContext *ctx)
     return newCtx;
 }
 
+#if !UCONFIG_NO_LEGACY_CONVERSION
 static void TSCC_fromU(const void *context,
                         UConverterFromUnicodeArgs *fromUArgs,
                         const UChar* codeUnits,
@@ -1443,7 +1402,6 @@ static void TSCC_fromU(const void *context,
         ctx->wasClosed = TRUE;
     }
 }
-
 
 static void TSCC_toU(const void *context,
                         UConverterToUnicodeArgs *toUArgs,
@@ -1512,7 +1470,6 @@ static void TSCC_print_log(TSCCContext *q, const char *name)
     }
 }
 
-#if !UCONFIG_NO_LEGACY_CONVERSION
 static void TestConvertSafeCloneCallback()
 {
     UErrorCode err = U_ZERO_ERROR;
@@ -1719,7 +1676,7 @@ static void TestConvertSafeClone()
     };
 
     /* store the actual sizes of each converter */
-    int32_t actualSizes[LENGTHOF(names)];
+    int32_t actualSizes[UPRV_LENGTHOF(names)];
 
     static const int32_t bufferSizes[] = {
         U_CNV_SAFECLONE_BUFFERSIZE,
@@ -1746,7 +1703,7 @@ static void TestConvertSafeClone()
     UChar *pUCharTargetLimit = uniCharBuffer + sizeof(uniCharBuffer)/sizeof(*uniCharBuffer);
     const UChar * pUniBuffer;
     const UChar *uniBufferLimit = uniBuffer + sizeof(uniBuffer)/sizeof(*uniBuffer);
-    int32_t index, j;
+    int32_t idx, j;
 
     err = U_ZERO_ERROR;
     cnv = ucnv_open(names[0], &err);
@@ -1755,28 +1712,29 @@ static void TestConvertSafeClone()
 
         /* Null status - just returns NULL */
         bufferSize = U_CNV_SAFECLONE_BUFFERSIZE;
-        if (0 != ucnv_safeClone(cnv, buffer[0], &bufferSize, 0))
+        if (NULL != ucnv_safeClone(cnv, buffer[0], &bufferSize, NULL))
         {
             log_err("FAIL: Cloned converter failed to deal correctly with null status\n");
         }
         /* error status - should return 0 & keep error the same */
         err = U_MEMORY_ALLOCATION_ERROR;
-        if (0 != ucnv_safeClone(cnv, buffer[0], &bufferSize, &err) || err != U_MEMORY_ALLOCATION_ERROR)
+        if (NULL != ucnv_safeClone(cnv, buffer[0], &bufferSize, &err) || err != U_MEMORY_ALLOCATION_ERROR)
         {
             log_err("FAIL: Cloned converter failed to deal correctly with incoming error status\n");
         }
         err = U_ZERO_ERROR;
 
-        /* Null buffer size pointer - just returns NULL & set error to U_ILLEGAL_ARGUMENT_ERROR*/
-        if (0 != ucnv_safeClone(cnv, buffer[0], 0, &err) || err != U_ILLEGAL_ARGUMENT_ERROR)
+        /* Null buffer size pointer is ok */
+        if (NULL == (cnv2 = ucnv_safeClone(cnv, buffer[0], NULL, &err)) || U_FAILURE(err))
         {
             log_err("FAIL: Cloned converter failed to deal correctly with null bufferSize pointer\n");
         }
+        ucnv_close(cnv2);
         err = U_ZERO_ERROR;
 
         /* buffer size pointer is 0 - fill in pbufferSize with a size */
         bufferSize = 0;
-        if (0 != ucnv_safeClone(cnv, buffer[0], &bufferSize, &err) || U_FAILURE(err) || bufferSize <= 0)
+        if (NULL != ucnv_safeClone(cnv, buffer[0], &bufferSize, &err) || U_FAILURE(err) || bufferSize <= 0)
         {
             log_err("FAIL: Cloned converter failed a sizing request ('preflighting')\n");
         }
@@ -1786,7 +1744,7 @@ static void TestConvertSafeClone()
             log_err("FAIL: Pre-calculated buffer size is too small\n");
         }
         /* Verify we can use this run-time calculated size */
-        if (0 == (cnv2 = ucnv_safeClone(cnv, buffer[0], &bufferSize, &err)) || U_FAILURE(err))
+        if (NULL == (cnv2 = ucnv_safeClone(cnv, buffer[0], &bufferSize, &err)) || U_FAILURE(err))
         {
             log_err("FAIL: Converter can't be cloned with run-time size\n");
         }
@@ -1796,7 +1754,7 @@ static void TestConvertSafeClone()
 
         /* size one byte too small - should allocate & let us know */
         --bufferSize;
-        if (0 == (cnv2 = ucnv_safeClone(cnv, 0, &bufferSize, &err)) || err != U_SAFECLONE_ALLOCATED_WARNING)
+        if (NULL == (cnv2 = ucnv_safeClone(cnv, NULL, &bufferSize, &err)) || err != U_SAFECLONE_ALLOCATED_WARNING)
         {
             log_err("FAIL: Cloned converter failed to deal correctly with too-small buffer size\n");
         }
@@ -1808,7 +1766,7 @@ static void TestConvertSafeClone()
         bufferSize = U_CNV_SAFECLONE_BUFFERSIZE;
 
         /* Null buffer pointer - return converter & set error to U_SAFECLONE_ALLOCATED_ERROR */
-        if (0 == (cnv2 = ucnv_safeClone(cnv, 0, &bufferSize, &err)) || err != U_SAFECLONE_ALLOCATED_WARNING)
+        if (NULL == (cnv2 = ucnv_safeClone(cnv, NULL, &bufferSize, &err)) || err != U_SAFECLONE_ALLOCATED_WARNING)
         {
             log_err("FAIL: Cloned converter failed to deal correctly with null buffer pointer\n");
         }
@@ -1819,7 +1777,7 @@ static void TestConvertSafeClone()
         err = U_ZERO_ERROR;
     
         /* Null converter - return NULL & set U_ILLEGAL_ARGUMENT_ERROR */
-        if (0 != ucnv_safeClone(0, buffer[0], &bufferSize, &err) || err != U_ILLEGAL_ARGUMENT_ERROR)
+        if (NULL != ucnv_safeClone(NULL, buffer[0], &bufferSize, &err) || err != U_ILLEGAL_ARGUMENT_ERROR)
         {
             log_err("FAIL: Cloned converter failed to deal correctly with null converter pointer\n");
         }
@@ -1832,23 +1790,23 @@ static void TestConvertSafeClone()
 
     /* Do these cloned converters work at all - shuffle UChars to chars & back again..*/
 
-    for(j = 0; j < LENGTHOF(bufferSizes); ++j) {
-        for (index = 0; index < LENGTHOF(names); index++)
+    for(j = 0; j < UPRV_LENGTHOF(bufferSizes); ++j) {
+        for (idx = 0; idx < UPRV_LENGTHOF(names); idx++)
         {
             err = U_ZERO_ERROR;
-            cnv = ucnv_open(names[index], &err);
+            cnv = ucnv_open(names[idx], &err);
             if(U_FAILURE(err)) {
-                log_data_err("ucnv_open(\"%s\") failed - %s\n", names[index], u_errorName(err));
+                log_data_err("ucnv_open(\"%s\") failed - %s\n", names[idx], u_errorName(err));
                 continue;
             }
 
             if(j == 0) {
                 /* preflight to get maxBufferSize */
-                actualSizes[index] = 0;
-                ucnv_safeClone(cnv, NULL, &actualSizes[index], &err);
-                if(actualSizes[index] > maxBufferSize) {
-                    maxBufferSize = actualSizes[index];
-                    maxName = names[index];
+                actualSizes[idx] = 0;
+                ucnv_safeClone(cnv, NULL, &actualSizes[idx], &err);
+                if(actualSizes[idx] > maxBufferSize) {
+                    maxBufferSize = actualSizes[idx];
+                    maxName = names[idx];
                 }
             }
 
@@ -1860,10 +1818,10 @@ static void TestConvertSafeClone()
             /* close the original immediately to make sure that the clone works by itself */
             ucnv_close(cnv);
 
-            if( actualSizes[index] <= (bufferSizes[j] - (int32_t)sizeof(UAlignedMemory)) &&
+            if( actualSizes[idx] <= (bufferSizes[j] - (int32_t)sizeof(UAlignedMemory)) &&
                 err == U_SAFECLONE_ALLOCATED_WARNING
             ) {
-                log_err("ucnv_safeClone(%s) did a heap clone although the buffer was large enough\n", names[index]);
+                log_err("ucnv_safeClone(%s) did a heap clone although the buffer was large enough\n", names[idx]);
             }
 
             /* check if the clone function overwrote any bytes that it is not supposed to touch */
@@ -1873,13 +1831,13 @@ static void TestConvertSafeClone()
                     containsAnyOtherByte(buffer[1]+bufferSize, (int32_t)(sizeof(buffer)-(sizeof(buffer[0])+bufferSize)), 0xaa)
                 ) {
                     log_err("cloning %s in a stack buffer overwrote bytes outside the bufferSize %d (requested %d)\n",
-                        names[index], bufferSize, bufferSizes[j]);
+                        names[idx], bufferSize, bufferSizes[j]);
                 }
             } else {
                 /* heap-allocated the clone */
                 if(containsAnyOtherByte(buffer[0], (int32_t)sizeof(buffer), 0xaa)) {
                     log_err("cloning %s used the heap (bufferSize %d, requested %d) but overwrote stack buffer bytes\n",
-                        names[index], bufferSize, bufferSizes[j]);
+                        names[idx], bufferSize, bufferSizes[j]);
                 }
             }
 
@@ -2042,6 +2000,7 @@ static void bug2()
 {
     /* US-ASCII "1234567890" */
     static const char source[]={ 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39 };
+#if !UCONFIG_ONLY_HTML_CONVERSION
     static const char sourceUTF8[]={ 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, (char)0xef, (char)0x80, (char)0x80 };
     static const char sourceUTF32[]={ 0x00, 0x00, 0x00, 0x30,
                                       0x00, 0x00, 0x00, 0x31,
@@ -2053,6 +2012,8 @@ static void bug2()
                                       0x00, 0x00, 0x00, 0x37,
                                       0x00, 0x00, 0x00, 0x38,
                                       0x00, 0x00, (char)0xf0, 0x00};
+#endif
+
     static char target[5];
 
     UErrorCode err = U_ZERO_ERROR;
@@ -2072,6 +2033,7 @@ static void bug2()
         log_data_err("error j932 bug 2 us-ascii->iso-8859-1: got preflighting size %d instead of 10\n", size);
     }
 
+#if !UCONFIG_ONLY_HTML_CONVERSION
     err = U_ZERO_ERROR;
     /* do the conversion */
     size = ucnv_convert("UTF-32BE", /* out */
@@ -2101,6 +2063,7 @@ static void bug2()
         /* bug2: size is 5, should be 12 */
         log_err("error j932 bug 2 UTF-32BE->UTF-8: got preflighting size %d instead of 12\n", size);
     }
+#endif
 }
 
 /*
@@ -2109,7 +2072,7 @@ static void bug2()
  */
 static void bug3()
 {
-#if !UCONFIG_NO_LEGACY_CONVERSION
+#if !UCONFIG_NO_LEGACY_CONVERSION && !UCONFIG_ONLY_HTML_CONVERSION
     char char_in[CHUNK_SIZE*4];
     char target[5];
     UErrorCode err = U_ZERO_ERROR;
@@ -2478,11 +2441,13 @@ static const char *const badUTF8[]={
     "\xff"
 };
 
+#define ARG_CHAR_ARR_SIZE 8
+
 /* get some character that can be converted and convert it */
 static UBool getTestChar(UConverter *cnv, const char *converterName,
                          char charUTF8[4], int32_t *pCharUTF8Length,
-                         char char0[8], int32_t *pChar0Length,
-                         char char1[8], int32_t *pChar1Length) {
+                         char char0[ARG_CHAR_ARR_SIZE], int32_t *pChar0Length,
+                         char char1[ARG_CHAR_ARR_SIZE], int32_t *pChar1Length) {
     UChar utf16[U16_MAX_LENGTH];
     int32_t utf16Length;
 
@@ -2507,7 +2472,7 @@ static UBool getTestChar(UConverter *cnv, const char *converterName,
     utf16Source=utf16;
     target=char0;
     ucnv_fromUnicode(cnv,
-                     &target, char0+sizeof(char0),
+                     &target, char0+ARG_CHAR_ARR_SIZE,
                      &utf16Source, utf16+utf16Length,
                      NULL, FALSE, &errorCode);
     *pChar0Length=(int32_t)(target-char0);
@@ -2515,7 +2480,7 @@ static UBool getTestChar(UConverter *cnv, const char *converterName,
     utf16Source=utf16;
     target=char1;
     ucnv_fromUnicode(cnv,
-                     &target, char1+sizeof(char1),
+                     &target, char1+ARG_CHAR_ARR_SIZE,
                      &utf16Source, utf16+utf16Length,
                      NULL, FALSE, &errorCode);
     *pChar1Length=(int32_t)(target-char1);
@@ -2555,7 +2520,7 @@ static void testFromTruncatedUTF8(UConverter *utf8Cnv, UConverter *cnv, const ch
 
     memcpy(utf8, charUTF8, charUTF8Length);
 
-    for(i=0; i<LENGTHOF(badUTF8); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(badUTF8); ++i) {
         /* truncated sequence? */
         int32_t length=strlen(badUTF8[i]);
         if(length>=(1+U8_COUNT_TRAIL_BYTES(badUTF8[i][0]))) {
@@ -2574,10 +2539,11 @@ static void testFromTruncatedUTF8(UConverter *utf8Cnv, UConverter *cnv, const ch
         ucnv_convertEx(cnv, utf8Cnv,
                        &target, output+sizeof(output),
                        &source, utf8+utf8Length,
-                       pivotBuffer, &pivotSource, &pivotTarget, pivotBuffer+LENGTHOF(pivotBuffer),
+                       pivotBuffer, &pivotSource, &pivotTarget, pivotBuffer+UPRV_LENGTHOF(pivotBuffer),
                        TRUE, TRUE, /* reset & flush */
                        &errorCode);
         outputLength=(int32_t)(target-output);
+        (void)outputLength;   /* Suppress set but not used warning. */
         if(errorCode!=U_TRUNCATED_CHAR_FOUND || pivotSource!=pivotBuffer) {
             log_err("unexpected error %s from %s badUTF8[%ld]\n", u_errorName(errorCode), converterName, (long)i);
             continue;
@@ -2618,7 +2584,7 @@ static void testFromBadUTF8(UConverter *utf8Cnv, UConverter *cnv, const char *co
     memcpy(expect, char0, char0Length);
     expectLength=char0Length;
 
-    for(i=0; i<LENGTHOF(badUTF8); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(badUTF8); ++i) {
         int32_t length=strlen(badUTF8[i]);
         memcpy(utf8+utf8Length, badUTF8[i], length);
         utf8Length+=length;
@@ -2668,7 +2634,7 @@ static void TestConvertExFromUTF8() {
         return;
     }
 
-    for(i=0; i<LENGTHOF(converterNames); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(converterNames); ++i) {
         errorCode=U_ZERO_ERROR;
         cnv=ucnv_open(converterNames[i], &errorCode);
         if(U_FAILURE(errorCode)) {
@@ -2727,7 +2693,7 @@ static void TestConvertExFromUTF8_C5F0() {
         return;
     }
 
-    for(i=0; i<LENGTHOF(converterNames); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(converterNames); ++i) {
         errorCode=U_ZERO_ERROR;
         cnv=ucnv_open(converterNames[i], &errorCode);
         ucnv_setFromUCallBack(cnv, UCNV_FROM_U_CALLBACK_ESCAPE, UCNV_ESCAPE_XML_DEC,
@@ -2740,7 +2706,7 @@ static void TestConvertExFromUTF8_C5F0() {
         src=bad_utf8;
         target=dest;
         uprv_memset(dest, 9, sizeof(dest));
-        if(i==LENGTHOF(converterNames)-1) {
+        if(i==UPRV_LENGTHOF(converterNames)-1) {
             /* conversion to UTF-8 yields two U+FFFD directly */
             expected=twoFFFD;
             expectedLength=6;
@@ -2757,7 +2723,7 @@ static void TestConvertExFromUTF8_C5F0() {
             cnv, utf8Cnv,
             &target, dest+expectedLength,
             &src, bad_utf8+sizeof(bad_utf8),
-            pivotBuffer, &pivotSource, &pivotTarget, pivotBuffer+LENGTHOF(pivotBuffer),
+            pivotBuffer, &pivotSource, &pivotTarget, pivotBuffer+UPRV_LENGTHOF(pivotBuffer),
             TRUE, TRUE, &errorCode);
         if( errorCode!=U_STRING_NOT_TERMINATED_WARNING || src!=bad_utf8+2 ||
             target!=dest+expectedLength || 0!=uprv_memcmp(dest, expected, expectedLength) ||
@@ -2790,10 +2756,12 @@ TestConvertAlgorithmic() {
   /*},*/
     utf16[]={
         0xfe, 0xff /* BOM only, no text */
-    },
-    utf32[]={
+    };
+#if !UCONFIG_ONLY_HTML_CONVERSION
+    static const uint8_t utf32[]={
         0xff, 0xfe, 0, 0 /* BOM only, no text */
     };
+#endif
 
     char target[100], utf8NUL[100], shiftJISNUL[100];
 
@@ -2863,6 +2831,7 @@ TestConvertAlgorithmic() {
                 u_errorName(errorCode), length);
     }
 
+#if !UCONFIG_ONLY_HTML_CONVERSION
     errorCode=U_ZERO_ERROR;
     length=ucnv_fromAlgorithmic(cnv, UCNV_UTF32, target, 0, (const char *)utf32, 4, &errorCode);
     if( errorCode!=U_STRING_NOT_TERMINATED_WARNING ||
@@ -2871,6 +2840,7 @@ TestConvertAlgorithmic() {
         log_err("ucnv_fromAlgorithmic(UTF-32 only BOM -> Shift-JIS) fails (%s expect U_STRING_NOT_TERMINATED_WARNING), returns %d expect 0\n",
                 u_errorName(errorCode), length);
     }
+#endif
 
     /* bad arguments */
     errorCode=U_MESSAGE_PARSE_ERROR;
@@ -2896,6 +2866,7 @@ ucnv_close(cnv);
 #endif
 }
 
+#if !UCONFIG_NO_FILE_IO && !UCONFIG_NO_LEGACY_CONVERSION
 static void TestLMBCSMaxChar(void) {
     static const struct {
         int8_t maxSize;
@@ -2947,7 +2918,7 @@ static void TestLMBCSMaxChar(void) {
     };
     int32_t idx;
 
-    for (idx = 0; idx < LENGTHOF(converter); idx++) {
+    for (idx = 0; idx < UPRV_LENGTHOF(converter); idx++) {
         UErrorCode status = U_ZERO_ERROR;
         UConverter *cnv = cnv_open(converter[idx].name, &status);
         if (U_FAILURE(status)) {
@@ -2965,7 +2936,7 @@ static void TestLMBCSMaxChar(void) {
         log_err("error UCNV_GET_MAX_BYTES_FOR_STRING(1, 2)<10\n");
     }
 }
-
+#endif
 
 static void TestJ1968(void) {
     UErrorCode err = U_ZERO_ERROR;
@@ -3109,12 +3080,12 @@ testSwap(const char *name, UBool swap) {
     /* convert to EBCDIC */
     pcu=text;
     pc=normal;
-    ucnv_fromUnicode(cnv, &pc, normal+LENGTHOF(normal), &pcu, text+LENGTHOF(text), NULL, TRUE, &errorCode);
+    ucnv_fromUnicode(cnv, &pc, normal+UPRV_LENGTHOF(normal), &pcu, text+UPRV_LENGTHOF(text), NULL, TRUE, &errorCode);
     normalLength=(int32_t)(pc-normal);
 
     pcu=text;
     pc=swapped;
-    ucnv_fromUnicode(swapCnv, &pc, swapped+LENGTHOF(swapped), &pcu, text+LENGTHOF(text), NULL, TRUE, &errorCode);
+    ucnv_fromUnicode(swapCnv, &pc, swapped+UPRV_LENGTHOF(swapped), &pcu, text+UPRV_LENGTHOF(text), NULL, TRUE, &errorCode);
     swappedLength=(int32_t)(pc-swapped);
 
     if(U_FAILURE(errorCode)) {
@@ -3147,12 +3118,12 @@ testSwap(const char *name, UBool swap) {
     /* convert back to Unicode (may not roundtrip) */
     pc=normal;
     pu=uNormal;
-    ucnv_toUnicode(cnv, &pu, uNormal+LENGTHOF(uNormal), (const char **)&pc, normal+normalLength, NULL, TRUE, &errorCode);
+    ucnv_toUnicode(cnv, &pu, uNormal+UPRV_LENGTHOF(uNormal), (const char **)&pc, normal+normalLength, NULL, TRUE, &errorCode);
     normalLength=(int32_t)(pu-uNormal);
 
     pc=normal;
     pu=uSwapped;
-    ucnv_toUnicode(swapCnv, &pu, uSwapped+LENGTHOF(uSwapped), (const char **)&pc, normal+swappedLength, NULL, TRUE, &errorCode);
+    ucnv_toUnicode(swapCnv, &pu, uSwapped+UPRV_LENGTHOF(uSwapped), (const char **)&pc, normal+swappedLength, NULL, TRUE, &errorCode);
     swappedLength=(int32_t)(pu-uSwapped);
 
     if(U_FAILURE(errorCode)) {
@@ -3203,7 +3174,7 @@ TestEBCDICSwapLFNL() {
 
     int i;
 
-    for(i=0; i<LENGTHOF(tests); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(tests); ++i) {
         testSwap(tests[i].name, tests[i].swap);
     }
 }
@@ -3213,8 +3184,6 @@ TestEBCDICSwapLFNL() {
   /* test nothing... */
 }
 #endif
-
-static const UVersionInfo ICU_34 = {3,4,0,0};
 
 static void TestFromUCountPending(){
 #if !UCONFIG_NO_LEGACY_CONVERSION
@@ -3236,7 +3205,7 @@ static void TestFromUCountPending(){
         log_data_err("Could not create converter for test3. Error: %s\n", u_errorName(status));
         return;
     }
-    for(i=0; i<LENGTHOF(fromUnicodeTests); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(fromUnicodeTests); ++i) {
         char tgt[10];
         char* target = tgt;
         char* targetLimit = target + 10;
@@ -3342,15 +3311,15 @@ TestToUCountPending(){
         return;
     }
     ucnv_setToUCallBack(cnv, UCNV_TO_U_CALLBACK_STOP, NULL, oldToUAction, NULL, &status);
-    for(i=0; i<LENGTHOF(toUnicodeTests); ++i) {
-        UChar tgt[10];
+    for(i=0; i<UPRV_LENGTHOF(toUnicodeTests); ++i) {
+        UChar tgt[20];
         UChar* target = tgt;
         UChar* targetLimit = target + 20;
         const char* source = toUnicodeTests[i].input;
         const char* sourceLimit = source + toUnicodeTests[i].len; 
         int32_t len = 0;
         ucnv_reset(cnv);
-        ucnv_toUnicode(cnv,&target, targetLimit, &source, sourceLimit, NULL, FALSE, &status);
+        ucnv_toUnicode(cnv, &target, targetLimit, &source, sourceLimit, NULL, FALSE, &status);
         len = ucnv_toUCountPending(cnv,&status);
         if(U_FAILURE(status)){
             log_err("ucnv_toUnicode call did not succeed. Error: %s\n", u_errorName(status));
@@ -3466,7 +3435,7 @@ static void TestDefaultName(void) {
     TestOneDefaultNameChange("ISCII,version=2", "UTF-8");
     TestOneDefaultNameChange("ISO-8859-1", "UTF-8");
 #else
-# if !UCONFIG_NO_LEGACY_CONVERSION
+# if !UCONFIG_NO_LEGACY_CONVERSION && !UCONFIG_ONLY_HTML_CONVERSION
     TestOneDefaultNameChange("ISCII,version=1", "ISCII,version=1");
     TestOneDefaultNameChange("ISCII,version=2", "ISCII,version=2");
 # endif
@@ -3479,7 +3448,7 @@ static void TestDefaultName(void) {
 
 /* Test that ucnv_compareNames() matches names according to spec. ----------- */
 
-static U_INLINE int
+static int
 sign(int n) {
     if(n==0) {
         return 0;
@@ -3580,7 +3549,7 @@ TestSubstString() {
         log_data_err("ucnv_open(ISO-8859-1) failed - %s\n", u_errorName(errorCode));
         return;
     }
-    ucnv_setSubstString(cnv, sub, LENGTHOF(sub), &errorCode);
+    ucnv_setSubstString(cnv, sub, UPRV_LENGTHOF(sub), &errorCode);
     if(U_FAILURE(errorCode)) {
         log_err("ucnv_setSubstString(ISO-8859-1, sub[5]) failed - %s\n", u_errorName(errorCode));
     } else {
@@ -3600,7 +3569,7 @@ TestSubstString() {
         log_data_err("ucnv_open(HZ) failed - %s\n", u_errorName(errorCode));
         return;
     }
-    ucnv_setSubstString(cnv, sub, LENGTHOF(sub), &errorCode);
+    ucnv_setSubstString(cnv, sub, UPRV_LENGTHOF(sub), &errorCode);
     if(U_FAILURE(errorCode)) {
         log_err("ucnv_setSubstString(HZ, sub[5]) failed - %s\n", u_errorName(errorCode));
     } else {
@@ -3685,7 +3654,7 @@ static void TestGetName() {
         "x-UTF-16LE-BOM",           "UTF-16LE,version=1"
     };
     int32_t i;
-    for(i = 0; i < LENGTHOF(names); i += 2) {
+    for(i = 0; i < UPRV_LENGTHOF(names); i += 2) {
         UErrorCode errorCode = U_ZERO_ERROR;
         UConverter *cnv = ucnv_open(names[i], &errorCode);
         if(U_SUCCESS(errorCode)) {
@@ -3728,7 +3697,7 @@ static void TestUTFBOM() {
     char bytes[10];
     int32_t i;
 
-    for(i = 0; i < LENGTHOF(names); ++i) {
+    for(i = 0; i < UPRV_LENGTHOF(names); ++i) {
         UErrorCode errorCode = U_ZERO_ERROR;
         UConverter *cnv = ucnv_open(names[i], &errorCode);
         int32_t length = 0;

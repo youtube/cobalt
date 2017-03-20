@@ -21,13 +21,14 @@ class IOBufferWithSize;
 // Members of this class correspond to each element in WebSocket frame header
 // (see http://tools.ietf.org/html/rfc6455#section-5.2).
 struct NET_EXPORT WebSocketFrameHeader {
-  typedef int OpCode;
-  static const OpCode kOpCodeContinuation;
-  static const OpCode kOpCodeText;
-  static const OpCode kOpCodeBinary;
-  static const OpCode kOpCodeClose;
-  static const OpCode kOpCodePing;
-  static const OpCode kOpCodePong;
+  enum OpCode {
+    kOpCodeContinuation = 0x0,
+    kOpCodeText = 0x1,
+    kOpCodeBinary = 0x2,
+    kOpCodeClose = 0x8,
+    kOpCodePing = 0x9,
+    kOpCodePong = 0xA
+  };
 
   // These values must be a compile-time constant. "enum hack" is used here
   // to make MSVC happy.

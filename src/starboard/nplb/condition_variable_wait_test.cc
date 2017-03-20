@@ -21,7 +21,7 @@ namespace nplb {
 namespace {
 
 TEST(SbConditionVariableWaitTest, SunnyDayAutoInit) {
-  TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
+  TakeThenSignalContext context = {TestSemaphore(0), SB_MUTEX_INITIALIZER,
                                    SB_CONDITION_VARIABLE_INITIALIZER};
   // Start the thread.
   SbThread thread =

@@ -1,16 +1,17 @@
 /*
 *******************************************************************************
-* Copyright (C) 2007-2010, International Business Machines Corporation and
+* Copyright (C) 2007-2012, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 */
 
-#include "unicode/utypeinfo.h"  // for 'typeid' to work
+#include "utypeinfo.h"  // for 'typeid' to work
 
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/tzrule.h"
 #include "unicode/ucal.h"
 #include "gregoimp.h"

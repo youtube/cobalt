@@ -27,11 +27,11 @@
 {% block includes %}
 {{ super() }}
 #include "base/lazy_instance.h"
-#include "cobalt/script/mozjs/callback_function_conversion.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/mozjs/callback_function_conversion.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
-#include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_callback_function.h"
+#include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
@@ -41,6 +41,7 @@
 #include "cobalt/script/mozjs/wrapper_factory.h"
 #include "cobalt/script/mozjs/wrapper_private.h"
 #include "cobalt/script/property_enumerator.h"
+#include "cobalt/script/sequence.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 {% if is_exception_interface %}
 #include "third_party/mozjs/js/src/jsexn.h"
@@ -52,24 +53,24 @@
 using cobalt::script::CallbackFunction;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::ExceptionState;
+using cobalt::script::Wrappable;
 using cobalt::script::mozjs::FromJSValue;
+using cobalt::script::mozjs::InterfaceData;
+using cobalt::script::mozjs::MozjsCallbackFunction;
+using cobalt::script::mozjs::MozjsExceptionState;
+using cobalt::script::mozjs::MozjsGlobalEnvironment;
+using cobalt::script::mozjs::MozjsPropertyEnumerator;
+using cobalt::script::mozjs::MozjsUserObjectHolder;
+using cobalt::script::mozjs::ProxyHandler;
+using cobalt::script::mozjs::ToJSValue;
+using cobalt::script::mozjs::TypeTraits;
+using cobalt::script::mozjs::WrapperFactory;
+using cobalt::script::mozjs::WrapperPrivate;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::mozjs::kNoConversionFlags;
-using cobalt::script::mozjs::InterfaceData;
-using cobalt::script::mozjs::MozjsCallbackFunction;
-using cobalt::script::mozjs::MozjsExceptionState;
-using cobalt::script::mozjs::MozjsGlobalEnvironment;
-using cobalt::script::mozjs::MozjsUserObjectHolder;
-using cobalt::script::mozjs::MozjsPropertyEnumerator;
-using cobalt::script::mozjs::ProxyHandler;
-using cobalt::script::mozjs::ToJSValue;
-using cobalt::script::mozjs::TypeTraits;
-using cobalt::script::mozjs::WrapperPrivate;
-using cobalt::script::mozjs::WrapperFactory;
-using cobalt::script::Wrappable;
 {% endblock using_directives %}
 {% block enumeration_declarations %}
 {% if enumerations|length %}
@@ -126,7 +127,6 @@ void GetReachableWrappables(const scoped_refptr<Wrappable>& wrappable,
 {% if named_property_getter %}
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
-  TRACE_EVENT0("cobalt::bindings", "IsSupportedNamedProperty");
 {{ get_impl_class_instance(impl_class) }}
   return impl->CanQueryNamedProperty(property_name);
 }
@@ -146,11 +146,12 @@ JSBool GetNamedProperty(
     NOTREACHED();
     return false;
   }
+
 {{ nonstatic_function_prologue(impl_class) }}
   std::string property_name;
   FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
               &property_name);
-  if(exception_state.is_exception_set()) {
+  if (exception_state.is_exception_set()) {
     // The ID should be an integer or a string, so we shouldn't have any
     // exceptions converting to string.
     NOTREACHED();
@@ -180,7 +181,7 @@ JSBool SetNamedProperty(
   std::string property_name;
   FromJSValue(context, id_value, kNoConversionFlags, &exception_state,
               &property_name);
-  if(exception_state.is_exception_set()) {
+  if (exception_state.is_exception_set()) {
     // The ID should be an integer or a string, so we shouldn't have any
     // exceptions converting to string.
     NOTREACHED();
@@ -215,7 +216,6 @@ bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
 {% if indexed_property_getter %}
 bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
                               uint32_t index) {
-  TRACE_EVENT0("cobalt::bindings", "IsSupportedIndexProperty");
 {{ get_impl_class_instance(impl_class) }}
   return index < impl->length();
 }
@@ -232,7 +232,6 @@ void EnumerateSupportedIndexes(JSContext* context, JS::HandleObject object,
 JSBool GetIndexedProperty(
     JSContext* context, JS::HandleObject object, JS::HandleId id,
     JS::MutableHandleValue vp) {
-  TRACE_EVENT0("cobalt::bindings", "GetIndexedProperty");
   JS::RootedValue id_value(context);
   if (!JS_IdToValue(context, id, id_value.address())) {
     NOTREACHED();
@@ -241,7 +240,7 @@ JSBool GetIndexedProperty(
 {{ nonstatic_function_prologue(impl_class) }}
   uint32_t index;
   FromJSValue(context, id_value, kNoConversionFlags, &exception_state, &index);
-  if(exception_state.is_exception_set()) {
+  if (exception_state.is_exception_set()) {
     // The ID should be an integer or a string, so we shouldn't have any
     // exceptions converting to string.
     NOTREACHED();
@@ -947,6 +946,7 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   {{binding_class}}::CreateProxy(
       context, global_interface);
   mozjs_global_environment->SetEnvironmentSettings(environment_settings);
+  mozjs_global_environment->EvaluateAutomatics();
 
   WrapperFactory* wrapper_factory =
       mozjs_global_environment->wrapper_factory();

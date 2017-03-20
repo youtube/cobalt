@@ -29,6 +29,12 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
+        'memory_tracker/buffered_file_writer.cc',
+        'memory_tracker/buffered_file_writer.h',
+        'memory_tracker/memory_tracker_tool.cc',
+        'memory_tracker/memory_tracker_tool.h',
+        'memory_tracker/memory_tracker_tool_impl.cc',
+        'memory_tracker/memory_tracker_tool_impl.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
         'resource_provider_array_buffer_allocator.cc',
@@ -52,8 +58,10 @@
         'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
         'COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES=<(remote_typeface_cache_size_in_bytes)',
         'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)',
+        'COBALT_MESH_CACHE_SIZE_IN_BYTES=<(mesh_cache_size_in_bytes)',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/accessibility/accessibility.gyp:accessibility',
         '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -65,7 +73,7 @@
         '<(DEPTH)/cobalt/input/input.gyp:input',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',
-        '<(DEPTH)/cobalt/media/media.gyp:media',
+        '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
@@ -73,18 +81,39 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
+        '<(DEPTH)/cobalt/websocket/websocket.gyp:websocket',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/nb/nb.gyp:nb',
         'browser_bindings.gyp:bindings',
         'screen_shot_writer',
+      ],
+      # This target doesn't generate any headers, but it exposes generated
+      # header files (for idl dictionaries) through this module's public header
+      # files. So mark this target as a hard dependency to ensure that any
+      # dependent targets wait until this target (and its hard dependencies) are
+      # built.
+      #'hard_dependency': 1,
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
       'conditions': [
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
         }],
-        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
+        ['enable_mtm == 1', {
+          'defines' : ['ENABLE_MTM'],
+        }],
+        ['cobalt_media_source_2016==1', {
           'dependencies': [
-            '<(DEPTH)/nb/nb.gyp:nb',
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media.gyp:media',
           ],
         }],
       ],
@@ -123,18 +152,31 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'storage_upgrade_handler_test.cc',
+        'memory_tracker/memory_tracker_tool_test.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage_upgrade_copy_test_data',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'browser',
       ],
+    },
+
+    {
+      'target_name': 'browser_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'browser_test',
+      ],
+      'variables': {
+        'executable_name': 'browser_test',
+      },
+      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
 
     {

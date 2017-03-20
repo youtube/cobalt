@@ -101,6 +101,9 @@ typedef int (*SumFunction)(int, int);
 static int sum(int x, int y) {
   return x + y;
 }
+static int sum2(int x, int y) {
+  return x + y + x;
+}
 
 // This test is known to run on x64, ARM, and MIPS32 with MIPS32 and MIPS16
 // instructions.
@@ -109,17 +112,31 @@ TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
       kSize, kSbMemoryMapProtectReadWrite | kSbMemoryMapProtectExec, "test");
   ASSERT_NE(kFailed, memory);
 
-  // There's no reliable way to determine the size of the 'sum' function. We can
+  // There's no reliable way to determine the size of the 'sum' function. If we
+  // assume the function is at most a certain size, then we might try to read
+  // beyond mapped memory when copying it to the destination address. We can
   // get a reasonable upper bound by assuming that the function's implementation
   // does not cross a page boundary, and copy the memory from the beginning of
   // the function to the end of the page that it is mapped to.
-  // Note that this will fail if the function implementation crosses a page
-  // boundary, which seems pretty unlikely, especially given the size of the
-  // function.
+  //
+  // However, since it's possible the function may cross the page boundary, we
+  // define two functions and use the one closest to the start of a page. There
+  // is no guarantee that the linker will place these definitions sequentially
+  // (although it likely will), so we can't use the address of 'sum2' as the
+  // end of 'sum'.
+  //
+  // To avoid the possibility that COMDAT folding will combine these two
+  // definitions into one, make sure they are different.
 
   // A function pointer can't be cast to void*, but uint8* seems to be okay. So
   // cast to a uint* which will be implicitly casted to a void* below.
-  uint8_t* sum_function_start = reinterpret_cast<uint8_t*>(&sum);
+  SumFunction original_function = &sum;
+  if (reinterpret_cast<uintptr_t>(&sum2) % SB_MEMORY_PAGE_SIZE <
+      reinterpret_cast<uintptr_t>(&sum) % SB_MEMORY_PAGE_SIZE) {
+    original_function = &sum2;
+  }
+
+  uint8_t* sum_function_start = reinterpret_cast<uint8_t*>(original_function);
 
   // MIPS16 instruction are kept odd addresses to differentiate between that and
   // MIPS32 instructions. Most other instructions are aligned to at least even
@@ -128,12 +145,12 @@ TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
   ptrdiff_t sum_function_offset =
       sum_function_start -
       reinterpret_cast<uint8_t*>(
-          reinterpret_cast<intptr_t>(sum_function_start) & ~0x1);
+          reinterpret_cast<uintptr_t>(sum_function_start) & ~0x1);
   sum_function_start -= sum_function_offset;
 
   // Get the last address of the page that |sum_function_start| is on.
   uint8_t* sum_function_page_end = reinterpret_cast<uint8_t*>(
-      (reinterpret_cast<intptr_t>(sum_function_start) / SB_MEMORY_PAGE_SIZE) *
+      (reinterpret_cast<uintptr_t>(sum_function_start) / SB_MEMORY_PAGE_SIZE) *
           SB_MEMORY_PAGE_SIZE +
       SB_MEMORY_PAGE_SIZE);
   ASSERT_TRUE(SbMemoryIsAligned(sum_function_page_end, SB_MEMORY_PAGE_SIZE));
@@ -148,8 +165,8 @@ TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
   SumFunction mapped_function = reinterpret_cast<SumFunction>(
       reinterpret_cast<uint8_t*>(memory) + sum_function_offset);
 
-  EXPECT_EQ(4, (*mapped_function)(1, 3));
-  EXPECT_EQ(5, (*mapped_function)(10, -5));
+  EXPECT_EQ((*original_function)(1, 3), (*mapped_function)(1, 3));
+  EXPECT_EQ((*original_function)(10, -5), (*mapped_function)(10, -5));
 
   EXPECT_TRUE(SbMemoryUnmap(memory, kSize));
 }

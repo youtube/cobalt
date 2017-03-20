@@ -1,6 +1,6 @@
 #******************************************************************************
 #
-#   Copyright (C) 2010, International Business Machines Corporation and others.  All Rights Reserved.
+#   Copyright (C) 2010-2011, International Business Machines Corporation and others.  All Rights Reserved.
 #
 #******************************************************************************
 # This is to be called from ../Makefile.in
@@ -30,6 +30,7 @@ DISTY_FILE_DIR=$(shell pwd)/$(DISTY_DIR)
 DISTY_FILE_TGZ=$(DISTY_FILE_DIR)/$(DISTY_PREFIX)-src-$(DISTY_VER)-r$(SVNVER).tgz
 DISTY_FILE_ZIP=$(DISTY_FILE_DIR)/$(DISTY_PREFIX)-src-$(DISTY_VER)-r$(SVNVER).zip
 DISTY_DOC_ZIP=$(DISTY_FILE_DIR)/$(DISTY_PREFIX)-docs-$(DISTY_VER)-r$(SVNVER).zip
+DISTY_DATA_ZIP=$(DISTY_FILE_DIR)/$(DISTY_PREFIX)-data-$(DISTY_VER)-r$(SVNVER).zip
 DISTY_DAT=$(firstword $(wildcard data/out/tmp/icudt$(SO_TARGET_VERSION_MAJOR)*.dat))
 
 DISTY_FILES_SRC=$(DISTY_FILE_TGZ) $(DISTY_FILE_ZIP)
@@ -55,15 +56,17 @@ $(DISTY_DAT):
 $(DOCZIP):
 	$(MAKE) -C . srcdir="$(srcdir)" top_srcdir="$(top_srcdir)" builddir=. $@
 
-$(DISTY_FILE_TGZ) $(DISTY_FILE_ZIP): $(SVNDOT) $(DISTY_DAT) $(DISTY_TMP)
+$(DISTY_FILE_TGZ) $(DISTY_FILE_ZIP) $(DISTY_DATA_ZIP): $(SVNDOT) $(DISTY_DAT) $(DISTY_TMP)
 	@echo "svnversion of $(SVNTOP) is as follows (if this fails, make sure svn is installed..)"
 	svnversion $(SVNTOP)
 	-$(RMV) $(DISTY_FILE) $(DISTY_TMP)
 	$(MKINSTALLDIRS) $(DISTY_TMP)
 	svn export -r $(shell echo $(SVNVER) | tr -d 'a-zA-Z' ) $(SVNURL) "$(DISTY_TMP)/icu"
+	( cd $(DISTY_TMP)/icu/source ; zip -rlq $(DISTY_DATA_ZIP) data )
 	$(RMV) $(DISTY_RMDIR)
 	$(MKINSTALLDIRS) $(DISTY_IN)
 	cp $(DISTY_DAT) $(DISTY_IN)
+	( cd $(DISTY_TMP)/icu ; python as_is/bomlist.py > as_is/bomlist.txt || rm -f as_is/bomlist.txt )
 	( cd $(DISTY_TMP) ; tar cfpz $(DISTY_FILE_TGZ) icu )
 	( cd $(DISTY_TMP) ; zip -rlq $(DISTY_FILE_ZIP) icu )
 	ls -l $(DISTY_FILE)

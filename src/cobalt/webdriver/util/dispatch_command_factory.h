@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
 #define COBALT_WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
@@ -122,6 +120,9 @@ void ReturnResponse(const base::optional<protocol::SessionId>& session_id,
 template <class DriverClassT>
 class DispatchCommandFactory
     : public base::RefCounted<DispatchCommandFactory<DriverClassT> > {
+  // Max retries for the "can_retry" CommandResult case.
+  static const int kMaxRetries = 5;
+
  public:
   // Typedef'd for less verbose code.
   typedef WebDriverDispatcher::CommandResultHandler CommandResultHandler;
@@ -220,7 +221,11 @@ class DispatchCommandFactory
         DriverClassT* driver, const base::Value* parameters,
         CommandResultHandler* result_handler) {
       // Ignore parameters.
-      util::CommandResult<R> command_result = driver_command.Run(driver);
+      int retries = 0;
+      util::CommandResult<R> command_result;
+      do {
+        command_result = driver_command.Run(driver);
+      } while (command_result.can_retry() && (retries++ < kMaxRetries));
       internal::ReturnResponse(session_id, command_result, result_handler);
     }
 
@@ -245,8 +250,11 @@ class DispatchCommandFactory
         result_handler->SendInvalidRequestResponse(
             WebDriverDispatcher::CommandResultHandler::kInvalidParameters, "");
       } else {
-        util::CommandResult<R> command_result =
-            driver_command.Run(driver, param.value());
+        int retries = 0;
+        util::CommandResult<R> command_result;
+        do {
+          command_result = driver_command.Run(driver, param.value());
+        } while (command_result.can_retry() && (retries++ < kMaxRetries));
         internal::ReturnResponse(session_id, command_result, result_handler);
       }
     }

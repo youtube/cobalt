@@ -1,6 +1,6 @@
 /*
  **********************************************************************
- *   Copyright (C) 1996-2010, International Business Machines
+ *   Copyright (C) 1996-2014, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  **********************************************************************
  *
@@ -25,13 +25,21 @@
  * 08/23/01     george      Convert to C
  */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "locmap.h"
-#include "unicode/uloc.h"
 #include "cstring.h"
 #include "cmemory.h"
 
 #if 0
-#if defined(U_WINDOWS) && defined(_MSC_VER) && (_MSC_VER >= 1500)
+#if U_PLATFORM == U_PF_WINDOWS && defined(_MSC_VER) && (_MSC_VER >= 1500)
+/*
+ * TODO: It seems like we should widen this to
+ * either U_PLATFORM_USES_ONLY_WIN32_API (includes MinGW)
+ * or U_PLATFORM_HAS_WIN32_API (includes MinGW and Cygwin)
+ * but those use gcc and won't have defined(_MSC_VER).
+ * We might need to #include some Windows header and test for some version macro from there.
+ * Or call some Windows function and see what it returns.
+ */
 #define USE_WINDOWS_LOCALE_API
 #endif
 #endif
@@ -105,7 +113,7 @@ static const ILcidPosixElement locmap_ ## id [] =
  * Create the map for the posixID. This macro supposes that the language string
  * name is the same as the global variable name, and that the first element
  * in the ILcidPosixElement is just the language.
- * @param _posixID the full POSIX ID for this entry. 
+ * @param _posixID the full POSIX ID for this entry.
  */
 #define ILCID_POSIX_MAP(_posixID) \
     {sizeof(locmap_ ## _posixID)/sizeof(ILcidPosixElement), locmap_ ## _posixID}
@@ -123,6 +131,11 @@ static const ILcidPosixElement locmap_ ## id [] =
 //       Microsoft is moving away from LCID in favor of locale name as of Vista.  This table needs to be
 //       maintained for support of older Windows version.
 //       Update: Windows 7 (091130)
+//
+// Note: Microsoft assign a different LCID if a locale has a sorting variant. POSIX IDs below may contain
+//       @collation=XXX, but no other keywords are allowed (at least for now). When uprv_convertToLCID() is
+//       called from uloc_getLCID(), keywords other than collation are already removed. If we really need
+//       to support other keywords in this mapping data, we must update the implementation.
 ////////////////////////////////////////////
 */
 
@@ -140,6 +153,7 @@ ILCID_POSIX_SUBTABLE(ar) {
     {0x3001, "ar_LB"},
     {0x1001, "ar_LY"},
     {0x1801, "ar_MA"},
+    {0x1801, "ar_MO"},
     {0x2001, "ar_OM"},
     {0x4001, "ar_QA"},
     {0x0401, "ar_SA"},
@@ -164,15 +178,17 @@ ILCID_POSIX_SUBTABLE(az) {
 ILCID_POSIX_ELEMENT_ARRAY(0x046d, ba, ba_RU)
 ILCID_POSIX_ELEMENT_ARRAY(0x0423, be, be_BY)
 
-ILCID_POSIX_SUBTABLE(ber) {
+/*ILCID_POSIX_SUBTABLE(ber) {
     {0x5f,   "ber"},
     {0x045f, "ber_Arab_DZ"},
     {0x045f, "ber_Arab"},
     {0x085f, "ber_Latn_DZ"},
     {0x085f, "ber_Latn"}
-};
+};*/
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0402, bg, bg_BG)
+
+ILCID_POSIX_ELEMENT_ARRAY(0x0466, bin, bin_NG)
 
 ILCID_POSIX_SUBTABLE(bn) {
     {0x45,   "bn"},
@@ -187,9 +203,24 @@ ILCID_POSIX_SUBTABLE(bo) {
 };
 
 ILCID_POSIX_ELEMENT_ARRAY(0x047e, br, br_FR)
-ILCID_POSIX_ELEMENT_ARRAY(0x0403, ca, ca_ES)
+
+ILCID_POSIX_SUBTABLE(ca) {
+    {0x03,   "ca"},
+    {0x0403, "ca_ES"},
+    {0x0803, "ca_ES_VALENCIA"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x0483, co, co_FR)
 ILCID_POSIX_ELEMENT_ARRAY(0x045c, chr,chr_US)
+
+ILCID_POSIX_SUBTABLE(ckb) {
+    {0x92,   "ckb"},
+    {0x92,   "ku"},
+    {0x7c92, "ckb_Arab"},
+    {0x7c92, "ku_Arab"},
+    {0x0492, "ckb_Arab_IQ"},
+    {0x0492, "ku_Arab_IQ"}
+};
 
 /* Declared as cs_CZ to get around compiler errors on z/OS, which defines cs as a function */
 ILCID_POSIX_ELEMENT_ARRAY(0x0405, cs, cs_CZ)
@@ -217,6 +248,8 @@ ILCID_POSIX_SUBTABLE(en) {
     {0x2809, "en_BZ"},
     {0x1009, "en_CA"},
     {0x0809, "en_GB"},
+    {0x3c09, "en_HK"},
+    {0x3809, "en_ID"},
     {0x1809, "en_IE"},
     {0x4009, "en_IN"},
     {0x2009, "en_JM"},
@@ -264,6 +297,7 @@ ILCID_POSIX_SUBTABLE(es) {
     {0x540a, "es_US"},
     {0x380a, "es_UY"},
     {0x200a, "es_VE"},
+    {0x580a, "es_419"},
     {0x040a, "es_ES@collation=traditional"},
     {0x040a, "es@collation=traditional"}
 };
@@ -284,6 +318,12 @@ ILCID_POSIX_SUBTABLE(fa_AF) {
     {0x048c, "fa_AF"}   /* Persian/Dari (Afghanistan) */
 };
 
+ILCID_POSIX_SUBTABLE(ff) {
+    {0x67,   "ff"},
+    {0x7c67, "ff_Latn"},
+    {0x0867, "ff_Latn_SN"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x040b, fi, fi_FI)
 ILCID_POSIX_ELEMENT_ARRAY(0x0464, fil,fil_PH)
 ILCID_POSIX_ELEMENT_ARRAY(0x0438, fo, fo_FO)
@@ -293,6 +333,7 @@ ILCID_POSIX_SUBTABLE(fr) {
     {0x080c, "fr_BE"},
     {0x0c0c, "fr_CA"},
     {0x240c, "fr_CD"},
+    {0x240c, "fr_CG"},
     {0x100c, "fr_CH"},
     {0x300c, "fr_CI"},
     {0x2c0c, "fr_CM"},
@@ -303,14 +344,25 @@ ILCID_POSIX_SUBTABLE(fr) {
     {0x180c, "fr_MC"},
     {0x340c, "fr_ML"},
     {0x200c, "fr_RE"},
-    {0x280c, "fr_SN"}
+    {0x280c, "fr_SN"},
+    {0xe40c, "fr_015"},
+    {0x1c0c, "fr_029"}
 };
+
+ILCID_POSIX_ELEMENT_ARRAY(0x0467, fuv, fuv_NG)
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0462, fy, fy_NL)
 
-/* This LCID is really two different locales.*/
-ILCID_POSIX_ELEMENT_ARRAY(0x083c, ga, ga_IE) /* Gaelic (Ireland) */
-ILCID_POSIX_ELEMENT_ARRAY(0x0491, gd, gd_GB) /* Gaelic (Scotland) */
+ILCID_POSIX_SUBTABLE(ga) { /* Gaelic (Ireland) */
+    {0x3c,   "ga"},
+    {0x083c, "ga_IE"},
+    {0x043c, "gd_GB"}
+};
+
+ILCID_POSIX_SUBTABLE(gd) { /* Gaelic (Scotland) */
+    {0x91,   "gd"},
+    {0x0491, "gd_GB"}
+};
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0456, gl, gl_ES)
 ILCID_POSIX_ELEMENT_ARRAY(0x0447, gu, gu_IN)
@@ -351,8 +403,16 @@ ILCID_POSIX_SUBTABLE(hr) {
     {0x7c1a, "sr"}          /* In CLDR sr is sr_Cyrl. */
 };
 
+ILCID_POSIX_SUBTABLE(hsb) {
+    {0x2E,   "hsb"},
+    {0x042E, "hsb_DE"},
+    {0x082E, "dsb_DE"},
+    {0x7C2E, "dsb"},
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x040e, hu, hu_HU)
 ILCID_POSIX_ELEMENT_ARRAY(0x042b, hy, hy_AM)
+ILCID_POSIX_ELEMENT_ARRAY(0x0469, ibb, ibb_NG)
 ILCID_POSIX_ELEMENT_ARRAY(0x0421, id, id_ID)
 ILCID_POSIX_ELEMENT_ARRAY(0x0470, ig, ig_NG)
 ILCID_POSIX_ELEMENT_ARRAY(0x0478, ii, ii_CN)
@@ -392,7 +452,8 @@ ILCID_POSIX_ELEMENT_ARRAY(0x0471, kr,  kr_NG)
 ILCID_POSIX_SUBTABLE(ks) {         /* We could add PK and CN too */
     {0x60,   "ks"},
     {0x0860, "ks_IN"},              /* Documentation doesn't mention script */
-    {0x0460, "ks_Arab_IN"}
+    {0x0460, "ks_Arab_IN"},
+    {0x0860, "ks_Deva_IN"}
 };
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0440, ky, ky_KG)   /* Kyrgyz is spoken in Kyrgyzstan */
@@ -411,7 +472,8 @@ ILCID_POSIX_SUBTABLE(mn) {
     {0x7c50, "mn_Mong"},
     {0x0850, "mn_Mong_CN"},
     {0x0850, "mn_CN"},
-    {0x7850, "mn_Cyrl"}
+    {0x7850, "mn_Cyrl"},
+    {0x0c50, "mn_Mong_MN"}
 };
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0458, mni,mni_IN)
@@ -452,7 +514,12 @@ ILCID_POSIX_SUBTABLE(no) {
 
 ILCID_POSIX_ELEMENT_ARRAY(0x046c, nso,nso_ZA)   /* TODO: Verify the ISO-639 code */
 ILCID_POSIX_ELEMENT_ARRAY(0x0482, oc, oc_FR)
-ILCID_POSIX_ELEMENT_ARRAY(0x0472, om, om_ET)    /* TODO: Verify the country */
+
+ILCID_POSIX_SUBTABLE(om) { /* TODO: Verify the country */
+    {0x72,   "om"},
+    {0x0472, "om_ET"},
+    {0x0472, "gaz_ET"}
+};
 
 /* Declared as or_IN to get around compiler errors*/
 ILCID_POSIX_SUBTABLE(or_IN) {
@@ -464,9 +531,11 @@ ILCID_POSIX_SUBTABLE(or_IN) {
 ILCID_POSIX_SUBTABLE(pa) {
     {0x46,   "pa"},
     {0x0446, "pa_IN"},
-    {0x0846, "pa_PK"}
+    {0x0846, "pa_PK"},
+    {0x0846, "pa_Arab_PK"}
 };
 
+ILCID_POSIX_ELEMENT_ARRAY(0x0479, pap, pap_AN)
 ILCID_POSIX_ELEMENT_ARRAY(0x0415, pl, pl_PL)
 ILCID_POSIX_ELEMENT_ARRAY(0x0463, ps, ps_AF)
 
@@ -480,18 +549,31 @@ ILCID_POSIX_SUBTABLE(qu) {
     {0x6b,   "qu"},
     {0x046b, "qu_BO"},
     {0x086b, "qu_EC"},
-    {0x0C6b, "qu_PE"}
+    {0x0C6b, "qu_PE"},
+    {0x046b, "quz_BO"},
+    {0x086b, "quz_EC"},
+    {0x0C6b, "quz_PE"}
 };
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0486, qut, qut_GT) /* qut is an ISO-639-3 code */
 ILCID_POSIX_ELEMENT_ARRAY(0x0417, rm, rm_CH)
-ILCID_POSIX_ELEMENT_ARRAY(0x0418, ro, ro_RO)
+
+ILCID_POSIX_SUBTABLE(ro) {
+    {0x18,   "ro"},
+    {0x0418, "ro_RO"},
+    {0x0818, "ro_MD"}
+};
 
 ILCID_POSIX_SUBTABLE(root) {
     {0x00,   "root"}
 };
 
-ILCID_POSIX_ELEMENT_ARRAY(0x0419, ru, ru_RU)
+ILCID_POSIX_SUBTABLE(ru) {
+    {0x19,   "ru"},
+    {0x0419, "ru_RU"},
+    {0x0819, "ru_MD"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x0487, rw, rw_RW)
 ILCID_POSIX_ELEMENT_ARRAY(0x044f, sa, sa_IN)
 ILCID_POSIX_ELEMENT_ARRAY(0x0485, sah,sah_RU)
@@ -522,8 +604,15 @@ ILCID_POSIX_SUBTABLE(se) {
 ILCID_POSIX_ELEMENT_ARRAY(0x045b, si, si_LK)
 ILCID_POSIX_ELEMENT_ARRAY(0x041b, sk, sk_SK)
 ILCID_POSIX_ELEMENT_ARRAY(0x0424, sl, sl_SI)
-ILCID_POSIX_ELEMENT_ARRAY(0x0477, so, so_ET)    /* TODO: Verify the country */
+
+ILCID_POSIX_SUBTABLE(so) { /* TODO: Verify the country */
+    {0x77,   "so"},
+    {0x0477, "so_ET"},
+    {0x0477, "so_SO"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x041c, sq, sq_AL)
+ILCID_POSIX_ELEMENT_ARRAY(0x0430, st, st_ZA)
 
 ILCID_POSIX_SUBTABLE(sv) {
     {0x1d,   "sv"},
@@ -533,7 +622,13 @@ ILCID_POSIX_SUBTABLE(sv) {
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0441, sw, sw_KE)
 ILCID_POSIX_ELEMENT_ARRAY(0x045A, syr, syr_SY)
-ILCID_POSIX_ELEMENT_ARRAY(0x0449, ta, ta_IN)
+
+ILCID_POSIX_SUBTABLE(ta) {
+    {0x49,   "ta"},
+    {0x0449, "ta_IN"},
+    {0x0849, "ta_LK"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x044a, te, te_IN)
 
 /* Cyrillic based by default */
@@ -552,17 +647,31 @@ ILCID_POSIX_SUBTABLE(ti) {
 };
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0442, tk, tk_TM)
-ILCID_POSIX_ELEMENT_ARRAY(0x0432, tn, tn_BW)
+
+ILCID_POSIX_SUBTABLE(tn) {
+    {0x32,   "tn"},
+    {0x0832, "tn_BW"},
+    {0x0432, "tn_ZA"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x041f, tr, tr_TR)
+ILCID_POSIX_ELEMENT_ARRAY(0x0431, ts, ts_ZA)
 ILCID_POSIX_ELEMENT_ARRAY(0x0444, tt, tt_RU)
 
 ILCID_POSIX_SUBTABLE(tzm) {
     {0x5f,   "tzm"},
     {0x7c5f, "tzm_Latn"},
-    {0x085f, "tzm_Latn_DZ"}
+    {0x085f, "tzm_Latn_DZ"},
+    {0x105f, "tzm_Tfng_MA"},
+    {0x045f, "tmz"}
 };
 
-ILCID_POSIX_ELEMENT_ARRAY(0x0480, ug, ug_CN)
+ILCID_POSIX_SUBTABLE(ug) {
+    {0x80,   "ug"},
+    {0x0480, "ug_CN"},
+    {0x0480, "ug_Arab_CN"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x0422, uk, uk_UA)
 
 ILCID_POSIX_SUBTABLE(ur) {
@@ -580,20 +689,16 @@ ILCID_POSIX_SUBTABLE(uz) {
     {0x7c43, "uz_Latn"} /* Latin based */
 };
 
-ILCID_POSIX_ELEMENT_ARRAY(0x0433, ve, ve_ZA)    /* TODO: Verify the country */
-ILCID_POSIX_ELEMENT_ARRAY(0x042a, vi, vi_VN)
-
-ILCID_POSIX_SUBTABLE(wen) {
-    {0x2E,   "wen"},
-    {0x042E, "wen_DE"},
-    {0x042E, "hsb_DE"},
-    {0x082E, "dsb_DE"},
-    {0x7C2E, "dsb"},
-    {0x2E,   "hsb"}
+ILCID_POSIX_SUBTABLE(ve) { /* TODO: Verify the country */
+    {0x33,   "ve"},
+    {0x0433, "ve_ZA"},
+    {0x0433, "ven_ZA"}
 };
 
+ILCID_POSIX_ELEMENT_ARRAY(0x042a, vi, vi_VN)
 ILCID_POSIX_ELEMENT_ARRAY(0x0488, wo, wo_SN)
 ILCID_POSIX_ELEMENT_ARRAY(0x0434, xh, xh_ZA)
+ILCID_POSIX_ELEMENT_ARRAY(0x043d, yi, yi)
 ILCID_POSIX_ELEMENT_ARRAY(0x046a, yo, yo_NG)
 
 ILCID_POSIX_SUBTABLE(zh) {
@@ -624,14 +729,6 @@ ILCID_POSIX_SUBTABLE(zh) {
 ILCID_POSIX_ELEMENT_ARRAY(0x0435, zu, zu_ZA)
 
 /* This must be static and grouped by LCID. */
-
-/* non-existent ISO-639-2 codes */
-/*
-0x466   Edo
-0x467   Fulfulde - Nigeria
-0x486   K'iche - Guatemala
-0x430   Sutu
-*/
 static const ILcidPosixMap gPosixIDmap[] = {
     ILCID_POSIX_MAP(af),    /*  af  Afrikaans                 0x36 */
     ILCID_POSIX_MAP(am),    /*  am  Amharic                   0x5e */
@@ -643,11 +740,13 @@ static const ILcidPosixMap gPosixIDmap[] = {
     ILCID_POSIX_MAP(be),    /*  be  Belarusian                0x23 */
 /*    ILCID_POSIX_MAP(ber),     ber Berber/Tamazight          0x5f */
     ILCID_POSIX_MAP(bg),    /*  bg  Bulgarian                 0x02 */
+    ILCID_POSIX_MAP(bin),   /*  bin Edo                       0x66 */
     ILCID_POSIX_MAP(bn),    /*  bn  Bengali; Bangla           0x45 */
     ILCID_POSIX_MAP(bo),    /*  bo  Tibetan                   0x51 */
     ILCID_POSIX_MAP(br),    /*  br  Breton                    0x7e */
     ILCID_POSIX_MAP(ca),    /*  ca  Catalan                   0x03 */
     ILCID_POSIX_MAP(chr),   /*  chr Cherokee                  0x5c */
+    ILCID_POSIX_MAP(ckb),   /*  ckb Sorani (Central Kurdish)  0x92 */
     ILCID_POSIX_MAP(co),    /*  co  Corsican                  0x83 */
     ILCID_POSIX_MAP(cs),    /*  cs  Czech                     0x05 */
     ILCID_POSIX_MAP(cy),    /*  cy  Welsh                     0x52 */
@@ -662,10 +761,12 @@ static const ILcidPosixMap gPosixIDmap[] = {
     ILCID_POSIX_MAP(eu),    /*  eu  Basque                    0x2d */
     ILCID_POSIX_MAP(fa),    /*  fa  Persian/Farsi             0x29 */
     ILCID_POSIX_MAP(fa_AF), /*  fa  Persian/Dari              0x8c */
+    ILCID_POSIX_MAP(ff),    /*  ff  Fula                      0x67 */
     ILCID_POSIX_MAP(fi),    /*  fi  Finnish                   0x0b */
     ILCID_POSIX_MAP(fil),   /*  fil Filipino                  0x64 */
     ILCID_POSIX_MAP(fo),    /*  fo  Faroese                   0x38 */
     ILCID_POSIX_MAP(fr),    /*  fr  French                    0x0c */
+    ILCID_POSIX_MAP(fuv),   /*  fuv Fulfulde - Nigeria        0x67 */
     ILCID_POSIX_MAP(fy),    /*  fy  Frisian                   0x62 */
     ILCID_POSIX_MAP(ga),    /*  *   Gaelic (Ireland,Scotland) 0x3c */
     ILCID_POSIX_MAP(gd),    /*  gd  Gaelic (United Kingdom)   0x91 */
@@ -678,8 +779,10 @@ static const ILcidPosixMap gPosixIDmap[] = {
     ILCID_POSIX_MAP(he),    /*  he  Hebrew (formerly iw)      0x0d */
     ILCID_POSIX_MAP(hi),    /*  hi  Hindi                     0x39 */
     ILCID_POSIX_MAP(hr),    /*  *   Croatian and others       0x1a */
+    ILCID_POSIX_MAP(hsb),   /*  hsb Upper Sorbian             0x2e */
     ILCID_POSIX_MAP(hu),    /*  hu  Hungarian                 0x0e */
     ILCID_POSIX_MAP(hy),    /*  hy  Armenian                  0x2b */
+    ILCID_POSIX_MAP(ibb),   /*  ibb Ibibio - Nigeria          0x69 */
     ILCID_POSIX_MAP(id),    /*  id  Indonesian (formerly in)  0x21 */
     ILCID_POSIX_MAP(ig),    /*  ig  Igbo                      0x70 */
     ILCID_POSIX_MAP(ii),    /*  ii  Sichuan Yi                0x78 */
@@ -723,6 +826,7 @@ static const ILcidPosixMap gPosixIDmap[] = {
     ILCID_POSIX_MAP(om),    /*  om  Oromo                     0x72 */
     ILCID_POSIX_MAP(or_IN), /*  or  Oriya                     0x48 */
     ILCID_POSIX_MAP(pa),    /*  pa  Punjabi                   0x46 */
+    ILCID_POSIX_MAP(pap),   /*  pap Papiamentu                0x79 */
     ILCID_POSIX_MAP(pl),    /*  pl  Polish                    0x15 */
     ILCID_POSIX_MAP(ps),    /*  ps  Pashto                    0x63 */
     ILCID_POSIX_MAP(pt),    /*  pt  Portuguese                0x16 */
@@ -744,6 +848,7 @@ static const ILcidPosixMap gPosixIDmap[] = {
     ILCID_POSIX_MAP(so),    /*  so  Somali                    0x77 */
     ILCID_POSIX_MAP(sq),    /*  sq  Albanian                  0x1c */
 /*    ILCID_POSIX_MAP(sr),    //  sr  Serbian                   0x1a */
+    ILCID_POSIX_MAP(st),    /*  st  Sutu                      0x30 */
     ILCID_POSIX_MAP(sv),    /*  sv  Swedish                   0x1d */
     ILCID_POSIX_MAP(sw),    /*  sw  Swahili                   0x41 */
     ILCID_POSIX_MAP(syr),   /*  syr Syriac                    0x5A */
@@ -755,17 +860,18 @@ static const ILcidPosixMap gPosixIDmap[] = {
     ILCID_POSIX_MAP(tk),    /*  tk  Turkmen                   0x42 */
     ILCID_POSIX_MAP(tn),    /*  tn  Tswana                    0x32 */
     ILCID_POSIX_MAP(tr),    /*  tr  Turkish                   0x1f */
+    ILCID_POSIX_MAP(ts),    /*  ts  Tsonga                    0x31 */
     ILCID_POSIX_MAP(tt),    /*  tt  Tatar                     0x44 */
-    ILCID_POSIX_MAP(tzm),   /*  tzm                           0x5f */
+    ILCID_POSIX_MAP(tzm),   /*  tzm Tamazight                 0x5f */
     ILCID_POSIX_MAP(ug),    /*  ug  Uighur                    0x80 */
     ILCID_POSIX_MAP(uk),    /*  uk  Ukrainian                 0x22 */
     ILCID_POSIX_MAP(ur),    /*  ur  Urdu                      0x20 */
     ILCID_POSIX_MAP(uz),    /*  uz  Uzbek                     0x43 */
     ILCID_POSIX_MAP(ve),    /*  ve  Venda                     0x33 */
     ILCID_POSIX_MAP(vi),    /*  vi  Vietnamese                0x2a */
-    ILCID_POSIX_MAP(wen),   /*  wen Sorbian                   0x2e */
     ILCID_POSIX_MAP(wo),    /*  wo  Wolof                     0x88 */
     ILCID_POSIX_MAP(xh),    /*  xh  Xhosa                     0x34 */
+    ILCID_POSIX_MAP(yi),    /*  yi  Yiddish                   0x3d */
     ILCID_POSIX_MAP(yo),    /*  yo  Yoruba                    0x6a */
     ILCID_POSIX_MAP(zh),    /*  zh  Chinese                   0x04 */
     ILCID_POSIX_MAP(zu),    /*  zu  Zulu                      0x35 */
@@ -857,13 +963,6 @@ getPosixID(const ILcidPosixMap *this_0, uint32_t hostID)
 */
 #ifdef USE_WINDOWS_LOCALE_API
 /*
- * Change the tag separator from '-' to '_'
- */
-#define FIX_LOCALE_ID_TAG_SEPARATOR(buffer, len, i) \
-    for(i = 0; i < len; i++) \
-        if (buffer[i] == '-') buffer[i] = '_';
-
-/*
  * Various language tags needs to be changed:
  * quz -> qu
  * prs -> fa
@@ -879,39 +978,84 @@ getPosixID(const ILcidPosixMap *this_0, uint32_t hostID)
         } \
     }
 
-static char gPosixFromLCID[ULOC_FULLNAME_CAPACITY];
 #endif
-U_CAPI const char *
-uprv_convertToPosix(uint32_t hostid, UErrorCode* status)
+U_CAPI int32_t
+uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UErrorCode* status)
 {
     uint16_t langID;
     uint32_t localeIndex;
+    UBool bLookup = TRUE;
+    const char *pPosixID = NULL;
+
 #ifdef USE_WINDOWS_LOCALE_API
-    int32_t ret = 0;
+    int32_t tmpLen = 0;
+    char locName[157];  /* ULOC_FULLNAME_CAPACITY */
 
-    uprv_memset(gPosixFromLCID, 0, sizeof(gPosixFromLCID));
-
-    ret = GetLocaleInfoA(hostid, LOCALE_SNAME, (LPSTR)gPosixFromLCID, sizeof(gPosixFromLCID));
-    if (ret > 1) {
-        FIX_LOCALE_ID_TAG_SEPARATOR(gPosixFromLCID, ret, localeIndex)
-        FIX_LANGUAGE_ID_TAG(gPosixFromLCID, ret)
-
-        return gPosixFromLCID;
+    tmpLen = GetLocaleInfoA(hostid, LOCALE_SNAME, (LPSTR)locName, sizeof(locName)/sizeof(locName[0]));
+    if (tmpLen > 1) {
+        /* Windows locale name may contain sorting variant, such as "es-ES_tradnl".
+           In such case, we need special mapping data found in the hardcoded table
+           in this source file. */
+        char *p = uprv_strchr(locName, '_');
+        if (p) {
+            /* Keep the base locale, without variant */
+            *p = 0;
+            tmpLen = uprv_strlen(locName);
+        } else {
+            /* No hardcoded table lookup necessary */
+            bLookup = FALSE;
+        }
+        /* Change the tag separator from '-' to '_' */
+        p = locName;
+        while (*p) {
+            if (*p == '-') {
+                *p = '_';
+            }
+            p++;
+        }
+        FIX_LANGUAGE_ID_TAG(locName, tmpLen);
+        pPosixID = locName;
     }
 #endif
-    langID = LANGUAGE_LCID(hostid);
+    if (bLookup) {
+        const char *pCandidate = NULL;
+        langID = LANGUAGE_LCID(hostid);
 
-    for (localeIndex = 0; localeIndex < gLocaleCount; localeIndex++)
-    {
-        if (langID == gPosixIDmap[localeIndex].regionMaps->hostID)
-        {
-            return getPosixID(&gPosixIDmap[localeIndex], hostid);
+        for (localeIndex = 0; localeIndex < gLocaleCount; localeIndex++) {
+            if (langID == gPosixIDmap[localeIndex].regionMaps->hostID) {
+                pCandidate = getPosixID(&gPosixIDmap[localeIndex], hostid);
+                break;
+            }
         }
+
+        /* On Windows, when locale name has a variant, we still look up the hardcoded table.
+           If a match in the hardcoded table is longer than the Windows locale name without
+           variant, we use the one as the result */
+        if (pCandidate && (pPosixID == NULL || uprv_strlen(pCandidate) > uprv_strlen(pPosixID))) {
+            pPosixID = pCandidate;
+        }
+    }
+
+    if (pPosixID) {
+        int32_t resLen = uprv_strlen(pPosixID);
+        int32_t copyLen = resLen <= posixIDCapacity ? resLen : posixIDCapacity;
+        uprv_memcpy(posixID, pPosixID, copyLen);
+        if (resLen < posixIDCapacity) {
+            posixID[resLen] = 0;
+            if (*status == U_STRING_NOT_TERMINATED_WARNING) {
+                *status = U_ZERO_ERROR;
+            }
+        } else if (resLen == posixIDCapacity) {
+            *status = U_STRING_NOT_TERMINATED_WARNING;
+        } else {
+            *status = U_BUFFER_OVERFLOW_ERROR;
+        }
+        return resLen;
     }
 
     /* no match found */
     *status = U_ILLEGAL_ARGUMENT_ERROR;
-    return NULL;
+    return -1;
 }
 
 /*
@@ -931,7 +1075,7 @@ uprv_convertToLCID(const char *langID, const char* posixID, UErrorCode* status)
 
     uint32_t   low    = 0;
     uint32_t   high   = gLocaleCount;
-    uint32_t   mid    = high;
+    uint32_t   mid;
     uint32_t   oldmid = 0;
     int32_t    compVal;
 

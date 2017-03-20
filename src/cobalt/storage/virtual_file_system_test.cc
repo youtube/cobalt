@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/storage/virtual_file.h"
 #include "cobalt/storage/virtual_file_system.h"
@@ -20,6 +18,8 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#include "starboard/client_porting/poem/string_poem.h"
 
 namespace cobalt {
 namespace storage {
@@ -102,7 +102,85 @@ TEST_F(VirtualFileSystemTest, Open) {
   EXPECT_EQ(4, file->Size());
 }
 
+TEST_F(VirtualFileSystemTest, Truncate) {
+  VirtualFile* file = vfs_.Open("file1.tmp");
+  ASSERT_TRUE(file);
+  EXPECT_EQ(0, file->Size());
+
+  const char* data = "test";
+  char file_contents[4];
+  // Write a few bytes of random data.
+  file->Write(data, 4, 0);
+  EXPECT_EQ(4, file->Size());
+  int bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(4, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data, static_cast<size_t>(bytes)));
+
+  file->Truncate(3);
+  EXPECT_EQ(3, file->Size());
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(3, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data, static_cast<size_t>(bytes)));
+
+  file->Truncate(0);
+  EXPECT_EQ(0, file->Size());
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(0, bytes);
+}
+
 TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
+  // Create a few files and write some data
+  VirtualFile* file = vfs_.Open("file1.tmp");
+  EXPECT_TRUE(file != NULL);
+  const char data1[] = "abc";
+  int data1_size = 3;
+  file->Write(data1, data1_size, 0);
+
+  file = vfs_.Open("file2.tmp");
+  EXPECT_TRUE(file != NULL);
+  const char data2[] = "defg";
+  int data2_size = 4;
+  file->Write(data2, data2_size, 0);
+
+  file = vfs_.Open("file3.tmp");
+  EXPECT_TRUE(file != NULL);
+  const char data3[] = "";
+  int data3_size = 0;
+  file->Write(data3, data3_size, 0);
+
+  // First perform a dry run to figure out how much space we need.
+  int bytes = vfs_.Serialize(NULL, true /*dry run*/);
+  scoped_array<uint8> buffer(new uint8[static_cast<size_t>(bytes)]);
+
+  // Now serialize and deserialize
+  vfs_.Serialize(buffer.get(), false /*dry run*/);
+
+  // Deserialize the data into a new vfs
+  VirtualFileSystem new_vfs;
+  ASSERT_TRUE(new_vfs.Deserialize(buffer.get(), bytes));
+
+  // Make sure the new vfs contains all the expected data.
+  char file_contents[VirtualFile::kMaxVfsPathname];
+  file = new_vfs.Open("file1.tmp");
+  EXPECT_TRUE(file != NULL);
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(data1_size, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data1, static_cast<size_t>(bytes)));
+
+  file = new_vfs.Open("file2.tmp");
+  EXPECT_TRUE(file != NULL);
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(data2_size, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data2, static_cast<size_t>(bytes)));
+
+  file = new_vfs.Open("file3.tmp");
+  EXPECT_TRUE(file != NULL);
+  bytes = file->Read(file_contents, sizeof(file_contents), 0);
+  EXPECT_EQ(data3_size, bytes);
+  EXPECT_EQ(0, memcmp(file_contents, data3, static_cast<size_t>(bytes)));
+}
+
+TEST_F(VirtualFileSystemTest, DeserializeTruncated) {
   // Create a few files and write some data
   VirtualFile* file = vfs_.Open("file1.tmp");
   EXPECT_TRUE(file != NULL);
@@ -123,23 +201,39 @@ TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
   // Now serialize and deserialize
   vfs_.Serialize(buffer.get(), false /*dry run*/);
 
-  // Deserialize the data into a new vfs
-  VirtualFileSystem new_vfs;
-  new_vfs.Deserialize(buffer.get(), bytes);
+  for (int i = 1; i < bytes; i++) {
+    // Corrupt the header
+    VirtualFileSystem::SerializedHeader header;
+    memcpy(&header, buffer.get(), sizeof(header));
+    header.file_size = header.file_size - i;
+    memcpy(buffer.get(), &header, sizeof(header));
 
-  // Make sure the new vfs contains all the expected data.
-  char file_contents[VirtualFile::kMaxVfsPathname];
-  file = new_vfs.Open("file1.tmp");
-  EXPECT_TRUE(file != NULL);
-  bytes = file->Read(file_contents, sizeof(file_contents), 0);
-  EXPECT_EQ(data1_size, bytes);
-  EXPECT_EQ(0, memcmp(file_contents, data1, static_cast<size_t>(bytes)));
+    // Deserialize the data into a new vfs
+    VirtualFileSystem new_vfs;
+    EXPECT_FALSE(new_vfs.Deserialize(buffer.get(), bytes - i));
+  }
+}
 
-  file = new_vfs.Open("file2.tmp");
-  EXPECT_TRUE(file != NULL);
-  bytes = file->Read(file_contents, sizeof(file_contents), 0);
-  EXPECT_EQ(data2_size, bytes);
-  EXPECT_EQ(0, memcmp(file_contents, data2, static_cast<size_t>(bytes)));
+TEST_F(VirtualFileSystemTest, DeserializeBadData) {
+  scoped_array<uint8> buffer(new uint8[0]);
+  EXPECT_EQ(false, vfs_.Deserialize(buffer.get(), 0));
+  EXPECT_EQ(false, vfs_.Deserialize(buffer.get(), -1));
+  buffer.reset(new uint8[1]);
+  EXPECT_EQ(false, vfs_.Deserialize(buffer.get(), 1));
+  buffer.reset(new uint8[sizeof(VirtualFileSystem::SerializedHeader)]);
+  VirtualFileSystem::SerializedHeader header = {};
+  header.version = -1;
+  memcpy(buffer.get(), &header, sizeof(header));
+  EXPECT_EQ(false,
+            vfs_.Deserialize(buffer.get(),
+                             sizeof(VirtualFileSystem::SerializedHeader)));
+  memcpy(&(header.version), "SAV0", sizeof(header.version));
+  header.file_size = sizeof(VirtualFileSystem::SerializedHeader);
+  memcpy(buffer.get(), &header, sizeof(header));
+  EXPECT_EQ(true,
+            vfs_.Deserialize(buffer.get(),
+                             sizeof(VirtualFileSystem::SerializedHeader)));
+  ASSERT_EQ(0, vfs_.ListFiles().size());
 }
 
 TEST_F(VirtualFileSystemTest, GetHeaderVersion) {

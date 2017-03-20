@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 
@@ -39,7 +37,8 @@ SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context,
 
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<backend::RenderTarget>& render_target, int options) {
+    const scoped_refptr<backend::RenderTarget>& render_target,
+    const Options& options) {
   int width = render_target->GetSize().width();
   int height = render_target->GetSize().height();
 
@@ -94,7 +93,9 @@ void SoftwareRasterizer::Submit(
 
   SbBlitterDestroySurface(surface);
 
+  frame_rate_throttler_.EndInterval();
   render_target_blitter->Flip();
+  frame_rate_throttler_.BeginInterval();
 }
 
 render_tree::ResourceProvider* SoftwareRasterizer::GetResourceProvider() {

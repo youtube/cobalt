@@ -16,6 +16,8 @@
   'sources': [
     'display.cc',
     'display.h',
+    'framebuffer.h',
+    'framebuffer.cc',
     'graphics_context.cc',
     'graphics_context.h',
     'graphics_system.cc',

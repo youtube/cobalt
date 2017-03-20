@@ -27,6 +27,7 @@
 14-2-1-background-with-image-repeat-color-position
 14-2-1-background-with-image-repeat-position
 14-2-1-background-with-image-repeat-position-color
+14-2-1-background-with-opaque-image-color
 14-2-1-background-with-position-color
 14-2-1-background-with-position-color-image
 14-2-1-background-with-position-color-image-repeat
@@ -61,6 +62,7 @@
 3-10-background-none-declares-initial-value-for-background-color
 3-11-2-propagate-computed-value-of-background-from-body-to-root
 3-11-2-propagate-computed-value-of-background-from-html-to-root
+3-11-2-body-background-can-be-set-to-transparent-later
 4-0-border-color-with-solid-border-style
 4-0-border-color-with-solid-border-style-and-background-color
 4-0-border-set-using-border-color-and-border-style

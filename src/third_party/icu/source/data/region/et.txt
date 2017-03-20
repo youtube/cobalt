@@ -1,16 +1,42 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/et.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/et.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/et.xml
- */
 et{
     Countries{
+        001{"maailm"}
+        002{"Aafrika"}
+        003{"Põhja-Ameerika"}
+        005{"Lõuna-Ameerika"}
+        009{"Okeaania"}
+        011{"Lääne-Aafrika"}
+        013{"Kesk-Ameerika"}
+        014{"Ida-Aafrika"}
+        015{"Põhja-Aafrika"}
+        017{"Kesk-Aafrika"}
+        018{"Lõuna-Aafrika"}
+        019{"Ameerika"}
+        021{"Ameerika põhjaosa"}
+        029{"Kariibi piirkond"}
+        030{"Ida-Aasia"}
+        034{"Lõuna-Aasia"}
+        035{"Kagu-Aasia"}
+        039{"Lõuna-Euroopa"}
+        053{"Australaasia"}
+        054{"Melaneesia"}
+        057{"Mikroneesia (piirkond)"}
+        061{"Polüneesia"}
+        142{"Aasia"}
+        143{"Kesk-Aasia"}
+        145{"Lääne-Aasia"}
+        150{"Euroopa"}
+        151{"Ida-Euroopa"}
+        154{"Põhja-Euroopa"}
+        155{"Lääne-Euroopa"}
         419{"Ladina-Ameerika"}
         AC{"Ascensioni saar"}
         AD{"Andorra"}
@@ -43,6 +69,7 @@ et{
         BM{"Bermuda"}
         BN{"Brunei"}
         BO{"Boliivia"}
+        BQ{"Hollandi Kariibi mere saared"}
         BR{"Brasiilia"}
         BS{"Bahama"}
         BT{"Bhutan"}
@@ -54,9 +81,9 @@ et{
         CC{"Kookossaared"}
         CD{"Kongo DV"}
         CF{"Kesk-Aafrika Vabariik"}
-        CG{"Kongo-Brazzaville"}
+        CG{"Kongo Vabariik"}
         CH{"Šveits"}
-        CI{"Côte d'Ivoire"}
+        CI{"Côte d’Ivoire"}
         CK{"Cooki saared"}
         CL{"Tšiili"}
         CM{"Kamerun"}
@@ -64,9 +91,9 @@ et{
         CO{"Colombia"}
         CP{"Clippertoni saar"}
         CR{"Costa Rica"}
-        CS{"Serbia ja Montenegro"}
         CU{"Kuuba"}
         CV{"Roheneemesaared"}
+        CW{"Curaçao"}
         CX{"Jõulusaar"}
         CY{"Küpros"}
         CZ{"Tšehhi"}
@@ -89,7 +116,7 @@ et{
         FI{"Soome"}
         FJ{"Fidži"}
         FK{"Falklandi saared"}
-        FM{"Mikroneesia Liiduriigid"}
+        FM{"Mikroneesia"}
         FO{"Fääri saared"}
         FR{"Prantsusmaa"}
         GA{"Gabon"}
@@ -111,8 +138,8 @@ et{
         GU{"Guam"}
         GW{"Guinea-Bissau"}
         GY{"Guyana"}
-        HK{"Hongkong - Hiina erihalduspiirkond"}
-        HM{"Heard ja McDonald saared"}
+        HK{"Hongkong"}
+        HM{"Heardi ja McDonaldi saared"}
         HN{"Honduras"}
         HR{"Horvaatia"}
         HT{"Haiti"}
@@ -132,7 +159,7 @@ et{
         JM{"Jamaica"}
         JO{"Jordaania"}
         JP{"Jaapan"}
-        KE{"Kenya"}
+        KE{"Keenia"}
         KG{"Kõrgõzstan"}
         KH{"Kambodža"}
         KI{"Kiribati"}
@@ -158,14 +185,14 @@ et{
         MC{"Monaco"}
         MD{"Moldova"}
         ME{"Montenegro"}
-        MF{"Saint Martin"}
+        MF{"Saint-Martin"}
         MG{"Madagaskar"}
-        MH{"Marshalli saared"}
+        MH{"Marshalli Saared"}
         MK{"Makedoonia"}
         ML{"Mali"}
-        MM{"Myanmar"}
+        MM{"Myanmar (Birma)"}
         MN{"Mongoolia"}
-        MO{"Aomen - Hiina erihalduspiirkond"}
+        MO{"Macau"}
         MP{"Põhja-Mariaanid"}
         MQ{"Martinique"}
         MR{"Mauritaania"}
@@ -198,9 +225,9 @@ et{
         PK{"Pakistan"}
         PL{"Poola"}
         PM{"Saint Pierre ja Miquelon"}
-        PN{"Pitcairn"}
+        PN{"Pitcairni saared"}
         PR{"Puerto Rico"}
-        PS{"Palestiina ala"}
+        PS{"Palestiina"}
         PT{"Portugal"}
         PW{"Belau"}
         PY{"Paraguay"}
@@ -226,8 +253,10 @@ et{
         SN{"Senegal"}
         SO{"Somaalia"}
         SR{"Suriname"}
+        SS{"Lõuna-Sudaan"}
         ST{"São Tomé ja Príncipe"}
         SV{"El Salvador"}
+        SX{"Sint Maarten"}
         SY{"Süüria"}
         SZ{"Svaasimaa"}
         TA{"Tristan da Cunha"}
@@ -262,12 +291,25 @@ et{
         VU{"Vanuatu"}
         WF{"Wallis ja Futuna"}
         WS{"Samoa"}
+        XK{"Kosovo"}
         YE{"Jeemen"}
         YT{"Mayotte"}
         ZA{"Lõuna-Aafrika Vabariik"}
         ZM{"Sambia"}
         ZW{"Zimbabwe"}
-        ZZ{"määramata"}
+        ZZ{"Tundmatu piirkond"}
     }
-    Version{"2.0.50.94"}
+    Countries%short{
+        GB{"ÜK"}
+        US{"USA"}
+    }
+    Countries%variant{
+        CD{"Kongo-Kinshasa"}
+        CG{"Kongo-Brazzaville"}
+        CI{"Elevandiluurannik"}
+        FK{"Malviini saared"}
+        MK{"Makedoonia Vabariik"}
+        TL{"Timor-Leste"}
+    }
+    Version{"2.1.20.4"}
 }

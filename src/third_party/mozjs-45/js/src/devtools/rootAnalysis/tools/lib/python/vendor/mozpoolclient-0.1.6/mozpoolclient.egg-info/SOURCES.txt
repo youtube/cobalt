@@ -1,0 +1,8 @@
+README.txt
+mozpoolclient.py
+setup.py
+mozpoolclient.egg-info/PKG-INFO
+mozpoolclient.egg-info/SOURCES.txt
+mozpoolclient.egg-info/dependency_links.txt
+mozpoolclient.egg-info/requires.txt
+mozpoolclient.egg-info/top_level.txt

@@ -20,10 +20,13 @@ third_party/blink/Source/bindings/scripts/idl_compiler.py.
 import os
 import sys
 
+import bootstrap_path  # pylint: disable=g-bad-import-order,unused-import
+
 module_path, module_filename = os.path.split(os.path.realpath(__file__))
 # Adding this to the path allows us to import from blink's bindings.scripts
-blink_source_dir = os.path.normpath(os.path.join(
-    module_path, os.pardir, os.pardir, 'third_party', 'blink', 'Source'))
+blink_source_dir = os.path.normpath(
+    os.path.join(module_path, os.pardir, os.pardir, 'third_party', 'blink',
+                 'Source'))
 sys.path.append(blink_source_dir)
 
 from bindings.scripts.idl_compiler import IdlCompiler  # pylint: disable=g-import-not-at-top
@@ -34,9 +37,8 @@ class IdlCompilerCobalt(IdlCompiler):
 
   def __init__(self, code_generator_class, *args, **kwargs):
     IdlCompiler.__init__(self, *args, **kwargs)
-    self.code_generator = code_generator_class(self.interfaces_info,
-                                               self.cache_directory,
-                                               self.output_directory)
+    self.code_generator = code_generator_class(
+        self.interfaces_info, self.cache_directory, self.output_directory)
 
   def compile_file(self, idl_filename):
     self.compile_and_write(idl_filename)

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <cmath>
 
@@ -463,7 +461,7 @@ TEST_F(PixelTest, SingleRGBAImageWithSameSizeAsRenderTarget) {
   TestTree(new ImageNode(image));
 }
 
-TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNone) {
+TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaque) {
   scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
       GetResourceProvider(), output_surface_size(),
       render_tree::kAlphaFormatOpaque);
@@ -471,7 +469,7 @@ TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNone) {
   TestTree(new ImageNode(image));
 }
 
-TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNoneAndRoundedCorners) {
+TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaqueAndRoundedCorners) {
   scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
       GetResourceProvider(), output_surface_size(),
       render_tree::kAlphaFormatOpaque);
@@ -479,6 +477,35 @@ TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatNoneAndRoundedCorners) {
   TestTree(new FilterNode(
       ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
       new ImageNode(image)));
+}
+
+TEST_F(PixelTest,
+       SingleRGBAImageWithAlphaFormatOpaqueAndRoundedCornersOnSolidColor) {
+  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
+      GetResourceProvider(), output_surface_size(),
+      render_tree::kAlphaFormatOpaque);
+
+  CompositionNode::Builder builder;
+  builder.AddChild(new RectNode(
+      RectF(output_surface_size()),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  builder.AddChild(new FilterNode(
+      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
+      new ImageNode(image)));
+  TestTree(new CompositionNode(builder.Pass()));
+}
+
+TEST_F(PixelTest, RectWithRoundedCornersOnSolidColor) {
+  CompositionNode::Builder builder;
+  builder.AddChild(new RectNode(
+      RectF(output_surface_size()),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  builder.AddChild(new FilterNode(
+      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
+      new RectNode(RectF(output_surface_size()),
+                   scoped_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(0.0, 0.0, 1.0, 1))))));
+  TestTree(new CompositionNode(builder.Pass()));
 }
 
 TEST_F(PixelTest, SingleRGBAImageLargerThanRenderTarget) {
@@ -1400,6 +1427,20 @@ TEST_F(PixelTest, RectNodeContainsBorderWithTranslationRotationAndScale) {
           ScaleMatrix(1.5f)));
 }
 
+TEST_F(PixelTest, RectNodeContainsSkinnyBorderWithTranslation) {
+  // RectNode can be translated and drawn with skinny borders.
+  BorderSide border_side(2, render_tree::kBorderStyleSolid,
+                         ColorRGBA(0.0, 1.0, 0.0, 1));
+  scoped_ptr<Border> border(new Border(border_side));
+
+  TestTree(new MatrixTransformNode(
+      new RectNode(
+          RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
+          border.Pass()),
+      TranslateMatrix(40, 80)));
+}
+
 // Creates a white/block checkered image where |dimensions| gives the size
 // in pixels of the image to be constructed and |block_size| gives the size
 // in pixels of each checker box.
@@ -1959,21 +2000,19 @@ namespace {
 scoped_refptr<Node> CreateRoundedBorderRect(const SizeF& size,
                                             float border_width,
                                             const ColorRGBA& color) {
-  return new RectNode(
-      RectF(size), make_scoped_ptr(new Border(BorderSide(
-                       border_width, render_tree::kBorderStyleSolid, color))),
-      make_scoped_ptr(
-          new RoundedCorners(size.width() / 4.0f, size.height() / 4.0f)));
+  BorderSide border_side(border_width, render_tree::kBorderStyleSolid, color);
+  return new RectNode(RectF(size), make_scoped_ptr(new Border(border_side)),
+                      make_scoped_ptr(new RoundedCorners(
+                          size.width() / 4.0f, size.height() / 4.0f)));
 }
 
 scoped_refptr<Node> CreateEllipticalBorderRect(const SizeF& size,
                                                float border_width,
                                                const ColorRGBA& color) {
-  return new RectNode(
-      RectF(size), make_scoped_ptr(new Border(BorderSide(
-                       border_width, render_tree::kBorderStyleSolid, color))),
-      make_scoped_ptr(
-          new RoundedCorners(size.width() / 2.0f, size.height() / 2.0f)));
+  BorderSide border_side(border_width, render_tree::kBorderStyleSolid, color);
+  return new RectNode(RectF(size), make_scoped_ptr(new Border(border_side)),
+                      make_scoped_ptr(new RoundedCorners(
+                          size.width() / 2.0f, size.height() / 2.0f)));
 }
 
 }  // namespace
@@ -1989,11 +2028,10 @@ TEST_F(PixelTest, RoundedCornersEachDifferentThickBorder) {
   RoundedCorners rounded_corners(
       RoundedCorner(10.0f, 20.0f), RoundedCorner(20.0f, 30.0f),
       RoundedCorner(30.0f, 40.0f), RoundedCorner(50.0f, 40.0f));
-
+  BorderSide border_side(20.0f, render_tree::kBorderStyleSolid,
+                         ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f));
   TestTree(new RectNode(RectF(30, 30, 100, 100),
-                        make_scoped_ptr(new Border(
-                            BorderSide(20.0f, render_tree::kBorderStyleSolid,
-                                       ColorRGBA(1.0f, 0.0f, 0.5f, 1.0f)))),
+                        make_scoped_ptr(new Border(border_side)),
                         make_scoped_ptr(new RoundedCorners(rounded_corners))));
 }
 
@@ -2016,6 +2054,15 @@ TEST_F(PixelTest, EllipticalThickBorder) {
       CreateEllipticalBorderRect(ScaleSize(output_surface_size(), 0.75f, 0.5f),
                                  15.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)),
       TranslateMatrix(30.0f, 30.0f)));
+}
+
+TEST_F(PixelTest, SquishedEllipticalThickBorder) {
+  // This test makes sure that we can properly render ellipses that are created
+  // by squishing circles using a scaling MatrixTransformNode node.
+  TestTree(new MatrixTransformNode(
+      CreateEllipticalBorderRect(ScaleSize(output_surface_size(), 0.5f, 0.5f),
+                                 15.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)),
+      ScaleMatrix(1.0f, 0.8f) * TranslateMatrix(30.0f, 30.0f)));
 }
 
 TEST_F(PixelTest, RoundedCornersSubPixelBorder) {
@@ -2773,8 +2820,8 @@ TEST_F(PixelTest, BoxShadowInsetCircleSpread) {
       RoundedCorners(50, 50)));
 }
 
-// If SetBoundsCB() returns false, the PunchThroughVideoNode should have no
-// effect.
+// PunchThroughVideoNode should trigger the painting of a solid rectangle with
+// RGBA(0, 0, 0, 0) regardless of whether SetBoundsCB returns true or false.
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),
@@ -2787,8 +2834,6 @@ TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsFalse) {
   TestTree(new CompositionNode(builder.Pass()));
 }
 
-// If SetBoundsCB() returns true, the PunchThroughVideoNode should trigger the
-// painting of a solid rectangle with RGBA(0, 0, 0, 0).
 TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsTrue) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(25, 25, 150, 150),

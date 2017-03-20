@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/om.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/om.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/om.xml
- */
 om{
     Currencies{
         BRL{
@@ -29,10 +26,10 @@ om{
         }
         GBP{
             "£",
-            "British Pound Sterling",
+            "British Pound",
         }
         INR{
-            "Rs",
+            "₹",
             "Indian Rupee",
         }
         JPY{
@@ -48,5 +45,5 @@ om{
             "US Dollar",
         }
     }
-    Version{"2.0.48.64"}
+    Version{"2.1.19.14"}
 }

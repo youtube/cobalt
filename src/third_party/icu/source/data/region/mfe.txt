@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/mfe.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/mfe.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/mfe.xml
- */
 mfe{
     Countries{
         AD{"Andor"}
@@ -49,14 +46,13 @@ mfe{
         CF{"Repiblik Lafrik Santral"}
         CG{"Kongo"}
         CH{"Laswis"}
-        CI{"Côte d'Ivoire"}
+        CI{"Côte d’Ivoire"}
         CK{"Zil Cook"}
         CL{"Shili"}
         CM{"Kamerounn"}
         CN{"Lasinn"}
         CO{"Kolonbi"}
         CR{"Costa Rica"}
-        CS{"Serbi-ek-Montenegro"}
         CU{"Cuba"}
         CV{"Kap-Ver"}
         CY{"Cyprus"}
@@ -238,5 +234,5 @@ mfe{
         ZM{"Zambi"}
         ZW{"Zimbabwe"}
     }
-    Version{"2.0.47.63"}
+    Version{"2.1.19.14"}
 }

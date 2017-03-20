@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Thread creation and cleanup.
+// Module Overview: Starboard Thread module
+//
+// Defines functionality related to thread creation and cleanup.
 
 #ifndef STARBOARD_THREAD_H_
 #define STARBOARD_THREAD_H_
@@ -128,22 +130,29 @@ static SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
   return key != kSbThreadLocalKeyInvalid;
 }
 
-// Creates a new thread, which starts immediately. The |stack_size| parameter
-// can be 0 to indicate that the default stack size should be used. |priority|
-// can be set to kSbThreadNoPriority to use the default priority for the
-// platform (e.g. possibly a fixed, standard priority, or possibly a priority
-// inherited from the thread that is calling SbThreadCreate()). |affinity| can
-// be set to kSbThreadNoAffinity to use the default affinity for the platform.
-// |joinable| sets whether the thread can be joined, or should start out
-// "detached." |name| is mainly used for debugging, may be NULL, and may not
-// even be used in production builds. Returns a handle to the newly created
-// thread upon success, and returns kSbThreadInvalid if not. |entry_point| will
-// be executed on the newly created thread, and passed |context|.
+// Creates a new thread, which starts immediately.
+// - If the function succeeds, the return value is a handle to the newly
+//   created thread.
+// - If the function fails, the return value is |kSbThreadInvalid|.
 //
-// NOTE: For joinable threads, when you are done with the thread handle, you
-// must call SbThreadJoin to release system resources associated with the
-// thread. This is not necessary for detached threads, but a detached thread
-// cannot be joined.
+// |stack_size|: The amount of memory reserved for the thread. Set the value
+//   to |0| to indicate that the default stack size should be used.
+// |priority|: The thread's priority. This value can be set to
+//   |kSbThreadNoPriority| to use the platform's default priority. As examples,
+//   it could be set to a fixed, standard priority or to a priority inherited
+//   from the thread that is calling SbThreadCreate(), or to something else.
+// |affinity|: The thread's affinity. This value can be set to
+//   |kSbThreadNoAffinity| to use the platform's default affinity.
+// |joinable|: Indicates whether the thread can be joined (|true|) or should
+//   start out "detached" (|false|). Note that for joinable threads, when
+//   you are done with the thread handle, you must call |SbThreadJoin| to
+//   release system resources associated with the thread. This is not necessary
+//   for detached threads, but detached threads cannot be joined.
+// |name|: A name used to identify the thread. This value is used mainly for
+//   debugging, it can be |NULL|, and it might not be used in production builds.
+// |entry_point|: A pointer to a function that will be executed on the newly
+//   created thread.
+// |context|: This value will be passed to the |entry_point| function.
 SB_EXPORT SbThread SbThreadCreate(int64_t stack_size,
                                   SbThreadPriority priority,
                                   SbThreadAffinity affinity,
@@ -152,74 +161,101 @@ SB_EXPORT SbThread SbThreadCreate(int64_t stack_size,
                                   SbThreadEntryPoint entry_point,
                                   void* context);
 
-// Joins with joinable |thread|, created with SbThreadCreate.  This function
-// blocks the caller until the designated thread exits, and then cleans up that
-// thread's resources.  Returns true on success, false if |thread| is invalid or
-// detached. This will essentially detach |thread|. Each joinable thread must be
-// joined to be fully cleaned up. If |out_return| is not NULL, the return value
-// of the thread's main function is placed there.
+// Joins the thread on which this function is called with joinable |thread|.
+// This function blocks the caller until the designated thread exits, and then
+// cleans up that thread's resources. The cleanup process essentially detaches
+// thread.
 //
-// Each joinable thread can only be joined once. Once SbThreadJoin is called,
-// the thread behaves as if it was detached to all threads other than the
-// joining thread.
+// The return value is |true| if the function is successful and |false| if
+// |thread| is invalid or detached.
+//
+// Each joinable thread can only be joined once and must be joined to be fully
+// cleaned up. Once SbThreadJoin is called, the thread behaves as if it were
+// detached to all threads other than the joining thread.
+//
+// |thread|: The thread to which the current thread will be joined. The
+//   |thread| must have been created with SbThreadCreate.
+// |out_return|: If this is not |NULL|, then the SbThreadJoin function populates
+//   it with the return value of the thread's |main| function.
 SB_EXPORT bool SbThreadJoin(SbThread thread, void** out_return);
 
 // Detaches |thread|, which prevents it from being joined. This is sort of like
-// a non-blocking join. Does nothing if the thread is already detached, or is
-// already being joined by another thread.
+// a non-blocking join. This function is a no-op if the thread is already
+// detached or if the thread is already being joined by another thread.
+//
+// |thread|: The thread to be detached.
 SB_EXPORT void SbThreadDetach(SbThread thread);
 
 // Yields the currently executing thread, so another thread has a chance to run.
 SB_EXPORT void SbThreadYield();
 
-// Sleeps the currently executing thread for at least the given |duration| in
-// microseconds. A negative duration does nothing.
+// Sleeps the currently executing thread.
+//
+// |duration|: The minimum amount of time, in microseconds, that the currently
+//   executing thread should sleep. The function is a no-op if this value is
+//   negative or |0|.
 SB_EXPORT void SbThreadSleep(SbTime duration);
 
-// Gets the handle of the currently executing thread.
+// Returns the handle of the currently executing thread.
 SB_EXPORT SbThread SbThreadGetCurrent();
 
-// Gets the Thread ID of the currently executing thread.
+// Returns the Thread ID of the currently executing thread.
 SB_EXPORT SbThreadId SbThreadGetId();
 
-// Returns whether |thread1| and |thread2| refer to the same thread.
+// Indicates whether |thread1| and |thread2| refer to the same thread.
+//
+// |thread1|: The first thread to compare.
+// |thread2|: The second thread to compare.
 SB_EXPORT bool SbThreadIsEqual(SbThread thread1, SbThread thread2);
 
-// Gets the debug name of the currently executing thread.
+// Returns the debug name of the currently executing thread.
 SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
 
-// Sets the debug name of the currently executing thread. Will copy the
+// Sets the debug name of the currently executing thread by copying the
 // specified name string.
+//
+// |name|: The name to assign to the thread.
 SB_EXPORT void SbThreadSetName(const char* name);
 
-// Creates a new, unique key for thread local data with given optional
-// |destructor|. |destructor| may be NULL if there is no clean up
-// needed. Returns kSbThreadLocalKeyInvalid if creation was unsuccessful.
+// Creates and returns a new, unique key for thread local data. If the function
+// does not succeed, the function returns |kSbThreadLocalKeyInvalid|.
 //
-// When does |destructor| get called? It can only be called in the owning
-// thread, and let's just say thread interruption isn't viable. The destructor,
-// if specified, is called on every thread's local values when the thread exits,
-// if and only if the value in the key is non-NULL.
+// If |destructor| is specified, it will be called in the owning thread, and
+// only in the owning thread, when the thread exits. In that case, it is called
+// on the local value associated with the key in the current thread as long as
+// the local value is not NULL.
+//
+// |destructor|: A pointer to a function. The value may be NULL if no clean up
+//   is needed.
 SB_EXPORT SbThreadLocalKey
 SbThreadCreateLocalKey(SbThreadLocalDestructor destructor);
 
-// Destroys thread local data |key|. Does nothing if key is
-// kSbThreadLocalKeyInvalid or has already been destroyed. This does NOT call
-// the destructor on any stored values.
+// Destroys thread local data for the specified key. The function is a no-op
+// if the key is invalid (kSbThreadLocalKeyInvalid|) or has already been
+// destroyed. This function does NOT call the destructor on any stored values.
+//
+// |key|: The key for which to destroy thread local data.
 SB_EXPORT void SbThreadDestroyLocalKey(SbThreadLocalKey key);
 
-// Gets the pointer-sized value for |key| in the currently executing thread's
-// local storage. Returns NULL if key is kSbThreadLocalKeyInvalid or has already
-// been destroyed.
+// Returns the pointer-sized value for |key| in the currently executing thread's
+// local storage. Returns |NULL| if key is |kSbThreadLocalKeyInvalid| or if the
+// key has already been destroyed.
+//
+// |key|: The key for which to return the value.
 SB_EXPORT void* SbThreadGetLocalValue(SbThreadLocalKey key);
 
 // Sets the pointer-sized value for |key| in the currently executing thread's
-// local storage. Returns whether |key| is valid and has not already been
-// destroyed.
+// local storage. The return value indicates whether |key| is valid and has
+// not already been destroyed.
+//
+// |key|: The key for which to set the key value.
+// |value|: The new pointer-sized key value.
 SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
 
 // Returns whether |thread| is the current thread.
-SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
+//
+// |thread|: The thread to check.
+static SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
   return SbThreadGetCurrent() == thread;
 }
 

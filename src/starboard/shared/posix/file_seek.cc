@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
-
-#include "starboard/file.h"
-
-#include <unistd.h>
-
 #include "starboard/shared/posix/file_internal.h"
 
-int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset) {
-  if (!file || file->descriptor < 0) {
-    return -1;
-  }
+#include "starboard/shared/posix/impl/file_seek.h"
 
-  return lseek(file->descriptor, static_cast<off_t>(offset),
-               static_cast<int>(whence));
+int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset) {
+  return ::starboard::shared::posix::impl::FileSeek(file, whence, offset);
 }

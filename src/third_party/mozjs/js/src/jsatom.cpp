@@ -27,6 +27,8 @@
 
 #include "vm/String-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 
@@ -37,6 +39,7 @@ using mozilla::RangedPtr;
 const char *
 js_AtomToPrintableString(JSContext *cx, JSAtom *atom, JSAutoByteString *bytes)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return js_ValueToPrintable(cx, StringValue(atom), bytes);
 }
 
@@ -114,12 +117,14 @@ const char js_send_str[]            = "send";
 JSBool
 js::InitAtoms(JSRuntime *rt)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return rt->atoms.init(JS_STRING_HASH_COUNT);
 }
 
 void
 js::FinishAtoms(JSRuntime *rt)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AtomSet &atoms = rt->atoms;
     if (!atoms.initialized()) {
         /*
@@ -143,6 +148,7 @@ struct CommonNameInfo
 bool
 js::InitCommonNames(JSContext *cx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     static const CommonNameInfo cachedNames[] = {
 #define COMMON_NAME_INFO(idpart, id, text) { js_##idpart##_str, sizeof(text) - 1 },
         FOR_EACH_COMMON_PROPERTYNAME(COMMON_NAME_INFO)
@@ -168,6 +174,7 @@ js::InitCommonNames(JSContext *cx)
 void
 js::FinishCommonNames(JSRuntime *rt)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     rt->emptyString = NULL;
 #ifdef DEBUG
     memset(&rt->atomState, JS_FREE_PATTERN, sizeof(JSAtomState));
@@ -177,6 +184,7 @@ js::FinishCommonNames(JSRuntime *rt)
 void
 js::MarkAtoms(JSTracer *trc)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSRuntime *rt = trc->runtime;
     for (AtomSet::Range r = rt->atoms.all(); !r.empty(); r.popFront()) {
         AtomStateEntry entry = r.front();
@@ -192,6 +200,7 @@ js::MarkAtoms(JSTracer *trc)
 void
 js::SweepAtoms(JSRuntime *rt)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     for (AtomSet::Enum e(rt->atoms); !e.empty(); e.popFront()) {
         AtomStateEntry entry = e.front();
         JSAtom *atom = entry.asPtr();
@@ -234,6 +243,7 @@ JS_ALWAYS_INLINE
 static JSAtom *
 AtomizeAndTakeOwnership(JSContext *cx, jschar *tbchars, size_t length, InternBehavior ib)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(tbchars[length] == 0);
 
     if (JSAtom *s = cx->runtime()->staticStrings.lookup(tbchars, length)) {
@@ -282,6 +292,7 @@ JS_ALWAYS_INLINE
 static JSAtom *
 AtomizeAndCopyChars(JSContext *cx, const jschar *tbchars, size_t length, InternBehavior ib)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (JSAtom *s = cx->runtime()->staticStrings.lookup(tbchars, length))
          return s;
 
@@ -322,6 +333,7 @@ template <AllowGC allowGC>
 JSAtom *
 js::AtomizeString(JSContext *cx, JSString *str, js::InternBehavior ib /* = js::DoNotInternAtom */)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (str->isAtom()) {
         JSAtom &atom = str->asAtom();
         /* N.B. static atoms are effectively always interned. */
@@ -363,6 +375,7 @@ js::AtomizeString<NoGC>(JSContext *cx, JSString *str, js::InternBehavior ib);
 JSAtom *
 js::Atomize(JSContext *cx, const char *bytes, size_t length, InternBehavior ib)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CHECK_REQUEST(cx);
 
     if (!JSString::validateLength(cx, length))
@@ -393,6 +406,7 @@ template <AllowGC allowGC>
 JSAtom *
 js::AtomizeChars(JSContext *cx, const jschar *chars, size_t length, InternBehavior ib)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CHECK_REQUEST(cx);
 
     if (!JSString::validateLength(cx, length))
@@ -412,6 +426,7 @@ bool
 js::IndexToIdSlow(JSContext *cx, uint32_t index,
                   typename MaybeRooted<jsid, allowGC>::MutableHandleType idp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(index > JSID_INT_MAX);
 
     jschar buf[UINT32_CHAR_BUFFER_LENGTH];
@@ -436,6 +451,7 @@ template <AllowGC allowGC>
 JSAtom *
 js::ToAtom(JSContext *cx, typename MaybeRooted<Value, allowGC>::HandleType v)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!v.isString()) {
         JSString *str = js::ToStringSlow<allowGC>(cx, v);
         if (!str)
@@ -462,6 +478,7 @@ template<XDRMode mode>
 bool
 js::XDRAtom(XDRState<mode> *xdr, MutableHandleAtom atomp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (mode == XDR_ENCODE) {
         uint32_t nchars = atomp->length();
         if (!xdr->codeUint32(&nchars))

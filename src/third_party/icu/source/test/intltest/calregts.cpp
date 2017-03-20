@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation
+ * Copyright (c) 1997-2014, International Business Machines Corporation
  * and others. All Rights Reserved.
  ********************************************************************/
  
@@ -16,6 +16,7 @@
 #include "unicode/strenum.h"
 #include "cmemory.h"
 #include "caltest.h"
+#include "unicode/localpointer.h"
 
 #include <float.h>
 
@@ -83,6 +84,10 @@ CalendarRegressionTest::runIndexedTest( int32_t index, UBool exec, const char* &
         CASE(44,TestDeprecates);
         CASE(45,TestT5555);
         CASE(46,TestT6745);
+        CASE(47,TestT8057);
+        CASE(48,TestT8596);
+        CASE(49,Test9019);
+        CASE(50,TestT9452);
     default: name = ""; break;
     }
 }
@@ -192,6 +197,37 @@ CalendarRegressionTest::test4028518()
     delete cal2;
 }
 
+
+void
+CalendarRegressionTest::Test9019()
+{
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<GregorianCalendar> cal1(new GregorianCalendar(status), status);
+    LocalPointer<GregorianCalendar> cal2(new GregorianCalendar(status), status);
+    if(U_FAILURE(status)) {
+      dataerrln("Error creating Calendar: %s", u_errorName(status));
+      return;
+    }
+    cal1->set(UCAL_HOUR, 1);
+    cal2->set(UCAL_HOUR,2);
+    cal1->clear();
+    cal2->clear();
+    failure(status, "new GregorianCalendar");
+    cal1->set(2011,UCAL_MAY,06);
+    cal2->set(2012,UCAL_JANUARY,06);
+    printdate(cal1.getAlias(), "cal1: ") ;
+    cal1->setLenient(FALSE);
+    cal1->add(UCAL_MONTH,8,status);
+    failure(status, "->add(UCAL_MONTH,8)");
+    printdate(cal1.getAlias(), "cal1 (lenient) after adding 8 months:") ;
+    printdate(cal2.getAlias(), "cal2 (expected date):") ;
+    
+    if(!cal1->equals(*cal2,status)) {
+      errln("Error: cal1 != cal2.\n");
+    }
+    failure(status, "equals");
+}
+
 void 
 CalendarRegressionTest::printdate(GregorianCalendar *cal, const char *string)
 {
@@ -216,6 +252,10 @@ CalendarRegressionTest::test4031502()
     // require the host zone to be set; it can be set in Java.
     UErrorCode status = U_ZERO_ERROR;
     StringEnumeration* ids = TimeZone::createEnumeration();
+    if (ids == NULL) {
+        dataerrln("Unable to create TimeZone Enumeration.");
+        return;
+    }
     UBool bad = FALSE;
     TimeZone* tz =TimeZone::createTimeZone("Asia/Riyadh87");
     failure(status, "new TimeZone");
@@ -280,8 +320,13 @@ void CalendarRegressionTest::test4040996()
 {
     int32_t count = 0;
     StringEnumeration* ids = TimeZone::createEnumeration(-8 * 60 * 60 * 1000);
+    if (ids == NULL) {
+        dataerrln("Unable to create TimeZone enumeration.");
+        return;
+    }
     UErrorCode status = U_ZERO_ERROR;    
     count = ids->count(status);
+    (void)count;    // Suppress set but not used warning.
     SimpleTimeZone *pdt = new SimpleTimeZone(-8 * 60 * 60 * 1000, *ids->snext(status));
     pdt->setStartRule(UCAL_APRIL, 1, UCAL_SUNDAY, 2 * 60 * 60 * 1000, status);
     pdt->setEndRule(UCAL_OCTOBER, -1, UCAL_SUNDAY, 2 * 60 * 60 * 1000, status);
@@ -546,7 +591,7 @@ void CalendarRegressionTest::dowTest(UBool lenient)
     if (dow < min || dow > max) 
         errln("FAIL: Day of week %d out of range [%d,%d]\n", dow, min, max);
     if (dow != UCAL_SUNDAY) 
-        errln("FAIL: Day of week should be SUNDAY Got " + dow);
+        errln(UnicodeString("FAIL: Day of week should be SUNDAY Got ") + dow);
 
     if(U_FAILURE(status)) {
       errln("Error checking Calendar: %s", u_errorName(status));
@@ -766,7 +811,8 @@ void CalendarRegressionTest::test4092362() {
 
     logln( UnicodeString(" Cal1 = ") + cal1->getTime(status) ); 
     logln( UnicodeString(" Cal1 time in ms = ") + cal1->get(UCAL_MILLISECOND,status) ); 
-    for( int32_t k = 0; k < 100 ; k++ ); 
+    for (int32_t k = 0; k < 100 ; k++)
+        ;
 
     GregorianCalendar *cal2 = new GregorianCalendar(1997, 10, 11, 10, 20, 40,status); 
     /*cal2.set( Calendar::YEAR, 1997 ); 
@@ -799,7 +845,7 @@ void CalendarRegressionTest::test4095407()
     }
     int32_t dow = a->get(UCAL_DAY_OF_WEEK, status);
     if (dow != UCAL_THURSDAY)
-        errln("Fail: Want THURSDAY Got " + dow);
+        errln(UnicodeString("Fail: Want THURSDAY Got ") + dow);
 
     delete a;
 }
@@ -1398,7 +1444,11 @@ void CalendarRegressionTest::test4125881()
       return;
     }
     DateFormat *fmt = new SimpleDateFormat(UnicodeString("MMMM d, yyyy G"),status);
-    if(!assertSuccess("trying to construct", status))return;
+    if(U_FAILURE(status)) {
+      dataerrln("Error creating SimpleDateFormat - %s", u_errorName(status));
+      delete cal;
+      return;
+    }
     cal->clear();
     for (int32_t y=-20; y<=10; ++y) {
         cal->set(UCAL_ERA, y < 1 ? GregorianCalendar::BC : GregorianCalendar::AD);
@@ -1428,7 +1478,11 @@ void CalendarRegressionTest::test4125892() {
       return;
     }
     DateFormat *fmt = new SimpleDateFormat(UnicodeString("MMMM d, yyyy G"),status);
-    if(!assertSuccess("trying to construct", status))return;
+    if(U_FAILURE(status)) {
+      dataerrln("Error creating SimpleDateFormat - %s", u_errorName(status));
+      delete cal;
+      return;
+    }
     cal->clear();
     cal->set(UCAL_ERA, GregorianCalendar::BC);
     cal->set(UCAL_YEAR, 81); // 81 BC is a leap year (proleptically)
@@ -1669,7 +1723,7 @@ CalendarRegressionTest::Test4149677()
             UnicodeString temp;
             errln("test failed with zone " + zones[i]->getID(temp));
             errln(" cutover date is Date(Long.MAX_VALUE)");
-            errln(" isLeapYear(100) returns: " + is100Leap);
+            errln(UnicodeString(" isLeapYear(100) returns: ") + is100Leap);
         }
         delete calendar;
     }
@@ -2222,7 +2276,7 @@ void CalendarRegressionTest::TestJ438(void) {
     SimpleDateFormat fmt(UnicodeString("MMM dd yyyy",""), ec);
     fmt.setCalendar(cal);
     UnicodeString s, t, u;
-    if (!failure(ec, "setup")) {
+    if (U_SUCCESS(ec)) {
         for (i=0; i<DATA_length; i+=6) {
             int32_t y1 = DATA[i];
             int32_t m1 = DATA[i+1];
@@ -2299,6 +2353,8 @@ void CalendarRegressionTest::TestJ438(void) {
                       fmt.format(date22, t.remove()));
             }
         }
+    } else {
+        dataerrln("Error creating SimpleDateFormat - %s", u_errorName(ec));
     }
     delete pcal;
 }
@@ -2589,7 +2645,7 @@ void CalendarRegressionTest::TestTimeZoneTransitionAdd() {
 
     StringEnumeration *tz = TimeZone::createEnumeration();
     if (tz == NULL) {
-        errln("FAIL: TimeZone::createEnumeration");
+        dataerrln("FAIL: TimeZone::createEnumeration");
         return;
     }
 
@@ -2762,7 +2818,130 @@ void CalendarRegressionTest::TestDeprecates(void)
 
     delete c1;
     delete c2;
+
 }
 
+void CalendarRegressionTest::TestT8057(void) {
+    // Set the calendar to the last day in a leap year
+    UErrorCode status = U_ZERO_ERROR;
+    GregorianCalendar *cal = (GregorianCalendar*)Calendar::createInstance(status);
+    if(U_FAILURE(status)) {
+        errln("Error creating Calendar: %s", u_errorName(status));
+        delete cal;
+        return;
+    }
+    cal->setLenient(FALSE);
+    cal->clear();
+    cal->set(2008, UCAL_DECEMBER, 31);
+
+    // Force calculating then fields once.
+    UDate t = cal->getTime(status);
+    if(U_FAILURE(status)) {
+        errln("Error while calculating the date");
+        delete cal;
+        return;
+    }
+
+    UDate expected = 1262246400000.0; // 2009-12-31 00:00 PST
+
+    cal->add(UCAL_YEAR, 1, status);
+    t = cal->getTime(status);
+    if (U_SUCCESS(status)) {
+        if (t != expected) {
+            dataerrln((UnicodeString)"FAIL: wrong date after add: expected=" + expected + " returned=" + t);
+        }
+    } else {
+        errln("FAIL: error while adding one year");
+    }
+
+    delete cal;
+}
+
+// Test case for ticket#8596.
+// Setting an year followed by getActualMaximum(Calendar.WEEK_OF_YEAR)
+// may result wrong maximum week.
+void CalendarRegressionTest::TestT8596(void) {
+    UErrorCode status = U_ZERO_ERROR;
+    GregorianCalendar *gc = new GregorianCalendar(*TimeZone::getGMT(), status);
+
+    if (U_FAILURE(status)) {
+        dataerrln("Error creating Calendar: %s", u_errorName(status));
+        delete gc;
+        return;
+    }
+
+    gc->setFirstDayOfWeek(UCAL_MONDAY);
+    gc->setMinimalDaysInFirstWeek(4);
+
+    // Force the calender to resolve the fields once.
+    // The maximum week number in 2011 is 52.
+    gc->set(UCAL_YEAR, 2011);
+    gc->get(UCAL_YEAR, status);
+
+    // Set a date in year 2009, but not calling get to resolve
+    // the calendar's internal field yet.
+    gc->set(2009, UCAL_JULY, 1);
+
+    // Then call getActuamMaximum for week of year.
+    // #8596 was caused by conflict between year set
+    // above and internal work calendar field resolution.
+    int32_t maxWeeks = gc->getActualMaximum(UCAL_WEEK_OF_YEAR, status);
+
+    if (U_FAILURE(status)) {
+        errln("Error calendar calculation: %s", u_errorName(status));
+        delete gc;
+        return;
+    }
+
+    if (maxWeeks != 53) {
+        errln((UnicodeString)"FAIL: Max week in 2009 in ISO calendar is 53, but got " + maxWeeks);
+    }
+
+    delete gc;
+}
+
+// Test case for ticket 9452
+// Calendar addition fall onto the missing date - 2011-12-30 in Samoa
+void CalendarRegressionTest::TestT9452(void) {
+    UErrorCode status = U_ZERO_ERROR;
+    GregorianCalendar cal(TimeZone::createTimeZone("Pacific/Apia"), status);
+    failure(status, "initializing GregorianCalendar");
+
+    SimpleDateFormat sdf(UnicodeString("y-MM-dd'T'HH:mm:ssZZZZZ"), status);
+    failure(status, "initializing SimpleDateFormat");
+    sdf.setCalendar(cal);
+
+    UnicodeString dstr;
+
+    // Set date to 2011-12-29 00:00
+    cal.clear();
+    cal.set(2011, UCAL_DECEMBER, 29, 0, 0, 0);
+
+    UDate d = cal.getTime(status);
+    if (!failure(status, "getTime for initial date")) {
+        sdf.format(d, dstr);
+        logln(UnicodeString("Initial date: ") + dstr);
+
+        // Add 1 day
+        cal.add(UCAL_DATE, 1, status);
+        failure(status, "add 1 day");
+        d = cal.getTime(status);
+        failure(status, "getTime after +1 day");
+        dstr.remove();
+        sdf.format(d, dstr);
+        logln(UnicodeString("+1 day: ") + dstr);
+        assertEquals("Add 1 day", UnicodeString("2011-12-31T00:00:00+14:00"), dstr);
+
+        // Subtract 1 day
+        cal.add(UCAL_DATE, -1, status);
+        failure(status, "subtract 1 day");
+        d = cal.getTime(status);
+        failure(status, "getTime after -1 day");
+        dstr.remove();
+        sdf.format(d, dstr);
+        logln(UnicodeString("-1 day: ") + dstr);
+        assertEquals("Subtract 1 day", UnicodeString("2011-12-29T00:00:00-10:00"), dstr);
+    }
+}
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

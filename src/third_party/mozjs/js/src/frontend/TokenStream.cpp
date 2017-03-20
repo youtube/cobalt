@@ -29,6 +29,8 @@
 #include "vm/Keywords.h"
 #include "vm/StringBuffer.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::frontend;
 using namespace js::unicode;
@@ -142,6 +144,7 @@ TokenStream::SourceCoords::SourceCoords(JSContext *cx, uint32_t ln)
 JS_ALWAYS_INLINE void
 TokenStream::SourceCoords::add(uint32_t lineNum, uint32_t lineStartOffset)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     uint32_t lineIndex = lineNumToIndex(lineNum);
     uint32_t sentinelIndex = lineStartOffsets_.length() - 1;
 
@@ -675,7 +678,7 @@ TokenStream::reportCompileErrorNumberVA(uint32_t offset, unsigned flags, unsigne
 
     err.argumentsType = (flags & JSREPORT_UC) ? ArgumentsAreUnicode : ArgumentsAreASCII;
 
-    if (!js_ExpandErrorArguments(cx, js_GetErrorMessage, NULL, errorNumber, &err.message,
+    if (!js_ExpandErrorArgumentsVA(cx, js_GetErrorMessage, NULL, errorNumber, &err.message,
                                  &err.report, err.argumentsType, args))
     {
         return false;

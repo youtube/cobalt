@@ -424,7 +424,8 @@ namespace {
 class hash_map_add_item : public hash_map<int, int> {
  public:
   hash_map_add_item() : hash_map<int, int>() {}
-  hash_map_add_item(const std::pair<int, int>& item) : hash_map<int, int>() {
+  explicit hash_map_add_item(const std::pair<int, int>& item)
+      : hash_map<int, int>() {
     insert(item);
   }
 };
@@ -450,7 +451,7 @@ class hash_map_add_item_initializer {
 
 TEST(SmallMap, SubclassInitializationWithFunctionPointer) {
   SmallMap<hash_map_add_item, 4, std::equal_to<int>,
-      void (&)(ManualConstructor<hash_map_add_item>*)> m(InitMap);
+           void (*)(ManualConstructor<hash_map_add_item>*)> m(InitMap);
 
   EXPECT_TRUE(m.empty());
 

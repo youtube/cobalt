@@ -1,0 +1,4 @@
+Suppress GC$$AutoSuppressGC_Base
+Suppress GC$$AutoSuppressGC_Child
+Suppress GC$$AutoSuppressGC
+Suppress GC$$struct<anonymous>

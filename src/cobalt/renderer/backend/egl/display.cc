@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/backend/egl/display.h"
 
@@ -53,6 +51,16 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
     : display_(display), config_(config), native_window_(window_handle) {
   surface_ = eglCreateWindowSurface(display_, config_, native_window_, NULL);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
+
+  // Configure the surface to preserve contents on swap.
+  EGLBoolean surface_attrib_set =
+      eglSurfaceAttrib(display_, surface_,
+                       EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
+  // NOTE: Must check eglGetError() to clear any error flags and also check
+  // the return value of eglSurfaceAttrib since some implementations may not
+  // set the error condition.
+  content_preserved_on_swap_ =
+      eglGetError() == EGL_SUCCESS && surface_attrib_set == EGL_TRUE;
 
   // Query and cache information about the surface now that we have created it.
   EGLint egl_surface_width;

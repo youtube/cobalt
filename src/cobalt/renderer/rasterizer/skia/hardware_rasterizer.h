@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RASTERIZER_H_
@@ -22,6 +20,9 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
+
+class GrContext;
+class SkCanvas;
 
 namespace cobalt {
 namespace renderer {
@@ -59,9 +60,20 @@ class HardwareRasterizer : public Rasterizer {
   // into the constructor.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              int options) OVERRIDE;
+              const Options& options) OVERRIDE;
+
+  // Consume the render tree and output the results to the specified canvas.
+  void SubmitOffscreen(const scoped_refptr<render_tree::Node>& render_tree,
+                       SkCanvas* canvas);
+
+  // If Submit() is not called, then use this function to tell rasterizer that
+  // a frame has been submitted.
+  void AdvanceFrame();
 
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
+  GrContext* GetGrContext();
+
+  void MakeCurrent() OVERRIDE;
 
  private:
   class Impl;

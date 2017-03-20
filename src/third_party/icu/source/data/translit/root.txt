@@ -1,6 +1,6 @@
 ﻿// ***************************************************************************
 // *
-// *  Copyright (C) 2004-2010, International Business Machines
+// *  Copyright (C) 2004-2015, International Business Machines
 // *  Corporation; Unicode, Inc.; and others.  All Rights Reserved.
 // *
 // ***************************************************************************
@@ -14,6 +14,12 @@ root {
         }
         Digit-Tone {
             alias {"NumericPinyin-Pinyin"}
+        }
+        Hans-Hant {
+            alias {"Simplified-Traditional"}
+        }
+        Hant-Hans {
+            alias {"Traditional-Simplified"}
         }
         Amharic-Latin/BGN {
             file {
@@ -461,12 +467,6 @@ root {
                 direction {"FORWARD"}
             }
         }
-        Latin-Han {
-            file {
-                resource:process(transliterator) {"Han_Latin.txt"}
-                direction {"REVERSE"}
-            }
-        }
 
         Han-Latin/Names {
             file {
@@ -701,9 +701,9 @@ root {
             }
         }
 
-        JapaneseKana-Latin/BGN {
+        Katakana-Latin/BGN {
             file {
-                resource:process(transliterator) {"JapaneseKana_Latin_BGN.txt"}
+                resource:process(transliterator) {"Katakana_Latin_BGN.txt"}
                 direction {"FORWARD"}
             }
         }
@@ -759,6 +759,19 @@ root {
             file {
                 resource:process(transliterator) {"Latin_Bengali.txt"}
                 direction {"FORWARD"}
+            }
+        }
+
+        Latin-Bopomofo {
+            file {
+                resource:process(transliterator) {"Latin_Bopomofo.txt"}
+                direction {"FORWARD"}
+            }
+        }
+        Bopomofo-Latin {
+            file {
+                resource:process(transliterator) {"Latin_Bopomofo.txt"}
+                direction {"REVERSE"}
             }
         }
 
@@ -1333,6 +1346,41 @@ root {
             }
         }
 
+        am-am_FONIPA {
+            file {
+                resource:process(transliterator) {"am_am_FONIPA.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        az-Lower {
+            file {
+                resource:process(transliterator) {"az_Lower.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        az-Title {
+            file {
+                resource:process(transliterator) {"az_Title.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        az-Upper {
+            file {
+                resource:process(transliterator) {"az_Upper.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        ch-ch_FONIPA {
+            file {
+                resource:process(transliterator) {"ch_ch_FONIPA.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
         cs-cs_FONIPA {
             file {
                 resource:process(transliterator) {"cs_cs_FONIPA.txt"}
@@ -1364,6 +1412,41 @@ root {
         cs_FONIPA-ko {
             file {
                 resource:process(transliterator) {"cs_FONIPA_ko.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        dsb-dsb_FONIPA {
+            file {
+                resource:process(transliterator) {"dsb_dsb_FONIPA.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        el-Lower {
+            file {
+                resource:process(transliterator) {"el_Lower.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        el-Title {
+            file {
+                resource:process(transliterator) {"el_Title.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        el-Upper {
+            file {
+                resource:process(transliterator) {"el_Upper.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        eo-eo_FONIPA {
+            file {
+                resource:process(transliterator) {"eo_eo_FONIPA.txt"}
                 direction {"FORWARD"}
             }
         }
@@ -1438,6 +1521,13 @@ root {
             }
         }
 
+        ia-ia_FONIPA {
+            file {
+                resource:process(transliterator) {"ia_ia_FONIPA.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
         it-am {
             file {
                 resource:process(transliterator) {"it_am.txt"}
@@ -1462,6 +1552,48 @@ root {
         ja_Latn-ru {
             file {
                 resource:process(transliterator) {"ja_Latn_ru.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        ky-ky_FONIPA {
+            file {
+                resource:process(transliterator) {"ky_ky_FONIPA.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        la-la_FONIPA {
+            file {
+                resource:process(transliterator) {"la_la_FONIPA.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        lt-Lower {
+            file {
+                resource:process(transliterator) {"lt_Lower.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        lt-Title {
+            file {
+                resource:process(transliterator) {"lt_Title.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        lt-Upper {
+            file {
+                resource:process(transliterator) {"lt_Upper.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        nl-Title {
+            file {
+                resource:process(transliterator) {"nl_Title.txt"}
                 direction {"FORWARD"}
             }
         }
@@ -1539,6 +1671,54 @@ root {
         sk_FONIPA-ja {
             file {
                 resource:process(transliterator) {"sk_FONIPA_ja.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        tlh-tlh_FONIPA {
+            file {
+                resource:process(transliterator) {"tlh_tlh_FONIPA.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        tr-Lower {
+            file {
+                resource:process(transliterator) {"tr_Lower.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        tr-Title {
+            file {
+                resource:process(transliterator) {"tr_Title.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        tr-Upper {
+            file {
+                resource:process(transliterator) {"tr_Upper.txt"}
+                direction {"FORWARD"}
+            }
+        }
+
+        uz_Cyrl-uz_Latn {
+            file {
+                resource:process(transliterator) {"uz_Cyrl_uz_Latn.txt"}
+                direction {"FORWARD"}
+            }
+        }
+        uz_Latn-uz_Cyrl {
+            file {
+                resource:process(transliterator) {"uz_Cyrl_uz_Latn.txt"}
+                direction {"REVERSE"}
+            }
+        }
+
+        yo-yo_BJ {
+            file {
+                resource:process(transliterator) {"yo_yo_BJ.txt"}
                 direction {"FORWARD"}
             }
         }

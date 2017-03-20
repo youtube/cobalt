@@ -32,7 +32,8 @@
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 1,
+    'cobalt_enable_jit': 0,
+    'cobalt_minimum_frame_time_in_milliseconds': '33',
 
     # RasPi 1 is ARMv6
     'arm_version': 6,
@@ -47,6 +48,9 @@
     'compiler_flags': [
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
+
+      # Force char to be signed.
+      '-fsigned-char',
 
       # Suppress some warnings that will be hard to fix.
       '-Wno-unused-local-typedefs',

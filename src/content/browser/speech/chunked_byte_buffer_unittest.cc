@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -42,8 +40,8 @@ TEST(ChunkedByteBufferTest, BasicTest) {
   EXPECT_TRUE(buffer.HasChunks());
 
   // Remove and check chunk 1.
-  std::unique_ptr<ByteVector> chunk;
-  chunk = buffer.PopChunk();
+  scoped_ptr<ByteVector> chunk;
+  chunk = buffer.PopChunk().Pass();
   EXPECT_TRUE(chunk != NULL);
   EXPECT_EQ(4U, chunk->size());
   EXPECT_EQ(0, std::char_traits<uint8_t>::compare(kChunks + 4, &(*chunk)[0],
@@ -52,7 +50,7 @@ TEST(ChunkedByteBufferTest, BasicTest) {
   EXPECT_TRUE(buffer.HasChunks());
 
   // Read and check chunk 2.
-  chunk = buffer.PopChunk();
+  chunk = buffer.PopChunk().Pass();
   EXPECT_TRUE(chunk != NULL);
   EXPECT_EQ(2U, chunk->size());
   EXPECT_EQ(0, std::char_traits<uint8_t>::compare(kChunks + 12, &(*chunk)[0],
@@ -65,7 +63,7 @@ TEST(ChunkedByteBufferTest, BasicTest) {
   EXPECT_EQ(5U, buffer.GetTotalLength());
 
   // Remove and check chunk 3.
-  chunk = buffer.PopChunk();
+  chunk = buffer.PopChunk().Pass();
   EXPECT_TRUE(chunk != NULL);
   EXPECT_EQ(1U, chunk->size());
   EXPECT_EQ((*chunk)[0], kChunks[18]);

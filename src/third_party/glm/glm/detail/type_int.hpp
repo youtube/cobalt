@@ -4,6 +4,11 @@
 #pragma once
 
 #include "setup.hpp"
+
+#if defined(STARBOARD)
+#include "starboard/types.h"
+
+#else  // defined(STARBOARD)
 #if GLM_HAS_MAKE_SIGNED
 #	include <type_traits>
 #endif
@@ -11,11 +16,22 @@
 #if GLM_HAS_EXTENDED_INTEGER_TYPE
 #	include <cstdint>
 #endif
+#endif  // defined(STARBOARD)
 
 namespace glm{
 namespace detail
 {
-#	if GLM_HAS_EXTENDED_INTEGER_TYPE
+# if defined(STARBOARD)
+		typedef int8_t				int8;
+		typedef int16_t				int16;
+		typedef int32_t				int32;
+		typedef int64_t				int64;
+
+		typedef uint8_t				uint8;
+		typedef uint16_t			uint16;
+		typedef uint32_t			uint32;
+		typedef uint64_t			uint64;
+# elif GLM_HAS_EXTENDED_INTEGER_TYPE
 		typedef std::int8_t					int8;
 		typedef std::int16_t				int16;
 		typedef std::int32_t				int32;

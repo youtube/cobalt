@@ -190,6 +190,8 @@ bool DoSimpleHost(const INCHAR* host,
 
 // Canonicalizes a host that requires IDN conversion. Returns true on success
 bool DoIDNHost(const char16* src, int src_len, CanonOutput* output) {
+  int original_output_len = output->length();  // So we can rewind below.
+
   // We need to escape URL before doing IDN conversion, since punicode strings
   // cannot be escaped after they are created.
   RawCanonOutputW<kTempHostBufferLen> url_escaped_host;
@@ -212,7 +214,26 @@ bool DoIDNHost(const char16* src, int src_len, CanonOutput* output) {
   bool success = DoSimpleHost(wide_output.data(),
                               wide_output.length(),
                               output, &has_non_ascii);
-  DCHECK(!has_non_ascii);
+  if (has_non_ascii) {
+    // ICU generated something that DoSimpleHost didn't think looked like
+    // ASCII. This is quite rare, but ICU might convert some characters to
+    // percent signs which might generate new escape sequences which might in
+    // turn be invalid. An example is U+FE6A "small percent" which ICU will
+    // name prep into an ASCII percent and then we can interpret the following
+    // characters as escaped characters.
+    //
+    // If DoSimpleHost didn't think the output was ASCII, just escape the
+    // thing we gave ICU and give up. DoSimpleHost will have handled a further
+    // level of escaping from ICU for simple ASCII cases (i.e. if ICU generates
+    // a new escaped ASCII sequence like "%41" we'll unescape it) but it won't
+    // do more (like handle escaped non-ASCII sequences). Handling the escaped
+    // ASCII isn't strictly necessary, but DoSimpleHost handles this case
+    // anyway so we handle it/
+    output->set_length(original_output_len);
+    AppendInvalidNarrowString(wide_output.data(), 0, wide_output.length(),
+                              output);
+    return false;
+  }
   return success;
 }
 

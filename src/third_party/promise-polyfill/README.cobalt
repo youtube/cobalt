@@ -1,0 +1,15 @@
+Name: promise-polyfill
+Short Name: promise-polyfill
+URL: https://github.com/taylorhakes/promise-polyfill
+Version: 6.0.2
+Date: Nov 24, 2016
+License: MIT
+License File: LICENSE
+Security Critical: yes
+
+Description:
+A pure-ES5 implementation of ES6 Promises.
+
+Local Modifications:
+Deleted unnecessary files.
+Modified to be slightly more tolerant of setTimeout missing.

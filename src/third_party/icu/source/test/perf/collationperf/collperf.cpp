@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT:
- * Copyright (C) 2001-2010 IBM, Inc.   All Rights Reserved.
+ * Copyright (C) 2001-2012 IBM, Inc.   All Rights Reserved.
  *
  ********************************************************************/
 /********************************************************************************
@@ -473,7 +473,7 @@ void doBinarySearch()
     // Accurate timings do not depend on this being perfect.  The correction is just to try to
     //   get total running times of about the right order, so the that user doesn't need to
     //   manually adjust the loop count for every different file size.
-    double dLoopCount = double(opt_loopCount) * 3000. / (log10(gNumFileLines) * double(gNumFileLines));
+    double dLoopCount = double(opt_loopCount) * 3000. / (log10((double)gNumFileLines) * double(gNumFileLines));
     if (opt_usekeys) dLoopCount *= 5;
     int adj_loopCount = int(dLoopCount);
     if (adj_loopCount < 1) adj_loopCount = 1;
@@ -699,7 +699,7 @@ void doQSort() {
     Line **sortBuf = new Line *[gNumFileLines];
 
     // Adjust loop count to compensate for file size.   QSort should be n log(n)
-    double dLoopCount = double(opt_loopCount) * 3000. / (log10(gNumFileLines) * double(gNumFileLines));
+    double dLoopCount = double(opt_loopCount) * 3000. / (log10((double)gNumFileLines) * double(gNumFileLines));
     if (opt_usekeys) dLoopCount *= 5;
     int adj_loopCount = int(dLoopCount);
     if (adj_loopCount < 1) adj_loopCount = 1;
@@ -1340,7 +1340,7 @@ UChar UCharFile::get() {
             // Convert the bytes from the temp array to a Unicode char.
             i = 0;
             uint32_t  cp;
-            UTF8_NEXT_CHAR_UNSAFE(bytes, i, cp);
+            U8_NEXT_UNSAFE(bytes, i, cp);
             c = (UChar)cp;
             
             if (cp >= 0x10000) {
@@ -1377,6 +1377,7 @@ UCollator *openRulesCollator() {
 
     int  bufLen = 10000;
     UChar *buf = (UChar *)malloc(bufLen * sizeof(UChar));
+    UChar *tmp;
     int i = 0;
 
     for(;;) {
@@ -1389,8 +1390,13 @@ UCollator *openRulesCollator() {
         }
         i++;
         if (i >= bufLen) {
+            tmp = buf;
             bufLen += 10000;
             buf = (UChar *)realloc(buf, bufLen);
+            if (buf == NULL) {
+                free(tmp);
+                return 0;
+            }
         }
     }
     buf[i] = 0;

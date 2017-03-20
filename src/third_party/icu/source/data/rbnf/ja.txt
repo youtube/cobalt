@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/rbnf/ja.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/rbnf/ja.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/rbnf/ja.xml
- */
 ja{
     RBNFRules{
         OrdinalRules{
@@ -20,6 +17,15 @@ ja{
             "%spellout-numbering-year:",
             "x.x: =#,###0.#=;",
             "0: =%spellout-numbering=;",
+            "1: \u5143;",
+            "2: =%spellout-numbering=;",
+            "1000: =%%spellout-numbering-year-digits=;",
+            "10000: =%spellout-numbering=;",
+            "%%spellout-numbering-year-digits:",
+            "0: =%spellout-numbering=;",
+            "10: <<>>>;",
+            "100: <<>>>;",
+            "1000: <<>>>;",
             "%spellout-numbering:",
             "0: =%spellout-cardinal=;",
             "%spellout-cardinal-financial:",
@@ -73,5 +79,5 @@ ja{
             "0: \u7B2C=%spellout-numbering=;",
         }
     }
-    Version{"2.0.41.26"}
+    Version{"2.1.19.14"}
 }

@@ -1,5 +1,5 @@
 /********************************************************************
- * Copyright (c) 1997-2010, International Business Machines
+ * Copyright (c) 1997-2013, International Business Machines
  * Corporation and others. All Rights Reserved.
  ********************************************************************/
  
@@ -147,7 +147,7 @@ void TimeZoneRegressionTest:: Test4073215()
 
     SimpleDateFormat sdf((UnicodeString)"E d MMM yyyy G HH:mm", status); 
     if(U_FAILURE(status)) {
-      errcheckln(status, "Error creating date format %s", u_errorName(status));
+      dataerrln("Error creating date format %s", u_errorName(status));
       return;
     }
     sdf.setCalendar(cal); 
@@ -482,7 +482,7 @@ void TimeZoneRegressionTest:: Test4126678()
     int32_t raw_offset = tz->getRawOffset();
 
     if (offset == raw_offset)
-        errln("Offsets should match");
+        dataerrln("Offsets should match");
 
     delete cal;
 }
@@ -506,6 +506,10 @@ void TimeZoneRegressionTest:: Test4151406() {
             UErrorCode ec = U_ZERO_ERROR;
             int32_t count;
             StringEnumeration* ids = TimeZone::createEnumeration(rawoffset);
+            if (ids == NULL) {
+                dataerrln("Fail: TimeZone::createEnumeration(rawoffset)");
+                continue;
+            }
             count = ids->count(ec);
             if (count> max) 
                 max = count;
@@ -946,25 +950,25 @@ void TimeZoneRegressionTest::Test4176686() {
     UnicodeString a,b,c,d,e,f,g,h,i,j,k,l;
     UnicodeString DATA[] = {
         "z1->getDisplayName(false, SHORT)/std zone",
-        z1->getDisplayName(FALSE, TimeZone::SHORT, a), "GMT+01:30",
+        z1->getDisplayName(FALSE, TimeZone::SHORT, a), "GMT+1:30",
         "z1->getDisplayName(false, LONG)/std zone",
         z1->getDisplayName(FALSE, TimeZone::LONG, b), "GMT+01:30",
         "z1->getDisplayName(true, SHORT)/std zone",
-        z1->getDisplayName(TRUE, TimeZone::SHORT, c), "GMT+01:30",
+        z1->getDisplayName(TRUE, TimeZone::SHORT, c), "GMT+1:30",
         "z1->getDisplayName(true, LONG)/std zone",
         z1->getDisplayName(TRUE, TimeZone::LONG, d ), "GMT+01:30",
         "z2->getDisplayName(false, SHORT)/dst zone",
-        z2->getDisplayName(FALSE, TimeZone::SHORT, e), "GMT+01:30",
+        z2->getDisplayName(FALSE, TimeZone::SHORT, e), "GMT+1:30",
         "z2->getDisplayName(false, LONG)/dst zone",
         z2->getDisplayName(FALSE, TimeZone::LONG, f ), "GMT+01:30",
         "z2->getDisplayName(true, SHORT)/dst zone",
-        z2->getDisplayName(TRUE, TimeZone::SHORT, g), "GMT+02:15",
+        z2->getDisplayName(TRUE, TimeZone::SHORT, g), "GMT+2:15",
         "z2->getDisplayName(true, LONG)/dst zone",
         z2->getDisplayName(TRUE, TimeZone::LONG, h ), "GMT+02:15",
-        "DateFormat.format(std)/std zone", fmt1->format(std, i), "GMT+01:30",
-        "DateFormat.format(dst)/std zone", fmt1->format(dst, j), "GMT+01:30",
-        "DateFormat.format(std)/dst zone", fmt2->format(std, k), "GMT+01:30",
-        "DateFormat.format(dst)/dst zone", fmt2->format(dst, l), "GMT+02:15",
+        "DateFormat.format(std)/std zone", fmt1->format(std, i), "GMT+1:30",
+        "DateFormat.format(dst)/std zone", fmt1->format(dst, j), "GMT+1:30",
+        "DateFormat.format(std)/dst zone", fmt2->format(std, k), "GMT+1:30",
+        "DateFormat.format(dst)/dst zone", fmt2->format(dst, l), "GMT+2:15",
     };
 
     for (int32_t idx=0; idx<(int32_t)ARRAY_LENGTH(DATA); idx+=3) {

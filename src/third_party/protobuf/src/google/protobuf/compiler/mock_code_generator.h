@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -34,9 +34,14 @@
 #define GOOGLE_PROTOBUF_COMPILER_MOCK_CODE_GENERATOR_H__
 
 #include <string>
+
 #include <google/protobuf/compiler/code_generator.h>
 
 namespace google {
+namespace protobuf {
+class FileDescriptor;
+}  // namespace protobuf
+
 namespace protobuf {
 namespace compiler {
 
@@ -59,6 +64,10 @@ namespace compiler {
 //     MockCodeGenerator_Exit." to stderr and then calls exit(123).
 //   MockCodeGenerator_Abort:  Generate() prints "Saw message type
 //     MockCodeGenerator_Abort." to stderr and then calls abort().
+//   MockCodeGenerator_HasSourceCodeInfo:  Causes Generate() to abort after
+//     printing "Saw message type MockCodeGenerator_HasSourceCodeInfo: FOO." to
+//     stderr, where FOO is "1" if the supplied FileDescriptorProto has source
+//     code info, and "0" otherwise.
 class MockCodeGenerator : public CodeGenerator {
  public:
   MockCodeGenerator(const string& name);

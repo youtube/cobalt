@@ -88,9 +88,6 @@
         'copy_webdriver_data',
       ],
     },
-
-
-
     {
       'target_name': 'copy_webdriver_data',
       'type': 'none',

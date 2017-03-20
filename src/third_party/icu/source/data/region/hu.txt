@@ -1,20 +1,46 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/hu.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/hu.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/hu.xml
- */
 hu{
     Countries{
+        001{"Világ"}
+        002{"Afrika"}
+        003{"Észak-Amerika"}
+        005{"Dél-Amerika"}
+        009{"Óceánia"}
+        011{"Nyugat-Afrika"}
+        013{"Közép-Amerika"}
+        014{"Kelet-Afrika"}
+        015{"Észak-Afrika"}
+        017{"Közép-Afrika"}
+        018{"Afrika déli része"}
+        019{"Amerika"}
+        021{"Amerika északi része"}
+        029{"Karib-térség"}
+        030{"Kelet-Ázsia"}
+        034{"Dél-Ázsia"}
+        035{"Délkelet-Ázsia"}
+        039{"Dél-Európa"}
+        053{"Ausztrálázsia"}
+        054{"Melanézia"}
+        057{"Mikronéziai régió"}
+        061{"Polinézia"}
+        142{"Ázsia"}
+        143{"Közép-Ázsia"}
+        145{"Nyugat-Ázsia"}
+        150{"Európa"}
+        151{"Kelet-Európa"}
+        154{"Észak-Európa"}
+        155{"Nyugat-Európa"}
         419{"Latin-Amerika"}
         AC{"Ascension-sziget"}
         AD{"Andorra"}
-        AE{"Egyesült Arab Emirátus"}
+        AE{"Egyesült Arab Emírségek"}
         AF{"Afganisztán"}
         AG{"Antigua és Barbuda"}
         AI{"Anguilla"}
@@ -28,7 +54,7 @@ hu{
         AT{"Ausztria"}
         AU{"Ausztrália"}
         AW{"Aruba"}
-        AX{"Aland-szigetek"}
+        AX{"Åland-szigetek"}
         AZ{"Azerbajdzsán"}
         BA{"Bosznia-Hercegovina"}
         BB{"Barbados"}
@@ -39,10 +65,11 @@ hu{
         BH{"Bahrein"}
         BI{"Burundi"}
         BJ{"Benin"}
-        BL{"Saint Barthélemy"}
+        BL{"Saint-Barthélemy"}
         BM{"Bermuda"}
         BN{"Brunei"}
         BO{"Bolívia"}
+        BQ{"Holland Karib-térség"}
         BR{"Brazília"}
         BS{"Bahama-szigetek"}
         BT{"Bhután"}
@@ -64,10 +91,10 @@ hu{
         CO{"Kolumbia"}
         CP{"Clipperton-sziget"}
         CR{"Costa Rica"}
-        CS{"Szerbia és Montenegró"}
         CU{"Kuba"}
         CV{"Zöld-foki Köztársaság"}
-        CX{"Karácsony-szigetek"}
+        CW{"Curaçao"}
+        CX{"Karácsony-sziget"}
         CY{"Ciprus"}
         CZ{"Csehország"}
         DE{"Németország"}
@@ -106,13 +133,13 @@ hu{
         GP{"Guadeloupe"}
         GQ{"Egyenlítői-Guinea"}
         GR{"Görögország"}
-        GS{"Dél Grúzia és a Déli Szendvics-szigetek"}
+        GS{"Déli-Georgia és Déli-Sandwich-szigetek"}
         GT{"Guatemala"}
         GU{"Guam"}
-        GW{"Guinea-Bissau"}
+        GW{"Bissau-Guinea"}
         GY{"Guyana"}
-        HK{"Hongkong SAR Kína"}
-        HM{"Heard és McDonald Szigetek"}
+        HK{"Hongkong"}
+        HM{"Heard-sziget és McDonald-szigetek"}
         HN{"Honduras"}
         HR{"Horvátország"}
         HT{"Haiti"}
@@ -163,9 +190,9 @@ hu{
         MH{"Marshall-szigetek"}
         MK{"Macedónia"}
         ML{"Mali"}
-        MM{"Mianmar [Burma]"}
+        MM{"Mianmar (Burma)"}
         MN{"Mongólia"}
-        MO{"Makaó SAR Kína"}
+        MO{"Makaó"}
         MP{"Északi Mariana-szigetek"}
         MQ{"Martinique"}
         MR{"Mauritánia"}
@@ -200,7 +227,7 @@ hu{
         PM{"Saint Pierre és Miquelon"}
         PN{"Pitcairn-szigetek"}
         PR{"Puerto Rico"}
-        PS{"Palesztin Terület"}
+        PS{"Palesztina"}
         PT{"Portugália"}
         PW{"Palau"}
         PY{"Paraguay"}
@@ -209,7 +236,7 @@ hu{
         RE{"Reunion"}
         RO{"Románia"}
         RS{"Szerbia"}
-        RU{"Oroszországi Föderáció"}
+        RU{"Oroszország"}
         RW{"Ruanda"}
         SA{"Szaúd-Arábia"}
         SB{"Salamon-szigetek"}
@@ -217,7 +244,7 @@ hu{
         SD{"Szudán"}
         SE{"Svédország"}
         SG{"Szingapúr"}
-        SH{"Szent Helena"}
+        SH{"Szent Ilona"}
         SI{"Szlovénia"}
         SJ{"Spitzbergák és Jan Mayen-szigetek"}
         SK{"Szlovákia"}
@@ -226,8 +253,10 @@ hu{
         SN{"Szenegál"}
         SO{"Szomália"}
         SR{"Suriname"}
+        SS{"Dél-Szudán"}
         ST{"Sao Tomé és Príncipe"}
         SV{"Salvador"}
+        SX{"Sint Maarten"}
         SY{"Szíria"}
         SZ{"Szváziföld"}
         TA{"Tristan da Cunha"}
@@ -236,7 +265,7 @@ hu{
         TF{"Francia Déli Területek"}
         TG{"Togo"}
         TH{"Thaiföld"}
-        TJ{"Tadzsikisztán"}
+        TJ{"Tádzsikisztán"}
         TK{"Tokelau"}
         TL{"Kelet-Timor"}
         TM{"Türkmenisztán"}
@@ -262,12 +291,23 @@ hu{
         VU{"Vanuatu"}
         WF{"Wallis- és Futuna-szigetek"}
         WS{"Szamoa"}
+        XK{"Koszovó"}
         YE{"Jemen"}
         YT{"Mayotte"}
         ZA{"Dél-afrikai Köztársaság"}
         ZM{"Zambia"}
         ZW{"Zimbabwe"}
-        ZZ{"Ismeretlen vagy érvénytelen körzet"}
+        ZZ{"Ismeretlen körzet"}
     }
-    Version{"2.0.50.94"}
+    Countries%short{
+        GB{"UK"}
+        US{"USA"}
+    }
+    Countries%variant{
+        CD{"Kongó (KDK)"}
+        CG{"Kongó (Köztársaság)"}
+        FK{"Falkland-szigetek (Malvin-szigetek)"}
+        MK{"Macedónia (MVJK)"}
+    }
+    Version{"2.1.19.17"}
 }

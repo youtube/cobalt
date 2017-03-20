@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2005-2010, International Business Machines
+*   Copyright (C) 2005-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -54,8 +54,8 @@
 #include "sprpimpl.h"
 #include "propname.h"
 #include "rbbidata.h"
-#include "triedict.h"
 #include "utrie2.h"
+#include "dictionarydata.h"
 
 /* swapping implementations in i18n */
 
@@ -63,14 +63,98 @@
 #include "uspoof_impl.h"
 #endif
 
+U_NAMESPACE_USE
 
 /* definitions */
 
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
+/* Unicode property (value) aliases data swapping --------------------------- */
+
+static int32_t U_CALLCONV
+upname_swap(const UDataSwapper *ds,
+            const void *inData, int32_t length, void *outData,
+            UErrorCode *pErrorCode) {
+    /* udata_swapDataHeader checks the arguments */
+    int32_t headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
+    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+        return 0;
+    }
+
+    /* check data format and format version */
+    const UDataInfo *pInfo=
+        reinterpret_cast<const UDataInfo *>(
+            static_cast<const char *>(inData)+4);
+    if(!(
+        pInfo->dataFormat[0]==0x70 &&   /* dataFormat="pnam" */
+        pInfo->dataFormat[1]==0x6e &&
+        pInfo->dataFormat[2]==0x61 &&
+        pInfo->dataFormat[3]==0x6d &&
+        pInfo->formatVersion[0]==2
+    )) {
+        udata_printError(ds, "upname_swap(): data format %02x.%02x.%02x.%02x (format version %02x) is not recognized as pnames.icu\n",
+                         pInfo->dataFormat[0], pInfo->dataFormat[1],
+                         pInfo->dataFormat[2], pInfo->dataFormat[3],
+                         pInfo->formatVersion[0]);
+        *pErrorCode=U_UNSUPPORTED_ERROR;
+        return 0;
+    }
+
+    const uint8_t *inBytes=static_cast<const uint8_t *>(inData)+headerSize;
+    uint8_t *outBytes=static_cast<uint8_t *>(outData)+headerSize;
+
+    if(length>=0) {
+        length-=headerSize;
+        // formatVersion 2 initially has indexes[8], 32 bytes.
+        if(length<32) {
+            udata_printError(ds, "upname_swap(): too few bytes (%d after header) for pnames.icu\n",
+                             (int)length);
+            *pErrorCode=U_INDEX_OUTOFBOUNDS_ERROR;
+            return 0;
+        }
+    }
+
+    const int32_t *inIndexes=reinterpret_cast<const int32_t *>(inBytes);
+    int32_t totalSize=udata_readInt32(ds, inIndexes[PropNameData::IX_TOTAL_SIZE]);
+    if(length>=0) {
+        if(length<totalSize) {
+            udata_printError(ds, "upname_swap(): too few bytes (%d after header, should be %d) "
+                             "for pnames.icu\n",
+                             (int)length, (int)totalSize);
+            *pErrorCode=U_INDEX_OUTOFBOUNDS_ERROR;
+            return 0;
+        }
+
+        int32_t numBytesIndexesAndValueMaps=
+            udata_readInt32(ds, inIndexes[PropNameData::IX_BYTE_TRIES_OFFSET]);
+
+        // Swap the indexes[] and the valueMaps[].
+        ds->swapArray32(ds, inBytes, numBytesIndexesAndValueMaps, outBytes, pErrorCode);
+
+        // Copy the rest of the data.
+        if(inBytes!=outBytes) {
+            uprv_memcpy(outBytes+numBytesIndexesAndValueMaps,
+                        inBytes+numBytesIndexesAndValueMaps,
+                        totalSize-numBytesIndexesAndValueMaps);
+        }
+
+        // We need not swap anything else:
+        //
+        // The ByteTries are already byte-serialized, and are fixed on ASCII.
+        // (On an EBCDIC machine, the input string is converted to lowercase ASCII
+        // while matching.)
+        //
+        // The name groups are mostly invariant characters, but since we only
+        // generate, and keep in subversion, ASCII versions of pnames.icu,
+        // and since only ICU4J uses the pnames.icu data file
+        // (the data is hardcoded in ICU4C) and ICU4J uses ASCII data files,
+        // we just copy those bytes too.
+    }
+
+    return headerSize+totalSize;
+}
 
 /* Unicode properties data swapping ----------------------------------------- */
 
-U_CAPI int32_t U_EXPORT2
+static int32_t U_CALLCONV
 uprops_swap(const UDataSwapper *ds,
             const void *inData, int32_t length, void *outData,
             UErrorCode *pErrorCode) {
@@ -218,7 +302,7 @@ uprops_swap(const UDataSwapper *ds,
 
 /* Unicode case mapping data swapping --------------------------------------- */
 
-U_CAPI int32_t U_EXPORT2
+static int32_t U_CALLCONV
 ucase_swap(const UDataSwapper *ds,
            const void *inData, int32_t length, void *outData,
            UErrorCode *pErrorCode) {
@@ -249,7 +333,7 @@ ucase_swap(const UDataSwapper *ds,
         ((pInfo->formatVersion[0]==1 &&
           pInfo->formatVersion[2]==UTRIE_SHIFT &&
           pInfo->formatVersion[3]==UTRIE_INDEX_SHIFT) ||
-         pInfo->formatVersion[0]==2)
+         pInfo->formatVersion[0]==2 || pInfo->formatVersion[0]==3)
     )) {
         udata_printError(ds, "ucase_swap(): data format %02x.%02x.%02x.%02x (format version %02x) is not recognized as case mapping data\n",
                          pInfo->dataFormat[0], pInfo->dataFormat[1],
@@ -320,7 +404,7 @@ ucase_swap(const UDataSwapper *ds,
 
 /* Unicode bidi/shaping data swapping --------------------------------------- */
 
-U_CAPI int32_t U_EXPORT2
+static int32_t U_CALLCONV
 ubidi_swap(const UDataSwapper *ds,
            const void *inData, int32_t length, void *outData,
            UErrorCode *pErrorCode) {
@@ -414,8 +498,10 @@ ubidi_swap(const UDataSwapper *ds,
         ds->swapArray32(ds, inBytes+offset, count, outBytes+offset, pErrorCode);
         offset+=count;
 
-        /* just skip the uint8_t jgArray[] */
+        /* just skip the uint8_t jgArray[] and jgArray2[] */
         count=indexes[UBIDI_IX_JG_LIMIT]-indexes[UBIDI_IX_JG_START];
+        offset+=count;
+        count=indexes[UBIDI_IX_JG_LIMIT2]-indexes[UBIDI_IX_JG_START2];
         offset+=count;
 
         U_ASSERT(offset==size);
@@ -428,7 +514,7 @@ ubidi_swap(const UDataSwapper *ds,
 
 #if !UCONFIG_NO_NORMALIZATION
 
-U_CAPI int32_t U_EXPORT2
+static int32_t U_CALLCONV
 unorm_swap(const UDataSwapper *ds,
            const void *inData, int32_t length, void *outData,
            UErrorCode *pErrorCode) {
@@ -552,7 +638,7 @@ unorm_swap(const UDataSwapper *ds,
 #endif
 
 /* Swap 'Test' data from gentest */
-U_CAPI int32_t U_EXPORT2
+static int32_t U_CALLCONV
 test_swap(const UDataSwapper *ds,
            const void *inData, int32_t length, void *outData,
            UErrorCode *pErrorCode) {
@@ -567,7 +653,7 @@ test_swap(const UDataSwapper *ds,
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
     if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
-        udata_printError(ds, "test_swap(): data header swap failed %s\n", u_errorName(*pErrorCode));
+        udata_printError(ds, "test_swap(): data header swap failed %s\n", pErrorCode != NULL ? u_errorName(*pErrorCode) : "pErrorCode is NULL");
         return 0;
     }
 
@@ -648,7 +734,7 @@ static const struct {
 #endif
 #if !UCONFIG_NO_BREAK_ITERATION
     { { 0x42, 0x72, 0x6b, 0x20 }, ubrk_swap },          /* dataFormat="Brk " */
-    { { 0x54, 0x72, 0x44, 0x63 }, triedict_swap },      /* dataFormat="TrDc " */
+    { { 0x44, 0x69, 0x63, 0x74 }, udict_swap },         /* dataFormat="Dict" */
 #endif
     { { 0x70, 0x6e, 0x61, 0x6d }, upname_swap },        /* dataFormat="pnam" */
     { { 0x75, 0x6e, 0x61, 0x6d }, uchar_swapNames },    /* dataFormat="unam" */
@@ -664,7 +750,7 @@ udata_swap(const UDataSwapper *ds,
            UErrorCode *pErrorCode) {
     char dataFormatChars[4];
     const UDataInfo *pInfo;
-    int32_t headerSize, i, swappedLength;
+    int32_t i, swappedLength;
 
     if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
         return 0;
@@ -677,7 +763,7 @@ udata_swap(const UDataSwapper *ds,
      * information. Otherwise we would have to pass some of the information
      * and not be able to use the UDataSwapFn signature.
      */
-    headerSize=udata_swapDataHeader(ds, inData, -1, NULL, pErrorCode);
+    udata_swapDataHeader(ds, inData, -1, NULL, pErrorCode);
 
     /*
      * If we wanted udata_swap() to also handle non-loadable data like a UTrie,
@@ -704,7 +790,7 @@ udata_swap(const UDataSwapper *ds,
     }
 
     /* dispatch to the swap function for the dataFormat */
-    for(i=0; i<LENGTHOF(swapFns); ++i) {
+    for(i=0; i<UPRV_LENGTHOF(swapFns); ++i) {
         if(0==memcmp(swapFns[i].dataFormat, pInfo->dataFormat, 4)) {
             swappedLength=swapFns[i].swapFn(ds, inData, length, outData, pErrorCode);
 

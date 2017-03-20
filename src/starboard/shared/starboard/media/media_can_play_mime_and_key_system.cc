@@ -21,6 +21,24 @@
 
 using starboard::shared::starboard::media::MimeType;
 
+namespace {
+bool HasMultiChannelOutput() {
+  int count = SbMediaGetAudioOutputCount();
+  for (int output_index = 0; output_index < count; ++output_index) {
+    SbMediaAudioConfiguration configuration;
+    if (!SbMediaGetAudioConfiguration(output_index, &configuration)) {
+      continue;
+    }
+
+    if (configuration.number_of_channels >= 6) {
+      return true;
+    }
+  }
+
+  return false;
+}
+}  // namespace
+
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
   if (mime == NULL) {
@@ -42,16 +60,14 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     SB_DLOG(WARNING) << mime << " is not a valid mime type";
     return kSbMediaSupportTypeNotSupported;
   }
-  int codecs_index = mime_type.GetParamIndexByName("codecs");
-  if (codecs_index != MimeType::kInvalidParamIndex && codecs_index != 0) {
-    SB_DLOG(WARNING) << mime << " is not a valid mime type";
-    return kSbMediaSupportTypeNotSupported;
-  }
-  if (mime_type.type() == "application" &&
-      mime_type.subtype() == "octet-stream") {
-    return kSbMediaSupportTypeProbably;
-  }
+
   if (mime_type.type() == "audio" && mime_type.subtype() == "mp4") {
+    // TODO: Base this on the "channels" param, not the codecs param.
+    if (mime_type.GetParamStringValue("codecs", "") == "aac51") {
+      if (!HasMultiChannelOutput()) {
+        return kSbMediaSupportTypeNotSupported;
+      }
+    }
     return kSbMediaSupportTypeProbably;
   }
   if (mime_type.type() == "video" && mime_type.subtype() == "mp4") {
@@ -59,7 +75,7 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
   }
 #if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
   if (mime_type.type() == "video" && mime_type.subtype() == "webm") {
-    if (codecs_index == MimeType::kInvalidParamIndex) {
+    if (mime_type.GetCodecs().empty()) {
       return kSbMediaSupportTypeMaybe;
     }
     if (mime_type.GetParamStringValue(0) == "vp9") {

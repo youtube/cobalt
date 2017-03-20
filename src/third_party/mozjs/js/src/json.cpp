@@ -26,6 +26,8 @@
 #include "jsatominlines.h"
 #include "jsboolinlines.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -59,6 +61,7 @@ static inline bool IsQuoteSpecialCharacter(jschar c)
 static bool
 Quote(JSContext *cx, StringBuffer &sb, JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS::Anchor<JSString *> anchor(str);
     size_t len = str->length();
     const jschar *buf = str->getChars(cx);
@@ -214,6 +217,7 @@ template<typename KeyType>
 static bool
 PreprocessValue(JSContext *cx, HandleObject holder, KeyType key, MutableHandleValue vp, StringifyContext *scx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedString keyStr(cx);
 
     /* Step 2. */
@@ -302,6 +306,7 @@ IsFilteredValue(const Value &v)
 static JSBool
 JO(JSContext *cx, HandleObject obj, StringifyContext *scx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * This method implements the JO algorithm in ES5 15.12.3, but:
      *
@@ -388,6 +393,7 @@ JO(JSContext *cx, HandleObject obj, StringifyContext *scx)
 static JSBool
 JA(JSContext *cx, HandleObject obj, StringifyContext *scx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * This method implements the JA algorithm in ES5 15.12.3, but:
      *
@@ -458,6 +464,7 @@ JA(JSContext *cx, HandleObject obj, StringifyContext *scx)
 static JSBool
 Str(JSContext *cx, const Value &v, StringifyContext *scx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Step 11 must be handled by the caller. */
     JS_ASSERT(!IsFilteredValue(v));
 
@@ -522,6 +529,7 @@ JSBool
 js_Stringify(JSContext *cx, MutableHandleValue vp, JSObject *replacer_, Value space_,
              StringBuffer &sb)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject replacer(cx, replacer_);
     RootedValue spaceRoot(cx, space_);
     Value &space = spaceRoot.get();
@@ -786,6 +794,7 @@ Walk(JSContext *cx, HandleObject holder, HandleId name, HandleValue reviver, Mut
 static bool
 Revive(JSContext *cx, HandleValue reviver, MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, NewBuiltinClassInstance(cx, &ObjectClass));
     if (!obj)
         return false;
@@ -801,6 +810,7 @@ bool
 js::ParseJSONWithReviver(JSContext *cx, StableCharPtr chars, size_t length, HandleValue reviver,
                          MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* 15.12.2 steps 2-3. */
     JSONParser parser(cx, chars, length);
     if (!parser.parse(vp))
@@ -816,6 +826,7 @@ js::ParseJSONWithReviver(JSContext *cx, StableCharPtr chars, size_t length, Hand
 static JSBool
 json_toSource(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     vp->setString(cx->names().JSON);
     return JS_TRUE;
 }
@@ -825,6 +836,7 @@ json_toSource(JSContext *cx, unsigned argc, Value *vp)
 JSBool
 js_json_parse(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     /* Step 1. */
@@ -850,6 +862,7 @@ js_json_parse(JSContext *cx, unsigned argc, Value *vp)
 JSBool
 js_json_stringify(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject replacer(cx, (argc >= 2 && vp[3].isObject())
                               ? &vp[3].toObject()
                               : NULL);
@@ -887,6 +900,7 @@ static const JSFunctionSpec json_static_methods[] = {
 JSObject *
 js_InitJSONClass(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<GlobalObject*> global(cx, &obj->as<GlobalObject>());
 
     /*

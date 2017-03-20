@@ -19,10 +19,13 @@
       'type': 'static_library',
       'sources': [
         'eztime_poem.h',
+        'getenv_stub_poem.h',
+        'inet_poem.h',
         'stdio_poem.h',
         'stdlib_poem.h',
         'string_poem.h',
         'strings_poem.h',
+        'strnlen_poem.h',
         'wchar_poem.h',
       ],
       'dependencies': [
@@ -43,6 +46,17 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
+    },
+    {
+      'target_name': 'poem_unittests_deploy',
+      'type': 'none',
+      'dependencies': [
+        'poem_unittests',
+      ],
+      'variables': {
+        'executable_name': 'poem_unittests',
+      },
+      'includes': [ '../../build/deploy.gypi' ],
     },
   ],
 }

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/webdriver/element_driver.h"
 
@@ -108,7 +106,8 @@ util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::SendKeysInternal, base::Unretained(this),
-                 base::Passed(&events)));
+                 base::Passed(&events)),
+      protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
@@ -116,7 +115,8 @@ util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::FindElementsInternal<protocol::ElementId>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<std::vector<protocol::ElementId> >
@@ -124,7 +124,8 @@ ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::FindElementsInternal<ElementIdVector>,
-                 base::Unretained(this), strategy));
+                 base::Unretained(this), strategy),
+      protocol::Response::kNoSuchElement);
 }
 
 util::CommandResult<bool> ElementDriver::Equals(
@@ -132,7 +133,8 @@ util::CommandResult<bool> ElementDriver::Equals(
   return util::CallOnMessageLoop(
       element_message_loop_,
       base::Bind(&ElementDriver::EqualsInternal, base::Unretained(this),
-                 other_element_driver));
+                 other_element_driver),
+      protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<base::optional<std::string> > ElementDriver::GetAttribute(
