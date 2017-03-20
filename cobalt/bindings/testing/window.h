@@ -20,6 +20,7 @@
 
 #include "cobalt/bindings/testing/global_interface_parent.h"
 #include "cobalt/bindings/testing/single_operation_interface.h"
+#include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 
@@ -29,7 +30,11 @@ namespace testing {
 
 class Window : public GlobalInterfaceParent {
  public:
+  typedef script::CallbackFunction<void()> TimerCallback;
+  typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
   typedef script::ScriptValue<SingleOperationInterface> TestEventHandler;
+  typedef base::Callback<int32_t(const TimerCallbackArg&, int32_t)>
+      SetTimeoutHandler;
 
   virtual void WindowOperation() {}
   virtual std::string window_property() { return ""; }
@@ -44,7 +49,26 @@ class Window : public GlobalInterfaceParent {
   void set_on_event(const TestEventHandler&) {}
   const TestEventHandler* on_event() { return NULL; }
 
+  // Stub implementation of window.setTimeout, which is needed for some tests.
+  int SetTimeout(const TimerCallbackArg& handler) {
+    return SetTimeout(handler, 0);
+  }
+
+  int32_t SetTimeout(const TimerCallbackArg& handler, int32_t timeout) {
+    if (!set_timeout_handler_.is_null()) {
+      return set_timeout_handler_.Run(handler, timeout);
+    }
+    return 0;
+  }
+
+  void SetSetTimeoutHandler(const SetTimeoutHandler& handler) {
+    set_timeout_handler_ = handler;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Window);
+
+ private:
+  SetTimeoutHandler set_timeout_handler_;
 };
 
 }  // namespace testing
