@@ -297,13 +297,16 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
     content_region = *image->GetContentRegion();
   }
 
-  const VertexBufferObject* left_vbo =
-      base::polymorphic_downcast<HardwareMesh*>(mesh_filter.mono_mesh().get())
+  const VertexBufferObject* mono_vbo =
+      base::polymorphic_downcast<HardwareMesh*>(
+          mesh_filter.mono_mesh(math::Size(content_region.width(),
+                                           content_region.height()))
+              .get())
           ->GetVBO();
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderVBO(left_vbo->GetHandle(),
-                                     left_vbo->GetVertexCount(),
-                                     left_vbo->GetDrawMode(), texture,
+  textured_mesh_renderer_->RenderVBO(mono_vbo->GetHandle(),
+                                     mono_vbo->GetVertexCount(),
+                                     mono_vbo->GetDrawMode(), texture,
                                      content_region, draw_state->transform_3d);
 
   // Let Skia know that we've modified GL state.
