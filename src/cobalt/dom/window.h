@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DOM_WINDOW_H_
 #define COBALT_DOM_WINDOW_H_
@@ -30,7 +28,6 @@
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/dom_stat_tracker.h"
-#include "cobalt/dom/element.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
@@ -46,19 +43,24 @@
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
+#include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/system_window/starboard/system_window.h"
+#include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 namespace dom {
 
 class Console;
 class Document;
+class Element;
 class Event;
 class History;
 class HTMLElementContext;
@@ -92,6 +94,7 @@ class Window : public EventTarget {
          loader::image::ReducedCacheCapacityManager*
              reduced_image_cache_capacity_manager,
          loader::font::RemoteTypefaceCache* remote_typeface_cache,
+         loader::mesh::MeshCache* mesh_cache,
          LocalStorageDatabase* local_storage_database,
          media::CanPlayTypeHandler* can_play_type_handler,
          media::WebMediaPlayerFactory* web_media_player_factory,
@@ -107,8 +110,10 @@ class Window : public EventTarget {
          const std::string& default_security_policy,
          dom::CspEnforcementType csp_enforcement_mode,
          const base::Closure& csp_policy_changed_callback,
+         const base::Closure& ran_animation_frame_callbacks_callback,
          const base::Closure& window_close_callback,
-         int csp_insecure_allowed_token = 0);
+         system_window::SystemWindow* system_window,
+         int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
   //
@@ -183,7 +188,7 @@ class Window : public EventTarget {
   // The devicePixelRatio attribute returns the ratio of CSS pixels per device
   // pixel.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
-  float device_pixel_ratio() const { return 1.0f; }
+  float device_pixel_ratio() const { return device_pixel_ratio_; }
 
   // Web API: GlobalCrypto (implements)
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
@@ -234,6 +239,8 @@ class Window : public EventTarget {
   // request callback list.
   void RunAnimationFrameCallbacks();
 
+  bool HasPendingAnimationFrameCallbacks() const;
+
   // Call this to inject an event into the window which will ultimately make
   // its way to the appropriate object in DOM.
   void InjectEvent(const scoped_refptr<Event>& event);
@@ -258,6 +265,7 @@ class Window : public EventTarget {
 
   int width_;
   int height_;
+  float device_pixel_ratio_;
 
   const scoped_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Performance> performance_;
@@ -278,7 +286,10 @@ class Window : public EventTarget {
 
   scoped_refptr<Screen> screen_;
 
-  base::Closure window_close_callback_;
+  const base::Closure ran_animation_frame_callbacks_callback_;
+  const base::Closure window_close_callback_;
+
+  system_window::SystemWindow* system_window_;
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;

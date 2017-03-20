@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-* Copyright (c) 2004-2010, International Business Machines
+* Copyright (c) 2004-2014 International Business Machines
 * Corporation and others.  All Rights Reserved.
 **********************************************************************
 * Author: Alan Liu
@@ -8,19 +8,18 @@
 * Since: ICU 3.0
 **********************************************************************
 */
-#include "unicode/utypeinfo.h"  // for 'typeid' to work
-
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
 #include "currfmt.h"
 #include "unicode/numfmt.h"
+#include "unicode/curramt.h"
 
 U_NAMESPACE_BEGIN
 
 CurrencyFormat::CurrencyFormat(const Locale& locale, UErrorCode& ec) :
-    fmt(NULL)
+    MeasureFormat(locale, UMEASFMT_WIDTH_WIDE, ec), fmt(NULL)
 {
     fmt = NumberFormat::createCurrencyInstance(locale, ec);
 }
@@ -33,17 +32,6 @@ CurrencyFormat::CurrencyFormat(const CurrencyFormat& other) :
 
 CurrencyFormat::~CurrencyFormat() {
     delete fmt;
-}
-
-UBool CurrencyFormat::operator==(const Format& other) const {
-    if (this == &other) {
-        return TRUE;
-    }
-    if (typeid(*this) != typeid(other)) {
-        return FALSE;
-    }
-    const CurrencyFormat* c = (const CurrencyFormat*) &other;
-    return *fmt == *c->fmt;
 }
 
 Format* CurrencyFormat::clone() const {
@@ -62,7 +50,10 @@ void CurrencyFormat::parseObject(const UnicodeString& source,
                                  Formattable& result,
                                  ParsePosition& pos) const
 {
-    fmt->parseCurrency(source, result, pos);
+    CurrencyAmount* currAmt = fmt->parseCurrency(source, pos);
+    if (currAmt != NULL) {
+        result.adoptObject(currAmt);
+    }
 }
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CurrencyFormat)

@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A C++-only synchronized queue implementation, built entirely on top of
-// Starboard synchronization primitives. Can be safely used by both clients and
-// implementations.
+// Module Overview: Starboard Queue module
+//
+// Defines a C++-only synchronized queue implementation, built entirely on top
+// of Starboard synchronization primitives. It can be safely used by both
+// clients and implementations.
 
 #ifndef STARBOARD_QUEUE_H_
 #define STARBOARD_QUEUE_H_
 
+#include <algorithm>
 #include <deque>
 
 #include "starboard/condition_variable.h"
@@ -111,6 +114,20 @@ class Queue {
     ScopedLock lock(mutex_);
     wake_ = true;
     condition_.Signal();
+  }
+
+  // It is guaranteed that after this function returns there is no element in
+  // the queue equals to |value|.  This is useful to remove un-processed values
+  // before destroying the owning object.
+  // Note that it is the responsibility of the caller to free any resources
+  // associated with |value| after this function returns.  It is possible that
+  // another thread is still using |value|, the caller should make sure that
+  // this is properly coordinated with the free of resources.  Usually this can
+  // be solved by calling Remove() on the same thread that calls Get().
+  void Remove(T value) {
+    ScopedLock lock(mutex_);
+    queue_.erase(std::remove(queue_.begin(), queue_.end(), value),
+                 queue_.end());
   }
 
  private:

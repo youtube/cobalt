@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_SPEECH_SPEECH_RECOGNITION_H_
 #define COBALT_SPEECH_SPEECH_RECOGNITION_H_
@@ -62,43 +60,43 @@ class SpeechRecognition : public dom::EventTarget {
   }
 
   // Fired when some sound, possibly speech, has been detected.
-  const EventListenerScriptObject* onsoundstart() const {
+  const EventListenerScriptValue* onsoundstart() const {
     return GetAttributeEventListener(base::Tokens::soundstart());
   }
-  void set_onsoundstart(const EventListenerScriptObject& listener) {
+  void set_onsoundstart(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::soundstart(), listener);
   }
 
   // Fired when some sound is no longer detected.
-  const EventListenerScriptObject* onsoundend() const {
+  const EventListenerScriptValue* onsoundend() const {
     return GetAttributeEventListener(base::Tokens::soundend());
   }
-  void set_onsoundend(const EventListenerScriptObject& listener) {
+  void set_onsoundend(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::soundend(), listener);
   }
 
   // Fired when the speech recognizer returns a result.
-  const EventListenerScriptObject* onresult() const {
+  const EventListenerScriptValue* onresult() const {
     return GetAttributeEventListener(base::Tokens::result());
   }
-  void set_onresult(const EventListenerScriptObject& listener) {
+  void set_onresult(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::result(), listener);
   }
 
   // Fired when the speech recognizer returns a final result with no recognition
   // hypothesis that meet or exceed the confidence threshold.
-  const EventListenerScriptObject* onnomatch() const {
+  const EventListenerScriptValue* onnomatch() const {
     return GetAttributeEventListener(base::Tokens::nomatch());
   }
-  void set_onnomatch(const EventListenerScriptObject& listener) {
+  void set_onnomatch(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::nomatch(), listener);
   }
 
   // Fired when the speech recognition error occurs.
-  const EventListenerScriptObject* onerror() const {
+  const EventListenerScriptValue* onerror() const {
     return GetAttributeEventListener(base::Tokens::error());
   }
-  void set_onerror(const EventListenerScriptObject& listener) {
+  void set_onerror(const EventListenerScriptValue& listener) {
     SetAttributeEventListener(base::Tokens::error(), listener);
   }
 

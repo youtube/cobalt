@@ -12,16 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'includes': [
+    '../starboard_platform.gypi'
+  ],
   'targets': [
     {
       'target_name': 'starboard_platform',
       'product_name': 'starboard_platform_future',
       'type': 'static_library',
       'sources': [
+        '<@(starboard_platform_sources)',
+        '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
+        '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_create_egl.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_destroy.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_get_format.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_get_plane_egl.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_get_size.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_is_opaque.cc',
+        '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
+        '<(DEPTH)/starboard/shared/stub/image_decode.cc',
+        '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
@@ -29,11 +40,7 @@
         'STARBOARD_IMPLEMENTATION',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/common/common.gyp:common',
-        '<(DEPTH)/starboard/linux/x64x11/starboard_platform.gyp:starboard_platform',
-        '<(DEPTH)/starboard/linux/x64x11/starboard_platform.gyp:starboard_base_symbolize',
-        '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
-        '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
+        '<@(starboard_platform_dependencies)',
       ],
     },
   ],

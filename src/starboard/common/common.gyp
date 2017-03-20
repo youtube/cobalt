@@ -26,10 +26,17 @@
       'sources': [
         'common.cc',
         'decode_target_provider.cc',
+        'flat_map.h',
         'memory.cc',
         'move.h',
+        'ref_counted.cc',
+        'ref_counted.h',
         'reset_and_return.h',
+        'rwlock.h',
+        'semaphore.h',
         'scoped_ptr.h',
+        'thread_collision_warner.cc',
+        'thread_collision_warner.h',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/media/fetcher_buffered_data_source.h"
 
@@ -59,7 +57,11 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
   DCHECK(network_module);
 }
 
-FetcherBufferedDataSource::~FetcherBufferedDataSource() { DCHECK(!fetcher_); }
+FetcherBufferedDataSource::~FetcherBufferedDataSource() {
+  if (cancelable_create_fetcher_closure_) {
+    cancelable_create_fetcher_closure_->Cancel();
+  }
+}
 
 void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
                                      const ReadCB& read_cb) {
@@ -72,11 +74,11 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
   }
 
   base::AutoLock auto_lock(lock_);
-  Read_Locked(static_cast<uint64>(position), static_cast<uint64>(size), data,
+  Read_Locked(static_cast<uint64>(position), static_cast<size_t>(size), data,
               read_cb);
 }
 
-void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
+void FetcherBufferedDataSource::Stop() {
   {
     base::AutoLock auto_lock(lock_);
 
@@ -84,15 +86,16 @@ void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
       base::ResetAndReturn(&pending_read_cb_).Run(0);
     }
     // From this moment on, any call to Read() should be treated as an error.
+    // Note that we cannot reset |fetcher_| here because of:
+    // 1. Fetcher has to be destroyed on the thread that it is created, however
+    //    Stop() is usually called from the pipeline thread where |fetcher_| is
+    //    created on the web thread.
+    // 2. We cannot post a task to the web thread to destroy |fetcher_| as the
+    //    web thread is blocked by WMPI::Destroy().
+    // Once error_occured_ is set to true, the fetcher callbacks return
+    // immediately so it is safe to destroy |fetcher_| inside the dtor.
     error_occured_ = true;
-    DestroyFetcher(fetcher_.Pass());
   }
-
-  // We cannot post the callback using the MessageLoop as we share the
-  // same MessageLoop as WebMediaPlayerImpl (WMPI) and WMPI::Destroy()
-  // waits on an event during video Stop.  The posted task will never be
-  // run and will cause dead lock.
-  callback.Run();
 }
 
 bool FetcherBufferedDataSource::GetSize(int64* size_out) {
@@ -112,12 +115,11 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
-  if (fetcher_.get() != source) {
+
+  if (fetcher_.get() != source || error_occured_) {
     return;
   }
-  if (error_occured_) {
-    return;
-  }
+
   if (!source->GetStatus().is_success()) {
     // The error will be handled on OnURLFetchComplete()
     error_occured_ = true;
@@ -181,10 +183,8 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
   }
   const uint8* data = reinterpret_cast<const uint8*>(download_data->data());
   base::AutoLock auto_lock(lock_);
-  if (fetcher_.get() != source) {
-    return;
-  }
-  if (error_occured_) {
+
+  if (fetcher_.get() != source || error_occured_) {
     return;
   }
 
@@ -193,7 +193,7 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
   if (size == 0) {
     // The server side doesn't support range request.  Delete the fetcher to
     // stop the current request.
-    DestroyFetcher(fetcher_.Pass());
+    fetcher_.reset();
     ProcessPendingRead_Locked();
     return;
   }
@@ -245,9 +245,11 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
-  if (fetcher_.get() != source) {
+
+  if (fetcher_.get() != source || error_occured_) {
     return;
   }
+
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
     if (total_size_of_resource_ && last_request_size_ != 0) {
@@ -266,21 +268,13 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   ProcessPendingRead_Locked();
 }
 
-void FetcherBufferedDataSource::DestroyFetcher(
-    scoped_ptr<net::URLFetcher> fetcher) {
-  if (fetcher && !message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(
-        FROM_HERE, base::Bind(&FetcherBufferedDataSource::DestroyFetcher, this,
-                              base::Passed(&fetcher)));
-    return;
-  }
-  // Do nothing as |fetcher| will destroy itself.
-}
-
 void FetcherBufferedDataSource::CreateNewFetcher() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
+
+  fetcher_.reset();
+
   DCHECK_GE(static_cast<int64>(last_request_offset_), 0);
   DCHECK_GE(static_cast<int64>(last_request_size_), 0);
 
@@ -305,7 +299,7 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
   fetcher_->Start();
 }
 
-void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
+void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
                                             uint8* data,
                                             const ReadCB& read_cb) {
   lock_.AssertAcquired();
@@ -323,7 +317,7 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
   if (total_size_of_resource_) {
     position = std::min(position, total_size_of_resource_.value());
     if (size + position > total_size_of_resource_.value()) {
-      size = total_size_of_resource_.value() - position;
+      size = static_cast<size_t>(total_size_of_resource_.value() - position);
     }
   }
 
@@ -339,7 +333,8 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
       position + size <= buffer_offset_ + buffer_.GetLength()) {
     // All data is available
     size_t bytes_peeked;
-    buffer_.Peek(data, size, position - buffer_offset_, &bytes_peeked);
+    buffer_.Peek(data, size, static_cast<size_t>(position - buffer_offset_),
+                 &bytes_peeked);
     DCHECK_EQ(bytes_peeked, size);
     DCHECK_GE(static_cast<int>(bytes_peeked), 0);
     read_cb.Run(static_cast<int>(bytes_peeked));
@@ -382,8 +377,8 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
     last_request_offset_ = 0;
   }
 
-  size_t required_size =
-      last_read_position_ - last_request_offset_ + pending_read_size_;
+  size_t required_size = static_cast<size_t>(
+      last_read_position_ - last_request_offset_ + pending_read_size_);
   if (required_size > buffer_.GetMaxCapacity()) {
     // The capacity of the current buffer is not large enough to hold the
     // pending read.
@@ -404,10 +399,15 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
     last_request_offset_ = buffer_offset_ + buffer_.GetLength();
   }
 
-  DestroyFetcher(fetcher_.Pass());
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&FetcherBufferedDataSource::CreateNewFetcher, this));
+  if (cancelable_create_fetcher_closure_) {
+    cancelable_create_fetcher_closure_->Cancel();
+  }
+  base::Closure create_fetcher_closure = base::Bind(
+      &FetcherBufferedDataSource::CreateNewFetcher, base::Unretained(this));
+  cancelable_create_fetcher_closure_ =
+      new CancelableClosure(create_fetcher_closure);
+  message_loop_->PostTask(FROM_HERE,
+                          cancelable_create_fetcher_closure_->AsClosure());
 }
 
 void FetcherBufferedDataSource::ProcessPendingRead_Locked() {
@@ -415,6 +415,30 @@ void FetcherBufferedDataSource::ProcessPendingRead_Locked() {
   if (!pending_read_cb_.is_null()) {
     Read_Locked(pending_read_position_, pending_read_size_, pending_read_data_,
                 base::ResetAndReturn(&pending_read_cb_));
+  }
+}
+
+FetcherBufferedDataSource::CancelableClosure::CancelableClosure(
+    const base::Closure& closure)
+    : closure_(closure) {
+  DCHECK(!closure.is_null());
+}
+
+void FetcherBufferedDataSource::CancelableClosure::Cancel() {
+  base::AutoLock auto_lock(lock_);
+  closure_.Reset();
+}
+
+base::Closure FetcherBufferedDataSource::CancelableClosure::AsClosure() {
+  return base::Bind(&CancelableClosure::Call, this);
+}
+
+void FetcherBufferedDataSource::CancelableClosure::Call() {
+  base::AutoLock auto_lock(lock_);
+  // closure_.Run() has to be called when the lock is acquired to avoid race
+  // condition.
+  if (!closure_.is_null()) {
+    base::ResetAndReturn(&closure_).Run();
   }
 }
 

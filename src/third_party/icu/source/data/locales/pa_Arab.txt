@@ -1,29 +1,54 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/pa_Arab.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/pa_Arab.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/pa_Arab.xml
- */
 pa_Arab{
-    %%ParentIsRoot:int{1}
-    AuxExemplarCharacters{"[أ ٻ ة ٺ ټ ٽ]"}
+    %%Parent{"root"}
+    AuxExemplarCharacters{"[\u200E\u200F أ ٻ ة ٺ ټ ٽ]"}
     ExemplarCharacters{
         "[\u064F ء آ ؤ ئ ا ب پ ت ث ٹ ج چ ح خ د ذ ڈ ر ز ڑ ژ س ش ص ض ط ظ ع غ ف ق ک گ ل "
         "م ن ں ه ھ ہ و ی ے]"
     }
-    LocaleScript{
-        "Arab",
-    }
     NumberElements{
-        default{"arab"}
+        default{"arabext"}
+        latn{
+            symbols{
+                minusSign{"‎-"}
+                plusSign{"‎+"}
+            }
+        }
+        native{"arabext"}
     }
-    Version{"2.0.50.30"}
+    Version{"2.1.19.74"}
     calendar{
+        generic{
+            DateTimePatterns{
+                "h:mm:ss a zzzz",
+                "h:mm:ss a z",
+                "h:mm:ss a",
+                "h:mm a",
+                "EEEE, dd MMMM y G",
+                "d MMMM y G",
+                "d MMM y G",
+                "dd/MM/y GGGGG",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
+            availableFormats{
+                HHmmss{"HH:mm:ss"}
+                Md{"d/M"}
+                ms{"mm:ss"}
+                yMMM{"MMM y"}
+                yQQQ{"QQQ y"}
+            }
+        }
         gregorian{
             DateTimePatterns{
                 "h:mm:ss a zzzz",
@@ -33,7 +58,7 @@ pa_Arab{
                 "EEEE, dd MMMM y",
                 "d MMMM y",
                 "d MMM y",
-                "dd/MM/yyyy",
+                "dd/MM/y",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
@@ -44,8 +69,8 @@ pa_Arab{
                 HHmmss{"HH:mm:ss"}
                 Md{"d/M"}
                 mmss{"mm:ss"}
-                yyMMM{"MMM yy"}
-                yyQ{"Q yy"}
+                yMMM{"MMM y"}
+                yQQQ{"QQQ y"}
             }
             dayNames{
                 format{
@@ -61,35 +86,13 @@ pa_Arab{
                 }
             }
             eras{
-                wide{
+                abbreviated{
                     "ايساپورو",
                     "سں",
                 }
-            }
-            fields{
-                day{
-                    dn{"دئن"}
-                }
-                hour{
-                    dn{"گھنٹا"}
-                }
-                minute{
-                    dn{"منٹ"}
-                }
-                month{
-                    dn{"مہينا"}
-                }
-                week{
-                    dn{"ہفتہ"}
-                }
-                weekday{
-                    dn{"ہفتے دا دن"}
-                }
-                year{
-                    dn{"ورھا"}
-                }
-                zone{
-                    dn{"ٹپہ"}
+                wide{
+                    "ايساپورو",
+                    "سں",
                 }
             }
             monthNames{
@@ -122,8 +125,33 @@ pa_Arab{
             }
         }
     }
+    fields{
+        day{
+            dn{"دئن"}
+        }
+        hour{
+            dn{"گھنٹا"}
+        }
+        minute{
+            dn{"منٹ"}
+        }
+        month{
+            dn{"مہينا"}
+        }
+        week{
+            dn{"ہفتہ"}
+        }
+        weekday{
+            dn{"ہفتے دا دن"}
+        }
+        year{
+            dn{"ورھا"}
+        }
+        zone{
+            dn{"ٹپہ"}
+        }
+    }
     layout{
         characters{"right-to-left"}
-        lines{"top-to-bottom"}
     }
 }

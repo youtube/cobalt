@@ -1,5 +1,5 @@
 /********************************************************************
- * Copyright (c) 2001-2011 International Business Machines 
+ * Copyright (c) 2001-2011,2015 International Business Machines 
  * Corporation and others. All Rights Reserved.
  ********************************************************************
  * File usrchtst.c
@@ -337,25 +337,27 @@ static UBool assertEqualWithUStringSearch(      UStringSearch *strsrch,
                                           const SearchData     search)
 {
     int         count       = 0;
-    int         matchlimit  = 0;
     UErrorCode  status      = U_ZERO_ERROR;
     int32_t matchindex  = search.offset[count];
     int32_t     textlength;
     UChar       matchtext[128];
+    int32_t     matchlength;
+    int32_t     nextStart;
+    UBool       isOverlap;
 
     usearch_setAttribute(strsrch, USEARCH_ELEMENT_COMPARISON, search.elemCompare, &status);
     if (U_FAILURE(status)) {
         log_err("Error setting USEARCH_ELEMENT_COMPARISON attribute %s\n", u_errorName(status));
         return FALSE;
-    }   
+    }
 
     if (usearch_getMatchedStart(strsrch) != USEARCH_DONE ||
         usearch_getMatchedLength(strsrch) != 0) {
         log_err("Error with the initialization of match start and length\n");
     }
-    /* start of following matches */
+    /* start of next matches */
     while (U_SUCCESS(status) && matchindex >= 0) {
-        uint32_t matchlength = search.size[count];
+        matchlength = search.size[count];
         usearch_next(strsrch, &status);
         if (matchindex != usearch_getMatchedStart(strsrch) || 
             matchlength != (uint32_t)usearch_getMatchedLength(strsrch)) {
@@ -363,7 +365,7 @@ static UBool assertEqualWithUStringSearch(      UStringSearch *strsrch,
             log_err("Text: %s\n", str);
             str = toCharString(usearch_getPattern(strsrch, &textlength));
             log_err("Pattern: %s\n", str);
-            log_err("Error following match found at idx,len %d,%d; expected %d,%d\n", 
+            log_err("Error next match found at idx %d (len:%d); expected %d (len:%d)\n", 
                     usearch_getMatchedStart(strsrch), usearch_getMatchedLength(strsrch),
                     matchindex, matchlength);
             return FALSE;
@@ -375,7 +377,7 @@ static UBool assertEqualWithUStringSearch(      UStringSearch *strsrch,
             memcmp(matchtext, 
                    usearch_getText(strsrch, &textlength) + matchindex,
                    matchlength * sizeof(UChar)) != 0) {
-            log_err("Error getting following matched text\n");
+            log_err("Error getting next matched text\n");
         }
 
         matchindex = search.offset[count];
@@ -387,18 +389,17 @@ static UBool assertEqualWithUStringSearch(      UStringSearch *strsrch,
         log_err("Text: %s\n", str);
         str = toCharString(usearch_getPattern(strsrch, &textlength));
         log_err("Pattern: %s\n", str);
-        log_err("Error following match found at %d %d\n", 
+        log_err("Error next match found at %d (len:%d); expected <NO MATCH>\n", 
                     usearch_getMatchedStart(strsrch), 
                     usearch_getMatchedLength(strsrch));
         return FALSE;
     }
-    /* start of preceding matches */
+    /* start of previous matches */
     count = count == 0 ? 0 : count - 1;
-    matchlimit = count;
     matchindex = search.offset[count];
 
     while (U_SUCCESS(status) && matchindex >= 0) {
-        uint32_t matchlength = search.size[count];
+        matchlength = search.size[count];
         usearch_previous(strsrch, &status);
         if (matchindex != usearch_getMatchedStart(strsrch) || 
             matchlength != (uint32_t)usearch_getMatchedLength(strsrch)) {
@@ -406,9 +407,9 @@ static UBool assertEqualWithUStringSearch(      UStringSearch *strsrch,
             log_err("Text: %s\n", str);
             str = toCharString(usearch_getPattern(strsrch, &textlength));
             log_err("Pattern: %s\n", str);
-            log_err("Error preceding match found at %d %d\n", 
-                    usearch_getMatchedStart(strsrch), 
-                    usearch_getMatchedLength(strsrch));
+            log_err("Error previous match found at %d (len:%d); expected %d (len:%d)\n", 
+                    usearch_getMatchedStart(strsrch), usearch_getMatchedLength(strsrch),
+                    matchindex, matchlength);
             return FALSE;
         }
         
@@ -417,7 +418,7 @@ static UBool assertEqualWithUStringSearch(      UStringSearch *strsrch,
             memcmp(matchtext, 
                    usearch_getText(strsrch, &textlength) + matchindex,
                    matchlength * sizeof(UChar)) != 0) {
-            log_err("Error getting preceding matched text\n");
+            log_err("Error getting previous matched text\n");
         }
 
         matchindex = count > 0 ? search.offset[count - 1] : -1;
@@ -430,10 +431,108 @@ static UBool assertEqualWithUStringSearch(      UStringSearch *strsrch,
         log_err("Text: %s\n", str);
         str = toCharString(usearch_getPattern(strsrch, &textlength));
         log_err("Pattern: %s\n", str);
-        log_err("Error preceding match found at %d %d\n", 
+        log_err("Error previous match found at %d (len:%d); expected <NO MATCH>\n", 
                     usearch_getMatchedStart(strsrch), 
                     usearch_getMatchedLength(strsrch));
         return FALSE;
+    }
+
+
+    isOverlap = (usearch_getAttribute(strsrch, USEARCH_OVERLAP) == USEARCH_ON);
+
+    /* start of following matches */
+    count = 0;
+    matchindex  = search.offset[count];
+    nextStart = 0;
+
+    while (TRUE) {
+        usearch_following(strsrch, nextStart, &status);
+
+        if (matchindex < 0) {
+            if (usearch_getMatchedStart(strsrch) != USEARCH_DONE || usearch_getMatchedLength(strsrch) != 0) {
+                char *str = toCharString(usearch_getText(strsrch, &textlength));
+                log_err("Text: %s\n", str);
+                str = toCharString(usearch_getPattern(strsrch, &textlength));
+                log_err("Pattern: %s\n", str);
+                log_err("Error following match starting at %d (overlap:%d) found at %d (len:%d); expected <NO MATCH>\n",
+                            nextStart, isOverlap,
+                            usearch_getMatchedStart(strsrch), 
+                            usearch_getMatchedLength(strsrch));
+                return FALSE;
+            }
+            /* no more matches */
+            break;
+        }
+
+        matchlength = search.size[count];
+        if (usearch_getMatchedStart(strsrch) != matchindex
+                || usearch_getMatchedLength(strsrch) != matchlength
+                || U_FAILURE(status)) {
+            char *str = toCharString(usearch_getText(strsrch, &textlength));
+            log_err("Text: %s\n", str);
+            str = toCharString(usearch_getPattern(strsrch, &textlength));
+            log_err("Pattern: %s\n", str);
+            log_err("Error following match starting at %d (overlap: %d) found at %d (len:%d); expected %d (len:%d)\n",
+                        nextStart, isOverlap,
+                        usearch_getMatchedStart(strsrch), usearch_getMatchedLength(strsrch),
+                        matchindex, matchlength);
+            return FALSE;
+        }
+
+        if (isOverlap || usearch_getMatchedLength(strsrch) == 0) {
+            nextStart = usearch_getMatchedStart(strsrch) + 1;
+        } else {
+            nextStart = usearch_getMatchedStart(strsrch) + usearch_getMatchedLength(strsrch);
+        }
+
+        count++;
+        matchindex = search.offset[count];
+    }
+
+    /* start of preceding matches */
+    count = -1; /* last non-negative offset index, could be -1 if no match */
+    while (search.offset[count + 1] >= 0) {
+        count++;
+    }
+    usearch_getText(strsrch, &nextStart);
+
+    while (TRUE) {
+        usearch_preceding(strsrch, nextStart, &status);
+
+        if (count < 0) {
+            if (usearch_getMatchedStart(strsrch) != USEARCH_DONE || usearch_getMatchedLength(strsrch) != 0) {
+                char *str = toCharString(usearch_getText(strsrch, &textlength));
+                log_err("Text: %s\n", str);
+                str = toCharString(usearch_getPattern(strsrch, &textlength));
+                log_err("Pattern: %s\n", str);
+                log_err("Error preceding match starting at %d (overlap: %d) found at %d (len:%d); expected <NO MATCH>\n",
+                            nextStart, isOverlap,
+                            usearch_getMatchedStart(strsrch), 
+                            usearch_getMatchedLength(strsrch));
+                return FALSE;
+            }
+            /* no more matches */
+            break;
+        }
+
+        matchindex = search.offset[count];
+        matchlength = search.size[count];
+        if (usearch_getMatchedStart(strsrch) != matchindex
+                || usearch_getMatchedLength(strsrch) != matchlength
+                || U_FAILURE(status)) {
+            char *str = toCharString(usearch_getText(strsrch, &textlength));
+            log_err("Text: %s\n", str);
+            str = toCharString(usearch_getPattern(strsrch, &textlength));
+            log_err("Pattern: %s\n", str);
+            log_err("Error preceding match starting at %d (overlap: %d) found at %d (len:%d); expected %d (len:%d)\n",
+                        nextStart, isOverlap,
+                        usearch_getMatchedStart(strsrch), usearch_getMatchedLength(strsrch),
+                        matchindex, matchlength);
+            return FALSE;
+        }
+
+        nextStart = matchindex;
+        count--;
     }
 
     usearch_setAttribute(strsrch, USEARCH_ELEMENT_COMPARISON, USEARCH_STANDARD_ELEMENT_COMPARISON, &status);
@@ -1649,30 +1748,30 @@ static void TestDiacriticMatch(void)
     memset(text, 0, 128*sizeof(UChar));
     
     strsrch = usearch_open(pattern, 1, text, 1, uloc_getDefault(), NULL, &status);
-	if (U_FAILURE(status)) {
+    if (U_FAILURE(status)) {
         log_err_status(status, "Error opening string search %s\n", u_errorName(status));
         return;
     }
        
     search = DIACRITICMATCH[count];
     while (search.text != NULL) {
-    	if (search.collator != NULL) {
-    		coll = ucol_openFromShortString(search.collator, FALSE, NULL, &status);
-    	} else {
+        if (search.collator != NULL) {
+            coll = ucol_openFromShortString(search.collator, FALSE, NULL, &status);
+        } else {
             /* Always use "en_US" because some of these tests fail in Danish locales. */
-    		coll = ucol_open("en_US"/*uloc_getDefault()*/, &status);
-    		ucol_setStrength(coll, search.strength);
-    	}
-    	if (U_FAILURE(status)) {
-	        log_err("Error opening string search collator(\"%s\") %s\n", search.collator, u_errorName(status));
-	        return;
-	    }
-    	
-    	usearch_setCollator(strsrch, coll, &status);
-    	if (U_FAILURE(status)) {
-	        log_err("Error setting string search collator %s\n", u_errorName(status));
-	        return;
-	    }
+            coll = ucol_open("en_US"/*uloc_getDefault()*/, &status);
+            ucol_setStrength(coll, search.strength);
+        }
+        if (U_FAILURE(status)) {
+            log_err("Error opening string search collator(\"%s\") %s\n", search.collator, u_errorName(status));
+            return;
+        }
+        
+        usearch_setCollator(strsrch, coll, &status);
+        if (U_FAILURE(status)) {
+            log_err("Error setting string search collator %s\n", u_errorName(status));
+            return;
+        }
     
         u_unescape(search.text, text, 128);
         u_unescape(search.pattern, pattern, 128);
@@ -2499,54 +2598,54 @@ static void TestSearchForNull(void) {
 
 static void TestStrengthIdentical(void)
 {
-	UCollator *coll;
-	UErrorCode ec = U_ZERO_ERROR;
-	UStringSearch *search;
-	
+    UCollator *coll;
+    UErrorCode ec = U_ZERO_ERROR;
+    UStringSearch *search;
+    
     UChar pattern[] = {0x05E9, 0x0591, 0x05E9};
     UChar text[]    = {0x05E9, 0x0592, 0x05E9};
     int32_t pLen = sizeof (pattern) / sizeof(pattern[0]);
     int32_t tLen = sizeof(text) / sizeof (text[0]);
-	int32_t expectedPos = 0;
-	int32_t expectedLen = 3;
+    int32_t expectedPos = 0;
+    int32_t expectedLen = 3;
 
-	int32_t pos;
-	int32_t len;
+    int32_t pos;
+    int32_t len;
 
     /* create a US-English collator */
-	coll = ucol_open ("en_US", &ec);
+    coll = ucol_open ("en_US", &ec);
 
-	/* make sure we didn't fail. */
-	TEST_ASSERT (ec);
+    /* make sure we didn't fail. */
+    TEST_ASSERT (ec);
 
     ucol_setStrength( coll, UCOL_TERTIARY); 
 
-	/* open a search looking for 0 */
-	search = usearch_openFromCollator (pattern, pLen, text, tLen, coll, NULL, &ec);
-	TEST_ASSERT (ec);
+    /* open a search looking for 0 */
+    search = usearch_openFromCollator (pattern, pLen, text, tLen, coll, NULL, &ec);
+    TEST_ASSERT (ec);
 
     if (coll != NULL && search != NULL) {
-	    pos = usearch_first(search, &ec);
-	    len = usearch_getMatchedLength(search);
+        pos = usearch_first(search, &ec);
+        len = usearch_getMatchedLength(search);
 
-	    if(pos != expectedPos) {
-		    log_err("Expected search result: %d; Got instead: %d\n", expectedPos, pos);
-	    }
-		
-	    if(len != expectedLen) {
-		    log_err("Expected search result length: %d; Got instead: %d\n", expectedLen, len);
-	    }
-	
+        if(pos != expectedPos) {
+            log_err("Expected search result: %d; Got instead: %d\n", expectedPos, pos);
+        }
+        
+        if(len != expectedLen) {
+            log_err("Expected search result length: %d; Got instead: %d\n", expectedLen, len);
+        }
+    
         /* Now try it at strength == UCOL_IDENTICAL */
         ucol_setStrength(coll, UCOL_IDENTICAL); 
-	    usearch_reset(search);
+        usearch_reset(search);
 
-	    pos = usearch_first(search, &ec);
-	    len = usearch_getMatchedLength(search);
+        pos = usearch_first(search, &ec);
+        len = usearch_getMatchedLength(search);
 
-	    if(pos != -1) {
-		    log_err("Expected failure for strentgh = UCOL_IDENTICAL: got %d instead.\n", pos);
-	    }
+        if(pos != -1) {
+            log_err("Expected failure for strentgh = UCOL_IDENTICAL: got %d instead.\n", pos);
+        }
     }
 
     usearch_close(search);
@@ -2711,9 +2810,199 @@ static void TestUsingSearchCollator(void)
             }
             ucol_close(ucol);
         } else {
-            log_err("error, locale %s, ucol_open failed: %s\n", tuscItemPtr->locale, u_errorName(status) );
+            log_data_err("error, locale %s, ucol_open failed: %s\n", tuscItemPtr->locale, u_errorName(status) );
         }
     }
+}
+
+
+static void TestPCEBuffer_with(const UChar *search, uint32_t searchLen, const UChar *source, uint32_t sourceLen) {
+   UErrorCode icuStatus = U_ZERO_ERROR;
+   UCollator *coll;
+   const char *locale;
+   UBreakIterator *ubrk;
+   UStringSearch *usearch;
+   int32_t match = 0;
+
+
+   coll = ucol_openFromShortString( "LSK_AS_CX_EX_FX_HX_NX_S4",
+                                    FALSE,
+                                    NULL,
+                                    &icuStatus );
+   if ( U_FAILURE(icuStatus) )
+   {
+     log_data_err( "ucol_openFromShortString error %s\n" , u_errorName(icuStatus));
+      goto exit;
+   }
+
+   locale = ucol_getLocaleByType( coll,
+                                  ULOC_VALID_LOCALE,
+                                  &icuStatus );
+   if ( U_FAILURE(icuStatus) )
+   {
+     log_err( "ucol_getLocaleByType error %s\n", u_errorName(icuStatus) );
+      goto exit;
+   }
+
+   log_verbose("locale=%s\n", locale);
+
+   ubrk = ubrk_open( UBRK_CHARACTER,
+                     locale,
+                     source,
+                     sourceLen,
+                     &icuStatus );
+   if ( U_FAILURE(icuStatus) )
+   {
+     log_err( "ubrk_open error %s\n", u_errorName(icuStatus) );
+      goto exit;
+   }
+
+   usearch = usearch_openFromCollator( search,
+                                       searchLen,
+                                       source,
+                                       sourceLen,
+                                       coll,
+                                       ubrk,
+                                       &icuStatus );
+   if ( U_FAILURE(icuStatus) )
+   {
+     log_err( "usearch_openFromCollator error %s\n", u_errorName(icuStatus) );
+      goto exit;
+   }
+
+   match = usearch_first( usearch,
+                          &icuStatus );
+   if ( U_FAILURE(icuStatus) )
+   {
+     log_err( "usearch_first error %s\n", u_errorName(icuStatus) );
+     goto exit;
+   }
+
+   if(match==0) {
+     log_verbose("OK: match=%d\n", match);
+   } else {
+     log_err("Err: match expected 0 got %d\n", match);
+   }
+
+   usearch_close(usearch);
+   ubrk_close(ubrk);
+   ucol_close(coll);
+
+exit:
+   return;
+}
+
+
+static void TestPCEBuffer_100df(void) {
+  UChar search[] =
+    { 0x0020, 0x0020, 0x00df, 0x0020, 0x0041, 0x00df, 0x0020, 0x0061, 0x00df, 0x0020, 0x00c5, 0x00df, 0x0020, 0x212b, 0x00df, 0x0020, 0x0041, 0x030a, 0x00df, 0x0020, 0x00e5, 0x00df, 0x0020, 0x0061, 0x02da, 0x00df, 0x0020, 0x0061, 0x030a, 0x00df, 0x0020, 0xd8fa, 0xdeae, 0x00df, 0x0020, 0x2027, 0x00df }; /* 38 cp, 9 of them unpaired surrogates */
+  UChar source[] = 
+    { 0x0020, 0x0020, 0x00df, 0x0020, 0x0041, 0x00df, 0x0020, 0x0061, 0x00df, 0x0020, 0x00c5, 0x00df, 0x0020, 0x212b, 0x00df, 0x0020, 0x0041, 0x030a, 0x00df, 0x0020, 0x00e5, 0x00df, 0x0020, 0x0061, 0x02da, 0x00df, 0x0020, 0x0061, 0x030a, 0x00df, 0x0020, 0xd8fa, 0xdeae, 0x00df, 0x0020, 0x2027, 0x00df };
+  uint32_t searchLen = sizeof(search)/sizeof(UChar);
+  uint32_t sourceLen = sizeof(source)/sizeof(UChar);
+  TestPCEBuffer_with(search,searchLen,source,sourceLen);
+ }
+
+
+static void TestPCEBuffer_2surr(void) {
+  UChar search[] =
+    { 0x0020, 0x0020, 0xdfff, 0x0020, 0x0041, 0xdfff, 0x0020, 0x0061, 0xdfff, 0x0020, 0x00c5, 0xdfff, 0x0020, 0x212b, 0xdfff, 0x0020, 0x0041, 0x030a, 0xdfff, 0x0020, 0x00e5, 0xdfff, 0x0020, 0x0061, 0x02da, 0xdfff, 0x0020, 0x0061, 0x030a, 0xdfff, 0x0020, 0xd8fa, 0xdeae, 0xdfff, 0x0020, 0x2027, 0xdfff }; /* 38 cp, 9 of them unpaired surrogates */
+  UChar source[] = 
+    { 0x0020, 0x0020, 0xdfff, 0x0020, 0x0041, 0xdfff, 0x0020, 0x0061, 0xdfff, 0x0020, 0x00c5, 0xdfff, 0x0020, 0x212b, 0xdfff, 0x0020, 0x0041, 0x030a, 0xdfff, 0x0020, 0x00e5, 0xdfff, 0x0020, 0x0061, 0x02da, 0xdfff, 0x0020, 0x0061, 0x030a, 0xdfff, 0x0020, 0xd8fa, 0xdeae, 0xdfff, 0x0020, 0x2027, 0xdfff };
+  uint32_t searchLen = sizeof(search)/sizeof(UChar);
+  uint32_t sourceLen = sizeof(source)/sizeof(UChar);
+  TestPCEBuffer_with(search,searchLen,source,sourceLen);
+}
+
+static void TestMatchFollowedByIgnorables(void) {
+    /* test case for ticket#8482 */
+    UChar search[] = { 0x00c9 };
+    UChar source[] = { 0x00c9, 0x0000, 0x0041 };
+    int32_t searchLen;
+    int32_t sourceLen;
+    UErrorCode icuStatus = U_ZERO_ERROR;
+    UCollator *coll;
+    const char *locale;
+    UBreakIterator *ubrk;
+    UStringSearch *usearch;
+    int32_t match = 0;
+    int32_t matchLength = 0;
+    const int32_t expectedMatchLength = 1;
+
+    searchLen = sizeof(search)/sizeof(UChar);
+    sourceLen = sizeof(source)/sizeof(UChar);
+
+    coll = ucol_openFromShortString("LHR_AN_CX_EX_FX_HX_NX_S3",
+                                    FALSE,
+                                    NULL,
+                                    &icuStatus);
+    if (U_FAILURE(icuStatus)) {
+        log_data_err("ucol_openFromShortString error - %s\n", u_errorName(icuStatus));
+    }
+
+    locale = ucol_getLocaleByType(coll,
+                                    ULOC_VALID_LOCALE,
+                                    &icuStatus);
+    if (U_FAILURE(icuStatus)) {
+        log_data_err("ucol_getLocaleByType error - %s\n", u_errorName(icuStatus));
+    }
+
+    ubrk = ubrk_open(UBRK_CHARACTER,
+                        locale,
+                        source,
+                        sourceLen,
+                        &icuStatus);
+    if (U_FAILURE(icuStatus)) {
+        log_data_err("ubrk_open error - %s\n", u_errorName(icuStatus));
+    }
+
+    usearch = usearch_openFromCollator(search,
+                                        searchLen,
+                                        source,
+                                        sourceLen,
+                                        coll,
+                                        ubrk,
+                                        &icuStatus);
+    if (U_FAILURE(icuStatus)) {
+        log_data_err("usearch_openFromCollator error - %s\n", u_errorName(icuStatus));
+    }
+
+    match = usearch_first(usearch,
+                            &icuStatus);
+    if (U_FAILURE(icuStatus)) {
+        log_data_err("usearch_first error - %s\n", u_errorName(icuStatus));
+    } else {
+
+        log_verbose("match=%d\n", match);
+
+        matchLength = usearch_getMatchedLength(usearch);
+
+        if (matchLength != expectedMatchLength) {
+            log_err("Error: matchLength=%d, expected=%d\n", matchLength, expectedMatchLength);
+        }
+    }
+
+    usearch_close(usearch);
+    ubrk_close(ubrk);
+    ucol_close(coll);
+}
+
+static void TestIndicPrefixMatch(void)
+{
+    int count = 0;
+    UErrorCode status = U_ZERO_ERROR;
+    open(&status);
+    if (U_FAILURE(status)) {
+        log_err_status(status, "Unable to open static collators %s\n", u_errorName(status));
+        return;
+    }
+    while (INDICPREFIXMATCH[count].text != NULL) {
+        if (!assertEqual(INDICPREFIXMATCH[count])) {
+            log_err("Error at test number %d\n", count);
+        }
+        count ++;
+    }
+    close();
 }
 
 /**
@@ -2772,9 +3061,13 @@ void addSearchTest(TestNode** root)
     addTest(root, &TestNumeric, "tscoll/usrchtst/TestNumeric");
     addTest(root, &TestDiacriticMatch, "tscoll/usrchtst/TestDiacriticMatch");
     addTest(root, &TestForwardBackward, "tscoll/usrchtst/TestForwardBackward");
-	addTest(root, &TestSearchForNull, "tscoll/usrchtst/TestSearchForNull");
+    addTest(root, &TestSearchForNull, "tscoll/usrchtst/TestSearchForNull");
     addTest(root, &TestStrengthIdentical, "tscoll/usrchtst/TestStrengthIdentical");
     addTest(root, &TestUsingSearchCollator, "tscoll/usrchtst/TestUsingSearchCollator");
+    addTest(root, &TestPCEBuffer_100df, "tscoll/usrchtst/TestPCEBuffer/1_00df");
+    addTest(root, &TestPCEBuffer_2surr, "tscoll/usrchtst/TestPCEBuffer/2_dfff");
+    addTest(root, &TestMatchFollowedByIgnorables, "tscoll/usrchtst/TestMatchFollowedByIgnorables");
+    addTest(root, &TestIndicPrefixMatch, "tscoll/usrchtst/TestIndicPrefixMatch");
 }
 
 #endif /* #if !UCONFIG_NO_COLLATION */

@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/rbnf/sk.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/rbnf/sk.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/rbnf/sk.xml
- */
 sk{
     RBNFRules{
         SpelloutRules{
@@ -59,7 +56,7 @@ sk{
             "2000000000000000: <%spellout-cardinal-masculine< biliardy[ >>];",
             "5000000000000000: <%spellout-cardinal-masculine< biliardov[ >>];",
             "1000000000000000000: =#,##0=;",
-            "%spellout-cardinal-neutre:",
+            "%spellout-cardinal-neuter:",
             "-x: minus >>;",
             "x.x: << \u010Diarka >>;",
             "0: nula;",
@@ -113,5 +110,5 @@ sk{
             "1000000000000000000: =#,##0=;",
         }
     }
-    Version{"2.0.41.26"}
+    Version{"2.1.19.14"}
 }

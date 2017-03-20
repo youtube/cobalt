@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
@@ -63,7 +61,8 @@ TEST_F(EvaluateScriptTest, ThreeArguments) {
       "    return fib(n - 1) + fib(n - 2);\n"
       "  }\n"
       "}\n"
-      "fib(8)";
+      // Box the result so it can be returned naturally from an object property.
+      "new Number(fib(8))";
 
   // Call with null out handle.
   scoped_refptr<StrictMock<ArbitraryInterface> > arbitrary_interface_mock(
@@ -73,10 +72,10 @@ TEST_F(EvaluateScriptTest, ThreeArguments) {
   // Call with non-null, but unset optional handle.
   base::optional<OpaqueHandleHolder::Reference> opaque_handle;
   EXPECT_TRUE(EvaluateScript(script, arbitrary_interface_mock, &opaque_handle));
-  ASSERT_FALSE(opaque_handle->referenced_object().IsNull());
+  ASSERT_FALSE(opaque_handle->referenced_value().IsNull());
 
   EXPECT_CALL(test_mock(), object_property())
-      .WillOnce(Return(&opaque_handle->referenced_object()));
+      .WillOnce(Return(&opaque_handle->referenced_value()));
   std::string result;
   EXPECT_TRUE(EvaluateScript("test.objectProperty == 21;", &result));
   EXPECT_STREQ("true", result.c_str());

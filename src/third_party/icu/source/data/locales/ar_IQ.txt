@@ -1,24 +1,104 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ar_IQ.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ar_IQ.xml
 // *
 // ***************************************************************************
 ar_IQ{
-    Version{"2.0.47.53"}
+    Version{"2.1.19.14"}
     calendar{
         gregorian{
-            DateTimeElements:intvector{
-                7,
-                4,
-            }
-            weekend:intvector{
-                6,
-                0,
-                7,
-                86400000,
+            monthNames{
+                format{
+                    abbreviated{
+                        "كانون الثاني",
+                        "شباط",
+                        "آذار",
+                        "نيسان",
+                        "أيار",
+                        "حزيران",
+                        "تموز",
+                        "آب",
+                        "أيلول",
+                        "تشرین الأول",
+                        "تشرين الثاني",
+                        "كانون الأول",
+                    }
+                    narrow{
+                        "ك",
+                        "ش",
+                        "آ",
+                        "ن",
+                        "أ",
+                        "ح",
+                        "ت",
+                        "آ",
+                        "أ",
+                        "ت",
+                        "ت",
+                        "ك",
+                    }
+                    wide{
+                        "كانون الثاني",
+                        "شباط",
+                        "آذار",
+                        "نيسان",
+                        "أيار",
+                        "حزيران",
+                        "تموز",
+                        "آب",
+                        "أيلول",
+                        "تشرين الأول",
+                        "تشرين الثاني",
+                        "كانون الأول",
+                    }
+                }
+                stand-alone{
+                    abbreviated{
+                        "كانون الثاني",
+                        "شباط",
+                        "آذار",
+                        "نيسان",
+                        "أيار",
+                        "حزيران",
+                        "تموز",
+                        "آب",
+                        "أيلول",
+                        "تشرين الأول",
+                        "تشرين الثاني",
+                        "كانون الأول",
+                    }
+                    narrow{
+                        "ك",
+                        "ش",
+                        "آ",
+                        "ن",
+                        "أ",
+                        "ح",
+                        "ت",
+                        "آ",
+                        "أ",
+                        "ت",
+                        "ت",
+                        "ك",
+                    }
+                    wide{
+                        "كانون الثاني",
+                        "شباط",
+                        "آذار",
+                        "نيسان",
+                        "أيار",
+                        "حزيران",
+                        "تموز",
+                        "آب",
+                        "أيلول",
+                        "تشرين الأول",
+                        "تشرين الثاني",
+                        "كانون الأول",
+                    }
+                }
             }
         }
     }

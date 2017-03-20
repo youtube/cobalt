@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "base/time.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -29,8 +27,8 @@ const int kMaxQueueSize = 4;
 Submission MakeSubmissionWithUniqueRenderTree(
     const base::TimeDelta& time_offset) {
   // Create a dummy, but unique, render tree.
-  Submission submission(new cobalt::render_tree::CompositionNode(
-      cobalt::render_tree::CompositionNode::Builder()));
+  cobalt::render_tree::CompositionNode::Builder builder;
+  Submission submission(new cobalt::render_tree::CompositionNode(builder));
   submission.time_offset = time_offset;
 
   return submission;
@@ -174,15 +172,17 @@ TEST(SubmissionQueueTest, PushingOldTimeResetsQueue) {
 
   queue.PushSubmission(third, SecondsToTime(5.0));
 
-  // We expect the submission queue to immediately jump to the third submission
-  // at this point, since it was inserted late.
+  // We expect the submission queue to not do anything rash at this point, even
+  // though it was inserted late.
   current = queue.GetCurrentSubmission(SecondsToTime(5.0));
   EXPECT_EQ(third.render_tree, current.render_tree);
-  EXPECT_DOUBLE_EQ(3.0, current.time_offset.InSecondsF());
+  EXPECT_DOUBLE_EQ(4.5, current.time_offset.InSecondsF());
 
+  // Make sure that we never go backwards in time, even if the difference
+  // between the render time and submission time is shrinking quickly.
   current = queue.GetCurrentSubmission(SecondsToTime(5.5));
   EXPECT_EQ(third.render_tree, current.render_tree);
-  EXPECT_DOUBLE_EQ(3.5, current.time_offset.InSecondsF());
+  EXPECT_DOUBLE_EQ(4.874633, current.time_offset.InSecondsF());
 }
 
 // This tests that pushing a submission into a full queue will result in the

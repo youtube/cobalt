@@ -427,10 +427,9 @@ bool SourceBufferStream::Append(
   DCHECK(!buffers.empty());
   DCHECK(media_segment_start_time_ != kNoTimestamp());
 
-  // New media segments must begin with a keyframe.
+  // Log if new media segment doesn't begin with a keyframe.
   if (new_media_segment_ && !buffers.front()->IsKeyframe()) {
     MEDIA_LOG(log_cb_) << "Media segment did not begin with keyframe.";
-    return false;
   }
 
   // Buffers within a media segment should be monotonically increasing.
@@ -1252,7 +1251,6 @@ SourceBufferRange::SourceBufferRange(
       interbuffer_distance_cb_(interbuffer_distance_cb),
       size_in_bytes_(0) {
   DCHECK(!new_buffers.empty());
-  DCHECK(new_buffers.front()->IsKeyframe());
   DCHECK(!interbuffer_distance_cb.is_null());
   AppendBuffersToEnd(new_buffers);
 }
@@ -1268,7 +1266,6 @@ SourceBufferRange::SourceBufferRange(
       interbuffer_distance_cb_(interbuffer_distance_cb),
       size_in_bytes_(0) {
   DCHECK(!new_buffers.empty());
-  DCHECK(new_buffers.front()->IsKeyframe());
   DCHECK(!interbuffer_distance_cb.is_null());
   AppendBuffersToEnd(new_buffers);
 }

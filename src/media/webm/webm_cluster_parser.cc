@@ -313,7 +313,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
 
   // Every encrypted Block has a signal byte and IV prepended to it. Current
   // encrypted WebM request for comments specification is here
-  // http://wiki.webmproject.org/encryption/webm-encryption-rfc
+  // http://www.webmproject.org/docs/webm-encryption/
   if (!encryption_key_id.empty()) {
     DCHECK_EQ(kWebMSignalByteSize, 1);
     if (size < kWebMSignalByteSize) {
@@ -369,7 +369,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     }
 
 #if defined(__LB_SHELL__) || defined(COBALT)
-    // Don't copy prepended meta data as it is not used by the decrytor and
+    // Don't copy prepended meta data as it is not used by the decryptor and
     // decoder.
     buffer = StreamParserBuffer::CopyFrom(data + data_offset,
                                           size - data_offset, is_keyframe);

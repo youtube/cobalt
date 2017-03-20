@@ -14,4 +14,8 @@
 
 #include "starboard/player.h"
 
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
 void SbPlayerSetPause(SbPlayer /*player*/, bool /*pause*/) {}
+
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION

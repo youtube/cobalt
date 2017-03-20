@@ -147,7 +147,9 @@ class BASE_EXPORT optional {
   // Overloaded conversion to bool operator for determining whether the optional
   // is engaged or not.  It returns true if the optional is engaged, and false
   // otherwise.
-#if defined(_MSC_VER) && _MSC_VER < 1800
+#if (defined(_MSC_VER) && (_MSC_VER < 1800)) || \
+    (defined(__GNUC__) &&                       \
+     (__GNUC__ < 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ < 5))))
   // MSVC 2012 does not support explicit cast operators.
   // http://blogs.msdn.com/b/vcblog/archive/2011/09/12/10209291.aspx
 

@@ -1,23 +1,23 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_RASTERIZER_H_
 #define COBALT_RENDERER_RASTERIZER_RASTERIZER_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/node.h"
@@ -45,7 +45,21 @@ class Rasterizer {
  public:
   // When set, will clear the render target before rasterizing the render tree
   // to it.
-  static const int kSubmitOptions_Clear = (1 << 0);
+  static const int kSubmitFlags_Clear = (1 << 0);
+
+  struct Options {
+    Options() : flags(0) {}
+
+    // A bitwise combination of any of the |kSubmitFlags_*| constants defined
+    // above.
+    int flags;
+
+    // If specified, indicates which region of |render_target| is
+    // dirty and needs to be updated.  If animations are playing for example,
+    // then |dirty| can be setup to bound the animations.  A rasterizer is free
+    // to ignore this value if they wish.
+    base::optional<math::Rect> dirty;
+  };
 
   virtual ~Rasterizer() {}
 
@@ -54,17 +68,23 @@ class Rasterizer {
   // above.
   virtual void Submit(const scoped_refptr<render_tree::Node>& render_tree,
                       const scoped_refptr<backend::RenderTarget>& render_target,
-                      int options) = 0;
+                      const Options& options) = 0;
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target) {
-    Submit(render_tree, render_target, 0);
+    Submit(render_tree, render_target, Options());
   }
 
   // Returns a thread-safe object from which one can produce renderer resources
   // like images and fonts which can be referenced by render trees that are
   // subsequently submitted to this pipeline.  This call must be thread-safe.
   virtual render_tree::ResourceProvider* GetResourceProvider() = 0;
+
+  // For GL-based rasterizers, some animation updates can require that the
+  // rasterizer's GL context be current when they are executed.  This method
+  // is essentially a hack to allow GL-based rasterizers a chance to set their
+  // context current before we move to update animations.
+  virtual void MakeCurrent() {}
 };
 
 }  // namespace rasterizer

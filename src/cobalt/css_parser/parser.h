@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_CSS_PARSER_PARSER_H_
 #define COBALT_CSS_PARSER_PARSER_H_
@@ -27,7 +25,16 @@ namespace css_parser {
 
 class Parser : public cssom::CSSParser {
  public:
-  static scoped_ptr<Parser> Create();
+  enum SupportsMapToMeshFlag {
+    kSupportsMapToMesh,
+    kDoesNotSupportMapToMesh,
+  };
+
+  // The parameter |supports_map_to_mesh| can be used to toggle parser support
+  // for the map-to-mesh CSS filter.  If disabled, "filter: map-to-mesh(...)"
+  // will result in a parse error.
+  static scoped_ptr<Parser> Create(
+      SupportsMapToMeshFlag supports_map_to_mesh = kSupportsMapToMesh);
   ~Parser();
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
@@ -79,14 +86,16 @@ class Parser : public cssom::CSSParser {
 
   Parser(const OnMessageCallback& on_warning_callback,
          const OnMessageCallback& on_error_callback,
-         MessageVerbosity message_verbosity);
+         MessageVerbosity message_verbosity,
+         SupportsMapToMeshFlag supports_map_to_mesh);
 
   const OnMessageCallback on_warning_callback_;
   const OnMessageCallback on_error_callback_;
   MessageVerbosity message_verbosity_;
+  SupportsMapToMeshFlag supports_map_to_mesh_;
 
   friend class ParserImpl;
-  friend class ParserTest;
+  friend class ParserTestBase;
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };
 

@@ -20,6 +20,7 @@ namespace i18n {
 // case-insensitive. In other locales (including en_US which English speakers
 // in the U.S. use), this search would be case-insensitive as expected.
 
+#if !defined(UCONFIG_NO_COLLATION)
 TEST(StringSearchTest, ASCII) {
   std::string default_locale(uloc_getDefault());
   bool locale_is_posix = (default_locale == "en_US_POSIX");
@@ -198,6 +199,7 @@ TEST(StringSearchTest, UnicodeLocaleDependent) {
 
   SetICUDefaultLocale(default_locale);
 }
+#endif //  !defined(UCONFIG_NO_COLLATION)
 
 }  // namespace i18n
 }  // namespace base

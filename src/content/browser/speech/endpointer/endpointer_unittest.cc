@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#include "content/browser/speech/audio_buffer.h"
 #include "content/browser/speech/endpointer/endpointer.h"
+#include "media/base/shell_audio_bus.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -15,8 +15,13 @@ const int kSampleRate = 8000;  // 8 k samples per second for AMR encoding.
 // At 8 sample per second a 20 ms frame is 160 samples, which corrsponds
 // to the AMR codec.
 const int kFrameSize = kSampleRate / kFrameRate;  // 160 samples.
-static_assert(kFrameSize == 160, "invalid frame size");
-}
+
+#if defined(OS_STARBOARD)
+SB_COMPILE_ASSERT(kFrameSize == 160, invalid_frame_size);
+#else
+COMPILE_ASSERT(kFrameSize == 160, invalid_frame_size);
+#endif  // defined(OS_STARBOARD)
+}  // namespace
 
 namespace content {
 
@@ -79,7 +84,7 @@ class EnergyEndpointerFrameProcessor : public FrameProcessor {
 
   EpStatus ProcessFrame(int64_t time,
                         int16_t* samples,
-                        int frame_size) override {
+                        int /*frame_size*/) override {
     endpointer_->ProcessAudioFrame(time, samples, kFrameSize, NULL);
     int64_t ep_time;
     return endpointer_->Status(&ep_time);
@@ -119,15 +124,15 @@ TEST(EndpointerTest, TestEnergyEndpointerEvents) {
 // Test endpointer wrapper class.
 class EndpointerFrameProcessor : public FrameProcessor {
  public:
+  typedef ::media::ShellAudioBus ShellAudioBus;
   explicit EndpointerFrameProcessor(Endpointer* endpointer)
       : endpointer_(endpointer) {}
 
-  EpStatus ProcessFrame(int64_t time,
+  EpStatus ProcessFrame(int64_t /*time*/,
                         int16_t* samples,
-                        int frame_size) override {
-    scoped_refptr<AudioChunk> frame(
-        new AudioChunk(reinterpret_cast<uint8_t*>(samples), kFrameSize * 2, 2));
-    endpointer_->ProcessAudio(*frame.get(), NULL);
+                        int /*frame_size*/) override {
+    scoped_ptr<ShellAudioBus> frame(new ShellAudioBus(1, kFrameSize, samples));
+    endpointer_->ProcessAudio(*frame, NULL);
     int64_t ep_time;
     return endpointer_->Status(&ep_time);
   }
@@ -137,8 +142,6 @@ class EndpointerFrameProcessor : public FrameProcessor {
 };
 
 TEST(EndpointerTest, TestEmbeddedEndpointerEvents) {
-  const int kSampleRate = 8000;  // 8 k samples per second for AMR encoding.
-
   Endpointer endpointer(kSampleRate);
   const int64_t kMillisecondsPerMicrosecond = 1000;
   const int64_t short_timeout = 300 * kMillisecondsPerMicrosecond;

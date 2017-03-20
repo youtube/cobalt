@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "starboard/condition_variable.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/alsa/alsa_util.h"
@@ -91,6 +92,13 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
 
   bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
 
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
+    ScopedLock lock(mutex_);
+    playback_rate_ = playback_rate;
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+
   bool is_valid() { return playback_handle_ != NULL; }
 
  private:
@@ -105,7 +113,8 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   // so we can continue into the IdleLoop().  It returns false when destroying.
   bool PlaybackLoop();
   // Helper function to write frames contained in a ring buffer to ALSA.
-  void WriteFrames(int frames_to_write,
+  void WriteFrames(double playback_rate,
+                   int frames_to_write,
                    int frames_in_buffer,
                    int offset_in_frames);
 
@@ -113,6 +122,9 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   SbAudioSinkConsumeFramesFunc consume_frame_func_;
   void* context_;
+
+  double playback_rate_;
+  std::vector<uint8_t> resample_buffer_;
 
   int channels_;
   int sampling_frequency_hz_;
@@ -144,6 +156,9 @@ AlsaAudioSink::AlsaAudioSink(
     SbAudioSinkConsumeFramesFunc consume_frame_func,
     void* context)
     : type_(type),
+      playback_rate_(1.0),
+      resample_buffer_(channels * kFramesPerRequest *
+                       GetSampleSize(sample_type)),
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
@@ -225,26 +240,30 @@ void AlsaAudioSink::AudioThreadFunc() {
 bool AlsaAudioSink::IdleLoop() {
   SB_DLOG(INFO) << "alsa::AlsaAudioSink enters idle loop";
 
+  bool drain = true;
+
   for (;;) {
+    double playback_rate;
     {
       ScopedLock lock(mutex_);
       if (destroying_) {
         break;
       }
+      playback_rate = playback_rate_;
     }
     int frames_in_buffer, offset_in_frames;
     bool is_playing, is_eos_reached;
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
-    if (is_playing && frames_in_buffer > 0) {
+    if (is_playing && frames_in_buffer > 0 && playback_rate > 0.0) {
       return true;
     }
-    int delayed_frame = AlsaGetBufferedFrames(playback_handle_);
-    if (delayed_frame < kMinimumFramesInALSA) {
+    if (drain) {
+      drain = false;
       AlsaWriteFrames(playback_handle_, silence_frames_, kFramesPerRequest);
-    } else {
-      SbThreadSleep(time_to_wait_);
+      AlsaDrain(playback_handle_);
     }
+    SbThreadSleep(time_to_wait_);
   }
 
   return false;
@@ -253,19 +272,23 @@ bool AlsaAudioSink::IdleLoop() {
 bool AlsaAudioSink::PlaybackLoop() {
   SB_DLOG(INFO) << "alsa::AlsaAudioSink enters playback loop";
 
+  double playback_rate = 1.0;
   for (;;) {
     int delayed_frame = AlsaGetBufferedFrames(playback_handle_);
-
     {
       ScopedTryLock lock(mutex_);
       if (lock.is_locked()) {
         if (destroying_) {
           break;
         }
+        playback_rate = playback_rate_;
       }
     }
 
     if (delayed_frame < kMinimumFramesInALSA) {
+      if (playback_rate == 0.0) {
+        return true;
+      }
       int frames_in_buffer, offset_in_frames;
       bool is_playing, is_eos_reached;
       update_source_status_func_(&frames_in_buffer, &offset_in_frames,
@@ -273,7 +296,7 @@ bool AlsaAudioSink::PlaybackLoop() {
       if (!is_playing || frames_in_buffer == 0) {
         return true;
       }
-      WriteFrames(std::min(kFramesPerRequest, frames_in_buffer),
+      WriteFrames(playback_rate, std::min(kFramesPerRequest, frames_in_buffer),
                   frames_in_buffer, offset_in_frames);
     } else {
       SbThreadSleep(time_to_wait_);
@@ -283,33 +306,66 @@ bool AlsaAudioSink::PlaybackLoop() {
   return false;
 }
 
-void AlsaAudioSink::WriteFrames(int frames_to_write,
+void AlsaAudioSink::WriteFrames(double playback_rate,
+                                int frames_to_write,
                                 int frames_in_buffer,
                                 int offset_in_frames) {
-  SB_DCHECK(frames_to_write <= frames_in_buffer);
+  const int bytes_per_frame = channels_ * GetSampleSize(sample_type_);
+  if (playback_rate == 1.0) {
+    SB_DCHECK(frames_to_write <= frames_in_buffer);
 
-  int frames_to_buffer_end = frames_per_channel_ - offset_in_frames;
-  if (frames_to_write > frames_to_buffer_end) {
-    int consumed = AlsaWriteFrames(
-        playback_handle_,
-        IncrementPointerByBytes(frame_buffer_, offset_in_frames * channels_ *
-                                                   GetSampleSize(sample_type_)),
-        frames_to_buffer_end);
-    consume_frame_func_(consumed, context_);
-    if (consumed != frames_to_buffer_end) {
-      return;
+    int frames_to_buffer_end = frames_per_channel_ - offset_in_frames;
+    if (frames_to_write > frames_to_buffer_end) {
+      int consumed = AlsaWriteFrames(
+          playback_handle_,
+          IncrementPointerByBytes(frame_buffer_,
+                                  offset_in_frames * bytes_per_frame),
+          frames_to_buffer_end);
+      consume_frame_func_(consumed, context_);
+      if (consumed != frames_to_buffer_end) {
+        return;
+      }
+
+      frames_to_write -= frames_to_buffer_end;
+      offset_in_frames = 0;
     }
 
-    frames_to_write -= frames_to_buffer_end;
-    offset_in_frames = 0;
-  }
+    int consumed =
+        AlsaWriteFrames(playback_handle_,
+                        IncrementPointerByBytes(
+                            frame_buffer_, offset_in_frames * bytes_per_frame),
+                        frames_to_write);
+    consume_frame_func_(consumed, context_);
+  } else {
+    // A very low quality resampler that simply shift the audio frames to play
+    // at the right time.
+    // TODO: The playback rate adjustment should be done in AudioRenderer.  We
+    // should provide a default sinc resampler.
+    double source_frames = 0.0;
+    int buffer_size_in_frames = resample_buffer_.size() / bytes_per_frame;
+    int target_frames = 0;
+    SB_DCHECK(buffer_size_in_frames <= frames_to_write);
 
-  int consumed = AlsaWriteFrames(
-      playback_handle_,
-      IncrementPointerByBytes(frame_buffer_, offset_in_frames * channels_ *
-                                                 GetSampleSize(sample_type_)),
-      frames_to_write);
-  consume_frame_func_(consumed, context_);
+    // Use |playback_rate| as the granularity of increment for source buffer.
+    // For example, when |playback_rate| is 0.25, every time a frame is copied
+    // to the target buffer, the offset of source buffer will be increased by
+    // 0.25, this effectively repeat the same frame four times into the target
+    // buffer and it takes 4 times longer to finish playing the frames.
+    while (static_cast<int>(source_frames) < frames_in_buffer &&
+           target_frames < buffer_size_in_frames) {
+      const uint8_t* source_addr = static_cast<uint8_t*>(frame_buffer_);
+      source_addr += static_cast<int>(offset_in_frames + source_frames) %
+                     frames_per_channel_ * bytes_per_frame;
+      SbMemoryCopy(&resample_buffer_[0] + bytes_per_frame * target_frames,
+                   source_addr, bytes_per_frame);
+      ++target_frames;
+      source_frames += playback_rate;
+    }
+
+    int consumed =
+        AlsaWriteFrames(playback_handle_, &resample_buffer_[0], target_frames);
+    consume_frame_func_(consumed * playback_rate_, context_);
+  }
 }
 
 }  // namespace

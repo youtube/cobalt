@@ -104,6 +104,8 @@ class NET_EXPORT HttpUtil {
   // Whether the character is the start of a quotation mark.
   static bool IsQuote(char c);
 
+  // Whether the character is a valid |tchar| as defined in RFC 7230 Sec 3.2.6.
+  static bool IsTokenChar(char c);
   // Whether the string is a valid |token| as defined in RFC 2616 Sec 2.2.
   static bool IsToken(std::string::const_iterator begin,
                       std::string::const_iterator end);

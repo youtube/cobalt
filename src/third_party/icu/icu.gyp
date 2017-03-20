@@ -3,9 +3,13 @@
 # found in the LICENSE file.
 
 {
+  'includes': [
+    'icu.gypi',
+  ],
   'variables': {
     'use_system_icu%': 0,
     'icu_use_data_file_flag%': 0,
+    'want_separate_host_toolset%': 0,
     'conditions': [
       # On Windows MSVS's library archive tool won't create an empty
       # library given zero object input. Therefore we set target type as
@@ -23,47 +27,154 @@
         # Tell ICU to not insert |using namespace icu;| into its headers,
         # so that chrome's source explicitly has to use |icu::|.
         'U_USING_ICU_NAMESPACE=0',
+        # We don't use ICU plugins and dyload is only necessary for them.
+        # NaCl-related builds also fail looking for dlfcn.h when it's enabled.
+        'U_ENABLE_DYLOAD=0',
+        # With exception disabled, MSVC emits C4577 warning on coming across
+        # 'noexcept'. See http://bugs.icu-project.org/trac/ticket/12406
+        # TODO(jshin): Remove this when updating to a newer version with this
+        # fixed.
+        'U_NOEXCEPT=',
+        'UCONFIG_ONLY_HTML_CONVERSION',
+        'UCONFIG_NO_COLLATION',
+        'UCONFIG_NO_LEGACY_CONVERSION',
+        'UCONFIG_NO_TRANSLITERATION',
+        'UCONFIG_NO_REGULAR_EXPRESSIONS'
       ],
     },
-  },
-  'conditions': [
-    ['use_system_icu==0', {
-      'target_defaults': {
+    'defines': [
+      'U_USING_ICU_NAMESPACE=0',
+      'HAVE_DLOPEN=0',
+      # Only build encoding coverters and detectors necessary for HTML5.
+      'UCONFIG_ONLY_HTML_CONVERSION=1',
+      # No dependency on the default platform encoding.
+      # Will cut down the code size.
+      'U_CHARSET_IS_UTF8=1',
+    ],
+    'conditions': [
+      ['component=="static_library"', {
         'defines': [
-          'U_USING_ICU_NAMESPACE=0',
+          'U_STATIC_IMPLEMENTATION',
         ],
-        'conditions': [
-          ['component=="static_library"', {
-            'defines': [
-              'U_STATIC_IMPLEMENTATION',
-            ],
+        'direct_dependent_settings': {
+          'defines': [
+            'U_STATIC_IMPLEMENTATION',
+          ]
+        },
+      }],
+      ['(OS=="starboard")', {
+        'defines': [
+          # Use starboard atomics and mutexes
+          'U_USER_ATOMICS_H=third_party/icu/source/starboard/atomic_sb.h',
+          'U_USER_MUTEX_H=third_party/icu/source/starboard/mutex_sb.h',
+          'U_USER_MUTEX_CPP=third_party/icu/source/starboard/mutex_sb.cpp'
+        ]
+      }],
+      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
+        (target_arch=="arm" or target_arch=="ia32" or \
+         target_arch=="mipsel")', {
+        'target_conditions': [
+          ['_toolset=="host"', {
+            'cflags': [ '-m32' ],
+            'ldflags': [ '-m32' ],
+            'asflags': [ '-32' ],
+            'xcode_settings': {
+              'ARCHS': [ 'i386' ],
+            },
           }],
         ],
-        # TODO(mark): Looks like this is causing the "public" include
-        # directories to show up twice in some targets in this file.  Fix.
-        'include_dirs': [
-          'public/common',
-          'public/i18n',
-          'source/common',
-          'source/i18n',
+      }],
+      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
+        (target_arch=="arm64" or target_arch=="x64" or \
+         target_arch=="mipsel64")', {
+        'target_conditions': [
+          ['_toolset=="host"', {
+            'cflags': [ '-m64' ],
+            'ldflags': [ '-m64' ],
+            'asflags': [ '-64' ],
+            'xcode_settings': {
+              'ARCHS': [ 'x86_64' ],
+            },
+          }],
         ],
-        'msvs_disabled_warnings': [4005, 4068, 4355, 4996],
-      },
+      }],
+    ],
+    'include_dirs': [
+      'source/common',
+      'source/i18n',
+    ],
+    'msvs_disabled_warnings': [4005, 4068, 4355, 4996, 4267],
+  },
+  'conditions': [
+    ['use_system_icu==0 or want_separate_host_toolset==1', {
       'targets': [
         {
+          'target_name': 'copy_icudt_dat',
+          'type': 'none',
+          # icudtl.dat is the same for both host/target, so this only supports a
+          # single toolset. If a target requires that the .dat file be copied
+          # to the output directory, it should explicitly depend on this target
+          # with the host toolset (like copy_icudt_dat#host).
+          'toolsets': [ 'host' ],
+          'copies': [{
+            'destination': '<(PRODUCT_DIR)',
+            'conditions': [
+              [ 'cobalt==1', {
+                # TODO: ICU data handling should be unified with
+                # the Chromium code.
+                'includes': [
+                  '../../cobalt/build/copy_icu_data.gypi',
+                ],
+              }],
+              ['OS == "android"', {
+                'files': [
+                  'android/icudtl.dat',
+                ],
+              } , { # else: OS != android
+                'conditions': [
+                  # Big Endian
+                  [ 'target_arch=="mips" or target_arch=="mips64"', {
+                    'files': [
+                      'common/icudtb.dat',
+                    ],
+                  } , {  # else: ! Big Endian = Little Endian
+                    'files': [
+                      'common/icudtl.dat',
+                    ],
+                  }],
+                ],
+              }],
+            ],
+          }],
+        },
+        {
           'target_name': 'icudata',
-          'type': '<(icudata_target_type)',
+          'type': 'static_library',
+          'defines': [
+            'U_HIDE_DATA_SYMBOL',
+          ],
           'sources': [
-             # These are hand-generated, but will do for now.  The linux
-             # version is an identical copy of the (mac) icudt46l_dat.S file,
-             # modulo removal of the .private_extern and .const directives and
-             # with no leading underscore on the icudt46_dat symbol.
-             'android/icudt46l_dat.S',
-             'linux/icudt46l_dat.S',
-             'mac/icudt46l_dat.S',
           ],
           'conditions': [
-            [ 'OS == "win"', {
+            [ 'use_system_icu==1 and want_separate_host_toolset==1', {
+              'toolsets': ['host'],
+            }],
+            [ 'use_system_icu==0 and want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+            }],
+            [ 'use_system_icu==0 and want_separate_host_toolset==0', {
+              'toolsets': ['target'],
+            }],
+            [ 'cobalt==1', {
+              # TODO: ICU data handling should be unified with
+              # the Chromium code.
+              'includes': [
+                '../../cobalt/build/copy_icu_data.gypi',
+              ],
+            }],
+            [ 'OS == "win" and icu_use_data_file_flag==0', {
               'type': 'none',
               'copies': [
                 {
@@ -74,208 +185,33 @@
                 },
               ],
             }],
-            [ 'OS == "win" or OS == "mac" or OS == "ios" or OS == "android"', {
-              'sources!': ['linux/icudt46l_dat.S'],
-            }],
-            [ 'OS != "android"', {
-              'sources!': ['android/icudt46l_dat.S'],
-            }],
-            [ 'OS != "mac" and OS != "ios"', {
-              'sources!': ['android/icudt46l_dat.S'],
-            }],
-            [ 'OS=="lb_shell" or OS=="starboard"', {
-              # we use the ICU data files instead of any precompiled data
-              'sources/': [['exclude', 'icudt46l_dat']],
-            }],
-            [ 'OS != "win" and icu_use_data_file_flag', {
+            [ 'icu_use_data_file_flag==1', {
+              'type': 'none',
               # Remove any assembly data file.
-              'sources/': [['exclude', 'icudt46l_dat']],
-              # Compile in the stub data symbol.
-              'sources': ['source/stubdata/stubdata.c'],
+              'sources/': [['exclude', 'icudt[lb]_dat']],
+
               # Make sure any binary depending on this gets the data file.
-              'link_settings': {
-                'target_conditions': [
-                  ['(OS == "mac" and _mac_bundle) or OS=="ios"', {
+              'conditions': [
+                ['OS != "ios"', {
+                  'dependencies': [
+                    'copy_icudt_dat#host',
+                  ],
+                } , { # else: OS=="ios"
+                  'link_settings': {
                     'mac_bundle_resources': [
-                      'source/data/in/icudt46l.dat',
+                      'common/icudtl.dat',
                     ],
-                  }, {
-                    'copies': [{
-                      'destination': '<(PRODUCT_DIR)',
-                      'files': [
-                        'source/data/in/icudt46l.dat',
-                      ],
-                    }],
-                  }],
-                ],  # target_conditions
-              },  # link_settings
-            }],
-            [ 'cobalt==1', {
-              # TODO: ICU data handling should be unified with
-              # the Chromium code.
-              'includes': [
-                '../../cobalt/build/copy_icu_data.gypi',
-              ],
-            }],
-            [ '_type != "shared_library"', {
-              'defines': [
-                'U_HIDE_DATA_SYMBOL',
-              ],
-            }],
-          ],
+                  },
+                }], # OS!=ios
+              ], # conditions
+            }], # icu_use_data_file_flag
+          ], # conditions
         },
         {
           'target_name': 'icui18n',
           'type': '<(component)',
           'sources': [
-            'source/i18n/anytrans.cpp',
-            'source/i18n/astro.cpp',
-            'source/i18n/basictz.cpp',
-            'source/i18n/bms.cpp',
-            'source/i18n/bmsearch.cpp',
-            'source/i18n/bocsu.c',
-            'source/i18n/brktrans.cpp',
-            'source/i18n/buddhcal.cpp',
-            'source/i18n/calendar.cpp',
-            'source/i18n/casetrn.cpp',
-            'source/i18n/cecal.cpp',
-            'source/i18n/chnsecal.cpp',
-            'source/i18n/choicfmt.cpp',
-            'source/i18n/coleitr.cpp',
-            'source/i18n/coll.cpp',
-            'source/i18n/colldata.cpp',
-            'source/i18n/coptccal.cpp',
-            'source/i18n/cpdtrans.cpp',
-            'source/i18n/csdetect.cpp',
-            'source/i18n/csmatch.cpp',
-            'source/i18n/csr2022.cpp',
-            'source/i18n/csrecog.cpp',
-            'source/i18n/csrmbcs.cpp',
-            'source/i18n/csrsbcs.cpp',
-            'source/i18n/csrucode.cpp',
-            'source/i18n/csrutf8.cpp',
-            'source/i18n/curramt.cpp',
-            'source/i18n/currfmt.cpp',
-            'source/i18n/currpinf.cpp',
-            'source/i18n/currunit.cpp',
-            'source/i18n/datefmt.cpp',
-            'source/i18n/dcfmtsym.cpp',
-            'source/i18n/decContext.c',
-            'source/i18n/decNumber.c',
-            'source/i18n/decimfmt.cpp',
-            'source/i18n/digitlst.cpp',
-            'source/i18n/dtfmtsym.cpp',
-            'source/i18n/dtitvfmt.cpp',
-            'source/i18n/dtitvinf.cpp',
-            'source/i18n/dtptngen.cpp',
-            'source/i18n/dtrule.cpp',
-            'source/i18n/esctrn.cpp',
-            'source/i18n/ethpccal.cpp',
-            'source/i18n/fmtable.cpp',
-            'source/i18n/fmtable_cnv.cpp',
-            'source/i18n/format.cpp',
-            'source/i18n/fphdlimp.cpp',
-            'source/i18n/fpositer.cpp',
-            'source/i18n/funcrepl.cpp',
-            'source/i18n/gregocal.cpp',
-            'source/i18n/gregoimp.cpp',
-            'source/i18n/hebrwcal.cpp',
-            'source/i18n/indiancal.cpp',
-            'source/i18n/inputext.cpp',
-            'source/i18n/islamcal.cpp',
-            'source/i18n/japancal.cpp',
-            'source/i18n/locdspnm.cpp',
-            'source/i18n/measfmt.cpp',
-            'source/i18n/measure.cpp',
-            'source/i18n/msgfmt.cpp',
-            'source/i18n/name2uni.cpp',
-            'source/i18n/nfrs.cpp',
-            'source/i18n/nfrule.cpp',
-            'source/i18n/nfsubs.cpp',
-            'source/i18n/nortrans.cpp',
-            'source/i18n/nultrans.cpp',
-            'source/i18n/numfmt.cpp',
-            'source/i18n/numsys.cpp',
-            'source/i18n/olsontz.cpp',
-            'source/i18n/persncal.cpp',
-            'source/i18n/plurfmt.cpp',
-            'source/i18n/plurrule.cpp',
-            'source/i18n/quant.cpp',
-            'source/i18n/rbnf.cpp',
-            'source/i18n/rbt.cpp',
-            'source/i18n/rbt_data.cpp',
-            'source/i18n/rbt_pars.cpp',
-            'source/i18n/rbt_rule.cpp',
-            'source/i18n/rbt_set.cpp',
-            'source/i18n/rbtz.cpp',
-            'source/i18n/regexcmp.cpp',
-            'source/i18n/regexst.cpp',
-            'source/i18n/regextxt.cpp',
-            'source/i18n/reldtfmt.cpp',
-            'source/i18n/rematch.cpp',
-            'source/i18n/remtrans.cpp',
-            'source/i18n/repattrn.cpp',
-            'source/i18n/search.cpp',
-            'source/i18n/selfmt.cpp',
-            'source/i18n/simpletz.cpp',
-            'source/i18n/smpdtfmt.cpp',
-            'source/i18n/sortkey.cpp',
-            'source/i18n/strmatch.cpp',
-            'source/i18n/strrepl.cpp',
-            'source/i18n/stsearch.cpp',
-            'source/i18n/taiwncal.cpp',
-            'source/i18n/tblcoll.cpp',
-            'source/i18n/timezone.cpp',
-            'source/i18n/titletrn.cpp',
-            'source/i18n/tmunit.cpp',
-            'source/i18n/tmutamt.cpp',
-            'source/i18n/tmutfmt.cpp',
-            'source/i18n/tolowtrn.cpp',
-            'source/i18n/toupptrn.cpp',
-            'source/i18n/translit.cpp',
-            'source/i18n/transreg.cpp',
-            'source/i18n/tridpars.cpp',
-            'source/i18n/tzrule.cpp',
-            'source/i18n/tztrans.cpp',
-            'source/i18n/ucal.cpp',
-            'source/i18n/ucln_in.c',
-            'source/i18n/ucol.cpp',
-            'source/i18n/ucol_bld.cpp',
-            'source/i18n/ucol_cnt.cpp',
-            'source/i18n/ucol_elm.cpp',
-            'source/i18n/ucol_res.cpp',
-            'source/i18n/ucol_sit.cpp',
-            'source/i18n/ucol_tok.cpp',
-            'source/i18n/ucol_wgt.cpp',
-            'source/i18n/ucoleitr.cpp',
-            'source/i18n/ucsdet.cpp',
-            'source/i18n/ucurr.cpp',
-            'source/i18n/udat.cpp',
-            'source/i18n/udatpg.cpp',
-            'source/i18n/ulocdata.c',
-            'source/i18n/umsg.cpp',
-            'source/i18n/unesctrn.cpp',
-            'source/i18n/uni2name.cpp',
-            'source/i18n/unum.cpp',
-            'source/i18n/uregex.cpp',
-            'source/i18n/uregexc.cpp',
-            'source/i18n/usearch.cpp',
-            'source/i18n/uspoof.cpp',
-            'source/i18n/uspoof_build.cpp',
-            'source/i18n/uspoof_conf.cpp',
-            'source/i18n/uspoof_impl.cpp',
-            'source/i18n/uspoof_wsconf.cpp',
-            'source/i18n/utmscale.c',
-            'source/i18n/utrans.cpp',
-            'source/i18n/vtzone.cpp',
-            'source/i18n/vzone.cpp',
-            'source/i18n/windtfmt.cpp',
-            'source/i18n/winnmfmt.cpp',
-            'source/i18n/wintzimpl.cpp',
-            'source/i18n/zonemeta.cpp',
-            'source/i18n/zrule.cpp',
-            'source/i18n/zstrfmt.cpp',
-            'source/i18n/ztrans.cpp',
+            '<@(icui18n_sources)',
           ],
           'defines': [
             'U_I18N_IMPLEMENTATION',
@@ -284,15 +220,32 @@
             'icuuc',
           ],
           'direct_dependent_settings': {
-            # Use prepend (+) because the WebKit build needs to pick up these
-            # ICU headers instead of the ones in ../WebKit/JavaScriptCore/wtf,
-            # also in WebKit's include path.
-            # TODO(mark): The triple + is a bug.  It should be a double +.  It
-            # seems that a + is being chopped off when the "target" section is
-            # merged into "target_defaults".
-            'include_dirs+++': [
-              'public/i18n',
+            'include_dirs': [
+              'source/i18n',
             ],
+          },
+          'variables': {
+            'clang_warning_flags': [
+              # ICU uses its own deprecated functions.
+              '-Wno-deprecated-declarations',
+              # ICU prefers `a && b || c` over `(a && b) || c`.
+              '-Wno-logical-op-parentheses',
+              # ICU has some `unsigned < 0` checks.
+              '-Wno-tautological-compare',
+              # ICU has some code with the pattern:
+              #   if (found = uprv_getWindowsTimeZoneInfo(...))
+              '-Wno-parentheses',
+            ],
+          },
+          # Since ICU wants to internally use its own deprecated APIs, don't
+          # complain about it.
+          'xcode_settings': {
+            'GCC_ENABLE_CPP_RTTI': 'YES',       # -frtti
+          },
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeTypeInfo': 'true',
+            },
           },
           'conditions': [
             [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "lb_shell"', {
@@ -321,261 +274,30 @@
               'cflags_cc': [
                 '-Xc+=rtti',
               ],
-            }],
-            ['clang==1', {
-              'xcode_settings': {
-                'WARNING_CFLAGS': [
-                  # ICU uses its own deprecated functions.
-                  '-Wno-deprecated-declarations',
-                  # ICU prefers `a && b || c` over `(a && b) || c`.
-                  '-Wno-logical-op-parentheses',
-                  # ICU has some `unsigned < 0` checks.
-                  '-Wno-tautological-compare',
-                  # uspoof.h has a U_NAMESPACE_USE macro. That's a bug,
-                  # the header should use U_NAMESPACE_BEGIN instead.
-                  # http://bugs.icu-project.org/trac/ticket/9054
-                  '-Wno-header-hygiene',
-                  # Looks like a real issue, see http://crbug.com/114660
-                  '-Wno-return-type-c-linkage',
-                ],
-              },
-              'cflags': [
+              'cflags!': [
                 '-Wno-deprecated-declarations',
-                '-Wno-logical-op-parentheses',
-                '-Wno-tautological-compare',
-                '-Wno-header-hygiene',
-                '-Wno-return-type-c-linkage',
-              ],
-            }],
-            ['OS == "android" and use_system_stlport == 1', {
-              # ICU requires RTTI, which is not present in the system's stlport,
-              # so we have to include gabi++.
-              'include_dirs': [
-                '<(android_src)/abi/cpp/include',
-              ],
-              'link_settings': {
-                'libraries': [
-                  '-lgabi++',
-                ],
-              },
-            }],
-            ['OS=="lb_shell"', {
-              'dependencies': [
-                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
-              ],
-            }],
-            ['OS=="starboard"', {
-              'dependencies': [
-                '<(DEPTH)/starboard/starboard.gyp:starboard',
-               ],
-            }],
-            ['(OS=="lb_shell" or OS=="starboard") and target_arch=="android"', {
-              'cflags_cc': [
-                '-frtti',
-              ],
-              'link_settings': {
-                'libraries': [
-                  '-lgabi++_static',
-                ],
-              },
-            }],
-            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="linux" or clang==1)', {
-              'cflags_cc': [
-                '-frtti',
+                '-Wno-unused-function',
               ],
               'cflags_cc!': [
-                '-fno-rtti',
+                '-frtti',
               ],
             }],
-          ],
-        },
-        {
-          'target_name': 'icuuc',
-          'type': '<(component)',
-          'sources': [
-            'source/common/bmpset.cpp',
-            'source/common/brkeng.cpp',
-            'source/common/brkiter.cpp',
-            'source/common/bytestream.cpp',
-            'source/common/caniter.cpp',
-            'source/common/chariter.cpp',
-            'source/common/charstr.cpp',
-            'source/common/cmemory.c',
-            'source/common/cstring.c',
-            'source/common/cwchar.c',
-            'source/common/dictbe.cpp',
-            'source/common/dtintrv.cpp',
-            'source/common/errorcode.cpp',
-            'source/common/filterednormalizer2.cpp',
-            'source/common/icudataver.c',
-            'source/common/icuplug.c',
-            'source/common/locavailable.cpp',
-            'source/common/locbased.cpp',
-            'source/common/locdispnames.cpp',
-            'source/common/locid.cpp',
-            'source/common/loclikely.cpp',
-            'source/common/locmap.c',
-            'source/common/locresdata.cpp',
-            'source/common/locutil.cpp',
-            'source/common/mutex.cpp',
-            'source/common/normalizer2.cpp',
-            'source/common/normalizer2impl.cpp',
-            'source/common/normlzr.cpp',
-            'source/common/parsepos.cpp',
-            'source/common/propname.cpp',
-            'source/common/propsvec.c',
-            'source/common/punycode.c',
-            'source/common/putil.c',
-            'source/common/rbbi.cpp',
-            'source/common/rbbidata.cpp',
-            'source/common/rbbinode.cpp',
-            'source/common/rbbirb.cpp',
-            'source/common/rbbiscan.cpp',
-            'source/common/rbbisetb.cpp',
-            'source/common/rbbistbl.cpp',
-            'source/common/rbbitblb.cpp',
-            'source/common/resbund.cpp',
-            'source/common/resbund_cnv.cpp',
-            'source/common/ruleiter.cpp',
-            'source/common/schriter.cpp',
-            'source/common/serv.cpp',
-            'source/common/servlk.cpp',
-            'source/common/servlkf.cpp',
-            'source/common/servls.cpp',
-            'source/common/servnotf.cpp',
-            'source/common/servrbf.cpp',
-            'source/common/servslkf.cpp',
-            'source/common/stringpiece.cpp',
-            'source/common/triedict.cpp',
-            'source/common/uarrsort.c',
-            'source/common/ubidi.c',
-            'source/common/ubidi_props.c',
-            'source/common/ubidiln.c',
-            'source/common/ubidiwrt.c',
-            'source/common/ubrk.cpp',
-            'source/common/ucase.c',
-            'source/common/ucasemap.c',
-            'source/common/ucat.c',
-            'source/common/uchar.c',
-            'source/common/uchriter.cpp',
-            'source/common/ucln_cmn.c',
-            'source/common/ucmndata.c',
-            'source/common/ucnv.c',
-            'source/common/ucnv2022.c',
-            'source/common/ucnv_bld.c',
-            'source/common/ucnv_cb.c',
-            'source/common/ucnv_cnv.c',
-            'source/common/ucnv_err.c',
-            'source/common/ucnv_ext.c',
-            'source/common/ucnv_io.c',
-            'source/common/ucnv_lmb.c',
-            'source/common/ucnv_set.c',
-            'source/common/ucnv_u16.c',
-            'source/common/ucnv_u32.c',
-            'source/common/ucnv_u7.c',
-            'source/common/ucnv_u8.c',
-            'source/common/ucnvbocu.c',
-            'source/common/ucnvdisp.c',
-            'source/common/ucnvhz.c',
-            'source/common/ucnvisci.c',
-            'source/common/ucnvlat1.c',
-            'source/common/ucnvmbcs.c',
-            'source/common/ucnvscsu.c',
-            'source/common/ucnvsel.cpp',
-            'source/common/ucol_swp.cpp',
-            'source/common/udata.cpp',
-            'source/common/udatamem.c',
-            'source/common/udataswp.c',
-            'source/common/uenum.c',
-            'source/common/uhash.c',
-            'source/common/uhash_us.cpp',
-            'source/common/uidna.cpp',
-            'source/common/uinit.c',
-            'source/common/uinvchar.c',
-            'source/common/uiter.cpp',
-            'source/common/ulist.c',
-            'source/common/uloc.c',
-            'source/common/uloc_tag.c',
-            'source/common/umapfile.c',
-            'source/common/umath.c',
-            'source/common/umutex.c',
-            'source/common/unames.c',
-            'source/common/unifilt.cpp',
-            'source/common/unifunct.cpp',
-            'source/common/uniset.cpp',
-            'source/common/uniset_props.cpp',
-            'source/common/unisetspan.cpp',
-            'source/common/unistr.cpp',
-            'source/common/unistr_case.cpp',
-            'source/common/unistr_cnv.cpp',
-            'source/common/unistr_props.cpp',
-            'source/common/unorm.cpp',
-            'source/common/unorm_it.c',
-            'source/common/unormcmp.cpp',
-            'source/common/uobject.cpp',
-            'source/common/uprops.cpp',
-            'source/common/ures_cnv.c',
-            'source/common/uresbund.c',
-            'source/common/uresdata.c',
-            'source/common/usc_impl.c',
-            'source/common/uscript.c',
-            'source/common/uset.cpp',
-            'source/common/uset_props.cpp',
-            'source/common/usetiter.cpp',
-            'source/common/ushape.c',
-            'source/common/usprep.cpp',
-            'source/common/ustack.cpp',
-            'source/common/ustr_cnv.c',
-            'source/common/ustr_wcs.c',
-            'source/common/ustrcase.c',
-            'source/common/ustrenum.cpp',
-            'source/common/ustrfmt.c',
-            'source/common/ustring.c',
-            'source/common/ustrtrns.c',
-            'source/common/utext.cpp',
-            'source/common/utf_impl.c',
-            'source/common/util.cpp',
-            'source/common/util_props.cpp',
-            'source/common/utrace.c',
-            'source/common/utrie.c',
-            'source/common/utrie2.cpp',
-            'source/common/utrie2_builder.c',
-            'source/common/uts46.cpp',
-            'source/common/utypes.c',
-            'source/common/uvector.cpp',
-            'source/common/uvectr32.cpp',
-            'source/common/uvectr64.cpp',
-            'source/common/wintz.c',
-          ],
-          'defines': [
-            'U_COMMON_IMPLEMENTATION',
-          ],
-          'dependencies': [
-            'icudata',
-          ],
-          'direct_dependent_settings': {
-            # Use prepend (+) because the WebKit build needs to pick up these
-            # ICU headers instead of the ones in ../WebKit/JavaScriptCore/wtf,
-            # also in WebKit's include path.
-            # TODO(mark): The triple + is a bug.  It should be a double +.  It
-            # seems that a + is being chopped off when the "target" section is
-            # merged into "target_defaults".
-            'include_dirs+++': [
-              'public/common',
-            ],
-            'conditions': [
-              [ 'component=="static_library"', {
-                'defines': [
-                  'U_STATIC_IMPLEMENTATION',
+            [ 'use_system_icu==1 and want_separate_host_toolset==1', {
+              'toolsets': ['host'],
+            }],
+            [ 'use_system_icu==0 and want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+            }],
+            [ 'use_system_icu==0 and want_separate_host_toolset==0', {
+              'toolsets': ['target'],
+            }],
+            ['OS == "android" and clang==0', {
+                # Disable sincos() optimization to avoid a linker error since
+                # Android's math library doesn't have sincos().  Either
+                # -fno-builtin-sin or -fno-builtin-cos works.
+                'cflags': [
+                    '-fno-builtin-sin',
                 ],
-              }],
-            ],
-          },
-          'conditions': [
-            [ 'OS == "win"', {
-              'sources': [
-                'source/stubdata/stubdata.c',
-              ],
             }],
             ['OS=="lb_shell" or OS=="starboard"', {
               'defines': [
@@ -596,45 +318,7 @@
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
                ],
             }],
-            [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "lb_shell"', {
-              'cflags': [
-                # Since ICU wants to internally use its own deprecated APIs,
-                # don't complain about it.
-                '-Wno-deprecated-declarations',
-                '-Wno-unused-function',
-              ],
-              'cflags_cc': [
-                '-frtti',
-              ],
-            }],
-            ['OS == "mac" or OS == "ios"', {
-              'xcode_settings': {
-                'GCC_ENABLE_CPP_RTTI': 'YES',       # -frtti
-              },
-            }],
-            ['OS == "win"', {
-              'msvs_settings': {
-                'VCCLCompilerTool': {
-                  'RuntimeTypeInfo': 'true',
-                },
-              },
-            }],
-            ['(OS == "lb_shell" or OS=="starboard") and target_arch == "ps3"', {
-              'cflags_cc': [
-                '-Xc+=rtti',
-              ],
-            }],
-            ['(OS=="lb_shell" or OS=="starboard") and target_arch=="android"', {
-              'cflags_cc': [
-                '-frtti',
-              ],
-              'link_settings': {
-                'libraries': [
-                  '-lgabi++_static',
-                ],
-              },
-            }],
-            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="linux" or clang==1)', {
+            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux" or clang==1)', {
               'cflags_cc': [
                 '-frtti',
               ],
@@ -642,70 +326,186 @@
                 '-fno-rtti',
               ],
             }],
-            ['OS == "android" and use_system_stlport == 1', {
-              # ICU requires RTTI, which is not present in the system's stlport,
-              # so we have to include gabi++.
-              'include_dirs': [
-                '<(android_src)/abi/cpp/include',
-              ],
-              'link_settings': {
-                'libraries': [
-                  '-lgabi++',
-                ],
+            [ 'OS == "win" and clang==1', {
+              # Note: General clang warnings should go in the
+              # clang_warning_flags block above.
+              'msvs_settings': {
+                'VCCLCompilerTool': {
+                  'AdditionalOptions': [
+                    # See http://bugs.icu-project.org/trac/ticket/11122
+                    '-Wno-inline-new-delete',
+                    '-Wno-implicit-exception-spec-mismatch',
+                  ],
+                },
               },
             }],
-            ['clang==1', {
-              'xcode_settings': {
-                'WARNING_CFLAGS': [
-                  # ICU uses its own deprecated functions.
-                  '-Wno-deprecated-declarations',
-                  # ICU prefers `a && b || c` over `(a && b) || c`.
-                  '-Wno-logical-op-parentheses',
-                  # ICU has some `unsigned < 0` checks.
-                  '-Wno-tautological-compare',
-                  # uresdata.c has switch(RES_GET_TYPE(x)) code. The
-                  # RES_GET_TYPE macro returns an UResType enum, but some switch
-                  # statement contains case values that aren't part of that
-                  # enum (e.g. URES_TABLE32 which is in UResInternalType). This
-                  # is on purpose.
-                  '-Wno-switch',
-                ],
-              },
-              'cflags': [
-                '-Wno-deprecated-declarations',
-                '-Wno-logical-op-parentheses',
-                '-Wno-tautological-compare',
-                '-Wno-switch',
-              ],
-            }],
-          ],
+          ], # conditions
         },
-      ],
-    }, { # use_system_icu != 0
+        {
+          'target_name': 'icuuc',
+          'type': '<(component)',
+          'sources': [
+            '<@(icuuc_sources)',
+          ],
+          'defines': [
+            'U_COMMON_IMPLEMENTATION',
+          ],
+          'dependencies': [
+            'icudata',
+          ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              'source/common',
+            ],
+            'conditions': [
+              [ 'component=="static_library"', {
+                'defines': [
+                  'U_STATIC_IMPLEMENTATION',
+                ],
+                'direct_dependent_settings': {
+                  'defines': [
+                    'U_STATIC_IMPLEMENTATION',
+                  ],
+                },
+              }],
+            ],
+          },
+          'variables': {
+            'clang_warning_flags': [
+              # ICU uses its own deprecated functions.
+              '-Wno-deprecated-declarations',
+              # ICU prefers `a && b || c` over `(a && b) || c`.
+              '-Wno-logical-op-parentheses',
+              # ICU has some `unsigned < 0` checks.
+              '-Wno-tautological-compare',
+              # uresdata.c has switch(RES_GET_TYPE(x)) code. The
+              # RES_GET_TYPE macro returns an UResType enum, but some switch
+              # statement contains case values that aren't part of that
+              # enum (e.g. URES_TABLE32 which is in UResInternalType). This
+              # is on purpose.
+              '-Wno-switch',
+              # ICU has some code with the pattern:
+              #   if (found = uprv_getWindowsTimeZoneInfo(...))
+              '-Wno-parentheses',
+              # ICU generally has no unused variables, but there are a few
+              # places where this warning triggers.
+              # See https://codereview.chromium.org/1222643002/ and
+              # http://www.icu-project.org/trac/ticket/11759.
+              '-Wno-unused-const-variable',
+              # ucnv2022.cpp contains three functions that are only used when
+              # certain preprocessor defines are set.
+              '-Wno-unused-function',
+            ],
+          },
+          'cflags': [
+            # Since ICU wants to internally use its own deprecated APIs,
+            # don't complain about it.
+            '-Wno-deprecated-declarations',
+            '-Wno-unused-function',
+          ],
+          'cflags_cc': [
+            '-frtti',
+          ],
+          'cflags_cc!': [
+            '-fno-rtti',
+          ],
+          'xcode_settings': {
+            'GCC_ENABLE_CPP_RTTI': 'YES',       # -frtti
+          },
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeTypeInfo': 'true',
+            },
+          },
+          'all_dependent_settings': {
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'AdditionalDependencies': [
+                  'advapi32.lib',
+                ],
+              },
+            },
+          },
+          'conditions': [
+            [ 'use_system_icu==1 and want_separate_host_toolset==1', {
+              'toolsets': ['host'],
+            }],
+            [ 'use_system_icu==0 and want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+            }],
+            [ 'use_system_icu==0 and want_separate_host_toolset==0', {
+              'toolsets': ['target'],
+            }],
+            [ 'OS == "win" or icu_use_data_file_flag==1', {
+              'sources': [
+                'source/stubdata/stubdata.c',
+              ],
+              'defines': [
+                'U_ICUDATAENTRY_IN_COMMON',
+              ],
+            }],
+            ['(OS == "lb_shell" or OS=="starboard") and target_arch == "ps3"', {
+              'cflags_cc': [
+                '-Xc+=rtti',
+              ],
+              'cflags!': [
+                '-Wno-deprecated-declarations',
+                '-Wno-unused-function',
+              ],
+              'cflags_cc!': [
+                '-frtti',
+              ],
+            }],
+            ['OS=="lb_shell"', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }],
+            ['OS=="starboard"', {
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
+            }],
+            ['(OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux" or clang==1)', {
+              'cflags_cc': [
+                '-frtti',
+              ],
+              'cflags_cc!': [
+                '-fno-rtti',
+              ],
+            }],
+            [ 'OS == "win" and clang==1', {
+              # Note: General clang warnings should go in the
+              # clang_warning_flags block above.
+              'msvs_settings': {
+                'VCCLCompilerTool': {
+                  'AdditionalOptions': [
+                    # See http://bugs.icu-project.org/trac/ticket/11122
+                    '-Wno-inline-new-delete',
+                    '-Wno-implicit-exception-spec-mismatch',
+                  ],
+                },
+              },
+            }],
+          ], # conditions
+        },
+      ], # targets
+    }],
+    ['use_system_icu==1', {
       'targets': [
         {
           'target_name': 'system_icu',
           'type': 'none',
-          'direct_dependent_settings': {
-            'defines': [
-              'USE_SYSTEM_ICU',
-            ],
-          },
           'conditions': [
-            ['OS=="android"', {
-              'direct_dependent_settings': {
-                'include_dirs': [
-                  '<(android_src)/external/icu4c/common',
-                  '<(android_src)/external/icu4c/i18n',
-                ],
-              },
+            ['OS=="qnx"', {
               'link_settings': {
                 'libraries': [
                   '-licui18n',
                   '-licuuc',
                 ],
               },
-            },{ # OS!="android"
+            }],
+            ['OS!="qnx"', {
               'link_settings': {
                 'ldflags': [
                   '<!@(icu-config --ldflags)',
@@ -722,20 +522,206 @@
           'type': 'none',
           'dependencies': ['system_icu'],
           'export_dependent_settings': ['system_icu'],
+          'toolsets': ['target'],
         },
         {
           'target_name': 'icui18n',
           'type': 'none',
           'dependencies': ['system_icu'],
           'export_dependent_settings': ['system_icu'],
+          'variables': {
+            'headers_root_path': 'source/i18n',
+            'header_filenames': [
+              # This list can easily be updated using the command below:
+              # find source/i18n/unicode -iname '*.h' \
+              # -printf "              '%p',\n" | \
+              # sed -e 's|source/i18n/||' | sort -u
+              'unicode/alphaindex.h',
+              'unicode/basictz.h',
+              'unicode/calendar.h',
+              'unicode/choicfmt.h',
+              'unicode/coleitr.h',
+              'unicode/coll.h',
+              'unicode/compactdecimalformat.h',
+              'unicode/curramt.h',
+              'unicode/currpinf.h',
+              'unicode/currunit.h',
+              'unicode/datefmt.h',
+              'unicode/dcfmtsym.h',
+              'unicode/decimfmt.h',
+              'unicode/dtfmtsym.h',
+              'unicode/dtitvfmt.h',
+              'unicode/dtitvinf.h',
+              'unicode/dtptngen.h',
+              'unicode/dtrule.h',
+              'unicode/fieldpos.h',
+              'unicode/filteredbrk.h',
+              'unicode/fmtable.h',
+              'unicode/format.h',
+              'unicode/fpositer.h',
+              'unicode/gender.h',
+              'unicode/gregocal.h',
+              'unicode/locdspnm.h',
+              'unicode/measfmt.h',
+              'unicode/measunit.h',
+              'unicode/measure.h',
+              'unicode/msgfmt.h',
+              'unicode/numfmt.h',
+              'unicode/numsys.h',
+              'unicode/plurfmt.h',
+              'unicode/plurrule.h',
+              'unicode/rbnf.h',
+              'unicode/rbtz.h',
+              'unicode/regex.h',
+              'unicode/region.h',
+              'unicode/reldatefmt.h',
+              'unicode/scientificformathelper.h',
+              'unicode/search.h',
+              'unicode/selfmt.h',
+              'unicode/simpletz.h',
+              'unicode/smpdtfmt.h',
+              'unicode/sortkey.h',
+              'unicode/stsearch.h',
+              'unicode/tblcoll.h',
+              'unicode/timezone.h',
+              'unicode/tmunit.h',
+              'unicode/tmutamt.h',
+              'unicode/tmutfmt.h',
+              'unicode/translit.h',
+              'unicode/tzfmt.h',
+              'unicode/tznames.h',
+              'unicode/tzrule.h',
+              'unicode/tztrans.h',
+              'unicode/ucal.h',
+              'unicode/ucoleitr.h',
+              'unicode/ucol.h',
+              'unicode/ucsdet.h',
+              'unicode/ucurr.h',
+              'unicode/udateintervalformat.h',
+              'unicode/udat.h',
+              'unicode/udatpg.h',
+              'unicode/udisplaycontext.h',
+              'unicode/uformattable.h',
+              'unicode/ugender.h',
+              'unicode/uldnames.h',
+              'unicode/ulocdata.h',
+              'unicode/umsg.h',
+              'unicode/unirepl.h',
+              'unicode/unum.h',
+              'unicode/unumsys.h',
+              'unicode/upluralrules.h',
+              'unicode/uregex.h',
+              'unicode/uregion.h',
+              'unicode/usearch.h',
+              'unicode/uspoof.h',
+              'unicode/utmscale.h',
+              'unicode/utrans.h',
+              'unicode/vtzone.h',
+            ],
+          },
+          'toolsets': ['target'],
         },
         {
           'target_name': 'icuuc',
           'type': 'none',
           'dependencies': ['system_icu'],
           'export_dependent_settings': ['system_icu'],
+          'variables': {
+            'headers_root_path': 'source/common',
+            'header_filenames': [
+              # This list can easily be updated using the command below:
+              # find source/common/unicode -iname '*.h' \
+              # -printf "              '%p',\n" | \
+              # sed -e 's|source/common/||' | sort -u
+              'unicode/appendable.h',
+              'unicode/brkiter.h',
+              'unicode/bytestream.h',
+              'unicode/bytestriebuilder.h',
+              'unicode/bytestrie.h',
+              'unicode/caniter.h',
+              'unicode/chariter.h',
+              'unicode/dbbi.h',
+              'unicode/docmain.h',
+              'unicode/dtintrv.h',
+              'unicode/enumset.h',
+              'unicode/errorcode.h',
+              'unicode/icudataver.h',
+              'unicode/icuplug.h',
+              'unicode/idna.h',
+              'unicode/listformatter.h',
+              'unicode/localpointer.h',
+              'unicode/locid.h',
+              'unicode/messagepattern.h',
+              'unicode/normalizer2.h',
+              'unicode/normlzr.h',
+              'unicode/parseerr.h',
+              'unicode/parsepos.h',
+              'unicode/platform.h',
+              'unicode/ptypes.h',
+              'unicode/putil.h',
+              'unicode/rbbi.h',
+              'unicode/rep.h',
+              'unicode/resbund.h',
+              'unicode/schriter.h',
+              'unicode/std_string.h',
+              'unicode/strenum.h',
+              'unicode/stringpiece.h',
+              'unicode/stringtriebuilder.h',
+              'unicode/symtable.h',
+              'unicode/ubidi.h',
+              'unicode/ubrk.h',
+              'unicode/ucasemap.h',
+              'unicode/ucat.h',
+              'unicode/uchar.h',
+              'unicode/ucharstriebuilder.h',
+              'unicode/ucharstrie.h',
+              'unicode/uchriter.h',
+              'unicode/uclean.h',
+              'unicode/ucnv_cb.h',
+              'unicode/ucnv_err.h',
+              'unicode/ucnv.h',
+              'unicode/ucnvsel.h',
+              'unicode/uconfig.h',
+              'unicode/udata.h',
+              'unicode/uenum.h',
+              'unicode/uidna.h',
+              'unicode/uiter.h',
+              'unicode/uloc.h',
+              'unicode/umachine.h',
+              'unicode/umisc.h',
+              'unicode/unifilt.h',
+              'unicode/unifunct.h',
+              'unicode/unimatch.h',
+              'unicode/uniset.h',
+              'unicode/unistr.h',
+              'unicode/unorm2.h',
+              'unicode/unorm.h',
+              'unicode/uobject.h',
+              'unicode/urename.h',
+              'unicode/urep.h',
+              'unicode/ures.h',
+              'unicode/uscript.h',
+              'unicode/uset.h',
+              'unicode/usetiter.h',
+              'unicode/ushape.h',
+              'unicode/usprep.h',
+              'unicode/ustring.h',
+              'unicode/ustringtrie.h',
+              'unicode/utext.h',
+              'unicode/utf16.h',
+              'unicode/utf32.h',
+              'unicode/utf8.h',
+              'unicode/utf.h',
+              'unicode/utf_old.h',
+              'unicode/utrace.h',
+              'unicode/utypes.h',
+              'unicode/uvernum.h',
+              'unicode/uversion.h',
+            ],
+          },
+          'toolsets': ['target'],
         },
-      ],
+      ], # targets
     }],
-  ],
+  ], # conditions
 }

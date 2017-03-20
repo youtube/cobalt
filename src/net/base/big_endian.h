@@ -54,7 +54,7 @@ class NET_EXPORT BigEndianReader {
   BigEndianReader(const void* buf, size_t len);
 
   const char* ptr() const { return ptr_; }
-  int remaining() const { return end_ - ptr_; }
+  std::ptrdiff_t remaining() const { return end_ - ptr_; }
 
   bool Skip(size_t len);
   bool ReadBytes(void* out, size_t len);
@@ -80,7 +80,7 @@ class NET_EXPORT BigEndianWriter {
   BigEndianWriter(void* buf, size_t len);
 
   char* ptr() const { return ptr_; }
-  int remaining() const { return end_ - ptr_; }
+  std::ptrdiff_t remaining() const { return end_ - ptr_; }
 
   bool Skip(size_t len);
   bool WriteBytes(const void* buf, size_t len);

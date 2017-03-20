@@ -15,21 +15,28 @@
 #ifndef STARBOARD_WAYLAND_SHARED_WINDOW_INTERNAL_H_
 #define STARBOARD_WAYLAND_SHARED_WINDOW_INTERNAL_H_
 
+#include <Elementary.h>
+#include <string.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-#include <string.h>
+#include <tizen-extension-client-protocol.h>
 
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
   SbWindowPrivate(const SbWindowOptions* options);
-  ~SbWindowPrivate(){};
+  ~SbWindowPrivate() {};
 
-  struct wl_surface* surface;
-  struct wl_shell_surface* shell_surface;
-  struct wl_egl_window* egl_window;
+  struct wl_surface *surface;
+  struct wl_shell_surface *shell_surface;
+  struct wl_egl_window *egl_window;
+  struct tizen_visibility* tz_visibility;
+
+#if defined(USE_WAYLAND_VIDEO_WINDOW)
+  wl_display* video_window;
+#else
+  Evas_Object *video_window;
+#endif
 
   // The width, height of this window.
   int width;

@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ses.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ses.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/ses.xml
- */
 ses{
     Currencies{
         AED{
@@ -16,19 +13,19 @@ ses{
             "Laaraw Immaara Margantey Dirham",
         }
         AOA{
-            "Kz",
+            "AOA",
             "Angoola Kwanza",
         }
         AUD{
-            "AU$",
+            "A$",
             "Ostraali Dollar",
         }
         BHD{
-            "BD",
+            "BHD",
             "Bahareen Dinar",
         }
         BIF{
-            "FBu",
+            "BIF",
             "Burundi Fraŋ",
         }
         BWP{
@@ -52,15 +49,15 @@ ses{
             "Sinwa Yuan Renminbi",
         }
         CVE{
-            "CV$",
+            "CVE",
             "Kapuver Escudo",
         }
         DJF{
-            "Fdj",
+            "DJF",
             "Jibuuti Fraŋ",
         }
         DZD{
-            "DA",
+            "DZD",
             "Alžeeri Dinar",
         }
         EGP{
@@ -68,11 +65,11 @@ ses{
             "Misra Pund",
         }
         ERN{
-            "Nfk",
+            "ERN",
             "Eritree Nafka",
         }
         ETB{
-            "Br",
+            "ETB",
             "Ecioopi Birr",
         }
         EUR{
@@ -84,7 +81,7 @@ ses{
             "Britin Pund",
         }
         GHC{
-            "₵",
+            "GHC",
             "Gaana Šiidi",
         }
         GMD{
@@ -92,11 +89,11 @@ ses{
             "Gambi Dalasi",
         }
         GNS{
-            "GNS" /** ===  */,
+            "GNS",
             "Ginee Fraŋ",
         }
         INR{
-            "Rs",
+            "₹",
             "Indu Rupii",
         }
         JPY{
@@ -104,15 +101,15 @@ ses{
             "Jaapoŋ Yen",
         }
         KES{
-            "Ksh",
+            "KES",
             "Keeniya Šiiliŋ",
         }
         KMF{
-            "CF",
+            "KMF",
             "Komoor Fraŋ",
         }
         LRD{
-            "L$",
+            "LRD",
             "Liberia Dollar",
         }
         LSL{
@@ -120,7 +117,7 @@ ses{
             "Leezoto Loti",
         }
         LYD{
-            "LD",
+            "LYD",
             "Liibi Dinar",
         }
         MAD{
@@ -132,11 +129,11 @@ ses{
             "Malgaaši Fraŋ",
         }
         MRO{
-            "UM",
+            "MRO",
             "Mooritaani Ugiya",
         }
         MUR{
-            "MURs",
+            "MUR",
             "Mooris Rupii",
         }
         MWK{
@@ -144,15 +141,15 @@ ses{
             "Malaawi Kwaca",
         }
         MZM{
-            "Mt",
+            "MZM",
             "Mozambik Metikal",
         }
         NAD{
-            "N$",
+            "NAD",
             "Naamibi Dollar",
         }
         NGN{
-            "₦",
+            "NGN",
             "Naajiriya Neera",
         }
         RWF{
@@ -160,11 +157,11 @@ ses{
             "Rwanda Fraŋ",
         }
         SAR{
-            "SR",
+            "SAR",
             "Saudiya Riyal",
         }
         SCR{
-            "SRe",
+            "SCR",
             "Seešel Rupii",
         }
         SDG{
@@ -172,23 +169,23 @@ ses{
             "Suudaŋ Dinar",
         }
         SDP{
-            "SDP" /** ===  */,
+            "SDP",
             "Suudaŋ Pund",
         }
         SHP{
-            "SH£",
+            "SHP",
             "Seŋ Helena Fraŋ",
         }
         SLL{
-            "Le",
+            "SLL",
             "Leeon",
         }
         SOS{
-            "Ssh",
+            "SOS",
             "Somaali Šiiliŋ",
         }
         STD{
-            "Db",
+            "STD",
             "Sao Tome nda Prinsipe Dobra",
         }
         SZL{
@@ -196,15 +193,15 @@ ses{
             "Lilangeni",
         }
         TND{
-            "DT",
+            "TND",
             "Tunizi Dinar",
         }
         TZS{
-            "TSh",
+            "TZS",
             "Tanzaani Šiiliŋ",
         }
         UGX{
-            "USh",
+            "UGX",
             "Uganda Šiiliŋ",
         }
         USD{
@@ -220,17 +217,21 @@ ses{
             "CFA Fraŋ (BCEAO)",
         }
         ZAR{
-            "R",
+            "ZAR",
             "Hawasa Afriki Rand",
         }
         ZMK{
-            "ZK",
+            "ZMK",
+            "Zambi Kwaca (1968–2012)",
+        }
+        ZMW{
+            "ZMW",
             "Zambi Kwaca",
         }
         ZWD{
-            "Z$",
+            "ZWD",
             "Zimbabwe Dollar",
         }
     }
-    Version{"2.0.45.90"}
+    Version{"2.1.19.14"}
 }

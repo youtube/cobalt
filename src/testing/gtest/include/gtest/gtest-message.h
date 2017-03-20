@@ -48,10 +48,18 @@
 
 #include <limits>
 
-#include "gtest/internal/gtest-string.h"
-#include "gtest/internal/gtest-internal.h"
+#include "gtest/internal/gtest-port.h"
+
+// Ensures that there is at least one operator<< in the global namespace.
+// See Message& operator<<(...) below for why.
+void operator<<(const testing::internal::Secret&, int);
 
 namespace testing {
+
+// TODO: Remove clang version check workaround.
+#if __clang__ && __clang_major__ == 3 && __clang_minor__ <= 6
+#define CLANG_MAJOR_3_MINOR_LOWER_THAN_6
+#endif  // __clang__ && __clang_major__ == 3 && __clang_minor__ <= 6
 
 // The Message class works like an ostream repeater.
 //
@@ -87,16 +95,19 @@ class GTEST_API_ Message {
 
  public:
   // Constructs an empty Message.
-  // We allocate the stringstream separately because otherwise each use of
-  // ASSERT/EXPECT in a procedure adds over 200 bytes to the procedure's
-  // stack frame leading to huge stack frames in some cases; gcc does not reuse
-  // the stack space.
-  Message() : ss_(new ::std::stringstream) {
-    // By default, we want there to be enough precision when printing
-    // a double to a Message.
-    *ss_ << std::setprecision(std::numeric_limits<double>::digits10 + 2);
+  Message();
+
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+  // Copy constructor.
+  Message(const Message& msg) {  // NOLINT
+    ss_ << msg.GetString();
   }
 
+  // Constructs a Message from a C-string.
+  explicit Message(const char* str) {
+    ss_ << str;
+  }
+#else
   // Copy constructor.
   Message(const Message& msg) : ss_(new ::std::stringstream) {  // NOLINT
     *ss_ << msg.GetString();
@@ -106,6 +117,7 @@ class GTEST_API_ Message {
   explicit Message(const char* str) : ss_(new ::std::stringstream) {
     *ss_ << str;
   }
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
 
 #if GTEST_OS_SYMBIAN
   // Streams a value (either a pointer or not) to this object.
@@ -118,7 +130,26 @@ class GTEST_API_ Message {
   // Streams a non-pointer value to this object.
   template <typename T>
   inline Message& operator <<(const T& val) {
-    ::GTestStreamToHelper(ss_.get(), val);
+    // Some libraries overload << for STL containers.  These
+    // overloads are defined in the global namespace instead of ::std.
+    //
+    // C++'s symbol lookup rule (i.e. Koenig lookup) says that these
+    // overloads are visible in either the std namespace or the global
+    // namespace, but not other namespaces, including the testing
+    // namespace which Google Test's Message class is in.
+    //
+    // To allow STL containers (and other types that has a << operator
+    // defined in the global namespace) to be used in Google Test
+    // assertions, testing::Message must access the custom << operator
+    // from the global namespace.  With this using declaration,
+    // overloads of << defined in the global namespace and those
+    // visible via Koenig lookup are both exposed in this function.
+    using ::operator <<;
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    ss_ << val;
+#else
+    *ss_ << val;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
     return *this;
   }
 
@@ -137,11 +168,19 @@ class GTEST_API_ Message {
   // as "(null)".
   template <typename T>
   inline Message& operator <<(T* const& pointer) {  // NOLINT
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    if (pointer == NULL) {
+      ss_ << "(null)";
+    } else {
+      ss_ << pointer;
+    }
+#else
     if (pointer == NULL) {
       *ss_ << "(null)";
     } else {
-      ::GTestStreamToHelper(ss_.get(), pointer);
+      *ss_ << pointer;
     }
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
     return *this;
   }
 #endif  // GTEST_OS_SYMBIAN
@@ -153,7 +192,11 @@ class GTEST_API_ Message {
   // endl or other basic IO manipulators to Message will confuse the
   // compiler.
   Message& operator <<(BasicNarrowIoManip val) {
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    ss_ << val;
+#else
     *ss_ << val;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
     return *this;
   }
 
@@ -164,12 +207,8 @@ class GTEST_API_ Message {
 
   // These two overloads allow streaming a wide C string to a Message
   // using the UTF-8 encoding.
-  Message& operator <<(const wchar_t* wide_c_str) {
-    return *this << internal::String::ShowWideCString(wide_c_str);
-  }
-  Message& operator <<(wchar_t* wide_c_str) {
-    return *this << internal::String::ShowWideCString(wide_c_str);
-  }
+  Message& operator <<(const wchar_t* wide_c_str);
+  Message& operator <<(wchar_t* wide_c_str);
 
 #if GTEST_HAS_STD_WSTRING
   // Converts the given wide string to a narrow string using the UTF-8
@@ -187,9 +226,7 @@ class GTEST_API_ Message {
   // Each '\0' character in the buffer is replaced with "\\0".
   //
   // INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
-  std::string GetString() const {
-    return internal::StringStreamToString(ss_.get());
-  }
+  std::string GetString() const;
 
  private:
 
@@ -199,21 +236,41 @@ class GTEST_API_ Message {
   // decide between class template specializations for T and T*, so a
   // tr1::type_traits-like is_pointer works, and we can overload on that.
   template <typename T>
-  inline void StreamHelper(internal::true_type /*dummy*/, T* pointer) {
+  inline void StreamHelper(internal::true_type /*is_pointer*/, T* pointer) {
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    if (pointer == NULL) {
+      ss_ << "(null)";
+    } else {
+      ss_ << pointer;
+    }
+#else
     if (pointer == NULL) {
       *ss_ << "(null)";
     } else {
-      ::GTestStreamToHelper(ss_.get(), pointer);
+      *ss_ << pointer;
     }
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
   }
   template <typename T>
-  inline void StreamHelper(internal::false_type /*dummy*/, const T& value) {
-    ::GTestStreamToHelper(ss_.get(), value);
+  inline void StreamHelper(internal::false_type /*is_pointer*/,
+                           const T& value) {
+    // See the comments in Message& operator <<(const T&) above for why
+    // we need this using statement.
+    using ::operator <<;
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+    ss_ << value;
+#else
+    *ss_ << value;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
   }
 #endif  // GTEST_OS_SYMBIAN
 
   // We'll hold the text streamed to this object here.
+#if defined(CLANG_MAJOR_3_MINOR_LOWER_THAN_6)
+  ::std::stringstream ss_;
+#else
   const internal::scoped_ptr< ::std::stringstream> ss_;
+#endif  // CLANG_MAJOR_3_MINOR_LOWER_THAN_6
 
   // We declare (but don't implement) this to prevent the compiler
   // from implementing the assignment operator.
@@ -225,6 +282,18 @@ inline std::ostream& operator <<(std::ostream& os, const Message& sb) {
   return os << sb.GetString();
 }
 
+namespace internal {
+
+// Converts a streamable value to an std::string.  A NULL pointer is
+// converted to "(null)".  When the input value is a ::string,
+// ::std::string, ::wstring, or ::std::wstring object, each NUL
+// character in it is replaced with "\\0".
+template <typename T>
+std::string StreamableToString(const T& streamable) {
+  return (Message() << streamable).GetString();
+}
+
+}  // namespace internal
 }  // namespace testing
 
 #endif  // GTEST_INCLUDE_GTEST_GTEST_MESSAGE_H_

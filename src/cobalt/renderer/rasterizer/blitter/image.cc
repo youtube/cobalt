@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/blitter/image.h"
 
@@ -35,12 +33,17 @@ ImageData::ImageData(SbBlitterDevice device, const math::Size& size,
     : device_(device),
       pixel_data_(SbBlitterCreatePixelData(
           device_, size.width(), size.height(),
-          RenderTreePixelFormatToBlitter(pixel_format))),
-      descriptor_(size, pixel_format, alpha_format,
-                  SbBlitterGetPixelDataPitchInBytes(pixel_data_)) {
+          RenderTreePixelFormatToBlitter(pixel_format))) {
   CHECK(alpha_format == render_tree::kAlphaFormatPremultiplied ||
         alpha_format == render_tree::kAlphaFormatOpaque);
-  CHECK(SbBlitterIsPixelDataValid(pixel_data_));
+
+  if (SbBlitterIsPixelDataValid(pixel_data_)) {
+    descriptor_.emplace(size, pixel_format, alpha_format,
+                        SbBlitterGetPixelDataPitchInBytes(pixel_data_));
+  } else {
+    LOG(WARNING) << "Failed to allocate pixel data for image.";
+    DCHECK(false);
+  }
 }
 
 ImageData::~ImageData() {
@@ -50,7 +53,11 @@ ImageData::~ImageData() {
 }
 
 uint8* ImageData::GetMemory() {
-  return static_cast<uint8*>(SbBlitterGetPixelDataPointer(pixel_data_));
+  if (!SbBlitterIsPixelDataValid(pixel_data_)) {
+    return NULL;
+  } else {
+    return static_cast<uint8*>(SbBlitterGetPixelDataPointer(pixel_data_));
+  }
 }
 
 SbBlitterPixelData ImageData::TakePixelData() {
@@ -69,9 +76,22 @@ SinglePlaneImage::SinglePlaneImage(scoped_ptr<ImageData> image_data)
                render_tree::kAlphaFormatOpaque;
 }
 
+SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,
+                                   const base::Closure& delete_function)
+    : surface_(surface),
+      is_opaque_(is_opaque),
+      delete_function_(delete_function) {
+  CHECK(SbBlitterIsSurfaceValid(surface_));
+  SbBlitterSurfaceInfo info;
+  if (!SbBlitterGetSurfaceInfo(surface_, &info)) {
+    NOTREACHED();
+  }
+  size_ = math::Size(info.width, info.height);
+}
+
 bool SinglePlaneImage::EnsureInitialized() { return false; }
 
-const SkBitmap& SinglePlaneImage::GetBitmap() const {
+const SkBitmap* SinglePlaneImage::GetBitmap() const {
   // This function will only ever get called if the Skia software renderer needs
   // to reference the image, and so should be called rarely.  In that case, the
   // first time it is called on this image, we will download the image data from
@@ -86,15 +106,27 @@ const SkBitmap& SinglePlaneImage::GetBitmap() const {
 
     SkAutoLockPixels lock(*bitmap_);
 
-    CHECK(SbBlitterDownloadSurfacePixels(
+    bool result = SbBlitterDownloadSurfacePixels(
         surface_, SkiaToBlitterPixelFormat(image_info.colorType()),
-        bitmap_->rowBytes(), bitmap_->getPixels()));
+        bitmap_->rowBytes(), bitmap_->getPixels());
+    if (!result) {
+      LOG(WARNING) << "Failed to download surface pixel data so that it could "
+                      "be accessed by software skia.";
+      bitmap_ = base::nullopt;
+      DCHECK(false);
+    }
   }
 
-  return *bitmap_;
+  return &bitmap_.value();
 }
 
-SinglePlaneImage::~SinglePlaneImage() { SbBlitterDestroySurface(surface_); }
+SinglePlaneImage::~SinglePlaneImage() {
+  if (!delete_function_.is_null()) {
+    delete_function_.Run();
+  } else {
+    SbBlitterDestroySurface(surface_);
+  }
+}
 
 }  // namespace blitter
 }  // namespace rasterizer

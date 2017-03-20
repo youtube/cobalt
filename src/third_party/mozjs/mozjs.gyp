@@ -44,7 +44,7 @@
       'js/src',
       'js/src/assembler',
       'mfbt/double-conversion',
-      '<(DEPTH)/third_party/icu/public/common',
+      '<(DEPTH)/third_party/icu/source/common',
       '<(generated_include_directory)',
     ],
     'conditions': [
@@ -88,6 +88,11 @@
           'JS_DEBUG',
         ],
       }],
+      [ 'cobalt_config != "gold"', {
+        'defines': [
+          'JS_TRACE_LOGGING=1',
+        ],
+      }],
     ],
   },
   'targets': [
@@ -117,6 +122,14 @@
         'js-confdefs.h',
       ],
       'conditions': [
+        # These W flags do not work with the ps3 compiler.
+        ['target_arch == "ps3"', {
+          'cflags!': [
+            '-Wno-invalid-offsetof',
+            '-Wno-uninitialized',
+            '-Wno-unused',
+          ]
+        }],
         [ 'target_arch == "x64" and cobalt_enable_jit == 1', {
           'sources': [
             'js/src/assembler/assembler/MacroAssemblerX86Common.cpp',
@@ -195,6 +208,8 @@
       ],
       'dependencies': [
         'build_include_directory',
+        '<(DEPTH)/nb/nb.gyp:nb',
+        '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
@@ -215,6 +230,16 @@
           '-include',
           'js-confdefs.h',
         ],
+        'conditions': [
+          # These W flags do not work with the ps3 compiler.
+          ['target_arch == "ps3"', {
+            'cflags!': [
+              '-Wno-invalid-offsetof',
+              '-Wno-uninitialized',
+              '-Wno-unused',
+            ]
+          }],
+        ],
       },
       # Mark this target as a hard dependency because targets that depend on
       # this one need to wait for the build_include_directory to be generated.
@@ -231,6 +256,7 @@
         'js/src/shell/js.cpp',
         'js/src/shell/jsheaptools.cpp',
         'js/src/shell/jsoptparse.cpp',
+        'js/src/shell/TraceLoggingStub.cpp',
       ],
       'dependencies': [
         'mozjs_lib',
@@ -360,7 +386,7 @@
             'js/src/builtin/embedjs.py',
             '-DUSE_ZLIB',
             '-p',
-            '<(CC) -E',
+            '<(CC_HOST) -E',
             '-m',
             'js/src/js.msg',
             '-o',

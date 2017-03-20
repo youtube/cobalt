@@ -21,13 +21,17 @@
 #ifndef __CWCHAR_H__
 #define __CWCHAR_H__
 
+#if !defined(STARBOARD)
 #include <string.h>
 #include <stdlib.h>
+#endif
 #include "unicode/utypes.h"
 
 /* Do this after utypes.h so that we have U_HAVE_WCHAR_H . */
+#if !defined(STARBOARD)
 #if U_HAVE_WCHAR_H
 #   include <wchar.h>
+#endif
 #endif
 
 /*===========================================================================*/
@@ -35,7 +39,12 @@
 /*===========================================================================*/
 
 /* The following are not available on all systems, defined in wchar.h or string.h. */
-#if U_HAVE_WCSCPY
+#if defined(STARBOARD)
+#   include "starboard/string.h"
+#   define uprv_wcscpy SbStringCopyWide
+#   define uprv_wcscat SbStringConcatWide
+#   define uprv_wcslen SbStringGetLengthWide
+#elif U_HAVE_WCSCPY
 #   define uprv_wcscpy wcscpy
 #   define uprv_wcscat wcscat
 #   define uprv_wcslen wcslen
@@ -48,9 +57,11 @@ U_CAPI size_t U_EXPORT2
 uprv_wcslen(const wchar_t *src);
 #endif
 
+#if !defined(STARBOARD)  // Don't define these on Starboard as we do not have
+                         // replacements for them yet.
 /* The following are part of the ANSI C standard, defined in stdlib.h . */
 #define uprv_wcstombs(mbstr, wcstr, count) U_STANDARD_CPP_NAMESPACE wcstombs(mbstr, wcstr, count)
 #define uprv_mbstowcs(wcstr, mbstr, count) U_STANDARD_CPP_NAMESPACE mbstowcs(wcstr, mbstr, count)
-
+#endif  // !defined(STARBOARD)
 
 #endif

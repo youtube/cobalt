@@ -1,16 +1,13 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/gsw.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/gsw.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/gsw.xml
- */
 gsw{
-    Version{"2.0.50.94"}
+    Version{"2.1.19.74"}
     zoneStrings{
         "Africa:Accra"{
             ec{"Akkra"}
@@ -38,9 +35,6 @@ gsw{
         }
         "Africa:Mogadishu"{
             ec{"Mogadischu"}
-        }
-        "Africa:Niamey"{
-            ec{"Niger"}
         }
         "Africa:Ouagadougou"{
             ec{"Wagadugu"}
@@ -91,10 +85,7 @@ gsw{
             ec{"St. Vincent"}
         }
         "Antarctica:DumontDUrville"{
-            ec{"Dumont D'Urville"}
-        }
-        "Antarctica:South_Pole"{
-            ec{"Süüdpol"}
+            ec{"Dumont D’Urville"}
         }
         "Antarctica:Vostok"{
             ec{"Woschtok"}
@@ -275,7 +266,8 @@ gsw{
         }
         "meta:Acre"{
             ld{"Acre-Summerziit"}
-            ls{"Acre-Ziit"}
+            lg{"Acre-Ziit"}
+            ls{"Acre-Schtandardziit"}
         }
         "meta:Afghanistan"{
             ls{"Afghanischtan-Ziit"}
@@ -287,55 +279,61 @@ gsw{
             ls{"Oschtafrikanischi Ziit"}
         }
         "meta:Africa_Southern"{
-            lg{"Süüdafrikanischi Ziit"}
-            ls{"Süüdafrikanischi Schtandardziit"}
+            ls{"Süüdafrikanischi ziit"}
         }
         "meta:Africa_Western"{
             ld{"Weschtafrikanischi Summerziit"}
-            ls{"Weschtafrikanischi Ziit"}
-        }
-        "meta:Aktyubinsk"{
-            ld{"Aktyubinsk-Summerziit"}
-            ls{"Aktyubinsk-Ziit"}
+            lg{"Weschtafrikanischi Ziit"}
+            ls{"Weschtafrikanischi Schtandardziit"}
         }
         "meta:Alaska"{
-            cu:int{1}
+            ld{"Alaska-Summerziit"}
             lg{"Alaska-Ziit"}
             ls{"Alaska-Schtandardziit"}
         }
-        "meta:Alaska_Hawaii"{
-            lg{"Alaska-Hawaii-Ziit"}
-            ls{"Alaska-Hawaii-Schtandardziit"}
-        }
         "meta:Almaty"{
             ld{"Almaty-Summerziit"}
-            ls{"Almaty-Ziit"}
+            lg{"Almaty-Ziit"}
+            ls{"Almaty-Schtandardziit"}
         }
         "meta:Amazon"{
             ld{"Amazonas-Summerziit"}
+            lg{"Amazonas-Ziit"}
+            ls{"Amazonas-Schtandardziit"}
+        }
+        "meta:America_Central"{
+            ld{"Amerika-Zentraal Summerziit"}
+            lg{"Amerika-Zentraal Ziit"}
+            ls{"Amerika-Zentraal Schtandardziit"}
         }
         "meta:Europe_Central"{
-            cu:int{1}
             ld{"Mitteleuropäischi Summerziit"}
-            ls{"Mitteleuropäischi Ziit"}
+            lg{"Mitteleuropäischi Ziit"}
+            ls{"Mitteleuropäischi Schtandardziit"}
             sd{"MESZ"}
+            sg{"MEZ"}
             ss{"MEZ"}
         }
         "meta:Europe_Eastern"{
             ld{"Oschteuropäischi Summerziit"}
-            ls{"Oschteuropäischi Ziit"}
+            lg{"Oschteuropäischi Ziit"}
+            ls{"Oschteuropäischi Schtandardziit"}
             sd{"OESZ"}
+            sg{"OEZ"}
             ss{"OEZ"}
         }
         "meta:Europe_Western"{
             ld{"Weschteuropäischi Summerziit"}
-            ls{"Weschteuropäischi Ziit"}
+            lg{"Weschteuropäischi Ziit"}
+            ls{"Weschteuropäischi Schtandardziit"}
             sd{"WESZ"}
+            sg{"WEZ"}
             ss{"WEZ"}
         }
         "meta:Moscow"{
             ld{"Moskauer Summerziit"}
-            ls{"Moskauer Ziit"}
+            lg{"Moskauer Ziit"}
+            ls{"Moskauer Schtandardziit"}
         }
         fallbackFormat{"{1} ({0})"}
         gmtFormat{"GMT{0}"}

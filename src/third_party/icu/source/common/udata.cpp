@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1999-2010, International Business Machines
+*   Copyright (C) 1999-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -14,9 +14,11 @@
 *   created by: Markus W. Scherer
 */
 
-#include "unicode/utypes.h"  /* U_LINUX */
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#include "unicode/utypes.h"  /* U_PLATFORM etc. */
 
-#ifdef U_LINUX
+#ifdef __GNUC__
 /* if gcc
 #define ATTRIBUTE_WEAK __attribute__ ((weak))
 might have to #include some other header
@@ -29,7 +31,9 @@ might have to #include some other header
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "mutex.h"
 #include "putilimp.h"
+#include "uassert.h"
 #include "ucln_cmn.h"
 #include "ucmndata.h"
 #include "udatamem.h"
@@ -66,13 +70,21 @@ might have to #include some other header
 /* If you are excruciatingly bored turn this on .. */
 /* #define UDATA_DEBUG 1 */
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else
 #if defined(UDATA_DEBUG)
 #   include <stdio.h>
 #endif
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
+#endif
 
 U_NAMESPACE_USE
+
+/*
+ *  Forward declarations
+ */
+static UDataMemory *udata_findCachedData(const char *path);
 
 /***********************************************************************
 *
@@ -96,13 +108,15 @@ U_NAMESPACE_USE
  * that they really need, reducing the size of binaries that take advantage
  * of this.
  */
-static UDataMemory *gCommonICUDataArray[10] = { NULL };
+static UDataMemory *gCommonICUDataArray[10] = { NULL };   // Access protected by icu global mutex.
 
-static UBool gHaveTriedToLoadCommonData = FALSE;  /* See extendICUData(). */
+static u_atomic_int32_t gHaveTriedToLoadCommonData = ATOMIC_INT32_T_INITIALIZER(0);  //  See extendICUData().
 
 static UHashtable  *gCommonDataCache = NULL;  /* Global hash table of opened ICU data files.  */
+static icu::UInitOnce gCommonDataCacheInitOnce = U_INITONCE_INITIALIZER;
 
-static UDataFileAccess  gDataFileAccess = UDATA_DEFAULT_ACCESS;
+static UDataFileAccess  gDataFileAccess = UDATA_DEFAULT_ACCESS;  // Access not synchronized.
+                                                                 // Modifying is documented as thread-unsafe.
 
 static UBool U_CALLCONV
 udata_cleanup(void)
@@ -113,17 +127,39 @@ udata_cleanup(void)
         uhash_close(gCommonDataCache);  /*   Table owns the contents, and will delete them. */
         gCommonDataCache = NULL;        /*   Cleanup is not thread safe.                */
     }
+    gCommonDataCacheInitOnce.reset();
 
-    for (i = 0; i < LENGTHOF(gCommonICUDataArray) && gCommonICUDataArray[i] != NULL; ++i) {
+    for (i = 0; i < UPRV_LENGTHOF(gCommonICUDataArray) && gCommonICUDataArray[i] != NULL; ++i) {
         udata_close(gCommonICUDataArray[i]);
         gCommonICUDataArray[i] = NULL;
     }
-    gHaveTriedToLoadCommonData = FALSE;
+    gHaveTriedToLoadCommonData = 0;
 
     return TRUE;                   /* Everything was cleaned up */
 }
 
+static UBool U_CALLCONV
+findCommonICUDataByName(const char *inBasename)
+{
+    UBool found = FALSE;
+    int32_t i;
 
+    UDataMemory  *pData = udata_findCachedData(inBasename);
+    if (pData == NULL)
+        return FALSE;
+
+    {
+        Mutex lock;
+        for (i = 0; i < UPRV_LENGTHOF(gCommonICUDataArray); ++i) {
+            if ((gCommonICUDataArray[i] != NULL) && (gCommonICUDataArray[i]->pHeader == pData->pHeader)) {
+                /* The data pointer is already in the array. */
+                found = TRUE;
+                break;
+            }
+        }
+    }
+    return found;
+}
 
 
 /*
@@ -148,10 +184,9 @@ setCommonICUData(UDataMemory *pData,     /*  The new common data.  Belongs to ca
     /*    their locals.                                                              */
     UDatamemory_assign(newCommonData, pData);
     umtx_lock(NULL);
-    for (i = 0; i < LENGTHOF(gCommonICUDataArray); ++i) {
+    for (i = 0; i < UPRV_LENGTHOF(gCommonICUDataArray); ++i) {
         if (gCommonICUDataArray[i] == NULL) {
             gCommonICUDataArray[i] = newCommonData;
-            ucln_common_registerCleanup(UCLN_COMMON_UDATA, udata_cleanup);
             didUpdate = TRUE;
             break;
         } else if (gCommonICUDataArray[i]->pHeader == pData->pHeader) {
@@ -161,10 +196,12 @@ setCommonICUData(UDataMemory *pData,     /*  The new common data.  Belongs to ca
     }
     umtx_unlock(NULL);
 
-    if (i == LENGTHOF(gCommonICUDataArray) && warn) {
+    if (i == UPRV_LENGTHOF(gCommonICUDataArray) && warn) {
         *pErr = U_USING_DEFAULT_WARNING;
     }
-    if (!didUpdate) {
+    if (didUpdate) {
+        ucln_common_registerCleanup(UCLN_COMMON_UDATA, udata_cleanup);
+    } else {
         uprv_free(newCommonData);
     }
     return didUpdate;
@@ -174,7 +211,7 @@ static UBool
 setCommonICUDataPointer(const void *pData, UBool /*warn*/, UErrorCode *pErrorCode) {
     UDataMemory tData;
     UDataMemory_init(&tData);
-    tData.pHeader = (const DataHeader *)pData;
+    UDataMemory_setData(&tData, pData);
     udata_checkCommonData(&tData, pErrorCode);
     return setCommonICUData(&tData, FALSE, pErrorCode);
 }
@@ -238,42 +275,26 @@ static void U_CALLCONV DataCacheElement_deleter(void *pDCEl) {
     uprv_free(pDCEl);                  /* delete 'this'          */
 }
 
- /*   udata_getCacheHashTable()
- *     Get the hash table used to store the data cache entries.
- *     Lazy create it if it doesn't yet exist.
- */
-static UHashtable *udata_getHashTable() {
-    UErrorCode   err = U_ZERO_ERROR;
-    UBool        cacheIsInitialized;
-    UHashtable  *tHT = NULL;
-
-    UMTX_CHECK(NULL, (gCommonDataCache != NULL), cacheIsInitialized);
-
-    if (cacheIsInitialized) {
-        return gCommonDataCache;
+static void udata_initHashTable() {
+    UErrorCode err = U_ZERO_ERROR;
+    U_ASSERT(gCommonDataCache == NULL);
+    gCommonDataCache = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &err);
+    if (U_FAILURE(err)) {
+        // TODO: handle errors better.
+        gCommonDataCache = NULL;
     }
-
-    tHT = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &err);
-    /* Check for null pointer. */
-    if (tHT == NULL) {
-    	return NULL; /* TODO:  Handle this error better. */
-    }
-    uhash_setValueDeleter(tHT, DataCacheElement_deleter);
-
-    umtx_lock(NULL);
-    if (gCommonDataCache == NULL) {
-        gCommonDataCache = tHT;
-        tHT = NULL;
+    if (gCommonDataCache != NULL) {
+        uhash_setValueDeleter(gCommonDataCache, DataCacheElement_deleter);
         ucln_common_registerCleanup(UCLN_COMMON_UDATA, udata_cleanup);
     }
-    umtx_unlock(NULL);
-    if (tHT != NULL) {
-        uhash_close(tHT);
-    }
+}
 
-    if (U_FAILURE(err)) {
-        return NULL;      /* TODO:  handle this error better.  */
-    }
+ /*   udata_getCacheHashTable()
+  *     Get the hash table used to store the data cache entries.
+  *     Lazy create it if it doesn't yet exist.
+  */
+static UHashtable *udata_getHashTable() {
+    umtx_initOnce(gCommonDataCacheInitOnce, &udata_initHashTable);
     return gCommonDataCache;
 }
 
@@ -650,10 +671,14 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
     /* ??????? TODO revisit this */ 
     if (commonDataIndex >= 0) {
         /* "mini-cache" for common ICU data */
-        if(commonDataIndex >= LENGTHOF(gCommonICUDataArray)) {
+        if(commonDataIndex >= UPRV_LENGTHOF(gCommonICUDataArray)) {
             return NULL;
         }
-        if(gCommonICUDataArray[commonDataIndex] == NULL) {
+        {
+            Mutex lock;
+            if(gCommonICUDataArray[commonDataIndex] != NULL) {
+                return gCommonICUDataArray[commonDataIndex];
+            }
             int32_t i;
             for(i = 0; i < commonDataIndex; ++i) {
                 if(gCommonICUDataArray[i]->pHeader == &U_ICUDATA_ENTRY_POINT.hdr) {
@@ -661,23 +686,26 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
                     return NULL;
                 }
             }
-
-            /* Add the linked-in data to the list. */
-            /*
-             * This is where we would check and call weakly linked partial-data-library
-             * access functions.
-             */
-            /*
-            if (uprv_getICUData_collation) {
-                setCommonICUDataPointer(uprv_getICUData_collation(), FALSE, pErrorCode);
-            }
-            if (uprv_getICUData_conversion) {
-                setCommonICUDataPointer(uprv_getICUData_conversion(), FALSE, pErrorCode);
-            }
-            */
-            setCommonICUDataPointer(&U_ICUDATA_ENTRY_POINT.hdr, FALSE, pErrorCode);
         }
-        return gCommonICUDataArray[commonDataIndex];
+
+        /* Add the linked-in data to the list. */
+        /*
+         * This is where we would check and call weakly linked partial-data-library
+         * access functions.
+         */
+        /*
+        if (uprv_getICUData_collation) {
+            setCommonICUDataPointer(uprv_getICUData_collation(), FALSE, pErrorCode);
+        }
+        if (uprv_getICUData_conversion) {
+            setCommonICUDataPointer(uprv_getICUData_conversion(), FALSE, pErrorCode);
+        }
+        */
+        setCommonICUDataPointer(&U_ICUDATA_ENTRY_POINT.hdr, FALSE, pErrorCode);
+        {
+            Mutex lock;
+            return gCommonICUDataArray[commonDataIndex];
+        }
     }
 
 
@@ -782,12 +810,10 @@ static UBool extendICUData(UErrorCode *pErr)
      * Use a specific mutex to avoid nested locks of the global mutex.
      */
 #if MAP_IMPLEMENTATION==MAP_STDIO
-    static UMTX extendICUDataMutex = NULL;
+    static UMutex extendICUDataMutex = U_MUTEX_INITIALIZER;
     umtx_lock(&extendICUDataMutex);
 #endif
-    if(!gHaveTriedToLoadCommonData) {
-        gHaveTriedToLoadCommonData = TRUE;
-
+    if(!umtx_loadAcquire(gHaveTriedToLoadCommonData)) {
         /* See if we can explicitly open a .dat file for the ICUData. */
         pData = openCommonData(
                    U_ICUDATA_NAME,            /*  "icudt20l" , for example.          */
@@ -806,12 +832,20 @@ static UBool extendICUData(UErrorCode *pErr)
                                           /*   fields in the UDataMemory that we're assigning     */
                                           /*   to CommonICUData.                                  */
 
-          didUpdate =
+          didUpdate = /* no longer using this result */
               setCommonICUData(&copyPData,/*  The new common data.                                */
                        FALSE,             /*  No warnings if write didn't happen                  */
                        pErr);             /*  setCommonICUData honors errors; NOP if error set    */
         }
+
+        umtx_storeRelease(gHaveTriedToLoadCommonData, 1);
     }
+
+    didUpdate = findCommonICUDataByName(U_ICUDATA_NAME);  /* Return 'true' when a racing writes out the extended                        */
+                                                          /* data after another thread has failed to see it (in openCommonData), so     */
+                                                          /* extended data can be examined.                                             */
+                                                          /* Also handles a race through here before gHaveTriedToLoadCommonData is set. */
+
 #if MAP_IMPLEMENTATION==MAP_STDIO
     umtx_unlock(&extendICUDataMutex);
 #endif
@@ -996,6 +1030,7 @@ static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName
     const DataHeader   *pHeader;
     UDataMemory        *pCommonData;
     int32_t            commonDataIndex;
+    UBool              checkedExtendedICUData = FALSE;
     /* try to get common data.  The loop is for platforms such as the 390 that do
      *  not initially load the full set of ICU data.  If the lookup of an ICU data item
      *  fails, the full (but slower to load) set is loaded, the and the loop repeats,
@@ -1038,12 +1073,24 @@ static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName
             return NULL;
         } else if (pCommonData != NULL) {
             ++commonDataIndex;  /* try the next data package */
-        } else if (extendICUData(subErrorCode)) {
+        } else if ((!checkedExtendedICUData) && extendICUData(subErrorCode)) {
+            checkedExtendedICUData = TRUE;
             /* try this data package slot again: it changed from NULL to non-NULL */
         } else {
             return NULL;
         }
     }
+}
+
+/*
+ * Identify the Time Zone resources that are subject to special override data loading.
+ */
+static UBool isTimeZoneFile(const char *name, const char *type) {
+    return ((uprv_strcmp(type, "res") == 0) &&
+            (uprv_strcmp(name, "zoneinfo64") == 0 ||
+             uprv_strcmp(name, "timezoneTypes") == 0 ||
+             uprv_strcmp(name, "windowsZones") == 0 ||
+             uprv_strcmp(name, "metaZones") == 0));
 }
 
 /*
@@ -1214,6 +1261,21 @@ doOpenChoice(const char *path, const char *type, const char *name,
     /* End of dealing with a null basename */
     dataPath = u_getDataDirectory();
 
+    /****    Time zone individual files override  */
+    if (isTimeZoneFile(name, type) && isICUData) {
+        const char *tzFilesDir = u_getTimeZoneFilesDirectory(pErrorCode);
+        if (tzFilesDir[0] != 0) {
+#ifdef UDATA_DEBUG
+            fprintf(stderr, "Trying Time Zone Files directory = %s\n", tzFilesDir);
+#endif
+            retVal = doLoadFromIndividualFiles(/* pkgName.data() */ "", tzFilesDir, tocEntryPathSuffix,
+                            /* path */ "", type, name, isAcceptable, context, &subErrorCode, pErrorCode);
+            if((retVal != NULL) || U_FAILURE(*pErrorCode)) {
+                return retVal;
+            }
+        }
+    }
+
     /****    COMMON PACKAGE  - only if packages are first. */
     if(gDataFileAccess == UDATA_PACKAGES_FIRST) {
 #ifdef UDATA_DEBUG
@@ -1354,5 +1416,6 @@ udata_getInfo(UDataMemory *pData, UDataInfo *pInfo) {
 
 U_CAPI void U_EXPORT2 udata_setFileAccess(UDataFileAccess access, UErrorCode * /*status*/)
 {
+    // Note: this function is documented as not thread safe.
     gDataFileAccess = access;
 }

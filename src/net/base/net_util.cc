@@ -336,6 +336,11 @@ bool IsIDNComponentSafe(const char16* str,
   // http://kb.mozillazine.org/Network.IDN.blacklist_chars and
   // at http://mxr.mozilla.org/seamonkey/source/modules/libpref/src/init/all.js#703
 
+// ICU's regular expression functionality is needed for this code to function.
+#if defined(UCONFIG_NO_REGULAR_EXPRESSIONS)
+  return false;
+#else
+
   UErrorCode status = U_ZERO_ERROR;
 #ifdef U_WCHAR_IS_UTF16
   icu::UnicodeSet dangerous_characters(icu::UnicodeString(
@@ -411,6 +416,7 @@ bool IsIDNComponentSafe(const char16* str,
       return true;
   }
   return false;
+#endif  // defined(UCONFIG_NO_REGULAR_EXPRESSIONS)
 }
 
 // Converts one component of a host (between dots) to IDN if safe. The result

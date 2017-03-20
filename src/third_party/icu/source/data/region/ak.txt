@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ak.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ak.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/ak.xml
- */
 ak{
     Countries{
         AD{"Andora"}
@@ -49,14 +46,13 @@ ak{
         CF{"Afrika Finimfin Man"}
         CG{"Kongo"}
         CH{"Swetzaland"}
-        CI{"La Côte d'Ivoire"}
+        CI{"La Côte d’Ivoire"}
         CK{"Kook Nsupɔw"}
         CL{"Kyili"}
         CM{"Kamɛrun"}
         CN{"Kyaena"}
         CO{"Kolombia"}
         CR{"Kɔsta Rika"}
-        CS{"Sɛɛbea ne Mɔntenɛgro"}
         CU{"Kuba"}
         CV{"Kepvɛdfo Islands"}
         CY{"Saeprɔs"}
@@ -238,5 +234,5 @@ ak{
         ZM{"Zambia"}
         ZW{"Zembabwe"}
     }
-    Version{"2.0.47.53"}
+    Version{"2.1.19.14"}
 }

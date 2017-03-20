@@ -118,3 +118,4 @@ Unforgeable
 # when these attributes are present
 NewObject
 SameObject
+Clamp

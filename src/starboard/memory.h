@@ -11,13 +11,30 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Module Overview: Starboard Memory module
 //
-// Memory allocation, alignment, copying, and comparing.
+// Defines functions for memory allocation, alignment, copying, and comparing.
 //
-// DO NOT CALL SbMemoryAllocateUnchecked(), SbMemoryAllocateChecked()
-// SbMemoryReallocateUnchecked(), SbMemoryReallocateChecked(),
-// SbMemoryAllocateAlignedUnchecked(), SbMemoryAllocateAlignedChecked(),
-// SbMemoryFree(), SbMemoryFreeAligned(). They are internal.
+// #### Porters
+//
+// All of the "Unchecked" and "Free" functions must be implemented, but they
+// should not be called directly. The Starboard platform wraps them with extra
+// accounting under certain circumstances.
+//
+// #### Porters and Application Developers
+//
+// Nobody should call the "Checked", "Unchecked" or "Free" functions directly
+// because that evades Starboard's memory tracking. In both port
+// implementations and Starboard client application code, you should always
+// call SbMemoryAllocate and SbMemoryDeallocate rather than
+// SbMemoryAllocateUnchecked and SbMemoryFree.
+//
+// - The "checked" functions are SbMemoryAllocateChecked(),
+//   SbMemoryReallocateChecked(), and SbMemoryAllocateAlignedChecked().
+// - The "unchecked" functions are SbMemoryAllocateUnchecked(),
+//   SbMemoryReallocateUnchecked(), and SbMemoryAllocateAlignedUnchecked().
+// - The "free" functions are SbMemoryFree() and SbMemoryFreeAligned().
 
 #ifndef STARBOARD_MEMORY_H_
 #define STARBOARD_MEMORY_H_
@@ -64,46 +81,71 @@ static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
   }
 }
 
-// Allocates a chunk of memory of at least |size| bytes, returning it. If unable
-// to allocate the memory, it returns NULL. If |size| is 0, it may return NULL
-// or it may return a unique pointer value that can be passed to
-// SbMemoryDeallocate. Meant to be a drop-in replacement for malloc.
+// Allocates and returns a chunk of memory of at least |size| bytes. This
+// function should be called from the client codebase. It is intended to be a
+// drop-in replacement for |malloc|.
 //
-// This memory function should be called from the Cobalt codebase.
+// Note that this function returns |NULL| if it is unable to allocate the
+// memory.
+//
+// |size|: The amount of memory to be allocated. If |size| is 0, the function
+//   may return |NULL| or it may return a unique pointer value that can be
+//   passed to SbMemoryDeallocate.
 SB_EXPORT void* SbMemoryAllocate(size_t size);
 
-// Attempts to resize |memory| to be at least |size| bytes, without touching the
-// contents. If it cannot perform the fast resize, it will allocate a new chunk
-// of memory, copy the contents over, and free the previous chunk, returning a
-// pointer to the new chunk. If it cannot perform the slow resize, it will
-// return NULL, leaving the given memory chunk unchanged. |memory| may be NULL,
-// in which case it behaves exactly like SbMemoryAllocateUnchecked.  If |size|
-// is 0, it may return NULL or it may return a unique pointer value that can be
-// passed to SbMemoryDeallocate. Meant to be a drop-in replacement for realloc.
+// Same as SbMemoryAllocate() but will not report memory to the tracker. Avoid
+// using this unless absolutely necessary.
+SB_EXPORT void* SbMemoryAllocateNoReport(size_t size);
+
+// Attempts to resize |memory| to be at least |size| bytes, without touching
+// the contents of memory.
+// - If the function cannot perform the fast resize, it allocates a new chunk
+//   of memory, copies the contents over, and frees the previous chunk,
+//   returning a pointer to the new chunk.
+// - If the function cannot perform the slow resize, it returns |NULL|,
+//   leaving the given memory chunk unchanged.
 //
-// This memory function should be called from the Cobalt codebase.
+// This function should be called from the client codebase. It is meant to be a
+// drop-in replacement for |realloc|.
+//
+// |memory|: The chunk of memory to be resized. |memory| may be NULL, in which
+//   case it behaves exactly like SbMemoryAllocateUnchecked.
+// |size|: The size to which |memory| will be resized. If |size| is |0|,
+//   the function may return |NULL| or it may return a unique pointer value
+//   that can be passed to SbMemoryDeallocate.
 SB_EXPORT void* SbMemoryReallocate(void* memory, size_t size);
 
-// Allocates a chunk of memory of at least |size| bytes, aligned to
-// |alignment|, returning it. |alignment| must be a power of two, otherwise
-// behavior is undefined. If unable to allocate the memory, it returns NULL.
-// If |size| is 0, it may return NULL or it may return a unique aligned pointer
-// value that can be passed to SbMemoryDeallocateAligned. Meant to be a drop-in
-// replacement for memalign.
+// Allocates and returns a chunk of memory of at least |size| bytes, aligned to
+// |alignment|. This function should be called from the client codebase. It is
+// meant to be a drop-in replacement for |memalign|.
 //
-// This memory function should be called from the Cobalt codebase.
+// The function returns |NULL| if it cannot allocate the memory. In addition,
+// the function's behavior is undefined if |alignment| is not a power of two.
+//
+// |alignment|: The way that data is arranged and accessed in memory. The value
+//   must be a power of two.
+// |size|: The size of the memory to be allocated. If |size| is |0|, the
+//   function may return |NULL| or it may return a unique aligned pointer value
+//   that can be passed to SbMemoryDeallocateAligned.
 SB_EXPORT void* SbMemoryAllocateAligned(size_t alignment, size_t size);
 
-// Frees a previously allocated chunk of memory. If |memory| is NULL, then it
-// does nothing.  Meant to be a drop-in replacement for free.
+// Frees a previously allocated chunk of memory. If |memory| is NULL, then the
+// operation is a no-op. This function should be called from the client
+// codebase. It is meant to be a drop-in replacement for |free|.
 //
-// This memory function should be called from the Cobalt codebase.
+// |memory|: The chunk of memory to be freed.
 SB_EXPORT void SbMemoryDeallocate(void* memory);
 
-// Frees a previously allocated chunk of aligned memory. If |memory| is NULL,
-// then it does nothing.  Meant to be a drop-in replacement for _aligned_free.
-//
-// This memory function should be called from the Cobalt codebase.
+// Same as SbMemoryDeallocate() but will not report memory deallocation to the
+// tracker. This function must be matched with SbMemoryAllocateNoReport().
+SB_EXPORT void SbMemoryDeallocateNoReport(void* memory);
+
+// Frees a previously allocated chunk of aligned memory. This function should
+// be called from the client codebase. It is meant to be a drop-in replacement
+// for |_aligned_free|.
+
+// |memory|: The chunk of memory to be freed. If |memory| is NULL, then the
+//   function is a no-op.
 SB_EXPORT void SbMemoryDeallocateAligned(void* memory);
 
 /////////////////////////////////////////////////////////////////
@@ -148,19 +190,24 @@ SB_DEPRECATED_EXTERNAL(
 
 #if SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into an
-// available virtual region. |flags| is the bitwise or of the protection flags
-// for the mapped memory as specified in SbMemoryMapFlags. On some platforms,
-// |name| appears in the debugger and can be up to 32 bytes. Returns
-// SB_MEMORY_MAP_FAILED on failure, as NULL is a valid return value.
+// available virtual region. This function returns |SB_MEMORY_MAP_FAILED| on
+// failure. |NULL| is a valid return value.
+//
+// |size_bytes|: The amount of physical memory pages to be allocated.
+// |flags|: The bitwise OR of the protection flags for the mapped memory
+//   as specified in |SbMemoryMapFlags|.
+// |name|: A value that appears in the debugger on some platforms. The value
+//   can be up to 32 bytes.
 SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
 
 // Unmap |size_bytes| of physical pages starting from |virtual_address|,
-// returning true on success. After this, [virtual_address, virtual_address +
-// size_bytes) will not be read/writable. SbMemoryUnmap() can unmap multiple
-// contiguous regions that were mapped with separate calls to
-// SbMemoryMap(). E.g. if one call to SbMemoryMap(0x1000) returns (void*)0xA000
-// and another call to SbMemoryMap(0x1000) returns (void*)0xB000,
-// SbMemoryUnmap(0xA000, 0x2000) should free both.
+// returning |true| on success. After this function completes,
+// [virtual_address, virtual_address + size_bytes) will not be read/writable.
+// This function can unmap multiple contiguous regions that were mapped with
+// separate calls to SbMemoryMap(). For example, if one call to
+// |SbMemoryMap(0x1000)| returns |(void*)0xA000|, and another call to
+// |SbMemoryMap(0x1000)| returns |(void*)0xB000|,
+// |SbMemoryUnmap(0xA000, 0x2000)| should free both regions.
 SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
@@ -172,51 +219,78 @@ SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 #endif
 #endif  // SB_HAS(MMAP)
 
-// Gets the stack bounds for the current thread, placing the highest addressable
-// byte + 1 in |out_high|, and the lowest addressable byte in |out_low|.
+// Gets the stack bounds for the current thread.
+//
+// |out_high|: The highest addressable byte + 1 for the current thread.
+// |out_low|: The lowest addressable byte for the current thread.
 SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
 // Copies |count| sequential bytes from |source| to |destination|, without
-// support for the |source| and |destination| regions overlapping.  Behavior is
-// undefined if |destination| or |source| are NULL. Does nothing if |count| is
-// 0. Returns |destination|, for some reason. Meant to be a drop-in replacement
-// for memcpy.
+// support for the |source| and |destination| regions overlapping. This
+// function is meant to be a drop-in replacement for |memcpy|.
+//
+// The function's behavior is undefined if |destination| or |source| are NULL,
+// and the function is a no-op if |count| is 0. The return value is
+// |destination|.
+//
+// |destination|: The destination of the copied memory.
+// |source|: The source of the copied memory.
+// |count|: The number of sequential bytes to be copied.
 SB_EXPORT void* SbMemoryCopy(void* destination,
                              const void* source,
                              size_t count);
 
 // Copies |count| sequential bytes from |source| to |destination|, with support
-// for the |source| and |destination| regions overlapping.  Behavior is
-// undefined if |destination| or |source| are NULL. Does nothing if |count| is
-// 0. Returns |destination|, for some reason. Meant to be a drop-in replacement
-// for memmove.
+// for the |source| and |destination| regions overlapping. This function is
+// meant to be a drop-in replacement for |memmove|.
+//
+// The function's behavior is undefined if |destination| or |source| are NULL,
+// and the function is a no-op if |count| is 0. The return value is
+// |destination|.
+//
+// |destination|: The destination of the copied memory.
+// |source|: The source of the copied memory.
+// |count|: The number of sequential bytes to be copied.
 SB_EXPORT void* SbMemoryMove(void* destination,
                              const void* source,
                              size_t count);
 
 // Fills |count| sequential bytes starting at |destination|, with the unsigned
-// char coercion of |byte_value|. Behavior is undefined if |destination| is
-// NULL. Returns |destination|, for some reason. Does nothing if |count| is 0.
-// Meant to be a drop-in replacement for memset.
+// char coercion of |byte_value|. This function is meant to be a drop-in
+// replacement for |memset|.
+//
+// The function's behavior is undefined if |destination| is NULL, and the
+// function is a no-op if |count| is 0. The return value is |destination|.
+//
+// |destination|: The destination of the copied memory.
+// |count|: The number of sequential bytes to be set.
 SB_EXPORT void* SbMemorySet(void* destination, int byte_value, size_t count);
 
 // Compares the contents of the first |count| bytes of |buffer1| and |buffer2|.
-// returns -1 if |buffer1| is "less-than" |buffer2|, 0 if they are equal, or 1
-// if |buffer1| is "greater-than" |buffer2|.  Meant to be a drop-in replacement
-// for memcmp.
+// This function returns:
+// - |-1| if |buffer1| is "less-than" |buffer2|
+// - |0| if |buffer1| and |buffer2| are equal
+// - |1| if |buffer1| is "greater-than" |buffer2|.
+//
+// This function is meant to be a drop-in replacement for |memcmp|.
+//
+// |buffer1|: The first buffer to be compared.
+// |buffer2|: The second buffer to be compared.
+// |count|: The number of bytes to be compared.
 SB_EXPORT int SbMemoryCompare(const void* buffer1,
                               const void* buffer2,
                               size_t count);
 
-// Finds the lower 8-bits of |value| in the first |count| bytes of |buffer|,
-// returning a pointer to the first found occurrence, or NULL if not
-// found. Meant to be a drop-in replacement for memchr.
+// Finds the lower 8-bits of |value| in the first |count| bytes of |buffer|
+// and returns either a pointer to the first found occurrence or |NULL| if
+// the value is not found. This function is meant to be a drop-in replacement
+// for |memchr|.
 SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
                                        int value,
                                        size_t count);
 
-// A wrapper that implements a drop-in replacement for calloc, since some
-// packages actually seem to use it.
+// A wrapper that implements a drop-in replacement for |calloc|, which is used
+// in some packages.
 static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
   size_t total = count * size;
   void* result = SbMemoryAllocate(total);
@@ -224,6 +298,16 @@ static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
     SbMemorySet(result, 0, total);
   }
   return result;
+}
+
+// Returns true if the first |count| bytes of |buffer| are set to zero.
+static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
+  if (count == 0) {
+    return true;
+  }
+  const char* char_buffer = (const char*)(buffer);
+  return char_buffer[0] == 0 &&
+         SbMemoryCompare(char_buffer, char_buffer + 1, count - 1) == 0;
 }
 
 /////////////////////////////////////////////////////////////////

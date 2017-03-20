@@ -141,7 +141,7 @@ PerfSpewer::writeProfile(JSScript *script,
         unsigned long size = (unsigned long) code->instructionsSize();
         if (size > 0) {
             fprintf(fp_,
-                    "%lx %lx %s:%d: Func%02d\n",
+                    "%zx %lx %s:%d: Func%02d\n",
                     reinterpret_cast<uintptr_t>(code->raw()),
                     size,
                     script->filename(),
@@ -162,7 +162,7 @@ PerfSpewer::writeProfile(JSScript *script,
             JS_ASSERT(cur <= blockStart);
             if (cur < blockStart) {
                 fprintf(fp_,
-                        "%lx %lx %s:%d: Func%02d-Block?\n",
+                        "%zx %zx %s:%d: Func%02d-Block?\n",
                         cur, blockStart - cur,
                         script->filename(), script->lineno,
                         thisFunctionIndex);
@@ -173,7 +173,7 @@ PerfSpewer::writeProfile(JSScript *script,
 
             if (size > 0) {
                 fprintf(fp_,
-                        "%lx %lx %s:%d:%d: Func%02d-Block%d\n",
+                        "%zx %lx %s:%d:%d: Func%02d-Block%d\n",
                         blockStart, size,
                         r.filename, r.lineNumber, r.columnNumber,
                         thisFunctionIndex, r.id);
@@ -185,7 +185,7 @@ PerfSpewer::writeProfile(JSScript *script,
         JS_ASSERT(cur <= funcEnd);
         if (cur < funcEnd) {
             fprintf(fp_,
-                    "%lx %lx %s:%d: Func%02d-OOL\n",
+                    "%zx %zx %s:%d: Func%02d-OOL\n",
                     cur, funcEnd - cur,
                     script->filename(), script->lineno,
                     thisFunctionIndex);

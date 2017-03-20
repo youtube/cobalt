@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Functions for interacting with characters.
+// Module Overview: Starboard Character module
+//
+// Provides functions for interacting with characters.
 
 #ifndef STARBOARD_CHARACTER_H_
 #define STARBOARD_CHARACTER_H_
@@ -26,36 +28,50 @@ extern "C" {
 #endif
 
 // Converts the given 8-bit character (as an int) to uppercase in the current
-// locale, returning the result, also an 8-bit character. If there is no
-// uppercase version of the character, or the character is already uppercase, it
-// will just return the character as-is.
-int SbCharacterToUpper(int c);
+// locale and returns an 8-bit character. If there is no uppercase version of
+// the character, or the character is already uppercase, the function just
+// returns the character as-is.
+//
+// |c|: The character to be converted.
+SB_EXPORT int SbCharacterToUpper(int c);
 
 // Converts the given 8-bit character (as an int) to lowercase in the current
-// locale, returning the result, also an 8-bit character. If there is no
-// lowercase version of the character, or the character is already lowercase, it
-// will just return the character as-is.
-int SbCharacterToLower(int c);
+// locale and returns an 8-bit character. If there is no lowercase version of
+// the character, or the character is already lowercase, the function just
+// returns the character as-is.
+//
+// |c|: The character to be converted.
+SB_EXPORT int SbCharacterToLower(int c);
 
-// Returns whether the given 8-bit character |c| (as an int) is a space in the
-// current locale.
-bool SbCharacterIsSpace(int c);
-
-// Returns whether the given 8-bit character |c| (as an int) is uppercase in the
-// current locale.
-bool SbCharacterIsUpper(int c);
-
-// Returns whether the given 8-bit character |c| (as an int) is a decimal digit
-// in the current locale.
-bool SbCharacterIsDigit(int c);
-
-// Returns whether the given 8-bit character |c| (as an int) is a hexidecimal
-// digit in the current locale.
-bool SbCharacterIsHexDigit(int c);
-
-// Returns whether the given 8-bit character |c| (as an int) is alphanumeric in
+// Indicates whether the given 8-bit character |c| (as an int) is a space in
 // the current locale.
-bool SbCharacterIsAlphanumeric(int c);
+//
+// |c|: The character to be evaluated.
+SB_EXPORT bool SbCharacterIsSpace(int c);
+
+// Indicates whether the given 8-bit character |c| (as an int) is uppercase
+// in the current locale.
+//
+// |c|: The character to be evaluated.
+SB_EXPORT bool SbCharacterIsUpper(int c);
+
+// Indicates whether the given 8-bit character |c| (as an int) is a
+// decimal digit in the current locale.
+//
+// |c|: The character to be evaluated.
+SB_EXPORT bool SbCharacterIsDigit(int c);
+
+// Indicates whether the given 8-bit character |c| (as an int) is a hexadecimal
+// in the current locale.
+//
+// |c|: The character to be evaluated.
+SB_EXPORT bool SbCharacterIsHexDigit(int c);
+
+// Indicates whether the given 8-bit character |c| (as an int) is alphanumeric
+// in the current locale.
+//
+// |c|: The character to be evaluated.
+SB_EXPORT bool SbCharacterIsAlphanumeric(int c);
 
 #ifdef __cplusplus
 }  // extern "C"

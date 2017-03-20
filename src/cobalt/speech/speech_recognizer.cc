@@ -1,18 +1,27 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Note to Cobalt porters: To use the v1 speech-api API, you must provide an API
+// key with v1 speech-api quota. The code is provided here, but not an API key.
+//
+// This is similar to how Chromium handles API keys:
+// https://www.chromium.org/developers/how-tos/api-keys
+//
+// The API key is provided by SbSystemGetProperty:
+// http://cobalt.foo/reference/starboard/modules/system.html#sbsystemgetproperty
+//
+// Talk with your Google representative about how to get speech-api quota.
 
 #include "cobalt/speech/speech_recognizer.h"
 
@@ -21,7 +30,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "cobalt/deprecated/platform_delegate.h"
+#include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
@@ -32,7 +41,7 @@
 #include "net/url_request/url_fetcher.h"
 
 #if defined(SB_USE_SB_MICROPHONE)
-#include "starboard/microphone.h"
+#include "starboard/system.h"
 #endif  // defined(SB_USE_SB_MICROPHONE)
 
 namespace cobalt {
@@ -164,16 +173,21 @@ bool IsResponseCodeSuccess(int response_code) {
 }  // namespace
 
 SpeechRecognizer::SpeechRecognizer(network::NetworkModule* network_module,
-                                   const EventCallback& event_callback)
+                                   const EventCallback& event_callback,
+                                   const URLFetcherCreator& fetcher_creator)
     : network_module_(network_module),
-      thread_("speech_recognizer"),
       started_(false),
-      event_callback_(event_callback) {
+      event_callback_(event_callback),
+      fetcher_creator_(fetcher_creator),
+      thread_("speech_recognizer") {
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 SpeechRecognizer::~SpeechRecognizer() {
   Stop();
+  // Stopping the thread here to ensure that StopInternal has completed before
+  // we finish running the destructor.
+  thread_.Stop();
 }
 
 void SpeechRecognizer::Start(const SpeechRecognitionConfig& config,
@@ -236,7 +250,7 @@ void SpeechRecognizer::OnURLFetchDownloadData(
 void SpeechRecognizer::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   UNREFERENCED_PARAMETER(source);
-  started_ = false;
+  // no-op.
 }
 
 void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
@@ -261,8 +275,8 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   // Use protobuffer as the output format.
   down_url = AppendQueryParameter(down_url, "output", "pb");
 
-  downstream_fetcher_.reset(
-      net::URLFetcher::Create(down_url, net::URLFetcher::GET, this));
+  downstream_fetcher_ =
+      fetcher_creator_.Run(down_url, net::URLFetcher::GET, this);
   downstream_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter());
   downstream_fetcher_->Start();
@@ -274,21 +288,25 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
 
-  const char* speech_api_key = NULL;
-#if defined(SB_USE_SB_MICROPHONE)
-  speech_api_key = SbMicrophoneGetSpeechApiKey();
-#else
-  speech_api_key = "";
-#endif
+  const char* speech_api_key = "";
+#if defined(OS_STARBOARD)
+#if SB_VERSION(2)
+  const int kSpeechApiKeyLength = 100;
+  char buffer[kSpeechApiKeyLength] = {0};
+  bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
+                                    SB_ARRAY_SIZE_INT(buffer));
+  SB_DCHECK(result);
+  speech_api_key = result ? buffer : "";
+#endif  // SB_VERSION(2)
+#endif  // defined(OS_STARBOARD)
+
   up_url = AppendQueryParameter(up_url, "key", speech_api_key);
 
   // Language is required. If no language is specified, use the system language.
   if (!config.lang.empty()) {
     up_url = AppendQueryParameter(up_url, "lang", config.lang);
   } else {
-    up_url = AppendQueryParameter(
-        up_url, "lang",
-        cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage());
+    up_url = AppendQueryParameter(up_url, "lang", base::GetSystemLanguage());
   }
 
   if (config.max_alternatives) {
@@ -303,8 +321,7 @@ void SpeechRecognizer::StartInternal(const SpeechRecognitionConfig& config,
     up_url = AppendQueryParameter(up_url, "interim", "");
   }
 
-  upstream_fetcher_.reset(
-      net::URLFetcher::Create(up_url, net::URLFetcher::POST, this));
+  upstream_fetcher_ = fetcher_creator_.Run(up_url, net::URLFetcher::POST, this);
   upstream_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter());
   upstream_fetcher_->SetChunkedUpload(encoder_->GetMimeType());

@@ -14,6 +14,10 @@
 
 #include "starboard/player.h"
 
+#if !SB_HAS(PLAYER)
+#error "SbPlayerCreate requires SB_HAS(PLAYER)."
+#endif
+
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,
@@ -23,6 +27,15 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
                         SbPlayerDecoderStatusFunc /*decoder_status_func*/,
                         SbPlayerStatusFunc /*player_status_func*/,
-                        void* /*context*/) {
+                        void* /*context*/
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+                        ,
+                        SbPlayerOutputMode output_mode
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_VERSION(3)
+                        ,
+                        SbDecodeTargetProvider* /*provider*/
+#endif
+                        ) {
   return kSbPlayerInvalid;
 }

@@ -1,623 +1,79 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/root.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/root.xml
 // *
 // ***************************************************************************
 /**
- *  ICU <specials> source: <path>/xml/main/root.xml
+ * ICU <specials> source: <path>/common/main/root.xml
  */
 root{
     Currencies{
-        AFN{
-            "Af",
-            "AFN",
-        }
-        ANG{
-            "NAf.",
-            "ANG",
-        }
-        AOA{
-            "Kz",
-            "AOA",
-        }
-        ARA{
-            "₳" /** ===  */,
-            "ARA",
-        }
-        ARL{
-            "$L" /** ===  */,
-            "ARL",
-        }
-        ARM{
-            "m$n" /** ===  */,
-            "ARM",
-        }
-        ARS{
-            "AR$",
-            "ARS",
-        }
         AUD{
-            "AU$",
+            "A$",
             "AUD",
-        }
-        AWG{
-            "Afl.",
-            "AWG",
-        }
-        AZN{
-            "man.",
-            "AZN",
-        }
-        BAM{
-            "KM",
-            "BAM",
-        }
-        BBD{
-            "Bds$",
-            "BBD",
-        }
-        BDT{
-            "Tk",
-            "BDT",
-        }
-        BEF{
-            "BF" /** ===  */,
-            "BEF",
-        }
-        BHD{
-            "BD",
-            "BHD",
-        }
-        BIF{
-            "FBu",
-            "BIF",
-        }
-        BMD{
-            "BD$",
-            "BMD",
-        }
-        BND{
-            "BN$",
-            "BND",
-        }
-        BOB{
-            "Bs",
-            "BOB",
-        }
-        BOP{
-            "$b." /** ===  */,
-            "BOP",
         }
         BRL{
             "R$",
             "BRL",
         }
-        BSD{
-            "BS$",
-            "BSD",
-        }
-        BTN{
-            "Nu.",
-            "BTN",
-        }
-        BWP{
-            "BWP",
-            "BWP",
-        }
-        BZD{
-            "BZ$",
-            "BZD",
-        }
         CAD{
             "CA$",
             "CAD",
-        }
-        CDF{
-            "CDF",
-            "CDF",
-        }
-        CLE{
-            "Eº" /** ===  */,
-            "CLE",
-        }
-        CLP{
-            "CL$",
-            "CLP",
         }
         CNY{
             "CN¥",
             "CNY",
         }
-        COP{
-            "CO$",
-            "COP",
-        }
-        CRC{
-            "₡",
-            "CRC",
-        }
-        CUC{
-            "CUC$",
-            "CUC",
-        }
-        CUP{
-            "CU$",
-            "CUP",
-        }
-        CVE{
-            "CV$",
-            "CVE",
-        }
-        CYP{
-            "CY£" /** ===  */,
-            "CYP",
-        }
-        CZK{
-            "Kč",
-            "CZK",
-        }
-        DEM{
-            "DM" /** ===  */,
-            "DEM",
-        }
-        DJF{
-            "Fdj",
-            "DJF",
-        }
-        DKK{
-            "Dkr",
-            "DKK",
-        }
-        DOP{
-            "RD$",
-            "DOP",
-        }
-        DZD{
-            "DA",
-            "DZD",
-        }
-        EEK{
-            "Ekr",
-            "EEK",
-        }
-        ERN{
-            "Nfk",
-            "ERN",
-        }
-        ESP{
-            "Pts" /** ===  */,
-            "ESP",
-        }
-        ETB{
-            "Br",
-            "ETB",
-        }
         EUR{
             "€",
             "EUR",
-        }
-        FIM{
-            "mk" /** ===  */,
-            "FIM",
-        }
-        FJD{
-            "FJ$",
-            "FJD",
-        }
-        FKP{
-            "FK£",
-            "FKP",
-        }
-        FRF{
-            "₣" /** ===  */,
-            "FRF",
         }
         GBP{
             "£",
             "GBP",
         }
-        GHC{
-            "₵" /** ===  */,
-            "GHC",
-        }
-        GHS{
-            "GH₵",
-            "GHS",
-        }
-        GIP{
-            "GI£",
-            "GIP",
-        }
-        GMD{
-            "GMD",
-            "GMD",
-        }
-        GNF{
-            "FG",
-            "GNF",
-        }
-        GRD{
-            "₯" /** ===  */,
-            "GRD",
-        }
-        GTQ{
-            "GTQ",
-            "GTQ",
-        }
-        GYD{
-            "GY$",
-            "GYD",
-        }
         HKD{
             "HK$",
             "HKD",
-        }
-        HNL{
-            "HNL",
-            "HNL",
-        }
-        HRK{
-            "kn",
-            "HRK",
-        }
-        HTG{
-            "HTG",
-            "HTG",
-        }
-        HUF{
-            "Ft",
-            "HUF",
-        }
-        IDR{
-            "Rp",
-            "IDR",
-        }
-        IEP{
-            "IR£" /** ===  */,
-            "IEP",
-        }
-        ILP{
-            "I£" /** ===  */,
-            "ILP",
         }
         ILS{
             "₪",
             "ILS",
         }
         INR{
-            "Rs",
+            "₹",
             "INR",
-        }
-        ISK{
-            "Ikr",
-            "ISK",
-        }
-        ITL{
-            "IT₤" /** ===  */,
-            "ITL",
-        }
-        JMD{
-            "J$",
-            "JMD",
-        }
-        JOD{
-            "JD",
-            "JOD",
         }
         JPY{
             "JP¥",
             "JPY",
         }
-        KES{
-            "Ksh",
-            "KES",
-        }
-        KMF{
-            "CF",
-            "KMF",
-        }
         KRW{
             "₩",
             "KRW",
-        }
-        KWD{
-            "KD",
-            "KWD",
-        }
-        KYD{
-            "KY$",
-            "KYD",
-        }
-        LAK{
-            "₭",
-            "LAK",
-        }
-        LBP{
-            "LB£",
-            "LBP",
-        }
-        LKR{
-            "SLRs",
-            "LKR",
-        }
-        LRD{
-            "L$",
-            "LRD",
-        }
-        LSL{
-            "LSL",
-            "LSL",
-        }
-        LTL{
-            "Lt",
-            "LTL",
-        }
-        LVL{
-            "Ls",
-            "LVL",
-        }
-        LYD{
-            "LD",
-            "LYD",
-        }
-        MMK{
-            "MMK",
-            "MMK",
-        }
-        MNT{
-            "₮",
-            "MNT",
-        }
-        MOP{
-            "MOP$",
-            "MOP",
-        }
-        MRO{
-            "UM",
-            "MRO",
-        }
-        MTL{
-            "Lm" /** ===  */,
-            "MTL",
-        }
-        MTP{
-            "MT£" /** ===  */,
-            "MTP",
-        }
-        MUR{
-            "MURs",
-            "MUR",
         }
         MXN{
             "MX$",
             "MXN",
         }
-        MYR{
-            "RM",
-            "MYR",
-        }
-        MZM{
-            "Mt",
-            "MZM",
-        }
-        MZN{
-            "MTn" /** ===  */,
-            "MZN",
-        }
-        NAD{
-            "N$",
-            "NAD",
-        }
-        NGN{
-            "₦",
-            "NGN",
-        }
-        NIO{
-            "C$",
-            "NIO",
-        }
-        NLG{
-            "fl" /** ===  */,
-            "NLG",
-        }
-        NOK{
-            "Nkr",
-            "NOK",
-        }
-        NPR{
-            "NPRs",
-            "NPR",
-        }
         NZD{
             "NZ$",
             "NZD",
-        }
-        PAB{
-            "B/.",
-            "PAB",
-        }
-        PEI{
-            "I/." /** ===  */,
-            "PEI",
-        }
-        PEN{
-            "S/.",
-            "PEN",
-        }
-        PGK{
-            "PGK",
-            "PGK",
-        }
-        PHP{
-            "₱",
-            "PHP",
-        }
-        PKR{
-            "PKRs",
-            "PKR",
-        }
-        PLN{
-            "zł",
-            "PLN",
-        }
-        PTE{
-            "Esc" /** ===  */,
-            "PTE",
-        }
-        PYG{
-            "₲",
-            "PYG",
-        }
-        QAR{
-            "QR",
-            "QAR",
-        }
-        RHD{
-            "RH$" /** ===  */,
-            "RHD",
-        }
-        RON{
-            "RON" /** ===  */,
-            "RON",
-        }
-        RSD{
-            "din.",
-            "RSD",
-        }
-        SAR{
-            "SR",
-            "SAR",
-        }
-        SBD{
-            "SI$",
-            "SBD",
-        }
-        SCR{
-            "SRe",
-            "SCR",
-        }
-        SDD{
-            "LSd" /** ===  */,
-            "SDD",
-        }
-        SEK{
-            "Skr",
-            "SEK",
-        }
-        SGD{
-            "S$",
-            "SGD",
-        }
-        SHP{
-            "SH£",
-            "SHP",
-        }
-        SKK{
-            "Sk",
-            "SKK",
-        }
-        SLL{
-            "Le",
-            "SLL",
-        }
-        SOS{
-            "Ssh",
-            "SOS",
-        }
-        SRD{
-            "SR$",
-            "SRD",
-        }
-        SRG{
-            "Sf" /** ===  */,
-            "SRG",
-        }
-        STD{
-            "Db",
-            "STD",
-        }
-        SVC{
-            "SV₡",
-            "SVC",
-        }
-        SYP{
-            "SY£",
-            "SYP",
-        }
-        SZL{
-            "SZL",
-            "SZL",
-        }
-        THB{
-            "฿",
-            "THB",
-        }
-        TMM{
-            "TMM",
-            "TMM",
-        }
-        TND{
-            "DT",
-            "TND",
-        }
-        TOP{
-            "T$",
-            "TOP",
-        }
-        TRL{
-            "TRL" /** ===  */,
-            "TRL",
-        }
-        TRY{
-            "TL",
-            "TRY",
-        }
-        TTD{
-            "TT$",
-            "TTD",
         }
         TWD{
             "NT$",
             "TWD",
         }
-        TZS{
-            "TSh",
-            "TZS",
-        }
-        UAH{
-            "₴",
-            "UAH",
-        }
-        UGX{
-            "USh",
-            "UGX",
-        }
         USD{
             "US$",
             "USD",
         }
-        UYU{
-            "$U",
-            "UYU",
-        }
-        VEF{
-            "Bs.F.",
-            "VEF",
-        }
         VND{
             "₫",
             "VND",
-        }
-        VUV{
-            "VT",
-            "VUV",
-        }
-        WST{
-            "WS$",
-            "WST",
         }
         XAF{
             "FCFA",
@@ -635,43 +91,121 @@ root{
             "CFPF",
             "XPF",
         }
-        YER{
-            "YR",
-            "YER",
-        }
-        ZAR{
-            "R",
-            "ZAR",
-        }
-        ZMK{
-            "ZK",
-            "ZMK",
-        }
-        ZRN{
-            "NZ" /** ===  */,
-            "ZRN",
-        }
-        ZRZ{
-            "ZRZ" /** ===  */,
-            "ZRZ",
-        }
-        ZWD{
-            "Z$",
-            "ZWD",
-        }
+    }
+    Currencies%narrow{
+        AOA{"Kz"}
+        ARS{"$"}
+        AUD{"$"}
+        BAM{"KM"}
+        BBD{"$"}
+        BDT{"৳"}
+        BMD{"$"}
+        BND{"$"}
+        BOB{"Bs"}
+        BRL{"R$"}
+        BSD{"$"}
+        BWP{"P"}
+        BYR{"р."}
+        BZD{"$"}
+        CAD{"$"}
+        CLP{"$"}
+        CNY{"¥"}
+        COP{"$"}
+        CRC{"₡"}
+        CUC{"$"}
+        CUP{"$"}
+        CZK{"Kč"}
+        DKK{"kr"}
+        DOP{"$"}
+        EGP{"E£"}
+        ESP{"₧"}
+        EUR{"€"}
+        FJD{"$"}
+        FKP{"£"}
+        GBP{"£"}
+        GIP{"£"}
+        GNF{"FG"}
+        GTQ{"Q"}
+        GYD{"$"}
+        HKD{"$"}
+        HNL{"L"}
+        HRK{"kn"}
+        HUF{"Ft"}
+        IDR{"Rp"}
+        ILS{"₪"}
+        INR{"₹"}
+        ISK{"kr"}
+        JMD{"$"}
+        JPY{"¥"}
+        KHR{"៛"}
+        KMF{"CF"}
+        KPW{"₩"}
+        KRW{"₩"}
+        KYD{"$"}
+        KZT{"₸"}
+        LAK{"₭"}
+        LBP{"L£"}
+        LKR{"Rs"}
+        LRD{"$"}
+        LTL{"Lt"}
+        LVL{"Ls"}
+        MGA{"Ar"}
+        MMK{"K"}
+        MNT{"₮"}
+        MUR{"Rs"}
+        MXN{"$"}
+        MYR{"RM"}
+        NAD{"$"}
+        NGN{"₦"}
+        NIO{"C$"}
+        NOK{"kr"}
+        NPR{"Rs"}
+        NZD{"$"}
+        PHP{"₱"}
+        PKR{"Rs"}
+        PLN{"zł"}
+        PYG{"₲"}
+        RUB{"₽"}
+        RUR{"р."}
+        RWF{"RF"}
+        SBD{"$"}
+        SEK{"kr"}
+        SGD{"$"}
+        SHP{"£"}
+        SRD{"$"}
+        SSP{"£"}
+        STD{"Db"}
+        SYP{"£"}
+        THB{"฿"}
+        TOP{"T$"}
+        TRY{"₺"}
+        TTD{"$"}
+        TWD{"$"}
+        UAH{"₴"}
+        USD{"$"}
+        UYU{"$"}
+        VEF{"Bs"}
+        VND{"₫"}
+        XCD{"$"}
+        ZAR{"R"}
+        ZMW{"ZK"}
+    }
+    Currencies%variant{
+        GEL{"₾"}
+        TRY{"TL"}
     }
     CurrencyUnitPatterns{
         other{"{0} {1}"}
     }
-    Version{"2.0.52.9"}
+    Version{"2.1.19.19"}
     currencySpacing{
         afterCurrency{
-            currencyMatch{"[:letter:]"}
+            currencyMatch{"[:^S:]"}
             insertBetween{" "}
             surroundingMatch{"[:digit:]"}
         }
         beforeCurrency{
-            currencyMatch{"[:letter:]"}
+            currencyMatch{"[:^S:]"}
             insertBetween{" "}
             surroundingMatch{"[:digit:]"}
         }

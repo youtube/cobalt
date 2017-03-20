@@ -1,9 +1,9 @@
 /*
 *******************************************************************************
-*   Copyright (C) 2001-2003, International Business Machines
+*   Copyright (C) 2001-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
-*   file name:  bocsu.c
+*   file name:  bocsu.h
 *   encoding:   US-ASCII
 *   tab size:   8 (not used)
 *   indentation:4
@@ -20,6 +20,12 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_COLLATION
+
+U_NAMESPACE_BEGIN
+
+class ByteSink;
+
+U_NAMESPACE_END
 
 /*
  * "BOCSU"
@@ -145,17 +151,8 @@
     } \
 }
 
-U_CFUNC int32_t
-u_writeIdenticalLevelRun(const UChar *s, int32_t length, uint8_t *p);
-
-U_CFUNC int32_t
-u_writeIdenticalLevelRunTwoChars(UChar32 first, UChar32 second, uint8_t *p);
-
-U_CFUNC int32_t
-u_lengthOfIdenticalLevelRun(const UChar *s, int32_t length);
-
-U_CFUNC uint8_t *
-u_writeDiff(int32_t diff, uint8_t *p);
+U_CFUNC UChar32
+u_writeIdenticalLevelRun(UChar32 prev, const UChar *s, int32_t length, icu::ByteSink &sink);
 
 #endif /* #if !UCONFIG_NO_COLLATION */
 

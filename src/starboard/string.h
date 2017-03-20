@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Functions for interacting with c-style strings.
+// Module Overview: Starboard String module
+//
+// Defines functions for interacting with c-style strings.
 
 #ifndef STARBOARD_STRING_H_
 #define STARBOARD_STRING_H_
@@ -27,103 +29,171 @@
 extern "C" {
 #endif
 
-// Returns the length, in characters, of |str|, a zero-terminated ASCII string.
+// Returns the length, in characters, of |str|.
+//
+// |str|: A zero-terminated ASCII string.
 SB_EXPORT size_t SbStringGetLength(const char* str);
 
-// Same as SbStringGetLength but for wide characters. This assumes that there
-// are no multi-element characters.
+// Returns the length of a wide character string. (This function is the same
+// as SbStringGetLength, but for a string comprised of wide characters.) This
+// function assumes that there are no multi-element characters.
+//
+// |str|: A zero-terminated ASCII string.
 SB_EXPORT size_t SbStringGetLengthWide(const wchar_t* str);
 
-// Copies as much |source| as possible into |out_destination| and
-// null-terminates it, given that it has |destination_size| characters of
-// storage available.  Returns the length of |source|.  Meant to be a drop-in
-// replacement for strlcpy
+// Copies as much of a |source| string as possible and null-terminates it,
+// given that |destination_size| characters of storage are available. This
+// function is meant to be a drop-in replacement for |strlcpy|.
+//
+// The return value specifies the length of |source|.
+//
+// |out_destination|: The location to which the string is copied.
+// |source|: The string to be copied.
+// |destination_size|: The amount of the source string to copy.
 SB_EXPORT int SbStringCopy(char* out_destination,
                            const char* source,
                            int destination_size);
 
-// Inline wrapper for an unsafe SbStringCopy that assumes |out_destination| is
-// big enough. Meant to be a drop-in replacement for strcpy.
+// An inline wrapper for an unsafe SbStringCopy that assumes that the
+// destination provides enough storage space for the entire string. The return
+// value is a pointer to the destination string. This function is meant to be
+// a drop-in replacement for |strcpy|.
+//
+// |out_destination|: The location to which the string is copied.
+// |source|: The string to be copied.
 static SB_C_INLINE char* SbStringCopyUnsafe(char* out_destination,
                                             const char* source) {
   SbStringCopy(out_destination, source, INT_MAX);
   return out_destination;
 }
 
-// Same as SbStringCopy but for wide characters.
+// Identical to SbStringCopy, but for wide characters.
+//
+// |out_destination|: The location to which the string is copied.
+// |source|: The string to be copied.
+// |destination_size|: The amount of the source string to copy.
 SB_EXPORT int SbStringCopyWide(wchar_t* out_destination,
                                const wchar_t* source,
                                int destination_size);
 
-// Concatenates |source| onto the end of |out_destination|, presuming it has
-// |destination_size| total characters of storage available. Returns
-// length of |source|. Meant to be a drop-in replacement for strlcpy
-// Note: This function's signature is NOT compatible with strncat
+// Appends |source| to |out_destination| as long as |out_destination| has
+// enough storage space to hold the concatenated string.
+//
+// This function is meant to be a drop-in replacement for |strlcat|. Also note
+// that this function's signature is NOT compatible with |strncat|.
+//
+// |out_destination|: The string to which the |source| string is appended.
+// |source|: The string to be appended to the destination string.
+// |destination_size|: The amount of storage space available for the
+//   concatenated string.
 SB_EXPORT int SbStringConcat(char* out_destination,
                              const char* source,
                              int destination_size);
 
-// Inline wrapper for an unsafe SbStringConcat that assumes |out_destination| is
-// big enough.
-// Note: This function's signature is NOT compatible with strcat.
+// An inline wrapper for an unsafe SbStringConcat that assumes that the
+// |out_destination| provides enough storage space for the concatenated string.
+// Note that this function's signature is NOT compatible with |strcat|.
+//
+// |out_destination|: The string to which the |source| string is appended.
+// |source|: The string to be appended to the destination string.
 static SB_C_INLINE int SbStringConcatUnsafe(char* out_destination,
                                             const char* source) {
   return SbStringConcat(out_destination, source, INT_MAX);
 }
 
-// Same as SbStringConcat but for wide characters.
+// Identical to SbStringCat, but for wide characters.
+//
+// |out_destination|: The string to which the |source| string is appended.
+// |source|: The string to be appended to the destination string.
+// |destination_size|: The amount of storage space available for the
+//   concatenated string.
 SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
                                  const wchar_t* source,
                                  int destination_size);
 
-// Copies the string |source| into a buffer allocated by this function that can
-// be freed with SbMemoryDeallocate. Meant to be a drop-in replacement for
-// strdup.
+// Copies |source| into a buffer that is allocated by this function and that
+// can be freed with SbMemoryDeallocate. This function is meant to be a drop-in
+// replacement for |strdup|.
+//
+// |source|: The string to be copied.
 SB_EXPORT char* SbStringDuplicate(const char* source);
 
-// Finds the first occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
-// NOTE: The function signature of this function does NOT match the function
-// strchr.
+// Finds the first occurrence of a |character| in |str|. The return value is a
+// pointer to the found character in the given string or |NULL| if the
+// character is not found. Note that this function's signature does NOT match
+// that of the |strchr| function.
+//
+// |str|: The string to search for the character.
+// |character|: The character to find in the string.
 SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
 
-// Finds the last occurrence of |character| in |str|, returning a pointer to the
-// found character in the given string, or NULL if not found.
-// NOTE: The function signature of this function does NOT match the function
-// strrchr.
+// Finds the last occurrence of a specified character in a string.
+// The return value is a pointer to the found character in the given string or
+// |NULL| if the character is not found. Note that this function's signature
+// does NOT match that of the |strrchr| function.
+//
+// |str|: The string to search for the character.
+// |character|: The character to find in the string.
 SB_EXPORT const char* SbStringFindLastCharacter(const char* str,
                                                 char character);
 
-// Finds the first occurrence of |str2| in |str1|, returning a pointer to the
-// beginning of the found occurrencein |str1|, or NULL if not found.  Meant to
-// be a drop-in replacement for strstr.
+// Finds the first occurrence of |str2| in |str1|. The return value is a
+// pointer to the beginning of the found string or |NULL| if the string is
+// not found. This function is meant to be a drop-in replacement for |strstr|.
+//
+// |str1|: The string in which to search for the presence of |str2|.
+// |str2|: The string to locate in |str1|.
 SB_EXPORT const char* SbStringFindString(const char* str1, const char* str2);
 
-// Compares |string1| and |string2|, ignoring differences in case. Returns < 0
-// if |string1| is ASCII-betically lower than |string2|, 0 if they are equal,
-// and > 0 if |string1| is ASCII-betically higher than |string2|. Meant to be a
-// drop-in replacement for strcasecmp.
+// Compares two strings, ignoring differences in case. The return value is:
+// - |< 0| if |string1| is ASCII-betically lower than |string2|.
+// - |0| if the two strings are equal.
+// - |> 0| if |string1| is ASCII-betically higher than |string2|.
+//
+// This function is meant to be a drop-in replacement for |strcasecmp|.
+//
+// |string1|: The first string to compare.
+// |string2|: The second string to compare.
 SB_EXPORT int SbStringCompareNoCase(const char* string1, const char* string2);
 
-// Compares the first |count| characters of |string1| and |string2|, ignoring
-// differences in case. Returns < 0 if |string1| is ASCII-betically lower than
-// |string2|, 0 if they are equal, and > 0 if |string1| is ASCII-betically
-// higher than |string2|. Meant to be a drop-in replacement for strncasecmp.
+// Compares the first |count| characters of two strings, ignoring differences
+// in case. The return value is:
+// - |< 0| if |string1| is ASCII-betically lower than |string2|.
+// - |0| if the two strings are equal.
+// - |> 0| if |string1| is ASCII-betically higher than |string2|.
+//
+// This function is meant to be a drop-in replacement for |strncasecmp|.
+//
+// |string1|: The first string to compare.
+// |string2|: The second string to compare.
+// |count|: The number of characters to compare.
 SB_EXPORT int SbStringCompareNoCaseN(const char* string1,
                                      const char* string2,
                                      size_t count);
 
-// Formats the given |format| and |arguments|, placing as much of the result
-// will fit in |out_buffer|, whose size is specified by |buffer_size|. Returns
-// the number of characters the format would produce if |buffer_size| was
-// infinite. Meant to be a drop-in replacement for vsnprintf.
+// Produces a string formatted with |format| and |arguments|, placing as much
+// of the result that will fit into |out_buffer|. The return value specifies
+// the number of characters that the format would produce if |buffer_size| were
+// infinite.
+//
+// This function is meant to be a drop-in replacement for |vsnprintf|.
+//
+// |out_buffer|: The location where the formatted string is stored.
+// |buffer_size|: The size of |out_buffer|.
+// |format|: A string that specifies how the data should be formatted.
+// |arguments|: Variable arguments used in the string.
 SB_EXPORT int SbStringFormat(char* out_buffer,
                              size_t buffer_size,
                              const char* format,
                              va_list arguments) SB_PRINTF_FORMAT(3, 0);
 
-// Inline wrapper of SbStringFormat to convert from ellipsis to va_args.
-// Meant to be a drop-in replacement for snprintf.
+// An inline wrapper of SbStringFormat that converts from ellipsis to va_args.
+// This function is meant to be a drop-in replacement for |snprintf|.
+//
+// |out_buffer|: The location where the formatted string is stored.
+// |buffer_size|: The size of |out_buffer|.
+// |format|: A string that specifies how the data should be formatted.
+// |...|: Arguments used in the string.
 static SB_C_INLINE int SbStringFormatF(char* out_buffer,
                                        size_t buffer_size,
                                        const char* format,
@@ -139,8 +209,12 @@ static SB_C_INLINE int SbStringFormatF(char* out_buffer,
   return result;
 }
 
-// Inline wrapper of SbStringFormat to be a drop-in replacement for the unsafe
-// but commonly used sprintf.
+// An inline wrapper of SbStringFormat that is meant to be a drop-in
+// replacement for the unsafe but commonly used |sprintf|.
+//
+// |out_buffer|: The location where the formatted string is stored.
+// |format|: A string that specifies how the data should be formatted.
+// |...|: Arguments used in the string.
 static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
                                              const char* format,
                                              ...) SB_PRINTF_FORMAT(2, 3);
@@ -154,14 +228,25 @@ static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
   return result;
 }
 
-// Same as SbStringFormat, but for wide characters. Meant to be a drop-in
-// replacement for vswprintf.
+// This function is identical to SbStringFormat, but is for wide characters.
+// It is meant to be a drop-in replacement for |vswprintf|.
+//
+// |out_buffer|: The location where the formatted string is stored.
+// |buffer_size|: The size of |out_buffer|.
+// |format|: A string that specifies how the data should be formatted.
+// |arguments|: Variable arguments used in the string.
 SB_EXPORT int SbStringFormatWide(wchar_t* out_buffer,
                                  size_t buffer_size,
                                  const wchar_t* format,
                                  va_list arguments);
 
-// Inline wrapper of SbStringFormatWide to convert from ellipsis to va_args.
+// An inline wrapper of SbStringFormatWide that converts from ellipsis to
+// |va_args|.
+//
+// |out_buffer|: The location where the formatted string is stored.
+// |buffer_size|: The size of |out_buffer|.
+// |format|: A string that specifies how the data should be formatted.
+// |...|: Arguments used in the string.
 static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
                                            size_t buffer_size,
                                            const wchar_t* format,
@@ -173,38 +258,65 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
   return result;
 }
 
-// Compares the first |count| characters of |string1| and |string2|, which are
-// 16-bit character strings. Returns < 0 if |string1| is ASCII-betically lower
-// than |string2|, 0 if they are equal, and > 0 if |string1| is ASCII-betically
-// higher than |string2|. Meant to be a drop-in replacement of wcsncmp.
+// Compares the first |count| characters of two 16-bit character strings.
+// The return value is:
+// - |< 0| if |string1| is ASCII-betically lower than |string2|.
+// - |0| if the two strings are equal.
+// - |> 0| if |string1| is ASCII-betically higher than |string2|.
+//
+// This function is meant to be a drop-in replacement for |wcsncmp|.
+//
+// |string1|: The first 16-bit character string to compare.weird
+// |string2|: The second 16-bit character string to compare.
+// |count|: The number of characters to compare.
 SB_EXPORT int SbStringCompareWide(const wchar_t* string1,
                                   const wchar_t* string2,
                                   size_t count);
 
-// Compares the first |count| characters of |string1| and |string2|, which are
-// 8-bit character strings. Returns < 0 if |string1| is ASCII-betically lower
-// than |string2|, 0 if they are equal, and > 0 if |string1| is ASCII-betically
-// higher than |string2|. Meant to be a drop-in replacement of strncmp.
+// Compares the first |count| characters of two 8-bit character strings.
+// The return value is:
+// - |< 0| if |string1| is ASCII-betically lower than |string2|.
+// - |0| if the two strings are equal.
+// - |> 0| if |string1| is ASCII-betically higher than |string2|.
+//
+// This function is meant to be a drop-in replacement for |strncmp|.
+//
+// |string1|: The first 8-bit character string to compare.
+// |string2|: The second 8-bit character string to compare.
+// |count|: The number of characters to compare.
 SB_EXPORT int SbStringCompare(const char* string1,
                               const char* string2,
                               size_t count);
 
-// Compares all the characters of |string1| and |string2|, which are 8-bit
-// character strings, up to their natural termination. Returns < 0 if |string1|
-// is ASCII-betically lower than |string2|, 0 if they are equal, and > 0 if
-// |string1| is ASCII-betically higher than |string2|. Meant to be a drop-in
-// replacement of strcmp.
+// Compares two entire 8-bit character strings. The return value is:
+// - |< 0| if |string1| is ASCII-betically lower than |string2|.
+// - |0| if the two strings are equal.
+// - |> 0| if |string1| is ASCII-betically higher than |string2|.
+//
+// This function is meant to be a drop-in replacement for |strcmp|.
+//
+// |string1|: The first 8-bit character string to compare.
+// |string2|: The second 8-bit character string to compare.
 SB_EXPORT int SbStringCompareAll(const char* string1, const char* string2);
 
 // Scans |buffer| for |pattern|, placing the extracted values in |arguments|.
-// Returns the number of successfully matched items, which may be zero. Meant to
-// be a drop-in replacement for vsscanf.
+// The return value specifies the number of successfully matched items, which
+// may be |0|.
+//
+// This function is meant to be a drop-in replacement for |vsscanf|.
+//
+// |buffer|: The string to scan for the pattern.
+// |pattern|: The string to search for in |buffer|.
+// |arguments|: Values matching |pattern| that were extracted from |buffer|.
 SB_EXPORT int SbStringScan(const char* buffer,
                            const char* pattern,
                            va_list arguments);
 
-// Inline wrapper of SbStringScan to convert from ellipsis to va_args. Meant to
-// be a drop-in replacement for sscanf.
+// An inline wrapper of SbStringScan that converts from ellipsis to |va_args|.
+// This function is meant to be a drop-in replacement for |sscanf|.
+// |buffer|: The string to scan for the pattern.
+// |pattern|: The string to search for in |buffer|.
+// |...|: Values matching |pattern| that were extracted from |buffer|.
 static SB_C_INLINE int SbStringScanF(const char* buffer,
                                      const char* pattern,
                                      ...) {
@@ -215,49 +327,77 @@ static SB_C_INLINE int SbStringScanF(const char* buffer,
   return result;
 }
 
-// Parses a string at the beginning of |start| into a signed integer in the
-// given |base|.  It will place the pointer to the end of the consumed portion
-// of the string in |out_end|, if it is provided. Meant to be a drop-in
-// replacement for strtol.
+// Extracts a string that represents an integer from the beginning of |start|
+// into a signed integer in the given |base|. This function is meant to be a
+// drop-in replacement for |strtol|.
+//
+// |start|: The string that begins with the number to be converted.
+// |out_end|: If provided, the function places a pointer to the end of the
+//   consumed portion of the string into |out_end|.
+// |base|: The base into which the number will be converted. The value must
+//   be between |2| and |36|, inclusive.
 // NOLINTNEXTLINE(runtime/int)
 SB_EXPORT long SbStringParseSignedInteger(const char* start,
                                           char** out_end,
                                           int base);
 
-// Shorthand replacement for atoi. Parses |value| into a base-10 int.
+// Parses a string into a base-10 integer. This is a shorthand replacement for
+// |atoi|.
+//
+// |value|: The string to be converted.
 static SB_C_INLINE int SbStringAToI(const char* value) {
   // NOLINTNEXTLINE(readability/casting)
   return (int)SbStringParseSignedInteger(value, NULL, 10);
 }
 
-// Shorthand replacement for atol. Parses |value| into a base-10 int.
+// Parses a string into a base-10, long integer. This is a shorthand
+// replacement for |atol|.
+//
+// |value|: The string to be converted.
 // NOLINTNEXTLINE(runtime/int)
 static SB_C_INLINE long SbStringAToL(const char* value) {
   // NOLINTNEXTLINE(readability/casting)
   return SbStringParseSignedInteger(value, NULL, 10);
 }
 
-// Parses a string at the beginning of |start| into a unsigned integer in the
-// given |base|.  It will place the pointer to the end of the consumed portion
-// of the string in |out_end|, if it is provided. Meant to be a drop-in
-// replacement for strtoul.
+// Extracts a string that represents an integer from the beginning of |start|
+// into an unsigned integer in the given |base|.
+// This function is meant to be a drop-in replacement for |strtoul|.
+//
+// |start|: The string that begins with the number to be converted.
+// |out_end|: If provided, the function places a pointer to the end of the
+//   consumed portion of the string into |out_end|.
+// |base|: The base into which the number will be converted. The value must
+//   be between |2| and |36|, inclusive.
 // NOLINTNEXTLINE(runtime/int)
 SB_EXPORT unsigned long SbStringParseUnsignedInteger(const char* start,
                                                      char** out_end,
                                                      int base);
 
-// Parses a string at the beginning of |start| into a unsigned 64-bit integer in
-// the given |base|.  It will place the pointer to the end of the consumed
-// portion of the string in |out_end|, if it is provided. Meant to be a drop-in
-// replacement for strtoull, but explicity declared to return uint64_t.
+// Extracts a string that represents an integer from the beginning of |start|
+// into an unsigned 64-bit integer in the given |base|.
+//
+// This function is meant to be a drop-in replacement for |strtoull|, except
+// that it is explicitly declared to return |uint64_t|.
+//
+// |start|: The string that begins with the number to be converted.
+// |out_end|: If provided, the function places a pointer to the end of the
+//   consumed portion of the string into |out_end|.
+// |base|: The base into which the number will be converted. The value must
+//   be between |2| and |36|, inclusive.
 SB_EXPORT uint64_t SbStringParseUInt64(const char* start,
                                        char** out_end,
                                        int base);
 
-// Parses a string at the beginning of |start| into a double.
-// It will place the pointer to the end of the consumed
-// portion of the string in |out_end|, if it is provided. Meant to be a drop-in
-// replacement for strtod, but explicity declared to return double.
+// Extracts a string that represents an integer from the beginning of |start|
+// into a double.
+//
+// This function is meant to be a drop-in replacement for |strtod|, except
+// that it is explicitly declared to return a double.
+//
+// |start|: The string that begins with the number to be converted.
+// |out_end|: If provided, the function places a pointer to the end of the
+//   consumed portion of the string into |out_end|.
 SB_EXPORT double SbStringParseDouble(const char* start, char** out_end);
 
 #ifdef __cplusplus

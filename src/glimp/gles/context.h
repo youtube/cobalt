@@ -229,6 +229,11 @@ class Context {
   // Called when eglReleaseTexImage() is called.
   bool ReleaseTextureFromEGLSurface(egl::Surface* surface);
 
+  // This is useful for special circumstances when platform-specific external
+  // code is interested in accessing custom platform-specific graphics
+  // implementation details.
+  ContextImpl* GetContextImpl() const { return impl_.get(); }
+
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();

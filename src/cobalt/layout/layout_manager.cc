@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/layout/layout_manager.h"
 
@@ -29,15 +27,15 @@
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
-#include "third_party/icu/public/common/unicode/brkiter.h"
-#include "third_party/icu/public/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/locid.h"
 
 namespace cobalt {
 namespace layout {
 
 class LayoutManager::Impl : public dom::DocumentObserver {
  public:
-  Impl(const scoped_refptr<dom::Window>& window,
+  Impl(const std::string& name, const scoped_refptr<dom::Window>& window,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
        LayoutTrigger layout_trigger, int dom_max_element_depth,
        float layout_refresh_rate, const std::string& language,
@@ -47,12 +45,15 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // From dom::DocumentObserver.
   void OnLoad() OVERRIDE;
   void OnMutation() OVERRIDE;
+  void OnFocusChanged() OVERRIDE {}
 
   // Called to perform a synchronous layout.
   void DoSynchronousLayout();
 
   void Suspend();
   void Resume();
+
+  bool IsNewRenderTreePending() const;
 
  private:
   void StartLayoutTimer();
@@ -72,7 +73,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // is checked at a regular interval (e.g. 60Hz) and if it is set to true,
   // a layout is initiated and it is set back to false.  Events such as
   // DOM mutations will set this flag back to true.
-  bool layout_dirty_;
+  base::CVal<bool> layout_dirty_;
 
   // Construction of |BreakIterator| requires a disk read, so we cache them
   // in the layout manager in order to reuse them with all layouts happening
@@ -97,7 +98,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 };
 
 LayoutManager::Impl::Impl(
-    const scoped_refptr<dom::Window>& window,
+    const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     LayoutTrigger layout_trigger, int dom_max_element_depth,
     float layout_refresh_rate, const std::string& language,
@@ -105,11 +106,15 @@ LayoutManager::Impl::Impl(
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
       used_style_provider_(
-          new UsedStyleProvider(window->html_element_context()->image_cache(),
-                                window->document()->font_cache())),
+          new UsedStyleProvider(window->html_element_context(),
+                                window->html_element_context()->image_cache(),
+                                window->document()->font_cache(),
+                                window->html_element_context()->mesh_cache())),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
-      layout_dirty_(true),
+      layout_dirty_(StringPrintf("%s.Layout.IsDirty", name.c_str()), true,
+                    "Non-zero when the layout is dirty and a new render tree "
+                    "is pending."),
       layout_timer_(true, true, true),
       dom_max_element_depth_(dom_max_element_depth),
       layout_refresh_rate_(layout_refresh_rate),
@@ -203,6 +208,10 @@ void LayoutManager::Impl::Resume() {
   suspended_ = false;
 }
 
+bool LayoutManager::Impl::IsNewRenderTreePending() const {
+  return layout_dirty_;
+}
+
 #if defined(ENABLE_TEST_RUNNER)
 void LayoutManager::Impl::DoTestRunnerLayoutCallback() {
   DCHECK_EQ(kTestRunnerMode, layout_trigger_);
@@ -226,13 +235,13 @@ void LayoutManager::Impl::StartLayoutTimer() {
   // TODO: Eventually we would like to instead base our layouts off of a
   //       "refresh" signal generated by the rasterizer, instead of trying to
   //       match timers to the graphics' refresh rate, which is error prone.
-  const int64_t timer_interval_in_mircoseconds =
+  const int64_t timer_interval_in_microseconds =
       static_cast<int64_t>(base::Time::kMicrosecondsPerSecond * 1.0f /
                            (layout_refresh_rate_ + 1.0f));
 
   layout_timer_.Start(
       FROM_HERE,
-      base::TimeDelta::FromMicroseconds(timer_interval_in_mircoseconds),
+      base::TimeDelta::FromMicroseconds(timer_interval_in_microseconds),
       base::Bind(&LayoutManager::Impl::DoLayoutAndProduceRenderTree,
                  base::Unretained(this)));
 }
@@ -252,27 +261,30 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   // Update the document's sample time, used for updating animations.
   document->SampleTimelineTime();
 
-  bool was_dirty = layout_dirty_;
-  if (layout_dirty_) {
-    TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
-    // Update our computed style before running animation callbacks, so that
-    // any transitioning elements adjusted during the animation callback will
-    // transition from their previously set value.
-    document->UpdateComputedStyles();
+  bool has_layout_processing_started = false;
+  if (window_->HasPendingAnimationFrameCallbacks()) {
+    if (layout_dirty_) {
+      has_layout_processing_started = true;
+      TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
+      // Update our computed style before running animation callbacks, so that
+      // any transitioning elements adjusted during the animation callback will
+      // transition from their previously set value.
+      document->UpdateComputedStyles();
+    }
+
+    // Note that according to:
+    //     https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#model-liveness,
+    // "The time passed to a requestAnimationFrame callback will be equal to
+    // document.timeline.currentTime".  In our case,
+    // document.timeline.currentTime is derived from the latest sample time.
+    window_->RunAnimationFrameCallbacks();
   }
 
-  // Note that according to:
-  //     https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#model-liveness,
-  // "The time passed to a requestAnimationFrame callback will be equal to
-  // document.timeline.currentTime".  In our case, document.timeline.currentTime
-  // is derived from the latest sample time.
-  window_->RunAnimationFrameCallbacks();
-
   if (layout_dirty_) {
-    if (!was_dirty) {
-      // We want to catch the beginning of all layout processing.  If we weren't
-      // dirty before the call to RunAnimationFrameCallbacks(), then the flow
-      // starts here instead of there.
+    if (!has_layout_processing_started) {
+      // We want to catch the beginning of all layout processing.  If it didn't
+      // begin before the call to RunAnimationFrameCallbacks(), then the flow
+      // starts here instead.
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
@@ -301,12 +313,12 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 }
 
 LayoutManager::LayoutManager(
-    const scoped_refptr<dom::Window>& window,
+    const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     LayoutTrigger layout_trigger, const int dom_max_element_depth,
     const float layout_refresh_rate, const std::string& language,
     LayoutStatTracker* layout_stat_tracker)
-    : impl_(new Impl(window, on_render_tree_produced, layout_trigger,
+    : impl_(new Impl(name, window, on_render_tree_produced, layout_trigger,
                      dom_max_element_depth, layout_refresh_rate, language,
                      layout_stat_tracker)) {}
 
@@ -314,6 +326,9 @@ LayoutManager::~LayoutManager() {}
 
 void LayoutManager::Suspend() { impl_->Suspend(); }
 void LayoutManager::Resume() { impl_->Resume(); }
+bool LayoutManager::IsNewRenderTreePending() const {
+  return impl_->IsNewRenderTreePending();
+}
 
 }  // namespace layout
 }  // namespace cobalt

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <algorithm>
 #include <vector>
@@ -61,16 +59,18 @@ int GetLocation(const dom::KeyboardEvent::Data& event) {
   return keyboard_event->location();
 }
 
+// Less verbose redefinitions.
+const int kNoModifier = dom::UIEventWithKeyState::kNoModifier;
+const int kShift = dom::UIEventWithKeyState::kShiftKey;
+const int kAlt = dom::UIEventWithKeyState::kAltKey;
+const int kAltAndShift = kAlt | kShift;
+
+const int kLocationStandard =
+    dom::KeyboardEvent::kDomKeyLocationStandard;
+const int kLocationLeft = dom::KeyboardEvent::kDomKeyLocationLeft;
+
 class KeyboardTest : public ::testing::Test {
  protected:
-  // Less verbose redefinitions.
-  const int kNoModifier = dom::UIEventWithKeyState::kNoModifier;
-  const int kShift = dom::UIEventWithKeyState::kShiftKey;
-  const int kAlt = dom::UIEventWithKeyState::kAltKey;
-  const int kAltAndShift = kAlt | kShift;
-
-  const int kLocationStandard = dom::KeyboardEvent::kDomKeyLocationStandard;
-  const int kLocationLeft = dom::KeyboardEvent::kDomKeyLocationLeft;
   std::vector<int32> GetKeyCodes() {
     std::vector<int32> key_codes(events_.size());
     std::transform(events_.begin(), events_.end(), key_codes.begin(),
@@ -126,8 +126,9 @@ TEST_F(KeyboardTest, UpperCaseCharacter) {
   ASSERT_EQ(events_.size(), 5);
   EXPECT_THAT(GetTypes(),
               ElementsAre("keydown", "keydown", "keypress", "keyup", "keyup"));
-  EXPECT_THAT(GetKeyCodes(), ElementsAre(dom::keycode::kShift, 'R', 0, 'R',
-                                         dom::keycode::kShift));
+  EXPECT_THAT(GetKeyCodes(),
+              ElementsAre(static_cast<int>(dom::keycode::kShift), 'R', 0, 'R',
+                          static_cast<int>(dom::keycode::kShift)));
   EXPECT_THAT(GetCharCodes(), ElementsAre(0, 0, 'R', 0, 0));
   EXPECT_THAT(GetModifiers(),
               ElementsAre(kShift, kShift, kShift, kShift, kNoModifier));
@@ -146,8 +147,9 @@ TEST_F(KeyboardTest, ShiftedCharacter) {
   ASSERT_EQ(events_.size(), 5);
   EXPECT_THAT(GetTypes(),
               ElementsAre("keydown", "keydown", "keypress", "keyup", "keyup"));
-  EXPECT_THAT(GetKeyCodes(), ElementsAre(dom::keycode::kShift, '7', 0, '7',
-                                         dom::keycode::kShift));
+  EXPECT_THAT(GetKeyCodes(),
+              ElementsAre(static_cast<int>(dom::keycode::kShift), '7', 0, '7',
+                          static_cast<int>(dom::keycode::kShift)));
   EXPECT_THAT(GetCharCodes(), ElementsAre(0, 0, '&', 0, 0));
   EXPECT_THAT(GetModifiers(),
               ElementsAre(kShift, kShift, kShift, kShift, kNoModifier));
@@ -163,7 +165,8 @@ TEST_F(KeyboardTest, Modifier) {
 
   ASSERT_EQ(events_.size(), 1);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown"));
-  EXPECT_THAT(GetKeyCodes(), ElementsAre(dom::keycode::kMenu));
+  EXPECT_THAT(GetKeyCodes(),
+              ElementsAre(static_cast<int>(dom::keycode::kMenu)));
   EXPECT_THAT(GetCharCodes(), ElementsAre(0));
   EXPECT_THAT(GetModifiers(), ElementsAre(kAlt));
   EXPECT_THAT(GetLocations(), ElementsAre(kLocationLeft));
@@ -178,7 +181,8 @@ TEST_F(KeyboardTest, ModifiersAreKept) {
   ASSERT_EQ(events_.size(), 2);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown"));
   EXPECT_THAT(GetKeyCodes(),
-              ElementsAre(dom::keycode::kMenu, dom::keycode::kShift));
+              ElementsAre(static_cast<int>(dom::keycode::kMenu),
+                          static_cast<int>(dom::keycode::kShift)));
   EXPECT_THAT(GetCharCodes(), Each(Eq(0)));
   EXPECT_THAT(GetModifiers(), ElementsAre(kAlt, kAltAndShift));
   EXPECT_THAT(GetLocations(), Each(Eq(kLocationLeft)));
@@ -193,8 +197,10 @@ TEST_F(KeyboardTest, ModifiersAreReleased) {
   ASSERT_EQ(events_.size(), 4);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown", "keyup", "keyup"));
   EXPECT_THAT(GetKeyCodes(),
-              ElementsAre(dom::keycode::kMenu, dom::keycode::kShift,
-                          dom::keycode::kMenu, dom::keycode::kShift));
+              ElementsAre(static_cast<int>(dom::keycode::kMenu),
+                          static_cast<int>(dom::keycode::kShift),
+                          static_cast<int>(dom::keycode::kMenu),
+                          static_cast<int>(dom::keycode::kShift)));
   EXPECT_THAT(GetCharCodes(), Each(Eq(0)));
   EXPECT_THAT(GetModifiers(),
               ElementsAre(kAlt, kAltAndShift, kShift, kNoModifier));
@@ -208,7 +214,7 @@ TEST_F(KeyboardTest, SpecialCharacter) {
 
   ASSERT_EQ(events_.size(), 2);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keyup"));
-  EXPECT_THAT(GetKeyCodes(), Each(Eq(dom::keycode::kLeft)));
+  EXPECT_THAT(GetKeyCodes(), Each(Eq(static_cast<int>(dom::keycode::kLeft))));
   EXPECT_THAT(GetCharCodes(), Each(Eq(0)));
   EXPECT_THAT(GetModifiers(), Each(Eq(kNoModifier)));
   EXPECT_THAT(GetLocations(), Each(Eq(kLocationStandard)));
@@ -228,9 +234,10 @@ TEST_F(KeyboardTest, ModifierIsSticky) {
   EXPECT_THAT(GetTypes(),
               ElementsAre("keydown", "keydown", "keypress", "keyup", "keydown",
                           "keydown", "keypress", "keyup", "keyup"));
-  EXPECT_THAT(GetKeyCodes(), ElementsAre(dom::keycode::kMenu, 'A', 0, 'A',
-                                         dom::keycode::kShift, 'B', 0, 'B',
-                                         dom::keycode::kShift));
+  EXPECT_THAT(GetKeyCodes(),
+              ElementsAre(static_cast<int>(dom::keycode::kMenu), 'A', 0, 'A',
+                          static_cast<int>(dom::keycode::kShift), 'B', 0, 'B',
+                          static_cast<int>(dom::keycode::kShift)));
   EXPECT_THAT(GetCharCodes(), ElementsAre(0, 0, 'a', 0, 0, 0, 'B', 0, 0));
   EXPECT_THAT(GetModifiers(),
               ElementsAre(kAlt, kAlt, kAlt, kAlt, kAltAndShift, kAltAndShift,
@@ -253,8 +260,9 @@ TEST_F(KeyboardTest, ToggleModifier) {
   ASSERT_EQ(events_.size(), 8);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown", "keypress", "keyup",
                                       "keyup", "keydown", "keypress", "keyup"));
-  EXPECT_THAT(GetKeyCodes(), ElementsAre(dom::keycode::kShift, 'A', 0, 'A',
-                                         dom::keycode::kShift, 'A', 0, 'A'));
+  EXPECT_THAT(GetKeyCodes(),
+              ElementsAre(static_cast<int>(dom::keycode::kShift), 'A', 0, 'A',
+                          static_cast<int>(dom::keycode::kShift), 'A', 0, 'A'));
   EXPECT_THAT(GetCharCodes(), ElementsAre(0, 0, 'A', 0, 0, 0, 'a', 0));
 
   EXPECT_THAT(GetModifiers(),
@@ -278,10 +286,11 @@ TEST_F(KeyboardTest, NullClearsModifiers) {
   ASSERT_EQ(events_.size(), 7);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown", "keyup", "keyup",
                                       "keydown", "keypress", "keyup"));
-  EXPECT_THAT(
-      GetKeyCodes(),
-      ElementsAre(dom::keycode::kShift, dom::keycode::kMenu,
-                  dom::keycode::kMenu, dom::keycode::kShift, 'A', 0, 'A'));
+  EXPECT_THAT(GetKeyCodes(),
+              ElementsAre(static_cast<int>(dom::keycode::kShift),
+                          static_cast<int>(dom::keycode::kMenu),
+                          static_cast<int>(dom::keycode::kMenu),
+                          static_cast<int>(dom::keycode::kShift), 'A', 0, 'A'));
   EXPECT_THAT(GetCharCodes(), ElementsAre(0, 0, 0, 0, 0, 'a', 0));
 
   EXPECT_THAT(GetModifiers(),

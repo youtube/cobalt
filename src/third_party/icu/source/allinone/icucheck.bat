@@ -1,7 +1,7 @@
 @echo off
 REM  ********************************************************************
 REM  * COPYRIGHT:
-REM  * Copyright (c) 2010, International Business Machines Corporation
+REM  * Copyright (c) 2010-2014, International Business Machines Corporation
 REM  * and others. All Rights Reserved.
 REM  ********************************************************************
 
@@ -20,8 +20,14 @@ exit /b 1
 
 set ICU_OPATH=%PATH%
 
-set ICU_ICUDIR=%~f0\..\..\..
-set ICU_BINDIR=%ICU_ICUDIR%\bin
+set ICU_ICUDIR="%~dp0"\..\..
+
+if "%ICU_ARCH%" == "x64" (
+set ICU_BINDIR=%~dp0\..\..\bin64
+) else (
+set ICU_BINDIR=%~dp0\..\..\bin
+)
+
 set PATH=%ICU_BINDIR%;%PATH%
 
 echo testing ICU in %ICU_ICUDIR%  arch=%ICU_ARCH% type=%ICU_DBRL%
@@ -83,16 +89,17 @@ set ICUFAILCNT=0
 :OK_cintltst
 @set ICURUN=%ICURUN% %THT%
 
-@set THT=letest
-@echo ==== %THT% =========================================================================
-@cd %ICU_ICUDIR%\source\test\letest
-%LETST_CMD% %LETEST_OPTS%
+@REM  (Layout is deprecated)
+@REM  @set THT=letest
+@REM  @echo ==== %THT% =========================================================================
+@REM  @cd %ICU_ICUDIR%\source\test\letest
+@REM  %LETST_CMD% %LETEST_OPTS%
 
-@IF NOT ERRORLEVEL 1 GOTO OK_%THT%
-@set ICUFAILED=%ICUFAILED% %THT%
-@set ICUFAILCNT=1
-:OK_letest
-@set ICURUN=%ICURUN% %THT%
+@REM  @IF NOT ERRORLEVEL 1 GOTO OK_%THT%
+@REM  @set ICUFAILED=%ICUFAILED% %THT%
+@REM  @set ICUFAILCNT=1
+@REM  :OK_letest
+@REM  @set ICURUN=%ICURUN% %THT%
 
 @echo off
 
@@ -107,7 +114,7 @@ echo -
 echo -
 echo -
 echo ============================================================
-echo Summary:
+echo Summary: ICU in %ICU_ICUDIR%  arch=%ICU_ARCH% type=%ICU_DBRL%
 echo -
 echo Tests Run    : %ICURUN%
 

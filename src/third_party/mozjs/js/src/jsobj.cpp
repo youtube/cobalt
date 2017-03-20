@@ -50,6 +50,8 @@
 #include "vm/Shape-inl.h"
 #include "vm/StringObject-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -360,6 +362,7 @@ HasProperty(JSContext *cx, HandleObject obj, HandleId id, MutableHandleValue vp,
 bool
 PropDesc::initialize(JSContext *cx, const Value &origval, bool checkAccessors)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue v(cx, origval);
 
     /* 8.10.5 step 1 */
@@ -599,6 +602,7 @@ static JSBool
 DefinePropertyOnObject(JSContext *cx, HandleObject obj, HandleId id, const PropDesc &desc,
                        bool throwError, bool *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* 8.12.9 step 1. */
     RootedShape shape(cx);
     RootedObject obj2(cx);
@@ -1249,6 +1253,7 @@ static inline JSObject *
 NewObject(JSContext *cx, Class *clasp, types::TypeObject *type_, JSObject *parent,
           gc::AllocKind kind, NewObjectKind newKind)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(clasp != &ArrayClass);
     JS_ASSERT_IF(clasp == &JSFunction::class_,
                  kind == JSFunction::FinalizeKind || kind == JSFunction::ExtendedFinalizeKind);
@@ -1298,6 +1303,7 @@ js::NewObjectWithGivenProto(JSContext *cx, js::Class *clasp,
                             js::TaggedProto proto_, JSObject *parent_,
                             gc::AllocKind allocKind, NewObjectKind newKind)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<TaggedProto> proto(cx, proto_);
     RootedObject parent(cx, parent_);
 
@@ -1345,6 +1351,7 @@ JSObject *
 js::NewObjectWithClassProtoCommon(JSContext *cx, js::Class *clasp, JSObject *protoArg, JSObject *parentArg,
                                   gc::AllocKind allocKind, NewObjectKind newKind)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (protoArg)
         return NewObjectWithGivenProto(cx, clasp, protoArg, parentArg, allocKind, newKind);
 
@@ -1404,6 +1411,7 @@ JSObject *
 js::NewObjectWithType(JSContext *cx, HandleTypeObject type, JSObject *parent, gc::AllocKind allocKind,
                       NewObjectKind newKind /* = GenericObject */)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(type->proto->hasNewType(&ObjectClass, type));
     JS_ASSERT(parent);
 
@@ -1438,6 +1446,7 @@ js::NewObjectWithType(JSContext *cx, HandleTypeObject type, JSObject *parent, gc
 bool
 js::NewObjectScriptedCall(JSContext *cx, MutableHandleObject pobj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     jsbytecode *pc;
     RootedScript script(cx, cx->currentScript(&pc));
     gc::AllocKind allocKind = NewObjectGCKind(&ObjectClass);
@@ -1462,6 +1471,7 @@ JSObject *
 js::NewReshapedObject(JSContext *cx, HandleTypeObject type, JSObject *parent,
                       gc::AllocKind kind, HandleShape shape)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject res(cx, NewObjectWithType(cx, type, parent, kind));
     if (!res)
         return NULL;
@@ -1501,6 +1511,7 @@ js::NewReshapedObject(JSContext *cx, HandleTypeObject type, JSObject *parent,
 JSObject*
 js::CreateThis(JSContext *cx, Class *newclasp, HandleObject callee)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue protov(cx);
     if (!JSObject::getProperty(cx, callee, callee, cx->names().classPrototype, &protov))
         return NULL;
@@ -1515,6 +1526,7 @@ static inline JSObject *
 CreateThisForFunctionWithType(JSContext *cx, HandleTypeObject type, JSObject *parent,
                               NewObjectKind newKind)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (type->newScript) {
         /*
          * Make an object with the type's associated finalize kind and shape,
@@ -1541,6 +1553,7 @@ JSObject *
 js::CreateThisForFunctionWithProto(JSContext *cx, HandleObject callee, JSObject *proto,
                                   NewObjectKind newKind /* = GenericObject */)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSObject *res;
 
     if (proto) {
@@ -1564,6 +1577,7 @@ js::CreateThisForFunctionWithProto(JSContext *cx, HandleObject callee, JSObject 
 JSObject *
 js::CreateThisForFunction(JSContext *cx, HandleObject callee, bool newType)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue protov(cx);
     if (!JSObject::getProperty(cx, callee, callee, cx->names().classPrototype, &protov))
         return NULL;
@@ -1598,6 +1612,7 @@ js::CreateThisForFunction(JSContext *cx, HandleObject callee, bool newType)
 static bool
 Detecting(JSContext *cx, JSScript *script, jsbytecode *pc)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* General case: a branch or equality op follows the access. */
     JSOp op = JSOp(*pc);
     if (js_CodeSpec[op].format & JOF_DETECTING)
@@ -1642,6 +1657,7 @@ Detecting(JSContext *cx, JSScript *script, jsbytecode *pc)
 unsigned
 js_InferFlags(JSContext *cx, unsigned defaultFlags)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * We intentionally want to look across compartment boundaries to correctly
      * handle the case of cross-compartment property access.
@@ -1712,6 +1728,7 @@ JSObject::deleteByValue(JSContext *cx, HandleObject obj, const Value &property, 
 JS_FRIEND_API(bool)
 JS_CopyPropertiesFrom(JSContext *cx, JSObject *targetArg, JSObject *objArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject target(cx, targetArg);
     RootedObject obj(cx, objArg);
 
@@ -1753,6 +1770,7 @@ JS_CopyPropertiesFrom(JSContext *cx, JSObject *targetArg, JSObject *objArg)
 static bool
 CopySlots(JSContext *cx, HandleObject from, HandleObject to)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(!from->isNative() && !to->isNative());
     JS_ASSERT(from->getClass() == to->getClass());
 
@@ -1779,6 +1797,7 @@ CopySlots(JSContext *cx, HandleObject from, HandleObject to)
 JSObject *
 js::CloneObject(JSContext *cx, HandleObject obj, Handle<js::TaggedProto> proto, HandleObject parent)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!obj->isNative() && !obj->isProxy()) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
                              JSMSG_CANT_CLONE_OBJECT);
@@ -1808,6 +1827,7 @@ js::CloneObject(JSContext *cx, HandleObject obj, Handle<js::TaggedProto> proto, 
 JSObject *
 js::CloneObjectLiteral(JSContext *cx, HandleObject parent, HandleObject srcObj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<TypeObject*> typeObj(cx);
     typeObj = cx->global()->getOrCreateObjectPrototype(cx)->getNewType(cx, &ObjectClass);
 
@@ -1849,6 +1869,7 @@ bool
 JSObject::ReserveForTradeGuts(JSContext *cx, JSObject *aArg, JSObject *bArg,
                               TradeGutsReserved &reserved)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * Avoid GC in here to avoid confusing the tracing code with our
      * intermediate state.
@@ -1963,6 +1984,7 @@ JSObject::ReserveForTradeGuts(JSContext *cx, JSObject *aArg, JSObject *bArg,
 void
 JSObject::TradeGuts(JSContext *cx, JSObject *a, JSObject *b, TradeGutsReserved &reserved)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(a->compartment() == b->compartment());
     JS_ASSERT(a->is<JSFunction>() == b->is<JSFunction>());
 
@@ -2191,6 +2213,7 @@ js::DefineConstructorAndPrototype(JSContext *cx, HandleObject obj, JSProtoKey ke
                                   const JSPropertySpec *static_ps, const JSFunctionSpec *static_fs,
                                   JSObject **ctorp, AllocKind ctorKind)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * Create a prototype object for this class.
      *
@@ -2358,6 +2381,7 @@ js_InitClass(JSContext *cx, HandleObject obj, JSObject *protoProto_,
              const JSPropertySpec *static_ps, const JSFunctionSpec *static_fs,
              JSObject **ctorp, AllocKind ctorKind)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject protoProto(cx, protoProto_);
 
     RootedAtom atom(cx, Atomize(cx, clasp->name, strlen(clasp->name)));
@@ -2479,6 +2503,7 @@ ReallocateSlots(JSContext *cx, JSObject *obj, HeapSlot *oldSlots,
 /* static */ bool
 JSObject::growSlots(JSContext *cx, HandleObject obj, uint32_t oldCount, uint32_t newCount)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(newCount > oldCount);
     JS_ASSERT(newCount >= SLOT_CAPACITY_MIN);
 
@@ -2583,6 +2608,7 @@ JSObject::shrinkSlots(JSContext *cx, HandleObject obj, uint32_t oldCount, uint32
 /* static */ bool
 JSObject::sparsifyDenseElement(JSContext *cx, HandleObject obj, uint32_t index)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, obj->getDenseElement(index));
     JS_ASSERT(!value.isMagic(JS_ELEMENTS_HOLE));
 
@@ -2603,6 +2629,7 @@ JSObject::sparsifyDenseElement(JSContext *cx, HandleObject obj, uint32_t index)
 /* static */ bool
 JSObject::sparsifyDenseElements(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     uint32_t initialized = obj->getDenseInitializedLength();
 
     /* Create new properties with the value of non-hole dense elements. */
@@ -2662,6 +2689,7 @@ JSObject::willBeSparseElements(uint32_t requiredCapacity, uint32_t newElementsHi
 /* static */ JSObject::EnsureDenseResult
 JSObject::maybeDensifySparseElements(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * Wait until after the object goes into dictionary mode, which must happen
      * when sparsely packing any array with more than MIN_SPARSE_INDEX elements
@@ -2774,6 +2802,7 @@ JSObject::maybeDensifySparseElements(JSContext *cx, HandleObject obj)
 ObjectElements *
 AllocateElements(ThreadSafeContext *tcx, JSObject *obj, uint32_t nelems)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #ifdef JSGC_GENERATIONAL
     if (tcx->isJSContext()) {
         JSContext *cx = tcx->asJSContext();
@@ -2788,6 +2817,7 @@ ObjectElements *
 ReallocateElements(ThreadSafeContext *tcx, JSObject *obj, ObjectElements *oldHeader,
                    uint32_t oldCount, uint32_t newCount)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #ifdef JSGC_GENERATIONAL
     if (tcx->isJSContext()) {
         JSContext *cx = tcx->asJSContext();
@@ -2802,6 +2832,7 @@ ReallocateElements(ThreadSafeContext *tcx, JSObject *obj, ObjectElements *oldHea
 bool
 JSObject::growElements(ThreadSafeContext *tcx, uint32_t newcap)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(isExtensible());
     JS_ASSERT_IF(isArray() && !arrayLengthIsWritable(),
                  newcap <= getArrayLength());
@@ -2999,6 +3030,7 @@ js::SetClassAndProto(JSContext *cx, HandleObject obj,
 bool
 js_GetClassObject(JSContext *cx, JSObject *obj, JSProtoKey key, MutableHandleObject objp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject global(cx, &obj->global());
     if (!global->is<GlobalObject>()) {
         objp.set(NULL);
@@ -3097,6 +3129,7 @@ js_FindClassObject(JSContext *cx, JSProtoKey protoKey, MutableHandleValue vp, Cl
 /* static */ bool
 JSObject::allocSlot(JSContext *cx, HandleObject obj, uint32_t *slotp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     uint32_t slot = obj->slotSpan();
     JS_ASSERT(slot >= JSSLOT_FREE(obj->getClass()));
 
@@ -3164,6 +3197,7 @@ JSObject::freeSlot(uint32_t slot)
 static bool
 PurgeProtoChain(JSContext *cx, JSObject *objArg, HandleId id)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Root locally so we can re-assign. */
     RootedObject obj(cx, objArg);
 
@@ -3190,6 +3224,7 @@ PurgeProtoChain(JSContext *cx, JSObject *objArg, HandleId id)
 bool
 js_PurgeScopeChainHelper(JSContext *cx, HandleObject objArg, HandleId id)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Re-root locally so we can re-assign. */
     RootedObject obj(cx, objArg);
 
@@ -3223,6 +3258,7 @@ js_AddNativeProperty(JSContext *cx, HandleObject obj, HandleId id,
                      PropertyOp getter, StrictPropertyOp setter, uint32_t slot,
                      unsigned attrs, unsigned flags, int shortid)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /*
      * Purge the property cache of now-shadowed id in obj's scope chain. Do
      * this optimistically (assuming no failure below) before locking obj, so
@@ -3246,6 +3282,7 @@ JSBool
 baseops::DefineGeneric(JSContext *cx, HandleObject obj, HandleId id, HandleValue value,
                        PropertyOp getter, StrictPropertyOp setter, unsigned attrs)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return DefineNativeProperty(cx, obj, id, value, getter, setter, attrs, 0, 0);
 }
 
@@ -3253,6 +3290,7 @@ JSBool
 baseops::DefineElement(JSContext *cx, HandleObject obj, uint32_t index, HandleValue value,
                        PropertyOp getter, StrictPropertyOp setter, unsigned attrs)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<jsid> id(cx);
     if (index <= JSID_INT_MAX) {
         id = INT_TO_JSID(index);
@@ -3277,6 +3315,7 @@ static inline bool
 CallAddPropertyHook(JSContext *cx, Class *clasp, HandleObject obj, HandleShape shape,
                     HandleValue nominal)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (clasp->addProperty != JS_PropertyStub) {
         /* Make a local copy of value so addProperty can mutate its inout parameter. */
         RootedValue value(cx, nominal);
@@ -3298,6 +3337,7 @@ static inline bool
 CallAddPropertyHookDense(JSContext *cx, Class *clasp, HandleObject obj, uint32_t index,
                          HandleValue nominal)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Inline addProperty for array objects. */
     if (obj->isArray()) {
         uint32_t length = obj->getArrayLength();
@@ -3327,6 +3367,7 @@ DefinePropertyOrElement(JSContext *cx, HandleObject obj, HandleId id,
                         unsigned attrs, unsigned flags, int shortid,
                         HandleValue value, bool callSetterAfterwards, bool setterIsStrict)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Use dense storage for new indexed properties where possible. */
     if (JSID_IS_INT(id) &&
         getter == JS_PropertyStub &&
@@ -3406,6 +3447,7 @@ js::DefineNativeProperty(JSContext *cx, HandleObject obj, HandleId id, HandleVal
                          PropertyOp getter, StrictPropertyOp setter, unsigned attrs,
                          unsigned flags, int shortid, unsigned defineHow /* = 0 */)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT((defineHow & ~(DNP_DONT_PURGE | DNP_SKIP_TYPE)) == 0);
     JS_ASSERT(!(attrs & JSPROP_NATIVE_ACCESSORS));
 
@@ -3517,6 +3559,7 @@ static JS_ALWAYS_INLINE JSBool
 CallResolveOp(JSContext *cx, HandleObject obj, HandleId id, unsigned flags,
               MutableHandleObject objp, MutableHandleShape propp, bool *recursedp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Class *clasp = obj->getClass();
     JSResolveOp resolve = clasp->resolve;
 
@@ -3593,6 +3636,7 @@ LookupPropertyWithFlagsInline(JSContext *cx,
                               typename MaybeRooted<JSObject*, allowGC>::MutableHandleType objp,
                               typename MaybeRooted<Shape*, allowGC>::MutableHandleType propp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* NB: The logic of this procedure is implicitly reflected in IonBuilder.cpp's
      *     |CanEffectlesslyCallLookupGenericOnObject| logic.
      *     If this changes, please remember to update the logic there as well.
@@ -3675,6 +3719,7 @@ baseops::LookupProperty(JSContext *cx,
                         typename MaybeRooted<JSObject*, allowGC>::MutableHandleType objp,
                         typename MaybeRooted<Shape*, allowGC>::MutableHandleType propp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* NB: The logic of this procedure is implicitly reflected in IonBuilder.cpp's
      *     |CanEffectlesslyCallLookupGenericOnObject| logic.
      *     If this changes, please remember to update the logic there as well.
@@ -3786,6 +3831,7 @@ NativeGetInline(JSContext *cx,
                 unsigned getHow,
                 typename MaybeRooted<Value, allowGC>::MutableHandleType vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(pobj->isNative());
 
     if (shape->hasSlot()) {
@@ -3846,6 +3892,7 @@ JSBool
 js_NativeGet(JSContext *cx, Handle<JSObject*> obj, Handle<JSObject*> pobj, Handle<Shape*> shape,
              unsigned getHow, MutableHandle<Value> vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return NativeGetInline<CanGC>(cx, obj, obj, pobj, shape, getHow, vp);
 }
 
@@ -3854,6 +3901,7 @@ JSBool
 js_NativeSet(JSContext *cx, Handle<JSObject*> obj, Handle<JSObject*> receiver,
              HandleShape shape, bool strict, MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(obj->isNative());
 
     if (shape->hasSlot()) {
@@ -3906,6 +3954,7 @@ GetPropertyHelperInline(JSContext *cx,
                         uint32_t getHow,
                         typename MaybeRooted<Value, allowGC>::MutableHandleType vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* This call site is hot -- use the always-inlined variant of LookupPropertyWithFlags(). */
     typename MaybeRooted<JSObject*, allowGC>::RootType obj2(cx);
     typename MaybeRooted<Shape*, allowGC>::RootType shape(cx);
@@ -4010,6 +4059,7 @@ GetPropertyHelperInline(JSContext *cx,
 bool
 js::GetPropertyHelper(JSContext *cx, HandleObject obj, HandleId id, uint32_t getHow, MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return GetPropertyHelperInline<CanGC>(cx, obj, obj, id, getHow, vp);
 }
 
@@ -4869,6 +4919,7 @@ js_GetClassPrototype(JSContext *cx, JSProtoKey protoKey, MutableHandleObject pro
 JSObject *
 PrimitiveToObject(JSContext *cx, const Value &v)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (v.isString()) {
         Rooted<JSString*> str(cx, v.toString());
         return StringObject::create(cx, str);
@@ -4883,6 +4934,7 @@ PrimitiveToObject(JSContext *cx, const Value &v)
 JSBool
 js_PrimitiveToObject(JSContext *cx, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSObject *obj = PrimitiveToObject(cx, *vp);
     if (!obj)
         return false;
@@ -4894,6 +4946,7 @@ js_PrimitiveToObject(JSContext *cx, Value *vp)
 JSBool
 js_ValueToObjectOrNull(JSContext *cx, const Value &v, MutableHandleObject objp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSObject *obj;
 
     if (v.isObjectOrNull()) {
@@ -4913,6 +4966,7 @@ js_ValueToObjectOrNull(JSContext *cx, const Value &v, MutableHandleObject objp)
 JSObject *
 js::ToObjectSlow(JSContext *cx, HandleValue val, bool reportScanStack)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(!val.isMagic());
     JS_ASSERT(!val.isObject());
 
@@ -4932,6 +4986,7 @@ js::ToObjectSlow(JSContext *cx, HandleValue val, bool reportScanStack)
 JSObject *
 js_ValueToNonNullObject(JSContext *cx, const Value &v)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx);
 
     if (!js_ValueToObjectOrNull(cx, v, &obj))

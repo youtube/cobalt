@@ -215,14 +215,11 @@ Here's a quick and dirty guide to get to build the code on Linux.
 
          cobalt/build/gyp_cobalt -C debug linux-x64x11
 
-  8. If you get a "clang not found" error, add the path to Cobalt's clang to
-     your `$PATH` and rerun `gyp_cobalt` as above. For example:
-     `/path/to/cobalt/src/third_party/llvm-build/Release+Asserts/bin`
-  9. Run Ninja:
+  8. Run Ninja:
 
          ninja -C out/linux-x64x11_debug cobalt
 
-  10. Run Cobalt:
+  9. Run Cobalt:
 
          out/linux-x64x11_debug/cobalt [--url=<url>]
 

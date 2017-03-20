@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (C) 1999-2008, International Business Machines
+*   Copyright (C) 1999-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *   Date        Name        Description
@@ -12,6 +12,7 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unifilt.h"
 #include "unicode/uniset.h"
 #include "cpdtrans.h"
@@ -24,8 +25,6 @@
 static const UChar ID_DELIM = 0x003B; /*;*/
 static const UChar NEWLINE  = 10;
 
-// Empty string
-static const UChar EMPTY[] = {0}; //""
 static const UChar COLON_COLON[] = {0x3A, 0x3A, 0}; //"::"
 
 U_NAMESPACE_BEGIN
@@ -110,7 +109,7 @@ CompoundTransliterator::CompoundTransliterator(const UnicodeString& newID,
 CompoundTransliterator::CompoundTransliterator(UVector& list,
                                                UParseError& /*parseError*/,
                                                UErrorCode& status) :
-    Transliterator(EMPTY, NULL),
+    Transliterator(UnicodeString(), NULL),
     trans(0), numAnonymousRBTs(0)
 {
     // TODO add code for parseError...currently unused, but
@@ -123,7 +122,7 @@ CompoundTransliterator::CompoundTransliterator(UVector& list,
                                                int32_t anonymousRBTs,
                                                UParseError& /*parseError*/,
                                                UErrorCode& status) :
-    Transliterator(EMPTY, NULL),
+    Transliterator(UnicodeString(), NULL),
     trans(0), numAnonymousRBTs(anonymousRBTs)
 {
     init(list, UTRANS_FORWARD, FALSE, status);
@@ -404,7 +403,7 @@ UnicodeString& CompoundTransliterator::toRules(UnicodeString& rulesSource,
         // If we are a compound RBT and if we have a global
         // filter, then emit it at the top.
         UnicodeString pat;
-        rulesSource.append(COLON_COLON).append(getFilter()->toPattern(pat, escapeUnprintable)).append(ID_DELIM);
+        rulesSource.append(COLON_COLON, 2).append(getFilter()->toPattern(pat, escapeUnprintable)).append(ID_DELIM);
     }
     for (int32_t i=0; i<count; ++i) {
         UnicodeString rule;
@@ -413,9 +412,9 @@ UnicodeString& CompoundTransliterator::toRules(UnicodeString& rulesSource,
         // ::BEGIN/::END blocks) are given IDs that begin with
         // "%Pass": use toRules() to write all the rules to the output
         // (and insert "::Null;" if we have two in a row)
-        if (trans[i]->getID().startsWith(PASS_STRING)) {
+        if (trans[i]->getID().startsWith(PASS_STRING, 5)) {
             trans[i]->toRules(rule, escapeUnprintable);
-            if (numAnonymousRBTs > 1 && i > 0 && trans[i - 1]->getID().startsWith(PASS_STRING))
+            if (numAnonymousRBTs > 1 && i > 0 && trans[i - 1]->getID().startsWith(PASS_STRING, 5))
                 rule = UNICODE_STRING_SIMPLE("::Null;") + rule;
 
         // we also use toRules() on CompoundTransliterators (which we

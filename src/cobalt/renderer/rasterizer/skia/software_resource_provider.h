@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RESOURCE_PROVIDER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_RESOURCE_PROVIDER_H_
@@ -45,6 +43,23 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
 
   scoped_refptr<render_tree::Image> CreateImage(
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
+
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE {
+    NOTREACHED();
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    SbDecodeTargetDestroy(decode_target);
+#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    SbDecodeTargetRelease(decode_target);
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    return NULL;
+  }
+
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+
+  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) OVERRIDE;
@@ -87,7 +102,6 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
                      render_tree::FontVector* maybe_used_fonts) OVERRIDE;
 
  private:
-  SkAutoTUnref<SkFontMgr> font_manager_;
   TextShaper text_shaper_;
 };
 

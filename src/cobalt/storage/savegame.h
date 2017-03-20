@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_STORAGE_SAVEGAME_H_
 #define COBALT_STORAGE_SAVEGAME_H_
@@ -60,8 +58,9 @@ class Savegame {
   virtual ~Savegame();
 
   // Load savegame and return its contents as a vector of bytes.
+  // If the savegame file is greater than max_to_read, fail.
   // Return true on success, false on failure.
-  bool Read(ByteVector* bytes);
+  bool Read(ByteVector* bytes, size_t max_to_read);
 
   // Write the given blob to the savegame.
   // Return true on success, false on failure.
@@ -74,7 +73,7 @@ class Savegame {
 
  protected:
   explicit Savegame(const Options& options);
-  virtual bool PlatformRead(ByteVector* bytes) = 0;
+  virtual bool PlatformRead(ByteVector* bytes, size_t max_to_read) = 0;
   virtual bool PlatformWrite(const ByteVector& bytes) = 0;
   virtual bool PlatformDelete() = 0;
   Options options_;

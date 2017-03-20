@@ -1,29 +1,29 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DOM_TYPED_ARRAY_H_
 #define COBALT_DOM_TYPED_ARRAY_H_
-
-#include <memory.h>  // for memcpy
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
 
 namespace cobalt {
 namespace dom {
@@ -50,7 +50,11 @@ class TypedArray : public ArrayBufferView {
              uint32 length)
       : ArrayBufferView(new ArrayBuffer(settings, length * kBytesPerElement)) {
     DCHECK_EQ(this->length(), length);
+#if defined(STARBOARD)
+    SbMemoryCopy(this->data(), data, length * kBytesPerElement);
+#else
     memcpy(this->data(), data, length * kBytesPerElement);
+#endif
   }
 
   // Creates a new TypedArray and copies the elements of 'other' into this.
@@ -123,8 +127,13 @@ class TypedArray : public ArrayBufferView {
     }
     uint32 source_offset = 0;
     while (source_offset < source->length()) {
+#if defined(STARBOARD)
+      SbMemoryCopy(data() + offset, source->data() + source_offset,
+             sizeof(ElementType));
+#else
       memcpy(data() + offset, source->data() + source_offset,
              sizeof(ElementType));
+#endif
       ++offset;
       ++source_offset;
     }
@@ -138,14 +147,22 @@ class TypedArray : public ArrayBufferView {
   // Write a single element of the array.
   void Set(uint32 index, ElementType val) {
     if (index < length()) {
+#if defined(STARBOARD)
+      SbMemoryCopy(data() + index, &val, sizeof(ElementType));
+#else
       memcpy(data() + index, &val, sizeof(ElementType));
+#endif
     }
   }
 
   ElementType Get(uint32 index) const {
     if (index < length()) {
       ElementType val;
+#if defined(STARBOARD)
+      SbMemoryCopy(&val, data() + index, sizeof(ElementType));
+#else
       memcpy(&val, data() + index, sizeof(ElementType));
+#endif
       return val;
     } else {
       // TODO: an out of bounds index should return undefined.

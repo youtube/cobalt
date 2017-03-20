@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/pipeline.h"
 
@@ -49,9 +47,13 @@ const double kTimeToConvergeInMS = 500.0;
 const int kRendererThreadStackSize =
     128 * 1024 + base::kAsanAdditionalStackSize;
 
-// How frequently the CVal stats for rasterize current tree timing should
-// update. The time interval is in milliseconds.
-const int64 kRasterizeCurrentTreeTimerTimeIntervalInMs = 1000;
+// How many entries the rasterize periodic timer will contain before updating.
+const size_t kRasterizePeriodicTimerEntriesPerUpdate = 60;
+
+// The maxiumum numer of entries that the rasterize animations timer can contain
+// before automatically updating. In the typical use case, the update will
+// occur manually when the animations expire.
+const size_t kRasterizeAnimationsTimerMaxEntries = 60;
 
 void DestructSubmissionOnMessageLoop(MessageLoop* message_loop,
                                      scoped_ptr<Submission> submission) {
@@ -74,11 +76,16 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       submission_disposal_thread_("Rasterizer Submission Disposal"),
       submit_even_if_render_tree_is_unchanged_(
           submit_even_if_render_tree_is_unchanged),
-      rasterize_current_tree_interval_timer_(
-          "Renderer.Rasterize.Interval",
-          kRasterizeCurrentTreeTimerTimeIntervalInMs),
-      rasterize_current_tree_timer_("Renderer.Rasterize.Duration",
-                                    kRasterizeCurrentTreeTimerTimeIntervalInMs)
+      last_render_animations_active_(false),
+      rasterize_periodic_timer_("Renderer.Rasterize.Duration",
+                                kRasterizePeriodicTimerEntriesPerUpdate,
+                                false /*enable_entry_list_c_val*/),
+      rasterize_animations_timer_("Renderer.Rasterize.Animations",
+                                  kRasterizeAnimationsTimerMaxEntries,
+                                  true /*enable_entry_list_c_val*/),
+      has_active_animations_c_val_(
+          "Renderer.HasActiveAnimations", false,
+          "Is non-zero if the current render tree has active animations.")
 #if defined(ENABLE_DEBUG_CONSOLE)
       ,
       ALLOW_THIS_IN_INITIALIZER_LIST(dump_current_render_tree_command_handler_(
@@ -127,7 +134,7 @@ Pipeline::~Pipeline() {
   // This potential reference to a render tree whose animations may have ended
   // must be destroyed before we shutdown the rasterizer thread since it may
   // contain references to render tree nodes and resources.
-  last_rendered_expired_render_tree_ = NULL;
+  last_render_tree_ = NULL;
 
   // Submit a shutdown task to the rasterizer thread so that it can shutdown
   // anything that must be shutdown from that thread.
@@ -198,11 +205,11 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   // Start the rasterization timer if it is not yet started.
   if (!rasterize_timer_) {
-    // We artificially limit the period between submissions to 15ms, in case
-    // a platform does not rate limit itself during swaps.  This limit may need
-    // to be reduced if we wish to support 120 FPS animations.
+    // We artificially limit the period between submissions to 7ms, in case a
+    // platform does not rate limit itself during swaps. This was changed from
+    // 15ms to accommodate 120fps requirements on some platforms.
     rasterize_timer_.emplace(
-        FROM_HERE, base::TimeDelta::FromMilliseconds(15),
+        FROM_HERE, base::TimeDelta::FromMilliseconds(7),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true, true);
     rasterize_timer_->Reset();
@@ -229,35 +236,69 @@ void Pipeline::RasterizeCurrentTree() {
   base::TimeTicks now = base::TimeTicks::Now();
   Submission submission = submission_queue_->GetCurrentSubmission(now);
 
-  // If our render tree hasn't changed from the one that was previously rendered
-  // and the animations on the previously rendered tree have expired, and it's
-  // okay on this system to not flip the display buffer frequently, then we
-  // can just not do anything here.
-  if (!submit_even_if_render_tree_is_unchanged_ &&
-      submission.render_tree == last_rendered_expired_render_tree_) {
+  bool has_render_tree_changed = last_render_animations_active_ ||
+                                 submission.render_tree != last_render_tree_;
+
+  // If our render tree hasn't changed from the one that was previously
+  // rendered and it's okay on this system to not flip the display buffer
+  // frequently, then we can just not do anything here.
+  if (!submit_even_if_render_tree_is_unchanged_ && !has_render_tree_changed) {
     return;
   }
 
-  rasterize_current_tree_interval_timer_.Start(now);
-  rasterize_current_tree_timer_.Start(now);
+  // Check whether the animations in the render tree that is being rasterized
+  // are active.
+  render_tree::animations::AnimateNode* animate_node =
+      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+          submission.render_tree.get());
+  bool are_animations_active = animate_node->expiry() > submission.time_offset;
+
+  // If animations are going from being inactive to active, then set the c_val
+  // prior to starting the animation so that it's in the correct state while the
+  // tree is being rendered.
+  if (!last_render_animations_active_ && are_animations_active) {
+    has_active_animations_c_val_ = true;
+  }
+
+  // The rasterization is only timed with the periodic timer when the render
+  // tree has changed. This ensures that the frames being timed are consistent
+  // between platforms that submit unchanged trees and those that don't.
+  bool should_run_periodic_timer = has_render_tree_changed;
+
+  // The rasterization is only timed with the animations timer when there are
+  // animations to track. This applies when animations were active during either
+  // the last rasterization or the current one. The reason for including the
+  // last one is that if animations have just expired, then this rasterization
+  // produces the final state of the animated tree.
+  bool should_run_animations_timer =
+      last_render_animations_active_ || are_animations_active;
+
+  if (should_run_periodic_timer) {
+    rasterize_periodic_timer_.Start(now);
+  }
+  if (should_run_animations_timer) {
+    rasterize_animations_timer_.Start(now);
+  }
 
   // Rasterize the last submitted render tree.
   RasterizeSubmissionToRenderTarget(submission, render_target_);
 
-  rasterize_current_tree_timer_.Stop();
-
-  // Check whether the animations in the render tree that was just rasterized
-  // have expired or not, and if so, mark that down so that if we see it in
-  // the future we don't spend the time re-rendering it.
-  if (!submit_even_if_render_tree_is_unchanged_) {
-    render_tree::animations::AnimateNode* animate_node =
-        base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
-            submission.render_tree.get());
-    last_rendered_expired_render_tree_ =
-        animate_node->expiry() <= submission.time_offset
-            ? submission.render_tree
-            : NULL;
+  if (should_run_periodic_timer) {
+    rasterize_periodic_timer_.Stop();
   }
+  if (should_run_animations_timer) {
+    rasterize_animations_timer_.Stop();
+  }
+
+  // If animations are going from being active to expired, then set the c_val
+  // after rasterizing the final state of the tree. Now that we've finished
+  // tracking the animations, it's time to flush the timer.
+  if (last_render_animations_active_ && !are_animations_active) {
+    has_active_animations_c_val_ = false;
+    rasterize_animations_timer_.Flush();
+  }
+
+  last_render_animations_active_ = are_animations_active;
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
@@ -265,19 +306,51 @@ void Pipeline::RasterizeSubmissionToRenderTarget(
     const scoped_refptr<backend::RenderTarget>& render_target) {
   TRACE_EVENT0("cobalt::renderer",
                "Pipeline::RasterizeSubmissionToRenderTarget()");
+
+  // Keep track of the last render tree that we rendered so that we can watch
+  // if it changes, in which case we should reset our tracked
+  // |previous_animated_area_|.
+  if (submission.render_tree != last_render_tree_) {
+    last_render_tree_ = submission.render_tree;
+    previous_animated_area_ = base::nullopt;
+    last_render_time_ = base::nullopt;
+  }
+
   // Animate the render tree using the submitted animations.
   render_tree::animations::AnimateNode* animate_node =
       base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
           submission.render_tree.get());
-  scoped_refptr<Node> animated_render_tree =
+
+  // Some animations require a GL graphics context to be current.  Specifically,
+  // a call to SbPlayerGetCurrentFrame() may be made to get the current video
+  // frame to drive a video-as-an-animated-image.
+  rasterizer_->MakeCurrent();
+
+  render_tree::animations::AnimateNode::AnimateResults results =
       animate_node->Apply(submission.time_offset);
 
+  // Calculate a bounding box around the active animations.  Union it with the
+  // bounding box around active animations from the previous frame, and we get
+  // a scissor rectangle marking the dirty regions of the screen.
+  math::RectF animated_bounds = results.get_animation_bounds_since.Run(
+      last_render_time_ ? *last_render_time_ : base::TimeDelta());
+  math::Rect rounded_bounds = math::RoundOut(animated_bounds);
+  base::optional<math::Rect> redraw_area;
+  if (previous_animated_area_) {
+    redraw_area = math::UnionRects(rounded_bounds, *previous_animated_area_);
+  }
+  previous_animated_area_ = rounded_bounds;
+
   // Rasterize the animated render tree.
-  rasterizer_->Submit(animated_render_tree, render_target);
+  rasterizer::Rasterizer::Options rasterizer_options;
+  rasterizer_options.dirty = redraw_area;
+  rasterizer_->Submit(results.animated, render_target, rasterizer_options);
 
   if (!submission.on_rasterized_callback.is_null()) {
     submission.on_rasterized_callback.Run();
   }
+
+  last_render_time_ = submission.time_offset;
 }
 
 void Pipeline::InitializeRasterizerThread(
@@ -352,11 +425,10 @@ void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
   render_tree::animations::AnimateNode* animate_node =
       base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
           submission.render_tree.get());
-  scoped_refptr<Node> animated_render_tree =
+  render_tree::animations::AnimateNode::AnimateResults results =
       animate_node->Apply(submission.time_offset);
 
-  std::string tree_dump =
-      render_tree::DumpRenderTreeToString(animated_render_tree);
+  std::string tree_dump = render_tree::DumpRenderTreeToString(results.animated);
   if (message.empty() || message == "undefined") {
     // If no filename was specified, send output to the console.
     LOG(INFO) << tree_dump.c_str();

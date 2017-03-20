@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2009, International Business Machines Corporation and
+ * Copyright (c) 1997-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -224,10 +224,22 @@ public:
     //
     void Test4146160(/* char* par */);
 
-	// Ticket 7189
-	//
-	// nextSortKeyPart incorrect for EO_S1 collation
-	void TestT7189();
+    void Test4179216();
+
+    // Ticket 7189
+    //
+    // nextSortKeyPart incorrect for EO_S1 collation
+    //
+    void TestT7189();
+
+    // Ticket 8624
+    //
+    // Tertiary value compression problem with case first option enabled
+    //
+    void TestCaseFirstCompression();
+
+    void TestTrailingComment();
+    void TestBeforeWithTooStrongAfter();
 
 private:
     //------------------------------------------------------------------------
@@ -242,6 +254,7 @@ private:
 
     RuleBasedCollator *en_us;
 
+    void caseFirstCompressionSub(Collator *col, UnicodeString opt);
 };
 
 #endif /* #if !UCONFIG_NO_COLLATION */

@@ -9,6 +9,7 @@
 
 namespace {
 
+#if !defined(UCONFIG_NO_COLLATION)
 bool CollationSensitiveStringSearch(const string16& find_this,
                                     const string16& in_this,
                                     UCollationStrength strength,
@@ -57,6 +58,7 @@ bool CollationSensitiveStringSearch(const string16& find_this,
   usearch_close(search);
   return true;
 }
+#endif  //  !defined(UCONFIG_NO_COLLATION)
 
 }  // namespace
 
@@ -67,11 +69,26 @@ bool StringSearchIgnoringCaseAndAccents(const string16& find_this,
                                         const string16& in_this,
                                         size_t* match_index,
                                         size_t* match_length) {
+#if defined(UCONFIG_NO_COLLATION)
+  // If collation is not used, and this function is called, try to do the most
+  // correct thing possible (basic substring search).
+  std::string::size_type index = in_this.find(find_this);
+  if (index == string16::npos) {
+    return false;
+  } else {
+    if (match_index)
+      *match_index = index;
+    if (match_length)
+      *match_length = find_this.size();
+    return true;
+  }
+#else
   return CollationSensitiveStringSearch(find_this,
                                         in_this,
                                         UCOL_PRIMARY,
                                         match_index,
                                         match_length);
+#endif  // defined(UCONFIG_NO_COLLATION)
 }
 
 }  // namespace i18n

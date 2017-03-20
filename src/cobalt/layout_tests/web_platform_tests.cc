@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <ostream>
 #include <sstream>
@@ -177,8 +175,8 @@ std::string RunWebPlatformTest(const GURL& url) {
                       &run_loop, MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       base::Closure() /* window_close_callback */, media_module.get(),
-      &network_module, kDefaultViewportSize, &resource_provider, 60.0f,
-      web_module_options);
+      &network_module, kDefaultViewportSize, &resource_provider,
+      media_module->system_window(), 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
@@ -219,38 +217,30 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
   return test_results;
 }
 
-::testing::AssertionResult CheckResults(
-    const char* /* expectation_str */, const char* /* results_str */,
-    WebPlatformTestInfo::State expectation,
-    const std::vector<TestResult>& results) {
-  WebPlatformTestInfo::State outcome = WebPlatformTestInfo::kPass;
-  if (results.size() == 0) {
-    outcome = WebPlatformTestInfo::kFail;
-  }
+::testing::AssertionResult CheckResult(const char* /* expectation_str */,
+                                       const char* /* results_str */,
+                                       bool should_pass,
+                                       const TestResult& result) {
+  bool test_passed = result.status == WebPlatformTestInfo::kPass;
 
-  std::ostringstream output;
-  for (std::vector<TestResult>::const_iterator it = results.begin();
-       it != results.end(); ++it) {
-    if (it->status != kPass) {
-      outcome = WebPlatformTestInfo::kFail;
-    }
-    output << std::endl
-           << "Test \"" << it->name
-           << "\" status: " << TestStatusToString(it->status);
-    if (!it->message.empty()) {
-      output << std::endl << it->message;
-    }
-    if (!it->stack.empty()) {
-      output << std::endl << it->stack;
-    }
-  }
-
-  if (outcome == expectation) {
+  if (test_passed == should_pass) {
     return ::testing::AssertionSuccess();
   } else {
+    std::ostringstream output;
+    output << std::endl
+           << "Test \"" << result.name
+           << "\" status: " << TestStatusToString(result.status);
+    if (!result.message.empty()) {
+      output << std::endl << result.message;
+    }
+    if (!result.stack.empty()) {
+      output << std::endl << result.stack;
+    }
+    WebPlatformTestInfo::State expectation =
+        should_pass ? WebPlatformTestInfo::kPass : WebPlatformTestInfo::kFail;
     return ::testing::AssertionFailure()
            << "Expected: " << TestStatusToString(expectation) << std::endl
-           << "Actual: " << TestStatusToString(outcome) << std::endl
+           << "Actual: " << TestStatusToString(result.status) << std::endl
            << output.str();
   }
 }
@@ -284,7 +274,17 @@ TEST_P(WebPlatformTest, Run) {
 
   std::string json_results = RunWebPlatformTest(test_url);
   std::vector<TestResult> results = ParseResults(json_results);
-  EXPECT_PRED_FORMAT2(CheckResults, GetParam().expectation, results);
+  for (size_t i = 0; i < results.size(); ++i) {
+    const WebPlatformTestInfo& test_info = GetParam();
+    const TestResult& test_result = results[i];
+    bool should_pass = test_info.expectation == WebPlatformTestInfo::kPass;
+    std::set<std::string>::const_iterator it =
+        test_info.exceptions.find(test_result.name);
+    if (it != test_info.exceptions.end()) {
+      should_pass = !should_pass;
+    }
+    EXPECT_PRED_FORMAT2(CheckResult, should_pass, test_result);
+  }
 }
 
 // Disable on Windows until network stack is implemented.
@@ -297,6 +297,9 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     csp, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("content-security-policy")));
+
+INSTANTIATE_TEST_CASE_P(dom, WebPlatformTest,
+                        ::testing::ValuesIn(EnumerateWebPlatformTests("dom")));
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests

@@ -1,18 +1,21 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/media_source/media_source.h"
+#define COBALT_DOM_MEDIA_SOURCE_H_
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 #ifndef COBALT_DOM_MEDIA_SOURCE_H_
 #define COBALT_DOM_MEDIA_SOURCE_H_
@@ -45,11 +48,14 @@ class MediaSource : public EventTarget {
  public:
   typedef UrlRegistry<MediaSource> Registry;
 
+  // Web API: MediaSource
+  //
+  enum EndOfStreamError { kNoError, kNetwork, kDecode };
+
+  enum ReadyState { kClosed, kOpen, kEnded };
+
   // Custom, not in any spec.
   //
-  // MediaSource spec defines states as strings "closed", "open" and "ended".
-  enum ReadyState { kReadyStateClosed, kReadyStateOpen, kReadyStateEnded };
-
   MediaSource();
 
   // Web API: MediaSource
@@ -63,10 +69,10 @@ class MediaSource : public EventTarget {
   void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
                           script::ExceptionState* exception_state);
 
-  std::string ready_state() const;
+  ReadyState ready_state() const;
 
   void EndOfStream(script::ExceptionState* exception_state);
-  void EndOfStream(const std::string& error,
+  void EndOfStream(EndOfStreamError error,
                    script::ExceptionState* exception_state);
 
   static bool IsTypeSupported(script::EnvironmentSettings* settings,
@@ -93,7 +99,6 @@ class MediaSource : public EventTarget {
              script::ExceptionState* exception_state);
 
   // Methods used by HTMLMediaElement
-  ReadyState GetReadyState() const;
   void SetReadyState(ReadyState ready_state);
 
   DEFINE_WRAPPABLE_TYPE(MediaSource);

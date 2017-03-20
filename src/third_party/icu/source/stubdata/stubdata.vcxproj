@@ -89,7 +89,7 @@
     </Midl>
     <ClCompile>
       <AdditionalIncludeDirectories>..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -106,14 +106,14 @@
       <CompileAs>Default</CompileAs>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <PreLinkEvent>
       <Command>echo "File with stubdata build time, used as a dependency to trigger fresh data build, since stubdata dll will overwrite the real one." &gt; "$(ProjectDir)stubdatabuilt.txt"</Command>
     </PreLinkEvent>
     <Link>
-      <OutputFile>..\..\bin\icudt46.dll</OutputFile>
+      <OutputFile>..\..\bin\icudt56.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <ProgramDatabaseFile>.\x86\Release\icudt.pdb</ProgramDatabaseFile>
@@ -138,7 +138,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -153,14 +153,14 @@
       <CompileAs>Default</CompileAs>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <PreLinkEvent>
       <Command>echo "File with stubdata build time, used as a dependency to trigger fresh data build, since stubdata dll will overwrite the real one." &gt; "$(ProjectDir)stubdatabuilt.txt"</Command>
     </PreLinkEvent>
     <Link>
-      <OutputFile>..\..\bin\icudt46.dll</OutputFile>
+      <OutputFile>..\..\bin\icudt56.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ProgramDatabaseFile>.\x86\Debug/icudt.pdb</ProgramDatabaseFile>
       <NoEntryPoint>true</NoEntryPoint>
@@ -183,7 +183,7 @@
     </Midl>
     <ClCompile>
       <AdditionalIncludeDirectories>..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN64;WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;WIN32;NDEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -200,14 +200,14 @@
       <CompileAs>Default</CompileAs>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <PreLinkEvent>
       <Command>echo "File with stubdata build time, used as a dependency to trigger fresh data build, since stubdata dll will overwrite the real one." &gt; "$(ProjectDir)stubdatabuilt.txt"</Command>
     </PreLinkEvent>
     <Link>
-      <OutputFile>..\..\bin64\icudt46.dll</OutputFile>
+      <OutputFile>..\..\bin64\icudt56.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <ProgramDatabaseFile>.\x64\Release\icudt.pdb</ProgramDatabaseFile>
@@ -230,7 +230,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN64;WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;WIN32;_DEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -245,14 +245,14 @@
       <CompileAs>Default</CompileAs>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;STUBDATA_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <PreLinkEvent>
       <Command>echo "File with stubdata build time, used as a dependency to trigger fresh data build, since stubdata dll will overwrite the real one." &gt; "$(ProjectDir)stubdatabuilt.txt"</Command>
     </PreLinkEvent>
     <Link>
-      <OutputFile>..\..\bin64\icudt46.dll</OutputFile>
+      <OutputFile>..\..\bin64\icudt56.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ProgramDatabaseFile>.\x64\Debug/icudt.pdb</ProgramDatabaseFile>
       <NoEntryPoint>true</NoEntryPoint>

@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DOM_DOCUMENT_H_
 #define COBALT_DOM_DOCUMENT_H_
@@ -72,6 +70,9 @@ class DocumentObserver {
   // Called each time when the document or one of its descendants is changed.
   virtual void OnMutation() = 0;
 
+  // Called when document.activeElement changes.
+  virtual void OnFocusChanged() = 0;
+
  protected:
   virtual ~DocumentObserver() {}
 };
@@ -103,7 +104,7 @@ class Document : public Node, public cssom::MutationObserver {
             const std::string& location_policy,
             CspEnforcementType csp_enforcement_mode,
             const base::Closure& csp_policy_changed_callback,
-            int csp_insecure_allowed_token = 0)
+            int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0)
         : url(url_value),
           window(window),
           hashchange_callback(hashchange_callback),
@@ -116,7 +117,8 @@ class Document : public Node, public cssom::MutationObserver {
           location_policy(location_policy),
           csp_enforcement_mode(csp_enforcement_mode),
           csp_policy_changed_callback(csp_policy_changed_callback),
-          csp_insecure_allowed_token(csp_insecure_allowed_token) {}
+          csp_insecure_allowed_token(csp_insecure_allowed_token),
+          dom_max_element_depth(dom_max_element_depth) {}
 
     GURL url;
     Window* window;
@@ -131,6 +133,7 @@ class Document : public Node, public cssom::MutationObserver {
     CspEnforcementType csp_enforcement_mode;
     base::Closure csp_policy_changed_callback;
     int csp_insecure_allowed_token;
+    int dom_max_element_depth;
   };
 
   Document(HTMLElementContext* html_element_context,
@@ -184,10 +187,10 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<Element> active_element() const;
 
-  const EventListenerScriptObject* onreadystatechange() const {
+  const EventListenerScriptValue* onreadystatechange() const {
     return GetAttributeEventListener(base::Tokens::readystatechange());
   }
-  void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
+  void set_onreadystatechange(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
   }
 
@@ -314,6 +317,8 @@ class Document : public Node, public cssom::MutationObserver {
     return initial_computed_style_data_;
   }
 
+  int dom_max_element_depth() const { return dom_max_element_depth_; }
+
   void NotifyUrlChanged(const GURL& url);
 
   // Updates the selector tree using all the style sheets in the document.
@@ -322,6 +327,9 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Invalidates the document's cached layout tree and associated data.
   void InvalidateLayout();
+
+  // Disable just-in-time compilation of JavaScript code.
+  void DisableJit();
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
@@ -402,6 +410,9 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       initial_computed_style_declaration_;
   scoped_refptr<cssom::CSSComputedStyleData> initial_computed_style_data_;
+
+  // The max depth of elements that are guaranteed to be rendered.
+  int dom_max_element_depth_;
 };
 
 }  // namespace dom

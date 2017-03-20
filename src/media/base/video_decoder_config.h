@@ -9,8 +9,12 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/color_space.h"
+#include "media/base/hdr_metadata.h"
 #include "media/base/media_export.h"
 #include "media/base/video_frame.h"
+#include "media/base/video_types.h"
+#include "media/webm/webm_colour_parser.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -76,10 +80,12 @@ class MEDIA_EXPORT VideoDecoderConfig {
   VideoDecoderConfig(VideoCodec codec,
                      VideoCodecProfile profile,
                      VideoFrame::Format format,
+                     ColorSpace color_space,
                      const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
                      const gfx::Size& natural_size,
-                     const uint8* extra_data, size_t extra_data_size,
+                     const uint8* extra_data,
+                     size_t extra_data_size,
                      bool is_encrypted);
 
   ~VideoDecoderConfig();
@@ -88,10 +94,12 @@ class MEDIA_EXPORT VideoDecoderConfig {
   void Initialize(VideoCodec codec,
                   VideoCodecProfile profile,
                   VideoFrame::Format format,
+                  ColorSpace color_space,
                   const gfx::Size& coded_size,
                   const gfx::Rect& visible_rect,
                   const gfx::Size& natural_size,
-                  const uint8* extra_data, size_t extra_data_size,
+                  const uint8* extra_data,
+                  size_t extra_data_size,
                   bool is_encrypted,
                   bool record_stats);
 
@@ -137,11 +145,24 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // can be encrypted or not encrypted.
   bool is_encrypted() const;
 
+  void set_webm_color_metadata(const WebMColorMetadata& webm_color_metadata) {
+    webm_color_metadata_ = webm_color_metadata;
+  }
+
+  const WebMColorMetadata& webm_color_metadata() const {
+    return webm_color_metadata_;
+  }
+
+  const ColorSpace& color_space() const { return color_space_; }
+
  private:
   VideoCodec codec_;
   VideoCodecProfile profile_;
 
   VideoFrame::Format format_;
+
+  // TODO(servolk): Deprecated, use color_space_info_ instead.
+  ColorSpace color_space_;
 
   gfx::Size coded_size_;
   gfx::Rect visible_rect_;
@@ -152,6 +173,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   bool is_encrypted_;
 
+  WebMColorMetadata webm_color_metadata_;
   DISALLOW_COPY_AND_ASSIGN(VideoDecoderConfig);
 };
 

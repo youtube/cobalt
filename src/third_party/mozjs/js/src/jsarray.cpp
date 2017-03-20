@@ -37,6 +37,8 @@
 #include "vm/Interpreter-inl.h"
 #include "vm/ObjectImpl-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -428,6 +430,7 @@ bool
 js::ArraySetLength(JSContext *cx, HandleObject obj, HandleId id, unsigned attrs,
                    HandleValue value, bool setterIsStrict)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     MOZ_ASSERT(obj->isArray());
     MOZ_ASSERT(id == NameToId(cx->names().length));
     MOZ_ASSERT(attrs & JSPROP_PERMANENT);
@@ -867,6 +870,7 @@ array_toSource(JSContext *cx, unsigned argc, Value *vp)
 static bool
 array_join_sub(JSContext *cx, CallArgs &args, bool locale)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     // This method is shared by Array.prototype.join and
     // Array.prototype.toLocaleString. The steps in ES5 are nearly the same, so
     // the annotations in this function apply to both toLocaleString and join.
@@ -990,6 +994,7 @@ array_join_sub(JSContext *cx, CallArgs &args, bool locale)
 static JSBool
 array_toString(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_CHECK_RECURSION(cx, return false);
 
     CallArgs args = CallArgsFromVp(argc, vp);
@@ -1027,6 +1032,7 @@ array_toString(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 array_toLocaleString(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_CHECK_RECURSION(cx, return false);
 
     CallArgs args = CallArgsFromVp(argc, vp);
@@ -1038,6 +1044,7 @@ array_toLocaleString(JSContext *cx, unsigned argc, Value *vp)
 static JSBool
 array_join(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_CHECK_RECURSION(cx, return false);
 
     CallArgs args = CallArgsFromVp(argc, vp);

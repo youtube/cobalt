@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DOM_CHARACTER_DATA_H_
 #define COBALT_DOM_CHARACTER_DATA_H_
@@ -33,19 +31,29 @@ class CharacterData : public Node {
   // Web API: Node
   base::optional<std::string> node_value() const OVERRIDE { return data_; }
   void set_node_value(const base::optional<std::string>& node_value) OVERRIDE {
-    data_ = node_value.value_or("");
+    // Don't use value_or to avoid copying the string.
+    if (node_value) {
+      set_data(node_value.value());
+    } else {
+      set_data("");
+    }
   }
 
   base::optional<std::string> text_content() const OVERRIDE { return data_; }
   void set_text_content(
       const base::optional<std::string>& text_content) OVERRIDE {
-    data_ = text_content.value_or("");
+    // Don't use value_or to avoid copying the string.
+    if (text_content) {
+      set_data(text_content.value());
+    } else {
+      set_data("");
+    }
   }
 
   // Web API: CharacterData
   //
   std::string data() const { return data_; }
-  void set_data(const std::string& data) { data_ = data; }
+  void set_data(const std::string& data);
 
   // Custom, not in any spec.
   //

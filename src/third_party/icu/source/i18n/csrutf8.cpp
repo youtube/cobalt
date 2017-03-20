@@ -1,6 +1,6 @@
 /*
  **********************************************************************
- *   Copyright (C) 2005-2008, International Business Machines
+ *   Copyright (C) 2005-2014, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  **********************************************************************
  */
@@ -10,6 +10,7 @@
 #if !UCONFIG_NO_CONVERSION
 
 #include "csrutf8.h"
+#include "csmatch.h"
 
 U_NAMESPACE_BEGIN
 
@@ -23,23 +24,23 @@ const char *CharsetRecog_UTF8::getName() const
     return "UTF-8";
 }
 
-int32_t CharsetRecog_UTF8::match(InputText* det) {
+UBool CharsetRecog_UTF8::match(InputText* input, CharsetMatch *results) const {
     bool hasBOM = FALSE;
     int32_t numValid = 0;
     int32_t numInvalid = 0;
-    const uint8_t *input = det->fRawInput;
+    const uint8_t *inputBytes = input->fRawInput;
     int32_t i;
     int32_t trailBytes = 0;
     int32_t confidence;
 
-    if (det->fRawLength >= 3 && 
-        input[0] == 0xEF && input[1] == 0xBB && input[2] == 0xBF) {
+    if (input->fRawLength >= 3 && 
+        inputBytes[0] == 0xEF && inputBytes[1] == 0xBB && inputBytes[2] == 0xBF) {
             hasBOM = TRUE;
     }
 
     // Scan for multi-byte sequences
-    for (i=0; i < det->fRawLength; i += 1) {
-        int32_t b = input[i];
+    for (i=0; i < input->fRawLength; i += 1) {
+        int32_t b = inputBytes[i];
 
         if ((b & 0x80) == 0) {
             continue;   // ASCII
@@ -54,23 +55,18 @@ int32_t CharsetRecog_UTF8::match(InputText* det) {
             trailBytes = 3;
         } else {
             numInvalid += 1;
-
-            if (numInvalid > 5) {
-                break;
-            }
-
-            trailBytes = 0;
+            continue;
         }
 
         // Verify that we've got the right number of trail bytes in the sequence
         for (;;) {
             i += 1;
 
-            if (i >= det->fRawLength) {
+            if (i >= input->fRawLength) {
                 break;
             }
 
-            b = input[i];
+            b = inputBytes[i];
 
             if ((b & 0xC0) != 0x080) {
                 numInvalid += 1;
@@ -85,7 +81,7 @@ int32_t CharsetRecog_UTF8::match(InputText* det) {
 
     }
 
-    // Cook up some sort of confidence score, based on presense of a BOM
+    // Cook up some sort of confidence score, based on presence of a BOM
     //    and the existence of valid and/or invalid multi-byte sequences.
     confidence = 0;
     if (hasBOM && numInvalid == 0) {
@@ -97,14 +93,16 @@ int32_t CharsetRecog_UTF8::match(InputText* det) {
     } else if (numValid > 0 && numInvalid == 0) {
         confidence = 80;
     } else if (numValid == 0 && numInvalid == 0) {
-        // Plain ASCII.
-        confidence = 10;
+        // Plain ASCII. Confidence must be > 10, it's more likely than UTF-16, which
+        //              accepts ASCII with confidence = 10.
+        confidence = 15;
     } else if (numValid > numInvalid*10) {
         // Probably corruput utf-8 data.  Valid sequences aren't likely by chance.
         confidence = 25;
     }
 
-    return confidence;
+    results->set(input, this, confidence);
+    return (confidence > 0);
 }
 
 U_NAMESPACE_END

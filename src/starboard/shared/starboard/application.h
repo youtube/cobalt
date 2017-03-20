@@ -18,12 +18,15 @@
 #ifndef STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 #define STARBOARD_SHARED_STARBOARD_APPLICATION_H_
 
+#include <vector>
+
 #include "starboard/atomic.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -38,9 +41,14 @@ namespace starboard {
 // dispatching events to the Starboard event handler, SbEventHandle.
 class Application {
  public:
+  typedef player::VideoFrame VideoFrame;
+
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.
   typedef SbEventDataDestructor EventHandledCallback;
+
+  // Signature for a function that will be called at the beginning of Teardown.
+  typedef void(*TeardownCallback)(void);
 
   // Enumeration of states that the application can be in.
   enum State {
@@ -144,6 +152,10 @@ class Application {
   // initialization and teardown events. Returns the resulting error level.
   int Run(int argc, char** argv);
 
+  // Retrieves the CommandLine for the application.
+  // NULL until Run() is called.
+  CommandLine* GetCommandLine();
+
   // Signals that the application should transition from STARTED to PAUSED as
   // soon as possible. Does nothing if already PAUSED or SUSPENDED. May be
   // called from an external thread.
@@ -195,17 +207,28 @@ class Application {
   // external thread.
   void Cancel(SbEventId id);
 
-#if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_HAS(PLAYER) &&                                             \
+    (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+     SB_IS(PLAYER_PUNCHED_OUT))
   // Handles receiving a new video frame of |player| from the media system. Only
   // used when the application needs to composite video frames with punch-out
   // video manually (should be rare). Will be called from an external thread.
   void HandleFrame(SbPlayer player,
-                   const player::VideoFrame& frame,
+                   const scoped_refptr<VideoFrame>& frame,
                    int x,
                    int y,
                    int width,
                    int height);
-#endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_HAS(PLAYER) && \
+           (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+            SB_IS(PLAYER_PUNCHED_OUT))
+
+  // Registers a |callback| function that will be called when |Teardown| is
+  // called.
+  void RegisterTeardownCallback(TeardownCallback callback) {
+    ScopedLock lock(callbacks_lock_);
+    teardown_callbacks_.push_back(callback);
+  }
 
  protected:
   // Initializes any systems that need initialization before application
@@ -218,20 +241,33 @@ class Application {
   // must be run after the application stop event is handled.
   virtual void Teardown() {}
 
-#if SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_HAS(PLAYER) &&                                             \
+    (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+     SB_IS(PLAYER_PUNCHED_OUT))
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
   virtual void AcceptFrame(SbPlayer player,
-                           const player::VideoFrame& frame,
+                           const scoped_refptr<VideoFrame>& frame,
                            int x,
                            int y,
                            int width,
                            int height) {}
-#endif  // SB_HAS(PLAYER) && SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_HAS(PLAYER) && \
+           (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+            SB_IS(PLAYER_PUNCHED_OUT))
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.
   virtual Event* GetNextEvent() = 0;
+
+  // Blocks until the next event is available, then dispatches the event to the
+  // system event handler. Derived classes that override this should still use
+  // |DispatchAndDelete| to maintain consistency of the application state.
+  // Returns whether to keep servicing the event queue, i.e. false means to
+  // abort the event queue.
+  virtual bool DispatchNextEvent() {
+    return DispatchAndDelete(GetNextEvent());
+  }
 
   // Injects an event into the queue, such that it will be returned from
   // GetNextEvent(), giving ownership of the event. NULL is valid, and will just
@@ -268,11 +304,21 @@ class Application {
   // Returns the current application state.
   State state() const { return state_; }
 
- private:
+  // Returns true if the Start event should be sent in |Run| before entering the
+  // event loop. Derived classes that return false must call |DispatchStart|.
+  virtual bool IsStartImmediate() { return true; }
+
+  // Dispatches a Start event to the system event handler.
+  void DispatchStart();
+
   // Dispatches |event| to the system event handler, taking ownership of the
-  // event. Returns whether to keep servicing the event queue, i.e. false means
-  // to abort the event queue.
+  // event. Checks for consistency with the current application state when state
+  // events are dispatched. Returns whether to keep servicing the event queue,
+  // i.e. false means to abort the event queue.
   bool DispatchAndDelete(Application::Event* event);
+
+ private:
+  void CallTeardownCallbacks();
 
   // The single application instance.
   static Application* g_instance;
@@ -284,6 +330,9 @@ class Application {
   // main thread.
   SbThread thread_;
 
+  // CommandLine instance initialized in |Run|.
+  scoped_ptr<CommandLine> command_line_;
+
   // The deep link included in the Start event sent to Cobalt. Initially NULL,
   // derived classes may set it during initialization using |SetStartLink|.
   char* start_link_;
@@ -291,6 +340,12 @@ class Application {
   // The current state that the application is in based on what events it has
   // actually processed. Should only be accessed on the main thread.
   State state_;
+
+  // Protect the teardown_callbacks_ vector.
+  Mutex callbacks_lock_;
+
+  // Callbacks that must be called when Teardown is called.
+  std::vector<TeardownCallback> teardown_callbacks_;
 };
 
 }  // namespace starboard

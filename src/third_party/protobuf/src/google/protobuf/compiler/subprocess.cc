@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -33,6 +33,7 @@
 #include <google/protobuf/compiler/subprocess.h>
 
 #include <algorithm>
+#include <iostream>
 
 #ifndef _WIN32
 #include <errno.h>
@@ -41,9 +42,11 @@
 #include <signal.h>
 #endif
 
+#include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/stubs/substitute.h>
+
 
 namespace google {
 namespace protobuf {
@@ -170,7 +173,7 @@ bool Subprocess::Communicate(const Message& input, Message* output,
     DWORD wait_result =
         WaitForMultipleObjects(handle_count, handles, FALSE, INFINITE);
 
-    HANDLE signaled_handle;
+    HANDLE signaled_handle = NULL;
     if (wait_result >= WAIT_OBJECT_0 &&
         wait_result < WAIT_OBJECT_0 + handle_count) {
       signaled_handle = handles[wait_result - WAIT_OBJECT_0];
@@ -294,8 +297,8 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
   int stdin_pipe[2];
   int stdout_pipe[2];
 
-  pipe(stdin_pipe);
-  pipe(stdout_pipe);
+  GOOGLE_CHECK(pipe(stdin_pipe) != -1);
+  GOOGLE_CHECK(pipe(stdout_pipe) != -1);
 
   char* argv[2] = { strdup(program.c_str()), NULL };
 
@@ -323,9 +326,11 @@ void Subprocess::Start(const string& program, SearchMode search_mode) {
 
     // Write directly to STDERR_FILENO to avoid stdio code paths that may do
     // stuff that is unsafe here.
-    write(STDERR_FILENO, argv[0], strlen(argv[0]));
+    int ignored;
+    ignored = write(STDERR_FILENO, argv[0], strlen(argv[0]));
     const char* message = ": program not found or is not executable\n";
-    write(STDERR_FILENO, message, strlen(message));
+    ignored = write(STDERR_FILENO, message, strlen(message));
+    (void) ignored;
 
     // Must use _exit() rather than exit() to avoid flushing output buffers
     // that will also be flushed by the parent.
@@ -356,7 +361,7 @@ bool Subprocess::Communicate(const Message& input, Message* output,
   string output_data;
 
   int input_pos = 0;
-  int max_fd = max(child_stdin_, child_stdout_);
+  int max_fd = std::max(child_stdin_, child_stdout_);
 
   while (child_stdout_ != -1) {
     fd_set read_fds;
@@ -446,7 +451,7 @@ bool Subprocess::Communicate(const Message& input, Message* output,
   }
 
   if (!output->ParseFromString(output_data)) {
-    *error = "Plugin output is unparseable.";
+    *error = "Plugin output is unparseable: " + CEscape(output_data);
     return false;
   }
 

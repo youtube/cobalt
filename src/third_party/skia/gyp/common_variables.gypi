@@ -47,9 +47,9 @@
         'skia_os%': '<(OS)',
 
         'skia_android_framework%': 0,
-        'skia_arch_type%': 'x86',
-        'arm_version%': 0,
-        'arm_neon%': 0,
+        'skia_arch_type%': '<(target_arch)',
+        'arm_version%': '<(arm_version)',
+        'arm_neon%': '<(arm_neon)',
       },
 
       # Re-define all variables defined within the level-3 'variables' dict,
@@ -70,7 +70,7 @@
           'skia_chrome_utils%': 1,
           'skia_use_system_json%': 0,
         }],
-        [ 'skia_os == "win"', {
+        [ 'skia_os in ["starboard", "win"]', {
           'os_posix%': 0,
         }, {
           'os_posix%': 1,
@@ -235,7 +235,7 @@
     'skia_run_pdfviewer_in_gm%': 0,
     'skia_disable_inlining%': 0,
     'skia_moz2d%': 0,
-    'skia_is_bot%': '<!(python -c "import os; print os.environ.get(\'CHROME_HEADLESS\', 0)")',
+    'skia_is_bot%': '0',
 
     # These are referenced by our .gypi files that list files (e.g. core.gypi)
     #

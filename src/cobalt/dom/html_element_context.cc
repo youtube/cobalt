@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/html_element_context.h"
 
@@ -32,7 +30,8 @@ HTMLElementContext::HTMLElementContext(
     loader::image::ReducedCacheCapacityManager*
         reduced_image_cache_capacity_manager,
     loader::font::RemoteTypefaceCache* remote_typeface_cache,
-    DomStatTracker* dom_stat_tracker, const std::string& language)
+    loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
+    const std::string& language)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
@@ -45,6 +44,7 @@ HTMLElementContext::HTMLElementContext(
       reduced_image_cache_capacity_manager_(
           reduced_image_cache_capacity_manager),
       remote_typeface_cache_(remote_typeface_cache),
+      mesh_cache_(mesh_cache),
       dom_stat_tracker_(dom_stat_tracker),
       language_(language),
       sync_load_thread_("Synchronous Load"),

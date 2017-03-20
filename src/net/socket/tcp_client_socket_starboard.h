@@ -20,7 +20,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/object_watcher_shell.h"
 #include "base/threading/non_thread_safe.h"
 #include "build/build_config.h"
 #include "net/base/address_list.h"

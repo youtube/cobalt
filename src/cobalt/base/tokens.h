@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_BASE_TOKENS_H_
 #define COBALT_BASE_TOKENS_H_
@@ -25,11 +23,21 @@ namespace base {
 // clang-format off
 #define TOKENS_FOR_EACH_WITH_NAME_ONLY(MacroOpWithNameOnly)   \
     MacroOpWithNameOnly(addsourcebuffer)                      \
+    MacroOpWithNameOnly(addtrack)                             \
     MacroOpWithNameOnly(abort)                                \
+    MacroOpWithNameOnly(additions)                            \
+    MacroOpWithNameOnly(all)                                  \
+    MacroOpWithNameOnly(alt)                                  \
     MacroOpWithNameOnly(animationend)                         \
+    MacroOpWithNameOnly(assertive)                            \
+    MacroOpWithNameOnly(attributes)                           \
     MacroOpWithNameOnly(blur)                                 \
     MacroOpWithNameOnly(canplay)                              \
     MacroOpWithNameOnly(canplaythrough)                       \
+    MacroOpWithNameOnly(change)                               \
+    MacroOpWithNameOnly(characterData)                        \
+    MacroOpWithNameOnly(childList)                            \
+    MacroOpWithNameOnly(close)                                \
     MacroOpWithNameOnly(durationchange)                       \
     MacroOpWithNameOnly(emptied)                              \
     MacroOpWithNameOnly(ended)                                \
@@ -47,15 +55,21 @@ namespace base {
     MacroOpWithNameOnly(loadedmetadata)                       \
     MacroOpWithNameOnly(loadend)                              \
     MacroOpWithNameOnly(loadstart)                            \
+    MacroOpWithNameOnly(message)                              \
     MacroOpWithNameOnly(needkey)                              \
     MacroOpWithNameOnly(nomatch)                              \
+    MacroOpWithNameOnly(off)                                  \
+    MacroOpWithNameOnly(open)                                 \
     MacroOpWithNameOnly(pause)                                \
     MacroOpWithNameOnly(play)                                 \
     MacroOpWithNameOnly(playing)                              \
+    MacroOpWithNameOnly(polite)                               \
     MacroOpWithNameOnly(progress)                             \
     MacroOpWithNameOnly(ratechange)                           \
     MacroOpWithNameOnly(readystatechange)                     \
+    MacroOpWithNameOnly(removals)                             \
     MacroOpWithNameOnly(removesourcebuffer)                   \
+    MacroOpWithNameOnly(removetrack)                          \
     MacroOpWithNameOnly(result)                               \
     MacroOpWithNameOnly(securitypolicyviolation)              \
     MacroOpWithNameOnly(seeked)                               \
@@ -68,16 +82,27 @@ namespace base {
     MacroOpWithNameOnly(storage)                              \
     MacroOpWithNameOnly(stalled)                              \
     MacroOpWithNameOnly(suspend)                              \
+    MacroOpWithNameOnly(text)                                 \
     MacroOpWithNameOnly(timeout)                              \
     MacroOpWithNameOnly(timeupdate)                           \
     MacroOpWithNameOnly(transitionend)                        \
     MacroOpWithNameOnly(unload)                               \
+    MacroOpWithNameOnly(update)                               \
+    MacroOpWithNameOnly(updateend)                            \
+    MacroOpWithNameOnly(updatestart)                          \
     MacroOpWithNameOnly(volumechange)                         \
     MacroOpWithNameOnly(waiting)
 
 #define TOKENS_FOR_EACH_WITH_NAME_AND_VALUE(MacroOpWithNameAndValue)    \
     MacroOpWithNameAndValue(active_pseudo_class_selector, "active")     \
     MacroOpWithNameAndValue(after_pseudo_element_selector, "after")     \
+    MacroOpWithNameAndValue(aria_atomic, "aria-atomic")                 \
+    MacroOpWithNameAndValue(aria_busy, "aria-busy")                     \
+    MacroOpWithNameAndValue(aria_hidden, "aria-hidden")                 \
+    MacroOpWithNameAndValue(aria_label, "aria-label")                   \
+    MacroOpWithNameAndValue(aria_labelledby, "aria-labelledby")         \
+    MacroOpWithNameAndValue(aria_live, "aria-live")                     \
+    MacroOpWithNameAndValue(aria_relevant, "aria-relevant")             \
     MacroOpWithNameAndValue(before_pseudo_element_selector, "before")   \
     MacroOpWithNameAndValue(cdata_section_node_name, "#cdata_section")  \
     MacroOpWithNameAndValue(class_selector_prefix, ".")                 \
@@ -85,13 +110,16 @@ namespace base {
     MacroOpWithNameAndValue(document_name, "#document")                 \
     MacroOpWithNameAndValue(domcontentloaded, "DOMContentLoaded")       \
     MacroOpWithNameAndValue(empty_pseudo_class_selector, "empty")       \
+    MacroOpWithNameAndValue(false_token, "false")                         \
     MacroOpWithNameAndValue(focus_pseudo_class_selector, "focus")       \
     MacroOpWithNameAndValue(hover_pseudo_class_selector, "hover")       \
     MacroOpWithNameAndValue(id_selector_prefix, "#")                    \
     MacroOpWithNameAndValue(not_pseudo_class_selector, "not")           \
     MacroOpWithNameAndValue(pseudo_class_selector_prefix, ":")          \
     MacroOpWithNameAndValue(pseudo_element_selector_prefix, "::")       \
-    MacroOpWithNameAndValue(text_node_name, "#text")
+    MacroOpWithNameAndValue(text_node_name, "#text")                    \
+    MacroOpWithNameAndValue(true_token, "true")
+
 // clang-format on
 
 // Singleton containing commonly used Tokens.

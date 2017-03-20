@@ -1,24 +1,23 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_IMAGE_H_
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
@@ -48,7 +47,7 @@ class ImageData : public render_tree::ImageData {
   ~ImageData() OVERRIDE;
 
   const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE {
-    return descriptor_;
+    return *descriptor_;
   }
 
   uint8* GetMemory() OVERRIDE;
@@ -59,7 +58,7 @@ class ImageData : public render_tree::ImageData {
  private:
   SbBlitterDevice device_;
   SbBlitterPixelData pixel_data_;
-  render_tree::ImageDataDescriptor descriptor_;
+  base::optional<render_tree::ImageDataDescriptor> descriptor_;
 };
 
 // render_tree::Image objects are implemented in the Blitter API via
@@ -71,6 +70,10 @@ class ImageData : public render_tree::ImageData {
 class SinglePlaneImage : public skia::SinglePlaneImage {
  public:
   explicit SinglePlaneImage(scoped_ptr<ImageData> image_data);
+  // If |delete_function| is provided, it will be called in the destructor
+  // instead of manually calling SbBlitterDestroySurface(surface_).
+  SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,
+                   const base::Closure& delete_function);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
@@ -82,7 +85,7 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   // When GetBitmap() is called on a blitter::SinglePlaneImage for the first
   // time, we do a one-time download of the pixel data from the Blitter API
   // surface into a SkBitmap.
-  const SkBitmap& GetBitmap() const OVERRIDE;
+  const SkBitmap* GetBitmap() const OVERRIDE;
 
   bool IsOpaque() const OVERRIDE { return is_opaque_; }
 
@@ -97,6 +100,10 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   // This field is populated when GetBitmap() is called for the first time, and
   // after that is never modified.
   mutable base::optional<SkBitmap> bitmap_;
+
+  // If |delete_function| is provided, it will be called in the destructor
+  // instead of manually calling SbBlitterDestroySurface(surface_).
+  base::Closure delete_function_;
 };
 
 }  // namespace blitter

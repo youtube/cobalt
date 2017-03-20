@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/element.h"
 
@@ -61,7 +59,7 @@ ElementTest::ElementTest()
       dom_parser_(new dom_parser::Parser()),
       dom_stat_tracker_(new DomStatTracker("ElementTest")),
       html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                             dom_stat_tracker_.get(), "") {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);

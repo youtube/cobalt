@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 
@@ -58,6 +56,11 @@
 // enough calls that performance is affected.
 #define ENABLE_RENDER_TREE_VISITOR_TRACING 0
 
+// Setting this define to 1 will filter the trace events enabled by
+// ENABLE_RENDER_TREE_VISITOR_TRACING so that trace events will only be
+// recorded for leaf nodes.
+#define FILTER_RENDER_TREE_VISITOR_TRACING 1
+
 // Setting this define to 1 will result in a SkCanvas::flush() call being made
 // after each node is visited.  This is useful for debugging Skia code since
 // otherwise the actual execution of Skia commands will likely be queued and
@@ -73,6 +76,7 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     SkCanvas* render_target,
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
     const base::Closure& reset_skia_context_function,
+    const RenderImageFallbackFunction& render_image_fallback_function,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache, Type visitor_type)
     : draw_state_(render_target),
@@ -80,7 +84,8 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache),
       visitor_type_(visitor_type),
-      reset_skia_context_function_(reset_skia_context_function) {
+      reset_skia_context_function_(reset_skia_context_function),
+      render_image_fallback_function_(render_image_fallback_function) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -110,7 +115,7 @@ bool NodeIsWithinCanvasBounds(const SkMatrix& total_matrix,
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(CompositionNode)");
 #endif
 
@@ -189,7 +194,7 @@ SkPath RoundedRectToSkiaPath(
 }
 
 void ApplyViewportMask(
-    SkCanvas* canvas,
+    RenderTreeNodeVisitorDrawState* draw_state,
     const base::optional<render_tree::ViewportFilter>& filter) {
   if (!filter) {
     return;
@@ -197,11 +202,12 @@ void ApplyViewportMask(
 
   if (!filter->has_rounded_corners()) {
     SkRect filter_viewport(CobaltRectFToSkiaRect(filter->viewport()));
-    canvas->clipRect(filter_viewport);
+    draw_state->render_target->clipRect(filter_viewport);
   } else {
-    canvas->clipPath(
+    draw_state->render_target->clipPath(
         RoundedRectToSkiaPath(filter->viewport(), filter->rounded_corners()),
         SkRegion::kIntersect_Op, true /* doAntiAlias */);
+    draw_state->clip_is_rect = false;
   }
 }
 
@@ -268,7 +274,8 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   {
     RenderTreeNodeVisitor sub_visitor(
         canvas, create_scratch_surface_function_, reset_skia_context_function_,
-        surface_cache_delegate_, surface_cache_, kType_SubVisitor);
+        render_image_fallback_function_, surface_cache_delegate_,
+        surface_cache_, kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -287,7 +294,7 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   // the offscreen surface, so reset the scale for now.
   draw_state_.render_target->save();
   ApplyBlurFilterToPaint(&paint, filter_node.blur_filter);
-  ApplyViewportMask(draw_state_.render_target, filter_node.viewport_filter);
+  ApplyViewportMask(&draw_state_, filter_node.viewport_filter);
 
   draw_state_.render_target->setMatrix(CobaltMatrixToSkia(
       math::TranslateMatrix(coord_mapping.output_pre_translate) * total_matrix *
@@ -385,7 +392,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     return;
   }
 
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(FilterNode)");
 
   if (filter_node->data().opacity_filter) {
@@ -452,13 +459,17 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     RenderTreeNodeVisitorDrawState original_draw_state(draw_state_);
 
     draw_state_.render_target->save();
-    ApplyViewportMask(draw_state_.render_target,
-                      filter_node->data().viewport_filter);
+    // Remember the value of |clip_is_rect| because ApplyViewportMask may
+    // modify it.
+    bool clip_was_rect = draw_state_.clip_is_rect;
+    ApplyViewportMask(&draw_state_, filter_node->data().viewport_filter);
 
     if (filter_node->data().opacity_filter) {
       draw_state_.opacity *= filter_node->data().opacity_filter->opacity();
     }
     filter_node->data().source->Accept(this);
+
+    draw_state_.clip_is_rect = clip_was_rect;
     draw_state_.render_target->restore();
     draw_state_ = original_draw_state;
   } else {
@@ -511,7 +522,7 @@ SkPaint CreateSkPaintForImageRendering(
 
   if (draw_state.opacity < 1.0f) {
     paint.setAlpha(draw_state.opacity * 255);
-  } else if (is_opaque) {
+  } else if (is_opaque && draw_state.clip_is_rect) {
     paint.setXfermodeMode(SkXfermode::kSrc_Mode);
   }
 
@@ -522,6 +533,7 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
                             RenderTreeNodeVisitorDrawState* draw_state,
                             const math::RectF& destination_rect,
                             const math::Matrix3F* local_transform) {
+  DCHECK(!single_plane_image->GetContentRegion());
   SkPaint paint = CreateSkPaintForImageRendering(
       *draw_state, single_plane_image->IsOpaque());
 
@@ -544,9 +556,11 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
 
     SkRect src = SkRect::MakeXYWH(x, y, width, height);
 
-    draw_state->render_target->drawBitmapRectToRect(
-        single_plane_image->GetBitmap(), &src,
-        CobaltRectFToSkiaRect(destination_rect), &paint);
+    const SkBitmap* bitmap = single_plane_image->GetBitmap();
+    if (bitmap) {
+      draw_state->render_target->drawBitmapRectToRect(
+          *bitmap, &src, CobaltRectFToSkiaRect(destination_rect), &paint);
+    }
   } else {
     // Use the more general approach which allows arbitrary local texture
     // coordinate matrices.
@@ -555,13 +569,16 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
     ConvertLocalTransformMatrixToSkiaShaderFormat(
         single_plane_image->GetSize(), destination_rect, &skia_local_transform);
 
-    SkAutoTUnref<SkShader> image_shader(SkShader::CreateBitmapShader(
-        single_plane_image->GetBitmap(), SkShader::kRepeat_TileMode,
-        SkShader::kRepeat_TileMode, &skia_local_transform));
-    paint.setShader(image_shader);
+    const SkBitmap* bitmap = single_plane_image->GetBitmap();
+    if (bitmap) {
+      SkAutoTUnref<SkShader> image_shader(SkShader::CreateBitmapShader(
+          *bitmap, SkShader::kRepeat_TileMode, SkShader::kRepeat_TileMode,
+          &skia_local_transform));
+      paint.setShader(image_shader);
 
-    draw_state->render_target->drawRect(CobaltRectFToSkiaRect(destination_rect),
-                                        paint);
+      draw_state->render_target->drawRect(
+          CobaltRectFToSkiaRect(destination_rect), paint);
+    }
   }
 }
 
@@ -571,18 +588,24 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
                            const math::Matrix3F* local_transform) {
   SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
 
-  const SkBitmap& y_bitmap = multi_plane_image->GetBitmap(0);
-  DCHECK(!y_bitmap.isNull());
+  const SkBitmap* y_bitmap = multi_plane_image->GetBitmap(0);
+  if (!y_bitmap) {
+    return;
+  }
+  DCHECK(!y_bitmap->isNull());
   SkMatrix y_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(y_bitmap.width(), y_bitmap.height()), destination_rect,
+      math::Size(y_bitmap->width(), y_bitmap->height()), destination_rect,
       &y_matrix);
 
-  const SkBitmap& u_bitmap = multi_plane_image->GetBitmap(1);
-  DCHECK(!u_bitmap.isNull());
+  const SkBitmap* u_bitmap = multi_plane_image->GetBitmap(1);
+  if (!u_bitmap) {
+    return;
+  }
+  DCHECK(!u_bitmap->isNull());
   SkMatrix u_matrix = skia_local_transform;
   ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(u_bitmap.width(), u_bitmap.height()), destination_rect,
+      math::Size(u_bitmap->width(), u_bitmap->height()), destination_rect,
       &u_matrix);
 
   SkAutoTUnref<SkShader> yuv2rgb_shader;
@@ -591,18 +614,21 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
     case render_tree::kMultiPlaneImageFormatYUV2PlaneBT709:
       yuv2rgb_shader.reset(SkNEW_ARGS(
           SkNV122RGBShader,
-          (kRec709_SkYUVColorSpace, y_bitmap, y_matrix, u_bitmap, u_matrix)));
+          (kRec709_SkYUVColorSpace, *y_bitmap, y_matrix, *u_bitmap, u_matrix)));
       break;
     case render_tree::kMultiPlaneImageFormatYUV3PlaneBT709: {
-      const SkBitmap& v_bitmap = multi_plane_image->GetBitmap(2);
-      DCHECK(!v_bitmap.isNull());
+      const SkBitmap* v_bitmap = multi_plane_image->GetBitmap(2);
+      if (!v_bitmap) {
+        return;
+      }
+      DCHECK(!v_bitmap->isNull());
       SkMatrix v_matrix = skia_local_transform;
       ConvertLocalTransformMatrixToSkiaShaderFormat(
-          math::Size(v_bitmap.width(), v_bitmap.height()), destination_rect,
+          math::Size(v_bitmap->width(), v_bitmap->height()), destination_rect,
           &v_matrix);
       yuv2rgb_shader.reset(SkNEW_ARGS(
-          SkYUV2RGBShader, (kRec709_SkYUVColorSpace, y_bitmap, y_matrix,
-                            u_bitmap, u_matrix, v_bitmap, v_matrix)));
+          SkYUV2RGBShader, (kRec709_SkYUVColorSpace, *y_bitmap, y_matrix,
+                            *u_bitmap, u_matrix, *v_bitmap, v_matrix)));
       break;
     }
     default: {
@@ -655,9 +681,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
   if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
-    RenderSinglePlaneImage(base::polymorphic_downcast<SinglePlaneImage*>(image),
-                           &draw_state_, image_node->data().destination_rect,
-                           &(image_node->data().local_transform));
+    SinglePlaneImage* single_plane_image =
+        base::polymorphic_downcast<SinglePlaneImage*>(image);
+
+    if (!single_plane_image->CanRenderInSkia()) {
+      render_image_fallback_function_.Run(image_node, &draw_state_);
+    } else {
+      RenderSinglePlaneImage(single_plane_image, &draw_state_,
+                             image_node->data().destination_rect,
+                             &(image_node->data().local_transform));
+    }
   } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
     RenderMultiPlaneImage(base::polymorphic_downcast<MultiPlaneImage*>(image),
                           &draw_state_, image_node->data().destination_rect,
@@ -673,7 +706,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransformNode)");
 #endif
 
@@ -732,18 +765,11 @@ void RenderTreeNodeVisitor::Visit(
   SkRect sk_rect_transformed;
   total_matrix.mapRect(&sk_rect_transformed, sk_rect);
 
-  if (punch_through_video_node->data().set_bounds_cb.is_null()) {
-    return;
-  }
-  bool render_punch_through =
-      punch_through_video_node->data().set_bounds_cb.Run(
-          math::Rect(static_cast<int>(sk_rect_transformed.x()),
-                     static_cast<int>(sk_rect_transformed.y()),
-                     static_cast<int>(sk_rect_transformed.width()),
-                     static_cast<int>(sk_rect_transformed.height())));
-  if (!render_punch_through) {
-    return;
-  }
+  punch_through_video_node->data().set_bounds_cb.Run(
+      math::Rect(static_cast<int>(sk_rect_transformed.x()),
+                 static_cast<int>(sk_rect_transformed.y()),
+                 static_cast<int>(sk_rect_transformed.width()),
+                 static_cast<int>(sk_rect_transformed.height())));
 
   SkPaint paint;
   paint.setXfermodeMode(SkXfermode::kSrc_Mode);
@@ -801,7 +827,7 @@ struct SkiaColorStops {
         positions(color_stops.size()),
         has_alpha(false) {
     for (size_t i = 0; i < color_stops.size(); ++i) {
-      if (color_stops[i].color.a() < 1.0f) {
+      if (color_stops[i].color.HasAlpha()) {
         has_alpha = true;
       }
 
@@ -941,6 +967,35 @@ void DrawRoundedRectWithBrush(
       RoundedRectToSkiaPath(rect, rounded_corners), paint);
 }
 
+void DrawUniformSolidNonRoundRectBorder(
+    RenderTreeNodeVisitorDrawState* draw_state,
+    const math::RectF& rect,
+    float border_width,
+    const render_tree::ColorRGBA& border_color,
+    bool anti_alias) {
+  SkPaint paint;
+  const float alpha = border_color.a() * draw_state->opacity;
+  paint.setARGB(alpha * 255,
+                border_color.r() * 255,
+                border_color.g() * 255,
+                border_color.b() * 255);
+  paint.setAntiAlias(anti_alias);
+  if (alpha == 1.0f) {
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+  } else {
+    paint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
+  }
+  paint.setStyle(SkPaint::kStroke_Style);
+  paint.setStrokeWidth(border_width);
+  SkRect skrect;
+  const float half_border_width = border_width * 0.5f;
+  skrect.set(rect.x() + half_border_width,
+             rect.y() + half_border_width,
+             rect.right() - half_border_width,
+             rect.bottom() - half_border_width);
+  draw_state->render_target->drawRect(skrect, paint);
+}
+
 void DrawQuadWithColorIfBorderIsSolid(
     render_tree::BorderStyle border_style,
     RenderTreeNodeVisitorDrawState* draw_state,
@@ -991,6 +1046,24 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
   // position, it may have one extra pixel visible, which is a large percentage
   // of its small width.
   const float kAntiAliasWidthThreshold = 3.0f;
+
+  // Use faster draw function if possible.
+  if (border_colors_are_same &&
+      border.top.style == render_tree::kBorderStyleSolid &&
+      border.bottom.style == render_tree::kBorderStyleSolid &&
+      border.left.style == render_tree::kBorderStyleSolid &&
+      border.right.style == render_tree::kBorderStyleSolid &&
+      border.top.width == border.bottom.width &&
+      border.top.width == border.left.width &&
+      border.top.width == border.right.width) {
+    bool anti_alias = border.top.width < kAntiAliasWidthThreshold ||
+                      border.bottom.width < kAntiAliasWidthThreshold ||
+                      border.left.width < kAntiAliasWidthThreshold ||
+                      border.right.width < kAntiAliasWidthThreshold;
+    DrawUniformSolidNonRoundRectBorder(draw_state, rect,
+        border.top.width, border.top.color, anti_alias);
+    return;
+  }
 
   // Top
   SkPoint top_points[4] = {
@@ -1435,7 +1508,7 @@ void RenderText(SkCanvas* render_target,
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
-#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(TextNode)");
 #endif
   DCHECK_EQ(1.0f, draw_state_.opacity);

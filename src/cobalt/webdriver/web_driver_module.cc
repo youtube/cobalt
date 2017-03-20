@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/webdriver/web_driver_module.h"
 
@@ -159,8 +157,11 @@ void OnPNGEncodeComplete(ScreenshotResultContext* context,
 
 }  // namespace
 
+const char WebDriverModule::kDefaultListenIp[] = "0.0.0.0";
+
 WebDriverModule::WebDriverModule(
-    int server_port, const CreateSessionDriverCB& create_session_driver_cb,
+    int server_port, const std::string& listen_ip,
+    const CreateSessionDriverCB& create_session_driver_cb,
     const GetScreenshotFunction& get_screenshot_function,
     const SetProxyFunction& set_proxy_function,
     const base::Closure& shutdown_cb)
@@ -405,7 +406,7 @@ WebDriverModule::WebDriverModule(
       base::Thread::Options(MessageLoop::TYPE_IO, 0));
   webdriver_thread_.message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebDriverModule::StartServer,
-                            base::Unretained(this), server_port));
+                            base::Unretained(this), server_port, listen_ip));
 }
 
 WebDriverModule::~WebDriverModule() {
@@ -428,11 +429,12 @@ void WebDriverModule::OnWindowRecreated() {
   }
 }
 
-void WebDriverModule::StartServer(int server_port) {
+void WebDriverModule::StartServer(int server_port,
+                                  const std::string& listen_ip) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // Create a new WebDriverServer and pass in the Dispatcher.
   webdriver_server_.reset(new WebDriverServer(
-      server_port,
+      server_port, listen_ip,
       base::Bind(&WebDriverDispatcher::HandleWebDriverServerRequest,
                  base::Unretained(webdriver_dispatcher_.get()))));
 }

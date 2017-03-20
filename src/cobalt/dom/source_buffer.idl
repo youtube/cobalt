@@ -1,0 +1,47 @@
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// https://www.w3.org/TR/media-source/#idl-def-SourceBuffer
+// https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer
+
+enum AppendMode {
+  "segments",
+  "sequence"
+};
+
+interface SourceBuffer : EventTarget {
+  [RaisesException] readonly attribute TimeRanges buffered;
+  [RaisesException] attribute double timestampOffset;
+
+  [Conditional=COBALT_MEDIA_SOURCE_2012, RaisesException] void append(Uint8Array data);
+  [RaisesException] void abort();
+
+  // MSE 2016 Interface
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] attribute AppendMode mode;
+  [Conditional=COBALT_MEDIA_SOURCE_2016] readonly attribute boolean updating;
+  // [RaisesException] readonly attribute TimeRanges buffered;
+  // [RaisesException] attribute double timestampOffset;
+  [Conditional=COBALT_MEDIA_SOURCE_2016] readonly attribute AudioTrackList audioTracks;
+  [Conditional=COBALT_MEDIA_SOURCE_2016] readonly attribute VideoTrackList videoTracks;
+  // [Conditional=COBALT_MEDIA_SOURCE_2016] readonly attribute TextTrackList textTracks;
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] attribute double appendWindowStart;
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] attribute unrestricted double appendWindowEnd;
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] void appendBuffer(ArrayBuffer data);
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] void appendBuffer(ArrayBufferView data);
+
+  // appendStream() omitted as it is not used.
+  // [RaisesException] void abort();
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] void remove(double start, unrestricted double end);
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] attribute TrackDefaultList trackDefaults;
+};

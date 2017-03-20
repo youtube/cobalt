@@ -4,7 +4,6 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/statistics_recorder.h"
-#include "base/object_watcher_shell.h"
 #include "base/test/main_hook.h"
 #include "build/build_config.h"
 #include "crypto/nss_util.h"
@@ -29,10 +28,6 @@ using net::SpdySession;
 
 int test_main(int argc, char** argv) {
   MainHook hook(NULL, argc, argv);
-#if !defined(OS_STARBOARD)
-  scoped_ptr<base::ObjectWatchMultiplexer> watcher(
-      new base::ObjectWatchMultiplexer());
-#endif
 
   // Record histograms, so we can get histograms data in tests.
   base::StatisticsRecorder::Initialize();

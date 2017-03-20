@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/layout/inline_level_replaced_box.h"
 
@@ -30,12 +28,13 @@ InlineLevelReplacedBox::InlineLevelReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
+    base::optional<bool> is_video_punched_out,
     LayoutStatTracker* layout_stat_tracker)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb,
                   set_bounds_cb, paragraph, text_position,
                   maybe_intrinsic_width, maybe_intrinsic_height,
                   maybe_intrinsic_ratio, used_style_provider,
-                  layout_stat_tracker),
+                  is_video_punched_out, layout_stat_tracker),
       is_hidden_by_ellipsis_(false),
       was_hidden_by_ellipsis_(false) {}
 

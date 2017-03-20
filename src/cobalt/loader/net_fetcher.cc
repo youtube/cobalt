@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/loader/net_fetcher.h"
 
@@ -81,30 +79,31 @@ NetFetcher::NetFetcher(const GURL& url,
                        const Options& options)
     : Fetcher(handler),
       security_callback_(security_callback),
-      ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
-          base::Bind(&NetFetcher::Start, base::Unretained(this)))) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(csp_reject_callback_(
+          base::Bind(&NetFetcher::ProcessCSPReject, base::Unretained(this)))) {
   url_fetcher_.reset(
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
   url_fetcher_->DiscardResponse();
 
-  // Delay the actual start until this function is complete. Otherwise we might
-  // call handler's callbacks at an unexpected time- e.g. receiving OnError()
-  // while a loader is still being constructed.
-  MessageLoop::current()->PostTask(FROM_HERE, start_callback_.callback());
-}
-
-void NetFetcher::Start() {
-  DCHECK(thread_checker_.CalledOnValidThread());
   const GURL& original_url = url_fetcher_->GetOriginalURL();
   if (security_callback_.is_null() ||
       security_callback_.Run(original_url, false /* did not redirect */)) {
     url_fetcher_->Start();
   } else {
-    std::string msg(base::StringPrintf("URL %s rejected by security policy.",
-                                       original_url.spec().c_str()));
-    return HandleError(msg).InvalidateThis();
+    // Delay the callback until this function is complete. Otherwise we might
+    // call handler's callbacks at an unexpected time- e.g. receiving OnError()
+    // while a loader is still being constructed.
+    MessageLoop::current()->PostTask(FROM_HERE,
+                                     csp_reject_callback_.callback());
   }
+}
+
+void NetFetcher::ProcessCSPReject() {
+  const GURL& original_url = url_fetcher_->GetOriginalURL();
+  std::string msg(base::StringPrintf("URL %s rejected by security policy.",
+                                     original_url.spec().c_str()));
+  return HandleError(msg).InvalidateThis();
 }
 
 void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
@@ -162,7 +161,7 @@ void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
 
 NetFetcher::~NetFetcher() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  start_callback_.Cancel();
+  csp_reject_callback_.Cancel();
 }
 
 NetFetcher::ReturnWrapper NetFetcher::HandleError(const std::string& message) {

@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 
@@ -93,10 +91,9 @@ class HardwareFrontendImage::HardwareBackendImage {
                        GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::HardwareBackendImage()");
-    scoped_ptr<backend::TextureEGL> texture =
-        cobalt_context->CreateTexture(image_data->PassTextureData());
+    texture_ = cobalt_context->CreateTexture(image_data->PassTextureData());
 
-    CommonInitialize(texture.Pass(), gr_context);
+    CommonInitialize(gr_context);
   }
 
   HardwareBackendImage(const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
@@ -107,13 +104,22 @@ class HardwareFrontendImage::HardwareBackendImage {
                        GrContext* gr_context) {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::HardwareBackendImage()");
-    scoped_ptr<backend::TextureEGL> texture =
-        cobalt_context->CreateTextureFromRawMemory(
-            raw_texture_memory, offset, descriptor.size,
-            ConvertRenderTreeFormatToGL(descriptor.pixel_format),
-            descriptor.pitch_in_bytes);
+    texture_ = cobalt_context->CreateTextureFromRawMemory(
+        raw_texture_memory, offset, descriptor.size,
+        ConvertRenderTreeFormatToGL(descriptor.pixel_format),
+        descriptor.pitch_in_bytes);
 
-    CommonInitialize(texture.Pass(), gr_context);
+    CommonInitialize(gr_context);
+  }
+
+  explicit HardwareBackendImage(scoped_ptr<backend::TextureEGL> texture) {
+    TRACE_EVENT0("cobalt::renderer",
+                 "HardwareBackendImage::HardwareBackendImage()");
+    // This constructor can be called from any thread. However,
+    // CommonInitialize() must then be called manually from the rasterizer
+    // thread.
+    texture_ = texture.Pass();
+    thread_checker_.DetachFromThread();
   }
 
   ~HardwareBackendImage() {
@@ -126,28 +132,33 @@ class HardwareFrontendImage::HardwareBackendImage {
 
   // Initiate all texture initialization code here, which should be executed
   // on the rasterizer thread.
-  void CommonInitialize(scoped_ptr<backend::TextureEGL> texture,
-                        GrContext* gr_context) {
+  void CommonInitialize(GrContext* gr_context) {
     DCHECK(thread_checker_.CalledOnValidThread());
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::CommonInitialize()");
+    if (texture_->GetTarget() == GL_TEXTURE_2D) {
+      gr_texture_.reset(
+          WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
+      DCHECK(gr_texture_);
 
-    texture_ = texture.Pass();
-    gr_texture_.reset(
-        WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
-    DCHECK(gr_texture_);
-
-    // Prepare a member SkBitmap that refers to the newly created GrTexture and
-    // will be the object that Skia draw calls will reference when referring
-    // to this image.
-    bitmap_.setInfo(gr_texture_->info());
-    bitmap_.setPixelRef(SkNEW_ARGS(SkGrPixelRef, (bitmap_.info(), gr_texture_)))
-        ->unref();
+      // Prepare a member SkBitmap that refers to the newly created GrTexture
+      // and will be the object that Skia draw calls will reference when
+      // referring to this image.
+      bitmap_.setInfo(gr_texture_->info());
+      bitmap_.setPixelRef(
+                 SkNEW_ARGS(SkGrPixelRef, (bitmap_.info(), gr_texture_)))
+          ->unref();
+    }
   }
 
-  const SkBitmap& GetBitmap() const {
+  const SkBitmap* GetBitmap() const {
     DCHECK(thread_checker_.CalledOnValidThread());
-    return bitmap_;
+    return &bitmap_;
+  }
+
+  const backend::TextureEGL* GetTextureEGL() const {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    return texture_.get();
   }
 
  private:
@@ -193,6 +204,25 @@ HardwareFrontendImage::HardwareFrontendImage(
                  cobalt_context, gr_context);
 }
 
+HardwareFrontendImage::HardwareFrontendImage(
+    scoped_ptr<backend::TextureEGL> texture,
+    render_tree::AlphaFormat alpha_format,
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+    scoped_ptr<math::Rect> content_region, MessageLoop* rasterizer_message_loop)
+    : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
+      content_region_(content_region.Pass()),
+      size_(content_region_ ? math::Size(std::abs(content_region_->width()),
+                                         std::abs(content_region_->height()))
+                            : texture->GetSize()),
+      rasterizer_message_loop_(rasterizer_message_loop) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareFrontendImage::HardwareFrontendImage()");
+  backend_image_.reset(new HardwareBackendImage(texture.Pass()));
+  initialize_backend_image_ =
+      base::Bind(&HardwareFrontendImage::InitializeBackendImageFromTexture,
+                 base::Unretained(this), gr_context);
+}
+
 HardwareFrontendImage::~HardwareFrontendImage() {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::~HardwareFrontendImage()");
@@ -205,12 +235,30 @@ HardwareFrontendImage::~HardwareFrontendImage() {
   }  // else let the scoped pointer clean it up immediately.
 }
 
-const SkBitmap& HardwareFrontendImage::GetBitmap() const {
+const SkBitmap* HardwareFrontendImage::GetBitmap() const {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   // Forward this call to the backend image.  This method must be called from
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
   // image will check that this is being called from the correct thread.
   return backend_image_->GetBitmap();
+}
+
+const backend::TextureEGL* HardwareFrontendImage::GetTextureEGL() const {
+  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  return backend_image_->GetTextureEGL();
+}
+
+bool HardwareFrontendImage::CanRenderInSkia() const {
+  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  // In some cases, especially when dealing with SbDecodeTargets, we may end
+  // up with a GLES2 texture whose target is not GL_TEXTURE_2D, in which case
+  // we cannot use our typical Skia flow to render it, and we delegate to
+  // a rasterizer-provided callback for performing custom rendering (e.g.
+  // via direct GL calls).
+  // We also fallback if a content region is specified on the image, since we
+  // don't support handling that in the normal flow.
+  return !GetContentRegion() &&
+         (!GetTextureEGL() || GetTextureEGL()->GetTarget() == GL_TEXTURE_2D);
 }
 
 bool HardwareFrontendImage::EnsureInitialized() {
@@ -238,6 +286,12 @@ void HardwareFrontendImage::InitializeBackendImageFromRawImageData(
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   backend_image_.reset(new HardwareBackendImage(
       raw_texture_memory, offset, descriptor, cobalt_context, gr_context));
+}
+
+void HardwareFrontendImage::InitializeBackendImageFromTexture(
+    GrContext* gr_context) {
+  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  backend_image_->CommonInitialize(gr_context);
 }
 
 HardwareMultiPlaneImage::HardwareMultiPlaneImage(

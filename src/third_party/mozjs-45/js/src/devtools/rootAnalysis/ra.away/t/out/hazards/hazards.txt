@@ -1,0 +1,45 @@
+Time: Fri Mar 25 2016 11:39:44 GMT-0700 (PDT)
+
+Function '_Z1fv$Cell* f()' has unrooted 'cell2' of type 'Cell*' live across GC call '_Z22halfSuppressedFunctionv$void halfSuppressedFunction()' at source.cpp:74
+    source.cpp:65: Assign(2,3, cell2 := cell)
+    source.cpp:66: Assign(3,4, cell3 := cell)
+    source.cpp:67: Assign(4,5, cell4 := cell)
+    source.cpp:69: Call(5,6, nogc.AutoSuppressGC())
+    source.cpp:70: Call(6,7, suppressedFunction())
+    source.cpp:71: Call(7,8, halfSuppressedFunction())
+    source.cpp:71: Call(8,9, nogc.~AutoSuppressGC())
+    source.cpp:73: Call(9,10, foo(cell1*))
+    source.cpp:74: Call(10,11, halfSuppressedFunction()) [[GC call]]
+    source.cpp:75: Call(11,12, foo(cell2*))
+GC Function: _Z22halfSuppressedFunctionv$void halfSuppressedFunction()
+    GC
+
+
+Function '_Z1fv$Cell* f()' has unrooted 'cell3' of type 'Cell*' live across GC call '_Z20unsuppressedFunctionv$void unsuppressedFunction()' at source.cpp:76
+    source.cpp:66: Assign(3,4, cell3 := cell)
+    source.cpp:67: Assign(4,5, cell4 := cell)
+    source.cpp:69: Call(5,6, nogc.AutoSuppressGC())
+    source.cpp:70: Call(6,7, suppressedFunction())
+    source.cpp:71: Call(7,8, halfSuppressedFunction())
+    source.cpp:71: Call(8,9, nogc.~AutoSuppressGC())
+    source.cpp:73: Call(9,10, foo(cell1*))
+    source.cpp:74: Call(10,11, halfSuppressedFunction())
+    source.cpp:75: Call(11,12, foo(cell2*))
+    source.cpp:76: Call(12,13, unsuppressedFunction()) [[GC call]]
+    source.cpp:80: Call(13,14, nogc:1.AutoSuppressGC())
+    source.cpp:80: Call(14,15, nogc:1.~AutoSuppressGC())
+    source.cpp:82: Call(15,16, foo(cell3*))
+GC Function: _Z20unsuppressedFunctionv$void unsuppressedFunction()
+    GC
+
+
+Function '_Z1fv$Cell* f()' has unrooted '<returnvalue>' of type 'Cell*' live across GC call '_ZN14GCInDestructorD1Ev$void GCInDestructor::~GCInDestructor()' at source.cpp:88
+    source.cpp:88: Assign(19,20, return := cell6*)
+    source.cpp:88: Call(20,21, kaboom.~GCInDestructor()) [[GC call]]
+    source.cpp:89:  [[end of function]]
+GC Function: _ZN14GCInDestructorD1Ev$void GCInDestructor::~GCInDestructor()
+    void GCInDestructor::~GCInDestructor(int32)
+    void GC()
+    GC
+
+

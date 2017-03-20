@@ -25,14 +25,18 @@ namespace media {
 
 // This class can be used to parse a content type for media in the form of
 // "type/subtype; param1=value1; param2="value2".  For example, the content type
-// "video/webm; codecs="vp9"; width=1920; height=1080; framerate=59.96" will be
-// parsed into:
+// "video/webm; codecs="vp8, vp9"; width=1920; height=1080; framerate=59.96"
+// will be parsed into:
 //   type: video
 //   subtype: webm
-//   codecs: vp9
+//   codecs: vp8, vp9
 //   width: 1920
 //   height: 1080
 //   framerate: 59.96
+//
+// Note that "codecs" is a special case because:
+// 1. It has to be the first parameter when available.
+// 2. It may contain multiple values separated by comma.
 //
 // The following are the restrictions on the components:
 // 1. Type/subtype has to be in the very beginning.
@@ -55,7 +59,8 @@ class MimeType {
   const std::string& type() const { return type_; }
   const std::string& subtype() const { return subtype_; }
 
-  int GetParamIndexByName(const char* name) const;
+  std::vector<std::string> GetCodecs() const;
+
   int GetParamCount() const;
   ParamType GetParamType(int index) const;
   const std::string& GetParamName(int index) const;
@@ -80,6 +85,8 @@ class MimeType {
   // Use std::vector as the number of components are usually small and we'd like
   // to keep the order of components.
   typedef std::vector<Param> Params;
+
+  int GetParamIndexByName(const char* name) const;
 
   bool is_valid_;
   std::string type_;

@@ -22,6 +22,8 @@
       'target_name': 'renderer',
       'type': 'static_library',
       'sources': [
+        'frame_rate_throttler.cc',
+        'frame_rate_throttler.h',
         'pipeline.cc',
         'pipeline.h',
         'renderer_module.cc',
@@ -33,6 +35,9 @@
         'submission_queue.h',
       ],
 
+      'defines': [
+        'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
+      ],
       'includes': [
         'copy_font_data.gypi',
       ],
@@ -93,8 +98,8 @@
         'submission_queue_test.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'render_tree_pixel_tester',

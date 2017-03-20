@@ -43,128 +43,112 @@ struct ProviderContext {
   int called_release;
 };
 
-template <typename T>
-SbDecodeTargetProvider MakeProvider() {
-  return {&T::Acquire, &T::Release};
-}
-
-void AcquireFalse() {
-  SbDecodeTarget target = SbDecodeTargetAcquireFromProvider(
-      kSbDecodeTargetFormat1PlaneRGBA, 16, 16);
-  bool valid = SbDecodeTargetIsValid(target);
-  EXPECT_FALSE(valid);
-  if (valid) {
-    SbDecodeTargetDestroy(target);
+void AcquireFalse(SbDecodeTargetProvider* provider) {
+  if (provider) {
+    SbDecodeTarget target = SbDecodeTargetAcquireFromProvider(
+        provider, kSbDecodeTargetFormat1PlaneRGBA, 16, 16);
+    bool valid = SbDecodeTargetIsValid(target);
+    EXPECT_FALSE(valid);
+    if (valid) {
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+      SbDecodeTargetRelease(target);
+#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+      SbDecodeTargetDestroy(target);
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    }
   }
 }
 
-void ReleaseInvalid() {
-  SbDecodeTargetReleaseToProvider(kSbDecodeTargetInvalid);
-}
-
-TEST(SbDecodeTargetProviderTest, SunnyDayRegisterUnregister) {
-  ProviderContext context = {};
-  SbDecodeTargetProvider provider = MakeProvider<ProviderContext>();
-  ASSERT_TRUE(SbDecodeTargetRegisterProvider(&provider, &context));
-  SbDecodeTargetUnregisterProvider(&provider, &context);
+void ReleaseInvalid(SbDecodeTargetProvider* provider) {
+  if (provider) {
+    SbDecodeTargetReleaseToProvider(provider, kSbDecodeTargetInvalid);
+  }
 }
 
 TEST(SbDecodeTargetProviderTest, SunnyDayCallsThroughToProvider) {
   ProviderContext context = {};
-  SbDecodeTargetProvider provider = MakeProvider<ProviderContext>();
-  ASSERT_TRUE(SbDecodeTargetRegisterProvider(&provider, &context));
+  SbDecodeTargetProvider provider = {&ProviderContext::Acquire,
+                                     &ProviderContext::Release,
+                                     reinterpret_cast<void*>(&context)};
+
   EXPECT_EQ(0, context.called_acquire);
   EXPECT_EQ(0, context.called_release);
 
-  AcquireFalse();
+  AcquireFalse(&provider);
   EXPECT_EQ(1, context.called_acquire);
-  AcquireFalse();
+  AcquireFalse(&provider);
   EXPECT_EQ(2, context.called_acquire);
 
-  ReleaseInvalid();
+  ReleaseInvalid(&provider);
   EXPECT_EQ(1, context.called_release);
-  ReleaseInvalid();
+  ReleaseInvalid(&provider);
   EXPECT_EQ(2, context.called_release);
-
-  SbDecodeTargetUnregisterProvider(&provider, &context);
 }
 
-TEST(SbDecodeTargetProviderTest, SunnyDayRegisterOver) {
+TEST(SbDecodeTargetProviderTest, SunnyDayMultipleProviders) {
   ProviderContext context = {};
-  SbDecodeTargetProvider provider = MakeProvider<ProviderContext>();
-  ASSERT_TRUE(SbDecodeTargetRegisterProvider(&provider, &context));
+  SbDecodeTargetProvider provider = {&ProviderContext::Acquire,
+                                     &ProviderContext::Release,
+                                     reinterpret_cast<void*>(&context)};
 
   ProviderContext context2 = {};
-  SbDecodeTargetProvider provider2 = MakeProvider<ProviderContext>();
-  ASSERT_TRUE(SbDecodeTargetRegisterProvider(&provider2, &context2));
+  SbDecodeTargetProvider provider2 = {&ProviderContext::Acquire,
+                                      &ProviderContext::Release,
+                                      reinterpret_cast<void*>(&context2)};
 
-  AcquireFalse();
+  AcquireFalse(&provider2);
   EXPECT_EQ(1, context2.called_acquire);
   EXPECT_EQ(0, context.called_acquire);
-  AcquireFalse();
+  AcquireFalse(&provider2);
   EXPECT_EQ(2, context2.called_acquire);
   EXPECT_EQ(0, context.called_acquire);
 
-  ReleaseInvalid();
+  ReleaseInvalid(&provider2);
   EXPECT_EQ(1, context2.called_release);
   EXPECT_EQ(0, context.called_release);
-  ReleaseInvalid();
+  ReleaseInvalid(&provider2);
   EXPECT_EQ(2, context2.called_release);
   EXPECT_EQ(0, context.called_release);
-
-  SbDecodeTargetUnregisterProvider(&provider2, &context2);
 }
 
 TEST(SbDecodeTargetProviderTest, RainyDayAcquireNoProvider) {
-  AcquireFalse();
+  AcquireFalse(NULL);
 }
 
 TEST(SbDecodeTargetProviderTest, RainyDayReleaseNoProvider) {
-  ReleaseInvalid();
+  ReleaseInvalid(NULL);
 }
 
-TEST(SbDecodeTargetProviderTest, RainyDayUnregisterUnregistered) {
+TEST(SbDecodeTargetProviderTest, RainyDayMultipleProviders) {
   ProviderContext context = {};
-  SbDecodeTargetProvider provider = MakeProvider<ProviderContext>();
-  SbDecodeTargetUnregisterProvider(&provider, &context);
+  SbDecodeTargetProvider provider = {&ProviderContext::Acquire,
+                                     &ProviderContext::Release,
+                                     reinterpret_cast<void*>(&context)};
 
   ProviderContext context2 = {};
-  SbDecodeTargetProvider provider2 = MakeProvider<ProviderContext>();
-  ASSERT_TRUE(SbDecodeTargetRegisterProvider(&provider2, &context2));
-  SbDecodeTargetUnregisterProvider(&provider, &context);
-  SbDecodeTargetUnregisterProvider(&provider, &context2);
-  SbDecodeTargetUnregisterProvider(&provider2, &context);
+  SbDecodeTargetProvider provider2 = {&ProviderContext::Acquire,
+                                      &ProviderContext::Release,
+                                      reinterpret_cast<void*>(&context2)};
 
-  AcquireFalse();
+  AcquireFalse(&provider2);
   EXPECT_EQ(1, context2.called_acquire);
-  AcquireFalse();
+  AcquireFalse(&provider2);
   EXPECT_EQ(2, context2.called_acquire);
 
-  ReleaseInvalid();
+  ReleaseInvalid(&provider2);
   EXPECT_EQ(1, context2.called_release);
-  ReleaseInvalid();
+  ReleaseInvalid(&provider2);
   EXPECT_EQ(2, context2.called_release);
 
-  SbDecodeTargetUnregisterProvider(&provider2, &context2);
-
-  AcquireFalse();
+  AcquireFalse(&provider);
   EXPECT_EQ(2, context2.called_acquire);
-  AcquireFalse();
+  AcquireFalse(&provider);
   EXPECT_EQ(2, context2.called_acquire);
 
-  ReleaseInvalid();
+  ReleaseInvalid(&provider);
   EXPECT_EQ(2, context2.called_release);
-  ReleaseInvalid();
+  ReleaseInvalid(&provider);
   EXPECT_EQ(2, context2.called_release);
-}
-
-TEST(SbDecodeTargetProviderTest, RainyDayUnregisterNull) {
-  ProviderContext context = {};
-  SbDecodeTargetUnregisterProvider(NULL, &context);
-}
-
-TEST(SbDecodeTargetProviderTest, RainyDayUnregisterNullNull) {
-  SbDecodeTargetUnregisterProvider(NULL, NULL);
 }
 
 }  // namespace

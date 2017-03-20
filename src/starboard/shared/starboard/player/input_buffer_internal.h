@@ -33,7 +33,8 @@ namespace player {
 class InputBuffer {
  public:
   InputBuffer();
-  InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
+  InputBuffer(SbMediaType sample_type,
+              SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
               void* context,
               const void* sample_buffer,
@@ -46,6 +47,10 @@ class InputBuffer {
 
   InputBuffer& operator=(const InputBuffer& that);
 
+  bool is_valid() const { return buffer_ != NULL; }
+  void reset();
+
+  SbMediaType sample_type() const;
   const uint8_t* data() const;
   int size() const;
   SbMediaTime pts() const;

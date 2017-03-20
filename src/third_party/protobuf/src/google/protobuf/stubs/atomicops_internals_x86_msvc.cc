@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2012 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -32,7 +32,7 @@
 // Therefore we move the code depending on windows.h to this separate cc file.
 
 // Don't compile this file for people not concerned about thread safety.
-#ifndef GOOGLE_PROTOBUF_NO_THREADSAFETY
+#ifndef GOOGLE_PROTOBUF_NO_THREAD_SAFETY
 
 #include <google/protobuf/stubs/atomicops.h>
 
@@ -109,4 +109,4 @@ Atomic64 Barrier_AtomicIncrement(volatile Atomic64* ptr,
 }  // namespace google
 
 #endif  // GOOGLE_PROTOBUF_ATOMICOPS_INTERNALS_X86_MSVC_H_
-#endif  // GOOGLE_PROTOBUF_NO_THREADSAFETY
+#endif  // GOOGLE_PROTOBUF_NO_THREAD_SAFETY

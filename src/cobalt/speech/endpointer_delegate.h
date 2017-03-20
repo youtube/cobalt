@@ -1,23 +1,21 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_SPEECH_ENDPOINTER_DELEGATE_H_
 #define COBALT_SPEECH_ENDPOINTER_DELEGATE_H_
 
-#include "cobalt/speech/endpointer/endpointer.h"
+#include "content/browser/speech/endpointer/endpointer.h"
 #include "media/base/audio_bus.h"
 
 namespace cobalt {
@@ -42,7 +40,7 @@ class EndPointerDelegate {
 
  private:
   // Used for detecting sound start event.
-  Endpointer endpointer_;
+  content::Endpointer endpointer_;
   // Used for recording the number of samples before notifying that it is the
   // first time the sound started. The |endpointer_| should be started and run
   // in the EnvironmentEstimation mode if used in noisy conditions for at least

@@ -1,0 +1,12 @@
+vendor/poster-0.8.1/
+vendor/pefile-1.2.10-114/
+vendor/python-daemon-1.5.5/
+vendor/requests-2.7.0/
+vendor/mozpoolclient-0.1.6/
+vendor/Jinja2-2.7.3/
+vendor/MarkupSafe-0.23/
+vendor/redo-1.4.1/
+vendor/jsonmerge-1.1.0/
+vendor/jsonschema-2.5.1/
+vendor/functools32-3.2.3-2/
+vendor/repoze.lru-ef418de/

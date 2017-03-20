@@ -1,6 +1,6 @@
 /***********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation
+ * Copyright (c) 1997-2015, International Business Machines Corporation
  * and others. All Rights Reserved.
  ***********************************************************************/
 
@@ -26,7 +26,7 @@
 UBool NumberFormatRoundTripTest::verbose                  = FALSE;
 UBool NumberFormatRoundTripTest::STRING_COMPARE           = TRUE;
 UBool NumberFormatRoundTripTest::EXACT_NUMERIC_COMPARE    = FALSE;
-UBool NumberFormatRoundTripTest::DEBUG                    = FALSE;
+UBool NumberFormatRoundTripTest::DEBUG_VAR                = FALSE;
 double NumberFormatRoundTripTest::MAX_ERROR               = 1e-14;
 double NumberFormatRoundTripTest::max_numeric_error       = 0.0;
 double NumberFormatRoundTripTest::min_numeric_error       = 1.0;
@@ -146,7 +146,7 @@ NumberFormatRoundTripTest::start()
 void 
 NumberFormatRoundTripTest::test(NumberFormat *fmt)
 {
-#if IEEE_754 && !defined(OS400)
+#if IEEE_754 && U_PLATFORM != U_PF_OS400
     test(fmt, uprv_getNaN());
     test(fmt, uprv_getInfinity());
     test(fmt, -uprv_getInfinity());
@@ -167,10 +167,10 @@ NumberFormatRoundTripTest::test(NumberFormat *fmt)
         test(fmt, uprv_floor((randomDouble(10000))));
         test(fmt, randomDouble(1e50));
         test(fmt, randomDouble(1e-50));
-#if !defined(OS390) && !defined(OS400)
+#if !(U_PF_OS390 <= U_PLATFORM && U_PLATFORM <= U_PF_OS400)
         test(fmt, randomDouble(1e100));
 #elif IEEE_754
-        test(fmt, randomDouble(1e75));    /*OS390 and OS400*/
+        test(fmt, randomDouble(1e75));
 #endif /* OS390 and OS400 */
         // {sfb} When formatting with a percent instance, numbers very close to
         // DBL_MAX will fail the round trip.  This is because:
@@ -185,13 +185,13 @@ NumberFormatRoundTripTest::test(NumberFormat *fmt)
         DecimalFormat *df = dynamic_cast<DecimalFormat *>(fmt);
         if(df != NULL)
         {
-#if !defined(OS390) && !defined(OS400)
+#if !(U_PF_OS390 <= U_PLATFORM && U_PLATFORM <= U_PF_OS400)
             /* DBL_MAX/2 is here because randomDouble does a *2 in the math */
             test(fmt, randomDouble(DBL_MAX/2.0) / df->getMultiplier());
 #elif IEEE_754
-            test(fmt, randomDouble(1e75) / df->getMultiplier());   
+            test(fmt, randomDouble(1e75) / df->getMultiplier());
 #else
-            test(fmt, randomDouble(1e65) / df->getMultiplier());   /*OS390*/
+            test(fmt, randomDouble(1e65) / df->getMultiplier());
 #endif
         }
 
@@ -199,8 +199,8 @@ NumberFormatRoundTripTest::test(NumberFormat *fmt)
         // These machines and compilers don't fully support denormalized doubles,
         test(fmt, randomDouble(1e-292));
         test(fmt, randomDouble(1e-100));
-#elif defined(OS390) || defined(OS400)
-        // i5/OS (OS400) throws exceptions on denormalized numbers
+#elif U_PF_OS390 <= U_PLATFORM && U_PLATFORM <= U_PF_OS400
+        // i5/OS (OS/400) throws exceptions on denormalized numbers
 #   if IEEE_754
         test(fmt, randomDouble(1e-78));
         test(fmt, randomDouble(1e-78));
@@ -243,12 +243,12 @@ NumberFormatRoundTripTest::test(NumberFormat *fmt, const Formattable& value)
 
     Formattable n;
     UBool show = verbose;
-    if(DEBUG)
+    if(DEBUG_VAR)
         logln(/*value.getString(temp) +*/ " F> " + escape(s));
 
     fmt->parse(s, n, status);
     failure(status, "fmt->parse");
-    if(DEBUG) 
+    if(DEBUG_VAR) 
         logln(escape(s) + " P> " /*+ n.getString(temp)*/);
 
     if(isDouble(n))
@@ -256,7 +256,7 @@ NumberFormatRoundTripTest::test(NumberFormat *fmt, const Formattable& value)
     else
         s2 = fmt->format(n.getLong(), s2);
     
-    if(DEBUG) 
+    if(DEBUG_VAR) 
         logln(/*n.getString(temp) +*/ " F> " + escape(s2));
 
     if(STRING_COMPARE) {

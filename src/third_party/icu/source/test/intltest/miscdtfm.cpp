@@ -1,5 +1,5 @@
 /***********************************************************************
- * Copyright (c) 1997-2010, International Business Machines Corporation
+ * Copyright (c) 1997-2011, International Business Machines Corporation
  * and others. All Rights Reserved.
  ***********************************************************************/
  
@@ -159,7 +159,10 @@ DateFormatMiscTests::test4099975()
     {
         UErrorCode status = U_ZERO_ERROR;
         DateFormatSymbols* symbols = new DateFormatSymbols(Locale::getUS(), status);
-        if(failure(status, "new DateFormatSymbols")) return;
+        if (U_FAILURE(status)) {
+            dataerrln("Unable to create DateFormatSymbols - %s", u_errorName(status));
+            return;	
+        }
         SimpleDateFormat *df = new SimpleDateFormat(UnicodeString("E hh:mm"), *symbols, status);
         if(failure(status, "new SimpleDateFormat")) return;
         UnicodeString format0;
@@ -314,17 +317,17 @@ DateFormatMiscTests::test4117335()
 
     UnicodeString jstLong(jstLongC, 5, 5);
 
-    UnicodeString jstShort = "JST";
+//    UnicodeString jstShort = "JST";
     
     UnicodeString tzID = "Asia/Tokyo";
 
     UnicodeString jdtLong(jdtLongC, 5, 5);
  
-    UnicodeString jdtShort = "JDT";
+//    UnicodeString jdtShort = "JDT";
     UErrorCode status = U_ZERO_ERROR;
     DateFormatSymbols *symbols = new DateFormatSymbols(Locale::getJapan(), status);
     if(U_FAILURE(status)) {
-      errcheckln(status, "Failure creating DateFormatSymbols, %s", u_errorName(status));
+      dataerrln("Failure creating DateFormatSymbols, %s", u_errorName(status));
       delete symbols;
       return;
     }
@@ -359,21 +362,21 @@ DateFormatMiscTests::test4117335()
         errln("*** Should have been " + prettify(jstLong)+ " but it is: " + prettify(zones[index][1]));
         //throw new Exception("Error in long TZ name");
     }
-    logln(UnicodeString("Short zone name = ") + zones[index][2]);
-    if (zones[index][2] != jstShort) {
-        errln("*** Should have been " + prettify(jstShort) + " but it is: " + prettify(zones[index][2]));
-        //throw new Exception("Error in short TZ name");
-    }
+//    logln(UnicodeString("Short zone name = ") + zones[index][2]);
+//    if (zones[index][2] != jstShort) {
+//        errln("*** Should have been " + prettify(jstShort) + " but it is: " + prettify(zones[index][2]));
+//        //throw new Exception("Error in short TZ name");
+//    }
     logln(UnicodeString("Long zone name = ") + zones[index][3]);
     if (zones[index][3] != jdtLong) {
         errln("*** Should have been " + prettify(jstLong) + " but it is: " + prettify(zones[index][3]));
         //throw new Exception("Error in long TZ name");
     }
-    logln(UnicodeString("SHORT zone name = ") + zones[index][4]);
-    if (zones[index][4] != jdtShort) {
-        errln("*** Should have been " + prettify(jstShort)+ " but it is: " + prettify(zones[index][4]));
-        //throw new Exception("Error in short TZ name");
-    }
+//    logln(UnicodeString("SHORT zone name = ") + zones[index][4]);
+//    if (zones[index][4] != jdtShort) {
+//        errln("*** Should have been " + prettify(jstShort)+ " but it is: " + prettify(zones[index][4]));
+//        //throw new Exception("Error in short TZ name");
+//    }
     delete symbols;
 
 }

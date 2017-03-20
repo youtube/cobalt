@@ -1,16 +1,42 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/nn.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/nn.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/nn.xml
- */
 nn{
     Countries{
+        001{"verda"}
+        002{"Afrika"}
+        003{"Nord-Amerika"}
+        005{"Sør-Amerika"}
+        009{"Oseania"}
+        011{"Vest-Afrika"}
+        013{"Sentral-Amerika"}
+        014{"Aust-Afrika"}
+        015{"Nord-Afrika"}
+        017{"Sentral-Afrika"}
+        018{"Sørlege Afrika"}
+        019{"Amerika"}
+        021{"nordlege Amerika"}
+        029{"Karibia"}
+        030{"Aust-Asia"}
+        034{"Sør-Asia"}
+        035{"Søraust-Asia"}
+        039{"Sør-Europa"}
+        053{"Australia og New Zealand"}
+        054{"Melanesia"}
+        057{"Mikronesia"}
+        061{"Polynesia"}
+        142{"Asia"}
+        143{"Sentral-Asia"}
+        145{"Vest-Asia"}
+        150{"Europa"}
+        151{"Aust-Europa"}
+        154{"Nord-Europa"}
+        155{"Vest-Europa"}
         419{"Latin-Amerika"}
         AC{"Ascension"}
         AD{"Andorra"}
@@ -64,7 +90,6 @@ nn{
         CO{"Colombia"}
         CP{"Clippertonøya"}
         CR{"Costa Rica"}
-        CS{"Serbia og Montenegro"}
         CU{"Cuba"}
         CV{"Kapp Verde"}
         CX{"Christmasøya"}
@@ -111,7 +136,7 @@ nn{
         GU{"Guam"}
         GW{"Guinea-Bissau"}
         GY{"Guyana"}
-        HK{"Hongkong S.A.R. Kina"}
+        HK{"Hongkong"}
         HM{"Heard- og McDonaldsøyane"}
         HN{"Honduras"}
         HR{"Kroatia"}
@@ -165,7 +190,7 @@ nn{
         ML{"Mali"}
         MM{"Myanmar"}
         MN{"Mongolia"}
-        MO{"Macao S.A.R. Kina"}
+        MO{"Macao"}
         MP{"Nord-Marianane"}
         MQ{"Martinique"}
         MR{"Mauritania"}
@@ -267,7 +292,7 @@ nn{
         ZA{"Sør-Afrika"}
         ZM{"Zambia"}
         ZW{"Zimbabwe"}
-        ZZ{"ukjent eller ugyldig område"}
+        ZZ{"ukjent område"}
     }
-    Version{"2.0.50.94"}
+    Version{"2.1.19.14"}
 }

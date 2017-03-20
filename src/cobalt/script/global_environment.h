@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #ifndef COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
 #define COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
 
@@ -22,7 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/script/opaque_handle.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/stack_frame.h"
 #include "cobalt/script/wrappable.h"
 
@@ -87,6 +85,10 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
 
   // Allow eval().
   virtual void EnableEval() = 0;
+
+  // Disable just-in-time compilation of JavaScript source code to native
+  // code.  Calling this is a no-op if JIT was not enabled in the first place.
+  virtual void DisableJit() = 0;
 
   // Set a callback that will be fired whenever eval() or a Function()
   // constructor is used.

@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <string>
 
@@ -48,10 +46,17 @@ using ::cobalt::math::RectF;
 template <typename T>
 scoped_refptr<AnimateNode> CreateSingleAnimation(
     const scoped_refptr<T>& target,
-    typename Animation<T>::Function anim_function) {
+    typename Animation<T>::Function anim_function, base::TimeDelta expiry) {
   AnimateNode::Builder animations_builder;
-  animations_builder.Add(target, anim_function);
+  animations_builder.Add(target, anim_function, expiry);
   return new AnimateNode(animations_builder, target);
+}
+
+template <typename T>
+scoped_refptr<AnimateNode> CreateSingleAnimation(
+    const scoped_refptr<T>& target,
+    typename Animation<T>::Function anim_function) {
+  return CreateSingleAnimation(target, anim_function, base::TimeDelta::Max());
 }
 
 class ImageFake : public Image {
@@ -77,7 +82,7 @@ TEST(AnimateNodeTest, EnsureSingleTextNodeAnimates) {
       CreateSingleAnimation(text_node, base::Bind(&AnimateText));
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
   TextNode* animated_text_node =
       dynamic_cast<TextNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_text_node);
@@ -97,7 +102,7 @@ TEST(AnimateNodeTest, EnsureSingleImageNodeAnimates) {
       CreateSingleAnimation(image_node, base::Bind(&AnimateImage));
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
   ImageNode* animated_image_node =
       dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
@@ -118,7 +123,7 @@ TEST(AnimateNodeTest, EnsureSingleRectNodeAnimates) {
       CreateSingleAnimation(rect_node, base::Bind(&AnimateRect));
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
   RectNode* animated_rect_node =
       dynamic_cast<RectNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_rect_node);
@@ -146,21 +151,21 @@ TEST(AnimateNodeTest, SingleImageNodeAnimatesOverTimeRepeatedlyCorrectly) {
   ImageNode* animated_image_node;
 
   animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
   animated_image_node = dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
   EXPECT_TRUE(animated_image_node);
   EXPECT_FLOAT_EQ(3.0f, animated_image_node->data().destination_rect.width());
 
   animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(2));
+      with_animations->Apply(base::TimeDelta::FromSeconds(2)).animated;
   animated_image_node = dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
   EXPECT_TRUE(animated_image_node);
   EXPECT_FLOAT_EQ(5.0f, animated_image_node->data().destination_rect.width());
 
   animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(4));
+      with_animations->Apply(base::TimeDelta::FromSeconds(4)).animated;
   animated_image_node = dynamic_cast<ImageNode*>(animated_render_tree.get());
   EXPECT_TRUE(animated_image_node);
   EXPECT_TRUE(animated_image_node);
@@ -198,7 +203,7 @@ TEST(AnimateNodeTest, MultipleAnimationsTargetingOneNodeApplyInCorrectOrder) {
       new AnimateNode(animations_builder, image_node));
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(3));
+      with_animations->Apply(base::TimeDelta::FromSeconds(3)).animated;
 
   ImageNode* animated_image_node =
       dynamic_cast<ImageNode*>(animated_render_tree.get());
@@ -224,7 +229,7 @@ TEST(AnimateNodeTest, AnimatingTransformNodeDoesNotAffectSourceChild) {
       CreateSingleAnimation(transform_node, base::Bind(&AnimateTransform));
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
 
   MatrixTransformNode* animated_transform_node =
       dynamic_cast<MatrixTransformNode*>(animated_render_tree.get());
@@ -256,7 +261,7 @@ TEST(AnimateNodeTest,
       new AnimateNode(animation_builder, composition_node);
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
 
   CompositionNode* animated_composition_node =
       dynamic_cast<CompositionNode*>(animated_render_tree.get());
@@ -287,7 +292,7 @@ TEST(AnimateNodeTest, SimpleSubAnimateNode) {
       CreateSingleAnimation(transform_node, base::Bind(&AnimateTransform));
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
 
   MatrixTransformNode* animated_transform_node =
       dynamic_cast<MatrixTransformNode*>(animated_render_tree.get());
@@ -324,7 +329,7 @@ TEST(AnimateNodeTest, SubAnimateNodeWithTwoAncestors) {
       new AnimateNode(transform_node_b);
 
   scoped_refptr<Node> animated_render_tree =
-      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+      with_animations->Apply(base::TimeDelta::FromSeconds(1)).animated;
 
   MatrixTransformNode* animated_transform_node =
       dynamic_cast<MatrixTransformNode*>(animated_render_tree.get());
@@ -340,6 +345,159 @@ TEST(AnimateNodeTest, SubAnimateNodeWithTwoAncestors) {
       animated_dummy_transform_node->data().source.get());
   EXPECT_TRUE(animated_image_node);
   EXPECT_EQ(RectF(2.0f, 2.0f), animated_image_node->data().destination_rect);
+}
+
+void BoundsAnimateRect(RectNode::Builder* rect_node,
+                       base::TimeDelta time_elapsed) {
+  UNREFERENCED_PARAMETER(time_elapsed);
+  rect_node->rect = RectF(3.0f, 5.0f, 15.0f, 20.0f);
+}
+TEST(AnimateNodeTest, AnimationBounds) {
+  scoped_refptr<RectNode> rect_node_static(new RectNode(
+      RectF(1.0f, 1.0f),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+
+  scoped_refptr<RectNode> rect_node_animated(new RectNode(
+      RectF(4.0f, 4.0f, 10.0f, 10.0f),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+
+  CompositionNode::Builder builder;
+  builder.AddChild(rect_node_static);
+  builder.AddChild(rect_node_animated);
+  scoped_refptr<CompositionNode> composition(
+      new CompositionNode(builder.Pass()));
+
+  AnimateNode::Builder animations_builder;
+  animations_builder.Add(rect_node_animated, base::Bind(&BoundsAnimateRect));
+  scoped_refptr<AnimateNode> with_animations =
+      new AnimateNode(animations_builder, composition);
+
+  AnimateNode::AnimateResults results =
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+
+  math::RectF animation_bounds =
+      results.get_animation_bounds_since.Run(base::TimeDelta());
+
+  EXPECT_EQ(RectF(3.0f, 5.0f, 15.0f, 20.0f), animation_bounds);
+}
+
+TEST(AnimateNodeTest, AnimationBoundsExpiration) {
+  scoped_refptr<RectNode> rect_node_static(new RectNode(
+      RectF(1.0f, 1.0f),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+
+  scoped_refptr<RectNode> rect_node_animated(new RectNode(
+      RectF(4.0f, 4.0f, 10.0f, 10.0f),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+
+  CompositionNode::Builder builder;
+  builder.AddChild(rect_node_static);
+  builder.AddChild(rect_node_animated);
+  scoped_refptr<CompositionNode> composition(
+      new CompositionNode(builder.Pass()));
+
+  AnimateNode::Builder animations_builder;
+  animations_builder.Add(rect_node_animated, base::Bind(&BoundsAnimateRect),
+                         base::TimeDelta::FromSeconds(2));
+  scoped_refptr<AnimateNode> with_animations =
+      new AnimateNode(animations_builder, composition);
+
+  // Make sure that our animation bounds are updated when we apply animations
+  // before the expiration.
+  AnimateNode::AnimateResults results =
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+  math::RectF animation_bounds =
+      results.get_animation_bounds_since.Run(base::TimeDelta::FromSeconds(0));
+  EXPECT_EQ(RectF(3.0f, 5.0f, 15.0f, 20.0f), animation_bounds);
+
+  // Make sure that our animation bounds are updated when we apply animations
+  // after the expiration, but we pass in a "since" value from before the
+  // animations expire.
+  results = with_animations->Apply(base::TimeDelta::FromSeconds(4));
+  animation_bounds =
+      results.get_animation_bounds_since.Run(base::TimeDelta::FromSeconds(1));
+  EXPECT_EQ(RectF(3.0f, 5.0f, 15.0f, 20.0f), animation_bounds);
+
+  // Make sure that our animation bounds are empty after our animations have
+  // expired.
+  results = with_animations->Apply(base::TimeDelta::FromSeconds(4));
+  animation_bounds =
+      results.get_animation_bounds_since.Run(base::TimeDelta::FromSeconds(3));
+  EXPECT_EQ(0, animation_bounds.size().GetArea());
+}
+
+void BoundsAnimateRect2(RectNode::Builder* rect_node,
+                        base::TimeDelta time_elapsed) {
+  UNREFERENCED_PARAMETER(time_elapsed);
+  rect_node->rect = RectF(2.0f, 6.0f, 10.0f, 25.0f);
+}
+TEST(AnimateNodeTest, AnimationBoundsUnionsMultipleAnimations) {
+  scoped_refptr<RectNode> rect_node_1(new RectNode(
+      RectF(1.0f, 1.0f),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+
+  scoped_refptr<RectNode> rect_node_2(new RectNode(
+      RectF(4.0f, 4.0f, 10.0f, 10.0f),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+
+  CompositionNode::Builder builder;
+  builder.AddChild(rect_node_1);
+  builder.AddChild(rect_node_2);
+  scoped_refptr<CompositionNode> composition(
+      new CompositionNode(builder.Pass()));
+
+  AnimateNode::Builder animations_builder;
+  animations_builder.Add(rect_node_1, base::Bind(&BoundsAnimateRect));
+  animations_builder.Add(rect_node_2, base::Bind(&BoundsAnimateRect2));
+  scoped_refptr<AnimateNode> with_animations =
+      new AnimateNode(animations_builder, composition);
+
+  // Make sure that our animation bounds are the union from our two animated
+  // resulting boxes.
+  AnimateNode::AnimateResults results =
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+  math::RectF animation_bounds =
+      results.get_animation_bounds_since.Run(base::TimeDelta::FromSeconds(0));
+  EXPECT_EQ(RectF(2.0f, 5.0f, 16.0f, 26.0f), animation_bounds);
+}
+
+void AnimateTranslate(CompositionNode::Builder* composition_node,
+                      base::TimeDelta time_elapsed) {
+  UNREFERENCED_PARAMETER(time_elapsed);
+  composition_node->set_offset(math::Vector2dF(4.0f, 4.0f));
+}
+// This test makes sure that the animation bounds are calculated correctly when
+// multiple nodes on the path from the root to a leaf node are animated.  Our
+// results should use the *animated* path to the node to calculate the bounds,
+// versus the non-animated path.
+TEST(AnimateNodeTest, AnimationBoundsWorksForCompoundedTransformations) {
+  scoped_refptr<RectNode> rect_node(new RectNode(
+      RectF(8.0f, 8.0f),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f)))));
+
+  CompositionNode::Builder composition_node_builder_1;
+  composition_node_builder_1.AddChild(rect_node);
+  scoped_refptr<CompositionNode> composition_node_1(
+      new CompositionNode(composition_node_builder_1.Pass()));
+
+  CompositionNode::Builder composition_node_builder_2;
+  composition_node_builder_2.AddChild(composition_node_1);
+  scoped_refptr<CompositionNode> composition_node_2(
+      new CompositionNode(composition_node_builder_2.Pass()));
+
+  AnimateNode::Builder animations_builder;
+  animations_builder.Add(composition_node_1, base::Bind(&AnimateTranslate));
+  animations_builder.Add(composition_node_2, base::Bind(&AnimateTranslate));
+  scoped_refptr<AnimateNode> with_animations =
+      new AnimateNode(animations_builder, composition_node_2);
+
+  // Make sure that our animation bounds are the union from our two animated
+  // resulting boxes.
+  AnimateNode::AnimateResults results =
+      with_animations->Apply(base::TimeDelta::FromSeconds(1));
+  math::RectF animation_bounds =
+      results.get_animation_bounds_since.Run(base::TimeDelta::FromSeconds(0));
+  EXPECT_EQ(RectF(8.0f, 8.0f, 8.0f, 8.0f), animation_bounds);
 }
 
 }  // namespace animations

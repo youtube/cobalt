@@ -1,6 +1,6 @@
 # *   Copyright (C) 1998-2010, International Business Machines
 # *   Corporation and others.  All Rights Reserved.
-ZONE_CLDR_VERSION = 1.9
+ZONE_CLDR_VERSION = %version%
 # A list of txt's to build
 # The downstream packager may not need this file at all if their package is not
 # constrained by
@@ -33,13 +33,14 @@ ZONE_SOURCE =\
  da.txt\
  de.txt\
  el.txt\
- en.txt en_GB.txt\
- es.txt\
+ en.txt en_001.txt en_150.txt\
+ en_AU.txt en_CA.txt en_GB.txt en_IN.txt en_NZ.txt en_ZA.txt\
+ es.txt es_419.txt es_MX.txt es_AR.txt es_US.txt\
  et.txt\
  fa.txt\
  fi.txt\
  fil.txt\
- fr.txt\
+ fr.txt fr_CA.txt\
  gu.txt\
  he.txt\
  hi.txt\

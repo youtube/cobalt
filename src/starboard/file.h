@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// File system Input/Output
+// Module Overview: Starboard File module
+//
+// Defines file system input/output functions.
 
 #ifndef STARBOARD_FILE_H_
 #define STARBOARD_FILE_H_
 
 #include "starboard/export.h"
-#include "starboard/log.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
@@ -32,17 +33,33 @@ typedef struct SbFilePrivate SbFilePrivate;
 // A handle to an open file.
 typedef SbFilePrivate* SbFile;
 
-// kSbFile(Open|Create)(Only|Always|Truncated) are mutually exclusive. You
-// should specify exactly one of the five (possibly combining with other flags)
-// when opening or creating a file.
+// Flags that define how a file is used in the application. These flags should
+// be or'd together when passed to SbFileOpen to open or create a file.
+//
+// The following five flags are mutually exclusive. You must specify exactly one
+// of them:
+// - |kSbFileOpenAlways|
+// - |kSbFileOpenOnly|
+// - |kSbFileOpenTruncated|
+// - |kSbFileCreateAlways|
+// - |kSbFileCreateOnly|
+//
+// In addition, one or more of the following flags must be specified:
+// - |kSbFileRead|
+// - |kSbFileWrite|
+//
+// The |kSbFileAsync| flag is optional.
 typedef enum SbFileFlags {
   kSbFileOpenOnly = 1 << 0,       // Opens a file, only if it exists.
   kSbFileCreateOnly = 1 << 1,     // Creates a new file, only if it
                                   //   does not already exist.
-  kSbFileOpenAlways = 1 << 2,     // May create a new file.
-  kSbFileCreateAlways = 1 << 3,   // May overwrite an old file.
-  kSbFileOpenTruncated = 1 << 4,  // Opens a file and truncates it
-                                  //   to zero, only if it exists.
+  kSbFileOpenAlways = 1 << 2,     // Opens an existing file at the specified
+                                  // path or creates a new file at that path.
+  kSbFileCreateAlways = 1 << 3,   // Creates a new file at the specified path
+                                  // or overwrites an existing file at that
+                                  // path.
+  kSbFileOpenTruncated = 1 << 4,  // Opens a file and truncates it to zero,
+                                  // only if it exists.
   kSbFileRead = 1 << 5,
   kSbFileWrite = 1 << 6,
   kSbFileAsync = 1 << 7,  // May allow asynchronous I/O on some
@@ -112,81 +129,140 @@ static SB_C_INLINE bool SbFileIsValid(SbFile file) {
 }
 
 // Opens the file at |path|, which must be absolute, creating it if specified by
-// |flags|. |out_created|, if provided, will be set to true if a new file was
-// created (or an old one truncated to zero length to simulate a new file, which
-// can happen with kSbFileCreateAlways), and false otherwise.  |out_error| can
-// be NULL. If creation failed, it will return kSbFileInvalid. The read/write
-// position is at the beginning of the file.
+// |flags|. The read/write position is at the beginning of the file.
 //
-// It only guarantees the correct behavior when |path| points to a file. If
-// |path| points to directory, the behavior is undefined.
+// Note that this function only guarantees the correct behavior when |path|
+// points to a file. The behavior is undefined if |path| points to a directory.
+//
+// |path|: The absolute path of the file to be opened.
+// |flags|: |SbFileFlags| that determine how the file is used in the
+//   application. Among other things, |flags| can indicate whether the
+//   application should create |path| if |path| does not already exist.
+// |out_created|: Starboard sets this value to |true| if a new file is created
+//   or if an old file is truncated to zero length to simulate a new file,
+//   which can happen if the |kSbFileCreateAlways| flag is set. Otherwise,
+//   Starboard sets this value to |false|.
+// |out_error|: If |path| cannot be created, this is set to |kSbFileInvalid|.
+//   Otherwise, it is |NULL|.
 SB_EXPORT SbFile SbFileOpen(const char* path,
                             int flags,
                             bool* out_created,
                             SbFileError* out_error);
 
-// Closes |file|. Returns whether the close was successful.
+// Closes |file|. The return value indicates whether the file was closed
+// successfully.
+//
+// |file|: The absolute path of the file to be closed.
 SB_EXPORT bool SbFileClose(SbFile file);
 
-// Changes current read/write position in |file| to |offset| relative to the
-// origin defined by |whence|. Returns the resultant current read/write position
-// in the file (relative to the start) or -1 in case of error. May not support
+// Changes the current read/write position in |file|. The return value
+// identifies the resultant current read/write position in the file (relative
+// to the start) or |-1| in case of an error. This function might not support
 // seeking past the end of the file on some platforms.
+//
+// |file|: The SbFile in which the read/write position will be changed.
+// |whence|: The starting read/write position. The position is modified relative
+//   to this value.
+// |offset|: The amount that the read/write position is changed, relative to
+//   |whence|.
 SB_EXPORT int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset);
 
 // Reads |size| bytes (or until EOF is reached) from |file| into |data|,
-// starting at the file's current position. Returns the number of bytes read, or
-// -1 on error. Note that this function does NOT make a best effort to read all
-// data on all platforms, it just reads however many bytes are quickly
-// available. Can be run in a loop to make it a best-effort read.
+// starting at the file's current position.
+//
+// The return value specifies the number of bytes read or |-1| if there was
+// an error. Note that this function does NOT make a best effort to read all
+// data on all platforms; rather, it just reads however many bytes are quickly
+// available. However, this function can be run in a loop to make it a
+// best-effort read.
+//
+// |file|: The SbFile from which to read data.
+// |data|: The variable to which data is read.
+// |size|: The amount of data (in bytes) to read.
 SB_EXPORT int SbFileRead(SbFile file, char* data, int size);
 
 // Writes the given buffer into |file| at the file's current position,
-// overwritting any data that was previously there. Returns the number of bytes
-// written, or -1 on error. Note that this function does NOT make a best effort
-// to write all data, it writes however many bytes can be written quickly. It
-// should be run in a loop to ensure all data is written.
+// overwriting any data that was previously there.
+//
+// The return value identifies the number of bytes written, or |-1| on error.
+// Note that this function does NOT make a best effort to write all data;
+// rather, it writes however many bytes can be written quickly. Generally, this
+// means that it writes however many bytes as possible without blocking on IO.
+// Run this function in a loop to ensure that all data is written.
+//
+// |file|: The SbFile to which data will be written.
+// |data|: The data to be written.
+// |size|: The amount of data (in bytes) to write.
 SB_EXPORT int SbFileWrite(SbFile file, const char* data, int size);
 
-// Truncates the given |file| to the given |length|. If length is greater than
-// the current size of the file, the file is extended with zeros. Negative
-// |length| will do nothing and return false.
+// Truncates the given |file| to the given |length|. The return value indicates
+// whether the file was truncated successfully.
+//
+// |file|: The file to be truncated.
+// |length|: The expected length of the file after it is truncated. If |length|
+//   is greater than the current size of the file, then the file is extended
+//   with zeros. If |length| is negative, then the function is a no-op and
+//   returns |false|.
 SB_EXPORT bool SbFileTruncate(SbFile file, int64_t length);
 
-// Flushes the write buffer to |file|. Data written via SbFileWrite isn't
-// necessarily comitted right away until the file is flushed or closed.
+// Flushes the write buffer to |file|. Data written via SbFileWrite is not
+// necessarily committed until the SbFile is flushed or closed.
+//
+// |file|: The SbFile to which the write buffer is flushed.
 SB_EXPORT bool SbFileFlush(SbFile file);
 
-// Places some information about |file|, an open SbFile, in |out_info|. Returns
-// |true| if successful. If unsuccessful, |out_info| is untouched.
+// Retrieves information about |file|. The return value indicates whether the
+// file information was retrieved successfully.
+//
+// |file|: The SbFile for which information is retrieved.
+// |out_info|: The variable into which the retrieved data is placed. This
+//   variable is not touched if the operation is not successful.
 SB_EXPORT bool SbFileGetInfo(SbFile file, SbFileInfo* out_info);
 
-// Places information about the file or directory at |path|, which must be
-// absolute, into |out_info|. Returns |true| if successful. If unsuccessful,
-// |out_info| is untouched.
+// Retrieves information about the file at |path|. The return value indicates
+// whether the file information was retrieved successfully.
+//
+// |file|: The absolute path of the file for which information is retrieved.
+// |out_info|: The variable into which the retrieved data is placed. This
+//   variable is not touched if the operation is not successful.
 SB_EXPORT bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info);
 
-// Deletes the regular file, symlink, or empty directory at |path|, which must
-// be absolute. Used mainly to clean up after unit tests. May fail on some
-// platforms if the file in question is being held open.
+// Deletes the regular file, symlink, or empty directory at |path|. This
+// function is used primarily to clean up after unit tests. On some platforms,
+// this function fails if the file in question is being held open.
+//
+// |path|: The absolute path fo the file, symlink, or directory to be deleted.
 SB_EXPORT bool SbFileDelete(const char* path);
 
-// Returns whether a file or directory exists at |path|, which must be absolute.
+// Indicates whether a file or directory exists at |path|.
+//
+// |path|: The absolute path of the file or directory being checked.
 SB_EXPORT bool SbFileExists(const char* path);
 
-// Returns whether SbFileOpen() with the given |flags| is allowed for |path|,
-// which must be absolute.
+// Indicates whether SbFileOpen() with the given |flags| is allowed for |path|.
+//
+// |path|: The absolute path to be checked.
+// |flags|: The flags that are being evaluated for the given |path|.
 SB_EXPORT bool SbFileCanOpen(const char* path, int flags);
 
-// Converts an ISO fopen() mode string into flags that can be equivalently
+// Converts an ISO |fopen()| mode string into flags that can be equivalently
 // passed into SbFileOpen().
+//
+// |mode|: The mode string to be converted into flags.
 SB_EXPORT int SbFileModeStringToFlags(const char* mode);
 
-// Reads the given number of bytes (or until EOF is reached). Returns the number
-// of bytes read, or -1 on error. Note that this function makes a best effort to
-// read all data on all platforms, so it is not intended for stream oriented
-// files but instead for cases when the normal expectation is that actually
-// |size| bytes are read unless there is an error.
+// Reads |size| bytes (or until EOF is reached) from |file| into |data|,
+// starting from the beginning of the file.
+//
+// The return value specifies the number of bytes read or |-1| if there was
+// an error. Note that, unlike |SbFileRead|, this function does make a best
+// effort to read all data on all platforms. As such, it is not intended for
+// stream-oriented files but instead for cases when the normal expectation is
+// that |size| bytes can be read unless there is an error.
+//
+// |file|: The SbFile from which to read data.
+// |data|: The variable to which data is read.
+// |size|: The amount of data (in bytes) to read.
 static inline int SbFileReadAll(SbFile file, char* data, int size) {
   if (!SbFileIsValid(file) || size < 0) {
     return -1;
@@ -204,9 +280,15 @@ static inline int SbFileReadAll(SbFile file, char* data, int size) {
   return bytes_read ? bytes_read : rv;
 }
 
-// Writes the given buffer into the file, overwritting any data that was
-// previously there. Returns the number of bytes written, or -1 on error. Note
-// that this function makes a best effort to write all data on all platforms.
+// Writes the given buffer into |file|, starting at the beginning of the file,
+// and overwriting any data that was previously there. Unlike SbFileWrite, this
+// function does make a best effort to write all data on all platforms.
+//
+// The return value identifies the number of bytes written, or |-1| on error.
+//
+// |file|: The file to which data will be written.
+// |data|: The data to be written.
+// |size|: The amount of data (in bytes) to write.
 static inline int SbFileWriteAll(SbFile file, const char* data, int size) {
   if (!SbFileIsValid(file) || size < 0) {
     return -1;
@@ -287,7 +369,7 @@ class ScopedFile {
 
   int64_t GetSize() const {
     SbFileInfo file_info;
-    static bool success = GetInfo(&file_info);
+    bool success = GetInfo(&file_info);
     return (success ? file_info.size : -1);
   }
 

@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_BROWSER_WEB_MODULE_STAT_TRACKER_H_
 #define COBALT_BROWSER_WEB_MODULE_STAT_TRACKER_H_
@@ -46,12 +44,21 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     return layout_stat_tracker_.get();
   }
 
-  // |OnInjectEvent| starts event stat tracking if
+  // |OnStartInjectEvent| starts event stat tracking if
   // |should_track_injected_events_| is true. Otherwise, it does nothing.
-  void OnInjectEvent(const scoped_refptr<dom::Event>& event);
+  void OnStartInjectEvent(const scoped_refptr<dom::Event>& event);
 
-  // |OnRenderTreeProduced| ends stat tracking for the current event and also
-  // triggers flushing of periodic counts within the stat trackers.
+  // |OnEndInjectEvent| notifies the event stat tracking that the event has
+  // finished being injected. If no animation frame callbacks and also no render
+  // tree is pending, it also ends tracking of the event.
+  void OnEndInjectEvent(bool are_animation_frame_callbacks_pending,
+                        bool is_new_render_tree_pending);
+
+  // |OnRanAnimationFrameCallbacks| ends stat tracking for the current event
+  // if no render tree is pending.
+  void OnRanAnimationFrameCallbacks(bool is_new_render_tree_pending);
+
+  // |OnRenderTreeProduced| ends stat tracking for the current event.
   void OnRenderTreeProduced();
 
  private:
@@ -64,23 +71,35 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   enum StopWatchType {
     kStopWatchTypeEvent,
+    kStopWatchTypeInjectEvent,
     kNumStopWatchTypes,
   };
 
   struct EventStats {
     explicit EventStats(const std::string& name);
 
+    base::CVal<bool, base::CValPublic> produced_render_tree_;
+
     // Count-related
     base::CVal<int, base::CValPublic> count_dom_html_elements_created;
     base::CVal<int, base::CValPublic> count_dom_html_elements_destroyed;
     base::CVal<int, base::CValPublic> count_dom_update_matching_rules;
     base::CVal<int, base::CValPublic> count_dom_update_computed_style;
+    base::CVal<int, base::CValPublic>
+        count_dom_generate_html_element_computed_style;
+    base::CVal<int, base::CValPublic>
+        count_dom_generate_pseudo_element_computed_style;
     base::CVal<int, base::CValPublic> count_layout_boxes_created;
     base::CVal<int, base::CValPublic> count_layout_boxes_destroyed;
+    base::CVal<int, base::CValPublic> count_layout_update_size;
+    base::CVal<int, base::CValPublic> count_layout_render_and_animate;
+    base::CVal<int, base::CValPublic> count_layout_update_cross_references;
 
     // Duration-related
     base::CVal<base::TimeDelta, base::CValPublic> duration_total;
     base::CVal<base::TimeDelta, base::CValPublic> duration_dom_inject_event;
+    base::CVal<base::TimeDelta, base::CValPublic>
+        duration_dom_run_animation_frame_callbacks;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_dom_update_computed_style;
     base::CVal<base::TimeDelta, base::CValPublic> duration_layout_box_tree;
@@ -90,6 +109,13 @@ class WebModuleStatTracker : public base::StopWatchOwner {
         duration_layout_update_used_sizes;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_layout_render_and_animate;
+
+#if defined(ENABLE_WEBDRIVER)
+    // A string containing all of the event's values as a dictionary of
+    // key-value pairs. This is used by the Webdriver and is only enabled with
+    // it.
+    base::CVal<std::string> value_dictionary;
+#endif  // ENABLE_WEBDRIVER
   };
 
   // From base::StopWatchOwner
@@ -118,7 +144,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   std::string name_;
 
-  base::CVal<int, base::CValPublic> event_is_processing_;
+  base::CVal<bool, base::CValPublic> event_is_processing_;
 };
 
 }  // namespace browser

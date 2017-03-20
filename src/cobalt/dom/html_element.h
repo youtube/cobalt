@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DOM_HTML_ELEMENT_H_
 #define COBALT_DOM_HTML_ELEMENT_H_
@@ -212,8 +210,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
           parent_computed_style,
       const scoped_refptr<const cssom::CSSComputedStyleData>&
           root_computed_style,
-      const base::TimeDelta& style_change_event_time,
-      bool ancestors_were_valid);
+      const base::TimeDelta& style_change_event_time, bool ancestors_were_valid,
+      int current_element_depth);
   // Updates the cached computed style of this element.
   void UpdateComputedStyle(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
@@ -264,6 +262,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Releases image resources and invalidates computed style if there are images
   // associated with this html element in the image cache.
   void ReleaseImagesAndInvalidateComputedStyleIfNecessary() OVERRIDE;
+
+  // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
+  // make stat updates even after its weak pointer to its document has been
+  // deleted. This is protected because some derived classes need access to it.
+  DomStatTracker* const dom_stat_tracker_;
 
  private:
   // From Node.
@@ -339,11 +342,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // We maintain it here to indicate to the resource caching system
   // that the images are currently in-use, and should not be purged.
   loader::image::CachedImageReferenceVector cached_background_images_;
-
-  // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
-  // make stat updates even after its weak pointer to its document has been
-  // deleted.
-  DomStatTracker* const dom_stat_tracker_;
 
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.

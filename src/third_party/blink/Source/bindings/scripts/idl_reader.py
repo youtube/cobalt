@@ -39,7 +39,7 @@ from blink_idl_parser import BlinkIDLParser
 from idl_definitions import IdlDefinitions
 from idl_validator import EXTENDED_ATTRIBUTES_RELATIVE_PATH, IDLInvalidExtendedAttributeError, IDLExtendedAttributeValidator
 from interface_dependency_resolver import InterfaceDependencyResolver
-from utilities import idl_filename_to_component
+from utilities import idl_filename_to_component, idl_filename_to_interface_name
 
 
 class IdlReader(object):
@@ -83,8 +83,8 @@ class IdlReader(object):
         if ast.GetProperty('ERRORS'):
             raise Exception('Encountered %d error(s) parsing %s' % (
                 ast.GetProperty('ERRORS'), idl_filename))
-        idl_file_basename, _ = os.path.splitext(os.path.basename(idl_filename))
-        definitions = IdlDefinitions(idl_file_basename, ast)
+        idl_interface_name = idl_filename_to_interface_name(idl_filename)
+        definitions = IdlDefinitions(idl_interface_name, ast)
 
         # Validate file contents with filename convention
         # The Blink IDL filenaming convention is that the file
@@ -100,10 +100,20 @@ class IdlReader(object):
                 'Expected exactly 1 definition in file {0}, but found {1}'
                 .format(idl_filename, number_of_targets))
         target = targets[0]
-        if not target.is_partial and target.name != idl_file_basename:
-            raise Exception(
-                'Definition name "{0}" disagrees with IDL file basename "{1}".'
-                .format(target.name, idl_file_basename))
+        if not target.is_partial and target.name != idl_interface_name:
+            if target.name.lower() == idl_interface_name.lower():
+                # Names differ only by capitalization. This could indicate a
+                # problem with the special tokens in the snake_case->TitleCase
+                # conversion in
+                raise Exception(
+                    '"Unexpected capitalization of definition name "{0}" for IDL file name "{1}". '
+                    'Does a special token need to be added to '
+                    'idl_filename_to_interface_name in utilities.py?'
+                    .format(target.name, os.path.basename(idl_filename)))
+            else:
+                raise Exception(
+                    'Definition name "{0}" disagrees with IDL file name "{1}".'
+                    .format(target.name, os.path.basename(idl_filename)))
 
         # Validate extended attributes
         if not self.extended_attribute_validator:

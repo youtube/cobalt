@@ -13,8 +13,6 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
-#include "net/spdy/spdy_header_block.h"
-#include "net/spdy/spdy_websocket_stream.h"
 
 class GURL;
 
@@ -33,8 +31,7 @@ class WebSocketHandshakeResponseHandler;
 // TODO(ukai): refactor websocket.cc to use this.
 class NET_EXPORT WebSocketJob
     : public SocketStreamJob,
-      public SocketStream::Delegate,
-      public SpdyWebSocketStream::Delegate {
+      public SocketStream::Delegate {
  public:
   // This is state of WebSocket, not SocketStream.
   enum State {
@@ -48,10 +45,6 @@ class NET_EXPORT WebSocketJob
   explicit WebSocketJob(SocketStream::Delegate* delegate);
 
   static void EnsureInit();
-
-  // Enable or Disable WebSocket over SPDY feature.
-  // This function is intended to be called before I/O thread starts.
-  static void set_websocket_over_spdy_enabled(bool enabled);
 
   State state() const { return state_; }
   virtual void Connect() OVERRIDE;
@@ -77,19 +70,12 @@ class NET_EXPORT WebSocketJob
                                      bool fatal) OVERRIDE;
   virtual void OnError(const SocketStream* socket, int error) OVERRIDE;
 
-  // SpdyWebSocketStream::Delegate methods.
-  virtual void OnCreatedSpdyStream(int status) OVERRIDE;
-  virtual void OnSentSpdyHeaders(int status) OVERRIDE;
-  virtual int OnReceivedSpdyResponseHeader(
-      const SpdyHeaderBlock& headers, int status) OVERRIDE;
-  virtual void OnSentSpdyData(int amount_sent) OVERRIDE;
-  virtual void OnReceivedSpdyData(const char* data, int length) OVERRIDE;
-  virtual void OnCloseSpdyStream() OVERRIDE;
+  WebSocketHandshakeResponseHandler* GetHandshakeResponse() {
+    return handshake_response_.get();
+  }
 
  private:
   friend class WebSocketThrottle;
-  friend class WebSocketJobSpdy2Test;
-  friend class WebSocketJobSpdy3Test;
   virtual ~WebSocketJob();
 
   bool SendHandshakeRequest(const char* data, int len);
@@ -107,7 +93,6 @@ class NET_EXPORT WebSocketJob
   GURL GetURLForCookies() const;
 
   const AddressList& address_list() const;
-  int TrySpdyStream();
   void SetWaiting();
   bool IsWaiting() const;
   void Wakeup();
@@ -117,8 +102,6 @@ class NET_EXPORT WebSocketJob
   bool SendDataInternal(const char* data, int length);
   void CloseInternal();
   void SendPending();
-
-  static bool websocket_over_spdy_enabled_;
 
   SocketStream::Delegate* delegate_;
   State state_;
@@ -139,8 +122,6 @@ class NET_EXPORT WebSocketJob
   scoped_refptr<DrainableIOBuffer> current_send_buffer_;
   std::vector<char> received_data_after_handshake_;
 
-  int spdy_protocol_version_;
-  scoped_ptr<SpdyWebSocketStream> spdy_websocket_stream_;
   std::string challenge_;
 
   base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_;

@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -44,17 +45,23 @@ struct SbPlayerPrivate
                    const SbMediaVideoSampleInfo* video_sample_info,
                    const SbDrmSampleInfo* sample_drm_info);
   void WriteEndOfStream(SbMediaType stream_type);
-#if SB_IS(PLAYER_PUNCHED_OUT)
   void SetBounds(int x, int y, int width, int height);
-#endif
 
   void GetInfo(SbPlayerInfo* out_player_info);
   void SetPause(bool pause);
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  void SetPlaybackRate(double playback_rate);
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   void SetVolume(double volume);
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTarget GetCurrentDecodeTarget();
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
  private:
   // PlayerWorker::Host methods.
   void UpdateMediaTime(SbMediaTime media_time, int ticket) SB_OVERRIDE;
+  void UpdateDroppedVideoFrames(int dropped_video_frames) SB_OVERRIDE;
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
@@ -67,8 +74,12 @@ struct SbPlayerPrivate
   int frame_width_;
   int frame_height_;
   bool is_paused_;
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  double playback_rate_;
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   double volume_;
   int total_video_frames_;
+  int dropped_video_frames_;
 
   starboard::scoped_ptr<PlayerWorker> worker_;
 };

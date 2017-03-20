@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2001-2010, International Business Machines
+*   Copyright (C) 2001-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -22,6 +22,7 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unorm.h"
 #include "unicode/ustring.h"
 #include "cmemory.h"
@@ -31,8 +32,6 @@
 #include "ustr_imp.h"
 
 U_NAMESPACE_USE
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 
 /* compare canonically equivalent ------------------------------------------- */
 
@@ -233,10 +232,10 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
                 /* reached end of level buffer, pop one level */
                 do {
                     --level1;
-                    start1=stack1[level1].start;
+                    start1=stack1[level1].start;    /*Not uninitialized*/
                 } while(start1==NULL);
-                s1=stack1[level1].s;
-                limit1=stack1[level1].limit;
+                s1=stack1[level1].s;                /*Not uninitialized*/
+                limit1=stack1[level1].limit;        /*Not uninitialized*/
             }
         }
 
@@ -256,10 +255,10 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
                 /* reached end of level buffer, pop one level */
                 do {
                     --level2;
-                    start2=stack2[level2].start;
+                    start2=stack2[level2].start;    /*Not uninitialized*/
                 } while(start2==NULL);
-                s2=stack2[level2].s;
-                limit2=stack2[level2].limit;
+                s2=stack2[level2].s;                /*Not uninitialized*/
+                limit2=stack2[level2].limit;        /*Not uninitialized*/
             }
         }
 
@@ -534,6 +533,35 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
     }
 }
 
+static
+UBool _normalize(const Normalizer2 *n2, const UChar *s, int32_t length,
+                UnicodeString &normalized, UErrorCode *pErrorCode) {
+    UnicodeString str(length<0, s, length);
+
+    // check if s fulfill the conditions
+    int32_t spanQCYes=n2->spanQuickCheckYes(str, *pErrorCode);
+    if (U_FAILURE(*pErrorCode)) {
+        return FALSE;
+    }
+    /*
+     * ICU 2.4 had a further optimization:
+     * If both strings were not in FCD, then they were both NFD'ed,
+     * and the _COMPARE_EQUIV option was turned off.
+     * It is not entirely clear that this is valid with the current
+     * definition of the canonical caseless match.
+     * Therefore, ICU 2.6 removes that optimization.
+     */
+    if(spanQCYes<str.length()) {
+        UnicodeString unnormalized=str.tempSubString(spanQCYes);
+        normalized.setTo(FALSE, str.getBuffer(), spanQCYes);
+        n2->normalizeSecondAndAppend(normalized, unnormalized, *pErrorCode);
+        if (U_SUCCESS(*pErrorCode)) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 U_CAPI int32_t U_EXPORT2
 unorm_compare(const UChar *s1, int32_t length1,
               const UChar *s2, int32_t length2,
@@ -576,7 +604,7 @@ unorm_compare(const UChar *s1, int32_t length1,
     if(!(options&UNORM_INPUT_IS_FCD) || (options&U_FOLD_CASE_EXCLUDE_SPECIAL_I)) {
         const Normalizer2 *n2;
         if(options&U_FOLD_CASE_EXCLUDE_SPECIAL_I) {
-            n2=Normalizer2Factory::getNFDInstance(*pErrorCode);
+            n2=Normalizer2::getNFDInstance(*pErrorCode);
         } else {
             n2=Normalizer2Factory::getFCDInstance(*pErrorCode);
         }
@@ -584,48 +612,26 @@ unorm_compare(const UChar *s1, int32_t length1,
             return 0;
         }
 
-        // check if s1 and/or s2 fulfill the FCD conditions
-        const UnicodeSet *uni32;
         if(normOptions&UNORM_UNICODE_3_2) {
-            uni32=uniset_getUnicode32Instance(*pErrorCode);
+            const UnicodeSet *uni32=uniset_getUnicode32Instance(*pErrorCode);
+            FilteredNormalizer2 fn2(*n2, *uni32);
+            if(_normalize(&fn2, s1, length1, fcd1, pErrorCode)) {
+                s1=fcd1.getBuffer();
+                length1=fcd1.length();
+            }
+            if(_normalize(&fn2, s2, length2, fcd2, pErrorCode)) {
+                s2=fcd2.getBuffer();
+                length2=fcd2.length();
+            }
         } else {
-            uni32=NULL;  // unused
-        }
-        FilteredNormalizer2 fn2(*n2, *uni32);
-        if(normOptions&UNORM_UNICODE_3_2) {
-            n2=&fn2;
-        }
-
-        UnicodeString str1(length1<0, s1, length1);
-        UnicodeString str2(length2<0, s2, length2);
-        int32_t spanQCYes1=n2->spanQuickCheckYes(str1, *pErrorCode);
-        int32_t spanQCYes2=n2->spanQuickCheckYes(str2, *pErrorCode);
-        if(U_FAILURE(*pErrorCode)) {
-            return 0;
-        }
-
-        /*
-         * ICU 2.4 had a further optimization:
-         * If both strings were not in FCD, then they were both NFD'ed,
-         * and the _COMPARE_EQUIV option was turned off.
-         * It is not entirely clear that this is valid with the current
-         * definition of the canonical caseless match.
-         * Therefore, ICU 2.6 removes that optimization.
-         */
-
-        if(spanQCYes1<str1.length()) {
-            UnicodeString unnormalized=str1.tempSubString(spanQCYes1);
-            fcd1.setTo(FALSE, str1.getBuffer(), spanQCYes1);
-            n2->normalizeSecondAndAppend(fcd1, unnormalized, *pErrorCode);
-            s1=fcd1.getBuffer();
-            length1=fcd1.length();
-        }
-        if(spanQCYes2<str2.length()) {
-            UnicodeString unnormalized=str2.tempSubString(spanQCYes2);
-            fcd2.setTo(FALSE, str2.getBuffer(), spanQCYes2);
-            n2->normalizeSecondAndAppend(fcd2, unnormalized, *pErrorCode);
-            s2=fcd2.getBuffer();
-            length2=fcd2.length();
+            if(_normalize(n2, s1, length1, fcd1, pErrorCode)) {
+                s1=fcd1.getBuffer();
+                length1=fcd1.length();
+            }
+            if(_normalize(n2, s2, length2, fcd2, pErrorCode)) {
+                s2=fcd2.getBuffer();
+                length2=fcd2.length();
+            }
         }
     }
 

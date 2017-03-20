@@ -127,13 +127,11 @@ TEST(StackContainer, BufferAlignment) {
   aligned16->push_back(AlignedData<16>());
   EXPECT_ALIGNED(&aligned16[0], 16);
 
-#if !defined(OS_ANDROID)
-  // It seems that android doesn't respect greater than 16 byte alignment for
-  // non-POD data on the stack, even though ALIGNOF(aligned256) == 256.
+#if !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
   StackVector<AlignedData<256>, 1> aligned256;
   aligned256->push_back(AlignedData<256>());
   EXPECT_ALIGNED(&aligned256[0], 256);
-#endif
+#endif  // !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
 }
 
 template class StackVector<int, 2>;

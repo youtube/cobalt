@@ -97,6 +97,24 @@ TimeTicks TimeTicks::HighResNow() {
 }
 
 // static
+TimeTicks TimeTicks::ThreadNow() {
+#if SB_VERSION(3) && SB_HAS(TIME_THREAD_NOW)
+  return TimeTicks(SbTimeGetMonotonicThreadNow());
+#else
+  return HighResNow();
+#endif
+}
+
+// static
+bool TimeTicks::HasThreadNow() {
+#if SB_VERSION(3) && SB_HAS(TIME_THREAD_NOW)
+  return true;
+#else
+  return false;
+#endif
+}
+
+// static
 TimeTicks TimeTicks::NowFromSystemTraceTime() {
   return HighResNow();
 }

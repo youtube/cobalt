@@ -1,52 +1,24 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/en_GB.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/en_GB.xml
 // *
 // ***************************************************************************
 en_GB{
-    ExemplarCharactersCurrency{"[a b c d e f g h i j k l m n o p q r s t u v w x y z]"}
-    NumberElements{
-        latn{
-            patterns{
-                currencyFormat{"¤#,##0.00"}
-            }
-        }
-    }
-    Version{"2.0.51.59"}
+    %%Parent{"en_001"}
+    Version{"2.1.19.79"}
     calendar{
-        buddhist{
-            DateTimePatterns{
-                "HH:mm:ss zzzz",
-                "HH:mm:ss z",
-                "HH:mm:ss",
-                "HH:mm",
-                "EEEE, d MMMM y G",
-                "d MMMM y G",
-                "d MMM y G",
-                "dd/MM/y G",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-            }
-            availableFormats{
-                MEd{"E, d/M"}
-                MMMEd{"E d MMM"}
-                MMMMd{"d MMMM"}
-                MMdd{"dd/MM"}
-                Md{"d/M"}
-                yMEd{"EEE, d/M/y G"}
-                yyMMM{"MMM y G"}
-                yyyyMM{"MM/y G"}
-                yyyyMMMM{"MMMM y G"}
-                yyyyMd{"d/M/y G"}
-            }
-        }
         gregorian{
+            AmPmMarkers{
+                "am",
+                "pm",
+            }
+            AmPmMarkersAbbr{
+                "am",
+                "pm",
+            }
             DateTimePatterns{
                 "HH:mm:ss zzzz",
                 "HH:mm:ss z",
@@ -55,254 +27,225 @@ en_GB{
                 "EEEE, d MMMM y",
                 "d MMMM y",
                 "d MMM y",
-                "dd/MM/yyyy",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
+                "dd/MM/y",
+                "{1}, {0}",
+                "{1} 'at' {0}",
+                "{1} 'at' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
             }
-            availableFormats{
-                MEd{"E, d/M"}
-                MMMEd{"E d MMM"}
-                MMMMd{"d MMMM"}
-                MMdd{"dd/MM"}
-                Md{"d/M"}
-                yMEd{"EEE, d/M/yyyy"}
-                yyMMM{"MMM yy"}
-                yyyyMM{"MM/yyyy"}
-                yyyyMMMM{"MMMM y"}
-            }
-            intervalFormats{
-                Hm{
-                    H{"HH:mm-HH:mm"}
-                    m{"HH:mm-HH:mm"}
-                }
-                Hmv{
-                    H{"HH:mm-HH:mm v"}
-                    m{"HH:mm-HH:mm v"}
-                }
-                M{
-                    M{"M-M"}
-                }
-                MEd{
-                    M{"E, dd/MM - E, dd/MM"}
-                    d{"E, dd/MM - E, dd/MM"}
-                }
-                MMM{
-                    M{"MMM-MMM"}
-                }
-                MMMEd{
-                    M{"E, d MMM - E, d MMM"}
-                    d{"E, d - E, d MMM"}
-                }
-                MMMd{
-                    M{"d MMM - d MMM"}
-                    d{"d-d MMM"}
-                }
-                Md{
-                    M{"dd/MM - dd/MM"}
-                    d{"dd/MM - dd/MM"}
-                }
-                d{
-                    d{"d-d"}
-                }
-                fallback{"{0} - {1}"}
-                hm{
-                    h{"h:mm-h:mm a"}
-                    m{"h:mm-h:mm a"}
-                }
-                hmv{
-                    h{"h:mm-h:mm a v"}
-                    m{"h:mm-h:mm a v"}
-                }
-                y{
-                    y{"y-y"}
-                }
-                yM{
-                    M{"MM/yyyy - MM/yyyy"}
-                    y{"MM/yyyy - MM/yyyy"}
-                }
-                yMEd{
-                    M{"E, dd/MM/yyyy - E, dd/MM/yyyy"}
-                    d{"E, dd/MM/yyyy - E, dd/MM/yyyy"}
-                    y{"E, dd/MM/yyyy - E, dd/MM/yyyy"}
-                }
-                yMMM{
-                    M{"MMM-MMM y"}
-                    y{"MMM y - MMM y"}
-                }
-                yMMMEd{
-                    M{"E, d MMM - E, d MMM y"}
-                    d{"E, d - E, d MMM y"}
-                    y{"E, d MMM y - E, d MMM y"}
-                }
-                yMMMd{
-                    M{"d MMM - d MMM y"}
-                    d{"d-d MMM y"}
-                    y{"d MMM y - d MMM y"}
-                }
-                yMd{
-                    M{"dd/MM/yyyy - dd/MM/yyyy"}
-                    d{"dd/MM/yyyy - dd/MM/yyyy"}
-                    y{"dd/MM/yyyy - dd/MM/yyyy"}
-                }
-            }
-        }
-        islamic{
-            DateTimePatterns{
-                "HH:mm:ss zzzz",
-                "HH:mm:ss z",
-                "HH:mm:ss",
-                "HH:mm",
-                "EEEE, d MMMM y G",
-                "d MMMM y G",
-                "d MMM y G",
-                "dd/MM/y G",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-            }
-            availableFormats{
-                MEd{"E, d/M"}
-                MMMEd{"E d MMM"}
-                MMMMd{"d MMMM"}
-                MMdd{"dd/MM"}
-                Md{"d/M"}
-                yyMMM{"MMM y G"}
-                yyyyMEd{"EEE, d/M/y G"}
-                yyyyMM{"MM/y G"}
-                yyyyMMM{"MMM y G"}
-                yyyyMMMM{"MMMM y G"}
-                yyyyMd{"d/M/y G"}
-            }
-            eras{
-                abbreviated{
-                    "AH",
-                }
-                narrow:alias{"/LOCALE/calendar/islamic/eras/abbreviated"}
-                wide:alias{"/LOCALE/calendar/islamic/eras/abbreviated"}
-            }
-            monthNames{
-                default{"format"}
+            dayPeriod{
                 format{
                     abbreviated{
-                        "Muh.",
-                        "Saf.",
-                        "Rab. I",
-                        "Rab. II",
-                        "Jum. I",
-                        "Jum. II",
-                        "Raj.",
-                        "Sha.",
-                        "Ram.",
-                        "Shaw.",
-                        "Dhuʻl-Q.",
-                        "Dhuʻl-H.",
+                        noon{"noon"}
                     }
-                    default{"wide"}
-                    narrow:alias{"/LOCALE/calendar/islamic/monthNames/stand-alone/narrow"}
+                    narrow{
+                        noon{"n"}
+                    }
                     wide{
-                        "Muharram",
-                        "Safar",
-                        "Rabiʻ I",
-                        "Rabiʻ II",
-                        "Jumada I",
-                        "Jumada II",
-                        "Rajab",
-                        "Shaʻban",
-                        "Ramadan",
-                        "Shawwal",
-                        "Dhuʻl-Qiʻdah",
-                        "Dhuʻl-Hijjah",
+                        noon{"noon"}
                     }
                 }
                 stand-alone{
-                    abbreviated:alias{"/LOCALE/calendar/islamic/monthNames/format/abbreviated"}
                     narrow{
-                        "1",
-                        "2",
-                        "3",
-                        "4",
-                        "5",
-                        "6",
-                        "7",
-                        "8",
-                        "9",
-                        "10",
-                        "11",
-                        "12",
+                        am{"a"}
+                        noon{"n"}
+                        pm{"p"}
                     }
-                    wide:alias{"/LOCALE/calendar/islamic/monthNames/format/wide"}
+                    wide{
+                        am{"am"}
+                        pm{"pm"}
+                    }
                 }
             }
         }
-        japanese{
-            DateTimePatterns{
-                "HH:mm:ss zzzz",
-                "HH:mm:ss z",
-                "HH:mm:ss",
-                "HH:mm",
-                "EEEE, d MMMM y G",
-                "d MMMM y G",
-                "d MMM y G",
-                "dd/MM/y G",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-            }
-            availableFormats{
-                MEd{"E, d/M"}
-                MMMEd{"E d MMM"}
-                MMMMd{"d MMMM"}
-                MMdd{"dd/MM"}
-                Md{"d/M"}
-                yyMMM{"MMM y G"}
-                yyyyMEd{"EEE, d/M/y G"}
-                yyyyMM{"MM/y G"}
-                yyyyMMM{"MMM y G"}
-                yyyyMMMM{"MMMM y G"}
+    }
+    fields{
+        dayperiod{
+            dn{"am/pm"}
+        }
+        hour-narrow{
+            relativeTime{
+                future{
+                    one{"in {0} hr"}
+                    other{"in {0} hr"}
+                }
+                past{
+                    one{"{0} hr ago"}
+                    other{"{0} hr ago"}
+                }
             }
         }
-        roc{
-            DateTimePatterns{
-                "HH:mm:ss zzzz",
-                "HH:mm:ss z",
-                "HH:mm:ss",
-                "HH:mm",
-                "EEEE, d MMMM y G",
-                "d MMMM y G",
-                "d MMM y G",
-                "dd/MM/y G",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
+        hour-short{
+            dn{"hr"}
+            relativeTime{
+                future{
+                    one{"in {0} hr"}
+                    other{"in {0} hr"}
+                }
+                past{
+                    one{"{0} hr ago"}
+                    other{"{0} hr ago"}
+                }
             }
-            availableFormats{
-                MEd{"E, d/M"}
-                MMMEd{"E d MMM"}
-                MMMMd{"d MMMM"}
-                MMdd{"dd/MM"}
-                Md{"d/M"}
-                yyMMM{"MMM y G"}
-                yyyyMEd{"EEE, d/M/y G"}
-                yyyyMM{"MM/y G"}
-                yyyyMMM{"MMM y G"}
-                yyyyMMMM{"MMMM y G"}
-                yyyyMd{"d/M/y G"}
+        }
+        minute-narrow{
+            relativeTime{
+                future{
+                    one{"in {0} min"}
+                    other{"in {0} min"}
+                }
+                past{
+                    one{"{0} min ago"}
+                    other{"{0} min ago"}
+                }
+            }
+        }
+        minute-short{
+            dn{"min"}
+            relativeTime{
+                future{
+                    one{"in {0} min"}
+                    other{"in {0} min"}
+                }
+                past{
+                    one{"{0} min ago"}
+                    other{"{0} min ago"}
+                }
+            }
+        }
+        month-narrow{
+            dn{"mo"}
+            relativeTime{
+                future{
+                    one{"in {0} mo"}
+                    other{"in {0} mo"}
+                }
+                past{
+                    one{"{0} mo ago"}
+                    other{"{0} mo ago"}
+                }
+            }
+        }
+        month-short{
+            dn{"mo"}
+            relativeTime{
+                future{
+                    one{"in {0} mo"}
+                    other{"in {0} mo"}
+                }
+                past{
+                    one{"{0} mo ago"}
+                    other{"{0} mo ago"}
+                }
+            }
+        }
+        quarter-narrow{
+            dn{"qtr"}
+            relativeTime{
+                future{
+                    one{"in {0} qtr"}
+                    other{"in {0} qtr"}
+                }
+                past{
+                    one{"{0} qtr ago"}
+                    other{"{0} qtr ago"}
+                }
+            }
+        }
+        quarter-short{
+            dn{"qtr"}
+            relativeTime{
+                future{
+                    one{"in {0} qtr"}
+                    other{"in {0} qtr"}
+                }
+                past{
+                    one{"{0} qtr ago"}
+                    other{"{0} qtr ago"}
+                }
+            }
+        }
+        second-narrow{
+            relativeTime{
+                future{
+                    one{"in {0} sec"}
+                    other{"in {0} sec"}
+                }
+                past{
+                    one{"{0} sec ago"}
+                    other{"{0} sec ago"}
+                }
+            }
+        }
+        second-short{
+            dn{"sec"}
+            relativeTime{
+                future{
+                    one{"in {0} sec"}
+                    other{"in {0} sec"}
+                }
+                past{
+                    one{"{0} sec ago"}
+                    other{"{0} sec ago"}
+                }
+            }
+        }
+        week-narrow{
+            dn{"wk"}
+            relativeTime{
+                future{
+                    one{"in {0} wk"}
+                    other{"in {0} wk"}
+                }
+                past{
+                    one{"{0} wk ago"}
+                    other{"{0} wk ago"}
+                }
+            }
+        }
+        week-short{
+            dn{"wk"}
+            relativeTime{
+                future{
+                    one{"in {0} wk"}
+                    other{"in {0} wk"}
+                }
+                past{
+                    one{"{0} wk ago"}
+                    other{"{0} wk ago"}
+                }
+            }
+        }
+        year-narrow{
+            relativeTime{
+                future{
+                    one{"in {0} yr"}
+                    other{"in {0} yr"}
+                }
+                past{
+                    one{"{0} yr ago"}
+                    other{"{0} yr ago"}
+                }
+            }
+        }
+        year-short{
+            dn{"yr"}
+            relativeTime{
+                future{
+                    one{"in {0} yr"}
+                    other{"in {0} yr"}
+                }
+                past{
+                    one{"{0} yr ago"}
+                    other{"{0} yr ago"}
+                }
             }
         }
     }
-    delimiters{
-        alternateQuotationEnd{"”"}
-        alternateQuotationStart{"“"}
-        quotationEnd{"’"}
-        quotationStart{"‘"}
+    listPattern{
+        standard{
+            end{"{0} and {1}"}
+        }
     }
 }

@@ -1,6 +1,6 @@
 ﻿# ***************************************************************************
 # *
-# *  Copyright (C) 2004-2010, International Business Machines
+# *  Copyright (C) 2004-2015, International Business Machines
 # *  Corporation; Unicode, Inc.; and others.  All Rights Reserved.
 # *
 # ***************************************************************************
@@ -94,7 +94,7 @@
 Ｙ↔Y; # from FULLWIDTH LATIN CAPITAL LETTER Y
 Ｚ↔Z; # from FULLWIDTH LATIN CAPITAL LETTER Z
 ［↔'['; # from FULLWIDTH LEFT SQUARE BRACKET
-＼↔'\\'; # from FULLWIDTH REVERSE SOLIDUS {double escape - aliu}
+＼↔'\'; # from FULLWIDTH REVERSE SOLIDUS {double escape - aliu}
 ］↔']'; # from FULLWIDTH RIGHT SQUARE BRACKET
 ＾↔'^'; # from FULLWIDTH CIRCUMFLEX ACCENT
 ＿↔'_'; # from FULLWIDTH LOW LINE

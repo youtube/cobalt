@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2000-2007, International Business Machines
+*   Copyright (C) 2000-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -17,15 +17,11 @@
 * the core algorithm and core API to write reordered text.
 */
 
-/* set import/export definitions */
-#ifndef U_COMMON_IMPLEMENTATION
-#   define U_COMMON_IMPLEMENTATION
-#endif
-
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "unicode/uchar.h"
 #include "unicode/ubidi.h"
+#include "unicode/utf16.h"
 #include "cmemory.h"
 #include "ustr_imp.h"
 #include "ubidiimp.h"
@@ -86,9 +82,9 @@ doWriteForward(const UChar *src, int32_t srcLength,
             return srcLength;
         }
         do {
-            UTF_NEXT_CHAR(src, i, srcLength, c);
+            U16_NEXT(src, i, srcLength, c);
             c=u_charMirror(c);
-            UTF_APPEND_CHAR_UNSAFE(dest, j, c);
+            U16_APPEND_UNSAFE(dest, j, c);
         } while(i<srcLength);
         return srcLength;
     }
@@ -123,7 +119,7 @@ doWriteForward(const UChar *src, int32_t srcLength,
         UChar32 c;
         do {
             i=0;
-            UTF_NEXT_CHAR(src, i, srcLength, c);
+            U16_NEXT(src, i, srcLength, c);
             src+=i;
             srcLength-=i;
             if(!IS_BIDI_CONTROL_CHAR(c)) {
@@ -142,7 +138,7 @@ doWriteForward(const UChar *src, int32_t srcLength,
                     return destSize-remaining;
                 }
                 c=u_charMirror(c);
-                UTF_APPEND_CHAR_UNSAFE(dest, j, c);
+                U16_APPEND_UNSAFE(dest, j, c);
             }
         } while(srcLength>0);
         return j;
@@ -197,7 +193,7 @@ doWriteReverse(const UChar *src, int32_t srcLength,
             i=srcLength;
 
             /* collect code units for one base character */
-            UTF_BACK_1(src, 0, srcLength);
+            U16_BACK_1(src, 0, srcLength);
 
             /* copy this base character */
             j=srcLength;
@@ -226,7 +222,7 @@ doWriteReverse(const UChar *src, int32_t srcLength,
 
             /* collect code units and modifier letters for one base character */
             do {
-                UTF_PREV_CHAR(src, 0, srcLength, c);
+                U16_PREV(src, 0, srcLength, c);
             } while(srcLength>0 && IS_COMBINING(u_charType(c)));
 
             /* copy this "user character" */
@@ -274,11 +270,11 @@ doWriteReverse(const UChar *src, int32_t srcLength,
             i=srcLength;
 
             /* collect code units for one base character */
-            UTF_PREV_CHAR(src, 0, srcLength, c);
+            U16_PREV(src, 0, srcLength, c);
             if(options&UBIDI_KEEP_BASE_COMBINING) {
                 /* collect modifier letters for this base character */
                 while(srcLength>0 && IS_COMBINING(u_charType(c))) {
-                    UTF_PREV_CHAR(src, 0, srcLength, c);
+                    U16_PREV(src, 0, srcLength, c);
                 }
             }
 
@@ -293,7 +289,7 @@ doWriteReverse(const UChar *src, int32_t srcLength,
                 /* mirror only the base character */
                 int32_t k=0;
                 c=u_charMirror(c);
-                UTF_APPEND_CHAR_UNSAFE(dest, k, c);
+                U16_APPEND_UNSAFE(dest, k, c);
                 dest+=k;
                 j+=k;
             }
@@ -446,7 +442,9 @@ ubidi_writeReordered(UBiDi *pBiDi,
                                              dest, destSize,
                                              options, pErrorCode);
                 }
-                dest+=runLength;
+                if(dest!=NULL) {
+                  dest+=runLength;
+                }
                 destSize-=runLength;
             }
         } else {
@@ -488,7 +486,9 @@ ubidi_writeReordered(UBiDi *pBiDi,
                     runLength=doWriteForward(src, runLength,
                                              dest, destSize,
                                              (uint16_t)(options&~UBIDI_DO_MIRRORING), pErrorCode);
-                    dest+=runLength;
+                    if(dest!=NULL) {
+                      dest+=runLength;
+                    }
                     destSize-=runLength;
 
                     if((pBiDi->isInverse) &&
@@ -530,7 +530,9 @@ ubidi_writeReordered(UBiDi *pBiDi,
                     runLength=doWriteReverse(src, runLength,
                                              dest, destSize,
                                              options, pErrorCode);
-                    dest+=runLength;
+                    if(dest!=NULL) {
+                      dest+=runLength;
+                    }
                     destSize-=runLength;
 
                     if((pBiDi->isInverse) &&
@@ -567,7 +569,9 @@ ubidi_writeReordered(UBiDi *pBiDi,
                                              dest, destSize,
                                              options, pErrorCode);
                 }
-                dest+=runLength;
+                if(dest!=NULL) {
+                  dest+=runLength;
+                }
                 destSize-=runLength;
             }
         } else {
@@ -592,7 +596,9 @@ ubidi_writeReordered(UBiDi *pBiDi,
                     runLength=doWriteReverse(src, runLength,
                                              dest, destSize,
                                              (uint16_t)(options&~UBIDI_DO_MIRRORING), pErrorCode);
-                    dest+=runLength;
+                    if(dest!=NULL) {
+                      dest+=runLength;
+                    }
                     destSize-=runLength;
 
                     if(/*run>0 &&*/ dirProps[logicalStart]!=L) {
@@ -612,7 +618,9 @@ ubidi_writeReordered(UBiDi *pBiDi,
                     runLength=doWriteForward(src, runLength,
                                              dest, destSize,
                                              options, pErrorCode);
-                    dest+=runLength;
+                    if(dest!=NULL) {
+                      dest+=runLength;
+                    }
                     destSize-=runLength;
 
                     if(/*run>0 &&*/ !(MASK_R_AL&DIRPROP_FLAG(dirProps[logicalStart+runLength-1]))) {

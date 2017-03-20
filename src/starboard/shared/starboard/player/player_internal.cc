@@ -20,8 +20,6 @@ using starboard::shared::starboard::player::InputBuffer;
 
 namespace {
 
-const SbTime kUpdateInterval = 5 * kSbTimeMillisecond;
-
 SbMediaTime GetMediaTime(SbMediaTime media_pts,
                          SbTimeMonotonic media_pts_update_time) {
   SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_pts_update_time;
@@ -46,15 +44,19 @@ SbPlayerPrivate::SbPlayerPrivate(
       frame_width_(0),
       frame_height_(0),
       is_paused_(true),
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+      playback_rate_(1.0),
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
       volume_(1.0),
       total_video_frames_(0),
+      dropped_video_frames_(0),
       worker_(new PlayerWorker(this,
                                player_worker_handler.Pass(),
                                decoder_status_func,
                                player_status_func,
                                this,
-                               kUpdateInterval,
-                               context)) {}
+                               context)) {
+}
 
 void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
   {
@@ -65,8 +67,7 @@ void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
     ticket_ = ticket;
   }
 
-  PlayerWorker::SeekEventData data = {seek_to_pts, ticket};
-  worker_->EnqueueEvent(data);
+  worker_->Seek(seek_to_pts, ticket);
 }
 
 void SbPlayerPrivate::WriteSample(
@@ -79,25 +80,21 @@ void SbPlayerPrivate::WriteSample(
   if (sample_type == kSbMediaTypeVideo) {
     ++total_video_frames_;
   }
-  InputBuffer* input_buffer = new InputBuffer(
-      sample_deallocate_func_, this, context_, sample_buffer,
-      sample_buffer_size, sample_pts, video_sample_info, sample_drm_info);
-  PlayerWorker::WriteSampleEventData data = {sample_type, input_buffer};
-  worker_->EnqueueEvent(data);
+  InputBuffer input_buffer(sample_type, sample_deallocate_func_, this, context_,
+                           sample_buffer, sample_buffer_size, sample_pts,
+                           video_sample_info, sample_drm_info);
+  worker_->WriteSample(input_buffer);
 }
 
 void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
-  PlayerWorker::WriteEndOfStreamEventData data = {stream_type};
-  worker_->EnqueueEvent(data);
+  worker_->WriteEndOfStream(stream_type);
 }
 
-#if SB_IS(PLAYER_PUNCHED_OUT)
 void SbPlayerPrivate::SetBounds(int x, int y, int width, int height) {
-  PlayerWorker::SetBoundsEventData data = {x, y, width, height};
-  worker_->EnqueueEvent(data);
+  PlayerWorker::Bounds bounds = {x, y, width, height};
+  worker_->SetBounds(bounds);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
-#endif
 
 void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   SB_DCHECK(out_player_info != NULL);
@@ -115,14 +112,23 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   out_player_info->is_paused = is_paused_;
   out_player_info->volume = volume_;
   out_player_info->total_video_frames = total_video_frames_;
-  out_player_info->dropped_video_frames = 0;
+  out_player_info->dropped_video_frames = dropped_video_frames_;
   out_player_info->corrupted_video_frames = 0;
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  out_player_info->playback_rate = playback_rate_;
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
 void SbPlayerPrivate::SetPause(bool pause) {
-  PlayerWorker::SetPauseEventData data = {pause};
-  worker_->EnqueueEvent(data);
+  worker_->SetPause(pause);
 }
+
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+void SbPlayerPrivate::SetPlaybackRate(double playback_rate) {
+  playback_rate_ = playback_rate;
+  worker_->SetPlaybackRate(playback_rate);
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
 void SbPlayerPrivate::SetVolume(double volume) {
   SB_NOTIMPLEMENTED();
@@ -136,3 +142,14 @@ void SbPlayerPrivate::UpdateMediaTime(SbMediaTime media_time, int ticket) {
   media_pts_ = media_time;
   media_pts_update_time_ = SbTimeGetMonotonicNow();
 }
+
+void SbPlayerPrivate::UpdateDroppedVideoFrames(int dropped_video_frames) {
+  starboard::ScopedLock lock(mutex_);
+  dropped_video_frames_ = dropped_video_frames;
+}
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+SbDecodeTarget SbPlayerPrivate::GetCurrentDecodeTarget() {
+  return worker_->GetCurrentDecodeTarget();
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

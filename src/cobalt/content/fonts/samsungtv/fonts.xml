@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<familyset version="1">
+<!--
+    NOTE: Families with a "fallback" value of "true" are added to the fallback
+    list, regardless of whether or not they are named. Fallback fonts are chosen
+    based on a match: full BCP-47 language tag including script, then just
+    language, and finally order (the first font containing the glyph). Order of
+    appearance is also the tiebreaker for weight matching.
+
+    The pages attribute indicates which character pages are contained within
+    the font. It is used with character fallback to allow the system to quickly
+    determine that a character cannot appear in a font without requiring the
+    full character map to be loaded into memory. Character pages are zero
+    indexed, and each page contains 256 characters, so character 1000 would be
+    contained within page 3.
+-->
+    <!-- Ideally, this font should only be used if there are no other fonts in
+         our final image. -->
+    <family name="serif">
+        <font font_name="Samsung One UI 200" postscript_name="SamsungOneUI-200" style="normal" weight="200">SamsungOneUI-200.ttf</font>
+        <font font_name="Samsung One UI 300" postscript_name="SamsungOneUI-300" style="normal" weight="300">SamsungOneUI-300.ttf</font>
+        <font font_name="Samsung One UI 400" postscript_name="SamsungOneUI-400" style="normal" weight="400">SamsungOneUI-400.ttf</font>
+        <font font_name="Samsung One UI 600" postscript_name="SamsungOneUI-600" style="normal" weight="600">SamsungOneUI-600.ttf</font>
+    </family>
+    <alias name="times" to="serif" />
+    <alias name="times new roman" to="serif" />
+    <alias name="palatino" to="serif" />
+    <alias name="georgia" to="serif" />
+    <alias name="baskerville" to="serif" />
+    <alias name="goudy" to="serif" />
+    <alias name="fantasy" to="serif" />
+    <alias name="ITC Stone Serif" to="serif" />
+
+    <!-- fallback fonts -->
+    <family fallback="true" pages="0,6-8,32,37,46,251-254">
+        <font font_name="Samsung One UI Arabic 400" postscript_name="SamsungOneUIArabic-400" style="normal" weight="400">SamsungOneUIArabic-400.ttf</font>
+        <font font_name="Samsung One UI Arabic 600" postscript_name="SamsungOneUIArabic-600" style="normal" weight="600">SamsungOneUIArabic-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,18-19,45,171,254">
+        <font font_name="Samsung One UI Ethiopic 400" postscript_name="SamsungOneUIEthiopic-400" style="normal" weight="400">SamsungOneUIEthiopic-400.ttf</font>
+        <font font_name="Samsung One UI Ethiopic 600" postscript_name="SamsungOneUIEthiopic-600" style="normal" weight="600">SamsungOneUIEthiopic-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,5,32,37,251,254">
+        <font font_name="Samsung One UI Hebrew 400" postscript_name="SamsungOneUIHebrew-400" style="normal" weight="400">SamsungOneUIHebrew-400.ttf</font>
+        <font font_name="Samsung One UI Hebrew 600" postscript_name="SamsungOneUIHebrew-600" style="normal" weight="600">SamsungOneUIHebrew-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,16,25,48,254">
+        <font font_name="Samsung One UI Thai 400" postscript_name="SamsungOneUIThai-400" style="normal" weight="400">SamsungOneUIThai-400.ttf</font>
+        <font font_name="Samsung One UI Thai 600" postscript_name="SamsungOneUIThai-600" style="normal" weight="600">SamsungOneUIThai-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,5,251,254">
+        <font font_name="Samsung One UI Armenian 400" postscript_name="SamsungOneUIArmenian-400" style="normal" weight="400">SamsungOneUIArmenian-400.ttf</font>
+        <font font_name="Samsung One UI Armenian 600" postscript_name="SamsungOneUIArmenian-600" style="normal" weight="600">SamsungOneUIArmenian-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,5,16,45,254">
+        <font font_name="Samsung One UI Georgian 400" postscript_name="SamsungOneUIGeorgian-400" style="normal" weight="400">SamsungOneUIGeorgian-400.ttf</font>
+        <font font_name="Samsung One UI Georgian 600" postscript_name="SamsungOneUIGeorgian-600" style="normal" weight="600">SamsungOneUIGeorgian-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,2,9,28,32,34,37,168,254">
+        <font font_name="Samsung One UI Devanagari 400" postscript_name="SamsungOneUIDevanagari-400" style="normal" weight="400">SamsungOneUIDevanagari-400.ttf</font>
+        <font font_name="Samsung One UI Devanagari 600" postscript_name="SamsungOneUIDevanagari-600" style="normal" weight="600">SamsungOneUIDevanagari-600.ttf</font>
+    </family>
+    <!-- Gujarati should come after Devanagari -->
+    <family fallback="true" pages="0,9-10,32,34,37,168,254">
+        <font font_name="Samsung One UI Gujarati 400" postscript_name="SamsungOneUIGujarati-400" style="normal" weight="400">SamsungOneUIGujarati-400.ttf</font>
+        <font font_name="Samsung One UI Gujarati 600" postscript_name="SamsungOneUIGujarati-600" style="normal" weight="600">SamsungOneUIGujarati-600.ttf</font>
+    </family>
+    <!-- Gurmukhi should come after Devanagari -->
+    <family fallback="true" pages="0,9-10,32,34,37-38,168,254">
+        <font font_name="Samsung One UI Gurmukhi 400" postscript_name="SamsungOneUIGurmukhi-400" style="normal" weight="400">SamsungOneUIGurmukhi-400.ttf</font>
+        <font font_name="Samsung One UI Gurmukhi 600" postscript_name="SamsungOneUIGurmukhi-600" style="normal" weight="600">SamsungOneUIGurmukhi-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,9,11,32,34,37,254">
+        <font font_name="Samsung One UI Tamil 400" postscript_name="SamsungOneUITamil-400" style="normal" weight="400">SamsungOneUITamil-400.ttf</font>
+        <font font_name="Samsung One UI Tamil 600" postscript_name="SamsungOneUITamil-600" style="normal" weight="600">SamsungOneUITamil-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,3,9,13,32,34,37,254">
+        <font font_name="Samsung One UI Malayalam 400" postscript_name="SamsungOneUIMalayalam-400" style="normal" weight="400">SamsungOneUIMalayalam-400.ttf</font>
+        <font font_name="Samsung One UI Malayalam 600" postscript_name="SamsungOneUIMalayalam-600" style="normal" weight="600">SamsungOneUIMalayalam-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,9,32,34,37,254">
+        <font font_name="Samsung One UI Bangla 400" postscript_name="SamsungOneUIBangla-400" style="normal" weight="400">SamsungOneUIBangla-400.ttf</font>
+        <font font_name="Samsung One UI Bangla 600" postscript_name="SamsungOneUIBangla-600" style="normal" weight="600">SamsungOneUIBangla-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,9,12,32,34,37,254">
+        <font font_name="Samsung One UI Telugu 400" postscript_name="SamsungOneUITelugu-400" style="normal" weight="400">SamsungOneUITelugu-400.ttf</font>
+        <font font_name="Samsung One UI Telugu 600" postscript_name="SamsungOneUITelugu-600" style="normal" weight="600">SamsungOneUITelugu-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,9,12,32,34,37,254">
+        <font font_name="Samsung One UI Kannada 400" postscript_name="SamsungOneUIKannada-400" style="normal" weight="400">SamsungOneUIKannada-400.ttf</font>
+        <font font_name="Samsung One UI Kannada 600" postscript_name="SamsungOneUIKannada-600" style="normal" weight="600">SamsungOneUIKannada-600.ttf</font>
+    </family>
+    <!--
+    <family fallback="true" pages="0,9,11,32,34,37,254">
+        <font font_name="Noto Sans Oriya UI" postscript_name="NotoSansOriyaUI" style="normal" weight="400">NotoSansOriyaUI-Regular.ttf</font>
+        <font font_name="Noto Sans Oriya UI Bold" postscript_name="NotoSansOriyaUI-Bold" style="normal" weight="700">NotoSansOriyaUI-Bold.ttf</font>
+    </family>
+    -->
+    <family fallback="true" pages="0,9,13,32,34,37,254">
+        <font font_name="Samsung One UI Sinhala 400" postscript_name="SamsungOneUISinhala-400" style="normal" weight="400">SamsungOneUISinhala-400.ttf</font>
+        <font font_name="Samsung One UI Sinhala 600" postscript_name="SamsungOneUISinhala-600" style="normal" weight="600">SamsungOneUISinhala-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,23,25,32,37">
+        <font font_name="Samsung One UI Khmer 400" postscript_name="SamsungOneUIKhmer-400" style="normal" weight="400">SamsungOneUIKhmer-400.ttf</font>
+        <font font_name="Samsung One UI Khmer 600" postscript_name="SamsungOneUIKhmer-600" style="normal" weight="600">SamsungOneUIKhmer-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,3,14,32,37">
+        <font font_name="Samsung One UI Lao 400" postscript_name="SamsungOneUILao-400" style="normal" weight="400">SamsungOneUILao-400.ttf</font>
+        <font font_name="Samsung One UI Lao 600" postscript_name="SamsungOneUILao-600" style="normal" weight="600">SamsungOneUILao-600.ttf</font>
+    </family>
+    <family fallback="true" pages="0,16,32,37,169-170,254">
+        <font font_name="Samsung One UI Myanmar 400" postscript_name="SamsungOneUIMyanmar-400" style="normal" weight="400">SamsungOneUIMyanmar-400.ttf</font>
+        <font font_name="Samsung One UI Myanmar 600" postscript_name="SamsungOneUIMyanmar-600" style="normal" weight="600">SamsungOneUIMyanmar-600.ttf</font>
+    </family>
+    <!--
+    <family fallback="true" pages="0,6-7,32,37,253-254">
+        <font font_name="Noto Sans Thaana" postscript_name="NotoSansThaana" style="normal" weight="400">NotoSansThaana-Regular.ttf</font>
+        <font font_name="Noto Sans Thaana Bold" postscript_name="NotoSansThaana-Bold" style="normal" weight="700">NotoSansThaana-Bold.ttf</font>
+    </family>
+    <family fallback="true" pages="0,3,170">
+        <font font_name="Noto Sans Cham" postscript_name="NotoSansCham" style="normal" weight="400">NotoSansCham-Regular.ttf</font>
+        <font font_name="Noto Sans Cham Bold" postscript_name="NotoSansCham-Bold" style="normal" weight="700">NotoSansCham-Bold.ttf</font>
+    </family>
+    <family fallback="true" pages="0,27,32,37,254">
+        <font font_name="Noto Sans Balinese" postscript_name="NotoSansBalinese" style="normal" weight="400">NotoSansBalinese-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,166,254,360-362">
+        <font font_name="Noto Sans Bamum" postscript_name="NotoSansBamum" style="normal" weight="400">NotoSansBamum-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,27,254">
+        <font font_name="Noto Sans Batak" postscript_name="NotoSansBatak" style="normal" weight="400">NotoSansBatak-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,26,32,169,254">
+        <font font_name="Noto Sans Buginese" postscript_name="NotoSansBuginese" style="normal" weight="400">NotoSansBuginese-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,23,254">
+        <font font_name="Noto Sans Buhid" postscript_name="NotoSansBuhid" style="normal" weight="400">NotoSansBuhid-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0-3,20-22,24,254">
+        <font font_name="Noto Sans Canadian Aboriginal" postscript_name="NotoSansCanadianAboriginal" style="normal" weight="400">NotoSansCanadianAboriginal-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,19,254">
+        <font font_name="Noto Sans Cherokee" postscript_name="NotoSansCherokee" style="normal" weight="400">NotoSansCherokee-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0-3,29,44,254">
+        <font font_name="Noto Sans Coptic" postscript_name="NotoSansCoptic" style="normal" weight="400">NotoSansCoptic-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,44,254">
+        <font font_name="Noto Sans Glagolitic" postscript_name="NotoSansGlagolitic" style="normal" weight="400">NotoSansGlagolitic-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,23,254">
+        <font font_name="Noto Sans Hanunoo" postscript_name="NotoSansHanunoo" style="normal" weight="400">NotoSansHanunoo-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,32,37,169,254">
+        <font font_name="Noto Sans Javanese" postscript_name="NotoSansJavanese" style="normal" weight="400">NotoSansJavanese-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,169,254">
+        <font font_name="Noto Sans Kayah Li" postscript_name="NotoSansKayahLi" style="normal" weight="400">NotoSansKayahLi-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,28,37,254">
+        <font font_name="Noto Sans Lepcha" postscript_name="NotoSansLepcha" style="normal" weight="400">NotoSansLepcha-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,9,25,254">
+        <font font_name="Noto Sans Limbu" postscript_name="NotoSansLimbu" style="normal" weight="400">NotoSansLimbu-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,2,164,254">
+        <font font_name="Noto Sans Lisu" postscript_name="NotoSansLisu" style="normal" weight="400">NotoSansLisu-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,6,8,254">
+        <font font_name="Noto Sans Mandaic" postscript_name="NotoSansMandaic" style="normal" weight="400">NotoSansMandaic-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,170-171,254">
+        <font font_name="Noto Sans Meetei Mayek" postscript_name="NotoSansMeeteiMayek" style="normal" weight="400">NotoSansMeeteiMayek-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,25,254">
+        <font font_name="Noto Sans New Tai Lue" postscript_name="NotoSansNewTaiLue" style="normal" weight="400">NotoSansNewTaiLue-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,6-7,32,46,253-254">
+        <font font_name="Noto Sans NKo" postscript_name="NotoSansNKo" style="normal" weight="400">NotoSansNKo-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,28,254">
+        <font font_name="Noto Sans Ol Chiki" postscript_name="NotoSansOlChiki" style="normal" weight="400">NotoSansOlChiki-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,169,254">
+        <font font_name="Noto Sans Rejang" postscript_name="NotoSansRejang" style="normal" weight="400">NotoSansRejang-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,32,37,168,254">
+        <font font_name="Noto Sans Saurashtra" postscript_name="NotoSansSaurashtra" style="normal" weight="400">NotoSansSaurashtra-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,27-28,254">
+        <font font_name="Noto Sans Sundanese" postscript_name="NotoSansSundanese" style="normal" weight="400">NotoSansSundanese-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,9,32,37,168,254">
+        <font font_name="Noto Sans Syloti Nagri" postscript_name="NotoSansSylotiNagri" style="normal" weight="400">NotoSansSylotiNagri-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,3,6-7,32,34,37-38,254">
+        <font font_name="Noto Sans Syriac Estrangela" postscript_name="NotoSansSyriacEstrangela" style="normal" weight="400">NotoSansSyriacEstrangela-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,23,254">
+        <font font_name="Noto Sans Tagbanwa" postscript_name="NotoSansTagbanwa" style="normal" weight="400">NotoSansTagbanwa-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,26,32,34,37,254">
+        <font font_name="Noto Sans Tai Tham" postscript_name="NotoSansTaiTham" style="normal" weight="400">NotoSansTaiTham-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,32,37,167,170,254">
+        <font font_name="Noto Sans Tai Viet" postscript_name="NotoSansTaiViet" style="normal" weight="400">NotoSansTaiViet-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,15,32,37,254">
+        <font font_name="Noto Sans Tibetan" postscript_name="NotoSansTibetan" style="normal" weight="400">NotoSansTibetan-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,3,32,45,254">
+        <font font_name="Noto Sans Tifinagh" postscript_name="NotoSansTifinagh" style="normal" weight="400">NotoSansTifinagh-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,165-166,254">
+        <font font_name="Noto Sans Vai" postscript_name="NotoSansVai" style="normal" weight="400">NotoSansVai-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,160-164,254">
+        <font font_name="Noto Sans Yi" postscript_name="NotoSansYi" style="normal" weight="400">NotoSansYi-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="32-43">
+        <font font_name="Noto Sans Symbols" postscript_name="NotoSansSymbols" style="normal" weight="400">NotoSansSymbols-Regular-Subsetted.ttf</font>
+    </family>
+    <family fallback="true" lang="zh-Hans" pages="0,2,32-39,41,43,46-159,249-250,254-255,497-498,512-513,518,524,531-533,553,565,572,574,577,584-586,597,602,606,610,612,614-615,617,619-620,632,639,644,646-647,651-652,654,662,664,671,679-682,687,689,691-696,698-702,704-718">
+        <font font_name="Noto Sans SC Regular" postscript_name="NotoSansSC-Regular" style="normal" weight="400">NotoSansSC-Regular.otf</font>
+    </family>
+    <family fallback="true" lang="zh-Hant" pages="0,32,34,46-48,50,52-159,249-250,254-255,498,512-657,660-661,663-678,685,760-761">
+        <font font_name="Noto Sans TC Regular" postscript_name="NotoSansTC-Regular" style="normal" weight="400">NotoSansTC-Regular.otf</font>
+    </family>
+    -->
+    <family fallback="true" lang="ja" pages="0,32,34-35,46-159,249-250,254-255,498,512-523,525-527,530-538,540-543,545-547,550,552,554-559,561,563-568,570,572-573,575-579,582-584,586-594,596-608,610-612,614-618,620,622-625,627-628,630-631,633-638,640,642-646,649-655,658,660-664,666,669-678,681,695-696,760-761">
+        <font font_name="Samsung One UI JP 400" postscript_name="SamsungOneUIJP-400" style="normal" weight="400">SamsungOneUIJP-400.ttf</font>
+    </family>
+    <family fallback="true" lang="ko" pages="0,17,32,48-50,169,172-215,255">
+        <font font_name="Samsung One UI Korean 200" postscript_name="SamsungOneUIKorean-200" style="normal" weight="200">SamsungOneUIKorean-200.ttf</font>
+        <font font_name="Samsung One UI Korean 300" postscript_name="SamsungOneUIKorean-300" style="normal" weight="300">SamsungOneUIKorean-300.ttf</font>
+        <font font_name="Samsung One UI Korean 400" postscript_name="SamsungOneUIKorean-400" style="normal" weight="400">SamsungOneUIKorean-400.ttf</font>
+        <font font_name="Samsung One UI Korean 600" postscript_name="SamsungOneUIKorean-600" style="normal" weight="600">SamsungOneUIKorean-600.ttf</font>
+    </family>
+    <!--
+    <family fallback="true" pages="0,17,32,49-50,172-215">
+        <font font_name="NanumGothic" postscript_name="NanumGothic" style="normal" weight="400">NanumGothic.ttf</font>
+    </family>
+    <family fallback="true" pages="0,32-33,35-39,41,43,48,50,224,254-255,496-502,4068">
+        <font font_name="Noto Emoji" postscript_name="NotoEmoji" style="normal" weight="400">NotoEmoji-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,14,17,32,48-51,77-159,172-215,249-250,254-255,260">
+        <font font_name="Droid Sans Fallback" postscript_name="DroidSansFallback" style="normal" weight="400">DroidSansFallback.ttf</font>
+    </family>
+    <family fallback="true" lang="ja" pages="0,2-4,32-38,48,50-51,78-159,249-250,255">
+        <font font_name="MotoyaLMaru W3 mono" postscript_name="MotoyaLMaru-W3-90ms-RKSJ-H" style="normal" weight="400">MTLmr3m.ttf</font>
+    </family>
+    -->
+    <!--
+        Tai Le and Mongolian are intentionally kept last, to make sure they don't override
+        the East Asian punctuation for Chinese.
+    -->
+    <!--
+    <family fallback="true" pages="0,16,25,48,254">
+        <font font_name="Noto Sans Tai Le" postscript_name="NotoSansTaiLe" style="normal" weight="400">NotoSansTaiLe-Regular.ttf</font>
+    </family>
+    <family fallback="true" pages="0,24,32,36-37,48,254">
+        <font font_name="Noto Sans Mongolian" postscript_name="NotoSansMongolian" style="normal" weight="400">NotoSansMongolian-Regular.ttf</font>
+    </family>
+    -->
+</familyset>

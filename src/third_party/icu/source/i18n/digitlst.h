@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1997-2010, International Business Machines
+*   Copyright (C) 1997-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -51,6 +51,7 @@ typedef enum EDigitListValues {
 U_NAMESPACE_BEGIN
 
 class CharString;
+class DigitInterval; 
 
 // Export an explicit template instantiation of the MaybeStackHeaderAndArray that
 //    is used as a data member of DigitList.
@@ -61,10 +62,14 @@ class CharString;
 //    Macintosh produces duplicate definition linker errors with the explicit template
 //    instantiation.
 //
-#if !defined(U_DARWIN)
+#if !U_PLATFORM_IS_DARWIN_BASED
 template class U_I18N_API MaybeStackHeaderAndArray<decNumber, char, DEFAULT_DIGITS>;
 #endif
 
+
+enum EStackMode { kOnStack };
+
+enum EFastpathBits { kFastpathOk = 1, kNoDecimal = 2 };
 
 /**
  * Digit List is actually a Decimal Floating Point number.
@@ -148,7 +153,7 @@ public:
     int32_t  compare(const DigitList& other);
 
 
-    inline UBool operator!=(const DigitList& other) const { return !operator==(other); };
+    inline UBool operator!=(const DigitList& other) const { return !operator==(other); }
 
     /**
      * Clears out the digits.
@@ -247,12 +252,22 @@ public:
      */
     void set(int64_t source);
 
+    /**
+     * Utility routine to set the value of the digit list from an int64.
+     * Does not set the decnumber unless requested later
+     * If a non-zero maximumDigits is specified, no more than that number of
+     * significant digits will be produced.
+     * @param source The value to be set
+     */
+    void setInteger(int64_t source);
+
    /**
      * Utility routine to set the value of the digit list from a decimal number
      * string.
      * @param source The value to be set.  The string must be nul-terminated.
+     * @param fastpathBits special flags for fast parsing
      */
-    void set(const StringPiece &source, UErrorCode &status);
+    void set(const StringPiece &source, UErrorCode &status, uint32_t fastpathBits = 0);
 
     /**
      * Multiply    this = this * arg
@@ -279,9 +294,9 @@ public:
     /** Test for a Nan
      * @return  TRUE if the number is a NaN
      */
-    UBool isNaN(void) const {return decNumberIsNaN(fDecNumber);};
+    UBool isNaN(void) const {return decNumberIsNaN(fDecNumber);}
 
-    UBool isInfinite() const {return decNumberIsInfinite(fDecNumber);};
+    UBool isInfinite() const {return decNumberIsInfinite(fDecNumber);}
 
     /**  Reduce, or normalize.  Removes trailing zeroes, adjusts exponent appropriately. */
     void     reduce();
@@ -290,15 +305,16 @@ public:
     void     trim();
 
     /** Set to zero */
-    void     setToZero() {uprv_decNumberZero(fDecNumber);};
+    void     setToZero() {uprv_decNumberZero(fDecNumber);}
 
     /** get the number of digits in the decimal number */
-    int32_t  digits() const {return fDecNumber->digits;};
+    int32_t  digits() const {return fDecNumber->digits;}
 
     /**
      * Round the number to the given number of digits.
      * @param maximumDigits The maximum number of digits to be shown.
      * Upon return, count will be less than or equal to maximumDigits.
+     * result is guaranteed to be trimmed. 
      */
     void round(int32_t maximumDigits);
 
@@ -310,7 +326,7 @@ public:
      */
     void  ensureCapacity(int32_t  requestedSize, UErrorCode &status); 
 
-    UBool    isPositive(void) const { return decNumberIsNegative(fDecNumber) == 0;};
+    UBool    isPositive(void) const { return decNumberIsNegative(fDecNumber) == 0;}
     void     setPositive(UBool s); 
 
     void     setDecimalAt(int32_t d);
@@ -342,6 +358,78 @@ public:
      */
     uint8_t     getDigitValue(int32_t i);
 
+    /**
+     * Gets the upper bound exponent for this value. For 987, returns 3
+     * because 10^3 is the smallest power of 10 that is just greater than
+     * 987.
+     */
+    int32_t getUpperExponent() const;
+
+    /**
+     * Gets the lower bound exponent for this value. For 98.7, returns -1
+     * because the right most digit, is the 10^-1 place.
+     */
+    int32_t getLowerExponent() const { return fDecNumber->exponent; }
+
+    /**
+     * Sets result to the smallest DigitInterval needed to display this
+     * DigitList in fixed point form and returns result.
+     */
+    DigitInterval& getSmallestInterval(DigitInterval &result) const;
+
+    /**
+     * Like getDigitValue, but the digit is identified by exponent.
+     * For example, getDigitByExponent(7) returns the 10^7 place of this
+     * DigitList. Unlike getDigitValue, there are no upper or lower bounds
+     * for passed parameter. Instead, getDigitByExponent returns 0 if
+     * the exponent falls outside the interval for this DigitList.
+     */
+    uint8_t getDigitByExponent(int32_t exponent) const;
+
+    /**
+     * Appends the digits in this object to a CharString.
+     * 3 is appended as (char) 3, not '3'
+     */
+    void appendDigitsTo(CharString &str, UErrorCode &status) const;
+
+    /**
+     * Equivalent to roundFixedPoint(-digitExponent) except unlike
+     * roundFixedPoint, this works for any digitExponent value.
+     * If maxSigDigits is set then this instance is rounded to have no more
+     * than maxSigDigits. The end result is guaranteed to be trimmed.
+     */
+    void roundAtExponent(int32_t digitExponent, int32_t maxSigDigits=INT32_MAX);
+
+    /**
+     * Quantizes according to some amount and rounds according to the
+     * context of this instance. Quantizing 3.233 with 0.05 gives 3.25.
+     */
+    void quantize(const DigitList &amount, UErrorCode &status);
+
+    /**
+     * Like toScientific but only returns the exponent
+     * leaving this instance unchanged.
+     */ 
+    int32_t getScientificExponent(
+            int32_t minIntDigitCount, int32_t exponentMultiplier) const;
+
+    /**
+     * Converts this instance to scientific notation. This instance
+     * becomes the mantissa and the exponent is returned.
+     * @param minIntDigitCount minimum integer digits in mantissa
+     *   Exponent is set so that the actual number of integer digits
+     *   in mantissa is as close to the minimum as possible.
+     * @param exponentMultiplier The exponent is always a multiple of
+     *  This number. Usually 1, but set to 3 for engineering notation.
+     * @return exponent
+     */
+    int32_t toScientific(
+            int32_t minIntDigitCount, int32_t exponentMultiplier);
+
+    /**
+     * Shifts decimal to the right.
+     */
+    void shiftDecimalRight(int32_t numPlaces);
 
 private:
     /*
@@ -372,9 +460,10 @@ private:
      * DecimalFormat::ERoundingMode    fRoundingMode;
      */
 
-private:
+public:
+    decContext    fContext;   // public access to status flags.  
 
-    decContext    fContext;
+private:
     decNumber     *fDecNumber;
     MaybeStackHeaderAndArray<decNumber, char, DEFAULT_DIGITS>  fStorage;
 
@@ -382,12 +471,55 @@ private:
      * This is an optimization for the formatting implementation, which may
      * ask for the double value multiple times.
      */
-    double        fDouble;
-    UBool         fHaveDouble;
+    union DoubleOrInt64 {
+      double        fDouble;
+      int64_t       fInt64;
+    } fUnion;
+    enum EHave {
+      kNone=0,
+      kDouble,
+      kInt64
+    } fHave;
 
 
 
     UBool shouldRoundUp(int32_t maximumDigits) const;
+
+ public:
+
+#if U_OVERRIDE_CXX_ALLOCATION
+    using UMemory::operator new;
+    using UMemory::operator delete;
+#else
+    static inline void * U_EXPORT2 operator new(size_t size) U_NO_THROW { return ::operator new(size); };
+    static inline void U_EXPORT2 operator delete(void *ptr )  U_NO_THROW { ::operator delete(ptr); };
+#endif
+    static char U_EXPORT2 getStrtodDecimalSeparator();
+
+    /**
+     * Placement new for stack usage
+     * @internal
+     */
+    static inline void * U_EXPORT2 operator new(size_t /*size*/, void * onStack, EStackMode  /*mode*/) U_NO_THROW { return onStack; }
+
+    /**
+     * Placement delete for stack usage
+     * @internal
+     */
+    static inline void U_EXPORT2 operator delete(void * /*ptr*/, void * /*onStack*/, EStackMode /*mode*/)  U_NO_THROW {}
+
+ private:
+    inline void internalSetDouble(double d) {
+      fHave = kDouble;
+      fUnion.fDouble=d;
+    }
+    inline void internalSetInt64(int64_t d) {
+      fHave = kInt64;
+      fUnion.fInt64=d;
+    }
+    inline void internalClear() {
+      fHave = kNone;
+    }
 };
 
 

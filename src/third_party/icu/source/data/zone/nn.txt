@@ -1,16 +1,13 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/nn.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/nn.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/nn.xml
- */
 nn{
-    Version{"2.0.50.94"}
+    Version{"2.1.19.14"}
     zoneStrings{
         "America:Belem"{
             ec{"Belém"}
@@ -26,9 +23,6 @@ nn{
         }
         "America:North_Dakota:Center"{
             ec{"Center, Nord-Dakota"}
-        }
-        "Antarctica:South_Pole"{
-            ec{"Sørpolen"}
         }
         "Asia:Tashkent"{
             ec{"Tasjkent"}
@@ -61,21 +55,12 @@ nn{
             ls{"austafrikansk tid"}
         }
         "meta:Africa_Southern"{
-            lg{"sørafrikansk tid"}
-            ls{"sørafrikansk standardtid"}
+            ls{"sørafrikansk tid"}
         }
         "meta:Africa_Western"{
             ld{"vestafrikansk sommartid"}
-            ls{"vestafrikansk tid"}
-        }
-        "meta:America_Central"{
-            ld{"Central Daylight Time"}
-            lg{"Central Time"}
-            ls{"Central Standard Time"}
-        }
-        "meta:Armenia"{
-            sd{"AMST (Armenia)"}
-            ss{"AMT (Armenia)"}
+            lg{"vestafrikansk tid"}
+            ls{"vestafrikansk standardtid"}
         }
         "meta:Australia_Central"{
             ld{"sentralaustralsk sommartid"}
@@ -97,28 +82,33 @@ nn{
             lg{"vestaustralsk tid"}
             ls{"vestaustralsk standardtid"}
         }
-        "meta:China"{
-            sd{"CDT (Kina)"}
-            sg{"CT (Kina)"}
-            ss{"CST (Kina)"}
-        }
         "meta:Europe_Central"{
             ld{"sentraleuropeisk sommartid"}
-            ls{"sentraleuropeisk tid"}
+            lg{"sentraleuropeisk tid"}
+            ls{"sentraleuropeisk standardtid"}
+            sd{"CEST"}
+            sg{"CET"}
+            ss{"CET"}
         }
         "meta:Europe_Eastern"{
             ld{"austeuropeisk sommartid"}
-            ls{"austeuropeisk tid"}
+            lg{"austeuropeisk tid"}
+            ls{"austeuropeisk standardtid"}
+            sd{"EEST"}
+            sg{"EET"}
+            ss{"EET"}
         }
         "meta:Europe_Western"{
             ld{"vesteuropeisk sommartid"}
-            ls{"vesteuropeisk tid"}
+            lg{"vesteuropeisk tid"}
+            ls{"vesteuropeisk standardtid"}
+            sd{"WEST"}
+            sg{"WET"}
+            ss{"WET"}
         }
         "meta:GMT"{
-            ls{"Greenwich middeltid"}
-        }
-        "meta:Israel"{
-            ss{"IST (Israel)"}
+            ls{"greenwich middeltid"}
+            ss{"GMT"}
         }
         fallbackFormat{"{1} ({0})"}
         gmtFormat{"GMT{0}"}

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "media/base/media_log.h"
+#include "media/webm/webm_colour_parser.h"
 #include "media/webm/webm_parser.h"
 
 namespace media {
@@ -40,6 +41,10 @@ class WebMVideoClient : public WebMParserClient {
   virtual bool OnUInt(int id, int64 val) OVERRIDE;
   virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
   virtual bool OnFloat(int id, double val) OVERRIDE;
+  // Exist to ignore the new Projection list element. This element has UINT,
+  // FLOAT and BINARY fields which must also be ignored.
+  WebMParserClient* OnListStart(int id) OVERRIDE;
+  bool OnListEnd(int id) OVERRIDE;
 
   LogCB log_cb_;
   int64 pixel_width_;
@@ -52,6 +57,10 @@ class WebMVideoClient : public WebMParserClient {
   int64 display_height_;
   int64 display_unit_;
   int64 alpha_mode_;
+  bool inside_projection_list_;
+
+  WebMColourParser colour_parser_;
+  bool colour_parsed_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMVideoClient);
 };

@@ -39,6 +39,8 @@
 #include "frontend/ParseNode-inl.h"
 #include "frontend/SharedContext-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::frontend;
@@ -123,6 +125,7 @@ BytecodeEmitter::init()
 static ptrdiff_t
 EmitCheck(JSContext *cx, BytecodeEmitter *bce, ptrdiff_t delta)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     ptrdiff_t offset = bce->code().length();
 
     // Start it off moderately large to avoid repeated resizings early on.
@@ -148,6 +151,7 @@ CurrentBlock(StmtInfoBCE *topStmt)
 static void
 UpdateDepth(JSContext *cx, BytecodeEmitter *bce, ptrdiff_t target)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     jsbytecode *pc = bce->code(target);
     JSOp op = (JSOp) *pc;
     const JSCodeSpec *cs = &js_CodeSpec[op];
@@ -6056,6 +6060,7 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 static int
 AllocSrcNote(JSContext *cx, SrcNotesVector &notes)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     // Start it off moderately large to avoid repeated resizings early on.
     if (notes.capacity() == 0 && !notes.reserve(1024))
         return -1;

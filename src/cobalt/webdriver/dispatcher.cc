@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/webdriver/dispatcher.h"
 
@@ -164,9 +162,8 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
   // Use reverse iterators for the match so we can early-out of a mismatch
   // more quickly. Most requests start with '/session/:sessionId/', for
   // example.
-  typedef std::pair<std::vector<std::string>::const_reverse_iterator,
-                    std::vector<std::string>::const_reverse_iterator>
-      MismatchResultPair;
+  typedef std::vector<std::string>::const_reverse_iterator MismatchResult;
+  typedef std::pair<MismatchResult, MismatchResult> MismatchResultPair;
   typedef std::pair<CommandMappingLookup::iterator,
                     CommandMappingLookup::iterator> EqualRangeResultPair;
 
@@ -187,7 +184,9 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
         std::mismatch(components.rbegin(), components.rend(),
                       it->second.path_components.rbegin(), predicate);
     if (result_pair.first == components.rend()) {
-      DCHECK(result_pair.second == it->second.path_components.rend());
+      DCHECK(
+          result_pair.second ==
+          static_cast<MismatchResult>(it->second.path_components.rend()));
       return &it->second;
     }
   }
@@ -233,7 +232,6 @@ void WebDriverDispatcher::HandleWebDriverServerRequest(
   command_it->second.Run(request_value.get(), &path_variable_map,
                          result_handler.Pass());
 }
-
 
 }  // namespace webdriver
 }  // namespace cobalt

@@ -28,18 +28,8 @@
       'sources': [
         'audio_encoder_flac.cc',
         'audio_encoder_flac.h',
-        'chunked_byte_buffer.cc',
-        'chunked_byte_buffer.h',
         'endpointer_delegate.cc',
         'endpointer_delegate.h',
-
-        'endpointer/endpointer.cc',
-        'endpointer/endpointer.h',
-        'endpointer/energy_endpointer.cc',
-        'endpointer/energy_endpointer.h',
-        'endpointer/energy_endpointer_params.cc',
-        'endpointer/energy_endpointer_params.h',
-
         'google_streaming_api.pb.cc',
         'google_streaming_api.pb.h',
         'google_streaming_api.pb.proto',
@@ -68,6 +58,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/content/browser/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
@@ -86,6 +77,8 @@
           'sources': [
             'microphone_fake.cc',
             'microphone_fake.h',
+            'url_fetcher_fake.cc',
+            'url_fetcher_fake.h',
           ],
           'defines': [
             'ENABLE_FAKE_MICROPHONE',
@@ -111,31 +104,6 @@
 
         ],
       ],
-    },
-    {
-      'target_name': 'speech_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'chunked_byte_buffer_unittest.cc',
-        'endpointer/endpointer_unittest.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
-        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-    },
-
-    {
-      'target_name': 'speech_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'speech_test',
-      ],
-      'variables': {
-        'executable_name': 'speech_test',
-      },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
     },
   ],
 }

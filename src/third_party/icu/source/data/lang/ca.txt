@@ -1,19 +1,32 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ca.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ca.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/ca.xml
- */
 ca{
     Keys{
         calendar{"calendari"}
-        collation{"ordre alfabètic"}
+        colAlternate{"Ordenació sense tenir en compte els símbols"}
+        colBackwards{"Ordenació per accents invertida"}
+        colCaseFirst{"Ordenació per majúscules i minúscules"}
+        colCaseLevel{"Ordenació per detecció de majúscules"}
+        colHiraganaQuaternary{"Ordenació per kana"}
+        colNormalization{"Ordenació normalitzada"}
+        colNumeric{"Ordenació numèrica"}
+        colStrength{"Força de l’ordenació"}
+        collation{"ordenació"}
         currency{"moneda"}
+        hc{"sistema horari (12h o 24h)"}
+        lb{"estil de salt de línia"}
+        ms{"Sistema de mesures"}
+        numbers{"xifres"}
+        timezone{"Zona horària"}
+        va{"Variant local"}
+        variableTop{"Ordena com a símbols"}
+        x{"ús privat"}
     }
     Languages{
         aa{"àfar"}
@@ -24,71 +37,78 @@ ca{
         ady{"adigué"}
         ae{"avèstic"}
         af{"afrikaans"}
-        afa{"llengua afroasiàtica"}
         afh{"afrihili"}
+        agq{"aghem"}
         ain{"ainu"}
         ak{"àkan"}
         akk{"accadi"}
+        akz{"alabama"}
         ale{"aleuta"}
-        alg{"llengua algonquina"}
+        aln{"albanès geg"}
         alt{"altaic meridional"}
         am{"amhàric"}
         an{"aragonès"}
         ang{"anglès antic"}
         anp{"angika"}
-        apa{"llengua apatxe"}
         ar{"àrab"}
+        ar_001{"àrab estàndard modern"}
         arc{"arameu"}
         arn{"araucà"}
+        aro{"araona"}
         arp{"arapaho"}
-        art{"llengua artificial"}
         arw{"arauac"}
+        arz{"àrab egipci"}
         as{"assamès"}
+        asa{"pare"}
+        ase{"llengua de signes americana"}
         ast{"asturià"}
-        ath{"llengua atapascana"}
-        aus{"llengua australiana"}
         av{"àvar"}
         awa{"awadhi"}
         ay{"aimara"}
-        az{"àzeri"}
+        az{"azerbaidjanès"}
         ba{"baixkir"}
-        bad{"banda"}
-        bai{"bamileké"}
         bal{"balutxi"}
         ban{"balinès"}
+        bar{"bavarès"}
         bas{"basa"}
-        bat{"llengua bàltica"}
+        bax{"bamun"}
+        bbj{"ghomala"}
         be{"bielorús"}
         bej{"beja"}
         bem{"bemba"}
-        ber{"berber"}
+        bez{"bena"}
+        bfd{"bafut"}
+        bfq{"badaga"}
         bg{"búlgar"}
-        bh{"bihari"}
+        bgn{"balutxi occidental"}
         bho{"bhojpuri"}
         bi{"bislama"}
         bik{"bicol"}
         bin{"bini"}
+        bkm{"kom"}
         bla{"blackfoot"}
         bm{"bambara"}
         bn{"bengalí"}
-        bnt{"bantu"}
         bo{"tibetà"}
         br{"bretó"}
         bra{"braj"}
+        brh{"brahui"}
+        brx{"bodo"}
         bs{"bosnià"}
-        btk{"batak"}
+        bss{"akoose"}
         bua{"buriat"}
         bug{"bugui"}
+        bum{"seki"}
         byn{"bilin"}
+        byv{"medumba"}
         ca{"català"}
         cad{"caddo"}
-        cai{"llengua ameríndia d'Amèrica Central"}
         car{"carib"}
-        cau{"llengua caucàsica"}
+        cay{"cayuga"}
         cch{"atsam"}
         ce{"txetxè"}
         ceb{"cebuà"}
-        cel{"llengua cèltica"}
+        cgg{"chiga"}
         ch{"chamorro"}
         chb{"txibtxa"}
         chg{"txagatai"}
@@ -99,25 +119,20 @@ ca{
         chp{"chipewyan"}
         chr{"cherokee"}
         chy{"xeienne"}
-        cmc{"txam"}
+        ckb{"kurd sorani"}
         co{"cors"}
         cop{"copte"}
-        cpe{"llengua criolla o pidgin basada en l'anglès"}
-        cpf{"llengua criolla o pidgin basada en el francès"}
-        cpp{"llengua criolla o pidgin basada en el portuguès"}
         cr{"cree"}
         crh{"tàtar de Crimea"}
-        crp{"llengua criolla o pidgin"}
         cs{"txec"}
         csb{"caixubi"}
         cu{"eslau eclesiàstic"}
-        cus{"llengua cuixítica"}
         cv{"txuvaix"}
         cy{"gal·lès"}
         da{"danès"}
         dak{"dakota"}
         dar{"darguà"}
-        day{"daiak"}
+        dav{"taita"}
         de{"alemany"}
         de_AT{"alemany austríac"}
         de_CH{"alt alemany suís"}
@@ -125,16 +140,20 @@ ca{
         den{"slavey"}
         dgr{"dogrib"}
         din{"dinka"}
+        dje{"zarma"}
         doi{"dogri"}
-        dra{"llengua dravídica"}
         dsb{"baix sòrab"}
-        dua{"duala"}
+        dua{"douala"}
         dum{"neerlandès mitjà"}
         dv{"divehi"}
+        dyo{"diola"}
         dyu{"jula"}
         dz{"dzongka"}
+        dzg{"dazaga"}
+        ebu{"embu"}
         ee{"ewe"}
         efi{"efik"}
+        egl{"emilià"}
         egy{"egipci antic"}
         eka{"ekajuk"}
         el{"grec"}
@@ -147,18 +166,19 @@ ca{
         enm{"anglès mitjà"}
         eo{"esperanto"}
         es{"espanyol"}
-        es_419{"espanyol d'Hispanoamèrica"}
-        es_ES{"espanyol d'Espanya"}
+        es_419{"espanyol hispanoamericà"}
+        es_ES{"espanyol europeu"}
+        es_MX{"espanyol de Mèxic"}
         et{"estonià"}
         eu{"basc"}
         ewo{"ewondo"}
+        ext{"extremeny"}
         fa{"persa"}
         fan{"fang"}
         fat{"fanti"}
         ff{"ful"}
         fi{"finès"}
         fil{"filipí"}
-        fiu{"llengua finoúgrica"}
         fj{"fijià"}
         fo{"feroès"}
         fon{"fon"}
@@ -168,21 +188,24 @@ ca{
         frm{"francès mitjà"}
         fro{"francès antic"}
         frr{"frisó septentrional"}
-        frs{"frisó occidental"}
+        frs{"frisó oriental"}
         fur{"friülà"}
-        fy{"frisó oriental"}
+        fy{"frisó occidental"}
         ga{"irlandès"}
         gaa{"ga"}
+        gag{"gagaús"}
+        gan{"xinès gan"}
         gay{"gayo"}
         gba{"gbaya"}
         gd{"gaèlic escocès"}
-        gem{"llengua germànica"}
         gez{"gueez"}
         gil{"gilbertès"}
         gl{"gallec"}
+        glk{"gilaki"}
         gmh{"alt alemany mitjà"}
         gn{"guaraní"}
         goh{"alt alemany antic"}
+        gom{"concani de Goa"}
         gon{"gondi"}
         gor{"gorontalo"}
         got{"gòtic"}
@@ -190,20 +213,24 @@ ca{
         grc{"grec antic"}
         gsw{"alemany suís"}
         gu{"gujarati"}
+        guc{"wayú"}
+        guz{"gusí"}
         gv{"manx"}
         gwi{"gwichin"}
         ha{"haussa"}
         hai{"haida"}
+        hak{"xinès hakka"}
         haw{"hawaià"}
         he{"hebreu"}
         hi{"hindi"}
+        hif{"hindi de Fiji"}
         hil{"hiligainon"}
-        him{"himachali"}
         hit{"hitita"}
         hmn{"hmong"}
         ho{"hiri motu"}
         hr{"croat"}
         hsb{"alt sòrab"}
+        hsn{"xinès xiang"}
         ht{"haitià"}
         hu{"hongarès"}
         hup{"hupa"}
@@ -211,24 +238,23 @@ ca{
         hz{"herero"}
         ia{"interlingua"}
         iba{"iban"}
+        ibb{"ibibio"}
         id{"indonesi"}
         ie{"interlingue"}
         ig{"igbo"}
         ii{"yi sichuan"}
-        ijo{"ijo"}
         ik{"inupiak"}
         ilo{"ilocà"}
-        inc{"llengua índica"}
-        ine{"llengua indoeuropea"}
         inh{"ingúix"}
         io{"ido"}
-        ira{"llengua irànica"}
-        iro{"iroquès"}
         is{"islandès"}
         it{"italià"}
         iu{"inuktitut"}
         ja{"japonès"}
+        jam{"crioll anglès de Jamaica"}
         jbo{"lojban"}
+        jgo{"ngomba"}
+        jmc{"machame"}
         jpr{"judeopersa"}
         jrb{"judeoàrab"}
         jv{"javanès"}
@@ -238,32 +264,42 @@ ca{
         kac{"katxin"}
         kaj{"jju"}
         kam{"kamba"}
-        kar{"karen"}
         kaw{"kawi"}
         kbd{"kabardí"}
+        kbl{"kanembu"}
         kcg{"tyap"}
+        kde{"makonde"}
+        kea{"crioll capverdià"}
+        ken{"kenyang"}
         kfo{"koro"}
         kg{"kongo"}
+        kgp{"kaingà"}
         kha{"khasi"}
-        khi{"llengua khoisan"}
         kho{"khotanès"}
+        khq{"koyra chiini"}
         ki{"kikuiu"}
         kj{"kuanyama"}
         kk{"kazakh"}
+        kkj{"kako"}
         kl{"grenlandès"}
+        kln{"kalenjin"}
         km{"khmer"}
         kmb{"kimbundu"}
         kn{"kannada"}
         ko{"coreà"}
+        koi{"komi-permiac"}
         kok{"konkani"}
         kos{"kosraeà"}
         kpe{"kpelle"}
         kr{"kanuri"}
         krc{"karatxai"}
+        kri{"krio"}
         krl{"carelià"}
-        kro{"kru"}
         kru{"kurukh"}
         ks{"caixmiri"}
+        ksb{"shambala"}
+        ksf{"bafia"}
+        ksh{"colognian"}
         ku{"kurd"}
         kum{"kúmik"}
         kut{"kutenai"}
@@ -272,16 +308,21 @@ ca{
         ky{"kirguís"}
         la{"llatí"}
         lad{"ladí"}
+        lag{"langi"}
         lah{"panjabi occidental"}
         lam{"lamba"}
         lb{"luxemburguès"}
         lez{"lesguià"}
         lg{"ganda"}
         li{"limburguès"}
+        lij{"lígur"}
+        lkt{"lakota"}
+        lmo{"llombard"}
         ln{"lingala"}
         lo{"laosià"}
         lol{"mongo"}
         loz{"lozi"}
+        lrc{"luri septentrional"}
         lt{"lituà"}
         lu{"luba katanga"}
         lua{"luba-lulua"}
@@ -289,159 +330,174 @@ ca{
         lun{"lunda"}
         luo{"luo"}
         lus{"mizo"}
+        luy{"luyia"}
         lv{"letó"}
+        lzh{"xinès clàssic"}
+        lzz{"laz"}
         mad{"madurès"}
+        maf{"mafa"}
         mag{"magahi"}
         mai{"maithili"}
         mak{"makassar"}
         man{"mandinga"}
-        map{"llengua austronèsia"}
         mas{"massai"}
+        mde{"maba"}
         mdf{"mordovià moksa"}
         mdr{"mandar"}
         men{"mende"}
+        mer{"meru"}
+        mfe{"mauricià"}
         mg{"malgaix"}
         mga{"gaèlic irlandès mitjà"}
+        mgh{"makhuwa-metto"}
+        mgo{"meta’"}
         mh{"marshallès"}
         mi{"maori"}
         mic{"micmac"}
         min{"minangkabau"}
-        mis{"llengua miscel·lània"}
         mk{"macedoni"}
-        mkh{"llengua monkhmer"}
-        ml{"malaialam"}
+        ml{"malaiàlam"}
         mn{"mongol"}
         mnc{"manxú"}
         mni{"manipurí"}
-        mno{"llengua manobo"}
-        mo{"moldau"}
         moh{"mohawk"}
         mos{"moré"}
         mr{"marathi"}
+        mrj{"mari occidental"}
         ms{"malai"}
         mt{"maltès"}
+        mua{"mundang"}
         mul{"llengües vàries"}
-        mun{"llengua munda"}
         mus{"creek"}
         mwl{"mirandès"}
         mwr{"marwari"}
         my{"birmà"}
-        myn{"llengua maia"}
+        mye{"myene"}
         myv{"mordovià erza"}
+        mzn{"mazanderani"}
         na{"nauruà"}
-        nah{"nàhuatl"}
-        nai{"llengua ameríndia septentrional"}
+        nan{"xinès min del sud"}
         nap{"napolità"}
+        naq{"nama"}
         nb{"noruec bokmål"}
         nd{"ndebele septentrional"}
         nds{"baix alemany"}
+        nds_NL{"baix saxó"}
         ne{"nepalès"}
         new{"newari"}
         ng{"ndonga"}
         nia{"nias"}
-        nic{"llengua nigerokurdufaniana"}
         niu{"niueà"}
         nl{"neerlandès"}
         nl_BE{"flamenc"}
+        nmg{"bissio"}
         nn{"noruec nynorsk"}
+        nnh{"ngiemboon"}
         no{"noruec"}
         nog{"nogai"}
         non{"nòrdic antic"}
+        nov{"novial"}
         nqo{"n’Ko"}
         nr{"ndebele meridional"}
         nso{"sotho septentrional"}
-        nub{"llengua nubiana"}
+        nus{"nuer"}
         nv{"navaho"}
         nwc{"newari clàssic"}
         ny{"nyanja"}
         nym{"nyamwesi"}
-        nyn{"nyankore"}
+        nyn{"nyankole"}
         nyo{"nyoro"}
         nzi{"nzema"}
         oc{"occità"}
         oj{"ojibwa"}
         om{"oromo"}
         or{"oriya"}
-        os{"osset"}
+        os{"osseta"}
         osa{"osage"}
         ota{"turc otomà"}
-        oto{"llengua otomangueana"}
         pa{"panjabi"}
-        paa{"llengua papú"}
         pag{"pangasi"}
         pal{"pahlavi"}
-        pam{"pampangà"}
+        pam{"pampanga"}
         pap{"papiamento"}
         pau{"palauà"}
+        pcd{"picard"}
+        pdc{"alemany pennsilvanià"}
         peo{"persa antic"}
-        phi{"llengua filipina"}
+        pfl{"alemany palatí"}
         phn{"fenici"}
         pi{"pali"}
         pl{"polonès"}
+        pms{"piemontès"}
+        pnt{"grec pòntic"}
         pon{"ponapeà"}
-        pra{"pràcrit"}
         pro{"provençal antic"}
-        ps{"paixto"}
+        ps{"paixtu"}
         pt{"portuguès"}
-        pt_BR{"portuguès de Brasil"}
+        pt_BR{"portuguès del Brasil"}
         pt_PT{"portuguès de Portugal"}
-        qu{"quètxua"}
+        qu{"quítxua"}
+        quc{"quitxé"}
         raj{"rajasthani"}
         rap{"rapanui"}
         rar{"rarotongà"}
+        rgn{"romanyès"}
         rm{"retoromànic"}
         rn{"rundi"}
         ro{"romanès"}
-        roa{"llengua romànica"}
+        ro_MD{"moldau"}
+        rof{"rombo"}
         rom{"romaní"}
         root{"arrel"}
         ru{"rus"}
         rup{"aromanès"}
         rw{"ruandès"}
+        rwk{"rwo"}
         sa{"sànscrit"}
         sad{"sandawe"}
         sah{"iacut"}
-        sai{"llengua ameríndia meridional"}
-        sal{"llengua salish"}
         sam{"arameu samarità"}
+        saq{"samburu"}
         sas{"sasak"}
         sat{"santali"}
+        sba{"ngambay"}
+        sbp{"sangu"}
         sc{"sard"}
         scn{"sicilià"}
         sco{"escocès"}
         sd{"sindhi"}
+        sdc{"sard sasserès"}
+        sdh{"kurd meridional"}
         se{"sami septentrional"}
+        see{"seneca"}
+        seh{"sena"}
         sel{"selkup"}
-        sem{"llengua semítica"}
+        ses{"songhai oriental"}
         sg{"sango"}
         sga{"irlandès antic"}
-        sgn{"llengua de signes"}
         sh{"serbocroat"}
+        shi{"taixelhit"}
         shn{"xan"}
+        shu{"àrab txadià"}
         si{"singalès"}
         sid{"sidamo"}
-        sio{"llengua sioux"}
-        sit{"llengua sinotibetana"}
         sk{"eslovac"}
         sl{"eslovè"}
-        sla{"llengua eslava"}
         sm{"samoà"}
         sma{"sami meridional"}
-        smi{"llengua sami"}
         smj{"sami lule"}
-        smn{"sami d'Inari"}
+        smn{"sami d’Inari"}
         sms{"sami skolt"}
         sn{"shona"}
         snk{"soninke"}
         so{"somali"}
         sog{"sogdià"}
-        son{"songhai"}
         sq{"albanès"}
         sr{"serbi"}
         srn{"sranan"}
         srr{"serer"}
-        ss{"siswati"}
-        ssa{"llengua nilosahariana"}
+        ss{"swazi"}
+        ssy{"saho"}
         st{"sotho meridional"}
         su{"sundanès"}
         suk{"sukuma"}
@@ -450,87 +506,113 @@ ca{
         sv{"suec"}
         sw{"suahili"}
         swb{"comorià"}
+        swc{"suahili del Congo"}
         syc{"siríac clàssic"}
         syr{"siríac"}
+        szl{"silesià"}
         ta{"tàmil"}
-        tai{"llengua tai"}
         te{"telugu"}
         tem{"temne"}
+        teo{"teso"}
         ter{"terena"}
         tet{"tetun"}
         tg{"tadjik"}
-        th{"thai"}
+        th{"tailandès"}
         ti{"tigrinya"}
         tig{"tigre"}
         tiv{"tiv"}
         tk{"turcman"}
         tkl{"tokelauès"}
-        tl{"tagàlog"}
+        tkr{"tsakhur"}
+        tl{"tagal"}
         tlh{"klingonià"}
         tli{"tlingit"}
-        tmh{"tamazight"}
-        tn{"tswana"}
+        tly{"talix"}
+        tmh{"amazic"}
+        tn{"setswana"}
         to{"tongalès"}
         tog{"tonga"}
         tpi{"tok pisin"}
         tr{"turc"}
+        trv{"taroko"}
         ts{"tsonga"}
         tsi{"tsimshià"}
         tt{"tàtar"}
+        ttt{"tat meridional"}
         tum{"tumbuka"}
-        tup{"llengua tupí"}
-        tut{"llengua altaica"}
         tvl{"tuvaluà"}
         tw{"twi"}
+        twq{"tasawaq"}
         ty{"tahitià"}
         tyv{"tuvinià"}
+        tzm{"amazic del Marroc central"}
         udm{"udmurt"}
         ug{"uigur"}
         uga{"ugarític"}
         uk{"ucraïnès"}
         umb{"umbundu"}
-        und{"idioma desconegut o no vàlid"}
+        und{"idioma desconegut"}
         ur{"urdú"}
         uz{"uzbek"}
         vai{"vai"}
         ve{"venda"}
+        vec{"vènet"}
+        vep{"vepse"}
         vi{"vietnamita"}
+        vls{"flamenc occidental"}
         vo{"volapük"}
         vot{"vòtic"}
+        vun{"vunjo"}
         wa{"való"}
-        wak{"llengua wakash"}
+        wae{"walser"}
         wal{"ameto"}
-        war{"waray-waray"}
+        war{"waray"}
         was{"washo"}
-        wen{"sòrab"}
+        wbp{"warlpiri"}
         wo{"wòlof"}
+        wuu{"xinès wu"}
         xal{"calmuc"}
         xh{"xosa"}
+        xmf{"mingrelià"}
+        xog{"soga"}
         yao{"yao"}
         yap{"yapeà"}
+        yav{"yangben"}
+        ybb{"yemba"}
         yi{"jiddisch"}
         yo{"ioruba"}
-        ypk{"llengua iupik"}
         yue{"cantonès"}
         za{"zhuang"}
         zap{"zapoteca"}
         zbl{"símbols Bliss"}
+        zea{"zelandès"}
         zen{"zenaga"}
+        zgh{"amazic estàndard marroquí"}
         zh{"xinès"}
         zh_Hans{"xinès simplificat"}
         zh_Hant{"xinès tradicional"}
-        znd{"zande"}
         zu{"zulu"}
         zun{"zuni"}
         zxx{"sense contingut lingüístic"}
         zza{"zaza"}
     }
+    Languages%short{
+        az{"àzeri"}
+        en_GB{"anglès (GB)"}
+        en_US{"anglès (EUA)"}
+    }
+    Languages%variant{
+        ps{"pushtu"}
+    }
     Scripts{
+        Afak{"afaka"}
         Arab{"àrab"}
         Armi{"arameu imperial"}
         Armn{"armeni"}
         Avst{"avèstic"}
         Bali{"balinès"}
+        Bamu{"bamum"}
+        Bass{"bassa vah"}
         Batk{"batak"}
         Beng{"bengalí"}
         Blis{"símbols Bliss"}
@@ -548,9 +630,10 @@ ca{
         Copt{"copte"}
         Cprt{"xipriota"}
         Cyrl{"ciríl·lic"}
-        Cyrs{"ciríl·lic de l'antic eslau eclesiàstic"}
+        Cyrs{"ciríl·lic de l’antic eslau eclesiàstic"}
         Deva{"devanagari"}
         Dsrt{"deseret"}
+        Dupl{"taquigrafia Duployé"}
         Egyd{"demòtic egipci"}
         Egyh{"hieràtic egipci"}
         Egyp{"jeroglífic egipci"}
@@ -559,29 +642,34 @@ ca{
         Geor{"georgià"}
         Glag{"glagolític"}
         Goth{"gòtic"}
+        Gran{"grantha"}
         Grek{"grec"}
         Gujr{"gujarati"}
         Guru{"gurmukhi"}
         Hang{"hangul"}
         Hani{"han"}
         Hano{"hanunoo"}
-        Hans{"xinès simplificat"}
-        Hant{"xinès tradicional"}
+        Hans{"simplificat"}
+        Hant{"tradicional"}
         Hebr{"hebreu"}
         Hira{"hiragana"}
+        Hluw{"jeroglífic anatoli"}
         Hmng{"pahawh hmong"}
         Hrkt{"katakana o hiragana"}
         Hung{"hongarès antic"}
-        Inds{"escriptura de la vall de l'Indus"}
+        Inds{"escriptura de la vall de l’Indus"}
         Ital{"cursiva antiga"}
         Java{"javanès"}
         Jpan{"japonès"}
+        Jurc{"jürchen"}
         Kali{"kayah li"}
         Kana{"katakana"}
         Khar{"kharosthi"}
         Khmr{"khmer"}
+        Khoj{"khoja"}
         Knda{"kannada"}
         Kore{"coreà"}
+        Kpel{"kpelle"}
         Kthi{"kaithi"}
         Lana{"lanna"}
         Laoo{"lao"}
@@ -592,40 +680,54 @@ ca{
         Limb{"limbu"}
         Lina{"lineal A"}
         Linb{"lineal B"}
+        Lisu{"lisu"}
+        Loma{"loma"}
         Lyci{"lici"}
         Lydi{"lidi"}
         Mand{"mandaic"}
         Mani{"maniqueu"}
         Maya{"jeroglífics maies"}
+        Mend{"mende"}
+        Merc{"cursiva meroítica"}
         Mero{"meroític"}
-        Mlym{"malaialam"}
+        Mlym{"malaiàlam"}
         Mong{"mongol"}
         Moon{"moon"}
+        Mroo{"mro"}
         Mtei{"manipurí"}
         Mymr{"birmà"}
+        Narb{"antic nord-aràbic"}
+        Nbat{"nabateu"}
+        Nkgb{"geba"}
         Nkoo{"n’Ko"}
+        Nshu{"nü shu"}
         Ogam{"ogham"}
         Olck{"santali"}
         Orkh{"orkhon"}
         Orya{"oriya"}
         Osma{"osmanya"}
+        Palm{"palmirè"}
         Perm{"antic pèrmic"}
         Phag{"phagspa"}
         Phli{"pahlavi inscripcional"}
         Phlp{"psalter pahlavi"}
         Phlv{"pahlavi"}
         Phnx{"fenici"}
-        Plrd{"Pollard Miao"}
+        Plrd{"pollard miao"}
         Prti{"parthià inscripcional"}
         Rjng{"rejang"}
         Roro{"rongo-rongo"}
         Runr{"rúnic"}
         Samr{"samarità"}
         Sara{"sarati"}
+        Sarb{"sud-aràbic antic"}
         Saur{"saurashtra"}
-        Sgnw{"SignWriting"}
+        Sgnw{"escriptura de signes"}
         Shaw{"shavià"}
+        Shrd{"shrada"}
+        Sind{"devangari"}
         Sinh{"singalès"}
+        Sora{"sora sompeng"}
         Sund{"sundanès"}
         Sylo{"syloti nagri"}
         Syrc{"siríac"}
@@ -633,9 +735,11 @@ ca{
         Syrj{"siríac occidental"}
         Syrn{"siríac oriental"}
         Tagb{"tagbanwa"}
+        Takr{"takri"}
         Tale{"tai le"}
         Talu{"nou tai lue"}
         Taml{"tàmil"}
+        Tang{"tangut"}
         Tavt{"tai viet"}
         Telu{"telugu"}
         Teng{"tengwar"}
@@ -644,9 +748,12 @@ ca{
         Thaa{"thaana"}
         Thai{"tailandès"}
         Tibt{"tibetà"}
+        Tirh{"tirhut"}
         Ugar{"ugarític"}
         Vaii{"vai"}
         Visp{"llenguatge visible"}
+        Wara{"varang kshiti"}
+        Wole{"woleai"}
         Xpeo{"persa antic"}
         Xsux{"cuneïforme sumeri-accadi"}
         Yiii{"yi"}
@@ -655,69 +762,227 @@ ca{
         Zsym{"símbols"}
         Zxxx{"sense escriptura"}
         Zyyy{"comú"}
-        Zzzz{"escriptura desconeguda o no vàlida"}
+        Zzzz{"escriptura desconeguda"}
+    }
+    Scripts%stand-alone{
+        Hans{"han simplificat"}
+        Hant{"han tradicional"}
+    }
+    Scripts%variant{
+        Arab{"persoaràbic"}
     }
     Types{
         calendar{
             buddhist{"calendari budista"}
             chinese{"calendari xinès"}
+            coptic{"calendari copte"}
+            dangi{"calendari dangi"}
+            ethiopic{"calendari etíop"}
+            ethiopic-amete-alem{"calendari etíop amete-alem"}
             gregorian{"calendari gregorià"}
             hebrew{"calendari hebreu"}
             indian{"calendari hindú"}
             islamic{"calendari musulmà"}
             islamic-civil{"calendari civil islàmic"}
+            iso8601{"calendari ISO-8601"}
             japanese{"calendari japonès"}
-            roc{"calendari de la República Popular de Xina"}
+            persian{"calendari persa"}
+            roc{"calendari de la República de Xina"}
+        }
+        colAlternate{
+            non-ignorable{"Ordena els símbols"}
+            shifted{"Ordena sense tenir en compte els símbols"}
+        }
+        colBackwards{
+            no{"Ordena els accents de manera normal"}
+            yes{"Ordena amb ordre invers dels accents"}
+        }
+        colCaseFirst{
+            lower{"Mostra primer les minúscules"}
+            no{"Ordena per tipus de lletra normal"}
+            upper{"Ordena amb majúscules primer"}
+        }
+        colCaseLevel{
+            no{"Ordena sense distingir majúscules i minúscules"}
+            yes{"Ordena amb detecció de majúscules i minúscules"}
+        }
+        colHiraganaQuaternary{
+            no{"Ordena els caràcters kana de manera independent"}
+            yes{"Ordena els caràcters kana de manera diferent"}
+        }
+        colNormalization{
+            no{"Ordena sense normalització"}
+            yes{"Ordena per caràcters Unicode normalitzats"}
+        }
+        colNumeric{
+            no{"Ordena els dígits individualment"}
+            yes{"Ordena els dígits numèricament"}
+        }
+        colStrength{
+            identical{"Ordena-ho tot"}
+            primary{"Ordena només les lletres de base"}
+            quaternary{"Ordena per accents/majúscules/amplada/kana"}
+            secondary{"Ordena els accents"}
+            tertiary{"Ordena per accent/majúscules/amplada"}
         }
         collation{
             big5han{"ordre del xinès tradicional - Big5"}
-            direct{"ordre directe"}
+            dictionary{"ordenació de diccionari"}
+            ducet{"ordenació Unicode predeterminada"}
+            eor{"normes europees d’ordenació"}
             gb2312han{"ordre del xinès simplificat - GB2312"}
             phonebook{"ordre de la guia telefònica"}
+            phonetic{"Ordenació fonètica"}
             pinyin{"ordre pinyin"}
+            reformed{"ordenació reformada"}
+            search{"cerca de propòsit general"}
+            searchjl{"cerca per consonant inicial del hangul"}
+            standard{"ordenació estàndard"}
             stroke{"ordre dels traços"}
             traditional{"ordre tradicional"}
+            unihan{"ordenació per quantitat de traços radicals"}
+        }
+        hc{
+            h11{"sistema de 12 hores (0–11)"}
+            h12{"sistema de 12 hores (1–12)"}
+            h23{"sistema de 24 hores (0–23)"}
+            h24{"sistema de 24 hores (1–24)"}
+        }
+        lb{
+            loose{"salt de línia flexible"}
+            normal{"salt de línia normal"}
+            strict{"salt de línia estricte"}
+        }
+        ms{
+            metric{"sistema mètric"}
+            uksystem{"sistema imperial d’unitats"}
+            ussystem{"sistema d’unitats dels EUA"}
+        }
+        numbers{
+            arab{"xifres indoaràbigues"}
+            arabext{"xifres indoaràbigues ampliades"}
+            armn{"nombres armenis"}
+            armnlow{"nombres armenis en minúscula"}
+            bali{"dígits balinesos"}
+            beng{"dígits bengalins"}
+            cham{"dígits txams"}
+            deva{"dígits devanagaris"}
+            ethi{"nombres etiòpics"}
+            finance{"Numerals financers"}
+            fullwide{"dígits d’amplada completa"}
+            geor{"nombres georgians"}
+            grek{"nombres grecs"}
+            greklow{"nombres grecs en minúscula"}
+            gujr{"dígits gujarati"}
+            guru{"dígits gurmukhi"}
+            hanidec{"nombres decimals xinesos"}
+            hans{"nombres xinesos simplificats"}
+            hansfin{"numerals financers xinesos simplificats"}
+            hant{"numerals xinesos tradicionals"}
+            hantfin{"numerals financers xinesos tradicionals"}
+            hebr{"numerals hebreus"}
+            java{"dígits javanesos"}
+            jpan{"numerals japonesos"}
+            jpanfin{"numerals financers japonesos"}
+            kali{"dígits kayah"}
+            khmr{"dígits khmer"}
+            knda{"dígits kannada"}
+            lana{"dígits tai tham hora"}
+            lanatham{"dígits tai tham tham"}
+            laoo{"dígits lao"}
+            latn{"dígits aràbics"}
+            lepc{"dígits lepcha"}
+            limb{"dígits limbu"}
+            mlym{"dígits malaiàlam"}
+            mong{"dígits mongols"}
+            mtei{"dígits meitei mayek"}
+            mymr{"dígits de Myanmar"}
+            mymrshan{"dígits shan de Myanmar"}
+            native{"Dígits natius"}
+            nkoo{"dígits n’ko"}
+            olck{"dígits ol chiki"}
+            orya{"dígits oriya"}
+            roman{"nombres romans"}
+            romanlow{"nombres romans en minúscula"}
+            saur{"dígits saurashtra"}
+            sund{"dígits sudanesos"}
+            talu{"dígits tai lue nous"}
+            taml{"nombres tamils tradicionals"}
+            tamldec{"dígits tamils"}
+            telu{"dígits telugu"}
+            thai{"dígits thai"}
+            tibt{"dígits tibetans"}
+            traditional{"Numerals tradicionals"}
+            vaii{"dígits vai"}
         }
     }
     Variants{
         1606NICT{"francès mitjà tardà fins el 1606"}
         1694ACAD{"francès modern primerenc"}
         1901{"ortografia alemanya tradicional"}
+        1959ACAD{"acadèmica"}
         1994{"ortofrafia resiana estandarditzada"}
         1996{"ortografia alemanya de 1996"}
+        ALALC97{"romanització ALA/LC, edició de 1997"}
+        ALUKU{"dialecte aluku"}
         AREVELA{"armeni oriental"}
         AREVMDA{"armeni occidental"}
         BAKU1926{"alfabet llatí turc unificat"}
+        BAUDDHA{"bauddha"}
+        BISCAYAN{"basc biscaí"}
         BISKE{"dialecte de San Giorgio/Bila"}
         BOONT{"Boontling"}
         FONIPA{"alfabet fonètic internacional"}
         FONUPA{"sistema fonètic UPA"}
+        FONXSAMP{"sistema X-SAMPA"}
+        HEPBURN{"romanització Hepburn"}
+        HOGNORSK{"høgnorsk"}
+        ITIHASA{"itihasa"}
+        JAUER{"jauer"}
+        JYUTPING{"jyupting"}
+        KKCOR{"ortografia comuna"}
+        LAUKIKA{"laukika"}
         LIPAW{"dialecte Lipovaz del resià"}
+        LUNA1918{"luna 1918"}
         MONOTON{"monotònic"}
+        NDYUKA{"dialecte ndyuka"}
         NEDIS{"dialecte de Natisone"}
         NJIVA{"dialecte de Gniva/Njiva"}
-        OSOJS{"dialecte d'Oseacco/Osojane"}
+        OSOJS{"dialecte d’Oseacco/Osojane"}
+        PAMAKA{"dialecte pamaka"}
+        PETR1708{"ortografia russa 1708–1917"}
         PINYIN{"romanització Pinyin"}
         POLYTON{"politònic"}
-        POSIX{"ordenador"}
+        POSIX{"ordinador"}
+        PUTER{"alt engiadinès"}
         REVISED{"ortografia revisada"}
         ROZAJ{"resià"}
+        RUMGR{"interomanx"}
         SAAHO{"saho"}
-        SCOTLAND{"anglès estàndard d'Escòcia"}
+        SCOTLAND{"anglès estàndard d’Escòcia"}
         SCOUSE{"scouse"}
         SOLBA{"dialecte de Stolvizza/Solbica"}
+        SURMIRAN{"surmiran"}
+        SURSILV{"sobreselvà"}
+        SUTSILV{"sotaselvà"}
         TARASK{"ortografia taraskievica"}
+        UCCOR{"ortografia unificada"}
+        UCRCOR{"ortografia revisada unificada"}
+        ULSTER{"ulster"}
+        VAIDIKA{"vèdic"}
         VALENCIA{"valencià"}
+        VALLADER{"baix engiadinès"}
         WADEGILE{"romanització Wade-Giles"}
     }
-    Version{"2.0.50.94"}
+    Version{"2.1.19.94"}
     codePatterns{
         language{"Idioma: {0}"}
         script{"Escriptura: {0}"}
         territory{"Regió: {0}"}
     }
     localeDisplayPattern{
+        keyTypePattern{"{0}: {1}"}
         pattern{"{0} ({1})"}
-        separator{", "}
+        separator{"{0}, {1}"}
     }
 }

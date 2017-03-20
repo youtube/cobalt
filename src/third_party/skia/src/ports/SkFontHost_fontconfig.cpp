@@ -122,44 +122,20 @@ SkTypeface* FontConfigTypeface::LegacyCreateTypeface(
 
 ///////////////////////////////////////////////////////////////////////////////
 
-SkStream* FontConfigTypeface::onOpenStream(int* ttcIndex) const {
-    SkStream* stream = this->getLocalStream();
+SkStreamAsset* FontConfigTypeface::onOpenStream(int* ttcIndex) const {
+    SkStreamAsset* stream = this->getLocalStream();
     if (stream) {
-        // should have been provided by CreateFromStream()
-        *ttcIndex = 0;
-
-        SkAutoTUnref<SkStream> dupStream(stream->duplicate());
-        if (dupStream) {
-            return dupStream.detach();
-        }
-
-        // TODO: update interface use, remove the following code in this block.
-        size_t length = stream->getLength();
-
-        const void* memory = stream->getMemoryBase();
-        if (memory) {
-            return new SkMemoryStream(memory, length, true);
-        }
-
-        SkAutoTMalloc<uint8_t> allocMemory(length);
-        stream->rewind();
-        if (length == stream->read(allocMemory.get(), length)) {
-            SkAutoTUnref<SkMemoryStream> copyStream(new SkMemoryStream());
-            copyStream->setMemoryOwned(allocMemory.detach(), length);
-            return copyStream.detach();
-        }
-
-        stream->rewind();
-        stream->ref();
-    } else {
-        SkAutoTUnref<SkFontConfigInterface> fci(RefFCI());
-        if (NULL == fci.get()) {
-            return NULL;
-        }
-        stream = fci->openStream(this->getIdentity());
-        *ttcIndex = this->getIdentity().fTTCIndex;
+        // TODO: should have been provided by CreateFromStream()
+        return stream->duplicate();
     }
-    return stream;
+
+    SkAutoTUnref<SkFontConfigInterface> fci(RefFCI());
+    if (NULL == fci.get()) {
+      return NULL;
+    }
+
+    *ttcIndex = this->getIdentity().fTTCIndex;
+    return fci->openStream(this->getIdentity());
 }
 
 void FontConfigTypeface::onGetFamilyName(SkString* familyName) const {

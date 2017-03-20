@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "third_party/skia/include/core/SkOSFile.h"
 
@@ -112,8 +110,25 @@ size_t sk_fwrite(const void* buffer, size_t byteCount, SkFILE* sk_file) {
 }
 
 char* sk_fgets(char* str, int size, SkFILE* sk_file) {
-  NOTREACHED() << __FUNCTION__;
-  return NULL;
+  SkASSERT(sk_file);
+  char* p = str;
+  size--;
+  while (size > 0) {
+    if (1 != sk_fread(p, 1, sk_file)) {
+      break;
+    }
+    size--;
+    char c = *p++;
+    if (c == '\n') {
+      break;
+    }
+  }
+  if (p == str) {
+    // Didn't read any characters.
+    return NULL;
+  }
+  *p = '\0';
+  return str;
 }
 
 void sk_fflush(SkFILE* sk_file) {

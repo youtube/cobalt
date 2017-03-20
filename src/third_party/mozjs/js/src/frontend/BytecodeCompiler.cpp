@@ -19,6 +19,8 @@
 #include "frontend/Parser-inl.h"
 #include "frontend/SharedContext-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::frontend;
 using mozilla::Maybe;
@@ -137,6 +139,7 @@ frontend::CompileScript(JSContext *cx, HandleObject scopeChain,
                         unsigned staticLevel /* = 0 */,
                         SourceCompressionToken *extraSct /* = NULL */)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedString source(cx, source_);
     SkipRoot skip(cx, &chars);
 
@@ -341,6 +344,7 @@ frontend::CompileScript(JSContext *cx, HandleObject scopeChain,
 bool
 frontend::CompileLazyFunction(JSContext *cx, LazyScript *lazy, const jschar *chars, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(cx->compartment() == lazy->function()->compartment());
 
     CompileOptions options(cx, lazy->version());
@@ -398,6 +402,7 @@ frontend::CompileFunctionBody(JSContext *cx, MutableHandleFunction fun, CompileO
                               const AutoNameVector &formals, const jschar *chars, size_t length,
                               bool isAsmJSRecompile)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     SkipRoot skip(cx, &chars);
 
     if (!CheckLength(cx, length))

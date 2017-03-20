@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
-
-#include "starboard/file.h"
-
-#include <unistd.h>
-
 #include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
+
+#include "starboard/shared/posix/impl/file_read.h"
 
 int SbFileRead(SbFile file, char* data, int size) {
-  if (!file || file->descriptor < 0 || size < 0) {
-    return -1;
-  }
-
-  return HANDLE_EINTR(read(file->descriptor, data, size));
+  return ::starboard::shared::posix::impl::FileRead(file, data, size);
 }

@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDER_TREE_MESH_H_
 #define COBALT_RENDER_TREE_MESH_H_
@@ -21,6 +19,8 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "starboard/types.h"
 #include "third_party/glm/glm/vec2.hpp"
 #include "third_party/glm/glm/vec3.hpp"
@@ -30,7 +30,7 @@ namespace render_tree {
 
 // Represents a mesh to which render_trees can be mapped for 3D projection
 // by being applied a filter.
-class Mesh {
+class Mesh : public base::RefCountedThreadSafe<Mesh> {
  public:
   // Vertices interleave position (x, y, z) and texture (u, v) coordinates.
   struct Vertex {
@@ -51,17 +51,33 @@ class Mesh {
     kDrawModeTriangleFan = 6
   };
 
-  Mesh(const std::vector<Vertex>& vertices, const DrawMode mode)
-      : vertices_(vertices), draw_mode_(CheckDrawMode(mode)) {}
-
-  ~Mesh() {}
+  Mesh(const std::vector<Vertex>& vertices, const DrawMode mode,
+       base::optional<uint32> crc = base::nullopt)
+      : vertices_(vertices), draw_mode_(CheckDrawMode(mode)), crc_(crc) {}
 
   const std::vector<Vertex>& vertices() const { return vertices_; }
 
   DrawMode draw_mode() const { return draw_mode_; }
 
+  const base::optional<uint32>& crc() const { return crc_; }
+
+  uint32 GetEstimatedSizeInBytes() const {
+    return static_cast<uint32>(vertices().size() * sizeof(Vertex) +
+                               sizeof(DrawMode));
+  }
+
+  bool HasSameCrcAs(scoped_refptr<Mesh> other_mesh) const {
+    return other_mesh && other_mesh->crc() == crc_;
+  }
+
+ protected:
+  virtual ~Mesh() {}
+
+  // Allow the reference counting system access to our destructor.
+  friend class base::RefCountedThreadSafe<Mesh>;
+
  private:
-  static const DrawMode CheckDrawMode(DrawMode mode) {
+  static DrawMode CheckDrawMode(DrawMode mode) {
     switch (mode) {
       case kDrawModeTriangles:
       case kDrawModeTriangleStrip:
@@ -76,6 +92,9 @@ class Mesh {
 
   const std::vector<Vertex> vertices_;
   const DrawMode draw_mode_;
+  // Cyclic Redundancy Check code of the mesh projection box that contains this
+  // mesh.
+  const base::optional<uint32> crc_;
 };
 
 }  // namespace render_tree

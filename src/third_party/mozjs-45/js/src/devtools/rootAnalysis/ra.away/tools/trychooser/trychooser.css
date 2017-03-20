@@ -1,0 +1,88 @@
+body {
+    margin: 0 auto;
+    width: 100%;
+    background: url(../build/background.jpg) no-repeat;
+    font-size: 85%;
+}
+
+.indent1 {
+    margin-left: 3em;
+}
+
+ul {
+    list-style: none;
+    padding-left: 25px;
+}
+
+.result_value {
+    background: lightgray;
+    border-style: inset;
+}
+
+.attention {
+    color: red;
+    font-style: italic;
+    animation-iteration-count: infinite;
+    animation-duration: 0.3s;
+    animation-direction: alternate;
+    animation-name: pulse;
+}
+
+.info {
+    color: #a00;
+}
+
+@keyframes pulse {
+    from {
+        color: black;
+    }
+    to {
+        color: red;
+    }
+}
+
+.desktop_note {
+    margin-left: 3em;
+}
+
+.inline-list ul, .inline-list li {
+    display: inline;
+}
+
+label {
+    cursor: pointer;
+}
+#wrapper {
+    margin: 0 auto;
+    width: 985px;
+}
+#col1 {
+    float:left;
+    width:385px;
+    padding: 5px;
+}
+#col2 {
+    float:left;
+    width:275px;
+    padding: 5px;
+}
+#col3 {
+    float:left;
+    width:275px;
+    padding: 5px;
+}
+#results {
+    clear: both;
+}
+h4 {
+    margin: 10px 0 5px;
+    background: lightgray;
+}
+.build_queue {
+    float: right;
+    width: 55px;
+}
+.test_queue {
+    float: right;
+    width: 55px;
+}

@@ -1,6 +1,6 @@
 ﻿# ***************************************************************************
 # *
-# *  Copyright (C) 2004-2010, International Business Machines
+# *  Copyright (C) 2004-2015, International Business Machines
 # *  Corporation; Unicode, Inc.; and others.  All Rights Reserved.
 # *
 # ***************************************************************************
@@ -23,7 +23,7 @@
 Đ → D ; # 0110;LATIN CAPITAL LETTER D WITH STROKE
 đ → d ; # 0111;LATIN SMALL LETTER D WITH STROKE
 Ħ → H ; # 0126;LATIN CAPITAL LETTER H WITH STROKE
-ħ → h ; # 0126;LATIN CAPITAL LETTER H WITH STROKE
+ħ → h ; # 0126;LATIN SMALL LETTER H WITH STROKE
 ı → i ; # 0131;LATIN SMALL LETTER DOTLESS I
 Ĳ → IJ ; # 0132;LATIN CAPITAL LIGATURE IJ (compat)
 ĳ → ij ; # 0133;LATIN SMALL LIGATURE IJ (compat)
@@ -288,6 +288,7 @@
 ₣ → 'Fr.' ; # 20A3;FRENCH FRANC SIGN (from ‹character-fallback›)
 ₤ → 'L.' ; # 20A4;LIRA SIGN (from ‹character-fallback›)
 ₧ → Pts ; # 20A7;PESETA SIGN (from ‹character-fallback›)
+₺ → TL ; # 20BA;TURKISH LIRA SIGN (from ‹character-fallback›)
 ₹ → Rs ; # 20B9;INDIAN RUPEE SIGN (from ‹character-fallback›)
 ℀ → 'a/c' ; # 2100;ACCOUNT OF (compat)
 ℁ → 'a/s' ; # 2101;ADDRESSED TO THE SUBJECT (compat)

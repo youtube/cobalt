@@ -1,22 +1,21 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDER_TREE_BRUSH_H_
 #define COBALT_RENDER_TREE_BRUSH_H_
 
+#include <cmath>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -72,7 +71,18 @@ struct ColorStop {
   float position;
   ColorRGBA color;
 };
+
+// Returns true if and only if two color stops are very close to each other.
+inline bool IsNear(const render_tree::ColorStop& lhs,
+                   const render_tree::ColorStop& rhs, float epsilon) {
+  if (std::fabs(lhs.position - rhs.position) > epsilon) return false;
+  return lhs.color == rhs.color;
+}
+
 typedef std::vector<ColorStop> ColorStopList;
+
+bool IsNear(const render_tree::ColorStopList& lhs,
+            const render_tree::ColorStopList& rhs, float epsilon);
 
 // Linear gradient brushes can be used to fill a shape with a linear color
 // gradient with arbitrary many color stops.  It is specified by a source
@@ -92,6 +102,18 @@ class LinearGradientBrush : public Brush {
                       const ColorRGBA& source_color,
                       const ColorRGBA& dest_color);
 
+  struct Data {
+    Data();
+    Data(const math::PointF& source, const math::PointF& dest,
+         const ColorStopList& color_stops);
+    Data(const math::PointF& source, const math::PointF& dest);
+
+    math::PointF source_;
+    math::PointF dest_;
+
+    ColorStopList color_stops_;
+  };
+
   // A type-safe branching.
   void Accept(BrushVisitor* visitor) const OVERRIDE;
 
@@ -100,18 +122,23 @@ class LinearGradientBrush : public Brush {
   }
 
   // Returns the source and destination points of the linear gradient.
-  const math::PointF& source() const { return source_; }
-  const math::PointF& dest() const { return dest_; }
+  const math::PointF& source() const { return data_.source_; }
+  const math::PointF& dest() const { return data_.dest_; }
 
   // Returns the list of color stops along the line segment between the source
   // and destination points.
-  const ColorStopList& color_stops() const { return color_stops_; }
+  const ColorStopList& color_stops() const { return data_.color_stops_; }
+
+  // Returns true if, and only if the brush is horizontal.
+  bool IsHorizontal() const { return (data_.source_.y() == data_.dest_.y()); }
+
+  // Returns true if, and only if the brush is vertical.
+  bool IsVertical() const { return (data_.source_.x() == data_.dest_.x()); }
+
+  const Data& data() const { return data_; }
 
  private:
-  math::PointF source_;
-  math::PointF dest_;
-
-  ColorStopList color_stops_;
+  Data data_;
 };
 
 // A radial gradient brush can be used to fill a shape with a color gradient

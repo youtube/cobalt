@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_CSS_PARSER_GRAMMAR_H_
 #define COBALT_CSS_PARSER_GRAMMAR_H_
@@ -43,6 +41,7 @@
 #include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/css_parser/trivial_type_pairs.h"
+#include "cobalt/cssom/attribute_selector.h"
 #include "cobalt/cssom/color_stop.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/complex_selector.h"
@@ -62,11 +61,11 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/local_src_value.h"
+#include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/cssom/media_feature.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
-#include "cobalt/cssom/mtm_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_key_list_value.h"

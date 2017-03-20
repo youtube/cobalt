@@ -67,6 +67,13 @@
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
 
+    # Allow throttling of the frame rate. This is expressed in terms of
+    # milliseconds and can be a floating point number. Keep in mind that
+    # swapping frames may take some additional processing time, so it may be
+    # better to specify a lower delay. For example, '33' instead of '33.33'
+    # for 30 Hz refresh.
+    'cobalt_minimum_frame_time_in_milliseconds%': '0',
+
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
     'gtest_target_type%': 'executable',
@@ -79,6 +86,9 @@
 
     # Set to 1 to enable H5vccAccountManager.
     'enable_account_manager%': 0,
+
+    # Set to 1 to enable H5vccCrashLog.
+    'enable_crash_log%': 0,
 
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
@@ -156,17 +166,22 @@
     # Determines the capacity of the image cache which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
     # ideally) these images are cached within GPU memory.
-    'image_cache_size_in_bytes%': 64 * 1024 * 1024,
+    'image_cache_size_in_bytes%': 32 * 1024 * 1024,
 
     # Determines the capacity of the remote typefaces cache which manages all
     # typefaces downloaded from a web page.
     'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
 
+    # Determines the capacity of the mesh cache. Each mesh is held compressed
+    # in main memory, to be inflated into a GPU buffer when needed for
+    # projection. Default to 0 and set by platforms that support map-to-mesh.
+    'mesh_cache_size_in_bytes%': 0,
+
     # Only relevant if you are using the Blitter API.
     # Determines the capacity of the software surface cache, which is used to
     # cache all surfaces that are rendered via a software rasterizer to avoid
     # re-rendering them.
-    'software_surface_cache_size_in_bytes%': 10 * 1024 * 1024,
+    'software_surface_cache_size_in_bytes%': 8 * 1024 * 1024,
 
     # Modifying this value to be non-1.0f will result in the image cache
     # capacity being cleared and then temporarily reduced for the duration that
@@ -185,6 +200,14 @@
     # larger, such as for higher resolution displays.
     'skia_glyph_atlas_width%': '2048',
     'skia_glyph_atlas_height%': '2048',
+
+    # Determines the size of garbage collection threshold. After this many bytes
+    # have been allocated, the mozjs garbage collector will run. Lowering this
+    # has been found to reduce performance and decrease JavaScript memory usage.
+    # For example, we have measured on at least one platform that performance
+    # becomes 7% worse on average in certain cases when adjusting this number
+    # from 8MB to 1MB.
+    'mozjs_garbage_collection_threshold_in_bytes%': 8 * 1024 * 1024,
 
     # Compiler configuration.
 
@@ -223,10 +246,10 @@
     'platform_libraries%': [],
 
 
-    # Supported engine is currently only "javascriptcore".
+    # The only currently-supported Javascript engine is 'mozjs'.
     # TODO: Figure out how to massage gyp the right way to make this work
     # as expected, rather than requiring it to be set for each platform.
-    #'javascript_engine%': 'javascriptcore',
+    #'javascript_engine%': 'mozjs',
 
     # Enable jit by default. It can be set to 0 to run in interpreter-only mode.
     # Setting this to 1 on a platform or engine for which there is no JIT
@@ -248,6 +271,7 @@
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
     'sb_libevent_method%': 'epoll',
+    'cobalt_media_source_2016%': 0,
   },
 
   'target_defaults': {
@@ -317,6 +341,15 @@
           'COBALT_WEBKIT_SHARED=1',
         ],
       }],
+      ['cobalt_media_source_2016 == 1', {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2016=1',
+        ],
+      }, {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2012=1',
+        ],
+      }],
       ['OS == "lb_shell"', {
         'defines': [
           '__LB_SHELL__',
@@ -333,9 +366,13 @@
         ],
       }],  # OS == "lb_shell"
       ['OS == "starboard"', {
-        # Keeps common Starboard target changes in the starboard project.
-        'includes': [
-          '../../../starboard/starboard_base_target.gypi',
+        'target_conditions': [
+          ['_toolset=="target"', {
+            # Keeps common Starboard target changes in the starboard project.
+            'includes': [
+              '../../../starboard/starboard_base_target.gypi',
+            ],
+          }],
         ],
       }],  # OS == "starboard"
       ['target_arch in ["xb1", "xb360"]', {
@@ -371,6 +408,7 @@
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
+          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
           '_DEBUG',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
@@ -395,6 +433,7 @@
           '_DEBUG',
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_DEVEL',
+          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
@@ -417,6 +456,7 @@
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_QA',
+          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',

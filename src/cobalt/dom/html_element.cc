@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/html_element.h"
 
@@ -633,7 +631,13 @@ void HTMLElement::UpdateComputedStyleRecursively(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
-    const base::TimeDelta& style_change_event_time, bool ancestors_were_valid) {
+    const base::TimeDelta& style_change_event_time, bool ancestors_were_valid,
+    int current_element_depth) {
+  int max_depth = node_document()->dom_max_element_depth();
+  if (max_depth > 0 && current_element_depth >= max_depth) {
+    return;
+  }
+
   // Update computed style for this element.
   bool is_valid =
       ancestors_were_valid && matching_rules_valid_ && computed_style_valid_;
@@ -657,7 +661,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
     if (html_element) {
       html_element->UpdateComputedStyleRecursively(
           css_computed_style_declaration(), root_computed_style,
-          style_change_event_time, is_valid);
+          style_change_event_time, is_valid, current_element_depth + 1);
     }
   }
 }
@@ -694,6 +698,7 @@ void HTMLElement::InvalidateRenderTreeNodesFromNode() {
 
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
+      dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
       directionality_(kNoExplicitDirectionality),
       style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
@@ -707,8 +712,7 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
       css_animations_(&animations_adapter_),
       old_matching_rules_(new cssom::RulesWithCascadePrecedence()),
       matching_rules_(new cssom::RulesWithCascadePrecedence()),
-      matching_rules_valid_(false),
-      dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()) {
+      matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
   ++(non_trivial_static_fields.Get().html_element_count_log.count);
@@ -950,6 +954,7 @@ void HTMLElement::UpdateComputedStyle(
   UpdateComputedStyleInvalidationFlags invalidation_flags;
 
   if (generate_computed_style) {
+    dom_stat_tracker_->OnGenerateHtmlElementComputedStyle();
     bool animations_modified = false;
 
     scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
@@ -976,7 +981,7 @@ void HTMLElement::UpdateComputedStyle(
     css_computed_style_declaration_->UpdateInheritedData();
   }
 
-  // NOTE: Currently, pseudo elements computed styles are always generated. If
+  // NOTE: Currently, pseudo element's computed styles are always generated. If
   // this becomes a performance bottleneck, change the logic so that it only
   // occurs when needed.
 
@@ -984,6 +989,7 @@ void HTMLElement::UpdateComputedStyle(
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
+      dom_stat_tracker_->OnGeneratePseudoElementComputedStyle();
       bool animations_modified = false;
 
       scoped_refptr<cssom::CSSComputedStyleData> pseudo_element_computed_style =
@@ -1060,8 +1066,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
             &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
         cached_images.push_back(
             new loader::image::CachedImageReferenceWithCallbacks(
-                cached_image, loaded_callback, base::Closure(),
-                base::Closure()));
+                cached_image, loaded_callback, base::Closure()));
       }
     }
 

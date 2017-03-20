@@ -754,13 +754,26 @@ static STR JoinStringT(const std::vector<STR>& parts, const STR& sep) {
   if (parts.empty())
     return STR();
 
-  STR result(parts[0]);
+  std::size_t expected_result_length = 0;
+
   typename std::vector<STR>::const_iterator iter = parts.begin();
-  ++iter;
 
   for (; iter != parts.end(); ++iter) {
+    expected_result_length += iter->size();
+  }
+  expected_result_length += sep.size() * (parts.size() - 1);
+
+  STR result;
+  result.reserve(expected_result_length);
+
+  iter = parts.begin();
+  result += *iter;
+  ++iter;
+
+  while(iter != parts.end()) {
     result += sep;
     result += *iter;
+    ++iter;
   }
 
   return result;

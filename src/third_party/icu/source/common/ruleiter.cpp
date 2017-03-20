@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-* Copyright (c) 2003-2007, International Business Machines
+* Copyright (c) 2003-2011, International Business Machines
 * Corporation and others.  All Rights Reserved.
 **********************************************************************
 * Author: Alan Liu
@@ -10,9 +10,10 @@
 */
 #include "ruleiter.h"
 #include "unicode/parsepos.h"
-#include "unicode/unistr.h"
 #include "unicode/symtable.h"
-#include "util.h"
+#include "unicode/unistr.h"
+#include "unicode/utf16.h"
+#include "patternprops.h"
 
 /* \U87654321 or \ud800\udc00 */
 #define MAX_U_NOTATION_LEN 12
@@ -40,7 +41,7 @@ UChar32 RuleCharacterIterator::next(int32_t options, UBool& isEscaped, UErrorCod
 
     for (;;) {
         c = _current();
-        _advance(UTF_CHAR_LENGTH(c));
+        _advance(U16_LENGTH(c));
 
         if (c == SymbolTable::SYMBOL_REF && buf == 0 &&
             (options & PARSE_VARIABLES) != 0 && sym != 0) {
@@ -63,8 +64,7 @@ UChar32 RuleCharacterIterator::next(int32_t options, UBool& isEscaped, UErrorCod
             continue;
         }
 
-        if ((options & SKIP_WHITESPACE) != 0 &&
-            uprv_isRuleWhiteSpace(c)) {
+        if ((options & SKIP_WHITESPACE) != 0 && PatternProps::isWhiteSpace(c)) {
             continue;
         }
 
@@ -102,8 +102,8 @@ void RuleCharacterIterator::skipIgnored(int32_t options) {
     if ((options & SKIP_WHITESPACE) != 0) {
         for (;;) {
             UChar32 a = _current();
-            if (!uprv_isRuleWhiteSpace(a)) break;
-            _advance(UTF_CHAR_LENGTH(a));
+            if (!PatternProps::isWhiteSpace(a)) break;
+            _advance(U16_LENGTH(a));
         }
     }
 }

@@ -1,21 +1,20 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/blitter/resource_provider.h"
 
+#include "base/bind.h"
 #include "cobalt/renderer/rasterizer/blitter/image.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_blitter_conversions.h"
 #include "starboard/blitter.h"
@@ -57,8 +56,14 @@ scoped_ptr<render_tree::ImageData> ResourceProvider::AllocateImageData(
     AlphaFormat alpha_format) {
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
-  return scoped_ptr<render_tree::ImageData>(
+
+  scoped_ptr<render_tree::ImageData> image_data(
       new ImageData(device_, size, pixel_format, alpha_format));
+  if (!image_data->GetMemory()) {
+    return scoped_ptr<render_tree::ImageData>();
+  } else {
+    return image_data.Pass();
+  }
 }
 
 scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
@@ -67,6 +72,57 @@ scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
       base::polymorphic_downcast<ImageData*>(source_data.release()));
   return make_scoped_refptr(new SinglePlaneImage(blitter_source_data.Pass()));
 }
+
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+
+scoped_refptr<render_tree::Image>
+ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTargetFormat format = SbDecodeTargetGetFormat(decode_target);
+  if (format == kSbDecodeTargetFormat1PlaneRGBA) {
+    SbBlitterSurface surface =
+        SbDecodeTargetGetPlane(decode_target, kSbDecodeTargetPlaneRGBA);
+    DCHECK(SbBlitterIsSurfaceValid(surface));
+    bool is_opaque = SbDecodeTargetIsOpaque(decode_target);
+
+    // Now that we have the surface it contained, we are free to delete
+    // |decode_target|.
+    SbDecodeTargetDestroy(decode_target);
+    return make_scoped_refptr(
+        new SinglePlaneImage(surface, is_opaque, base::Closure()));
+#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTargetInfo info;
+  SbMemorySet(&info, 0, sizeof(info));
+  CHECK(SbDecodeTargetGetInfo(decode_target, &info));
+
+  SbDecodeTargetFormat format = info.format;
+  if (format == kSbDecodeTargetFormat1PlaneRGBA) {
+    const SbDecodeTargetInfoPlane& plane =
+        info.planes[kSbDecodeTargetPlaneRGBA];
+    DCHECK(SbBlitterIsSurfaceValid(plane.surface));
+    if (plane.content_region.left != 0 || plane.content_region.top != 0 ||
+        plane.content_region.right != plane.width ||
+        plane.content_region.bottom != plane.height) {
+      NOTREACHED() << "Cobalt has not yet implemented support for Blitter "
+                      "decode target content regions.";
+    }
+    return make_scoped_refptr(new SinglePlaneImage(
+        plane.surface, info.is_opaque,
+        base::Bind(&SbDecodeTargetRelease, decode_target)));
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  }
+
+  NOTREACHED()
+      << "Only format kSbDecodeTargetFormat1PlaneRGBA is currently supported.";
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTargetDestroy(decode_target);
+#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTargetRelease(decode_target);
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  return NULL;
+}
+
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
 scoped_ptr<render_tree::RawImageMemory>
 ResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,

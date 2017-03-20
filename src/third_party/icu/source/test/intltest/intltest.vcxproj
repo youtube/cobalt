@@ -85,7 +85,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\..\..\include;..\..\common;..\..\i18n;..\..\tools\toolutil;..\..\tools\ctestfw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>U_ATTRIBUTE_DEPRECATED=;WIN32;_DEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -125,7 +125,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\..\..\include;..\..\common;..\..\i18n;..\..\tools\toolutil;..\..\tools\ctestfw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN64;WIN32;_DEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>U_ATTRIBUTE_DEPRECATED=;WIN64;WIN32;_DEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -161,7 +161,7 @@
     </Midl>
     <ClCompile>
       <AdditionalIncludeDirectories>..\..\..\include;..\..\common;..\..\i18n;..\..\tools\toolutil;..\..\tools\ctestfw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>U_ATTRIBUTE_DEPRECATED=;WIN32;NDEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
@@ -196,7 +196,7 @@
     </Midl>
     <ClCompile>
       <AdditionalIncludeDirectories>..\..\..\include;..\..\common;..\..\i18n;..\..\tools\toolutil;..\..\tools\ctestfw;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN64;WIN32;NDEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>U_ATTRIBUTE_DEPRECATED=;WIN64;WIN32;NDEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
@@ -223,15 +223,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="bytestrietest.cpp" />
+    <ClCompile Include="collationtest.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="colldata.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="numfmtspectest.cpp" />
+    <ClCompile Include="regiontst.cpp" />
+    <ClCompile Include="ucharstrietest.cpp" />
     <ClCompile Include="itrbbi.cpp" />
-    <ClCompile Include="rbbiapts.cpp" />
+    <ClCompile Include="rbbiapts.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="rbbitst.cpp" />
     <ClCompile Include="itspoof.cpp" />
     <ClCompile Include="allcoll.cpp" />
+    <ClCompile Include="alphaindextst.cpp" />
     <ClCompile Include="apicoll.cpp" />
-    <ClCompile Include="cntabcol.cpp" />
     <ClCompile Include="currcoll.cpp" />
-    <ClCompile Include="dadrcoll.cpp" />
     <ClCompile Include="decoll.cpp" />
     <ClCompile Include="encoll.cpp" />
     <ClCompile Include="escoll.cpp" />
@@ -253,10 +264,7 @@
     <ClCompile Include="uvectest.cpp" />
     <ClCompile Include="v32test.cpp" />
     <ClCompile Include="simplethread.cpp">
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="strtest.cpp">
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
@@ -271,15 +279,21 @@
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="tsputil.cpp" />
-    <ClCompile Include="uobjtest.cpp" />
+    <ClCompile Include="uobjtest.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="astrotst.cpp" />
     <ClCompile Include="calcasts.cpp" />
     <ClCompile Include="callimts.cpp" />
     <ClCompile Include="calregts.cpp" />
     <ClCompile Include="caltest.cpp" />
-    <ClCompile Include="caltztst.cpp" />
+    <ClCompile Include="caltztst.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="compactdecimalformattest.cpp" />
     <ClCompile Include="dadrcal.cpp" />
     <ClCompile Include="dadrfmt.cpp" />
+    <ClCompile Include="datadrivennumberformattestsuite.cpp" />
     <ClCompile Include="dcfmapts.cpp" />
     <ClCompile Include="dcfmtest.cpp" />
     <ClCompile Include="dtfmapts.cpp" />
@@ -289,24 +303,35 @@
     <ClCompile Include="dtifmtts.cpp" />
     <ClCompile Include="dtptngts.cpp" />
     <ClCompile Include="fldset.cpp" />
+    <ClCompile Include="genderinfotest.cpp" />
     <ClCompile Include="incaltst.cpp" />
     <ClCompile Include="itformat.cpp" />
     <ClCompile Include="itrbnf.cpp" />
     <ClCompile Include="itrbnfp.cpp" />
     <ClCompile Include="itrbnfrt.cpp" />
     <ClCompile Include="locnmtst.cpp" />
+    <ClCompile Include="measfmttest.cpp" />
     <ClCompile Include="miscdtfm.cpp" />
     <ClCompile Include="msfmrgts.cpp" />
     <ClCompile Include="nmfmapts.cpp" />
     <ClCompile Include="nmfmtrt.cpp" />
+    <ClCompile Include="numberformattesttuple.cpp" />
+    <ClCompile Include="numberformat2test.cpp" />
     <ClCompile Include="numfmtst.cpp" />
     <ClCompile Include="numrgts.cpp" />
+    <ClCompile Include="pluralmaptest.cpp" />
     <ClCompile Include="plurfmts.cpp" />
     <ClCompile Include="plurults.cpp" />
     <ClCompile Include="pptest.cpp" />
+    <ClCompile Include="quantityformattertest.cpp" />
+    <ClCompile Include="reldatefmttest.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="scientificnumberformattertest.cpp" />
     <ClCompile Include="sdtfmtts.cpp" />
     <ClCompile Include="selfmts.cpp" />
     <ClCompile Include="tchcfmt.cpp" />
+    <ClCompile Include="simplepatternformattertest.cpp" />
     <ClCompile Include="tfsmalls.cpp" />
     <ClCompile Include="tmsgfmt.cpp" />
     <ClCompile Include="tsdate.cpp" />
@@ -315,11 +340,18 @@
     <ClCompile Include="tsnmfmt.cpp" />
     <ClCompile Include="tufmtts.cpp" />
     <ClCompile Include="tzbdtest.cpp" />
-    <ClCompile Include="tzfmttst.cpp" />
+    <ClCompile Include="tzfmttst.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="tzoffloc.cpp" />
     <ClCompile Include="tzregts.cpp" />
     <ClCompile Include="tzrulets.cpp" />
-    <ClCompile Include="tztest.cpp" />
+    <ClCompile Include="tztest.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="unifiedcachetest.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="windttst.cpp">
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
       <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
@@ -336,33 +368,46 @@
     <ClCompile Include="idnaref.cpp" />
     <ClCompile Include="nptrans.cpp" />
     <ClCompile Include="punyref.c" />
-    <ClCompile Include="testidn.cpp" />
+    <ClCompile Include="testidn.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="testidna.cpp" />
     <ClCompile Include="uts46test.cpp" />
     <ClCompile Include="aliastst.cpp" />
     <ClCompile Include="loctest.cpp" />
     <ClCompile Include="restest.cpp" />
     <ClCompile Include="restsnew.cpp" />
-    <ClCompile Include="intltest.cpp" />
-    <ClCompile Include="itmajor.cpp" />
-    <ClCompile Include="itutil.cpp" />
+    <ClCompile Include="intltest.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="itmajor.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="itutil.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="testutil.cpp" />
     <ClCompile Include="textfile.cpp" />
     <ClCompile Include="tokiter.cpp" />
     <ClCompile Include="winutil.cpp">
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</DisableLanguageExtensions>
-      <DisableLanguageExtensions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableLanguageExtensions>
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
     </ClCompile>
     <ClCompile Include="canittst.cpp" />
     <ClCompile Include="normconf.cpp" />
-    <ClCompile Include="tstnorm.cpp" />
-    <ClCompile Include="tstnrapi.cpp" />
-    <ClCompile Include="ucdtest.cpp" />
+    <ClCompile Include="tstnorm.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="tstnrapi.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="ucdtest.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="usettest.cpp" />
     <ClCompile Include="regextst.cpp" />
-    <ClCompile Include="icusvtst.cpp" />
+    <ClCompile Include="icusvtst.cpp">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
     <ClCompile Include="citrtest.cpp" />
     <ClCompile Include="reptest.cpp" />
     <ClCompile Include="sfwdchit.cpp" />
@@ -384,17 +429,18 @@
     <ClCompile Include="convtest.cpp" />
     <ClCompile Include="csdetest.cpp" />
     <ClCompile Include="bidiconf.cpp" />
+    <ClCompile Include="listformattertest.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="colldata.h" />
     <ClInclude Include="itrbbi.h" />
     <ClInclude Include="rbbiapts.h" />
     <ClInclude Include="rbbitst.h" />
     <ClInclude Include="itspoof.h" />
     <ClInclude Include="allcoll.h" />
+    <ClInclude Include="alphaindextst.h" />
     <ClInclude Include="apicoll.h" />
-    <ClInclude Include="cntabcol.h" />
     <ClInclude Include="currcoll.h" />
-    <ClInclude Include="dadrcoll.h" />
     <ClInclude Include="decoll.h" />
     <ClInclude Include="encoll.h" />
     <ClInclude Include="escoll.h" />
@@ -406,6 +452,7 @@
     <ClInclude Include="lcukocol.h" />
     <ClInclude Include="mnkytst.h" />
     <ClInclude Include="regcoll.h" />
+    <ClInclude Include="regiontst.h" />
     <ClInclude Include="srchtest.h" />
     <ClInclude Include="ssearch.h" />
     <ClInclude Include="svccoll.h" />
@@ -428,6 +475,7 @@
     <ClInclude Include="caltztst.h" />
     <ClInclude Include="dadrcal.h" />
     <ClInclude Include="dadrfmt.h" />
+    <ClInclude Include="datadrivennumberformattestsuite.h" />
     <ClInclude Include="dcfmapts.h" />
     <ClInclude Include="dcfmtest.h" />
     <ClInclude Include="dtfmapts.h" />
@@ -447,6 +495,7 @@
     <ClInclude Include="msfmrgts.h" />
     <ClInclude Include="nmfmapts.h" />
     <ClInclude Include="nmfmtrt.h" />
+    <ClInclude Include="numberformattesttuple.h" />
     <ClInclude Include="numfmtst.h" />
     <ClInclude Include="numrgts.h" />
     <ClInclude Include="plurfmts.h" />
@@ -507,6 +556,7 @@
     <ClInclude Include="trnserr.h" />
     <ClInclude Include="convtest.h" />
     <ClInclude Include="csdetest.h" />
+    <ClInclude Include="listformattertest.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\common\common.vcxproj">

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Display Window creation and management.
+// Module Overview: Starboard Window module
+//
+// Provides functionality to handle Window creation and management.
 
 #ifndef STARBOARD_WINDOW_H_
 #define STARBOARD_WINDOW_H_
@@ -81,39 +83,52 @@ static SB_C_INLINE bool SbWindowIsValid(SbWindow window) {
   return window != kSbWindowInvalid;
 }
 
-// Creates a new system window with the given |options|, which may be
-// NULL. Returns kSbWindowInvalid if unable to create the requested SbWindow,
-// either due to policy, or unsatisfiable options.
+// Creates and returns a new system window with the given |options|, which may
+// be |NULL|. The function returns |kSbWindowInvalid| if it cannot create the
+// requested |SbWindow| due to policy, unsatisfiable options, or any other
+// reason.
 //
-// If options are not specified, this function will use all defaults, which must
+// If |options| are not specified, this function uses all defaults, which must
 // work on every platform. In general, it defaults to creating a fullscreen
-// window at the highest 16:9 resolution that it can. If the platform does not
-// support fullscreen windows, then it will create a normal windowed window.
+// window at the highest 16:9 resolution possible. If the platform does not
+// support fullscreen windows, then it creates a normal, windowed window.
 //
-// Some devices are fullscreen-only (most of the production targets for
-// Starboard). In those cases, only one SbWindow may be created, and it must be
-// fullscreen. Additionally, the requested size will actually be the requested
-// resolution, and must be a supported resolution, as specified by the
-// resolutions returned by SbWindowGetSupportedResolutionIterator().
+// Some devices are fullscreen-only, including many production targets for
+// Starboard. In those cases, only one SbWindow may be created, and it must be
+// fullscreen. Additionally, in those cases, the requested size will actually
+// be the requested resolution.
 //
-// A SbWindow must be created in order to receive window-based events, like
-// input events, even on fullscreen-only devices. These will be dispatched to
+// An SbWindow must be created to receive window-based events, like input
+// events, even on fullscreen-only devices. These events are dispatched to
 // the Starboard entry point.
+//
+// |options|: Options that specify parameters for the window being created.
 SB_EXPORT SbWindow SbWindowCreate(const SbWindowOptions* options);
 
-// Sets |options| to all the defaults. |options| must not be NULL.
+// Sets the default options for system windows.
+//
+// |options|: The option values to use as default values. This object must not
+// be |NULL|.
 SB_EXPORT void SbWindowSetDefaultOptions(SbWindowOptions* options);
 
 // Destroys |window|, reclaiming associated resources.
+//
+// |window|: The |SbWindow| to destroy.
 SB_EXPORT bool SbWindowDestroy(SbWindow window);
 
-// Sets |size| to the dimensions of |window|. Returns true on success. If false
-// is returned, |size| will not be modified.
+// Retrieves the dimensions of |window| and sets |size| accordingly. This
+// function returns |true| if it completes successfully. If the function
+// returns |false|, then |size| will not have been modified.
+//
+// |window|: The SbWindow to retrieve the size of.
+// |size|: The retrieved size.
 SB_EXPORT bool SbWindowGetSize(SbWindow window, SbWindowSize* size);
 
 // Gets the platform-specific handle for |window|, which can be passed as an
 // EGLNativeWindowType to initialize EGL/GLES. This return value is entirely
-// platform specific, so there are no constraints about expected ranges.
+// platform-specific, so there are no constraints about expected ranges.
+//
+// |window|: The SbWindow to retrieve the platform handle for.
 SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 
 #ifdef __cplusplus

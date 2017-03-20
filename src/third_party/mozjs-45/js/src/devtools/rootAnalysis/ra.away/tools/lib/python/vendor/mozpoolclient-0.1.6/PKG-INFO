@@ -1,0 +1,33 @@
+Metadata-Version: 1.0
+Name: mozpoolclient
+Version: 0.1.4
+Summary: It allows you to interact with devices managed by Mozpool.
+Home-page: http://pypi.python.org/pypi/mozpoolclient/
+Author: Zambrano, Armen
+Author-email: armenzg@mozilla.com
+License: MPL
+Description: ==============
+        Mozpool Client
+        ==============
+        
+        The mozpool client allows you to interact with a Mozpool [1] instance through various
+        APIs. This allows you to interact with various mobile devices that are managed
+        by Mozpool. You can reboot the devices, query information about them
+        and reimage them among many other actions.
+        
+        
+        Introduction
+        ============
+        This code is extracted from the initial work from jhopkins in mozharness [2].
+        Not all of the API has been implemented as the initial work did but and the tests
+        have not yet been ported.
+        
+        Thanks to
+        =========
+        jhopkins for initial work in mozharness.
+        dustin, dividehex, ted and mcote for creating all the pieces in the Mozpool stack.
+        
+        * [1] https://github.com/djmitche/mozpool
+        * [2] https://hg.mozilla.org/build/mozharness/file/tip/mozharness/mozilla/testing/mozpool.py
+        
+Platform: UNKNOWN

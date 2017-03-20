@@ -66,8 +66,10 @@ static double bezier_interp(double x1, double x2, double x) {
   }
 
   // We should have terminated the above loop because we got close to x, not
-  // because we exceeded MAX_STEPS. Do a DCHECK here to confirm.
-  DCHECK_GT(kBezierEpsilon, std::abs(eval_bezier(x1, x2, t) - x));
+  // because we exceeded MAX_STEPS. Warn if this is not the case.
+  if (std::abs(eval_bezier(x1, x2, t) - x) > kBezierEpsilon) {
+    DLOG(WARNING) << "Notable error detected in bezier evaluation.";
+  }
 
   return t;
 }

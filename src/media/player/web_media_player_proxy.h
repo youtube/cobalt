@@ -11,6 +11,7 @@
 
 #include "base/bind.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "media/base/decryptor_client.h"
 #include "media/base/pipeline.h"
@@ -39,11 +40,9 @@ class WebMediaPlayerProxy
  public:
   WebMediaPlayerProxy(const scoped_refptr<base::MessageLoopProxy>& render_loop,
                       WebMediaPlayerImpl* webmediaplayer);
-  const scoped_refptr<BufferedDataSource>& data_source() {
-    return data_source_;
-  }
-  void set_data_source(const scoped_refptr<BufferedDataSource>& data_source) {
-    data_source_ = data_source;
+  BufferedDataSource* data_source() { return data_source_.get(); }
+  void set_data_source(scoped_ptr<BufferedDataSource> data_source) {
+    data_source_ = data_source.Pass();
   }
 
   // TODO(scherkus): remove this once VideoRendererBase::PaintCB passes
@@ -110,7 +109,7 @@ class WebMediaPlayerProxy
   scoped_refptr<base::MessageLoopProxy> render_loop_;
   WebMediaPlayerImpl* webmediaplayer_;
 
-  scoped_refptr<BufferedDataSource> data_source_;
+  scoped_ptr<BufferedDataSource> data_source_;
   scoped_refptr<VideoRendererBase> frame_provider_;
   SkCanvasVideoRenderer video_renderer_;
 

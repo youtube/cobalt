@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
 
-#include <list>
-
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -25,6 +23,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 namespace shared {
@@ -32,56 +31,27 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class VideoRenderer : private VideoDecoder::Host {
+class VideoRenderer : protected VideoDecoder::Host {
  public:
-  explicit VideoRenderer(scoped_ptr<VideoDecoder> decoder);
+  virtual ~VideoRenderer() {}
 
-  bool is_valid() const { return true; }
+  virtual int GetDroppedFrames() const = 0;
+  virtual void WriteSample(const InputBuffer& input_buffer) = 0;
+  virtual void WriteEndOfStream() = 0;
+  virtual void Seek(SbMediaTime seek_to_pts) = 0;
+  virtual scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time) = 0;
+  virtual bool IsEndOfStreamWritten() const = 0;
+  virtual bool IsEndOfStreamPlayed() const = 0;
+  virtual bool CanAcceptMoreData() const = 0;
+  virtual bool IsSeekingInProgress() const = 0;
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
-  void WriteSample(const InputBuffer& input_buffer);
-  void WriteEndOfStream();
-
-  void Seek(SbMediaTime seek_to_pts);
-
-  const VideoFrame& GetCurrentFrame(SbMediaTime media_time);
-
-  bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
-  bool IsEndOfStreamPlayed() const;
-  bool CanAcceptMoreData() const;
-  bool IsSeekingInProgress() const;
-
- private:
-  typedef std::list<VideoFrame> Frames;
-
-  // Preroll considered finished after either kPrerollFrames is cached or EOS
-  // is reached.
-  static const size_t kPrerollFrames = 1;
-  // Set a soft limit for the max video frames we can cache so we can:
-  // 1. Avoid using too much memory.
-  // 2. Have the frame cache full to simulate the state that the renderer can
-  //    no longer accept more data.
-  static const size_t kMaxCachedFrames = 8;
-
-  // VideoDecoder::Host method.
-  void OnDecoderStatusUpdate(VideoDecoder::Status status,
-                             VideoFrame* frame) SB_OVERRIDE;
-
-  ::starboard::Mutex mutex_;
-
-  bool seeking_;
-  Frames frames_;
-
-  // During seeking, all frames inside |frames_| will be cleared but the app
-  // should still display the last frame it is rendering.  This frame will be
-  // kept inside |seeking_frame_|.  It is an empty/black frame before the video
-  // is started.
-  VideoFrame seeking_frame_;
-
-  SbMediaTime seeking_to_pts_;
-  bool end_of_stream_written_;
-  bool need_more_input_;
-
-  scoped_ptr<VideoDecoder> decoder_;
+  // Individual implementation has to implement this function to create a
+  // VideoRenderer.
+  static scoped_ptr<VideoRenderer> Create(
+      scoped_ptr<VideoDecoder> video_decoder);
 };
 
 }  // namespace filter

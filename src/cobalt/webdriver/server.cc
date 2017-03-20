@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/webdriver/server.h"
 
@@ -53,6 +51,7 @@ std::string HttpMethodToString(WebDriverServer::HttpMethod method) {
     case WebDriverServer::kDelete:
       return "DELETE";
     case WebDriverServer::kUnknownMethod:
+    default:
       NOTREACHED();
       return "UNKNOWN";
   }
@@ -176,13 +175,13 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 };
 }  // namespace
 
-WebDriverServer::WebDriverServer(int port,
+WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
                                  const HandleRequestCallback& callback)
     : handle_request_callback_(callback) {
-  LOG(INFO) << "Starting WebDriver server on port " << port;
   // Create http server
-  factory_.reset(new net::TCPListenSocketFactory("0.0.0.0", port));
+  factory_.reset(new net::TCPListenSocketFactory(listen_ip, port));
   server_ = new net::HttpServer(*factory_, this);
+  LOG(INFO) << "Starting WebDriver server on port " << port;
 }
 
 void WebDriverServer::OnHttpRequest(int connection_id,

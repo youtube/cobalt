@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/loader/image/image_decoder.h"
 
@@ -40,7 +38,6 @@ struct MockImageDecoderCallback {
     image = value;
   }
 
-  MOCK_METHOD1(FailureCallback, void(const std::string& message));
   MOCK_METHOD1(ErrorCallback, void(const std::string& message));
 
   scoped_refptr<render_tree::Image> image;
@@ -63,7 +60,6 @@ class MockImageDecoder : public Decoder {
 
   scoped_refptr<render_tree::Image> Image();
 
-  void ExpectCallWithFailure(const std::string& message);
   void ExpectCallWithError(const std::string& message);
 
  protected:
@@ -76,8 +72,6 @@ MockImageDecoder::MockImageDecoder() {
   image_decoder_.reset(
       new ImageDecoder(&resource_provider_,
                        base::Bind(&MockImageDecoderCallback::SuccessCallback,
-                                  base::Unretained(&image_decoder_callback_)),
-                       base::Bind(&MockImageDecoderCallback::FailureCallback,
                                   base::Unretained(&image_decoder_callback_)),
                        base::Bind(&MockImageDecoderCallback::ErrorCallback,
                                   base::Unretained(&image_decoder_callback_))));
@@ -103,10 +97,6 @@ void MockImageDecoder::Resume(
 
 scoped_refptr<render_tree::Image> MockImageDecoder::Image() {
   return image_decoder_callback_.image;
-}
-
-void MockImageDecoder::ExpectCallWithFailure(const std::string& message) {
-  EXPECT_CALL(image_decoder_callback_, FailureCallback(message));
 }
 
 void MockImageDecoder::ExpectCallWithError(const std::string& message) {
@@ -164,7 +154,7 @@ bool CheckSameColor(const uint8* pixels, int width, int height,
 
 TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithFailure(
+  image_decoder.ExpectCallWithError(
       "No content returned, but expected some.");
 
   const char kImageWithContentLength0Headers[] = {
@@ -188,7 +178,7 @@ TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
 
 TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithFailure(
+  image_decoder.ExpectCallWithError(
       "No content returned, but expected some. Not an image mime type.");
 
   const char kHTMLWithContentLength0Headers[] = {
@@ -212,7 +202,7 @@ TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
 
 TEST(ImageDecoderTest, DecodeNonImageType) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithFailure("Not an image mime type.");
+  image_decoder.ExpectCallWithError("Not an image mime type.");
 
   const char kHTMLHeaders[] = {
       "HTTP/1.1 200 OK\0"
@@ -237,7 +227,7 @@ TEST(ImageDecoderTest, DecodeNonImageType) {
 
 TEST(ImageDecoderTest, DecodeNoContentType) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithFailure("Not an image mime type.");
+  image_decoder.ExpectCallWithError("Not an image mime type.");
 
   const char kHTMLHeaders[] = {
       "HTTP/1.1 200 OK\0"
@@ -261,7 +251,7 @@ TEST(ImageDecoderTest, DecodeNoContentType) {
 
 TEST(ImageDecoderTest, DecodeImageWithNoContent) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithFailure(
+  image_decoder.ExpectCallWithError(
       "No content returned. Not an image mime type.");
 
   const char kHTMLWithNoContentHeaders[] = {

@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Samsung Electronics. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,13 @@
 
 namespace {
 
+const char* kBrandName = "Samsung";
+const char* kChipsetModelNumber = "JazzM";
+const char* kFirmwareVersion = "T-JZMPAKUC";
 const char* kFriendlyName = "Tizen";
-const char* kPlatformName = "Wayland; Tizen armv7l";
+const char* kModelName = "UN49KS9000";
+const char* kModelYear = "2017";
+const char* kPlatformName = "LINUX; Tizen 3.0";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -33,6 +38,8 @@ bool CopyStringAndTestIfSuccess(char* out_value,
 
 }  // namespace
 
+static char* model_number;
+
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
                          char* out_value,
                          int value_length) {
@@ -42,10 +49,15 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 
   switch (property_id) {
     case kSbSystemPropertyBrandName:
+      return CopyStringAndTestIfSuccess(out_value, value_length, kBrandName);
     case kSbSystemPropertyChipsetModelNumber:
+      return CopyStringAndTestIfSuccess(out_value, value_length, kChipsetModelNumber);
     case kSbSystemPropertyFirmwareVersion:
+      return CopyStringAndTestIfSuccess(out_value, value_length, kFirmwareVersion);
     case kSbSystemPropertyModelName:
+      return CopyStringAndTestIfSuccess(out_value, value_length, kModelName);
     case kSbSystemPropertyModelYear:
+      return CopyStringAndTestIfSuccess(out_value, value_length, kModelYear);
     case kSbSystemPropertyNetworkOperatorName:
       return false;
 

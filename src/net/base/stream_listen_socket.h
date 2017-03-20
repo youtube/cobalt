@@ -24,8 +24,6 @@
 #include <string>
 #if defined(OS_WIN)
 #include "base/win/object_watcher.h"
-#elif defined(COBALT)
-#include "base/object_watcher_shell.h"
 #if defined(OS_STARBOARD)
 #include "starboard/socket.h"
 #endif
@@ -59,10 +57,6 @@ class NET_EXPORT StreamListenSocket
       public base::win::ObjectWatcher::Delegate {
 #elif defined(OS_STARBOARD)
       public MessageLoopForIO::Watcher {
-#elif defined(COBALT)
-      public base::ObjectWatcher::Delegate {
-#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
-      public base::steel::ObjectWatcher::Delegate {
 #elif defined(OS_POSIX)
       public MessageLoopForIO::Watcher {
 #endif
@@ -140,14 +134,6 @@ class NET_EXPORT StreamListenSocket
   WaitState wait_state_;
   // The socket's SbSocketWaiter wrapper.
   MessageLoopForIO::SocketWatcher watcher_;
-#elif defined(COBALT)
-  virtual void OnObjectSignaled(int object);
-  base::ObjectWatcher watcher_;
-  WaitState wait_state_;
-#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
-  virtual void OnObjectSignaled(int object);
-  base::steel::ObjectWatcher watcher_;
-  WaitState wait_state_;
 #elif defined(OS_POSIX)
   // Called by MessagePumpLibevent when the socket is ready to do I/O.
   virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;

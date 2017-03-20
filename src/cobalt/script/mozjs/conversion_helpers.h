@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_SCRIPT_MOZJS_CONVERSION_HELPERS_H_
 #define COBALT_SCRIPT_MOZJS_CONVERSION_HELPERS_H_
@@ -21,6 +19,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/enable_if.h"
@@ -32,7 +31,12 @@
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/union_type_conversion_forward.h"
+#include "cobalt/script/mozjs/util/algorithm_helpers.h"
+#include "cobalt/script/sequence.h"
+#include "nb/memory_scope.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsarray.h"
+#include "third_party/mozjs/js/src/jscntxt.h"
 #include "third_party/mozjs/js/src/jsproxy.h"
 #include "third_party/mozjs/js/src/jsstr.h"
 
@@ -68,6 +72,7 @@ enum ConversionFlags {
 // std::string -> JSValue
 inline void ToJSValue(JSContext* context, const std::string& in_string,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   size_t length = in_string.length();
   jschar* inflated_buffer =
       js::InflateUTF8String(context, in_string.c_str(), &length);
@@ -93,12 +98,14 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 // base::Token -> JSValue
 inline void ToJSValue(JSContext* context, const base::Token& token,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   ToJSValue(context, std::string(token.c_str()), out_value);
 }
 
 // bool -> JSValue
 inline void ToJSValue(JSContext* context, bool in_boolean,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(JS::BooleanValue(in_boolean));
 }
 
@@ -106,6 +113,7 @@ inline void ToJSValue(JSContext* context, bool in_boolean,
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         bool* out_boolean) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_boolean);
@@ -122,6 +130,7 @@ inline void ToJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(INT_TO_JSVAL(in_number));
 }
 
@@ -135,6 +144,7 @@ inline void FromJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_number);
@@ -158,6 +168,7 @@ inline void FromJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   double to_number;
   JS::ToNumber(context, value, &to_number);
 
@@ -186,6 +197,7 @@ inline void ToJSValue(
                                  std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(JS_NumberValue(in_number));
 }
 
@@ -198,6 +210,7 @@ inline void ToJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(UINT_TO_JSVAL(in_number));
 }
 
@@ -211,6 +224,7 @@ inline void FromJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_number);
@@ -234,6 +248,7 @@ inline void FromJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_number);
@@ -258,6 +273,7 @@ inline void ToJSValue(
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(JS_NumberValue(in_number));
 }
 
@@ -268,6 +284,7 @@ inline void ToJSValue(
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   out_value.set(DOUBLE_TO_JSVAL(in_number));
 }
 
@@ -279,6 +296,7 @@ inline void FromJSValue(
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsNumeric, 0)
       << "Unexpected conversion flags found.";
   DCHECK(out_number);
@@ -301,6 +319,7 @@ inline void FromJSValue(
 template <typename T>
 inline void ToJSValue(JSContext* context, const base::optional<T>& in_optional,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (!in_optional) {
     out_value.setNull();
     return;
@@ -313,6 +332,7 @@ template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         base::optional<T>* out_optional) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (value.isNull()) {
     *out_optional = base::nullopt;
   } else if (value.isUndefined()) {
@@ -329,6 +349,7 @@ template <>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         base::optional<std::string>* out_optional) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (value.isNull()) {
     *out_optional = base::nullopt;
   } else if (value.isUndefined() &&
@@ -357,6 +378,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 template <typename T>
 inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (!in_object) {
     out_value.setNull();
     return;
@@ -381,6 +403,7 @@ template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,
                         int conversion_flags, ExceptionState* exception_state,
                         scoped_refptr<T>* out_object) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
   JS::RootedObject js_object(context);
@@ -422,8 +445,9 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 // CallbackInterface -> JSValue
 template <typename T>
 inline void ToJSValue(JSContext* context,
-                      const ScriptObject<T>* callback_interface,
+                      const ScriptValue<T>* callback_interface,
                       JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   if (!callback_interface) {
     out_value.set(JS::NullValue());
     return;
@@ -443,9 +467,9 @@ inline void ToJSValue(JSContext* context,
   // can get the implementing object.
   const MozjsCallbackInterfaceClass* mozjs_callback_interface =
       base::polymorphic_downcast<const MozjsCallbackInterfaceClass*>(
-          user_object_holder->GetScriptObject());
+          user_object_holder->GetScriptValue());
   DCHECK(mozjs_callback_interface);
-  out_value.set(OBJECT_TO_JSVAL(mozjs_callback_interface->handle()));
+  out_value.set(mozjs_callback_interface->value());
 }
 
 // JSValue -> CallbackInterface
@@ -454,6 +478,7 @@ inline void FromJSValue(
     JSContext* context, JS::HandleValue value, int conversion_flags,
     ExceptionState* out_exception,
     MozjsCallbackInterfaceHolder<T>* out_callback_interface) {
+  TRACK_MEMORY_SCOPE("Javascript");
   typedef T MozjsCallbackInterfaceClass;
   DCHECK_EQ(conversion_flags & ~kConversionFlagsCallbackFunction, 0)
       << "No conversion flags supported.";
@@ -481,6 +506,112 @@ inline void FromJSValue(
   DCHECK(implementing_object);
   *out_callback_interface = MozjsCallbackInterfaceHolder<T>(
       implementing_object, context, global_environment->wrapper_factory());
+}
+
+template <typename T>
+void ToJSValue(JSContext* context, const script::Sequence<T>& sequence,
+               JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  // 1. Let n be the length of S.
+  typedef typename script::Sequence<T>::size_type size_type;
+  size_type count = sequence.size();
+
+  // 2. Let A be a new Array object created as if by the expression [].
+  JS::RootedObject array(context, NewDenseEmptyArray(context));
+
+  // 3. Initialize i to be 0.
+  // 4. While i < n:
+  for (size_type index = 0; index < count; ++index) {
+    // 4.1. Let V be the value in S at index i.
+    // 4.2. Let E be the result of converting V to an ECMAScript value.
+    JS::RootedValue element(context);
+    ToJSValue(context, sequence.at(index), &element);
+
+    std::string property =
+        base::StringPrintf("%" PRIu64, static_cast<uint64_t>(index));
+
+    // 4.3. Let P be the result of calling ToString(i).
+    // 4.4. Call CreateDataProperty(A, P, E).
+    JS_SetProperty(context, array, property.c_str(), element.address());
+
+    // 4.5. Set i to i + 1.
+  }
+
+  // 5. Return A.
+  out_value.set(OBJECT_TO_JSVAL(array));
+}
+
+template <typename T>
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 script::Sequence<T>* out_sequence) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  DCHECK_EQ(0, conversion_flags);
+  DCHECK(out_sequence);
+
+  // JS -> IDL type conversion procedure described here:
+  // https://heycam.github.io/webidl/#es-sequence
+
+  // 1. If Type(V) is not Object, throw a TypeError.
+  JS::RootedObject iterable(context);
+  if (!value.isObject() ||
+      !JS_ValueToObject(context, value, iterable.address())) {
+    exception_state->SetSimpleException(kNotObjectType);
+    return;
+  }
+
+  // 2. Let method be the result of GetMethod(V, @@iterator).
+  // 3. ReturnIfAbrupt(method).
+  // 4. If method is undefined, throw a TypeError.
+  // 5. Return the result of creating a sequence from V and method.
+  // https://heycam.github.io/webidl/#create-sequence-from-iterable
+  // 5.1. Let iter be GetIterator(iterable, method).
+  JS::RootedObject iter(context);
+  if (!util::GetIterator(context, iterable, &iter)) {
+    exception_state->SetSimpleException(kNotIterableType);
+    return;
+  }
+
+  // 5.2. ReturnIfAbrupt(iter).
+  // 5.3. Initialize i to be 0.
+  // 5.4. Repeat
+  while (true) {
+    // 5.4.1. Let next be IteratorStep(iter).
+    // 5.4.2. ReturnIfAbrupt(next).
+    // 5.4.3. If next is false, then return an IDL sequence value of type
+    //        sequence<T> of length i, where the value of the element at index j
+    //        is Sj.
+    JS::RootedObject next(context);
+    if (!util::IteratorStep(context, iter, &next)) {
+      break;
+    }
+
+    // 5.4.4. Let nextItem be IteratorValue(next).
+    // 5.4.5. ReturnIfAbrupt(nextItem).
+    JS::RootedValue next_item(context);
+    if (!util::IteratorValue(context, next, &next_item)) {
+      exception_state->SetSimpleException(kDoesNotImplementInterface);
+      util::IteratorClose(context, iter);
+      return;
+    }
+
+    // 5.4.6. Initialize Si to the result of converting nextItem to an IDL value
+    //        of type T.
+    T idl_next_item;
+    FromJSValue(context, next_item, conversion_flags, exception_state,
+                &idl_next_item);
+    if (context->isExceptionPending()) {
+      // Exception converting element into to sequence element type.
+      util::IteratorClose(context, iter);
+      return;
+    }
+    out_sequence->push_back(idl_next_item);
+
+    // 5.4.7. Set i to i + 1.
+  }
+
+  util::IteratorClose(context, iter);
+  return;
 }
 
 }  // namespace mozjs

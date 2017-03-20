@@ -1,6 +1,6 @@
 #******************************************************************************
 #
-#   Copyright (C) 1999-2009, International Business Machines
+#   Copyright (C) 1999-2011, International Business Machines
 #   Corporation and others.  All Rights Reserved.
 #
 #******************************************************************************
@@ -53,9 +53,6 @@ DYNAMICCXXFLAGS = $(SHAREDLIBCXXFLAGS)
 CFLAGS += $(LIBCFLAGS)
 CXXFLAGS += $(LIBCXXFLAGS)
 
-ifneq ($(top_builddir),$(top_srcdir))
-CPPFLAGS += -I$(top_builddir)/common
-endif
 CPPFLAGS += -I$(top_srcdir)/common -I$(top_srcdir)/i18n $(LIBCPPFLAGS) $(CPPFLAGSICUIO)
 DEFS += -DU_IO_IMPLEMENTATION
 LDFLAGS += $(LDFLAGSICUIO)
@@ -77,7 +74,7 @@ DEPS = $(OBJECTS:.o=.d)
 ## List of phony targets
 .PHONY : all all-local install install-local clean clean-local	\
 distclean distclean-local install-library install-headers dist	\
-dist-local check check-local
+dist-local check check-local check-exhaustive
 
 ## Clear suffix list
 .SUFFIXES :
@@ -89,6 +86,8 @@ clean: clean-local
 distclean : distclean-local
 dist: dist-local
 check: all check-local
+
+check-exhaustive: check
 
 all-local: $(ALL_TARGETS)
 
@@ -149,6 +148,11 @@ endif
 ifneq ($(ENABLE_SHARED),)
 $(SHARED_OBJECT): $(OBJECTS) $(SO_VERSION_DATA)
 	$(SHLIB.cc) $(LD_SONAME) $(OUTOPT)$@ $^ $(LIBS)
+ifeq ($(ENABLE_RPATH),YES)
+ifneq ($(wildcard $(libdir)/$(MIDDLE_SO_TARGET)),)
+	$(warning RPATH warning: --enable-rpath means test programs may use existing $(libdir)/$(MIDDLE_SO_TARGET))
+endif
+endif
 
 ifeq ($(OS390BATCH),1)
 $(BATCH_TARGET):$(OBJECTS)

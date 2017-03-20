@@ -1,16 +1,13 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/rm.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/rm.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/rm.xml
- */
 rm{
-    Version{"2.0.51.22"}
+    Version{"2.1.19.14"}
     zoneStrings{
         "Africa:Addis_Ababa"{
             ec{"Addis Abeba"}
@@ -38,9 +35,6 @@ rm{
         }
         "Africa:Mogadishu"{
             ec{"Mogadischu"}
-        }
-        "Africa:Niamey"{
-            ec{"Niger"}
         }
         "Africa:Sao_Tome"{
             ec{"São Tomé"}
@@ -192,9 +186,6 @@ rm{
         "Antarctica:McMurdo"{
             ec{"Mac Murdo"}
         }
-        "Antarctica:South_Pole"{
-            ec{"Pol dal Sid"}
-        }
         "Antarctica:Syowa"{
             ec{"Showa"}
         }
@@ -227,9 +218,6 @@ rm{
         }
         "Asia:Karachi"{
             ec{"Karatschi"}
-        }
-        "Asia:Kashgar"{
-            ec{"Kaschgar"}
         }
         "Asia:Krasnoyarsk"{
             ec{"Krasnojarsk"}
@@ -304,7 +292,7 @@ rm{
             ec{"Georgia dal Sid"}
         }
         "Atlantic:St_Helena"{
-            ec{"Sontg'elena"}
+            ec{"Sontg’elena"}
         }
         "Atlantic:Stanley"{
             ec{"Port Stanley"}
@@ -441,6 +429,5 @@ rm{
         fallbackFormat{"{1} ({0})"}
         gmtFormat{"GMT{0}"}
         hourFormat{"+HH:mm;-HH:mm"}
-        regionFormat{"{0}"}
     }
 }

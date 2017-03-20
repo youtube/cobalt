@@ -1,6 +1,6 @@
 /*
  **********************************************************************
- *   Copyright (C) 1999-2008, International Business Machines
+ *   Copyright (C) 1999-2015, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  **********************************************************************
  *   Date        Name        Description
@@ -19,6 +19,7 @@
 #include "unicode/uchar.h"
 #include "unicode/ustring.h"
 #include "unicode/uniset.h"
+#include "unicode/utf16.h"
 #include "cstring.h"
 #include "funcrepl.h"
 #include "hash.h"
@@ -33,6 +34,7 @@
 #include "tridpars.h"
 #include "uvector.h"
 #include "hash.h"
+#include "patternprops.h"
 #include "util.h"
 #include "cmemory.h"
 #include "uprops.h"
@@ -142,6 +144,8 @@ public:
               const UVector* variablesVector = 0,
               const Hashtable* variableNames = 0);
 
+    virtual ~ParseData();
+
     virtual const UnicodeString* lookup(const UnicodeString& s) const;
 
     virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const;
@@ -169,6 +173,8 @@ ParseData::ParseData(const TransliterationRuleData* d,
                      const UVector* sets,
                      const Hashtable* vNames) :
     data(d), variablesVector(sets), variableNames(vNames) {}
+
+ParseData::~ParseData() {}
 
 /**
  * Implement SymbolTable API.
@@ -356,7 +362,7 @@ RuleHalf::~RuleHalf() {
 int32_t RuleHalf::parse(const UnicodeString& rule, int32_t pos, int32_t limit, UErrorCode& status) {
     int32_t start = pos;
     text.truncate(0);
-    pos = parseSection(rule, pos, limit, text, ILLEGAL_TOP, FALSE, status);
+    pos = parseSection(rule, pos, limit, text, UnicodeString(TRUE, ILLEGAL_TOP, -1), FALSE, status);
 
     if (cursorOffset > 0 && cursor != cursorOffsetPos) {
         return syntaxError(U_MISPLACED_CURSOR_OFFSET, rule, start, status);
@@ -406,7 +412,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
         // Since all syntax characters are in the BMP, fetching
         // 16-bit code units suffices here.
         UChar c = rule.charAt(pos++);
-        if (uprv_isRuleWhiteSpace(c)) {
+        if (PatternProps::isWhiteSpace(c)) {
             // Ignore whitespace.  Note that this is not Unicode
             // spaces, but Java spaces -- a subset, representing
             // whitespace likely to be seen in code.
@@ -521,7 +527,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 int32_t segmentNumber = nextSegmentNumber++; // 1-based
                 
                 // Parse the segment
-                pos = parseSection(rule, pos, limit, buf, ILLEGAL_SEG, TRUE, status);
+                pos = parseSection(rule, pos, limit, buf, UnicodeString(TRUE, ILLEGAL_SEG, -1), TRUE, status);
                 
                 // After parsing a segment, the relevant characters are
                 // in buf, starting at offset bufSegStart.  Extract them
@@ -563,7 +569,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 int32_t bufSegStart = buf.length();
                 
                 // Parse the segment
-                pos = parseSection(rule, iref, limit, buf, ILLEGAL_FUNC, TRUE, status);
+                pos = parseSection(rule, iref, limit, buf, UnicodeString(TRUE, ILLEGAL_FUNC, -1), TRUE, status);
                 
                 // After parsing a segment, the relevant characters are
                 // in buf, starting at offset bufSegStart.
@@ -788,7 +794,7 @@ void RuleHalf::removeContext() {
 UBool RuleHalf::isValidOutput(TransliteratorParser& transParser) {
     for (int32_t i=0; i<text.length(); ) {
         UChar32 c = text.char32At(i);
-        i += UTF_CHAR_LENGTH(c);
+        i += U16_LENGTH(c);
         if (!transParser.parseData->isReplacer(c)) {
             return FALSE;
         }
@@ -803,7 +809,7 @@ UBool RuleHalf::isValidOutput(TransliteratorParser& transParser) {
 UBool RuleHalf::isValidInput(TransliteratorParser& transParser) {
     for (int32_t i=0; i<text.length(); ) {
         UChar32 c = text.char32At(i);
-        i += UTF_CHAR_LENGTH(c);
+        i += U16_LENGTH(c);
         if (!transParser.parseData->isMatcher(c)) {
             return FALSE;
         }
@@ -824,11 +830,11 @@ idBlockVector(statusReturn),
 variablesVector(statusReturn),
 segmentObjects(statusReturn)
 {
-    idBlockVector.setDeleter(uhash_deleteUnicodeString);
+    idBlockVector.setDeleter(uprv_deleteUObject);
     curData = NULL;
     compoundFilter = NULL;
     parseData = NULL;
-    variableNames.setValueDeleter(uhash_deleteUnicodeString);
+    variableNames.setValueDeleter(uprv_deleteUObject);
 }
 
 /**
@@ -929,7 +935,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
 
     while (pos < limit && U_SUCCESS(status)) {
         UChar c = rule.charAt(pos++);
-        if (uprv_isRuleWhiteSpace(c)) {
+        if (PatternProps::isWhiteSpace(c)) {
             // Ignore leading whitespace.
             continue;
         }
@@ -958,7 +964,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
                 rule.compare(pos, ID_TOKEN_LEN, ID_TOKEN) == 0) {
             pos += ID_TOKEN_LEN;
             c = rule.charAt(pos);
-            while (uprv_isRuleWhiteSpace(c) && pos < limit) {
+            while (PatternProps::isWhiteSpace(c) && pos < limit) {
                 ++pos;
                 c = rule.charAt(pos);
             }
@@ -1096,11 +1102,11 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
 
             for (int32_t j = 0; j < data->variablesLength; j++) {
                 data->variables[j] =
-                    ((UnicodeSet*)variablesVector.elementAt(j));
+                    ((UnicodeFunctor*)variablesVector.elementAt(j));
             }
             
             data->variableNames.removeAll();
-            int32_t pos = -1;
+            int32_t pos = UHASH_FIRST;
             const UHashElement* he = variableNames.nextElement(pos);
             while (he != NULL) {
                 UnicodeString* tempus = (UnicodeString*)(((UnicodeString*)(he->value.pointer))->clone());
@@ -1192,7 +1198,7 @@ static const UChar PRAGMA_NFC_RULES[] = {0x7E,0x6E,0x66,0x63,0x20,0x72,0x75,0x6C
  */
 UBool TransliteratorParser::resemblesPragma(const UnicodeString& rule, int32_t pos, int32_t limit) {
     // Must start with /use\s/i
-    return ICU_Utility::parsePattern(rule, pos, limit, PRAGMA_USE, NULL) >= 0;
+    return ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_USE, 4), NULL) >= 0;
 }
 
 /**
@@ -1217,25 +1223,25 @@ int32_t TransliteratorParser::parsePragma(const UnicodeString& rule, int32_t pos
     // use maximum backup 16;
     // use nfd rules;
     // use nfc rules;
-    int p = ICU_Utility::parsePattern(rule, pos, limit, PRAGMA_VARIABLE_RANGE, array);
+    int p = ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_VARIABLE_RANGE, -1), array);
     if (p >= 0) {
         setVariableRange(array[0], array[1], status);
         return p;
     }
     
-    p = ICU_Utility::parsePattern(rule, pos, limit, PRAGMA_MAXIMUM_BACKUP, array);
+    p = ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_MAXIMUM_BACKUP, -1), array);
     if (p >= 0) {
         pragmaMaximumBackup(array[0]);
         return p;
     }
     
-    p = ICU_Utility::parsePattern(rule, pos, limit, PRAGMA_NFD_RULES, NULL);
+    p = ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_NFD_RULES, -1), NULL);
     if (p >= 0) {
         pragmaNormalizeRules(UNORM_NFD);
         return p;
     }
     
-    p = ICU_Utility::parsePattern(rule, pos, limit, PRAGMA_NFC_RULES, NULL);
+    p = ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_NFC_RULES, -1), NULL);
     if (p >= 0) {
         pragmaNormalizeRules(UNORM_NFC);
         return p;
@@ -1586,7 +1592,7 @@ void TransliteratorParser::setSegmentObject(int32_t seg, StringMatcher* adopted,
  */
 UChar TransliteratorParser::getDotStandIn(UErrorCode& status) {
     if (dotStandIn == (UChar) -1) {
-        UnicodeSet* tempus = new UnicodeSet(DOT_SET, status);
+        UnicodeSet* tempus = new UnicodeSet(UnicodeString(TRUE, DOT_SET, -1), status);
         // Null pointer check.
         if (tempus == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;
@@ -1668,11 +1674,18 @@ utrans_stripRules(const UChar *source, int32_t sourceLen, UChar *target, UErrorC
                     target--;
                 }
                 do {
+                    if (source == sourceLimit) {
+                        c = U_SENTINEL;
+                        break;
+                    }
                     c = *(source++);
                 }
                 while (c != CR && c != LF);
+                if (c < 0) {
+                    break;
+                }
             }
-            else if (c == ESCAPE) {
+            else if (c == ESCAPE && source < sourceLimit) {
                 UChar32   c2 = *source;
                 if (c2 == CR || c2 == LF) {
                     /* A backslash at the end of a line. */
@@ -1690,7 +1703,7 @@ utrans_stripRules(const UChar *source, int32_t sourceLen, UChar *target, UErrorC
                         *status = U_PARSE_ERROR;
                         return 0;
                     }
-                    if (!uprv_isRuleWhiteSpace(c2) && !u_iscntrl(c2) && !u_ispunct(c2)) {
+                    if (!PatternProps::isWhiteSpace(c2) && !u_iscntrl(c2) && !u_ispunct(c2)) {
                         /* It was escaped for a reason. Write what it was suppose to be. */
                         source+=5;
                         c = c2;

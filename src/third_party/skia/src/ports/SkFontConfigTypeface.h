@@ -15,7 +15,7 @@ class SkFontDescriptor;
 class FontConfigTypeface : public SkTypeface_FreeType {
     SkFontConfigInterface::FontIdentity fIdentity;
     SkString fFamilyName;
-    SkStream* fLocalStream;
+    SkStreamAsset* fLocalStream;
 
 public:
     static FontConfigTypeface* Create(Style style,
@@ -24,7 +24,7 @@ public:
         return SkNEW_ARGS(FontConfigTypeface, (style, fi, familyName));
     }
 
-    static FontConfigTypeface* Create(Style style, bool fixedWidth, SkStream* localStream) {
+    static FontConfigTypeface* Create(Style style, bool fixedWidth, SkStreamAsset* localStream) {
         return SkNEW_ARGS(FontConfigTypeface, (style, fixedWidth, localStream));
     }
 
@@ -37,7 +37,7 @@ public:
     }
 
     const char* getFamilyName() const { return fFamilyName.c_str(); }
-    SkStream*   getLocalStream() const { return fLocalStream; }
+    SkStreamAsset*   getLocalStream() const { return fLocalStream; }
 
     bool isFamilyName(const char* name) const {
         return fFamilyName.equals(name);
@@ -58,7 +58,7 @@ protected:
             , fFamilyName(familyName)
             , fLocalStream(NULL) {}
 
-    FontConfigTypeface(Style style, bool fixedWidth, SkStream* localStream)
+    FontConfigTypeface(Style style, bool fixedWidth, SkStreamAsset* localStream)
             : INHERITED(style, SkTypefaceCache::NewFontID(), fixedWidth) {
         // we default to empty fFamilyName and fIdentity
         fLocalStream = localStream;
@@ -67,7 +67,7 @@ protected:
 
     virtual void onGetFamilyName(SkString* familyName) const SK_OVERRIDE;
     virtual void onGetFontDescriptor(SkFontDescriptor*, bool*) const SK_OVERRIDE;
-    virtual SkStream* onOpenStream(int* ttcIndex) const SK_OVERRIDE;
+    virtual SkStreamAsset* onOpenStream(int* ttcIndex) const SK_OVERRIDE;
 
 private:
     typedef SkTypeface_FreeType INHERITED;

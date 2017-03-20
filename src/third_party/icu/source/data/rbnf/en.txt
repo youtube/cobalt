@@ -1,13 +1,13 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/rbnf/en.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/rbnf/en.xml
 // *
 // ***************************************************************************
 /**
- *  ICU <specials> source: <path>/xml/rbnf/en.xml
+ * ICU <specials> source: <path>/xml/rbnf/en.xml
  */
 en{
     RBNFRules{
@@ -37,28 +37,45 @@ en{
             "& ':' = '.' = ' ' = '-';",
         }
         OrdinalRules{
-            "%%digits-ordinal-indicator:",
-            "0: \u1D57\u02B0;",
-            "1: \u02E2\u1D57;",
-            "2: \u207F\u1D48;",
-            "3: \u02B3\u1D48;",
-            "4: \u1D57\u02B0;",
-            "20: >>;",
-            "100: >>;",
             "%digits-ordinal:",
             "-x: \u2212>>;",
-            "0: =#,##0==%%digits-ordinal-indicator=;",
+            "0: =#,##0=$(ordinal,one{st}two{nd}few{rd}other{th})$;",
         }
         SpelloutRules{
             "%%2d-year:",
-            "0: hundred[ and >%spellout-numbering>];",
+            "0: hundred;",
             "1: oh-=%spellout-numbering=;",
             "10: =%spellout-numbering=;",
             "%spellout-numbering-year:",
             "-x: minus >>;",
             "x.x: =#,###0.#=;",
             "0: =%spellout-numbering=;",
-            "1000/100: << >%%2d-year>;",
+            "1010/100: << >%%2d-year>;",
+            "1100/100: << >%%2d-year>;",
+            "2000: =%spellout-numbering=;",
+            "2010/100: << >%%2d-year>;",
+            "2100/100: << >%%2d-year>;",
+            "3000: =%spellout-numbering=;",
+            "3010/100: << >%%2d-year>;",
+            "3100/100: << >%%2d-year>;",
+            "4000: =%spellout-numbering=;",
+            "4010/100: << >%%2d-year>;",
+            "4100/100: << >%%2d-year>;",
+            "5000: =%spellout-numbering=;",
+            "5010/100: << >%%2d-year>;",
+            "5100/100: << >%%2d-year>;",
+            "6000: =%spellout-numbering=;",
+            "6010/100: << >%%2d-year>;",
+            "6100/100: << >%%2d-year>;",
+            "7000: =%spellout-numbering=;",
+            "7010/100: << >%%2d-year>;",
+            "7100/100: << >%%2d-year>;",
+            "8000: =%spellout-numbering=;",
+            "8010/100: << >%%2d-year>;",
+            "8100/100: << >%%2d-year>;",
+            "9000: =%spellout-numbering=;",
+            "9010/100: << >%%2d-year>;",
+            "9100/100: << >%%2d-year>;",
             "10000: =%spellout-numbering=;",
             "%spellout-numbering:",
             "0: =%spellout-cardinal=;",
@@ -122,8 +139,6 @@ en{
             "1000000000000: << trillion[>%%commas>];",
             "1000000000000000: << quadrillion[>%%commas>];",
             "1000000000000000000: =#,##0=;",
-            "%%lenient-parse:",
-            "&[last primary ignorable ] << ' ' << ',' << '-' << '\u00AD';",
             "%%tieth:",
             "0: tieth;",
             "1: ty-=%spellout-ordinal=;",
@@ -186,5 +201,5 @@ en{
             "1000000000000000000: =#,##0=.;",
         }
     }
-    Version{"2.0.41.26"}
+    Version{"2.1.19.14"}
 }

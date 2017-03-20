@@ -1,0 +1,3 @@
+<?php
+const LATEST_FIREFOX_OLDER_VERSION = '{{ VERSION }}';
+

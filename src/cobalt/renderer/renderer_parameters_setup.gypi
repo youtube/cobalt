@@ -30,5 +30,10 @@
         'COBALT_FORCE_STUB_RASTERIZER',
       ],
     }],
+    ['rasterizer_type == "custom"', {
+      'defines': [
+        'COBALT_FORCE_CUSTOM_RASTERIZER',
+      ],
+    }],
   ],
 }

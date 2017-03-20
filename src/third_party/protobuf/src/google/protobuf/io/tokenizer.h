@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -38,7 +38,9 @@
 #define GOOGLE_PROTOBUF_IO_TOKENIZER_H__
 
 #include <string>
+#include <vector>
 #include <google/protobuf/stubs/common.h>
+#include <google/protobuf/stubs/logging.h>
 
 namespace google {
 namespace protobuf {
@@ -49,6 +51,12 @@ class ZeroCopyInputStream;     // zero_copy_stream.h
 // Defined in this file.
 class ErrorCollector;
 class Tokenizer;
+
+// By "column number", the proto compiler refers to a count of the number
+// of bytes before a given byte, except that a tab character advances to
+// the next multiple of 8 bytes.  Note in particular that column numbers
+// are zero-based, while many user interfaces use one-based column numbers.
+typedef int ColumnNumber;
 
 // Abstract interface for an object which collects the errors that occur
 // during parsing.  A typical implementation might simply print the errors
@@ -61,12 +69,14 @@ class LIBPROTOBUF_EXPORT ErrorCollector {
   // Indicates that there was an error in the input at the given line and
   // column numbers.  The numbers are zero-based, so you may want to add
   // 1 to each before printing them.
-  virtual void AddError(int line, int column, const string& message) = 0;
+  virtual void AddError(int line, ColumnNumber column,
+                        const string& message) = 0;
 
   // Indicates that there was a warning in the input at the given line and
   // column numbers.  The numbers are zero-based, so you may want to add
   // 1 to each before printing them.
-  virtual void AddWarning(int line, int column, const string& message) { }
+  virtual void AddWarning(int line, ColumnNumber column,
+                          const string& message) { }
 
  private:
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ErrorCollector);
@@ -121,8 +131,8 @@ class LIBPROTOBUF_EXPORT Tokenizer {
     // "line" and "column" specify the position of the first character of
     // the token within the input stream.  They are zero-based.
     int line;
-    int column;
-    int end_column;
+    ColumnNumber column;
+    ColumnNumber end_column;
   };
 
   // Get the current token.  This is updated when Next() is called.  Before
@@ -136,6 +146,53 @@ class LIBPROTOBUF_EXPORT Tokenizer {
   // Advance to the next token.  Returns false if the end of the input is
   // reached.
   bool Next();
+
+  // Like Next(), but also collects comments which appear between the previous
+  // and next tokens.
+  //
+  // Comments which appear to be attached to the previous token are stored
+  // in *prev_tailing_comments.  Comments which appear to be attached to the
+  // next token are stored in *next_leading_comments.  Comments appearing in
+  // between which do not appear to be attached to either will be added to
+  // detached_comments.  Any of these parameters can be NULL to simply discard
+  // the comments.
+  //
+  // A series of line comments appearing on consecutive lines, with no other
+  // tokens appearing on those lines, will be treated as a single comment.
+  //
+  // Only the comment content is returned; comment markers (e.g. //) are
+  // stripped out.  For block comments, leading whitespace and an asterisk will
+  // be stripped from the beginning of each line other than the first.  Newlines
+  // are included in the output.
+  //
+  // Examples:
+  //
+  //   optional int32 foo = 1;  // Comment attached to foo.
+  //   // Comment attached to bar.
+  //   optional int32 bar = 2;
+  //
+  //   optional string baz = 3;
+  //   // Comment attached to baz.
+  //   // Another line attached to baz.
+  //
+  //   // Comment attached to qux.
+  //   //
+  //   // Another line attached to qux.
+  //   optional double qux = 4;
+  //
+  //   // Detached comment.  This is not attached to qux or corge
+  //   // because there are blank lines separating it from both.
+  //
+  //   optional string corge = 5;
+  //   /* Block comment attached
+  //    * to corge.  Leading asterisks
+  //    * will be removed. */
+  //   /* Block comment attached to
+  //    * grault. */
+  //   optional int32 grault = 6;
+  bool NextWithComments(string* prev_trailing_comments,
+                        vector<string>* detached_comments,
+                        string* next_leading_comments);
 
   // Parse helpers ---------------------------------------------------
 
@@ -180,6 +237,21 @@ class LIBPROTOBUF_EXPORT Tokenizer {
   // Sets the comment style.
   void set_comment_style(CommentStyle style) { comment_style_ = style; }
 
+  // Whether to require whitespace between a number and a field name.
+  // Default is true. Do not use this; for Google-internal cleanup only.
+  void set_require_space_after_number(bool require) {
+    require_space_after_number_ = require;
+  }
+
+  // Whether to allow string literals to span multiple lines. Default is false.
+  // Do not use this; for Google-internal cleanup only.
+  void set_allow_multiline_strings(bool allow) {
+    allow_multiline_strings_ = allow;
+  }
+
+  // External helper: validate an identifier.
+  static bool IsIdentifier(const string& text);
+
   // -----------------------------------------------------------------
  private:
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(Tokenizer);
@@ -198,20 +270,24 @@ class LIBPROTOBUF_EXPORT Tokenizer {
 
   // Line and column number of current_char_ within the whole input stream.
   int line_;
-  int column_;
+  ColumnNumber column_;
 
-  // Position in buffer_ where StartToken() was called.  If the token
-  // started in the previous buffer, this is zero, and current_.text already
-  // contains the part of the token from the previous buffer.  If not
-  // currently parsing a token, this is -1.
-  int token_start_;
+  // String to which text should be appended as we advance through it.
+  // Call RecordTo(&str) to start recording and StopRecording() to stop.
+  // E.g. StartToken() calls RecordTo(&current_.text).  record_start_ is the
+  // position within the current buffer where recording started.
+  string* record_target_;
+  int record_start_;
 
   // Options.
   bool allow_f_after_float_;
   CommentStyle comment_style_;
+  bool require_space_after_number_;
+  bool allow_multiline_strings_;
 
   // Since we count columns we need to interpret tabs somehow.  We'll take
   // the standard 8-character definition for lack of any way to do better.
+  // This must match the documentation of ColumnNumber.
   static const int kTabWidth = 8;
 
   // -----------------------------------------------------------------
@@ -222,6 +298,9 @@ class LIBPROTOBUF_EXPORT Tokenizer {
 
   // Read a new buffer from the input.
   void Refresh();
+
+  inline void RecordTo(string* target);
+  inline void StopRecording();
 
   // Called when the current character is the first character of a new
   // token (not including whitespace or comments).
@@ -255,13 +334,32 @@ class LIBPROTOBUF_EXPORT Tokenizer {
   TokenType ConsumeNumber(bool started_with_zero, bool started_with_dot);
 
   // Consume the rest of a line.
-  void ConsumeLineComment();
+  void ConsumeLineComment(string* content);
   // Consume until "*/".
-  void ConsumeBlockComment();
+  void ConsumeBlockComment(string* content);
+
+  enum NextCommentStatus {
+    // Started a line comment.
+    LINE_COMMENT,
+
+    // Started a block comment.
+    BLOCK_COMMENT,
+
+    // Consumed a slash, then realized it wasn't a comment.  current_ has
+    // been filled in with a slash token.  The caller should return it.
+    SLASH_NOT_COMMENT,
+
+    // We do not appear to be starting a comment here.
+    NO_COMMENT
+  };
+
+  // If we're at the start of a new comment, consume it and return what kind
+  // of comment it is.
+  NextCommentStatus TryConsumeCommentStart();
 
   // -----------------------------------------------------------------
   // These helper methods make the parsing code more readable.  The
-  // "character classes" refered to are defined at the top of the .cc file.
+  // "character classes" referred to are defined at the top of the .cc file.
   // Basically it is a C++ class with one method:
   //   static bool InClass(char c);
   // The method returns true if c is a member of this "class", like "Letter"
