@@ -90,6 +90,7 @@
 #include "cobalt/bindings/testing/mozjs_numeric_types_test_interface.h"
 #include "cobalt/bindings/testing/mozjs_object_type_bindings_interface.h"
 #include "cobalt/bindings/testing/mozjs_operations_test_interface.h"
+#include "cobalt/bindings/testing/mozjs_promise_interface.h"
 #include "cobalt/bindings/testing/mozjs_put_forwards_interface.h"
 #include "cobalt/bindings/testing/mozjs_sequence_user.h"
 #include "cobalt/bindings/testing/mozjs_single_operation_interface.h"
@@ -110,6 +111,7 @@
 #include "cobalt/bindings/testing/numeric_types_test_interface.h"
 #include "cobalt/bindings/testing/object_type_bindings_interface.h"
 #include "cobalt/bindings/testing/operations_test_interface.h"
+#include "cobalt/bindings/testing/promise_interface.h"
 #include "cobalt/bindings/testing/put_forwards_interface.h"
 #include "cobalt/bindings/testing/sequence_user.h"
 #include "cobalt/bindings/testing/single_operation_interface.h"
@@ -217,6 +219,7 @@ using cobalt::bindings::testing::MozjsNullableTypesTestInterface;
 using cobalt::bindings::testing::MozjsNumericTypesTestInterface;
 using cobalt::bindings::testing::MozjsObjectTypeBindingsInterface;
 using cobalt::bindings::testing::MozjsOperationsTestInterface;
+using cobalt::bindings::testing::MozjsPromiseInterface;
 using cobalt::bindings::testing::MozjsPutForwardsInterface;
 using cobalt::bindings::testing::MozjsSequenceUser;
 using cobalt::bindings::testing::MozjsSingleOperationInterface;
@@ -237,6 +240,7 @@ using cobalt::bindings::testing::NullableTypesTestInterface;
 using cobalt::bindings::testing::NumericTypesTestInterface;
 using cobalt::bindings::testing::ObjectTypeBindingsInterface;
 using cobalt::bindings::testing::OperationsTestInterface;
+using cobalt::bindings::testing::PromiseInterface;
 using cobalt::bindings::testing::PutForwardsInterface;
 using cobalt::bindings::testing::SequenceUser;
 using cobalt::bindings::testing::SingleOperationInterface;
@@ -655,6 +659,114 @@ bool fcn_getStackTrace(
   return !exception_state.is_exception_set();
 }
 
+bool fcn_setTimeout(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, &object)) {
+    NOTREACHED();
+    return false;
+  }
+  const JSClass* proto_class =
+      MozjsWindow::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<Window>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  Window* impl =
+      wrapper_private->wrappable<Window>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<Window::TimerCallback >::ConversionType handler;
+  // Optional arguments
+  TypeTraits<int32_t >::ConversionType timeout;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &handler);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+  size_t num_set_arguments = 1;
+  if (args.length() > 1) {
+    JS::RootedValue optional_value0(
+        context, args[1]);
+    FromJSValue(context,
+                optional_value0,
+                kNoConversionFlags,
+                &exception_state,
+                &timeout);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+    ++num_set_arguments;
+  }
+  switch (num_set_arguments) {
+    case 1:
+      {
+          if (!exception_state.is_exception_set()) {
+            ToJSValue(context,
+                      impl->SetTimeout(handler),
+                      &result_value);
+          }
+          if (!exception_state.is_exception_set()) {
+            args.rval().set(result_value);
+          }
+          return !exception_state.is_exception_set();
+      }
+      break;
+    case 2:
+      {
+          if (!exception_state.is_exception_set()) {
+            ToJSValue(context,
+                      impl->SetTimeout(handler, timeout),
+                      &result_value);
+          }
+          if (!exception_state.is_exception_set()) {
+            args.rval().set(result_value);
+          }
+          return !exception_state.is_exception_set();
+      }
+      break;
+    default:
+      NOTREACHED();
+      return false;
+  }
+}
+
 bool fcn_windowOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -730,6 +842,9 @@ const JSFunctionSpec prototype_functions[] = {
   JS_FNSPEC(
       "getStackTrace", fcn_getStackTrace, NULL,
       0, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "setTimeout", fcn_setTimeout, NULL,
+      1, JSPROP_ENUMERATE, NULL),
   JS_FNSPEC(
       "windowOperation", fcn_windowOperation, NULL,
       0, JSPROP_ENUMERATE, NULL),
@@ -1099,6 +1214,10 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
       OperationsTestInterface::OperationsTestInterfaceWrappableType(),
       base::Bind(MozjsOperationsTestInterface::CreateProxy),
       base::Bind(MozjsOperationsTestInterface::PrototypeClass));
+  wrapper_factory->RegisterWrappableType(
+      PromiseInterface::PromiseInterfaceWrappableType(),
+      base::Bind(MozjsPromiseInterface::CreateProxy),
+      base::Bind(MozjsPromiseInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       PutForwardsInterface::PutForwardsInterfaceWrappableType(),
       base::Bind(MozjsPutForwardsInterface::CreateProxy),
