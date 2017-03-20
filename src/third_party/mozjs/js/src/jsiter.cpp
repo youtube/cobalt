@@ -38,6 +38,8 @@
 #include "vm/Stack-inl.h"
 #include "vm/String-inl.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 
@@ -189,6 +191,7 @@ struct SortComparatorIds
 static bool
 Snapshot(JSContext *cx, JSObject *pobj_, unsigned flags, AutoIdVector *props)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     IdSet ht(cx);
     if (!ht.init(32))
         return false;

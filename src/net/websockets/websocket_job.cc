@@ -17,12 +17,11 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
-#include "net/spdy/spdy_session.h"
-#include "net/spdy/spdy_session_pool.h"
 #include "net/url_request/url_request_context.h"
 #include "net/websockets/websocket_handshake_handler.h"
 #include "net/websockets/websocket_net_log_params.h"
 #include "net/websockets/websocket_throttle.h"
+#include "starboard/memory.h"
 
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
 
@@ -59,16 +58,9 @@ static base::LazyInstance<WebSocketJobInitSingleton> g_websocket_job_init =
 
 namespace net {
 
-bool WebSocketJob::websocket_over_spdy_enabled_ = false;
-
 // static
 void WebSocketJob::EnsureInit() {
   g_websocket_job_init.Get();
-}
-
-// static
-void WebSocketJob::set_websocket_over_spdy_enabled(bool enabled) {
-  websocket_over_spdy_enabled_ = enabled;
 }
 
 WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
@@ -80,7 +72,6 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       started_to_send_handshake_request_(false),
       handshake_request_sent_(0),
       response_cookies_save_index_(0),
-      spdy_protocol_version_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_for_send_pending_(this)) {
 }
@@ -109,7 +100,7 @@ bool WebSocketJob::SendData(const char* data, int len) {
     case OPEN:
       {
         scoped_refptr<IOBufferWithSize> buffer = new IOBufferWithSize(len);
-        memcpy(buffer->data(), data, len);
+        SbMemoryCopy(buffer->data(), data, len);
         if (current_send_buffer_ || !send_buffer_queue_.empty()) {
           send_buffer_queue_.push_back(buffer);
           return true;
@@ -181,7 +172,7 @@ int WebSocketJob::OnStartOpenConnection(
     AddRef();  // Balanced when callback_ is cleared.
     return ERR_IO_PENDING;
   }
-  return TrySpdyStream();
+  return OK;
 }
 
 void WebSocketJob::OnConnected(
@@ -279,73 +270,6 @@ void WebSocketJob::OnError(const SocketStream* socket, int error) {
     delegate_->OnError(socket, error);
 }
 
-void WebSocketJob::OnCreatedSpdyStream(int result) {
-  DCHECK(spdy_websocket_stream_.get());
-  DCHECK(socket_.get());
-  DCHECK_NE(ERR_IO_PENDING, result);
-
-  if (state_ == CLOSED) {
-    result = ERR_ABORTED;
-  } else if (result == OK) {
-    state_ = CONNECTING;
-    result = ERR_PROTOCOL_SWITCHED;
-  } else {
-    spdy_websocket_stream_.reset();
-  }
-
-  CompleteIO(result);
-}
-
-void WebSocketJob::OnSentSpdyHeaders(int result) {
-  DCHECK_NE(INITIALIZED, state_);
-  if (state_ != CONNECTING)
-    return;
-  if (delegate_)
-    delegate_->OnSentData(socket_, handshake_request_->original_length());
-  handshake_request_.reset();
-}
-
-int WebSocketJob::OnReceivedSpdyResponseHeader(
-    const SpdyHeaderBlock& headers, int status) {
-  DCHECK_NE(INITIALIZED, state_);
-  if (state_ != CONNECTING)
-    return status;
-  if (status != OK)
-    return status;
-  // TODO(toyoshim): Fallback to non-spdy connection?
-  handshake_response_->ParseResponseHeaderBlock(headers,
-                                                challenge_,
-                                                spdy_protocol_version_);
-
-  SaveCookiesAndNotifyHeaderComplete();
-  return OK;
-}
-
-void WebSocketJob::OnSentSpdyData(int amount_sent) {
-  DCHECK_NE(INITIALIZED, state_);
-  DCHECK_NE(CONNECTING, state_);
-  if (state_ == CLOSED)
-    return;
-  if (!spdy_websocket_stream_.get())
-    return;
-  OnSentData(socket_, amount_sent);
-}
-
-void WebSocketJob::OnReceivedSpdyData(const char* data, int length) {
-  DCHECK_NE(INITIALIZED, state_);
-  DCHECK_NE(CONNECTING, state_);
-  if (state_ == CLOSED)
-    return;
-  if (!spdy_websocket_stream_.get())
-    return;
-  OnReceivedData(socket_, data, length);
-}
-
-void WebSocketJob::OnCloseSpdyStream() {
-  spdy_websocket_stream_.reset();
-  OnClose(socket_);
-}
-
 bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
   DCHECK_EQ(state_, CONNECTING);
   if (started_to_send_handshake_request_)
@@ -389,13 +313,7 @@ void WebSocketJob::LoadCookieCallback(const std::string& cookie) {
 }
 
 void WebSocketJob::DoSendData() {
-  if (spdy_websocket_stream_.get()) {
-    scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
-    handshake_request_->GetRequestHeaderBlock(
-        socket_->url(), headers.get(), &challenge_, spdy_protocol_version_);
-    spdy_websocket_stream_->SendRequest(headers.Pass());
-  } else {
-    const std::string& handshake_request =
+      const std::string& handshake_request =
         handshake_request_->GetRawRequest();
     handshake_request_sent_ = 0;
     socket_->net_log()->AddEvent(
@@ -403,7 +321,6 @@ void WebSocketJob::DoSendData() {
         base::Bind(&NetLogWebSocketHandshakeCallback, &handshake_request));
     socket_->SendData(handshake_request.data(),
                       handshake_request.size());
-  }
   // Just buffered in |handshake_request_|.
   started_to_send_handshake_request_ = true;
 }
@@ -441,10 +358,7 @@ void WebSocketJob::OnReceivedHandshakeResponse(
     return;
   }
   // handshake message is completed.
-  std::string raw_response = handshake_response_->GetRawResponse();
-  socket_->net_log()->AddEvent(
-      NetLog::TYPE_WEB_SOCKET_READ_RESPONSE_HEADERS,
-      base::Bind(&NetLogWebSocketHandshakeCallback, &raw_response));
+
   if (len - response_length > 0) {
     // If we received extra data, it should be frame data.
     DCHECK(received_data_after_handshake_.empty());
@@ -536,57 +450,6 @@ const AddressList& WebSocketJob::address_list() const {
   return addresses_;
 }
 
-int WebSocketJob::TrySpdyStream() {
-  if (!socket_.get())
-    return ERR_FAILED;
-
-  if (!websocket_over_spdy_enabled_)
-    return OK;
-
-  // Check if we have a SPDY session available.
-  HttpTransactionFactory* factory =
-      socket_->context()->http_transaction_factory();
-  if (!factory)
-    return OK;
-  scoped_refptr<HttpNetworkSession> session = factory->GetSession();
-  if (!session.get())
-    return OK;
-  SpdySessionPool* spdy_pool = session->spdy_session_pool();
-  const HostPortProxyPair pair(HostPortPair::FromURL(socket_->url()),
-                               socket_->proxy_server());
-  if (!spdy_pool->HasSession(pair))
-    return OK;
-
-  // Forbid wss downgrade to SPDY without SSL.
-  // TODO(toyoshim): Does it realize the same policy with HTTP?
-  scoped_refptr<SpdySession> spdy_session =
-      spdy_pool->Get(pair, *socket_->net_log());
-  SSLInfo ssl_info;
-  bool was_npn_negotiated;
-  NextProto protocol_negotiated = kProtoUnknown;
-  bool use_ssl = spdy_session->GetSSLInfo(
-      &ssl_info, &was_npn_negotiated, &protocol_negotiated);
-  if (socket_->is_secure() && !use_ssl)
-    return OK;
-
-  // Create SpdyWebSocketStream.
-  spdy_protocol_version_ = spdy_session->GetProtocolVersion();
-  spdy_websocket_stream_.reset(new SpdyWebSocketStream(spdy_session, this));
-
-  int result = spdy_websocket_stream_->InitializeStream(
-      socket_->url(), MEDIUM, *socket_->net_log());
-  if (result == OK) {
-    OnConnected(socket_, kMaxPendingSendAllowed);
-    return ERR_PROTOCOL_SWITCHED;
-  }
-  if (result != ERR_IO_PENDING) {
-    spdy_websocket_stream_.reset();
-    return OK;
-  }
-
-  return ERR_IO_PENDING;
-}
-
 void WebSocketJob::SetWaiting() {
   waiting_ = true;
 }
@@ -607,12 +470,7 @@ void WebSocketJob::Wakeup() {
 }
 
 void WebSocketJob::RetryPendingIO() {
-  int result = TrySpdyStream();
-
-  // In the case of ERR_IO_PENDING, CompleteIO() will be called from
-  // OnCreatedSpdyStream().
-  if (result != ERR_IO_PENDING)
-    CompleteIO(result);
+  CompleteIO(OK);
 }
 
 void WebSocketJob::CompleteIO(int result) {
@@ -626,16 +484,12 @@ void WebSocketJob::CompleteIO(int result) {
 }
 
 bool WebSocketJob::SendDataInternal(const char* data, int length) {
-  if (spdy_websocket_stream_.get())
-    return ERR_IO_PENDING == spdy_websocket_stream_->SendData(data, length);
   if (socket_.get())
     return socket_->SendData(data, length);
   return false;
 }
 
 void WebSocketJob::CloseInternal() {
-  if (spdy_websocket_stream_.get())
-    spdy_websocket_stream_->Close();
   if (socket_.get())
     socket_->Close();
 }

@@ -24,30 +24,22 @@ import sys
 import urllib
 import urllib2
 
+import bootstrap_path  # pylint: disable=unused-import
+from cobalt.tools import paths
+from starboard.tools import platform
+
+_CLANG_REVISION = '264915-1'
+
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-_SOURCE_TREE_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir,
-                                                os.pardir))
 
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
 
 # The list of directories, relative to "src/", to search through for ports.
-_PORT_SEARCH_PATH = ['third_party/starboard', 'starboard',]
-
-# The list of files that must be present in a directory to allow it to be
-# considered a valid port.
-_PORT_FILES = [
-    'gyp_configuration.gypi',
-    'gyp_configuration.py',
-    'starboard_platform.gyp',
-    'configuration_public.h',
-    'atomic_public.h',
-    'thread_types_public.h',
+_PORT_SEARCH_PATH = [
+    'third_party/starboard',
+    'starboard',
 ]
-
-# Whether to emit warnings if it finds a directory that almost has a port.
-# TODO: Enable when tree is clean.
-_WARN_ON_ALMOST_PORTS = False
 
 # The path to the build.id file that preserves a build ID.
 BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
@@ -55,16 +47,11 @@ BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
 
 def GetGyp():
   if 'gyp' not in sys.modules:
-    # Add directory to path to make sure that cygpath can be imported.
-    sys.path.insert(0, os.path.join(_SOURCE_TREE_DIR, 'lbshell', 'build',
-                                    'pylib'))
-    sys.path.insert(0, os.path.join(_SOURCE_TREE_DIR, 'tools', 'gyp', 'pylib'))
+    sys.path.insert(0,
+                    os.path.join(paths.REPOSITORY_ROOT, 'tools', 'gyp',
+                                 'pylib'))
     importlib.import_module('gyp')
   return sys.modules['gyp']
-
-
-def GetSourceTreeDir():
-  return _SOURCE_TREE_DIR
 
 
 def GypDebugOptions():
@@ -107,7 +94,10 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
 
   if os.path.isfile(BUILD_ID_PATH):
     with open(BUILD_ID_PATH, 'r') as build_id_file:
-      return build_id_file.read().replace('\n', '')
+      build_number = int(build_id_file.read().replace('\n', ''))
+      logging.info('Retrieving build number from %s', BUILD_ID_PATH)
+      logging.info('Build Number: %d', build_number)
+      return build_number
 
   revinfo = GetRevinfo()
   json_deps = json.dumps(revinfo)
@@ -159,47 +149,42 @@ def _EnsureGomaRunning():
     return False
 
 
-def _GetClangVersion(clang_path):
-  """Return clang version string."""
+def GetToolchainsDir():
+  toolchains_dir = os.path.realpath(
+      os.getenv('COBALT_TOOLCHAINS_DIR',
+                os.path.join(os.environ.get('HOME'), 'cobalt-toolchains')))
+  # Ensure the toolchains directory exists.
+  if not os.path.exists(toolchains_dir):
+    os.mkdir(toolchains_dir)
+  return toolchains_dir
 
-  output = subprocess.check_output([clang_path, '--version']).splitlines()[0]
-  return output
+
+def GetClangBasePath():
+  return os.path.join(GetToolchainsDir(),
+                      'x86_64-linux-gnu-clang-chromium-' + _CLANG_REVISION)
 
 
-def CheckClangVersion():
-  """Ensure the expected version of clang is in the path."""
+def GetClangBinPath():
+  return os.path.join('llvm-build', 'Release+Asserts', 'bin')
+
+
+def EnsureClangAvailable(base_dir, bin_path):
+  """Ensure the expected version of clang is available."""
 
   # Run the clang update script to get the correct version of clang.
   # Then check that clang is in the path.
-  source_tree_dir = GetSourceTreeDir()
-  update_script = os.path.join(source_tree_dir, 'tools', 'clang', 'scripts',
-                               'update.sh')
-  update_proc = subprocess.Popen(update_script)
+  update_script = os.path.join(paths.REPOSITORY_ROOT, 'tools', 'clang',
+                               'scripts', 'update.sh')
+  update_proc = subprocess.Popen([update_script, _CLANG_REVISION, base_dir])
   rc = update_proc.wait()
   if rc != 0:
     raise RuntimeError('%s failed.' % update_script)
 
   # update.sh downloads clang to this path.
-  clang_bin_path = os.path.join(source_tree_dir, 'third_party', 'llvm-build',
-                                'Release+Asserts', 'bin')
-  clang_bin = os.path.join(clang_bin_path, 'clang')
+  clang_bin = os.path.join(base_dir, bin_path, 'clang')
 
   if not os.path.exists(clang_bin):
     raise RuntimeError('Clang not found.')
-
-  clang_in_path = Which('clang')
-  if not clang_in_path:
-    raise RuntimeError('clang not found in PATH. Add %s to your PATH' %
-                       clang_bin_path)
-
-  # The first clang in PATH may be goma's version, which is OK.
-  # It forwards to the real one. Just make sure the version strings
-  # are the same.
-  expected_version = _GetClangVersion(clang_bin)
-  detected_version = _GetClangVersion(clang_in_path)
-  if expected_version != detected_version:
-    raise RuntimeError('Invalid clang version found in PATH: (%s != %s)' %
-                       (expected_version, detected_version))
 
 
 def FindAndInitGoma():
@@ -227,6 +212,33 @@ def FindAndInitGoma():
   if use_goma:
     use_goma = _EnsureGomaRunning()
   return use_goma
+
+
+def GetHostCompilerEnvironment(goma_supports_compiler=False):
+  """Return the host compiler toolchain environment."""
+
+  base_dir = GetClangBasePath()
+  bin_path = GetClangBinPath()
+  toolchain_bin_dir = os.path.join(base_dir, bin_path)
+  EnsureClangAvailable(base_dir, bin_path)
+
+  cc_clang = os.path.join(toolchain_bin_dir, 'clang')
+  cxx_clang = os.path.join(toolchain_bin_dir, 'clang++')
+  host_clang_environment = {
+      'CC_host': cc_clang,
+      'CXX_host': cxx_clang,
+      'LD_host': cxx_clang,
+      'ARFLAGS_host': 'rcs',
+      'ARTHINFLAGS_host': 'rcsT',
+  }
+  # Check if goma is installed. Initialize if needed and use if possible.
+  if goma_supports_compiler and FindAndInitGoma():
+    logging.info('Using Goma')
+    host_clang_environment.update({
+        'CC_host': 'gomacc ' + cc_clang,
+        'CXX_host': 'gomacc ' + cxx_clang,
+    })
+  return host_clang_environment
 
 
 def GetConstantValue(file_path, constant_name):
@@ -260,53 +272,6 @@ def GetConstantValue(file_path, constant_name):
   return value
 
 
-def GetStackSizeConstant(platform, constant_name):
-  """Gets a constant value from lb_shell_constants.h."""
-  # TODO: This needs to be reimplemented if necessary. For now,
-  # it'll return the default value.
-  _, _ = platform, constant_name
-  return 0
-
-
-def _IsValidPortFilenameList(directory, filenames):
-  """Determines if |filenames| contains the required files for a valid port."""
-
-  missing = set(_PORT_FILES) - set(filenames)
-  if missing:
-    if len(missing) < (len(_PORT_FILES) / 2) and _WARN_ON_ALMOST_PORTS:
-      logging.warning('Directory %s contains several files needed for a port, '
-                      'but not all of them. In particular, it is missing: %s',
-                      directory, ', '.join(missing))
-  return not missing
-
-
-def _GetPortName(root, directory):
-  """Gets the name of a port found at |directory| off of |root|."""
-
-  assert directory.startswith(root)
-  start = len(root) + 1  # Remove the trailing slash from the root.
-
-  assert start < len(directory)
-
-  # Calculate the name based on relative path from search root to port.
-  return re.sub(r'[^a-zA-Z0-9_]', r'-', directory[start:])
-
-
-def _FindValidPorts(root, result):
-  """Adds name->path for all ports under |directory| to |result|."""
-  for current_path, _, filenames in os.walk(root):
-    if _IsValidPortFilenameList(current_path, filenames):
-      if current_path == root:
-        logging.warning('Found port at search path root: %s', current_path)
-      port_name = _GetPortName(root, current_path)
-      if port_name in result:
-        logging.error('Found duplicate port name "%s" at "%s" and "%s"',
-                      port_name, result[port_name], current_path)
-      result[port_name] = current_path
-
-  return result
-
-
 def _FindThirdPartyPlatforms():
   """Workhorse for GetThirdPartyPlatforms().
 
@@ -320,14 +285,20 @@ def _FindThirdPartyPlatforms():
 
   result = {}
   for path_element in _PORT_SEARCH_PATH:
-    root = os.path.join(_SOURCE_TREE_DIR, path_element)
+    root = os.path.join(paths.REPOSITORY_ROOT, path_element)
     if not os.path.isdir(root):
       logging.warning('Port search path directory not found: %s', path_element)
       continue
     root = os.path.realpath(root)
-    _FindValidPorts(root, result)
+    for platform_info in platform.PlatformInfo.EnumeratePorts(root):
+      if platform_info.port_name in result:
+        logging.error('Found duplicate port name "%s" at "%s" and "%s"',
+                      platform_info.port_name, result[platform_info.port_name],
+                      platform_info.path)
+      result[platform_info.port_name] = platform_info.path
 
   return result
+
 
 # Global cache of TPP so the filesystem walk is only done once, and the values
 # are always consistent.

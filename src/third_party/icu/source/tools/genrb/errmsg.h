@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1998-1999, International Business Machines
+*   Copyright (C) 1998-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -18,11 +18,12 @@
 #ifndef ERROR_H
 #define ERROR_H 1
 
+U_CDECL_BEGIN
+
 extern const char *gCurrentFileName;
 
-void error   (uint32_t linenumber, const char *msg, ...);
-void warning (uint32_t linenumber, const char *msg, ...);
-
+U_CFUNC void error(uint32_t linenumber, const char *msg, ...);
+U_CFUNC void warning(uint32_t linenumber, const char *msg, ...);
 
 /* Show warnings? */
 U_CFUNC void setShowWarning(UBool val);
@@ -35,4 +36,7 @@ U_CFUNC UBool isStrict(void);
 /* verbosity */
 U_CFUNC void setVerbose(UBool val);
 U_CFUNC UBool isVerbose(void);
+
+U_CDECL_END
+
 #endif

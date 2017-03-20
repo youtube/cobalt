@@ -11,28 +11,37 @@ import sys
 import unittest
 
 # The parent directory is a module
-sys.path.insert(0, os.path.dirname(os.path.dirname(
-    os.path.realpath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # pylint: disable=C6204,C6203
 import tv_testcase
 
 
+def _add_test(test_suite, dir_path, test_name):
+  if os.path.isfile(os.path.join(dir_path, test_name + ".py")):
+    print("Adding test: {}".format(test_name))
+    test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
+        importlib.import_module("tests." + test_name)))
+
+
 # pylint: disable=unused-argument
 def load_tests(loader, tests, pattern):
   """This is a Python unittest "load_tests protocol method."""
-  s = unittest.TestSuite()
+  test_suite = unittest.TestSuite()
+  dir_path = os.path.dirname(__file__)
 
-  for f in os.listdir(os.path.dirname(__file__)):
-    if not f.endswith(".py"):
-      continue
-    if f.startswith("_"):
-      continue
-    if f == "all.py":
-      continue
-    s.addTest(unittest.TestLoader().loadTestsFromModule(
-        importlib.import_module("tests." + f[:-3])))
-  return s
+  # "time_to_shelf" must be the first test added. The timings that it
+  # records require it to run first.
+  _add_test(test_suite, dir_path, "startup")
+  _add_test(test_suite, dir_path, "browse_horizontal")
+  _add_test(test_suite, dir_path, "browse_vertical")
+  _add_test(test_suite, dir_path, "browse_to_guide")
+  _add_test(test_suite, dir_path, "browse_to_search")
+  _add_test(test_suite, dir_path, "browse_to_watch")
+  _add_test(test_suite, dir_path, "csi")
+
+  return test_suite
+
 
 if __name__ == "__main__":
   tv_testcase.main()

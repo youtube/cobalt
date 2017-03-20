@@ -7,7 +7,6 @@
 #if defined(__LB_SHELL__) || defined(COBALT)
 #include "base/at_exit.h"
 #include "base/command_line.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #endif
 
 #if defined(__LB_SHELL__FOR_RELEASE__)
@@ -23,10 +22,8 @@ MainHook::MainHook(MainType main_func, int argc, char* argv[]) {
   // initialization logic in tests should be done in TestSuite::Initialize().
   CommandLine::Init(argc, argv);
   platform_at_exit_manager_ = new base::AtExitManager();
-  cobalt::deprecated::PlatformDelegate::Init();
 }
 MainHook::~MainHook() {
-  cobalt::deprecated::PlatformDelegate::Teardown();
   delete platform_at_exit_manager_;
 }
 #elif !defined(OS_IOS)

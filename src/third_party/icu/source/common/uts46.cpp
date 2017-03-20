@@ -1,6 +1,6 @@
 /*
 *******************************************************************************
-*   Copyright (C) 2010, International Business Machines
+*   Copyright (C) 2010-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  uts46.cpp
@@ -16,15 +16,17 @@
 
 #if !UCONFIG_NO_IDNA
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/idna.h"
 #include "unicode/normalizer2.h"
+#include "unicode/uscript.h"
 #include "unicode/ustring.h"
+#include "unicode/utf16.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "punycode.h"
+#include "ubidi_props.h"
 #include "ustr_imp.h"
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 
 // Note about tests for UIDNA_ERROR_DOMAIN_NAME_TOO_LONG:
 //
@@ -63,6 +65,8 @@ static UBool
 isASCIIOkBiDi(const char *s, int32_t length);
 
 // IDNA class default implementations -------------------------------------- ***
+
+IDNA::~IDNA() {}
 
 void
 IDNA::labelToASCII_UTF8(const StringPiece &label, ByteSink &dest,
@@ -103,8 +107,6 @@ IDNA::nameToUnicodeUTF8(const StringPiece &name, ByteSink &dest,
                       info, errorCode).toUTF8(dest);
     }
 }
-
-UOBJECT_DEFINE_NO_RTTI_IMPLEMENTATION(IDNA)
 
 // UTS46 class declaration ------------------------------------------------- ***
 
@@ -179,13 +181,16 @@ private:
     int32_t
     markBadACELabel(UnicodeString &dest,
                     int32_t labelStart, int32_t labelLength,
-                    UBool toASCII, IDNAInfo &info) const;
+                    UBool toASCII, IDNAInfo &info, UErrorCode &errorCode) const;
 
     void
     checkLabelBiDi(const UChar *label, int32_t labelLength, IDNAInfo &info) const;
 
     UBool
     isLabelOkContextJ(const UChar *label, int32_t labelLength) const;
+
+    void
+    checkLabelContextO(const UChar *label, int32_t labelLength, IDNAInfo &info) const;
 
     const Normalizer2 &uts46Norm2;  // uts46.nrm
     uint32_t options;
@@ -315,9 +320,7 @@ UTS46::process(const UnicodeString &src,
     info.reset();
     int32_t srcLength=src.length();
     if(srcLength==0) {
-        if(toASCII) {
-            info.errors|=UIDNA_ERROR_EMPTY_LABEL;
-        }
+        info.errors|=UIDNA_ERROR_EMPTY_LABEL;
         return dest;
     }
     UChar *destArray=dest.getBuffer(srcLength);
@@ -375,13 +378,11 @@ UTS46::process(const UnicodeString &src,
                     ++i;  // '.' was copied to dest already
                     break;
                 }
-                if(toASCII) {
-                    // Permit an empty label at the end but not elsewhere.
-                    if(i==labelStart && i<(srcLength-1)) {
-                        info.labelErrors|=UIDNA_ERROR_EMPTY_LABEL;
-                    } else if((i-labelStart)>63) {
-                        info.labelErrors|=UIDNA_ERROR_LABEL_TOO_LONG;
-                    }
+                if(i==labelStart) {
+                    info.labelErrors|=UIDNA_ERROR_EMPTY_LABEL;
+                }
+                if(toASCII && (i-labelStart)>63) {
+                    info.labelErrors|=UIDNA_ERROR_LABEL_TOO_LONG;
                 }
                 info.errors|=info.labelErrors;
                 info.labelErrors=0;
@@ -417,9 +418,7 @@ UTS46::processUTF8(const StringPiece &src,
     // Arguments are fine, reset output values.
     info.reset();
     if(srcLength==0) {
-        if(toASCII) {
-            info.errors|=UIDNA_ERROR_EMPTY_LABEL;
-        }
+        info.errors|=UIDNA_ERROR_EMPTY_LABEL;
         dest.Flush();
         return;
     }
@@ -430,7 +429,7 @@ UTS46::processUTF8(const StringPiece &src,
         char stackArray[256];
         int32_t destCapacity;
         char *destArray=dest.GetAppendBuffer(srcLength, srcLength+20,
-                                             stackArray, LENGTHOF(stackArray), &destCapacity);
+                                             stackArray, UPRV_LENGTHOF(stackArray), &destCapacity);
         UBool disallowNonLDHDot=(options&UIDNA_USE_STD3_RULES)!=0;
         int32_t i;
         for(i=0;; ++i) {
@@ -477,13 +476,11 @@ UTS46::processUTF8(const StringPiece &src,
                     if(isLabel) {
                         break;  // Replacing with U+FFFD can be complicated for toASCII.
                     }
-                    if(toASCII) {
-                        // Permit an empty label at the end but not elsewhere.
-                        if(i==labelStart && i<(srcLength-1)) {
-                            info.labelErrors|=UIDNA_ERROR_EMPTY_LABEL;
-                        } else if((i-labelStart)>63) {
-                            info.labelErrors|=UIDNA_ERROR_LABEL_TOO_LONG;
-                        }
+                    if(i==labelStart) {
+                        info.labelErrors|=UIDNA_ERROR_EMPTY_LABEL;
+                    }
+                    if(toASCII && (i-labelStart)>63) {
+                        info.labelErrors|=UIDNA_ERROR_LABEL_TOO_LONG;
                     }
                     info.errors|=info.labelErrors;
                     info.labelErrors=0;
@@ -591,6 +588,9 @@ UTS46::processUnicode(const UnicodeString &src,
 int32_t
 UTS46::mapDevChars(UnicodeString &dest, int32_t labelStart, int32_t mappingStart,
                    UErrorCode &errorCode) const {
+    if(U_FAILURE(errorCode)) {
+        return 0;
+    }
     int32_t length=dest.length();
     UChar *s=dest.getBuffer(dest[mappingStart]==0xdf ? length+1 : length);
     if(s==NULL) {
@@ -648,6 +648,9 @@ UTS46::mapDevChars(UnicodeString &dest, int32_t labelStart, int32_t mappingStart
         uts46Norm2.normalize(dest.tempSubString(labelStart), normalized, errorCode);
         if(U_SUCCESS(errorCode)) {
             dest.replace(labelStart, 0x7fffffff, normalized);
+            if(dest.isBogus()) {
+                errorCode=U_MEMORY_ALLOCATION_ERROR;
+            }
             return dest.length();
         }
     }
@@ -669,9 +672,16 @@ isNonASCIIDisallowedSTD3Valid(UChar32 c) {
 // Returns labelLength (= the new label length).
 static int32_t
 replaceLabel(UnicodeString &dest, int32_t destLabelStart, int32_t destLabelLength,
-             const UnicodeString &label, int32_t labelLength) {
+             const UnicodeString &label, int32_t labelLength, UErrorCode &errorCode) {
+    if(U_FAILURE(errorCode)) {
+        return 0;
+    }
     if(&label!=&dest) {
         dest.replace(destLabelStart, destLabelLength, label);
+        if(dest.isBogus()) {
+            errorCode=U_MEMORY_ALLOCATION_ERROR;
+            return 0;
+        }
     }
     return labelLength;
 }
@@ -681,6 +691,9 @@ UTS46::processLabel(UnicodeString &dest,
                     int32_t labelStart, int32_t labelLength,
                     UBool toASCII,
                     IDNAInfo &info, UErrorCode &errorCode) const {
+    if(U_FAILURE(errorCode)) {
+        return 0;
+    }
     UnicodeString fromPunycode;
     UnicodeString *labelString;
     const UChar *label=dest.getBuffer()+labelStart;
@@ -715,7 +728,7 @@ UTS46::processLabel(UnicodeString &dest,
         fromPunycode.releaseBuffer(unicodeLength);
         if(U_FAILURE(punycodeErrorCode)) {
             info.labelErrors|=UIDNA_ERROR_PUNYCODE;
-            return markBadACELabel(dest, labelStart, labelLength, toASCII, info);
+            return markBadACELabel(dest, labelStart, labelLength, toASCII, info, errorCode);
         }
         // Check for NFC, and for characters that are not
         // valid or deviation characters according to the normalizer.
@@ -730,7 +743,7 @@ UTS46::processLabel(UnicodeString &dest,
         }
         if(!isValid) {
             info.labelErrors|=UIDNA_ERROR_INVALID_ACE_LABEL;
-            return markBadACELabel(dest, labelStart, labelLength, toASCII, info);
+            return markBadACELabel(dest, labelStart, labelLength, toASCII, info, errorCode);
         }
         labelString=&fromPunycode;
         label=fromPunycode.getBuffer();
@@ -742,10 +755,9 @@ UTS46::processLabel(UnicodeString &dest,
     }
     // Validity check
     if(labelLength==0) {
-        if(toASCII) {
-            info.labelErrors|=UIDNA_ERROR_EMPTY_LABEL;
-        }
-        return replaceLabel(dest, destLabelStart, destLabelLength, *labelString, labelLength);
+        info.labelErrors|=UIDNA_ERROR_EMPTY_LABEL;
+        return replaceLabel(dest, destLabelStart, destLabelLength,
+                            *labelString, labelLength, errorCode);
     }
     // labelLength>0
     if(labelLength>=4 && label[2]==0x2d && label[3]==0x2d) {
@@ -821,6 +833,9 @@ UTS46::processLabel(UnicodeString &dest,
         ) {
             info.labelErrors|=UIDNA_ERROR_CONTEXTJ;
         }
+        if((options&UIDNA_CHECK_CONTEXTO)!=0 && oredChars>=0xb7) {
+            checkLabelContextO(label, labelLength, info);
+        }
         if(toASCII) {
             if(wasPunycode) {
                 // Leave a Punycode label unchanged if it has no severe errors.
@@ -864,7 +879,7 @@ UTS46::processLabel(UnicodeString &dest,
                     info.labelErrors|=UIDNA_ERROR_LABEL_TOO_LONG;
                 }
                 return replaceLabel(dest, destLabelStart, destLabelLength,
-                                    punycode, punycodeLength);
+                                    punycode, punycodeLength, errorCode);
             } else {
                 // all-ASCII label
                 if(labelLength>63) {
@@ -877,10 +892,11 @@ UTS46::processLabel(UnicodeString &dest,
         // then leave it but make sure it does not look valid.
         if(wasPunycode) {
             info.labelErrors|=UIDNA_ERROR_INVALID_ACE_LABEL;
-            return markBadACELabel(dest, destLabelStart, destLabelLength, toASCII, info);
+            return markBadACELabel(dest, destLabelStart, destLabelLength, toASCII, info, errorCode);
         }
     }
-    return replaceLabel(dest, destLabelStart, destLabelLength, *labelString, labelLength);
+    return replaceLabel(dest, destLabelStart, destLabelLength,
+                        *labelString, labelLength, errorCode);
 }
 
 // Make sure an ACE label does not look valid.
@@ -889,7 +905,10 @@ UTS46::processLabel(UnicodeString &dest,
 int32_t
 UTS46::markBadACELabel(UnicodeString &dest,
                        int32_t labelStart, int32_t labelLength,
-                       UBool toASCII, IDNAInfo &info) const {
+                       UBool toASCII, IDNAInfo &info, UErrorCode &errorCode) const {
+    if(U_FAILURE(errorCode)) {
+        return 0;
+    }
     UBool disallowNonLDHDot=(options&UIDNA_USE_STD3_RULES)!=0;
     UBool isASCII=TRUE;
     UBool onlyLDH=TRUE;
@@ -917,6 +936,10 @@ UTS46::markBadACELabel(UnicodeString &dest,
     } while(++s<limit);
     if(onlyLDH) {
         dest.insert(labelStart+labelLength, (UChar)0xfffd);
+        if(dest.isBogus()) {
+            errorCode=U_MEMORY_ALLOCATION_ERROR;
+            return 0;
+        }
         ++labelLength;
     } else {
         if(toASCII && isASCII && labelLength>63) {
@@ -1102,6 +1125,7 @@ isASCIIOkBiDi(const char *s, int32_t length) {
 
 UBool
 UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
+    const UBiDiProps *bdp=ubidi_getSingleton();
     // [IDNA2008-Tables]
     // 200C..200D  ; CONTEXTJ    # ZERO WIDTH NON-JOINER..ZERO WIDTH JOINER
     for(int32_t i=0; i<labelLength; ++i) {
@@ -1118,12 +1142,12 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
             UChar32 c;
             int32_t j=i;
             U16_PREV_UNSAFE(label, j, c);
-            if(u_getCombiningClass(c)==9) {
+            if(uts46Norm2.getCombiningClass(c)==9) {
                 continue;
             }
             // check precontext (Joining_Type:{L,D})(Joining_Type:T)*
             for(;;) {
-                UJoiningType type=(UJoiningType)u_getIntPropertyValue(c, UCHAR_JOINING_TYPE);
+                UJoiningType type=ubidi_getJoiningType(bdp, c);
                 if(type==U_JT_TRANSPARENT) {
                     if(j==0) {
                         return FALSE;
@@ -1141,7 +1165,7 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
                     return FALSE;
                 }
                 U16_NEXT_UNSAFE(label, j, c);
-                UJoiningType type=(UJoiningType)u_getIntPropertyValue(c, UCHAR_JOINING_TYPE);
+                UJoiningType type=ubidi_getJoiningType(bdp, c);
                 if(type==U_JT_TRANSPARENT) {
                     // just skip this character
                 } else if(type==U_JT_RIGHT_JOINING || type==U_JT_DUAL_JOINING) {
@@ -1161,12 +1185,115 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
             UChar32 c;
             int32_t j=i;
             U16_PREV_UNSAFE(label, j, c);
-            if(u_getCombiningClass(c)!=9) {
+            if(uts46Norm2.getCombiningClass(c)!=9) {
                 return FALSE;
             }
         }
     }
     return TRUE;
+}
+
+void
+UTS46::checkLabelContextO(const UChar *label, int32_t labelLength, IDNAInfo &info) const {
+    int32_t labelEnd=labelLength-1;  // inclusive
+    int32_t arabicDigits=0;  // -1 for 066x, +1 for 06Fx
+    for(int32_t i=0; i<=labelEnd; ++i) {
+        UChar32 c=label[i];
+        if(c<0xb7) {
+            // ASCII fastpath
+        } else if(c<=0x6f9) {
+            if(c==0xb7) {
+                // Appendix A.3. MIDDLE DOT (U+00B7)
+                // Rule Set:
+                //  False;
+                //  If Before(cp) .eq.  U+006C And
+                //     After(cp) .eq.  U+006C Then True;
+                if(!(0<i && label[i-1]==0x6c &&
+                     i<labelEnd && label[i+1]==0x6c)) {
+                    info.labelErrors|=UIDNA_ERROR_CONTEXTO_PUNCTUATION;
+                }
+            } else if(c==0x375) {
+                // Appendix A.4. GREEK LOWER NUMERAL SIGN (KERAIA) (U+0375)
+                // Rule Set:
+                //  False;
+                //  If Script(After(cp)) .eq.  Greek Then True;
+                UScriptCode script=USCRIPT_INVALID_CODE;
+                if(i<labelEnd) {
+                    UErrorCode errorCode=U_ZERO_ERROR;
+                    int32_t j=i+1;
+                    U16_NEXT(label, j, labelLength, c);
+                    script=uscript_getScript(c, &errorCode);
+                }
+                if(script!=USCRIPT_GREEK) {
+                    info.labelErrors|=UIDNA_ERROR_CONTEXTO_PUNCTUATION;
+                }
+            } else if(c==0x5f3 || c==0x5f4) {
+                // Appendix A.5. HEBREW PUNCTUATION GERESH (U+05F3)
+                // Rule Set:
+                //  False;
+                //  If Script(Before(cp)) .eq.  Hebrew Then True;
+                //
+                // Appendix A.6. HEBREW PUNCTUATION GERSHAYIM (U+05F4)
+                // Rule Set:
+                //  False;
+                //  If Script(Before(cp)) .eq.  Hebrew Then True;
+                UScriptCode script=USCRIPT_INVALID_CODE;
+                if(0<i) {
+                    UErrorCode errorCode=U_ZERO_ERROR;
+                    int32_t j=i;
+                    U16_PREV(label, 0, j, c);
+                    script=uscript_getScript(c, &errorCode);
+                }
+                if(script!=USCRIPT_HEBREW) {
+                    info.labelErrors|=UIDNA_ERROR_CONTEXTO_PUNCTUATION;
+                }
+            } else if(0x660<=c /* && c<=0x6f9 */) {
+                // Appendix A.8. ARABIC-INDIC DIGITS (0660..0669)
+                // Rule Set:
+                //  True;
+                //  For All Characters:
+                //    If cp .in. 06F0..06F9 Then False;
+                //  End For;
+                //
+                // Appendix A.9. EXTENDED ARABIC-INDIC DIGITS (06F0..06F9)
+                // Rule Set:
+                //  True;
+                //  For All Characters:
+                //    If cp .in. 0660..0669 Then False;
+                //  End For;
+                if(c<=0x669) {
+                    if(arabicDigits>0) {
+                        info.labelErrors|=UIDNA_ERROR_CONTEXTO_DIGITS;
+                    }
+                    arabicDigits=-1;
+                } else if(0x6f0<=c) {
+                    if(arabicDigits<0) {
+                        info.labelErrors|=UIDNA_ERROR_CONTEXTO_DIGITS;
+                    }
+                    arabicDigits=1;
+                }
+            }
+        } else if(c==0x30fb) {
+            // Appendix A.7. KATAKANA MIDDLE DOT (U+30FB)
+            // Rule Set:
+            //  False;
+            //  For All Characters:
+            //    If Script(cp) .in. {Hiragana, Katakana, Han} Then True;
+            //  End For;
+            UErrorCode errorCode=U_ZERO_ERROR;
+            for(int j=0;;) {
+                if(j>labelEnd) {
+                    info.labelErrors|=UIDNA_ERROR_CONTEXTO_PUNCTUATION;
+                    break;
+                }
+                U16_NEXT(label, j, labelLength, c);
+                UScriptCode script=uscript_getScript(c, &errorCode);
+                if(script==USCRIPT_HIRAGANA || script==USCRIPT_KATAKANA || script==USCRIPT_HAN) {
+                    break;
+                }
+            }
+        }
+    }
 }
 
 U_NAMESPACE_END
@@ -1175,12 +1302,12 @@ U_NAMESPACE_END
 
 U_NAMESPACE_USE
 
-U_DRAFT UIDNA * U_EXPORT2
+U_CAPI UIDNA * U_EXPORT2
 uidna_openUTS46(uint32_t options, UErrorCode *pErrorCode) {
     return reinterpret_cast<UIDNA *>(IDNA::createUTS46Instance(options, *pErrorCode));
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 uidna_close(UIDNA *idna) {
     delete reinterpret_cast<IDNA *>(idna);
 }
@@ -1215,7 +1342,7 @@ idnaInfoToStruct(IDNAInfo &info, UIDNAInfo *pInfo) {
     pInfo->errors=info.getErrors();
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_labelToASCII(const UIDNA *idna,
                    const UChar *label, int32_t length,
                    UChar *dest, int32_t capacity,
@@ -1231,7 +1358,7 @@ uidna_labelToASCII(const UIDNA *idna,
     return destString.extract(dest, capacity, *pErrorCode);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_labelToUnicode(const UIDNA *idna,
                      const UChar *label, int32_t length,
                      UChar *dest, int32_t capacity,
@@ -1247,7 +1374,7 @@ uidna_labelToUnicode(const UIDNA *idna,
     return destString.extract(dest, capacity, *pErrorCode);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_nameToASCII(const UIDNA *idna,
                   const UChar *name, int32_t length,
                   UChar *dest, int32_t capacity,
@@ -1263,7 +1390,7 @@ uidna_nameToASCII(const UIDNA *idna,
     return destString.extract(dest, capacity, *pErrorCode);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_nameToUnicode(const UIDNA *idna,
                     const UChar *name, int32_t length,
                     UChar *dest, int32_t capacity,
@@ -1279,7 +1406,7 @@ uidna_nameToUnicode(const UIDNA *idna,
     return destString.extract(dest, capacity, *pErrorCode);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_labelToASCII_UTF8(const UIDNA *idna,
                         const char *label, int32_t length,
                         char *dest, int32_t capacity,
@@ -1295,7 +1422,7 @@ uidna_labelToASCII_UTF8(const UIDNA *idna,
     return u_terminateChars(dest, capacity, sink.NumberOfBytesAppended(), pErrorCode);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_labelToUnicodeUTF8(const UIDNA *idna,
                          const char *label, int32_t length,
                          char *dest, int32_t capacity,
@@ -1311,7 +1438,7 @@ uidna_labelToUnicodeUTF8(const UIDNA *idna,
     return u_terminateChars(dest, capacity, sink.NumberOfBytesAppended(), pErrorCode);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_nameToASCII_UTF8(const UIDNA *idna,
                        const char *name, int32_t length,
                        char *dest, int32_t capacity,
@@ -1327,7 +1454,7 @@ uidna_nameToASCII_UTF8(const UIDNA *idna,
     return u_terminateChars(dest, capacity, sink.NumberOfBytesAppended(), pErrorCode);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uidna_nameToUnicodeUTF8(const UIDNA *idna,
                         const char *name, int32_t length,
                         char *dest, int32_t capacity,

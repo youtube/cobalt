@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/render_tree/brush.h"
 
@@ -66,21 +64,31 @@ void ValidateColorStops(const ColorStopList& color_stops) {
 }
 }  // namespace
 
-LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
-                                         const math::PointF& dest,
-                                         const ColorStopList& color_stops)
+LinearGradientBrush::Data::Data() {}
+
+LinearGradientBrush::Data::Data(const math::PointF& source,
+                                const math::PointF& dest,
+                                const ColorStopList& color_stops)
     : source_(source), dest_(dest), color_stops_(color_stops) {
   ValidateColorStops(color_stops_);
 }
+LinearGradientBrush::Data::Data(const math::PointF& source,
+                                const math::PointF& dest)
+    : source_(source), dest_(dest) {}
+
+LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
+                                         const math::PointF& dest,
+                                         const ColorStopList& color_stops)
+    : data_(source, dest, color_stops) {}
 
 LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
                                          const math::PointF& dest,
                                          const ColorRGBA& source_color,
                                          const ColorRGBA& dest_color)
-    : source_(source), dest_(dest) {
-  color_stops_.reserve(2);
-  color_stops_.push_back(ColorStop(0, source_color));
-  color_stops_.push_back(ColorStop(1, dest_color));
+    : data_(source, dest) {
+  data_.color_stops_.reserve(2);
+  data_.color_stops_.push_back(ColorStop(0, source_color));
+  data_.color_stops_.push_back(ColorStop(1, dest_color));
 }
 
 void LinearGradientBrush::Accept(BrushVisitor* visitor) const {
@@ -137,6 +145,14 @@ scoped_ptr<Brush> CloneBrush(const Brush* brush) {
   BrushCloner cloner;
   brush->Accept(&cloner);
   return cloner.PassClone();
+}
+
+bool IsNear(const ColorStopList& lhs, const ColorStopList& rhs, float epsilon) {
+  if (lhs.size() != rhs.size()) return false;
+  for (std::size_t i = 0; i != lhs.size(); ++i) {
+    if (!IsNear(lhs[i], rhs[i], epsilon)) return false;
+  }
+  return true;
 }
 
 }  // namespace render_tree

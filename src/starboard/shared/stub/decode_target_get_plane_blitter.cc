@@ -14,7 +14,11 @@
 
 #include "starboard/decode_target.h"
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 SbBlitterSurface SbDecodeTargetGetPlane(SbDecodeTarget /*decode_target*/,
                                         SbDecodeTargetPlane /*plane*/) {
   return kSbBlitterInvalidSurface;
 }
+
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 
@@ -64,23 +62,43 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 
   // Setup our configuration to support RGBA and compatibility with PBuffer
   // objects (for offscreen rendering).
-  EGLint const attribute_list[] = {EGL_RED_SIZE,
-                                   8,
-                                   EGL_GREEN_SIZE,
-                                   8,
-                                   EGL_BLUE_SIZE,
-                                   8,
-                                   EGL_ALPHA_SIZE,
-                                   8,
-                                   EGL_SURFACE_TYPE,
-                                   EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                   EGL_BIND_TO_TEXTURE_RGBA,
-                                   EGL_TRUE,
-                                   EGL_NONE};
+  EGLint attribute_list[] = {EGL_SURFACE_TYPE,    // this must be first
+                             EGL_WINDOW_BIT | EGL_PBUFFER_BIT |
+                                EGL_SWAP_BEHAVIOR_PRESERVED_BIT,
+                             EGL_RED_SIZE,
+                             8,
+                             EGL_GREEN_SIZE,
+                             8,
+                             EGL_BLUE_SIZE,
+                             8,
+                             EGL_ALPHA_SIZE,
+                             8,
+#if !SB_HAS_QUIRK(NO_EGL_BIND_TO_TEXTURE)
+                             EGL_BIND_TO_TEXTURE_RGBA,
+                             EGL_TRUE,
+#endif
+                             EGL_RENDERABLE_TYPE,
+                             EGL_OPENGL_ES2_BIT,
+#if defined(COBALT_FORCE_CUSTOM_RASTERIZER)
+                             EGL_DEPTH_SIZE,
+                             16,
+#endif
+                             EGL_NONE};
+
+  // Try to allow preservation of the frame contents between swap calls --
+  // this will allow rendering of only parts of the frame that have changed.
+  DCHECK_EQ(EGL_SURFACE_TYPE, attribute_list[0]);
+  EGLint& surface_type_value = attribute_list[1];
 
   EGLint num_configs;
-  EGL_CALL(
-      eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs));
+  eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs);
+  if (eglGetError() != EGL_SUCCESS || num_configs == 0) {
+    // Swap buffer preservation may not be supported. Try to find a config
+    // without the feature.
+    surface_type_value &= ~EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
+    EGL_CALL(
+        eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs));
+  }
   DCHECK_EQ(1, num_configs);
 
 #if defined(GLES3_SUPPORTED)

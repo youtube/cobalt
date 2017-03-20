@@ -18,7 +18,7 @@
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 
 // The API version implemented by this platform.
-#define SB_API_VERSION 1
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- System Header Configuration -------------------------------------------
 
@@ -49,6 +49,12 @@
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
 
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
+
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
@@ -72,7 +78,7 @@
 // broken in that higher priority threads do not always have priority over lower
 // priority threads.  It looks like the thread created last will always have the
 // highest priority.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
 
 // --- Attribute Configuration -----------------------------------------------
 
@@ -254,6 +260,7 @@
 // supported composition methods below.
 #define SB_HAS_PLAYER 1
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // Specifies whether this platform's player will produce an OpenGL texture that
 // the client must draw every frame with its graphics rendering. It may be that
 // we get a texture handle, but cannot perform operations like GlReadPixels on
@@ -272,6 +279,7 @@
 // this case, changing the video bounds must be tightly synchronized between the
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
@@ -370,6 +378,12 @@
 
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
 
 // --- Platform Specific Audits ----------------------------------------------
 

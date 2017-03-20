@@ -14,7 +14,20 @@
 
 #include "starboard/decode_target.h"
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 SbDecodeTarget SbDecodeTargetCreate(SbDecodeTargetFormat /*format*/,
                                     SbBlitterSurface* /*planes*/) {
   return kSbDecodeTargetInvalid;
 }
+
+#else  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+SbDecodeTarget SbDecodeTargetCreate(SbBlitterDevice device,
+                                    SbDecodeTargetFormat format,
+                                    int width,
+                                    int height) {
+  return kSbDecodeTargetInvalid;
+}
+
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

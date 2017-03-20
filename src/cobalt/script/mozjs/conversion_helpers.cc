@@ -1,22 +1,22 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/script/mozjs/conversion_helpers.h"
 
 #include "third_party/mozjs/js/src/jsapi.h"
+
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace script {
@@ -26,6 +26,7 @@ namespace mozjs {
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  std::string* out_string) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsString, 0)
       << "Unexpected conversion flags found: ";
 
@@ -61,6 +62,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 void ToJSValue(JSContext* context,
                const OpaqueHandleHolder* opaque_handle_holder,
                JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
   JS::RootedObject js_object(context);
   if (opaque_handle_holder) {
     // Downcast to MozjsObjectHandleHolder so we can get the JS object.
@@ -77,6 +79,7 @@ void ToJSValue(JSContext* context,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  MozjsObjectHandleHolder* out_holder) {
+  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
   JS::RootedObject js_object(context);
@@ -101,7 +104,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK(js_object);
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  *out_holder = MozjsObjectHandleHolder(js_object, context,
+  *out_holder = MozjsObjectHandleHolder(value, context,
                                         global_environment->wrapper_factory());
 }
 

@@ -268,7 +268,7 @@
     },
     {
       'target_name': 'crypto_unittests',
-      'type': 'executable',
+      'type': '<(gtest_target_type)',
       'sources': [
         # Infrastructure files.
         'run_all_unittests.cc',

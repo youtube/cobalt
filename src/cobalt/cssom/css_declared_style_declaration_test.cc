@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_declared_style_declaration.h"
@@ -533,6 +531,23 @@ TEST(CSSDeclaredStyleDeclarationTest, DisplaySetter) {
                   GetPropertyName(kDisplayProperty), display, _, _));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_display(display, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, FilterSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string filter =
+      "-cobalt-mtm(url(p.msh), 1rad 1rad, "
+      "matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1))";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kFilterProperty), filter, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_filter(filter, NULL);
 }
 
 TEST(CSSDeclaredStyleDeclarationTest, FontSetter) {

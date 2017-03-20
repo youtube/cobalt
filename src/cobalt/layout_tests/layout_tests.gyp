@@ -64,13 +64,13 @@
         'layout_tests.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
         # Depend on browser_copy_test_data so that we ensure external tests
         # files from browser that we link to are available.
         '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:render_tree_pixel_tester',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
@@ -126,12 +126,12 @@
         'web_platform_tests.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
         # Depend on browser_copy_test_data so that we ensure external tests
         # files from browser that we link to are available.
         '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',

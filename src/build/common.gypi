@@ -3,11 +3,10 @@
 # found in the LICENSE file.
 
 # IMPORTANT:
-# Please don't directly include this file if you are building via gyp_chromium,
-# since gyp_chromium is automatically forcing its inclusion.
+# Please don't directly include this file if you are building via gyp_cobalt,
+# since gyp_cobalt is automatically forcing its inclusion.
 {
-  # Variables expected to be overriden on the GYP command line (-D) or by
-  # ~/.gyp/include.gypi.
+  # Variables expected to be overriden in the platform's gyp_configuration.gypi.
   'variables': {
     # Putting a variables dict inside another variables dict looks kind of
     # weird.  This is done so that 'host_arch', 'chromeos', etc are defined as
@@ -1267,6 +1266,12 @@
         ],
       }],
 
+      ['tizen_os==1',{
+        'use_system_icu': 1,
+        'use_system_libxml': 1,
+        'use_system_openssl': 1,
+      }],
+
       ['os_posix==1 and chromeos==0 and OS!="android" and OS!="ios"', {
         'use_cups%': 1,
       }, {
@@ -2261,9 +2266,6 @@
           },
         },
         'conditions': [
-          ['msvs_use_common_release', {
-            'includes': ['release.gypi'],
-          }],
           ['release_valgrind_build==0 and tsan==0', {
             'defines': [
               'NVALGRIND',
@@ -2299,22 +2301,6 @@
         ],
       },
       'conditions': [
-        [ 'OS!="lb_shell"', {
-          #
-          # Concrete configurations omitted from LBPS3 build
-          #
-          'Debug': {
-            'inherit_from': ['Common_Base', 'x86_Base', 'Debug_Base'],
-          },
-          'Release': {
-            'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base'],
-            'conditions': [
-              ['msvs_use_common_release', {
-                'includes': ['release.gypi'],
-              }],
-            ]
-          },
-        }],
         [ 'OS=="win"', {
           # TODO(bradnelson): add a gyp mechanism to make this more graceful.
           'Debug_x64': {

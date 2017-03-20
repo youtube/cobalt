@@ -1,17 +1,18 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/en_MT.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/en_MT.xml
 // *
 // ***************************************************************************
 en_MT{
+    %%Parent{"en_001"}
     Currencies{
         GBP{
             "GB£",
-            "British Pound Sterling",
+            "British Pound",
         }
     }
-    Version{"2.0.47.67"}
+    Version{"2.1.19.14"}
 }

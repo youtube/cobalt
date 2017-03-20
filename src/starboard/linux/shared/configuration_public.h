@@ -24,7 +24,7 @@
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 
 #ifndef SB_API_VERSION
-#define SB_API_VERSION 1
+#define SB_API_VERSION 2
 #endif
 
 // --- System Header Configuration -------------------------------------------
@@ -55,6 +55,12 @@
 
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
@@ -175,9 +181,6 @@
 // The string form of SB_PATH_SEP_CHAR.
 #define SB_PATH_SEP_STRING ":"
 
-// Whether this platform supports symbolic links.
-#define SB_HAS_SYMBOLIC_LINKS 1
-
 // --- Memory Configuration --------------------------------------------------
 
 // The memory page size, which controls the size of chunks on memory that
@@ -258,6 +261,7 @@
 // supported composition methods below.
 #define SB_HAS_PLAYER 1
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // Specifies whether this platform's player will produce an OpenGL texture that
 // the client must draw every frame with its graphics rendering. It may be that
 // we get a texture handle, but cannot perform operations like GlReadPixels on
@@ -276,6 +280,7 @@
 // this case, changing the video bounds must be tightly synchronized between the
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
@@ -374,6 +379,12 @@
 
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
 
 // --- Platform Specific Audits ----------------------------------------------
 

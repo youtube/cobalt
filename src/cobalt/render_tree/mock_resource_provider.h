@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDER_TREE_MOCK_RESOURCE_PROVIDER_H_
 #define COBALT_RENDER_TREE_MOCK_RESOURCE_PROVIDER_H_
@@ -83,6 +81,20 @@ class MockResourceProvider : public ResourceProvider {
   scoped_refptr<Image> CreateImage(scoped_ptr<ImageData> pixel_data) {
     return scoped_refptr<Image>(CreateImageMock(pixel_data.get()));
   }
+
+#if defined(STARBOARD)
+#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+  scoped_refptr<Image> CreateImageFromSbDecodeTarget(SbDecodeTarget target) {
+    UNREFERENCED_PARAMETER(target);
+    return NULL;
+  }
+
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
+
+  bool SupportsSbDecodeTarget() { return false; }
+#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // defined(STARBOARD)
+
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) {
     return scoped_ptr<RawImageMemory>(

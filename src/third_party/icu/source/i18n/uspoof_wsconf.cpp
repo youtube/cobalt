@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2008-2009, International Business Machines
+*   Copyright (C) 2008-2013, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -25,10 +25,13 @@
 
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS 
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/unorm.h"
 #include "unicode/uregex.h"
 #include "unicode/ustring.h"
 #include "cmemory.h"
+#include "scriptset.h"
 #include "uspoof_impl.h"
 #include "uhash.h"
 #include "uvector.h"
@@ -52,7 +55,6 @@ U_NAMESPACE_USE
 // The expression will match _all_ lines, including erroneous lines.
 // The result of the parse is returned via the contents of the (match) groups.
 static const char *parseExp = 
-        
         "(?m)"                                         // Multi-line mode
         "^([ \\t]*(?:#.*?)?)$"                         // A blank or comment line.  Matches Group 1.
         "|^(?:"                                        //   OR
@@ -88,6 +90,8 @@ static void extractGroup(
 
 
 
+U_NAMESPACE_BEGIN
+
 //  Build the Whole Script Confusable data
 //
 //     TODO:  Reorganize.  Either get rid of the WSConfusableDataBuilder class,
@@ -115,7 +119,8 @@ void buildWSConfusableData(SpoofImpl *spImpl, const char * confusablesWS,
 
     anyCaseTrie = utrie2_open(0, 0, &status);
     lowerCaseTrie = utrie2_open(0, 0, &status);
-    
+
+    UnicodeString pattern(parseExp, -1, US_INV);
 
     // The scriptSets vector provides a mapping from TRIE values to the set of scripts.
     //
@@ -150,10 +155,8 @@ void buildWSConfusableData(SpoofImpl *spImpl, const char * confusablesWS,
     }
     u_strFromUTF8(input, inputLen+1, NULL, confusablesWS, confusablesWSLen, &status);
 
+    parseRegexp = uregex_open(pattern.getBuffer(), pattern.length(), 0, NULL, &status);
 
-
-    parseRegexp = uregex_openC(parseExp, 0, NULL, &status);
-    
     // Zap any Byte Order Mark at the start of input.  Changing it to a space is benign
     //   given the syntax of the input.
     if (*input == 0xfeff) {
@@ -164,8 +167,6 @@ void buildWSConfusableData(SpoofImpl *spImpl, const char * confusablesWS,
     uregex_setText(parseRegexp, input, inputLen, &status);
     while (uregex_findNext(parseRegexp, &status)) {
         lineNum++;
-        UChar  line[200];
-        uregex_group(parseRegexp, 0, line, 200, &status);
         if (uregex_start(parseRegexp, 1, &status) >= 0) {
             // this was a blank or comment line.
             continue;
@@ -246,8 +247,8 @@ void buildWSConfusableData(SpoofImpl *spImpl, const char * confusablesWS,
                 scriptSets->addElement(bsset, status);
                 utrie2_set32(table, cp, setIndex, &status);
             }
-            bsset->sset->Union(targScript);
-            bsset->sset->Union(srcScript);
+            bsset->sset->set(targScript, status);
+            bsset->sset->set(srcScript, status);
 
             if (U_FAILURE(status)) {
                 goto cleanup;
@@ -401,17 +402,19 @@ cleanup:
     uprv_free(input);
 
     int32_t i;
-    for (i=0; i<scriptSets->size(); i++) {
-        BuilderScriptSet *bsset = static_cast<BuilderScriptSet *>(scriptSets->elementAt(i));
-        delete bsset;
+    if (scriptSets != NULL) {
+        for (i=0; i<scriptSets->size(); i++) {
+            BuilderScriptSet *bsset = static_cast<BuilderScriptSet *>(scriptSets->elementAt(i));
+            delete bsset;
+        }
+        delete scriptSets;
     }
-    delete scriptSets;
     utrie2_close(anyCaseTrie);
     utrie2_close(lowerCaseTrie);
     return;
 }
 
-
+U_NAMESPACE_END
 
 
 

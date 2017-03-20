@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2010, International Business Machines Corporation and
+ * Copyright (c) 1997-2011, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -21,7 +21,6 @@ PUtilTest::runIndexedTest( int32_t index, UBool exec, const char* &name, char* /
         CASE(2, testPositiveInfinity)
         CASE(3, testNegativeInfinity)
         CASE(4, testZero)
-        CASE(5, testU_INLINE)
 //        CASE(, testIEEEremainder)
 
         default: name = ""; break; //needed to end loop
@@ -43,7 +42,7 @@ PUtilTest::testIEEEremainder()
     // simple remainder checks
     remainderTest(7.0, 2.5, -0.5);
     remainderTest(7.0, -2.5, -0.5);
-#ifndef OS390
+#if U_PLATFORM != U_PF_OS390
     // ### TODO:
     // The following tests fails on S/390 with IEEE support in release builds;
     // debug builds work.
@@ -344,7 +343,7 @@ PUtilTest::testZero(void)
     if((pzero <= nzero) != TRUE) {
         errln("FAIL: 0.0 <= -0.0 returned FALSE, should be TRUE.");
     }
-#ifndef OS400 /* OS/400 will generate divide by zero exception MCH1214 */
+#if U_PLATFORM != U_PF_OS400 /* OS/400 will generate divide by zero exception MCH1214 */
     if(uprv_isInfinite(1/pzero) != TRUE) {
         errln("FAIL: isInfinite(1/0.0) returned FALSE, should be TRUE.");
     }
@@ -549,17 +548,5 @@ PUtilTest::NaNNE(void)
 
     if((nan != ten) != TRUE) {
         logln("WARNING: NaN != 10.0 returned FALSE, should be TRUE");
-    }
-}
-
-U_INLINE int32_t inlineTriple(int32_t x) {
-    return 3*x;
-}
-
-// "code" coverage test for Jitterbug 4515 RFE: in C++, use U_INLINE=inline
-void
-PUtilTest::testU_INLINE() {
-    if(inlineTriple(2)!=6 || inlineTriple(-55)!=-165) {
-        errln("inlineTriple() failed");
     }
 }

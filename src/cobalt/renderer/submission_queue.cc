@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/submission_queue.h"
 
@@ -21,16 +19,25 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 
 namespace cobalt {
 namespace renderer {
+
+// The maximum change (in units of ms/s) of to_submission_time_in_ms_.  This
+// value must be less than 1000ms/s, or else it might be possible to adjust
+// our render time/submission time offset by less than -1 second per second,
+// meaning that we would move backwards in time.  We keep this at a healthy
+// value of 800ms.  This also acts as a crude form of regularization.
+const double kMaxSlopeMagnitude = 800.0;
 
 SubmissionQueue::SubmissionQueue(
     size_t max_queue_size, base::TimeDelta time_to_converge,
     const DisposeSubmissionFunction& dispose_function)
     : max_queue_size_(max_queue_size),
       dispose_function_(dispose_function),
-      to_submission_time_in_ms_(time_to_converge),
+      to_submission_time_in_ms_(time_to_converge, kMaxSlopeMagnitude),
       to_submission_time_cval_(
           "Renderer.ToSubmissionTime", base::TimeDelta(),
           "The current difference in milliseconds between the layout's clock "
@@ -73,11 +80,20 @@ void SubmissionQueue::PushSubmission(const Submission& submission,
 
   to_submission_time_in_ms_.SetTarget(latest_to_submission_time_in_ms, now);
 
-  // Snap time backwards if the incoming submission is in the past.
-  if (latest_to_submission_time_in_ms <
-      to_submission_time_in_ms_.GetValueAtTime(now)) {
-    Reset();
-    to_submission_time_in_ms_.SnapToTarget();
+  // Snap time to the new submission if no existing animations are playing both
+  // currently and during the time that we are snapping to.
+  if (submission_queue_.size() == 1 &&
+      submission_queue_.front().render_tree->GetTypeId() ==
+          base::GetTypeId<render_tree::animations::AnimateNode>()) {
+    render_tree::animations::AnimateNode* animate_node =
+        base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+            submission_queue_.front().render_tree.get());
+
+    if (animate_node->expiry() <= submission_time(now) &&
+        animate_node->expiry() <=
+            latest_to_submission_time + render_time(now)) {
+      to_submission_time_in_ms_.SnapToTarget();
+    }
   }
 
   // Save the new submission.
@@ -107,10 +123,8 @@ Submission SubmissionQueue::GetCurrentSubmission(const base::TimeTicks& now) {
             (submission_queue_.front().time_offset - render_time(now))
                 .InMillisecondsF());
 
-  base::TimeDelta updated_time =
-      base::TimeDelta::FromMillisecondsD(
-          to_submission_time_in_ms_.GetValueAtTime(now)) +
-      render_time(now);
+  base::TimeDelta updated_time = submission_time(now);
+
   // This if statement is very similar to the DCHECK above, but not exactly
   // the same because of rounding issues.
   if (updated_time > updated_time_submission.time_offset) {
@@ -126,6 +140,12 @@ base::TimeDelta SubmissionQueue::render_time(const base::TimeTicks& time) {
   }
 
   return time - *renderer_time_origin_;
+}
+
+base::TimeDelta SubmissionQueue::submission_time(const base::TimeTicks& time) {
+  return base::TimeDelta::FromMillisecondsD(
+             to_submission_time_in_ms_.GetValueAtTime(time)) +
+         render_time(time);
 }
 
 void SubmissionQueue::PurgeStaleSubmissionsFromQueue(

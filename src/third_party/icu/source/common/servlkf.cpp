@@ -1,6 +1,6 @@
 /**
  *******************************************************************************
- * Copyright (C) 2001-2005, International Business Machines Corporation and    *
+ * Copyright (C) 2001-2014, International Business Machines Corporation and    *
  * others. All Rights Reserved.                                                *
  *******************************************************************************
  *
@@ -10,6 +10,7 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/resbund.h"
 #include "uresimp.h"
 #include "cmemory.h"
@@ -71,9 +72,8 @@ LocaleKeyFactory::updateVisibleIDs(Hashtable& result, UErrorCode& status) const 
     const Hashtable* supported = getSupportedIDs(status);
     if (supported) {
         UBool visible = (_coverage & 0x1) == 0;
-
         const UHashElement* elem = NULL;
-        int32_t pos = 0;
+        int32_t pos = UHASH_FIRST;
         while ((elem = supported->nextElement(pos)) != NULL) {
             const UnicodeString& id = *((const UnicodeString*)elem->key.pointer);
             if (!visible) {
@@ -127,9 +127,9 @@ UnicodeString&
 LocaleKeyFactory::debug(UnicodeString& result) const
 {
     debugClass(result);
-    result.append(", name: ");
+    result.append((UnicodeString)", name: ");
     result.append(_name);
-    result.append(", coverage: ");
+    result.append((UnicodeString)", coverage: ");
     result.append(_coverage);
     return result;
 }
@@ -137,7 +137,7 @@ LocaleKeyFactory::debug(UnicodeString& result) const
 UnicodeString&
 LocaleKeyFactory::debugClass(UnicodeString& result) const
 {
-  return result.append("LocaleKeyFactory");
+  return result.append((UnicodeString)"LocaleKeyFactory");
 }
 #endif
 

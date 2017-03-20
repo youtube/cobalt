@@ -15,6 +15,6 @@
 #include "starboard/audio_sink.h"
 
 int SbAudioSinkGetNearestSupportedSampleFrequency(
-    int /*sampling_frequency_hz*/) {
-  return 0;
+    int sampling_frequency_hz) {
+  return sampling_frequency_hz;
 }

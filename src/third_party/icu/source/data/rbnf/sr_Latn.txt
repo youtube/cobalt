@@ -1,16 +1,13 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/rbnf/sr_Latn.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/rbnf/sr_Latn.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/rbnf/sr_Latn.xml
- */
 sr_Latn{
-    %%ParentIsRoot:int{1}
+    %%Parent{"root"}
     RBNFRules{
         SpelloutRules{
             "%spellout-numbering-year:",
@@ -74,7 +71,7 @@ sr_Latn{
             "2000000000000000: <%spellout-cardinal-masculine< biliardy[ >>];",
             "5000000000000000: <%spellout-cardinal-masculine< biliarda[ >>];",
             "1000000000000000000: =#,##0=;",
-            "%spellout-cardinal-neutre:",
+            "%spellout-cardinal-neuter:",
             "-x: minus >>;",
             "x.x: << zarez >>;",
             "0: nula;",
@@ -156,5 +153,5 @@ sr_Latn{
             "1000000000000000000: =#,##0=;",
         }
     }
-    Version{"2.0.41.26"}
+    Version{"2.1.19.14"}
 }

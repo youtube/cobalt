@@ -18,7 +18,7 @@
 
 int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
                              int info_array_size) {
-  return -1;
+  return 0;
 }
 
 #endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)

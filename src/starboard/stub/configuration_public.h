@@ -22,7 +22,8 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
-// The API version implemented by this platform.
+// The API version implemented by this platform. This will generally be set to
+// the current value of SB_MAXIMUM_API_VERSION at the time of implementation.
 #define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Architecture Configuration --------------------------------------------
@@ -96,6 +97,11 @@
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
+// Some platforms will not align variables on the stack with an alignment
+// greater than 16 bytes. Platforms where this is the case should define the
+// following quirk.
+#undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -128,6 +134,9 @@
 // Whether the current platform has microphone supported.
 #define SB_HAS_MICROPHONE 1
 
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 1
+
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
@@ -145,7 +154,7 @@
 #define SB_IS_WCHAR_T_SIGNED 1
 #endif
 
-// --- Attribute Configuration -----------------------------------------------
+// --- Compiler Configuration ------------------------------------------------
 
 // The platform's annotation for forcing a C function to be inlined.
 #define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
@@ -165,6 +174,15 @@
 // The platform's annotation for marking a symbol as imported from outside of
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
+
+// On some platforms the __GNUC__ is defined even though parts of the
+// functionality are missing. Setting this to non-zero allows disabling missing
+// functionality encountered.
+#undef SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT
+
+// On some compilers, the frontend has a quirk such that #ifdef cannot
+// correctly detect __has_feature is defined, and an example error you get is:
+#undef SB_HAS_QUIRK_HASFEATURE_NOT_DEFINED_BUT_IT_IS
 
 // --- Extensions Configuration ----------------------------------------------
 
@@ -314,11 +332,13 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 0
 
-// Whether the current platform should frequently flip their display buffer.
-// If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set
-// to 0), then optimizations where the display buffer is not flipped if the
-// scene hasn't changed are enabled.
+// Whether the current platform should frequently flip its display buffer.  If
+// this is not required (i.e. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set to
+// 0), then optimizations are enabled so the display buffer is not flipped if
+// the scene hasn't changed.
 #define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
+
+#define SB_HAS_VIRTUAL_REALITY 1
 
 // --- Media Configuration ---------------------------------------------------
 
@@ -330,6 +350,7 @@
 // supported composition methods below.
 #define SB_HAS_PLAYER 1
 
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // Specifies whether this platform's player will produce an OpenGL texture that
 // the client must draw every frame with its graphics rendering. It may be that
 // we get a texture handle, but cannot perform operations like GlReadPixels on
@@ -348,6 +369,7 @@
 // this case, changing the video bounds must be tightly synchronized between the
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
+#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 // After a seek is triggerred, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the
@@ -357,6 +379,10 @@
 // following macro is defined, the app will append audio frames start from the
 // timestamp that is before the timestamp of the video key frame being appended.
 #undef SB_HAS_QUIRK_SEEK_TO_KEYFRAME
+
+// dlmalloc will use the ffs intrinsic if available.  Platforms on which this is
+// not available should define the following quirk.
+#undef SB_HAS_QUIRK_NO_FFS
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
@@ -413,14 +439,15 @@
 // Specifies how video frame buffers must be aligned on this platform.
 #define SB_MEDIA_VIDEO_FRAME_ALIGNMENT 256U
 
-// The encoded video frames are compressed in different ways, their decoding
+// The encoded video frames are compressed in different ways, so their decoding
 // time can vary a lot.  Occasionally a single frame can take longer time to
 // decode than the average time per frame.  The player has to cache some frames
 // to account for such inconsistency.  The number of frames being cached are
-// controlled by the following two macros.
+// controlled by SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES and
+// SB_MEDIA_MAXIMUM_VIDEO_FRAMES.
 //
 // Specify the number of video frames to be cached before the playback starts.
-// Note that set this value too large may increase the playback start delay.
+// Note that setting this value too large may increase the playback start delay.
 #define SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES 4
 
 // Specify the number of video frames to be cached during playback.  A large
@@ -455,6 +482,12 @@
 
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
 
 // --- Platform Specific Audits ----------------------------------------------
 

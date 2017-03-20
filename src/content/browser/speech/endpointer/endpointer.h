@@ -8,13 +8,11 @@
 #include <stdint.h>
 
 #include "content/browser/speech/endpointer/energy_endpointer.h"
-#include "content/common/content_export.h"
+#include "media/base/shell_audio_bus.h"
 
 class EpStatus;
 
 namespace content {
-
-class AudioChunk;
 
 // A simple interface to the underlying energy-endpointer implementation, this
 // class lets callers provide audio as being recorded and let them poll to find
@@ -44,8 +42,10 @@ class AudioChunk;
 // The timeout length is speech_input_complete_silence_length until
 // long_speech_length, when it changes to
 // long_speech_input_complete_silence_length.
-class CONTENT_EXPORT Endpointer {
+class Endpointer {
  public:
+  typedef ::media::ShellAudioBus ShellAudioBus;
+
   explicit Endpointer(int sample_rate);
 
   // Start the endpointer. This should be called at the beginning of a session.
@@ -64,7 +64,7 @@ class CONTENT_EXPORT Endpointer {
 
   // Process a segment of audio, which may be more than one frame.
   // The status of the last frame will be returned.
-  EpStatus ProcessAudio(const AudioChunk& raw_audio, float* rms_out);
+  EpStatus ProcessAudio(const ShellAudioBus& audio_bus, float* rms_out);
 
   // Get the status of the endpointer.
   EpStatus Status(int64_t* time_us);
@@ -98,6 +98,8 @@ class CONTENT_EXPORT Endpointer {
   bool speech_input_complete() const {
     return speech_input_complete_;
   }
+
+  int sample_rate() const { return sample_rate_; }
 
   // RMS background noise level in dB.
   float NoiseLevelDb() const { return energy_endpointer_.GetNoiseLevelDb(); }
@@ -146,7 +148,8 @@ class CONTENT_EXPORT Endpointer {
   bool speech_input_complete_;
   EnergyEndpointer energy_endpointer_;
   int sample_rate_;
-  int32_t frame_size_;
+  // 1 frame = (1 / frame_rate_) second of audio.
+  int frame_rate_;
 };
 
 }  // namespace content

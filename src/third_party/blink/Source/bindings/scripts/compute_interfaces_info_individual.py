@@ -201,6 +201,9 @@ class InterfaceInfoCollector(object):
             interface_info = {
                 'is_callback_interface': False,
                 'is_dictionary': True,
+                'is_dependency': True,
+                'conditional': definition.extended_attributes.get('Conditional', None),
+                'unsupported': 'NotSupported' in definition.extended_attributes,
                 'referenced_interfaces': None,
             }
         else:

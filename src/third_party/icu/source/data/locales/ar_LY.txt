@@ -1,25 +1,20 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/ar_LY.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/ar_LY.xml
 // *
 // ***************************************************************************
 ar_LY{
-    Version{"2.0.47.53"}
-    calendar{
-        gregorian{
-            DateTimeElements:intvector{
-                7,
-                4,
-            }
-            weekend:intvector{
-                6,
-                0,
-                7,
-                86400000,
+    NumberElements{
+        default{"latn"}
+        latn{
+            symbols{
+                decimal{","}
+                group{"."}
             }
         }
     }
+    Version{"2.1.19.14"}
 }

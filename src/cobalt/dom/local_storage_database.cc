@@ -1,24 +1,23 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/local_storage_database.h"
 
 #include "base/debug/trace_event.h"
 #include "cobalt/dom/storage_area.h"
 #include "cobalt/storage/storage_manager.h"
+#include "nb/memory_scope.h"
 #include "sql/statement.h"
 
 namespace cobalt {
@@ -30,6 +29,7 @@ const int kOriginalLocalStorageSchemaVersion = 1;
 const int kLatestLocalStorageSchemaVersion = 1;
 
 void SqlInit(storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   TRACE_EVENT0("cobalt::storage", "LocalStorage::SqlInit()");
   sql::Connection* conn = sql_context->sql_connection();
   int schema_version;
@@ -74,6 +74,7 @@ void SqlInit(storage::SqlContext* sql_context) {
 void SqlReadValues(const std::string& id,
                    const LocalStorageDatabase::ReadCompletionCallback& callback,
                    storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   scoped_ptr<StorageArea::StorageMap> values(new StorageArea::StorageMap);
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement get_values(conn->GetCachedStatement(
@@ -91,6 +92,7 @@ void SqlReadValues(const std::string& id,
 
 void SqlWrite(const std::string& id, const std::string& key,
               const std::string& value, storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement write_statement(conn->GetCachedStatement(
       SQL_FROM_HERE,
@@ -105,6 +107,7 @@ void SqlWrite(const std::string& id, const std::string& key,
 
 void SqlDelete(const std::string& id, const std::string& key,
                storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement delete_statement(
       conn->GetCachedStatement(SQL_FROM_HERE,
@@ -117,6 +120,7 @@ void SqlDelete(const std::string& id, const std::string& key,
 }
 
 void SqlClear(const std::string& id, storage::SqlContext* sql_context) {
+  TRACK_MEMORY_SCOPE("Storage");
   sql::Connection* conn = sql_context->sql_connection();
   sql::Statement clear_statement(
       conn->GetCachedStatement(SQL_FROM_HERE,
@@ -142,12 +146,14 @@ void LocalStorageDatabase::Init() {
 
 void LocalStorageDatabase::ReadAll(const std::string& id,
                                    const ReadCompletionCallback& callback) {
+  TRACK_MEMORY_SCOPE("Storage");
   Init();
   storage_->GetSqlContext(base::Bind(&SqlReadValues, id, callback));
 }
 
 void LocalStorageDatabase::Write(const std::string& id, const std::string& key,
                                  const std::string& value) {
+  TRACK_MEMORY_SCOPE("Storage");
   Init();
   storage_->GetSqlContext(base::Bind(&SqlWrite, id, key, value));
   storage_->Flush();

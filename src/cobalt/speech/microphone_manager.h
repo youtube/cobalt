@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_SPEECH_MICROPHONE_MANAGER_H_
 #define COBALT_SPEECH_MICROPHONE_MANAGER_H_
@@ -38,10 +36,12 @@ class MicrophoneManager {
   typedef base::Callback<void(scoped_ptr<ShellAudioBus>)> DataReceivedCallback;
   typedef base::Callback<void(void)> CompletionCallback;
   typedef base::Callback<void(const scoped_refptr<dom::Event>&)> ErrorCallback;
+  typedef base::Callback<scoped_ptr<Microphone>(int)> MicrophoneCreator;
 
-  MicrophoneManager(int sample_rate, const DataReceivedCallback& data_received,
+  MicrophoneManager(const DataReceivedCallback& data_received,
                     const CompletionCallback& completion,
-                    const ErrorCallback& error, bool enable_fake_microphone);
+                    const ErrorCallback& error,
+                    const MicrophoneCreator& microphone_creator);
 
   ~MicrophoneManager();
 
@@ -64,15 +64,12 @@ class MicrophoneManager {
   // Timer callback for fetching audio data.
   void Read();
 
-  int sample_rate_;
   const DataReceivedCallback data_received_callback_;
   const CompletionCallback completion_callback_;
   const ErrorCallback error_callback_;
+  const MicrophoneCreator microphone_creator_;
 
   scoped_ptr<Microphone> microphone_;
-#if defined(ENABLE_FAKE_MICROPHONE)
-  bool enable_fake_microphone_;
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   // Microphone state.
   State state_;

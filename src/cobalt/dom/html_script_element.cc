@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/html_script_element.h"
 
@@ -32,6 +30,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -111,6 +110,7 @@ HTMLScriptElement::~HTMLScriptElement() {
 // Algorithm for Prepare:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::Prepare() {
+  TRACK_MEMORY_SCOPE("DOM");
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(MessageLoop::current());
@@ -495,6 +495,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 void HTMLScriptElement::Execute(const std::string& content,
                                 const base::SourceLocation& script_location,
                                 bool is_external) {
+  TRACK_MEMORY_SCOPE("DOM");
   // If should_execute_ is set to false for whatever reason, then we
   // immediately exit.
   // When inserted using the document.write() method, script elements execute
@@ -505,7 +506,9 @@ void HTMLScriptElement::Execute(const std::string& content,
     return;
   }
 
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Execute()");
+  TRACE_EVENT2("cobalt::dom", "HTMLScriptElement::Execute()", "file_path",
+               script_location.file_path, "line_number",
+               script_location.line_number);
   // Since error is already handled, it is guaranteed the load is successful.
 
   // 1. 2. 3. Not needed by Cobalt.

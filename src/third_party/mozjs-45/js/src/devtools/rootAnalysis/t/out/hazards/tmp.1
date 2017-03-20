@@ -1,0 +1,60 @@
+block: _Z1fv$Cell* f()
+command: UNKNOWN
+begin: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:59"
+end:   "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:89"
+define: f : (Cell*)()
+define: kaboom : GCInDestructor
+define: cell : Cell
+define: cell1 : Cell*
+define: cell2 : Cell*
+define: cell3 : Cell*
+define: cell4 : Cell*
+define: nogc : AutoSuppressGC
+define: nogc:1 : AutoSuppressGC
+define: cell5 : Cell*
+define: cell6 : Cell*
+define: return : Cell*
+pentry: 1
+pexit:  21
+point 1: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:64"
+point 2: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:65"
+point 3: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:66"
+point 4: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:67"
+point 5: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:69"
+point 6: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:70"
+point 7: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:71"
+point 8: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:71"
+point 9: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:73"
+point 10: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:74"
+point 11: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:75"
+point 12: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:76"
+point 13: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:80"
+point 14: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:80"
+point 15: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:82"
+point 16: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:83"
+point 17: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:84"
+point 18: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:87"
+point 19: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:88"
+point 20: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:88"
+point 21: "/home/sfink/src/MI-GC/js/src/devtools/rootAnalysis/t/hazards/source.cpp:89"
+Assign(1,2, cell1 := cell)
+Assign(2,3, cell2 := cell)
+Assign(3,4, cell3 := cell)
+Assign(4,5, cell4 := cell)
+Call(5,6, nogc.AutoSuppressGC())
+Call(6,7, suppressedFunction())
+Call(7,8, halfSuppressedFunction())
+Call(8,9, nogc.~AutoSuppressGC())
+Call(9,10, foo(cell1*))
+Call(10,11, halfSuppressedFunction())
+Call(11,12, foo(cell2*))
+Call(12,13, unsuppressedFunction())
+Call(13,14, nogc:1.AutoSuppressGC())
+Call(14,15, nogc:1.~AutoSuppressGC())
+Call(15,16, foo(cell3*))
+Assign(16,17, cell5 := cell)
+Call(17,18, foo(cell5*))
+Assign(18,19, cell6 := cell)
+Assign(19,20, return := cell6*)
+Call(20,21, kaboom.~GCInDestructor())
+

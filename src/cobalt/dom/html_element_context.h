@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DOM_HTML_ELEMENT_CONTEXT_H_
 #define COBALT_DOM_HTML_ELEMENT_CONTEXT_H_
@@ -28,6 +26,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
@@ -53,6 +52,7 @@ class HTMLElementContext {
                      loader::image::ReducedCacheCapacityManager*
                          reduced_image_cache_capacity_manager,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
+                     loader::mesh::MeshCache* mesh_cache,
                      DomStatTracker* dom_stat_tracker,
                      const std::string& language);
   ~HTMLElementContext();
@@ -85,6 +85,8 @@ class HTMLElementContext {
     return remote_typeface_cache_;
   }
 
+  loader::mesh::MeshCache* mesh_cache() const { return mesh_cache_; }
+
   DomStatTracker* dom_stat_tracker() { return dom_stat_tracker_; }
 
   const std::string& language() const { return language_; }
@@ -113,6 +115,7 @@ class HTMLElementContext {
   loader::image::ReducedCacheCapacityManager* const
       reduced_image_cache_capacity_manager_;
   loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
+  loader::mesh::MeshCache* const mesh_cache_;
   DomStatTracker* const dom_stat_tracker_;
   const std::string language_;
 

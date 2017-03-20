@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/html_media_element.h"
 
@@ -32,20 +30,27 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_key_complete_event.h"
 #include "cobalt/dom/media_key_error_event.h"
 #include "cobalt/dom/media_key_message_event.h"
 #include "cobalt/dom/media_key_needed_event.h"
+#include "cobalt/dom/media_source.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/media_log.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
-#include "media/player/can_play_type.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
 namespace dom {
 
+using ::media::BufferedDataSource;
 using ::media::WebMediaPlayer;
 
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
@@ -137,12 +142,12 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
 
 HTMLMediaElement::~HTMLMediaElement() {
   MLOG();
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
   html_media_element_count_log.Get().count--;
 }
 
 scoped_refptr<MediaError> HTMLMediaElement::error() const {
-  MLOG() << error_->code();
+  MLOG() << (error_ ? error_->code() : 0);
   return error_;
 }
 
@@ -320,9 +325,9 @@ void HTMLMediaElement::CancelKeyRequest(
   }
 }
 
-WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
+uint16_t HTMLMediaElement::ready_state() const {
   MLOG() << ready_state_;
-  return ready_state_;
+  return static_cast<uint16_t>(ready_state_);
 }
 
 bool HTMLMediaElement::seeking() const {
@@ -390,7 +395,7 @@ void HTMLMediaElement::set_default_playback_rate(float rate) {
   MLOG() << rate;
   if (default_playback_rate_ != rate) {
     default_playback_rate_ = rate;
-    ScheduleEvent(base::Tokens::ratechange());
+    ScheduleOwnEvent(base::Tokens::ratechange());
   }
 }
 
@@ -403,7 +408,7 @@ void HTMLMediaElement::set_playback_rate(float rate) {
   MLOG() << rate;
   if (playback_rate_ != rate) {
     playback_rate_ = rate;
-    ScheduleEvent(base::Tokens::ratechange());
+    ScheduleOwnEvent(base::Tokens::ratechange());
   }
 
   if (player_ && PotentiallyPlaying()) {
@@ -485,12 +490,12 @@ void HTMLMediaElement::Play() {
 
   if (paused_) {
     paused_ = false;
-    ScheduleEvent(base::Tokens::play());
+    ScheduleOwnEvent(base::Tokens::play());
 
     if (ready_state_ <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(base::Tokens::waiting());
+      ScheduleOwnEvent(base::Tokens::waiting());
     } else if (ready_state_ >= WebMediaPlayer::kReadyStateHaveFutureData) {
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
   }
   autoplaying_ = false;
@@ -510,7 +515,7 @@ void HTMLMediaElement::Pause() {
   if (!paused_) {
     paused_ = true;
     ScheduleTimeupdateEvent(false);
-    ScheduleEvent(base::Tokens::pause());
+    ScheduleOwnEvent(base::Tokens::pause());
   }
 
   UpdatePlayState();
@@ -544,7 +549,7 @@ void HTMLMediaElement::set_volume(float volume,
   if (volume_ != volume) {
     volume_ = volume;
     UpdateVolume();
-    ScheduleEvent(base::Tokens::volumechange());
+    ScheduleOwnEvent(base::Tokens::volumechange());
   }
 }
 
@@ -563,7 +568,7 @@ void HTMLMediaElement::set_muted(bool muted) {
         player_->SetVolume(muted_ ? 0 : volume_);
       }
     }
-    ScheduleEvent(base::Tokens::volumechange());
+    ScheduleOwnEvent(base::Tokens::volumechange());
   }
 }
 
@@ -574,6 +579,29 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   if (!src.empty()) {
     set_src(src);
   }
+}
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
+  MLOG() << "DurationChanged(" << duration << ", " << request_seek << ")";
+
+  // TODO: Add cached duration support.
+  /*if (duration_ == duration) {
+    return;
+  }
+
+  duration_ = duration;*/
+  ScheduleOwnEvent(base::Tokens::durationchange());
+
+  if (request_seek) {
+    Seek(static_cast<float>(duration));
+  }
+}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
+void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
+  MLOG() << event->type();
+  event_queue_.Enqueue(event);
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
@@ -607,9 +635,11 @@ void HTMLMediaElement::CreateMediaPlayer() {
   player_ =
       html_element_context()->web_media_player_factory()->CreateWebMediaPlayer(
           this);
+#if !defined(COBALT_MEDIA_SOURCE_2016)
   if (media_source_) {
     media_source_->SetPlayer(player_.get());
   }
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   node_document()->OnDOMMutation();
   InvalidateLayoutBoxesFromNodeAndAncestors();
 }
@@ -647,10 +677,10 @@ void HTMLMediaElement::PrepareForLoad() {
   // kNetworkIdle, queue a task to fire a simple event named abort at the media
   // element.
   if (network_state_ == kNetworkLoading || network_state_ == kNetworkIdle) {
-    ScheduleEvent(base::Tokens::abort());
+    ScheduleOwnEvent(base::Tokens::abort());
   }
 
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
 
   CreateMediaPlayer();
 
@@ -662,7 +692,7 @@ void HTMLMediaElement::PrepareForLoad() {
     ready_state_maximum_ = WebMediaPlayer::kReadyStateHaveNothing;
     paused_ = true;
     seeking_ = false;
-    ScheduleEvent(base::Tokens::emptied());
+    ScheduleOwnEvent(base::Tokens::emptied());
   }
 
   // 5 - Set the playbackRate attribute to the value of the defaultPlaybackRate
@@ -715,7 +745,7 @@ void HTMLMediaElement::LoadInternal() {
 
   // 5 - Queue a task to fire a simple event named loadstart at the media
   // element.
-  ScheduleEvent(base::Tokens::loadstart());
+  ScheduleOwnEvent(base::Tokens::loadstart());
 
   // 6 - If mode is kAttribute, then run these substeps.
   if (mode == kAttribute) {
@@ -777,7 +807,11 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     // If media_source_ is NULL, the player will try to load it as a normal
     // media resource url and throw a DOM exception when it fails.
     if (media_source_) {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+      media_source_->AttachToElement(this);
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
       media_source_->SetPlayer(player_.get());
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
       media_source_url_ = url;
     } else {
       NoneSupported();
@@ -806,17 +840,19 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     csp::SecurityCallback csp_callback = base::Bind(
         &CspDelegate::CanLoad,
         base::Unretained(node_document()->csp_delegate()), CspDelegate::kMedia);
-    player_->LoadProgressive(
-        url, new media::FetcherBufferedDataSource(
-                 base::MessageLoopProxy::current(), url, csp_callback,
-                 html_element_context()->fetcher_factory()->network_module()),
-        WebMediaPlayer::kCORSModeUnspecified);
+    scoped_ptr<BufferedDataSource> data_source(
+        new media::FetcherBufferedDataSource(
+            base::MessageLoopProxy::current(), url, csp_callback,
+            html_element_context()->fetcher_factory()->network_module()));
+    player_->LoadProgressive(url, data_source.Pass(),
+                             WebMediaPlayer::kCORSModeUnspecified);
   }
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
   MLOG();
-  SetSourceState(MediaSource::kReadyStateClosed);
+
+  ClearMediaSource();
 
   player_.reset(NULL);
 
@@ -854,9 +890,9 @@ void HTMLMediaElement::NoneSupported() {
   network_state_ = kNetworkNoSource;
 
   // 7 - Queue a task to fire a simple event named error at the media element.
-  ScheduleEvent(base::Tokens::error());
+  ScheduleOwnEvent(base::Tokens::error());
 
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
 }
 
 void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error) {
@@ -899,11 +935,11 @@ void HTMLMediaElement::OnProgressEventTimer() {
   double time_delta = time - previous_progress_time_;
 
   if (player_->DidLoadingProgress()) {
-    ScheduleEvent(base::Tokens::progress());
+    ScheduleOwnEvent(base::Tokens::progress());
     previous_progress_time_ = time;
     sent_stalled_event_ = false;
   } else if (time_delta > 3.0 && !sent_stalled_event_) {
-    ScheduleEvent(base::Tokens::stalled());
+    ScheduleOwnEvent(base::Tokens::stalled());
     sent_stalled_event_ = true;
   }
 }
@@ -958,19 +994,19 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
   // but we only want one event at a given time so filter here
   float movie_time = current_time(NULL);
   if (movie_time != last_time_update_event_movie_time_) {
-    ScheduleEvent(base::Tokens::timeupdate());
+    ScheduleOwnEvent(base::Tokens::timeupdate());
     last_time_update_event_wall_time_ = now;
     last_time_update_event_movie_time_ = movie_time;
   }
 }
 
-void HTMLMediaElement::ScheduleEvent(base::Token event_name) {
+void HTMLMediaElement::ScheduleOwnEvent(base::Token event_name) {
   MLOG() << event_name;
   scoped_refptr<Event> event =
       new Event(event_name, Event::kNotBubbles, Event::kCancelable);
   event->set_target(this);
 
-  event_queue_.Enqueue(event);
+  ScheduleEvent(event);
 }
 
 void HTMLMediaElement::CancelPendingEventsAndCallbacks() {
@@ -1004,7 +1040,7 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
     // 4.8.10.9, step 11
     if (was_potentially_playing &&
         ready_state_ < WebMediaPlayer::kReadyStateHaveFutureData) {
-      ScheduleEvent(base::Tokens::waiting());
+      ScheduleOwnEvent(base::Tokens::waiting());
     }
     // 4.8.10.10 step 14 & 15.
     if (ready_state_ >= WebMediaPlayer::kReadyStateHaveCurrentData) {
@@ -1015,49 +1051,50 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
         ready_state_ < WebMediaPlayer::kReadyStateHaveFutureData) {
       // 4.8.10.8
       ScheduleTimeupdateEvent(false);
-      ScheduleEvent(base::Tokens::waiting());
+      ScheduleOwnEvent(base::Tokens::waiting());
     }
   }
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
-    ScheduleEvent(base::Tokens::durationchange());
-    ScheduleEvent(base::Tokens::loadedmetadata());
+    PlayerOutputModeUpdated();
+    ScheduleOwnEvent(base::Tokens::durationchange());
+    ScheduleOwnEvent(base::Tokens::loadedmetadata());
   }
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveCurrentData &&
       old_state < WebMediaPlayer::kReadyStateHaveCurrentData &&
       !have_fired_loaded_data_) {
     have_fired_loaded_data_ = true;
-    ScheduleEvent(base::Tokens::loadeddata());
+    ScheduleOwnEvent(base::Tokens::loadeddata());
   }
 
   bool is_potentially_playing = PotentiallyPlaying();
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveFutureData &&
       old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-    ScheduleEvent(base::Tokens::canplay());
+    ScheduleOwnEvent(base::Tokens::canplay());
     if (is_potentially_playing) {
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
   }
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveEnoughData &&
       old_state < WebMediaPlayer::kReadyStateHaveEnoughData) {
     if (old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(base::Tokens::canplay());
+      ScheduleOwnEvent(base::Tokens::canplay());
     }
 
-    ScheduleEvent(base::Tokens::canplaythrough());
+    ScheduleOwnEvent(base::Tokens::canplaythrough());
 
     if (is_potentially_playing &&
         old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
 
     if (autoplaying_ && paused_ && autoplay()) {
       paused_ = false;
-      ScheduleEvent(base::Tokens::play());
-      ScheduleEvent(base::Tokens::playing());
+      ScheduleOwnEvent(base::Tokens::play());
+      ScheduleOwnEvent(base::Tokens::playing());
     }
   }
 
@@ -1106,8 +1143,8 @@ void HTMLMediaElement::ChangeNetworkStateFromLoadingToIdle() {
 
   // Schedule one last progress event so we guarantee that at least one is fired
   // for files that load very quickly.
-  ScheduleEvent(base::Tokens::progress());
-  ScheduleEvent(base::Tokens::suspend());
+  ScheduleOwnEvent(base::Tokens::progress());
+  ScheduleOwnEvent(base::Tokens::suspend());
   network_state_ = kNetworkIdle;
 }
 
@@ -1157,16 +1194,15 @@ void HTMLMediaElement::Seek(float time) {
   // Always notify the media engine of a seek if the source is not closed. This
   // ensures that the source is always in a flushed state when the 'seeking'
   // event fires.
-  if (media_source_ &&
-      media_source_->GetReadyState() != MediaSource::kReadyStateClosed) {
+  if (media_source_ && media_source_->ready_state() != MediaSource::kClosed) {
     no_seek_required = false;
   }
 
   if (no_seek_required) {
     if (time == now) {
-      ScheduleEvent(base::Tokens::seeking());
+      ScheduleOwnEvent(base::Tokens::seeking());
       ScheduleTimeupdateEvent(false);
-      ScheduleEvent(base::Tokens::seeked());
+      ScheduleOwnEvent(base::Tokens::seeked());
     }
     seeking_ = false;
     return;
@@ -1185,7 +1221,7 @@ void HTMLMediaElement::Seek(float time) {
   player_->Seek(time);
 
   // 9 - Queue a task to fire a simple event named seeking at the element.
-  ScheduleEvent(base::Tokens::seeking());
+  ScheduleOwnEvent(base::Tokens::seeking());
 
   // 10 - Queue a task to fire a simple event named timeupdate at the element.
   ScheduleTimeupdateEvent(false);
@@ -1199,7 +1235,7 @@ void HTMLMediaElement::FinishSeek() {
   seeking_ = false;
 
   // 4.8.10.9 Seeking step 15
-  ScheduleEvent(base::Tokens::seeked());
+  ScheduleOwnEvent(base::Tokens::seeked());
 }
 
 void HTMLMediaElement::AddPlayedRange(float start, float end) {
@@ -1240,7 +1276,9 @@ void HTMLMediaElement::UpdatePlayState() {
 
     StartPlaybackProgressTimer();
     playing_ = true;
-
+    if (AsHTMLVideoElement() != NULL) {
+      dom_stat_tracker_->OnHtmlVideoElementPlaying();
+    }
   } else {  // Should not be playing right now.
     if (!player_paused) {
       player_->Pause();
@@ -1331,14 +1369,14 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   error_ = error;
 
   // 3 - Queue a task to fire a simple event named error at the media element.
-  ScheduleEvent(base::Tokens::error());
+  ScheduleOwnEvent(base::Tokens::error());
 
-  SetSourceState(MediaSource::kReadyStateClosed);
+  ClearMediaSource();
 
   // 4 - Set the element's networkState attribute to the kNetworkEmpty value and
   // queue a task to fire a simple event called emptied at the element.
   network_state_ = kNetworkEmpty;
-  ScheduleEvent(base::Tokens::emptied());
+  ScheduleOwnEvent(base::Tokens::emptied());
 }
 
 void HTMLMediaElement::NetworkStateChanged() {
@@ -1403,12 +1441,12 @@ void HTMLMediaElement::TimeChanged() {
         // changes paused to true and fires a simple event named pause at the
         // media element.
         paused_ = true;
-        ScheduleEvent(base::Tokens::pause());
+        ScheduleOwnEvent(base::Tokens::pause());
       }
       // Queue a task to fire a simple event named ended at the media element.
       if (!sent_end_event_) {
         sent_end_event_ = true;
-        ScheduleEvent(base::Tokens::ended());
+        ScheduleOwnEvent(base::Tokens::ended());
       }
     }
   } else {
@@ -1422,7 +1460,7 @@ void HTMLMediaElement::TimeChanged() {
 void HTMLMediaElement::DurationChanged() {
   BeginProcessingMediaPlayerCallback();
 
-  ScheduleEvent(base::Tokens::durationchange());
+  ScheduleOwnEvent(base::Tokens::durationchange());
 
   float now = current_time(NULL);
   float dur = duration();
@@ -1451,11 +1489,20 @@ void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
 float HTMLMediaElement::Volume() const { return volume(NULL); }
 
-void HTMLMediaElement::SourceOpened() {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+void HTMLMediaElement::SourceOpened(::media::ChunkDemuxer* chunk_demuxer) {
   BeginProcessingMediaPlayerCallback();
-  SetSourceState(MediaSource::kReadyStateOpen);
+  DCHECK(media_source_);
+  media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
   EndProcessingMediaPlayerCallback();
 }
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+void HTMLMediaElement::SourceOpened() {
+  BeginProcessingMediaPlayerCallback();
+  SetSourceState(MediaSource::kOpen);
+  EndProcessingMediaPlayerCallback();
+}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
@@ -1522,15 +1569,36 @@ void HTMLMediaElement::KeyNeeded(const std::string& key_system,
       new Uint8Array(NULL, init_data, init_data_length, NULL)));
 }
 
+void HTMLMediaElement::ClearMediaSource() {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  if (media_source_) {
+    media_source_->Close();
+    media_source_ = NULL;
+  }
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
+  SetSourceState(MediaSource::kClosed);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+}
+
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
   MLOG() << ready_state;
   if (!media_source_) {
     return;
   }
   media_source_->SetReadyState(ready_state);
-  if (ready_state == MediaSource::kReadyStateClosed) {
+  if (ready_state == MediaSource::kClosed) {
     media_source_ = NULL;
   }
+}
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
+
+void HTMLMediaElement::PlayerOutputModeUpdated() {
+  // If the player mode is updated, trigger a re-layout so that we can setup
+  // the video render tree differently depending on whether we are in punch-out
+  // or decode-to-texture.
+  node_document()->OnDOMMutation();
+  InvalidateLayoutBoxesFromNodeAndAncestors();
 }
 
 }  // namespace dom

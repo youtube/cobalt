@@ -1,6 +1,6 @@
 /*
 ********************************************************************************
-*   Copyright (C) 2005-2009, International Business Machines
+*   Copyright (C) 2005-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 ********************************************************************************
 *
@@ -14,7 +14,7 @@
 
 #include "unicode/utypes.h"
 
-#ifdef U_WINDOWS
+#if U_PLATFORM_HAS_WIN32_API
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -52,7 +52,7 @@ public:
 
     UnicodeString &format(Calendar &cal, UnicodeString &appendTo, FieldPosition &pos) const;
 
-    UnicodeString& format(UDate date, UnicodeString& appendTo) const;
+    using DateFormat::format;
 
     void parse(const UnicodeString& text, Calendar& cal, ParsePosition& pos) const;
 
@@ -62,7 +62,6 @@ public:
      * not delete the Calendar object after it is adopted by this call.
      *
      * @param calendarToAdopt    Calendar object to be adopted.
-     * @draft ICU 3.6
      */
     virtual void adoptCalendar(Calendar* calendarToAdopt);
 
@@ -71,8 +70,6 @@ public:
      * calendar for the specified or default locale is used.
      *
      * @param newCalendar Calendar object to be set.
-     *
-     * @draft ICU 3.6
      */
     virtual void setCalendar(const Calendar& newCalendar);
 
@@ -81,16 +78,12 @@ public:
      * no longer owns the TimeZone object and should not delete it after this call.
      *
      * @param zoneToAdopt the TimeZone to be adopted.
-     *
-     * @draft ICU 3.6
      */
     virtual void adoptTimeZone(TimeZone* zoneToAdopt);
 
     /**
      * Sets the time zone for the calendar of this DateFormat object.
      * @param zone the new time zone.
-     *
-     * @draft ICU 3.6
      */
     virtual void setTimeZone(const TimeZone& zone);
 
@@ -103,7 +96,6 @@ public:
      * .       erived::getStaticClassID()) ...
      * </pre>
      * @return          The class ID for all objects of this class.
-     * @draft ICU 3.6
      */
     U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
 
@@ -116,7 +108,6 @@ public:
      * @return          The class ID for this object. All objects of a
      *                  given class have the same class ID.  Objects of
      *                  other classes have different class IDs.
-     * @draft ICU 3.6
      */
     virtual UClassID getDynamicClassID(void) const;
 
@@ -130,20 +121,16 @@ private:
     UnicodeString *fDateTimeMsg;
     DateFormat::EStyle fTimeStyle;
     DateFormat::EStyle fDateStyle;
-    const Locale *fLocale;
+    Locale fLocale;
     int32_t fLCID;
     UnicodeString fZoneID;
     TIME_ZONE_INFORMATION *fTZI;
 };
 
-inline UnicodeString &Win32DateFormat::format(UDate date, UnicodeString& appendTo) const {
-    return DateFormat::format(date, appendTo);
-}
-
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif // #ifdef U_WINDOWS
+#endif // U_PLATFORM_HAS_WIN32_API
 
 #endif // __WINDTFMT

@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_H_
 #define COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_H_
@@ -24,7 +22,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -38,7 +36,7 @@ class H5vccAccountManager : public script::Wrappable {
  public:
   typedef script::CallbackFunction<bool(const std::string&, uint64_t)>
       AccessTokenCallback;
-  typedef script::ScriptObject<AccessTokenCallback> AccessTokenCallbackHolder;
+  typedef script::ScriptValue<AccessTokenCallback> AccessTokenCallbackHolder;
 
   H5vccAccountManager();
   // H5vccAccountManager interface.
@@ -49,7 +47,7 @@ class H5vccAccountManager : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccAccountManager);
 
  private:
-  typedef script::ScriptObject<AccessTokenCallback>::Reference
+  typedef script::ScriptValue<AccessTokenCallback>::Reference
       AccessTokenCallbackReference;
   enum OperationType {
     kPairing,

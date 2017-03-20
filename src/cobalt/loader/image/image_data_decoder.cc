@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/loader/image/image_data_decoder.h"
 
@@ -60,7 +58,7 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
 
       // Append new data to data_buffer
       data_buffer_.insert(
-          data_buffer_.begin() + static_cast<int64>(data_buffer_.size()),
+          data_buffer_.end(),
           data + offset, data + offset + fill_buffer_size);
 
       input_bytes = &data_buffer_[0];
@@ -83,7 +81,7 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
         // data_buffer is not empty, so erase the decoded data from it.
         data_buffer_.erase(
             data_buffer_.begin(),
-            data_buffer_.begin() + static_cast<int64>(decoded_size));
+            data_buffer_.begin() + static_cast<ptrdiff_t>(decoded_size));
       }
     }
   }
@@ -102,7 +100,7 @@ bool ImageDataDecoder::FinishWithSuccess() {
   return state_ == kDone;
 }
 
-void ImageDataDecoder::AllocateImageData(const math::Size& size,
+bool ImageDataDecoder::AllocateImageData(const math::Size& size,
                                          bool has_alpha) {
   DCHECK(resource_provider_->AlphaFormatSupported(
       render_tree::kAlphaFormatOpaque));
@@ -111,6 +109,14 @@ void ImageDataDecoder::AllocateImageData(const math::Size& size,
   image_data_ = resource_provider_->AllocateImageData(
       size, pixel_format(), has_alpha ? render_tree::kAlphaFormatPremultiplied
                                       : render_tree::kAlphaFormatOpaque);
+  if (!image_data_) {
+    DLOG(WARNING) << "Failed to allocate image data (" << size.width() << "x"
+                  << size.height() << ").";
+    // We want to know in debug if we have problems allocating image data.
+    // It should never happen.
+    DCHECK(false);
+  }
+  return image_data_;
 }
 
 void ImageDataDecoder::CalculatePixelFormat() {

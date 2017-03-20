@@ -34,7 +34,9 @@
 
 #include "vm/GlobalObject-inl.h"
 
-# ifdef XP_WIN
+#if defined(STARBOARD)
+// empty
+# elif defined(XP_WIN)
 #  include "jswin.h"
 # else
 #  include <sys/mman.h>
@@ -336,7 +338,7 @@ ArrayBufferObject::uninlineData(JSContext *maybecx)
    return true;
 }
 
-#if defined(JS_ION) && defined(JS_CPU_X64)
+#if defined(JS_ION) && defined(JS_CPU_X64) && !defined(STARBOARD)
 // To avoid dynamically checking bounds on each load/store, asm.js code relies
 // on the SIGSEGV handler in AsmJSSignalHandlers.cpp. However, this only works
 // if we can guarantee that *any* out-of-bounds access generates a fault. This
@@ -440,7 +442,7 @@ ArrayBufferObject::neuterAsmJSArrayBuffer(ArrayBufferObject &buffer)
         MOZ_CRASH();
 #endif
 }
-#else  /* defined(JS_ION) && defined(JS_CPU_X64) */
+#else  /* defined(JS_ION) && defined(JS_CPU_X64) && !defined(STARBOARD)*/
 bool
 ArrayBufferObject::prepareForAsmJS(JSContext *cx, Handle<ArrayBufferObject*> buffer)
 {
@@ -1926,8 +1928,15 @@ class TypedArrayTemplate
     Getter(JSContext *cx, unsigned argc, Value *vp)
     {
         CallArgs args = CallArgsFromVp(argc, vp);
+        // From patch attached to https://bugzilla.mozilla.org/show_bug.cgi?id=783505
+        // FIXME: Really bad hack to keep us building with gcc 4.2. Remove this
+        // once we drop support for gcc 4.2.
+#if defined(__GNUC__) && ((__GNUC__ <= 3) || (__GNUC__ == 4 && __GNUC_MINOR__ <= 3))
+        return CallNonGenericMethod(cx, IsThisClass, GetterImpl<ValueGetter>, args);
+#else
         return CallNonGenericMethod<ThisTypeArray::IsThisClass,
                                     ThisTypeArray::GetterImpl<ValueGetter> >(cx, args);
+#endif
     }
 
     // Define an accessor for a read-only property that invokes a native getter

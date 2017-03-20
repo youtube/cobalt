@@ -17,6 +17,7 @@
 #ifndef NB_ATOMIC_H_
 #define NB_ATOMIC_H_
 
+#include "starboard/atomic.h"
 #include "starboard/mutex.h"
 #include "starboard/types.h"
 
@@ -244,13 +245,80 @@ class atomic_bool : public atomic<bool> {
   explicit atomic_bool(bool initial_val) : Super(initial_val) {}
 };
 
-// Simple atomic int class. This could be optimized for speed using
-// compiler intrinsics for concurrent integer modification.
-class atomic_int32_t : public atomic_integral<int32_t> {
+// Lockfree atomic int class.
+class atomic_int32_t {
  public:
-  typedef atomic_integral<int32_t> Super;
-  atomic_int32_t() : Super() {}
-  explicit atomic_int32_t(int32_t initial_val) : Super(initial_val) {}
+  typedef int32_t ValueType;
+  atomic_int32_t() : value_(0) {}
+  atomic_int32_t(SbAtomic32 value) : value_(value) {}
+
+  bool is_lock_free() const { return true; }
+  bool is_lock_free() const volatile { return true; }
+
+  int32_t increment() {
+    return fetch_add(1);
+  }
+  int32_t decrement() {
+    return fetch_add(-1);
+  }
+
+  int32_t fetch_add(int32_t val) {
+    // fetch_add is a post-increment operation, while SbAtomicBarrier_Increment
+    // is a pre-increment operation. Therefore subtract the value to match
+    // the expected interface.
+    return SbAtomicBarrier_Increment(volatile_ptr(), val) - val;
+  }
+
+ int32_t fetch_sub(int32_t val) {
+   return fetch_add(-val);
+  }
+
+  // Atomically replaces the value of the atomic object
+  // and returns the value held previously.
+  // See also std::atomic<T>::exchange().
+  int32_t exchange(int32_t new_val) {
+    return SbAtomicNoBarrier_Exchange(volatile_ptr(), new_val);
+  }
+
+  // Atomically obtains the value of the atomic object.
+  // See also std::atomic<T>::load().
+  int32_t load() const {
+    return SbAtomicAcquire_Load(volatile_const_ptr());
+  }
+
+  // Stores the value. See std::atomic<T>::store(...)
+  void store(int32_t val) {
+    SbAtomicRelease_Store(volatile_ptr(), val);
+  }
+
+  bool compare_exchange_strong(int32_t* expected_value, int32_t new_value) {
+    int32_t prev_value = *expected_value;
+    SbAtomicMemoryBarrier();
+    int32_t value_written = SbAtomicRelease_CompareAndSwap(volatile_ptr(),
+                                                           prev_value,
+                                                           new_value);
+    const bool write_ok = (prev_value == value_written);
+    if (!write_ok) {
+      *expected_value = value_written;
+    }
+    return write_ok;
+  }
+
+  // Weak version of this function is documented to be faster, but has allows
+  // weaker memory ordering and therefore will sometimes have a false negative:
+  // The value compared will actually be equal but the return value from this
+  // function indicates otherwise.
+  // By default, the function delegates to compare_exchange_strong(...).
+  //
+  // See also std::atomic<T>::compare_exchange_weak(...).
+  bool compare_exchange_weak(int32_t* expected_value, int32_t new_value) {
+    return compare_exchange_strong(expected_value, new_value);
+  }
+
+ private:
+  volatile int32_t* volatile_ptr() { return &value_; }
+  volatile const int32_t* volatile_const_ptr() const { return &value_; }
+  int32_t value_;
 };
 
 // Simple atomic int class. This could be optimized for speed using

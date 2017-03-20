@@ -42,6 +42,8 @@ namespace url_util {
 const char kFileScheme[] = "file";
 const char kFileSystemScheme[] = "filesystem";
 const char kMailtoScheme[] = "mailto";
+const char kWsScheme[] = "ws";
+const char kWssScheme[] = "wss";
 
 namespace {
 
@@ -63,14 +65,14 @@ inline bool DoLowerCaseEqualsASCII(Iter a_begin, Iter a_end, const char* b) {
 
 const int kNumStandardURLSchemes = 8;
 const char* kStandardURLSchemes[kNumStandardURLSchemes] = {
-  "http",
-  "https",
-  kFileScheme,  // Yes, file urls can have a hostname!
-  "ftp",
-  "gopher",
-  "ws",  // WebSocket.
-  "wss",  // WebSocket secure.
-  kFileSystemScheme,
+    "http",
+    "https",
+    kFileScheme,  // Yes, file urls can have a hostname!
+    "ftp",
+    "gopher",
+    kWsScheme,   // WebSocket.
+    kWssScheme,  // WebSocket secure.
+    kFileSystemScheme,
 };
 
 // List of the currently installed standard schemes. This list is lazily

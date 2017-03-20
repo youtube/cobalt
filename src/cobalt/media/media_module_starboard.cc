@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/media/media_module.h"
 
@@ -21,10 +19,15 @@
 #include "cobalt/math/size.h"
 #include "cobalt/media/shell_media_platform_starboard.h"
 #include "cobalt/system_window/starboard/system_window.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/base/media_log.h"
+#include "cobalt/media/player/web_media_player_impl.h"
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 #include "media/base/message_loop_factory.h"
 #include "media/player/web_media_player_impl.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "starboard/media.h"
 #include "starboard/window.h"
 
@@ -34,16 +37,20 @@ namespace media {
 namespace {
 
 using ::base::polymorphic_downcast;
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::FilterCollection;
 using ::media::MessageLoopFactory;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 using system_window::SystemWindowStarboard;
 
 class MediaModuleStarboard : public MediaModule {
  public:
   MediaModuleStarboard(system_window::SystemWindow* system_window,
+                       const math::Size& output_size,
                        render_tree::ResourceProvider* resource_provider,
                        const Options& options)
-      : options_(options),
+      : MediaModule(output_size),
+        options_(options),
         system_window_(system_window),
         media_platform_(resource_provider) {}
 
@@ -64,10 +71,19 @@ class MediaModuleStarboard : public MediaModule {
   }
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       ::media::WebMediaPlayerClient* client) OVERRIDE {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+    SbWindow window = kSbWindowInvalid;
+    if (system_window_) {
+      window = polymorphic_downcast<SystemWindowStarboard*>(system_window_)
+                   ->GetSbWindow();
+    }
+    return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
+        window, client, this, media_platform_.GetVideoFrameProvider(),
+        new ::media::MediaLog));
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
     scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
     scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
         message_loop_factory->GetMessageLoop(MessageLoopFactory::kPipeline);
-    scoped_ptr<FilterCollection> filter_collection(new FilterCollection);
 
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
@@ -76,8 +92,13 @@ class MediaModuleStarboard : public MediaModule {
     }
     return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
         window, client, this, media_platform_.GetVideoFrameProvider(),
-        filter_collection.Pass(), NULL, message_loop_factory.Pass(),
-        new ::media::MediaLog));
+        scoped_ptr<FilterCollection>(new FilterCollection), NULL,
+        message_loop_factory.Pass(), new ::media::MediaLog));
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+  }
+
+  system_window::SystemWindow* system_window() const OVERRIDE {
+    return system_window_;
   }
 
  private:
@@ -91,9 +112,8 @@ class MediaModuleStarboard : public MediaModule {
 scoped_ptr<MediaModule> MediaModule::Create(
     system_window::SystemWindow* system_window, const math::Size& output_size,
     render_tree::ResourceProvider* resource_provider, const Options& options) {
-  UNREFERENCED_PARAMETER(output_size);
-  return make_scoped_ptr<MediaModule>(
-      new MediaModuleStarboard(system_window, resource_provider, options));
+  return make_scoped_ptr<MediaModule>(new MediaModuleStarboard(
+      system_window, output_size, resource_provider, options));
 }
 
 }  // namespace media

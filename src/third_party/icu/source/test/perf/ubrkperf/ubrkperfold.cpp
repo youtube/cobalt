@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT:
- * Copyright (C) 2001-2005 IBM, Inc.   All Rights Reserved.
+ * Copyright (C) 2001-2012 IBM, Inc.   All Rights Reserved.
  *
  ********************************************************************/
 /********************************************************************************
@@ -69,7 +69,7 @@ const char gUsageString[] =
 #include <unicode/brkiter.h>
 
 
-#ifdef U_WINDOWS
+#if U_PLATFORM_HAS_WIN32_API
 #include <windows.h>
 #else
 //
@@ -165,7 +165,7 @@ int32_t textSize = 0;
 
 
 
-#ifdef U_DARWIN
+#if U_PLATFORM_IS_DARWIN_BASED
 #include <ApplicationServices/ApplicationServices.h>
 enum{
   kUCTextBreakAllMask = (kUCTextBreakClusterMask | kUCTextBreakWordMask | kUCTextBreakLineMask)
@@ -309,7 +309,7 @@ void doForwardTest() {
 
     elapsedTime = timeGetTime()-startTime;
   } else if(opt_mac) {
-#ifdef U_DARWIN
+#if U_PLATFORM_IS_DARWIN_BASED
     createMACBrkIt();
     UniChar* filePtr = text;
     OSStatus status = noErr;
@@ -611,7 +611,7 @@ UChar UCharFile::get() {
             // Convert the bytes from the temp array to a Unicode char.
             i = 0;
             uint32_t  cp;
-            UTF8_NEXT_CHAR_UNSAFE(bytes, i, cp);
+            U8_NEXT_UNSAFE(bytes, i, cp);
             c = (UChar)cp;
             
             if (cp >= 0x10000) {

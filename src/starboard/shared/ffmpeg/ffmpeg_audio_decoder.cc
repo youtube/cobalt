@@ -14,7 +14,9 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 
+#include "starboard/audio_sink.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {
@@ -22,15 +24,23 @@ namespace ffmpeg {
 
 namespace {
 
-// The required output format for the decoder is interleaved float.  However
-// the output of the ffmpeg decoder can be in other formats.  So libavresample
-// is used to convert the output into the required format.
-void ConvertToInterleavedFloat(int source_sample_format,
-                               int channel_layout,
-                               int sample_rate,
-                               int samples_per_channel,
-                               uint8_t** input_buffer,
-                               uint8_t* output_buffer) {
+SbMediaAudioSampleType GetSupportedSampleType() {
+  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
+    return kSbMediaAudioSampleTypeFloat32;
+  }
+  return kSbMediaAudioSampleTypeInt16;
+}
+
+// The required output format and the output of the ffmpeg decoder can be
+// different.  In this case libavresample is used to convert the ffmpeg output
+// into the required format.
+void ConvertSamples(int source_sample_format,
+                    int target_sample_format,
+                    int channel_layout,
+                    int sample_rate,
+                    int samples_per_channel,
+                    uint8_t** input_buffer,
+                    uint8_t* output_buffer) {
   AVAudioResampleContext* context = avresample_alloc_context();
   SB_DCHECK(context != NULL);
 
@@ -39,7 +49,7 @@ void ConvertToInterleavedFloat(int source_sample_format,
   av_opt_set_int(context, "in_sample_rate", sample_rate, 0);
   av_opt_set_int(context, "out_sample_rate", sample_rate, 0);
   av_opt_set_int(context, "in_sample_fmt", source_sample_format, 0);
-  av_opt_set_int(context, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
+  av_opt_set_int(context, "out_sample_fmt", target_sample_format, 0);
   av_opt_set_int(context, "internal_sample_fmt", source_sample_format, 0);
 
   int result = avresample_open(context);
@@ -58,7 +68,8 @@ void ConvertToInterleavedFloat(int source_sample_format,
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            const SbMediaAudioHeader& audio_header)
-    : codec_context_(NULL),
+    : sample_type_(GetSupportedSampleType()),
+      codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
       audio_header_(audio_header) {
@@ -71,9 +82,7 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Decode(const InputBuffer& input_buffer,
-                          std::vector<float>* output) {
-  SB_CHECK(output != NULL);
+void AudioDecoder::Decode(const InputBuffer& input_buffer) {
   SB_CHECK(codec_context_ != NULL);
 
   if (stream_ended_) {
@@ -95,7 +104,6 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
     SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
                      << " with input buffer size: " << input_buffer.size()
                      << " and frame decoded: " << frame_decoded;
-    output->clear();
     return;
   }
 
@@ -105,15 +113,24 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   audio_header_.samples_per_second = codec_context_->sample_rate;
 
   if (decoded_audio_size > 0) {
-    output->resize(decoded_audio_size / sizeof(float));
-    ConvertToInterleavedFloat(
-        codec_context_->sample_fmt, codec_context_->channel_layout,
-        audio_header_.samples_per_second, av_frame_->nb_samples,
-        av_frame_->extended_data, reinterpret_cast<uint8_t*>(&(*output)[0]));
+    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+        input_buffer.pts(),
+        codec_context_->channels * av_frame_->nb_samples *
+            (sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4));
+    if (codec_context_->sample_fmt == codec_context_->request_sample_fmt) {
+      SbMemoryCopy(decoded_audio->buffer(), av_frame_->extended_data,
+                   decoded_audio->size());
+    } else {
+      ConvertSamples(codec_context_->sample_fmt,
+                     codec_context_->request_sample_fmt,
+                     codec_context_->channel_layout,
+                     audio_header_.samples_per_second, av_frame_->nb_samples,
+                     av_frame_->extended_data, decoded_audio->buffer());
+    }
+    decoded_audios_.push(decoded_audio);
   } else {
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << "Decoded audio frame is empty.";
-    output->clear();
   }
 }
 
@@ -121,13 +138,31 @@ void AudioDecoder::WriteEndOfStream() {
   // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
   // to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
+  // Put EOS into the queue.
+  decoded_audios_.push(new DecodedAudio);
+}
+
+scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
+  scoped_refptr<DecodedAudio> result;
+  if (!decoded_audios_.empty()) {
+    result = decoded_audios_.front();
+    decoded_audios_.pop();
+  }
+  return result;
 }
 
 void AudioDecoder::Reset() {
   stream_ended_ = false;
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
 }
 
-int AudioDecoder::GetSamplesPerSecond() {
+SbMediaAudioSampleType AudioDecoder::GetSampleType() const {
+  return sample_type_;
+}
+
+int AudioDecoder::GetSamplesPerSecond() const {
   return audio_header_.samples_per_second;
 }
 
@@ -144,7 +179,11 @@ void AudioDecoder::InitializeCodec() {
   codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
   codec_context_->codec_id = AV_CODEC_ID_AAC;
   // Request_sample_fmt is set by us, but sample_fmt is set by the decoder.
-  codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;  // interleaved float
+  if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
+    codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
+  } else {
+    codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
+  }
 
   codec_context_->channels = audio_header_.number_of_channels;
   codec_context_->sample_rate = audio_header_.samples_per_second;
@@ -193,15 +232,14 @@ namespace player {
 namespace filter {
 
 // static
-AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
-                                   const SbMediaAudioHeader& audio_header) {
+AudioDecoder* AudioDecoder::Create(const Parameters& parameters) {
   ffmpeg::AudioDecoder* decoder =
-      new ffmpeg::AudioDecoder(audio_codec, audio_header);
-  if (decoder->is_valid()) {
-    return decoder;
+      new ffmpeg::AudioDecoder(parameters.audio_codec, parameters.audio_header);
+  if (!decoder->is_valid()) {
+    delete decoder;
+    return NULL;
   }
-  delete decoder;
-  return NULL;
+  return decoder;
 }
 
 }  // namespace filter

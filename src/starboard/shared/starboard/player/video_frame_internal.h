@@ -17,6 +17,9 @@
 
 #include <vector>
 
+#include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
@@ -26,10 +29,12 @@ namespace starboard {
 namespace player {
 
 // A video frame produced by a video decoder.
-class VideoFrame {
+class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
  public:
+  typedef void (*FreeNativeTextureFunc)(void* context, void* texture);
+
   enum Format {
-    kInvalid,
+    kInvalid,  // A VideoFrame in this format can be used to indicate EOS.
     // This is the native format supported by XComposite (PictStandardARGB32
     // with bytes swapped).  Remove this once we are able to pass out frames
     // as YV12 textures.
@@ -50,37 +55,56 @@ class VideoFrame {
     const uint8_t* data;
   };
 
-  VideoFrame() : format_(kInvalid) {}
-  VideoFrame(const VideoFrame& that);
-
-  VideoFrame& operator=(const VideoFrame& that);
+  VideoFrame();  // Create an EOS frame.
+  VideoFrame(int width,
+             int height,
+             SbMediaTime pts,
+             void* native_texture,
+             void* native_texture_context,
+             FreeNativeTextureFunc free_native_texture_func);
+  ~VideoFrame();
 
   Format format() const { return format_; }
-  int width() const { return GetPlaneCount() == 0 ? 0 : GetPlane(0).width; }
-  int height() const { return GetPlaneCount() == 0 ? 0 : GetPlane(0).height; }
-
   bool IsEndOfStream() const { return format_ == kInvalid; }
   SbMediaTime pts() const { return pts_; }
-  int GetPlaneCount() const { return static_cast<int>(planes_.size()); }
+  int width() const { return width_; }
+  int height() const { return height_; }
+
+  int GetPlaneCount() const;
   const Plane& GetPlane(int index) const;
 
-  VideoFrame ConvertTo(Format target_format) const;
+  void* native_texture() const;
 
-  static VideoFrame CreateEOSFrame();
-  static VideoFrame CreateYV12Frame(int width,
-                                    int height,
-                                    int pitch_in_bytes,
-                                    SbMediaTime pts,
-                                    const uint8_t* y,
-                                    const uint8_t* u,
-                                    const uint8_t* v);
+  scoped_refptr<VideoFrame> ConvertTo(Format target_format) const;
+
+  static scoped_refptr<VideoFrame> CreateEOSFrame();
+  static scoped_refptr<VideoFrame> CreateYV12Frame(int width,
+                                                   int height,
+                                                   int pitch_in_bytes,
+                                                   SbMediaTime pts,
+                                                   const uint8_t* y,
+                                                   const uint8_t* u,
+                                                   const uint8_t* v);
+  static scoped_refptr<VideoFrame> CreateEmptyFrame(SbMediaTime pts);
 
  private:
-  Format format_;
+  void InitializeToInvalidFrame();
 
+  Format format_;
+  int width_;
+  int height_;
   SbMediaTime pts_;
+
+  // The following two variables are valid when the frame contains pixel data.
   std::vector<Plane> planes_;
-  std::vector<uint8_t> pixel_buffer_;
+  scoped_array<uint8_t> pixel_buffer_;
+
+  // The following three variables are valid when |format_| is `kNativeTexture`.
+  void* native_texture_;
+  void* native_texture_context_;
+  FreeNativeTextureFunc free_native_texture_func_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(VideoFrame);
 };
 
 }  // namespace player

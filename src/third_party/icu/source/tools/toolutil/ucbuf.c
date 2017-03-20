@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1998-2008, International Business Machines
+*   Copyright (C) 1998-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -17,14 +17,15 @@
 
 #include "unicode/utypes.h"
 #include "unicode/putil.h"
+#include "unicode/uchar.h"
 #include "unicode/ucnv.h"
 #include "unicode/ucnv_err.h"
+#include "unicode/ustring.h"
+#include "unicode/utf16.h"
 #include "filestrm.h"
 #include "cstring.h"
 #include "cmemory.h"
 #include "ustrfmt.h"
-#include "unicode/ustring.h"
-#include "unicode/uchar.h"
 #include "ucbuf.h"
 #include <stdio.h>
 
@@ -65,7 +66,7 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
     /* unread the bytes beyond what was consumed for U+FEFF */
     T_FileStream_rewind(in);
     if (*signatureLength > 0) {
-        numRead = T_FileStream_read(in, start, *signatureLength);
+        T_FileStream_read(in, start, *signatureLength);
     }
 
     if(*cp==NULL){
@@ -175,7 +176,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
         memmove(buf->buffer,buf->currentPos,offset* sizeof(UChar));
     }
 
-#if DEBUG
+#if UCBUF_DEBUG
     memset(pTarget+offset,0xff,sizeof(UChar)*(MAX_IN_BUF-offset));
 #endif
     if(buf->isBuffered){
@@ -292,8 +293,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
         }
         outputWritten = (int32_t)(target - pTarget);
 
-
-#if DEBUG
+#if UCBUF_DEBUG
         {
             int i;
             target = pTarget;
@@ -353,8 +353,8 @@ ucbuf_getc32(UCHARBUF* buf,UErrorCode* error){
             return U_EOF;
         }
     }
-    if(UTF_IS_LEAD(*(buf->currentPos))){
-        retVal=UTF16_GET_PAIR_VALUE(buf->currentPos[0],buf->currentPos[1]);
+    if(U16_IS_LEAD(*(buf->currentPos))){
+        retVal=U16_GET_SUPPLEMENTARY(buf->currentPos[0],buf->currentPos[1]);
         buf->currentPos+=2;
     }else{
         retVal = *(buf->currentPos++);
@@ -738,7 +738,7 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
              * CR, CR+LF, LF, NEL, PS, LS or FF as line seperators
              */
             /* Windows CR LF */
-            if(c ==0x0d && temp+1<=buf->bufLimit && *(temp+1) == 0x0a ){
+            if(c ==0x0d && temp <= buf->bufLimit && *temp == 0x0a ){
                 *len = (int32_t)(temp++ - buf->currentPos);
                 savePos = buf->currentPos;
                 buf->currentPos = temp;
@@ -764,7 +764,7 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
                 return NULL; /* end of file is reached return NULL */
             }
             /* Windows CR LF */
-            if(c ==0x0d && temp+1<=buf->bufLimit && *(temp+1) == 0x0a ){
+            if(c ==0x0d && temp <= buf->bufLimit && *temp == 0x0a ){
                 *len = (int32_t)(temp++ - buf->currentPos);
                 savePos = buf->currentPos;
                 buf->currentPos = temp;

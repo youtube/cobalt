@@ -117,6 +117,21 @@ PipelineImpl::~PipelineImpl() {
       media_log_->CreateEvent(MediaLogEvent::PIPELINE_DESTROYED));
 }
 
+void PipelineImpl::Suspend() {
+  // PipelineImpl::Suspend() is only called during quitting.  It is blocking
+  // and may take a long time.
+  base::WaitableEvent waiter(false, false);
+  DLOG(INFO) << "Trying to stop media pipeline.";
+  Stop(base::Bind(&base::WaitableEvent::Signal, base::Unretained(&waiter)));
+  waiter.Wait();
+  DLOG(INFO) << "Media pipeline suspended.";
+}
+
+void PipelineImpl::Resume() {
+  // PipelineImpl doesn't support Resume().
+  NOTREACHED();
+}
+
 void PipelineImpl::Start(scoped_ptr<FilterCollection> collection,
                          const SetDecryptorReadyCB& decryptor_ready_cb,
                          const PipelineStatusCB& ended_cb,

@@ -1,24 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/chr_US.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/chr_US.xml
 // *
 // ***************************************************************************
 chr_US{
-    MeasurementSystem:int{1}
-    PaperSize:intvector{
-        279,
-        216,
-    }
-    Version{"2.0.44.21"}
-    calendar{
-        gregorian{
-            DateTimeElements:intvector{
-                1,
-                4,
-            }
-        }
-    }
+    Version{"2.1.19.14"}
 }

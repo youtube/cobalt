@@ -1,0 +1,17 @@
+------------------
+2015-07-11 3.2.3-2
+------------------
+
+- Fix `thread` module import on Python 2.7 (@nmussat)
+
+------------------
+2012-09-19 3.2.3-1
+------------------
+
+- Fix import errors
+
+----------------
+2012-09-18 3.2.3
+----------------
+
+This was the first release. Roughly equivalent to Python 3.2.3.

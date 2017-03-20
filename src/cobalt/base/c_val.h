@@ -1,24 +1,23 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #ifndef COBALT_BASE_C_VAL_H_
 #define COBALT_BASE_C_VAL_H_
 
 #include <stdint.h>
 
 #include <iomanip>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <string>
@@ -96,6 +95,7 @@ class CValImpl;
 // variable.
 enum CValType {
   kSize,
+  kBool,
   kU32,
   kU64,
   kS32,
@@ -154,6 +154,11 @@ struct Traits<cval::SizeInBytes> {
   static const bool kIsNumerical = true;
 };
 template <>
+struct Traits<bool> {
+  static const CValType kTypeVal = kBool;
+  static const bool kIsNumerical = false;
+};
+template <>
 struct Traits<uint32_t> {
   static const CValType kTypeVal = kU32;
   static const bool kIsNumerical = true;
@@ -201,6 +206,11 @@ std::string ValToString(const T& value) {
   std::ostringstream oss;
   oss << value;
   return oss.str();
+}
+
+template <>
+inline std::string ValToString<bool>(const bool& value) {
+  return value ? "true" : "false";
 }
 
 template <>
@@ -337,6 +347,44 @@ class ValToPrettyStringHelper<T, false> {
 template <typename T>
 std::string ValToPrettyString(const T& value) {
   return ValToPrettyStringHelper<T, Traits<T>::kIsNumerical>::Call(value);
+}
+
+// Provides methods for converting the type to and from a double.
+template <typename T>
+double ToDouble(T value) {
+  return static_cast<double>(value);
+}
+template <>
+inline double ToDouble<base::TimeDelta>(base::TimeDelta value) {
+  return static_cast<double>(value.InMicroseconds());
+}
+
+template <typename T>
+T FromDouble(double value) {
+  return static_cast<T>(value);
+}
+template <>
+inline base::TimeDelta FromDouble<base::TimeDelta>(double value) {
+  return base::TimeDelta::FromMicroseconds(static_cast<int64>(value));
+}
+
+// Provides methods for retrieving the max and min value for the type.
+template <typename T>
+T Max() {
+  return std::numeric_limits<T>::max();
+}
+template <>
+inline base::TimeDelta Max<base::TimeDelta>() {
+  return base::TimeDelta::Max();
+}
+
+template <typename T>
+T Min() {
+  return std::numeric_limits<T>::min();
+}
+template <>
+inline base::TimeDelta Min<base::TimeDelta>() {
+  return -base::TimeDelta::Max();
 }
 
 }  // namespace CValDetail

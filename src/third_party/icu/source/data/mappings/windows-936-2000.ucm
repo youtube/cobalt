@@ -37,7 +37,7 @@
 
 # build an extension-only (delta) .cnv file
 # requires the base .cnv file at runtime
-# CHROME : we don't want ibm-1386
+# Chromium: we don't want ibm-1386
 #<icu:base>                    "ibm-1386_P100-2001"
 
 # The following was the generated state table.
@@ -260,7 +260,7 @@ CHARMAP
 <U01DA> \xA8\xB7 |0
 <U01DB> \xA8\xB8 |1
 <U01DC> \xA8\xB8 |0
-<U01F9> \xA8\xBF |1
+<U01F9> \xA8\xBF |0
 <U0251> \xA8\xBB |0
 <U0261> \xA8\xC0 |0
 <U02C7> \xA1\xA6 |0
@@ -382,6 +382,8 @@ CHARMAP
 <U044E> \xA7\xF0 |0
 <U044F> \xA7\xF1 |0
 <U0451> \xA7\xD7 |0
+# U1E3F will be round-tripped and UE7C7 will be dropped 
+# once https://www.w3.org/Bugs/Public/show_bug.cgi?id=28740#c3 is resolved.
 <U1E3F> \xA8\xBC |1
 <U2010> \xA9\x5C |0
 <U2013> \xA8\x43 |0
@@ -475,7 +477,6 @@ CHARMAP
 <U2299> \xA1\xD1 |0
 <U22A5> \xA1\xCD |0
 <U22BF> \xA8\x53 |0
-<U22EF> \xA1\xAD |1
 <U2312> \xA1\xD0 |0
 <U2460> \xA2\xD9 |0
 <U2461> \xA2\xDA |0
@@ -700,7 +701,6 @@ CHARMAP
 <U3015> \xA1\xB3 |0
 <U3016> \xA1\xBC |0
 <U3017> \xA1\xBD |0
-<U301C> \xA1\xAB |1
 <U301D> \xA8\x94 |0
 <U301E> \xA8\x95 |0
 <U3021> \xA9\x40 |0
@@ -23440,7 +23440,7 @@ CHARMAP
 <UE5E2> \xA3\x9D |0
 <UE5E3> \xA3\x9E |0
 <UE5E4> \xA3\x9F |0
-<UE5E5> \xA3\xA0 |0
+<U3000> \xA3\xA0 |3
 <UE5E6> \xA4\x40 |0
 <UE5E7> \xA4\x41 |0
 <UE5E8> \xA4\x42 |0
@@ -23923,7 +23923,6 @@ CHARMAP
 <UE7C5> \xA8\x9F |0
 <UE7C6> \xA8\xA0 |0
 <UE7C7> \xA8\xBC |0
-<UE7C8> \xA8\xBF |0
 <UE7C9> \xA8\xC1 |0
 <UE7CA> \xA8\xC2 |0
 <UE7CB> \xA8\xC3 |0

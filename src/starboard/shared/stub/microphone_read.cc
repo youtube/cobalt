@@ -19,7 +19,7 @@
 int SbMicrophoneRead(SbMicrophone microphone,
                      void* out_audio_data,
                      int audio_data_size) {
-  return 0;
+  return -1;
 }
 
 #endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)

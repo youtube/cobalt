@@ -66,13 +66,18 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   void Seek(base::TimeDelta time);
 
   void SetVolume(float volume);
-  void SetPause(bool pause);
+  void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32* video_frames_decoded,
                uint32* video_frames_dropped,
                base::TimeDelta* media_time);
 
   void Suspend();
   void Resume();
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTarget GetCurrentSbDecodeTarget();
+  SbPlayerOutputMode GetSbPlayerOutputMode();
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
  private:
   enum State {
@@ -113,6 +118,13 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
                                  void* context,
                                  const void* sample_buffer);
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  // Returns the output mode that should be used for a video with the given
+  // specifications.
+  static SbPlayerOutputMode ComputeSbPlayerOutputMode(
+      SbMediaVideoCodec codec, SbDrmSystem drm_system);
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
   // The following variables are initialized in the ctor and never changed.
   const scoped_refptr<base::MessageLoopProxy> message_loop_;
   AudioDecoderConfig audio_config_;
@@ -130,7 +142,7 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   DecodingBuffers decoding_buffers_;
   int ticket_;
   float volume_;
-  bool paused_;
+  double playback_rate_;
   bool seek_pending_;
   DecoderBufferCache decoder_buffer_cache_;
 
@@ -142,6 +154,11 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   uint32 cached_video_frames_decoded_;
   uint32 cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  // Keep track of the output mode we are supposed to output to.
+  SbPlayerOutputMode output_mode_;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 };
 
 }  // namespace media

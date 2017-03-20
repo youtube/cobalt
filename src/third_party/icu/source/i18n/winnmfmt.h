@@ -1,6 +1,6 @@
 /*
 ********************************************************************************
-*   Copyright (C) 2005-2007, International Business Machines
+*   Copyright (C) 2005-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 ********************************************************************************
 *
@@ -14,7 +14,7 @@
 
 #include "unicode/utypes.h"
 
-#ifdef U_WINDOWS
+#if U_PLATFORM_USES_ONLY_WIN32_API
 
 #include "unicode/format.h"
 #include "unicode/datefmt.h"
@@ -56,7 +56,6 @@ public:
      * @param pos       On input: an alignment field, if desired.
      *                  On output: the offsets of the alignment field.
      * @return          Reference to 'appendTo' parameter.
-     * @draft ICU 3.6
      */
     virtual UnicodeString& format(double number,
                                   UnicodeString& appendTo,
@@ -71,7 +70,6 @@ public:
      * @param pos       On input: an alignment field, if desired.
      *                  On output: the offsets of the alignment field.
      * @return          Reference to 'appendTo' parameter.
-     * @draft ICU 3.6
     */
     virtual UnicodeString& format(int32_t number,
                                   UnicodeString& appendTo,
@@ -86,11 +84,12 @@ public:
      * @param pos       On input: an alignment field, if desired.
      *                  On output: the offsets of the alignment field.
      * @return          Reference to 'appendTo' parameter.
-     * @draft ICU 3.6
     */
     virtual UnicodeString& format(int64_t number,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos) const;
+
+    using NumberFormat::format;
 
 // Use the default behavior for the following.
 //    virtual UnicodeString &format(double number, UnicodeString &appendTo) const;
@@ -107,7 +106,6 @@ public:
      * the new value.
      * @param newValue    the new value to be set.
      * @see getMaximumFractionDigits
-     * @draft ICU 3.6
      */
     virtual void setMaximumFractionDigits(int32_t newValue);
 
@@ -119,7 +117,6 @@ public:
      * the new value
      * @param newValue    the new value to be set.
      * @see getMinimumFractionDigits
-     * @draft ICU 3.6
      */
     virtual void setMinimumFractionDigits(int32_t newValue);
 
@@ -132,7 +129,6 @@ public:
      * .       erived::getStaticClassID()) ...
      * </pre>
      * @return          The class ID for all objects of this class.
-     * @stable ICU 2.0
      */
     U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
 
@@ -145,14 +141,14 @@ public:
      * @return          The class ID for this object. All objects of a
      *                  given class have the same class ID.  Objects of
      *                  other classes have different class IDs.
-     * @stable ICU 2.0
      */
     virtual UClassID getDynamicClassID(void) const;
 
 private:
-    UnicodeString &format(int32_t numDigits, UnicodeString &appendTo, wchar_t *format, ...) const;
+    UnicodeString &format(int32_t numDigits, UnicodeString &appendTo, const wchar_t *format, ...) const;
 
     UBool fCurrency;
+    Locale fLocale;
     int32_t fLCID;
     FormatInfo *fFormatInfo;
     UBool fFractionDigitsSet;
@@ -163,6 +159,6 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif // #ifdef U_WINDOWS
+#endif // U_PLATFORM_USES_ONLY_WIN32_API
 
 #endif // __WINNMFMT

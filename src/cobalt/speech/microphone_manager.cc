@@ -1,27 +1,19 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/speech/microphone_manager.h"
 
-#if defined(ENABLE_FAKE_MICROPHONE)
-#include "cobalt/speech/microphone_fake.h"
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
-#if defined(SB_USE_SB_MICROPHONE)
-#include "cobalt/speech/microphone_starboard.h"
-#endif  // defined(SB_USE_SB_MICROPHONE)
 #include "cobalt/speech/speech_recognition_error.h"
 
 namespace cobalt {
@@ -34,26 +26,16 @@ const int kBufferSizeInBytes = 8 * 1024;
 const float kMicReadRateInHertz = 60.0f;
 }  // namespace
 
-MicrophoneManager::MicrophoneManager(int sample_rate,
-                                     const DataReceivedCallback& data_received,
-                                     const CompletionCallback& completion,
-                                     const ErrorCallback& error,
-                                     bool enable_fake_microphone)
-    : sample_rate_(sample_rate),
-      data_received_callback_(data_received),
+MicrophoneManager::MicrophoneManager(
+    const DataReceivedCallback& data_received,
+    const CompletionCallback& completion, const ErrorCallback& error,
+    const MicrophoneCreator& microphone_creator)
+    : data_received_callback_(data_received),
       completion_callback_(completion),
       error_callback_(error),
-#if defined(ENABLE_FAKE_MICROPHONE)
-      enable_fake_microphone_(enable_fake_microphone),
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
+      microphone_creator_(microphone_creator),
       state_(kStopped),
       thread_("microphone_thread") {
-  UNREFERENCED_PARAMETER(sample_rate_);
-#if defined(ENABLE_FAKE_MICROPHONE)
-  UNREFERENCED_PARAMETER(enable_fake_microphone_);
-#else
-  UNREFERENCED_PARAMETER(enable_fake_microphone);
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
@@ -82,19 +64,7 @@ bool MicrophoneManager::CreateIfNecessary() {
     return true;
   }
 
-#if defined(SB_USE_SB_MICROPHONE)
-#if defined(ENABLE_FAKE_MICROPHONE)
-  if (enable_fake_microphone_) {
-    microphone_.reset(new MicrophoneFake());
-  } else {
-    microphone_.reset(
-        new MicrophoneStarboard(sample_rate_, kBufferSizeInBytes));
-  }
-#else
-  microphone_.reset(new MicrophoneStarboard(sample_rate_, kBufferSizeInBytes));
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
-#endif  // defined(SB_USE_SB_MICROPHONE)
-
+  microphone_ = microphone_creator_.Run(kBufferSizeInBytes);
   if (microphone_ && microphone_->IsValid()) {
     state_ = kStopped;
     return true;
@@ -163,16 +133,18 @@ void MicrophoneManager::Read() {
   DCHECK(microphone_);
   DCHECK(microphone_->MinMicrophoneReadInBytes() <= kBufferSizeInBytes);
 
-  static int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
+  int16_t samples[kBufferSizeInBytes / sizeof(int16_t)];
   int read_bytes =
       microphone_->Read(reinterpret_cast<char*>(samples), kBufferSizeInBytes);
-  if (read_bytes > 0) {
+  // If |read_bytes| is zero, nothing should happen.
+  if (read_bytes > 0 && read_bytes % sizeof(int16_t) == 0) {
     size_t frames = read_bytes / sizeof(int16_t);
     scoped_ptr<ShellAudioBus> output_audio_bus(new ShellAudioBus(
         1, frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
-    output_audio_bus->Assign(ShellAudioBus(1, frames, samples));
+    ShellAudioBus source(1, frames, samples);
+    output_audio_bus->Assign(source);
     data_received_callback_.Run(output_audio_bus.Pass());
-  } else if (read_bytes < 0) {
+  } else if (read_bytes != 0) {
     state_ = kError;
     error_callback_.Run(new SpeechRecognitionError(
         SpeechRecognitionError::kAborted, "Microphone read failed."));
@@ -185,6 +157,7 @@ void MicrophoneManager::DestroyInternal() {
 
   microphone_.reset();
   state_ = kStopped;
+  poll_mic_events_timer_ = base::nullopt;
 }
 
 }  // namespace speech

@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_LAYOUT_REPLACED_BOX_H_
 #define COBALT_LAYOUT_REPLACED_BOX_H_
@@ -27,16 +25,6 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
-
-// Here we determine if we are going to be rendering video ourselves, or if
-// the Starboard Player system will be rendering video in which case we need to
-// punch through our scene so that the video will be visible.
-#if defined(OS_STARBOARD)
-#include "starboard/configuration.h"
-#define PUNCH_THROUGH_VIDEO_RENDERING SB_IS(PLAYER_PUNCHED_OUT)
-#else  // defined(OS_STARBOARD)
-#define PUNCH_THROUGH_VIDEO_RENDERING 0
-#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace layout {
@@ -61,6 +49,7 @@ class ReplacedBox : public Box {
               const base::optional<LayoutUnit>& maybe_intrinsic_height,
               const base::optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider,
+              base::optional<bool> is_video_punched_out,
               LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
@@ -120,6 +109,7 @@ class ReplacedBox : public Box {
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
+  base::optional<bool> is_video_punched_out_;
 };
 
 }  // namespace layout

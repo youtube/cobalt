@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2002-2003, International Business Machines
+*   Copyright (C) 2002-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -18,16 +18,18 @@
 *
 ******************************************************************************
 */
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/uclean.h"
 #include "cmemory.h"
-
-#if defined(STARBOARD)
-#include "starboard/memory.h"
-#else
+#include "putilimp.h"
+#include "uassert.h"
+#if !defined(STARBOARD)
 #include <stdlib.h>
 #endif
 
-/* uprv_malloc(0) returns a pointer to this read-only data. */                
+/* uprv_malloc(0) returns a pointer to this read-only data. */
 static const int32_t zeroMem[] = {0, 0, 0, 0, 0, 0};
 
 /* Function Pointers for user-supplied heap functions  */
@@ -36,22 +38,53 @@ static UMemAllocFn    *pAlloc;
 static UMemReallocFn  *pRealloc;
 static UMemFreeFn     *pFree;
 
-/* Flag indicating whether any heap allocations have happened.
- *   Used to prevent changing out the heap functions after allocations have been made */
-static UBool   gHeapInUse;
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+#if !defined(STARBOARD)
+#include <stdio.h>
+#endif
+static int n=0;
+static long b=0; 
+#endif
+
+#if U_DEBUG
+
+static char gValidMemorySink = 0;
+
+U_CAPI void uprv_checkValidMemory(const void *p, size_t n) {
+    /*
+     * Access the memory to ensure that it's all valid.
+     * Load and save a computed value to try to ensure that the compiler
+     * does not throw away the whole loop.
+     * A thread analyzer might complain about un-mutexed access to gValidMemorySink
+     * which is true but harmless because no one ever uses the value in gValidMemorySink.
+     */
+    const char *s = (const char *)p;
+    char c = gValidMemorySink;
+    size_t i;
+    U_ASSERT(p != NULL);
+    for(i = 0; i < n; ++i) {
+        c ^= s[i];
+    }
+    gValidMemorySink = c;
+}
+
+#endif  /* U_DEBUG */
 
 U_CAPI void * U_EXPORT2
 uprv_malloc(size_t s) {
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+#if 1
+  putchar('>');
+  fflush(stdout);
+#else
+  fprintf(stderr,"MALLOC\t#%d\t%ul bytes\t%ul total\n", ++n,s,(b+=s)); fflush(stderr);
+#endif
+#endif
     if (s > 0) {
-        gHeapInUse = TRUE;
         if (pAlloc) {
             return (*pAlloc)(pContext, s);
         } else {
-#if defined(STARBOARD)
-            return SbMemoryAllocate(s);
-#else
-            return malloc(s);
-#endif
+            return uprv_default_malloc(s);
         }
     } else {
         return (void *)zeroMem;
@@ -60,46 +93,52 @@ uprv_malloc(size_t s) {
 
 U_CAPI void * U_EXPORT2
 uprv_realloc(void * buffer, size_t size) {
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+  putchar('~');
+  fflush(stdout);
+#endif
     if (buffer == zeroMem) {
         return uprv_malloc(size);
     } else if (size == 0) {
         if (pFree) {
             (*pFree)(pContext, buffer);
         } else {
-#if defined(STARBOARD)
-            SbMemoryFree(buffer);
-#else
-            free(buffer);
-#endif
+            uprv_default_free(buffer);
         }
         return (void *)zeroMem;
     } else {
-        gHeapInUse = TRUE;
         if (pRealloc) {
             return (*pRealloc)(pContext, buffer, size);
         } else {
-#if defined(STARBOARD)
-            return SbMemoryReallocate(buffer, size);
-#else
-            return realloc(buffer, size);
-#endif
+            return uprv_default_realloc(buffer, size);
         }
     }
 }
 
 U_CAPI void U_EXPORT2
 uprv_free(void *buffer) {
+#if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+  putchar('<');
+  fflush(stdout);
+#endif
     if (buffer != zeroMem) {
         if (pFree) {
             (*pFree)(pContext, buffer);
         } else {
-#if defined(STARBOARD)
-            SbMemoryFree(buffer);
-#else
-            free(buffer);
-#endif
+            uprv_default_free(buffer);
         }
     }
+}
+
+U_CAPI void * U_EXPORT2
+uprv_calloc(size_t num, size_t size) {
+    void *mem = NULL;
+    size *= num;
+    mem = uprv_malloc(size);
+    if (mem) {
+        uprv_memset(mem, 0, size);
+    }
+    return mem;
 }
 
 U_CAPI void U_EXPORT2
@@ -110,10 +149,6 @@ u_setMemoryFunctions(const void *context, UMemAllocFn *a, UMemReallocFn *r, UMem
     }
     if (a==NULL || r==NULL || f==NULL) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return;
-    }
-    if (gHeapInUse) {
-        *status = U_INVALID_STATE_ERROR;
         return;
     }
     pContext  = context;
@@ -128,17 +163,5 @@ U_CFUNC UBool cmemory_cleanup(void) {
     pAlloc     = NULL;
     pRealloc   = NULL;
     pFree      = NULL;
-    gHeapInUse = FALSE;
     return TRUE;
-}
-
-
-/*
- *   gHeapInUse
- *       Return True if ICU has allocated any memory.
- *       Used by u_SetMutexFunctions() and similar to verify that ICU has not
- *               been used, that it is in a pristine initial state.
- */
-U_CFUNC UBool cmemory_inUse() {
-    return gHeapInUse;
 }

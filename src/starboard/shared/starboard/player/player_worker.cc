@@ -15,19 +15,32 @@
 #include "starboard/shared/starboard/player/player_worker.h"
 
 #include "starboard/common/reset_and_return.h"
+#include "starboard/condition_variable.h"
 #include "starboard/memory.h"
+#include "starboard/mutex.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
 
+namespace {
+
+struct ThreadParam {
+  explicit ThreadParam(PlayerWorker* player_worker)
+      : condition_variable(mutex), player_worker(player_worker) {}
+  Mutex mutex;
+  ConditionVariable condition_variable;
+  PlayerWorker* player_worker;
+};
+
+}  // namespace
+
 PlayerWorker::PlayerWorker(Host* host,
                            scoped_ptr<Handler> handler,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
                            SbPlayer player,
-                           SbTime update_interval,
                            void* context)
     : thread_(kSbThreadInvalid),
       host_(host),
@@ -37,52 +50,30 @@ PlayerWorker::PlayerWorker(Host* host,
       player_(player),
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
-      player_state_(kSbPlayerStateInitialized),
-      update_interval_(update_interval) {
+      player_state_(kSbPlayerStateInitialized) {
   SB_DCHECK(host_ != NULL);
   SB_DCHECK(handler_ != NULL);
-  SB_DCHECK(update_interval_ > 0);
 
-  handler_->Setup(this, player_, &PlayerWorker::UpdateMediaTime,
-                  &PlayerWorker::player_state,
-                  &PlayerWorker::UpdatePlayerState);
-
-  pending_audio_sample_.input_buffer = NULL;
-  pending_video_sample_.input_buffer = NULL;
-
-  SB_DCHECK(!SbThreadIsValid(thread_));
-  thread_ =
-      SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
-                     "player_worker", &PlayerWorker::ThreadEntryPoint, this);
+  ThreadParam thread_param(this);
+  thread_ = SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
+                           "player_worker", &PlayerWorker::ThreadEntryPoint,
+                           &thread_param);
   SB_DCHECK(SbThreadIsValid(thread_));
-
-  queue_.Put(new Event(Event::kInit));
+  ScopedLock scoped_lock(thread_param.mutex);
+  while (!job_queue_) {
+    thread_param.condition_variable.Wait();
+  }
+  SB_DCHECK(job_queue_);
 }
 
 PlayerWorker::~PlayerWorker() {
-  queue_.Put(new Event(Event::kStop));
+  job_queue_->Schedule(Bind(&PlayerWorker::DoStop, this));
   SbThreadJoin(thread_, NULL);
   thread_ = kSbThreadInvalid;
 
   // Now the whole pipeline has been torn down and no callback will be called.
   // The caller can ensure that upon the return of SbPlayerDestroy() all side
   // effects are gone.
-
-  // There can be events inside the queue that is not processed.  Clean them up.
-  while (Event* event = queue_.GetTimed(0)) {
-    if (event->type == Event::kWriteSample) {
-      delete event->data.write_sample.input_buffer;
-    }
-    delete event;
-  }
-
-  if (pending_audio_sample_.input_buffer != NULL) {
-    delete pending_audio_sample_.input_buffer;
-  }
-
-  if (pending_video_sample_.input_buffer != NULL) {
-    delete pending_video_sample_.input_buffer;
-  }
 }
 
 void PlayerWorker::UpdateMediaTime(SbMediaTime time) {
@@ -90,6 +81,8 @@ void PlayerWorker::UpdateMediaTime(SbMediaTime time) {
 }
 
 void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
+  SB_DLOG_IF(WARNING, player_state == kSbPlayerStateError)
+      << "encountered kSbPlayerStateError";
   player_state_ = player_state;
 
   if (!player_status_func_) {
@@ -101,131 +94,122 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
-  PlayerWorker* player_worker = reinterpret_cast<PlayerWorker*>(context);
+  ThreadParam* param = static_cast<ThreadParam*>(context);
+  SB_DCHECK(param != NULL);
+  PlayerWorker* player_worker = param->player_worker;
+  {
+    ScopedLock scoped_lock(param->mutex);
+    player_worker->job_queue_.reset(new JobQueue);
+    param->condition_variable.Signal();
+  }
   player_worker->RunLoop();
   return NULL;
 }
 
 void PlayerWorker::RunLoop() {
-  Event* event = queue_.Get();
-  SB_DCHECK(event != NULL);
-  SB_DCHECK(event->type == Event::kInit);
-  delete event;
-  bool running = DoInit();
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  SetBoundsEventData bounds = {0, 0, 0, 0};
-
-  while (running) {
-    Event* event = queue_.GetTimed(update_interval_);
-    if (event == NULL) {
-      running &= DoUpdate(bounds);
-      continue;
-    }
-
-    SB_DCHECK(event->type != Event::kInit);
-
-    if (event->type == Event::kSeek) {
-      running &= DoSeek(event->data.seek);
-    } else if (event->type == Event::kWriteSample) {
-      running &= DoWriteSample(event->data.write_sample);
-    } else if (event->type == Event::kWriteEndOfStream) {
-      running &= DoWriteEndOfStream(event->data.write_end_of_stream);
-    } else if (event->type == Event::kSetPause) {
-      running &= handler_->ProcessSetPauseEvent(event->data.set_pause);
-    } else if (event->type == Event::kSetBounds) {
-      if (SbMemoryCompare(&bounds, &event->data.set_bounds, sizeof(bounds)) !=
-          0) {
-        bounds = event->data.set_bounds;
-        running &= DoUpdate(bounds);
-      }
-    } else if (event->type == Event::kStop) {
-      DoStop();
-      running = false;
-    } else {
-      SB_NOTREACHED() << "event type " << event->type;
-    }
-    delete event;
-  }
+  DoInit();
+  job_queue_->RunUntilStopped();
+  job_queue_.reset();
 }
 
-bool PlayerWorker::DoInit() {
-  if (handler_->ProcessInitEvent()) {
+void PlayerWorker::DoInit() {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (handler_->Init(
+          this, job_queue_.get(), player_, &PlayerWorker::UpdateMediaTime,
+          &PlayerWorker::player_state, &PlayerWorker::UpdatePlayerState)) {
     UpdatePlayerState(kSbPlayerStateInitialized);
-    return true;
+  } else {
+    UpdatePlayerState(kSbPlayerStateError);
   }
-
-  UpdatePlayerState(kSbPlayerStateError);
-  return false;
 }
 
-bool PlayerWorker::DoSeek(const SeekEventData& data) {
+void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
   SB_DCHECK(player_state_ != kSbPlayerStateError);
-  SB_DCHECK(ticket_ != data.ticket);
+  SB_DCHECK(ticket_ != ticket);
 
   SB_DLOG(INFO) << "Try to seek to timestamp "
-                << data.seek_to_pts / kSbMediaTimeSecond;
+                << seek_to_pts / kSbMediaTimeSecond;
 
-  if (pending_audio_sample_.input_buffer != NULL) {
-    delete pending_audio_sample_.input_buffer;
-    pending_audio_sample_.input_buffer = NULL;
+  if (write_pending_sample_closure_.is_valid()) {
+    job_queue_->Remove(write_pending_sample_closure_);
+    write_pending_sample_closure_.reset();
   }
-  if (pending_video_sample_.input_buffer != NULL) {
-    delete pending_video_sample_.input_buffer;
-    pending_video_sample_.input_buffer = NULL;
+  pending_audio_buffer_.reset();
+  pending_video_buffer_.reset();
+
+  if (!handler_->Seek(seek_to_pts, ticket)) {
+    UpdatePlayerState(kSbPlayerStateError);
+    return;
   }
 
-  if (!handler_->ProcessSeekEvent(data)) {
-    return false;
-  }
-
-  ticket_ = data.ticket;
+  ticket_ = ticket;
 
   UpdatePlayerState(kSbPlayerStatePrerolling);
   UpdateDecoderState(kSbMediaTypeAudio, kSbPlayerDecoderStateNeedsData);
   UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
-
-  return true;
 }
 
-bool PlayerWorker::DoWriteSample(const WriteSampleEventData& data) {
-  SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
-  SB_DCHECK(player_state_ != kSbPlayerStateError);
+void PlayerWorker::DoWriteSample(InputBuffer input_buffer) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream ||
+      player_state_ == kSbPlayerStateDestroyed ||
       player_state_ == kSbPlayerStateError) {
     SB_LOG(ERROR) << "Try to write sample when |player_state_| is "
                   << player_state_;
-    delete data.input_buffer;
-    // Return true so the pipeline will continue running with the particular
-    // call ignored.
-    return true;
+    return;
   }
 
-  if (data.sample_type == kSbMediaTypeAudio) {
-    SB_DCHECK(pending_audio_sample_.input_buffer == NULL);
+  if (input_buffer.sample_type() == kSbMediaTypeAudio) {
+    SB_DCHECK(!pending_audio_buffer_.is_valid());
   } else {
-    SB_DCHECK(pending_video_sample_.input_buffer == NULL);
+    SB_DCHECK(!pending_video_buffer_.is_valid());
   }
   bool written;
-  bool result = handler_->ProcessWriteSampleEvent(data, &written);
-  if (!written && result) {
-    if (data.sample_type == kSbMediaTypeAudio) {
-      pending_audio_sample_ = data;
-    } else {
-      pending_video_sample_ = data;
-    }
+  bool result = handler_->WriteSample(input_buffer, &written);
+  if (!result) {
+    UpdatePlayerState(kSbPlayerStateError);
+    return;
+  }
+  if (written) {
+    UpdateDecoderState(input_buffer.sample_type(),
+                       kSbPlayerDecoderStateNeedsData);
   } else {
-    delete data.input_buffer;
-    if (result) {
-      UpdateDecoderState(data.sample_type, kSbPlayerDecoderStateNeedsData);
+    if (input_buffer.sample_type() == kSbMediaTypeAudio) {
+      pending_audio_buffer_ = input_buffer;
+    } else {
+      pending_video_buffer_ = input_buffer;
+    }
+    if (!write_pending_sample_closure_.is_valid()) {
+      write_pending_sample_closure_ =
+          Bind(&PlayerWorker::DoWritePendingSamples, this);
+      job_queue_->Schedule(write_pending_sample_closure_);
     }
   }
-  return result;
 }
 
-bool PlayerWorker::DoWriteEndOfStream(const WriteEndOfStreamEventData& data) {
+void PlayerWorker::DoWritePendingSamples() {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+  SB_DCHECK(write_pending_sample_closure_.is_valid());
+  write_pending_sample_closure_.reset();
+
+  if (pending_audio_buffer_.is_valid()) {
+    DoWriteSample(common::ResetAndReturn(&pending_audio_buffer_));
+  }
+  if (pending_video_buffer_.is_valid()) {
+    DoWriteSample(common::ResetAndReturn(&pending_video_buffer_));
+  }
+}
+
+void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
 
   if (player_state_ == kSbPlayerStateInitialized ||
@@ -235,40 +219,55 @@ bool PlayerWorker::DoWriteEndOfStream(const WriteEndOfStreamEventData& data) {
                   << player_state_;
     // Return true so the pipeline will continue running with the particular
     // call ignored.
-    return true;
+    return;
   }
 
-  if (data.stream_type == kSbMediaTypeAudio) {
-    SB_DCHECK(pending_audio_sample_.input_buffer == NULL);
+  if (sample_type == kSbMediaTypeAudio) {
+    SB_DCHECK(!pending_audio_buffer_.is_valid());
   } else {
-    SB_DCHECK(pending_video_sample_.input_buffer == NULL);
+    SB_DCHECK(!pending_video_buffer_.is_valid());
   }
 
-  if (!handler_->ProcessWriteEndOfStreamEvent(data)) {
-    return false;
+  if (!handler_->WriteEndOfStream(sample_type)) {
+    UpdatePlayerState(kSbPlayerStateError);
   }
-
-  return true;
 }
 
-bool PlayerWorker::DoUpdate(const SetBoundsEventData& data) {
-  if (pending_audio_sample_.input_buffer != NULL) {
-    if (!DoWriteSample(common::ResetAndReturn(&pending_audio_sample_))) {
-      return false;
-    }
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+    SB_IS(PLAYER_PUNCHED_OUT)
+void PlayerWorker::DoSetBounds(Bounds bounds) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+  if (!handler_->SetBounds(bounds)) {
+    UpdatePlayerState(kSbPlayerStateError);
   }
-  if (pending_video_sample_.input_buffer != NULL) {
-    if (!DoWriteSample(common::ResetAndReturn(&pending_video_sample_))) {
-      return false;
-    }
-  }
-  return handler_->ProcessUpdateEvent(data);
 }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           SB_IS(PLAYER_PUNCHED_OUT)
+
+void PlayerWorker::DoSetPause(bool pause) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (!handler_->SetPause(pause)) {
+    UpdatePlayerState(kSbPlayerStateError);
+  }
+}
+
+#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (!handler_->SetPlaybackRate(playback_rate)) {
+    UpdatePlayerState(kSbPlayerStateError);
+  }
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
 void PlayerWorker::DoStop() {
-  handler_->ProcessStopEvent();
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
+  handler_->Stop();
   UpdatePlayerState(kSbPlayerStateDestroyed);
+  job_queue_->StopSoon();
 }
 
 void PlayerWorker::UpdateDecoderState(SbMediaType type,

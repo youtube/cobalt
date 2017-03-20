@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/lag.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/lag.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/lag.xml
- */
 lag{
     Countries{
         AD{"Andóra"}
@@ -56,7 +53,6 @@ lag{
         CN{"Chíina"}
         CO{"Kolómbia"}
         CR{"Kósita Rɨ́ɨka"}
-        CS{"Sebíia na Montégiro"}
         CU{"Kyúuba"}
         CV{"Kepuvéede"}
         CY{"Kupuróosi"}
@@ -238,5 +234,5 @@ lag{
         ZM{"Sámbia"}
         ZW{"Simbáabwe"}
     }
-    Version{"2.0.45.90"}
+    Version{"2.1.19.14"}
 }

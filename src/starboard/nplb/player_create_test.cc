@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/decode_target.h"
 #include "starboard/player.h"
-
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -21,6 +21,17 @@
 
 namespace starboard {
 namespace nplb {
+
+#if SB_API_VERSION >= 3
+SbDecodeTarget SbDecodeTargetAcquireStub(void* /*context*/,
+                                         SbDecodeTargetFormat /*format*/,
+                                         int /*width*/,
+                                         int /*height*/) {
+  return kSbDecodeTargetInvalid;
+}
+void SbDecodeTargetReleaseStub(void* /*context*/,
+                               SbDecodeTarget /*decode_target*/) {}
+#endif  // SB_API_VERSION >= 3
 
 TEST(SbPlayerTest, SunnyDay) {
   SbWindowOptions window_options;
@@ -41,13 +52,54 @@ TEST(SbPlayerTest, SunnyDay) {
                                           audio_header.number_of_channels *
                                           audio_header.bits_per_sample / 8;
 
-  SbPlayer player =
-      SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
-                     SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, &audio_header,
-                     NULL, NULL, NULL, NULL);
-  EXPECT_TRUE(SbPlayerIsValid(player));
-  SbPlayerDestroy(player);
-  SbWindowDestroy(window);
+  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
+  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                       kSbPlayerOutputModePunchOut};
+
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
+    SbPlayerOutputMode output_mode = output_modes[i];
+    if (!SbPlayerOutputModeSupported(output_mode, kVideoCodec, kDrmSystem)) {
+      continue;
+    }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+#if SB_API_VERSION >= 3
+    SbDecodeTargetProvider decode_target_provider;
+    decode_target_provider.acquire = &SbDecodeTargetAcquireStub;
+    decode_target_provider.release = &SbDecodeTargetReleaseStub;
+    decode_target_provider.context = NULL;
+#endif  // SB_API_VERSION >= 3
+
+    SbPlayer player =
+        SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
+                       SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
+                       &audio_header, NULL, NULL, NULL, NULL
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+                       ,
+                       output_mode
+#endif
+#if SB_API_VERSION >= 3
+                       ,
+                       &decode_target_provider
+#endif
+                       );  // NOLINT
+    EXPECT_TRUE(SbPlayerIsValid(player));
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+      SbDecodeTarget current_frame = SbPlayerGetCurrentFrame(player);
+    }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+    SbPlayerDestroy(player);
+    SbWindowDestroy(window);
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 }
 
 }  // namespace nplb

@@ -12,7 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The event system that wraps the Starboard main loop and entry point.
+// Module Overview: Starboard Event module
+//
+// Defines the event system that wraps the Starboard main loop and entry point.
+//
+// ## The Starboard Application life cycle
+//
+// |          *
+// |          |                      _________________________
+// |        Start                   |                         |
+// |          |                     |                       Resume
+// |          V                     V                         |
+// |     [ STARTED ] --Pause--> [ PAUSED ] --Suspend--> [ SUSPENDED ]
+// |          ^                     |                         |
+// |          |                  Unpause                     Stop
+// |          |_____________________|                         |
+// |                                                          V
+// |                                                     [ STOPPED ]
+//
+// The first event that a Starboard application receives is Start
+// (kSbEventTypeStart). This puts the application in the |STARTED| state.
+// The application is in the foreground and can expect to do all of the normal
+// things it might want to do. Once in the |STARTED| state, it may receive a
+// |Pause| event, putting the application into the |PAUSED| state.
+//
+// In the |PAUSED| state, the application is still visible, but has lost
+// focus, or it is partially obscured by a modal dialog, or it is on its way
+// to being shut down. The application should pause activity in this state.
+// In this state, it can receive |Unpause| to be brought back to the foreground
+// state (|STARTED|), or |Suspend| to be pushed further in the background
+// to the |SUSPENDED| state.
+//
+// In the |SUSPENDED| state, the application is generally not visible. It
+// should immediately release all graphics and video resources, and shut down
+// all background activity (timers, rendering, etc). Additionally, the
+// application should flush storage to ensure that if the application is
+// killed, the storage will be up-to-date. The application may be killed at
+// this point, but will ideally receive a |Stop| event for a more graceful
+// shutdown.
+//
+// Note that the application is always expected to transition through |PAUSED|
+// to |SUSPENDED| before receiving |Stop| or being killed.
 
 #ifndef STARBOARD_EVENT_H_
 #define STARBOARD_EVENT_H_
@@ -25,43 +65,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// The Starboard Application life cycle
-// ------------------------------------
-//
-//           *
-//           |                      _________________________
-//         Start                   |                         |
-//           |                     |                       Resume
-//           V                     V                         |
-//      [ STARTED ] --Pause--> [ PAUSED ] --Suspend--> [ SUSPENDED ]
-//           ^                     |                         |
-//           |                  Unpause                     Stop
-//           |_____________________|                         |
-//                                                           V
-//                                                      [ STOPPED ]
-//
-// The first event that a Starboard application will receive is Start
-// (kSbEventTypeStart). This puts the application in the STARTED state; it is in
-// the foreground and can expect to do all the normal things it might want to
-// do. Once in the STARTED state, it may receive a Pause event, putting the
-// application into the PAUSED state.
-//
-// In the PAUSED state, the application is still visible, but has lost focus, or
-// it is partially obscured by a modal dialog, or it is on its way to being shut
-// down. The application should pause activity in this state. In this state, it
-// can receive Unpause to be brought back to the foreground state, STARTED, or
-// Suspend to be pushed further in the background to the SUSPENDED state.
-//
-// In the SUSPENDED state, the application is generally not visible. It should
-// immediately release all graphics and video resources, and shut down all
-// background activity (timers, rendering, etc). Additionally, the application
-// should flush storage to ensure that if the application is killed, the storage
-// will be up-to-date. The application may be killed at this point, but will
-// ideally receive a Stop event for a more graceful shutdown.
-//
-// Note that the application is always expected to transition through PAUSED to
-// SUSPENDED before receiving Stop or being killed.
 
 // An enumeration of all possible event types dispatched directly by the
 // system. Each event is accompanied by a void* data argument, and each event
@@ -148,6 +151,13 @@ typedef enum SbEventType {
   // callback directly, so SbEventHandle should never receive this event
   // directly. The data type is an internally-defined structure.
   kSbEventTypeScheduled,
+
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  // The platform's accessibility settings have changed. The application should
+  // query the accessibility settings using the appropriate APIs to get the
+  // new settings.
+  kSbEventTypeAccessiblitySettingsChanged,
+#endif
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
@@ -185,31 +195,36 @@ static SB_C_FORCE_INLINE bool SbEventIsIdValid(SbEventId handle) {
   return handle != kSbEventIdInvalid;
 }
 
-// Declaration of the entry point that Starboard applications MUST implement.
-// Any memory pointed at by |event| or the |data| field inside |event| is owned
-// by the system, and will be reclaimed after this function returns, so the
-// implementation must copy this data to extend its life.  This should also be
-// assumed of all fields within the data object, unless otherwise explicitly
-// specified. This function will only be called from the main Starboard thread.
-// There is no specification about what other work might happen on this thread,
-// so the application should generally do as little work as possible on this
-// thread, and just dispatch it over to another thread.
+// The entry point that Starboard applications MUST implement. Any memory
+// pointed at by |event| or the |data| field inside |event| is owned by the
+// system, and that memory is reclaimed after this function returns, so the
+// implementation must copy this data to extend its life. This behavior should
+// also be assumed of all fields within the |data| object, unless otherwise
+// explicitly specified.
+//
+// This function is only called from the main Starboard thread. There is no
+// specification about what other work might happen on this thread, so the
+// application should generally do as little work as possible on this thread,
+// and just dispatch it over to another thread.
 SB_IMPORT void SbEventHandle(const SbEvent* event);
 
-// Schedules an event |callback| into the main Starboard event loop, with
-// accompanying |context|. This function may be called from any thread, but
-// |callback| will always be called from the main Starboard thread, queued with
-// other pending events. |callback| will not be called any earlier than |delay|
-// microseconds from the time SbEventInject is called. Set |delay| to 0 to call
-// the event as soon as possible.
+// Schedules an event |callback| into the main Starboard event loop.
+// This function may be called from any thread, but |callback| is always
+// called from the main Starboard thread, queued with other pending events.
+//
+// |callback|: The callback function to be called.
+// |context|: The context that is passed to the |callback| function.
+// |delay|: The minimum number of microseconds to wait before calling the
+// |callback| function. Set |delay| to |0| to call the callback as soon as
+// possible.
 SB_EXPORT SbEventId SbEventSchedule(SbEventCallback callback,
                                     void* context,
                                     SbTime delay);
 
-// Cancels the injected |event_id|. Does nothing if the event already fired. Can
-// be safely called from any thread, but there is no guarantee that the event
-// will not run anyway unless it is called from the main Starboard event loop
-// thread.
+// Cancels the specified |event_id|. Note that this function is a no-op
+// if the event already fired. This function can be safely called from any
+// thread, but the only way to guarantee that the event does not run anyway
+// is to call it from the main Starboard event loop thread.
 SB_EXPORT void SbEventCancel(SbEventId event_id);
 
 #ifdef __cplusplus

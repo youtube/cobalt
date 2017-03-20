@@ -30,6 +30,8 @@
         'array_buffer_view.h',
         'attr.cc',
         'attr.h',
+        'audio_track.h',
+        'audio_track_list.h',
         'benchmark_stat_names.cc',
         'benchmark_stat_names.h',
         'blob.h',
@@ -173,12 +175,21 @@
         'media_key_needed_event.h',
         'media_query_list.cc',
         'media_query_list.h',
-        'media_source.cc',
-        'media_source.h',
         'memory_info.cc',
         'memory_info.h',
+        'message_event.h',
+        'message_event.cc',
         'mime_type_array.cc',
         'mime_type_array.h',
+        'mutation_observer_task_manager.cc',
+        'mutation_observer_task_manager.h',
+        'mutation_observer.cc',
+        'mutation_observer.h',
+        'mutation_observer_init.h',
+        'mutation_record.cc',
+        'mutation_record.h',
+        'mutation_reporter.cc',
+        'mutation_reporter.h',
         'named_node_map.cc',
         'named_node_map.h',
         'navigator.cc',
@@ -202,6 +213,9 @@
         'progress_event.h',
         'pseudo_element.cc',
         'pseudo_element.h',
+        'registered_observer.h',
+        'registered_observer_list.cc',
+        'registered_observer_list.h',
         'rule_matching.cc',
         'rule_matching.h',
         'screen.h',
@@ -209,10 +223,6 @@
         'security_policy_violation_event.h',
         'serializer.cc',
         'serializer.h',
-        'source_buffer.cc',
-        'source_buffer.h',
-        'source_buffer_list.cc',
-        'source_buffer_list.h',
         'storage.cc',
         'storage.h',
         'storage_area.cc',
@@ -225,6 +235,10 @@
         'text.h',
         'time_ranges.cc',
         'time_ranges.h',
+        'track_base.h',
+        'track_default.h',
+        'track_default_list.h',
+        'track_event.h',
         'transition_event.h',
         'typed_array.h',
         'ui_event.cc',
@@ -237,6 +251,8 @@
         'url_registry.h',
         'url_utils.cc',
         'url_utils.h',
+        'video_track.h',
+        'video_track_list.h',
         'window.cc',
         'window.h',
         'window_timers.cc',
@@ -247,18 +263,60 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
-        '<(DEPTH)/cobalt/media/media.gyp:media',
+        '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         # Interface layer to avoid directly depending on network.
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
+        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/nb/nb.gyp:nb',
       ],
+      'conditions': [
+        ['cobalt_media_source_2016==1', {
+          'sources': [
+            'media_source/media_source.cc',
+            'media_source/media_source.h',
+            'media_source/source_buffer.cc',
+            'media_source/source_buffer.h',
+            'media_source/source_buffer_list.cc',
+            'media_source/source_buffer_list.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media2.gyp:media2',
+          ],
+        }, {
+          'sources': [
+            'media_source.cc',
+            'media_source.h',
+            'source_buffer.cc',
+            'source_buffer.h',
+            'source_buffer_list.cc',
+            'source_buffer_list.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/media/media.gyp:media',
+          ],
+        }],
+      ],
+      # This target doesn't generate any headers, but it exposes generated
+      # header files (for idl dictionaries) through this module's public header
+      # files. So mark this target as a hard dependency to ensure that any
+      # dependent targets wait until this target (and its hard dependencies) are
+      # built.
+      'hard_dependency': 1,
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
+      ]
     },
 
     {

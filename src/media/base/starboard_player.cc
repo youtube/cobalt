@@ -14,10 +14,15 @@
 
 #include "media/base/starboard_player.h"
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "media/base/shell_media_platform.h"
 #include "media/base/starboard_utils.h"
+#include "starboard/configuration.h"
+#include "starboard/memory.h"
 
 namespace media {
 
@@ -39,7 +44,7 @@ StarboardPlayer::StarboardPlayer(
       frame_height_(1),
       ticket_(SB_PLAYER_INITIAL_TICKET),
       volume_(1.0),
-      paused_(true),
+      playback_rate_(0.0),
       seek_pending_(false),
       state_(kPlaying) {
   DCHECK(audio_config.IsValidConfig());
@@ -50,6 +55,10 @@ StarboardPlayer::StarboardPlayer(
   audio_config_.CopyFrom(audio_config);
   video_config_.CopyFrom(video_config);
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  output_mode_ = ComputeSbPlayerOutputMode(
+      MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system);
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   CreatePlayer();
 
   message_loop->PostTask(
@@ -61,6 +70,13 @@ StarboardPlayer::~StarboardPlayer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   set_bounds_helper_->SetPlayer(NULL);
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  ShellMediaPlatform::Instance()
+      ->GetVideoFrameProvider()
+      ->ResetGetCurrentSbDecodeTargetFunction();
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
   SbPlayerDestroy(player_);
 }
 
@@ -113,6 +129,11 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   video_info.frame_width = frame_width_;
   video_info.frame_height = frame_height_;
 
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  SbMediaColorMetadata sb_media_color_metadata =
+      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
+  video_info.color_metadata = &sb_media_color_metadata;
+#endif
   if (is_encrypted) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
@@ -132,7 +153,9 @@ void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
 void StarboardPlayer::PrepareForSeek() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   ++ticket_;
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, true);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   seek_pending_ = true;
 }
 
@@ -158,9 +181,9 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   ++ticket_;
   SbPlayerSeek(player_, TimeDeltaToSbMediaTime(time), ticket_);
   seek_pending_ = false;
-  if (!paused_) {
-    SbPlayerSetPause(player_, false);
-  }
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPause(player_, playback_rate_ == 0.0);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
 void StarboardPlayer::SetVolume(float volume) {
@@ -177,14 +200,16 @@ void StarboardPlayer::SetVolume(float volume) {
   SbPlayerSetVolume(player_, volume);
 }
 
-void StarboardPlayer::SetPause(bool pause) {
+void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(SbPlayerIsValid(player_));
 
-  paused_ = pause;
-  if (!seek_pending_) {
-    SbPlayerSetPause(player_, pause);
-  }
+  playback_rate_ = playback_rate;
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPause(player_, playback_rate == 0.0);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, playback_rate);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
@@ -234,7 +259,11 @@ void StarboardPlayer::Suspend() {
 
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, true);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, 0.0);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 
   base::AutoLock auto_lock(lock_);
 
@@ -283,20 +312,60 @@ void StarboardPlayer::CreatePlayer() {
   audio_header.average_bytes_per_second = 1;
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = audio_config_.bits_per_channel();
-  audio_header.audio_specific_config_size = 0;
+  audio_header.audio_specific_config_size = static_cast<uint16_t>(
+      std::min(audio_config_.extra_data_size(),
+               sizeof(audio_header.audio_specific_config)));
+  if (audio_header.audio_specific_config_size > 0) {
+    SbMemoryCopy(audio_header.audio_specific_config, audio_config_.extra_data(),
+                 audio_header.audio_specific_config_size);
+  }
 
   SbMediaAudioCodec audio_codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   SbMediaVideoCodec video_codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
 
-  player_ = SbPlayerCreate(window_, video_codec, audio_codec,
-                           SB_PLAYER_NO_DURATION, drm_system_, &audio_header,
-                           &StarboardPlayer::DeallocateSampleCB,
-                           &StarboardPlayer::DecoderStatusCB,
-                           &StarboardPlayer::PlayerStatusCB, this);
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+  player_ = SbPlayerCreate(
+      window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
+      &audio_header, &StarboardPlayer::DeallocateSampleCB,
+      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+      ,
+      output_mode_
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 3
+      ,
+      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
+#endif  // SB_API_VERSION >= 3
+      );
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+    // If the player is setup to decode to texture, then provide Cobalt with
+    // a method of querying that texture.
+    ShellMediaPlatform::Instance()
+        ->GetVideoFrameProvider()
+        ->SetGetCurrentSbDecodeTargetFunction(
+            base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
+                       base::Unretained(this)));
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
   set_bounds_helper_->SetPlayer(this);
 }
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
+  return SbPlayerGetCurrentFrame(player_);
+}
+SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
+  return output_mode_;
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 void StarboardPlayer::ClearDecoderBufferCache() {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -371,9 +440,11 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player,
     }
     SbPlayerSeek(player_, TimeDeltaToSbMediaTime(preroll_timestamp_), ticket_);
     SetVolume(volume_);
-    if (paused_) {
-      SetPause(paused_);
-    }
+#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+    SbPlayerSetPause(player_, playback_rate_ == 0.0);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+    SbPlayerSetPlaybackRate(player_, playback_rate_);
+#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
     return;
   }
   host_->OnPlayerStatus(state);
@@ -427,5 +498,22 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player,
       FROM_HERE, base::Bind(&StarboardPlayer::OnDeallocateSample,
                             helper->weak_this_, sample_buffer));
 }
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+// static
+SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
+    SbMediaVideoCodec codec, SbDrmSystem drm_system) {
+  // If available, choose punch-out mode, since it will almost always be
+  // the most performant.  If it is unavailable, then fallback to
+  // decode-to-texture.
+  SbPlayerOutputMode output_mode = kSbPlayerOutputModeDecodeToTexture;
+  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
+                                  drm_system)) {
+    output_mode = kSbPlayerOutputModePunchOut;
+  }
+
+  return output_mode;
+}
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 }  // namespace media

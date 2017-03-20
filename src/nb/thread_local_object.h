@@ -137,6 +137,24 @@ class ThreadLocalObject {
     return object;
   }
 
+  template <typename ConstructorArg>
+  Type* GetOrCreate(const ConstructorArg& arg) {
+    Type* object = GetIfExists();
+    if (!object) {  // create object.
+      object = new Type(arg);
+      Entry* entry = new Entry(this, object);
+      // Insert into the set of tls entries.
+      // Performance: Its assumed that creation of objects is much less
+      // frequent than getting an object.
+      {
+        starboard::ScopedLock lock(entry_set_mutex_);
+        entry_set_.insert(entry);
+      }
+      SbThreadSetLocalValue(slot_, entry);
+    }
+    return object;
+  }
+
   // Returns the pointer if it exists in the current thread, otherwise NULL.
   Type* GetIfExists() const {
     Entry* entry = GetEntryIfExists();

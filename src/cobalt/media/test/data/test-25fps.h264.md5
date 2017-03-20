@@ -1,0 +1,29 @@
+# --test_video_data="test-25fps.h264:320:240:250:258:35:150:1"
+# Intel Sandy Brige - EGL
+42e78b8ac231dc24e6db5fac2d26da7b
+# Intel - Broadwell / Haswell - EGL
+11899ca545a269b6af28116b0480c0bd
+# Intel - Ivy Bridge - EGL
+d16d0662406b9d4ebb413ed3da3896e0
+# Intel - Haswell - X11
+# Intel - Ivy Bridge - X11
+5f697b015b7af0afa7ff202905f748fa
+# Intel - Sandy Bridge - X11
+07bac7ad907bcb75004324645637a06c
+# ARM - Exynos
+04436cf1cf06b4bb6c1efd838e68257d
+# ARM - Tegra
+b55cda7d10c37104d8c49d27c2699e40
+# ARM - MediaTek
+ab9205ea7da8e00fefe1094d43542fb2
+
+# TODO(llandwerlin): Remove the following hashes when the libva-intel-driver
+# is updated.
+# Intel Haswell - EGL
+92a0c14b4c1a13ca21317d2e75f17f76
+# Intel Ivy Bridge - EGL
+75d2f70272df8687dbda32e2eddd0a00
+# Intel (various) libva-intel-driver 1.5.1 with VA_PROC_PIPELINE_FAST
+8bbc743c7ac92c2442d09e8b3fb9f4f5
+# Intel - SKL
+2ec057b15cd26d087b8df10003493085

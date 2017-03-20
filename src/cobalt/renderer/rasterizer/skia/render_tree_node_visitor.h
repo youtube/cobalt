@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_RENDER_TREE_NODE_VISITOR_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_RENDER_TREE_NODE_VISITOR_H_
@@ -60,6 +58,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   typedef base::Callback<scoped_ptr<ScratchSurface>(const math::Size&)>
       CreateScratchSurfaceFunction;
 
+  typedef base::Callback<void(const render_tree::ImageNode* image_node,
+                              RenderTreeNodeVisitorDrawState* draw_state)>
+      RenderImageFallbackFunction;
+
   enum Type {
     kType_Normal,
     kType_SubVisitor,
@@ -69,11 +71,16 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // RenderTreeNodeVisitor, so it must outlive the RenderTreeNodeVisitor
   // object.  If |is_sub_visitor| is set to true, errors will be supported for
   // certain operations such as punch out alpha textures, as it is unfortunately
-  // difficult to implement them when rendering to a sub-canvas.
+  // difficult to implement them when rendering to a sub-canvas.  If
+  // |render_image_fallback_function| is specified, it will be invoked whenever
+  // standard Skia processing of the image is not possible, which usually is
+  // when the image is backed by a SbDecodeTarget that requires special
+  // consideration.
   RenderTreeNodeVisitor(
       SkCanvas* render_target,
       const CreateScratchSurfaceFunction* create_scratch_surface_function,
       const base::Closure& reset_skia_context_function,
+      const RenderImageFallbackFunction& render_image_fallback_function,
       SurfaceCacheDelegate* surface_cache_delegate,
       common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
@@ -106,6 +113,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       surface_cache_scoped_context_;
 
   base::Closure reset_skia_context_function_;
+
+  RenderImageFallbackFunction render_image_fallback_function_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };

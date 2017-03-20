@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Functions for swapping byte order, used to deal with endianness when
-// performing I/O
+// Module Overview: Starboard Byte Swap module
+//
+// Specifies functions for swapping byte order. These functions are used to
+// deal with endianness when performing I/O.
 
 #ifndef STARBOARD_BYTE_SWAP_H_
 #define STARBOARD_BYTE_SWAP_H_
@@ -53,21 +55,27 @@ extern "C" {
 // and then act on that determination somehow.
 
 // Unconditionally swaps the byte order in signed 16-bit |value|.
+// |value|: The value for which the byte order will be swapped.
 SB_EXPORT int16_t SbByteSwapS16(int16_t value);
 
 // Unconditionally swaps the byte order in unsigned 16-bit |value|.
+// |value|: The value for which the byte order will be swapped.
 SB_EXPORT uint16_t SbByteSwapU16(uint16_t value);
 
 // Unconditionally swaps the byte order in signed 32-bit |value|.
+// |value|: The value for which the byte order will be swapped.
 SB_EXPORT int32_t SbByteSwapS32(int32_t value);
 
 // Unconditionally swaps the byte order in unsigned 32-bit |value|.
+// |value|: The value for which the byte order will be swapped.
 SB_EXPORT uint32_t SbByteSwapU32(uint32_t value);
 
 // Unconditionally swaps the byte order in signed 64-bit |value|.
+// |value|: The value for which the byte order will be swapped.
 SB_EXPORT int64_t SbByteSwapS64(int64_t value);
 
 // Unconditionally swaps the byte order in unsigned 64-bit |value|.
+// |value|: The value for which the byte order will be swapped.
 SB_EXPORT uint64_t SbByteSwapU64(uint64_t value);
 
 #ifdef __cplusplus

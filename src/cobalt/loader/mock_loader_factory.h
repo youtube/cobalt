@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_LOADER_MOCK_LOADER_FACTORY_H_
 #define COBALT_LOADER_MOCK_LOADER_FACTORY_H_
@@ -33,20 +31,18 @@ namespace loader {
 
 class MockLoaderFactory {
  public:
-  MOCK_METHOD5(CreateImageLoaderMock,
+  MOCK_METHOD4(CreateImageLoaderMock,
                loader::Loader*(
                    const GURL& url,
                    const csp::SecurityCallback& url_security_callback,
                    const image::ImageDecoder::SuccessCallback& success_callback,
-                   const image::ImageDecoder::FailureCallback& failure_callback,
                    const image::ImageDecoder::ErrorCallback& error_callback));
 
-  MOCK_METHOD5(
+  MOCK_METHOD4(
       CreateTypefaceLoaderMock,
       loader::Loader*(
           const GURL& url, const csp::SecurityCallback& url_security_callback,
           const font::TypefaceDecoder::SuccessCallback& success_callback,
-          const font::TypefaceDecoder::FailureCallback& failure_callback,
           const font::TypefaceDecoder::ErrorCallback& error_callback));
 
   // This workaround is required since scoped_ptr has no copy constructor.
@@ -55,21 +51,19 @@ class MockLoaderFactory {
   scoped_ptr<Loader> CreateImageLoader(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::SuccessCallback& success_callback,
-      const image::ImageDecoder::FailureCallback& failure_callback,
       const image::ImageDecoder::ErrorCallback& error_callback) {
     return scoped_ptr<Loader>(
         CreateImageLoaderMock(url, url_security_callback, success_callback,
-                              failure_callback, error_callback));
+                              error_callback));
   }
 
   scoped_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       const font::TypefaceDecoder::SuccessCallback& success_callback,
-      const font::TypefaceDecoder::FailureCallback& failure_callback,
       const font::TypefaceDecoder::ErrorCallback& error_callback) {
     return scoped_ptr<Loader>(
         CreateTypefaceLoaderMock(url, url_security_callback, success_callback,
-                                 failure_callback, error_callback));
+                                 error_callback));
   }
 
   MOCK_METHOD0(Suspend, void());

@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_NODE_VISITOR_H_
 #define COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_NODE_VISITOR_H_
@@ -33,12 +31,14 @@
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/rasterizer/blitter/cached_software_rasterizer.h"
+#include "cobalt/renderer/rasterizer/blitter/linear_gradient_cache.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
 #include "cobalt/renderer/rasterizer/common/surface_cache.h"
 
 #include "starboard/blitter.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
 
 #if SB_HAS(BLITTER)
 
@@ -65,7 +65,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                         ScratchSurfaceCache* scratch_surface_cache,
                         SurfaceCacheDelegate* surface_cache_delegate,
                         common::SurfaceCache* surface_cache,
-                        CachedSoftwareRasterizer* software_surface_cache);
+                        CachedSoftwareRasterizer* software_surface_cache,
+                        LinearGradientCache* linear_gradient_cache);
 
   void Visit(render_tree::animations::AnimateNode* animate_node) OVERRIDE {
     NOTREACHED();
@@ -117,6 +118,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // We fallback to software rasterization in order to render anything that we
   // cannot render via the Blitter API directly.  We cache the results.
   CachedSoftwareRasterizer* software_surface_cache_;
+  LinearGradientCache* linear_gradient_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };

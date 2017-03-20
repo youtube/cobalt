@@ -135,7 +135,8 @@ js::ClearStructuredClone(const uint64_t *data, size_t nbytes)
                 uint32_t tag = uint32_t(u >> 32);
                 if (tag == SCTAG_TRANSFER_MAP) {
                     u = LittleEndian::readUint64(point++);
-                    js_free(reinterpret_cast<void*>(u));
+                    js_free(reinterpret_cast<void*>(
+                            static_cast<uintptr_t>(u)));
                 } else {
                     // The only things in the transfer map should be
                     // SCTAG_TRANSFER_MAP tags paired with pointers. If we find
@@ -312,7 +313,11 @@ SCInput::readPtr(void **p)
     // 32 bits, so we create a 64 temporary and discard the unused bits.
     uint64_t tmp;
     bool ret = read(&tmp);
+#if defined(STARBOARD)
+    *p = reinterpret_cast<void*>(static_cast<uintptr_t>(tmp));
+#else
     *p = reinterpret_cast<void*>(tmp);
+#endif
     return ret;
 }
 

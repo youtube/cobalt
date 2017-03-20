@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/naq.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/naq.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/naq.xml
- */
 naq{
     Languages{
         ak{"Akangowab"}
@@ -57,5 +54,5 @@ naq{
         zh{"Chineesǁî gowab, Mandarinni"}
         zu{"Zulub"}
     }
-    Version{"2.0.46.85"}
+    Version{"2.1.19.94"}
 }

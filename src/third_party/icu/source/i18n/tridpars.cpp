@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-*   Copyright (c) 2002-2009, International Business Machines Corporation
+*   Copyright (c) 2002-2014, International Business Machines Corporation
 *   and others.  All Rights Reserved.
 **********************************************************************
 *   Date        Name        Description
@@ -12,9 +12,13 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "tridpars.h"
 #include "hash.h"
 #include "mutex.h"
+#include "transreg.h"
+#include "uassert.h"
 #include "ucln_in.h"
 #include "unicode/parsepos.h"
 #include "unicode/translit.h"
@@ -41,11 +45,12 @@ static const int32_t FORWARD = UTRANS_FORWARD;
 static const int32_t REVERSE = UTRANS_REVERSE;
 
 static Hashtable* SPECIAL_INVERSES = NULL;
+static UInitOnce gSpecialInversesInitOnce = U_INITONCE_INITIALIZER;
 
 /**
  * The mutex controlling access to SPECIAL_INVERSES
  */
-static UMTX LOCK = 0;
+static UMutex LOCK = U_MUTEX_INITIALIZER;
 
 TransliteratorIDParser::Specs::Specs(const UnicodeString& s, const UnicodeString& t,
                                      const UnicodeString& v, UBool sawS,
@@ -72,7 +77,7 @@ TransliteratorIDParser::SingleID::SingleID(const UnicodeString& c, const Unicode
 Transliterator* TransliteratorIDParser::SingleID::createInstance() {
     Transliterator* t;
     if (basicID.length() == 0) {
-        t = createBasicInstance(ANY_NULL, &canonID);
+        t = createBasicInstance(UnicodeString(TRUE, ANY_NULL, 8), &canonID);
     } else {
         t = createBasicInstance(basicID, &canonID);
     }
@@ -498,7 +503,7 @@ void TransliteratorIDParser::instantiateList(UVector& list,
 
     // An empty list is equivalent to a NULL transliterator.
     if (tlist.size() == 0) {
-        t = createBasicInstance(ANY_NULL, NULL);
+        t = createBasicInstance(UnicodeString(TRUE, ANY_NULL, 8), NULL);
         if (t == NULL) {
             // Should never happen
             ec = U_INTERNAL_TRANSLITERATOR_ERROR;
@@ -547,7 +552,7 @@ void TransliteratorIDParser::IDtoSTV(const UnicodeString& id,
                                      UnicodeString& target,
                                      UnicodeString& variant,
                                      UBool& isSourcePresent) {
-    source = ANY;
+    source.setTo(ANY, 3);
     target.truncate(0);
     variant.truncate(0);
 
@@ -596,7 +601,7 @@ void TransliteratorIDParser::STVtoID(const UnicodeString& source,
                                      UnicodeString& id) {
     id = source;
     if (id.length() == 0) {
-        id = ANY;
+        id.setTo(ANY, 3);
     }
     id.append(TARGET_SEP).append(target);
     if (variant.length() != 0) {
@@ -644,7 +649,7 @@ void TransliteratorIDParser::registerSpecialInverse(const UnicodeString& target,
                                                     const UnicodeString& inverseTarget,
                                                     UBool bidirectional,
                                                     UErrorCode &status) {
-    init(status);
+    umtx_initOnce(gSpecialInversesInitOnce, init, status);
     if (U_FAILURE(status)) {
         return;
     }
@@ -791,11 +796,11 @@ TransliteratorIDParser::parseFilterID(const UnicodeString& id, int32_t& pos,
     // Empty source or target defaults to ANY
     UBool sawSource = TRUE;
     if (source.length() == 0) {
-        source = ANY;
+        source.setTo(ANY, 3);
         sawSource = FALSE;
     }
     if (target.length() == 0) {
-        target = ANY;
+        target.setTo(ANY, 3);
     }
 
     return new Specs(source, target, variant, sawSource, filter);
@@ -848,10 +853,13 @@ TransliteratorIDParser::specsToID(const Specs* specs, int32_t dir) {
  */
 TransliteratorIDParser::SingleID*
 TransliteratorIDParser::specsToSpecialInverse(const Specs& specs, UErrorCode &status) {
-    if (0!=specs.source.caseCompare(ANY, U_FOLD_CASE_DEFAULT)) {
+    if (0!=specs.source.caseCompare(ANY, 3, U_FOLD_CASE_DEFAULT)) {
         return NULL;
     }
-    init(status);
+    umtx_initOnce(gSpecialInversesInitOnce, init, status);
+    if (U_FAILURE(status)) {
+        return NULL;
+    }
 
     UnicodeString* inverseTarget;
 
@@ -868,11 +876,11 @@ TransliteratorIDParser::specsToSpecialInverse(const Specs& specs, UErrorCode &st
             buf.append(specs.filter);
         }
         if (specs.sawSource) {
-            buf.append(ANY).append(TARGET_SEP);
+            buf.append(ANY, 3).append(TARGET_SEP);
         }
         buf.append(*inverseTarget);
 
-        UnicodeString basicID(ANY);
+        UnicodeString basicID(TRUE, ANY, 3);
         basicID.append(TARGET_SEP).append(*inverseTarget);
 
         if (specs.variant.length() != 0) {
@@ -894,30 +902,18 @@ Transliterator* TransliteratorIDParser::createBasicInstance(const UnicodeString&
 }
 
 /**
- * Initialize static memory.
+ * Initialize static memory. Called through umtx_initOnce only.
  */
 void TransliteratorIDParser::init(UErrorCode &status) {
-    if (SPECIAL_INVERSES != NULL) {
-        return;
-    }
+    U_ASSERT(SPECIAL_INVERSES == NULL);
+    ucln_i18n_registerCleanup(UCLN_I18N_TRANSLITERATOR, utrans_transliterator_cleanup);
 
-    Hashtable* special_inverses = new Hashtable(TRUE, status);
-    // Null pointer check
-    if (special_inverses == NULL) {
+    SPECIAL_INVERSES = new Hashtable(TRUE, status);
+    if (SPECIAL_INVERSES == NULL) {
     	status = U_MEMORY_ALLOCATION_ERROR;
     	return;
     }
-    special_inverses->setValueDeleter(uhash_deleteUnicodeString);
-
-    umtx_lock(&LOCK);
-    if (SPECIAL_INVERSES == NULL) {
-        SPECIAL_INVERSES = special_inverses;
-        special_inverses = NULL;
-    }
-    umtx_unlock(&LOCK);
-    delete special_inverses; /*null instance*/
-
-    ucln_i18n_registerCleanup(UCLN_I18N_TRANSLITERATOR, utrans_transliterator_cleanup);
+    SPECIAL_INVERSES->setValueDeleter(uprv_deleteUObject);
 }
 
 /**
@@ -928,7 +924,7 @@ void TransliteratorIDParser::cleanup() {
         delete SPECIAL_INVERSES;
         SPECIAL_INVERSES = NULL;
     }
-    umtx_destroy(&LOCK);
+    gSpecialInversesInitOnce.reset();
 }
 
 U_NAMESPACE_END

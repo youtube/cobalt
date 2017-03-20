@@ -1,0 +1,16 @@
+2014-09-20	jsonmerge	1.1.0
+
+	* Add ArrayMergeById strategy (thanks to Sarah Bird).
+	* merge() and get_schema() methods now raise more specific exception
+	  classes on error (BaseInstanceError, HeadInstanceError, SchemaError).
+	* Rename "unique" option for Version strategy to "ignoreDups".
+	* Fix duplicate entries with Version strategy even when "ignoreDups"
+	  was True (thanks to Sarah Bird).
+	* Always add "type" keyword when making new objects in get_schema().
+	* Remove "maxItems" and "uniqueItems" keywords in get_schema() for
+	  Append strategy.
+	* Use setuptools for packaging (thanks to Sarah Bird).
+
+2014-08-19	jsonmerge	1.0.0
+
+	* First release

@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <cmath>
 
@@ -52,7 +50,7 @@ class MockRasterizer : public Rasterizer {
 
   void Submit(const scoped_refptr<cobalt::render_tree::Node>&,
               const scoped_refptr<cobalt::renderer::backend::RenderTarget>&,
-              int options) OVERRIDE {
+              const Options& options) OVERRIDE {
     if (last_submission_time) {
       // Simulate a "wait for vsync".
       base::TimeDelta since_last_submit =
@@ -100,9 +98,9 @@ class RendererPipelineTest : public ::testing::Test {
   // that is meant to act as a dummy/placeholder.  It is animated to ensure that
   // it changes every frame and so the Pipeline must rasterize it each frame.
   scoped_refptr<cobalt::render_tree::Node> MakeDummyAnimatedRenderTree() {
+    cobalt::render_tree::CompositionNode::Builder builder;
     scoped_refptr<cobalt::render_tree::CompositionNode> dummy_node(
-        new cobalt::render_tree::CompositionNode(
-            cobalt::render_tree::CompositionNode::Builder()));
+        new cobalt::render_tree::CompositionNode(builder));
 
     cobalt::render_tree::animations::AnimateNode::Builder animate_builder;
     animate_builder.Add(dummy_node, base::Bind(&DummyAnimateFunction));

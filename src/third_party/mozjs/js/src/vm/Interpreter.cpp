@@ -54,6 +54,8 @@
 #include "TraceLogging.h"
 #endif
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using namespace js::gc;
 using namespace js::types;
@@ -256,6 +258,7 @@ inline bool
 GetPropertyOperation(JSContext *cx, StackFrame *fp, HandleScript script, jsbytecode *pc,
                      MutableHandleValue lval, MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSOp op = JSOp(*pc);
 
     if (op == JSOP_LENGTH) {
@@ -301,6 +304,7 @@ GetPropertyOperation(JSContext *cx, StackFrame *fp, HandleScript script, jsbytec
 static inline bool
 NameOperation(JSContext *cx, StackFrame *fp, jsbytecode *pc, MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSObject *obj = fp->scopeChain();
     PropertyName *name = fp->script()->getName(pc);
 
@@ -341,6 +345,7 @@ inline bool
 SetPropertyOperation(JSContext *cx, HandleScript script, jsbytecode *pc, HandleValue lval,
                      HandleValue rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(*pc == JSOP_SETPROP);
 
     RootedObject obj(cx, ToObjectFromStack(cx, lval));
@@ -375,6 +380,7 @@ js::ReportIsNotFunction(JSContext *cx, const Value &v, int numToSkip, MaybeConst
 JSObject *
 js::ValueToCallable(JSContext *cx, const Value &v, int numToSkip, MaybeConstruct construct)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (v.isObject()) {
         JSObject *callable = &v.toObject();
         if (callable->isCallable())
@@ -391,12 +397,14 @@ Interpret(JSContext *cx, RunState &state);
 StackFrame *
 InvokeState::pushInterpreterFrame(JSContext *cx, FrameGuard *fg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return cx->runtime()->interpreterStack().pushInvokeFrame(cx, args_, initial_, fg);
 }
 
 StackFrame *
 ExecuteState::pushInterpreterFrame(JSContext *cx, FrameGuard *fg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return cx->runtime()->interpreterStack().pushExecuteFrame(cx, script_, thisv_, scopeChain_,
                                                               type_, evalInFrame_, fg);
 }
@@ -404,6 +412,7 @@ ExecuteState::pushInterpreterFrame(JSContext *cx, FrameGuard *fg)
 bool
 js::RunScript(JSContext *cx, RunState &state)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_CHECK_RECURSION(cx, return false);
 
     SPSEntryMarker marker(cx->runtime());
@@ -447,6 +456,7 @@ js::RunScript(JSContext *cx, RunState &state)
 bool
 js::Invoke(JSContext *cx, CallArgs args, MaybeConstruct construct)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(args.length() <= ARGS_LENGTH_MAX);
     JS_ASSERT(!cx->compartment()->activeAnalysis);
 
@@ -507,6 +517,7 @@ bool
 js::Invoke(JSContext *cx, const Value &thisv, const Value &fval, unsigned argc, Value *argv,
            Value *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     InvokeArgs args(cx);
     if (!args.init(argc))
         return false;
@@ -543,6 +554,7 @@ js::Invoke(JSContext *cx, const Value &thisv, const Value &fval, unsigned argc, 
 bool
 js::InvokeConstructor(JSContext *cx, CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(!JSFunction::class_.construct);
 
     args.setThis(MagicValue(JS_IS_CONSTRUCTING));
@@ -579,6 +591,7 @@ js::InvokeConstructor(JSContext *cx, CallArgs args)
 bool
 js::InvokeConstructor(JSContext *cx, const Value &fval, unsigned argc, Value *argv, Value *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     InvokeArgs args(cx);
     if (!args.init(argc))
         return false;
@@ -611,6 +624,7 @@ bool
 js::ExecuteKernel(JSContext *cx, HandleScript script, JSObject &scopeChainArg, const Value &thisv,
                   ExecuteType type, AbstractFramePtr evalInFrame, Value *result)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT_IF(evalInFrame, type == EXECUTE_DEBUG);
     JS_ASSERT_IF(type == EXECUTE_GLOBAL, !scopeChainArg.is<ScopeObject>());
 
@@ -633,6 +647,7 @@ js::ExecuteKernel(JSContext *cx, HandleScript script, JSObject &scopeChainArg, c
 bool
 js::Execute(JSContext *cx, HandleScript script, JSObject &scopeChainArg, Value *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* The scope chain could be anything, so innerize just in case. */
     RootedObject scopeChain(cx, &scopeChainArg);
     scopeChain = GetInnerObject(cx, scopeChain);

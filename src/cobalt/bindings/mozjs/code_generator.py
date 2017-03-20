@@ -31,7 +31,7 @@ TEMPLATES_DIR = os.path.normpath(os.path.join(module_path, 'templates'))
 
 
 class ExpressionGeneratorMozjs(ExpressionGenerator):
-  """Implementation  of ExpressionGenerator for JavaScriptCore."""
+  """Implementation of ExpressionGenerator for SpiderMonkey."""
 
   def is_undefined(self, arg):
     return '%s.isUndefined()' % arg
@@ -50,7 +50,7 @@ class ExpressionGeneratorMozjs(ExpressionGenerator):
 
 
 class CodeGeneratorMozjs(CodeGeneratorCobalt):
-  """Code generator class for JavaScriptCore binidings."""
+  """Code generator class for SpiderMonkey bindings."""
 
   _expression_generator = ExpressionGeneratorMozjs()
 
@@ -60,7 +60,7 @@ class CodeGeneratorMozjs(CodeGeneratorCobalt):
 
   @property
   def generated_file_prefix(self):
-    return 'Mozjs'
+    return 'mozjs'
 
   @property
   def expression_generator(self):

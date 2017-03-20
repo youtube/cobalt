@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Macros to properly export or import symbols from shared libraries.
+// Module Overview: Starboard Export module
+//
+// Provides macros for properly exporting or importing symbols from shared
+// libraries.
 
 #ifndef STARBOARD_EXPORT_H_
 #define STARBOARD_EXPORT_H_

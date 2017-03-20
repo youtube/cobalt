@@ -1,22 +1,22 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
@@ -25,11 +25,23 @@
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/renderer/rasterizer/blitter/cobalt_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/blitter/image.h"
+#include "cobalt/renderer/rasterizer/blitter/linear_gradient.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
+
+// This define exists so that developers can quickly toggle it temporarily and
+// obtain trace results for the render tree visit process here.  In general
+// though it slows down tracing too much to leave it enabled.
+#define ENABLE_RENDER_TREE_VISITOR_TRACING 0
+
+#if ENABLE_RENDER_TREE_VISITOR_TRACING
+#define TRACE_EVENT0_IF_ENABLED(x) TRACE_EVENT0("cobalt::renderer", x)
+#else
+#define TRACE_EVENT0_IF_ENABLED(x)
+#endif
 
 namespace cobalt {
 namespace renderer {
@@ -44,6 +56,9 @@ using math::Vector2dF;
 using render_tree::Border;
 using render_tree::Brush;
 using render_tree::ColorRGBA;
+using render_tree::ColorStop;
+using render_tree::ColorStopList;
+using render_tree::LinearGradientBrush;
 using render_tree::SolidColorBrush;
 using render_tree::ViewportFilter;
 
@@ -52,14 +67,16 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     const RenderState& render_state, ScratchSurfaceCache* scratch_surface_cache,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache,
-    CachedSoftwareRasterizer* software_surface_cache)
+    CachedSoftwareRasterizer* software_surface_cache,
+    LinearGradientCache* linear_gradient_cache)
     : device_(device),
       context_(context),
       render_state_(render_state),
       scratch_surface_cache_(scratch_surface_cache),
       surface_cache_delegate_(surface_cache_delegate),
       surface_cache_(surface_cache),
-      software_surface_cache_(software_surface_cache) {
+      software_surface_cache_(software_surface_cache),
+      linear_gradient_cache_(linear_gradient_cache) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -73,6 +90,8 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(CompositionNode)");
+
   const render_tree::CompositionNode::Children& children =
       composition_node->data().children();
 
@@ -114,6 +133,8 @@ bool SourceCanRenderWithOpacity(render_tree::Node* source) {
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(FilterNode)");
+
   if (filter_node->data().blur_filter) {
     // The Starboard Blitter API does not support blur filters, so we fallback
     // to software for this.
@@ -188,6 +209,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(ImageNode)");
+
   // All Blitter API images derive from skia::Image (so that they can be
   // compatible with the Skia software renderer), so we start here by casting
   // to skia::Image.
@@ -247,6 +270,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransformNode* matrix_transform_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(MatrixTransformNode)");
+
   const Matrix3F& transform = matrix_transform_node->data().transform;
 
   if (transform.Get(1, 0) != 0 || transform.Get(0, 1) != 0 ||
@@ -271,20 +296,16 @@ void RenderTreeNodeVisitor::Visit(
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::PunchThroughVideoNode* punch_through_video_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(PunchThroughVideoNode)");
+
   SbBlitterRect blitter_rect =
       RectFToBlitterRect(render_state_.transform.TransformRect(
           punch_through_video_node->data().rect));
 
-  if (punch_through_video_node->data().set_bounds_cb.is_null()) {
-    return;
-  }
-  bool render_punch_through =
-      punch_through_video_node->data().set_bounds_cb.Run(
-          math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
-                     blitter_rect.height));
-  if (!render_punch_through) {
-    return;
-  }
+  punch_through_video_node->data().set_bounds_cb.Run(
+      math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
+                 blitter_rect.height));
+
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
   SbBlitterSetBlending(context_, false);
   SbBlitterFillRect(context_, blitter_rect);
@@ -350,6 +371,8 @@ void RenderRectNodeBorder(SbBlitterContext context, ColorRGBA color, float left,
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(RectNode)");
+
   if (rect_node->data().rounded_corners) {
     // We can't render rounded corners through the Blitter API.
     RenderWithSoftwareRenderer(rect_node);
@@ -364,34 +387,43 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
       return;
     }
   }
-  if (rect_node->data().background_brush) {
-    if (rect_node->data().background_brush->GetTypeId() !=
-        base::GetTypeId<SolidColorBrush>()) {
-      // We can only render solid color rectangles, if we have a more
-      // complicated brush (like gradients), fallback to software.
-      RenderWithSoftwareRenderer(rect_node);
-      return;
-    }
-  }
 
   const RectF& transformed_rect =
       render_state_.transform.TransformRect(rect_node->data().rect);
 
-  // Render the solid color fill, if a brush exists.
   if (rect_node->data().background_brush) {
-    SolidColorBrush* solid_color_brush =
-        base::polymorphic_downcast<SolidColorBrush*>(
-            rect_node->data().background_brush.get());
-    ColorRGBA color = solid_color_brush->color();
+    base::TypeId background_brush_typeid(
+        rect_node->data().background_brush->GetTypeId());
 
-    if (render_state_.opacity < 1.0f) {
-      color.set_a(color.a() * render_state_.opacity);
+    if (background_brush_typeid == base::GetTypeId<SolidColorBrush>()) {
+      // Render the solid color fill, if a brush exists.
+      SolidColorBrush* solid_color_brush =
+          base::polymorphic_downcast<SolidColorBrush*>(
+              rect_node->data().background_brush.get());
+      ColorRGBA color = solid_color_brush->color();
+
+      if (render_state_.opacity < 1.0f) {
+        color.set_a(color.a() * render_state_.opacity);
+      }
+
+      SbBlitterSetBlending(context_, color.a() < 1.0f);
+      SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
+
+      SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));
+    } else if (background_brush_typeid ==
+               base::GetTypeId<LinearGradientBrush>()) {
+      DCHECK(rect_node != NULL);
+      bool rendered_gradient = RenderLinearGradient(
+          device_, context_, render_state_, *rect_node, linear_gradient_cache_);
+      if (!rendered_gradient) {
+        RenderWithSoftwareRenderer(rect_node);
+        return;
+      }
+    } else {
+      // If we have a more complicated brush fallback to software.
+      RenderWithSoftwareRenderer(rect_node);
+      return;
     }
-
-    SbBlitterSetBlending(context_, color.a() < 1.0f);
-    SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
-
-    SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));
   }
 
   // Render the border, if it exists.
@@ -422,15 +454,20 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::RectShadowNode* rect_shadow_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(RectShadowNode)");
+
   RenderWithSoftwareRenderer(rect_shadow_node);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(TextNode)");
+
   RenderWithSoftwareRenderer(text_node);
 }
 
 void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
     render_tree::Node* node) {
+  TRACE_EVENT0("cobalt::renderer", "RenderWithSoftwareRenderer()");
   CachedSoftwareRasterizer::SurfaceReference software_surface_reference(
       software_surface_cache_, node, render_state_.transform);
   CachedSoftwareRasterizer::Surface software_surface =
@@ -469,6 +506,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
   } else  // NOLINT(readability/braces)
 #endif    // defined(ENABLE_DEBUG_CONSOLE)
   {
+    TRACE_EVENT0("cobalt::renderer", "SbBlitterBlitRectToRect()");
     SbBlitterBlitRectToRect(
         context_, software_surface.surface,
         SbBlitterMakeRect(
@@ -480,6 +518,8 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
 
 scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>
 RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
+  TRACE_EVENT0_IF_ENABLED("RenderToOffscreenSurface()");
+
   common::OffscreenRenderCoordinateMapping coord_mapping =
       common::GetOffscreenRenderCoordinateMapping(
           node->GetBounds(), render_state_.transform.ToMatrix(),
@@ -498,6 +538,10 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
   scoped_ptr<CachedScratchSurface> scratch_surface(new CachedScratchSurface(
       scratch_surface_cache_, coord_mapping.output_bounds.size()));
   SbBlitterSurface surface = scratch_surface->GetSurface();
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    return scoped_ptr<RenderTreeNodeVisitor::OffscreenRender>();
+  }
+
   SbBlitterRenderTarget render_target =
       SbBlitterGetRenderTargetFromSurface(surface);
 
@@ -510,7 +554,7 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
           render_target, Transform(coord_mapping.sub_render_transform),
           BoundsStack(context_, Rect(coord_mapping.output_bounds.size()))),
       scratch_surface_cache_, surface_cache_delegate_, surface_cache_,
-      software_surface_cache_);
+      software_surface_cache_, linear_gradient_cache_);
   node->Accept(&sub_visitor);
 
   // Restore our original render target.

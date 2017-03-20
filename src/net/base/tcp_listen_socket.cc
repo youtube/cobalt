@@ -24,11 +24,6 @@
 #include "build/build_config.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
-#include "net/base/winsock_init.h"
-
-#if defined(__LB_SHELL__)
-#include "lb_network_helpers.h"
-#endif
 
 using std::string;
 

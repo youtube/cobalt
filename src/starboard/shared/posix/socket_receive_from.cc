@@ -23,15 +23,19 @@
 
 namespace sbposix = starboard::shared::posix;
 
+namespace {
+
+bool IsReportableErrno(int code) {
+  return (code != EAGAIN && code != EWOULDBLOCK && code != ECONNRESET);
+}
+
+}  // namespace
+
 int SbSocketReceiveFrom(SbSocket socket,
                         char* out_data,
                         int data_size,
                         SbSocketAddress* out_source) {
-#if defined(MSG_NOSIGNAL)
-  const int kRecvFlags = MSG_NOSIGNAL;
-#else
   const int kRecvFlags = 0;
-#endif
 
   if (!SbSocketIsValid(socket)) {
     errno = EBADF;
@@ -65,7 +69,7 @@ int SbSocketReceiveFrom(SbSocket socket,
       return static_cast<int>(bytes_read);
     }
 
-    if (errno != EAGAIN && errno != EWOULDBLOCK &&
+    if (IsReportableErrno(errno) &&
         socket->error != sbposix::TranslateSocketErrno(errno)) {
       SB_DLOG(ERROR) << "recv failed, errno = " << errno;
     }

@@ -18,11 +18,11 @@
 #ifndef STARBOARD_LINUX_X64X11_FUTURE_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_FUTURE_CONFIGURATION_PUBLIC_H_
 
+// The Future configuration should explicitly always implement the experimental
+// API version.
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Include the X64X11 Linux configuration.
 #include "starboard/linux/x64x11/configuration_public.h"
-
-// The API version implemented by this platform.
-#undef SB_API_VERSION
-#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 #endif  // STARBOARD_LINUX_X64X11_FUTURE_CONFIGURATION_PUBLIC_H_

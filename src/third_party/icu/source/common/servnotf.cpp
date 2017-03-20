@@ -1,6 +1,6 @@
 /**
  *******************************************************************************
- * Copyright (C) 2001-2006, International Business Machines Corporation and    *
+ * Copyright (C) 2001-2012, International Business Machines Corporation and    *
  * others. All Rights Reserved.                                                *
  *******************************************************************************
  */
@@ -9,6 +9,7 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "servnotf.h"
 #ifdef NOTIFIER_DEBUG
 #include <stdio.h>
@@ -19,10 +20,11 @@ U_NAMESPACE_BEGIN
 EventListener::~EventListener() {}
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(EventListener)
 
+static UMutex notifyLock = U_MUTEX_INITIALIZER;
+
 ICUNotifier::ICUNotifier(void) 
-: notifyLock(0), listeners(NULL) 
+: listeners(NULL) 
 {
-    umtx_init(&notifyLock);
 }
 
 ICUNotifier::~ICUNotifier(void) {
@@ -31,7 +33,6 @@ ICUNotifier::~ICUNotifier(void) {
         delete listeners;
         listeners = NULL;
     }
-    umtx_destroy(&notifyLock);
 }
 
 

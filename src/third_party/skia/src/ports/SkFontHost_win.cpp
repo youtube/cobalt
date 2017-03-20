@@ -265,7 +265,7 @@ public:
     }
 
 protected:
-    virtual SkStream* onOpenStream(int* ttcIndex) const SK_OVERRIDE;
+    virtual SkStreamAsset* onOpenStream(int* ttcIndex) const SK_OVERRIDE;
     virtual SkScalerContext* onCreateScalerContext(const SkDescriptor*) const SK_OVERRIDE;
     virtual void onFilterRec(SkScalerContextRec*) const SK_OVERRIDE;
     virtual SkAdvancedTypefaceMetrics* onGetAdvancedTypefaceMetrics(
@@ -2005,7 +2005,7 @@ static HANDLE activate_font(SkData* fontData) {
     return fontHandle;
 }
 
-static SkTypeface* create_from_stream(SkStream* stream) {
+static SkTypeface* create_from_stream(SkStreamAsset* stream) {
     // Create a unique and unpredictable font name.
     // Avoids collisions and access from CSS.
     char familyName[BASE64_GUID_ID_LEN];
@@ -2033,7 +2033,7 @@ static SkTypeface* create_from_stream(SkStream* stream) {
     return SkCreateFontMemResourceTypefaceFromLOGFONT(lf, fontReference);
 }
 
-SkStream* LogFontTypeface::onOpenStream(int* ttcIndex) const {
+SkStreamAsset* LogFontTypeface::onOpenStream(int* ttcIndex) const {
     *ttcIndex = 0;
 
     const DWORD kTTCTag =
@@ -2561,7 +2561,7 @@ protected:
         return this->matchFamilyStyle(familyName.c_str(), fontstyle);
     }
 
-    virtual SkTypeface* onCreateFromStream(SkStream* stream, int ttcIndex) const SK_OVERRIDE {
+    virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream, int ttcIndex) const SK_OVERRIDE {
         return create_from_stream(stream);
     }
 

@@ -16,6 +16,7 @@
 import logging
 
 import config.starboard
+import gyp_utils
 
 
 def CreatePlatformConfig():
@@ -31,20 +32,17 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
   def __init__(self, platform):
     super(PlatformConfig, self).__init__(platform)
+    goma_supports_compiler = True
+    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment(
+        goma_supports_compiler)
 
   def GetVariables(self, configuration):
-    variables = super(PlatformConfig, self).GetVariables(configuration)
-    variables.update({'clang': 1,})
-    return variables
+    return super(PlatformConfig, self).GetVariables(configuration, use_clang=1)
 
   def GetEnvironmentVariables(self):
-    env_variables = {
-        'CC': 'clang',
-        'CXX': 'clang++',
-        'CC_host': 'clang',
-        'CXX_host': 'clang++',
-        'LD_host': 'clang++',
-        'ARFLAGS_host': 'rcs',
-        'ARTHINFLAGS_host': 'rcsT',
-    }
+    env_variables = self.host_compiler_environment
+    env_variables.update({
+        'CC': self.host_compiler_environment['CC_host'],
+        'CXX': self.host_compiler_environment['CXX_host'],
+    })
     return env_variables

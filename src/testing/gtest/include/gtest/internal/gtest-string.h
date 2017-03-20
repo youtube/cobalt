@@ -146,16 +146,14 @@ class GTEST_API_ String {
   static bool EndsWithCaseInsensitive(
       const std::string& str, const std::string& suffix);
 
-  // Formats a list of arguments to an std::string, using the same format
-  // spec string as for printf.
-  //
-  // We do not use the StringPrintf class as it is not universally
-  // available.
-  //
-  // The result is limited to 4096 characters (including the tailing
-  // 0).  If 4096 characters are not enough to format the input,
-  // "<buffer exceeded>" is returned.
-  static std::string Format(const char* format, ...);
+  // Formats an int value as "%02d".
+  static std::string FormatIntWidth2(int value);  // "%02d" for width == 2
+
+  // Formats an int value as "%X".
+  static std::string FormatHexInt(int value);
+
+  // Formats a byte as "%02X".
+  static std::string FormatByte(unsigned char value);
 
  private:
   String();  // Not meant to be instantiated.
@@ -164,17 +162,6 @@ class GTEST_API_ String {
 // Gets the content of the stringstream's buffer as an std::string.  Each '\0'
 // character in the buffer is replaced with "\\0".
 GTEST_API_ std::string StringStreamToString(::std::stringstream* stream);
-
-// Converts a streamable value to an std::string.  A NULL pointer is
-// converted to "(null)".  When the input value is a ::string,
-// ::std::string, ::wstring, or ::std::wstring object, each NUL
-// character in it is replaced with "\\0".
-
-// Declared here but defined in gtest.h, so that it has access
-// to the definition of the Message class, required by the ARM
-// compiler.
-template <typename T>
-std::string StreamableToString(const T& streamable);
 
 }  // namespace internal
 }  // namespace testing

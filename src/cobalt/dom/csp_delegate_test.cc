@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/csp_delegate_factory.h"
@@ -154,7 +152,8 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
             kCspEnforcementDisable, scoped_ptr<CspViolationReporter>(), GURL(),
             std::string(), base::Closure());
 
-    EXPECT_EQ(scoped_ptr<CspDelegate>(), delegate.get());
+    scoped_ptr<CspDelegate> empty_delegate;
+    EXPECT_EQ(empty_delegate, delegate.get());
   }
   EXPECT_THAT(output, HasSubstr("FATAL"));
 }

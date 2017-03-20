@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1997-2010, International Business Machines
+*   Copyright (C) 1997-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -17,10 +17,13 @@
 *   that then do not depend on resource bundle code and likely-subtags data.
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
+#include "unicode/locid.h"
 #include "unicode/putil.h"
 #include "unicode/uloc.h"
 #include "unicode/ures.h"
+#include "unicode/uscript.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "ulocimp.h"
@@ -325,9 +328,14 @@ createTagStringWithAlternates(
         }
 
         if (trailingLength > 0) {
-            if (capacityRemaining > 0 && !regionAppended) {
+            if (*trailing != '@' && capacityRemaining > 0) {
                 tag[tagLength++] = '_';
                 --capacityRemaining;
+                if (capacityRemaining > 0 && !regionAppended) {
+                    /* extra separator is required */
+                    tag[tagLength++] = '_';
+                    --capacityRemaining;
+                }
             }
 
             if (capacityRemaining > 0) {
@@ -546,6 +554,9 @@ parseTagString(
              **/
             *regionLength = 0;
         }
+    } else if (*position != 0 && *position != '@') {
+        /* back up over consumed trailing separator */
+        --position;
     }
 
 exit:
@@ -587,7 +598,6 @@ createLikelySubtagsString(
      **/
     char tagBuffer[ULOC_FULLNAME_CAPACITY];
     char likelySubtagsBuffer[ULOC_FULLNAME_CAPACITY];
-    int32_t tagBufferLength = 0;
 
     if(U_FAILURE(*err)) {
         goto error;
@@ -600,7 +610,7 @@ createLikelySubtagsString(
 
         const char* likelySubtags = NULL;
 
-        tagBufferLength = createTagString(
+        createTagString(
             lang,
             langLength,
             script,
@@ -653,7 +663,7 @@ createLikelySubtagsString(
 
         const char* likelySubtags = NULL;
 
-        tagBufferLength = createTagString(
+        createTagString(
             lang,
             langLength,
             script,
@@ -883,6 +893,9 @@ _uloc_addLikelySubtags(const char*    localeID,
     }
 
     /* Find the length of the trailing portion. */
+    while (_isIDSeparator(localeID[trailingIndex])) {
+        trailingIndex++;
+    }
     trailing = &localeID[trailingIndex];
     trailingLength = (int32_t)uprv_strlen(trailing);
 
@@ -987,7 +1000,10 @@ _uloc_minimizeSubtags(const char*    localeID,
         goto error;
     }
 
-    /* Find the spot where the variants begin, if any. */
+    /* Find the spot where the variants or the keywords begin, if any. */
+    while (_isIDSeparator(localeID[trailingIndex])) {
+        trailingIndex++;
+    }
     trailing = &localeID[trailingIndex];
     trailingLength = (int32_t)uprv_strlen(trailing);
 
@@ -1213,7 +1229,7 @@ do_canonicalize(const char*    localeID,
     }
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uloc_addLikelySubtags(const char*    localeID,
          char* maximizedLocaleID,
          int32_t maximizedLocaleIDCapacity,
@@ -1237,7 +1253,7 @@ uloc_addLikelySubtags(const char*    localeID,
     }    
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uloc_minimizeSubtags(const char*    localeID,
          char* minimizedLocaleID,
          int32_t minimizedLocaleIDCapacity,
@@ -1260,3 +1276,59 @@ uloc_minimizeSubtags(const char*    localeID,
                     err);
     }    
 }
+
+// Pairs of (language subtag, + or -) for finding out fast if common languages
+// are LTR (minus) or RTL (plus).
+static const char* LANG_DIR_STRING =
+        "root-en-es-pt-zh-ja-ko-de-fr-it-ar+he+fa+ru-nl-pl-th-tr-";
+
+// Implemented here because this calls uloc_addLikelySubtags().
+U_CAPI UBool U_EXPORT2
+uloc_isRightToLeft(const char *locale) {
+    UErrorCode errorCode = U_ZERO_ERROR;
+    char script[8];
+    int32_t scriptLength = uloc_getScript(locale, script, UPRV_LENGTHOF(script), &errorCode);
+    if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING ||
+            scriptLength == 0) {
+        // Fastpath: We know the likely scripts and their writing direction
+        // for some common languages.
+        errorCode = U_ZERO_ERROR;
+        char lang[8];
+        int32_t langLength = uloc_getLanguage(locale, lang, UPRV_LENGTHOF(lang), &errorCode);
+        if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING ||
+                langLength == 0) {
+            return FALSE;
+        }
+        const char* langPtr = uprv_strstr(LANG_DIR_STRING, lang);
+        if (langPtr != NULL) {
+            switch (langPtr[langLength]) {
+            case '-': return FALSE;
+            case '+': return TRUE;
+            default: break;  // partial match of a longer code
+            }
+        }
+        // Otherwise, find the likely script.
+        errorCode = U_ZERO_ERROR;
+        char likely[ULOC_FULLNAME_CAPACITY];
+        (void)uloc_addLikelySubtags(locale, likely, UPRV_LENGTHOF(likely), &errorCode);
+        if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING) {
+            return FALSE;
+        }
+        scriptLength = uloc_getScript(likely, script, UPRV_LENGTHOF(script), &errorCode);
+        if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING ||
+                scriptLength == 0) {
+            return FALSE;
+        }
+    }
+    UScriptCode scriptCode = (UScriptCode)u_getPropertyValueEnum(UCHAR_SCRIPT, script);
+    return uscript_isRightToLeft(scriptCode);
+}
+
+U_NAMESPACE_BEGIN
+
+UBool
+Locale::isRightToLeft() const {
+    return uloc_isRightToLeft(getBaseName());
+}
+
+U_NAMESPACE_END

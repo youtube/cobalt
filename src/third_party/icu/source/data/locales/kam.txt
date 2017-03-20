@@ -1,43 +1,34 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/kam.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/kam.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/kam.xml
- */
 kam{
     ExemplarCharacters{"[a b c d e f g h i ĩ j k l m n o p q r s t u ũ v w y z]"}
     ExemplarCharactersIndex{"[A B C D E F G H I J K L M N O P Q R S T U V W X Y Z]"}
-    LocaleScript{
-        "Latn",
-    }
     NumberElements{
         latn{
             patterns{
-                currencyFormat{"¤#,##0.00;(¤#,##0.00)"}
+                accountingFormat{"¤#,##0.00;(¤#,##0.00)"}
+                currencyFormat{"¤#,##0.00"}
             }
         }
     }
-    Version{"2.0.46.85"}
+    Version{"2.1.19.14"}
     calendar{
-        gregorian{
-            AmPmMarkers{
-                "Ĩyakwakya",
-                "Ĩyawĩoo",
-            }
+        generic{
             DateTimePatterns{
-                "h:mm:ss a zzzz",
-                "h:mm:ss a z",
-                "h:mm:ss a",
-                "h:mm a",
-                "EEEE, d MMMM y",
-                "d MMMM y",
-                "d MMM y",
-                "dd/MM/yyyy",
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE, d MMMM y G",
+                "d MMMM y G",
+                "d MMM y G",
+                "dd/MM/y GGGGG",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
@@ -60,12 +51,56 @@ kam{
                 ms{"mm:ss"}
                 y{"y"}
                 yM{"M/y"}
-                yMEd{"EEE, M/d/y"}
+                yMEd{"E, M/d/y"}
                 yMMM{"MMM y"}
-                yMMMEd{"EEE, MMM d, y"}
+                yMMMEd{"E, MMM d, y"}
                 yMMMM{"MMMM y"}
-                yQ{"Q y"}
                 yQQQ{"QQQ y"}
+                yQQQQ{"QQQQ y"}
+            }
+        }
+        gregorian{
+            AmPmMarkers{
+                "Ĩyakwakya",
+                "Ĩyawĩoo",
+            }
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE, d MMMM y",
+                "d MMMM y",
+                "d MMM y",
+                "dd/MM/y",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
+            availableFormats{
+                Hm{"HH:mm"}
+                Hms{"HH:mm:ss"}
+                M{"L"}
+                MEd{"E, M/d"}
+                MMM{"LLL"}
+                MMMEd{"E, MMM d"}
+                MMMMEd{"E, MMMM d"}
+                MMMMd{"MMMM d"}
+                MMMd{"MMM d"}
+                Md{"M/d"}
+                d{"d"}
+                hm{"h:mm a"}
+                ms{"mm:ss"}
+                y{"y"}
+                yM{"M/y"}
+                yMEd{"E, M/d/y"}
+                yMMM{"MMM y"}
+                yMMMEd{"E, MMM d, y"}
+                yMMMM{"MMMM y"}
+                yQQQ{"QQQ y"}
+                yQQQQ{"QQQQ y"}
             }
             dayNames{
                 format{
@@ -108,46 +143,6 @@ kam{
                 wide{
                     "Mbee wa Yesũ",
                     "Ĩtina wa Yesũ",
-                }
-            }
-            fields{
-                day{
-                    dn{"Mũthenya"}
-                    relative{
-                        "-1"{"Ĩyoo"}
-                        "0"{"Ũmũnthĩ"}
-                        "1"{"Ũnĩ"}
-                    }
-                }
-                dayperiod{
-                    dn{"Ĩyakwakya/Ĩyawĩoo"}
-                }
-                era{
-                    dn{"Ĩvinda"}
-                }
-                hour{
-                    dn{"Saa"}
-                }
-                minute{
-                    dn{"Ndatĩka"}
-                }
-                month{
-                    dn{"Mwai"}
-                }
-                second{
-                    dn{"sekondi"}
-                }
-                week{
-                    dn{"Kyumwa"}
-                }
-                weekday{
-                    dn{"Kyumwanĩ"}
-                }
-                year{
-                    dn{"Mwaka"}
-                }
-                zone{
-                    dn{"Kĩsio kya ĩsaa"}
                 }
             }
             monthNames{
@@ -217,9 +212,49 @@ kam{
         }
     }
     delimiters{
-        alternateQuotationEnd{"”"}
-        alternateQuotationStart{"“"}
-        quotationEnd{"'"}
-        quotationStart{"'"}
+        alternateQuotationEnd{"’"}
+        alternateQuotationStart{"‘"}
+        quotationEnd{"”"}
+        quotationStart{"“"}
+    }
+    fields{
+        day{
+            dn{"Mũthenya"}
+            relative{
+                "-1"{"Ĩyoo"}
+                "0"{"Ũmũnthĩ"}
+                "1"{"Ũnĩ"}
+            }
+        }
+        dayperiod{
+            dn{"Ĩyakwakya/Ĩyawĩoo"}
+        }
+        era{
+            dn{"Ĩvinda"}
+        }
+        hour{
+            dn{"Saa"}
+        }
+        minute{
+            dn{"Ndatĩka"}
+        }
+        month{
+            dn{"Mwai"}
+        }
+        second{
+            dn{"sekondi"}
+        }
+        week{
+            dn{"Kyumwa"}
+        }
+        weekday{
+            dn{"Kyumwanĩ"}
+        }
+        year{
+            dn{"Mwaka"}
+        }
+        zone{
+            dn{"Kĩsio kya ĩsaa"}
+        }
     }
 }

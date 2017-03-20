@@ -1,36 +1,40 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/script/mozjs/mozjs_engine.h"
 
 #include <algorithm>
+#include <string>
 
+#include "base/debug/trace_event.h"
+#include "base/file_path.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/browser/web_module.h"
+#include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/mozjs/mozjs_global_environment.h"
+#include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "third_party/mozjs/cobalt_config/include/jscustomallocator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jsdbgapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace {
-// After this many bytes have been allocated, the garbage collector will run.
-const uint32_t kGarbageCollectionThresholdBytes = 8 * 1024 * 1024;
+// Trigger garbage collection this many seconds after the last one.
+const int kGarbageCollectionIntervalSeconds = 60;
 
 JSBool CheckAccessStub(JSContext*, JS::Handle<JSObject*>, JS::Handle<jsid>,
                        JSAccessMode, JS::MutableHandle<JS::Value>) {
@@ -97,21 +101,21 @@ EngineStats::EngineStats()
 bool DummyPreserveWrapperCallback(JSContext *cx, JSObject *obj) {
   return true;
 }
-
 }  // namespace
 
 MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
-  runtime_ =
-      JS_NewRuntime(kGarbageCollectionThresholdBytes, JS_NO_HELPER_THREADS);
+  runtime_ = JS_NewRuntime(MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES,
+                           JS_NO_HELPER_THREADS);
   CHECK(runtime_);
 
   // Sets the size of the native stack that should not be exceeded.
   // Setting three quarters of the web module stack size to ensure that native
   // stack won't exceed the stack size.
   JS_SetNativeStackQuota(runtime_,
-                         browser::WebModule::kWebModuleStackSize / 4 * 3);
+                         cobalt::browser::kWebModuleStackSize / 4 * 3);
 
   JS_SetRuntimePrivate(runtime_, this);
 
@@ -138,6 +142,12 @@ MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
   js::SetPreserveWrapperCallback(runtime_, DummyPreserveWrapperCallback);
 
   EngineStats::GetInstance()->EngineCreated();
+
+  if (MessageLoop::current()) {
+    gc_timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(
+                                   kGarbageCollectionIntervalSeconds),
+                    this, &MozjsEngine::TimerGarbageCollect);
+  }
 }
 
 MozjsEngine::~MozjsEngine() {
@@ -147,11 +157,13 @@ MozjsEngine::~MozjsEngine() {
 }
 
 scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
   return new MozjsGlobalEnvironment(runtime_);
 }
 
 void MozjsEngine::CollectGarbage() {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::CollectGarbage()");
   DCHECK(thread_checker_.CalledOnValidThread());
   JS_GC(runtime_);
 }
@@ -159,7 +171,8 @@ void MozjsEngine::CollectGarbage() {
 void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
   accumulated_extra_memory_cost_ += bytes;
-  if (accumulated_extra_memory_cost_ > kGarbageCollectionThresholdBytes) {
+  if (accumulated_extra_memory_cost_ >
+      MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES) {
     accumulated_extra_memory_cost_ = 0;
     CollectGarbage();
   }
@@ -167,6 +180,19 @@ void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
 
 size_t MozjsEngine::UpdateMemoryStatsAndReturnReserved() {
   return EngineStats::GetInstance()->UpdateMemoryStatsAndReturnReserved();
+}
+
+bool MozjsEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
+  error_handler_ = handler;
+  JSDebugErrorHook hook = ErrorHookCallback;
+  void* closure = this;
+  JS_SetDebugErrorHook(runtime_, hook, closure);
+  return true;
+}
+
+void MozjsEngine::TimerGarbageCollect() {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::TimerGarbageCollect()");
+  CollectGarbage();
 }
 
 JSBool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op) {
@@ -191,20 +217,27 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status) {
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(runtime));
   if (status == JSGC_END) {
     engine->accumulated_extra_memory_cost_ = 0;
+    // Reset the GC timer to avoid having the timed GC come soon after this one.
+    if (engine->gc_timer_.IsRunning()) {
+      engine->gc_timer_.Reset();
+    }
   }
   for (int i = 0; i < engine->contexts_.size(); ++i) {
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
     if (status == JSGC_BEGIN) {
+      TRACE_EVENT_BEGIN0("cobalt::script", "SpiderMonkey Garbage Collection");
       global_environment->BeginGarbageCollection();
     } else if (status == JSGC_END) {
       global_environment->EndGarbageCollection();
+      TRACE_EVENT_END0("cobalt::script", "SpiderMonkey Garbage Collection");
     }
   }
 }
 
 void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                    JSBool is_compartment) {
+  TRACE_EVENT0("cobalt::script", "MozjsEngine::FinalizeCallback()");
   MozjsEngine* engine =
       static_cast<MozjsEngine*>(JS_GetRuntimePrivate(free_op->runtime()));
   DCHECK(engine->thread_checker_.CalledOnValidThread());
@@ -217,9 +250,34 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
   }
 }
 
+JSBool MozjsEngine::ErrorHookCallback(JSContext* context, const char* message,
+                                      JSErrorReport* report, void* closure) {
+  MozjsEngine* this_ptr = static_cast<MozjsEngine*>(closure);
+  return this_ptr->ReportJSError(context, message, report);
+}
+
+JSBool MozjsEngine::ReportJSError(JSContext* context, const char* message,
+                                  JSErrorReport* report) {
+  if (!error_handler_.is_null() && report && report->filename) {
+    std::string file_name = report->filename;
+    // Line/column can be zero for internal javascript exceptions. In this
+    // case set the values to 1, otherwise the base::SourceLocation object
+    // below will dcheck.
+    int line = std::max<int>(1, report->lineno);
+    int column = std::max<int>(1, report->column);
+    if (file_name.empty()) {
+      file_name = "<internal exception>";
+    }
+    base::SourceLocation source_location(file_name, line, column);
+    error_handler_.Run(source_location, message);
+  }
+  return true;  // Allow error to propagate in the mozilla engine.
+}
+
 }  // namespace mozjs
 
 scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine() {
+  TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine());
 }
 

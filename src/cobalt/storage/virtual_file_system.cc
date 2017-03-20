@@ -1,19 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/storage/virtual_file_system.h"
 
@@ -124,23 +121,27 @@ int VirtualFileSystem::Serialize(uint8* buffer, bool dry_run) {
   return bytes_written;
 }
 
-void VirtualFileSystem::Deserialize(const uint8* buffer, int buffer_size) {
+bool VirtualFileSystem::Deserialize(const uint8* buffer, int buffer_size_in) {
+  const uint8* caller_buffer = buffer;
+
   base::AutoLock lock(file_table_lock_);
   ClearFileTable();
 
-  if (buffer_size < 0) {
-    DLOG(ERROR) << "Buffer size must be positive: "
-                << buffer_size << " < 0.";
-    return;
+  if (buffer_size_in < 0) {
+    DLOG(ERROR) << "Buffer size must be positive: " << buffer_size_in
+                << " < 0.";
+    return false;
   }
+
+  size_t buffer_size = static_cast<size_t>(buffer_size_in);
 
   // The size of the buffer must be checked before copying the beginning of it
   // into a SerializedHeader.
-  if (static_cast<size_t>(buffer_size) < sizeof(SerializedHeader)) {
+  if (buffer_size < sizeof(SerializedHeader)) {
     DLOG(ERROR) << "Buffer size " << buffer_size
                 << " is too small to contain a SerializedHeader of size "
                 << sizeof(SerializedHeader) << "; operation aborted.";
-    return;
+    return false;
   }
 
   // Read in expected number of files
@@ -152,23 +153,36 @@ void VirtualFileSystem::Deserialize(const uint8* buffer, int buffer_size) {
   if (buffer_version != 0) {
     // Note: We would handle old versions here, if necessary.
     DLOG(ERROR) << "Attempted to load a different version; operation aborted.";
-    return;
-  } else if (header.file_size != buffer_size) {
+    return false;
+  } else if (static_cast<size_t>(header.file_size) != buffer_size) {
     DLOG(ERROR) << "Buffer size mismatch: " << header.file_size
                 << " != " << buffer_size;
-    return;
+    return false;
   }
 
   for (int i = 0; i < header.file_count; ++i) {
+    size_t buffer_used = static_cast<size_t>(buffer - caller_buffer);
+    if (buffer_size < buffer_used) {
+      DLOG(ERROR) << "Buffer overrun deserializing files";
+      ClearFileTable();
+      return false;
+    }
+    size_t buffer_remaining = buffer_size - buffer_used;
+
     VirtualFile* file = new VirtualFile("");
-    int bytes = file->Deserialize(buffer);
+
+    int bytes = file->Deserialize(buffer, buffer_remaining);
     if (bytes > 0) {
       buffer += bytes;
       table_[file->name_] = file;
     } else {
       DLOG(WARNING) << "Failed to deserialize virtual file system.";
+      delete file;
+      ClearFileTable();
+      return false;
     }
   }
+  return true;
 }
 
 void VirtualFileSystem::ClearFileTable() {

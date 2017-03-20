@@ -21,6 +21,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <vector>
 
 #include <algorithm>
 #include <string>
@@ -65,8 +66,8 @@ class DevInputImpl : public DevInput {
   // The window to attribute /dev/input events to.
   SbWindow window_;
 
-  // A read-only file descriptor of the keyboard input device.
-  FileDescriptor keyboard_fd_;
+  // A set of read-only file descriptor of keyboard input devices.
+  std::vector<FileDescriptor> keyboard_fds_;
 
   // A file descriptor of the write end of a pipe that can be written to from
   // any thread to wake up this waiter in a thread-safe manner.
@@ -396,58 +397,101 @@ SbKeyLocation KeyCodeToSbKeyLocation(uint16_t code) {
   return kSbKeyLocationUnspecified;
 }
 
-// Searches for the keyboard /dev/input device, and opens it, returning the file
-// descriptor. Returns kInvalidFd if unable to do so.
-FileDescriptor GetKeyboardFd() {
-  const char kDevicePath[] = "/dev/input/by-id";
-  const char kKeyboardDeviceMatch[] = "event-kbd";
+// Returns the number of bytes needed to represent a bit set
+// of |bit_count| size.
+int BytesNeededForBitSet(int bit_count) {
+  return (bit_count + 7) / 8;
+}
+
+// Returns true if |bit| is set in |bitset|.
+bool IsBitSet(const std::vector<uint8_t>& bitset, int bit) {
+  return !!(bitset.at(bit / 8) & (1 << (bit % 8)));
+}
+
+// Searches for the keyboard /dev/input devices, opens them and returns the file
+// descriptors that report keyboard events.
+std::vector<FileDescriptor> GetKeyboardFds() {
+  const char kDevicePath[] = "/dev/input";
   SbDirectory directory = SbDirectoryOpen(kDevicePath, NULL);
+  std::vector<FileDescriptor> fds;
   if (!SbDirectoryIsValid(directory)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support, "
                    << "unable to open: " << kDevicePath;
-    return kInvalidFd;
+    return fds;
   }
 
-  FileDescriptor fd = kInvalidFd;
+  std::vector<uint8_t> ev_bits(BytesNeededForBitSet(EV_CNT));
+  std::vector<uint8_t> key_bits(BytesNeededForBitSet(KEY_MAX));
+
   while (true) {
     SbDirectoryEntry entry;
     if (!SbDirectoryGetNext(directory, &entry)) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support, "
-                     << "unable to find \"" << kKeyboardDeviceMatch
-                     << "\" device.";
       break;
-    }
-
-    if (SbStringFindString(entry.name, kKeyboardDeviceMatch) == NULL) {
-      continue;
     }
 
     std::string path = kDevicePath;
     path += "/";
     path += entry.name;
-    fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
-    if (fd < 0) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support, "
-                     << "unable to open \"" << path << "\".";
-      fd = kInvalidFd;
-      break;
+
+    if (SbDirectoryCanOpen(path.c_str())) {
+      // This is a subdirectory. Skip.
+      continue;
     }
 
-    int result = ioctl(fd, EVIOCGRAB, 1);
-    if (result != 0) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support, "
-                     << "unable to get exclusive access to \"" << path << "\".";
+    FileDescriptor fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Unable to open \"" << path << "\".";
+      continue;
+    }
+
+    int result = ioctl(fd, EVIOCGBIT(0, ev_bits.size()), ev_bits.data());
+
+    if (result < 0) {
       close(fd);
-      fd = kInvalidFd;
-      break;
+      continue;
+    }
+
+    bool has_ev_key = IsBitSet(ev_bits, EV_KEY);
+
+    if (!has_ev_key) {
+      close(fd);
+      continue;
+    }
+
+    result = ioctl(fd, EVIOCGBIT(EV_KEY, key_bits.size()), key_bits.data());
+
+    if (result < 0) {
+      close(fd);
+      continue;
+    }
+
+    bool has_key_space = IsBitSet(key_bits, KEY_SPACE);
+
+    if (!has_key_space) {
+      // If it doesn't have a space key, it may be a mouse
+      close(fd);
+      continue;
+    }
+
+    result = ioctl(fd, EVIOCGRAB, 1);
+    if (result != 0) {
+      SB_DLOG(ERROR) << __FUNCTION__ << ": "
+                     << "Unable to get exclusive access to \"" << path << "\".";
+      close(fd);
+      continue;
     }
 
     SB_DCHECK(fd != kInvalidFd);
-    break;
+    fds.push_back(fd);
+  }
+
+  if (fds.empty()) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support. "
+                   << "No keyboards available.";
   }
 
   SbDirectoryClose(directory);
-  return fd;
+  return fds;
 }
 
 // Returns whether |key_code|'s bit is set in the bitmap |map|, assuming
@@ -558,7 +602,7 @@ int SetNonBlocking(int fd) {
 
 DevInputImpl::DevInputImpl(SbWindow window)
     : window_(window),
-      keyboard_fd_(GetKeyboardFd()),
+      keyboard_fds_(GetKeyboardFds()),
       wakeup_write_fd_(kInvalidFd),
       wakeup_read_fd_(kInvalidFd) {
   // Initialize wakeup pipe.
@@ -578,7 +622,10 @@ DevInputImpl::DevInputImpl(SbWindow window)
 }
 
 DevInputImpl::~DevInputImpl() {
-  CloseFdSafely(&keyboard_fd_);
+  for (std::vector<FileDescriptor>::const_iterator it = keyboard_fds_.begin();
+       it != keyboard_fds_.end(); ++it) {
+    close(*it);
+  }
   CloseFdSafely(&wakeup_write_fd_);
   CloseFdSafely(&wakeup_read_fd_);
 }
@@ -586,11 +633,15 @@ DevInputImpl::~DevInputImpl() {
 DevInput::Event* DevInputImpl::PollNextSystemEvent() {
   struct input_event event;
   int modifiers = 0;
-  if (!PollKeyboardEvent(keyboard_fd_, &event, &modifiers)) {
-    return NULL;
-  }
+  for (std::vector<FileDescriptor>::const_iterator it = keyboard_fds_.begin();
+       it != keyboard_fds_.end(); ++it) {
+    if (!PollKeyboardEvent(*it, &event, &modifiers)) {
+      continue;
+    }
 
-  return InputToApplicationEvent(event, modifiers);
+    return InputToApplicationEvent(event, modifiers);
+  }
+  return NULL;
 }
 
 DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(SbTime duration) {
@@ -600,8 +651,9 @@ DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(SbTime duration) {
   }
 
   FdSet read_set;
-  if (keyboard_fd_ != kInvalidFd) {
-    read_set.Set(keyboard_fd_);
+  for (std::vector<FileDescriptor>::const_iterator it = keyboard_fds_.begin();
+       it != keyboard_fds_.end(); ++it) {
+    read_set.Set(*it);
   }
   read_set.Set(wakeup_read_fd_);
 
@@ -620,11 +672,7 @@ DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(SbTime duration) {
     SB_DCHECK(bytes_read == 1);
   }
 
-  if (keyboard_fd_ != kInvalidFd && read_set.IsSet(keyboard_fd_)) {
-    return PollNextSystemEvent();
-  }
-
-  return NULL;
+  return PollNextSystemEvent();
 }
 
 void DevInputImpl::WakeSystemEventWait() {

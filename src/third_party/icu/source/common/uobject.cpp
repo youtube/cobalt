@@ -1,7 +1,7 @@
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2002-2008, International Business Machines
+*   Copyright (C) 2002-2012, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -14,6 +14,7 @@
 *   created by: Markus W. Scherer
 */
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/uobject.h"
 #include "cmemory.h"
 
@@ -91,24 +92,13 @@ void U_EXPORT2 UMemory::operator delete(void* p, const char* /*file*/, int /*lin
 
 UObject::~UObject() {}
 
-// Future implementation for RTTI that support subtyping. [alan]
-// 
-// UClassID UObject::getStaticClassID() {
-//     return (UClassID) NULL;
-// }
-// 
-// UBool UObject::instanceOf(UClassID type) const {
-//     UClassID c = getDynamicClassID();
-//     for (;;) {
-//         if (c == type) {
-//             return TRUE;
-//         } else if (c == (UClassID) NULL) {
-//             return FALSE;
-//         }
-//         c = * (UClassID*) c;
-//     }
-// }
+UClassID UObject::getDynamicClassID() const { return NULL; }
 
 U_NAMESPACE_END
 
+U_NAMESPACE_USE
 
+U_CAPI void U_EXPORT2
+uprv_deleteUObject(void *obj) {
+    delete static_cast<UObject *>(obj);
+}

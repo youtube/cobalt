@@ -1,7 +1,7 @@
-/**
+/*
  ************************************************************************************
- * Copyright (C) 2006-2009, International Business Machines Corporation and others. *
- * All Rights Reserved.                                                             *
+ * Copyright (C) 2006-2015, International Business Machines Corporation
+ * and others. All Rights Reserved.
  ************************************************************************************
  */
 
@@ -9,9 +9,9 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "brkeng.h"
 #include "dictbe.h"
-#include "triedict.h"
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"
 #include "unicode/chariter.h"
@@ -20,6 +20,11 @@
 #include "unicode/putil.h"
 #include "unicode/ustring.h"
 #include "unicode/uscript.h"
+#include "unicode/ucharstrie.h"
+#include "unicode/bytestrie.h"
+#include "charstr.h"
+#include "dictionarydata.h"
+#include "mutex.h"
 #include "uvector.h"
 #include "umutex.h"
 #include "uresimp.h"
@@ -130,87 +135,43 @@ ICULanguageBreakFactory::~ICULanguageBreakFactory() {
 U_NAMESPACE_END
 U_CDECL_BEGIN
 static void U_CALLCONV _deleteEngine(void *obj) {
-    delete (const U_NAMESPACE_QUALIFIER LanguageBreakEngine *) obj;
+    delete (const icu::LanguageBreakEngine *) obj;
 }
 U_CDECL_END
 U_NAMESPACE_BEGIN
 
+static UMutex gBreakEngineMutex = U_MUTEX_INITIALIZER;
+
 const LanguageBreakEngine *
 ICULanguageBreakFactory::getEngineFor(UChar32 c, int32_t breakType) {
-    UBool       needsInit;
-    int32_t     i;
     const LanguageBreakEngine *lbe = NULL;
     UErrorCode  status = U_ZERO_ERROR;
 
-    // TODO: The global mutex should not be used.
-    // The global mutex should only be used for short periods.
-    // A ICULanguageBreakFactory specific mutex should be used.
-    umtx_lock(NULL);
-    needsInit = (UBool)(fEngines == NULL);
-    if (!needsInit) {
-        i = fEngines->size();
+    Mutex m(&gBreakEngineMutex);
+
+    if (fEngines == NULL) {
+        UStack  *engines = new UStack(_deleteEngine, NULL, status);
+        if (U_FAILURE(status) || engines == NULL) {
+            // Note: no way to return error code to caller.
+            delete engines;
+            return NULL;
+        }
+        fEngines = engines;
+    } else {
+        int32_t i = fEngines->size();
         while (--i >= 0) {
             lbe = (const LanguageBreakEngine *)(fEngines->elementAt(i));
             if (lbe != NULL && lbe->handles(c, breakType)) {
-                break;
+                return lbe;
             }
-            lbe = NULL;
         }
     }
-    umtx_unlock(NULL);
     
+    // We didn't find an engine. Create one.
+    lbe = loadEngineFor(c, breakType);
     if (lbe != NULL) {
-        return lbe;
+        fEngines->push((void *)lbe, status);
     }
-    
-    if (needsInit) {
-        UStack  *engines = new UStack(_deleteEngine, NULL, status);
-        if (U_SUCCESS(status) && engines == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-        }
-        else if (U_FAILURE(status)) {
-            delete engines;
-            engines = NULL;
-        }
-        else {
-            umtx_lock(NULL);
-            if (fEngines == NULL) {
-                fEngines = engines;
-                engines = NULL;
-            }
-            umtx_unlock(NULL);
-            delete engines;
-        }
-    }
-    
-    if (fEngines == NULL) {
-        return NULL;
-    }
-
-    // We didn't find an engine the first time through, or there was no
-    // stack. Create an engine.
-    const LanguageBreakEngine *newlbe = loadEngineFor(c, breakType);
-    
-    // Now get the lock, and see if someone else has created it in the
-    // meantime
-    umtx_lock(NULL);
-    i = fEngines->size();
-    while (--i >= 0) {
-        lbe = (const LanguageBreakEngine *)(fEngines->elementAt(i));
-        if (lbe != NULL && lbe->handles(c, breakType)) {
-            break;
-        }
-        lbe = NULL;
-    }
-    if (lbe == NULL && newlbe != NULL) {
-        fEngines->push((void *)newlbe, status);
-        lbe = newlbe;
-        newlbe = NULL;
-    }
-    umtx_unlock(NULL);
-    
-    delete newlbe;
-
     return lbe;
 }
 
@@ -219,23 +180,34 @@ ICULanguageBreakFactory::loadEngineFor(UChar32 c, int32_t breakType) {
     UErrorCode status = U_ZERO_ERROR;
     UScriptCode code = uscript_getScript(c, &status);
     if (U_SUCCESS(status)) {
-        const CompactTrieDictionary *dict = loadDictionaryFor(code, breakType);
-        if (dict != NULL) {
+        DictionaryMatcher *m = loadDictionaryMatcherFor(code, breakType);
+        if (m != NULL) {
             const LanguageBreakEngine *engine = NULL;
             switch(code) {
             case USCRIPT_THAI:
-                engine = new ThaiBreakEngine(dict, status);
+                engine = new ThaiBreakEngine(m, status);
                 break;
-                
+            case USCRIPT_LAO:
+                engine = new LaoBreakEngine(m, status);
+                break;
+            case USCRIPT_MYANMAR:
+                engine = new BurmeseBreakEngine(m, status);
+                break;
+            case USCRIPT_KHMER:
+                engine = new KhmerBreakEngine(m, status);
+                break;
+
+#if !UCONFIG_NO_NORMALIZATION
+                // CJK not available w/o normalization
             case USCRIPT_HANGUL:
-                engine = new CjkBreakEngine(dict, kKorean, status);
+                engine = new CjkBreakEngine(m, kKorean, status);
                 break;
 
             // use same BreakEngine and dictionary for both Chinese and Japanese
             case USCRIPT_HIRAGANA:
             case USCRIPT_KATAKANA:
             case USCRIPT_HAN:
-                engine = new CjkBreakEngine(dict, kChineseJapanese, status);
+                engine = new CjkBreakEngine(m, kChineseJapanese, status);
                 break;
 #if 0
             // TODO: Have to get some characters with script=common handled
@@ -250,11 +222,13 @@ ICULanguageBreakFactory::loadEngineFor(UChar32 c, int32_t breakType) {
                 break;
             }
 #endif
+#endif
+
             default:
                 break;
             }
             if (engine == NULL) {
-                delete dict;
+                delete m;
             }
             else if (U_FAILURE(status)) {
                 delete engine;
@@ -266,52 +240,58 @@ ICULanguageBreakFactory::loadEngineFor(UChar32 c, int32_t breakType) {
     return NULL;
 }
 
-const CompactTrieDictionary *
-ICULanguageBreakFactory::loadDictionaryFor(UScriptCode script, int32_t /*breakType*/) {
+DictionaryMatcher *
+ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script, int32_t /* brkType */) { 
     UErrorCode status = U_ZERO_ERROR;
-    // Open root from brkitr tree.
-    char dictnbuff[256];
-    char ext[4]={'\0'};
-
+    // open root from brkitr tree.
     UResourceBundle *b = ures_open(U_ICUDATA_BRKITR, "", &status);
     b = ures_getByKeyWithFallback(b, "dictionaries", b, &status);
-    b = ures_getByKeyWithFallback(b, uscript_getShortName(script), b, &status);
     int32_t dictnlength = 0;
-    const UChar *dictfname = ures_getString(b, &dictnlength, &status);
-    if (U_SUCCESS(status) && (size_t)dictnlength >= sizeof(dictnbuff)) {
-        dictnlength = 0;
-        status = U_BUFFER_OVERFLOW_ERROR;
+    const UChar *dictfname =
+        ures_getStringByKeyWithFallback(b, uscript_getShortName(script), &dictnlength, &status);
+    if (U_FAILURE(status)) {
+        ures_close(b);
+        return NULL;
     }
-    if (U_SUCCESS(status) && dictfname) {
-        UChar* extStart=u_strchr(dictfname, 0x002e);
-        int len = 0;
-        if(extStart!=NULL){
-            len = (int)(extStart-dictfname);
-            u_UCharsToChars(extStart+1, ext, sizeof(ext)); // nul terminates the buff
-            u_UCharsToChars(dictfname, dictnbuff, len);
-        }
-        dictnbuff[len]=0; // nul terminate
+    CharString dictnbuf;
+    CharString ext;
+    const UChar *extStart = u_memrchr(dictfname, 0x002e, dictnlength);  // last dot
+    if (extStart != NULL) {
+        int32_t len = (int32_t)(extStart - dictfname);
+        ext.appendInvariantChars(UnicodeString(FALSE, extStart + 1, dictnlength - len - 1), status);
+        dictnlength = len;
     }
+    dictnbuf.appendInvariantChars(UnicodeString(FALSE, dictfname, dictnlength), status);
     ures_close(b);
-    UDataMemory *file = udata_open(U_ICUDATA_BRKITR, ext, dictnbuff, &status);
+
+    UDataMemory *file = udata_open(U_ICUDATA_BRKITR, ext.data(), dictnbuf.data(), &status);
     if (U_SUCCESS(status)) {
-        const CompactTrieDictionary *dict = new CompactTrieDictionary(
-            file, status);
-        if (U_SUCCESS(status) && dict == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
+        // build trie
+        const uint8_t *data = (const uint8_t *)udata_getMemory(file);
+        const int32_t *indexes = (const int32_t *)data;
+        const int32_t offset = indexes[DictionaryData::IX_STRING_TRIE_OFFSET];
+        const int32_t trieType = indexes[DictionaryData::IX_TRIE_TYPE] & DictionaryData::TRIE_TYPE_MASK;
+        DictionaryMatcher *m = NULL;
+        if (trieType == DictionaryData::TRIE_TYPE_BYTES) {
+            const int32_t transform = indexes[DictionaryData::IX_TRANSFORM];
+            const char *characters = (const char *)(data + offset);
+            m = new BytesDictionaryMatcher(characters, transform, file);
         }
-        if (U_FAILURE(status)) {
-            delete dict;
-            dict = NULL;
+        else if (trieType == DictionaryData::TRIE_TYPE_UCHARS) {
+            const UChar *characters = (const UChar *)(data + offset);
+            m = new UCharsDictionaryMatcher(characters, file);
         }
-        return dict;
-    } else if (dictfname != NULL){
-        //create dummy dict if dictionary filename not valid
-        UChar c = 0x0020;
+        if (m == NULL) {
+            // no matcher exists to take ownership - either we are an invalid 
+            // type or memory allocation failed
+            udata_close(file);
+        }
+        return m;
+    } else if (dictfname != NULL) {
+        // we don't have a dictionary matcher.
+        // returning NULL here will cause us to fail to find a dictionary break engine, as expected
         status = U_ZERO_ERROR;
-        MutableTrieDictionary *mtd = new MutableTrieDictionary(c, status, TRUE);
-        mtd->addWord(&c, 1, status, 1);
-        return new CompactTrieDictionary(*mtd, status);  
+        return NULL;
     }
     return NULL;
 }

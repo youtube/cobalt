@@ -1,0 +1,105 @@
+<html>
+<body onload="RunTest();">
+<div id="player_container"></div>
+</body>
+
+<script type="text/javascript">
+// <audio> or <video> player element.
+var player;
+
+// Listen for |event| from |element|, set document.title = |event| upon event.
+function InstallTitleEventHandler(element, event) {
+  element.addEventListener(event, function(e) {
+    document.title = event.toUpperCase();
+  }, false);
+}
+
+function Failed() {
+  document.title = 'FAILED';
+  return false;
+}
+
+function SeekTestStep(e) {
+  player.removeEventListener('ended', SeekTestStep, false);
+
+  // Test completes on the next ended event.
+  InstallTitleEventHandler(player, 'ended');
+
+  player.currentTime = 0.9 * player.duration;
+  player.play();
+}
+
+function SeekTestTimeoutSetup() {
+  if (player.currentTime < 2)
+    return;
+
+  player.removeEventListener('timeupdate', SeekTestTimeoutSetup, false);
+  SeekTestStep();
+}
+
+// Uses URL query parameters to create an audio or video element using a given
+// source.  URL must be of the form:
+// "player.html?[tag]=[media_url][&loop=[true/false]]".
+//
+// Plays the media and waits for X seconds of playback or the ended event, at
+// which point the test seeks near the end of the file and resumes playback.
+// Test completes when the second ended event occurs or an error event occurs at
+// any time.
+// There is an optional loop query parameter which when set to true, will cause
+// the created media element to loop.
+function RunTest() {
+  var url_parts = window.location.href.split('?');
+  if (url_parts.length != 2)
+    return Failed();
+
+  var tag = '';
+  var media_url = '';
+  var loop = false;
+
+  var query_params = url_parts[1].split('&');
+  for (var query_param in query_params) {
+    var query_parts = query_params[query_param].split('=');
+    if (query_parts.length != 2) {
+      return Failed();
+    }
+
+    if (query_parts[0] == 'audio' || query_parts[0] == 'video') {
+      tag = query_parts[0];
+      media_url = query_parts[1];
+      continue;
+    }
+
+    if (query_parts[0] == 'loop') {
+      loop = (query_parts[1] == 'true');
+      continue;
+    }
+  }
+
+  if (tag != 'audio' && tag != 'video') {
+    return Failed();
+  }
+
+  // Create player and insert into DOM.
+  player = document.createElement(tag);
+  player.controls = true;
+  document.getElementById('player_container').appendChild(player);
+
+  player.addEventListener('loadedmetadata', function(e) {
+    document.title = '' + player.videoWidth + ' ' + player.videoHeight;
+  });
+
+  // Transition to the seek test after X seconds of playback or when the ended
+  // event occurs, whichever happens first.
+  player.addEventListener('ended', SeekTestStep, false);
+  player.addEventListener('timeupdate', SeekTestTimeoutSetup, false);
+
+  // Ensure we percolate up any error events.
+  InstallTitleEventHandler(player, 'error');
+
+  // Starts the player.
+  player.loop = loop;
+  player.src = media_url;
+  player.play();
+}
+</script>
+</html>

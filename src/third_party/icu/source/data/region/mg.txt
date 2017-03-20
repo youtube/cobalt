@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/mg.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/mg.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/mg.xml
- */
 mg{
     Countries{
         AD{"Andorra"}
@@ -45,8 +42,8 @@ mg{
         BY{"Belarosy"}
         BZ{"Belize"}
         CA{"Kanada"}
-        CD{"Repoblikan'i Kongo"}
-        CF{"Repoblika Ivon'Afrika"}
+        CD{"Repoblikan’i Kongo"}
+        CF{"Repoblika Ivon’Afrika"}
         CG{"Kôngô"}
         CH{"Soisa"}
         CI{"Côte d’Ivoire"}
@@ -56,11 +53,10 @@ mg{
         CN{"Sina"}
         CO{"Kôlômbia"}
         CR{"Kosta Rikà"}
-        CS{"Serbia sy Montenegro"}
         CU{"Kiobà"}
         CV{"Nosy Cap-Vert"}
         CY{"Sypra"}
-        CZ{"Repoblikan'i Tseky"}
+        CZ{"Repoblikan’i Tseky"}
         DE{"Alemaina"}
         DJ{"Djiboti"}
         DK{"Danmarka"}
@@ -223,7 +219,7 @@ mg{
         US{"Etazonia"}
         UY{"Orogoay"}
         UZ{"Ozbekistan"}
-        VA{"Firenen'i Vatikana"}
+        VA{"Firenen’i Vatikana"}
         VC{"Saint-Vincent-et-les Grenadines"}
         VE{"Venezoelà"}
         VG{"Nosy britanika virijiny"}
@@ -238,5 +234,5 @@ mg{
         ZM{"Zambia"}
         ZW{"Zimbaboe"}
     }
-    Version{"2.0.47.63"}
+    Version{"2.1.19.14"}
 }

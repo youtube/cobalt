@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 
 // Text the user has typed since last hitting Enter
@@ -31,6 +29,44 @@ var d = null;
 var debuggerClient = null;
 // Number of animation frame samples since the last update.
 var animationFrameSamples = 0;
+
+// Map of 'Unidentified' additional Cobalt keyCodes to equivalent keys.
+var unidentifiedCobaltKeyMap = {
+  // kSbKeyGamepad1
+  0x8000: 'Enter',
+  // kSbKeyGamepad2
+  0x8001: 'Esc',
+  // kSbKeyGamepad3
+  0x8002: 'Home',
+  // kSbKeyGamepad5
+  0x8008: 'Enter',
+  // kSbKeyGamepad6
+  0x8009: 'Enter',
+  // kSbKeyGamepadDPadUp
+  0x800C: 'ArrowUp',
+  // kSbKeyGamepadDPadDown
+  0x800D: 'ArrowDown',
+  // kSbKeyGamepadDPadLeft
+  0x800E: 'ArrowLeft',
+  // kSbKeyGamepadDPadRight
+  0x800F: 'ArrowRight',
+  // kSbKeyGamepadLeftStickUp
+  0x8011: 'ArrowUp',
+  // kSbKeyGamepadLeftStickDown
+  0x8012: 'ArrowDown',
+  // kSbKeyGamepadLeftStickLeft
+  0x8013: 'ArrowLeft',
+  // kSbKeyGamepadLeftStickRight
+  0x8014: 'ArrowRight',
+  // kSbKeyGamepadRightStickUp
+  0x8015: 'ArrowUp',
+  // kSbKeyGamepadRightStickDown
+  0x8016: 'ArrowDown',
+  // kSbKeyGamepadRightStickLeft
+  0x8017: 'ArrowLeft',
+  // kSbKeyGamepadRightStickRight
+  0x8018: 'ArrowRight'
+};
 
 function createMessageLog() {
   var messageContainer = document.getElementById('messageContainer');
@@ -195,6 +231,10 @@ function executeCurrentCommand() {
 
 function onKeydown(event) {
   var key = event.key;
+  if (key == 'Unidentified') {
+    key = unidentifiedCobaltKeyMap[event.keyCode] || 'Unidentified';
+  }
+
   if (key == 'ArrowLeft') {
     commandInput.moveCursor(-1);
   } else if (key == 'ArrowRight') {

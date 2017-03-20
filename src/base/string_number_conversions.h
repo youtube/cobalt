@@ -96,6 +96,8 @@ BASE_EXPORT std::string HexEncode(const void* bytes, size_t size);
 
 // Best effort conversion, see StringToInt above for restrictions.
 BASE_EXPORT bool HexStringToInt(const StringPiece& input, int* output);
+BASE_EXPORT bool HexStringToUInt(const StringPiece& input,
+                                 unsigned int* output);
 
 // Similar to the previous functions, except that output is a vector of bytes.
 // |*output| will contain as many bytes as were successfully parsed prior to the

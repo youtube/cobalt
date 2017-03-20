@@ -15,6 +15,7 @@
 #include "starboard/player.h"
 
 #include "starboard/configuration.h"
+#include "starboard/decode_target.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
@@ -33,7 +34,16 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
-                        void* context) {
+                        void* context
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+                        ,
+                        SbPlayerOutputMode output_mode
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 3
+                        ,
+                        SbDecodeTargetProvider* provider
+#endif  // SB_API_VERSION >= 3
+                        ) {
   SB_UNREFERENCED_PARAMETER(window);
 
   if (audio_codec != kSbMediaAudioCodecAac) {
@@ -42,7 +52,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   if (!audio_header) {
-    SB_LOG(ERROR) << "AAC requires a non-NULL SbMediaAudioHeader";
+    SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader";
     return kSbPlayerInvalid;
   }
 
@@ -51,9 +61,27 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
+    SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
+    return kSbPlayerInvalid;
+  }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  starboard::scoped_ptr<PlayerWorker::Handler> handler(
+      new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
+                                         *audio_header, output_mode, provider));
+#elif SB_API_VERSION >= 3
+  starboard::scoped_ptr<PlayerWorker::Handler> handler(
+      new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
+                                         *audio_header, provider));
+#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          *audio_header));
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
   return new SbPlayerPrivate(duration_pts, sample_deallocate_func,
                              decoder_status_func, player_status_func, context,
                              handler.Pass());

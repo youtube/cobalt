@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_CSSOM_KEYWORD_VALUE_H_
 #define COBALT_CSSOM_KEYWORD_VALUE_H_
@@ -130,6 +128,11 @@ class KeywordValue : public PropertyValue {
     // is aligned at the end edge of the line box.
     //   https://www.w3.org/TR/css-text-3/#text-align
     kEnd,
+
+    // "equirectangular" is a value of a parameter of the "map-to-mesh"
+    // filter function which indicates that the built-in equirectangular mesh
+    // should be used.
+    kEquirectangular,
 
     // "fantasy" is a value of "font_family" property which indicates a generic
     // font family using decorative or expressive representations of characters.
@@ -346,6 +349,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetCursive();
   static const scoped_refptr<KeywordValue>& GetEllipsis();
   static const scoped_refptr<KeywordValue>& GetEnd();
+  static const scoped_refptr<KeywordValue>& GetEquirectangular();
   static const scoped_refptr<KeywordValue>& GetFantasy();
   static const scoped_refptr<KeywordValue>& GetForwards();
   static const scoped_refptr<KeywordValue>& GetFixed();

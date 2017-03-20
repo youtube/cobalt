@@ -1,21 +1,20 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/layout/box.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "base/logging.h"
@@ -106,6 +105,9 @@ void Box::UpdateSize(const LayoutParams& layout_params) {
   if (ValidateUpdateSizeInputs(layout_params)) {
     return;
   }
+
+  // If this point is reached, then the size of the box is being re-calculated.
+  layout_stat_tracker_->OnUpdateSize();
 
   UpdateBorders();
   UpdatePaddings(layout_params);
@@ -412,6 +414,10 @@ void Box::RenderAndAnimate(
     return;
   }
 
+  // If this point is reached, then the pre-existing cached render tree node is
+  // not being used.
+  layout_stat_tracker_->OnRenderAndAnimate();
+
   // Initialize the cached render tree node with the border box offset.
   cached_render_tree_node_info_ = CachedRenderTreeNodeInfo(border_box_offset);
 
@@ -472,10 +478,17 @@ void Box::RenderAndAnimate(
   // 'visibility: visible'.
   //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
-    RenderAndAnimateBackgroundColor(
-        padding_rounded_corners, &border_node_builder, &animate_node_builder);
-    RenderAndAnimateBackgroundImage(
-        padding_rounded_corners, &border_node_builder, &animate_node_builder);
+    RenderAndAnimateBackgroundImageResult background_image_result =
+        RenderAndAnimateBackgroundImage(padding_rounded_corners);
+    // If the background image is opaque, then it will occlude the background
+    // color and so we do not need to render the background color.
+    if (!background_image_result.is_opaque) {
+      RenderAndAnimateBackgroundColor(
+          padding_rounded_corners, &border_node_builder, &animate_node_builder);
+    }
+    if (background_image_result.node) {
+      border_node_builder.AddChild(background_image_result.node);
+    }
     RenderAndAnimateBorder(border_radius_provider.rounded_corners(),
                            &border_node_builder, &animate_node_builder);
     RenderAndAnimateBoxShadow(border_radius_provider.rounded_corners(),
@@ -900,7 +913,7 @@ void SetupFilterNodeFromStyle(
                       style->opacity().get())->value();
 
   if (opacity < 1.0f) {
-    filter_node_builder->opacity_filter.emplace(opacity);
+    filter_node_builder->opacity_filter.emplace(std::max(0.0f, opacity));
   } else {
     // If opacity is 1, then no opacity filter should be applied, so the
     // source render tree should appear fully opaque.
@@ -1066,11 +1079,16 @@ void Box::RenderAndAnimateBackgroundColor(
   }
 }
 
-void Box::RenderAndAnimateBackgroundImage(
-    const base::optional<RoundedCorners>& rounded_corners,
-    CompositionNode::Builder* border_node_builder,
-    AnimateNode::Builder* animate_node_builder) {
-  UNREFERENCED_PARAMETER(animate_node_builder);
+Box::RenderAndAnimateBackgroundImageResult Box::RenderAndAnimateBackgroundImage(
+    const base::optional<RoundedCorners>& rounded_corners) {
+  RenderAndAnimateBackgroundImageResult result;
+  // We track a single render tree node because most of the time there will only
+  // be one.  If there is more, we set |single_node| to NULL and instead
+  // populate |composition|.  The code here tries to avoid using CompositionNode
+  // if possible to avoid constructing an std::vector.
+  scoped_refptr<render_tree::Node> single_node = NULL;
+  base::optional<CompositionNode::Builder> composition;
+  result.is_opaque = false;
 
   math::RectF image_frame(
       math::PointF(border_left_width().toFloat(), border_top_width().toFloat()),
@@ -1105,9 +1123,34 @@ void Box::RenderAndAnimateBackgroundImage(
         background_node = new FilterNode(filter_node_builder);
       }
 
-      border_node_builder->AddChild(background_node);
+      // If any of the background image layers are opaque, we set that the
+      // background image is opaque.  This is used to avoid setting up the
+      // background color if the background image is just going to cover it
+      // anyway.
+      result.is_opaque |= background_node_provider.is_opaque();
+
+      // If this is not the first node to return, then our |single_node|
+      // shortcut won't work, copy that single node into |composition| before
+      // continuing.
+      if (single_node) {
+        composition.emplace();
+        composition->AddChild(single_node);
+        single_node = NULL;
+      }
+      if (!composition) {
+        single_node = background_node;
+      } else {
+        composition->AddChild(background_node);
+      }
     }
   }
+
+  if (single_node) {
+    result.node = single_node;
+  } else if (composition) {
+    result.node = new CompositionNode(composition->Pass());
+  }
+  return result;
 }
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
@@ -1118,7 +1161,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     FilterNode::Builder filter_node_builder(border_node);
 
     if (opacity < 1.0f) {
-      filter_node_builder.opacity_filter = OpacityFilter(opacity);
+      filter_node_builder.opacity_filter.emplace(std::max(0.0f, opacity));
     }
 
     scoped_refptr<FilterNode> filter_node = new FilterNode(filter_node_builder);

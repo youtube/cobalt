@@ -33,6 +33,7 @@
 #include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
+#include "nb/memory_scope.h"
 #include "net/base/net_util.h"
 #if defined(OS_STARBOARD)
 #include "starboard/socket.h"
@@ -87,12 +88,14 @@ void UDPListenSocket::CloseSocket(SocketDescriptor s) {
 
 void UDPListenSocket::SendTo(const IPEndPoint& address,
                              const std::string& str) {
+  TRACK_MEMORY_SCOPE("Network");
   SendTo(address, str.data(), static_cast<int>(str.length()));
 }
 
 void UDPListenSocket::SendTo(const IPEndPoint& address,
                              const char* bytes,
                              int len) {
+  TRACK_MEMORY_SCOPE("Network");
 #if defined(OS_STARBOARD)
   SbSocketAddress dst_addr;
   if (!address.ToSbSocketAddress(&dst_addr)) {
@@ -130,6 +133,7 @@ void UDPListenSocket::SendTo(const IPEndPoint& address,
 }
 
 void UDPListenSocket::Read() {
+  TRACK_MEMORY_SCOPE("Network");
   if (buffer_ == NULL) {
     // +1 for null termination
     buffer_.reset(new char[kUdpMaxPacketSize + 1]);
@@ -192,6 +196,7 @@ void UDPListenSocket::Read() {
 }
 
 void UDPListenSocket::WatchSocket() {
+  TRACK_MEMORY_SCOPE("Network");
 #if defined(OS_STARBOARD)
   MessageLoopForIO::current()->Watch(
       socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);

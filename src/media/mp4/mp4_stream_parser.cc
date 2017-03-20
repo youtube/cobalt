@@ -11,6 +11,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_types.h"
 #include "media/base/video_util.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/box_reader.h"
@@ -209,15 +210,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
       is_audio_track_encrypted_ = entry.sinf.info.track_encryption.is_encrypted;
       DVLOG(1) << "is_audio_track_encrypted_: " << is_audio_track_encrypted_;
-      audio_config.Initialize(kCodecAAC, entry.samplesize,
-                              aac.channel_layout(),
-                              aac.GetOutputSamplesPerSecond(has_sbr_),
-#if defined(COBALT_WIN)
-                              &aac.raw_data().front(), aac.raw_data().size(),
-#else  // defined(COBALT_WIN)
-                              NULL, 0,
-#endif  // defined(COBALT_WIN)
-                              is_audio_track_encrypted_, false);
+      audio_config.Initialize(
+          kCodecAAC, entry.samplesize, aac.channel_layout(),
+          aac.GetOutputSamplesPerSecond(has_sbr_),
+          aac.raw_data().empty() ? NULL : &aac.raw_data().front(),
+          aac.raw_data().size(), is_audio_track_encrypted_, false);
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
     }
@@ -253,6 +250,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       video_config.Initialize(kCodecH264,
                               H264PROFILE_MAIN,
                               VideoFrame::NATIVE_TEXTURE,
+                              COLOR_SPACE_HD_REC709,
                               coded_size,
                               visible_rect,
                               natural_size,
@@ -262,7 +260,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                               true);
 #else
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
-                              coded_size, visible_rect, natural_size,
+                              COLOR_SPACE_HD_REC709, coded_size, visible_rect,
+                              natural_size,
                               // No decoder-specific buffer needed for AVC;
                               // SPS/PPS are embedded in the video stream
                               NULL, 0, is_video_track_encrypted_, true);

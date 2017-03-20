@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RESOURCE_PROVIDER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_RESOURCE_PROVIDER_H_
@@ -50,6 +48,41 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   scoped_refptr<render_tree::Image> CreateImage(
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
+
+#if SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE;
+
+  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
+  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE {
+    return &decode_target_provider_;
+  }
+
+  // Whether SbDecodeTargetIsSupported or not.
+  bool SupportsSbDecodeTarget() OVERRIDE { return true; }
+
+#elif SB_API_VERSION >= 3
+
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE {
+    NOTREACHED()
+        << "CreateImageFromSbDecodeTarget is not supported on EGL yet.";
+    SbDecodeTargetDestroy(decode_target);
+    return NULL;
+  }
+
+  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
+  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+
+  // Whether SbDecodeTargetIsSupported or not.
+  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
+
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) OVERRIDE;
@@ -95,8 +128,17 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   backend::GraphicsContextEGL* cobalt_context_;
   GrContext* gr_context_;
 
-  SkAutoTUnref<SkFontMgr> font_manager_;
   TextShaper text_shaper_;
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+    SB_HAS(GRAPHICS)
+  static SbDecodeTarget DecodeTargetAcquire(void* context,
+                                            SbDecodeTargetFormat format,
+                                            int width, int height);
+  static void DecodeTargetRelease(void* context, SbDecodeTarget decode_target);
+  SbDecodeTargetProvider decode_target_provider_;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+           SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was
   // created on.  This message loop is used whenever we need to issue graphics

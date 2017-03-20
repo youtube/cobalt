@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1999-2010, International Business Machines
+*   Copyright (C) 1999-2013, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -21,7 +21,8 @@
 
 #include "unicode/utypes.h"
 
-#ifdef XP_CPLUSPLUS
+
+#ifdef __cplusplus
 
 #include "unicode/errorcode.h"
 
@@ -83,7 +84,7 @@ findBasename(const char *filename);
  * If successful, copies the directory name into the output buffer along with
  * a terminating NULL. 
  *
- * If there isn't a directory name in the path, it returns the current directory string ('.').
+ * If there isn't a directory name in the path, it returns an empty string.
  * @param path the full pathname to inspect. 
  * @param buffer the output buffer
  * @param bufLen the output buffer length
@@ -106,6 +107,16 @@ getCurrentYear(void);
  */
 U_CAPI void U_EXPORT2
 uprv_mkdir(const char *pathname, UErrorCode *status);
+
+#if !UCONFIG_NO_FILE_IO
+/**
+ * Return TRUE if the named item exists
+ * @param file filename
+ * @return TRUE if named item (file, dir, etc) exists, FALSE otherwise
+ */
+U_CAPI UBool U_EXPORT2
+uprv_fileExists(const char *file);
+#endif
 
 /**
  * Return the modification date for the specified file or directory.

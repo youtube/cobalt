@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2009, International Business Machines Corporation and others.
+# Copyright (C) 2000-2012, International Business Machines Corporation and others.
 # All Rights Reserved.
 
 # ICU codepage data for GB 18030
@@ -14,7 +14,9 @@
 # Note that the entire block for the supplementary Unicode planes is
 # marked unassigned because they are handled algorithmically.
 # Similarly, some of the BMP mappings are marked as unassigned for the same reason.
+# See http://userguide.icu-project.org/conversion/data#TOC-State-table-syntax-in-.ucm-files
 
+# States 0..2:
 # Mostly assigned sequences, with branches in the lead bytes
 # The second <icu:state> line is commented out (and does not count)
 # because the state table is hand-optimized and does not use what would be
@@ -24,18 +26,26 @@
 <icu:state> 81-fe:2
 <icu:state> 30-39
 
-# All-unassigned 4-byte sequences
+# States 3..5: All-unassigned 4-byte sequences.
+# Do not change these states, or else the conversion table will grow significantly.
 <icu:state> 30-39:4, 40-7e, 80-fe
 <icu:state> 81-fe:5
 <icu:state> 30-39.u
 
+# States 6..9:
 # Some unassigned 4-byte sequences, one state for each of the lead bytes 81-84
 # Each of these states branch on the second of four bytes; for the third and fourth bytes,
 # unassigned sequences continue with state 5, assigned ones with state 2
-<icu:state> 30:1, 31-35:4, 36-39:1, 40-7e, 80-fe
+<icu:state> 30:1, 31-34:4, 35:a, 36-39:1, 40-7e, 80-fe
 <icu:state> 30-35:1, 36-39:4, 40-7e, 80-fe
 <icu:state> 30-35:4, 36:1, 37-39:4, 40-7e, 80-fe
 <icu:state> 30-31:1, 32-39:4, 40-7e, 80-fe
+
+# State 0xa=10, reached from 81 35: Handle the new mapping U+E7C7 <-> 81 35 F4 37
+# (see changes between revisions 25802 and 29863),
+# allow mappings for 81 35 F4 zz,
+# but otherwise keep 81 35 xx yy going to "unassigned" states.
+<icu:state> 81-fe:5, f4:2
 
 # GB 18030 BMP mappings that are not handled algorithmically are
 # generated using gbmake4 and gbtoucm tools. Please see charset/source/gb18030/gb18030.html
@@ -1150,6 +1160,7 @@ CHARMAP
 <U044F> \xA7\xF1 |0
 <U0450> \x81\x30\xD2\x39 |0
 <U0451> \xA7\xD7 |0
+<U1E3F> \xA8\xBC |0
 <U2010> \xA9\x5C |0
 <U2011> \x81\x36\xA5\x32 |0
 <U2012> \x81\x36\xA5\x33 |0
@@ -3121,6 +3132,7 @@ CHARMAP
 <U2FFE> \x81\x39\xA3\x34 |0
 <U2FFF> \x81\x39\xA3\x35 |0
 <U3000> \xA1\xA1 |0
+<U3000> \xA3\xA0 |3
 <U3001> \xA1\xA2 |0
 <U3002> \xA1\xA3 |0
 <U3003> \xA1\xA8 |0
@@ -29573,7 +29585,6 @@ CHARMAP
 <UE5E2> \xA3\x9D |0
 <UE5E3> \xA3\x9E |0
 <UE5E4> \xA3\x9F |0
-<UE5E5> \xA3\xA0 |0
 <UE5E6> \xA4\x40 |0
 <UE5E7> \xA4\x41 |0
 <UE5E8> \xA4\x42 |0
@@ -30055,7 +30066,7 @@ CHARMAP
 <UE7C4> \xA8\x9E |0
 <UE7C5> \xA8\x9F |0
 <UE7C6> \xA8\xA0 |0
-<UE7C7> \xA8\xBC |0
+<UE7C7> \x81\x35\xF4\x37 |0
 <UE7C8> \x83\x36\xC8\x30 |0
 <UE7C9> \xA8\xC1 |0
 <UE7CA> \xA8\xC2 |0

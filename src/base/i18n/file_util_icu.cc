@@ -79,6 +79,7 @@ IllegalCharacters::IllegalCharacters() {
   set->freeze();
 }
 
+#if !defined(UCONFIG_NO_COLLATION)
 class LocaleAwareComparator {
  public:
   static LocaleAwareComparator* GetInstance() {
@@ -128,6 +129,7 @@ class LocaleAwareComparator {
 
   DISALLOW_COPY_AND_ASSIGN(LocaleAwareComparator);
 };
+#endif  // !defined(UCONFIG_NO_COLLATION)
 
 }  // namespace
 
@@ -180,6 +182,7 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
   }
 }
 
+#if !defined(UCONFIG_NO_COLLATION)
 bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
 #if defined(OS_WIN)
   return LocaleAwareComparator::GetInstance()->Compare(a.value().c_str(),
@@ -199,6 +202,7 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
   #error Not implemented on your system
 #endif
 }
+#endif  // !defined(UCONFIG_NO_COLLATION)
 
 void NormalizeFileNameEncoding(FilePath* file_name) {
 #if defined(OS_CHROMEOS)

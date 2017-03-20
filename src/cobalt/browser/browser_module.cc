@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/browser/browser_module.h"
 
@@ -37,6 +35,7 @@
 #include "cobalt/dom/keycode.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace browser {
@@ -107,6 +106,30 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+void GetVideoContainerSizeOverride(math::Size* output_size) {
+  DCHECK(output_size);
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
+    std::string size_override = command_line->GetSwitchValueASCII(
+        browser::switches::kVideoContainerSizeOverride);
+    DLOG(INFO) << "Set video container size override from command line to "
+               << size_override;
+    // Override string should be something like "1920x1080".
+    int32 width, height;
+    std::vector<std::string> tokens;
+    base::SplitString(size_override, 'x', &tokens);
+    if (tokens.size() == 2 && base::StringToInt32(tokens[0], &width) &&
+        base::StringToInt32(tokens[1], &height)) {
+      *output_size = math::Size(width, height);
+    } else {
+      DLOG(WARNING) << "Invalid size specified for video container: "
+                    << size_override;
+    }
+  }
+}
+#endif
+
 scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings) {
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
@@ -135,10 +158,6 @@ BrowserModule::BrowserModule(const GURL& url,
           renderer_module_.pipeline()->GetResourceProvider())),
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-      media_module_(media::MediaModule::Create(
-          system_window, renderer_module_.render_target()->GetSize(),
-          renderer_module_.pipeline()->GetResourceProvider(),
-          options.media_module_options)),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
       render_tree_combiner_(&renderer_module_,
@@ -170,7 +189,31 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
       will_quit_(false),
-      suspended_(false) {
+      suspended_(false),
+      system_window_(system_window) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
+  // All allocations for media will be tracked by "Media" memory scope.
+  {
+    TRACK_MEMORY_SCOPE("Media");
+    math::Size output_size = renderer_module_.render_target()->GetSize();
+    if (system_window->GetVideoPixelRatio() != 1.f) {
+      output_size.set_width(
+          static_cast<int>(static_cast<float>(output_size.width()) *
+                           system_window->GetVideoPixelRatio()));
+      output_size.set_height(
+          static_cast<int>(static_cast<float>(output_size.height()) *
+                           system_window->GetVideoPixelRatio()));
+    }
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+    GetVideoContainerSizeOverride(&output_size);
+#endif
+
+    media_module_ = (media::MediaModule::Create(
+        system_window, output_size,
+        renderer_module_.pipeline()->GetResourceProvider(),
+        options.media_module_options));
+  }
+
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
@@ -219,6 +262,7 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Navigate()");
   web_module_loaded_.Reset();
 
   // Always post this as a task in case this is being called from the WebModule.
@@ -227,6 +271,7 @@ void BrowserModule::Navigate(const GURL& url) {
 }
 
 void BrowserModule::Reload() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Reload()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
@@ -235,6 +280,7 @@ void BrowserModule::Reload() {
 }
 
 void BrowserModule::NavigateInternal(const GURL& url) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::NavigateInternal()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
@@ -276,7 +322,8 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kFakeMicrophone) ||
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kInputFuzzer)) {
-    options.dom_settings_options.enable_fake_microphone = true;
+    options.dom_settings_options.microphone_options.enable_fake_microphone =
+        true;
   }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
@@ -288,7 +335,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
-      renderer_module_.pipeline()->GetResourceProvider(),
+      renderer_module_.pipeline()->GetResourceProvider(), system_window_,
       kLayoutMaxRefreshFrequencyInHz, options));
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
@@ -296,8 +343,9 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 }
 
 void BrowserModule::OnLoad() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
-  // asynchonrous access to this object by |web_module_| during destruction.
+  // asynchronous access to this object by |web_module_| during destruction.
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnLoad, weak_this_));
@@ -305,10 +353,16 @@ void BrowserModule::OnLoad() {
   }
 
   DestroySplashScreen();
+
+  // This log is relied on by the webdriver benchmark tests, so it shouldn't be
+  // changed unless the corresponding benchmark logic is changed as well.
+  LOG(INFO) << "Loaded WebModule";
+
   web_module_loaded_.Signal();
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::WaitForLoad()");
   return web_module_loaded_.TimedWait(timeout);
 }
 
@@ -464,7 +518,7 @@ void BrowserModule::OnKeyEventProduced(const dom::KeyboardEvent::Data& event) {
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  trace_manager.OnKeyEventProduced();
+  trace_manager_.OnKeyEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   InjectKeyEventToMainWebModule(event);
@@ -486,6 +540,7 @@ void BrowserModule::InjectKeyEventToMainWebModule(
 }
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
 
@@ -496,6 +551,7 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
 }
 
 bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::FilterKeyEvent()");
   // Check for hotkeys first. If it is a hotkey, no more processing is needed.
   if (!FilterKeyEventForHotkeys(event)) {
     return false;
@@ -561,7 +617,10 @@ bool BrowserModule::TryURLHandlers(const GURL& url) {
   return false;
 }
 
-void BrowserModule::DestroySplashScreen() { splash_screen_.reset(NULL); }
+void BrowserModule::DestroySplashScreen() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroySplashScreen()");
+  splash_screen_.reset(NULL);
+}
 
 #if defined(ENABLE_WEBDRIVER)
 scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
@@ -587,6 +646,9 @@ scoped_ptr<webdriver::WindowDriver> BrowserModule::CreateWindowDriver(
       FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
                             base::Unretained(&got_window_driver)));
   got_window_driver.Wait();
+  // This log is relied on by the webdriver benchmark tests, so it shouldn't be
+  // changed unless the corresponding benchmark logic is changed as well.
+  LOG(INFO) << "Created WindowDriver: ID=" << window_id.id();
   DCHECK(window_driver);
   return window_driver.Pass();
 }
@@ -633,6 +695,7 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
 }
 
 void BrowserModule::Suspend() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Suspend()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(!suspended_);
 
@@ -665,6 +728,17 @@ void BrowserModule::Suspend() {
   // render tree resources either.
   render_tree_combiner_.Reset();
 
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  // Note that the following function call will leak the GPU memory allocated.
+  // This is because after renderer_module_.Suspend() is called it is no longer
+  // safe to release the GPU memory allocated.
+  // The following code can call reset() to release the allocated memory but
+  // the memory may still be used by XHR and ArrayBuffer.  As this feature is
+  // only used on platform without Resume() support, it is safer to leak the
+  // memory then to release it.
+  dom::ArrayBuffer::Allocator* allocator = array_buffer_allocator_.release();
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+
   media_module_->Suspend();
 
   // Place the renderer module into a suspended state where it releases all its
@@ -675,12 +749,19 @@ void BrowserModule::Suspend() {
 }
 
 void BrowserModule::Resume() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(suspended_);
 
   renderer_module_.Resume();
 
   media_module_->Resume();
+
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  // Resume() is not supported on platforms that allocates ArrayBuffer on GPU
+  // memory.
+  NOTREACHED();
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
 
   // Note that at this point, it is probable that this resource provider is
   // different than the one that was managed in the associated call to
@@ -705,6 +786,8 @@ void BrowserModule::Resume() {
 
 #if defined(OS_STARBOARD)
 void BrowserModule::OnRendererSubmissionRasterized() {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnRendererSubmissionRasterized()");
   if (!is_rendered_) {
     // Hide the system splash screen when the first render has completed.
     is_rendered_ = true;

@@ -1,7 +1,7 @@
 /*
  ******************************************************************************
  *
- *   Copyright (C) 1998-2010, International Business Machines
+ *   Copyright (C) 1998-2014, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  *
  ******************************************************************************
@@ -18,6 +18,9 @@
  */
 
 #include "unicode/ustdio.h"
+
+#if !UCONFIG_NO_CONVERSION
+
 #include "unicode/putil.h"
 #include "cmemory.h"
 #include "cstring.h"
@@ -37,7 +40,7 @@
 #define DELIM_PS 0x2029
 
 /* TODO: is this correct for all codepages? Should we just use \n and let the converter handle it? */
-#ifdef U_WINDOWS
+#if U_PLATFORM_USES_ONLY_WIN32_API
 static const UChar DELIMITERS [] = { DELIM_CR, DELIM_LF, 0x0000 };
 static const uint32_t DELIMITERS_LEN = 2;
 /* TODO: Default newline writing should be detected based upon the converter being used. */
@@ -425,7 +428,7 @@ ufile_fill_uchar_buffer(UFILE *f)
 
     /* shift the buffer if it isn't empty */
     if(dataSize != 0) {
-        uprv_memmove(f->fUCBuffer, str->fPos, dataSize * sizeof(UChar));
+        uprv_memmove(f->fUCBuffer, str->fPos, dataSize * sizeof(UChar)); /* not accessing beyond memory */
     }
 
 
@@ -724,3 +727,4 @@ u_file_read(    UChar        *chars,
 
     return read;
 }
+#endif

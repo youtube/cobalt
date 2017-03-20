@@ -33,14 +33,16 @@ TEST(AlignedMemoryTest, StaticAlignment) {
 TEST(AlignedMemoryTest, StackAlignment) {
   AlignedMemory<8, 8> raw8;
   AlignedMemory<8, 16> raw16;
-  AlignedMemory<8, 256> raw256;
 
   EXPECT_EQ(8u, ALIGNOF(raw8));
   EXPECT_EQ(16u, ALIGNOF(raw16));
-  EXPECT_EQ(256u, ALIGNOF(raw256));
 
   EXPECT_ALIGNED(raw8.void_data(), 8);
   EXPECT_ALIGNED(raw16.void_data(), 16);
+
+#if !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
+  AlignedMemory<8, 256> raw256;
+  EXPECT_EQ(256u, ALIGNOF(raw256));
   EXPECT_ALIGNED(raw256.void_data(), 256);
 
   // TODO: This test hits an armv7 bug in clang. crbug.com/138066
@@ -48,7 +50,8 @@ TEST(AlignedMemoryTest, StackAlignment) {
   AlignedMemory<8, 4096> raw4096;
   EXPECT_EQ(4096u, ALIGNOF(raw4096));
   EXPECT_ALIGNED(raw4096.void_data(), 4096);
-#endif  // !(defined(OS_IOS) && defined(ARCH_CPU_ARM_FAMILY))
+#endif  // !defined(ARCH_CPU_ARM_FAMILY))
+#endif  // !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
 }
 
 TEST(AlignedMemoryTest, DynamicAllocation) {

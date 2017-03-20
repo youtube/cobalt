@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/layout/container_box.h"
 
@@ -179,15 +177,19 @@ bool ContainerBox::IsStackingContext() const {
 
 void ContainerBox::UpdateCrossReferences() {
   if (!are_cross_references_valid_) {
+    // If this point is reached, then the cross references for this container
+    // box are being re-generated.
+    layout_stat_tracker()->OnUpdateCrossReferences();
+
     // Cross references are not cleared when they are invalidated. This is
     // because they can be invalidated while they are being walked if a
     // relatively positioned descendant is split. Therefore, they need to be
-    // cleared now.
+    // cleared now before they are regenerated.
     positioned_child_boxes_.clear();
     negative_z_index_child_.clear();
     non_negative_z_index_child_.clear();
 
-    bool is_nearest_containing_block = true;
+    const bool kIsNearestContainingBlockOfChildren = true;
     bool is_nearest_absolute_containing_block =
         IsContainingBlockForPositionAbsoluteElements();
     bool is_nearest_fixed_containing_block =
@@ -198,7 +200,7 @@ void ContainerBox::UpdateCrossReferences() {
          child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
       child_box->UpdateCrossReferencesOfContainerBox(
-          this, is_nearest_containing_block,
+          this, kIsNearestContainingBlockOfChildren,
           is_nearest_absolute_containing_block,
           is_nearest_fixed_containing_block, is_nearest_stacking_context);
     }
@@ -530,16 +532,13 @@ void ContainerBox::UpdateCrossReferencesOfContainerBox(
   // specified types, then the target container box cannot be the nearest box of
   // that type for the children.
 
-  bool is_nearest_containing_block_of_children = false;
-
+  const bool kIsNearestContainingBlockOfChildren = false;
   bool is_nearest_absolute_containing_block_of_children =
       is_nearest_absolute_containing_block &&
       !IsContainingBlockForPositionAbsoluteElements();
-
   bool is_nearest_fixed_containing_block_of_children =
       is_nearest_fixed_containing_block &&
       !IsContainingBlockForPositionFixedElements();
-
   bool is_nearest_stacking_context_of_children =
       is_nearest_stacking_context && !IsStackingContext();
 
@@ -553,7 +552,7 @@ void ContainerBox::UpdateCrossReferencesOfContainerBox(
          child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
       child_box->UpdateCrossReferencesOfContainerBox(
-          source_box, is_nearest_containing_block_of_children,
+          source_box, kIsNearestContainingBlockOfChildren,
           is_nearest_absolute_containing_block_of_children,
           is_nearest_fixed_containing_block_of_children,
           is_nearest_stacking_context_of_children);

@@ -132,6 +132,7 @@ class NET_EXPORT_PRIVATE WebSocketHandshakeResponseHandler {
 
   // Gets raw WebSocket handshake response received from WebSocket server.
   std::string GetRawResponse() const;
+  std::size_t GetRawResponseLength() const;
 
   // Gets WebSocket handshake response message sent to renderer process.
   std::string GetResponse();

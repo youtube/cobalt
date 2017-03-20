@@ -1184,7 +1184,7 @@ BacktrackingAllocator::dumpLiveness()
         LBlock *block = graph.getBlock(blockIndex);
         MBasicBlock *mir = block->mir();
 
-        printf("\nBlock %lu", blockIndex);
+        printf("\nBlock %zu", blockIndex);
         for (size_t i = 0; i < mir->numSuccessors(); i++)
             printf(" [successor %u]", mir->getSuccessor(i)->id());
         printf("\n");
@@ -1229,7 +1229,7 @@ BacktrackingAllocator::dumpLiveness()
         printf("reg %s: %s\n", AnyRegister::FromCode(i).name(), IntervalString(fixedIntervals[i]));
 
     for (size_t i = 0; i < graph.numVirtualRegisters(); i++) {
-        printf("v%lu:", i);
+        printf("v%zu:", i);
         VirtualRegister &vreg = vregs[i];
         for (size_t j = 0; j < vreg.numIntervals(); j++) {
             if (j)
@@ -1264,7 +1264,7 @@ BacktrackingAllocator::dumpAllocations()
     printf("Allocations:\n");
 
     for (size_t i = 0; i < graph.numVirtualRegisters(); i++) {
-        printf("v%lu:", i);
+        printf("v%zu:", i);
         VirtualRegister &vreg = vregs[i];
         for (size_t j = 0; j < vreg.numIntervals(); j++) {
             if (j)

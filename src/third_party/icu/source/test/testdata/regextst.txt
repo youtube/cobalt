@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2001-2011 International Business Machines
+﻿# Copyright (c) 2001-2015 International Business Machines
 # Corporation and others. All Rights Reserved.
 #
 #  file:
@@ -13,8 +13,8 @@
 #               <tagged string> = text, with the start and end of each
 #                                 capture group tagged with <n>...</n>.  The overall match,
 #                                 if any, is group 0, as in <0>matched text</0>
-#
 #                                  A region can be specified with <r>...</r> tags.
+#                                 Standard ICU unescape will be applied, allowing \u, \U, etc. to appear.
 #
 #               <flags>         = any combination of
 #                                   i      case insensitive match
@@ -23,6 +23,7 @@
 #                                   m      multi-line mode.  
 #                                            ($ and ^ match at embedded new-lines)
 #                                   D      Unix Lines mode (only recognize 0x0a as new-line)
+#                                   Q      UREGEX_LITERAL flag.  Entire pattern is literal string.
 #                                   v      If icu configured without break iteration, this
 #                                          regex test pattern should not compile.
 #                                   e      set the UREGEX_ERROR_ON_UNKNOWN_ESCAPES flag
@@ -117,6 +118,24 @@
 "xyz$"                  yz     "<0>xyz</0>"
 
 #
+#  HitEnd 
+#
+"abcd"                  Lz      "a"
+"abcd"                  Lz      "ab"
+"abcd"                  Lz      "abc"
+"abcd"                  LZ      "<0>abcd</0>"
+"abcd"                  LZ      "<0>abcd</0>e"
+"abcd"                  LZ      "abcx"
+"abcd"                  LZ      "abx"
+"abcd"                  Lzi     "a"
+"abcd"                  Lzi     "ab"
+"abcd"                  Lzi     "abc"
+"abcd"                  LZi     "<0>abcd</0>"
+"abcd"                  LZi     "<0>abcd</0>e"
+"abcd"                  LZi     "abcx"
+"abcd"                  LZi     "abx"
+
+#
 #  All Unicode line endings recognized.
 #     0a, 0b, 0c, 0d, 0x85, 0x2028, 0x2029
 #     Multi-line and non-multiline mode take different paths, so repeated tests.
@@ -176,6 +195,7 @@
 "(hello)|(goodbye)"            "<0><2>goodbye</2></0>"
 "abc( +(  inner(X?) +)  xyz)"  "leading cruft <0>abc<1>     <2>  inner<3></3>    </2>  xyz</1></0> cruft"
 "\s*([ixsmdt]*)([:letter:]*)"  "<0>   <1>d</1><2></2></0>  "
+"(a|b)c*d"                     "a<0><1>b</1>cd</0>"
 
 # Non-capturing parens (?: stuff).   Groups, but does not capture.
 "(?:abc)*(tail)"               "<0>abcabcabc<1>tail</1></0>"
@@ -215,6 +235,7 @@
 ".*?\b(.).*"                   "<0>  $%^&*( <1>h</1>ello123%^&*()gxx</0>"
 "\ba\b"                        "-<0>a</0>"
 "\by\b"                        "xy"
+"[ \b]"                        "<0>b</0>"     # in a set, \b is a literal b.
 
 # Finds first chars of up to 5 words
 "(?:.*?\b(\w))?(?:.*?\b(\w))?(?:.*?\b(\w))?(?:.*?\b(\w))?(?:.*?\b(\w))?"   "<0><1>T</1>the <2>q</2>ick <3>b</3>rown <4>f</4></0>ox"
@@ -260,6 +281,12 @@
 # \Q...\E quote mode
 "hel\Qlo, worl\Ed"             "<0>hello, world</0>"
 "\Q$*^^(*)?\A\E(a*)"           "<0>$*^^(*)?\\A<1>aaaaaaaaaaaaaaa</1></0>"
+"[abc\Q]\r\E]+"                "<0>aaaccc]]]\\\\\\</0>\r..."   # \Q ... \E escape in a [set]
+
+# UREGEX_LITERAL - entire pattern is a literal string, no escapes recognized.
+#                  Note that data strings in test cases still get escape processing.
+"abc\an\r\E\\abcd\u0031bye"     Q  "lead<0>abc\\an\\r\\E\\\\abcd\\u0031bye</0>extra"
+"case insensitive \\ (l)iteral" Qi "stuff!! <0>cAsE InSenSiTiVE \\\\ (L)ITeral</0>"
 
 # \S and \s  space characters
 "\s+"                          "not_space<0> \t \r \n \u3000 \u2004 \u2028 \u2029</0>xyz"
@@ -452,14 +479,63 @@
 "ab(?:c|(d?))(\1)"             "<0>ab<1></1><2></2></0>e"
 "ab(?:c|(d?))(\1)"             "<0>ab<1></1><2></2></0>"
 
+# Back References that hit/don't hit end
+"(abcd) \1"                z   "abcd abc"
+"(abcd) \1"                Z   "<0><1>abcd</1> abcd</0>"
+"(abcd) \1"                Z   "<0><1>abcd</1> abcd</0> "
+
+# Case Insensitve back references that hit/don't hit end.
+"(abcd) \1"                zi  "abcd abc"
+"(abcd) \1"                Zi  "<0><1>abcd</1> ABCD</0>"
+"(abcd) \1"                Zi  "<0><1>abcd</1> ABCD</0> "
+
+# Back references that hit/don't hit boundary limits.
+
+"(abcd) \1"                z   "<r>abcd abc</r>d "
+"(abcd) \1"                Z   "<r><0><1>abcd</1> abcd</0></r> "
+"(abcd) \1"                Z   "<r><0><1>abcd</1> abcd</0> </r>"
+
+"(abcd) \1"                zi  "<r>abcd abc</r>d "
+"(abcd) \1"                Zi  "<r><0><1>abcd</1> abcd</0></r> "
+"(abcd) \1"                Zi  "<r><0><1>abcd</1> abcd</0> </r>"
+
+# Back reference that fails match near the end of input without actually hitting the end.
+"(abcd) \1"                ZL  "abcd abd"
+"(abcd) \1"                ZLi "abcd abd"
+
+# Back reference to a zero-length match.  They are always a successful match.
+"ab(x?)cd(\1)ef"               "<0>ab<1></1>cd<2></2>ef</0>"
+"ab(x?)cd(\1)ef"            i  "<0>ab<1></1>cd<2></2>ef</0>"
+
+# Back refs to capture groups that didn't participate in the match.
+"ab(?:(c)|(d))\1"              "abde"
+"ab(?:(c)|(d))\1"              "<0>ab<1>c</1>c</0>e"
+"ab(?:(c)|(d))\1"            i "abde"
+"ab(?:(c)|(d))\1"            i "<0>ab<1>c</1>c</0>e"
+
+# Named back references
+"(?<one>abcd)\k<one>"          "<0><1>abcd</1>abcd</0>"
+"(no)?(?<one>abcd)\k<one>"     "<0><2>abcd</2>abcd</0>"
+
+"(?<a_1>...)"               E  "  "   # backref names are ascii letters & numbers only"
+"(?<1a>...)"                E  "  "   # backref names must begin with a letter"
+"(?<a>.)(?<a>.)"            E  "  "   # Repeated names are illegal.
+
+
 # Case Insensitive
 "aBc"                    i      "<0>ABC</0>"
 "a[^bc]d"                i      "ABD"
 '((((((((((a))))))))))\10' i    "<0><1><2><3><4><5><6><7><8><9><10>A</10></9></8></7></6></5></4></3></2></1>A</0>"
 
 "(?:(?i)a)b"                    "<0>Ab</0>"
-"ab(?i)cd"	                 "<0>abCd</0>"
+"ab(?i)cd"	                    "<0>abCd</0>"
 "ab$cd"                         "abcd"
+
+"ssl"                      i    "abc<0>ßl</0>xyz"
+"ssl"                      i    "abc<0>ẞl</0>xyz"
+"FIND"                     i    "can <0>ﬁnd</0> ?"  # fi ligature, \ufb01
+"ﬁnd"                      i    "can <0>FIND</0> ?"
+"ῧ"                        i    "xxx<0>ῧ</0>xxx"    # Composed char (match string) decomposes when case-folded (pattern)
 
 # White space handling
 "a b"                           "ab"
@@ -602,6 +678,7 @@
 "\ud800\udc00*"                   "<0>\U00010000\U00010000\U00010000</0>\U00010001"
 "\ud800\ud800\udc00"              "<0>\ud800\U00010000</0>\U00010000\U00010000\U00010001"
 "(\ud800)(\udc00)"                "\U00010000"
+"\U00010001+"                     "<0>\U00010001\U00010001</0>\udc01"
 
 #
 # hitEnd with find()
@@ -609,6 +686,84 @@
 "abc"                        Z    "aa<0>abc</0>  abcab"
 "abc"                       2Z    "aaabc  <0>abc</0>ab"
 "abc"                       3z    "aa>abc  abcab"
+
+#
+# \ escaping
+#
+"abc\jkl"                         "<0>abcjkl</0>"    # escape of a non-special letter is just itself.
+"abc[ \j]kl"                      "<0>abcjkl</0>"
+
+#
+# \R  all newline sequences.
+#
+"abc\Rxyz"                        "<0>abc\u000axyz</0>gh"
+"abc\Rxyz"                        "<0>abc\u000bxyz</0>gh"
+"abc\Rxyz"                        "<0>abc\u000cxyz</0>gh"
+"abc\Rxyz"                        "<0>abc\u000dxyz</0>gh"
+"abc\Rxyz"                        "<0>abc\u0085xyz</0>gh"
+"abc\Rxyz"                        "<0>abc\u2028xyz</0>gh"
+"abc\Rxyz"                        "<0>abc\u2029xyz</0>gh"
+"abc\Rxyz"                        "<0>abc\u000d\u000axyz</0>gh"
+
+"abc\R\nxyz"                      "abc\u000d\u000axyzgh"          # \R cannot match only the CR from a CR/LF sequence.
+"abc\r\nxyz"                      "<0>abc\u000d\u000axyz</0>gh"
+
+"abc\Rxyz"                        "abc\u0009xyz"                  # Assorted non-matches.
+"abc\Rxyz"                        "abc\u000exyz"
+"abc\Rxyz"                        "abc\u202axyz"
+
+# \v \V single character new line sequences.
+
+"abc\vxyz"                        "<0>abc\u000axyz</0>gh"
+"abc\vxyz"                        "<0>abc\u000bxyz</0>gh"
+"abc\vxyz"                        "<0>abc\u000cxyz</0>gh"
+"abc\vxyz"                        "<0>abc\u000dxyz</0>gh"
+"abc\vxyz"                        "<0>abc\u0085xyz</0>gh"
+"abc\vxyz"                        "<0>abc\u2028xyz</0>gh"
+"abc\vxyz"                        "<0>abc\u2029xyz</0>gh"
+"abc\vxyz"                        "abc\u000d\u000axyzgh"
+"abc\vxyz"                        "abc?xyzgh"
+
+"abc[\v]xyz"                      "<0>abc\u000axyz</0>gh"
+"abc[\v]xyz"                      "<0>abc\u000bxyz</0>gh"
+"abc[\v]xyz"                      "<0>abc\u000cxyz</0>gh"
+"abc[\v]xyz"                      "<0>abc\u000dxyz</0>gh"
+"abc[\v]xyz"                      "<0>abc\u0085xyz</0>gh"
+"abc[\v]xyz"                      "<0>abc\u2028xyz</0>gh"
+"abc[\v]xyz"                      "<0>abc\u2029xyz</0>gh"
+"abc[\v]xyz"                      "abc\u000d\u000axyzgh"
+"abc[\v]xyz"                      "abc?xyzgh"
+
+"abc\Vxyz"                        "abc\u000axyzgh"
+"abc\Vxyz"                        "abc\u000bxyzgh"
+"abc\Vxyz"                        "abc\u000cxyzgh"
+"abc\Vxyz"                        "abc\u000dxyzgh"
+"abc\Vxyz"                        "abc\u0085xyzgh"
+"abc\Vxyz"                        "abc\u2028xyzgh"
+"abc\Vxyz"                        "abc\u2029xyzgh"
+"abc\Vxyz"                        "abc\u000d\u000axyzgh"
+"abc\Vxyz"                        "<0>abc?xyz</0>gh"
+
+# \h \H horizontal white space. Defined as gc=space_separator plus ascii tab
+
+"abc\hxyz"                        "<0>abc xyz</0>gh"
+"abc\Hxyz"                        "abc xyzgh"
+"abc\hxyz"                        "<0>abc\u2003xyz</0>gh"
+"abc\Hxyz"                        "abc\u2003xyzgh"
+"abc\hxyz"                        "<0>abc\u0009xyz</0>gh"
+"abc\Hxyz"                        "abc\u0009xyzgh"
+"abc\hxyz"                        "abc?xyzgh"
+"abc\Hxyz"                        "<0>abc?xyz</0>gh"
+
+"abc[\h]xyz"                      "<0>abc xyz</0>gh"
+"abc[\H]xyz"                      "abc xyzgh"
+"abc[\h]xyz"                      "<0>abc\u2003xyz</0>gh"
+"abc[\H]xyz"                      "abc\u2003xyzgh"
+"abc[\h]xyz"                      "<0>abc\u0009xyz</0>gh"
+"abc[\H]xyz"                      "abc\u0009xyzgh"
+"abc[\h]xyz"                      "abc?xyzgh"
+"abc[\H]xyz"                      "<0>abc?xyz</0>gh"
+
 
 #
 # Bug xxxx
@@ -1030,13 +1185,140 @@
 #
 "((.??)+|A)*"                     "<0><1><2></2></1></0>AAAAABBBBBCCCCCDDDDEEEEE"
 
+#
+#    Bug 8826.  Incorrect results with case insensitive matches.
+#
+"AS(X)"                         i "aßx"
+"AS.*"                          i "aßx"           # Expansion of sharp s can't split between pattern terms.
+"ASßS"                          i "<0>aßß</0>"    # All one literal string, does match.
+"ASß{1}S"                       i "aßß"           # Pattern with terms, no match.
+"aßx"                           i "<0>assx</0>"
+"aßx"                           i "<0>ASSX</0>"
+"aßx"                           i "<0>aßx</0>"
+"ASS(.)"                        i "<0>aß<1>x</1></0>"
+
+# Case Insensitive, probe some corner cases.
+"ass+"                          i "aß"            # Second 's' in pattern is qualified, can't combine with first.
+"as+"                           i "aß"
+"aßs"                           i "as"            # Can't match half of a ß
+"aß+"                           i "<0>assssssss</0>s"
+"aß+"                           i "<0>assßSssSSS</0>s"
+"a(ß?)+"                        i "<0>assssssss<1></1></0>s"
+"a(ß?)+"                        i "<0>a<1></1></0>zzzzzzzzs"
+
+"\U00010400"                    i "<0>\U00010428</0>"   # case folded supplemental code point.
+
+"sstuff"                        i "<0>ßtuff</0>"    # exercise optimizations on what chars can start a match.
+"sstuff"                        i "s<0>ßtuff</0>"    # exercise optimizations on what chars can start a match.
+"ßtuff"                         i "s<0>sstuff</0>"
+"ßtuff"                         i "s<0>Sstuff</0>"
+
+"a(..)\1"                       i "<0>A<1>bc</1>BC</0>def"
+"(ß)\1"                         i "aa<0><1>ss</1>ß</0>zz"          # Case insensitive back reference
+"..(.)\1"                       i "<0>aa<1>ß</1>ss</0>"
+"ab(..)\1"                      i "xx<0>ab<1>ss</1>ß</0>ss" 
+
+" (ss) ((\1.*)|(.*))"           i "<0> <1>ss</1> <2><4>sß</4></2></0>"       # The back reference 'ss' must not match in 'sß'
+
+# Bug 9057
+#   \u200c and \u200d should be word characters.
+#
+"\w+"                             "  <0>abc\u200cdef\u200dghi</0>   "
+"\w+"                           i "  <0>abc\u200cdef\u200dghi</0>   "
+"[\w]+"                           "  <0>abc\u200cdef\u200dghi</0>   "
+"[\w]+"                         i "  <0>abc\u200cdef\u200dghi</0>   "
+
+# Bug 9283
+#  uregex_open fails for look-behind assertion + case-insensitive
+
+"(ab)?(?<=ab)cd|ef"             i  "<0><1>ab</1>cd</0>"
+
+# Bug 9719  Loop breaking on (zero length match){3,}   (unlimited upper bound).
+#
+
+"(?:abc){1,}abc"                   "<0>abcabcabcabcabc</0>"
+"(?:2*){2,}?a2\z"                  "<0>2a2</0>" 
+"(?:2*){2,}?a2\z"                  "2a3" 
+"(?:x?+){3,}+yz"                   "w<0>yz</0>"
+"(2*){2,}?a2\\z"                   "2a3"
+"(2*){2,}?a2\\z"                   "<0>2<1></1>a2\\z</0>"
+"(2*){2,}?a2\z"                    "<0>2<1></1>a2</0>"
+
+
+# Bug 10024
+#   Incorrect (unbounded) longest match length with {1, 20} style quantifiers.
+#   Unbounded match is disallowed in look-behind expressions.
+#   Max match length is used to limit where to check for look-behind matches.
+
+"(?<=a{1,5})bc"                   "aaaa<0>bc</0>def"
+"(?<=(?:aa){3,20})bc"             "aaaaaa<0>bc</0>def"
+"(?<!abc {1,100}|def {1,100}|ghi {1,100})jkl"      "def jkl"
+"(?<!abc {1,100}|def {1,100}|ghi {1,100})jkl"      "rst <0>jkl</0>"
+"(?<=a{11})bc"                   "aaaaaaaaaaa<0>bc</0>"
+"(?<=a{11})bc"                   "aaaaaaaaaabc"
+"(?<=a{1,})bc"           E       "aaaa<0>bc</0>def"   # U_REGEX_LOOK_BEHIND_LIMIT error.
+"(?<=(?:){11})bc"                "<0>bc</0>"          # Empty (?:) expression.
+
+# Bug 10835
+#   Match Start Set not being correctly computed for case insensitive patterns.
+#   (Test here is to dump the compiled pattern & manually check the start set.)
+
+"(private|secret|confidential|classified|restricted)"  i   "hmm, <0><1>Classified</1></0> stuff"
+"(private|secret|confidential|classified|restricted)"      "hmm, Classified stuff"
+
+# Bug 10844
+
+"^([\w\d:]+)$"                  "<0><1>DiesIst1Beispiel:text</1></0>"
+"^([\w\d:]+)$"           i      "<0><1>DiesIst1Beispiel:text</1></0>"
+"^(\w+\d\w+:\w+)$"              "<0><1>DiesIst1Beispiel:text</1></0>"
+"^(\w+\d\w+:\w+)$"       i      "<0><1>DiesIst1Beispiel:text</1></0>"
+
+# Bug 11049
+#   Edge cases in find() when pattern match begins with set of code points
+#   and the match begins at the end of the string.
+
+"A|B|C"                         "hello <0>A</0>"
+"A|B|C"                         "hello \U00011234"
+"A|B|\U00012345"                "hello <0>\U00012345</0>"
+"A|B|\U00010000"                "hello \ud800"
+
+# Bug 11369
+#   Incorrect optimization of patterns with a zero length quantifier {0}
+
+"(.|b)(|b){0}\$(?#xxx){3}(?>\D*)"   "AAAAABBBBBCCCCCDDDDEEEEE"
+"(|b)ab(c)"                     "<0><1></1>ab<2>c</2></0>"
+"(|b){0}a{3}(D*)"               "<0>aaa<2></2></0>"
+"(|b){0,1}a{3}(D*)"             "<0><1></1>aaa<2></2></0>"
+"((|b){0})a{3}(D*)"             "<0><1></1>aaa<3></3></0>"
+
+# Bug 11370
+#   Max match length computation of look-behind expression gives result that is too big to fit in the
+#   in the 24 bit operand portion of the compiled code. Expressions should fail to compile
+#   (Look-behind match length must be bounded. This case is treated as unbounded, an error.)
+
+"(?<!(0123456789a){10000000})x"         E  "no match"
+"(?<!\\ubeaf(\\ubeaf{11000}){11000})"   E  "no match"
+
+# Bug 11374 Bad integer overflow check in number conversion.
+#           4294967300 converts to 4 with 32 bit overflow.
+
+"x{4294967300}"                         E  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+"x{0,4294967300}"                       E  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Bug 11373
+#
+#    Overflow checking in max match length computation for loops.
+#    Value here is 10 * 100000 * 3000 = 3E9, overflowing a 32 bit signed value.
+#    Before fixing, this case gave an assertion failure.
+
+"(?<=((0123456789){100000}){3000})abc"  E  "abc"
+
+
+
 #  Random debugging, Temporary
 #
-#"^(?:a?b?)*$"	                  "a--"
 
 "This is a string with (?:one |two |three )endings"   "<0>This is a string with two endings</0>"
-"((?:a|b|c)whoop-dee-do) | [jkl]|zed"             "x"
-"astring|another[bcd]|alpha|a|[a]"    "x"
 
 
 #

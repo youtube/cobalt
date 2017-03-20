@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/loader/fetcher_factory.h"
 
@@ -27,6 +25,7 @@
 #include "cobalt/loader/embedded_fetcher.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/net_fetcher.h"
+#include "cobalt/loader/threaded_net_fetcher_proxy.h"
 #include "cobalt/network/network_module.h"
 
 namespace cobalt {
@@ -80,6 +79,14 @@ FetcherFactory::FetcherFactory(
   file_thread_.Start();
 }
 
+scoped_ptr<Fetcher> FetcherFactory::CreateFetcherWithMessageLoop(
+    const GURL& url, MessageLoop* fetching_message_loop,
+    Fetcher::Handler* handler) {
+  return CreateSecureFetcherWithMessageLoop(url, csp::SecurityCallback(),
+                                            fetching_message_loop, handler)
+      .Pass();
+}
+
 scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
                                                   Fetcher::Handler* handler) {
   return CreateSecureFetcher(url, csp::SecurityCallback(), handler).Pass();
@@ -88,6 +95,13 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
 scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     Fetcher::Handler* handler) {
+  return CreateSecureFetcherWithMessageLoop(url, url_security_callback, NULL,
+                                            handler);
+}
+
+scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcherWithMessageLoop(
+    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    MessageLoop* message_loop, Fetcher::Handler* handler) {
   if (!url.is_valid()) {
     LOG(ERROR) << "URL is invalid: " << url;
     return scoped_ptr<Fetcher>(NULL);
@@ -126,8 +140,14 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
   } else {  // NOLINT(readability/braces)
     DCHECK(network_module_) << "Network module required.";
     NetFetcher::Options options;
-    fetcher.reset(new NetFetcher(url, url_security_callback, handler,
-                                 network_module_, options));
+    if (message_loop != NULL) {
+      fetcher.reset(new ThreadedNetFetcherProxy(url, url_security_callback,
+                                                handler, network_module_,
+                                                options, message_loop));
+    } else {
+      fetcher.reset(new NetFetcher(url, url_security_callback, handler,
+                                   network_module_, options));
+    }
   }
   return fetcher.Pass();
 }

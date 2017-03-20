@@ -17,7 +17,7 @@
 
 {
   'variables': {
-    'has_platform_tests%' : '<!(python -c "import os.path; print os.path.isfile(\'<(starboard_path)/starboard_platform_tests.gyp\') & 1 | 0")',
+    'has_platform_tests%' : '<!(python -c "import os.path; print os.path.isfile(\'<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp\') & 1 | 0")',
   },
   'targets': [
     {

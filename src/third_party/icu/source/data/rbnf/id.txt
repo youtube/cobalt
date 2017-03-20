@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/rbnf/id.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/rbnf/id.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/rbnf/id.xml
- */
 id{
     RBNFRules{
         OrdinalRules{
@@ -43,15 +40,15 @@ id{
             "200: << ratus[ >>];",
             "1000: seribu[ >>];",
             "2000: << ribu[ >>];",
-            "1000000: << juts[ >>];",
-            "1000000000: << milyar[ >>];",
-            "1000000000000: << bilyun[ >>];",
-            "1000000000000000: << bilyar[ >>];",
+            "1000000: << juta[ >>];",
+            "1000000000: << miliar[ >>];",
+            "1000000000000: << triliun[ >>];",
+            "1000000000000000: << kuadriliun[ >>];",
             "1000000000000000000: =#,##0.#=;",
             "%spellout-ordinal:",
             "x.x: =#,##0.#=;",
             "0: ke=%spellout-cardinal=;",
         }
     }
-    Version{"2.0.41.26"}
+    Version{"2.1.19.14"}
 }

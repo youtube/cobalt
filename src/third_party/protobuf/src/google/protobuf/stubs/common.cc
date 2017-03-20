@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -32,23 +32,24 @@
 
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/stubs/once.h>
-
-#include "config.h"
+#include <google/protobuf/stubs/status.h>
+#include <google/protobuf/stubs/stringpiece.h>
+#include <google/protobuf/stubs/strutil.h>
+#include <google/protobuf/stubs/int128.h>
 
 #ifdef STARBOARD
-#include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 #define abort SbSystemBreakIntoDebugger
 #define fflush(stderr) SbLogFlush()
+#define snprintf SbStringFormatF
 #else  // STARBOARD
 #include <errno.h>
 #include <stdio.h>
 #ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN  // We only need minimal includes
-#endif                       // WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #define snprintf _snprintf    // see comment in strutil.cc
 #elif defined(HAVE_PTHREAD)
@@ -56,8 +57,12 @@
 #else
 #error "No suitable threading library available."
 #endif
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
 #endif  // STARBOARD
 
+#include <sstream>
 #include <vector>
 
 namespace google {
@@ -115,7 +120,43 @@ string VersionString(int version) {
 // emulates google3/base/logging.cc
 
 namespace internal {
+#if defined(__ANDROID__)
+inline void DefaultLogHandler(LogLevel level, const char* filename, int line,
+                              const string& message) {
+#ifdef GOOGLE_PROTOBUF_MIN_LOG_LEVEL
+  if (level < GOOGLE_PROTOBUF_MIN_LOG_LEVEL) {
+    return;
+  }
+  static const char* level_names[] = {"INFO", "WARNING", "ERROR", "FATAL"};
 
+  static const int android_log_levels[] = {
+      ANDROID_LOG_INFO,   // LOG(INFO),
+      ANDROID_LOG_WARN,   // LOG(WARNING)
+      ANDROID_LOG_ERROR,  // LOG(ERROR)
+      ANDROID_LOG_FATAL,  // LOG(FATAL)
+  };
+
+  // Bound the logging level.
+  const int android_log_level = android_log_levels[level];
+  ::std::ostringstream ostr;
+  ostr << "[libprotobuf " << level_names[level] << " " << filename << ":"
+       << line << "] " << message.c_str();
+
+  // Output the log string the Android log at the appropriate level.
+  __android_log_write(android_log_level, "libprotobuf-native",
+                      ostr.str().c_str());
+  // Also output to std::cerr.
+  fprintf(stderr, "%s", ostr.str().c_str());
+  fflush(stderr);
+
+  // Indicate termination if needed.
+  if (android_log_level == ANDROID_LOG_FATAL) {
+    __android_log_write(ANDROID_LOG_FATAL, "libprotobuf-native",
+                        "terminating.\n");
+  }
+#endif
+}
+#else
 void DefaultLogHandler(LogLevel level, const char* filename, int line,
                        const string& message) {
   static const char* level_names[] = { "INFO", "WARNING", "ERROR", "FATAL" };
@@ -123,18 +164,19 @@ void DefaultLogHandler(LogLevel level, const char* filename, int line,
   // We use fprintf() instead of cerr because we want this to work at static
   // initialization time.
 #ifndef STARBOARD
-  fprintf(stderr, "libprotobuf %s %s:%d] %s\n",
+  fprintf(stderr, "[libprotobuf %s %s:%d] %s\n",
           level_names[level], filename, line, message.c_str());
 #else
-  SbLogRawFormatF("libprotobuf %s %s:%d] %s\n", level_names[level], filename,
+  SbLogRawFormatF("[libprotobuf %s %s:%d] %s\n", level_names[level], filename,
                   line, message.c_str());
 #endif  // STARBOARD
 
   fflush(stderr);  // Needed on MSVC.
 }
+#endif
 
-void NullLogHandler(LogLevel level, const char* filename, int line,
-                    const string& message) {
+void NullLogHandler(LogLevel /* level */, const char* /* filename */,
+                    int /* line */, const string& /* message */) {
   // Nothing.
 }
 
@@ -166,6 +208,24 @@ LogMessage& LogMessage::operator<<(const char* value) {
   return *this;
 }
 
+LogMessage& LogMessage::operator<<(const StringPiece& value) {
+  message_ += value.ToString();
+  return *this;
+}
+
+LogMessage& LogMessage::operator<<(
+    const ::google::protobuf::util::Status& status) {
+  message_ += status.ToString();
+  return *this;
+}
+
+LogMessage& LogMessage::operator<<(const uint128& value) {
+  std::ostringstream str;
+  str << value;
+  message_ += str.str();
+  return *this;
+}
+
 // Since this is just for logging, we don't care if the current locale changes
 // the results -- in fact, we probably prefer that.  So we use snprintf()
 // instead of Simple*toa().
@@ -185,10 +245,13 @@ LogMessage& LogMessage::operator<<(const char* value) {
 
 DECLARE_STREAM_OPERATOR(char         , "%c" )
 DECLARE_STREAM_OPERATOR(int          , "%d" )
-DECLARE_STREAM_OPERATOR(uint         , "%u" )
+DECLARE_STREAM_OPERATOR(unsigned int , "%u" )
 DECLARE_STREAM_OPERATOR(long         , "%ld")
 DECLARE_STREAM_OPERATOR(unsigned long, "%lu")
 DECLARE_STREAM_OPERATOR(double       , "%g" )
+DECLARE_STREAM_OPERATOR(void*        , "%p" )
+DECLARE_STREAM_OPERATOR(long long         , "%" GOOGLE_LL_FORMAT "d")
+DECLARE_STREAM_OPERATOR(unsigned long long, "%" GOOGLE_LL_FORMAT "u")
 #undef DECLARE_STREAM_OPERATOR
 
 LogMessage::LogMessage(LogLevel level, const char* filename, int line)
@@ -201,15 +264,15 @@ void LogMessage::Finish() {
   if (level_ != LOGLEVEL_FATAL) {
     InitLogSilencerCountOnce();
     MutexLock lock(log_silencer_count_mutex_);
-    suppress = internal::log_silencer_count_ > 0;
+    suppress = log_silencer_count_ > 0;
   }
 
   if (!suppress) {
-    internal::log_handler_(level_, filename_, line_, message_);
+    log_handler_(level_, filename_, line_, message_);
   }
 
   if (level_ == LOGLEVEL_FATAL) {
-#ifdef PROTOBUF_USE_EXCEPTIONS
+#if PROTOBUF_USE_EXCEPTIONS
     throw FatalException(filename_, line_, message_);
 #else
     abort();
@@ -369,6 +432,24 @@ void Mutex::AssertHeld() {
 #endif
 
 // ===================================================================
+// emulates google3/util/endian/endian.h
+//
+// TODO(xiaofeng): PROTOBUF_LITTLE_ENDIAN is unfortunately defined in
+// google/protobuf/io/coded_stream.h and therefore can not be used here.
+// Maybe move that macro definition here in the furture.
+uint32 ghtonl(uint32 x) {
+  union {
+    uint32 result;
+    uint8 result_array[4];
+  };
+  result_array[0] = static_cast<uint8>(x >> 24);
+  result_array[1] = static_cast<uint8>((x >> 16) & 0xFF);
+  result_array[2] = static_cast<uint8>((x >> 8) & 0xFF);
+  result_array[3] = static_cast<uint8>(x & 0xFF);
+  return result;
+}
+
+// ===================================================================
 // Shutdown support.
 
 namespace internal {
@@ -414,7 +495,7 @@ void ShutdownProtobufLibrary() {
   internal::shutdown_functions_mutex = NULL;
 }
 
-#ifdef PROTOBUF_USE_EXCEPTIONS
+#if PROTOBUF_USE_EXCEPTIONS
 FatalException::~FatalException() throw() {}
 
 const char* FatalException::what() const throw() {

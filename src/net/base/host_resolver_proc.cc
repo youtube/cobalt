@@ -12,6 +12,7 @@
 #include "net/base/dns_reloader.h"
 #include "net/base/net_errors.h"
 #include "net/base/sys_addrinfo.h"
+#include "nb/memory_scope.h"
 
 #if defined(OS_STARBOARD)
 #include "starboard/socket.h"
@@ -133,6 +134,7 @@ int SystemHostResolverProc(const std::string& host,
                            HostResolverFlags host_resolver_flags,
                            AddressList* addrlist,
                            int* os_error) {
+  TRACK_MEMORY_SCOPE("Network");
   if (os_error)
     *os_error = 0;
 

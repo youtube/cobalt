@@ -17,7 +17,9 @@
 #include "net/url_request/url_request_data_job.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_job.h"
+#if !defined(DISABLE_FTP_SUPPORT)
 #include "net/url_request/url_request_ftp_job.h"
+#endif
 #include "net/url_request/url_request_http_job.h"
 #include "net/url_request/url_request_job_factory.h"
 

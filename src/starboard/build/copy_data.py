@@ -14,7 +14,6 @@
 # limitations under the License.
 
 # This file is based on build/copy_test_data_ios.py
-
 """Copies data files or directories into a given output directory.
 
 Since the output of this script is intended to be use by GYP, all resulting
@@ -28,6 +27,12 @@ import shutil
 import sys
 if os.name == 'nt':
   import win32api
+
+# The name of an environment variable that when set to |'1'|, signals to us
+# that we should log all output directories that we have staged a copy to to
+# our stderr output. This output could then, for example, be captured and
+# analyzed by an external tool that is interested in these directories.
+_ShouldLogEnvKey = 'STARBOARD_GYP_SHOULD_LOG_COPIES'
 
 
 class WrongNumberOfArgumentsException(Exception):
@@ -99,13 +104,26 @@ def DoMain(argv):
   """Called by GYP using pymod_do_main."""
   parser = argparse.ArgumentParser()
   parser.add_argument('-o', dest='output_dir', help='output directory')
-  parser.add_argument('--inputs', action='store_true', dest='list_inputs',
-                      help='prints a list of all input files')
-  parser.add_argument('--outputs', action='store_true', dest='list_outputs',
-                      help='prints a list of all output files')
-  parser.add_argument('input_paths', metavar='path', nargs='+',
-                      help='path to an input file or directory')
+  parser.add_argument(
+      '--inputs',
+      action='store_true',
+      dest='list_inputs',
+      help='prints a list of all input files')
+  parser.add_argument(
+      '--outputs',
+      action='store_true',
+      dest='list_outputs',
+      help='prints a list of all output files')
+  parser.add_argument(
+      'input_paths',
+      metavar='path',
+      nargs='+',
+      help='path to an input file or directory')
   options = parser.parse_args(argv)
+
+  if os.environ.get(_ShouldLogEnvKey, None) == '1':
+    if options.output_dir is not None:
+      print >> sys.stderr, 'COPY_LOG:', options.output_dir
 
   escaped_files = [EscapePath(x) for x in options.input_paths]
   files_to_copy = CalcInputs(escaped_files)
@@ -132,6 +150,7 @@ def main(argv):
   if result:
     print result
   return 0
+
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))

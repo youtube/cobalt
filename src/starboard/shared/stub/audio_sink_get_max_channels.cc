@@ -15,5 +15,5 @@
 #include "starboard/audio_sink.h"
 
 int SbAudioSinkGetMaxChannels() {
-  return 0;
+  return 2;
 }

@@ -1,14 +1,11 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/lg.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/lg.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/lg.xml
- */
 lg{
     Currencies{
         AED{
@@ -16,64 +13,64 @@ lg{
             "Diraamu eya Emireeti",
         }
         AOA{
-            "Kz",
-            "Kwanza ey'Angola",
+            "AOA",
+            "Kwanza ey’Angola",
         }
         AUD{
-            "AU$",
-            "Doola ey'Awusiturelya",
+            "A$",
+            "Doola ey’Awusiturelya",
         }
         BHD{
-            "BD",
-            "Dinaali ey'eBaareeni",
+            "BHD",
+            "Dinaali ey’eBaareeni",
         }
         BIF{
-            "FBu",
-            "Faranga ey'eburundi",
+            "BIF",
+            "Faranga ey’eburundi",
         }
         BWP{
             "BWP",
-            "Pula ey'eBotiswana",
+            "Pula ey’eBotiswana",
         }
         CAD{
             "CA$",
-            "Doola ey'eKanada",
+            "Doola ey’eKanada",
         }
         CDF{
             "CDF",
-            "Faranga ey'eKongo",
+            "Faranga ey’eKongo",
         }
         CHF{
             "CHF",
-            "Faranga ey'eSwitizirandi",
+            "Faranga ey’eSwitizirandi",
         }
         CNY{
             "CN¥",
-            "Yuwani Reniminibi ey'eCayina",
+            "Yuwani Reniminibi ey’eCayina",
         }
         CVE{
-            "CV$",
-            "Esikudo ey'Keepu Veredi",
+            "CVE",
+            "Esikudo ey’Keepu Veredi",
         }
         DJF{
-            "Fdj",
-            "Faranga ey'eJjibuti",
+            "DJF",
+            "Faranga ey’eJjibuti",
         }
         DZD{
-            "DA",
-            "Dinaali ey'Aligerya",
+            "DZD",
+            "Dinaali ey’Aligerya",
         }
         EGP{
             "EGP",
-            "Pawundi ey'eMisiri",
+            "Pawundi ey’eMisiri",
         }
         ERN{
-            "Nfk",
-            "Nakifa ey'Eritureya",
+            "ERN",
+            "Nakifa ey’Eritureya",
         }
         ETB{
-            "Br",
-            "Biiru ey'Esyopya",
+            "ETB",
+            "Biiru ey’Esyopya",
         }
         EUR{
             "€",
@@ -81,127 +78,127 @@ lg{
         }
         GBP{
             "£",
-            "Pawundi ey'eBungereza",
+            "Pawundi ey’eBungereza",
         }
         GHC{
-            "₵",
-            "Sedi ey'eGana",
+            "GHC",
+            "Sedi ey’eGana",
         }
         GMD{
             "GMD",
-            "Dalasi ey'eGambya",
+            "Dalasi ey’eGambya",
         }
         GNS{
-            "GNS" /** ===  */,
-            "Faranga ey'eGini",
+            "GNS",
+            "Faranga ey’eGini",
         }
         INR{
-            "Rs",
-            "Rupiya ey'eBuyindi",
+            "₹",
+            "Rupiya ey’eBuyindi",
         }
         JPY{
             "JP¥",
-            "Yeni ey'eJapani",
+            "Yeni ey’eJapani",
         }
         KES{
-            "Ksh",
-            "Silingi ey'eKenya",
+            "KES",
+            "Silingi ey’eKenya",
         }
         KMF{
-            "CF",
-            "Faranga ey'eKomoro",
+            "KMF",
+            "Faranga ey’eKomoro",
         }
         LRD{
-            "L$",
-            "Doola ey'eLiberya",
+            "LRD",
+            "Doola ey’eLiberya",
         }
         LSL{
             "LSL",
-            "Loti ey'eLesoso",
+            "Loti ey’eLesoso",
         }
         LYD{
-            "LD",
-            "Dinaali ey'eLibya",
+            "LYD",
+            "Dinaali ey’eLibya",
         }
         MAD{
             "MAD",
-            "Diraamu ey'eMoroko",
+            "Diraamu ey’eMoroko",
         }
         MGA{
             "MGA",
-            "Faranga ey'eMalagase",
+            "Faranga ey’eMalagase",
         }
         MRO{
-            "UM",
-            "Wugwiya ey'eMawritenya",
+            "MRO",
+            "Wugwiya ey’eMawritenya",
         }
         MUR{
-            "MURs",
-            "Rupiya ey'eMawurisyasi",
+            "MUR",
+            "Rupiya ey’eMawurisyasi",
         }
         MWK{
             "MWK",
-            "Kwaca ey'eMalawi",
+            "Kwaca ey’eMalawi",
         }
         MZM{
-            "Mt",
-            "Metikaali ey'eMozambiiki",
+            "MZM",
+            "Metikaali ey’eMozambiiki",
         }
         NAD{
-            "N$",
-            "Doola ey'eNamibiya",
+            "NAD",
+            "Doola ey’eNamibiya",
         }
         NGN{
-            "₦",
-            "Nayira ey'eNayijerya",
+            "NGN",
+            "Nayira ey’eNayijerya",
         }
         RWF{
             "RWF",
-            "Faranga ey'eRwanda",
+            "Faranga ey’eRwanda",
         }
         SAR{
-            "SR",
-            "Riyaali ey'eBuwarabu",
+            "SAR",
+            "Riyaali ey’eBuwarabu",
         }
         SCR{
-            "SRe",
-            "Rupiya ey'eSesere",
+            "SCR",
+            "Rupiya ey’eSesere",
         }
         SDG{
             "SDG",
-            "Dinaali ey'eSudaani",
+            "Dinaali ey’eSudaani",
         }
         SDP{
-            "SDP" /** ===  */,
-            "Pawundi ey'eSudaani",
+            "SDP",
+            "Pawundi ey’eSudaani",
         }
         SHP{
-            "SH£",
-            "Pawundi ey'eSenti Herena",
+            "SHP",
+            "Pawundi ey’eSenti Herena",
         }
         SLL{
-            "Le",
+            "SLL",
             "Lewone",
         }
         SOS{
-            "Ssh",
-            "Silingi ey'eSomaliya",
+            "SOS",
+            "Silingi ey’eSomaliya",
         }
         STD{
-            "Db",
-            "Dobura ey'eSantome ne Purincipe",
+            "STD",
+            "Dobura ey’eSantome ne Purincipe",
         }
         SZL{
             "SZL",
             "Lilangeni",
         }
         TND{
-            "DT",
-            "Dinaali ey'eTunizya",
+            "TND",
+            "Dinaali ey’eTunizya",
         }
         TZS{
-            "TSh",
-            "Silingi ey'eTanzaniya",
+            "TZS",
+            "Silingi ey’eTanzaniya",
         }
         UGX{
             "USh",
@@ -209,28 +206,32 @@ lg{
         }
         USD{
             "US$",
-            "Doola ey'Amerika",
+            "Doola ey’Amerika",
         }
         XAF{
             "FCFA",
-            "Faranga ey'omu Afirika eya wakati",
+            "Faranga ey’omu Afirika eya wakati",
         }
         XOF{
             "CFA",
-            "Faranga ey'omu Afirika ey'ebugwanjuba",
+            "Faranga ey’omu Afirika ey’ebugwanjuba",
         }
         ZAR{
-            "R",
-            "Randi ey'eSawusafirika",
+            "ZAR",
+            "Randi ey’eSawusafirika",
         }
         ZMK{
-            "ZK",
-            "Kwaca ey'eZambya",
+            "ZMK",
+            "Kwaca ey’eZambya (1968–2012)",
+        }
+        ZMW{
+            "ZMW",
+            "Kwaca ey’eZambya",
         }
         ZWD{
-            "Z$",
-            "Doola ey'eZimbabwe",
+            "ZWD",
+            "Doola ey’eZimbabwe",
         }
     }
-    Version{"2.0.47.63"}
+    Version{"2.1.19.14"}
 }

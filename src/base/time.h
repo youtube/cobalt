@@ -25,6 +25,8 @@
 
 #include <time.h>
 
+#include <ostream>
+
 #include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/basictypes.h"
@@ -97,6 +99,18 @@ class BASE_EXPORT TimeDelta {
   int64 ToInternalValue() const {
     return delta_;
   }
+
+  // Returns the magnitude (absolute value) of this TimeDelta.
+  TimeDelta magnitude() const {
+    // Some toolchains provide an incomplete C++11 implementation and lack an
+    // int64_t overload for std::abs().  The following is a simple branchless
+    // implementation:
+    const int64_t mask = delta_ >> (sizeof(delta_) * 8 - 1);
+    return TimeDelta((delta_ + mask) ^ mask);
+  }
+
+  // Returns true if the time delta is zero.
+  bool is_zero() const { return delta_ == 0; }
 
   // Returns true if the time delta is the maximum time delta.
   bool is_max() const {
@@ -212,6 +226,10 @@ class BASE_EXPORT TimeDelta {
 
 inline TimeDelta operator*(int64 a, TimeDelta td) {
   return TimeDelta(a * td.delta_);
+}
+
+inline std::ostream& operator<<(std::ostream& os, TimeDelta time_delta) {
+  return os << time_delta.InSecondsF() << " s";
 }
 
 // Time -----------------------------------------------------------------------
@@ -592,6 +610,15 @@ class BASE_EXPORT TimeTicks {
   // resolution.  THIS CALL IS GENERALLY MUCH MORE EXPENSIVE THAN Now() AND
   // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
   static TimeTicks HighResNow();
+
+  // Returns the amount of time the current thread has spent in the execution
+  // state (i.e. not pre-empted or waiting on some event). If this is not
+  // available, then HighResNow() will be returned.
+  static TimeTicks ThreadNow();
+
+  // Returns whether ThreadNow() is implemented to report thread time (as
+  // opposed to HighResNow()).
+  static bool HasThreadNow();
 
   // Returns the current system trace time or, if none is defined, the current
   // high-res time (i.e. HighResNow()). On systems where a global trace clock

@@ -99,9 +99,16 @@ extern "C" {
 static SB_C_INLINE char* PoemStringConcat(char* out_destination,
                                           const char* source,
                                           int num_chars_to_copy) {
+  if (num_chars_to_copy <= 0)
+    return out_destination;
+
   int destination_length = (int)(SbStringGetLength(out_destination));
-  SbStringConcat(out_destination, source,
-                 destination_length + num_chars_to_copy + 1);
+
+  int destination_size = destination_length + num_chars_to_copy + 1;
+  if (destination_size < 0) {  // Did we accidentally overflow?
+    destination_size = INT_MAX;
+  }
+  SbStringConcat(out_destination, source, destination_size);
   return out_destination;
 }
 
@@ -110,7 +117,8 @@ static SB_C_INLINE char* PoemStringConcat(char* out_destination,
 // for strcat.
 static SB_C_INLINE char* PoemStringConcatUnsafe(char* out_destination,
                                                 const char* source) {
-  return PoemStringConcat(out_destination, source, INT_MAX);
+  return PoemStringConcat(out_destination, source,
+                          (int)SbStringGetLength(source));
 }
 
 // Inline wrapper for a drop-in replacement for |strncpy|.  This function
@@ -164,19 +172,11 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 #define strncmp(s1, s2, c) SbStringCompare(s1, s2, c)
 #define strcmp(s1, s2) SbStringCompareAll(s1, s2)
 
+#define memchr(s, c, n) SbMemoryFindByte(s, c, n)
 #define memset(s, c, n) SbMemorySet(s, c, n)
 #define memcpy(d, s, c) SbMemoryCopy(d, s, c)
 #define memcmp(s1, s2, n) SbMemoryCompare(s1, s2, n)
 #define memmove(d, s, n) SbMemoryMove(d, s, n)
-
-// number conversion functions
-#define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
-#define atoi(v) SbStringAToI(v)
-#define atol(v) SbStringAToL(v)
-#define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
-#define strtoul(s, o, b) SbStringParseUnsignedInteger(s, o, b)
-#define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
-#define strtod(s, o) SbStringParseDouble(s, o)
 
 #endif  // POEM_NO_EMULATION
 

@@ -1,7 +1,7 @@
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2002-2010, International Business Machines
+*   Copyright (C) 2002-2011, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
@@ -16,13 +16,18 @@
 *   Store bits (Unicode character properties) in bit set vectors.
 */
 
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#if !defined(STARBOARD)
 #include <stdlib.h>
+#endif
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #include "utrie.h"
 #include "utrie2.h"
 #include "uarrsort.h"
 #include "propsvec.h"
+#include "uassert.h"
 
 struct UPropsVectors {
     uint32_t *v;
@@ -91,10 +96,10 @@ upvec_close(UPropsVectors *pv) {
 static uint32_t *
 _findRow(UPropsVectors *pv, UChar32 rangeStart) {
     uint32_t *row;
-    int32_t columns, i, start, limit, prevRow, rows;
+    int32_t columns, i, start, limit, prevRow;
 
     columns=pv->columns;
-    rows=limit=pv->rows;
+    limit=pv->rows;
     prevRow=pv->prevRow;
 
     /* check the vicinity of the last-seen row (start searching with an unrolled loop) */
@@ -352,6 +357,7 @@ upvec_compact(UPropsVectors *pv, UPVecCompactHandler *handler, void *context, UE
 
     rows=pv->rows;
     columns=pv->columns;
+    U_ASSERT(columns>=3); /* upvec_open asserts this */
     valueColumns=columns-2; /* not counting start & limit */
 
     /* sort the properties vectors to find unique vector values */

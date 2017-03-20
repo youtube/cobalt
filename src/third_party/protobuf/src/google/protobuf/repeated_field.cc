@@ -1,6 +1,6 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// http://code.google.com/p/protobuf/
+// https://developers.google.com/protocol-buffers/
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -32,9 +32,12 @@
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 #include <algorithm>
 
 #include <google/protobuf/repeated_field.h>
+#include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
 
 namespace google {
@@ -42,53 +45,56 @@ namespace protobuf {
 
 namespace internal {
 
+void** RepeatedPtrFieldBase::InternalExtend(int extend_amount) {
+  int new_size = current_size_ + extend_amount;
+  if (total_size_ >= new_size) {
+    // N.B.: rep_ is non-NULL because extend_amount is always > 0, hence
+    // total_size must be non-zero since it is lower-bounded by new_size.
+    return &rep_->elements[current_size_];
+  }
+  Rep* old_rep = rep_;
+  Arena* arena = GetArenaNoVirtual();
+  new_size = std::max(kMinRepeatedFieldAllocationSize,
+                      std::max(total_size_ * 2, new_size));
+  GOOGLE_CHECK_LE(new_size,
+           (std::numeric_limits<size_t>::max() - kRepHeaderSize) /
+           sizeof(old_rep->elements[0]))
+      << "Requested size is too large to fit into size_t.";
+  if (arena == NULL) {
+    rep_ = reinterpret_cast<Rep*>(
+        new char[kRepHeaderSize + sizeof(old_rep->elements[0]) * new_size]);
+  } else {
+    rep_ = reinterpret_cast<Rep*>(
+        ::google::protobuf::Arena::CreateArray<char>(arena,
+            kRepHeaderSize + sizeof(old_rep->elements[0]) * new_size));
+  }
+  total_size_ = new_size;
+  if (old_rep && old_rep->allocated_size > 0) {
+    memcpy(rep_->elements, old_rep->elements,
+           old_rep->allocated_size * sizeof(rep_->elements[0]));
+    rep_->allocated_size = old_rep->allocated_size;
+  } else {
+    rep_->allocated_size = 0;
+  }
+  if (arena == NULL) {
+    delete [] reinterpret_cast<char*>(old_rep);
+  }
+  return &rep_->elements[current_size_];
+}
+
 void RepeatedPtrFieldBase::Reserve(int new_size) {
-  if (total_size_ >= new_size) return;
-
-  void** old_elements = elements_;
-  total_size_ = max(total_size_ * 2, new_size);
-  elements_ = new void*[total_size_];
-  memcpy(elements_, old_elements, allocated_size_ * sizeof(elements_[0]));
-  if (old_elements != initial_space_) {
-    delete [] old_elements;
+  if (new_size > current_size_) {
+    InternalExtend(new_size - current_size_);
   }
 }
 
-void RepeatedPtrFieldBase::Swap(RepeatedPtrFieldBase* other) {
-  void** swap_elements       = elements_;
-  int    swap_current_size   = current_size_;
-  int    swap_allocated_size = allocated_size_;
-  int    swap_total_size     = total_size_;
-  // We may not be using initial_space_ but it's not worth checking.  Just
-  // copy it anyway.
-  void* swap_initial_space[kInitialSize];
-  memcpy(swap_initial_space, initial_space_, sizeof(initial_space_));
-
-  elements_       = other->elements_;
-  current_size_   = other->current_size_;
-  allocated_size_ = other->allocated_size_;
-  total_size_     = other->total_size_;
-  memcpy(initial_space_, other->initial_space_, sizeof(initial_space_));
-
-  other->elements_       = swap_elements;
-  other->current_size_   = swap_current_size;
-  other->allocated_size_ = swap_allocated_size;
-  other->total_size_     = swap_total_size;
-  memcpy(other->initial_space_, swap_initial_space, sizeof(swap_initial_space));
-
-  if (elements_ == other->initial_space_) {
-    elements_ = initial_space_;
-  }
-  if (other->elements_ == initial_space_) {
-    other->elements_ = other->initial_space_;
-  }
-}
-
-string* StringTypeHandlerBase::New() {
-  return new string;
-}
-void StringTypeHandlerBase::Delete(string* value) {
-  delete value;
+void RepeatedPtrFieldBase::CloseGap(int start, int num) {
+  if (rep_ == NULL) return;
+  // Close up a gap of "num" elements starting at offset "start".
+  for (int i = start + num; i < rep_->allocated_size; ++i)
+    rep_->elements[i - num] = rep_->elements[i];
+  current_size_ -= num;
+  rep_->allocated_size -= num;
 }
 
 }  // namespace internal

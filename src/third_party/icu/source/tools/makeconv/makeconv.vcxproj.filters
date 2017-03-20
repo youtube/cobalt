@@ -18,10 +18,10 @@
     <ClCompile Include="gencnvex.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="genmbcs.c">
+    <ClCompile Include="genmbcs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="makeconv.c">
+    <ClCompile Include="makeconv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ucnvstat.c">

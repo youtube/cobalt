@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/browser/application.h"
 
@@ -20,6 +18,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/path_service.h"
@@ -31,10 +30,11 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
+#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
@@ -60,7 +60,11 @@ namespace browser {
 
 namespace {
 const int kStatUpdatePeriodMs = 1000;
+#if defined(COBALT_BUILD_TYPE_GOLD)
+const int kLiteStatUpdatePeriodMs = 1000;
+#else
 const int kLiteStatUpdatePeriodMs = 16;
+#endif
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
@@ -95,7 +99,11 @@ int GetRemoteDebuggingPort() {
 int GetWebDriverPort() {
   // The default port on which the webdriver server should listen for incoming
   // connections.
+#if defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
+  const int kDefaultWebDriverPort = SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT;
+#else
   const int kDefaultWebDriverPort = 9515;
+#endif  // defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
   int webdriver_port = kDefaultWebDriverPort;
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverPort)) {
@@ -109,6 +117,19 @@ int GetWebDriverPort() {
     }
   }
   return webdriver_port;
+}
+
+std::string GetWebDriverListenIp() {
+  // The default port on which the webdriver server should listen for incoming
+  // connections.
+  std::string webdriver_listen_ip =
+      webdriver::WebDriverModule::kDefaultListenIp;
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
+    webdriver_listen_ip =
+        command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
+  }
+  return webdriver_listen_ip;
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
@@ -237,7 +258,9 @@ void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
 const char kYouTubeTvLocationPolicy[] =
     "h5vcc-location-src "
     "https://www.youtube.com/tv "
+    "https://www.youtube.com/tv/ "
     "https://web-release-qa.youtube.com/tv "
+    "https://web-release-qa.youtube.com/tv/ "
 #if defined(ENABLE_ABOUT_SCHEME)
     "about: "
 #endif
@@ -257,9 +280,7 @@ dom::CspEnforcementType StringToCspMode(const std::string& mode) {
 #endif  // !defined(COBALT_FORCE_CSP)
 
 struct NonTrivialStaticFields {
-  NonTrivialStaticFields()
-      : system_language(
-            cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage()) {}
+  NonTrivialStaticFields() : system_language(base::GetSystemLanguage()) {}
 
   const std::string system_language;
   std::string user_agent;
@@ -272,7 +293,6 @@ struct NonTrivialStaticFields {
 // accessed.
 base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
     LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
 
 // Static user logs
@@ -297,6 +317,16 @@ Application::Application(const base::Closure& quit_closure)
       start_time_(base::TimeTicks::Now()),
       stats_update_timer_(true, true),
       lite_stats_update_timer_(true, true) {
+  // Check to see if a timed_trace has been set, indicating that we should
+  // begin a timed trace upon startup.
+  base::TimeDelta trace_duration = GetTimedTraceDuration();
+  if (trace_duration != base::TimeDelta()) {
+    trace_event::TraceToFileForDuration(
+        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
+  }
+
+  TRACE_EVENT0("cobalt::browser", "Application::Application()");
+
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
 
@@ -316,21 +346,12 @@ Application::Application(const base::Closure& quit_closure)
       base::Bind(&Application::UpdatePeriodicLiteStats,
                  base::Unretained(this)));
 
-  // Check to see if a timed_trace has been set, indicating that we should
-  // begin a timed trace upon startup.
-  base::TimeDelta trace_duration = GetTimedTraceDuration();
-  if (trace_duration != base::TimeDelta()) {
-    trace_event::TraceToFileForDuration(
-        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
-  }
-
   // Get the initial URL.
   GURL initial_url = GetInitialURL();
   DLOG(INFO) << "Initial URL: " << initial_url;
 
   // Get the system language and initialize our localized strings.
-  std::string language =
-      cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage();
+  std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
   // Create the main components of our browser.
@@ -407,17 +428,15 @@ Application::Application(const base::Closure& quit_closure)
     DLOG(INFO) << "Use null audio";
     options.media_module_options.use_null_audio_streamer = true;
   }
-  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
-    std::string size_override = command_line->GetSwitchValueASCII(
-        browser::switches::kVideoContainerSizeOverride);
-    DLOG(INFO) << "Set video container size override from command line to "
-               << size_override;
-    deprecated::PlatformDelegate::Get()->SetVideoContainerSizeOverride(
-        size_override);
-  }
   if (command_line->HasSwitch(switches::kVideoDecoderStub)) {
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
+  }
+  if (command_line->HasSwitch(switches::kMemoryTracker)) {
+    std::string command_arg =
+        command_line->GetSwitchValueASCII(switches::kMemoryTracker);
+    memory_tracker_tool_ =
+        memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
@@ -483,10 +502,10 @@ Application::Application(const base::Closure& quit_closure)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
-    int webdriver_port = GetWebDriverPort();
     web_driver_module_.reset(new webdriver::WebDriverModule(
-        webdriver_port, base::Bind(&BrowserModule::CreateSessionDriver,
-                                   base::Unretained(browser_module_.get())),
+        GetWebDriverPort(), GetWebDriverListenIp(),
+        base::Bind(&BrowserModule::CreateSessionDriver,
+                   base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::RequestScreenshotToBuffer,
                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::SetProxy,
@@ -521,6 +540,12 @@ Application::Application(const base::Closure& quit_closure)
 }
 
 Application::~Application() {
+  // explicitly reset here because the destruction of the object is complex
+  // and involves a thread join. If this were to hang the app then having
+  // the destruction at this point gives a real file-line number and a place
+  // for the debugger to land.
+  memory_tracker_tool_.reset(NULL);
+
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
                                         account_event_callback_);
@@ -550,6 +575,7 @@ void Application::Quit() {
 }
 
 void Application::OnAccountEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnAccountEvent()");
   const account::AccountEvent* account_event =
       base::polymorphic_downcast<const account::AccountEvent*>(event);
   if (account_event->type() == account::AccountEvent::kSignedIn) {
@@ -564,6 +590,7 @@ void Application::OnAccountEvent(const base::Event* event) {
 }
 
 void Application::OnNetworkEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnNetworkEvent()");
   DCHECK(network_event_thread_checker_.CalledOnValidThread());
   const network::NetworkEvent* network_event =
       base::polymorphic_downcast<const network::NetworkEvent*>(event);
@@ -584,6 +611,7 @@ void Application::OnNetworkEvent(const base::Event* event) {
 }
 
 void Application::OnApplicationEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK(application_event_thread_checker_.CalledOnValidThread());
   const system_window::ApplicationEvent* app_event =
       base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
@@ -615,6 +643,7 @@ void Application::OnApplicationEvent(const base::Event* event) {
 }
 
 void Application::OnDeepLinkEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnDeepLinkEvent()");
   const base::DeepLinkEvent* deep_link_event =
       base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
   // TODO: Remove this when terminal application states are properly handled.
@@ -624,6 +653,7 @@ void Application::OnDeepLinkEvent(const base::Event* event) {
 }
 
 void Application::WebModuleRecreated() {
+  TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");
 #if defined(ENABLE_WEBDRIVER)
   if (web_driver_module_) {
     web_driver_module_->OnWindowRecreated();
@@ -705,6 +735,7 @@ void Application::UpdatePeriodicLiteStats() {
 }
 
 void Application::UpdatePeriodicStats() {
+  TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
 #if defined(__LB_SHELL__)
   bool memory_stats_updated = false;
 #if !defined(__LB_SHELL__FOR_RELEASE__)
@@ -732,7 +763,8 @@ void Application::UpdatePeriodicStats() {
   }
 #elif defined(OS_STARBOARD)
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
-  available_memory_ = SbSystemGetTotalCPUMemory() - used_cpu_memory;
+  available_memory_ =
+      static_cast<ssize_t>(SbSystemGetTotalCPUMemory() - used_cpu_memory);
   c_val_stats_.free_cpu_memory = available_memory_;
   c_val_stats_.used_cpu_memory = used_cpu_memory;
 

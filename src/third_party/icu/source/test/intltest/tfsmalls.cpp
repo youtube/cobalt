@@ -1,7 +1,7 @@
 
 /***********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 1997-2005, International Business Machines Corporation
+ * Copyright (c) 1997-2014, International Business Machines Corporation
  * and others. All Rights Reserved.
  ***********************************************************************/
 
@@ -11,6 +11,7 @@
 
 #include "intltest.h"
 #include "tfsmalls.h"
+#include "cmemory.h"
 
 #include "unicode/msgfmt.h"
 #include "unicode/choicfmt.h"
@@ -18,8 +19,6 @@
 #include "unicode/parsepos.h"
 #include "unicode/fieldpos.h"
 #include "unicode/fmtable.h"
-
-#define LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 
 /*static UBool chkstatus( UErrorCode &status, char* msg = NULL )
 {
@@ -255,7 +254,7 @@ void test_Formattable( void )
         ucs,
         ucs_ptr
     };
-    const int32_t ft_cnt = LENGTHOF(ftarray);
+    const int32_t ft_cnt = UPRV_LENGTHOF(ftarray);
     Formattable ft_arr( ftarray, ft_cnt );
     UnicodeString temp;
     if ((ft_arr[0].getType() == Formattable::kDate)   && (ft_arr[0].getDate()   == 1.0)
@@ -308,7 +307,7 @@ void test_Formattable( void )
     for(i = 0; i < ft_cnt; ++i) {
         pf = ftarray[i].clone();
         if(pf == (ftarray + i) || *pf != ftarray[i]) {
-            it_errln("Formattable.clone() failed for item %d" + i);
+            it_errln(UnicodeString("Formattable.clone() failed for item ") + i);
         }
         delete pf;
     }

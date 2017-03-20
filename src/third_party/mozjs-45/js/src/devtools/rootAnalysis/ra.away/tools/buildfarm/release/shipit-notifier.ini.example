@@ -1,0 +1,12 @@
+[api]
+api_root: http://127.0.0.1:5000
+username: admin
+password: password
+
+[shipit-notifier]
+verbose: true
+
+[pulse]
+user: pulseuser
+password: pulseuserpw
+ssl: false

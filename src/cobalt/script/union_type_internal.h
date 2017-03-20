@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_SCRIPT_UNION_TYPE_INTERNAL_H_
 #define COBALT_SCRIPT_UNION_TYPE_INTERNAL_H_
@@ -20,11 +18,13 @@
 // Details of union type implementation. See union_type.h
 
 #include <limits>
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/type_id.h"
+#include "cobalt/script/sequence.h"
 
 namespace cobalt {
 namespace script {
@@ -36,9 +36,10 @@ struct UnionTypeDefaultTraits {
   typedef T& ReturnType;
   typedef const T& ConstReturnType;
   static base::TypeId GetTypeID() { return base::GetTypeId<T>(); }
+  static const bool is_boolean_type = false;
   static const bool is_interface_type = false;
   static const bool is_numeric_type = false;
-  static const bool is_boolean_type = false;
+  static const bool is_sequence_type = false;
   static const bool is_string_type = false;
 };
 
@@ -79,6 +80,14 @@ struct UnionTypeTraits<bool> : UnionTypeDefaultTraits<bool> {
   typedef bool ReturnType;
   typedef bool ConstReturnType;
   static const bool is_boolean_type = true;
+};
+
+template <typename T>
+struct UnionTypeTraits<Sequence<T> > : UnionTypeDefaultTraits<Sequence<T> > {
+  typedef const Sequence<T>& ArgType;
+  typedef Sequence<T> ReturnType;
+  typedef const Sequence<T>& ConstReturnType;
+  static const bool is_sequence_type = true;
 };
 
 // Explicitly blacklist nullable types. None of the union members should be

@@ -58,6 +58,17 @@ TEST(MimeTypeTest, InvalidType) {
     MimeType mime_type("video / mp4");
     EXPECT_FALSE(mime_type.is_valid());
   }
+
+  {  // "codecs" parameter isn't the first parameter.
+    MimeType mime_type("audio/mp4;param1=\" value1 \";codecs=\"abc, def\"");
+    EXPECT_FALSE(mime_type.is_valid());
+  }
+
+  {  // More than one "codecs" paramters.
+    MimeType mime_type("audio/mp4;codecs=\"abc, def\";"
+                       "param1=\" value1 \";codecs=\"abc, def\"");
+    EXPECT_FALSE(mime_type.is_valid());
+  }
 }
 
 TEST(MimeTypeTest, ValidContentTypeWithTypeAndSubtypeOnly) {
@@ -125,12 +136,24 @@ TEST(MimeTypeTest, ValidContentTypeWithParams) {
   }
 }
 
-TEST(MimeTypeTest, GetParamIndexByName) {
-  MimeType mime_type("video/mp4; name=123");
-  EXPECT_EQ(MimeType::kInvalidParamIndex,
-            mime_type.GetParamIndexByName("video"));
-  EXPECT_EQ(MimeType::kInvalidParamIndex, mime_type.GetParamIndexByName("mp4"));
-  EXPECT_EQ(0, mime_type.GetParamIndexByName("name"));
+TEST(MimeTypeTest, GetCodecs) {
+  {
+    MimeType mime_type("audio/mp4;codecs=\"abc\"");
+    EXPECT_EQ(1, mime_type.GetCodecs().size());
+    EXPECT_EQ("abc", mime_type.GetCodecs()[0]);
+  }
+
+  {
+    MimeType mime_type("audio/mp4;codecs=\"abc, def\"");
+    EXPECT_EQ(2, mime_type.GetCodecs().size());
+    EXPECT_EQ("abc", mime_type.GetCodecs()[0]);
+    EXPECT_EQ("def", mime_type.GetCodecs()[1]);
+  }
+
+  {
+    MimeType mime_type("audio/mp4;codecs=\"abc, def\";param1=\" value1 \"");
+    EXPECT_EQ(2, mime_type.GetCodecs().size());
+  }
 }
 
 TEST(MimeTypeTest, ParamCount) {

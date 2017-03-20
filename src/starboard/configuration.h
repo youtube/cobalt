@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A description of the current platform in lurid detail such that common code
-// never needs to actually know what the current operating system and
-// architecture are. It is both very pragmatic and canonical in that if any
-// application code finds itself needing to make a platform decision, it should
-// always define a Starboard Configuration feature instead. This implies the
-// continued existence of very narrowly-defined configuration features, but it
-// retains porting control in Starboard.
+// Module Overview: Starboard Configuration module
+//
+// Provides a description of the current platform in lurid detail so that
+// common code never needs to actually know what the current operating system
+// and architecture are.
+//
+// It is both very pragmatic and canonical in that if any application code
+// finds itself needing to make a platform decision, it should always define
+// a Starboard Configuration feature instead. This implies the continued
+// existence of very narrowly-defined configuration features, but it retains
+// porting control in Starboard.
 
 #ifndef STARBOARD_CONFIGURATION_H_
 #define STARBOARD_CONFIGURATION_H_
@@ -35,12 +39,55 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 3
+#define SB_MAXIMUM_API_VERSION 4
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 3
+#define SB_EXPERIMENTAL_API_VERSION 4
+
+// --- Experimental Feature Defines ------------------------------------------
+
+// Note that experimental feature comments will be moved into
+// starboard/CHANGELOG.md when released.  Thus, you can find examples of the
+// format your feature comments should take by checking that file.
+
+// Feature introducing support for decode-to-texture player output mode, and
+// runtime player output mode selection and detection.
+// In starboard/configuration.h,
+//   * SB_IS_PLAYER_PUNCHED_OUT, SB_IS_PLAYER_PRODUCING_TEXTURE, and
+//     SB_IS_PLAYER_COMPOSITED now no longer need to be defined (and should not
+//     be defined) by platforms.  Instead, these capabilities are detected at
+//     runtime via SbPlayerOutputModeSupported().
+// In starboard/player.h,
+//   * The enum SbPlayerOutputMode is introduced.
+//   * SbPlayerOutputModeSupported() is introduced to let applications query
+//     for player output mode support.
+//   * SbPlayerCreate() now takes an additional parameter that specifies the
+//     desired output mode.
+//   * The punch out specific function SbPlayerSetBounds() must now be
+//     defined on all platforms, even if they don't support punch out (in which
+//     case they can implement a stub).
+//   * The function SbPlayerGetCompositionHandle() is removed.
+//   * The function SbPlayerGetTextureId() is replaced by the new
+//     SbPlayerGetCurrentFrame(), which returns a SbDecodeTarget.
+// In starboard/decode_target.h,
+//   * All get methods (SbDecodeTargetGetPlane() and SbDecodeTargetGetFormat(),
+//     SbDecodeTargetIsOpaque()) are now replaced with SbDecodeTargetGetInfo().
+//   * The SbDecodeTargetInfo structure is introduced and is the return value
+//     type of SbDecodeTargetGetInfo().
+//   * SbDecdodeTargetCreate() is now responsible for creating all its internal
+//     planes, and so its |planes| parameter is replaced by |width| and
+//     |height| parameters.
+//   * The GLES2 version of SbDecdodeTargetCreate() has its EGL types
+//     (EGLDisplay, EGLContext) replaced by void* types, so that decode_target.h
+//     can avoid #including EGL/GLES2 headers.
+//   * SbDecodeTargetDestroy() is renamed to SbDecodeTargetRelease().
+#define SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Support for setting the playback rate on an SbPlayer.  This allows for
+// control of the playback speed of video at runtime.
+#define SB_PLAYER_SET_PLAYBACK_RATE_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -83,44 +130,6 @@
   ((int)(SB_ARRAY_SIZE(array)))  // NOLINT(readability/casting)
 #endif
 
-// Tells the compiler a function is using a printf-style format string.
-// |format_param| is the one-based index of the format string parameter;
-// |dots_param| is the one-based index of the "..." parameter.
-// For v*printf functions (which take a va_list), pass 0 for dots_param.
-// (This is undocumented but matches what the system C headers do.)
-// (Partially taken from base/compiler_specific.h)
-#if SB_IS(COMPILER_GCC)
-#define SB_PRINTF_FORMAT(format_param, dots_param) \
-  __attribute__((format(printf, format_param, dots_param)))
-#else
-#define SB_PRINTF_FORMAT(format_param, dots_param)
-#endif
-
-// Trivially references a parameter that is otherwise unreferenced, preventing a
-// compiler warning on some platforms.
-#if SB_IS(COMPILER_MSVC)
-#define SB_UNREFERENCED_PARAMETER(x) (x)
-#else
-#define SB_UNREFERENCED_PARAMETER(x) \
-  do {                               \
-    (void)(x);                       \
-  } while (0)
-#endif
-
-// Makes a pointer-typed parameter restricted so that the compiler can make
-// certain optimizations because it knows the pointers are unique.
-#if defined(__cplusplus)
-#if SB_IS(COMPILER_MSVC)
-#define SB_RESTRICT __restrict
-#elif SB_IS(COMPILER_GCC)
-#define SB_RESTRICT __restrict__
-#else  // COMPILER
-#define SB_RESTRICT
-#endif  // COMPILER
-#else   // __cplusplus
-#define SB_RESTRICT restrict
-#endif  // __cplusplus
-
 // Will cause a compiler error with |msg| if |expr| is false. |msg| must be a
 // valid identifier, and must be a unique type in the scope of the declaration.
 #if defined(__cplusplus)
@@ -138,16 +147,92 @@ struct CompileAssert {};
   extern char _COMPILE_ASSERT_##msg[(expr) ? 1 : -1]
 #endif
 
+// Standard CPP trick to stringify an evaluated macro definition.
+#define SB_STRINGIFY(x) SB_STRINGIFY2(x)
+#define SB_STRINGIFY2(x) #x
+
+// A macro to disallow the copy constructor and operator= functions
+// This should be used in the private: declarations for a class
+#define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&);                  \
+  void operator=(const TypeName&)
+
+// An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
+// variable.  Setting this up properly means avoiding slow color swizzles when
+// passing pixel data from one library to another.  Note that these definitions
+// are in byte-order and so are endianness-independent.
+#define SB_PREFERRED_RGBA_BYTE_ORDER_RGBA 1
+#define SB_PREFERRED_RGBA_BYTE_ORDER_BGRA 2
+#define SB_PREFERRED_RGBA_BYTE_ORDER_ARGB 3
+
+// --- Platform Configuration ------------------------------------------------
+
+// Include the platform-specific configuration. This macro is set by GYP in
+// starboard_base_target.gypi and passed in on the command line for all targets
+// and all configurations.
+#include STARBOARD_CONFIGURATION_INCLUDE
+
+// --- Overridable Helper Macros ---------------------------------------------
+
+// The following macros can be overridden in STARBOARD_CONFIGURATION_INCLUDE
+
+// Makes a pointer-typed parameter restricted so that the compiler can make
+// certain optimizations because it knows the pointers are unique.
+#if !defined(SB_RESTRICT)
+#if defined(__cplusplus)
+#if SB_IS(COMPILER_MSVC)
+#define SB_RESTRICT __restrict
+#elif SB_IS(COMPILER_GCC)
+#define SB_RESTRICT __restrict__
+#else  // COMPILER
+#define SB_RESTRICT
+#endif  // COMPILER
+#else   // __cplusplus
+#define SB_RESTRICT restrict
+#endif  // __cplusplus
+#endif  // SB_RESTRICT
+
+// Tells the compiler a function is using a printf-style format string.
+// |format_param| is the one-based index of the format string parameter;
+// |dots_param| is the one-based index of the "..." parameter.
+// For v*printf functions (which take a va_list), pass 0 for dots_param.
+// (This is undocumented but matches what the system C headers do.)
+// (Partially taken from base/compiler_specific.h)
+#if !defined(SB_PRINTF_FORMAT)
+#if SB_IS(COMPILER_GCC)
+#define SB_PRINTF_FORMAT(format_param, dots_param) \
+  __attribute__((format(printf, format_param, dots_param)))
+#else
+#define SB_PRINTF_FORMAT(format_param, dots_param)
+#endif
+#endif  // SB_PRINTF_FORMAT
+
+// Trivially references a parameter that is otherwise unreferenced, preventing a
+// compiler warning on some platforms.
+#if !defined(SB_UNREFERENCED_PARAMETER)
+#if SB_IS(COMPILER_MSVC)
+#define SB_UNREFERENCED_PARAMETER(x) (x)
+#else
+#define SB_UNREFERENCED_PARAMETER(x) \
+  do {                               \
+    (void)(x);                       \
+  } while (0)
+#endif
+#endif  // SB_UNREFERENCED_PARAMETER
+
 // Causes the annotated (at the end) function to generate a warning if the
 // result is not accessed.
+#if !defined(SB_WARN_UNUSED_RESULT)
 #if defined(COMPILER_GCC)
 #define SB_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
 #define SB_WARN_UNUSED_RESULT
-#endif
+#endif  // COMPILER_GCC
+#endif  // SB_WARN_UNUSED_RESULT
 
 // Declares a function as overriding a virtual function on compilers that
 // support it.
+#if !defined(SB_OVERRIDE)
 #if defined(COMPILER_MSVC)
 #define SB_OVERRIDE override
 #elif defined(__clang__)
@@ -155,19 +240,25 @@ struct CompileAssert {};
 #else
 #define SB_OVERRIDE
 #endif
+#endif  // SB_OVERRIDE
 
-// Declare numeric literals of specific 64-bit types.
+// Declare numeric literals of signed 64-bit type.
+#if !defined(SB_INT64_C)
 #if defined(_MSC_VER)
 #define SB_INT64_C(x) x##I64
-#define SB_UINT64_C(x) x##UI64
 #else  // defined(_MSC_VER)
 #define SB_INT64_C(x) x##LL
+#endif  // defined(_MSC_VER)
+#endif  // SB_INT64_C
+
+// Declare numeric literals of unsigned 64-bit type.
+#if !defined(SB_UINT64_C)
+#if defined(_MSC_VER)
+#define SB_UINT64_C(x) x##UI64
+#else  // defined(_MSC_VER)
 #define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
-
-// Standard CPP trick to stringify an evaluated macro definition.
-#define SB_STRINGIFY(x) SB_STRINGIFY2(x)
-#define SB_STRINGIFY2(x) #x
+#endif  // SB_INT64_C
 
 // Macro for hinting that an expression is likely to be true.
 #if !defined(SB_LIKELY)
@@ -194,6 +285,7 @@ struct CompileAssert {};
 // SB_DEPRECATED(int Foo(int bar));
 //   Annotates the function as deprecated, which will trigger a compiler
 //   warning when referenced.
+#if !defined(SB_DEPRECATED)
 #if SB_IS(COMPILER_GCC)
 #define SB_DEPRECATED(FUNC) FUNC __attribute__((deprecated))
 #elif SB_IS(COMPILER_MSVC)
@@ -202,6 +294,7 @@ struct CompileAssert {};
 // Empty definition for other compilers.
 #define SB_DEPRECATED(FUNC) FUNC
 #endif
+#endif  // SB_DEPRECATED
 
 // SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for
 // external clients, but not deprecated for starboard.
@@ -210,27 +303,6 @@ struct CompileAssert {};
 #else
 #define SB_DEPRECATED_EXTERNAL(FUNC) SB_DEPRECATED(FUNC)
 #endif
-
-// A macro to disallow the copy constructor and operator= functions
-// This should be used in the private: declarations for a class
-#define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);                  \
-  void operator=(const TypeName&)
-
-// An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
-// variable.  Setting this up properly means avoiding slow color swizzles when
-// passing pixel data from one library to another.  Note that these definitions
-// are in byte-order and so are endianness-independent.
-#define SB_PREFERRED_RGBA_BYTE_ORDER_RGBA 1
-#define SB_PREFERRED_RGBA_BYTE_ORDER_BGRA 2
-#define SB_PREFERRED_RGBA_BYTE_ORDER_ARGB 3
-
-// --- Platform Configuration ------------------------------------------------
-
-// Include the platform-specific configuration. This macro is set by GYP in
-// starboard_base_target.gypi and passed in on the command line for all targets
-// and all configurations.
-#include STARBOARD_CONFIGURATION_INCLUDE
 
 // --- Configuration Audits --------------------------------------------------
 
@@ -365,6 +437,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
 #endif
 
+#if SB_VERSION(3) && !defined(SB_HAS_TIME_THREAD_NOW)
+#error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
+#endif
+
+#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #if SB_HAS(PLAYER)
 #if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
     !SB_IS(PLAYER_PRODUCING_TEXTURE)
@@ -383,6 +460,12 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your player can't have a composition method if it doesn't exist."
 #endif
 #endif  // SB_HAS(PLAYER)
+#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if defined(SB_IS_PLAYER_COMPOSITITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
+    defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
+#error "New versions of Starboard specify player output mode at runtime."
+#endif
+#endif  // // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 #if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
                             SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
@@ -396,20 +479,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
 #endif
-
-#if SB_HAS(THREAD_PRIORITY_SUPPORT)
-
-#if !defined(SB_HAS_REAL_TIME_PRIORITY_SUPPORT)
-#error "Your platform must define SB_HAS_REAL_TIME_PRIORITY_SUPPORT."
-#endif
-
-#else  // SB_HAS(THREAD_PRIORITY_SUPPORT)
-
-#if defined(SB_HAS_REAL_TIME_PRIORITY_SUPPORT)
-#error "Don't define SB_HAS_REAL_TIME_PRIORITY_SUPPORT without priorities."
-#endif
-
-#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT)
 
 #if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
 // Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
@@ -451,6 +520,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_64_BIT_ATOMICS 1
 #else
 #define SB_HAS_64_BIT_ATOMICS 0
+#endif
+
+// Whether we use __PRETTY_FUNCTION__ or __FUNCTION__ for logging.
+#if SB_IS(COMPILER_GCC)
+#define SB_FUNCTION __PRETTY_FUNCTION__
+#else
+#define SB_FUNCTION __FUNCTION__
 #endif
 
 // --- Gyp Derived Configuration -----------------------------------------------

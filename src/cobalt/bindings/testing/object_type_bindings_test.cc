@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/bindings/testing/base_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
@@ -22,9 +20,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::ContainsRegex;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::StartsWith;
 using ::testing::StrictMock;
 
 namespace cobalt {
@@ -201,7 +199,7 @@ TEST_F(PlatformObjectBindingsTest, ReturnCorrectWrapperForObjectType) {
 
   // Return it back to JS as the original type.
   EXPECT_CALL(test_mock(), object_property())
-      .WillOnce(Return(&object_owner.reference().referenced_object()));
+      .WillOnce(Return(&object_owner.reference().referenced_value()));
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.objectProperty) === "
                      "ArbitraryInterface.prototype;",
@@ -219,7 +217,7 @@ TEST_F(UserObjectBindingsTest, PassUserObjectforObjectType) {
   ASSERT_TRUE(object_owner.IsSet());
 
   EXPECT_CALL(test_mock(), object_property())
-      .WillOnce(Return(&object_owner.reference().referenced_object()));
+      .WillOnce(Return(&object_owner.reference().referenced_value()));
   EXPECT_TRUE(EvaluateScript("test.objectProperty === obj;", NULL));
 }
 
@@ -239,38 +237,38 @@ TEST_F(UserObjectBindingsTest, NullObject) {
 TEST_F(UserObjectBindingsTest, NonObjectType) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.objectProperty = 5;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.objectProperty = false;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.objectProperty = \"string\";", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(EvaluateScript("test.objectProperty = undefined;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, SetNonObject) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.objectProperty = 5", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, SetUndefinedObject) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.arbitraryObject = undefined;", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, SetWrongObjectType) {
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.arbitraryObject = new Object()", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 
   EXPECT_FALSE(
       EvaluateScript("test.derivedInterface = new BaseInterface()", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 TEST_F(UserObjectBindingsTest, CallWrongObjectType) {
@@ -282,7 +280,7 @@ TEST_F(UserObjectBindingsTest, CallWrongObjectType) {
   EXPECT_FALSE(
       EvaluateScript("obj.arbitraryFunction = arb.arbitraryFunction;\n"
                      "obj.arbitraryFunction();", &result));
-  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+  EXPECT_THAT(result.c_str(), ContainsRegex("TypeError:"));
 }
 
 }  // namespace testing

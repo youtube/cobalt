@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/rule_matching.h"
 
@@ -25,6 +23,7 @@
 #include "base/string_util.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/attribute_selector.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -48,11 +47,13 @@
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/cssom/universal_selector.h"
+#include "cobalt/dom/attr.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/pseudo_element.h"
@@ -172,6 +173,36 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   void VisitTypeSelector(cssom::TypeSelector* type_selector) OVERRIDE {
     if (type_selector->element_name() != element_->tag_name()) {
       element_ = NULL;
+    }
+  }
+
+  // An attribute selector represents an element that has an attribute that
+  // matches the attribute represented by the attribute selector.
+  //   https://www.w3.org/TR/selectors4/#attribute-selector
+  void VisitAttributeSelector(
+      cssom::AttributeSelector* attribute_selector) OVERRIDE {
+    if (!element_->HasAttribute(attribute_selector->attribute_name().c_str())) {
+      element_ = NULL;
+      return;
+    }
+
+    switch (attribute_selector->value_match_type()) {
+      case cssom::AttributeSelector::kNoMatch:
+        return;
+      case cssom::AttributeSelector::kEquals:
+        if (element_->GetAttribute(attribute_selector->attribute_name().c_str())
+                .value() != attribute_selector->attribute_value()) {
+          element_ = NULL;
+        }
+        return;
+      case cssom::AttributeSelector::kIncludes:
+      case cssom::AttributeSelector::kDashMatch:
+      case cssom::AttributeSelector::kBeginsWith:
+      case cssom::AttributeSelector::kEndsWith:
+      case cssom::AttributeSelector::kContains:
+        NOTIMPLEMENTED();
+        element_ = NULL;
+        return;
     }
   }
 
@@ -409,6 +440,10 @@ void ForEachChildOnNodes(
   const std::vector<base::Token>& element_class_list =
       element->class_list()->GetTokens();
 
+  // Don't retrieve the element's attributes until they are needed. Retrieving
+  // them typically requires the creation of a NamedNodeMap.
+  scoped_refptr<NamedNodeMap> element_attributes;
+
   // Iterate through all nodes in node_set.
   for (typename NodeSet::const_iterator node_iterator = node_set.begin();
        node_iterator != node_set.end(); ++node_iterator) {
@@ -435,6 +470,23 @@ void ForEachChildOnNodes(
         GatherCandidateNodesFromMap(cssom::kTypeSelector, combinator_type,
                                     selector_nodes_map, element->tag_name(),
                                     &candidate_nodes);
+      }
+
+      // Attribute selector.
+      if (node->HasSimpleSelector(cssom::kAttributeSelector, combinator_type)) {
+        // If the element's attributes have not been retrieved yet, then
+        // retrieve them now.
+        if (!element_attributes) {
+          element_attributes = element->attributes();
+        }
+
+        for (unsigned int index = 0; index < element_attributes->length();
+             ++index) {
+          GatherCandidateNodesFromMap(
+              cssom::kAttributeSelector, combinator_type, selector_nodes_map,
+              base::Token(element_attributes->Item(index)->name()),
+              &candidate_nodes);
+        }
       }
 
       // Class selector.

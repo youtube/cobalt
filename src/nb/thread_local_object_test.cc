@@ -66,6 +66,12 @@ class DestroyTypeOnThread : public TestThread {
   nb::scoped_ptr<TYPE> ptr_;
 };
 
+// A simple struct that wraps an integer, and cannot be default constructed.
+struct IntegerWrapper {
+  explicit IntegerWrapper(int value) : value(value) {}
+  int value;
+};
+
 // Tests the expectation that a ThreadLocalObject can be simply used by
 // the main thread.
 TEST(ThreadLocalObject, MainThread) {
@@ -76,6 +82,18 @@ TEST(ThreadLocalObject, MainThread) {
   EXPECT_FALSE(*the_bool);
   *the_bool = true;
   EXPECT_TRUE(*(tlo_bool.GetIfExists()));
+}
+
+// The same as |MainThread|, except with |tlo_bool| initialized to |true|
+// rather than |false|, via passing |true| to |GetOrCreate|.
+TEST(ThreadLocalObject, MainThreadWithArg) {
+  ThreadLocalObject<bool> tlo_bool;
+  EXPECT_TRUE(NULL == tlo_bool.GetIfExists());
+  bool* the_bool = tlo_bool.GetOrCreate(true);
+  EXPECT_TRUE(the_bool != NULL);
+  EXPECT_TRUE(*the_bool);
+  *the_bool = false;
+  EXPECT_FALSE(*(tlo_bool.GetIfExists()));
 }
 
 // Tests the expectation that a ThreadLocalObject can be used on
@@ -93,6 +111,20 @@ TEST(ThreadLocalObject, MainThreadComplexObject) {
   // should succeed.
   (*map)["my string"] = 15;
   ASSERT_EQ(15, (*map)["my string"]);
+}
+
+// The complex object analog of |MainThreadWithArg|.
+TEST(ThreadLocalObject, MainThreadComplexObjectWithArg) {
+  ThreadLocalObject<IntegerWrapper> integer_wrapper_tlo;
+  EXPECT_FALSE(integer_wrapper_tlo.GetIfExists());
+  ASSERT_TRUE(integer_wrapper_tlo.GetOrCreate(14));
+  IntegerWrapper* integer_wrapper = integer_wrapper_tlo.GetIfExists();
+  const IntegerWrapper* const_integer_wrapper =
+      integer_wrapper_tlo.GetIfExists();
+  ASSERT_TRUE(integer_wrapper);
+  ASSERT_TRUE(const_integer_wrapper);
+  integer_wrapper->value = 15;
+  ASSERT_EQ(15, integer_wrapper->value);
 }
 
 // Tests that when a ThreadLocalObject is destroyed on the main thread that

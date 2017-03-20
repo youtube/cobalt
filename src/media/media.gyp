@@ -199,6 +199,8 @@
         'base/channel_mixer.h',
         'base/clock.cc',
         'base/clock.h',
+        'base/color_space.cc',
+        'base/color_space.h',
         'base/data_buffer.cc',
         'base/data_buffer.h',
         'base/data_source.cc',
@@ -220,6 +222,9 @@
         'base/djb2.h',
         'base/filter_collection.cc',
         'base/filter_collection.h',
+        'base/gfx_export.h',
+        'base/hdr_metadata.cc',
+        'base/hdr_metadata.h',
         'base/interleaved_sinc_resampler.cc',
         'base/interleaved_sinc_resampler.h',
         'base/media.h',
@@ -400,6 +405,8 @@
         'webm/webm_audio_client.h',
         'webm/webm_cluster_parser.cc',
         'webm/webm_cluster_parser.h',
+        'webm/webm_colour_parser.cc',
+        'webm/webm_colour_parser.h',
         'webm/webm_constants.h',
         'webm/webm_content_encodings.cc',
         'webm/webm_content_encodings.h',
@@ -431,6 +438,14 @@
           'dependencies': [
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
             'shared_memory_support',
+          ],
+        }],
+        ['OS != "ios" and cobalt != 1', {
+          'dependencies': [
+            # This is only used in [x11|gl|skcanvas]_video_renderer.cc, but not
+            # when compiling Cobalt. When linking as a shared library, the
+            # unused optimized YUV functions are left as undefined symbols
+            # after they get dead-stripped.
             'yuv_convert',
           ],
         }],
@@ -718,15 +733,16 @@
                 'audio/shell_audio_streamer_starboard.cc',
                 'base/decoder_buffer_cache.cc',
                 'base/decoder_buffer_cache.h',
+                'base/sbplayer_pipeline.cc',
                 'base/sbplayer_set_bounds_helper.cc',
                 'base/sbplayer_set_bounds_helper.h',
-                'base/sbplayer_pipeline.cc',
                 'base/starboard_player.cc',
                 'base/starboard_player.h',
                 'base/starboard_utils.cc',
                 'base/starboard_utils.h',
                 'crypto/starboard_decryptor.cc',
                 'crypto/starboard_decryptor.h',
+                'filters/shell_audio_renderer_starboard.cc',
               ],
               'sources/': [
                 ['exclude', '^base/pipeline_impl.cc'],
@@ -1120,13 +1136,6 @@
             'filters/pipeline_integration_test_base.cc',
             'mp4/mp4_stream_parser_unittest.cc',
             'webm/webm_cluster_parser_unittest.cc',
-          ],
-          'conditions': [
-            ['gtest_target_type == "shared_library"', {
-              'dependencies': [
-                '../testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
           ],
         }],
         ['OS == "linux"', {

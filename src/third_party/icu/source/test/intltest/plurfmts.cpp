@@ -1,6 +1,6 @@
 /********************************************************************
  * COPYRIGHT: 
- * Copyright (c) 2007-2010, International Business Machines Corporation and
+ * Copyright (c) 2007-2013, International Business Machines Corporation and
  * others. All Rights Reserved.
  ********************************************************************/
 
@@ -8,12 +8,14 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#include "plurults.h"
-#include "plurfmts.h"
-#include "cmemory.h"
-#include "unicode/plurrule.h"
+#include "unicode/dcfmtsym.h"
+#include "unicode/decimfmt.h"
+#include "unicode/msgfmt.h"
 #include "unicode/plurfmt.h"
-
+#include "unicode/plurrule.h"
+#include "cmemory.h"
+#include "plurfmts.h"
+#include "plurults.h"
 
 #define PLURAL_PATTERN_DATA 4
 #define PLURAL_TEST_ARRAY_SIZE 256
@@ -31,13 +33,15 @@
 void PluralFormatTest::runIndexedTest( int32_t index, UBool exec, const char* &name, char* /*par*/ )
 {
     if (exec) logln("TestSuite PluralFormat");
-    switch (index) {
-        TESTCASE(0, pluralFormatBasicTest);
-        TESTCASE(1, pluralFormatUnitTest);
-        TESTCASE(2, pluralFormatLocaleTest);
-        default: name = "";
-            break;
-    }
+    TESTCASE_AUTO_BEGIN;
+    TESTCASE_AUTO(pluralFormatBasicTest);
+    TESTCASE_AUTO(pluralFormatUnitTest);
+    TESTCASE_AUTO(pluralFormatLocaleTest);
+    TESTCASE_AUTO(pluralFormatExtendedTest);
+    TESTCASE_AUTO(pluralFormatExtendedParseTest);
+    TESTCASE_AUTO(ordinalFormatTest);
+    TESTCASE_AUTO(TestDecimals);
+    TESTCASE_AUTO_END;
 }
 
 /**
@@ -159,26 +163,28 @@ void PluralFormatTest::pluralFormatUnitTest(/*char *par*/)
         UNICODE_STRING_SIMPLE("odd {# is odd.} other{# is even.}"),
         UNICODE_STRING_SIMPLE("other{# is odd or even.}"),
         UNICODE_STRING_SIMPLE("odd{The number {0, number, #.#0} is odd.}other{The number {0, number, #.#0} is even.}"),
-        UNICODE_STRING_SIMPLE("odd{The number {#} is odd.}other{The number {#} is even.}"),
+        UNICODE_STRING_SIMPLE("odd{The number {1, number, #} is odd.}other{The number {2, number, #} is even.}"),
     };
     UnicodeString patternOddTestResult[PLURAL_PATTERN_DATA] = {
         UNICODE_STRING_SIMPLE(" is odd."),
         UNICODE_STRING_SIMPLE(" is odd or even."),
         UNICODE_STRING_SIMPLE("The number {0, number, #.#0} is odd."),
-        UNICODE_STRING_SIMPLE("The number {#} is odd."),
+        UNICODE_STRING_SIMPLE("The number {1, number, #} is odd."),
     };
     UnicodeString patternEvenTestResult[PLURAL_PATTERN_DATA] = {
         UNICODE_STRING_SIMPLE(" is even."),
         UNICODE_STRING_SIMPLE(" is odd or even."),
         UNICODE_STRING_SIMPLE("The number {0, number, #.#0} is even."),
-        UNICODE_STRING_SIMPLE("The number {#} is even."),
+        UNICODE_STRING_SIMPLE("The number {2, number, #} is even."),
     };
     UnicodeString checkSyntaxtData[PLURAL_SYNTAX_DATA] = {
-        UNICODE_STRING_SIMPLE("odd{foo} odd{bar} other{foobar}"),
-        UNICODE_STRING_SIMPLE("odd{foo} other{bar} other{foobar}"),
+        // ICU 4.8 does not check for duplicate keywords any more.
+        //UNICODE_STRING_SIMPLE("odd{foo} odd{bar} other{foobar}"),
+        //UNICODE_STRING_SIMPLE("odd{foo} other{bar} other{foobar}"),
         UNICODE_STRING_SIMPLE("odd{foo}"),
-        UNICODE_STRING_SIMPLE("otto{foo} other{bar}"),
-        UNICODE_STRING_SIMPLE("1odd{foo} other{bar}"),
+        // ICU 4.8 does not check for unknown keywords any more.
+        //UNICODE_STRING_SIMPLE("otto{foo} other{bar}"),
+        UNICODE_STRING_SIMPLE("*odd{foo} other{bar}"),
         UNICODE_STRING_SIMPLE("odd{foo},other{bar}"),
         UNICODE_STRING_SIMPLE("od d{foo} other{bar}"),
         UNICODE_STRING_SIMPLE("odd{foo}{foobar}other{foo}"),
@@ -264,7 +270,7 @@ void PluralFormatTest::pluralFormatUnitTest(/*char *par*/)
     }
     numberFormatTest(&pluralFmt, numFmt, 5, 5, NULL, NULL, FALSE, &message);
     pluralFmt.applyPattern(UNICODE_STRING_SIMPLE("odd__{odd} other{even}"), status);
-    if (U_SUCCESS(status)) {
+    if (pluralFmt.format((int32_t)1, status) != UNICODE_STRING_SIMPLE("even")) {
         errln("SetLocale should reset rules but did not.");
     }
     status = U_ZERO_ERROR;
@@ -311,33 +317,39 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
 
     // ======= Test DefaultRule
     logln("Testing PluralRules with no rule.");
-    const char* oneRuleLocales[4] = {"ja", "ko", "tr", "vi"};
+    // for CLDR 24, here delete tr,
+    // add id lo ms th zh
+    const char* oneRuleLocales[8] = {"id", "ja", "ko", "lo", "ms", "th", "vi", "zh"};
     UnicodeString testPattern = UNICODE_STRING_SIMPLE("other{other}");
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
     pluralResults[0]= PFT_OTHER; // other
-    helperTestRusults(oneRuleLocales, 4, testPattern, pluralResults);
+    helperTestResults(oneRuleLocales, 8, testPattern, pluralResults);
     
     // ====== Test Singular1 locales.
     logln("Testing singular1 locales.");
-    const char* singular1Locales[52] = {"bem","da","de","el","en","eo","es","et","fi",
-                    "fo","gl","he","it","nb","nl","nn","no","pt","pt_PT","sv","af","bg","bn","ca","eu","fur","fy",
-                    "gu","ha","is","ku","lb","ml","mr","nah","ne","om","or","pa","pap","ps","so","sq","sw","ta",
-                    "te","tk","ur","zu","mn","gsw","rm"};
+    // for CLDR 24, here delete da de en et fi gl he it nl pt pt sv bn ca gu is mr pa sw ur zu
+    // add hu tr others
+    const char* singular1Locales[56] = {"af","asa","az","bem","bez","bg","brx","chr",
+                    "ckb","dv","ee","el","eo","es","eu","fo","fur","fy","gsw","ha",
+                    "haw","hu","jgo","ka","kk","kl","ks","ku","lb","ml","mn","nah",
+                    "nb","ne","nn","no","nr","om","or","pap","ps","rm","rof","sn",
+                    "so", "sq","ta","te","tk","tn","tr","ts","vo","wae","xh","xog"};
     testPattern = UNICODE_STRING_SIMPLE("one{one} other{other}");
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
     pluralResults[0]= PFT_OTHER;
     pluralResults[1]= PFT_ONE;
     pluralResults[2]= PFT_OTHER;
-    helperTestRusults(singular1Locales, 52, testPattern, pluralResults);
+    helperTestResults(singular1Locales, 56, testPattern, pluralResults);
     
     // ======== Test Singular01 locales.
     logln("Testing singular1 locales.");
-    const char* singular01Locales[3] = {"ff","fr","kab"};
+    // for CLDR 24, here add hy
+    const char* singular01Locales[4] = {"ff","fr","hy","kab"};
     testPattern = UNICODE_STRING_SIMPLE("one{one} other{other}");
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
     pluralResults[0]= PFT_ONE;
     pluralResults[2]= PFT_OTHER;
-    helperTestRusults(singular01Locales, 3, testPattern, pluralResults);
+    helperTestResults(singular01Locales, 4, testPattern, pluralResults);
     
     // ======== Test ZeroSingular locales.
     logln("Testing singular1 locales.");
@@ -346,13 +358,15 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
     pluralResults[0]= PFT_ZERO;
     pluralResults[1]= PFT_ONE;
-    pluralResults[2]= PFT_OTHER;
     for (int32_t i=2; i<20; ++i) {
-        if (i==11)  continue;
-        pluralResults[i*10+1] = PFT_ONE;
-        pluralResults[i*10+2] = PFT_OTHER;
+        pluralResults[i]= (i < 10)? PFT_OTHER: PFT_ZERO;
+        pluralResults[i*10] = PFT_ZERO;
+        pluralResults[i*10+1] = PFT_ONE; // note override after loop
+        pluralResults[i*10+2] = PFT_OTHER; // note override after loop
     }
-    helperTestRusults(zeroSingularLocales, 1, testPattern, pluralResults);
+    pluralResults[111]= PFT_ZERO;
+    pluralResults[112]= PFT_ZERO;
+    helperTestResults(zeroSingularLocales, 1, testPattern, pluralResults);
     
     // ======== Test singular dual locales.
     logln("Testing singular1 locales.");
@@ -363,7 +377,7 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
     pluralResults[1]= PFT_ONE;
     pluralResults[2]= PFT_TWO;
     pluralResults[3]= PFT_OTHER;
-    helperTestRusults(singularDualLocales, 1, testPattern, pluralResults);
+    helperTestResults(singularDualLocales, 1, testPattern, pluralResults);
     
     // ======== Test Singular Zero Some locales.
     logln("Testing singular1 locales.");
@@ -372,12 +386,11 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
     pluralResults[0]= PFT_FEW;
     for (int32_t i=1; i<20; ++i) {
-        if (i==11)  continue;
-        pluralResults[i] = PFT_FEW;
+        pluralResults[i] = PFT_FEW; // note override after loop
         pluralResults[100+i] = PFT_FEW;
     }
     pluralResults[1]= PFT_ONE;
-    helperTestRusults(singularZeroSomeLocales, 1, testPattern, pluralResults);
+    helperTestResults(singularZeroSomeLocales, 1, testPattern, pluralResults);
     
     // ======== Test Special 12/19.
     logln("Testing special 12 and 19.");
@@ -386,31 +399,65 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
     pluralResults[0]= PFT_OTHER;
     pluralResults[1]= PFT_ONE;
-    pluralResults[2]= PFT_FEW;
-    pluralResults[10]= PFT_OTHER;
     for (int32_t i=2; i<20; ++i) {
+        pluralResults[i]= (i < 10)? PFT_FEW: PFT_OTHER;
+        pluralResults[i*10] = PFT_OTHER;
         if (i==11)  continue;
         pluralResults[i*10+1] = PFT_ONE;
         pluralResults[i*10+2] = PFT_FEW;
-        pluralResults[(i+1)*10] = PFT_OTHER;
     }
-    helperTestRusults(special12_19Locales, 1, testPattern, pluralResults);
+    helperTestResults(special12_19Locales, 1, testPattern, pluralResults);
     
     // ======== Test Paucal Except 11 14.
-    logln("Testing Paucal Except 11 and 14.");
-    const char* paucal01Locales[4] = {"hr","ru","sr","uk"};
+    logln("Testing Paucal Except 11 and 14, set A.");
+    const char* paucal01LocalesA[2] = {"hr","sr"};
+    testPattern = UNICODE_STRING_SIMPLE("one{one} few{few} other{other}");
+    uprv_memset(pluralResults, -1, sizeof(pluralResults));
+    pluralResults[0]= PFT_OTHER;
+    pluralResults[1]= PFT_ONE;
+    for (int32_t i=2; i<20; ++i) {
+        pluralResults[i]= (i < 5)? PFT_FEW: PFT_OTHER;
+        if (i==11)  continue;
+        pluralResults[i*10+1] = PFT_ONE;
+        pluralResults[i*10+2] = PFT_FEW;
+        pluralResults[i*10+5] = PFT_OTHER;
+        pluralResults[i*10+6] = PFT_OTHER;
+        pluralResults[i*10+7] = PFT_OTHER;
+        pluralResults[i*10+8] = PFT_OTHER;
+        pluralResults[i*10+9] = PFT_OTHER;
+    }
+    helperTestResults(paucal01LocalesA, 2, testPattern, pluralResults);
+    
+    logln("Testing Paucal Except 11 and 14, set B.");
+    const char* paucal01LocalesB[1] = {"ru"};
+    testPattern = UNICODE_STRING_SIMPLE("one{one} many{many} other{other}");
+    uprv_memset(pluralResults, -1, sizeof(pluralResults));
+    pluralResults[0]= PFT_MANY;
+    pluralResults[1]= PFT_ONE;
+    for (int32_t i=2; i<20; ++i) {
+        pluralResults[i]= (i < 5)? PFT_OTHER: PFT_MANY;
+        if (i==11)  continue;
+        pluralResults[i*10] = PFT_MANY;
+        pluralResults[i*10+1] = PFT_ONE;
+        pluralResults[i*10+2] = PFT_OTHER;
+        pluralResults[i*10+5] = PFT_MANY;
+        pluralResults[i*10+6] = PFT_MANY;
+        pluralResults[i*10+7] = PFT_MANY;
+        pluralResults[i*10+8] = PFT_MANY;
+        pluralResults[i*10+9] = PFT_MANY;
+    }
+    helperTestResults(paucal01LocalesB, 1, testPattern, pluralResults);
+    
+    logln("Testing Paucal Except 11 and 14, set C.");
+    const char* paucal01LocalesC[1] = {"uk"};
     testPattern = UNICODE_STRING_SIMPLE("one{one} many{many} few{few} other{other}");
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
     pluralResults[0]= PFT_MANY;
     pluralResults[1]= PFT_ONE;
-    pluralResults[2]= PFT_FEW;
-    pluralResults[5]= PFT_MANY;
-    pluralResults[6]= PFT_MANY;
-    pluralResults[7]= PFT_MANY;
-    pluralResults[8]= PFT_MANY;
-    pluralResults[9]= PFT_MANY;
     for (int32_t i=2; i<20; ++i) {
+        pluralResults[i]= (i < 5)? PFT_FEW: PFT_MANY;
         if (i==11)  continue;
+        pluralResults[i*10] = PFT_MANY;
         pluralResults[i*10+1] = PFT_ONE;
         pluralResults[i*10+2] = PFT_FEW;
         pluralResults[i*10+5] = PFT_MANY;
@@ -419,7 +466,7 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
         pluralResults[i*10+8] = PFT_MANY;
         pluralResults[i*10+9] = PFT_MANY;
     }
-    helperTestRusults(paucal01Locales, 4, testPattern, pluralResults);
+    helperTestResults(paucal01LocalesC, 1, testPattern, pluralResults);
     
     // ======== Test Singular Paucal.
     logln("Testing Singular Paucal.");
@@ -430,30 +477,30 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
     pluralResults[1]= PFT_ONE;
     pluralResults[2]= PFT_FEW;
     pluralResults[5]= PFT_OTHER;
-    helperTestRusults(singularPaucalLocales, 2, testPattern, pluralResults);
+    helperTestResults(singularPaucalLocales, 2, testPattern, pluralResults);
 
     // ======== Test Paucal (1), (2,3,4).
     logln("Testing Paucal (1), (2,3,4).");
     const char* paucal02Locales[1] = {"pl"};
-    testPattern = UNICODE_STRING_SIMPLE("one{one} few{few} other{other}");
+    testPattern = UNICODE_STRING_SIMPLE("one{one} many{many} few{few} other{other}");
     uprv_memset(pluralResults, -1, sizeof(pluralResults));
-    pluralResults[0]= PFT_OTHER;
-    pluralResults[1]= PFT_ONE;
-    pluralResults[5]= PFT_OTHER;
     for (int32_t i=0; i<20; ++i) {
+        pluralResults[i*10+0] = PFT_MANY;
+        pluralResults[i*10+1] = PFT_MANY; // note override after loop
         if ((i==1)||(i==11)) {
-            pluralResults[i*10+2] = PFT_OTHER;
-            pluralResults[i*10+3] = PFT_OTHER;
-            pluralResults[i*10+4] = PFT_OTHER;
+            pluralResults[i*10+2] = PFT_MANY;
+            pluralResults[i*10+3] = PFT_MANY;
+            pluralResults[i*10+4] = PFT_MANY;
         }
         else {
             pluralResults[i*10+2] = PFT_FEW;
             pluralResults[i*10+3] = PFT_FEW;
             pluralResults[i*10+4] = PFT_FEW;
-            pluralResults[i*10+5] = PFT_OTHER;
         }
+        pluralResults[i*10+5] = PFT_MANY;
     }
-    helperTestRusults(paucal02Locales, 1, testPattern, pluralResults);
+    pluralResults[1]= PFT_ONE;
+    helperTestResults(paucal02Locales, 1, testPattern, pluralResults);
     
     // ======== Test Paucal (1), (2), (3,4).
     logln("Testing Paucal (1), (2), (3,4).");
@@ -469,7 +516,7 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
     pluralResults[102]= PFT_TWO;
     pluralResults[103]= PFT_FEW;
     pluralResults[105]= PFT_OTHER;
-    helperTestRusults(paucal03Locales, 1, testPattern, pluralResults);
+    helperTestResults(paucal03Locales, 1, testPattern, pluralResults);
     
     // TODO: move this test to Unit Test after CLDR 1.6 is final and we support float
     // ======= Test French "WITHIN rule
@@ -489,6 +536,150 @@ PluralFormatTest::pluralFormatLocaleTest(/*char *par*/)
         plResult = plFmt.format(1.9, status);  // retrun ONE
         plResult = plFmt.format(2.0, status);  // retrun OTHER
     }
+}
+
+void
+PluralFormatTest::pluralFormatExtendedTest(void) {
+  const char *targets[] = {
+    "There are no widgets.",
+    "There is one widget.",
+    "There is a bling widget and one other widget.",
+    "There is a bling widget and 2 other widgets.",
+    "There is a bling widget and 3 other widgets.",
+    "Widgets, five (5-1=4) there be.",
+    "There is a bling widget and 5 other widgets.",
+    "There is a bling widget and 6 other widgets.",
+  };
+
+  const char* fmt =
+      "offset:1.0 "
+      "=0 {There are no widgets.} "
+      "=1.0 {There is one widget.} "
+      "=5 {Widgets, five (5-1=#) there be.} "
+      "one {There is a bling widget and one other widget.} "
+      "other {There is a bling widget and # other widgets.}";
+
+  UErrorCode status = U_ZERO_ERROR;
+  UnicodeString fmtString(fmt, -1, US_INV);
+  PluralFormat pf(Locale::getEnglish(), fmtString, status);
+  MessageFormat mf(UNICODE_STRING_SIMPLE("{0,plural,").append(fmtString).append((UChar)0x7d /* '}' */),
+                   Locale::getEnglish(), status);
+  Formattable args;
+  FieldPosition ignore;
+  if (U_FAILURE(status)) {
+    dataerrln("Failed to apply pattern - %s", u_errorName(status));
+    return;
+  }
+  for (int32_t i = 0; i <= 7; ++i) {
+    UnicodeString result = pf.format(i, status);
+    if (U_FAILURE(status)) {
+      errln("PluralFormat.format(value %d) failed - %s", i, u_errorName(status));
+      return;
+    }
+    UnicodeString expected(targets[i], -1, US_INV);
+    if (expected != result) {
+      UnicodeString message("PluralFormat.format(): Expected '", -1, US_INV);
+      message.append(expected);
+      message.append(UnicodeString("' but got '", -1, US_INV));
+      message.append(result);
+      message.append("'", -1, US_INV);
+      errln(message);
+    }
+    args.setLong(i);
+    mf.format(&args, 1, result.remove(), ignore, status);
+    if (U_FAILURE(status)) {
+      errln("MessageFormat.format(value %d) failed - %s", i, u_errorName(status));
+      return;
+    }
+    if (expected != result) {
+      UnicodeString message("MessageFormat.format(): Expected '", -1, US_INV);
+      message.append(expected);
+      message.append(UnicodeString("' but got '", -1, US_INV));
+      message.append(result);
+      message.append("'", -1, US_INV);
+      errln(message);
+    }
+  }
+}
+
+void
+PluralFormatTest::pluralFormatExtendedParseTest(void) {
+  const char *failures[] = {
+    "offset:1..0 =0 {Foo}",
+    "offset:1.0 {Foo}",
+    "=0= {Foo}",
+    "=0 {Foo} =0.0 {Bar}",
+    " = {Foo}",
+  };
+  int len = sizeof(failures)/sizeof(failures[0]);
+
+  for (int i = 0; i < len; ++i) {
+    UErrorCode status = U_ZERO_ERROR;
+    UnicodeString fmt(failures[i], -1, US_INV);
+    PluralFormat pf(fmt, status);
+    if (U_SUCCESS(status)) {
+      errln("expected failure when parsing '" + fmt + "'");
+    }
+  }
+}
+
+void
+PluralFormatTest::ordinalFormatTest(void) {
+    IcuTestErrorCode errorCode(*this, "ordinalFormatTest");
+    UnicodeString pattern("one{#st file}two{#nd file}few{#rd file}other{#th file}");
+    PluralFormat pf(Locale::getEnglish(), UPLURAL_TYPE_ORDINAL, pattern, errorCode);
+    if (errorCode.logDataIfFailureAndReset("PluralFormat(en, UPLURAL_TYPE_ORDINAL, pattern) failed")) {
+      return;
+    }
+    UnicodeString result = pf.format((int32_t)321, errorCode);
+    if (!errorCode.logIfFailureAndReset("PluralFormat.format(321) failed") &&
+        result != UNICODE_STRING_SIMPLE("321st file")) {
+      errln(UnicodeString("PluralFormat.format(321) wrong result string: ") + result);
+    }
+    result = pf.format((int32_t)22, errorCode);
+    if (!errorCode.logIfFailureAndReset("PluralFormat.format(22) failed") &&
+        result != UNICODE_STRING_SIMPLE("22nd file")) {
+      errln(UnicodeString("PluralFormat.format(22) wrong result string: ") + result);
+    }
+    result = pf.format((int32_t)3, errorCode);
+    if (!errorCode.logIfFailureAndReset("PluralFormat.format(3) failed") &&
+        result != UNICODE_STRING_SIMPLE("3rd file")) {
+      errln(UnicodeString("PluralFormat.format(3) wrong result string: ") + result);
+    }
+
+    // Code coverage: Use the other new-for-UPluralType constructor as well.
+    PluralFormat pf2(Locale::getEnglish(), UPLURAL_TYPE_ORDINAL, errorCode);
+    pf2.applyPattern(pattern, errorCode);
+    if (errorCode.logIfFailureAndReset("PluralFormat(en, UPLURAL_TYPE_ORDINAL, pattern) failed")) {
+      return;
+    }
+    result = pf2.format((int32_t)456, errorCode);
+    if (!errorCode.logIfFailureAndReset("PluralFormat.format(456) failed") &&
+        result != UNICODE_STRING_SIMPLE("456th file")) {
+      errln(UnicodeString("PluralFormat.format(456) wrong result string: ") + result);
+    }
+    result = pf2.format((int32_t)111, errorCode);
+    if (!errorCode.logIfFailureAndReset("PluralFormat.format(111) failed") &&
+        result != UNICODE_STRING_SIMPLE("111th file")) {
+      errln(UnicodeString("PluralFormat.format(111) wrong result string: ") + result);
+    }
+}
+
+void
+PluralFormatTest::TestDecimals() {
+    IcuTestErrorCode errorCode(*this, "TestDecimals");
+    // Simple number replacement.
+    PluralFormat pf(Locale::getEnglish(), "one{one meter}other{# meters}", errorCode);
+    assertEquals("simple format(1)", "one meter", pf.format((int32_t)1, errorCode), TRUE);
+    assertEquals("simple format(1.5)", "1.5 meters", pf.format(1.5, errorCode), TRUE);
+    PluralFormat pf2(Locale::getEnglish(),
+            "offset:1 one{another meter}other{another # meters}", errorCode);
+    DecimalFormat df("0.0", new DecimalFormatSymbols(Locale::getEnglish(), errorCode), errorCode);
+    pf2.setNumberFormat(&df, errorCode);
+    assertEquals("offset-decimals format(1)", "another 0.0 meters", pf2.format((int32_t)1, errorCode), TRUE);
+    assertEquals("offset-decimals format(2)", "another 1.0 meters", pf2.format((int32_t)2, errorCode), TRUE);
+    assertEquals("offset-decimals format(2.5)", "another 1.5 meters", pf2.format(2.5, errorCode), TRUE);
+    errorCode.reset();
 }
 
 void
@@ -536,7 +727,6 @@ PluralFormatTest::numberFormatTest(PluralFormat* plFmt,
             }
             else {
                 errln( *message+UnicodeString("  got:")+plResult+UnicodeString("  expecting:")+numResult);
-                
             }
         }
     }
@@ -545,7 +735,7 @@ PluralFormatTest::numberFormatTest(PluralFormat* plFmt,
 
 
 void
-PluralFormatTest::helperTestRusults(const char** localeArray, 
+PluralFormatTest::helperTestResults(const char** localeArray, 
                                     int32_t capacityOfArray, 
                                     UnicodeString& testPattern,
                                     int8_t *expResults) {
@@ -580,8 +770,9 @@ PluralFormatTest::helperTestRusults(const char** localeArray,
                 if (plResult != PLKeywordLookups[expResults[n]]){
                     plResult = plFmt.format(n, status);
                     errln("ERROR: Unexpected format result in locale: "+UnicodeString(localeArray[i])+
-                          UnicodeString("  got:")+plResult+ UnicodeString("  expecting:")+
-                          PLKeywordLookups[expResults[n]]);
+                          UnicodeString(" for value: ")+n+
+                          UnicodeString("  got:")+plResult+
+                          UnicodeString("  expecting:")+ PLKeywordLookups[expResults[n]]);
                 }
             }
         }

@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/layout/used_style.h"
 
@@ -40,6 +38,7 @@
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
+#include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -406,9 +405,14 @@ float GetFontSize(const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
 
 }  // namespace
 
-UsedStyleProvider::UsedStyleProvider(loader::image::ImageCache* image_cache,
-                                     dom::FontCache* font_cache)
-    : image_cache_(image_cache), font_cache_(font_cache) {}
+UsedStyleProvider::UsedStyleProvider(
+    dom::HTMLElementContext* html_element_context,
+    loader::image::ImageCache* image_cache, dom::FontCache* font_cache,
+    loader::mesh::MeshCache* mesh_cache)
+    : html_element_context_(html_element_context),
+      image_cache_(image_cache),
+      font_cache_(font_cache),
+      mesh_cache_(mesh_cache) {}
 
 scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -463,6 +467,12 @@ scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
 scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
     const GURL& url) {
   return image_cache_->CreateCachedResource(url)->TryGetResource();
+}
+
+scoped_refptr<render_tree::Mesh> UsedStyleProvider::ResolveURLToMesh(
+    const GURL& url) {
+  DCHECK(mesh_cache_);
+  return mesh_cache_->CreateCachedResource(url)->TryGetResource();
 }
 
 void UsedStyleProvider::CleanupAfterLayout() {
@@ -566,7 +576,8 @@ UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
       background_size_(background_size),
       background_position_(background_position),
       background_repeat_(background_repeat),
-      used_style_provider_(used_style_provider) {}
+      used_style_provider_(used_style_provider),
+      is_opaque_(false) {}
 
 void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     cssom::AbsoluteURLValue* url_value) {
@@ -595,10 +606,16 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
             &used_background_size_provider, &used_background_position_provider,
             &used_background_repeat_provider, frame_, single_image_size);
 
+    math::RectF image_rect(image_transform_data.composition_node_translation,
+                           image_transform_data.image_node_size);
+
+    is_opaque_ = used_background_image->IsOpaque() &&
+                 image_rect.x() <= frame_.x() && image_rect.y() <= frame_.y() &&
+                 image_rect.right() >= frame_.right() &&
+                 image_rect.bottom() >= frame_.bottom();
+
     background_node_ = new render_tree::ImageNode(
-        used_background_image,
-        math::RectF(image_transform_data.composition_node_translation,
-                    image_transform_data.image_node_size),
+        used_background_image, image_rect,
         image_transform_data.image_node_transform_matrix);
   }
 }

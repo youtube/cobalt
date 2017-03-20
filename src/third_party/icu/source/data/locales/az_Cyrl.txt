@@ -1,21 +1,15 @@
 ﻿// ***************************************************************************
 // *
-// * Copyright (C) 2010 International Business Machines
-// * Corporation and others.  All Rights Reserved.
-// * Tool: com.ibm.icu.dev.tool.cldr.LDML2ICUConverter.java
-// * Source File:<path>/common/main/az_Cyrl.xml
+// * Copyright (C) 2015 International Business Machines
+// * Corporation and others. All Rights Reserved.
+// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
+// * Source File: <path>/common/main/az_Cyrl.xml
 // *
 // ***************************************************************************
-/**
- *  ICU <specials> source: <path>/xml/main/az_Cyrl.xml
- */
 az_Cyrl{
-    %%ParentIsRoot:int{1}
+    %%Parent{"root"}
     AuxExemplarCharacters{"[ц щ ъ ь э ю я]"}
     ExemplarCharacters{"[а ә б в г ғ д е ж з и й ј к ҝ л м н о ө п р с т у ү ф х һ ч ҹ ш ы]"}
-    LocaleScript{
-        "Cyrl",
-    }
     NumberElements{
         latn{
             patterns{
@@ -35,8 +29,38 @@ az_Cyrl{
             }
         }
     }
-    Version{"2.0.47.53"}
+    Version{"2.1.19.14"}
     calendar{
+        generic{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE, d, MMMM, y G",
+                "d MMMM, y G",
+                "d MMM, y G",
+                "dd.MM.y GGGGG",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
+            availableFormats{
+                MEd{"E, dd.MM"}
+                MMM{"LLL"}
+                MMMEd{"E, d, MMM"}
+                MMMd{"d MMM"}
+                Md{"dd.MM"}
+                yyyyM{"MM.y G"}
+                yyyyMEd{"E, dd.MM.y G"}
+                yyyyMMM{"MMM, y G"}
+                yyyyMMMEd{"E, d, MMM, y G"}
+                yyyyMMMd{"d MMM, y G"}
+                yyyyMd{"dd.MM.y G"}
+            }
+        }
         gregorian{
             DateTimePatterns{
                 "HH:mm:ss zzzz",
@@ -44,14 +68,27 @@ az_Cyrl{
                 "HH:mm:ss",
                 "HH:mm",
                 "EEEE, d, MMMM, y",
-                "d MMMM , y",
+                "d MMMM, y",
                 "d MMM, y",
-                "yyyy-MM-dd",
+                "dd.MM.yy",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
+            }
+            availableFormats{
+                MEd{"E, dd.MM"}
+                MMM{"LLL"}
+                MMMEd{"E, d, MMM"}
+                MMMd{"d MMM"}
+                Md{"dd.MM"}
+                yM{"MM.y"}
+                yMEd{"E, dd.MM.y"}
+                yMMM{"MMM, y"}
+                yMMMEd{"E, d, MMM, y"}
+                yMMMd{"d MMM, y"}
+                yMd{"dd.MM.y"}
             }
             dayNames{
                 format{
@@ -96,5 +133,11 @@ az_Cyrl{
                 }
             }
         }
+    }
+    delimiters{
+        alternateQuotationEnd{"›"}
+        alternateQuotationStart{"‹"}
+        quotationEnd{"»"}
+        quotationStart{"«"}
     }
 }

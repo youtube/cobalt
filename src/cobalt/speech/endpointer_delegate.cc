@@ -1,18 +1,16 @@
-/*
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/speech/endpointer_delegate.h"
 
@@ -63,8 +61,8 @@ bool EndPointerDelegate::IsFirstTimeSoundStarted(
 
   endpointer_.ProcessAudio(audio_bus, NULL);
   int64_t ep_time;
-  EpStatus status = endpointer_.Status(&ep_time);
-  if (status == EP_POSSIBLE_ONSET) {
+  content::EpStatus status = endpointer_.Status(&ep_time);
+  if (status == content::EP_POSSIBLE_ONSET) {
     is_first_time_sound_started_ = true;
   }
 

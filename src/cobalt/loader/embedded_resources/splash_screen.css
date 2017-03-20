@@ -8,7 +8,7 @@ body {
   background-image: url("h5vcc-embedded://you_tube_logo.png");
   background-position: center center;
   background-repeat: no-repeat;
-  background-size: 100%;
+  background-size: 50%;
   height: 100%;
   left: 0;
   position: absolute;
@@ -22,13 +22,12 @@ body {
   width: 100%;
 }
 
-@keyframes loadwait {
-  0% {opacity: 0}
-  100% {opacity: 1}
-}
-
 #spinner {
-  animation: loadwait 2s steps(1, end);
+  /* The spinner starts with display set to none, and JavaScript will set this
+     to 'block' after some time has passed, if the splash screen is still
+     visible. */
+  display: none;
+
   height: 5.33em;
   margin: 0 auto;
   position: relative;

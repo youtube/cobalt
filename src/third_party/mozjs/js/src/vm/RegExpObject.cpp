@@ -17,6 +17,8 @@
 #include "vm/RegExpStatics-inl.h"
 #include "vm/Xdr.h"
 
+#include "nb/memory_scope.h"
+
 using namespace js;
 using js::frontend::TokenStream;
 
@@ -34,6 +36,7 @@ RegExpObjectBuilder::RegExpObjectBuilder(JSContext *cx, RegExpObject *reobj)
 bool
 RegExpObjectBuilder::getOrCreate()
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (reobj_)
         return true;
 
@@ -51,6 +54,7 @@ RegExpObjectBuilder::getOrCreate()
 bool
 RegExpObjectBuilder::getOrCreateClone(RegExpObject *proto)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(!reobj_);
 
     // Note: RegExp objects are always allocated in the tenured heap. This is
@@ -90,6 +94,7 @@ RegExpObjectBuilder::build(HandleAtom source, RegExpFlag flags)
 RegExpObject *
 RegExpObjectBuilder::clone(Handle<RegExpObject *> other, Handle<RegExpObject *> proto)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!getOrCreateClone(proto))
         return NULL;
 
@@ -120,6 +125,7 @@ RegExpObjectBuilder::clone(Handle<RegExpObject *> other, Handle<RegExpObject *> 
 bool
 MatchPairs::initArray(size_t pairCount)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(pairCount > 0);
 
     /* Guarantee adequate space in buffer. */
@@ -138,6 +144,7 @@ MatchPairs::initArray(size_t pairCount)
 bool
 MatchPairs::initArrayFrom(MatchPairs &copyFrom)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(copyFrom.pairCount() > 0);
 
     if (!allocOrExpandArray(copyFrom.pairCount()))
@@ -168,6 +175,7 @@ MatchPairs::displace(size_t disp)
 bool
 ScopedMatchPairs::allocOrExpandArray(size_t pairCount)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Array expansion is forbidden, but array reuse is acceptable. */
     if (pairCount_) {
         JS_ASSERT(pairs_);
@@ -187,6 +195,7 @@ ScopedMatchPairs::allocOrExpandArray(size_t pairCount)
 bool
 VectorMatchPairs::allocOrExpandArray(size_t pairCount)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!vec_.resizeUninitialized(sizeof(MatchPair) * pairCount))
         return false;
 
@@ -233,6 +242,7 @@ RegExpObject *
 RegExpObject::create(JSContext *cx, RegExpStatics *res, const jschar *chars, size_t length,
                      RegExpFlag flags, TokenStream *tokenStream)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RegExpFlag staticsFlags = res->getFlags();
     return createNoStatics(cx, chars, length, RegExpFlag(flags | staticsFlags), tokenStream);
 }
@@ -262,6 +272,7 @@ RegExpObject::createNoStatics(JSContext *cx, HandleAtom source, RegExpFlag flags
 bool
 RegExpObject::createShared(JSContext *cx, RegExpGuard *g)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<RegExpObject*> self(cx, this);
 
     JS_ASSERT(!maybeShared());
@@ -275,6 +286,7 @@ RegExpObject::createShared(JSContext *cx, RegExpGuard *g)
 Shape *
 RegExpObject::assignInitialShape(JSContext *cx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(is<RegExpObject>());
     JS_ASSERT(nativeEmpty());
 
@@ -307,6 +319,7 @@ RegExpObject::assignInitialShape(JSContext *cx)
 bool
 RegExpObject::init(JSContext *cx, HandleAtom source, RegExpFlag flags)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     Rooted<RegExpObject *> self(cx, this);
 
     if (nativeEmpty()) {
@@ -354,6 +367,7 @@ RegExpObject::init(JSContext *cx, HandleAtom source, RegExpFlag flags)
 JSFlatString *
 RegExpObject::toString(JSContext *cx) const
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSAtom *src = getSource();
     StringBuffer sb(cx);
     if (size_t len = src->length()) {
@@ -442,6 +456,7 @@ RegExpShared::checkSyntax(JSContext *cx, TokenStream *tokenStream, JSLinearStrin
 bool
 RegExpShared::compile(JSContext *cx, bool matchOnly)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!sticky())
         return compile(cx, *source, matchOnly);
 
@@ -470,6 +485,7 @@ RegExpShared::compile(JSContext *cx, bool matchOnly)
 bool
 RegExpShared::compile(JSContext *cx, JSLinearString &pattern, bool matchOnly)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Parse the pattern. */
     ErrorCode yarrError;
     YarrPattern yarrPattern(pattern, ignoreCase(), multiline(), &yarrError);
@@ -528,6 +544,7 @@ RegExpRunStatus
 RegExpShared::execute(JSContext *cx, const jschar *chars, size_t length,
                       size_t *lastIndex, MatchPairs &matches)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     /* Compile the code at point-of-use. */
     if (!compileIfNecessary(cx))
         return RegExpRunStatus_Error;

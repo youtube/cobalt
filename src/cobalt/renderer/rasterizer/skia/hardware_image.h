@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_IMAGE_H_
@@ -89,6 +87,12 @@ class HardwareFrontendImage : public SinglePlaneImage {
                         backend::GraphicsContextEGL* cobalt_context,
                         GrContext* gr_context,
                         MessageLoop* rasterizer_message_loop);
+  HardwareFrontendImage(scoped_ptr<backend::TextureEGL> texture,
+                        render_tree::AlphaFormat alpha_format,
+                        backend::GraphicsContextEGL* cobalt_context,
+                        GrContext* gr_context,
+                        scoped_ptr<math::Rect> content_region,
+                        MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
@@ -98,7 +102,15 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // the skia render tree visitor that is aware of skia::Images.  Since the
   // skia render tree should only be visited on the rasterizer thread, this
   // restraint should always be satisfied naturally.
-  const SkBitmap& GetBitmap() const OVERRIDE;
+  const SkBitmap* GetBitmap() const OVERRIDE;
+
+  const backend::TextureEGL* GetTextureEGL() const OVERRIDE;
+
+  const math::Rect* GetContentRegion() const OVERRIDE {
+    return content_region_.get();
+  }
+
+  bool CanRenderInSkia() const OVERRIDE;
 
   bool EnsureInitialized() OVERRIDE;
 
@@ -117,10 +129,16 @@ class HardwareFrontendImage : public SinglePlaneImage {
           raw_texture_memory,
       intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
+  void InitializeBackendImageFromTexture(GrContext* gr_context);
 
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.
   bool is_opaque_;
+
+  // An optional rectangle, in pixel coordinates (with the top-left as the
+  // origin) that indicates where in this image the valid content is contained.
+  // Usually this is only set from platform-specific SbDecodeTargets.
+  scoped_ptr<math::Rect> content_region_;
 
   // We shadow the image dimensions so they can be quickly looked up from just
   // the frontend image object.
@@ -166,8 +184,11 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
 
   // Forward the request to get a bitmap to the internal single-plane image
   // specified by plane_index.
-  const SkBitmap& GetBitmap(int plane_index) const OVERRIDE {
+  const SkBitmap* GetBitmap(int plane_index) const OVERRIDE {
     return planes_[plane_index]->GetBitmap();
+  }
+  const backend::TextureEGL* GetTextureEGL(int plane_index) const OVERRIDE {
+    return planes_[plane_index]->GetTextureEGL();
   }
 
   bool EnsureInitialized() OVERRIDE;

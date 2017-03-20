@@ -50,7 +50,7 @@ There is a script, starboard/linux/x64/directfb/xephyr_run.sh
 which will automatically run an executable (and its parameters) within a
 Xephyr window.  For example, to run the nplb executable under Xephyr:
 
-    $ starboard/linux/x64/directfb/xephyr_run.sh out/linux-x64directfb_debug/nplb
+    $ starboard/linux/x64directfb/xephyr_run.sh out/linux-x64directfb_debug/nplb
 
 Note that the script will start an instance of Xephyr, run the application
 within it, and then shutdown Xephyr when the application terminates.

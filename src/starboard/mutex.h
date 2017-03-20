@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A mutually exclusive lock that can be used to coordinate with other threads.
+// Module Overview: Starboard Mutex module
+//
+// Defines a mutually exclusive lock that can be used to coordinate with other
+// threads.
 
 #ifndef STARBOARD_MUTEX_H_
 #define STARBOARD_MUTEX_H_
 
+#include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/log.h"
+#include "starboard/thread.h"
 #include "starboard/thread_types.h"
 #include "starboard/types.h"
 
@@ -37,31 +43,46 @@ typedef enum SbMutexResult {
   kSbMutexDestroyed,
 } SbMutexResult;
 
-// Returns whether the given result is a success.
+// Indicates whether the given result is a success. A value of |true| indicates
+// that the mutex was acquired.
+//
+// |result|: The result being checked.
 static SB_C_FORCE_INLINE bool SbMutexIsSuccess(SbMutexResult result) {
   return result == kSbMutexAcquired;
 }
 
-// Creates a new mutex, placing the handle to the newly created mutex in
-// |out_mutex|. Returns whether able to create a new mutex.
+// Creates a new mutex. The return value indicates whether the function
+// was able to create a new mutex.
+//
+// |out_mutex|: The handle to the newly created mutex.
 SB_EXPORT bool SbMutexCreate(SbMutex* out_mutex);
 
-// Destroys a mutex, returning whether the destruction was successful. The mutex
-// specified by |mutex| is invalidated.
+// Destroys a mutex. The return value indicates whether the destruction was
+// successful.
+//
+// |mutex|: The mutex to be invalidated.
 SB_EXPORT bool SbMutexDestroy(SbMutex* mutex);
 
-// Acquires |mutex|, blocking indefinitely, returning the acquisition result.
-// SbMutexes are not reentrant, so a recursive acquisition will block forever.
+// Acquires |mutex|, blocking indefinitely. The return value identifies
+// the acquisition result. SbMutexes are not reentrant, so a recursive
+// acquisition blocks forever.
+//
+// |mutex|: The mutex to be acquired.
 SB_EXPORT SbMutexResult SbMutexAcquire(SbMutex* mutex);
 
-// Acquires |mutex|, without blocking, returning the acquisition result.
-// SbMutexes are not reentrant, so a recursive acquisition will always fail.
+// Acquires |mutex|, without blocking. The return value identifies
+// the acquisition result. SbMutexes are not reentrant, so a recursive
+// acquisition always fails.
+//
+// |mutex|: The mutex to be acquired.
 SB_EXPORT SbMutexResult SbMutexAcquireTry(SbMutex* mutex);
 
-// Releases |mutex| held by the current thread, returning whether the release
-// was successful. Releases should always be successful if the mutex is held by
-// the current thread.
-SB_EXPORT bool SbMutexRelease(SbMutex* handle);
+// Releases |mutex| held by the current thread. The return value indicates
+// whether the release was successful. Releases should always be successful
+// if |mutex| is held by the current thread.
+//
+// |mutex|: The mutex to be released.
+SB_EXPORT bool SbMutexRelease(SbMutex* mutex);
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -73,22 +94,55 @@ namespace starboard {
 // Inline class wrapper for SbMutex.
 class Mutex {
  public:
-  Mutex() : mutex_() { SbMutexCreate(&mutex_); }
+  Mutex() : mutex_() {
+    SbMutexCreate(&mutex_);
+    debugInit();
+  }
 
   ~Mutex() { SbMutexDestroy(&mutex_); }
 
-  void Acquire() const { SbMutexAcquire(&mutex_); }
+  void Acquire() const {
+    SbMutexAcquire(&mutex_);
+    debugSetAcquired();
+  }
   bool AcquireTry() const {
-    return SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+    bool ok = SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+    if (ok) {
+      debugSetAcquired();
+    }
+    return ok;
   }
 
-  void Release() const { SbMutexRelease(&mutex_); }
+  void Release() const {
+    debugSetReleased();
+    SbMutexRelease(&mutex_);
+  }
 
  private:
+#ifdef _DEBUG
+  void debugInit() { currrent_thread_acquired_ = kSbThreadInvalid; }
+  void debugSetReleased() const {
+    SbThread current_thread = SbThreadGetCurrent();
+    SB_DCHECK(currrent_thread_acquired_ == current_thread);
+    currrent_thread_acquired_ = kSbThreadInvalid;
+  }
+  void debugSetAcquired() const {
+    // Check that the thread has already not been held.
+    SB_DCHECK(currrent_thread_acquired_ == kSbThreadInvalid);
+    currrent_thread_acquired_ = SbThreadGetCurrent();
+  }
+  mutable SbThread currrent_thread_acquired_;
+#else
+  void debugInit() {}
+  void debugSetReleased() const {}
+  void debugSetAcquired() const {}
+#endif
+
   friend class ConditionVariable;
   SbMutex* mutex() const { return &mutex_; }
-
   mutable SbMutex mutex_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 
 // Scoped lock holder that works on starboard::Mutex.
@@ -100,6 +154,7 @@ class ScopedLock {
 
  private:
   const Mutex& mutex_;
+  SB_DISALLOW_COPY_AND_ASSIGN(ScopedLock);
 };
 
 // Scoped lock holder that works on starboard::Mutex which uses AcquireTry()
@@ -121,6 +176,7 @@ class ScopedTryLock {
  private:
   const Mutex& mutex_;
   bool is_locked_;
+  SB_DISALLOW_COPY_AND_ASSIGN(ScopedTryLock);
 };
 
 }  // namespace starboard

@@ -398,7 +398,7 @@ public:
         *serialize = true;
     }
 
-    virtual SkStream* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
+    virtual SkStreamAsset* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
         *ttcIndex = fIndex;
         return fStream->duplicate();
     }
@@ -432,7 +432,7 @@ public:
         *serialize = false;
     }
 
-    virtual SkStream* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
+    virtual SkStreamAsset* onOpenStream(int* ttcIndex) const SK_OVERRIDE {
         FCLocker lock;
         *ttcIndex = get_int(fPattern, FC_INDEX, 0);
         return SkStream::NewFromFile(get_string(fPattern, FC_FILE));
@@ -826,7 +826,7 @@ protected:
     }
 
     /** @param stream does not take ownership of the reference. */
-    virtual SkTypeface* onCreateFromStream(SkStream* stream, int ttcIndex) const SK_OVERRIDE {
+    virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream, int ttcIndex) const SK_OVERRIDE {
         const size_t length = stream->getLength();
         if (length <= 0 || (1u << 30) < length) {
             return NULL;

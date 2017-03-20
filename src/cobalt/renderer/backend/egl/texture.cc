@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/renderer/backend/egl/texture.h"
 
@@ -34,7 +32,8 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                        bool bgra_supported)
     : graphics_context_(graphics_context),
       size_(texture_source_data->GetSize()),
-      format_(texture_source_data->GetFormat()) {
+      format_(texture_source_data->GetFormat()),
+      target_(GL_TEXTURE_2D) {
   gl_handle_ =
       texture_source_data->ConvertToTexture(graphics_context_, bgra_supported);
 }
@@ -43,17 +42,31 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                        const RawTextureMemoryEGL* data, intptr_t offset,
                        const math::Size& size, GLenum format,
                        int pitch_in_bytes, bool bgra_supported)
-    : graphics_context_(graphics_context), size_(size), format_(format) {
+    : graphics_context_(graphics_context),
+      size_(size),
+      format_(format),
+      target_(GL_TEXTURE_2D) {
   gl_handle_ = data->CreateTexture(graphics_context_, offset, size, format,
                                    pitch_in_bytes, bgra_supported);
 }
+
+TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
+                       const math::Size& size, GLenum format, GLenum target,
+                       const base::Closure& delete_function)
+    : graphics_context_(graphics_context),
+      size_(size),
+      format_(format),
+      gl_handle_(gl_handle),
+      target_(target),
+      delete_function_(delete_function) {}
 
 TextureEGL::TextureEGL(
     GraphicsContextEGL* graphics_context,
     const scoped_refptr<PBufferRenderTargetEGL>& render_target)
     : graphics_context_(graphics_context),
       size_(render_target->GetSize()),
-      format_(GL_RGBA) {
+      format_(GL_RGBA),
+      target_(GL_TEXTURE_2D) {
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
   source_render_target_ = render_target;
@@ -82,12 +95,12 @@ TextureEGL::~TextureEGL() {
                                 EGL_BACK_BUFFER));
   }
 
-  GL_CALL(glDeleteTextures(1, &gl_handle_));
+  if (!delete_function_.is_null()) {
+    delete_function_.Run();
+  } else {
+    GL_CALL(glDeleteTextures(1, &gl_handle_));
+  }
 }
-
-const math::Size& TextureEGL::GetSize() const { return size_; }
-
-GLenum TextureEGL::GetFormat() const { return format_; }
 
 }  // namespace backend
 }  // namespace renderer

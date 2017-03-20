@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_DEBUG_DEBUGGER_EVENT_TARGET_H_
 #define COBALT_DEBUG_DEBUGGER_EVENT_TARGET_H_
@@ -27,7 +25,7 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/script_object.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -45,7 +43,7 @@ class DebuggerEventTarget : public script::Wrappable {
   typedef script::CallbackFunction<void(
       const std::string& method,
       const base::optional<std::string>& json_params)> DebuggerEventCallback;
-  typedef script::ScriptObject<DebuggerEventCallback> DebuggerEventCallbackArg;
+  typedef script::ScriptValue<DebuggerEventCallback> DebuggerEventCallbackArg;
 
   // Type for listener info.
   // We store the message loop from which the listener was registered,

@@ -1,6 +1,6 @@
 # *   Copyright (C) 1998-2010, International Business Machines
 # *   Corporation and others.  All Rights Reserved.
-REGION_CLDR_VERSION = 1.9
+REGION_CLDR_VERSION = %version%
 # A list of txt's to build
 # The downstream packager may not need this file at all if their package is not
 # constrained by
@@ -20,7 +20,7 @@ REGION_SYNTHETIC_ALIAS =
 # All aliases (to not be included under 'installed'), but not including root.
 REGION_ALIAS_SOURCE = $(REGION_SYNTHETIC_ALIAS)\
  zh_CN.txt zh_TW.txt zh_HK.txt zh_SG.txt\
- no.txt in.txt iw.txt
+ no.txt in.txt iw.txt tl.txt
 
 # Ordinary resources
 REGION_SOURCE =\
@@ -33,9 +33,8 @@ REGION_SOURCE =\
  da.txt\
  de.txt\
  el.txt\
- en.txt\
- es.txt\
- es_CL.txt\
+ en.txt en_GB.txt\
+ es.txt es_419.txt\
  et.txt\
  fa.txt\
  fi.txt\

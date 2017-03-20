@@ -114,6 +114,7 @@ TraceEvent::TraceEvent()
 
 TraceEvent::TraceEvent(int thread_id,
                        TimeTicks timestamp,
+                       TimeTicks thread_timestamp,
                        char phase,
                        const unsigned char* category_enabled,
                        const char* name,
@@ -124,6 +125,7 @@ TraceEvent::TraceEvent(int thread_id,
                        const unsigned long long* arg_values,
                        unsigned char flags)
     : timestamp_(timestamp),
+      thread_timestamp_(thread_timestamp),
       id_(id),
       category_enabled_(category_enabled),
       name_(name),
@@ -242,6 +244,7 @@ void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
 
 void TraceEvent::AppendAsJSON(std::string* out) const {
   int64 time_int64 = timestamp_.ToInternalValue();
+  int64 thread_time_int64 = thread_timestamp_.ToInternalValue();
   int process_id = TraceLog::GetInstance()->process_id();
   // Category name checked at category creation time.
   DCHECK(!strchr(name_, '"'));
@@ -265,6 +268,11 @@ void TraceEvent::AppendAsJSON(std::string* out) const {
     AppendValueAsJSON(arg_types_[i], arg_values_[i], out);
   }
   *out += "}";
+
+  // add thread timestamp only if it was available
+  if (TimeTicks::HasThreadNow()) {
+    StringAppendF(out, ",\"tts\":%" PRId64, thread_time_int64);
+  }
 
   // If id_ is set, print it out as a hex string so we don't loose any
   // bits (it might be a 64-bit pointer).
@@ -667,6 +675,7 @@ void TraceLog::AddTraceEvent(char phase,
 #endif
 
   TimeTicks now = TimeTicks::NowFromSystemTraceTime() - time_offset_;
+  TimeTicks thread_now = TimeTicks::ThreadNow();
   NotificationHelper notifier(this);
   {
     AutoLock lock(lock_);
@@ -710,7 +719,7 @@ void TraceLog::AddTraceEvent(char phase,
 
     logged_events_.push_back(
         TraceEvent(thread_id,
-                   now, phase, category_enabled, name, id,
+                   now, thread_now, phase, category_enabled, name, id,
                    num_args, arg_names, arg_types, arg_values,
                    flags));
 
@@ -795,7 +804,7 @@ void TraceLog::AddThreadNameMetadataEvents() {
       trace_event_internal::SetTraceValue(it->second, &arg_type, &arg_value);
       logged_events_.push_back(
           TraceEvent(it->first,
-                     TimeTicks(), TRACE_EVENT_PHASE_METADATA,
+                     TimeTicks(), TimeTicks(), TRACE_EVENT_PHASE_METADATA,
                      &g_category_enabled[g_category_metadata],
                      "thread_name", trace_event_internal::kNoEventId,
                      num_args, &arg_name, &arg_type, &arg_value,

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Debug logging.
+// Module Overview: Starboard Logging module
+//
+// Defines debug logging functions.
 
 #ifndef STARBOARD_LOG_H_
 #define STARBOARD_LOG_H_
@@ -24,6 +26,7 @@
 #include <string>
 #endif
 
+#include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/system.h"
 
@@ -41,28 +44,38 @@ typedef enum SbLogPriority {
   kSbLogPriorityFatal,
 } SbLogPriority;
 
-// Writes |message| at |priority| to the debug output log for this platform.
-// Passing kSbLogPriorityFatal will not terminate the program, such policy must
-// be enforced at the application level. |priority| may, in fact, be completely
-// ignored on many platforms. No formatting is required to be done on the
-// message, not even newline termination. That said, platforms may wish to
-// adjust the message to be more suitable for their output method. This could be
-// wrapping the text, or stripping unprintable characters.
+// Writes |message| to the platform's debug output log.
+//
+// |priority|: The SbLogPriority at which the message should be logged. Note
+//   that passing |kSbLogPriorityFatal| does not terminate the program. Such a
+//   policy must be enforced at the application level. In fact, |priority| may
+//   be completely ignored on many platforms.
+// |message|: The message to be logged. No formatting is required to be done
+//   on the value, including newline termination. That said, platforms can
+//   adjust the message to be more suitable for their output method by
+//   wrapping the text, stripping unprintable characters, etc.
 SB_EXPORT void SbLog(SbLogPriority priority, const char* message);
 
 // A bare-bones log output method that is async-signal-safe, i.e. safe to call
-// from an asynchronous signal handler (e.g. a SIGSEGV handler). It should do no
-// additional formatting.
+// from an asynchronous signal handler (e.g. a |SIGSEGV| handler). It should not
+// do any additional formatting.
+//
+// |message|: The message to be logged.
 SB_EXPORT void SbLogRaw(const char* message);
 
 // Dumps the stack of the current thread to the log in an async-signal-safe
-// manner, i.e. safe to call from an asynchronous signal handler (e.g. a SIGSEGV
-// handler). Does not include SbLogRawDumpStack itself, and will additionally
-// skip |frames_to_skip| frames from the top of the stack.
+// manner, i.e. safe to call from an asynchronous signal handler (e.g. a
+// |SIGSEGV| handler). Does not include SbLogRawDumpStack itself.
+//
+// |frames_to_skip|: The number of frames to skip from the top of the stack
+//   when dumping the current thread to the log. This parameter lets you remove
+//   noise from helper functions that might end up on top of every stack dump
+//   so that the stack dump is just the relevant function stack where the
+//   problem occurred.
 SB_EXPORT void SbLogRawDumpStack(int frames_to_skip);
 
 // A formatted log output method that is async-signal-safe, i.e. safe to call
-// from an asynchronous signal handler (e.g. a SIGSEGV handler).
+// from an asynchronous signal handler (e.g. a |SIGSEGV| handler).
 SB_EXPORT void SbLogRawFormat(const char* format, va_list args)
     SB_PRINTF_FORMAT(1, 0);
 
@@ -76,12 +89,12 @@ void SbLogRawFormatF(const char* format, ...) {
   va_end(args);
 }
 
-// A log output method, that additionally performs a string format on the way
-// out.
+// A log output method that additionally performs a string format on the
+// data being logged.
 SB_EXPORT void SbLogFormat(const char* format, va_list args)
     SB_PRINTF_FORMAT(1, 0);
 
-// Inline wrapper of SbLogFormat to convert from ellipsis to va_args.
+// Inline wrapper of SbLogFormat that converts from ellipsis to va_args.
 static SB_C_INLINE void SbLogFormatF(const char* format, ...)
     SB_PRINTF_FORMAT(1, 2);
 void SbLogFormatF(const char* format, ...) {
@@ -91,10 +104,10 @@ void SbLogFormatF(const char* format, ...) {
   va_end(args);
 }
 
-// Flushes the log buffer, on some platforms.
+// Flushes the log buffer on some platforms.
 SB_EXPORT void SbLogFlush();
 
-// Returns whether the log output goes to a TTY or is being redirected.
+// Indicates whether the log output goes to a TTY or is being redirected.
 SB_EXPORT bool SbLogIsTty();
 
 #ifdef __cplusplus
@@ -231,12 +244,8 @@ class LogMessageVoidify {
 #define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_NOTREACHED() SB_DCHECK(false)
 
-#if SB_IS(COMPILER_GCC)
 #define SB_NOTIMPLEMENTED_MSG \
-  "Not implemented reached in " << __PRETTY_FUNCTION__
-#else
-#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " << __FUNCTION__
-#endif
+  "Not implemented reached in " << SB_FUNCTION
 
 #if !defined(SB_NOTIMPLEMENTED_POLICY)
 #if SB_LOGGING_IS_OFFICIAL_BUILD
@@ -269,11 +278,7 @@ class LogMessageVoidify {
 // We also provide a very small subset for straight-C users.
 
 #define SB_NOTIMPLEMENTED_IN(X) "Not implemented reached in " #X
-#if SB_IS(COMPILER_GCC)
-#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(__PRETTY_FUNCTION__)
-#else
-#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(__FUNCTION__)
-#endif
+#define SB_NOTIMPLEMENTED_MSG SB_NOTIMPLEMENTED_IN(SB_FUNCTION)
 
 #define SB_CHECK(condition)                                        \
   do {                                                             \

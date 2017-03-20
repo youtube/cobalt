@@ -1,6 +1,6 @@
 /**
  *******************************************************************************
- * Copyright (C) 2001-2005, International Business Machines Corporation and    *
+ * Copyright (C) 2001-2014, International Business Machines Corporation and    *
  * others. All Rights Reserved.                                                *
  *******************************************************************************
  *
@@ -10,6 +10,7 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/resbund.h"
 #include "uresimp.h"
 #include "cmemory.h"
@@ -73,14 +74,14 @@ UnicodeString&
 ICUResourceBundleFactory::debug(UnicodeString& result) const
 {
     LocaleKeyFactory::debug(result);
-    result.append(", bundle: ");
+    result.append((UnicodeString)", bundle: ");
     return result.append(_bundleName);
 }
 
 UnicodeString&
 ICUResourceBundleFactory::debugClass(UnicodeString& result) const
 {
-    return result.append("ICUResourceBundleFactory");
+    return result.append((UnicodeString)"ICUResourceBundleFactory");
 }
 #endif
 

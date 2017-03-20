@@ -357,7 +357,7 @@ AllocationIntegrityState::dump()
         LBlock *block = graph.getBlock(blockIndex);
         MBasicBlock *mir = block->mir();
 
-        printf("\nBlock %lu", blockIndex);
+        printf("\nBlock %zu", blockIndex);
         for (size_t i = 0; i < mir->numSuccessors(); i++)
             printf(" [successor %u]", mir->getSuccessor(i)->id());
         printf("\n");

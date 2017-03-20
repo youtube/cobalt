@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Utilities for converting between IDL and Cobalt naming conventions."""
 
 import re
@@ -39,9 +38,11 @@ enumeration_value_word_delimeter_re = re.compile(r'[^a-zA-Z0-9]')
 def convert_to_cobalt_name(class_name):
   cobalt_name = titlecase_word_delimiter_re.sub('_', class_name).lower()
   for term in word_list:
-    replacement = [token for token in
-                   re.split('_?(%s)_?' % term, cobalt_name, re.IGNORECASE)
-                   if token]
+    replacement = [
+        token
+        for token in re.split('_?(%s)_?' % term, cobalt_name, re.IGNORECASE)
+        if token
+    ]
     cobalt_name = '_'.join(replacement)
   return cobalt_name
 
@@ -51,21 +52,20 @@ def capitalize_function_name(operation_name):
 
 
 def convert_to_cobalt_constant_name(constant_name):
-  return 'k' + ''.join(
-      (token.capitalize() for token in constant_name.split('_')))
+  return 'k' + ''.join((token.capitalize()
+                        for token in constant_name.split('_')))
 
 
 def convert_to_cobalt_enumeration_value(enum_value):
-  return 'k' + ''.join((
-      token.capitalize()
-      for token in enumeration_value_word_delimeter_re.split(
-          enum_value)))
+  return 'k' + ''.join(
+      (token.capitalize()
+       for token in enumeration_value_word_delimeter_re.split(enum_value)))
 
 
 def get_interface_name(idl_type):
   """Get the underlying interface name from an idl_type."""
-  assert (idl_type.is_interface_type or
-          idl_type.is_callback_function or idl_type.is_enum)
+  assert (idl_type.is_interface_type or idl_type.is_callback_function or
+          idl_type.is_enum or idl_type.is_dictionary)
   if idl_type.is_nullable:
     return idl_type.inner_type.name
   elif idl_type.name.endswith('ConstructorConstructor'):

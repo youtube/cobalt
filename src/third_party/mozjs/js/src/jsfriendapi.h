@@ -1665,7 +1665,7 @@ static JS_ALWAYS_INLINE Value
 IdToValue(jsid id)
 {
     if (JSID_IS_STRING(id))
-        return StringValue(JSID_TO_STRING(id));
+        return JS::StringValue(JSID_TO_STRING(id));
     if (JS_LIKELY(JSID_IS_INT(id)))
         return Int32Value(JSID_TO_INT(id));
     if (JS_LIKELY(JSID_IS_OBJECT(id)))

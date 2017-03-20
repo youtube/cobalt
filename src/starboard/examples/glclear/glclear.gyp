@@ -16,7 +16,7 @@
   'targets': [
     {
       'target_name': 'starboard_glclear_example',
-      'type': 'executable',
+      'type': '<(final_executable_type)',
       'sources': [
         'main.cc',
       ],

@@ -1,0 +1,21 @@
+                // Test (3) by checking whether the GC edge is reachable from
+                // anything that could possibly result in the variable
+                // containing a GCPointer. This is to eliminate false positives
+                // in cases like:
+                //
+                //   Value var1;
+                //   Value var2[10];
+                //   cangc(&var1, var2);
+                //   f(var1, var2);
+                //
+                // and maybe eventually if it is needed, handle initializations
+                // to UndefinedValue() or NumberValue(42) (which *are* uses of
+                // the variable, and do extend its live range to include the
+                // initialization in the normal sense, but here we only care
+                // about when a variable could possibly contain a GCPointer.)
+                if (!isVariableGCLive(suppressed, variable, edge)) {
+                    var lineText = findLocation(body, result.gcInfo.ppoint);
+                    printErr(`NOTE: Ignoring uninitialized GCPointer variable ${name} in '${functionName}'  at ${lineText}`);
+                    continue;
+                }
+                

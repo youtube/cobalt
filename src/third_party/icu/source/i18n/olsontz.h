@@ -1,6 +1,6 @@
 /*
 **********************************************************************
-* Copyright (c) 2003-2010, International Business Machines
+* Copyright (c) 2003-2013, International Business Machines
 * Corporation and others.  All Rights Reserved.
 **********************************************************************
 * Author: Alan Liu
@@ -16,6 +16,7 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/basictz.h"
+#include "umutex.h"
 
 struct UResourceBundle;
 
@@ -117,10 +118,13 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param top the top-level zoneinfo resource bundle.  This is used
      * to lookup the rule that `res' may refer to, if there is one.
      * @param res the resource bundle of the zone to be constructed
+     * @param tzid the time zone ID
      * @param ec input-output error code
      */
     OlsonTimeZone(const UResourceBundle* top,
-                  const UResourceBundle* res, UErrorCode& ec);
+                  const UResourceBundle* res,
+                  const UnicodeString& tzid,
+                  UErrorCode& ec);
 
     /**
      * Copy constructor
@@ -182,7 +186,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * BasicTimeZone API.
      */
     virtual void getOffsetFromLocal(UDate date, int32_t nonExistingTimeOpt, int32_t duplicatedTimeOpt,
-        int32_t& rawoff, int32_t& dstoff, UErrorCode& ec) /*const*/;
+        int32_t& rawoff, int32_t& dstoff, UErrorCode& ec) const;
 
     /**
      * TimeZone API.  This method has no effect since objects of this
@@ -230,7 +234,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param result    Receives the first transition after the base time.
      * @return  TRUE if the transition is found.
      */
-    virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) /*const*/;
+    virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
 
     /**
      * BasicTimeZone API.
@@ -240,7 +244,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param result    Receives the most recent transition before the base time.
      * @return  TRUE if the transition is found.
      */
-    virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) /*const*/;
+    virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
 
     /**
      * BasicTimeZone API.
@@ -250,7 +254,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param status    Receives error status code.
      * @return The number of <code>TimeZoneRule</code>s representing time transitions.
      */
-    virtual int32_t countTransitionRules(UErrorCode& status) /*const*/;
+    virtual int32_t countTransitionRules(UErrorCode& status) const;
 
     /**
      * Gets the <code>InitialTimeZoneRule</code> and the set of <code>TimeZoneRule</code>
@@ -266,10 +270,15 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      *                      the timezone transition rules.  On output, actual number of
      *                      rules filled in the array will be set.
      * @param status        Receives error status code.
-     * @draft ICU 3.8
      */
     virtual void getTimeZoneRules(const InitialTimeZoneRule*& initial,
-        const TimeZoneRule* trsrules[], int32_t& trscount, UErrorCode& status) /*const*/;
+        const TimeZoneRule* trsrules[], int32_t& trscount, UErrorCode& status) const;
+
+    /**
+     * Internal API returning the canonical ID of this zone.
+     * This ID won't be affected by setID().
+     */
+    const UChar *getCanonicalID() const;
 
 private:
     /**
@@ -366,10 +375,19 @@ private:
      */
     int32_t finalStartYear;
 
+    /*
+     * Canonical (CLDR) ID of this zone
+     */
+    const UChar *canonicalID;
+
     /* BasicTimeZone support */
     void clearTransitionRules(void);
     void deleteTransitionRules(void);
+    void checkTransitionRules(UErrorCode& status) const;
+
+  public:    // Internal, for access from plain C code
     void initTransitionRules(UErrorCode& status);
+  private:
 
     InitialTimeZoneRule *initialRule;
     TimeZoneTransition  *firstTZTransition;
@@ -378,7 +396,7 @@ private:
     TimeArrayTimeZoneRule   **historicRules;
     int16_t             historicRuleCount;
     SimpleTimeZone      *finalZoneWithStartYear; // hack
-    UBool               transitionRulesInitialized;
+    UInitOnce           transitionRulesInitOnce;
 };
 
 inline int16_t
@@ -418,6 +436,12 @@ inline int32_t
 OlsonTimeZone::initialDstOffset() const {
     return typeOffsets[1];
 }
+
+inline const UChar*
+OlsonTimeZone::getCanonicalID() const {
+    return canonicalID;
+}
+
 
 U_NAMESPACE_END
 

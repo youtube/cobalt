@@ -12,24 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Microphone creation, control, audio data fetching and destruction.
-// Multiple calls to |SbMicrophoneOpen| and |SbMicrophoneClose| are allowed, and
-// the implementation also should take care of same calls of open and close in a
-// row on a microphone.
-// This API is not threadsafe and must be called from a single thread.
+// Module Overview: Starboard Microphone module
+//
+// Defines functions for microphone creation, control, audio data fetching,
+// and destruction. This module supports multiple calls to |SbMicrophoneOpen|
+// and |SbMicrophoneClose|, and the implementation should handle multiple calls
+// to one of those functions on the same microphone. For example, your
+// implementation should handle cases where |SbMicrophoneOpen| is called twice
+// on the same microphone without a call to |SbMicrophoneClose| in between.
+//
+// This API is not thread-safe and must be called from a single thread.
 //
 // How to use this API:
-// 1) |SbMicrophoneGetAvailableInfos| to get a list of available microphone
+// 1. Call |SbMicrophoneGetAvailableInfos| to get a list of available microphone
 //    information.
-// 2) Choose one to create microphone |SbMicrophoneCreate| with enough buffer
-//    size and sample rate. The sample rate can be verified by
-//    |SbMicrophoneIsSampleRateSupported|.
-// 3) Open the microphone port and start recording audio data by
-//    |SbMicrophoneOpen|.
-// 4) Periodically read out the data from microphone by |SbMicrophoneRead|.
-// 5) Close the microphone port and stop recording audio data by
-//    |SbMicrophoneClose|.
-// 6) Destroy the microphone |SbMicrophoneDestroy|.
+// 2. Create a supported microphone, using |SbMicrophoneCreate|, with enough
+//    buffer size and sample rate. Use |SbMicrophoneIsSampleRateSupported| to
+//    verify the sample rate.
+// 3. Use |SbMicrophoneOpen| to open the microphone port and start recording
+//    audio data.
+// 4. Periodically read out the data from microphone with |SbMicrophoneRead|.
+// 5. Call |SbMicrophoneClose| to close the microphone port and stop recording
+//    audio data.
+// 6. Destroy the microphone with |SbMicrophoneDestroy|.
 
 #ifndef STARBOARD_MICROPHONE_H_
 #define STARBOARD_MICROPHONE_H_
@@ -46,10 +51,10 @@ extern "C" {
 
 // All possible microphone types.
 typedef enum SbMicrophoneType {
-  // Build-in microphone in camera.
+  // Built-in microphone in camera.
   kSbMicrophoneCamera,
 
-  // Microphone in the headset which can be wire or wireless USB headset.
+  // Microphone in the headset that can be a wired or wireless USB headset.
   kSbMicrophoneUSBHeadset,
 
   // Microphone in the VR headset.
@@ -58,19 +63,19 @@ typedef enum SbMicrophoneType {
   // Microphone in the analog headset.
   kSBMicrophoneAnalogHeadset,
 
-  // Unknown microphone type. Microphone other than those listed or could be
-  // either of those listed.
+  // Unknown microphone type. The microphone could be different than the other
+  // enum descriptions or could fall under one of those descriptions.
   kSbMicrophoneUnknown,
 } SbMicrophoneType;
 
-// An opaque handle to an implementation-private structure representing a
-// microphone id.
+// An opaque handle to an implementation-private structure that represents a
+// microphone ID.
 typedef struct SbMicrophoneIdPrivate* SbMicrophoneId;
 
-// Well-defined value for an invalid microphone id handle.
+// Well-defined value for an invalid microphone ID handle.
 #define kSbMicrophoneIdInvalid ((SbMicrophoneId)NULL)
 
-// Returns whether the given microphone id is valid.
+// Indicates whether the given microphone ID is valid.
 static SB_C_INLINE bool SbMicrophoneIdIsValid(SbMicrophoneId id) {
   return id != kSbMicrophoneIdInvalid;
 }
@@ -83,98 +88,107 @@ typedef struct SbMicrophoneInfo {
   // Microphone type.
   SbMicrophoneType type;
 
-  // Microphone max supported sampling rate.
+  // The microphone's maximum supported sampling rate.
   int max_sample_rate_hz;
 
   // The minimum read size required for each read from microphone.
   int min_read_size;
 } SbMicrophoneInfo;
 
-// An opaque handle to an implementation-private structure representing a
+// An opaque handle to an implementation-private structure that represents a
 // microphone.
 typedef struct SbMicrophonePrivate* SbMicrophone;
 
 // Well-defined value for an invalid microphone handle.
 #define kSbMicrophoneInvalid ((SbMicrophone)NULL)
 
-// Returns whether the given microphone is valid.
+// Indicates whether the given microphone is valid.
 static SB_C_INLINE bool SbMicrophoneIsValid(SbMicrophone microphone) {
   return microphone != kSbMicrophoneInvalid;
 }
 
-// Gets all currently-available microphone information and the results are
-// stored in |out_info_array|. |info_array_size| is the size of
-// |out_info_array|.
-// Returns the number of the available microphones. A negative return
-// value indicates that an internal error has occurred. If the number of
-// available microphones is larger than |info_array_size|, |out_info_array| will
-// be filled up with as many available microphones as possible and the actual
-// number of available microphones will be returned.
+// Retrieves all currently available microphone information and stores it in
+// |out_info_array|. The return value is the number of the available
+// microphones. If the number of available microphones is larger than
+// |info_array_size|, then |out_info_array| is filled up with as many available
+// microphones as possible and the actual number of available microphones is
+// returned. A negative return value indicates that an internal error occurred.
+//
+// |out_info_array|: All currently available information about the microphone
+//   is placed into this output parameter.
+// |info_array_size|: The size of |out_info_array|.
 SB_EXPORT int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
                                        int info_array_size);
 
-// Returns true if the sample rate is supported by the microphone.
+// Indicates whether the microphone supports the sample rate.
 SB_EXPORT bool SbMicrophoneIsSampleRateSupported(SbMicrophoneId id,
                                                  int sample_rate_in_hz);
 
-// Creates a microphone with |id|, audio sample rate in HZ, and the size of
-// the cached audio buffer.
+// Creates a microphone with the specified ID, audio sample rate, and cached
+// audio buffer size. Starboard only requires support for creating one
+// microphone at a time, and implementations may return an error if a second
+// microphone is created before the first is destroyed.
 //
-// If you try to create a microphone that has already been initialized or
-// the sample rate is unavailable or the buffer size is invalid, it should
-// return |kSbMicrophoneInvalid|. |buffer_size_bytes| is the size of the buffer
-// where signed 16-bit integer audio data is temporarily cached to during the
-// capturing. The audio data will be removed from the audio buffer if it has
-// been read. New audio data can be read from this buffer in smaller chunks than
-// this size. |buffer_size_bytes| must be set to a value greater than zero and
-// the ideal size is 2^n. We only require support for creating one microphone at
-// a time, and that implementations may return an error if a second microphone
-// is created before destroying the first.
+// The function returns the newly created SbMicrophone object. However, if you
+// try to create a microphone that has already been initialized, if the sample
+// rate is unavailable, or if the buffer size is invalid, the function should
+// return |kSbMicrophoneInvalid|.
+//
+// |id|: The ID that will be assigned to the newly created SbMicrophone.
+// |sample_rate_in_hz|: The new microphone's audio sample rate in Hz.
+// |buffer_size_bytes|: The size of the buffer where signed 16-bit integer
+//   audio data is temporarily cached to during the capturing. The audio data
+//   is removed from the audio buffer if it has been read, and new audio data
+//   can be read from this buffer in smaller chunks than this size. This
+//   parameter must be set to a value greater than zero and the ideal size is
+//   |2^n|.
 SB_EXPORT SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
                                           int sample_rate_in_hz,
                                           int buffer_size_bytes);
 
 // Opens the microphone port and starts recording audio on |microphone|.
 //
-// Once started, the client will have to periodically call |SbMicrophoneRead| to
+// Once started, the client needs to periodically call |SbMicrophoneRead| to
 // receive the audio data. If the microphone has already been started, this call
-// will clear the unread buffer. The return value indicates if the microphone is
-// open.
+// clears the unread buffer. The return value indicates whether the microphone
+// is open.
+// |microphone|: The microphone that will be opened and will start recording
+// audio.
 SB_EXPORT bool SbMicrophoneOpen(SbMicrophone microphone);
 
-// Closes the microphone port and stops recording audio on |microphone|.
-//
-// Clear the unread buffer if it is not empty. If the microphone has already
-// been stopped, this call would be ignored. The return value indicates if the
+// Closes the microphone port, stops recording audio on |microphone|, and
+// clears the unread buffer if it is not empty. If the microphone has already
+// been stopped, this call is ignored. The return value indicates whether the
 // microphone is closed.
+//
+// |microphone|: The microphone to close.
 SB_EXPORT bool SbMicrophoneClose(SbMicrophone microphone);
 
-// Gets the recorded audio data from the microphone.
+// Retrieves the recorded audio data from the microphone and writes that data
+// to |out_audio_data|.
 //
-// |out_audio_data| is where the recorded audio data is written to.
-// |audio_data_size| is the number of requested bytes. The return value is zero
-// or the positive number of bytes that were read. Neither the return value nor
-// |audio_data_size| exceeds the buffer size. Negative return value indicates
-// an error. This function should be called frequently, otherwise microphone
-// only buffers |buffer_size| bytes which is configured in |SbMicrophoneCreate|
-// and the new audio data will be thrown out. No audio data will be read from a
-// stopped microphone. If |audio_data_size| is smaller than |min_read_size| of
-// |SbMicrophoneInfo|, the extra audio data which is already read from device
-// will be discarded.
+// The return value is zero or the positive number of bytes that were read.
+// Neither the return value nor |audio_data_size| exceeds the buffer size.
+// A negative return value indicates that an error occurred.
+//
+// This function should be called frequently. Otherwise, the microphone only
+// buffers |buffer_size| bytes as configured in |SbMicrophoneCreate| and the
+// new audio data is thrown out. No audio data is read from a stopped
+// microphone.
+//
+// |microphone|: The microphone from which to retrieve recorded audio data.
+// |out_audio_data|: The buffer to which the retrieved data will be written.
+// |audio_data_size|: The number of requested bytes. If |audio_data_size| is
+//   smaller than |min_read_size| of |SbMicrophoneInfo|, the extra audio data
+//   that has already been read from the device is discarded.
 SB_EXPORT int SbMicrophoneRead(SbMicrophone microphone,
                                void* out_audio_data,
                                int audio_data_size);
 
-// Destroys a microphone. If the microphone is in started state, it will be
-// stopped first and then be destroyed. Any data that has been recorded and not
-// read will be thrown away.
+// Destroys a microphone. If the microphone is in started state, it is first
+// stopped and then destroyed. Any data that has been recorded and not read
+// is thrown away.
 SB_EXPORT void SbMicrophoneDestroy(SbMicrophone microphone);
-
-// Returns the Google Speech API key. The platform manufacturer is responsible
-// for registering a Google Speech API key for their products. In the API
-// Console (http://developers.google.com/console), you are able to enable the
-// Speech APIs and generate a Speech API key.
-SB_EXPORT const char* SbMicrophoneGetSpeechApiKey();
 
 #ifdef __cplusplus
 }  // extern "C"

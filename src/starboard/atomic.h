@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Module Overview: Starboard Atomic API
+//
 // Defines a set of atomic integer operations that can be used as lightweight
-// synchronization or as building blocks for heavier synchronization
-// primitives. Their use is very subtle and requires detailed understanding of
-// the behavior of supported architectures, so their direct use is not
-// recommended except when rigorously deemed absolutely necessary for
-// performance reasons.
+// synchronization or as building blocks for heavier synchronization primitives.
+// Their use is very subtle and requires detailed understanding of the behavior
+// of supported architectures, so their direct use is not recommended except
+// when rigorously deemed absolutely necessary for performance reasons.
 
 #ifndef STARBOARD_ATOMIC_H_
 #define STARBOARD_ATOMIC_H_

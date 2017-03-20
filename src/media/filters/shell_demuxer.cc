@@ -187,7 +187,7 @@ void ShellDemuxerStream::Stop() {
 //
 ShellDemuxer::ShellDemuxer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const scoped_refptr<DataSource>& data_source)
+    DataSource* data_source)
     : message_loop_(message_loop),
       host_(NULL),
       blocking_thread_("ShellDemuxerBlockingThread"),

@@ -1,6 +1,6 @@
 /*
 ************************************************************************
-* Copyright (c) 1997-2010, International Business Machines
+* Copyright (c) 1997-2012, International Business Machines
 * Corporation and others.  All Rights Reserved.
 ************************************************************************
 */
@@ -10,12 +10,12 @@
 
 #include "unicode/utypes.h"
 
-#if defined(U_WINDOWS)
+#if U_PLATFORM_HAS_WIN32_API
 #   define VC_EXTRALEAN
 #   define WIN32_LEAN_AND_MEAN
 #   include <windows.h>
 #else
-#   if defined(OS390)
+#   if U_PLATFORM == U_PF_OS390 && !defined(__UU)
 #     define __UU  /* Universal Unix - for struct timeval */
 #   endif
 #   include <time.h>
@@ -88,7 +88,7 @@
  *                  }
  *
  *                  retVal= fn(fileLines[line].name,len,dest,destCapacity,&error);
- *      #if defined(U_WINDOWS)
+ *      #if U_PLATFORM_HAS_WIN32_API
  *                  if(retVal==0 ){
  *                      fprintf(stderr,"Normalization of string in Windows API failed for mode %s. ErrorNo: %i at line number %i\n",mode,GetLastError(),line);
  *                      return 0;
@@ -160,25 +160,25 @@ typedef struct UTimer UTimer;
 typedef void FuntionToBeTimed(void* param);
 
 
-#if defined(U_WINDOWS)
+#if U_PLATFORM_HAS_WIN32_API
 
     struct UTimer{
         LARGE_INTEGER start;
         LARGE_INTEGER placeHolder;
     };      
         
-    int uprv_initFrequency(UTimer* timer)
+static    int uprv_initFrequency(UTimer* timer)
     {
         return QueryPerformanceFrequency(&timer->placeHolder);
     }
-    void uprv_start(UTimer* timer)
+static    void uprv_start(UTimer* timer)
     {
         QueryPerformanceCounter(&timer->start);
     }
-    double uprv_delta(UTimer* timer1, UTimer* timer2){
+static    double uprv_delta(UTimer* timer1, UTimer* timer2){
         return ((double)(timer2->start.QuadPart - timer1->start.QuadPart))/((double)timer1->placeHolder.QuadPart);
     }
-    UBool uprv_compareFrequency(UTimer* timer1, UTimer* timer2){
+static    UBool uprv_compareFrequency(UTimer* timer1, UTimer* timer2){
         return (timer1->placeHolder.QuadPart == timer2->placeHolder.QuadPart);
     }
 
@@ -189,22 +189,22 @@ typedef void FuntionToBeTimed(void* param);
         struct timeval placeHolder;
     };
     
-    int32_t uprv_initFrequency(UTimer* /*timer*/)
+static    int32_t uprv_initFrequency(UTimer* /*timer*/)
     {
         return 0;
     }
-    void uprv_start(UTimer* timer)
+static    void uprv_start(UTimer* timer)
     {
         gettimeofday(&timer->start, 0);
     }
-    double uprv_delta(UTimer* timer1, UTimer* timer2){
+static    double uprv_delta(UTimer* timer1, UTimer* timer2){
         double t1, t2;
 
         t1 =  (double)timer1->start.tv_sec + (double)timer1->start.tv_usec/(1000*1000);
         t2 =  (double)timer2->start.tv_sec + (double)timer2->start.tv_usec/(1000*1000);
         return (t2-t1);
     }
-    UBool uprv_compareFrequency(UTimer* /*timer1*/, UTimer* /*timer2*/){
+static    UBool uprv_compareFrequency(UTimer* /*timer1*/, UTimer* /*timer2*/){
         return TRUE;
     }
 
@@ -214,7 +214,7 @@ typedef void FuntionToBeTimed(void* param);
  *
  * @param timer A pointer to UTimer struct to recieve the current time
  */
-static U_INLINE void U_EXPORT2
+static inline void U_EXPORT2
 utimer_getTime(UTimer* timer){
     uprv_initFrequency(timer);
     uprv_start(timer);
@@ -228,7 +228,7 @@ utimer_getTime(UTimer* timer){
  * @param timer2 A pointer to UTimer struct to be used as end time
  * @return Time in seconds
  */
-static U_INLINE double U_EXPORT2
+static inline double U_EXPORT2
 utimer_getDeltaSeconds(UTimer* timer1, UTimer* timer2){
     if(uprv_compareFrequency(timer1,timer2)){
         return uprv_delta(timer1,timer2);
@@ -243,7 +243,7 @@ utimer_getDeltaSeconds(UTimer* timer1, UTimer* timer2){
  * @param timer A pointer to UTimer struct to be used as starting time
  * @return Time elapsed in seconds
  */
-static U_INLINE double U_EXPORT2
+static inline double U_EXPORT2
 utimer_getElapsedSeconds(UTimer* timer){
     UTimer temp;
     utimer_getTime(&temp);
@@ -259,7 +259,7 @@ utimer_getElapsedSeconds(UTimer* timer){
  * @param param Parameters to be passed to the fn
  * @return the time elapsed in seconds
  */
-static U_INLINE double U_EXPORT2
+static inline double U_EXPORT2
 utimer_loopUntilDone(double thresholdTimeVal,
                      int32_t* loopCount, 
                      FuntionToBeTimed fn, 

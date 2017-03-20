@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/dom/html_link_element.h"
 
@@ -26,6 +24,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "googleurl/src/gurl.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -54,6 +53,7 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
 // Algorithm for Obtain:
 //   https://www.w3.org/TR/html5/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
+  TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::Obtain()");
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -107,6 +107,7 @@ void HTMLLinkElement::Obtain() {
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
+  TRACK_MEMORY_SCOPE("DOM");
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 

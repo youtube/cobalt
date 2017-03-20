@@ -93,6 +93,7 @@
 #include "jit/Ion.h"
 #endif
 
+#include "nb/memory_scope.h"
 #include "starboard/file.h"
 
 using namespace js;
@@ -109,6 +110,7 @@ bool
 JS::detail::CallMethodIfWrapped(JSContext *cx, IsAcceptableThis test, NativeImpl impl,
                                CallArgs args)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     const Value &thisv = args.thisv();
     JS_ASSERT(!test(thisv));
 
@@ -227,6 +229,7 @@ AssertHeapIsIdleOrStringIsFlat(JSContext *cx, JSString *str)
 JS_PUBLIC_API(JSBool)
 JS_ConvertArguments(JSContext *cx, unsigned argc, jsval *argv, const char *format, ...)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     va_list ap;
     JSBool ok;
 
@@ -241,6 +244,7 @@ JS_ConvertArguments(JSContext *cx, unsigned argc, jsval *argv, const char *forma
 JS_PUBLIC_API(JSBool)
 JS_ConvertArgumentsVA(JSContext *cx, unsigned argc, jsval *argv, const char *format, va_list ap)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     jsval *sp;
     JSBool required;
     char c;
@@ -351,6 +355,7 @@ JS_ConvertArgumentsVA(JSContext *cx, unsigned argc, jsval *argv, const char *for
 JS_PUBLIC_API(JSBool)
 JS_ConvertValue(JSContext *cx, jsval valueArg, JSType type, jsval *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     JSBool ok;
     RootedObject obj(cx);
@@ -403,6 +408,7 @@ JS_ConvertValue(JSContext *cx, jsval valueArg, JSType type, jsval *vp)
 JS_PUBLIC_API(JSBool)
 JS_ValueToObject(JSContext *cx, jsval valueArg, JSObject **objpArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     RootedObject objp(cx, *objpArg);
     AssertHeapIsIdle(cx);
@@ -417,6 +423,7 @@ JS_ValueToObject(JSContext *cx, jsval valueArg, JSObject **objpArg)
 JS_PUBLIC_API(JSFunction *)
 JS_ValueToFunction(JSContext *cx, jsval valueArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -437,6 +444,7 @@ JS_ValueToConstructor(JSContext *cx, jsval valueArg)
 JS_PUBLIC_API(JSString *)
 JS_ValueToString(JSContext *cx, jsval valueArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -447,6 +455,7 @@ JS_ValueToString(JSContext *cx, jsval valueArg)
 JS_PUBLIC_API(JSString *)
 JS_ValueToSource(JSContext *cx, jsval valueArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -482,6 +491,7 @@ JS_DoubleToUint32(double d)
 JS_PUBLIC_API(JSBool)
 JS_ValueToECMAInt32(JSContext *cx, jsval valueArg, int32_t *ip)
 {
+  TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     return JS::ToInt32(cx, value, ip);
 }
@@ -489,6 +499,7 @@ JS_ValueToECMAInt32(JSContext *cx, jsval valueArg, int32_t *ip)
 JS_PUBLIC_API(JSBool)
 JS_ValueToECMAUint32(JSContext *cx, jsval valueArg, uint32_t *ip)
 {
+  TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     return JS::ToUint32(cx, value, ip);
 }
@@ -510,6 +521,7 @@ JS_ValueToUint64(JSContext *cx, jsval valueArg, uint64_t *ip)
 JS_PUBLIC_API(JSBool)
 JS_ValueToInt32(JSContext *cx, jsval vArg, int32_t *ip)
 {
+  TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
 
@@ -876,6 +888,7 @@ JSRuntime::JSRuntime(JSUseHelperThreads useHelperThreads)
 bool
 JSRuntime::init(uint32_t maxbytes)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #ifdef JS_THREADSAFE
     ownerThread_ = PR_GetCurrentThread();
 
@@ -1080,6 +1093,7 @@ JSRuntime::assertValidThread() const
 JS_PUBLIC_API(JSRuntime *)
 JS_NewRuntime(uint32_t maxbytes, JSUseHelperThreads useHelperThreads)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!js_NewRuntimeWasCalled) {
 #ifdef DEBUG
         /*
@@ -1163,6 +1177,7 @@ JS_SetRuntimePrivate(JSRuntime *rt, void *data)
 static void
 StartRequest(JSContext *cx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSRuntime *rt = cx->runtime();
     rt->assertValidThread();
 
@@ -1577,6 +1592,7 @@ JS_WrapId(JSContext *cx, jsid *idp)
 JS_PUBLIC_API(JSObject *)
 JS_TransplantObject(JSContext *cx, HandleObject origobj, HandleObject target)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     JS_ASSERT(origobj != target);
     JS_ASSERT(!IsCrossCompartmentWrapper(origobj));
@@ -1817,6 +1833,7 @@ static const JSStdName object_prototype_names[] = {
 JS_PUBLIC_API(JSBool)
 JS_ResolveStandardClass(JSContext *cx, HandleObject obj, HandleId id, JSBool *resolved)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSRuntime *rt;
     JSAtom *atom;
     const JSStdName *stdnm;
@@ -1911,6 +1928,7 @@ JS_ResolveStandardClass(JSContext *cx, HandleObject obj, HandleId id, JSBool *re
 JS_PUBLIC_API(JSBool)
 JS_EnumerateStandardClasses(JSContext *cx, HandleObject obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     assertSameCompartment(cx, obj);
@@ -1943,6 +1961,7 @@ JS_EnumerateStandardClasses(JSContext *cx, HandleObject obj)
 JS_PUBLIC_API(JSBool)
 JS_GetClassObject(JSContext *cx, JSObject *obj, JSProtoKey key, JSObject **objpArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject objp(cx, *objpArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -1957,6 +1976,7 @@ JS_GetClassObject(JSContext *cx, JSObject *obj, JSProtoKey key, JSObject **objpA
 JS_PUBLIC_API(JSBool)
 JS_GetClassPrototype(JSContext *cx, JSProtoKey key, JSObject **objp_)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
 
@@ -1969,6 +1989,7 @@ JS_GetClassPrototype(JSContext *cx, JSProtoKey key, JSObject **objp_)
 JS_PUBLIC_API(JSProtoKey)
 JS_IdentifyClassPrototype(JSContext *cx, JSObject *obj)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     assertSameCompartment(cx, obj);
@@ -2097,6 +2118,7 @@ JS_strdup(JSContext *cx, const char *s)
 JS_PUBLIC_API(char *)
 JS_strdup(JSRuntime *rt, const char *s)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(rt);
     size_t n = strlen(s) + 1;
     void *p = rt->malloc_(n);
@@ -2867,6 +2889,7 @@ JS_PUBLIC_API(JSString *)
 JS_NewExternalString(JSContext *cx, const jschar *chars, size_t length,
                      const JSStringFinalizer *fin)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     JSString *s = JSExternalString::new_(cx, chars, length, fin);
@@ -3203,6 +3226,7 @@ JS_PUBLIC_API(JSObject *)
 JS_NewGlobalObject(JSContext *cx, JSClass *clasp, JSPrincipals *principals,
                    const JS::CompartmentOptions &options)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
@@ -3246,6 +3270,7 @@ JS_NewGlobalObject(JSContext *cx, JSClass *clasp, JSPrincipals *principals,
 JS_PUBLIC_API(JSObject *)
 JS_NewObject(JSContext *cx, JSClass *jsclasp, JSObject *protoArg, JSObject *parentArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject proto(cx, protoArg);
     RootedObject parent(cx, parentArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
@@ -3276,6 +3301,7 @@ JS_NewObject(JSContext *cx, JSClass *jsclasp, JSObject *protoArg, JSObject *pare
 JS_PUBLIC_API(JSObject *)
 JS_NewObjectWithGivenProto(JSContext *cx, JSClass *jsclasp, JSObject *protoArg, JSObject *parentArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject proto(cx, protoArg);
     RootedObject parent(cx, parentArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
@@ -3299,6 +3325,7 @@ JS_NewObjectWithGivenProto(JSContext *cx, JSClass *jsclasp, JSObject *protoArg, 
 JS_PUBLIC_API(JSObject *)
 JS_NewObjectForConstructor(JSContext *cx, JSClass *clasp, const jsval *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     assertSameCompartment(cx, *vp);
@@ -3382,6 +3409,7 @@ static JSBool
 LookupResult(JSContext *cx, HandleObject obj, HandleObject obj2, HandleId id,
              HandleShape shape, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     if (!shape) {
         /* XXX bad API: no way to tell "not defined" from "void value" */
         vp->setUndefined();
@@ -3609,6 +3637,7 @@ DefinePropertyById(JSContext *cx, HandleObject obj, HandleId id, HandleValue val
                    const JSPropertyOpWrapper &get, const JSStrictPropertyOpWrapper &set,
                    unsigned attrs, unsigned flags, int tinyid)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     PropertyOp getter = get.op;
     StrictPropertyOp setter = set.op;
     /*
@@ -3697,6 +3726,7 @@ JS_PUBLIC_API(JSBool)
 JS_DefineElement(JSContext *cx, JSObject *objArg, uint32_t index, jsval valueArg,
                  JSPropertyOp getter, JSStrictPropertyOp setter, unsigned attrs)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     RootedValue value(cx, valueArg);
     AutoRooterGetterSetter gsRoot(cx, attrs, &getter, &setter);
@@ -4195,6 +4225,7 @@ JS_SetElement(JSContext *cx, JSObject *objArg, uint32_t index, jsval *vp)
 JS_PUBLIC_API(JSBool)
 JS_SetProperty(JSContext *cx, JSObject *objArg, const char *name, jsval *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JSAtom *atom = Atomize(cx, name, strlen(name));
     return atom && JS_SetPropertyById(cx, obj, AtomToId(atom), vp);
@@ -4203,6 +4234,7 @@ JS_SetProperty(JSContext *cx, JSObject *objArg, const char *name, jsval *vp)
 JS_PUBLIC_API(JSBool)
 JS_SetUCProperty(JSContext *cx, JSObject *objArg, const jschar *name, size_t namelen, jsval *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JSAtom *atom = AtomizeChars<CanGC>(cx, name, AUTO_NAMELEN(name, namelen));
     return atom && JS_SetPropertyById(cx, obj, AtomToId(atom), vp);
@@ -4554,6 +4586,7 @@ JS_SetReservedSlot(JSObject *obj, uint32_t index, Value value)
 JS_PUBLIC_API(JSObject *)
 JS_NewArrayObject(JSContext *cx, int length, jsval *vector)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AutoArrayRooter tvr(cx, length, vector);
 
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
@@ -4585,6 +4618,7 @@ JS_GetArrayLength(JSContext *cx, JSObject *objArg, uint32_t *lengthp)
 JS_PUBLIC_API(JSBool)
 JS_SetArrayLength(JSContext *cx, JSObject *objArg, uint32_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -4653,6 +4687,7 @@ JS_PUBLIC_API(JSFunction *)
 JS_NewFunction(JSContext *cx, JSNative native, unsigned nargs, unsigned flags,
                JSObject *parentArg, const char *name)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject parent(cx, parentArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
 
@@ -4675,6 +4710,7 @@ JS_PUBLIC_API(JSFunction *)
 JS_NewFunctionById(JSContext *cx, JSNative native, unsigned nargs, unsigned flags, JSObject *parentArg,
                    jsid id)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject parent(cx, parentArg);
     JS_ASSERT(JSID_IS_STRING(id));
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
@@ -4690,6 +4726,7 @@ JS_NewFunctionById(JSContext *cx, JSNative native, unsigned nargs, unsigned flag
 JS_PUBLIC_API(JSObject *)
 JS_CloneFunctionObject(JSContext *cx, JSObject *funobjArg, JSObject *parentArg)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject funobj(cx, funobjArg);
     RootedObject parent(cx, parentArg);
     AssertHeapIsIdle(cx);
@@ -4790,6 +4827,7 @@ JS_IsConstructor(JSFunction *fun)
 JS_PUBLIC_API(JSObject*)
 JS_BindCallable(JSContext *cx, JSObject *targetArg, JSObject *newThis)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject target(cx, targetArg);
     RootedValue thisArg(cx, ObjectValue(*newThis));
     return js_fun_bind(cx, target, thisArg, NULL, 0);
@@ -4798,6 +4836,7 @@ JS_BindCallable(JSContext *cx, JSObject *targetArg, JSObject *newThis)
 JSBool
 js_generic_native_method_dispatcher(JSContext *cx, unsigned argc, Value *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     CallArgs args = CallArgsFromVp(argc, vp);
 
     const JSFunctionSpec *fs = (JSFunctionSpec *)
@@ -4826,6 +4865,7 @@ js_generic_native_method_dispatcher(JSContext *cx, unsigned argc, Value *vp)
 JS_PUBLIC_API(JSBool)
 JS_DefineFunctions(JSContext *cx, JSObject *objArg, const JSFunctionSpec *fs)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -4925,6 +4965,7 @@ JS_PUBLIC_API(JSFunction *)
 JS_DefineFunction(JSContext *cx, JSObject *objArg, const char *name, JSNative call,
                   unsigned nargs, unsigned attrs)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
@@ -4942,6 +4983,7 @@ JS_DefineUCFunction(JSContext *cx, JSObject *objArg,
                     const jschar *name, size_t namelen, JSNative call,
                     unsigned nargs, unsigned attrs)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
@@ -4958,6 +5000,7 @@ extern JS_PUBLIC_API(JSFunction *)
 JS_DefineFunctionById(JSContext *cx, JSObject *objArg, jsid id_, JSNative call,
                       unsigned nargs, unsigned attrs)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     RootedId id(cx, id_);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
@@ -5001,6 +5044,65 @@ struct AutoLastFrameCheck
 
 typedef Vector<char, 8, TempAllocPolicy> FileContents;
 
+#if defined(STARBOARD)
+static bool
+ReadCompleteFile(JSContext *cx, SbFile file, FileContents &buffer)
+{
+    TRACK_MEMORY_SCOPE("Javascript");
+    SbFileInfo info;
+    bool success = SbFileGetInfo(file, &info);
+    if (!success) {
+        return false;
+    }
+    const int64_t kFileSize = info.size;
+    buffer.resize(kFileSize);
+    if (SbFileReadAll(file, buffer.begin(), kFileSize) < 0) {
+        return false;
+    }
+
+    return true;
+}
+
+class AutoFile
+{
+    SbFile sb_file_;
+  public:
+    AutoFile() {}
+    ~AutoFile()
+    {
+        SbFileClose(sb_file_);
+    }
+    SbFile sb_file() const { return sb_file_; }
+    bool open(JSContext *cx, const char *filename);
+    bool readAll(JSContext *cx, FileContents &buffer)
+    {
+        return ReadCompleteFile(cx, sb_file_, buffer);
+    }
+};
+
+/*
+ * Open a source file for reading. Supports "-" and NULL to mean stdin. The
+ * return value must be fclosed unless it is stdin.
+ */
+bool
+AutoFile::open(JSContext *cx, const char *filename)
+{
+    TRACK_MEMORY_SCOPE("Javascript");
+    // Starboard does not support stdin.
+    if (!filename || strcmp(filename, "-") == 0) {
+        return false;
+    } else {
+        sb_file_ = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL,
+            NULL);
+        if (!SbFileIsValid(sb_file_)) {
+            JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_CANT_OPEN,
+                                 filename, "No such file or directory");
+            return false;
+        }
+    }
+    return true;
+}
+#else  // #if defined(STARBOARD)
 static bool
 ReadCompleteFile(JSContext *cx, FILE *fp, FileContents &buffer)
 {
@@ -5070,6 +5172,7 @@ AutoFile::open(JSContext *cx, const char *filename)
     return true;
 }
 
+#endif  // #if defined(STARBOARD)
 
 JS::CompileOptions::CompileOptions(JSContext *cx, JSVersion version)
     : principals(NULL),
@@ -5094,6 +5197,7 @@ JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
             const jschar *chars, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -5108,6 +5212,7 @@ JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
             const char *bytes, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     jschar *chars;
     if (options.utf8)
         chars = InflateUTF8String(cx, bytes, &length);
@@ -5126,6 +5231,7 @@ JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
             SbFile file)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     SbFileInfo info;
     bool success = SbFileGetInfo(file, &info);
     if (!success) {
@@ -5145,6 +5251,7 @@ JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options,
 JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, FILE *fp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     FileContents buffer(cx);
     if (!ReadCompleteFile(cx, fp, buffer))
         return NULL;
@@ -5157,6 +5264,7 @@ JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, FILE *fp)
 JSScript *
 JS::Compile(JSContext *cx, HandleObject obj, CompileOptions options, const char *filename)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #if defined(STARBOARD)
     starboard::ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead, NULL,
                                NULL);
@@ -5180,6 +5288,7 @@ JS_CompileUCScriptForPrincipals(JSContext *cx, JSObject *objArg, JSPrincipals *p
                                 const jschar *chars, size_t length,
                                 const char *filename, unsigned lineno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5192,6 +5301,7 @@ JS_PUBLIC_API(JSScript *)
 JS_CompileUCScript(JSContext *cx, JSObject *objArg, const jschar *chars, size_t length,
                    const char *filename, unsigned lineno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setFileAndLine(filename, lineno);
@@ -5205,6 +5315,7 @@ JS_CompileScriptForPrincipals(JSContext *cx, JSObject *objArg,
                               const char *ascii, size_t length,
                               const char *filename, unsigned lineno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5217,6 +5328,7 @@ JS_PUBLIC_API(JSScript *)
 JS_CompileScript(JSContext *cx, JSObject *objArg, const char *ascii, size_t length,
                  const char *filename, unsigned lineno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setFileAndLine(filename, lineno);
@@ -5227,6 +5339,7 @@ JS_CompileScript(JSContext *cx, JSObject *objArg, const char *ascii, size_t leng
 JS_PUBLIC_API(JSBool)
 JS_BufferIsCompilableUnit(JSContext *cx, JSObject *objArg, const char *utf8, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JSBool result;
     JSExceptionState *exnState;
@@ -5278,6 +5391,7 @@ JS::CompileFunction(JSContext *cx, HandleObject obj, CompileOptions options,
                     const char *name, unsigned nargs, const char **argnames,
                     const jschar *chars, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -5322,6 +5436,7 @@ JS::CompileFunction(JSContext *cx, HandleObject obj, CompileOptions options,
                     const char *name, unsigned nargs, const char **argnames,
                     const char *bytes, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     jschar *chars;
     if (options.utf8)
         chars = InflateUTF8String(cx, bytes, &length);
@@ -5341,6 +5456,7 @@ JS_CompileUCFunction(JSContext *cx, JSObject *objArg, const char *name,
                      const jschar *chars, size_t length,
                      const char *filename, unsigned lineno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setFileAndLine(filename, lineno);
@@ -5355,6 +5471,7 @@ JS_CompileFunctionForPrincipals(JSContext *cx, JSObject *objArg,
                                 const char *ascii, size_t length,
                                 const char *filename, unsigned lineno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5369,6 +5486,7 @@ JS_CompileFunction(JSContext *cx, JSObject *objArg, const char *name,
                    const char *ascii, size_t length,
                    const char *filename, unsigned lineno)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setFileAndLine(filename, lineno);
@@ -5379,6 +5497,7 @@ JS_CompileFunction(JSContext *cx, JSObject *objArg, const char *name,
 JS_PUBLIC_API(JSString *)
 JS_DecompileScript(JSContext *cx, JSScript *scriptArg, const char *name, unsigned indent)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
 
     AssertHeapIsIdle(cx);
@@ -5396,6 +5515,7 @@ JS_DecompileScript(JSContext *cx, JSScript *scriptArg, const char *name, unsigne
 JS_PUBLIC_API(JSString *)
 JS_DecompileFunction(JSContext *cx, JSFunction *funArg, unsigned indent)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -5407,6 +5527,7 @@ JS_DecompileFunction(JSContext *cx, JSFunction *funArg, unsigned indent)
 JS_PUBLIC_API(JSString *)
 JS_DecompileFunctionBody(JSContext *cx, JSFunction *funArg, unsigned indent)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -5418,6 +5539,7 @@ JS_DecompileFunctionBody(JSContext *cx, JSFunction *funArg, unsigned indent)
 JS_NEVER_INLINE JS_PUBLIC_API(JSBool)
 JS_ExecuteScript(JSContext *cx, JSObject *objArg, JSScript *scriptArg, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     RootedScript script(cx, scriptArg);
 
@@ -5452,6 +5574,7 @@ JS_PUBLIC_API(JSBool)
 JS_ExecuteScriptVersion(JSContext *cx, JSObject *objArg, JSScript *script, jsval *rval,
                         JSVersion version)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     return JS_ExecuteScript(cx, obj, script, rval);
 }
@@ -5462,6 +5585,7 @@ extern JS_PUBLIC_API(bool)
 JS::Evaluate(JSContext *cx, HandleObject obj, CompileOptions options,
              const jschar *chars, size_t length, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -5502,6 +5626,7 @@ extern JS_PUBLIC_API(bool)
 JS::Evaluate(JSContext *cx, HandleObject obj, CompileOptions options,
              const char *bytes, size_t length, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     jschar *chars;
     if (options.utf8)
         chars = InflateUTF8String(cx, bytes, &length);
@@ -5519,6 +5644,7 @@ extern JS_PUBLIC_API(bool)
 JS::Evaluate(JSContext *cx, HandleObject obj, CompileOptions options,
              const char *filename, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
 #if defined(STARBOARD)
     starboard::ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead, NULL,
                                NULL);
@@ -5548,6 +5674,7 @@ JS_EvaluateUCScriptForPrincipals(JSContext *cx, JSObject *objArg,
                                  const char *filename, unsigned lineno,
                                  jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5563,6 +5690,7 @@ JS_EvaluateUCScriptForPrincipalsVersion(JSContext *cx, JSObject *objArg,
                                         const char *filename, unsigned lineno,
                                         jsval *rval, JSVersion version)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5580,6 +5708,7 @@ JS_EvaluateUCScriptForPrincipalsVersionOrigin(JSContext *cx, JSObject *objArg,
                                               const char *filename, unsigned lineno,
                                               jsval *rval, JSVersion version)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5594,6 +5723,7 @@ JS_PUBLIC_API(JSBool)
 JS_EvaluateUCScript(JSContext *cx, JSObject *objArg, const jschar *chars, unsigned length,
                     const char *filename, unsigned lineno, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setFileAndLine(filename, lineno);
@@ -5607,6 +5737,7 @@ JS_EvaluateScriptForPrincipals(JSContext *cx, JSObject *objArg, JSPrincipals *pr
                                const char *bytes, unsigned nbytes,
                                const char *filename, unsigned lineno, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5621,6 +5752,7 @@ JS_EvaluateScriptForPrincipalsVersion(JSContext *cx, JSObject *objArg, JSPrincip
                                       const char *filename, unsigned lineno, jsval *rval,
                                       JSVersion version)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setPrincipals(principals)
@@ -5634,6 +5766,7 @@ JS_PUBLIC_API(JSBool)
 JS_EvaluateScript(JSContext *cx, JSObject *objArg, const char *bytes, unsigned nbytes,
                   const char *filename, unsigned lineno, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     CompileOptions options(cx);
     options.setFileAndLine(filename, lineno);
@@ -5645,6 +5778,7 @@ JS_PUBLIC_API(JSBool)
 JS_CallFunction(JSContext *cx, JSObject *objArg, JSFunction *fun, unsigned argc, jsval *argv,
                 jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
@@ -5659,6 +5793,7 @@ JS_PUBLIC_API(JSBool)
 JS_CallFunctionName(JSContext *cx, JSObject *objArg, const char *name, unsigned argc, jsval *argv,
                     jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
@@ -5680,6 +5815,7 @@ JS_PUBLIC_API(JSBool)
 JS_CallFunctionValue(JSContext *cx, JSObject *objArg, jsval fval, unsigned argc, jsval *argv,
                      jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     JS_THREADSAFE_ASSERT(cx->compartment() != cx->runtime()->atomsCompartment);
     AssertHeapIsIdle(cx);
@@ -5693,6 +5829,7 @@ JS_CallFunctionValue(JSContext *cx, JSObject *objArg, jsval fval, unsigned argc,
 JS_PUBLIC_API(bool)
 JS::Call(JSContext *cx, jsval thisv, jsval fval, unsigned argc, jsval *argv, jsval *rval)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     assertSameCompartment(cx, thisv, fval, JSValueArray(argv, argc));
@@ -5704,6 +5841,7 @@ JS::Call(JSContext *cx, jsval thisv, jsval fval, unsigned argc, jsval *argv, jsv
 JS_PUBLIC_API(JSObject *)
 JS_New(JSContext *cx, JSObject *ctorArg, unsigned argc, jsval *argv)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject ctor(cx, ctorArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -5758,6 +5896,7 @@ JS_GetOperationCallback(JSContext *cx)
 JS_PUBLIC_API(void)
 JS_TriggerOperationCallback(JSRuntime *rt)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     rt->triggerOperationCallback();
 }
 
@@ -5770,6 +5909,7 @@ JS_IsRunning(JSContext *cx)
 JS_PUBLIC_API(JSBool)
 JS_SaveFrameChain(JSContext *cx)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdleOrIterating(cx);
     CHECK_REQUEST(cx);
     return cx->saveFrameChain();
@@ -5801,6 +5941,7 @@ JS_GetFunctionCallback(JSContext *cx)
 JS_PUBLIC_API(JSString *)
 JS_NewStringCopyN(JSContext *cx, const char *s, size_t n)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return js_NewStringCopyN<CanGC>(cx, s, n);
@@ -5809,6 +5950,7 @@ JS_NewStringCopyN(JSContext *cx, const char *s, size_t n)
 JS_PUBLIC_API(JSString *)
 JS_NewStringCopyZ(JSContext *cx, const char *s)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     size_t n;
     jschar *js;
     JSString *str;
@@ -5851,6 +5993,7 @@ INTERNED_STRING_TO_JSID(JSContext *cx, JSString *str)
 JS_PUBLIC_API(JSString *)
 JS_InternJSString(JSContext *cx, JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     JSAtom *atom = AtomizeString<CanGC>(cx, str, InternAtom);
@@ -5861,12 +6004,14 @@ JS_InternJSString(JSContext *cx, JSString *str)
 JS_PUBLIC_API(JSString *)
 JS_InternString(JSContext *cx, const char *s)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return JS_InternStringN(cx, s, strlen(s));
 }
 
 JS_PUBLIC_API(JSString *)
 JS_InternStringN(JSContext *cx, const char *s, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     JSAtom *atom = Atomize(cx, s, length, InternAtom);
@@ -5877,6 +6022,7 @@ JS_InternStringN(JSContext *cx, const char *s, size_t length)
 JS_PUBLIC_API(JSString *)
 JS_NewUCString(JSContext *cx, jschar *chars, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return js_NewString<CanGC>(cx, chars, length);
@@ -5885,6 +6031,7 @@ JS_NewUCString(JSContext *cx, jschar *chars, size_t length)
 JS_PUBLIC_API(JSString *)
 JS_NewUCStringCopyN(JSContext *cx, const jschar *s, size_t n)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return js_NewStringCopyN<CanGC>(cx, s, n);
@@ -5893,6 +6040,7 @@ JS_NewUCStringCopyN(JSContext *cx, const jschar *s, size_t n)
 JS_PUBLIC_API(JSString *)
 JS_NewUCStringCopyZ(JSContext *cx, const jschar *s)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     if (!s)
@@ -5903,6 +6051,7 @@ JS_NewUCStringCopyZ(JSContext *cx, const jschar *s)
 JS_PUBLIC_API(JSString *)
 JS_InternUCStringN(JSContext *cx, const jschar *s, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     JSAtom *atom = AtomizeChars<CanGC>(cx, s, length, InternAtom);
@@ -5913,6 +6062,7 @@ JS_InternUCStringN(JSContext *cx, const jschar *s, size_t length)
 JS_PUBLIC_API(JSString *)
 JS_InternUCString(JSContext *cx, const jschar *s)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     return JS_InternUCStringN(cx, s, js_strlen(s));
 }
 
@@ -5963,6 +6113,7 @@ JS_GetStringCharsAndLength(JSContext *cx, JSString *str, size_t *plength)
 JS_PUBLIC_API(const jschar *)
 JS_GetInternedStringChars(JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JS_ASSERT(str->isAtom());
     JSFlatString *flat = str->ensureFlat(NULL);
     if (!flat)
@@ -5985,6 +6136,7 @@ JS_GetInternedStringCharsAndLength(JSString *str, size_t *plength)
 extern JS_PUBLIC_API(JSFlatString *)
 JS_FlattenString(JSContext *cx, JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     assertSameCompartment(cx, str);
@@ -6037,6 +6189,7 @@ JS_PutEscapedFlatString(char *buffer, size_t size, JSFlatString *str, char quote
 JS_PUBLIC_API(size_t)
 JS_PutEscapedString(JSContext *cx, char *buffer, size_t size, JSString *str, char quote)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     JSLinearString *linearStr = str->ensureLinear(cx);
     if (!linearStr)
@@ -6047,6 +6200,7 @@ JS_PutEscapedString(JSContext *cx, char *buffer, size_t size, JSString *str, cha
 JS_PUBLIC_API(JSBool)
 JS_FileEscapedString(FILE *fp, JSString *str, char quote)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     JSLinearString *linearStr = str->ensureLinear(NULL);
     return linearStr && FileEscapedString(fp, linearStr, quote);
 }
@@ -6054,6 +6208,7 @@ JS_FileEscapedString(FILE *fp, JSString *str, char quote)
 JS_PUBLIC_API(JSString *)
 JS_NewGrowableString(JSContext *cx, jschar *chars, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return js_NewString<CanGC>(cx, chars, length);
@@ -6062,6 +6217,7 @@ JS_NewGrowableString(JSContext *cx, jschar *chars, size_t length)
 JS_PUBLIC_API(JSString *)
 JS_NewDependentString(JSContext *cx, JSString *str, size_t start, size_t length)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return js_NewDependentString(cx, str, start, length);
@@ -6070,6 +6226,7 @@ JS_NewDependentString(JSContext *cx, JSString *str, size_t start, size_t length)
 JS_PUBLIC_API(JSString *)
 JS_ConcatStrings(JSContext *cx, JSString *left, JSString *right)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     Rooted<JSString*> lstr(cx, left);
@@ -6080,6 +6237,7 @@ JS_ConcatStrings(JSContext *cx, JSString *left, JSString *right)
 JS_PUBLIC_API(JSBool)
 JS_DecodeBytes(JSContext *cx, const char *src, size_t srclen, jschar *dst, size_t *dstlenp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return InflateStringToBuffer(cx, src, srclen, dst, dstlenp);
@@ -6088,6 +6246,7 @@ JS_DecodeBytes(JSContext *cx, const char *src, size_t srclen, jschar *dst, size_
 JS_PUBLIC_API(char *)
 JS_EncodeString(JSContext *cx, JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
 
@@ -6101,6 +6260,7 @@ JS_EncodeString(JSContext *cx, JSString *str)
 JS_PUBLIC_API(char *)
 JS_EncodeStringToUTF8(JSContext *cx, JSString *str)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
 
@@ -6154,6 +6314,7 @@ JS_PUBLIC_API(JSBool)
 JS_Stringify(JSContext *cx, jsval *vp, JSObject *replacerArg, jsval space,
              JSONWriteCallback callback, void *data)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject replacer(cx, replacerArg);
     RootedValue value(cx, *vp);
 
@@ -6174,6 +6335,7 @@ JS_Stringify(JSContext *cx, jsval *vp, JSObject *replacerArg, jsval space,
 JS_PUBLIC_API(JSBool)
 JS_ParseJSON(JSContext *cx, const jschar *chars, uint32_t len, JS::MutableHandleValue vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
 
@@ -6184,6 +6346,7 @@ JS_ParseJSON(JSContext *cx, const jschar *chars, uint32_t len, JS::MutableHandle
 JS_PUBLIC_API(JSBool)
 JS_ParseJSONWithReviver(JSContext *cx, const jschar *chars, uint32_t len, jsval reviverArg, jsval *vp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
 
@@ -6201,6 +6364,7 @@ JS_ReadStructuredClone(JSContext *cx, uint64_t *buf, size_t nbytes,
                        const JSStructuredCloneCallbacks *optionalCallbacks,
                        void *closure)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
 
@@ -6220,6 +6384,7 @@ JS_WriteStructuredClone(JSContext *cx, jsval valueArg, uint64_t **bufp, size_t *
                         const JSStructuredCloneCallbacks *optionalCallbacks,
                         void *closure, jsval transferable)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -6256,6 +6421,7 @@ JS_StructuredClone(JSContext *cx, jsval valueArg, jsval *vp,
                    const JSStructuredCloneCallbacks *optionalCallbacks,
                    void *closure)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedValue value(cx, valueArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -6546,6 +6712,7 @@ JS_SetErrorReporter(JSContext *cx, JSErrorReporter er)
 JS_PUBLIC_API(JSObject *)
 JS_NewDateObject(JSContext *cx, int year, int mon, int mday, int hour, int min, int sec)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return js_NewDateObject(cx, year, mon, mday, hour, min, sec);
@@ -6554,6 +6721,7 @@ JS_NewDateObject(JSContext *cx, int year, int mon, int mday, int hour, int min, 
 JS_PUBLIC_API(JSObject *)
 JS_NewDateObjectMsec(JSContext *cx, double msec)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     return js_NewDateObjectMsec(cx, msec);
@@ -6583,6 +6751,7 @@ JS_ClearDateCaches(JSContext *cx)
 JS_PUBLIC_API(JSObject *)
 JS_NewRegExpObject(JSContext *cx, JSObject *objArg, char *bytes, size_t length, unsigned flags)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -6600,6 +6769,7 @@ JS_NewRegExpObject(JSContext *cx, JSObject *objArg, char *bytes, size_t length, 
 JS_PUBLIC_API(JSObject *)
 JS_NewUCRegExpObject(JSContext *cx, JSObject *objArg, jschar *chars, size_t length, unsigned flags)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     RootedObject obj(cx, objArg);
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
@@ -7071,6 +7241,7 @@ JS::AssertArgumentsAreSane(JSContext *cx, const JS::Value &value)
 JS_PUBLIC_API(void *)
 JS_EncodeScript(JSContext *cx, JSScript *scriptArg, uint32_t *lengthp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     XDREncoder encoder(cx);
     RootedScript script(cx, scriptArg);
     if (!encoder.codeScript(&script))
@@ -7081,6 +7252,7 @@ JS_EncodeScript(JSContext *cx, JSScript *scriptArg, uint32_t *lengthp)
 JS_PUBLIC_API(void *)
 JS_EncodeInterpretedFunction(JSContext *cx, JSObject *funobjArg, uint32_t *lengthp)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     XDREncoder encoder(cx);
     RootedObject funobj(cx, funobjArg);
     if (!encoder.codeFunction(&funobj))
@@ -7092,6 +7264,7 @@ JS_PUBLIC_API(JSScript *)
 JS_DecodeScript(JSContext *cx, const void *data, uint32_t length,
                 JSPrincipals *principals, JSPrincipals *originPrincipals)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     XDRDecoder decoder(cx, data, length, principals, originPrincipals);
     RootedScript script(cx);
     if (!decoder.codeScript(&script))
@@ -7103,6 +7276,7 @@ JS_PUBLIC_API(JSObject *)
 JS_DecodeInterpretedFunction(JSContext *cx, const void *data, uint32_t length,
                              JSPrincipals *principals, JSPrincipals *originPrincipals)
 {
+    TRACK_MEMORY_SCOPE("Javascript");
     XDRDecoder decoder(cx, data, length, principals, originPrincipals);
     RootedObject funobj(cx);
     if (!decoder.codeFunction(&funobj))
