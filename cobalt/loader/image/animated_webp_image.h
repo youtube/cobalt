@@ -77,14 +77,17 @@ class AnimatedWebPImage : public AnimatedImage {
   // looping infinitely.
   int loop_count_;
   uint32_t background_color_;
+  bool should_dispose_previous_frame_;
   int current_frame_index_;
   int next_frame_index_;
   render_tree::ResourceProvider* resource_provider_;
 
   base::TimeTicks current_frame_time_;
   base::TimeTicks next_frame_time_;
+  // The original encoded data.
   std::vector<uint8> data_buffer_;
-  scoped_ptr<render_tree::ImageData> image_buffer_;
+  // The alpha-blended frame.
+  std::vector<uint8> image_buffer_;
   scoped_refptr<render_tree::Image> current_frame_image_;
   base::Closure decoded_callback_;
   base::Lock lock_;
