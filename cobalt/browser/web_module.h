@@ -84,7 +84,7 @@ class WebModule {
 
     // All optional parameters defined in this structure should have their
     // values initialized in the default constructor to useful defaults.
-    Options();
+    explicit Options(const math::Size& ui_dimensions);
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -191,7 +191,7 @@ class WebModule {
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
             system_window::SystemWindow* system_window,
-            float layout_refresh_rate, const Options& options = Options());
+            float layout_refresh_rate, const Options& options);
   ~WebModule();
 
   // Call this to inject a keyboard event into the web module.
