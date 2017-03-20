@@ -163,7 +163,7 @@ DebugConsole::DebugConsole(
     const script::JavaScriptEngine::Options& js_options) {
   mode_ = GetInitialMode();
 
-  WebModule::Options web_module_options;
+  WebModule::Options web_module_options(window_dimensions);
   web_module_options.javascript_options = js_options;
   web_module_options.name = "DebugConsoleWebModule";
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
