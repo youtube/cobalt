@@ -22,9 +22,16 @@
 namespace cobalt {
 namespace loader {
 namespace image {
+namespace {
 
 const int kPixelSize = 4;
 const int kLoopInfinite = 0;
+
+inline uint32_t DivideBy255(uint32_t value) {
+  return (value + 1 + (value >> 8)) >> 8;
+}
+
+}  // namespace
 
 AnimatedWebPImage::AnimatedWebPImage(
     const math::Size& size, bool is_opaque,
@@ -37,6 +44,7 @@ AnimatedWebPImage::AnimatedWebPImage(
       frame_count_(0),
       loop_count_(kLoopInfinite),
       background_color_(0),
+      should_dispose_previous_frame_(false),
       current_frame_index_(0),
       next_frame_index_(0),
       resource_provider_(resource_provider) {}
@@ -62,16 +70,17 @@ void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
 
     loop_count_ = WebPDemuxGetI(demux_, WEBP_FF_LOOP_COUNT);
     background_color_ = WebPDemuxGetI(demux_, WEBP_FF_BACKGROUND_COLOR);
-    image_buffer_ = AllocateImageData();
-    DCHECK(image_buffer_);
-    FillImageBufferWithBackgroundColor();
+    if (size_.width() > 0 && size_.height() > 0) {
+      image_buffer_.resize(size_.width() * size_.height() * kPixelSize);
+      FillImageBufferWithBackgroundColor();
 
-    current_frame_time_ = base::TimeTicks::Now();
-    current_frame_index_ = 0;
-    thread_.Start();
-    thread_.message_loop()->PostTask(
-        FROM_HERE,
-        base::Bind(&AnimatedWebPImage::DecodeFrames, base::Unretained(this)));
+      current_frame_time_ = base::TimeTicks::Now();
+      current_frame_index_ = 0;
+      thread_.Start();
+      thread_.message_loop()->PostTask(
+          FROM_HERE,
+          base::Bind(&AnimatedWebPImage::DecodeFrames, base::Unretained(this)));
+    }
   }
   frame_count_ = new_frame_count;
 }
@@ -82,67 +91,74 @@ void AnimatedWebPImage::DecodeFrames() {
 
   UpdateTimelineInfo();
 
-  // Decode the frames from current frame to next frame and blend the results
-  // if necessary.
+  // Decode the frames from current frame to next frame and blend the results.
   for (int frame_index = current_frame_index_ + 1;
        frame_index <= next_frame_index_; ++frame_index) {
+    // Dispose previous frame if necessary.
+    if (should_dispose_previous_frame_) {
+      FillImageBufferWithBackgroundColor();
+    }
+
+    // Decode the current frame.
     WebPIterator webp_iterator;
     WebPDemuxGetFrame(demux_, frame_index, &webp_iterator);
     if (!webp_iterator.complete) {
       break;
     }
-
     WEBPImageDecoder webp_image_decoder(resource_provider_);
     webp_image_decoder.DecodeChunk(webp_iterator.fragment.bytes,
                                    webp_iterator.fragment.size);
-    WebPDemuxReleaseIterator(&webp_iterator);
     if (!webp_image_decoder.FinishWithSuccess()) {
       LOG(ERROR) << "Failed to decode WebP image frame.";
       break;
     }
 
-    scoped_ptr<render_tree::ImageData> next_frame_data =
-        webp_image_decoder.RetrieveImageData();
-    DCHECK(next_frame_data);
-
-    uint8_t* image_buffer_memory = image_buffer_->GetMemory();
-    uint8_t* next_frame_memory = next_frame_data->GetMemory();
-    // Alpha-blending: Given that each of the R, G, B and A channels is 8-bit,
-    // and the RGB channels are not premultiplied by alpha, the formula for
-    // blending 'dst' onto 'src' is:
-    // blend.A = src.A + dst.A * (1 - src.A / 255)
-    // if blend.A = 0 then
-    //   blend.RGB = 0
-    // else
-    //   blend.RGB = (src.RGB * src.A +
-    //                dst.RGB * dst.A * (1 - src.A / 255)) / blend.A
-    //   https://developers.google.com/speed/webp/docs/riff_container#animation
-    for (int y = 0; y < webp_iterator.height; ++y) {
-      for (int x = 0; x < webp_iterator.width; ++x) {
+    // Alpha blend the current frame on top of previous frame.
+    {
+      TRACE_EVENT0("cobalt::loader::image", "Blending");
+      DCHECK(!image_buffer_.empty());
+      uint8_t* image_buffer_memory = &image_buffer_[0];
+      uint8_t* next_frame_memory = webp_image_decoder.GetOriginalMemory();
+      // Alpha-blending: Given that each of the R, G, B and A channels is 8-bit,
+      // and the RGB channels are not premultiplied by alpha, the formula for
+      // blending 'dst' onto 'src' is:
+      // blend.A = src.A + dst.A * (1 - src.A / 255)
+      // if blend.A = 0 then
+      //   blend.RGB = 0
+      // else
+      //   blend.RGB = (src.RGB * src.A +
+      //                dst.RGB * dst.A * (1 - src.A / 255)) / blend.A
+      //   https://developers.google.com/speed/webp/docs/riff_container#animation
+      for (int y = 0; y < webp_iterator.height; ++y) {
         uint8_t* src =
-            next_frame_memory + (y * webp_iterator.width + x) * kPixelSize;
+            next_frame_memory + (y * webp_iterator.width) * kPixelSize;
         uint8_t* dst = image_buffer_memory +
-                       ((y + webp_iterator.y_offset) * size_.width() + x +
+                       ((y + webp_iterator.y_offset) * size_.width() +
                         webp_iterator.x_offset) *
                            kPixelSize;
-        uint8_t blend[4];
-        blend[3] = static_cast<uint8_t>(src[3] + dst[3] * (1 - src[3] / 255.0));
-        if (blend[3] == 0) {
-          blend[0] = blend[1] = blend[2] = 0;
-        } else {
-          for (int i = 0; i < 3; ++i) {
-            blend[i] = static_cast<uint8_t>(
-                (src[i] * src[3] + dst[i] * dst[3] * (1 - src[3] / 255.0)) /
-                blend[3]);
+        for (int x = 0; x < webp_iterator.width; ++x) {
+          uint32_t dst_factor = dst[3] * (255 - src[3]);
+          dst[3] = static_cast<uint8_t>(src[3] + DivideBy255(dst_factor));
+          if (dst[3] == 0) {
+            dst[0] = dst[1] = dst[2] = 0;
+          } else {
+            for (int i = 0; i < 3; ++i) {
+              dst[i] = static_cast<uint8_t>(
+                  (src[i] * src[3] + DivideBy255(dst[i] * dst_factor)) /
+                  dst[3]);
+            }
           }
+
+          src += kPixelSize;
+          dst += kPixelSize;
         }
-        SbMemoryCopy(dst, &blend, kPixelSize);
       }
     }
 
-    if (webp_iterator.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND) {
-      FillImageBufferWithBackgroundColor();
-    }
+    // Record the dispose method for current frame.
+    should_dispose_previous_frame_ =
+        webp_iterator.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND;
+    WebPDemuxReleaseIterator(&webp_iterator);
   }
 
   // Generate the next frame render tree image if necessary.
@@ -150,7 +166,8 @@ void AnimatedWebPImage::DecodeFrames() {
     current_frame_index_ = next_frame_index_;
     scoped_ptr<render_tree::ImageData> next_frame_data = AllocateImageData();
     DCHECK(next_frame_data);
-    uint8_t* image_buffer_memory = image_buffer_->GetMemory();
+    DCHECK(!image_buffer_.empty());
+    uint8_t* image_buffer_memory = &image_buffer_[0];
     uint8_t* next_frame_memory = next_frame_data->GetMemory();
     SbMemoryCopy(next_frame_memory, image_buffer_memory,
                  size_.width() * size_.height() * kPixelSize);
@@ -208,12 +225,11 @@ void AnimatedWebPImage::UpdateTimelineInfo() {
 }
 
 void AnimatedWebPImage::FillImageBufferWithBackgroundColor() {
-  uint8_t* image_buffer_memory = image_buffer_->GetMemory();
   for (int y = 0; y < size_.height(); ++y) {
     for (int x = 0; x < size_.width(); ++x) {
-      uint32_t* src = reinterpret_cast<uint32_t*>(
-          image_buffer_memory + (y * size_.width() + x) * kPixelSize);
-      *src = background_color_;
+      *reinterpret_cast<uint32_t*>(
+          &image_buffer_[(y * size_.width() + x) * kPixelSize]) =
+          background_color_;
     }
   }
 }
