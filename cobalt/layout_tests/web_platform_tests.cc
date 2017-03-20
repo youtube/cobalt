@@ -164,11 +164,9 @@ std::string RunWebPlatformTest(const GURL& url) {
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options;
+  browser::WebModule::Options web_module_options(kDefaultViewportSize);
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
 
-  web_module_options.image_cache_capacity = static_cast<int>(
-      browser::memory_settings::GetImageCacheSize(kDefaultViewportSize));
   // Prepare a slot for our results to be placed when ready.
   base::optional<browser::WebModule::LayoutResults> results;
   base::RunLoop run_loop;
