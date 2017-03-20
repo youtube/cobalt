@@ -17,26 +17,42 @@
 #ifndef COBALT_SCRIPT_PROMISE_H_
 #define COBALT_SCRIPT_PROMISE_H_
 
+#include "base/memory/ref_counted.h"
+#include "cobalt/script/script_exception.h"
 #include "cobalt/script/script_value.h"
 
 namespace cobalt {
 namespace script {
-// Interface for interacting with a JavaScript Promise object that is settled
-// from native code.
-// An implementation of this class will pass a native function to the Promise's
-// constructor and store references to the |reject| and |resolve| functions that
-// are passed as arguments to the executor function. Call |Reject| or |Resolve|
-// to settle the Promise.
+
+// Interface for interacting with a JavaScript Promise object that is resolved
+// or rejected from native code.
+template <typename T>
 class Promise {
  public:
-  // TODO: Pass in arguments for each of these.
+  // Call the |resolve| function that was passed as an argument to the Promise's
+  // executor function supplying |result| as its argument.
+  virtual void Resolve(const T& result) const = 0;
+
   // Call the |reject| function passed as an argument to the Promise's executor
   // function.
+  // TODO: Pass an exception value.
   virtual void Reject() const = 0;
+  virtual ~Promise() {}
+};
 
+// Specialization of the Promise<T> class for Promise<void>, which does not take
+// a value for the Resolve function.
+template <>
+class Promise<void> {
+ public:
   // Call the |resolve| function passed as an argument to the Promise's executor
   // function.
   virtual void Resolve() const = 0;
+
+  // Call the |reject| function passed as an argument to the Promise's executor
+  // function.
+  // TODO: Pass an exception value.
+  virtual void Reject() const = 0;
   virtual ~Promise() {}
 };
 

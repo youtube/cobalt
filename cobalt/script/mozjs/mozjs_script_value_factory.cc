@@ -16,31 +16,27 @@
 
 #include "cobalt/script/mozjs/mozjs_script_value_factory.h"
 
-#include "cobalt/script/mozjs/native_promise.h"
+#include "cobalt/base/polymorphic_downcast.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
-
 MozjsScriptValueFactory::MozjsScriptValueFactory(
     MozjsGlobalEnvironment* global_environment)
     : global_environment_(global_environment) {}
+}  // namespace mozjs
 
-scoped_ptr<ScriptValueFactory::ScriptPromise>
-MozjsScriptValueFactory::CreatePromise() {
-  JSContext* context = global_environment_->context();
-  JS::RootedObject global_object(context, global_environment_->global_object());
-  JSAutoRequest auto_request(context);
-  JSAutoCompartment auto_compartment(context, global_object);
-
-  JS::RootedObject native_promise(
-      context, NativePromise::Create(context, global_object));
-  scoped_ptr<ScriptValueFactory::ScriptPromise> promise;
-  promise.reset(new MozjsPromiseHolder(native_promise, context,
-                                       global_environment_->wrapper_factory()));
-  return promise.Pass();
+// Implementation of template function declared in the base class.
+template <typename T>
+scoped_ptr<ScriptValue<Promise<T> > > ScriptValueFactory::CreatePromise() {
+  mozjs::MozjsScriptValueFactory* mozjs_this =
+      base::polymorphic_downcast<mozjs::MozjsScriptValueFactory*>(this);
+  return mozjs_this->CreatePromise<T>();
 }
 
-}  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
+
+// Explicit template instantiations must go after the template function
+// implementation.
+#include "cobalt/script/script_value_factory_instantiations.h"

@@ -28,6 +28,7 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace {
+typedef ScriptValue<Promise<void> > VoidPromise;
 class NativePromiseTest : public ::testing::Test {
  protected:
   NativePromiseTest()
@@ -44,21 +45,24 @@ class NativePromiseTest : public ::testing::Test {
 };
 
 TEST_F(NativePromiseTest, CreateNativePromise) {
-  scoped_ptr<ScriptValue<Promise> > promise;
-  promise = global_environment_->script_value_factory()->CreatePromise();
+  scoped_ptr<VoidPromise> promise;
+  promise =
+      global_environment_->script_value_factory()->CreateBasicPromise<void>();
 }
 
 TEST_F(NativePromiseTest, ResolveNativePromise) {
-  scoped_ptr<ScriptValue<Promise> > promise;
-  promise = global_environment_->script_value_factory()->CreatePromise();
-  ScriptValue<Promise>::StrongReference reference(*promise.get());
+  scoped_ptr<VoidPromise> promise;
+  promise =
+      global_environment_->script_value_factory()->CreateBasicPromise<void>();
+  VoidPromise::StrongReference reference(*promise.get());
   reference.value().Resolve();
 }
 
 TEST_F(NativePromiseTest, RejectNativePromise) {
-  scoped_ptr<ScriptValue<Promise> > promise;
-  promise = global_environment_->script_value_factory()->CreatePromise();
-  ScriptValue<Promise>::StrongReference reference(*promise.get());
+  scoped_ptr<VoidPromise> promise;
+  promise =
+      global_environment_->script_value_factory()->CreateBasicPromise<void>();
+  VoidPromise::StrongReference reference(*promise.get());
   reference.value().Reject();
 }
 
