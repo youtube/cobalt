@@ -823,55 +823,66 @@ void ApplicationX11::StopX() {
 
 shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     XEvent* x_event) {
-  if (x_event->type == ClientMessage) {
-    const XClientMessageEvent* client_message =
-        reinterpret_cast<const XClientMessageEvent*>(x_event);
-    if (client_message->message_type == wake_up_atom_) {
-      // We've woken up, so our job is done.
+  switch (x_event->type) {
+    case ClientMessage: {
+      const XClientMessageEvent* client_message =
+          reinterpret_cast<const XClientMessageEvent*>(x_event);
+      if (client_message->message_type == wake_up_atom_) {
+        // We've woken up, so our job is done.
+        return NULL;
+      }
+
+      if (x_event->xclient.data.l[0] == wm_delete_atom_) {
+        SB_DLOG(INFO) << "Received WM_DELETE_WINDOW message.";
+        // TODO: Expose this as an event to clients.
+        Stop(0);
+        return NULL;
+      }
+      // Unknown event, ignore.
       return NULL;
     }
-
-    if (x_event->xclient.data.l[0] == wm_delete_atom_) {
-      SB_DLOG(INFO) << "Received WM_DELETE_WINDOW message.";
-      // TODO: Expose this as an event to clients.
-      Stop(0);
+    case KeyPress:
+    case KeyRelease: {
+      // User pressed key.
+      XKeyEvent* x_key_event = reinterpret_cast<XKeyEvent*>(x_event);
+      SbInputData* data = new SbInputData();
+      SbMemorySet(data, 0, sizeof(*data));
+      data->window = FindWindow(x_key_event->window);
+      SB_DCHECK(SbWindowIsValid(data->window));
+      data->type = (x_event->type == KeyPress ? kSbInputEventTypePress
+                                              : kSbInputEventTypeUnpress);
+      data->device_type = kSbInputDeviceTypeKeyboard;
+      data->device_id = kKeyboardDeviceId;
+      data->key = XKeyEventToSbKey(x_key_event);
+      data->key_location = XKeyEventToSbKeyLocation(x_key_event);
+      data->key_modifiers = XKeyEventToSbKeyModifiers(x_key_event);
+      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+    }
+    case FocusIn: {
+      Unpause(NULL, NULL);
       return NULL;
     }
-
-    // Unknown event, ignore.
-    return NULL;
+    case FocusOut: {
+      Pause(NULL, NULL);
+      return NULL;
+    }
+    case MapNotify: {
+      Resume(NULL, NULL);
+      return NULL;
+    }
+    case UnmapNotify: {
+      Suspend(NULL, NULL);
+      return NULL;
+    }
+    case ConfigureNotify: {
+      // Ignore window size, position, border, and stacking order events.
+      return NULL;
+    }
+    default: {
+      SB_DLOG(INFO) << "Unrecognized event type = " << x_event->type;
+      break;
+    }
   }
-
-  if (x_event->type == KeyPress || x_event->type == KeyRelease) {
-    // User pressed key.
-    XKeyEvent* x_key_event = reinterpret_cast<XKeyEvent*>(x_event);
-    SbInputData* data = new SbInputData();
-    SbMemorySet(data, 0, sizeof(*data));
-    data->window = FindWindow(x_key_event->window);
-    SB_DCHECK(SbWindowIsValid(data->window));
-    data->type = (x_event->type == KeyPress ? kSbInputEventTypePress
-                                            : kSbInputEventTypeUnpress);
-    data->device_type = kSbInputDeviceTypeKeyboard;
-    data->device_id = kKeyboardDeviceId;
-    data->key = XKeyEventToSbKey(x_key_event);
-    data->key_location = XKeyEventToSbKeyLocation(x_key_event);
-    data->key_modifiers = XKeyEventToSbKeyModifiers(x_key_event);
-    return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
-  } else if (x_event->type == FocusIn) {
-    Unpause(NULL, NULL);
-    return NULL;
-  } else if (x_event->type == FocusOut) {
-    Pause(NULL, NULL);
-    return NULL;
-  } else if (x_event->type == MapNotify) {
-    Resume(NULL, NULL);
-    return NULL;
-  } else if (x_event->type == UnmapNotify) {
-    Suspend(NULL, NULL);
-    return NULL;
-  }
-
-  SB_DLOG(INFO) << "Unrecognized event type = " << x_event->type;
 
   return NULL;
 }
