@@ -18,9 +18,11 @@
 #include <queue>
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/account/user_authorizer.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -75,6 +77,9 @@ class H5vccAccountManager : public script::Wrappable {
   // interface must be called from this message loop, and callbacks will be
   // fired on this loop as well.
   MessageLoop* owning_message_loop_;
+
+  // The platform-specific user authorizer for getting access tokens.
+  scoped_ptr<account::UserAuthorizer> user_authorizer_;
 
   friend class scoped_refptr<H5vccAccountManager>;
   DISALLOW_COPY_AND_ASSIGN(H5vccAccountManager);
