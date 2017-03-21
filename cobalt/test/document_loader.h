@@ -50,8 +50,6 @@ class DocumentLoader : public dom::DocumentObserver {
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
         loader_factory_(new loader::LoaderFactory(
             &fetcher_factory_, resource_provider_stub_.get(),
-            base::kThreadPriority_Low /* software decoder thread priority */,
-            base::kThreadPriority_High /* hardware decoder thread priority */,
             base::kThreadPriority_Low)),
         image_cache_(loader::image::CreateImageCache(
             "Test.ImageCache", 32U * 1024 * 1024, loader_factory_.get())),

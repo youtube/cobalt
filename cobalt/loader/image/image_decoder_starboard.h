@@ -41,8 +41,6 @@ class ImageDecoderStarboard : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const OVERRIDE { return "ImageDecoderStarboard"; }
 
-  bool IsHardwareDecoder() const OVERRIDE { return true; }
-
   SbDecodeTarget RetrieveSbDecodeTarget() OVERRIDE { return target_; }
 
  private:
