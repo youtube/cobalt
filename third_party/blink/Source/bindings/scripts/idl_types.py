@@ -230,8 +230,7 @@ class IdlType(IdlTypeBase):
                    self.is_dictionary or
                    self.is_enum or
                    self.name == 'Any' or
-                   self.name == 'Object' or
-                   self.name == 'Promise')  # Promise will be basic in future
+                   self.name == 'Object')
 
     @property
     def is_string_type(self):
@@ -580,3 +579,33 @@ class IdlNullableType(IdlTypeBase):
         yield self
         for idl_type in self.inner_type.idl_types():
             yield idl_type
+
+
+################################################################################
+# IdlPromiseType
+# Note: Added to Cobalt
+################################################################################
+class IdlPromiseType(IdlTypeBase):
+    def __init__(self, result_type):
+        super(IdlPromiseType, self).__init__()
+        self.result_type = result_type
+
+    def __str__(self):
+        return 'Promise<%s>' % self.result_type
+
+    def __getstate__(self):
+        return {
+            'result_type': self.result_type,
+        }
+
+    def __setstate__(self, state):
+        self.result_type = state['result_type']
+
+    @property
+    def name(self):
+        return self.result_type.name + 'Promise'
+
+    def resolve_typedefs(self, typedefs):
+        self.result_type = self.result_type.resolve_typedefs(typedefs)
+        return self
+
