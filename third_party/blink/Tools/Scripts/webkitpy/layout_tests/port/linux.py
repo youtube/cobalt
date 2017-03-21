@@ -27,14 +27,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import logging
-import re
 
-from webkitpy.common.webkit_finder import WebKitFinder
 from webkitpy.layout_tests.breakpad.dump_reader_multipart import DumpReaderLinux
-from webkitpy.layout_tests.models import test_run_results
 from webkitpy.layout_tests.port import base
 from webkitpy.layout_tests.port import win
-from webkitpy.layout_tests.port import config
 
 
 _log = logging.getLogger(__name__)
@@ -43,80 +39,38 @@ _log = logging.getLogger(__name__)
 class LinuxPort(base.Port):
     port_name = 'linux'
 
-    SUPPORTED_VERSIONS = ('x86', 'x86_64')
+    SUPPORTED_VERSIONS = ('trusty',)
 
-    FALLBACK_PATHS = { 'x86_64': [ 'linux' ] + win.WinPort.latest_platform_fallback_path() }
-    FALLBACK_PATHS['x86'] = ['linux-x86'] + FALLBACK_PATHS['x86_64']
+    FALLBACK_PATHS = {}
+    FALLBACK_PATHS['trusty'] = ['linux'] + win.WinPort.latest_platform_fallback_path()
 
     DEFAULT_BUILD_DIRECTORIES = ('out',)
 
-    BUILD_REQUIREMENTS_URL = 'https://code.google.com/p/chromium/wiki/LinuxBuildInstructions'
-
-    @classmethod
-    def _determine_driver_path_statically(cls, host, options):
-        config_object = config.Config(host.executive, host.filesystem)
-        build_directory = getattr(options, 'build_directory', None)
-        finder = WebKitFinder(host.filesystem)
-        webkit_base = finder.webkit_base()
-        chromium_base = finder.chromium_base()
-        driver_name = getattr(options, 'driver_name', None)
-        if driver_name is None:
-            driver_name = cls.CONTENT_SHELL_NAME
-        if hasattr(options, 'configuration') and options.configuration:
-            configuration = options.configuration
-        else:
-            configuration = config_object.default_configuration()
-        return cls._static_build_path(host.filesystem, build_directory, chromium_base, configuration, [driver_name])
-
-    @staticmethod
-    def _determine_architecture(filesystem, executive, driver_path):
-        file_output = ''
-        if filesystem.isfile(driver_path):
-            # The --dereference flag tells file to follow symlinks
-            file_output = executive.run_command(['file', '--brief', '--dereference', driver_path], return_stderr=True)
-
-        if re.match(r'ELF 32-bit LSB\s+executable', file_output):
-            return 'x86'
-        if re.match(r'ELF 64-bit LSB\s+executable', file_output):
-            return 'x86_64'
-        if file_output:
-            _log.warning('Could not determine architecture from "file" output: %s' % file_output)
-
-        # We don't know what the architecture is; default to 'x86' because
-        # maybe we're rebaselining and the binary doesn't actually exist,
-        # or something else weird is going on. It's okay to do this because
-        # if we actually try to use the binary, check_build() should fail.
-        return 'x86_64'
+    BUILD_REQUIREMENTS_URL = 'https://chromium.googlesource.com/chromium/src/+/master/docs/linux_build_instructions.md'
 
     @classmethod
     def determine_full_port_name(cls, host, options, port_name):
         if port_name.endswith('linux'):
-            return port_name + '-' + cls._determine_architecture(host.filesystem, host.executive, cls._determine_driver_path_statically(host, options))
+            assert host.platform.is_linux()
+            version = host.platform.os_version
+            return port_name + '-' + version
         return port_name
 
     def __init__(self, host, port_name, **kwargs):
         super(LinuxPort, self).__init__(host, port_name, **kwargs)
-        (base, arch) = port_name.rsplit('-', 1)
-        assert base == 'linux'
-        assert arch in self.SUPPORTED_VERSIONS
-        assert port_name in ('linux', 'linux-x86', 'linux-x86_64')
-        self._version = 'lucid'  # We only support lucid right now.
-        self._architecture = arch
+        self._version = port_name[port_name.index('linux-') + len('linux-'):]
+        self._architecture = 'x86_64'
+        assert self._version in self.SUPPORTED_VERSIONS
+
         if not self.get_option('disable_breakpad'):
             self._dump_reader = DumpReaderLinux(host, self._build_path())
+        self._original_home = None
 
-    def additional_drt_flag(self):
-        flags = super(LinuxPort, self).additional_drt_flag()
+    def additional_driver_flag(self):
+        flags = super(LinuxPort, self).additional_driver_flag()
         if not self.get_option('disable_breakpad'):
             flags += ['--enable-crash-reporter', '--crash-dumps-dir=%s' % self._dump_reader.crash_dumps_directory()]
         return flags
-
-    def default_baseline_search_path(self):
-        port_names = self.FALLBACK_PATHS[self._architecture]
-        return map(self._webkit_baseline_path, port_names)
-
-    def _modules_to_search_for_symbols(self):
-        return [self._build_path('libffmpegsumo.so')]
 
     def check_build(self, needs_http, printer):
         result = super(LinuxPort, self).check_build(needs_http, printer)
@@ -124,7 +78,7 @@ class LinuxPort(base.Port):
         if result:
             _log.error('For complete Linux build requirements, please see:')
             _log.error('')
-            _log.error('    http://code.google.com/p/chromium/wiki/LinuxBuildInstructions')
+            _log.error('    https://chromium.googlesource.com/chromium/src/+/master/docs/linux_build_instructions.md')
         return result
 
     def look_for_new_crash_logs(self, crashed_processes, start_time):
@@ -139,33 +93,55 @@ class LinuxPort(base.Port):
     def operating_system(self):
         return 'linux'
 
+    def path_to_apache(self):
+        # The Apache binary path can vary depending on OS and distribution
+        # See http://wiki.apache.org/httpd/DistrosDefaultLayout
+        for path in ['/usr/sbin/httpd', '/usr/sbin/apache2']:
+            if self._filesystem.exists(path):
+                return path
+        _log.error('Could not find apache. Not installed or unknown path.')
+        return None
+
+    def setup_test_run(self):
+        super(LinuxPort, self).setup_test_run()
+        self._setup_dummy_home_dir()
+
+    def clean_up_test_run(self):
+        super(LinuxPort, self).clean_up_test_run()
+        self._clean_up_dummy_home_dir()
+
     #
     # PROTECTED METHODS
     #
 
-    def _check_apache_install(self):
-        result = self._check_file_exists(self.path_to_apache(), "apache2")
-        result = self._check_file_exists(self.path_to_apache_config_file(), "apache2 config file") and result
-        if not result:
-            _log.error('    Please install using: "sudo apt-get install apache2 libapache2-mod-php5"')
-            _log.error('')
-        return result
+    def _setup_dummy_home_dir(self):
+        """Creates a dummy home directory for running the test.
 
-    def _wdiff_missing_message(self):
-        return 'wdiff is not installed; please install using "sudo apt-get install wdiff"'
+        This is a workaround for crbug.com/595504; see crbug.com/612730.
+        If crbug.com/612730 is resolved in another way, then this may be
+        unnecessary.
+        """
+        self._original_home = self.host.environ.get('HOME')
+        dummy_home = str(self._filesystem.mkdtemp())
+        self.host.environ['HOME'] = dummy_home
+        self._copy_files_to_dummy_home_dir(dummy_home)
 
-    def path_to_apache(self):
-        # The Apache binary path can vary depending on OS and distribution
-        # See http://wiki.apache.org/httpd/DistrosDefaultLayout
-        for path in ["/usr/sbin/httpd", "/usr/sbin/apache2"]:
-            if self._filesystem.exists(path):
-                return path
-        _log.error("Could not find apache. Not installed or unknown path.")
-        return None
+    def _copy_files_to_dummy_home_dir(self, dummy_home):
+        # Note: This may be unnecessary.
+        fs = self._filesystem
+        for filename in ['.Xauthority']:
+            original_path = fs.join(self._original_home, filename)
+            if not fs.exists(original_path):
+                continue
+            fs.copyfile(original_path, fs.join(dummy_home, filename))
 
-    def _path_to_driver(self, configuration=None):
+    def _clean_up_dummy_home_dir(self):
+        """Cleans up the dummy dir and resets the HOME environment variable."""
+        dummy_home = self.host.environ['HOME']
+        assert dummy_home != self._original_home
+        self._filesystem.rmtree(dummy_home)
+        self.host.environ['HOME'] = self._original_home
+
+    def _path_to_driver(self, target=None):
         binary_name = self.driver_name()
-        return self._build_path_with_configuration(configuration, binary_name)
-
-    def _path_to_helper(self):
-        return None
+        return self._build_path_with_target(target, binary_name)

@@ -17,15 +17,25 @@ http://heycam.github.io/webidl/#Exposed
 Design document: http://www.chromium.org/developers/design-documents/idl-build
 """
 
+# pylint: disable=relative-import
+
 import itertools
 import optparse
 import os
-import cPickle as pickle
 import re
 import sys
 
 from collections import defaultdict
-from utilities import get_file_contents, idl_filename_to_interface_name, read_file_to_list, write_file, get_interface_extended_attributes_from_idl, is_callback_interface_from_idl
+from utilities import get_file_contents
+from utilities import get_interface_exposed_arguments
+from utilities import get_interface_extended_attributes_from_idl
+from utilities import idl_filename_to_interface_name
+from utilities import is_callback_interface_from_idl
+from utilities import read_file_to_list
+from utilities import read_pickle_file
+from utilities import should_generate_impl_file_from_idl
+from utilities import write_file
+from v8_utilities import EXPOSED_EXECUTION_CONTEXT_METHOD
 
 interface_name_to_global_names = {}
 global_name_to_constructors = defaultdict(list)
@@ -40,17 +50,12 @@ def parse_options():
     parser = optparse.OptionParser()
     parser.add_option('--idl-files-list', help='file listing IDL files')
     parser.add_option('--global-objects-file', help='pickle file of global objects')
-    parser.add_option('--write-file-only-if-changed', type='int', help='if true, do not write an output file if it would be identical to the existing one, which avoids unnecessary rebuilds in ninja')
-
     options, args = parser.parse_args()
 
     if options.idl_files_list is None:
         parser.error('Must specify a file listing IDL files using --idl-files-list.')
     if options.global_objects_file is None:
         parser.error('Must specify a pickle file of global objects using --global-objects-file.')
-    if options.write_file_only_if_changed is None:
-        parser.error('Must specify whether output files are only written if changed using --write-file-only-if-changed.')
-    options.write_file_only_if_changed = bool(options.write_file_only_if_changed)
 
     return options, args
 
@@ -77,25 +82,33 @@ def record_global_constructors(idl_filename):
     # Callback interfaces with constants also have interface properties,
     # but there are none of these in Blink.
     # http://heycam.github.io/webidl/#es-interfaces
-    if (is_callback_interface_from_idl(idl_file_contents) or
+    if ((not should_generate_impl_file_from_idl(idl_file_contents)) or
+        is_callback_interface_from_idl(idl_file_contents) or
         'NoInterfaceObject' in extended_attributes):
         return
 
-    # The [Exposed] extended attribute MUST take an identifier list. Each
-    # identifier in the list MUST be a global name. An interface or interface
-    # member the extended attribute applies to will be exposed only on objects
-    # associated with ECMAScript global environments whose global object
-    # implements an interface that has a matching global name.
-    exposed_global_names = extended_attributes.get('Exposed', 'Window').strip('()').split(',')
-    new_constructors_list = generate_global_constructors_list(interface_name, extended_attributes)
-    for exposed_global_name in exposed_global_names:
-        global_name_to_constructors[exposed_global_name].extend(new_constructors_list)
+    exposed_arguments = get_interface_exposed_arguments(idl_file_contents)
+    if exposed_arguments:
+        # Exposed(Arguments) case
+        for argument in exposed_arguments:
+            if 'RuntimeEnabled' in extended_attributes:
+                raise ValueError('RuntimeEnabled should not be used with Exposed(Arguments)')
+            attributes = extended_attributes.copy()
+            attributes['RuntimeEnabled'] = argument['runtime_enabled']
+            new_constructors_list = generate_global_constructors_list(interface_name, attributes)
+            global_name_to_constructors[argument['exposed']].extend(new_constructors_list)
+    else:
+        # Exposed=env or Exposed=(env1,...) case
+        exposed_global_names = extended_attributes.get('Exposed', 'Window').strip('()').split(',')
+        new_constructors_list = generate_global_constructors_list(interface_name, extended_attributes)
+        for name in exposed_global_names:
+            global_name_to_constructors[name].extend(new_constructors_list)
 
 
 def generate_global_constructors_list(interface_name, extended_attributes):
     extended_attributes_list = [
             name + ('=' + extended_attributes[name] if extended_attributes[name] else "")
-            for name in 'Conditional', 'PerContextEnabled', 'RuntimeEnabled', 'NotSupported'
+            for name in 'Conditional', 'RuntimeEnabled', 'OriginTrialEnabled', 'NotSupported'
             if name in extended_attributes]
     if extended_attributes_list:
         extended_string = '[%s] ' % ', '.join(extended_attributes_list)
@@ -121,18 +134,17 @@ def generate_global_constructors_list(interface_name, extended_attributes):
     return attributes_list
 
 
-def write_global_constructors_partial_interface(interface_name, idl_filename, constructor_attributes_list, only_if_changed):
+def write_global_constructors_partial_interface(interface_name, idl_filename, constructor_attributes_list):
     # FIXME: replace this with a simple Jinja template
     lines = (['partial interface %s {\n' % interface_name] +
              ['    %s;\n' % constructor_attribute
               # FIXME: sort by interface name (not first by extended attributes)
               for constructor_attribute in sorted(constructor_attributes_list)] +
              ['};\n'])
-    write_file(''.join(lines), idl_filename, only_if_changed)
+    write_file(''.join(lines), idl_filename)
     header_filename = os.path.splitext(idl_filename)[0] + '.h'
     idl_basename = os.path.basename(idl_filename)
-    write_file(HEADER_FORMAT.format(idl_basename=idl_basename),
-               header_filename, only_if_changed)
+    write_file(HEADER_FORMAT.format(idl_basename=idl_basename), header_filename)
 
 
 ################################################################################
@@ -151,14 +163,13 @@ def main():
     interface_name_idl_filename = [(args[i], args[i + 1])
                                    for i in range(0, len(args), 2)]
 
-    with open(options.global_objects_file) as global_objects_file:
-        interface_name_to_global_names.update(pickle.load(global_objects_file))
+    interface_name_to_global_names.update(read_pickle_file(options.global_objects_file))
 
     for idl_filename in idl_files:
         record_global_constructors(idl_filename)
 
     # Check for [Exposed] / [Global] mismatch.
-    known_global_names = frozenset(itertools.chain.from_iterable(interface_name_to_global_names.values()))
+    known_global_names = EXPOSED_EXECUTION_CONTEXT_METHOD.keys()
     exposed_global_names = frozenset(global_name_to_constructors)
     if not exposed_global_names.issubset(known_global_names):
         unknown_global_names = exposed_global_names.difference(known_global_names)
@@ -175,10 +186,7 @@ def main():
         interface_name = os.path.basename(interface_name)
         constructors = interface_name_to_constructors(interface_name)
         write_global_constructors_partial_interface(
-            interface_name,
-            idl_filename,
-            constructors,
-            options.write_file_only_if_changed)
+            interface_name, idl_filename, constructors)
 
 
 if __name__ == '__main__':

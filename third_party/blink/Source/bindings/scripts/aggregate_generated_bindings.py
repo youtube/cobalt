@@ -32,42 +32,28 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Generate aggregate .cpp files that include multiple V8 binding .cpp files.
+"""Generates a .cpp file that includes all V8 binding .cpp files for interfaces.
 
-This can be a single output file, to preserve symbol space; or multiple output
-files, to reduce maximum compilation unit size and allow parallel compilation.
+It is expected to preserve symbol space, and to be acceptable to make static
+build on Windows.
 
 Usage:
-aggregate_generated_bindings.py COMPONENT_DIR IDL_FILES_LIST -- OUTPUT_FILE1 OUTPUT_FILE2 ...
+ $ aggregate_generated_bindings.py --component COMPONENT IDL_FILES_LIST OUTPUT_FILE
 
-COMPONENT_DIR is the relative directory of a component, e.g., 'core', 'modules'.
-IDL_FILES_LIST is a text file containing the IDL file paths, so the command
-line doesn't exceed OS length limits.
-OUTPUT_FILE1 etc. are filenames of output files.
+ COMPONENT is the relative directory of a component, e.g., 'core', 'modules'.
+ IDL_FILES_LIST is a text file containing the IDL file paths
+ OUTPUT_FILE is the filename of output file.
 
-Design doc: http://www.chromium.org/developers/design-documents/idl-build
+ Design doc: http://www.chromium.org/developers/design-documents/idl-build
 """
 
 import errno
+import optparse
 import os
 import re
 import sys
-
-from utilities import idl_filename_to_component, idl_filename_to_interface_name, read_idl_files_list_from_file
-
-# A regexp for finding Conditional attributes in interface definitions.
-CONDITIONAL_PATTERN = re.compile(
-    r'\['
-    r'[^\]]*'
-    r'Conditional=([\_0-9a-zA-Z]*)'
-    r'[^\]]*'
-    r'\]\s*'
-    r'((callback|partial)\s+)?'
-    r'interface\s+'
-    r'\w+\s*'
-    r'(:\s*\w+\s*)?'
-    r'{',
-    re.MULTILINE)
+from utilities import idl_filename_to_interface_name
+from utilities import read_idl_files_list_from_file
 
 COPYRIGHT_TEMPLATE = """/*
  * THIS FILE WAS AUTOMATICALLY GENERATED, DO NOT EDIT.
@@ -99,69 +85,25 @@ COPYRIGHT_TEMPLATE = """/*
  */
 """
 
+def parse_options():
+    parser = optparse.OptionParser()
+    parser.add_option('--component')
 
-def extract_conditional(idl_file_path):
-    """Find [Conditional] interface extended attribute."""
-    with open(idl_file_path) as idl_file:
-        idl_contents = idl_file.read()
+    options, args = parser.parse_args()
+    if len(args) < 2:
+        raise Exception('Expected 2 filenames; one is for input, and the other is for output.')
 
-    match = CONDITIONAL_PATTERN.search(idl_contents)
-    if not match:
-        return None
-    return match.group(1)
-
-
-def extract_meta_data(file_paths):
-    """Extracts conditional and interface name from each IDL file."""
-    meta_data_list = []
-
-    for file_path in file_paths:
-        if not file_path.endswith('.idl'):
-            print 'WARNING: non-IDL file passed: "%s"' % file_path
-            continue
-        if not os.path.exists(file_path):
-            print 'WARNING: file not found: "%s"' % file_path
-            continue
-
-        # Extract interface name from file name
-        interface_name = idl_filename_to_interface_name(file_path)
-
-        meta_data = {
-            'conditional': extract_conditional(file_path),
-            'name': interface_name,
-        }
-        meta_data_list.append(meta_data)
-
-    return meta_data_list
+    return options, args
 
 
-def generate_content(component_dir, aggregate_partial_interfaces, files_meta_data_this_partition):
+def generate_content(component, interface_names):
     # Add fixed content.
     output = [COPYRIGHT_TEMPLATE,
               '#define NO_IMPLICIT_ATOMICSTRING\n\n']
 
-    # List all includes segmented by if and endif.
-    prev_conditional = None
-    files_meta_data_this_partition.sort(key=lambda e: e['conditional'])
-    for meta_data in files_meta_data_this_partition:
-        conditional = meta_data['conditional']
-        if prev_conditional != conditional:
-            if prev_conditional:
-                output.append('#endif\n')
-            if conditional:
-                output.append('\n#if ENABLE(%s)\n' % conditional)
-        prev_conditional = conditional
-
-        if aggregate_partial_interfaces:
-            cpp_filename = 'V8%sPartial.cpp' % meta_data['name']
-        else:
-            cpp_filename = 'V8%s.cpp' % meta_data['name']
-
-        output.append('#include "bindings/%s/v8/%s"\n' %
-                      (component_dir, cpp_filename))
-
-    if prev_conditional:
-        output.append('#endif\n')
+    interface_names.sort()
+    output.extend('#include "bindings/%s/v8/V8%s.cpp"\n' % (component, interface)
+                  for interface in interface_names)
 
     return ''.join(output)
 
@@ -175,32 +117,16 @@ def write_content(content, output_file_name):
         f.write(content)
 
 
-def main(args):
-    if len(args) <= 4:
-        raise Exception('Expected at least 5 arguments.')
-    component_dir = args[1]
-    input_file_name = args[2]
-    in_out_break_index = args.index('--')
-    output_file_names = args[in_out_break_index + 1:]
-
-    idl_file_names = read_idl_files_list_from_file(input_file_name)
-    components = set([idl_filename_to_component(filename)
-                      for filename in idl_file_names])
-    if len(components) != 1:
-        raise Exception('Cannot aggregate generated codes in different components')
-    aggregate_partial_interfaces = component_dir not in components
-
-    files_meta_data = extract_meta_data(idl_file_names)
-    total_partitions = len(output_file_names)
-    for partition, file_name in enumerate(output_file_names):
-        files_meta_data_this_partition = [
-                meta_data for meta_data in files_meta_data
-                if hash(meta_data['name']) % total_partitions == partition]
-        file_contents = generate_content(component_dir,
-                                         aggregate_partial_interfaces,
-                                         files_meta_data_this_partition)
-        write_content(file_contents, file_name)
+def main():
+    options, filenames = parse_options()
+    component = options.component
+    idl_filenames = read_idl_files_list_from_file(filenames[0],
+                                                  is_gyp_format=False)
+    interface_names = [idl_filename_to_interface_name(file_path)
+                       for file_path in idl_filenames]
+    file_contents = generate_content(component, interface_names)
+    write_content(file_contents, filenames[1])
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    sys.exit(main())

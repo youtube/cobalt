@@ -28,21 +28,17 @@
 
 import unittest
 
-from webkitpy.common.system.systemhost_mock import MockSystemHost
-
-from webkitpy.layout_tests.port import Port, Driver, DriverOutput
-from webkitpy.layout_tests.port import browser_test, browser_test_driver
+from webkitpy.common.host_mock import MockHost
+from webkitpy.layout_tests.port.test import TestPort
+from webkitpy.layout_tests.port.browser_test_driver import BrowserTestDriver
 from webkitpy.layout_tests.port.server_process_mock import MockServerProcess
-
-from webkitpy.layout_tests.port.port_testcase import TestWebKitPort
-
-from webkitpy.tool.mocktool import MockOptions
 
 
 class BrowserTestDriverTest(unittest.TestCase):
+
     def test_read_stdin_path(self):
-        port = TestWebKitPort()
-        driver = browser_test_driver.BrowserTestDriver(port, 0, pixel_tests=True)
+        port = TestPort(MockHost())
+        driver = BrowserTestDriver(port, 0, pixel_tests=True)
         driver._server_process = MockServerProcess(lines=[
             'StdinPath: /foo/bar', '#EOF'])
         content_block = driver._read_block(0)
