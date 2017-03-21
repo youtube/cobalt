@@ -47,7 +47,6 @@ class WebIDLParser(unittest.TestCase):
         msg = 'Mismatched tree at line %d:\n%sVS\n%s' % (lineno, value, quick)
         self.assertEqual(value, quick, msg)
 
-  @unittest.skip("failing ")
   def testExpectedNodes(self):
     for filename in self.filenames:
       filenode = ParseFile(self.parser, filename)
@@ -58,7 +57,7 @@ class WebIDLParser(unittest.TestCase):
       for node in filenode.GetChildren()[2:]:
         self._TestNode(node)
 
-@unittest.skip("Not supported in Cobalt")
+
 class PepperIDLParser(unittest.TestCase):
   def setUp(self):
     self.parser = IDLPPAPIParser(IDLPPAPILexer(), mute_error=True)

@@ -28,39 +28,11 @@
 
 import unittest
 
-from webkitpy.tool import grammar
-
+from webkitpy.tool.grammar import join_with_separators
 
 class GrammarTest(unittest.TestCase):
 
-    def test_join_with_separators_zero(self):
-        self.assertEqual(
-            '',
-            grammar.join_with_separators([]))
-
-    def test_join_with_separators_one(self):
-        self.assertEqual(
-            'one',
-            grammar.join_with_separators(['one']))
-
-    def test_join_with_separators_two(self):
-        self.assertEqual(
-            'one and two',
-            grammar.join_with_separators(['one', 'two']))
-
-    def test_join_with_separators_three(self):
-        self.assertEqual(
-            'one, two, and three',
-            grammar.join_with_separators(['one', 'two', 'three']))
-
-    def test_pluralize_zero(self):
-        self.assertEqual('0 tests', grammar.pluralize('test', 0))
-
-    def test_pluralize_one(self):
-        self.assertEqual('1 test', grammar.pluralize('test', 1))
-
-    def test_pluralize_two(self):
-        self.assertEqual('2 tests', grammar.pluralize('test', 2))
-
-    def test_pluralize_two_ends_with_sh(self):
-        self.assertEqual('2 crashes', grammar.pluralize('crash', 2))
+    def test_join_with_separators(self):
+        self.assertEqual(join_with_separators(["one"]), "one")
+        self.assertEqual(join_with_separators(["one", "two"]), "one and two")
+        self.assertEqual(join_with_separators(["one", "two", "three"]), "one, two, and three")

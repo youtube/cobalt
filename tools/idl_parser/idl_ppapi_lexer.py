@@ -9,7 +9,7 @@ The lexer uses the PLY library to build a tokenizer which understands both
 WebIDL and Pepper tokens.
 
 WebIDL, and WebIDL regular expressions can be found at:
-   http://heycam.github.io/webidl/
+   http://www.w3.org/TR/2012/CR-WebIDL-20120419/
 PLY can be found at:
    http://www.dabeaz.com/ply/
 """
@@ -60,7 +60,7 @@ class IDLPPAPILexer(IDLLexer):
     # Remove JS types
     self._DelKeywords(['boolean', 'byte', 'ByteString', 'Date', 'DOMString',
                        'double', 'float', 'long', 'object', 'octet', 'Promise',
-                       'record', 'RegExp', 'short', 'unsigned', 'USVString'])
+                       'RegExp', 'short', 'unsigned'])
 
 
 # If run by itself, attempt to build the lexer

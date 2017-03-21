@@ -26,9 +26,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import os
+import sys
 import unittest
 
-from webkitpy.style.checkers.test_expectations import TestExpectationsChecker
+from test_expectations import TestExpectationsChecker
 from webkitpy.common.host_mock import MockHost
 
 
@@ -71,7 +73,7 @@ class TestExpectationsTestCase(unittest.TestCase):
         # We should have a valid port, but override it with a test port so we
         # can check the lines.
         self.assertIsNotNone(checker._port_obj)
-        checker._port_obj = host.port_factory.get('test-mac-mac10.10')
+        checker._port_obj = host.port_factory.get('test-mac-leopard')
 
         checker.check_test_expectations(expectations_str='\n'.join(lines),
                                         tests=[self._test_file])
@@ -90,14 +92,10 @@ class TestExpectationsTestCase(unittest.TestCase):
         self.assertFalse(self._error_collector.turned_off_filtering)
 
     def test_valid_expectations(self):
-        self.assert_lines_lint(['crbug.com/1234 [ Mac ] passes/text.html [ Pass Failure ]'], should_pass=True)
+        self.assert_lines_lint(["crbug.com/1234 [ Mac ] passes/text.html [ Pass Failure ]"], should_pass=True)
 
     def test_invalid_expectations(self):
-        self.assert_lines_lint(['Bug(me) passes/text.html [ Give Up]'], should_pass=False)
+        self.assert_lines_lint(["Bug(me) passes/text.html [ Give Up]"], should_pass=False)
 
     def test_tab(self):
-        self.assert_lines_lint(['\twebkit.org/b/1 passes/text.html [ Pass ]'], should_pass=False,
-                               expected_output='Line contains tab character.  [whitespace/tab] [5]')
-
-    def test_missing_expectation_not_allowed(self):
-        self.assert_lines_lint(['crbug.com/1234 [ Mac ] passes/text.html [ Missing ]'], should_pass=False)
+        self.assert_lines_lint(["\twebkit.org/b/1 passes/text.html [ Pass ]"], should_pass=False, expected_output="Line contains tab character.  [whitespace/tab] [5]")

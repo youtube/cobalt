@@ -28,14 +28,10 @@
 
 import unittest
 
-from webkitpy.layout_tests.models.test_failures import (
-    ALL_FAILURE_CLASSES, determine_result_type,
-    FailureCrash, FailureTimeout, TestFailure
-)
+from webkitpy.layout_tests.models.test_failures import *
 
 
 class TestFailuresTest(unittest.TestCase):
-
     def assert_loads(self, cls):
         failure_obj = cls()
         s = failure_obj.dumps()
@@ -49,7 +45,6 @@ class TestFailuresTest(unittest.TestCase):
 
     def test_unknown_failure_type(self):
         class UnknownFailure(TestFailure):
-
             def message(self):
                 return ''
 
@@ -70,7 +65,7 @@ class TestFailuresTest(unittest.TestCase):
         crash_set = set([FailureCrash(), FailureCrash()])
         self.assertEqual(len(crash_set), 1)
         # The hash happens to be the name of the class, but sets still work:
-        crash_set = set([FailureCrash(), 'FailureCrash'])
+        crash_set = set([FailureCrash(), "FailureCrash"])
         self.assertEqual(len(crash_set), 2)
 
     def test_crashes(self):

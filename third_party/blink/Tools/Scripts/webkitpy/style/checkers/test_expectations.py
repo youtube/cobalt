@@ -29,10 +29,17 @@
 """Checks WebKit style for test_expectations files."""
 
 import logging
+import optparse
+import os
+import re
+import sys
 
+from common import TabChecker
 from webkitpy.common.host import Host
 from webkitpy.layout_tests.models.test_expectations import TestExpectationParser
-from webkitpy.style.checkers.common import TabChecker
+
+
+_log = logging.getLogger(__name__)
 
 
 class TestExpectationsChecker(object):
@@ -47,11 +54,12 @@ class TestExpectationsChecker(object):
 
         # FIXME: host should be a required parameter, not an optional one.
         host = host or Host()
+        host.initialize_scm()
 
         self._port_obj = host.port_factory.get()
 
         # Suppress error messages of test_expectations module since they will be reported later.
-        log = logging.getLogger('webkitpy.layout_tests.layout_package.test_expectations')
+        log = logging.getLogger("webkitpy.layout_tests.layout_package.test_expectations")
         log.setLevel(logging.CRITICAL)
 
     def _handle_error_message(self, lineno, message, confidence):

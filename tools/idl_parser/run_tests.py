@@ -4,16 +4,14 @@
 # found in the LICENSE file.
 
 import glob
-import os
 import sys
 import unittest
 
 if __name__ == '__main__':
   suite = unittest.TestSuite()
-  cur_dir = os.path.dirname(os.path.realpath(__file__))
-  for testname in glob.glob(os.path.join(cur_dir, '*_test.py')):
+  for testname in glob.glob('*_test.py'):
     print 'Adding Test: ' + testname
-    module = __import__(os.path.basename(testname)[:-3])
+    module = __import__(testname[:-3])
     suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(module))
   result = unittest.TextTestRunner(verbosity=2).run(suite)
   if result.wasSuccessful():

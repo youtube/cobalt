@@ -26,11 +26,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import StringIO
 import errno
 import hashlib
 import os
 import re
-import StringIO
+
+from webkitpy.common.system import path
 
 
 class MockFileSystem(object):
@@ -38,26 +40,26 @@ class MockFileSystem(object):
     pardir = '..'
 
     def __init__(self, files=None, dirs=None, cwd='/'):
-        """Initializes a "mock" filesystem that can be used to replace the
-        FileSystem class in tests.
+        """Initializes a "mock" filesystem that can be used to completely
+        stub out a filesystem.
 
         Args:
-            files: A dictionary of filenames to file contents. A file contents
-                value of None indicates that the file does not exist.
+            files: a dict of filenames -> file contents. A file contents
+                value of None is used to indicate that the file should
+                not exist.
         """
         self.files = files or {}
-        self.executable_files = set()
         self.written_files = {}
         self.last_tmpdir = None
         self.current_tmpno = 0
         self.cwd = cwd
         self.dirs = set(dirs or [])
         self.dirs.add(cwd)
-        for file_path in self.files:
-            directory = self.dirname(file_path)
-            while directory not in self.dirs:
-                self.dirs.add(directory)
-                directory = self.dirname(directory)
+        for f in self.files:
+            d = self.dirname(f)
+            while not d in self.dirs:
+                self.dirs.add(d)
+                d = self.dirname(d)
 
     def clear_written_files(self):
         # This function can be used to track what is written between steps in a test.
@@ -67,14 +69,11 @@ class MockFileSystem(object):
         raise IOError(errno.ENOENT, path, os.strerror(errno.ENOENT))
 
     def _split(self, path):
-        # This is not quite a full implementation of os.path.split; see:
+        # This is not quite a full implementation of os.path.split
         # http://docs.python.org/library/os.path.html#os.path.split
         if self.sep in path:
             return path.rsplit(self.sep, 1)
         return ('', path)
-
-    def make_executable(self, file_path):
-        self.executable_files.add(file_path)
 
     def abspath(self, path):
         if os.path.isabs(path):
@@ -88,16 +87,16 @@ class MockFileSystem(object):
         return self._split(path)[1]
 
     def expanduser(self, path):
-        if path[0] != '~':
+        if path[0] != "~":
             return path
         parts = path.split(self.sep, 1)
-        home_directory = self.sep + 'Users' + self.sep + 'mock'
+        home_directory = self.sep + "Users" + self.sep + "mock"
         if len(parts) == 1:
             return home_directory
         return home_directory + self.sep + parts[1]
 
     def path_to_module(self, module_name):
-        return '/mock-checkout/third_party/WebKit/Tools/Scripts/' + module_name.replace('.', '/') + '.py'
+        return "/mock-checkout/third_party/WebKit/Tools/Scripts/" + module_name.replace('.', '/') + ".py"
 
     def chdir(self, path):
         path = self.normpath(path)
@@ -124,10 +123,9 @@ class MockFileSystem(object):
     def exists(self, path):
         return self.isfile(path) or self.isdir(path)
 
-    def files_under(self, path, dirs_to_skip=None, file_filter=None):
-        dirs_to_skip = dirs_to_skip or []
-
-        filter_all = lambda fs, dirpath, basename: True
+    def files_under(self, path, dirs_to_skip=[], file_filter=None):
+        def filter_all(fs, dirpath, basename):
+            return True
 
         file_filter = file_filter or filter_all
         files = []
@@ -167,7 +165,7 @@ class MockFileSystem(object):
         glob_string = glob_string.replace('\\/', '/')
         path_filter = lambda path: re.match(glob_string, path)
 
-        # We could use fnmatch.fnmatch, but that might not do the right thing on Windows.
+        # We could use fnmatch.fnmatch, but that might not do the right thing on windows.
         existing_files = [path for path, contents in self.files.items() if contents is not None]
         return filter(path_filter, existing_files) + filter(path_filter, self.dirs)
 
@@ -185,7 +183,7 @@ class MockFileSystem(object):
 
     def join(self, *comps):
         # This function is called a lot, so we optimize it; there are
-        # unit tests to check that we match _slow_but_correct_join(), above.
+        # unittests to check that we match _slow_but_correct_join(), above.
         path = ''
         sep = self.sep
         for comp in comps:
@@ -203,41 +201,36 @@ class MockFileSystem(object):
         return path
 
     def listdir(self, path):
-        _, directories, files = list(self.walk(path))[0]
-        return directories + files
+        root, dirs, files = list(self.walk(path))[0]
+        return dirs + files
 
     def walk(self, top):
         sep = self.sep
         if not self.isdir(top):
-            raise OSError('%s is not a directory' % top)
+            raise OSError("%s is not a directory" % top)
 
         if not top.endswith(sep):
             top += sep
 
-        directories = []
+        dirs = []
         files = []
-        for file_path in self.files:
-            if self.exists(file_path) and file_path.startswith(top):
-                remaining = file_path[len(top):]
+        for f in self.files:
+            if self.exists(f) and f.startswith(top):
+                remaining = f[len(top):]
                 if sep in remaining:
-                    directory = remaining[:remaining.index(sep)]
-                    if directory not in directories:
-                        directories.append(directory)
+                    dir = remaining[:remaining.index(sep)]
+                    if not dir in dirs:
+                        dirs.append(dir)
                 else:
                     files.append(remaining)
-        file_system_tuples = [(top[:-1], directories, files)]
-        for directory in directories:
-            directory = top + directory
-            tuples_from_subdirs = self.walk(directory)
-            file_system_tuples += tuples_from_subdirs
-        return file_system_tuples
+        return [(top[:-1], dirs, files)]
 
     def mtime(self, path):
         if self.exists(path):
             return 0
         self._raise_not_found(path)
 
-    def _mktemp(self, suffix='', prefix='tmp', dir=None, **_):  # pylint: disable=redefined-builtin
+    def _mktemp(self, suffix='', prefix='tmp', dir=None, **kwargs):
         if dir is None:
             dir = self.sep + '__im_tmp'
         curno = self.current_tmpno
@@ -247,11 +240,10 @@ class MockFileSystem(object):
 
     def mkdtemp(self, **kwargs):
         class TemporaryDirectory(object):
-
             def __init__(self, fs, **kwargs):
                 self._kwargs = kwargs
                 self._filesystem = fs
-                self._directory_path = fs._mktemp(**kwargs)  # pylint: disable=protected-access
+                self._directory_path = fs._mktemp(**kwargs)
                 fs.maybe_make_directory(self._directory_path)
 
             def __str__(self):
@@ -260,7 +252,7 @@ class MockFileSystem(object):
             def __enter__(self):
                 return self._directory_path
 
-            def __exit__(self, exception_type, exception_value, traceback):
+            def __exit__(self, type, value, traceback):
                 # Only self-delete if necessary.
 
                 # FIXME: Should we delete non-empty directories?
@@ -359,7 +351,7 @@ class MockFileSystem(object):
         dot_dot = ''
         while not common_root == '':
             if path.startswith(common_root):
-                break
+                 break
             common_root = self.dirname(common_root)
             dot_dot += '..' + self.sep
 
@@ -388,19 +380,16 @@ class MockFileSystem(object):
         self.files[path] = None
         self.written_files[path] = None
 
-    def rmtree(self, path_to_remove):
-        path_to_remove = self.normpath(path_to_remove)
+    def rmtree(self, path):
+        path = self.normpath(path)
 
-        for file_path in self.files:
-            # We need to add a trailing separator to path_to_remove to avoid matching
-            # cases like path_to_remove='/foo/b' and file_path='/foo/bar/baz'.
-            if file_path == path_to_remove or file_path.startswith(path_to_remove + self.sep):
-                self.files[file_path] = None
+        for f in self.files:
+            # We need to add a trailing separator to path to avoid matching
+            # cases like path='/foo/b' and f='/foo/bar/baz'.
+            if f == path or f.startswith(path + self.sep):
+                self.files[f] = None
 
-        def should_remove(directory):
-            return directory == path_to_remove or directory.startswith(path_to_remove + self.sep)
-
-        self.dirs = {d for d in self.dirs if not should_remove(d)}
+        self.dirs = set(filter(lambda d: not (d == path or d.startswith(path + self.sep)), self.dirs))
 
     def copytree(self, source, destination):
         source = self.normpath(source)
@@ -426,35 +415,32 @@ class MockFileSystem(object):
 
 
 class WritableBinaryFileObject(object):
-
     def __init__(self, fs, path):
         self.fs = fs
         self.path = path
         self.closed = False
-        self.fs.files[path] = ''
+        self.fs.files[path] = ""
 
     def __enter__(self):
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):
+    def __exit__(self, type, value, traceback):
         self.close()
 
     def close(self):
         self.closed = True
 
-    def write(self, string):
-        self.fs.files[self.path] += string
+    def write(self, str):
+        self.fs.files[self.path] += str
         self.fs.written_files[self.path] = self.fs.files[self.path]
 
 
 class WritableTextFileObject(WritableBinaryFileObject):
-
-    def write(self, string):
-        WritableBinaryFileObject.write(self, string.encode('utf-8'))
+    def write(self, str):
+        WritableBinaryFileObject.write(self, str.encode('utf-8'))
 
 
 class ReadableBinaryFileObject(object):
-
     def __init__(self, fs, path, data):
         self.fs = fs
         self.path = path
@@ -465,31 +451,30 @@ class ReadableBinaryFileObject(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):
+    def __exit__(self, type, value, traceback):
         self.close()
 
     def close(self):
         self.closed = True
 
-    def read(self, num_bytes=None):
-        if not num_bytes:
+    def read(self, bytes=None):
+        if not bytes:
             return self.data[self.offset:]
         start = self.offset
-        self.offset += num_bytes
+        self.offset += bytes
         return self.data[start:self.offset]
 
 
 class ReadableTextFileObject(ReadableBinaryFileObject):
-
     def __init__(self, fs, path, data):
-        super(ReadableTextFileObject, self).__init__(fs, path, StringIO.StringIO(data.decode('utf-8')))
+        super(ReadableTextFileObject, self).__init__(fs, path, StringIO.StringIO(data.decode("utf-8")))
 
     def close(self):
         self.data.close()
         super(ReadableTextFileObject, self).close()
 
-    def read(self, num_bytes=-1):
-        return self.data.read(num_bytes)
+    def read(self, bytes=-1):
+        return self.data.read(bytes)
 
     def readline(self, length=None):
         return self.data.readline(length)

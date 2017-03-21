@@ -31,16 +31,21 @@
 
 import unittest
 
+from webkitpy.common.system.filesystem_mock import MockFileSystem
 from webkitpy.style.patchreader import PatchReader
 
 
 class PatchReaderTest(unittest.TestCase):
 
+    """Test the PatchReader class."""
+
     class MockTextFileReader(object):
 
         def __init__(self):
-            self.passed_to_process_file = []  # A list of (file_path, line_numbers) pairs.
-            self.delete_only_file_count = 0  # A number of times count_delete_only_file() called.
+            self.passed_to_process_file = []
+            """A list of (file_path, line_numbers) pairs."""
+            self.delete_only_file_count = 0
+            """A number of times count_delete_only_file() called"""
 
         def process_file(self, file_path, line_numbers):
             self.passed_to_process_file.append((file_path, line_numbers))
@@ -49,41 +54,48 @@ class PatchReaderTest(unittest.TestCase):
             self.delete_only_file_count += 1
 
     def setUp(self):
-        self._file_reader = self.MockTextFileReader()
+        file_reader = self.MockTextFileReader()
+        self._file_reader = file_reader
+        self._patch_checker = PatchReader(file_reader)
+
+    def _call_check_patch(self, patch_string):
+        self._patch_checker.check(patch_string)
 
     def _assert_checked(self, passed_to_process_file, delete_only_file_count):
-        self.assertEqual(self._file_reader.passed_to_process_file, passed_to_process_file)
-        self.assertEqual(self._file_reader.delete_only_file_count, delete_only_file_count)
+        self.assertEqual(self._file_reader.passed_to_process_file,
+                          passed_to_process_file)
+        self.assertEqual(self._file_reader.delete_only_file_count,
+                          delete_only_file_count)
 
     def test_check_patch(self):
-        PatchReader(self._file_reader).check(
-            'diff --git a/__init__.py b/__init__.py\n'
-            'index ef65bee..e3db70e 100644\n'
-            '--- a/__init__.py\n'
-            '+++ b/__init__.py\n'
-            '@@ -1,1 +1,2 @@\n'
-            ' # Required for Python to search this directory for module files\n'
-            '+# New line\n')
-        self._assert_checked(
-            passed_to_process_file=[('__init__.py', [2])],
-            delete_only_file_count=0)
+        # The modified line_numbers array for this patch is: [2].
+        self._call_check_patch("""diff --git a/__init__.py b/__init__.py
+index ef65bee..e3db70e 100644
+--- a/__init__.py
++++ b/__init__.py
+@@ -1,1 +1,2 @@
+ # Required for Python to search this directory for module files
++# New line
+""")
+        self._assert_checked([("__init__.py", [2])], 0)
 
     def test_check_patch_with_deletion(self):
-        PatchReader(self._file_reader).check(
-            'diff --git a/__init__.py b/__init.py\n'
-            'deleted file mode 100644\n'
-            'index ef65bee..0000000\n'
-            '--- a/__init__.py\n'
-            '+++ /dev/null\n'
-            '@@ -1 +0,0 @@\n'
-            '-foobar\n')
-        # The deleted file isn't be processed.
-        self._assert_checked(passed_to_process_file=[], delete_only_file_count=1)
+        self._call_check_patch("""Index: __init__.py
+===================================================================
+--- __init__.py  (revision 3593)
++++ __init__.py  (working copy)
+@@ -1 +0,0 @@
+-foobar
+""")
+        # _mock_check_file should not be called for the deletion patch.
+        self._assert_checked([], 1)
 
     def test_check_patch_with_png_deletion(self):
-        PatchReader(self._file_reader).check(
-            'diff --git a/foo-expected.png b/foo-expected.png\n'
-            'deleted file mode 100644\n'
-            'index ef65bee..0000000\n'
-            'Binary files a/foo-expected.png and /dev/null differ\n')
-        self._assert_checked(passed_to_process_file=[], delete_only_file_count=1)
+        fs = MockFileSystem()
+        diff_text = """Index: LayoutTests/platform/mac/foo-expected.png
+===================================================================
+Cannot display: file marked as a binary type.
+svn:mime-type = image/png
+"""
+        self._patch_checker.check(diff_text, fs)
+        self._assert_checked([], 1)
