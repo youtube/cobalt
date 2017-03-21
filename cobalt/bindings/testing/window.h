@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cobalt/bindings/testing/global_interface_parent.h"
+#include "cobalt/bindings/testing/single_operation_interface.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 
@@ -28,6 +29,8 @@ namespace testing {
 
 class Window : public GlobalInterfaceParent {
  public:
+  typedef script::ScriptValue<SingleOperationInterface> TestEventHandler;
+
   virtual void WindowOperation() {}
   virtual std::string window_property() { return ""; }
   virtual void set_window_property(const std::string&) {}
@@ -37,6 +40,9 @@ class Window : public GlobalInterfaceParent {
     return StackTraceToString(stack_frame);
   }
   scoped_refptr<Window> window() { return this; }
+
+  void set_on_event(const TestEventHandler&) {}
+  const TestEventHandler* on_event() { return NULL; }
 
   DEFINE_WRAPPABLE_TYPE(Window);
 };
