@@ -87,6 +87,15 @@ class {{class_name}} {
 {% endfor %}
 };
 
+// This ostream override is necessary for MOCK_METHODs commonly used
+// in idl test code
+inline std::ostream& operator<<(
+    std::ostream& stream, const {{components|join('::')}}::{{class_name}}& in) {
+  UNREFERENCED_PARAMETER(in);
+  stream << "[{{class_name}}]";
+  return stream;
+}
+
 {% for component in components %}
 }  // namespace {{component}}
 {% endfor %}
