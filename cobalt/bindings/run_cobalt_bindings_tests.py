@@ -25,13 +25,25 @@ Options:
 import argparse
 import os
 import sys
+module_path, module_filename = os.path.split(os.path.realpath(__file__))
+cobalt_src_root = os.path.normpath(
+    os.path.join(module_path, os.pardir, os.pardir))
+# Add blink's python tools to the path.
+blink_tools_scripts_dir = os.path.normpath(
+    os.path.join(cobalt_src_root, 'third_party', 'blink', 'Tools', 'Scripts'))
+sys.path.append(blink_tools_scripts_dir)
+cobalt_bindings_dir = os.path.normpath(
+    os.path.join(cobalt_src_root, 'cobalt', 'bindings'))
+# Add cobalt's bindings generation scripts to the path.
+sys.path.append(cobalt_bindings_dir)
+from idl_compiler_cobalt import IdlCompilerCobalt  # pylint: disable=g-import-not-at-top
+from mozjs.code_generator import CodeGeneratorMozjs
+CodeGeneratorMozjs45 = __import__(  # pylint: disable=invalid-name
+    'mozjs-45.code_generator').code_generator.CodeGeneratorMozjs
+from webkitpy.bindings.main import run_bindings_tests  # pylint: disable=g-import-not-at-top
 
-import bootstrap_path  # pylint: disable=unused-import
-
-from cobalt.bindings.idl_compiler_cobalt import IdlCompilerCobalt
-from cobalt.bindings.mozjs.code_generator_mozjs import CodeGeneratorMozjs
-from cobalt.bindings.mozjs45.code_generator_mozjs45 import CodeGeneratorMozjs45
-from webkitpy.bindings.bindings_tests import run_bindings_tests
+extended_attributes_path = os.path.join(cobalt_src_root, 'cobalt', 'bindings',
+                                        'IDLExtendedAttributes.txt')
 
 
 def main(argv):
@@ -43,20 +55,14 @@ def main(argv):
 
   if args.engine.lower() == 'mozjs':
     generator = CodeGeneratorMozjs
-  elif args.engine.lower() == 'mozjs45':
+  elif args.engine.lower() == 'mozjs-45':
     generator = CodeGeneratorMozjs45
   else:
     raise RuntimeError('Unsupported JavaScript engine: ' + args.engine)
 
-  cobalt_bindings_dir, _ = os.path.split(os.path.realpath(__file__))
-  cobalt_src_root = os.path.normpath(
-      os.path.join(cobalt_bindings_dir, os.pardir))
-  test_input_directory = os.path.normpath(os.path.join(cobalt_bindings_dir))
-  reference_directory = os.path.normpath(
-      os.path.join(cobalt_bindings_dir, 'generated', args.engine))
-
-  extended_attributes_path = os.path.join(cobalt_bindings_dir,
-                                          'IDLExtendedAttributes.txt')
+  test_input_directory = os.path.join(cobalt_bindings_dir)
+  reference_directory = os.path.join(cobalt_bindings_dir, 'generated',
+                                     args.engine)
   test_args = {
       'idl_compiler_constructor':
           IdlCompilerCobalt,
