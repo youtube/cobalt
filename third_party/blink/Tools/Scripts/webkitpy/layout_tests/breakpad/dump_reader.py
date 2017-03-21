@@ -26,11 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import logging
-
-
-_log = logging.getLogger(__name__)
-
 
 class DumpReader(object):
     """Base class for breakpad dump readers."""
@@ -42,7 +37,8 @@ class DumpReader(object):
     def check_is_functional(self):
         """This routine must be implemented by subclasses.
 
-        Returns True if this reader is functional."""
+        Returns True if this reader is functional.
+        """
         raise NotImplementedError()
 
     def crash_dumps_directory(self):
@@ -60,7 +56,7 @@ class DumpReader(object):
             return None
 
         pid_to_minidump = dict()
-        for root, dirs, files in self._host.filesystem.walk(self.crash_dumps_directory()):
+        for root, _, files in self._host.filesystem.walk(self.crash_dumps_directory()):
             for dmp in [f for f in files if f.endswith(self._file_extension())]:
                 dmp_file = self._host.filesystem.join(root, dmp)
                 if self._host.filesystem.mtime(dmp_file) < start_time:
@@ -70,7 +66,7 @@ class DumpReader(object):
                     pid_to_minidump[pid] = dmp_file
 
         result = dict()
-        for test, process_name, pid in crashed_processes:
+        for test, _, pid in crashed_processes:
             if str(pid) in pid_to_minidump:
                 stack = self._get_stack_from_dump(pid_to_minidump[str(pid)])
                 if stack:
@@ -81,17 +77,20 @@ class DumpReader(object):
     def _get_pid_from_dump(self, dump_file):
         """This routine must be implemented by subclasses.
 
-        This routine returns the PID of the crashed process that produced the given dump_file."""
+        This routine returns the PID of the crashed process that produced the given dump_file.
+        """
         raise NotImplementedError()
 
     def _get_stack_from_dump(self, dump_file):
         """This routine must be implemented by subclasses.
 
-        Returns the stack stored in the given breakpad dump_file."""
+        Returns the stack stored in the given breakpad dump_file.
+        """
         raise NotImplementedError()
 
     def _file_extension(self):
         """This routine must be implemented by subclasses.
 
-        Returns the file extension of crash dumps written by breakpad."""
+        Returns the file extension of crash dumps written by breakpad.
+        """
         raise NotImplementedError()

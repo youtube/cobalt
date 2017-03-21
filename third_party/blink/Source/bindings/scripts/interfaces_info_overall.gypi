@@ -46,8 +46,6 @@
     'action': [
       'python',
       '<(bindings_scripts_dir)/compute_interfaces_info_overall.py',
-      '--write-file-only-if-changed',
-      '<(write_file_only_if_changed)',
       '--',
       '<@(input_files)',
       '<(output_file)',

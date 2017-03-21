@@ -41,7 +41,8 @@ will return everything except files in fast subfolder.
 
 If a callback is passed in, it will be called for the each file and the file
 will be included into the result if the callback returns True.
-The callback has to take three arguments: filesystem, dirname and filename."""
+The callback has to take three arguments: filesystem, dirname and filename.
+"""
 
 import itertools
 
@@ -58,7 +59,8 @@ def find(filesystem, base_dir, paths=None, skipped_directories=None, file_filter
 
     paths = paths or ['*']
     skipped_directories = skipped_directories or set(['.svn', '_svn'])
-    return _normalized_find(filesystem, _normalize(filesystem, base_dir, paths), skipped_directories, file_filter, directory_sort_key)
+    return _normalized_find(filesystem, _normalize(
+        filesystem, base_dir, paths), skipped_directories, file_filter, directory_sort_key)
 
 
 def _normalize(filesystem, base_dir, paths):
@@ -80,5 +82,6 @@ def _normalized_find(filesystem, paths, skipped_directories, file_filter, direct
             files_list.sort(key=directory_sort_key)
         return files_list
 
-    all_files = itertools.chain(*(sort_by_directory_key(filesystem.files_under(path, skipped_directories, file_filter)) for path in paths_to_walk))
+    all_files = itertools.chain(*(sort_by_directory_key(filesystem.files_under(path, skipped_directories, file_filter))
+                                  for path in paths_to_walk))
     return all_files
