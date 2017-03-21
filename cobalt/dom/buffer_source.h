@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-mediakeymessageevent
+#ifndef COBALT_DOM_BUFFER_SOURCE_H_
+#define COBALT_DOM_BUFFER_SOURCE_H_
 
-interface MediaKeyMessageEvent : Event {
-  readonly attribute DOMString keySystem;
-  readonly attribute DOMString sessionId;
-  readonly attribute Uint8Array message;
-  readonly attribute DOMString defaultURL;
-};
+#include "cobalt/script/union_type.h"
+
+namespace cobalt {
+namespace dom {
+
+class ArrayBuffer;
+class ArrayBufferView;
+
+typedef script::UnionType2<scoped_refptr<ArrayBufferView>,
+                           scoped_refptr<ArrayBuffer> > BufferSource;
+
+}  // namespace dom
+}  // namespace cobalt
+
+#endif  // COBALT_DOM_BUFFER_SOURCE_H_
