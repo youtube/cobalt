@@ -425,9 +425,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   loader_factory_.reset(
       new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
-                                data.options.software_decoder_thread_priority,
-                                data.options.hardware_decoder_thread_priority,
-                                data.options.fetcher_lifetime_thread_priority));
+                                data.options.loader_thread_priority));
 
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
@@ -863,13 +861,7 @@ WebModule::Options::Options(const math::Size& ui_dimensions)
       track_event_stats(false),
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
-      software_decoder_thread_priority(base::kThreadPriority_Low),
-#if SB_HAS(1_CORE)
-      hardware_decoder_thread_priority(base::kThreadPriority_Low),
-#else
-      hardware_decoder_thread_priority(base::kThreadPriority_Normal),
-#endif
-      fetcher_lifetime_thread_priority(base::kThreadPriority_High),
+      loader_thread_priority(base::kThreadPriority_Low),
       tts_engine(NULL) {}
 
 WebModule::WebModule(
