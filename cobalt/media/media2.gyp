@@ -65,7 +65,6 @@
         'base/demuxer_stream_provider.h',
         'base/drm_system.cc',
         'base/drm_system.h',
-        'base/drm_system_client.h',
         'base/encryption_scheme.cc',
         'base/encryption_scheme.h',
         'base/hdr_metadata.cc',
