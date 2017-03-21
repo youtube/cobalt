@@ -26,10 +26,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+"""Unit test for text_style.py."""
+
 import unittest
 
-from webkitpy.style.checkers.text import process_file_data, TextChecker
-
+import text as text_style
+from text import TextChecker
 
 class TextStyleTestCase(unittest.TestCase):
     """TestCase for text_style.py"""
@@ -42,7 +44,7 @@ class TextStyleTestCase(unittest.TestCase):
             """Records if an error occurs."""
             self.had_error = True
 
-        process_file_data('', lines, error_for_test)
+        text_style.process_file_data('', lines, error_for_test)
         self.assertFalse(self.had_error, '%s should not have any errors.' % lines)
 
     def assertError(self, lines, expected_line_number):
@@ -55,13 +57,15 @@ class TextStyleTestCase(unittest.TestCase):
             self.assertEqual('whitespace/tab', category)
             self.had_error = True
 
-        process_file_data('', lines, error_for_test)
+        text_style.process_file_data('', lines, error_for_test)
         self.assertTrue(self.had_error, '%s should have an error [whitespace/tab].' % lines)
+
 
     def test_no_error(self):
         """Tests for no error cases."""
         self.assertNoError([''])
         self.assertNoError(['abc def', 'ggg'])
+
 
     def test_error(self):
         """Tests for error cases."""
@@ -80,6 +84,6 @@ class TextCheckerTest(unittest.TestCase):
 
     def test_init(self):
         """Test __init__ constructor."""
-        checker = TextChecker('foo.txt', self.mock_handle_style_error)
-        self.assertEqual(checker.file_path, 'foo.txt')
+        checker = TextChecker("foo.txt", self.mock_handle_style_error)
+        self.assertEqual(checker.file_path, "foo.txt")
         self.assertEqual(checker.handle_style_error, self.mock_handle_style_error)

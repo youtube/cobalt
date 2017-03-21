@@ -26,16 +26,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import optparse
 import unittest
 
-from webkitpy.common.host_mock import MockHost
-from webkitpy.common.webkit_finder import WebKitFinder
+from webkitpy.tool.mocktool import MockOptions
+from webkitpy.common.system.systemhost_mock import MockSystemHost
+
 from webkitpy.layout_tests.port import android
-from webkitpy.layout_tests.port import factory
 from webkitpy.layout_tests.port import linux
 from webkitpy.layout_tests.port import mac
 from webkitpy.layout_tests.port import win
+from webkitpy.layout_tests.port import factory
+from webkitpy.layout_tests.port import test
 
 
 class FactoryTest(unittest.TestCase):
@@ -44,111 +45,42 @@ class FactoryTest(unittest.TestCase):
     # instead of passing generic "options".
 
     def setUp(self):
-        self.webkit_options = optparse.Values({'pixel_tests': False})
+        self.webkit_options = MockOptions(pixel_tests=False)
 
     def assert_port(self, port_name=None, os_name=None, os_version=None, options=None, cls=None):
-        host = MockHost(os_name=os_name, os_version=os_version)
+        host = MockSystemHost(os_name=os_name, os_version=os_version)
         port = factory.PortFactory(host).get(port_name, options=options)
         self.assertIsInstance(port, cls)
 
     def test_mac(self):
-        self.assert_port(port_name='mac', os_name='mac', os_version='mac10.11',
+        self.assert_port(port_name='mac', os_name='mac', os_version='snowleopard',
+                         cls=mac.MacPort)
+        self.assert_port(port_name='chromium', os_name='mac', os_version='lion',
                          cls=mac.MacPort)
 
     def test_linux(self):
-        self.assert_port(port_name='linux', os_name='linux', os_version='trusty',
+        self.assert_port(port_name='linux', cls=linux.LinuxPort)
+        self.assert_port(port_name='chromium', os_name='linux', os_version='lucid',
                          cls=linux.LinuxPort)
 
     def test_android(self):
         self.assert_port(port_name='android', cls=android.AndroidPort)
+        # NOTE: We can't check for port_name=chromium here, as this will append the host's
+        # operating system, whereas host!=target for Android.
 
     def test_win(self):
-        self.assert_port(port_name='win-win7', cls=win.WinPort)
-        self.assert_port(port_name='win-win10', cls=win.WinPort)
-        self.assert_port(port_name='win', os_name='win', os_version='win7',
+        self.assert_port(port_name='win-xp', cls=win.WinPort)
+        self.assert_port(port_name='win', os_name='win', os_version='xp',
+                         cls=win.WinPort)
+        self.assert_port(port_name='chromium', os_name='win', os_version='xp',
                          cls=win.WinPort)
 
     def test_unknown_specified(self):
-        self.assertRaises(NotImplementedError, factory.PortFactory(MockHost()).get, port_name='unknown')
+        self.assertRaises(NotImplementedError, factory.PortFactory(MockSystemHost()).get, port_name='unknown')
 
     def test_unknown_default(self):
-        self.assertRaises(NotImplementedError, factory.PortFactory(MockHost(os_name='vms')).get)
+        self.assertRaises(NotImplementedError, factory.PortFactory(MockSystemHost(os_name='vms')).get)
 
     def test_get_from_builder_name(self):
-        self.assertEqual(factory.PortFactory(MockHost()).get_from_builder_name('WebKit Mac10.11').name(),
-                         'mac-mac10.11')
-
-    def get_port(self, target=None, configuration=None, files=None):
-        host = MockHost()
-        wkf = WebKitFinder(host.filesystem)
-        files = files or {}
-        for path, contents in files.items():
-            host.filesystem.write_text_file(wkf.path_from_chromium_base(path), contents)
-        options = optparse.Values({'target': target, 'configuration': configuration})
-        return factory.PortFactory(host).get(options=options)
-
-    def test_default_target_and_configuration(self):
-        port = self.get_port()
-        self.assertEqual(port._options.configuration, 'Release')
-        self.assertEqual(port._options.target, 'Release')
-
-    def test_debug_configuration(self):
-        port = self.get_port(configuration='Debug')
-        self.assertEqual(port._options.configuration, 'Debug')
-        self.assertEqual(port._options.target, 'Debug')
-
-    def test_release_configuration(self):
-        port = self.get_port(configuration='Release')
-        self.assertEqual(port._options.configuration, 'Release')
-        self.assertEqual(port._options.target, 'Release')
-
-    def test_debug_target(self):
-        port = self.get_port(target='Debug')
-        self.assertEqual(port._options.configuration, 'Debug')
-        self.assertEqual(port._options.target, 'Debug')
-
-    def test_debug_x64_target(self):
-        port = self.get_port(target='Debug_x64')
-        self.assertEqual(port._options.configuration, 'Debug')
-        self.assertEqual(port._options.target, 'Debug_x64')
-
-    def test_release_x64_target(self):
-        port = self.get_port(target='Release_x64')
-        self.assertEqual(port._options.configuration, 'Release')
-        self.assertEqual(port._options.target, 'Release_x64')
-
-    def test_release_args_gn(self):
-        port = self.get_port(target='foo', files={'out/foo/args.gn': 'is_debug = false'})
-        self.assertEqual(port._options.configuration, 'Release')
-        self.assertEqual(port._options.target, 'foo')
-
-        # Also test that we handle multi-line args files properly.
-        port = self.get_port(target='foo', files={'out/foo/args.gn': 'is_debug = false\nfoo = bar\n'})
-        self.assertEqual(port._options.configuration, 'Release')
-        self.assertEqual(port._options.target, 'foo')
-
-        port = self.get_port(target='foo', files={'out/foo/args.gn': 'foo=bar\nis_debug=false\n'})
-        self.assertEqual(port._options.configuration, 'Release')
-        self.assertEqual(port._options.target, 'foo')
-
-    def test_debug_args_gn(self):
-        port = self.get_port(target='foo', files={'out/foo/args.gn': 'is_debug = true'})
-        self.assertEqual(port._options.configuration, 'Debug')
-        self.assertEqual(port._options.target, 'foo')
-
-    def test_default_gn_build(self):
-        port = self.get_port(target='Default', files={'out/Default/toolchain.ninja': ''})
-        self.assertEqual(port._options.configuration, 'Debug')
-        self.assertEqual(port._options.target, 'Default')
-
-    def test_empty_args_gn(self):
-        port = self.get_port(target='foo', files={'out/foo/args.gn': ''})
-        self.assertEqual(port._options.configuration, 'Debug')
-        self.assertEqual(port._options.target, 'foo')
-
-    def test_unknown_dir(self):
-        self.assertRaises(ValueError, self.get_port, target='unknown')
-
-    def test_both_configuration_and_target_is_an_error(self):
-        self.assertRaises(ValueError, self.get_port, target='Debug', configuration='Release',
-                          files={'out/Debug/toolchain.ninja': ''})
+        self.assertEqual(factory.PortFactory(MockSystemHost()).get_from_builder_name('WebKit Mac10.7').name(),
+                          'mac-lion')

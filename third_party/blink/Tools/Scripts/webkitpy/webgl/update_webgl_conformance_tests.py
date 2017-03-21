@@ -26,12 +26,13 @@ import logging
 import optparse
 import os
 import re
+import sys
+from webkitpy.common.checkout import scm
+from webkitpy.common.system.filesystem import FileSystem
+from webkitpy.common.system.executive import Executive
 
 
 _log = logging.getLogger(__name__)
-
-
-# TODO(qyearsley): Remove this module if update-webgl-conformance-tests is now unused.
 
 
 def remove_first_line_comment(text):
@@ -42,10 +43,10 @@ def translate_includes(text):
     # Mapping of single filename to relative path under WebKit root.
     # Assumption: these filenames are globally unique.
     include_mapping = {
-        'js-test-style.css': '../../js/resources',
-        'js-test-pre.js': '../../js/resources',
-        'js-test-post.js': '../../js/resources',
-        'desktop-gl-constants.js': 'resources',
+        "js-test-style.css": "../../js/resources",
+        "js-test-pre.js": "../../js/resources",
+        "js-test-post.js": "../../js/resources",
+        "desktop-gl-constants.js": "resources",
     }
 
     for filename, path in include_mapping.items():
@@ -59,7 +60,9 @@ def translate_includes(text):
 
 
 def translate_khronos_test(text):
-    """This method translates the contents of a Khronos test to a WebKit test."""
+    """
+    This method translates the contents of a Khronos test to a WebKit test.
+    """
 
     translateFuncs = [
         remove_first_line_comment,
@@ -77,7 +80,7 @@ def update_file(in_filename, out_dir):
     # check out_dir exists
     out_filename = os.path.join(out_dir, os.path.basename(in_filename))
 
-    _log.debug('Processing ' + in_filename)
+    _log.debug("Processing " + in_filename)
     with open(in_filename, 'r') as in_file:
         with open(out_filename, 'w') as out_file:
             out_file.write(translate_khronos_test(in_file.read()))
@@ -89,6 +92,16 @@ def update_directory(in_dir, out_dir):
 
 
 def default_out_dir():
+    detector = scm.SCMDetector(FileSystem(), Executive())
+    current_scm = detector.detect_scm_system(os.path.dirname(sys.argv[0]))
+    if not current_scm:
+        return os.getcwd()
+    root_dir = current_scm.checkout_root
+    if not root_dir:
+        return os.getcwd()
+    out_dir = os.path.join(root_dir, "LayoutTests/fast/canvas/webgl")
+    if os.path.isdir(out_dir):
+        return out_dir
     return os.getcwd()
 
 
@@ -106,19 +119,19 @@ def configure_logging(options):
 
 
 def option_parser():
-    usage = 'usage: %prog [options] (input file or directory)'
+    usage = "usage: %prog [options] (input file or directory)"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('-v', '--verbose',
-                      action='store_true',
-                      default=False,
-                      help='include debug-level logging')
+                             action='store_true',
+                             default=False,
+                             help='include debug-level logging')
     parser.add_option('-o', '--output',
-                      action='store',
-                      type='string',
-                      default=default_out_dir(),
-                      metavar='DIR',
-                      help='specify an output directory to place files '
-                      'in [default: %default]')
+                             action='store',
+                             type='string',
+                             default=default_out_dir(),
+                             metavar='DIR',
+                             help='specify an output directory to place files '
+                                  'in [default: %default]')
     return parser
 
 
@@ -128,7 +141,7 @@ def main():
     configure_logging(options)
 
     if len(args) == 0:
-        _log.error('Must specify an input directory or filename.')
+        _log.error("Must specify an input directory or filename.")
         parser.print_help()
         return 1
 

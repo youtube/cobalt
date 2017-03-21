@@ -29,12 +29,11 @@
 import sys
 import unittest
 
-from webkitpy.common import find_files
 from webkitpy.common.system.filesystem import FileSystem
+import find_files
 
 
 class MockWinFileSystem(object):
-
     def join(self, *paths):
         return '\\'.join(paths)
 
@@ -43,11 +42,10 @@ class MockWinFileSystem(object):
 
 
 class TestWinNormalize(unittest.TestCase):
-
     def assert_filesystem_normalizes(self, filesystem):
         self.assertEqual(find_files._normalize(filesystem, "c:\\foo",
-                                               ['fast/html', 'fast/canvas/*', 'compositing/foo.html']),
-                         ['c:\\foo\\fast\\html', 'c:\\foo\\fast\\canvas\\*', 'c:\\foo\\compositing\\foo.html'])
+            ['fast/html', 'fast/canvas/*', 'compositing/foo.html']),
+            ['c:\\foo\\fast\html', 'c:\\foo\\fast\canvas\*', 'c:\\foo\compositing\\foo.html'])
 
     def test_mocked_win(self):
         # This tests test_files.normalize, using portable behavior emulating

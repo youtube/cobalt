@@ -27,12 +27,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import copy
-import itertools
-from functools import reduce
 
 
 class TestConfiguration(object):
-
     def __init__(self, version, architecture, build_type):
         self.version = version
         self.architecture = architecture
@@ -50,7 +47,7 @@ class TestConfiguration(object):
         return self.__dict__.keys()
 
     def __str__(self):
-        return ('<%(version)s, %(architecture)s, %(build_type)s>' %
+        return ("<%(version)s, %(architecture)s, %(build_type)s>" %
                 self.__dict__)
 
     def __repr__(self):
@@ -68,7 +65,6 @@ class TestConfiguration(object):
 
 
 class SpecifierSorter(object):
-
     def __init__(self, all_test_configurations=None, macros=None):
         self._specifier_to_category = {}
 
@@ -113,7 +109,6 @@ class SpecifierSorter(object):
 
 
 class TestConfigurationConverter(object):
-
     def __init__(self, all_test_configurations, configuration_macros=None):
         self._all_test_configurations = all_test_configurations
         self._configuration_macros = configuration_macros or {}
@@ -138,8 +133,7 @@ class TestConfigurationConverter(object):
 
         for specifier, sets_by_category in matching_sets_by_category.items():
             for category, set_by_category in sets_by_category.items():
-                if len(set_by_category) == 1 and self._specifier_sorter.category_priority(
-                        category) > self._specifier_sorter.specifier_priority(specifier):
+                if len(set_by_category) == 1 and self._specifier_sorter.category_priority(category) > self._specifier_sorter.specifier_priority(specifier):
                     self._junk_specifier_combinations[specifier] = set_by_category
 
         self._specifier_sorter.add_macros(configuration_macros)
@@ -176,7 +170,7 @@ class TestConfigurationConverter(object):
             if len(macro) == 1:
                 continue
 
-            for combination in itertools.combinations(specifiers_list, len(macro)):
+            for combination in cls.combinations(specifiers_list, len(macro)):
                 if cls.symmetric_difference(combination) == set(macro):
                     for item in combination:
                         specifiers_list.remove(item)
@@ -199,6 +193,30 @@ class TestConfigurationConverter(object):
 
         for macro_specifier, macro in macros_dict.items():
             collapse_individual_specifier_set(macro_specifier, macro)
+
+    # FIXME: itertools.combinations in buggy in Python 2.6.1 (the version that ships on SL).
+    # It seems to be okay in 2.6.5 or later; until then, this is the implementation given
+    # in http://docs.python.org/library/itertools.html (from 2.7).
+    @staticmethod
+    def combinations(iterable, r):
+        # combinations('ABCD', 2) --> AB AC AD BC BD CD
+        # combinations(range(4), 3) --> 012 013 023 123
+        pool = tuple(iterable)
+        n = len(pool)
+        if r > n:
+            return
+        indices = range(r)
+        yield tuple(pool[i] for i in indices)
+        while True:
+            for i in reversed(range(r)):
+                if indices[i] != i + n - r:
+                    break
+            else:
+                return
+            indices[i] += 1  # pylint: disable=W0631
+            for j in range(i + 1, r):  # pylint: disable=W0631
+                indices[j] = indices[j - 1] + 1
+            yield tuple(pool[i] for i in indices)
 
     @classmethod
     def intersect_combination(cls, combination):
@@ -231,7 +249,7 @@ class TestConfigurationConverter(object):
         def try_collapsing(size, collapsing_sets):
             if len(specifiers_list) < size:
                 return False
-            for combination in itertools.combinations(specifiers_list, size):
+            for combination in self.combinations(specifiers_list, size):
                 if self.symmetric_difference(combination) in collapsing_sets:
                     for item in combination:
                         specifiers_list.remove(item)
@@ -240,7 +258,7 @@ class TestConfigurationConverter(object):
             return False
 
         # 2) Collapse specifier sets with common specifiers:
-        #   (win7, release), (win7, debug) --> (win7, x86)
+        #   (xp, release), (xp, debug) --> (xp, x86)
         for size, collapsing_sets in self._collapsing_sets_by_size.items():
             while try_collapsing(size, collapsing_sets):
                 pass
@@ -248,7 +266,7 @@ class TestConfigurationConverter(object):
         def try_abbreviating(collapsing_sets):
             if len(specifiers_list) < 2:
                 return False
-            for combination in itertools.combinations(specifiers_list, 2):
+            for combination in self.combinations(specifiers_list, 2):
                 for collapsing_set in collapsing_sets:
                     diff = self.symmetric_difference(combination)
                     if diff <= collapsing_set:
@@ -260,19 +278,19 @@ class TestConfigurationConverter(object):
             return False
 
         # 3) Abbreviate specifier sets by combining specifiers across categories.
-        #   (win7, release), (win10, release) --> (win7, win10, release)
+        #   (xp, release), (win7, release) --> (xp, win7, release)
         while try_abbreviating(self._collapsing_sets_by_size.values()):
             pass
 
-        # 4) Substitute specifier subsets that match macros within each set:
-        #   (win7, win10, release) -> (win, release)
+
+        # 4) Substitute specifier subsets that match macros witin each set:
+        #   (xp, win7, release) -> (win, release)
         self.collapse_macros(self._configuration_macros, specifiers_list)
 
         macro_keys = set(self._configuration_macros.keys())
 
         # 5) Collapsing macros may have created combinations the can now be abbreviated.
-        #   (win7, release), (linux, x86, release), (linux, x86_64, release)
-        #   --> (win7, release), (linux, release) --> (win7, linux, release)
+        #   (xp, release), (linux, x86, release), (linux, x86_64, release) --> (xp, release), (linux, release) --> (xp, linux, release)
         while try_abbreviating([self._collapsing_sets_by_category['version'] | macro_keys]):
             pass
 

@@ -48,7 +48,7 @@ partial exception MyExcPartial { };
  *Exception(MyExcBig)
  *  ExceptionField(MyString)
  *    Type()
- *      StringType(DOMString)
+ *      PrimitiveType(DOMString)
  *  Error(Unexpected "=" after identifier "ErrorSetLong".)
  *  ExceptionField(MyLong)
  *    Type()
@@ -75,7 +75,7 @@ exception ForParent NoColon {
 /* TREE
  *Exception(MyExcConst)
  *  Const(setString)
- *    StringType(DOMString)
+ *    PrimitiveType(DOMString)
  *    Value(NULL)
  */
 exception MyExcConst {

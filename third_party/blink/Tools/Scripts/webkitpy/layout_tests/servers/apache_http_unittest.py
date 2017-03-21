@@ -26,18 +26,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import re
 import sys
 import unittest
 
 from webkitpy.common.system.executive_mock import MockExecutive
-from webkitpy.common.system.output_capture import OutputCapture
+from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.common.host_mock import MockHost
 from webkitpy.layout_tests.port import test
 from webkitpy.layout_tests.servers.apache_http import ApacheHTTP
+from webkitpy.layout_tests.servers.server_base import ServerError
 
 
 class TestApacheHTTP(unittest.TestCase):
-
     def test_start_cmd(self):
         # Fails on win - see https://bugs.webkit.org/show_bug.cgi?id=84726
         if sys.platform in ('cygwin', 'win32'):
@@ -52,7 +53,7 @@ class TestApacheHTTP(unittest.TestCase):
         test_port = test.TestPort(host)
         host.filesystem.write_text_file(test_port.path_to_apache_config_file(), '')
 
-        server = ApacheHTTP(test_port, '/mock/output_dir', additional_dirs=[], number_of_servers=4)
+        server = ApacheHTTP(test_port, "/mock/output_dir", additional_dirs=[], number_of_servers=4)
         server._check_that_all_ports_are_available = lambda: True
         server._is_server_running_on_all_ports = lambda: True
         server._wait_for_action = fake_pid
@@ -63,6 +64,6 @@ class TestApacheHTTP(unittest.TestCase):
             server.stop()
         finally:
             _, _, logs = oc.restore_output()
-        self.assertIn('StartServers 4', logs)
-        self.assertIn('MinSpareServers 4', logs)
-        self.assertIn('MaxSpareServers 4', logs)
+        self.assertIn("StartServers 4", logs)
+        self.assertIn("MinSpareServers 4", logs)
+        self.assertIn("MaxSpareServers 4", logs)

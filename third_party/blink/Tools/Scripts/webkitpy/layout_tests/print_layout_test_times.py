@@ -29,8 +29,7 @@
 import json
 import optparse
 
-from webkitpy.layout_tests.layout_package.json_results_generator import convert_times_trie_to_flat_paths
-from webkitpy.layout_tests.port.base import Port
+from webkitpy.layout_tests.port import Port
 
 
 def main(host, argv):
@@ -38,7 +37,7 @@ def main(host, argv):
     parser.add_option('-f', '--forward', action='store', type='int',
                       help='group times by first N directories of test')
     parser.add_option('-b', '--backward', action='store', type='int',
-                      help='group times by last N directories of test')
+                     help='group times by last N directories of test')
     parser.add_option('--fastest', action='store', type='float',
                       help='print a list of tests that will take N % of the time')
 
@@ -63,7 +62,7 @@ def main(host, argv):
 
     times_trie = json.loads(host.filesystem.read_text_file(times_ms_path))
 
-    times = convert_times_trie_to_flat_paths(times_trie)
+    times = convert_trie_to_flat_paths(times_trie)
 
     if options.fastest:
         if options.forward is None and options.backward is None:
@@ -77,9 +76,9 @@ def print_times(host, options, times):
     by_key = times_by_key(times, options.forward, options.backward)
     for key in sorted(by_key):
         if key:
-            host.print_('%s %d' % (key, by_key[key]))
+            host.print_("%s %d" % (key, by_key[key]))
         else:
-            host.print_('%d' % by_key[key])
+            host.print_("%d" % by_key[key])
 
 
 def print_fastest(host, port, options, times):
@@ -107,14 +106,14 @@ def print_fastest(host, port, options, times):
         while tests_by_time and total_so_far <= budget:
             test = tests_by_time.pop(0)
             test_time = times[test]
-            # Make sure test time > 0 so we don't include tests that are skipped.
+             # Make sure test time > 0 so we don't include tests that are skipped.
             if test_time and total_so_far + test_time <= budget:
                 fast_tests_by_key[key].append(test)
                 total_so_far += test_time
 
     for k in sorted(fast_tests_by_key):
         for t in fast_tests_by_key[k]:
-            host.print_('%s %d' % (t, times[t]))
+            host.print_("%s %d" % (t, times[t]))
     return
 
 
@@ -136,3 +135,16 @@ def times_by_key(times, forward, backward):
         else:
             by_key[key] = times[test_name]
     return by_key
+
+
+def convert_trie_to_flat_paths(trie, prefix=None):
+    result = {}
+    for name, data in trie.iteritems():
+        if prefix:
+            name = prefix + "/" + name
+        if isinstance(data, int):
+            result[name] = data
+        else:
+            result.update(convert_trie_to_flat_paths(data, name))
+
+    return result
