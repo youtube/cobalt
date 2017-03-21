@@ -145,20 +145,6 @@ SbKey AInputEventToSbKey(AInputEvent *event) {
     case AKEYCODE_MEDIA_FAST_FORWARD:
       return kSbKeyMediaFastForward;
 
-    // Volume
-    case AKEYCODE_VOLUME_UP:
-      return kSbKeyVolumeUp;
-    case AKEYCODE_VOLUME_DOWN:
-      return kSbKeyVolumeDown;
-    case AKEYCODE_MUTE:
-      return kSbKeyVolumeMute;
-
-    // Brightness
-    case AKEYCODE_BRIGHTNESS_DOWN:
-      return kSbKeyBrightnessDown;
-    case AKEYCODE_BRIGHTNESS_UP:
-      return kSbKeyBrightnessUp;
-
     // Whitespace
     case AKEYCODE_TAB:
       return kSbKeyTab;
@@ -284,6 +270,12 @@ SbKey AInputEventToSbKey(AInputEvent *event) {
     case AKEYCODE_Z:
       return static_cast<SbKey>(kSbKeyA + (keycode - AKEYCODE_A));
 
+    // Don't handle these keys so the OS can in a uniform manner.
+    case AKEYCODE_VOLUME_UP:
+    case AKEYCODE_VOLUME_DOWN:
+    case AKEYCODE_MUTE:
+    case AKEYCODE_BRIGHTNESS_UP:
+    case AKEYCODE_BRIGHTNESS_DOWN:
     default:
       return kSbKeyUnknown;
   }
