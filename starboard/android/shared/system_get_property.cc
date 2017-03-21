@@ -68,8 +68,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelName:
       return GetAndroidSystemProperty("ro.product.model", out_value,
                                       value_length);
-    case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyFirmwareVersion:
+      return GetAndroidSystemProperty("ro.build.id", out_value, value_length);
+    case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
       return false;
