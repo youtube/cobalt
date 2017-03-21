@@ -68,7 +68,12 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
 
   {
     SbSocketAddress address = {0};
+#if SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+    address.type = kSbSocketAddressTypeIpv4;
     EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
+#else
+    EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
+#endif
     EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
   }
 
