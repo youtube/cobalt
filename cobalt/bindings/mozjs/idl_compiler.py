@@ -17,12 +17,15 @@ Calls into idl_compiler_cobalt.shared_main specifying the SpiderMonkey
 CodeGenerator class.
 """
 
+import os
 import sys
 
-import bootstrap_path  # pylint: disable=unused-import
+module_path, module_filename = os.path.split(os.path.realpath(__file__))
+bindings_dir = os.path.normpath(os.path.join(module_path, os.pardir))
+sys.path.append(bindings_dir)
 
-from cobalt.bindings.idl_compiler_cobalt import generate_bindings
-from cobalt.bindings.mozjs.code_generator_mozjs import CodeGeneratorMozjs
+from idl_compiler_cobalt import generate_bindings  # pylint: disable=g-import-not-at-top
+from mozjs.code_generator import CodeGeneratorMozjs
 
 if __name__ == '__main__':
   sys.exit(generate_bindings(CodeGeneratorMozjs))
