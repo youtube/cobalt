@@ -26,45 +26,42 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""A utility module for making standalone scripts to start servers.
+"""A utility script for starting and stopping servers as they are used in the layout tests."""
 
-Scripts in Tools/Scripts can use this module to start servers that
-are normally used for layout tests, outside of the layout test runner.
-"""
-
-import argparse
 import logging
+import optparse
 
 from webkitpy.common.host import Host
 
+_log = logging.getLogger(__name__)
 
-def main(server_constructor, input_fn=None, argv=None, description=None, **kwargs):
+
+def main(server_constructor, input_fn=None, argv=None, **kwargs):
     input_fn = input_fn or raw_input
 
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--output-dir', type=str, default=None,
-                        help='output directory, for log files etc.')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help='print more information, including port numbers')
-    args = parser.parse_args(argv)
+    option_parser = optparse.OptionParser()
+    option_parser.add_option('--output-dir', dest='output_dir',
+                             default=None, help='output directory.')
+    option_parser.add_option('-v', '--verbose', action='store_true')
+    options, args = option_parser.parse_args(argv)
 
     logging.basicConfig()
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    logger.setLevel(logging.DEBUG if options.verbose else logging.INFO)
 
     host = Host()
     port_obj = host.port_factory.get()
-    if not args.output_dir:
-        args.output_dir = port_obj.default_results_directory()
+    if not options.output_dir:
+        options.output_dir = port_obj.default_results_directory()
 
     # Create the output directory if it doesn't already exist.
-    port_obj.host.filesystem.maybe_make_directory(args.output_dir)
+    port_obj.host.filesystem.maybe_make_directory(options.output_dir)
 
-    server = server_constructor(port_obj, args.output_dir, **kwargs)
+    server = server_constructor(port_obj, options.output_dir, **kwargs)
     server.start()
     try:
         _ = input_fn('Hit any key to stop the server and exit.')
-    except (KeyboardInterrupt, EOFError):
+    except (KeyboardInterrupt, EOFError) as e:
         pass
 
     server.stop()

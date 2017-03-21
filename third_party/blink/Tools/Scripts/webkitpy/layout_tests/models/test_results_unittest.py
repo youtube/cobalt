@@ -32,9 +32,8 @@ from webkitpy.layout_tests.models.test_results import TestResult
 
 
 class TestResultsTest(unittest.TestCase):
-
     def test_defaults(self):
-        result = TestResult('foo')
+        result = TestResult("foo")
         self.assertEqual(result.test_name, 'foo')
         self.assertEqual(result.failures, [])
         self.assertEqual(result.test_run_time, 0)

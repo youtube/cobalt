@@ -24,9 +24,9 @@
 
 import unittest
 
-from webkitpy.style.filter import _CategoryFilter as CategoryFilter
-from webkitpy.style.filter import validate_filter_rules
-from webkitpy.style.filter import FilterConfiguration
+from filter import _CategoryFilter as CategoryFilter
+from filter import validate_filter_rules
+from filter import FilterConfiguration
 
 # On Testing __eq__() and __ne__():
 #
@@ -38,7 +38,7 @@ from webkitpy.style.filter import FilterConfiguration
 # Part of the reason is that it is not immediately clear what
 # expression the unittest module uses to assert "not equals" -- the
 # negation of __eq__() or __ne__(), which are not necessarily
-# equivalent expressions in Python.  For example, from Python's "Data
+# equivalent expresions in Python.  For example, from Python's "Data
 # Model" documentation--
 #
 #   "There are no implied relationships among the comparison
@@ -47,8 +47,7 @@ from webkitpy.style.filter import FilterConfiguration
 #    also define __ne__() so that the operators will behave as
 #    expected."
 #
-# (from http://docs.python.org/reference/datamodel.html#object.__ne__ )
-
+#   (from http://docs.python.org/reference/datamodel.html#object.__ne__ )
 
 class ValidateFilterRulesTest(unittest.TestCase):
 
@@ -64,13 +63,13 @@ class ValidateFilterRulesTest(unittest.TestCase):
             " +tabs",
             "+whitespace/newline",
             "+xxx",
-        ]
+            ]
 
         good_rules = [
             "+tabs",
             "-tabs",
             "+build"
-        ]
+            ]
 
         for rule in bad_rules:
             self.assertRaises(ValueError, validate_filter_rules,
@@ -190,11 +189,11 @@ class FilterConfigurationTest(unittest.TestCase):
         user_rules = ["+"]
 
         self.assertFalse(config.__eq__(FilterConfiguration(
-            base_rules=base_rules)))
+                                           base_rules=base_rules)))
         self.assertFalse(config.__eq__(FilterConfiguration(
-            path_specific=path_specific)))
+                                           path_specific=path_specific)))
         self.assertFalse(config.__eq__(FilterConfiguration(
-            user_rules=user_rules)))
+                                           user_rules=user_rules)))
 
     def test_ne(self):
         """Test __ne__ method."""
@@ -254,3 +253,4 @@ class FilterConfigurationTest(unittest.TestCase):
 
         self.assertFalse(config.should_check("a", "path"))
         self.assertTrue(config.should_check("b", "path"))
+

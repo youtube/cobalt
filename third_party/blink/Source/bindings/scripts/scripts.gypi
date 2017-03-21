@@ -24,34 +24,43 @@
       'blink_idl_parser.py',
     ],
     'idl_compiler_files': [
-       'idl_compiler.py',
-
-       # Blink IDL front end (ex-lexer/parser)
-       'idl_definitions.py',
-       'idl_reader.py',
-       'idl_types.py',
-       'idl_validator.py',
-       'interface_dependency_resolver.py',
-
-       # V8 code generator
-       'code_generator.py',
-       'code_generator_v8.py',
-       'code_generator_web_agent_api.py',
-       'v8_attributes.py',
-       'v8_callback_function.py',
-       'v8_callback_interface.py',
-       'v8_dictionary.py',
-       'v8_globals.py',
-       'v8_interface.py',
-       'v8_methods.py',
-       'v8_types.py',
-       'v8_union.py',
-       'v8_utilities.py',
+      'idl_compiler.py',
+      # Blink IDL front end (ex-lexer/parser)
+      'idl_definitions.py',
+      'idl_reader.py',
+      'idl_types.py',
+      'idl_validator.py',
+      'interface_dependency_resolver.py',
+      # V8 code generator
+      'code_generator_v8.py',
+      'v8_attributes.py',
+      'v8_callback_interface.py',
+      'v8_dictionary.py',
+      'v8_globals.py',
+      'v8_interface.py',
+      'v8_methods.py',
+      'v8_types.py',
+      'v8_union.py',
+      'v8_utilities.py',
     ],
     'idl_cache_files': [
       '<(bindings_scripts_output_dir)/lextab.py',
       '<(bindings_scripts_output_dir)/parsetab.pickle',
       '<(bindings_scripts_output_dir)/cached_jinja_templates.stamp',
+    ],
+
+    'conditions': [
+        # These scripts can skip writing generated files if they are identical
+        # to the already existing files, which avoids further build steps, like
+        # recompilation. However, a dependency (earlier build step) having a
+        # newer timestamp than an output (later build step) confuses some build
+        # systems, so only use this on ninja, which explicitly supports this use
+        # case (gyp turns all actions into ninja restat rules).
+        ['"<(GENERATOR)"=="ninja"', {
+          'write_file_only_if_changed': '1',
+        }, {
+          'write_file_only_if_changed': '0',
+        }],
     ],
   },
 }

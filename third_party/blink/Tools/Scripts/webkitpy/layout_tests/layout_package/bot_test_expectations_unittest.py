@@ -28,74 +28,72 @@
 
 import unittest
 
-from webkitpy.common.config.builders import BUILDERS
 from webkitpy.layout_tests.layout_package import bot_test_expectations
-from webkitpy.layout_tests.builder_list import BuilderList
+from webkitpy.layout_tests.models import test_expectations
+from webkitpy.layout_tests.port import builders
 
 
 class BotTestExpectationsFactoryTest(unittest.TestCase):
-
-    def fake_builder_list(self):
-        return BuilderList({
-            'Dummy builder name': {'port_name': 'dummy-port', 'specifiers': []},
-        })
-
     def fake_results_json_for_builder(self, builder):
         return bot_test_expectations.ResultsJSON(builder, 'Dummy content')
 
     def test_expectations_for_builder(self):
-        factory = bot_test_expectations.BotTestExpectationsFactory(self.fake_builder_list())
+        factory = bot_test_expectations.BotTestExpectationsFactory()
         factory._results_json_for_builder = self.fake_results_json_for_builder
 
-        self.assertIsNotNone(factory.expectations_for_builder('Dummy builder name'))
+        old_builders = builders._exact_matches
+        builders._exact_matches = {
+            "Dummy builder name": {"port_name": "dummy-port", "specifiers": []},
+        }
+
+        try:
+            self.assertIsNotNone(factory.expectations_for_builder('Dummy builder name'))
+        finally:
+            builders._exact_matches = old_builders
 
     def test_expectations_for_port(self):
-        factory = bot_test_expectations.BotTestExpectationsFactory(self.fake_builder_list())
+        factory = bot_test_expectations.BotTestExpectationsFactory()
         factory._results_json_for_builder = self.fake_results_json_for_builder
 
-        self.assertIsNotNone(factory.expectations_for_port('dummy-port'))
+        old_builders = builders._exact_matches
+        builders._exact_matches = {
+            "Dummy builder name": {"port_name": "dummy-port", "specifiers": []},
+        }
+
+        try:
+            self.assertIsNotNone(factory.expectations_for_port('dummy-port'))
+        finally:
+            builders._exact_matches = old_builders
 
 
 class BotTestExpectationsTest(unittest.TestCase):
     # FIXME: Find a way to import this map from Tools/TestResultServer/model/jsonresults.py.
-    FAILURE_MAP = {'A': 'AUDIO', 'C': 'CRASH', 'F': 'TEXT', 'I': 'IMAGE', 'O': 'MISSING',
-                   'N': 'NO DATA', 'P': 'PASS', 'T': 'TIMEOUT', 'Y': 'NOTRUN', 'X': 'SKIP', 'Z': 'IMAGE+TEXT', 'K': 'LEAK'}
+    FAILURE_MAP = {"A": "AUDIO", "C": "CRASH", "F": "TEXT", "I": "IMAGE", "O": "MISSING",
+        "N": "NO DATA", "P": "PASS", "T": "TIMEOUT", "Y": "NOTRUN", "X": "SKIP", "Z": "IMAGE+TEXT", "K": "LEAK"}
 
-    # All result_string's in this file represent retries from a single run.
-    # The left-most entry is the first try, the right-most is the last.
+    # All result_string's in this file expect newest result
+    # on left: "PFF", means it just passed after 2 failures.
 
-    def _assert_is_flaky(self, results_string, should_be_flaky, only_ignore_very_flaky, expected=None):
+    def _assert_is_flaky(self, results_string, should_be_flaky):
         results_json = self._results_json_from_test_data({})
-        expectations = bot_test_expectations.BotTestExpectations(results_json, BuilderList(BUILDERS), set('test'))
-
-        results_entry = self._results_from_string(results_string)
-        if expected:
-            results_entry[bot_test_expectations.ResultsJSON.EXPECTATIONS_KEY] = expected
-
-        num_actual_results = len(expectations._flaky_types_in_results(results_entry, only_ignore_very_flaky))
+        expectations = bot_test_expectations.BotTestExpectations(results_json, set('test'))
+        length_encoded = self._results_from_string(results_string)['results']
+        num_actual_results = len(expectations._flaky_types_in_results(length_encoded, only_ignore_very_flaky=True))
         if should_be_flaky:
             self.assertGreater(num_actual_results, 1)
         else:
-            self.assertLessEqual(num_actual_results, 1)
+            self.assertEqual(num_actual_results, 1)
 
     def test_basic_flaky(self):
-        self._assert_is_flaky('P', should_be_flaky=False, only_ignore_very_flaky=False)
-        self._assert_is_flaky('P', should_be_flaky=False, only_ignore_very_flaky=True)
-        self._assert_is_flaky('F', should_be_flaky=False, only_ignore_very_flaky=False)
-        self._assert_is_flaky('F', should_be_flaky=False, only_ignore_very_flaky=True)
-        self._assert_is_flaky('FP', should_be_flaky=True, only_ignore_very_flaky=False)
-        self._assert_is_flaky('FP', should_be_flaky=False, only_ignore_very_flaky=True)
-        self._assert_is_flaky('FFP', should_be_flaky=True, only_ignore_very_flaky=False)
-        self._assert_is_flaky('FFP', should_be_flaky=True, only_ignore_very_flaky=True)
-        self._assert_is_flaky('FFT', should_be_flaky=True, only_ignore_very_flaky=False)
-        self._assert_is_flaky('FFT', should_be_flaky=True, only_ignore_very_flaky=True)
-        self._assert_is_flaky('FFF', should_be_flaky=False, only_ignore_very_flaky=False)
-        self._assert_is_flaky('FFF', should_be_flaky=False, only_ignore_very_flaky=True)
-
-        self._assert_is_flaky('FT', should_be_flaky=True, only_ignore_very_flaky=False, expected='TIMEOUT')
-        self._assert_is_flaky('FT', should_be_flaky=False, only_ignore_very_flaky=True, expected='TIMEOUT')
-        self._assert_is_flaky('FFT', should_be_flaky=True, only_ignore_very_flaky=False, expected='TIMEOUT')
-        self._assert_is_flaky('FFT', should_be_flaky=True, only_ignore_very_flaky=True, expected='TIMEOUT')
+        self._assert_is_flaky('PFF', False)  # Used to fail, but now passes.
+        self._assert_is_flaky('FFP', False)  # Just started failing.
+        self._assert_is_flaky('PFPF', True)  # Seen both failures and passes.
+        # self._assert_is_flaky('PPPF', True)  # Should be counted as flaky but isn't yet.
+        self._assert_is_flaky('FPPP', False)  # Just started failing, not flaky.
+        self._assert_is_flaky('PFFP', True)  # Failed twice in a row, still flaky.
+        # Failing 3+ times in a row is unlikely to be flaky, but rather a transient failure on trunk.
+        # self._assert_is_flaky('PFFFP', False)
+        # self._assert_is_flaky('PFFFFP', False)
 
     def _results_json_from_test_data(self, test_data):
         test_data[bot_test_expectations.ResultsJSON.FAILURE_MAP_KEY] = self.FAILURE_MAP
@@ -105,71 +103,58 @@ class BotTestExpectationsTest(unittest.TestCase):
         return bot_test_expectations.ResultsJSON('builder', json_dict)
 
     def _results_from_string(self, results_string):
-        return {'results': [[1, results_string]]}
+        results_list = []
+        last_char = None
+        for char in results_string:
+            if char != last_char:
+                results_list.insert(0, [1, char])
+            else:
+                results_list[0][0] += 1
+        return {'results': results_list}
 
     def _assert_expectations(self, test_data, expectations_string, only_ignore_very_flaky):
         results_json = self._results_json_from_test_data(test_data)
-        expectations = bot_test_expectations.BotTestExpectations(results_json, BuilderList(BUILDERS), set('test'))
+        expectations = bot_test_expectations.BotTestExpectations(results_json, set('test'))
         self.assertEqual(expectations.flakes_by_path(only_ignore_very_flaky), expectations_string)
 
     def _assert_unexpected_results(self, test_data, expectations_string):
         results_json = self._results_json_from_test_data(test_data)
-        expectations = bot_test_expectations.BotTestExpectations(results_json, BuilderList(BUILDERS), set('test'))
+        expectations = bot_test_expectations.BotTestExpectations(results_json, set('test'))
         self.assertEqual(expectations.unexpected_results_by_path(), expectations_string)
-
-    def test_all_results_by_path(self):
-        test_data = {
-            'tests': {
-                'foo': {
-                    'multiple_pass.html': {'results': [[4, 'P'], [1, 'P'], [2, 'P']]},
-                    'fail.html': {'results': [[2, 'Z']]},
-                    'all_types.html': {
-                        'results': [[2, 'A'], [1, 'C'], [2, 'F'], [1, 'I'], [1, 'O'], [1, 'N'], [1, 'P'], [1, 'T'],
-                                    [1, 'Y'], [10, 'X'], [1, 'Z'], [1, 'K']]
-                    },
-                    'not_run.html': {'results': []},
-                }
-            }
-        }
-
-        results_json = self._results_json_from_test_data(test_data)
-        expectations = bot_test_expectations.BotTestExpectations(results_json, BuilderList(BUILDERS), set('test'))
-        results_by_path = expectations.all_results_by_path()
-
-        expected_output = {
-            'foo/multiple_pass.html': ['PASS'],
-            'foo/fail.html': ['IMAGE+TEXT'],
-            'foo/all_types.html': ['AUDIO', 'CRASH', 'IMAGE', 'IMAGE+TEXT', 'LEAK', 'MISSING', 'PASS', 'TEXT', 'TIMEOUT']
-        }
-
-        self.assertEqual(results_by_path, expected_output)
 
     def test_basic(self):
         test_data = {
             'tests': {
                 'foo': {
-                    'veryflaky.html': self._results_from_string('FFP'),
-                    'maybeflaky.html': self._results_from_string('FP'),
-                    'notflakypass.html': self._results_from_string('P'),
-                    'notflakyfail.html': self._results_from_string('F'),
-                    # Even if there are no expected results, it's not very flaky if it didn't do multiple retries.
-                    # This accounts for the latest expectations not necessarily matching the expectations
-                    # at the time of the given run.
-                    'notverflakynoexpected.html': self._results_from_string('FT'),
-                    # If the test is flaky, but marked as such, it shouldn't get printed out.
-                    'notflakyexpected.html': {'results': [[2, 'FFFP']], 'expected': 'PASS FAIL'},
+                    'veryflaky.html': self._results_from_string('FPFP'),
+                    'maybeflaky.html': self._results_from_string('PPFP'),
+                    'notflakypass.html': self._results_from_string('PPPP'),
+                    'notflakyfail.html': self._results_from_string('FFFF'),
                 }
             }
         }
         self._assert_expectations(test_data, {
-            'foo/veryflaky.html': sorted(['TEXT', 'PASS']),
+            'foo/veryflaky.html': sorted(["TEXT", "PASS"]),
         }, only_ignore_very_flaky=True)
 
         self._assert_expectations(test_data, {
-            'foo/veryflaky.html': sorted(['TEXT', 'PASS']),
-            'foo/notverflakynoexpected.html': ['TEXT', 'TIMEOUT'],
-            'foo/maybeflaky.html': sorted(['TEXT', 'PASS']),
+            'foo/veryflaky.html': sorted(["TEXT", "PASS"]),
+            'foo/maybeflaky.html': sorted(["TEXT", "PASS"]),
         }, only_ignore_very_flaky=False)
+
+    def test_all_failure_types(self):
+        test_data = {
+            'tests': {
+                'foo': {
+                    'allfailures.html': self._results_from_string('FPFPCNCNTXTXIZIZOCOCYKYK'),
+                    'imageplustextflake.html': self._results_from_string('ZPZPPPPPPPPPPPPPPPPP'),
+                }
+            }
+        }
+        self._assert_expectations(test_data, {
+            'foo/imageplustextflake.html': sorted(["IMAGE+TEXT", "PASS"]),
+            'foo/allfailures.html': sorted(["TEXT", "PASS", "IMAGE+TEXT", "TIMEOUT", "CRASH", "IMAGE", "MISSING", "LEAK"]),
+        }, only_ignore_very_flaky=True)
 
     def test_unexpected_results_no_unexpected(self):
         test_data = {
@@ -194,7 +179,7 @@ class BotTestExpectationsTest(unittest.TestCase):
                     'fail.html': {'results': [[4, 'F']]},
                     'f_p.html': {'results': [[1, 'F'], [2, 'P']]},
                     'crash.html': {'results': [[2, 'F'], [1, 'C']], 'expected': 'WONTFIX'},
-                    'image.html': {'results': [[2, 'F'], [1, 'I']], 'expected': 'CRASH TEXT'},
+                    'image.html': {'results': [[2, 'F'], [1, 'I']], 'expected': 'CRASH FAIL'},
                     'i_f.html': {'results': [[1, 'F'], [5, 'I']], 'expected': 'PASS'},
                     'all.html': self._results_from_string('FPFPCNCNTXTXIZIZOCOCYKYK'),
                 }
@@ -202,12 +187,12 @@ class BotTestExpectationsTest(unittest.TestCase):
         }
         self.maxDiff = None
         self._assert_unexpected_results(test_data, {
-            'foo/pass1.html': sorted(['FAIL', 'PASS']),
-            'foo/pass2.html': sorted(['IMAGE', 'PASS']),
-            'foo/fail.html': sorted(['TEXT', 'PASS']),
-            'foo/f_p.html': sorted(['TEXT', 'PASS']),
-            'foo/crash.html': sorted(['WONTFIX', 'CRASH', 'TEXT']),
-            'foo/image.html': sorted(['CRASH', 'TEXT', 'IMAGE']),
-            'foo/i_f.html': sorted(['PASS', 'IMAGE', 'TEXT']),
-            'foo/all.html': sorted(['TEXT', 'PASS', 'IMAGE+TEXT', 'TIMEOUT', 'CRASH', 'IMAGE', 'MISSING', 'LEAK']),
+            'foo/pass1.html': sorted(["FAIL", "PASS"]),
+            'foo/pass2.html': sorted(["IMAGE", "PASS"]),
+            'foo/fail.html': sorted(["TEXT", "PASS"]),
+            'foo/f_p.html': sorted(["TEXT", "PASS"]),
+            'foo/crash.html': sorted(["WONTFIX", "CRASH", "TEXT"]),
+            'foo/image.html': sorted(["CRASH", "FAIL", "IMAGE"]),
+            'foo/i_f.html': sorted(["PASS", "IMAGE", "TEXT"]),
+            'foo/all.html': sorted(["TEXT", "PASS", "IMAGE+TEXT", "TIMEOUT", "CRASH", "IMAGE", "MISSING", "LEAK"]),
         })

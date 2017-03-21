@@ -30,49 +30,7 @@ import os
 import sys
 
 
-def add_typ_dir_to_sys_path():
-    path_to_typ = get_typ_dir()
-    if path_to_typ not in sys.path:
-        sys.path.append(path_to_typ)
-
-
-def add_bindings_scripts_dir_to_sys_path():
-    path_to_bindings_scripts = get_bindings_scripts_dir()
-    if path_to_bindings_scripts not in sys.path:
-        sys.path.append(path_to_bindings_scripts)
-
-
-def get_bindings_scripts_dir():
-    return os.path.join(get_source_dir(), 'bindings', 'scripts')
-
-
-def get_blink_dir():
-    return os.path.dirname(os.path.dirname(get_scripts_dir()))
-
-
-def get_chromium_src_dir():
-    return os.path.dirname(os.path.dirname(get_blink_dir()))
-
-
-def get_scripts_dir():
-    return os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
-
-def get_source_dir():
-    return os.path.join(get_blink_dir(), 'Source')
-
-
-def get_typ_dir():
-    return os.path.join(get_chromium_src_dir(), 'third_party', 'typ')
-
-
-def get_webkitpy_thirdparty_dir():
-    return os.path.join(get_scripts_dir(), 'webkitpy', 'thirdparty')
-
-
 class WebKitFinder(object):
-
     def __init__(self, filesystem):
         self._filesystem = filesystem
         self._dirsep = filesystem.sep
@@ -85,21 +43,17 @@ class WebKitFinder(object):
     def webkit_base(self):
         """Returns the absolute path to the top of the WebKit tree.
 
-        Raises an AssertionError if the top dir can't be determined.
-        """
+        Raises an AssertionError if the top dir can't be determined."""
         # Note: This code somewhat duplicates the code in
-        # git.find_checkout_root(). However, that code only works if the top
+        # scm.find_checkout_root(). However, that code only works if the top
         # of the SCM repository also matches the top of the WebKit tree. Some SVN users
         # (the chromium test bots, for example), might only check out subdirectories like
         # Tools/Scripts. This code will also work if there is no SCM system at all.
-        # TODO(qyearsley): Remove duplicate code; we're not concerned with SVN users anymore.
-        # Also, instead of caching the result with a private instance variable, we can use
-        # the memoized decorator.
         if not self._webkit_base:
             self._webkit_base = self._webkit_base
             module_path = self._filesystem.abspath(self._filesystem.path_to_module(self.__module__))
             tools_index = module_path.rfind('Tools')
-            assert tools_index != -1, 'could not find location of this checkout from %s' % module_path
+            assert tools_index != -1, "could not find location of this checkout from %s" % module_path
             self._webkit_base = self._filesystem.normpath(module_path[0:tools_index - 1])
         return self._webkit_base
 
@@ -118,7 +72,7 @@ class WebKitFinder(object):
         """Returns the relative path to the script from the top of the WebKit tree."""
         # This is intentionally relative in order to force callers to consider what
         # their current working directory is (and change to the top of the tree if necessary).
-        return self._filesystem.join('Tools', 'Scripts', script_name)
+        return self._filesystem.join("Tools", "Scripts", script_name)
 
     def layout_tests_dir(self):
         return self.path_from_webkit_base('LayoutTests')
@@ -126,32 +80,9 @@ class WebKitFinder(object):
     def perf_tests_dir(self):
         return self.path_from_webkit_base('PerformanceTests')
 
-    def layout_test_name(self, file_path):
-        """Returns a layout test name, given the path from the repo root.
-
-        Note: this appears to not work on Windows; see crbug.com/658795.
-        Also, this function duplicates functionality that's in
-        Port.relative_test_filename.
-        TODO(qyearsley): De-duplicate this and Port.relative_test_filename,
-        and ensure that it works properly with Windows paths.
-
-        Args:
-            file_path: A relative path from the root of the Chromium repo.
-
-        Returns:
-            The normalized layout test name, which is just the relative path from
-            the LayoutTests directory, using forward slash as the path separator.
-            Returns None if the given file is not in the LayoutTests directory.
-        """
-        layout_tests_abs_path = self._filesystem.join(self.webkit_base(), self.layout_tests_dir())
-        layout_tests_rel_path = self._filesystem.relpath(layout_tests_abs_path, self.chromium_base())
-        if not file_path.startswith(layout_tests_rel_path):
-            return None
-        return file_path[len(layout_tests_rel_path) + 1:]
-
     def depot_tools_base(self):
         if not self._depot_tools:
-            # This basically duplicates src/build/find_depot_tools.py without the side effects
+            # This basically duplicates src/tools/find_depot_tools.py without the side effects
             # (adding the directory to sys.path and importing breakpad).
             self._depot_tools = (self._check_paths_for_depot_tools(self._sys_path) or
                                  self._check_paths_for_depot_tools(self._env_path) or

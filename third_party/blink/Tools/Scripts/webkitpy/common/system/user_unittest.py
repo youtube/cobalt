@@ -28,32 +28,28 @@
 
 import unittest
 
-from webkitpy.common.system.output_capture import OutputCapture
+from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.common.system.user import User
-
 
 class UserTest(unittest.TestCase):
 
-    example_user_response = 'example user response'
+    example_user_response = "example user response"
 
     def test_prompt_repeat(self):
         self.repeatsRemaining = 2
-
         def mock_raw_input(message):
             self.repeatsRemaining -= 1
             if not self.repeatsRemaining:
                 return UserTest.example_user_response
             return None
-        self.assertEqual(User.prompt('input', repeat=self.repeatsRemaining,
-                                     raw_input=mock_raw_input), UserTest.example_user_response)
+        self.assertEqual(User.prompt("input", repeat=self.repeatsRemaining, raw_input=mock_raw_input), UserTest.example_user_response)
 
     def test_prompt_when_exceeded_repeats(self):
         self.repeatsRemaining = 2
-
         def mock_raw_input(message):
             self.repeatsRemaining -= 1
             return None
-        self.assertIsNone(User.prompt('input', repeat=self.repeatsRemaining, raw_input=mock_raw_input))
+        self.assertEqual(User.prompt("input", repeat=self.repeatsRemaining, raw_input=mock_raw_input), None)
 
     def test_prompt_with_multiple_lists(self):
         def run_prompt_test(inputs, expected_result, can_choose_multiple=False):
@@ -63,27 +59,27 @@ class UserTest(unittest.TestCase):
             actual_result = output_capture.assert_outputs(
                 self,
                 User.prompt_with_multiple_lists,
-                args=['title', ['subtitle1', 'subtitle2'], [['foo', 'bar'], ['foobar', 'barbaz', 'foobaz']]],
-                kwargs={'can_choose_multiple': can_choose_multiple, 'raw_input': mock_raw_input},
-                expected_stdout='title\n\nsubtitle1\n 1. foo\n 2. bar\n\nsubtitle2\n 3. foobar\n 4. barbaz\n 5. foobaz\n')
+                args=["title", ["subtitle1", "subtitle2"], [["foo", "bar"], ["foobar", "barbaz", "foobaz"]]],
+                kwargs={"can_choose_multiple": can_choose_multiple, "raw_input": mock_raw_input},
+                expected_stdout="title\n\nsubtitle1\n 1. foo\n 2. bar\n\nsubtitle2\n 3. foobar\n 4. barbaz\n 5. foobaz\n")
             self.assertEqual(actual_result, expected_result)
             self.assertEqual(len(inputs), 0)
 
-        run_prompt_test(['1'], 'foo')
-        run_prompt_test(['badinput', '2'], 'bar')
-        run_prompt_test(['3'], 'foobar')
-        run_prompt_test(['4'], 'barbaz')
-        run_prompt_test(['5'], 'foobaz')
+        run_prompt_test(["1"], "foo")
+        run_prompt_test(["badinput", "2"], "bar")
+        run_prompt_test(["3"], "foobar")
+        run_prompt_test(["4"], "barbaz")
+        run_prompt_test(["5"], "foobaz")
 
-        run_prompt_test(['1,2'], ['foo', 'bar'], can_choose_multiple=True)
-        run_prompt_test(['1-3'], ['foo', 'bar', 'foobar'], can_choose_multiple=True)
-        run_prompt_test(['1-2,3'], ['foo', 'bar', 'foobar'], can_choose_multiple=True)
-        run_prompt_test(['2-1,3'], ['foobar'], can_choose_multiple=True)
-        run_prompt_test(['  1,  2   '], ['foo', 'bar'], can_choose_multiple=True)
-        run_prompt_test(['all'], ['foo', 'bar', 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
-        run_prompt_test([''], ['foo', 'bar', 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
-        run_prompt_test(['  '], ['foo', 'bar', 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
-        run_prompt_test(['badinput', 'all'], ['foo', 'bar', 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
+        run_prompt_test(["1,2"], ["foo", "bar"], can_choose_multiple=True)
+        run_prompt_test(["1-3"], ["foo", "bar", "foobar"], can_choose_multiple=True)
+        run_prompt_test(["1-2,3"], ["foo", "bar", "foobar"], can_choose_multiple=True)
+        run_prompt_test(["2-1,3"], ["foobar"], can_choose_multiple=True)
+        run_prompt_test(["  1,  2   "], ["foo", "bar"], can_choose_multiple=True)
+        run_prompt_test(["all"], ["foo", "bar", 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
+        run_prompt_test([""], ["foo", "bar", 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
+        run_prompt_test(["  "], ["foo", "bar", 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
+        run_prompt_test(["badinput", "all"], ["foo", "bar", 'foobar', 'barbaz', 'foobaz'], can_choose_multiple=True)
 
     def test_prompt_with_list(self):
         def run_prompt_test(inputs, expected_result, can_choose_multiple=False):
@@ -93,32 +89,32 @@ class UserTest(unittest.TestCase):
             actual_result = output_capture.assert_outputs(
                 self,
                 User.prompt_with_list,
-                args=['title', ['foo', 'bar']],
-                kwargs={'can_choose_multiple': can_choose_multiple, 'raw_input': mock_raw_input},
-                expected_stdout='title\n 1. foo\n 2. bar\n')
+                args=["title", ["foo", "bar"]],
+                kwargs={"can_choose_multiple": can_choose_multiple, "raw_input": mock_raw_input},
+                expected_stdout="title\n 1. foo\n 2. bar\n")
             self.assertEqual(actual_result, expected_result)
             self.assertEqual(len(inputs), 0)
 
-        run_prompt_test(['1'], 'foo')
-        run_prompt_test(['badinput', '2'], 'bar')
+        run_prompt_test(["1"], "foo")
+        run_prompt_test(["badinput", "2"], "bar")
 
-        run_prompt_test(['1,2'], ['foo', 'bar'], can_choose_multiple=True)
-        run_prompt_test(['  1,  2   '], ['foo', 'bar'], can_choose_multiple=True)
-        run_prompt_test(['all'], ['foo', 'bar'], can_choose_multiple=True)
-        run_prompt_test([''], ['foo', 'bar'], can_choose_multiple=True)
-        run_prompt_test(['  '], ['foo', 'bar'], can_choose_multiple=True)
-        run_prompt_test(['badinput', 'all'], ['foo', 'bar'], can_choose_multiple=True)
+        run_prompt_test(["1,2"], ["foo", "bar"], can_choose_multiple=True)
+        run_prompt_test(["  1,  2   "], ["foo", "bar"], can_choose_multiple=True)
+        run_prompt_test(["all"], ["foo", "bar"], can_choose_multiple=True)
+        run_prompt_test([""], ["foo", "bar"], can_choose_multiple=True)
+        run_prompt_test(["  "], ["foo", "bar"], can_choose_multiple=True)
+        run_prompt_test(["badinput", "all"], ["foo", "bar"], can_choose_multiple=True)
 
     def test_confirm(self):
         test_cases = (
-            (('Continue? [Y/n]: ', True), (User.DEFAULT_YES, 'y')),
-            (('Continue? [Y/n]: ', False), (User.DEFAULT_YES, 'n')),
-            (('Continue? [Y/n]: ', True), (User.DEFAULT_YES, '')),
-            (('Continue? [Y/n]: ', False), (User.DEFAULT_YES, 'q')),
-            (('Continue? [y/N]: ', True), (User.DEFAULT_NO, 'y')),
-            (('Continue? [y/N]: ', False), (User.DEFAULT_NO, 'n')),
-            (('Continue? [y/N]: ', False), (User.DEFAULT_NO, '')),
-            (('Continue? [y/N]: ', False), (User.DEFAULT_NO, 'q')),
+            (("Continue? [Y/n]: ", True), (User.DEFAULT_YES, 'y')),
+            (("Continue? [Y/n]: ", False), (User.DEFAULT_YES, 'n')),
+            (("Continue? [Y/n]: ", True), (User.DEFAULT_YES, '')),
+            (("Continue? [Y/n]: ", False), (User.DEFAULT_YES, 'q')),
+            (("Continue? [y/N]: ", True), (User.DEFAULT_NO, 'y')),
+            (("Continue? [y/N]: ", False), (User.DEFAULT_NO, 'n')),
+            (("Continue? [y/N]: ", False), (User.DEFAULT_NO, '')),
+            (("Continue? [y/N]: ", False), (User.DEFAULT_NO, 'q')),
         )
         for test_case in test_cases:
             expected, inputs = test_case

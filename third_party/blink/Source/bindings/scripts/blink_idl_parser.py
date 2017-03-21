@@ -203,6 +203,17 @@ class BlinkIDLParser(IDLParser):
     # Numbers are as per Candidate Recommendation 19 April 2012:
     # http://www.w3.org/TR/2012/CR-WebIDL-20120419/
 
+    # [3] Override action, since we distinguish callbacks
+    # FIXME: Upstream
+    def p_CallbackOrInterface(self, p):
+        """CallbackOrInterface : CALLBACK CallbackRestOrInterface
+                               | Interface"""
+        if len(p) > 2:
+            p[2].AddChildren(self.BuildTrue('CALLBACK'))
+            p[0] = p[2]
+        else:
+            p[0] = p[1]
+
     # [b27] Add strings, more 'Literal' productions
     # 'Literal's needed because integers and strings are both internally strings
     def p_ConstValue(self, p):
@@ -243,13 +254,7 @@ class BlinkIDLParser(IDLParser):
         # ExceptionFields, and Attribute removed from this rule.
         p[0] = p[1]
 
-    # [b47.1] FIXME: rename to ExceptionAttribute
-    def p_Attribute(self, p):
-        """Attribute : ReadOnly ATTRIBUTE Type identifier ';'"""
-        p[0] = self.BuildNamed('Attribute', p, 4,
-                               ListFromConcat(p[1], p[3]))
-
-    # [b47.2]
+    # [b47.1]
     def p_ExceptionOperation(self, p):
         """ExceptionOperation : Type identifier '(' ')' ';'"""
         # Needed to handle one case in DOMException.idl:
@@ -264,16 +269,11 @@ class BlinkIDLParser(IDLParser):
     # FIXME: Upstream
     def p_ExtendedAttributeList(self, p):
         """ExtendedAttributeList : '[' ExtendedAttribute ExtendedAttributes ']'
+                                 | '[' ']'
                                  | """
         if len(p) > 3:
             items = ListFromConcat(p[2], p[3])
             p[0] = self.BuildProduction('ExtAttributes', p, 1, items)
-
-    # Error handling for ExtendedAttributeList.
-    # We can't upstream this because we override ExtendedAttributeList.
-    def p_ExtendedAttributeListError(self, p):
-        """ExtendedAttributeList : '[' ExtendedAttribute ',' error"""
-        p[0] = self.BuildError(p, "ExtendedAttributeList")
 
     # [b50] Allow optional trailing comma
     # Blink-only, marked as WONTFIX in Web IDL spec:
@@ -295,6 +295,44 @@ class BlinkIDLParser(IDLParser):
                              | ExtendedAttributeStringLiteral
                              | ExtendedAttributeStringLiteralList"""
         p[0] = p[1]
+
+    # [59]
+    # FIXME: Upstream UnionType
+    def p_UnionType(self, p):
+        """UnionType : '(' UnionMemberType OR UnionMemberType UnionMemberTypes ')'"""
+        members = ListFromConcat(p[2], p[4], p[5])
+        p[0] = self.BuildProduction('UnionType', p, 1, members)
+
+    # [60]
+    def p_UnionMemberType(self, p):
+        """UnionMemberType : NonAnyType
+                           | UnionType TypeSuffix
+                           | ANY '[' ']' TypeSuffix"""
+        if len(p) == 2:
+            p[0] = self.BuildProduction('Type', p, 1, p[1])
+        elif len(p) == 3:
+            p[0] = self.BuildProduction('Type', p, 1, ListFromConcat(p[1], p[2]))
+        else:
+            any_node = ListFromConcat(self.BuildProduction('Any', p, 1), p[4])
+            p[0] = self.BuildProduction('Type', p, 1, any_node)
+
+    # [61]
+    def p_UnionMemberTypes(self, p):
+        """UnionMemberTypes : OR UnionMemberType UnionMemberTypes
+                            |"""
+        if len(p) > 2:
+            p[0] = ListFromConcat(p[2], p[3])
+
+    # [70] Override base parser to remove non-standard sized array
+    # FIXME: Upstream
+    def p_TypeSuffix(self, p):
+        """TypeSuffix : '[' ']' TypeSuffix
+                      | '?' TypeSuffixStartingWithArray
+                      |"""
+        if len(p) == 4:
+            p[0] = self.BuildProduction('Array', p, 1, p[3])
+        elif len(p) == 3:
+            p[0] = ListFromConcat(self.BuildTrue('NULLABLE'), p[2])
 
     # Blink extension: Add support for string literal Extended Attribute values
     def p_ExtendedAttributeStringLiteral(self, p):
