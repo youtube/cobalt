@@ -41,20 +41,6 @@ class ImageDecoder : public Decoder {
                const SuccessCallback& success_callback,
                const ErrorCallback& error_callback);
 
-  // Ensure that the image data decoder is initialized so that
-  // IsHardwareDecoder() can be queried to call DecodeChunk() from an
-  // appropriate thread. Returns whether DecodeChunk() is ready to be called.
-  //
-  // Optionally, DecodeChunk() will initialize the image data decoder as
-  // needed, but care must be taken to call the function from one consistent
-  // thread when using this approach.
-  bool EnsureDecoderIsInitialized(const char* data, size_t size);
-
-  // Returns whether the current image data decoder is a software or hardware
-  // decoder. This is intended to help decide which thread should be used to
-  // call DecodeChunk().
-  bool IsHardwareDecoder() const;
-
   // From Decoder.
   LoadResponseType OnResponseStarted(
       Fetcher* fetcher,
@@ -96,7 +82,6 @@ class ImageDecoder : public Decoder {
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
-  size_t data_consumed_size;
   std::string error_message_;
   std::string mime_type_;
 };
