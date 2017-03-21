@@ -37,5 +37,3 @@ interface SpeechRecognition : EventTarget {
   attribute EventHandler onnomatch;
   attribute EventHandler onerror;
 };
-
-typedef EventListener? EventHandler;
