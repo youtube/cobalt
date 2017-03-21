@@ -29,6 +29,8 @@
 
 import logging
 
+from webkitpy.common.html_diff import html_diff
+from webkitpy.common.unified_diff import unified_diff
 from webkitpy.layout_tests.controllers import repaint_overlay
 from webkitpy.layout_tests.models import test_failures
 
@@ -73,27 +75,32 @@ def write_test_result(filesystem, port, results_directory, test_name, driver_out
             # FIXME: This work should be done earlier in the pipeline (e.g., when we compare images for non-ref tests).
             # FIXME: We should always have 2 images here.
             if driver_output.image and expected_driver_output.image:
-                diff_image, err_str = port.diff_image(expected_driver_output.image, driver_output.image)
+                diff_image, _ = port.diff_image(expected_driver_output.image, driver_output.image)
                 if diff_image:
                     writer.write_image_diff_files(diff_image)
                 else:
-                    _log.warn('ref test mismatch did not produce an image diff.')
+                    _log.warning('ref test mismatch did not produce an image diff.')
             writer.write_image_files(driver_output.image, expected_image=None)
             if filesystem.exists(failure.reference_filename):
                 writer.write_reftest(failure.reference_filename)
             else:
-                _log.warn("reference %s was not found" % failure.reference_filename)
+                _log.warning("reference %s was not found", failure.reference_filename)
         elif isinstance(failure, test_failures.FailureReftestMismatchDidNotOccur):
             writer.write_image_files(driver_output.image, expected_image=None)
             if filesystem.exists(failure.reference_filename):
                 writer.write_reftest(failure.reference_filename)
             else:
-                _log.warn("reference %s was not found" % failure.reference_filename)
+                _log.warning("reference %s was not found", failure.reference_filename)
         else:
             assert isinstance(failure, (test_failures.FailureTimeout, test_failures.FailureReftestNoImagesGenerated))
 
         if expected_driver_output is not None:
             writer.create_repaint_overlay_result(driver_output.text, expected_driver_output.text)
+
+
+def baseline_name(filesystem, test_name, suffix):
+    base = filesystem.splitext(test_name)[0]
+    return '%s%s.%s' % (base, TestResultWriter.FILENAME_SUFFIX_EXPECTED, suffix)
 
 
 class TestResultWriter(object):
@@ -107,8 +114,7 @@ class TestResultWriter(object):
     FILENAME_SUFFIX_CRASH_LOG = "-crash-log"
     FILENAME_SUFFIX_SAMPLE = "-sample"
     FILENAME_SUFFIX_LEAK_LOG = "-leak-log"
-    FILENAME_SUFFIX_WDIFF = "-wdiff.html"
-    FILENAME_SUFFIX_PRETTY_PATCH = "-pretty-diff.html"
+    FILENAME_SUFFIX_HTML_DIFF = "-pretty-diff.html"
     FILENAME_SUFFIX_IMAGE_DIFF = "-diff.png"
     FILENAME_SUFFIX_IMAGE_DIFFS_HTML = "-diffs.html"
     FILENAME_SUFFIX_OVERLAY = "-overlay.html"
@@ -194,26 +200,18 @@ class TestResultWriter(object):
         if not actual_text or not expected_text:
             return
 
+        # Output a plain-text diff file.
         file_type = '.txt'
         actual_filename = self.output_filename(self.FILENAME_SUFFIX_ACTUAL + file_type)
         expected_filename = self.output_filename(self.FILENAME_SUFFIX_EXPECTED + file_type)
-        # We treat diff output as binary. Diff output may contain multiple files
-        # in conflicting encodings.
-        diff = self._port.diff_text(expected_text, actual_text, expected_filename, actual_filename)
+        diff = unified_diff(expected_text, actual_text, expected_filename, actual_filename)
         diff_filename = self.output_filename(self.FILENAME_SUFFIX_DIFF + file_type)
         self._write_file(diff_filename, diff)
 
-        # Shell out to wdiff to get colored inline diffs.
-        if self._port.wdiff_available():
-            wdiff = self._port.wdiff_text(expected_filename, actual_filename)
-            wdiff_filename = self.output_filename(self.FILENAME_SUFFIX_WDIFF)
-            self._write_file(wdiff_filename, wdiff)
-
-        # Use WebKit's PrettyPatch.rb to get an HTML diff.
-        if self._port.pretty_patch_available():
-            pretty_patch = self._port.pretty_patch_text(diff_filename)
-            pretty_patch_filename = self.output_filename(self.FILENAME_SUFFIX_PRETTY_PATCH)
-            self._write_file(pretty_patch_filename, pretty_patch)
+        # Output a HTML diff file.
+        html_diff_filename = self.output_filename(self.FILENAME_SUFFIX_HTML_DIFF)
+        html_diff_contents = html_diff(expected_text, actual_text)
+        self._write_file(html_diff_filename, html_diff_contents)
 
     def create_repaint_overlay_result(self, actual_text, expected_text):
         html = repaint_overlay.generate_repaint_overlay_html(self._test_name, actual_text, expected_text)

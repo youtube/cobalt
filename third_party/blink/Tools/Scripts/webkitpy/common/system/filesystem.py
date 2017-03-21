@@ -28,6 +28,7 @@
 
 """Wrapper object for the file system / source tree."""
 
+import stat
 import codecs
 import errno
 import exceptions
@@ -39,11 +40,13 @@ import sys
 import tempfile
 import time
 
+
 class FileSystem(object):
     """FileSystem interface for webkitpy.
 
     Unless otherwise noted, all paths are allowed to be either absolute
-    or relative."""
+    or relative.
+    """
     sep = os.sep
     pardir = os.pardir
 
@@ -76,7 +79,7 @@ class FileSystem(object):
     def exists(self, path):
         return os.path.exists(path)
 
-    def files_under(self, path, dirs_to_skip=[], file_filter=None):
+    def files_under(self, path, dirs_to_skip=None, file_filter=None):
         """Return the list of all files under the given path in topdown order.
 
         Args:
@@ -87,6 +90,8 @@ class FileSystem(object):
                 each file found. The file is included in the result if the
                 callback returns True.
         """
+        dirs_to_skip = dirs_to_skip or []
+
         def filter_all(fs, dirpath, basename):
             return True
 
@@ -147,6 +152,7 @@ class FileSystem(object):
         methods. If you need a string, coerce the object to a string and go from there.
         """
         class TemporaryDirectory(object):
+
             def __init__(self, **kwargs):
                 self._kwargs = kwargs
                 self._directory_path = tempfile.mkdtemp(**self._kwargs)
@@ -170,8 +176,8 @@ class FileSystem(object):
         """Create the specified directory if it doesn't already exist."""
         try:
             os.makedirs(self.join(*path))
-        except OSError, e:
-            if e.errno != errno.EEXIST:
+        except OSError as error:
+            if error.errno != errno.EEXIST:
                 raise
 
     def move(self, source, destination):
@@ -203,7 +209,9 @@ class FileSystem(object):
 
     def open_text_file_for_reading(self, path):
         # Note: There appears to be an issue with the returned file objects
-        # not being seekable. See http://stackoverflow.com/questions/1510188/can-seek-and-tell-work-with-utf-8-encoded-documents-in-python .
+        # not being seekable. See
+        # http://stackoverflow.com/questions/1510188/can-seek-and-tell-work-with-utf-8-encoded-documents-in-python
+        # .
         return codecs.open(path, 'r', 'utf8')
 
     def open_text_file_for_writing(self, path):
@@ -212,14 +220,16 @@ class FileSystem(object):
     def read_text_file(self, path):
         """Return the contents of the file at the given path as a Unicode string.
 
-        The file is read assuming it is a UTF-8 encoded file with no BOM."""
+        The file is read assuming it is a UTF-8 encoded file with no BOM.
+        """
         with codecs.open(path, 'r', 'utf8') as f:
             return f.read()
 
     def write_text_file(self, path, contents):
         """Write the contents to the file at the given location.
 
-        The file is written encoded as UTF-8 with no BOM."""
+        The file is written encoded as UTF-8 with no BOM.
+        """
         with codecs.open(path, 'w', 'utf8') as f:
             f.write(contents)
 
@@ -232,13 +242,13 @@ class FileSystem(object):
 
     class _WindowsError(exceptions.OSError):
         """Fake exception for Linux and Mac."""
-        pass
 
     def remove(self, path, osremove=os.remove):
         """On Windows, if a process was recently killed and it held on to a
         file, the OS will hold on to the file for a short while.  This makes
         attempts to delete the file fail.  To work around that, this method
-        will retry for a few seconds until Windows is done with the file."""
+        will retry for a few seconds until Windows is done with the file.
+        """
         try:
             exceptions.WindowsError
         except AttributeError:
@@ -250,11 +260,11 @@ class FileSystem(object):
             try:
                 osremove(path)
                 return True
-            except exceptions.WindowsError, e:
+            except exceptions.WindowsError:
                 time.sleep(sleep_interval)
                 retry_timeout_sec -= sleep_interval
                 if retry_timeout_sec < 0:
-                    raise e
+                    raise
 
     def rmtree(self, path):
         """Delete the directory rooted at path, whether empty or not."""
@@ -270,3 +280,6 @@ class FileSystem(object):
     def splitext(self, path):
         """Return (dirname + os.sep + basename, '.' + ext)"""
         return os.path.splitext(path)
+
+    def make_executable(self, file_path):
+        os.chmod(file_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP)

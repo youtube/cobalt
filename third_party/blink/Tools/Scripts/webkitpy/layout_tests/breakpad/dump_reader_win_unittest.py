@@ -34,6 +34,7 @@ from webkitpy.layout_tests.breakpad.dump_reader_win import DumpReaderWin
 
 
 class TestDumpReaderWin(unittest.TestCase):
+
     def test_check_is_functional_cdb_not_found(self):
         host = MockHost()
         host.executive = MockExecutive(should_throw=True)

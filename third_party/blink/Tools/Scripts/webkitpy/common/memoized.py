@@ -33,6 +33,7 @@ import functools
 
 
 class memoized(object):
+
     def __init__(self, function):
         self._function = function
         self._results_cache = {}
@@ -41,15 +42,16 @@ class memoized(object):
         try:
             return self._results_cache[args]
         except KeyError:
-            # If we didn't find the args in our cache, call and save the results.
             result = self._function(*args)
             self._results_cache[args] = result
             return result
-        # FIXME: We may need to handle TypeError here in the case
-        # that "args" is not a valid dictionary key.
+        except TypeError as error:
+            raise TypeError(
+                'Cannot call memoized function %s with unhashable '
+                'arguments: %s' % (self._function.__name__, error.message))
 
     # Use python "descriptor" protocol __get__ to appear
     # invisible during property access.
     def __get__(self, instance, owner):
-        # Return a function partial with obj already bound as self.
+        # Return a function partial with object already bound as self.
         return functools.partial(self.__call__, instance)

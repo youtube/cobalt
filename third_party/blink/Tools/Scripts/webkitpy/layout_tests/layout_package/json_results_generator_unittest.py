@@ -33,6 +33,7 @@ from webkitpy.layout_tests.layout_package import json_results_generator
 
 
 class JSONGeneratorTest(unittest.TestCase):
+
     def setUp(self):
         self.builder_name = 'DUMMY_BUILDER_NAME'
         self.build_name = 'DUMMY_BUILD_NAME'
@@ -53,16 +54,9 @@ class JSONGeneratorTest(unittest.TestCase):
 
     def test_strip_json_wrapper(self):
         json = "['contents']"
-        self.assertEqual(json_results_generator.strip_json_wrapper(json_results_generator._JSON_PREFIX + json + json_results_generator._JSON_SUFFIX), json)
+        self.assertEqual(json_results_generator.strip_json_wrapper(
+            json_results_generator._JSON_PREFIX + json + json_results_generator._JSON_SUFFIX), json)
         self.assertEqual(json_results_generator.strip_json_wrapper(json), json)
-
-    def _find_test_in_trie(self, path, trie):
-        nodes = path.split("/")
-        sub_trie = trie
-        for node in nodes:
-            self.assertIn(node, sub_trie)
-            sub_trie = sub_trie[node]
-        return sub_trie
 
     def test_test_timings_trie(self):
         individual_test_timings = []
@@ -71,12 +65,12 @@ class JSONGeneratorTest(unittest.TestCase):
         trie = json_results_generator.test_timings_trie(individual_test_timings)
 
         expected_trie = {
-          'bar.html': 0,
-          'foo': {
-              'bar': {
-                  'baz.html': 1200,
-              }
-          }
+            'bar.html': 0,
+            'foo': {
+                'bar': {
+                    'baz.html': 1200,
+                }
+            }
         }
 
         self.assertEqual(json.dumps(trie), json.dumps(expected_trie))

@@ -38,7 +38,8 @@ class TestResult(object):
     def loads(string):
         return cPickle.loads(string)
 
-    def __init__(self, test_name, failures=None, test_run_time=None, has_stderr=False, reftest_type=None, pid=None, references=None, device_failed=False, has_repaint_overlay=False):
+    def __init__(self, test_name, failures=None, test_run_time=None, has_stderr=False, reftest_type=None,
+                 pid=None, references=None, device_failed=False, has_repaint_overlay=False):
         self.test_name = test_name
         self.failures = failures or []
         self.test_run_time = test_run_time or 0  # The time taken to execute the test itself.

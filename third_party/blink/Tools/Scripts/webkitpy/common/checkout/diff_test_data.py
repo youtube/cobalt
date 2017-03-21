@@ -27,10 +27,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #  FIXME: Store this as a .patch file in some new fixtures directory or similar.
-DIFF_TEST_DATA = '''diff --git a/WebCore/rendering/style/StyleFlexibleBoxData.h b/WebCore/rendering/style/StyleFlexibleBoxData.h
+DIFF_TEST_DATA = '''diff --git a/WebCore/style/StyleFlexibleBoxData.h b/WebCore/style/StyleFlexibleBoxData.h
 index f5d5e74..3b6aa92 100644
---- a/WebCore/rendering/style/StyleFlexibleBoxData.h
-+++ b/WebCore/rendering/style/StyleFlexibleBoxData.h
+--- a/WebCore/style/StyleFlexibleBoxData.h
++++ b/WebCore/style/StyleFlexibleBoxData.h
 @@ -47,7 +47,6 @@ public:
  
      unsigned align : 3; // EBoxAlignment
@@ -39,15 +39,15 @@ index f5d5e74..3b6aa92 100644
      unsigned lines : 1; // EBoxLines
  
  private:
-diff --git a/WebCore/rendering/style/StyleRareInheritedData.cpp b/WebCore/rendering/style/StyleRareInheritedData.cpp
+diff --git a/WebCore/style/StyleRareInheritedData.cpp b/WebCore/style/StyleRareInheritedData.cpp
 index ce21720..324929e 100644
---- a/WebCore/rendering/style/StyleRareInheritedData.cpp
-+++ b/WebCore/rendering/style/StyleRareInheritedData.cpp
+--- a/WebCore/style/StyleRareInheritedData.cpp
++++ b/WebCore/style/StyleRareInheritedData.cpp
 @@ -39,6 +39,7 @@ StyleRareInheritedData::StyleRareInheritedData()
-     , textSizeAdjust(RenderStyle::initialTextSizeAdjust())
-     , resize(RenderStyle::initialResize())
-     , userSelect(RenderStyle::initialUserSelect())
-+    , boxOrient(RenderStyle::initialBoxOrient())
+     , textSizeAdjust(ComputedStyle::initialTextSizeAdjust())
+     , resize(ComputedStyle::initialResize())
+     , userSelect(ComputedStyle::initialUserSelect())
++    , boxOrient(ComputedStyle::initialBoxOrient())
  {
  }
  

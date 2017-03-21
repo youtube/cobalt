@@ -26,6 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import errno
 import logging
 import os
 import shlex
@@ -62,20 +63,20 @@ class DumpReaderWin(DumpReader):
         try:
             stack = self._host.executive.run_command(cmd)
         except:
-            _log.warning('Failed to execute "%s"' % ' '.join(cmd))
+            _log.warning('Failed to execute "%s"', ' '.join(cmd))
         else:
             return stack
         return None
 
     def _find_depot_tools_path(self):
         """Attempt to find depot_tools location in PATH."""
-        for i in os.environ['PATH'].split(os.pathsep):
+        for i in self._host.environ.get('PATH').split(os.pathsep):
             if os.path.isfile(os.path.join(i, 'gclient')):
                 return i
 
     def _check_cdb_available(self):
         """Checks whether we can use cdb to symbolize minidumps."""
-        if self._cdb_available != None:
+        if self._cdb_available is not None:
             return self._cdb_available
 
         CDB_LOCATION_TEMPLATES = [
@@ -86,13 +87,15 @@ class DumpReaderWin(DumpReader):
             '%s\\Windows Kits\\8.0\\Debuggers\\x64',
             '%s\\Windows Kits\\8.1\\Debuggers\\x86',
             '%s\\Windows Kits\\8.1\\Debuggers\\x64',
+            '%s\\Windows Kits\\10\\Debuggers\\x86',
+            '%s\\Windows Kits\\10\\Debuggers\\x64',
         ]
 
         program_files_directories = ['C:\\Program Files']
-        program_files = os.environ.get('ProgramFiles')
+        program_files = self._host.environ.get('ProgramFiles')
         if program_files:
             program_files_directories.append(program_files)
-        program_files = os.environ.get('ProgramFiles(x86)')
+        program_files = self._host.environ.get('ProgramFiles(x86)')
         if program_files:
             program_files_directories.append(program_files)
 
@@ -101,7 +104,7 @@ class DumpReaderWin(DumpReader):
             for program_files in program_files_directories:
                 possible_cdb_locations.append(template % program_files)
 
-        gyp_defines = os.environ.get('GYP_DEFINES', [])
+        gyp_defines = self._host.environ.get('GYP_DEFINES', [])
         if gyp_defines:
             gyp_defines = shlex.split(gyp_defines)
         if 'windows_sdk_path' in gyp_defines:
@@ -113,11 +116,17 @@ class DumpReaderWin(DumpReader):
         # Look in depot_tools win_toolchain too.
         depot_tools = self._find_depot_tools_path()
         if depot_tools:
-            win8sdk = os.path.join(depot_tools, 'win_toolchain', 'vs2013_files', 'win8sdk')
-            possible_cdb_locations.extend([
-                '%s\\Debuggers\\x86' % win8sdk,
-                '%s\\Debuggers\\x64' % win8sdk,
-            ])
+            try:
+                vs_files = os.path.join(depot_tools, 'win_toolchain', 'vs_files')
+                for path in os.listdir(vs_files):
+                    win_sdk = os.path.join(vs_files, path, 'win_sdk')
+                    possible_cdb_locations.extend([
+                        '%s\\Debuggers\\x86' % win_sdk,
+                        '%s\\Debuggers\\x64' % win_sdk,
+                    ])
+            except OSError as error:
+                if error.errno != errno.ENOENT:
+                    raise
 
         for cdb_path in possible_cdb_locations:
             cdb = self._host.filesystem.join(cdb_path, 'cdb.exe')

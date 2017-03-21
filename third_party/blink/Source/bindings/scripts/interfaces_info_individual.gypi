@@ -70,8 +70,6 @@
       '<(component_info_file)',
       '--extended-attributes',
       '<(extended_attributes_file)',
-      '--write-file-only-if-changed',
-      '<(write_file_only_if_changed)',
       '--',
       # Generated files must be passed at command line
       '<@(generated_idl_files)',
