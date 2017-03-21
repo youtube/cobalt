@@ -20,23 +20,35 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccAccessibility::H5vccAccessibility() : high_contrast_text_(false) {
+bool H5vccAccessibility::high_contrast_text() const {
 #if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
   SbAccessibilityDisplaySettings settings;
   SbMemorySet(&settings, 0, sizeof(settings));
 
   if (!SbAccessibilityGetDisplaySettings(&settings)) {
-    return;
+    return false;
   }
 
-  high_contrast_text_ = settings.is_high_contrast_text_enabled;
+  return settings.is_high_contrast_text_enabled;
 #else  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-  high_contrast_text_ = false;
+  return  false;
 #endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 }
 
-bool H5vccAccessibility::high_contrast_text() const {
-  return high_contrast_text_;
+bool H5vccAccessibility::text_to_speech() const {
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  SbAccessibilityTextToSpeechSettings settings;
+  SbMemorySet(&settings, 0, sizeof(settings));
+
+  if (!SbAccessibilityGetTextToSpeechSettings(&settings)) {
+    return false;
+  }
+
+  return settings.has_text_to_speech_setting &&
+      settings.is_text_to_speech_enabled;
+#else  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+  return  false;
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 }
 
 }  // namespace h5vcc
