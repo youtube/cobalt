@@ -69,6 +69,7 @@ import abc
 from idl_types import IdlArrayType
 from idl_types import IdlFrozenArrayType
 from idl_types import IdlNullableType
+from idl_types import IdlPromiseType
 from idl_types import IdlRecordType
 from idl_types import IdlSequenceType
 from idl_types import IdlType
@@ -1036,7 +1037,7 @@ def type_node_inner_to_type(node):
     elif node_class == 'UnionType':
         return union_type_node_to_idl_union_type(node)
     elif node_class == 'Promise':
-        return IdlType('Promise')
+        return promise_node_to_type(node)
     elif node_class == 'Record':
         return record_node_to_type(node)
     raise ValueError('Unrecognized node class: %s' % node_class)
@@ -1091,6 +1092,23 @@ def union_type_node_to_idl_union_type(node):
     member_types = [type_node_to_type(member_type_node)
                     for member_type_node in node.GetChildren()]
     return IdlUnionType(member_types)
+
+
+def promise_node_to_type(node):
+    children = node.GetChildren()
+    class_name = node.GetClass()
+    if len(children) != 1:
+        raise ValueError('%s node expects exactly 1 child, got %s' % (class_name, len(children)))
+    promise_child = children[0]
+    promise_child_class = promise_child.GetClass()
+    if promise_child_class != 'Type':
+        raise ValueError('Unrecognized node class: %s' % sequence_child_class)
+    element_type = type_node_to_type(promise_child)
+    if class_name == 'Promise':
+        promise_type = IdlPromiseType(element_type)
+    else:
+        raise ValueError('Unexpected node: %s' % class_name)
+    return promise_type
 
 
 ################################################################################
