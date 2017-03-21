@@ -67,14 +67,14 @@ class DumpReaderMultipart(DumpReader):
 
         self._generate_breakpad_symbols_if_necessary()
         f, temp_name = self._host.filesystem.open_binary_tempfile('dmp')
-        f.write("\r\n".join(dump['upload_file_minidump']))
+        f.write('\r\n'.join(dump['upload_file_minidump']))
         f.close()
 
         cmd = [self._path_to_minidump_stackwalk(), temp_name, self._symbols_dir()]
         try:
             stack = self._host.executive.run_command(cmd, return_stderr=False)
         except:
-            _log.warning('Failed to execute "%s"' % ' '.join(cmd))
+            _log.warning('Failed to execute "%s"', ' '.join(cmd))
             stack = None
         finally:
             self._host.filesystem.remove(temp_name)
@@ -92,7 +92,7 @@ class DumpReaderMultipart(DumpReader):
         return None
 
     def _check_breakpad_tools_available(self):
-        if self._breakpad_tools_available != None:
+        if self._breakpad_tools_available is not None:
             return self._breakpad_tools_available
 
         REQUIRED_BREAKPAD_TOOLS = [
@@ -104,8 +104,8 @@ class DumpReaderMultipart(DumpReader):
             full_path = self._host.filesystem.join(self._build_dir, binary)
             if not self._host.filesystem.exists(full_path):
                 result = False
-                _log.error('Unable to find %s' % binary)
-                _log.error('    at %s' % full_path)
+                _log.error('Unable to find %s', binary)
+                _log.error('    at %s', full_path)
 
         if not result:
             _log.error("    Could not find breakpad tools, unexpected crashes won't be symbolized")
@@ -116,10 +116,11 @@ class DumpReaderMultipart(DumpReader):
         return self._breakpad_tools_available
 
     def _path_to_minidump_stackwalk(self):
-        return self._host.filesystem.join(self._build_dir, "minidump_stackwalk")
+        return self._host.filesystem.join(self._build_dir, 'minidump_stackwalk')
 
     def _path_to_generate_breakpad_symbols(self):
-        return self._webkit_finder.path_from_chromium_base("components", "crash", "tools", "generate_breakpad_symbols.py")
+        return self._webkit_finder.path_from_chromium_base(
+            'components', 'crash', 'content', 'tools', 'generate_breakpad_symbols.py')
 
     def _symbols_dir(self):
         return self._host.filesystem.join(self._build_dir, 'content_shell.syms')
@@ -129,13 +130,13 @@ class DumpReaderMultipart(DumpReader):
             return
         self._generated_symbols = True
 
-        _log.debug("Generating breakpad symbols")
+        _log.debug('Generating breakpad symbols')
         queue = Queue.Queue()
         thread = threading.Thread(target=_symbolize_keepalive, args=(queue,))
         thread.start()
         try:
             for binary in self._binaries_to_symbolize():
-                _log.debug('  Symbolizing %s' % binary)
+                _log.debug('  Symbolizing %s', binary)
                 full_path = self._host.filesystem.join(self._build_dir, binary)
                 cmd = [
                     self._path_to_generate_breakpad_symbols(),
@@ -146,24 +147,25 @@ class DumpReaderMultipart(DumpReader):
                 try:
                     self._host.executive.run_command(cmd)
                 except:
-                    _log.error('Failed to execute "%s"' % ' '.join(cmd))
+                    _log.error('Failed to execute "%s"', ' '.join(cmd))
         finally:
             queue.put(None)
             thread.join()
-        _log.debug("Done generating breakpad symbols")
+        _log.debug('Done generating breakpad symbols')
 
     def _binaries_to_symbolize(self):
         """This routine must be implemented by subclasses.
 
-        Returns an array of binaries that need to be symbolized."""
+        Returns an array of binaries that need to be symbolized.
+        """
         raise NotImplementedError()
 
 
 def _symbolize_keepalive(queue):
     while True:
-        _log.debug("waiting for symbolize to complete")
+        _log.debug('waiting for symbolize to complete')
         try:
-            msg = queue.get(block=True, timeout=60)
+            queue.get(block=True, timeout=60)
             return
         except Queue.Empty:
             pass
@@ -173,7 +175,7 @@ class DumpReaderLinux(DumpReaderMultipart):
     """Linux breakpad dump reader."""
 
     def _binaries_to_symbolize(self):
-        return ['content_shell', 'libtest_netscape_plugin.so', 'libffmpegsumo.so', 'libosmesa.so']
+        return ['content_shell', 'libtest_netscape_plugin.so', 'libosmesa.so']
 
     def _file_extension(self):
         return 'dmp'
