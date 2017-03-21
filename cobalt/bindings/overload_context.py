@@ -16,8 +16,8 @@
 
 from functools import partial
 
-from v8_interface import distinguishing_argument_index
-from v8_interface import effective_overload_set_by_length
+from bindings.scripts.v8_interface import distinguishing_argument_index
+from bindings.scripts.v8_interface import effective_overload_set_by_length
 
 
 def get_overload_contexts(expression_generator, method_overloads):
@@ -36,9 +36,7 @@ def get_overload_contexts(expression_generator, method_overloads):
     # Create an overload context. Binding generation will use this as a top
     # level context, and the identifier will be bound to an overload
     # resolution function.
-    overload_context = {
-        'overloads': overloaded_methods,
-    }
+    overload_context = {'overloads': overloaded_methods,}
 
     # Add a property to the overloaded methods indicating their overload
     # indices. This allows us to refer to each overload with a unique name.
@@ -88,10 +86,10 @@ def get_overload_contexts(expression_generator, method_overloads):
       # http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       # 7. If there is more than one entry in S, then set d to be the
       #    distinguishing argument index for the entries of S.
-      overload_resolution_context_by_length.append(
-          (length, distinguishing_argument_index(overload_set)
-           if len(overload_set) > 1 else None,
-           list(resolution_tests_methods(expression_generator, overload_set))))
+      overload_resolution_context_by_length.append((
+          length, distinguishing_argument_index(overload_set) if len(
+              overload_set) > 1 else None, list(resolution_tests_methods(
+                  expression_generator, overload_set))))
     overload_context['overload_resolution_by_length'] = (
         overload_resolution_context_by_length)
 
@@ -124,9 +122,8 @@ def resolution_tests_methods(expression_generator, effective_overloads):
       (test, method)
   """
 
-  methods = [
-      effective_overload[0] for effective_overload in effective_overloads
-  ]
+  methods = [effective_overload[0]
+             for effective_overload in effective_overloads]
   if len(methods) == 1:
     # If only one method with a given length, no test needed
     yield lambda arg: 'true', methods[0]
