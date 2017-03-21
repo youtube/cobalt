@@ -1,0 +1,91 @@
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_DOM_EME_MEDIA_KEY_SESSION_H_
+#define COBALT_DOM_EME_MEDIA_KEY_SESSION_H_
+
+#include <string>
+
+#include "base/callback.h"
+#include "base/memory/weak_ptr.h"
+#include "cobalt/dom/buffer_source.h"
+#include "cobalt/dom/event_target.h"
+#include "cobalt/media/base/drm_system.h"
+#include "cobalt/script/promise.h"
+#include "cobalt/script/script_value_factory.h"
+
+namespace cobalt {
+namespace dom {
+namespace eme {
+
+// A session provides a context for message exchange with the CDM as a result
+// of which keys are made available to the CDM.
+//   https://www.w3.org/TR/encrypted-media/#key-session
+//
+// Also see https://www.w3.org/TR/encrypted-media/#mediakeysession-interface.
+class MediaKeySession : public EventTarget {
+ public:
+  typedef script::ScriptValue<script::Promise<void> > VoidPromiseValue;
+  typedef base::Callback<void(MediaKeySession* session)> ClosedCallback;
+
+  // Custom, not in any spec.
+  MediaKeySession(scoped_ptr<media::DrmSystem::Session> drm_system_session,
+                  script::ScriptValueFactory* script_value_factory,
+                  const ClosedCallback& closed_callback);
+
+  // Web IDL: MediaKeySession.
+  std::string session_id() const;
+  const VoidPromiseValue* closed() const;
+  const EventListenerScriptValue* onmessage() const;
+  void set_onmessage(const EventListenerScriptValue& event_listener);
+  scoped_ptr<VoidPromiseValue> GenerateRequest(
+      const std::string& init_data_type, const BufferSource& init_data);
+  scoped_ptr<VoidPromiseValue> Update(const BufferSource& response);
+  scoped_ptr<VoidPromiseValue> Close();
+
+  DEFINE_WRAPPABLE_TYPE(MediaKeySession);
+
+ private:
+  ~MediaKeySession() OVERRIDE;
+
+  void OnSessionUpdateRequestGenerated(
+      VoidPromiseValue::Reference* promise_reference,
+      scoped_array<uint8> message, int message_size);
+  void OnSessionUpdateRequestDidNotGenerate(
+      VoidPromiseValue::Reference* promise_reference);
+  void OnSessionUpdated(VoidPromiseValue::Reference* promise_reference);
+  void OnSessionDidNotUpdate(VoidPromiseValue::Reference* promise_reference);
+  void OnClosed();
+
+  scoped_ptr<media::DrmSystem::Session> drm_system_session_;
+  script::ScriptValueFactory* const script_value_factory_;
+  bool uninitialized_;
+  bool callable_;
+
+  // TODO: Remove |closed_callback_| and change call sites to use closed()
+  //       promise instead, once Cobalt switches to native SpiderMonkey
+  //       promises.
+  const ClosedCallback closed_callback_;
+  const VoidPromiseValue::Reference closed_promise_reference_;
+
+  bool initiated_by_generate_request_;
+
+  DISALLOW_COPY_AND_ASSIGN(MediaKeySession);
+};
+
+}  // namespace eme
+}  // namespace dom
+}  // namespace cobalt
+
+#endif  // COBALT_DOM_EME_MEDIA_KEY_SESSION_H_

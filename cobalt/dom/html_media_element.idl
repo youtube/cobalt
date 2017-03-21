@@ -59,12 +59,4 @@ interface HTMLMediaElement : HTMLElement {
   attribute boolean controls;
   [RaisesException] attribute double volume;
   attribute boolean muted;
-
-  // Encrypted Media Extensions methods
-  [RaisesException] void generateKeyRequest(DOMString keySystem,
-                                            Uint8Array? initData);
-  [RaisesException] void addKey(DOMString keySystem, Uint8Array key,
-                                Uint8Array? initData, DOMString? sessionId);
-  [RaisesException] void cancelKeyRequest(DOMString keySystem,
-                                          DOMString? sessionId);
 };

@@ -33,19 +33,22 @@
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_video_element.h"
-#include "cobalt/dom/media_key_complete_event.h"
-#include "cobalt/dom/media_key_error_event.h"
-#include "cobalt/dom/media_key_message_event.h"
-#include "cobalt/dom/media_key_needed_event.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
+#include "cobalt/script/script_value_factory.h"
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/eme/media_encrypted_event.h"
+#include "cobalt/dom/eme/media_encrypted_event_init.h"
 #include "cobalt/media/base/media_log.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/media_key_complete_event.h"
+#include "cobalt/dom/media_key_error_event.h"
+#include "cobalt/dom/media_key_message_event.h"
+#include "cobalt/dom/media_key_needed_event.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -79,23 +82,6 @@ namespace {
 #define MLOG() EAT_STREAM_PARAMETERS
 
 #endif  // LOG_MEDIA_ELEMENT_ACTIVITIES
-
-void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
-                            script::ExceptionState* exception_state) {
-  DCHECK_NE(exception, WebMediaPlayer::kMediaKeyExceptionNoError);
-  switch (exception) {
-    case WebMediaPlayer::kMediaKeyExceptionInvalidPlayerState:
-      DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
-      break;
-    case WebMediaPlayer::kMediaKeyExceptionKeySystemNotSupported:
-      DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
-      break;
-    case WebMediaPlayer::kMediaKeyExceptionNoError:
-    default:
-      NOTREACHED();
-      break;
-  }
-}
 
 // This struct manages the user log information for HTMLMediaElement count.
 struct HTMLMediaElementCountLog {
@@ -228,6 +214,90 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
   return result;
 }
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+
+const EventTarget::EventListenerScriptValue* HTMLMediaElement::onencrypted()
+    const {
+  return GetAttributeEventListener(base::Tokens::encrypted());
+}
+
+void HTMLMediaElement::set_onencrypted(
+    const EventListenerScriptValue& event_listener) {
+  SetAttributeEventListener(base::Tokens::encrypted(), event_listener);
+}
+
+// See https://www.w3.org/TR/encrypted-media/#dom-htmlmediaelement-setmediakeys.
+scoped_ptr<HTMLMediaElement::VoidPromiseValue> HTMLMediaElement::SetMediaKeys(
+    const scoped_refptr<eme::MediaKeys>& media_keys) {
+  scoped_ptr<VoidPromiseValue> promise = node_document()
+                                             ->html_element_context()
+                                             ->script_value_factory()
+                                             ->CreateBasicPromise<void>();
+  VoidPromiseValue::StrongReference promise_reference(*promise);
+
+  // 1. If mediaKeys and the mediaKeys attribute are the same object, return
+  //    a resolved promise.
+  if (media_keys_ == media_keys) {
+    promise_reference.value().Resolve();
+    return promise.Pass();
+  }
+
+  // 5.2. If the mediaKeys attribute is not null:
+  if (media_keys_) {
+    // 5.2.3. Stop using the CDM instance represented by the mediaKeys attribute
+    //        to decrypt media data and remove the association with the media
+    //        element.
+    //
+    // Since Starboard doesn't allow to detach SbDrmSystem from SbPlayer,
+    // re-create the entire player.
+    if (player_) {
+      ClearMediaPlayer();
+      CreateMediaPlayer();
+    }
+  }
+
+  // 5.3. If mediaKeys is not null:
+  if (media_keys) {
+    // 5.3.1. Associate the CDM instance represented by mediaKeys with
+    //        the media element for decrypting media data.
+    if (player_) {
+      player_->SetDrmSystem(media_keys->drm_system());
+    }
+  }
+
+  // 5.4. Set the mediaKeys attribute to mediaKeys.
+  media_keys_ = media_keys;
+
+  // 5.6. Resolve promise.
+  promise_reference.value().Resolve();
+
+  // 6. Return promise.
+  return promise.Pass();
+}
+
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
+
+namespace {
+
+void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
+                            script::ExceptionState* exception_state) {
+  DCHECK_NE(exception, WebMediaPlayer::kMediaKeyExceptionNoError);
+  switch (exception) {
+    case WebMediaPlayer::kMediaKeyExceptionInvalidPlayerState:
+      DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+      break;
+    case WebMediaPlayer::kMediaKeyExceptionKeySystemNotSupported:
+      DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+      break;
+    case WebMediaPlayer::kMediaKeyExceptionNoError:
+    default:
+      NOTREACHED();
+      break;
+  }
+}
+
+}  // namespace
+
 void HTMLMediaElement::GenerateKeyRequest(
     const std::string& key_system,
     const base::optional<scoped_refptr<Uint8Array> >& init_data,
@@ -338,6 +408,8 @@ void HTMLMediaElement::CancelKeyRequest(
     RaiseMediaKeyException(exception, exception_state);
   }
 }
+
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 uint16_t HTMLMediaElement::ready_state() const {
   MLOG() << ready_state_;
@@ -647,15 +719,18 @@ void HTMLMediaElement::CreateMediaPlayer() {
     }
   }
 
-  player_.reset();
   player_ =
       html_element_context()->web_media_player_factory()->CreateWebMediaPlayer(
           this);
-#if !defined(COBALT_MEDIA_SOURCE_2016)
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  if (media_keys_) {
+    player_->SetDrmSystem(media_keys_->drm_system());
+  }
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   if (media_source_) {
     media_source_->SetPlayer(player_.get());
   }
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   node_document()->OnDOMMutation();
   InvalidateLayoutBoxesOfNodeAndAncestors();
 }
@@ -1547,13 +1622,50 @@ bool HTMLMediaElement::PreferDecodeToTexture() const {
 }
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
-void HTMLMediaElement::EncryptedMediaInitData(
-    media::EmeInitDataType /*init_data_type*/,
-    const unsigned char* /*init_data*/, unsigned int /*init_data_length*/) {
-  // TODO: Implement as per EME 2017.
-  NOTIMPLEMENTED();
+
+namespace {
+
+// Initialization data types are defined in
+// https://www.w3.org/TR/eme-initdata-registry/#registry.
+std::string ToInitDataTypeString(media::EmeInitDataType init_data_type) {
+  switch (init_data_type) {
+    case media::kEmeInitDataTypeWebM:
+      return "webm";
+    case media::kEmeInitDataTypeCenc:
+      return "cenc";
+    case media::kEmeInitDataTypeKeyIds:
+      return "keyids";
+    default:
+      LOG(WARNING) << "Unknown EME initialization data type.";
+      return "";
+  }
 }
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
+}  // namespace
+
+// See https://www.w3.org/TR/encrypted-media/#initdata-encountered.
+void HTMLMediaElement::EncryptedMediaInitDataEncountered(
+    media::EmeInitDataType init_data_type, const unsigned char* init_data,
+    unsigned int init_data_length) {
+  // TODO: Implement "4. If the media data is CORS-same-origin and not mixed
+  //       content".
+
+  // 5. Queue a task to create an event named encrypted that does not bubble
+  //    and is not cancellable using the MediaEncryptedEvent interface [...],
+  //    and dispatch it at the media element.
+  //
+  // TODO: Implement Event.isTrusted as per
+  //       https://www.w3.org/TR/dom/#dom-event-istrusted and set it to true.
+  eme::MediaEncryptedEventInit media_encrypted_event_init;
+  media_encrypted_event_init.set_init_data_type(
+      ToInitDataTypeString(init_data_type));
+  media_encrypted_event_init.set_init_data(
+      new ArrayBuffer(NULL, init_data, init_data_length));
+  event_queue_.Enqueue(
+      new eme::MediaEncryptedEvent("encrypted", media_encrypted_event_init));
+}
+
+#else  // defined(COBALT_MEDIA_SOURCE_2016)
 
 void HTMLMediaElement::KeyAdded(const std::string& key_system,
                                 const std::string& session_id) {
@@ -1615,6 +1727,8 @@ void HTMLMediaElement::KeyNeeded(const std::string& key_system,
       key_system, session_id,
       new Uint8Array(NULL, init_data, init_data_length, NULL)));
 }
+
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 void HTMLMediaElement::ClearMediaSource() {
 #if defined(COBALT_MEDIA_SOURCE_2016)
