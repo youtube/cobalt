@@ -31,6 +31,7 @@
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/eme/media_keys.h"
 #include "cobalt/media/player/web_media_player.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/media_source.h"
@@ -49,12 +50,10 @@ typedef media::WebMediaPlayerClient WebMediaPlayerClient;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
 typedef ::media::WebMediaPlayer WebMediaPlayer;
 typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
-#endif  // defined(WebMediaPlayerDelegate)
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   https://www.w3.org/TR/html5/embedded-content-0.html#media-element
-// It also implements methods defined in Encrypted Media Extensions.
-//   https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html
 class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
  public:
   HTMLMediaElement(Document* document, base::Token tag_name);
@@ -83,6 +82,18 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   std::string CanPlayType(const std::string& mimeType);
   std::string CanPlayType(const std::string& mimeType,
                           const std::string& key_system);
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  const EventListenerScriptValue* onencrypted() const;
+  void set_onencrypted(const EventListenerScriptValue& event_listener);
+
+  const scoped_refptr<eme::MediaKeys>& media_keys() const {
+    return media_keys_;
+  }
+  typedef script::ScriptValue<script::Promise<void> > VoidPromiseValue;
+  scoped_ptr<VoidPromiseValue> SetMediaKeys(
+      const scoped_refptr<eme::MediaKeys>& media_keys);
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   void GenerateKeyRequest(
       const std::string& key_system,
       const base::optional<scoped_refptr<Uint8Array> >& init_data,
@@ -95,6 +106,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void CancelKeyRequest(const std::string& key_system,
                         const base::optional<std::string>& session_id,
                         script::ExceptionState* exception_state);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   // Ready state
   enum ReadyState {
@@ -232,10 +244,10 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   std::string SourceURL() const OVERRIDE;
   bool PreferDecodeToTexture() const OVERRIDE;
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  void EncryptedMediaInitData(media::EmeInitDataType init_data_type,
-                              const unsigned char* init_data,
-                              unsigned int init_data_length) OVERRIDE;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+  void EncryptedMediaInitDataEncountered(
+      media::EmeInitDataType init_data_type, const unsigned char* init_data,
+      unsigned int init_data_length) OVERRIDE;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   void KeyAdded(const std::string& key_system,
                 const std::string& session_id) OVERRIDE;
   void KeyError(const std::string& key_system, const std::string& session_id,
@@ -246,6 +258,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void KeyNeeded(const std::string& key_system, const std::string& session_id,
                  const unsigned char* init_data,
                  unsigned int init_data_length) OVERRIDE;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   void ClearMediaSource();
 #if !defined(COBALT_MEDIA_SOURCE_2016)
   void SetSourceState(MediaSourceReadyState ready_state);
@@ -311,6 +324,10 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // Helper object to reduce the image capacity while a video is playing.
   base::optional<loader::image::ReducedCacheCapacityManager::Request>
       reduced_image_cache_capacity_request_;
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  scoped_refptr<eme::MediaKeys> media_keys_;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   DISALLOW_COPY_AND_ASSIGN(HTMLMediaElement);
 };
