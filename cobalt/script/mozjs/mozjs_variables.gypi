@@ -34,10 +34,10 @@
           '<(DEPTH)/cobalt/bindings/mozjs/templates/macros.cc.template',
         ],
         'engine_bindings_scripts': [
-          '<(DEPTH)/cobalt/bindings/mozjs/code_generator.py',
-          '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler.py',
+          '<(DEPTH)/cobalt/bindings/mozjs/code_generator_mozjs.py',
+          '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler_mozjs.py',
         ],
-        'engine_idl_compiler': '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler.py',
+        'engine_idl_compiler': '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler_mozjs.py',
       }],
     ],
   },
