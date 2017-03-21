@@ -142,11 +142,45 @@ def idl_union_type_has_nullable_member(idl_type):
   return False
 
 
+def get_conversion_flags(idl_type, extended_attributes):
+  """Build an expression setting a bitmask of flags used for conversion."""
+  assert not isinstance(idl_type, IdlTypedef)
+  flags = []
+  # Flags must correspond to the enumeration in
+  # scripts/javascriptcore/conversion_helpers.h
+  if (idl_type.is_numeric_type and not idl_type.is_integer_type and
+      not idl_type.base_type.startswith('unrestricted ')):
+    flags.append('kConversionFlagRestricted')
+  if idl_type.is_nullable and not cobalt_type_is_optional(idl_type.inner_type):
+    # Other types use base::optional<> so there is no need for a flag to check
+    # if null values are allowed.
+    flags.append('kConversionFlagNullable')
+  if idl_type.is_string_type:
+    if extended_attributes.get('TreatNullAs', '') == 'EmptyString':
+      flags.append('kConversionFlagTreatNullAsEmptyString')
+    elif extended_attributes.get('TreatUndefinedAs', '') == 'EmptyString':
+      flags.append('kConversionFlagTreatUndefinedAsEmptyString')
+
+  if extended_attributes.has_key('Clamp'):
+    flags.append('kConversionFlagClamped')
+
+  if flags:
+    return '(%s)' % ' | '.join(flags)
+  else:
+    return 'kNoConversionFlags'
+
+
 class ContextBuilder(object):
   """Build jinja2 contexts (python dicts) for use in bindings generation."""
 
   def __init__(self, info_provider):
     self.info_provider = info_provider
+
+  def resolve_typedef(self, idl_type):
+    idl_type = idl_type.resolve_typedefs(self.info_provider.typedefs)
+    if isinstance(idl_type, IdlTypedef):
+      idl_type = idl_type.idl_type
+    return idl_type
 
   def idl_sequence_type_to_cobalt(self, idl_type):
     """Map IDL sequence type to C++ sequence type implementation."""
@@ -155,7 +189,8 @@ class ContextBuilder(object):
     assert not is_object_type(element_idl_type), 'Object type not supported.'
     assert (not element_idl_type.is_callback_function and
             not idl_type.is_callback_interface), 'Callback types not supported.'
-    element_cobalt_type = self.idl_type_to_cobalt_type(element_idl_type)
+    element_cobalt_type = self.idl_type_to_cobalt_type(
+        self.resolve_typedef(element_idl_type))
     return 'script::Sequence< %s >' % element_cobalt_type
 
   def idl_union_type_to_cobalt(self, idl_type):
@@ -164,6 +199,7 @@ class ContextBuilder(object):
     assert idl_type.is_union_type, 'Expected union type.'
     flattened_types = []
     for member in idl_type.member_types:
+      member = self.resolve_typedef(member)
       if member.is_nullable:
         member = member.inner_type
 
@@ -178,10 +214,8 @@ class ContextBuilder(object):
 
   def idl_type_to_cobalt_type(self, idl_type):
     """Map IDL type to C++ type."""
+    assert not isinstance(idl_type, IdlTypedef)
     cobalt_type = None
-    idl_type = idl_type.resolve_typedefs(self.info_provider.typedefs)
-    if isinstance(idl_type, IdlTypedef):
-      idl_type = idl_type.idl_type
     if idl_type.is_primitive_type:
       cobalt_type = idl_primitive_type_to_cobalt(idl_type)
     elif idl_type.is_string_type:
@@ -213,14 +247,13 @@ class ContextBuilder(object):
 
   def typed_object_to_cobalt_type(self, interface, typed_object):
     """Map type of IDL TypedObject to C++ type."""
-    if typed_object.idl_type.is_callback_function:
-      cobalt_type = interface.name + '::' + get_interface_name(
-          typed_object.idl_type)
-    elif typed_object.idl_type.is_enum:
-      cobalt_type = '%s::%s' % (interface.name,
-                                get_interface_name(typed_object.idl_type))
+    idl_type = self.resolve_typedef(typed_object.idl_type)
+    if idl_type.is_callback_function:
+      cobalt_type = interface.name + '::' + get_interface_name(idl_type)
+    elif idl_type.is_enum:
+      cobalt_type = '%s::%s' % (interface.name, get_interface_name(idl_type))
     else:
-      cobalt_type = self.idl_type_to_cobalt_type(typed_object.idl_type)
+      cobalt_type = self.idl_type_to_cobalt_type(idl_type)
     if getattr(typed_object, 'is_variadic', False):
       cobalt_type = 'std::vector<%s>' % cobalt_type
     return cobalt_type
@@ -237,36 +270,6 @@ class ContextBuilder(object):
       return 'const %s&' % base_type
     return base_type
 
-  def get_conversion_flags(self, typed_object):
-    """Build an expression setting a bitmask of flags used for conversion."""
-    flags = []
-    idl_type = typed_object.idl_type
-    # Flags must correspond to the enumeration in
-    # scripts/javascriptcore/conversion_helpers.h
-    if (idl_type.is_numeric_type and not idl_type.is_integer_type and
-        not idl_type.base_type.startswith('unrestricted ')):
-      flags.append('kConversionFlagRestricted')
-    if idl_type.is_nullable and not cobalt_type_is_optional(
-        idl_type.inner_type):
-      # Other types use base::optional<> so there is no need for a flag to check
-      # if null values are allowed.
-      flags.append('kConversionFlagNullable')
-    if idl_type.is_string_type:
-      if typed_object.extended_attributes.get('TreatNullAs',
-                                              '') == 'EmptyString':
-        flags.append('kConversionFlagTreatNullAsEmptyString')
-      elif (typed_object.extended_attributes.get('TreatUndefinedAs',
-                                                 '') == 'EmptyString'):
-        flags.append('kConversionFlagTreatUndefinedAsEmptyString')
-
-    if typed_object.extended_attributes.has_key('Clamp'):
-      flags.append('kConversionFlagClamped')
-
-    if flags:
-      return '(%s)' % ' | '.join(flags)
-    else:
-      return 'kNoConversionFlags'
-
   def argument_context(self, interface, argument):
     """Create template values for method/constructor arguments."""
     return {
@@ -279,7 +282,9 @@ class ContextBuilder(object):
         'arg_type':
             self.typed_object_to_arg_type(interface, argument),
         'conversion_flags':
-            self.get_conversion_flags(argument),
+            get_conversion_flags(
+                self.resolve_typedef(argument.idl_type),
+                argument.extended_attributes),
         'is_optional':
             argument.is_optional,
         'is_variadic':
@@ -400,10 +405,12 @@ class ContextBuilder(object):
     if special_type in ('getter', 'deleter'):
       context['type'] = self.typed_object_to_cobalt_type(interface, operation)
     else:
+      value_argument = operation.arguments[1]
       context['type'] = self.typed_object_to_cobalt_type(
-          interface, operation.arguments[1])
-      context['conversion_flags'] = self.get_conversion_flags(
-          operation.arguments[1])
+          interface, value_argument)
+      context['conversion_flags'] = get_conversion_flags(
+          self.resolve_typedef(value_argument.idl_type),
+          value_argument.extended_attributes)
 
     return context
 
@@ -427,7 +434,9 @@ class ContextBuilder(object):
         'raises_exception':
             attribute.extended_attributes.has_key('RaisesException'),
         'conversion_flags':
-            self.get_conversion_flags(attribute),
+            get_conversion_flags(
+                self.resolve_typedef(attribute.idl_type),
+                attribute.extended_attributes),
         'conditional':
             attribute.extended_attributes.get('Conditional', None),
         'unsupported':
@@ -587,7 +596,9 @@ class ContextBuilder(object):
         'arg_type':
             self.typed_object_to_arg_type(dictionary, dictionary_member),
         'conversion_flags':
-            self.get_conversion_flags(dictionary_member),
+            get_conversion_flags(
+                self.resolve_typedef(dictionary_member.idl_type),
+                dictionary_member.extended_attributes),
         'default_value':
             idl_literal_to_cobalt_literal(dictionary_member.idl_type,
                                           dictionary_member.default_value)
