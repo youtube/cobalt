@@ -15,6 +15,7 @@
 #include "cobalt/renderer/renderer_module.h"
 
 #include "base/debug/trace_event.h"
+#include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
@@ -22,7 +23,8 @@
 namespace cobalt {
 namespace renderer {
 
-RendererModule::Options::Options() {
+RendererModule::Options::Options()
+    : skia_texture_atlas_dimensions(2048, 2048) {
   // Call into platform-specific code for setting up render module options.
   SetPerPlatformDefaultOptions();
 }
@@ -31,7 +33,6 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
                                const Options& options)
     : system_window_(system_window), options_(options) {
   TRACE_EVENT0("cobalt::renderer", "RendererModule::RendererModule()");
-
   Resume();
 }
 
