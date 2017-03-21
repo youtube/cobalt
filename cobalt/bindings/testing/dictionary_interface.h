@@ -28,13 +28,6 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-// This ostream override is necessary for MOCK_METHODs below
-inline std::ostream& operator<<(
-    std::ostream& stream, const cobalt::bindings::testing::TestDictionary& in) {
-  stream << "[TestDictionary]";
-  return stream;
-}
-
 class DictionaryInterface : public script::Wrappable {
  public:
   MOCK_METHOD1(DictionaryOperation,
