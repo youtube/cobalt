@@ -26,71 +26,42 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import unittest
+import optparse
 
 from webkitpy.layout_tests.port import mac
 from webkitpy.layout_tests.port import port_testcase
-from webkitpy.tool.mocktool import MockOptions
 
 
 class MacPortTest(port_testcase.PortTestCase):
     os_name = 'mac'
-    os_version = 'snowleopard'
+    os_version = 'mac10.12'
     port_name = 'mac'
-    full_port_name = 'mac-snowleopard'
+    full_port_name = 'mac-mac10.12'
     port_maker = mac.MacPort
 
     def assert_name(self, port_name, os_version_string, expected):
         port = self.make_port(os_version=os_version_string, port_name=port_name)
         self.assertEqual(expected, port.name())
 
-    def test_versions(self):
-        self.assertTrue(self.make_port().name() in ('mac-snowleopard', 'mac-lion', 'mac-mountainlion', 'mac-mavericks'))
-
-        self.assert_name(None, 'snowleopard', 'mac-snowleopard')
-        self.assert_name('mac', 'snowleopard', 'mac-snowleopard')
-        self.assert_name('mac-snowleopard', 'leopard', 'mac-snowleopard')
-        self.assert_name('mac-snowleopard', 'snowleopard', 'mac-snowleopard')
-
-        self.assert_name(None, 'lion', 'mac-lion')
-        self.assert_name(None, 'mountainlion', 'mac-mountainlion')
-        self.assert_name(None, 'mavericks', 'mac-mavericks')
-        self.assert_name(None, 'future', 'mac-mavericks')
-
-        self.assert_name('mac', 'lion', 'mac-lion')
-        self.assertRaises(AssertionError, self.assert_name, None, 'tiger', 'should-raise-assertion-so-this-value-does-not-matter')
-
-    def test_baseline_path(self):
-        port = self.make_port(port_name='mac-snowleopard')
-        self.assertEqual(port.baseline_path(), port._webkit_baseline_path('mac-snowleopard'))
-
-        port = self.make_port(port_name='mac-lion')
-        self.assertEqual(port.baseline_path(), port._webkit_baseline_path('mac-lion'))
-
-        port = self.make_port(port_name='mac-mountainlion')
-        self.assertEqual(port.baseline_path(), port._webkit_baseline_path('mac-mountainlion'))
-
-        port = self.make_port(port_name='mac-mavericks')
-        self.assertEqual(port.baseline_path(), port._webkit_baseline_path('mac'))
-
     def test_operating_system(self):
         self.assertEqual('mac', self.make_port().operating_system())
 
     def test_build_path(self):
         # Test that optional paths are used regardless of whether they exist.
-        options = MockOptions(configuration='Release', build_directory='/foo')
+        options = optparse.Values({'configuration': 'Release', 'build_directory': '/foo'})
         self.assert_build_path(options, ['/mock-checkout/out/Release'], '/foo/Release')
 
         # Test that optional relative paths are returned unmodified.
-        options = MockOptions(configuration='Release', build_directory='foo')
+        options = optparse.Values({'configuration': 'Release', 'build_directory': 'foo'})
         self.assert_build_path(options, ['/mock-checkout/out/Release'], 'foo/Release')
 
         # Test that we prefer the legacy dir over the new dir.
-        options = MockOptions(configuration='Release', build_directory=None)
-        self.assert_build_path(options, ['/mock-checkout/xcodebuild/Release', '/mock-checkout/out/Release'], '/mock-checkout/xcodebuild/Release')
+        options = optparse.Values({'configuration': 'Release', 'build_directory': None})
+        self.assert_build_path(
+            options, ['/mock-checkout/xcodebuild/Release', '/mock-checkout/out/Release'], '/mock-checkout/xcodebuild/Release')
 
     def test_build_path_timestamps(self):
-        options = MockOptions(configuration='Release', build_directory=None)
+        options = optparse.Values({'configuration': 'Release', 'build_directory': None})
         port = self.make_port(options=options)
         port.host.filesystem.maybe_make_directory('/mock-checkout/out/Release')
         port.host.filesystem.maybe_make_directory('/mock-checkout/xcodebuild/Release')
@@ -103,7 +74,15 @@ class MacPortTest(port_testcase.PortTestCase):
 
     def test_driver_name_option(self):
         self.assertTrue(self.make_port()._path_to_driver().endswith('Content Shell'))
-        self.assertTrue(self.make_port(options=MockOptions(driver_name='OtherDriver'))._path_to_driver().endswith('OtherDriver'))
+        port = self.make_port(options=optparse.Values(dict(driver_name='OtherDriver')))
+        self.assertTrue(port._path_to_driver().endswith('OtherDriver'))  # pylint: disable=protected-access
 
     def test_path_to_image_diff(self):
         self.assertEqual(self.make_port()._path_to_image_diff(), '/mock-checkout/out/Release/image_diff')
+
+    def test_path_to_apache_config_file(self):
+        port = self.make_port()
+        port._apache_version = lambda: '2.2'  # pylint: disable=protected-access
+        self.assertEqual(
+            port.path_to_apache_config_file(),
+            '/mock-checkout/third_party/WebKit/Tools/Scripts/apache_config/apache2-httpd-2.2.conf')

@@ -53,7 +53,7 @@ class PrintLayoutTestTimesTest(unittest.TestCase):
 
     def test_basic(self):
         self.check(['failures/unexpected/missing_image.html', 'passes/image.html', 'passes/audio.html', 'passes/reftest.html'],
-            'failures/unexpected/missing_image.html text\n'
-            'passes/image.html pixel\n'
-            'passes/audio.html audio\n'
-            'passes/reftest.html ref\n')
+                   'failures/unexpected/missing_image.html text\n'
+                   'passes/image.html pixel\n'
+                   'passes/audio.html audio\n'
+                   'passes/reftest.html ref\n')

@@ -34,6 +34,7 @@ from webkitpy.layout_tests.servers.server_base import ServerBase
 
 
 class TestServerBase(unittest.TestCase):
+
     def test_corrupt_pid_file(self):
         # This tests that if the pid file is corrupt or invalid,
         # both start() and stop() deal with it correctly and delete the file.
@@ -47,7 +48,7 @@ class TestServerBase(unittest.TestCase):
 
         host.filesystem.write_text_file(server._pid_file, 'foo')
         server.stop()
-        self.assertEqual(host.filesystem.files[server._pid_file], None)
+        self.assertIsNone(host.filesystem.files[server._pid_file])
 
         host.filesystem.write_text_file(server._pid_file, 'foo')
         server.start()
@@ -55,4 +56,4 @@ class TestServerBase(unittest.TestCase):
 
         # Note that the pid file would not be None if _spawn_process()
         # was actually a real implementation.
-        self.assertEqual(host.filesystem.files[server._pid_file], None)
+        self.assertIsNone(host.filesystem.files[server._pid_file])
