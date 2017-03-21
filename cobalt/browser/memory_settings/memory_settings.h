@@ -30,6 +30,9 @@ namespace memory_settings {
 // CalculateImageCacheSize().
 size_t GetImageCacheSize(const math::Size& dimensions);
 
+// Get's the width and height of the skia atlas texture.
+math::Size GetSkiaAtlasTextureSize();
+
 // Calculates the ImageCacheSize in bytes.
 // The return ranges from [kMinImageCacheSize, kMaxImageCacheSize].
 size_t CalculateImageCacheSize(const math::Size& dimensions);
