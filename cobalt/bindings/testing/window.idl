@@ -17,4 +17,11 @@ interface Window : GlobalInterfaceParent {
   attribute DOMString windowProperty;
   readonly attribute Window window;
   [CallWith=StackTrace] DOMString getStackTrace();
+
+  // Exercise a similar setup to EventHandler.
+  attribute TestEventHandler onEvent;
 };
+
+// Exercise a similar setup to EventHandler.
+typedef SingleOperationInterface? TestEventHandler;
+

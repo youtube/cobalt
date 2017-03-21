@@ -15,12 +15,15 @@
 #ifndef COBALT_BINDINGS_TESTING_SINGLE_OPERATION_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_SINGLE_OPERATION_INTERFACE_H_
 
+#include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/bindings/testing/arbitrary_interface.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace bindings {
 namespace testing {
+
+class ArbitraryInterface;
 
 class SingleOperationInterface {
  public:
