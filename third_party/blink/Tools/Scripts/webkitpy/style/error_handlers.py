@@ -45,7 +45,11 @@ Methods:
                   5 means that we are certain of the problem, and the
                   value 1 means that it could be a legitimate construct.
       message: The error message to report.
+
 """
+
+
+import sys
 
 
 class DefaultStyleErrorHandler(object):
@@ -68,6 +72,7 @@ class DefaultStyleErrorHandler(object):
                         for all lines should be reported.  When it is not
                         None, this array normally contains the line numbers
                         corresponding to the modified lines of a patch.
+
         """
         if line_numbers is not None:
             line_numbers = set(line_numbers)
@@ -102,7 +107,7 @@ class DefaultStyleErrorHandler(object):
 
     def _add_reportable_error(self, category):
         """Increment the error count and return the new category total."""
-        self._increment_error_count()  # Increment the total.
+        self._increment_error_count() # Increment the total.
 
         # Increment the category total.
         if not category in self._category_totals:
@@ -119,7 +124,7 @@ class DefaultStyleErrorHandler(object):
         return self._configuration.max_reports_per_category[category]
 
     def should_line_be_checked(self, line_number):
-        'Returns if a particular line should be checked'
+        "Returns if a particular line should be checked"
         # Was the line that was modified?
         return self._line_numbers is None or line_number in self._line_numbers
 
@@ -130,6 +135,7 @@ class DefaultStyleErrorHandler(object):
         """Handle the occurrence of a style error.
 
         See the docstring of this module for more information.
+
         """
         if not self.should_line_be_checked(line_number):
             return False
@@ -153,6 +159,6 @@ class DefaultStyleErrorHandler(object):
                                               line_number=line_number,
                                               message=message)
         if category_total == max_reports:
-            self._configuration.stderr_write('Suppressing further [%s] reports '
-                                             'for this file.\n' % category)
+            self._configuration.stderr_write("Suppressing further [%s] reports "
+                                             "for this file.\n" % category)
         return True

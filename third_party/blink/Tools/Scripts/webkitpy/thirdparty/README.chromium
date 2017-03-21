@@ -1,9 +1,9 @@
 This directory contains sources from other projects.
 
-Code in this directory must document the license under which the source is being
+Code in this directory must document the license under which the source is being 
 used. If the source itself does not include a license header or file, create
 an entry in this file that refers to reliable documentation of the project's
-license terms on the web (and add a note pointing here in the README file in
+license terms on the web (and add a note pointing here in the README file in 
 that directory).
 
 Name: autopep8
@@ -67,62 +67,3 @@ Description: Used during presubmit checks and via lint-webkitpy and format-webki
     overlap between pep8 and pylint, but pep8 catches a bunch of stylistic
 	issues that pylint doesn't (e.g., warning about blank lines, various whitespace issues, etc.).
 Local Modifications: None
-
-Name: web-platform-tests - Test Suites for Web Platform specifications
-Short Name: wpt
-URL: https://github.com/w3c/web-platform-tests/
-Version: https://codereview.chromium.org/2671203004 (Also check wpt/WPTHeads)
-License: LICENSES FOR W3C TEST SUITES (http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html)
-License File: wpt/wpt/LICENSE
-Security Critical: no
-Description: Used to run all supported web-platform-tests as part of Blink layout tests. The wpt/wpt
-             directory only contains the tools as opposed to LayoutTests/external/wpt
-             which contains the tests. Also see wpt/README.chromium for more details on maintenance.
-Local Modifications: Removed all files except for those listed in wpt/WPTWhiteList.
-
-Name: wpt-tools - Tools for Web Platform Tests
-Short Name: wpt-tools
-URL: https://github.com/w3c/wpt-tools
-Version: https://codereview.chromium.org/2671203004 (Also check wpt/WPTHeads)
-License: W3C 3-clause BSD License (http://www.w3.org/Consortium/Legal/2008/03-bsd-license.html)
-License File: wpt/wpt/tools/LICENSE
-Security Critical: no
-Description: Used to run all supported web-platform-tests as part of Blink layout tests.
-             Also see wpt/README.chromium for more details on maintenance.
-             This includes the WPT manifest update script.
-Local Modifications: Removed all files except for those listed in wpt/WPTWhiteList.
-
-Name: six - Python 2 and 3 compatibility library
-Short Name: six
-URL: https://bitbucket.org/gutworth/six
-   However, this is cloned from https://github.com/jgraham/six as a submodule of
-   web-platform-tests.
-Version: 3b6173c833d217ab0186c355804f5925cbcfca47 (Also check wpt/WPTHeads)
-License: MIT
-License File: wpt/wpt/tools/six/LICENSE
-Security Critical: no
-Description: Dependency from wptserve below.
-             Also see wpt/README.chromium for more details on maintenance.
-Local Modifications: Removed all files except for those listed in wpt/WPTWhiteList.
-
-Name: wptserve - Web server designed for use with web-platform-tests
-Short Name: wptserve
-URL: https://github.com/w3c/wptserve
-Version: https://codereview.chromium.org/2671203004 (Also check wpt/WPTHeads)
-License: W3C 3-clause BSD License (http://www.w3.org/Consortium/Legal/2008/03-bsd-license.html)
-License File: wpt/wpt/tools/wptserve/LICENSE
-Security Critical: no
-Description: Used to run all supported web-platform-tests as part of Blink layout tests.
-             Also see wpt/README.chromium for more details on maintenance.
-Local Modifications: Removed all files except for those listed in wpt/WPTWhiteList.
-
-Name: html5lib - HTML-parsing library
-Short Name: html5lib
-URL: https://github.com/html5lib/html5lib-python
-Version: 7cce65bbaa78411f98b8b37eeefc9db03c580097 (Also check wpt/WPTHeads)
-License: MIT
-License File: wpt/wpt/tools/html5lib/LICENSE
-Security Critical: no
-Description: This is a dependency of the manifest WPT manifest update script.
-             Also see wpt/README.chromium for more details on maintenance.
-Local Modifications: Removed all files except for those listed in wpt/WPTWhiteList.

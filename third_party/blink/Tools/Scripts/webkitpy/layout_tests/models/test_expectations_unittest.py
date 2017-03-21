@@ -26,26 +26,28 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from collections import OrderedDict
 import unittest
 
 from webkitpy.common.host_mock import MockHost
-from webkitpy.common.system.output_capture import OutputCapture
-from webkitpy.layout_tests.models.test_configuration import TestConfiguration, TestConfigurationConverter
-from webkitpy.layout_tests.models.test_expectations import (
-    TestExpectationLine, TestExpectations, ParseError, TestExpectationParser,
-    PASS, FAIL, TEXT, IMAGE, IMAGE_PLUS_TEXT, AUDIO,
-    TIMEOUT, CRASH, LEAK, SKIP, WONTFIX, NEEDS_REBASELINE, MISSING
-)
+from webkitpy.common.system.outputcapture import OutputCapture
+
+from webkitpy.layout_tests.models.test_configuration import *
+from webkitpy.layout_tests.models.test_expectations import *
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    # Needed for Python < 2.7
+    from webkitpy.thirdparty.ordered_dict import OrderedDict
 
 
 class Base(unittest.TestCase):
     # Note that all of these tests are written assuming the configuration
-    # being tested is Windows 7, Release build.
+    # being tested is Windows XP, Release build.
 
     def __init__(self, testFunc):
         host = MockHost()
-        self._port = host.port_factory.get('test-win-win7', None)
+        self._port = host.port_factory.get('test-win-xp', None)
         self._exp = None
         unittest.TestCase.__init__(self, testFunc)
 
@@ -55,23 +57,21 @@ class Base(unittest.TestCase):
                 'failures/expected/crash.html',
                 'failures/expected/needsrebaseline.html',
                 'failures/expected/needsmanualrebaseline.html',
+                'failures/expected/missing_text.html',
                 'failures/expected/image.html',
                 'failures/expected/timeout.html',
-                'passes/text.html',
-                'reftests/failures/expected/needsrebaseline.html',
-                'reftests/failures/expected/needsrebaseline_with_txt.html',
-                'reftests/failures/expected/needsmanualrebaseline.html',
-                'reftests/failures/expected/needsmanualrebaseline_with_txt.html',
-                'reftests/failures/expected/has_unused_expectation.html']
+                'passes/text.html']
+
 
     def get_basic_expectations(self):
         return """
 Bug(test) failures/expected/text.html [ Failure ]
-Bug(test) failures/expected/crash.html [ Crash ]
+Bug(test) failures/expected/crash.html [ WontFix ]
 Bug(test) failures/expected/needsrebaseline.html [ NeedsRebaseline ]
 Bug(test) failures/expected/needsmanualrebaseline.html [ NeedsManualRebaseline ]
-Bug(test) failures/expected/image_checksum.html [ Crash ]
-Bug(test) failures/expected/image.html [ Crash Mac ]
+Bug(test) failures/expected/missing_image.html [ Rebaseline Missing ]
+Bug(test) failures/expected/image_checksum.html [ WontFix ]
+Bug(test) failures/expected/image.html [ WontFix Mac ]
 """
 
     def parse_exp(self, expectations, overrides=None, is_lint_mode=False):
@@ -81,8 +81,7 @@ Bug(test) failures/expected/image.html [ Crash Mac ]
             expectations_dict['overrides'] = overrides
         self._port.expectations_dict = lambda: expectations_dict
         expectations_to_lint = expectations_dict if is_lint_mode else None
-        self._exp = TestExpectations(self._port, self.get_basic_tests(
-        ), expectations_dict=expectations_to_lint, is_lint_mode=is_lint_mode)
+        self._exp = TestExpectations(self._port, self.get_basic_tests(), expectations_dict=expectations_to_lint, is_lint_mode=is_lint_mode)
 
     def assert_exp_list(self, test, results):
         self.assertEqual(self._exp.get_expectations(test), set(results))
@@ -95,32 +94,15 @@ Bug(test) failures/expected/image.html [ Crash Mac ]
 
 
 class BasicTests(Base):
-
     def test_basic(self):
         self.parse_exp(self.get_basic_expectations())
         self.assert_exp('failures/expected/text.html', FAIL)
-        self.assert_exp_list('failures/expected/image_checksum.html', [CRASH])
+        self.assert_exp_list('failures/expected/image_checksum.html', [WONTFIX, SKIP])
         self.assert_exp('passes/text.html', PASS)
         self.assert_exp('failures/expected/image.html', PASS)
 
 
 class MiscTests(Base):
-
-    def test_parse_mac_legacy_names(self):
-        host = MockHost()
-        expectations_dict = OrderedDict()
-        expectations_dict['expectations'] = '\nBug(x) [ Mac10.10 ] failures/expected/text.html [ Failure ]\n'
-
-        port = host.port_factory.get('test-mac-mac10.10', None)
-        port.expectations_dict = lambda: expectations_dict
-        expectations = TestExpectations(port, self.get_basic_tests())
-        self.assertEqual(expectations.get_expectations('failures/expected/text.html'), set([FAIL]))
-
-        port = host.port_factory.get('test-win-win7', None)
-        port.expectations_dict = lambda: expectations_dict
-        expectations = TestExpectations(port, self.get_basic_tests())
-        self.assertEqual(expectations.get_expectations('failures/expected/text.html'), set([PASS]))
-
     def test_multiple_results(self):
         self.parse_exp('Bug(x) failures/expected/text.html [ Crash Failure ]')
         self.assertEqual(self._exp.get_expectations('failures/expected/text.html'), set([FAIL, CRASH]))
@@ -142,8 +124,7 @@ class MiscTests(Base):
         self.assertTrue(TestExpectations.result_was_expected(MISSING, set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
         self.assertTrue(TestExpectations.result_was_expected(TEXT, set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
         self.assertTrue(TestExpectations.result_was_expected(IMAGE, set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
-        self.assertTrue(TestExpectations.result_was_expected(IMAGE_PLUS_TEXT,
-                                                             set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
+        self.assertTrue(TestExpectations.result_was_expected(IMAGE_PLUS_TEXT, set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
         self.assertTrue(TestExpectations.result_was_expected(AUDIO, set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
         self.assertFalse(TestExpectations.result_was_expected(TIMEOUT, set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
         self.assertFalse(TestExpectations.result_was_expected(CRASH, set([NEEDS_REBASELINE]), test_needs_rebaselining=False))
@@ -166,13 +147,13 @@ class MiscTests(Base):
         # This test checks unknown tests are not present in the
         # expectations and that known test part of a test category is
         # present in the expectations.
-        exp_str = 'Bug(x) failures/expected [ CRASH ]'
+        exp_str = 'Bug(x) failures/expected [ WontFix ]'
         self.parse_exp(exp_str)
         test_name = 'failures/expected/unknown-test.html'
         unknown_test = test_name
         self.assertRaises(KeyError, self._exp.get_expectations,
                           unknown_test)
-        self.assert_exp_list('failures/expected/crash.html', [PASS])
+        self.assert_exp_list('failures/expected/crash.html', [WONTFIX, SKIP])
 
     def test_get_expectations_string(self):
         self.parse_exp(self.get_basic_expectations())
@@ -187,95 +168,37 @@ class MiscTests(Base):
     def test_get_test_set(self):
         # Handle some corner cases for this routine not covered by other tests.
         self.parse_exp(self.get_basic_expectations())
-        test_set = self._exp.get_test_set(CRASH)
-        self.assertEqual(test_set, set(['failures/expected/crash.html', 'failures/expected/image_checksum.html']))
+        s = self._exp.get_test_set(WONTFIX)
+        self.assertEqual(s, set(['failures/expected/crash.html', 'failures/expected/image_checksum.html']))
 
     def test_needs_rebaseline_reftest(self):
         try:
             filesystem = self._port.host.filesystem
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsrebaseline.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsrebaseline-expected.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsrebaseline_with_txt.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsrebaseline_with_txt-expected.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsrebaseline_with_txt-expected.txt'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsmanualrebaseline.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsmanualrebaseline-expected.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsmanualrebaseline_with_txt.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsmanualrebaseline_with_txt.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsmanualrebaseline_with_txt-expected.html'),
-                'content')
-            filesystem.write_text_file(
-                filesystem.join(
-                    self._port.layout_tests_dir(),
-                    'reftests/failures/expected/needsmanualrebaseline_with_txt-expected.txt'),
-                'content')
-            self.parse_exp("""Bug(user) reftests/failures/expected/needsrebaseline.html [ NeedsRebaseline ]
-Bug(user) reftests/failures/expected/needsrebaseline_with_txt.html [ NeedsRebaseline ]
-Bug(user) reftests/failures/expected/needsmanualrebaseline.html [ NeedsManualRebaseline ]
-Bug(user) reftests/failures/expected/needsmanualrebaseline_with_txt.html [ NeedsManualRebaseline ]
-""", is_lint_mode=True)
+            filesystem.write_text_file(filesystem.join(self._port.layout_tests_dir(), 'failures/expected/needsrebaseline.html'), 'content')
+            filesystem.write_text_file(filesystem.join(self._port.layout_tests_dir(), 'failures/expected/needsrebaseline-expected.html'), 'content')
+            filesystem.write_text_file(filesystem.join(self._port.layout_tests_dir(), 'failures/expected/needsmanualrebaseline.html'), 'content')
+            filesystem.write_text_file(filesystem.join(self._port.layout_tests_dir(), 'failures/expected/needsmanualrebaseline-expected.html'), 'content')
+            self.parse_exp("""Bug(user) failures/expected/needsrebaseline.html [ NeedsRebaseline ]
+Bug(user) failures/expected/needsmanualrebaseline.html [ NeedsManualRebaseline ]""", is_lint_mode=True)
             self.assertFalse(True, "ParseError wasn't raised")
-        except ParseError as error:
-            warnings = ('expectations:1 A reftest without text expectation cannot be marked as '
-                        'NeedsRebaseline/NeedsManualRebaseline reftests/failures/expected/needsrebaseline.html\n'
-                        'expectations:3 A reftest without text expectation cannot be marked as '
-                        'NeedsRebaseline/NeedsManualRebaseline reftests/failures/expected/needsmanualrebaseline.html')
-            self.assertEqual(str(error), warnings)
+        except ParseError, e:
+            warnings = """expectations:1 A reftest cannot be marked as NeedsRebaseline/NeedsManualRebaseline failures/expected/needsrebaseline.html
+expectations:2 A reftest cannot be marked as NeedsRebaseline/NeedsManualRebaseline failures/expected/needsmanualrebaseline.html"""
+            self.assertEqual(str(e), warnings)
 
     def test_parse_warning(self):
         try:
             filesystem = self._port.host.filesystem
             filesystem.write_text_file(filesystem.join(self._port.layout_tests_dir(), 'disabled-test.html-disabled'), 'content')
-            filesystem.write_text_file(filesystem.join(self._port.layout_tests_dir(), 'test-to-rebaseline.html'), 'content')
-            self.parse_exp('Bug(user) [ FOO ] failures/expected/text.html [ Failure ]\n'
-                           'Bug(user) non-existent-test.html [ Failure ]\n'
-                           'Bug(user) disabled-test.html-disabled [ Failure ]\n'
-                           'Bug(user) [ Release ] test-to-rebaseline.html [ NeedsRebaseline ]', is_lint_mode=True)
+            'disabled-test.html-disabled',
+            self.parse_exp("Bug(user) [ FOO ] failures/expected/text.html [ Failure ]\n"
+                "Bug(user) non-existent-test.html [ Failure ]\n"
+                "Bug(user) disabled-test.html-disabled [ ImageOnlyFailure ]", is_lint_mode=True)
             self.assertFalse(True, "ParseError wasn't raised")
-        except ParseError as error:
-            warnings = ('expectations:1 Unrecognized specifier "FOO" failures/expected/text.html\n'
-                        'expectations:2 Path does not exist. non-existent-test.html\n'
-                        'expectations:4 A test cannot be rebaselined for Debug/Release. test-to-rebaseline.html')
-            self.assertEqual(str(error), warnings)
+        except ParseError, e:
+            warnings = ("expectations:1 Unrecognized specifier 'foo' failures/expected/text.html\n"
+                        "expectations:2 Path does not exist. non-existent-test.html")
+            self.assertEqual(str(e), warnings)
 
     def test_parse_warnings_are_logged_if_not_in_lint_mode(self):
         oc = OutputCapture()
@@ -288,37 +211,31 @@ Bug(user) reftests/failures/expected/needsmanualrebaseline_with_txt.html [ Needs
 
     def test_error_on_different_platform(self):
         # parse_exp uses a Windows port. Assert errors on Mac show up in lint mode.
-        self.assertRaises(
-            ParseError,
-            self.parse_exp,
-            ('Bug(test) [ Mac ] failures/expected/text.html [ Failure ]\n'
-             'Bug(test) [ Mac ] failures/expected/text.html [ Failure ]'),
+        self.assertRaises(ParseError, self.parse_exp,
+            'Bug(test) [ Mac ] failures/expected/text.html [ Failure ]\nBug(test) [ Mac ] failures/expected/text.html [ Failure ]',
             is_lint_mode=True)
 
     def test_error_on_different_build_type(self):
         # parse_exp uses a Release port. Assert errors on DEBUG show up in lint mode.
-        self.assertRaises(
-            ParseError,
-            self.parse_exp,
-            ('Bug(test) [ Debug ] failures/expected/text.html [ Failure ]\n'
-             'Bug(test) [ Debug ] failures/expected/text.html [ Failure ]'),
+        self.assertRaises(ParseError, self.parse_exp,
+            'Bug(test) [ Debug ] failures/expected/text.html [ Failure ]\nBug(test) [ Debug ] failures/expected/text.html [ Failure ]',
             is_lint_mode=True)
 
     def test_overrides(self):
-        self.parse_exp('Bug(exp) failures/expected/text.html [ Failure ]',
-                       'Bug(override) failures/expected/text.html [ Timeout ]')
-        self.assert_exp_list('failures/expected/text.html', [FAIL, TIMEOUT])
+        self.parse_exp("Bug(exp) failures/expected/text.html [ Failure ]",
+                       "Bug(override) failures/expected/text.html [ ImageOnlyFailure ]")
+        self.assert_exp_list('failures/expected/text.html', [FAIL, IMAGE])
 
     def test_overrides__directory(self):
-        self.parse_exp('Bug(exp) failures/expected/text.html [ Failure ]',
-                       'Bug(override) failures/expected [ Crash ]')
+        self.parse_exp("Bug(exp) failures/expected/text.html [ Failure ]",
+                       "Bug(override) failures/expected [ Crash ]")
         self.assert_exp_list('failures/expected/text.html', [FAIL, CRASH])
         self.assert_exp_list('failures/expected/image.html', [CRASH])
 
     def test_overrides__duplicate(self):
-        self.assert_bad_expectations('Bug(exp) failures/expected/text.html [ Failure ]',
-                                     'Bug(override) failures/expected/text.html [ Timeout ]\n'
-                                     'Bug(override) failures/expected/text.html [ Crash ]\n')
+        self.assert_bad_expectations("Bug(exp) failures/expected/text.html [ Failure ]",
+                                     "Bug(override) failures/expected/text.html [ ImageOnlyFailure ]\n"
+                                     "Bug(override) failures/expected/text.html [ Crash ]\n")
 
     def test_pixel_tests_flag(self):
         def match(test, result, pixel_tests_enabled):
@@ -330,9 +247,9 @@ Bug(user) reftests/failures/expected/needsmanualrebaseline_with_txt.html [ Needs
         self.assertTrue(match('failures/expected/text.html', FAIL, False))
         self.assertFalse(match('failures/expected/text.html', CRASH, True))
         self.assertFalse(match('failures/expected/text.html', CRASH, False))
-        self.assertFalse(match('failures/expected/image_checksum.html', PASS, True))
-        self.assertFalse(match('failures/expected/image_checksum.html', PASS, False))
-        self.assertFalse(match('failures/expected/crash.html', PASS, False))
+        self.assertTrue(match('failures/expected/image_checksum.html', PASS, True))
+        self.assertTrue(match('failures/expected/image_checksum.html', PASS, False))
+        self.assertTrue(match('failures/expected/crash.html', PASS, False))
         self.assertTrue(match('failures/expected/needsrebaseline.html', TEXT, True))
         self.assertFalse(match('failures/expected/needsrebaseline.html', CRASH, True))
         self.assertTrue(match('failures/expected/needsmanualrebaseline.html', TEXT, True))
@@ -346,7 +263,7 @@ Bug(user) reftests/failures/expected/needsmanualrebaseline_with_txt.html [ Needs
 
         self.parse_exp("""
 Bug(test) failures/expected/crash.html [ Crash ]
-Bug(test) failures/expected/image.html [ Failure ]
+Bug(test) failures/expected/image.html [ ImageOnlyFailure ]
 Bug(test) failures/expected/text.html [ Failure ]
 Bug(test) failures/expected/timeout.html [ Timeout ]
 """)
@@ -356,14 +273,12 @@ Bug(test) failures/expected/timeout.html [ Timeout ]
         self.assertTrue(match('failures/expected/timeout.html', TIMEOUT))
 
     def test_more_specific_override_resets_skip(self):
-        self.parse_exp('Bug(x) failures/expected [ Skip ]\n'
-                       'Bug(x) failures/expected/text.html [ Failure ]\n')
-        self.assert_exp('failures/expected/text.html', FAIL)
-        self.assertNotIn(
-            self._port.host.filesystem.join(
-                self._port.layout_tests_dir(),
-                'failures/expected/text.html'),
-            self._exp.get_tests_with_result_type(SKIP))
+        self.parse_exp("Bug(x) failures/expected [ Skip ]\n"
+                       "Bug(x) failures/expected/text.html [ ImageOnlyFailure ]\n")
+        self.assert_exp('failures/expected/text.html', IMAGE)
+        self.assertFalse(self._port._filesystem.join(self._port.layout_tests_dir(),
+                                                     'failures/expected/text.html') in
+                         self._exp.get_tests_with_result_type(SKIP))
 
     def test_bot_test_expectations(self):
         """Test that expectations are merged rather than overridden when using flaky option 'unexpected'."""
@@ -371,12 +286,12 @@ Bug(test) failures/expected/timeout.html [ Timeout ]
         test_name2 = 'passes/text.html'
 
         expectations_dict = OrderedDict()
-        expectations_dict['expectations'] = 'Bug(x) %s [ Failure ]\nBug(x) %s [ Crash ]\n' % (test_name1, test_name2)
+        expectations_dict['expectations'] = "Bug(x) %s [ ImageOnlyFailure ]\nBug(x) %s [ Slow ]\n" % (test_name1, test_name2)
         self._port.expectations_dict = lambda: expectations_dict
 
         expectations = TestExpectations(self._port, self.get_basic_tests())
-        self.assertEqual(expectations.get_expectations(test_name1), set([FAIL]))
-        self.assertEqual(expectations.get_expectations(test_name2), set([CRASH]))
+        self.assertEqual(expectations.get_expectations(test_name1), set([IMAGE]))
+        self.assertEqual(expectations.get_expectations(test_name2), set([SLOW]))
 
         def bot_expectations():
             return {test_name1: ['PASS', 'TIMEOUT'], test_name2: ['CRASH']}
@@ -384,19 +299,13 @@ Bug(test) failures/expected/timeout.html [ Timeout ]
         self._port._options.ignore_flaky_tests = 'unexpected'
 
         expectations = TestExpectations(self._port, self.get_basic_tests())
-        self.assertEqual(expectations.get_expectations(test_name1), set([PASS, FAIL, TIMEOUT]))
-        self.assertEqual(expectations.get_expectations(test_name2), set([CRASH]))
-
+        self.assertEqual(expectations.get_expectations(test_name1), set([PASS, IMAGE, TIMEOUT]))
+        self.assertEqual(expectations.get_expectations(test_name2), set([CRASH, SLOW]))
 
 class SkippedTests(Base):
-
-    def check(self, expectations, overrides, skips, lint=False, expected_results=None):
-        expected_results = expected_results or [WONTFIX, SKIP, FAIL]
-        port = MockHost().port_factory.get('test-win-win7')
-        port.host.filesystem.write_text_file(
-            port.host.filesystem.join(
-                port.layout_tests_dir(), 'failures/expected/text.html'),
-            'foo')
+    def check(self, expectations, overrides, skips, lint=False, expected_results=[WONTFIX, SKIP, FAIL]):
+        port = MockHost().port_factory.get('test-win-xp')
+        port._filesystem.write_text_file(port._filesystem.join(port.layout_tests_dir(), 'failures/expected/text.html'), 'foo')
         expectations_dict = OrderedDict()
         expectations_dict['expectations'] = expectations
         if overrides:
@@ -412,7 +321,7 @@ class SkippedTests(Base):
 
     def test_duplicate_skipped_test_fails_lint(self):
         self.assertRaises(ParseError, self.check, expectations='Bug(x) failures/expected/text.html [ Failure ]\n',
-                          overrides=None, skips=['failures/expected/text.html'], lint=True)
+            overrides=None, skips=['failures/expected/text.html'], lint=True)
 
     def test_skipped_file_overrides_expectations(self):
         self.check(expectations='Bug(x) failures/expected/text.html [ Failure ]\n', overrides=None,
@@ -431,14 +340,14 @@ class SkippedTests(Base):
                    skips=['failures/expected'])
 
     def test_skipped_entry_dont_exist(self):
-        port = MockHost().port_factory.get('test-win-win7')
+        port = MockHost().port_factory.get('test-win-xp')
         expectations_dict = OrderedDict()
         expectations_dict['expectations'] = ''
         port.expectations_dict = lambda: expectations_dict
         port.skipped_layout_tests = lambda tests: set(['foo/bar/baz.html'])
         capture = OutputCapture()
         capture.capture_output()
-        TestExpectations(port)
+        exp = TestExpectations(port)
         _, _, logs = capture.restore_output()
         self.assertEqual('The following test foo/bar/baz.html from the Skipped list doesn\'t exist\n', logs)
 
@@ -450,7 +359,6 @@ class SkippedTests(Base):
 
 
 class ExpectationSyntaxTests(Base):
-
     def test_unrecognized_expectation(self):
         self.assert_bad_expectations('Bug(test) failures/expected/text.html [ Unknown ]')
 
@@ -459,14 +367,14 @@ class ExpectationSyntaxTests(Base):
         self.parse_exp(exp_str)
         self.assert_exp('failures/expected/text.html', FAIL)
 
-    def assert_tokenize_exp(self, line, bugs=None, specifiers=None, expectations=None, warnings=None,
-                            comment=None, name='foo.html', filename='TestExpectations'):
+    def assert_tokenize_exp(self, line, bugs=None, specifiers=None, expectations=None, warnings=None, comment=None, name='foo.html'):
         bugs = bugs or []
         specifiers = specifiers or []
         expectations = expectations or []
         warnings = warnings or []
+        filename = 'TestExpectations'
         line_number = '1'
-        expectation_line = TestExpectationLine.tokenize_line(filename, line, line_number)
+        expectation_line = TestExpectationParser._tokenize_line(filename, line, line_number)
         self.assertEqual(expectation_line.warnings, warnings)
         self.assertEqual(expectation_line.name, name)
         self.assertEqual(expectation_line.filename, filename)
@@ -476,15 +384,14 @@ class ExpectationSyntaxTests(Base):
             self.assertEqual(expectation_line.expectations, expectations)
 
     def test_comments(self):
-        self.assert_tokenize_exp('# comment', name=None, comment='# comment')
-        self.assert_tokenize_exp('foo.html [ Pass ] # comment', comment='# comment', expectations=['PASS'], specifiers=[])
+        self.assert_tokenize_exp("# comment", name=None, comment="# comment")
+        self.assert_tokenize_exp("foo.html [ Pass ] # comment", comment="# comment", expectations=['PASS'], specifiers=[])
 
     def test_config_specifiers(self):
         self.assert_tokenize_exp('[ Mac ] foo.html [ Failure ] ', specifiers=['MAC'], expectations=['FAIL'])
 
     def test_unknown_config(self):
-        self.assert_tokenize_exp('[ Foo ] foo.html [ Pass ]', specifiers=['Foo'], expectations=['PASS'],
-                                 warnings=['Unrecognized specifier "Foo"'])
+        self.assert_tokenize_exp('[ Foo ] foo.html [ Pass ]', specifiers=['Foo'], expectations=['PASS'])
 
     def test_unknown_expectation(self):
         self.assert_tokenize_exp('foo.html [ Audio ]', warnings=['Unrecognized expectation "Audio"'])
@@ -493,28 +400,12 @@ class ExpectationSyntaxTests(Base):
         self.assert_tokenize_exp('foo.html [ Skip ]', specifiers=[], expectations=['SKIP'])
 
     def test_slow(self):
-        self.assert_tokenize_exp('foo.html [ Slow ]', specifiers=[], expectations=['SLOW'],
-                                 warnings=['SLOW tests should only be added to SlowTests and not to TestExpectations.'])
-        self.assert_tokenize_exp('foo.html [ Slow ]', specifiers=[], expectations=['SLOW'], filename='SlowTests')
-        self.assert_tokenize_exp('foo.html [ Timeout Slow ]', specifiers=[], expectations=['SKIP', 'TIMEOUT'], warnings=[
-                                 'Only SLOW expectations are allowed in SlowTests'], filename='SlowTests')
+        self.assert_tokenize_exp('foo.html [ Slow ]', specifiers=[], expectations=['SLOW'])
 
     def test_wontfix(self):
-        self.assert_tokenize_exp(
-            'foo.html [ WontFix ]', specifiers=[], expectations=['WONTFIX', 'SKIP'], warnings=[
-                'WONTFIX tests should only be added to NeverFixTests or StaleTestExpectations and not to TestExpectations.'])
-        self.assert_tokenize_exp(
-            'foo.html [ WontFix Failure ]', specifiers=[], expectations=['WONTFIX', 'SKIP'], warnings=[
-                'A test marked Skip or WontFix must not have other expectations.',
-                'WONTFIX tests should only be added to NeverFixTests or StaleTestExpectations and not to TestExpectations.'])
-        self.assert_tokenize_exp(
-            'foo.html [ WontFix Failure ]', specifiers=[], expectations=['WONTFIX', 'SKIP'], warnings=[
-                'A test marked Skip or WontFix must not have other expectations.',
-                'Only WONTFIX expectations are allowed in NeverFixTests'], filename='NeverFixTests')
-        self.assert_tokenize_exp(
-            'foo.html [ WontFix Timeout ]', specifiers=[], expectations=['WONTFIX', 'TIMEOUT'], warnings=[
-                'A test marked Skip or WontFix must not have other expectations.',
-                'Only WONTFIX expectations are allowed in NeverFixTests'], filename='NeverFixTests')
+        self.assert_tokenize_exp('foo.html [ WontFix ]', specifiers=[], expectations=['WONTFIX', 'SKIP'])
+        self.assert_tokenize_exp('foo.html [ WontFix ImageOnlyFailure ]', specifiers=[], expectations=['WONTFIX', 'SKIP'],
+            warnings=['A test marked Skip or WontFix must not have other expectations.'])
 
     def test_blank_line(self):
         self.assert_tokenize_exp('', name=None)
@@ -524,13 +415,11 @@ class ExpectationSyntaxTests(Base):
         self.assert_tokenize_exp('[ [', warnings=['unexpected "["', 'Missing expectations.'], name=None)
         self.assert_tokenize_exp('crbug.com/12345 ]', warnings=['unexpected "]"', 'Missing expectations.'], name=None)
 
-        self.assert_tokenize_exp('foo.html crbug.com/12345 ]',
-                                 warnings=['"crbug.com/12345" is not at the start of the line.', 'Missing expectations.'])
+        self.assert_tokenize_exp('foo.html crbug.com/12345 ]', warnings=['"crbug.com/12345" is not at the start of the line.', 'Missing expectations.'])
         self.assert_tokenize_exp('foo.html', warnings=['Missing expectations.'])
 
 
 class SemanticTests(Base):
-
     def test_bug_format(self):
         self.assertRaises(ParseError, self.parse_exp, 'BUG1234 failures/expected/text.html [ Failure ]', is_lint_mode=True)
 
@@ -538,7 +427,7 @@ class SemanticTests(Base):
         try:
             self.parse_exp('crbug/1234 failures/expected/text.html [ Failure ]', is_lint_mode=True)
             self.fail('should have raised an error about a bad bug identifier')
-        except ParseError as exp:
+        except ParseError, exp:
             self.assertEqual(len(exp.warnings), 3)
 
     def test_missing_bugid(self):
@@ -547,7 +436,7 @@ class SemanticTests(Base):
 
         try:
             self.parse_exp('failures/expected/text.html [ Failure ]', is_lint_mode=True)
-        except ParseError as exp:
+        except ParseError, exp:
             self.assertEqual(exp.warnings, ['expectations:1 Test lacks BUG specifier. failures/expected/text.html'])
 
     def test_skip_and_wontfix(self):
@@ -565,18 +454,18 @@ class SemanticTests(Base):
     def test_rebaseline(self):
         # Can't lint a file w/ 'REBASELINE' in it.
         self.assertRaises(ParseError, self.parse_exp,
-                          'Bug(test) failures/expected/text.html [ Failure Rebaseline ]',
-                          is_lint_mode=True)
+            'Bug(test) failures/expected/text.html [ Failure Rebaseline ]',
+            is_lint_mode=True)
 
     def test_duplicates(self):
         self.assertRaises(ParseError, self.parse_exp, """
 Bug(exp) failures/expected/text.html [ Failure ]
-Bug(exp) failures/expected/text.html [ Timeout ]""", is_lint_mode=True)
+Bug(exp) failures/expected/text.html [ ImageOnlyFailure ]""", is_lint_mode=True)
 
         self.assertRaises(ParseError, self.parse_exp,
-                          self.get_basic_expectations(), overrides="""
+            self.get_basic_expectations(), overrides="""
 Bug(override) failures/expected/text.html [ Failure ]
-Bug(override) failures/expected/text.html [ Timeout ]""", is_lint_mode=True)
+Bug(override) failures/expected/text.html [ ImageOnlyFailure ]""", is_lint_mode=True)
 
     def test_duplicate_with_line_before_preceding_line(self):
         self.assert_bad_expectations("""Bug(exp) [ Debug ] failures/expected/text.html [ Failure ]
@@ -590,84 +479,81 @@ Bug(exp) [ Debug ] failures/expected/text.html [ Failure ]
 
 
 class PrecedenceTests(Base):
-
     def test_file_over_directory(self):
         # This tests handling precedence of specific lines over directories
         # and tests expectations covering entire directories.
         exp_str = """
 Bug(x) failures/expected/text.html [ Failure ]
-Bug(y) failures/expected [ Crash ]
+Bug(y) failures/expected [ WontFix ]
 """
         self.parse_exp(exp_str)
         self.assert_exp('failures/expected/text.html', FAIL)
-        self.assert_exp_list('failures/expected/crash.html', [CRASH])
+        self.assert_exp_list('failures/expected/crash.html', [WONTFIX, SKIP])
 
         exp_str = """
-Bug(x) failures/expected [ Crash ]
+Bug(x) failures/expected [ WontFix ]
 Bug(y) failures/expected/text.html [ Failure ]
 """
         self.parse_exp(exp_str)
         self.assert_exp('failures/expected/text.html', FAIL)
-        self.assert_exp_list('failures/expected/crash.html', [CRASH])
+        self.assert_exp_list('failures/expected/crash.html', [WONTFIX, SKIP])
 
     def test_ambiguous(self):
-        self.assert_bad_expectations('Bug(test) [ Release ] passes/text.html [ Pass ]\n'
-                                     'Bug(test) [ Win ] passes/text.html [ Failure ]\n')
+        self.assert_bad_expectations("Bug(test) [ Release ] passes/text.html [ Pass ]\n"
+                                     "Bug(test) [ Win ] passes/text.html [ Failure ]\n")
 
     def test_more_specifiers(self):
-        self.assert_bad_expectations('Bug(test) [ Release ] passes/text.html [ Pass ]\n'
-                                     'Bug(test) [ Win Release ] passes/text.html [ Failure ]\n')
+        self.assert_bad_expectations("Bug(test) [ Release ] passes/text.html [ Pass ]\n"
+                                     "Bug(test) [ Win Release ] passes/text.html [ Failure ]\n")
 
     def test_order_in_file(self):
-        self.assert_bad_expectations('Bug(test) [ Win Release ] : passes/text.html [ Failure ]\n'
-                                     'Bug(test) [ Release ] : passes/text.html [ Pass ]\n')
+        self.assert_bad_expectations("Bug(test) [ Win Release ] : passes/text.html [ Failure ]\n"
+                                     "Bug(test) [ Release ] : passes/text.html [ Pass ]\n")
 
     def test_macro_overrides(self):
-        self.assert_bad_expectations('Bug(test) [ Win ] passes/text.html [ Pass ]\n'
-                                     'Bug(test) [ Win7 ] passes/text.html [ Failure ]\n')
+        self.assert_bad_expectations("Bug(test) [ Win ] passes/text.html [ Pass ]\n"
+                                     "Bug(test) [ XP ] passes/text.html [ Failure ]\n")
 
 
 class RemoveConfigurationsTest(Base):
-
     def test_remove(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
         test_config = test_port.test_configuration()
-        test_port.expectations_dict = lambda: {
-            'expectations': """Bug(x) [ Linux Win Release ] failures/expected/foo.html [ Failure ]
+        test_port.expectations_dict = lambda: {"expectations": """Bug(x) [ Linux Win Release ] failures/expected/foo.html [ Failure ]
 Bug(y) [ Win Mac Debug ] failures/expected/foo.html [ Crash ]
 """}
         expectations = TestExpectations(test_port, self.get_basic_tests())
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
 
-        self.assertEqual("""Bug(x) [ Linux Win10 Release ] failures/expected/foo.html [ Failure ]
+        self.assertEqual("""Bug(x) [ Linux Win7 Release ] failures/expected/foo.html [ Failure ]
 Bug(y) [ Win Mac Debug ] failures/expected/foo.html [ Crash ]
 """, actual_expectations)
 
     def test_remove_needs_rebaseline(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
         test_config = test_port.test_configuration()
-        test_port.expectations_dict = lambda: {'expectations': """Bug(x) [ Win ] failures/expected/foo.html [ NeedsRebaseline ]
+        test_port.expectations_dict = lambda: {"expectations": """Bug(x) [ Win ] failures/expected/foo.html [ NeedsRebaseline ]
 """}
         expectations = TestExpectations(test_port, self.get_basic_tests())
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
 
-        self.assertEqual("""Bug(x) [ Win7 Debug ] failures/expected/foo.html [ NeedsRebaseline ]
-Bug(x) [ Win10 ] failures/expected/foo.html [ NeedsRebaseline ]
+        self.assertEqual("""Bug(x) [ XP Debug ] failures/expected/foo.html [ NeedsRebaseline ]
+Bug(x) [ Win7 ] failures/expected/foo.html [ NeedsRebaseline ]
 """, actual_expectations)
 
     def test_remove_multiple_configurations(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -679,7 +565,7 @@ Bug(x) [ Win Release ] failures/expected/foo.html [ Failure ]
 
         actual_expectations = expectations.remove_configurations([
             ('failures/expected/foo.html', test_config),
-            ('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration()),
+            ('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration()),
         ])
 
         self.assertEqual("""Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
@@ -687,7 +573,7 @@ Bug(x) [ Win Release ] failures/expected/foo.html [ Failure ]
 
     def test_remove_line_with_comments(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -700,15 +586,14 @@ Bug(x) [ Win Release ] failures/expected/foo.html [ Failure ]
         expectations = TestExpectations(test_port)
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
+        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration())])
 
         self.assertEqual("""Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
 """, actual_expectations)
 
     def test_remove_line_with_comments_at_start(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -722,17 +607,15 @@ Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
         expectations = TestExpectations(test_port)
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
+        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration())])
 
         self.assertEqual("""
 Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
 """, actual_expectations)
 
     def test_remove_line_with_comments_at_end_with_no_trailing_newline(self):
-        # TODO(wkorman): Simplify the redundant initialization in every test case.
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -744,14 +627,13 @@ Bug(x) [ Win Release ] failures/expected/foo.html [ Failure ]"""}
         expectations = TestExpectations(test_port)
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
+        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration())])
 
         self.assertEqual("""Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]""", actual_expectations)
 
     def test_remove_line_leaves_comments_for_next_line(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -764,8 +646,7 @@ Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
         expectations = TestExpectations(test_port)
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
+        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration())])
 
         self.assertEqual("""
  # This comment line should not get stripped.
@@ -774,7 +655,7 @@ Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
 
     def test_remove_line_no_whitespace_lines(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -788,39 +669,15 @@ Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
         expectations = TestExpectations(test_port)
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
+        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration())])
 
         self.assertEqual(""" # This comment line should not get stripped.
 Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
 """, actual_expectations)
 
-    def test_remove_line_keeping_comments_before_whitespace_lines(self):
-        host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
-        test_port.test_exists = lambda test: True
-        test_port.test_isfile = lambda test: True
-
-        test_config = test_port.test_configuration()
-        test_port.expectations_dict = lambda: {'expectations': """
- # This comment line should not get stripped.
-
- # This comment line should get stripped.
-Bug(x) [ Win Release ] failures/expected/foo.html [ Failure ]
-"""}
-        expectations = TestExpectations(test_port)
-
-        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
-
-        self.assertEqual("""
- # This comment line should not get stripped.
-""", actual_expectations)
-
     def test_remove_first_line(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -832,8 +689,7 @@ Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
         expectations = TestExpectations(test_port)
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
+        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration())])
 
         self.assertEqual(""" # This comment line should not get stripped.
 Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
@@ -841,7 +697,7 @@ Bug(y) [ Win Debug ] failures/expected/foo.html [ Crash ]
 
     def test_remove_flaky_line(self):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
+        test_port = host.port_factory.get('test-win-xp', None)
         test_port.test_exists = lambda test: True
         test_port.test_isfile = lambda test: True
 
@@ -852,8 +708,7 @@ Bug(y) [ Mac ] failures/expected/foo.html [ Crash ]
         expectations = TestExpectations(test_port)
 
         actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', test_config)])
-        actual_expectations = expectations.remove_configurations(
-            [('failures/expected/foo.html', host.port_factory.get('test-win-win10', None).test_configuration())])
+        actual_expectations = expectations.remove_configurations([('failures/expected/foo.html', host.port_factory.get('test-win-win7', None).test_configuration())])
 
         self.assertEqual("""Bug(x) [ Win Debug ] failures/expected/foo.html [ Failure Timeout ]
 Bug(y) [ Mac ] failures/expected/foo.html [ Crash ]
@@ -861,7 +716,6 @@ Bug(y) [ Mac ] failures/expected/foo.html [ Crash ]
 
 
 class RebaseliningTest(Base):
-
     def test_get_rebaselining_failures(self):
         # Make sure we find a test as needing a rebaseline even if it is not marked as a failure.
         self.parse_exp('Bug(x) failures/expected/text.html [ Rebaseline ]\n')
@@ -872,19 +726,17 @@ class RebaseliningTest(Base):
 
 
 class TestExpectationsParserTests(unittest.TestCase):
-
     def __init__(self, testFunc):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
-        self._converter = TestConfigurationConverter(test_port.all_test_configurations(),
-                                                     test_port.configuration_specifier_macros())
+        test_port = host.port_factory.get('test-win-xp', None)
+        self._converter = TestConfigurationConverter(test_port.all_test_configurations(), test_port.configuration_specifier_macros())
         unittest.TestCase.__init__(self, testFunc)
-        self._parser = TestExpectationParser(host.port_factory.get('test-win-win7', None), [], is_lint_mode=False)
+        self._parser = TestExpectationParser(host.port_factory.get('test-win-xp', None), [], is_lint_mode=False)
 
     def test_expectation_line_for_test(self):
         # This is kind of a silly test, but it at least ensures that we don't throw an error.
         test_name = 'foo/test.html'
-        expectations = set(['PASS', 'IMAGE'])
+        expectations = set(["PASS", "IMAGE"])
 
         expectation_line = TestExpectationLine()
         expectation_line.original_string = test_name
@@ -898,16 +750,14 @@ class TestExpectationsParserTests(unittest.TestCase):
 
 
 class TestExpectationSerializationTests(unittest.TestCase):
-
     def __init__(self, testFunc):
         host = MockHost()
-        test_port = host.port_factory.get('test-win-win7', None)
-        self._converter = TestConfigurationConverter(test_port.all_test_configurations(),
-                                                     test_port.configuration_specifier_macros())
+        test_port = host.port_factory.get('test-win-xp', None)
+        self._converter = TestConfigurationConverter(test_port.all_test_configurations(), test_port.configuration_specifier_macros())
         unittest.TestCase.__init__(self, testFunc)
 
     def _tokenize(self, line):
-        return TestExpectationLine.tokenize_line('path', line, 0)
+        return TestExpectationParser._tokenize_line('path', line, 0)
 
     def assert_round_trip(self, in_string, expected_string=None):
         expectation = self._tokenize(in_string)
@@ -917,7 +767,7 @@ class TestExpectationSerializationTests(unittest.TestCase):
 
     def assert_list_round_trip(self, in_string, expected_string=None):
         host = MockHost()
-        parser = TestExpectationParser(host.port_factory.get('test-win-win7', None), [], is_lint_mode=False)
+        parser = TestExpectationParser(host.port_factory.get('test-win-xp', None), [], is_lint_mode=False)
         expectations = parser.parse('path', in_string)
         if expected_string is None:
             expected_string = in_string
@@ -959,30 +809,16 @@ class TestExpectationSerializationTests(unittest.TestCase):
         expectation_line.bugs = ['Bug(x)']
         expectation_line.name = 'test/name/for/realz.html'
         expectation_line.parsed_expectations = set([IMAGE])
-        self.assertIsNone(expectation_line.to_string(self._converter))
-        expectation_line.matching_configurations = set([TestConfiguration('win7', 'x86', 'release')])
-        self.assertEqual(expectation_line.to_string(self._converter),
-                         'Bug(x) [ Win7 Release ] test/name/for/realz.html [ Failure ]')
-        expectation_line.matching_configurations = set(
-            [TestConfiguration('win7', 'x86', 'release'), TestConfiguration('win7', 'x86', 'debug')])
-        self.assertEqual(expectation_line.to_string(self._converter), 'Bug(x) [ Win7 ] test/name/for/realz.html [ Failure ]')
-
-    def test_parsed_to_string_mac_legacy_names(self):
-        expectation_line = TestExpectationLine()
-        expectation_line.bugs = ['Bug(x)']
-        expectation_line.name = 'test/name/for/realz.html'
-        expectation_line.parsed_expectations = set([IMAGE])
-        self.assertIsNone(expectation_line.to_string(self._converter))
-        expectation_line.matching_configurations = set([TestConfiguration('mac10.10', 'x86', 'release')])
-        self.assertEqual(expectation_line.to_string(self._converter),
-                         'Bug(x) [ Mac10.10 Release ] test/name/for/realz.html [ Failure ]')
+        self.assertEqual(expectation_line.to_string(self._converter), None)
+        expectation_line.matching_configurations = set([TestConfiguration('xp', 'x86', 'release')])
+        self.assertEqual(expectation_line.to_string(self._converter), 'Bug(x) [ XP Release ] test/name/for/realz.html [ ImageOnlyFailure ]')
+        expectation_line.matching_configurations = set([TestConfiguration('xp', 'x86', 'release'), TestConfiguration('xp', 'x86', 'debug')])
+        self.assertEqual(expectation_line.to_string(self._converter), 'Bug(x) [ XP ] test/name/for/realz.html [ ImageOnlyFailure ]')
 
     def test_serialize_parsed_expectations(self):
-        # Testing protected method - pylint: disable=protected-access
         expectation_line = TestExpectationLine()
         expectation_line.parsed_expectations = set([])
-        parsed_expectation_to_string = dict([[parsed_expectation, expectation_string]
-                                             for expectation_string, parsed_expectation in TestExpectations.EXPECTATIONS.items()])
+        parsed_expectation_to_string = dict([[parsed_expectation, expectation_string] for expectation_string, parsed_expectation in TestExpectations.EXPECTATIONS.items()])
         self.assertEqual(expectation_line._serialize_parsed_expectations(parsed_expectation_to_string), '')
         expectation_line.parsed_expectations = set([FAIL])
         self.assertEqual(expectation_line._serialize_parsed_expectations(parsed_expectation_to_string), 'fail')
@@ -992,7 +828,6 @@ class TestExpectationSerializationTests(unittest.TestCase):
         self.assertEqual(expectation_line._serialize_parsed_expectations(parsed_expectation_to_string), 'pass fail')
 
     def test_serialize_parsed_specifier_string(self):
-        # Testing protected method - pylint: disable=protected-access
         expectation_line = TestExpectationLine()
         expectation_line.bugs = ['garden-o-matic']
         expectation_line.parsed_specifiers = ['the', 'for']
@@ -1004,14 +839,8 @@ class TestExpectationSerializationTests(unittest.TestCase):
         self.assertEqual(expectation_line._serialize_parsed_specifiers(self._converter, ['win']), 'win')
 
     def test_format_line(self):
-        # Testing protected method - pylint: disable=protected-access
-        self.assertEqual(
-            TestExpectationLine._format_line(
-                [], ['MODIFIERS'], 'name', ['EXPECTATIONS'], 'comment'),
-            '[ MODIFIERS ] name [ EXPECTATIONS ] #comment')
-        self.assertEqual(
-            TestExpectationLine._format_line([], ['MODIFIERS'], 'name', ['EXPECTATIONS'], None),
-            '[ MODIFIERS ] name [ EXPECTATIONS ]')
+        self.assertEqual(TestExpectationLine._format_line([], ['MODIFIERS'], 'name', ['EXPECTATIONS'], 'comment'), '[ MODIFIERS ] name [ EXPECTATIONS ] #comment')
+        self.assertEqual(TestExpectationLine._format_line([], ['MODIFIERS'], 'name', ['EXPECTATIONS'], None), '[ MODIFIERS ] name [ EXPECTATIONS ]')
 
     def test_string_roundtrip(self):
         self.assert_round_trip('')
@@ -1050,7 +879,7 @@ class TestExpectationSerializationTests(unittest.TestCase):
 
         def add_line(matching_configurations, reconstitute):
             expectation_line = TestExpectationLine()
-            expectation_line.original_string = 'Nay'
+            expectation_line.original_string = "Nay"
             expectation_line.bugs = ['Bug(x)']
             expectation_line.name = 'Yay'
             expectation_line.parsed_expectations = set([IMAGE])
@@ -1059,12 +888,12 @@ class TestExpectationSerializationTests(unittest.TestCase):
             if reconstitute:
                 reconstitute_only_these.append(expectation_line)
 
-        add_line(set([TestConfiguration('win7', 'x86', 'release')]), True)
-        add_line(set([TestConfiguration('win7', 'x86', 'release'), TestConfiguration('win7', 'x86', 'debug')]), False)
+        add_line(set([TestConfiguration('xp', 'x86', 'release')]), True)
+        add_line(set([TestConfiguration('xp', 'x86', 'release'), TestConfiguration('xp', 'x86', 'debug')]), False)
         serialized = TestExpectations.list_to_string(lines, self._converter)
-        self.assertEqual(serialized, 'Bug(x) [ Win7 Release ] Yay [ Failure ]\nBug(x) [ Win7 ] Yay [ Failure ]')
+        self.assertEqual(serialized, "Bug(x) [ XP Release ] Yay [ ImageOnlyFailure ]\nBug(x) [ XP ] Yay [ ImageOnlyFailure ]")
         serialized = TestExpectations.list_to_string(lines, self._converter, reconstitute_only_these=reconstitute_only_these)
-        self.assertEqual(serialized, 'Bug(x) [ Win7 Release ] Yay [ Failure ]\nNay')
+        self.assertEqual(serialized, "Bug(x) [ XP Release ] Yay [ ImageOnlyFailure ]\nNay")
 
     def disabled_test_string_whitespace_stripping(self):
         # FIXME: Re-enable this test once we rework the code to no longer support the old syntax.

@@ -35,17 +35,16 @@ import traceback
 def log_thread_state(logger, name, thread_id, msg=''):
     """Log information about the given thread state."""
     stack = _find_thread_stack(thread_id)
-    assert stack is not None
-    logger('')
-    logger('%s (tid %d) %s' % (name, thread_id, msg))
+    assert(stack is not None)
+    logger("")
+    logger("%s (tid %d) %s" % (name, thread_id, msg))
     _log_stack(logger, stack)
-    logger('')
+    logger("")
 
 
 def _find_thread_stack(thread_id):
     """Returns a stack object that can be used to dump a stack trace for
-    the given thread id (or None if the id is not found).
-    """
+    the given thread id (or None if the id is not found)."""
     for tid, stack in sys._current_frames().items():
         if tid == thread_id:
             return stack
@@ -65,4 +64,4 @@ def log_traceback(logger, tb):
     for frame_str in traceback.format_list(stack):
         for line in frame_str.split('\n'):
             if line:
-                logger('  %s' % line)
+                logger("  %s" % line)

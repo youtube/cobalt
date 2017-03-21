@@ -27,9 +27,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import mimetypes
+import time
 import urllib2
 
-from webkitpy.common.net.network_transaction import NetworkTransaction
+from webkitpy.common.net.networktransaction import NetworkTransaction, NetworkTimeout
 
 
 def get_mime_type(filename):
@@ -79,7 +80,6 @@ def _encode_multipart_form_data(fields, files):
 
 
 class FileUploader(object):
-
     def __init__(self, url, timeout_seconds):
         self._url = url
         self._timeout_seconds = timeout_seconds
@@ -101,7 +101,7 @@ class FileUploader(object):
             # FIXME: Setting a timeout, either globally using socket.setdefaulttimeout()
             # or in urlopen(), doesn't appear to work on Mac 10.5 with Python 2.7.
             # For now we will ignore the timeout value and hope for the best.
-            request = urllib2.Request(self._url, data, {'Content-Type': content_type})
+            request = urllib2.Request(self._url, data, {"Content-Type": content_type})
             return urllib2.urlopen(request)
 
         return NetworkTransaction(timeout_seconds=self._timeout_seconds).run(callback)

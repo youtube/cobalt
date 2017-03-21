@@ -28,82 +28,75 @@
 
 import unittest
 
-from webkitpy.layout_tests.models.test_configuration import SpecifierSorter, TestConfiguration, TestConfigurationConverter
+from webkitpy.layout_tests.models.test_configuration import *
 
 
 def make_mock_all_test_configurations_set():
     all_test_configurations = set()
-    for version, architecture in (('snowleopard', 'x86'),
-                                  ('win7', 'x86'),
-                                  ('vista', 'x86'),
-                                  ('precise', 'x86_64'),
-                                  ('trusty', 'x86_64')):
+    for version, architecture in (('snowleopard', 'x86'), ('xp', 'x86'), ('win7', 'x86'), ('vista', 'x86'), ('lucid', 'x86'), ('lucid', 'x86_64')):
         for build_type in ('debug', 'release'):
             all_test_configurations.add(TestConfiguration(version, architecture, build_type))
     return all_test_configurations
 
 MOCK_MACROS = {
     'mac': ['snowleopard'],
-    'win': ['vista', 'win7'],
-    'linux': ['precise', 'trusty'],
+    'win': ['xp', 'vista', 'win7'],
+    'linux': ['lucid'],
 }
 
 
 class TestConfigurationTest(unittest.TestCase):
-
     def test_items(self):
-        config = TestConfiguration('win7', 'x86', 'release')
+        config = TestConfiguration('xp', 'x86', 'release')
         result_config_dict = {}
         for category, specifier in config.items():
             result_config_dict[category] = specifier
-        self.assertEqual({'version': 'win7', 'architecture': 'x86', 'build_type': 'release'}, result_config_dict)
+        self.assertEqual({'version': 'xp', 'architecture': 'x86', 'build_type': 'release'}, result_config_dict)
 
     def test_keys(self):
-        config = TestConfiguration('win7', 'x86', 'release')
+        config = TestConfiguration('xp', 'x86', 'release')
         result_config_keys = []
         for category in config.keys():
             result_config_keys.append(category)
         self.assertEqual(set(['version', 'architecture', 'build_type']), set(result_config_keys))
 
     def test_str(self):
-        config = TestConfiguration('win7', 'x86', 'release')
-        self.assertEqual('<win7, x86, release>', str(config))
+        config = TestConfiguration('xp', 'x86', 'release')
+        self.assertEqual('<xp, x86, release>', str(config))
 
     def test_repr(self):
-        config = TestConfiguration('win7', 'x86', 'release')
-        self.assertEqual("TestConfig(version='win7', architecture='x86', build_type='release')", repr(config))
+        config = TestConfiguration('xp', 'x86', 'release')
+        self.assertEqual("TestConfig(version='xp', architecture='x86', build_type='release')", repr(config))
 
     def test_hash(self):
         config_dict = {}
-        config_dict[TestConfiguration('win7', 'x86', 'release')] = True
-        self.assertIn(TestConfiguration('win7', 'x86', 'release'), config_dict)
-        self.assertTrue(config_dict[TestConfiguration('win7', 'x86', 'release')])
+        config_dict[TestConfiguration('xp', 'x86', 'release')] = True
+        self.assertIn(TestConfiguration('xp', 'x86', 'release'), config_dict)
+        self.assertTrue(config_dict[TestConfiguration('xp', 'x86', 'release')])
 
         def query_unknown_key():
-            return config_dict[TestConfiguration('win7', 'x86', 'debug')]
+            return config_dict[TestConfiguration('xp', 'x86', 'debug')]
 
         self.assertRaises(KeyError, query_unknown_key)
-        self.assertIn(TestConfiguration('win7', 'x86', 'release'), config_dict)
-        self.assertNotIn(TestConfiguration('win7', 'x86', 'debug'), config_dict)
-        configs_list = [TestConfiguration('win7', 'x86', 'release'), TestConfiguration(
-            'win7', 'x86', 'debug'), TestConfiguration('win7', 'x86', 'debug')]
+        self.assertIn(TestConfiguration('xp', 'x86', 'release'), config_dict)
+        self.assertNotIn(TestConfiguration('xp', 'x86', 'debug'), config_dict)
+        configs_list = [TestConfiguration('xp', 'x86', 'release'), TestConfiguration('xp', 'x86', 'debug'), TestConfiguration('xp', 'x86', 'debug')]
         self.assertEqual(len(configs_list), 3)
         self.assertEqual(len(set(configs_list)), 2)
 
     def test_eq(self):
-        self.assertEqual(TestConfiguration('win7', 'x86', 'release'), TestConfiguration('win7', 'x86', 'release'))
-        self.assertNotEquals(TestConfiguration('win7', 'x86', 'release'), TestConfiguration('win7', 'x86', 'debug'))
+        self.assertEqual(TestConfiguration('xp', 'x86', 'release'), TestConfiguration('xp', 'x86', 'release'))
+        self.assertNotEquals(TestConfiguration('xp', 'x86', 'release'), TestConfiguration('xp', 'x86', 'debug'))
 
     def test_values(self):
-        config = TestConfiguration('win7', 'x86', 'release')
+        config = TestConfiguration('xp', 'x86', 'release')
         result_config_values = []
         for value in config.values():
             result_config_values.append(value)
-        self.assertEqual(set(['win7', 'x86', 'release']), set(result_config_values))
+        self.assertEqual(set(['xp', 'x86', 'release']), set(result_config_values))
 
 
 class SpecifierSorterTest(unittest.TestCase):
-
     def __init__(self, testFunc):
         self._all_test_configurations = make_mock_all_test_configurations_set()
         unittest.TestCase.__init__(self, testFunc)
@@ -112,7 +105,7 @@ class SpecifierSorterTest(unittest.TestCase):
         sorter = SpecifierSorter()
         self.assertIsNone(sorter.category_for_specifier('control'))
         sorter = SpecifierSorter(self._all_test_configurations)
-        self.assertEqual(sorter.category_for_specifier('win7'), 'version')
+        self.assertEqual(sorter.category_for_specifier('xp'), 'version')
         sorter = SpecifierSorter(self._all_test_configurations, MOCK_MACROS)
         self.assertEqual(sorter.category_for_specifier('mac'), 'version')
 
@@ -150,21 +143,18 @@ class SpecifierSorterTest(unittest.TestCase):
         self.assertEqual(sorter.sort_specifiers(set(['x86'])), ['x86'])
         self.assertEqual(sorter.sort_specifiers(set(['x86', 'win7'])), ['win7', 'x86'])
         self.assertEqual(sorter.sort_specifiers(set(['x86', 'debug', 'win7'])), ['win7', 'x86', 'debug'])
-        self.assertEqual(sorter.sort_specifiers(set(['snowleopard', 'x86', 'debug', 'win7'])), [
-                         'snowleopard', 'win7', 'x86', 'debug'])
+        self.assertEqual(sorter.sort_specifiers(set(['snowleopard', 'x86', 'debug', 'win7'])), ['snowleopard', 'win7', 'x86', 'debug'])
         self.assertEqual(sorter.sort_specifiers(set(['x86', 'mac', 'debug', 'win7'])), ['mac', 'win7', 'x86', 'debug'])
 
 
 class TestConfigurationConverterTest(unittest.TestCase):
-
     def __init__(self, testFunc):
         self._all_test_configurations = make_mock_all_test_configurations_set()
         unittest.TestCase.__init__(self, testFunc)
 
     def test_symmetric_difference(self):
         self.assertEqual(TestConfigurationConverter.symmetric_difference([set(['a', 'b']), set(['b', 'c'])]), set(['a', 'c']))
-        self.assertEqual(TestConfigurationConverter.symmetric_difference(
-            [set(['a', 'b']), set(['b', 'c']), set(['b', 'd'])]), set(['a', 'c', 'd']))
+        self.assertEqual(TestConfigurationConverter.symmetric_difference([set(['a', 'b']), set(['b', 'c']), set(['b', 'd'])]), set(['a', 'c', 'd']))
 
     def test_to_config_set(self):
         converter = TestConfigurationConverter(self._all_test_configurations)
@@ -173,80 +163,81 @@ class TestConfigurationConverterTest(unittest.TestCase):
 
         self.assertEqual(converter.to_config_set(set(['foo'])), set())
 
-        self.assertEqual(converter.to_config_set(set(['win7', 'foo'])), set())
+        self.assertEqual(converter.to_config_set(set(['xp', 'foo'])), set())
 
         errors = []
-        self.assertEqual(converter.to_config_set(set(['win7', 'foo']), errors), set())
+        self.assertEqual(converter.to_config_set(set(['xp', 'foo']), errors), set())
         self.assertEqual(errors, ["Unrecognized specifier 'foo'"])
 
-        self.assertEqual(converter.to_config_set(set(['win7', 'x86_64'])), set())
+        self.assertEqual(converter.to_config_set(set(['xp', 'x86_64'])), set())
 
         configs_to_match = set([
-            TestConfiguration('win7', 'x86', 'release'),
+            TestConfiguration('xp', 'x86', 'release'),
         ])
-        self.assertEqual(converter.to_config_set(set(['win7', 'release'])), configs_to_match)
+        self.assertEqual(converter.to_config_set(set(['xp', 'release'])), configs_to_match)
 
         configs_to_match = set([
             TestConfiguration('snowleopard', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
-            TestConfiguration('precise', 'x86_64', 'release'),
-            TestConfiguration('trusty', 'x86_64', 'release'),
-        ])
+            TestConfiguration('xp', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'release'),
+       ])
         self.assertEqual(converter.to_config_set(set(['release'])), configs_to_match)
 
         configs_to_match = set([
-            TestConfiguration('precise', 'x86_64', 'release'),
-            TestConfiguration('precise', 'x86_64', 'debug'),
-            TestConfiguration('trusty', 'x86_64', 'release'),
-            TestConfiguration('trusty', 'x86_64', 'debug'),
+             TestConfiguration('lucid', 'x86_64', 'release'),
+             TestConfiguration('lucid', 'x86_64', 'debug'),
         ])
         self.assertEqual(converter.to_config_set(set(['x86_64'])), configs_to_match)
 
         configs_to_match = set([
-            TestConfiguration('trusty', 'x86_64', 'release'),
-            TestConfiguration('trusty', 'x86_64', 'debug'),
-            TestConfiguration('precise', 'x86_64', 'release'),
-            TestConfiguration('precise', 'x86_64', 'debug'),
+            TestConfiguration('lucid', 'x86_64', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'debug'),
+            TestConfiguration('lucid', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86', 'debug'),
             TestConfiguration('snowleopard', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'debug'),
         ])
-        self.assertEqual(converter.to_config_set(set(['trusty', 'precise', 'snowleopard'])),
-                         configs_to_match)
+        self.assertEqual(converter.to_config_set(set(['lucid', 'snowleopard'])), configs_to_match)
 
         configs_to_match = set([
+            TestConfiguration('lucid', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86', 'debug'),
             TestConfiguration('snowleopard', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'debug'),
         ])
-        self.assertEqual(converter.to_config_set(set(['snowleopard', 'x86'])),
-                         configs_to_match)
+        self.assertEqual(converter.to_config_set(set(['lucid', 'snowleopard', 'x86'])), configs_to_match)
 
         configs_to_match = set([
-            TestConfiguration('trusty', 'x86_64', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'release'),
+            TestConfiguration('lucid', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'release'),
         ])
-        self.assertEqual(
-            converter.to_config_set(set(['trusty', 'snowleopard', 'release'])),
-            configs_to_match)
+        self.assertEqual(converter.to_config_set(set(['lucid', 'snowleopard', 'release'])), configs_to_match)
 
     def test_macro_expansion(self):
         converter = TestConfigurationConverter(self._all_test_configurations, MOCK_MACROS)
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
         ])
         self.assertEqual(converter.to_config_set(set(['win', 'release'])), configs_to_match)
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
-            TestConfiguration('trusty', 'x86_64', 'release'),
+            TestConfiguration('lucid', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'release'),
         ])
-        self.assertEqual(converter.to_config_set(set(['win', 'trusty', 'release'])),
-                         configs_to_match)
+        self.assertEqual(converter.to_config_set(set(['win', 'lucid', 'release'])), configs_to_match)
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'release'),
@@ -260,58 +251,56 @@ class TestConfigurationConverterTest(unittest.TestCase):
         self.assertEqual(converter.to_specifiers_list(set()), [])
 
         configs_to_match = set([
-            TestConfiguration('win7', 'x86', 'release'),
+            TestConfiguration('xp', 'x86', 'release'),
         ])
-        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['release', 'win7'])])
+        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['release', 'xp'])])
 
         configs_to_match = set([
-            TestConfiguration('win7', 'x86', 'release'),
-            TestConfiguration('win7', 'x86', 'debug'),
+            TestConfiguration('xp', 'x86', 'release'),
+            TestConfiguration('xp', 'x86', 'debug'),
         ])
-        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['win7'])])
+        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['xp'])])
 
         configs_to_match = set([
-            TestConfiguration('precise', 'x86_64', 'debug'),
-            TestConfiguration('trusty', 'x86_64', 'debug'),
-            TestConfiguration('win7', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'debug'),
+            TestConfiguration('xp', 'x86', 'release'),
         ])
-        self.assertEqual(converter.to_specifiers_list(configs_to_match),
-                         [set(['release', 'win7']), set(['debug', 'linux'])])
+        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['release', 'xp']), set(['debug', 'x86_64', 'linux'])])
 
         configs_to_match = set([
-            TestConfiguration('win7', 'x86', 'release'),
-            TestConfiguration('win7', 'x86', 'release'),
-            TestConfiguration('trusty', 'x86_64', 'debug'),
-            TestConfiguration('precise', 'x86_64', 'debug'),
-            TestConfiguration('trusty', 'x86_64', 'debug'),
-            TestConfiguration('precise', 'x86_64', 'debug'),
+            TestConfiguration('xp', 'x86', 'release'),
+            TestConfiguration('xp', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'debug'),
+            TestConfiguration('lucid', 'x86', 'debug'),
+            TestConfiguration('lucid', 'x86_64', 'debug'),
+            TestConfiguration('lucid', 'x86', 'debug'),
         ])
-        self.assertEqual(converter.to_specifiers_list(configs_to_match),
-                         [set(['release', 'win7']), set(['debug', 'linux'])])
+        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['release', 'xp']), set(['debug', 'linux'])])
 
         configs_to_match = set([
-            TestConfiguration('win7', 'x86', 'release'),
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
-            TestConfiguration('precise', 'x86_64', 'release'),
-            TestConfiguration('trusty', 'x86_64', 'release'),
+            TestConfiguration('win7', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'release'),
         ])
         self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['release'])])
 
         configs_to_match = set([
-            TestConfiguration('win7', 'x86', 'release'),
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'release'),
         ])
-        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['win7', 'mac', 'release'])])
+        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['xp', 'mac', 'release'])])
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'debug'),
-            TestConfiguration('trusty', 'x86_64', 'release'),
+            TestConfiguration('lucid', 'x86', 'release'),
         ])
-        self.assertEqual(converter.to_specifiers_list(configs_to_match),
-                         [set(['win7']), set(['release', 'mac', 'trusty'])])
+        self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['win7']), set(['release', 'linux', 'x86']), set(['release', 'xp', 'mac'])])
 
     def test_macro_collapsing(self):
         macros = {'foo': ['bar', 'baz'], 'people': ['bob', 'alice', 'john']}
@@ -336,20 +325,23 @@ class TestConfigurationConverterTest(unittest.TestCase):
         converter = TestConfigurationConverter(self._all_test_configurations, MOCK_MACROS)
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
         ])
         self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['win', 'release'])])
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
-            TestConfiguration('precise', 'x86_64', 'release'),
-            TestConfiguration('trusty', 'x86_64', 'release'),
+            TestConfiguration('lucid', 'x86', 'release'),
+            TestConfiguration('lucid', 'x86_64', 'release'),
         ])
         self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['win', 'linux', 'release'])])
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'release'),
@@ -357,6 +349,7 @@ class TestConfigurationConverterTest(unittest.TestCase):
         self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['win', 'mac', 'release'])])
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
             TestConfiguration('snowleopard', 'x86', 'release'),
@@ -364,6 +357,7 @@ class TestConfigurationConverterTest(unittest.TestCase):
         self.assertEqual(converter.to_specifiers_list(configs_to_match), [set(['win', 'mac', 'release'])])
 
         configs_to_match = set([
+            TestConfiguration('xp', 'x86', 'release'),
             TestConfiguration('vista', 'x86', 'release'),
             TestConfiguration('win7', 'x86', 'release'),
         ])

@@ -31,32 +31,31 @@ import tempfile
 
 
 class PrettyPatch(object):
-
     def __init__(self, executive):
         self._executive = executive
 
     def pretty_diff_file(self, diff):
         # Diffs can contain multiple text files of different encodings
         # so we always deal with them as byte arrays, not unicode strings.
-        assert isinstance(diff, str)
+        assert(isinstance(diff, str))
         pretty_diff = self.pretty_diff(diff)
-        diff_file = tempfile.NamedTemporaryFile(suffix='.html')
+        diff_file = tempfile.NamedTemporaryFile(suffix=".html")
         diff_file.write(pretty_diff)
         diff_file.flush()
         return diff_file
 
     def pretty_diff(self, diff):
-        # prettify.rb will hang forever if given no input.
+        # pretify.rb will hang forever if given no input.
         # Avoid the hang by returning an empty string.
         if not diff:
-            return ''
+            return ""
 
         pretty_patch_path = os.path.join(os.path.dirname(__file__), '..', '..',
                                          'webkitruby', 'PrettyPatch')
-        prettify_path = os.path.join(pretty_patch_path, 'prettify.rb')
+        prettify_path = os.path.join(pretty_patch_path, "prettify.rb")
         args = [
-            'ruby',
-            '-I',
+            "ruby",
+            "-I",
             pretty_patch_path,
             prettify_path,
         ]

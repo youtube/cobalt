@@ -29,6 +29,7 @@
 """Start and stop the Apache HTTP server as it is used by the layout tests."""
 
 import logging
+import os
 import socket
 
 from webkitpy.layout_tests.servers import server_base
@@ -38,7 +39,6 @@ _log = logging.getLogger(__name__)
 
 
 class ApacheHTTP(server_base.ServerBase):
-
     def __init__(self, port_obj, output_dir, additional_dirs, number_of_servers):
         super(ApacheHTTP, self).__init__(port_obj, output_dir)
         # We use the name "httpd" instead of "apache" to make our paths (e.g. the pid file: /tmp/WebKit/httpd.pid)
@@ -56,47 +56,37 @@ class ApacheHTTP(server_base.ServerBase):
         server_root = self._filesystem.dirname(self._filesystem.dirname(executable))
 
         test_dir = self._port_obj.layout_tests_dir()
-        document_root = self._filesystem.join(test_dir, 'http', 'tests')
-        forms_test_resources_dir = self._filesystem.join(test_dir, 'fast', 'forms', 'resources')
-        imported_resources_dir = self._filesystem.join(test_dir, 'external', 'wpt', 'resources')
-        media_resources_dir = self._filesystem.join(test_dir, 'media')
-        mime_types_path = self._filesystem.join(self._port_obj.apache_config_directory(), 'mime.types')
-        cert_file = self._filesystem.join(self._port_obj.apache_config_directory(), 'webkit-httpd.pem')
-        inspector_sources_dir = self._port_obj.inspector_build_directory()
+        document_root = self._filesystem.join(test_dir, "http", "tests")
+        js_test_resources_dir = self._filesystem.join(test_dir, "resources")
+        media_resources_dir = self._filesystem.join(test_dir, "media")
+        mime_types_path = self._filesystem.join(test_dir, "http", "conf", "mime.types")
+        cert_file = self._filesystem.join(test_dir, "http", "conf", "webkit-httpd.pem")
 
-        self._access_log_path = self._filesystem.join(output_dir, 'access_log.txt')
-        self._error_log_path = self._filesystem.join(output_dir, 'error_log.txt')
+        self._access_log_path = self._filesystem.join(output_dir, "access_log.txt")
+        self._error_log_path = self._filesystem.join(output_dir, "error_log.txt")
 
         self._is_win = self._port_obj.host.platform.is_win()
 
-        start_cmd = [
-            executable,
+        start_cmd = [executable,
             '-f', '%s' % self._port_obj.path_to_apache_config_file(),
             '-C', 'ServerRoot "%s"' % server_root,
             '-C', 'DocumentRoot "%s"' % document_root,
-            '-c', 'AliasMatch /(.*/)?js-test-resources/(.+) "%s/$1resources/$2"' % test_dir,
-            '-c', 'AliasMatch ^/resources/testharness([r.].*) "%s/resources/testharness$1"' % test_dir,
-            '-c', 'Alias /w3c/resources/WebIDLParser.js "%s/webidl2/lib/webidl2.js"' % imported_resources_dir,
-            '-c', 'Alias /w3c/resources "%s/resources"' % test_dir,
-            '-c', 'Alias /forms-test-resources "%s"' % forms_test_resources_dir,
+            '-c', 'Alias /js-test-resources "%s"' % js_test_resources_dir,
             '-c', 'Alias /media-resources "%s"' % media_resources_dir,
             '-c', 'TypesConfig "%s"' % mime_types_path,
             '-c', 'CustomLog "%s" common' % self._access_log_path,
             '-c', 'ErrorLog "%s"' % self._error_log_path,
             '-c', 'PidFile %s' % self._pid_file,
             '-c', 'SSLCertificateFile "%s"' % cert_file,
-            '-c', 'Alias /inspector-sources "%s"' % inspector_sources_dir,
-            '-c', 'DefaultType None',
-        ]
+            ]
 
         if self._is_win:
-            start_cmd += ['-c', 'ThreadsPerChild %d' % (self._number_of_servers * 8)]
+            start_cmd += ['-c', "ThreadsPerChild %d" % (self._number_of_servers * 2)]
         else:
-            start_cmd += ['-c', 'StartServers %d' % self._number_of_servers,
-                          '-c', 'MinSpareServers %d' % self._number_of_servers,
-                          '-c', 'MaxSpareServers %d' % self._number_of_servers,
-                          '-C', 'User "%s"' % self._port_obj.host.environ.get('USERNAME',
-                                                                              self._port_obj.host.environ.get('USER', '')),
+            start_cmd += ['-c', "StartServers %d" % self._number_of_servers,
+                          '-c', "MinSpareServers %d" % self._number_of_servers,
+                          '-c', "MaxSpareServers %d" % self._number_of_servers,
+                          '-C', 'User "%s"' % os.environ.get('USERNAME', os.environ.get('USER', '')),
                           '-k', 'start']
 
         enable_ipv6 = self._port_obj.http_server_supports_ipv6()
@@ -115,31 +105,33 @@ class ApacheHTTP(server_base.ServerBase):
         for mapping in self._mappings:
             port = mapping['port']
 
-            start_cmd += ['-C', 'Listen 127.0.0.1:%d' % port]
+            start_cmd += ['-C', "Listen 127.0.0.1:%d" % port]
 
             # We listen to both IPv4 and IPv6 loop-back addresses, but ignore
             # requests to 8000 from random users on network.
             # See https://bugs.webkit.org/show_bug.cgi?id=37104
             if enable_ipv6:
-                start_cmd += ['-C', 'Listen [::1]:%d' % port]
+                start_cmd += ['-C', "Listen [::1]:%d" % port]
 
         if additional_dirs:
             self._start_cmd = start_cmd
             for alias, path in additional_dirs.iteritems():
                 start_cmd += ['-c', 'Alias %s "%s"' % (alias, path),
-                              # Disable CGI handler for additional dirs.
-                              '-c', '<Location %s>' % alias,
-                              '-c', 'RemoveHandler .cgi .pl',
-                              '-c', '</Location>']
+                        # Disable CGI handler for additional dirs.
+                        '-c', '<Location %s>' % alias,
+                        '-c', 'RemoveHandler .cgi .pl',
+                        '-c', '</Location>']
 
         self._start_cmd = start_cmd
 
     def _spawn_process(self):
-        _log.debug('Starting %s server, cmd="%s"', self._name, str(self._start_cmd))
-        self._process = self._executive.popen(self._start_cmd)
-        retval = self._process.returncode
-        if retval:
-            raise server_base.ServerError('Failed to start %s: %s' % (self._name, retval))
+        _log.debug('Starting %s server, cmd="%s"' % (self._name, str(self._start_cmd)))
+        self._process = self._executive.popen(self._start_cmd, stderr=self._executive.PIPE)
+        if self._process.returncode is not None:
+            retval = self._process.returncode
+            err = self._process.stderr.read()
+            if retval or len(err):
+                raise server_base.ServerError('Failed to start %s: %s' % (self._name, err))
 
         # For some reason apache isn't guaranteed to have created the pid file before
         # the process exits, so we wait a little while longer.

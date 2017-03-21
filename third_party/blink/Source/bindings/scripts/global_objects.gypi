@@ -54,6 +54,8 @@
       '<(bindings_scripts_dir)/compute_global_objects.py',
       '--idl-files-list',
       '<(idl_files_list)',
+      '--write-file-only-if-changed',
+      '<(write_file_only_if_changed)',
       '--',
       '<@(input_files)',
       '<(output_file)',
