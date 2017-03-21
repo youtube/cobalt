@@ -28,17 +28,19 @@ class H5vccAccessibility : public script::Wrappable {
   typedef script::CallbackFunction<void()> H5vccAccessibilityCallback;
   typedef script::ScriptValue<H5vccAccessibilityCallback>
       H5vccAccessibilityCallbackHolder;
-  H5vccAccessibility();
+  H5vccAccessibility() {}
+
   bool high_contrast_text() const;
   void AddHighContrastTextListener(
       const H5vccAccessibilityCallbackHolder& holder) {
     UNREFERENCED_PARAMETER(holder);
   }
 
+  bool text_to_speech() const;
+
   DEFINE_WRAPPABLE_TYPE(H5vccAccessibility);
 
  private:
-  bool high_contrast_text_;
   DISALLOW_COPY_AND_ASSIGN(H5vccAccessibility);
 };
 
