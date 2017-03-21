@@ -213,7 +213,8 @@ void WebMediaPlayerImpl::LoadMediaSource() {
   chunk_demuxer_.reset(new ChunkDemuxer(
       buffer_allocator_,
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnEncryptedMediaInitData),
+      BIND_TO_RENDER_LOOP(
+          &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered),
       media_log_, true));
 
   supports_save_ = false;
@@ -757,12 +758,12 @@ void WebMediaPlayerImpl::GetMediaTimeAndSeekingState(
   *is_seeking = state_.seeking;
 }
 
-void WebMediaPlayerImpl::OnEncryptedMediaInitData(
+void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered(
     EmeInitDataType init_data_type, const std::vector<uint8_t>& init_data) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  GetClient()->EncryptedMediaInitData(init_data_type, &init_data[0],
-                                      init_data.size());
+  GetClient()->EncryptedMediaInitDataEncountered(init_data_type, &init_data[0],
+                                                 init_data.size());
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {

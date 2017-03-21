@@ -209,8 +209,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   void GetMediaTimeAndSeekingState(base::TimeDelta* media_time,
                                    bool* is_seeking) const;
-  void OnEncryptedMediaInitData(EmeInitDataType init_data_type,
-                                const std::vector<uint8_t>& init_data);
+  void OnEncryptedMediaInitDataEncountered(
+      EmeInitDataType init_data_type, const std::vector<uint8_t>& init_data);
 
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();

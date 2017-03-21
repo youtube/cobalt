@@ -97,8 +97,6 @@
         '../dom/html_image_element.idl',
         '../dom/html_link_element.idl',
         '../dom/html_media_element.idl',
-        #'../dom/html_media_element_eme.idl',
-        #'../dom/html_media_encrypted_event.idl',
         '../dom/html_meta_element.idl',
         '../dom/html_paragraph_element.idl',
         '../dom/html_script_element.idl',
@@ -110,18 +108,6 @@
         '../dom/keyboard_event.idl',
         '../dom/location.idl',
         '../dom/media_error.idl',
-        '../dom/media_key_complete_event.idl',
-        '../dom/media_key_error.idl',
-        '../dom/media_key_error_event.idl',
-        '../dom/media_key_message_event.idl',
-        #'../dom/media_key_message_event_init.idl',
-        '../dom/media_key_needed_event.idl',
-        #'../dom/media_key_session.idl',
-        #'../dom/media_key_status_map.idl',
-        #'../dom/media_key_system_access.idl',
-        #'../dom/media_key_system_configuration.idl',
-        #'../dom/media_key_system_media_capability.idl',
-        #'../dom/media_keys.idl',
         '../dom/media_query_list.idl',
         '../dom/media_source.idl',
         '../dom/memory_info.idl',
@@ -131,7 +117,6 @@
         '../dom/mutation_record.idl',
         '../dom/named_node_map.idl',
         '../dom/navigator.idl',
-        #'../dom/navigator_eme.idl',
         '../dom/node.idl',
         '../dom/node_list.idl',
         '../dom/performance.idl',
@@ -219,7 +204,6 @@
         '../xhr/xml_http_request_upload.idl',
     ],
 
-
     # IDL files that will end up generating a .h that will be #included in
     # Cobalt directly. IDL files for dictionaries and enums.
     'generated_header_idl_files': [
@@ -227,8 +211,6 @@
         '../audio/audio_node_channel_interpretation.idl',
         '../dom/blob_property_bag.idl',
         '../dom/dom_parser_supported_type.idl',
-        '../dom/media_key_status.idl',
-        '../dom/media_keys_requirement.idl',
         '../dom/media_source_end_of_stream_error.idl',
         '../dom/media_source_ready_state.idl',
         '../dom/mutation_observer_init.idl',
@@ -238,11 +220,11 @@
         '../media_session/media_metadata_init.idl',
         '../media_session/media_session_action.idl',
         '../media_session/media_session_playback_state.idl',
-        '../speech/speech_synthesis_error_code.idl',
         '../speech/speech_recognition_error_code.idl',
-        '../websocket/close_event_init.idl',
+        '../speech/speech_synthesis_error_code.idl',
         '../web_animations/animation_fill_mode.idl',
         '../web_animations/animation_playback_direction.idl',
+        '../websocket/close_event_init.idl',
     ],
 
     # Partial interfaces and the right-side of "implements". Also includes
@@ -252,12 +234,13 @@
     'dependency_idl_files': [
         '../cssom/link_style.idl',
 
+        '../dom/buffer_source.idl',
+        '../dom/document__web_animations_api.idl',
         '../dom/document_cssom.idl',
         '../dom/document_html5.idl',
-        '../dom/document__web_animations_api.idl',
+        '../dom/element_css_inline_style.idl',
         '../dom/element_cssom_view.idl',
         '../dom/element_dom_parsing_and_serialization.idl',
-        '../dom/element_css_inline_style.idl',
         '../dom/global_crypto.idl',
         '../dom/global_event_handlers.idl',
         '../dom/html_element_cssom_view.idl',
@@ -272,14 +255,50 @@
         '../dom/speech_synthesis_getter.idl',
         '../dom/url_utils.idl',
         '../dom/window__animation_timing.idl',
+        '../dom/window__performance.idl',
         '../dom/window_cssom.idl',
         '../dom/window_cssom_view.idl',
-        '../dom/window__performance.idl',
         '../dom/window_event_handlers.idl',
         '../dom/window_local_storage.idl',
         '../dom/window_session_storage.idl',
         '../dom/window_timers.idl',
         '../media_session/navigator_media_session.idl',
+    ],
+
+    'conditions': [
+      ['cobalt_media_source_2016==1', {
+        'source_idl_files': [
+            '../dom/eme/media_encrypted_event.idl',
+            '../dom/eme/media_key_message_event.idl',
+            '../dom/eme/media_key_session.idl',
+            '../dom/eme/media_key_system_access.idl',
+            '../dom/eme/media_keys.idl',
+        ],
+        'generated_header_idl_files': [
+            '../dom/eme/media_encrypted_event_init.idl',
+            '../dom/eme/media_key_message_event_init.idl',
+            '../dom/eme/media_key_message_type.idl',
+            '../dom/eme/media_key_session_type.idl',
+            '../dom/eme/media_key_system_configuration.idl',
+            '../dom/eme/media_key_system_media_capability.idl',
+            '../dom/eme/media_keys_requirement.idl',
+        ],
+        'dependency_idl_files': [
+            '../dom/eme/html_media_element.idl',
+            '../dom/eme/navigator.idl',
+        ],
+      }, {
+        'source_idl_files': [
+            '../dom/media_key_complete_event.idl',
+            '../dom/media_key_error.idl',
+            '../dom/media_key_error_event.idl',
+            '../dom/media_key_message_event.idl',
+            '../dom/media_key_needed_event.idl',
+        ],
+        'dependency_idl_files': [
+            '../dom/html_media_element_eme_01b.idl',
+        ],
+      }],
     ],
   },
 }
