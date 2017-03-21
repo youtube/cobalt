@@ -21,6 +21,7 @@
     <!-- first family is default -->
     <family name="sans-serif">
         <font weight="400" style="normal" font_name="Roboto Regular" postscript_name="Roboto-Regular">Roboto-Regular.ttf</font>
+    </family>
     <!-- Note that aliases must come after the fonts they reference. -->
     <alias name="arial" to="sans-serif" />
     <alias name="helvetica" to="sans-serif" />
