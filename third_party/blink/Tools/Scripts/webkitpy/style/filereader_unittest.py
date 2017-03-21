@@ -20,10 +20,9 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import unittest
 
 from webkitpy.common.system.filesystem import FileSystem
-from webkitpy.common.system.logtesting import LoggingTestCase
+from webkitpy.common.system.log_testing import LoggingTestCase
 from webkitpy.style.checker import ProcessorBase
 from webkitpy.style.filereader import TextFileReader
 
@@ -36,7 +35,6 @@ class TextFileReaderTest(LoggingTestCase):
 
         This processor simply records the parameters passed to its process()
         method for later checking by the unittest test methods.
-
         """
 
         def __init__(self):
@@ -80,7 +78,7 @@ class TextFileReaderTest(LoggingTestCase):
     def test_process_file__does_not_exist(self):
         try:
             self._file_reader.process_file('does_not_exist.txt')
-        except SystemExit, err:
+        except SystemExit as err:
             self.assertEqual(str(err), '1')
         else:
             self.fail('No Exception raised.')

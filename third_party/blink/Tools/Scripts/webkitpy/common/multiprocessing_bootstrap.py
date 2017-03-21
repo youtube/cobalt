@@ -32,13 +32,14 @@ Windows, we need to be running a Python module that can be imported
 (which means a file in sys.path that ends in .py). In addition, we need to
 ensure that sys.path / PYTHONPATH is set and propagating correctly.
 
-This module enforces that."""
+This module enforces that.
+"""
 
 import os
 import subprocess
 import sys
 
-from webkitpy.common import version_check   # 'unused import' pylint: disable=W0611
+from webkitpy.common import version_check  # pylint: disable=unused-import
 
 
 def run(*parts):
@@ -56,8 +57,20 @@ def run(*parts):
     proc = subprocess.Popen(cmd, env=env)
     try:
         proc.wait()
+        # Temporary logging to try and diagnose hangs on the Windows bots.
+        if 'win_chromium_rel_ng' in sys.argv:
+            print 'proc.wait completed.'
     except KeyboardInterrupt:
         # We need a second wait in order to make sure the subprocess exits fully.
         # FIXME: It would be nice if we could put a timeout on this.
         proc.wait()
-    sys.exit(proc.returncode)
+
+    try:
+        # Temporary logging to try and diagnose hangs on the Windows bots.
+        if 'win_chromium_rel_ng' in sys.argv:
+            print 'sys.exit starting'
+        sys.exit(proc.returncode)
+    finally:
+        # Temporary logging to try and diagnose hangs on the Windows bots.
+        if 'win_chromium_rel_ng' in sys.argv:
+            print 'sys.exit completed'
