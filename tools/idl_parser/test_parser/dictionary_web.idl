@@ -53,7 +53,7 @@ partial dictionary MyDictInherit : Foo {};
  *Dictionary(MyDictBig)
  *  Key(setString)
  *    Type()
- *      StringType(DOMString)
+ *      PrimitiveType(DOMString)
  *    Default(Foo)
  *  Key(setLong)
  *    Type()
@@ -69,32 +69,12 @@ dictionary MyDictBig {
   long unsetLong;
 };
 
-/* TREE
- *Dictionary(MyDictRequired)
- *  Key(setLong)
- *    Type()
- *      PrimitiveType(long)
- */
-dictionary MyDictRequired {
-  required long setLong;
-};
 
 /* ERROR Unexpected "{" after keyword "dictionary". */
 dictionary {
   DOMString? setString = null;
 };
 
-/* TREE
- *Dictionary(MyDictionaryInvalidOptional)
- *  Key(mandatory)
- *    Type()
- *      StringType(DOMString)
- *  Error(Unexpected keyword "optional" after ">".)
- */
-dictionary MyDictionaryInvalidOptional {
-  DOMString mandatory;
-  sequence<DOMString> optional;
-};
 
 /* ERROR Unexpected identifier "NoColon" after identifier "ForParent". */
 dictionary ForParent NoColon {
@@ -105,14 +85,11 @@ dictionary ForParent NoColon {
  *Dictionary(MyDictNull)
  *  Key(setString)
  *    Type()
- *      StringType(DOMString)
+ *      PrimitiveType(DOMString)
  *    Default(NULL)
  */
 dictionary MyDictNull {
   DOMString? setString = null;
 };
 
-/* ERROR Unexpected keyword "attribute" after "{". */
-dictionary MyDictUnexpectedAttribute {
-  attribute DOMString foo = "";
-};
+

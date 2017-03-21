@@ -35,7 +35,8 @@ LOG_HANDLER_NAME = 'MeteredStreamLogHandler'
 
 
 class MeteredStream(object):
-    """This class implements a stream wrapper that has 'meters' as well as
+    """
+    This class implements a stream wrapper that has 'meters' as well as
     regular output. A 'meter' is a single line of text that can be erased
     and rewritten repeatedly, without producing multiple lines of output. It
     can be used to produce effects like progress bars.
@@ -60,7 +61,7 @@ class MeteredStream(object):
         self._last_partial_line = ''
         self._last_write_time = 0.0
         self._throttle_delay_in_secs = 0.066 if self._erasing else 10.0
-        self._number_of_columns = sys.maxsize
+        self._number_of_columns = sys.maxint
         if self._isatty and number_of_columns:
             self._number_of_columns = number_of_columns
 
@@ -98,22 +99,19 @@ class MeteredStream(object):
             self._erase_last_partial_line()
         if self._verbose:
             now_tuple = time.localtime(now)
-            msg = '%02d:%02d:%02d.%03d %d %s' % (now_tuple.tm_hour, now_tuple.tm_min, now_tuple.tm_sec,
-                                                 int((now * 1000) % 1000), pid, self._ensure_newline(txt))
+            msg = '%02d:%02d:%02d.%03d %d %s' % (now_tuple.tm_hour, now_tuple.tm_min, now_tuple.tm_sec, int((now * 1000) % 1000), pid, self._ensure_newline(txt))
         elif self._isatty:
             msg = txt
         else:
             msg = self._ensure_newline(txt)
 
-        # This is the easiest way to make sure a byte stream is printable as ascii
-        # with all non-ascii characters replaced.
-        uni_msg = msg if isinstance(msg, unicode) else msg.decode('ascii', errors='replace')
-        self._stream.write(uni_msg.encode('ascii', errors='replace'))
+        self._stream.write(msg)
 
     def writeln(self, txt, now=None, pid=None):
         self.write(self._ensure_newline(txt), now, pid)
 
     def _erase_last_partial_line(self):
+        num_chars = len(self._last_partial_line)
         self._stream.write(self._erasure(self._last_partial_line))
         self._last_partial_line = ''
 
@@ -128,7 +126,6 @@ class MeteredStream(object):
 
 
 class _LogHandler(logging.Handler):
-
     def __init__(self, meter):
         logging.Handler.__init__(self)
         self._meter = meter

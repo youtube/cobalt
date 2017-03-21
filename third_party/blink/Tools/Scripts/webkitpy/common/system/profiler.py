@@ -26,12 +26,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import re
 import itertools
 
+_log = logging.getLogger(__name__)
+
 
 class ProfilerFactory(object):
-
     @classmethod
     def create_profiler(cls, host, executable_path, output_dir, profiler_name=None, identifier=None):
         profilers = cls.profilers_for_platform(host.platform)
@@ -68,7 +70,7 @@ class Profiler(object):
         self._host = host
         self._executable_path = executable_path
         self._output_dir = output_dir
-        self._identifier = identifier or 'test'
+        self._identifier = "test"
         self._host.filesystem.maybe_make_directory(self._output_dir)
 
     def adjusted_environment(self, env):
@@ -82,38 +84,25 @@ class Profiler(object):
 
 
 class SingleFileOutputProfiler(Profiler):
-
     def __init__(self, host, executable_path, output_dir, output_suffix, identifier=None):
         super(SingleFileOutputProfiler, self).__init__(host, executable_path, output_dir, identifier)
         # FIXME: Currently all reports are kept as test.*, until we fix that, search up to 1000 names before giving up.
-        self._output_path = self._find_unused_filename(self._output_dir, self._identifier, output_suffix)
-        assert self._output_path
-
-    def _find_unused_filename(self, directory, name, extension, search_limit=1000):
-        for count in range(search_limit):
-            if count:
-                target_name = '%s-%s.%s' % (name, count, extension)
-            else:
-                target_name = '%s.%s' % (name, extension)
-            target_path = self._host.filesystem.join(directory, target_name)
-            if not self._host.filesystem.exists(target_path):
-                return target_path
-        # If we can't find an unused name in search_limit tries, just give up.
-        return None
+        self._output_path = self._host.workspace.find_unused_filename(self._output_dir, self._identifier, output_suffix, search_limit=1000)
+        assert(self._output_path)
 
 
 class GooglePProf(SingleFileOutputProfiler):
     name = 'pprof'
 
     def __init__(self, host, executable_path, output_dir, identifier=None):
-        super(GooglePProf, self).__init__(host, executable_path, output_dir, 'pprof', identifier)
+        super(GooglePProf, self).__init__(host, executable_path, output_dir, "pprof", identifier)
 
     def adjusted_environment(self, env):
         env['CPUPROFILE'] = self._output_path
         return env
 
     def _first_ten_lines_of_profile(self, pprof_output):
-        match = re.search('^Total:[^\n]*\n((?:[^\n]*\n){0,10})', pprof_output, re.MULTILINE)
+        match = re.search("^Total:[^\n]*\n((?:[^\n]*\n){0,10})", pprof_output, re.MULTILINE)
         return match.group(1) if match else None
 
     def _pprof_path(self):
@@ -123,17 +112,17 @@ class GooglePProf(SingleFileOutputProfiler):
 
     def profile_after_exit(self):
         # google-pprof doesn't check its arguments, so we have to.
-        if not self._host.filesystem.exists(self._output_path):
-            print 'Failed to gather profile, %s does not exist.' % self._output_path
+        if not (self._host.filesystem.exists(self._output_path)):
+            print "Failed to gather profile, %s does not exist." % self._output_path
             return
 
         pprof_args = [self._pprof_path(), '--text', self._executable_path, self._output_path]
         profile_text = self._host.executive.run_command(pprof_args)
-        print 'First 10 lines of pprof --text:'
+        print "First 10 lines of pprof --text:"
         print self._first_ten_lines_of_profile(profile_text)
-        print 'http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html documents output.'
+        print "http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html documents output."
         print
-        print 'To interact with the the full profile, including produce graphs:'
+        print "To interact with the the full profile, including produce graphs:"
         print ' '.join([self._pprof_path(), self._executable_path, self._output_path])
 
 
@@ -141,7 +130,7 @@ class Perf(SingleFileOutputProfiler):
     name = 'perf'
 
     def __init__(self, host, executable_path, output_dir, identifier=None):
-        super(Perf, self).__init__(host, executable_path, output_dir, 'data', identifier)
+        super(Perf, self).__init__(host, executable_path, output_dir, "data", identifier)
         self._perf_process = None
         self._pid_being_profiled = None
 
@@ -150,13 +139,13 @@ class Perf(SingleFileOutputProfiler):
         return 'perf'
 
     def attach_to_pid(self, pid):
-        assert not self._perf_process and not self._pid_being_profiled
+        assert(not self._perf_process and not self._pid_being_profiled)
         self._pid_being_profiled = pid
-        cmd = [self._perf_path(), 'record', '--call-graph', '--pid', pid, '--output', self._output_path]
+        cmd = [self._perf_path(), "record", "--call-graph", "--pid", pid, "--output", self._output_path]
         self._perf_process = self._host.executive.popen(cmd)
 
     def _first_ten_lines_of_profile(self, perf_output):
-        match = re.search('^#[^\n]*\n((?: [^\n]*\n){1,10})', perf_output, re.MULTILINE)
+        match = re.search("^#[^\n]*\n((?: [^\n]*\n){1,10})", perf_output, re.MULTILINE)
         return match.group(1) if match else None
 
     def profile_after_exit(self):
@@ -175,11 +164,11 @@ class Perf(SingleFileOutputProfiler):
         perf_args = [self._perf_path(), 'report', '--call-graph', 'none', '--input', self._output_path]
         print "First 10 lines of 'perf report --call-graph=none':"
 
-        print ' '.join(perf_args)
+        print " ".join(perf_args)
         perf_output = self._host.executive.run_command(perf_args)
         print self._first_ten_lines_of_profile(perf_output)
 
-        print 'To view the full profile, run:'
+        print "To view the full profile, run:"
         print ' '.join([self._perf_path(), 'report', '-i', self._output_path])
         print  # An extra line between tests looks nicer.
 
@@ -188,11 +177,11 @@ class Sample(SingleFileOutputProfiler):
     name = 'sample'
 
     def __init__(self, host, executable_path, output_dir, identifier=None):
-        super(Sample, self).__init__(host, executable_path, output_dir, 'txt', identifier)
+        super(Sample, self).__init__(host, executable_path, output_dir, "txt", identifier)
         self._profiler_process = None
 
     def attach_to_pid(self, pid):
-        cmd = ['sample', pid, '-mayDie', '-file', self._output_path]
+        cmd = ["sample", pid, "-mayDie", "-file", self._output_path]
         self._profiler_process = self._host.executive.popen(cmd)
 
     def profile_after_exit(self):
@@ -203,19 +192,19 @@ class IProfiler(SingleFileOutputProfiler):
     name = 'iprofiler'
 
     def __init__(self, host, executable_path, output_dir, identifier=None):
-        super(IProfiler, self).__init__(host, executable_path, output_dir, 'dtps', identifier)
+        super(IProfiler, self).__init__(host, executable_path, output_dir, "dtps", identifier)
         self._profiler_process = None
 
     def attach_to_pid(self, pid):
         # FIXME: iprofiler requires us to pass the directory separately
         # from the basename of the file, with no control over the extension.
         fs = self._host.filesystem
-        cmd = ['iprofiler', '-timeprofiler', '-a', pid,
-               '-d', fs.dirname(self._output_path), '-o', fs.splitext(fs.basename(self._output_path))[0]]
+        cmd = ["iprofiler", "-timeprofiler", "-a", pid,
+                "-d", fs.dirname(self._output_path), "-o", fs.splitext(fs.basename(self._output_path))[0]]
         # FIXME: Consider capturing instead of letting instruments spam to stderr directly.
         self._profiler_process = self._host.executive.popen(cmd)
 
     def profile_after_exit(self):
-        # It seems like a nicer user experience to wait on the profiler to exit to prevent
+        # It seems like a nicer user experiance to wait on the profiler to exit to prevent
         # it from spewing to stderr at odd times.
         self._profiler_process.wait()
