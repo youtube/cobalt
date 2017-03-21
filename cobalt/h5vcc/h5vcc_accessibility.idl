@@ -17,6 +17,10 @@ interface H5vccAccessibility {
   // has been enabled.
   readonly attribute boolean highContrastText;
   void addHighContrastTextListener(H5vccAccessibilityCallback callback);
+
+  // True if the host operating system's "text to speech" accessibility
+  // option is enabled.
+  readonly attribute boolean textToSpeech;
 };
 
 callback H5vccAccessibilityCallback = void();
