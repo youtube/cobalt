@@ -24,3 +24,5 @@ interface AudioBufferSourceNode : AudioNode {
 
   attribute EventHandler onended;
 };
+
+typedef EventListener? EventHandler;
