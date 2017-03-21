@@ -42,23 +42,9 @@ class FetcherFactory {
   // Creates a fetcher. Returns NULL if the creation fails.
   scoped_ptr<Fetcher> CreateFetcher(const GURL& url, Fetcher::Handler* handler);
 
-  // Similar to above, but takes a message loop where fetcher will be created.
-  // Note: |handler| will be called on the fetching_message_loop.
-  // If |fetching_message_loop| is NULL, then item will be fetched on the
-  // current message loop.
-  scoped_ptr<Fetcher> CreateFetcherWithMessageLoop(
-      const GURL& url, MessageLoop* fetching_message_loop,
-      Fetcher::Handler* handler);
-
   scoped_ptr<Fetcher> CreateSecureFetcher(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       Fetcher::Handler* handler);
-
-  // Create a fetcher on a specific message loop.  So the |handler| related
-  // callbacks will be called there.
-  scoped_ptr<Fetcher> CreateSecureFetcherWithMessageLoop(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
-      MessageLoop* fetching_message_loop, Fetcher::Handler* handler);
 
   network::NetworkModule* network_module() const { return network_module_; }
 

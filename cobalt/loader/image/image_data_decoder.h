@@ -41,10 +41,6 @@ class ImageDataDecoder {
 
   virtual std::string GetTypeString() const = 0;
 
-  // Hardware and software decoders run on seperate threads -- allowing them
-  // to use different thread priorities for decoding.
-  virtual bool IsHardwareDecoder() const { return false; }
-
   scoped_ptr<render_tree::ImageData> RetrieveImageData() {
     return image_data_.Pass();
   }
