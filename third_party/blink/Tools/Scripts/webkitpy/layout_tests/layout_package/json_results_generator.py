@@ -60,16 +60,17 @@ def write_json(filesystem, json_object, file_path, callback=None):
     filesystem.write_text_file(file_path, json_string)
 
 
-def convert_times_trie_to_flat_paths(trie, prefix=None):
+def convert_trie_to_flat_paths(trie, prefix=None):
     """Converts the directory structure in the given trie to flat paths, prepending a prefix to each."""
     result = {}
     for name, data in trie.iteritems():
         if prefix:
             name = prefix + "/" + name
-        if isinstance(data, int):
-            result[name] = data
+
+        if len(data) and not "results" in data:
+            result.update(convert_trie_to_flat_paths(data, name))
         else:
-            result.update(convert_times_trie_to_flat_paths(data, name))
+            result[name] = data
 
     return result
 
@@ -80,7 +81,7 @@ def add_path_to_trie(path, value, trie):
         trie[path] = value
         return
 
-    directory, _, rest = path.partition("/")
+    directory, slash, rest = path.partition("/")
     if not directory in trie:
         trie[directory] = {}
     add_path_to_trie(rest, value, trie[directory])
@@ -124,7 +125,8 @@ class TestResult(object):
         try:
             test_name = test.split('.')[1]
         except IndexError:
-            _log.warning("Invalid test name: %s.", test)
+            _log.warn("Invalid test name: %s.", test)
+            pass
 
         if test_name.startswith('FAILS_'):
             self.modifier = self.FAILS

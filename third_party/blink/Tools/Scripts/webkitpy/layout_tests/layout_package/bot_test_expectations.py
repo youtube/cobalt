@@ -27,8 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """Generates a fake TestExpectations file consisting of flaky tests from the bot
-corresponding to the give port.
-"""
+corresponding to the give port."""
 
 import json
 import logging
@@ -36,38 +35,35 @@ import os.path
 import urllib
 import urllib2
 
-from webkitpy.layout_tests.models.test_expectations import TestExpectations, PASS
+from webkitpy.layout_tests.port import builders
+from webkitpy.layout_tests.models.test_expectations import TestExpectations
 from webkitpy.layout_tests.models.test_expectations import TestExpectationLine
 
 
 _log = logging.getLogger(__name__)
 
 
+# results.json v4 format:
+# {
+#  'version': 4,
+#  'builder name' : {
+#     'blinkRevision': [],
+#     'tests': {
+#       'directory' { # Each path component is a dictionary.
+#          'testname.html': {
+#             'expected' : 'FAIL', # expectation name
+#             'results': [], # Run-length encoded result.
+#             'times': [],
+#             'bugs': [], # bug urls
+#          }
+#      }
+#   }
+#  'buildNumbers': [],
+#  'secondsSinceEpoch': [],
+#  'chromeRevision': [],
+#  'failure_map': { } # Map from letter code to expectation name.
+# },
 class ResultsJSON(object):
-    """Contains the contents of a results.json file.
-
-    results.json v4 format:
-    {
-      'version': 4,
-      'builder name' : {
-        'blinkRevision': [],
-        'tests': {
-          'directory' { # Each path component is a dictionary.
-            'testname.html': {
-              'expected' : 'FAIL', # Expectation name.
-              'results': [], # Run-length encoded result.
-              'times': [],
-              'bugs': [], # Bug URLs.
-            }
-          }
-        }
-      }
-      'buildNumbers': [],
-      'secondsSinceEpoch': [],
-      'chromeRevision': [],
-      'failure_map': {}  # Map from letter code to expectation name.
-    }
-    """
     TESTS_KEY = 'tests'
     FAILURE_MAP_KEY = 'failure_map'
     RESULTS_KEY = 'results'
@@ -110,15 +106,14 @@ class ResultsJSON(object):
 
 
 class BotTestExpectationsFactory(object):
-    RESULTS_URL_PREFIX = (
-        'https://test-results.appspot.com/testfile?master=chromium.webkit&'
-        'testtype=webkit_tests&name=results-small.json&builder=')
-
-    def __init__(self, builders):
-        self.builders = builders
+    RESULTS_URL_PREFIX = 'http://test-results.appspot.com/testfile?master=ChromiumWebkit&testtype=layout-tests&name=results-small.json&builder='
 
     def _results_json_for_port(self, port_name, builder_category):
-        builder = self.builders.builder_name_for_port_name(port_name)
+        if builder_category == 'deps':
+            builder = builders.deps_builder_name_for_port_name(port_name)
+        else:
+            builder = builders.builder_name_for_port_name(port_name)
+
         if not builder:
             return None
         return self._results_json_for_builder(builder)
@@ -141,37 +136,32 @@ class BotTestExpectationsFactory(object):
         results_json = self._results_json_for_port(port_name, builder_category)
         if not results_json:
             return None
-        return BotTestExpectations(results_json, self.builders)
+        return BotTestExpectations(results_json)
 
     def expectations_for_builder(self, builder):
         results_json = self._results_json_for_builder(builder)
         if not results_json:
             return None
-        return BotTestExpectations(results_json, self.builders)
-
+        return BotTestExpectations(results_json)
 
 class BotTestExpectations(object):
     # FIXME: Get this from the json instead of hard-coding it.
-    RESULT_TYPES_TO_IGNORE = ['N', 'X', 'Y']  # NO_DATA, SKIP, NOTRUN
-
-    # TODO(ojan): Remove this once crbug.com/514378 is fixed.
-    # The JSON can contain results for expectations, not just actual result types.
-    NON_RESULT_TYPES = ['S', 'X']  # SLOW, SKIP
+    RESULT_TYPES_TO_IGNORE = ['N', 'X', 'Y']
 
     # specifiers arg is used in unittests to avoid the static dependency on builders.
-    def __init__(self, results_json, builders, specifiers=None):
+    def __init__(self, results_json, specifiers=None):
         self.results_json = results_json
         self.specifiers = specifiers or set(builders.specifiers_for_builder(results_json.builder_name))
 
-    def _line_from_test_and_flaky_types(self, test_path, flaky_types):
+    def _line_from_test_and_flaky_types_and_bug_urls(self, test_path, flaky_types, bug_urls):
         line = TestExpectationLine()
         line.original_string = test_path
         line.name = test_path
         line.filename = test_path
         line.path = test_path  # FIXME: Should this be normpath?
         line.matching_tests = [test_path]
-        line.bugs = ['crbug.com/FILE_A_BUG_BEFORE_COMMITTING_THIS']
-        line.expectations = sorted(flaky_types)
+        line.bugs = bug_urls if bug_urls else ["Bug(gardener)"]
+        line.expectations = sorted(map(self.results_json.expectation_for_type, flaky_types))
         line.specifiers = self.specifiers
         return line
 
@@ -179,10 +169,11 @@ class BotTestExpectations(object):
         """Sets test expectations to bot results if there are at least two distinct results."""
         flakes_by_path = {}
         for test_path, entry in self.results_json.walk_results():
-            flaky_types = self._flaky_types_in_results(entry, only_ignore_very_flaky)
+            results_dict = entry[self.results_json.RESULTS_KEY]
+            flaky_types = self._flaky_types_in_results(results_dict, only_ignore_very_flaky)
             if len(flaky_types) <= 1:
                 continue
-            flakes_by_path[test_path] = sorted(flaky_types)
+            flakes_by_path[test_path] = sorted(map(self.results_json.expectation_for_type, flaky_types))
         return flakes_by_path
 
     def unexpected_results_by_path(self):
@@ -210,7 +201,7 @@ class BotTestExpectations(object):
             expectations = set(map(string_to_exp, exp_string.split(' ')))
 
             # Set of distinct results for this test.
-            result_types = self._all_types_in_results(results_dict)
+            result_types = self._flaky_types_in_results(results_dict)
 
             # Distinct results as non-encoded strings.
             result_strings = map(self.results_json.expectation_for_type, result_types)
@@ -230,109 +221,35 @@ class BotTestExpectations(object):
             unexpected_results_by_path[test_path] = sorted(map(exp_to_string, expectations))
         return unexpected_results_by_path
 
-    def all_results_by_path(self):
-        """Returns all seen result types for each test.
-
-        Returns a dictionary from each test path that has a result to a list of distinct, sorted result
-        strings. For example, if the test results are as follows:
-
-            a.html IMAGE IMAGE PASS PASS PASS TIMEOUT PASS TEXT
-            b.html PASS PASS PASS PASS PASS PASS PASS PASS
-            c.html
-
-        This method will return:
-            {
-                'a.html': ['IMAGE', 'TEXT', 'TIMEOUT', 'PASS'],
-                'b.html': ['PASS'],
-            }
-        """
-        results_by_path = {}
-        for test_path, entry in self.results_json.walk_results():
-            results_dict = entry.get(self.results_json.RESULTS_KEY, {})
-
-            result_types = self._all_types_in_results(results_dict)
-
-            if not result_types:
-                continue
-
-            # Distinct results as non-encoded strings.
-            result_strings = map(self.results_json.expectation_for_type, result_types)
-
-            results_by_path[test_path] = sorted(result_strings)
-        return results_by_path
-
-    def expectation_lines(self, only_ignore_very_flaky):
+    def expectation_lines(self, only_ignore_very_flaky=False):
         lines = []
         for test_path, entry in self.results_json.walk_results():
-            flaky_types = self._flaky_types_in_results(entry, only_ignore_very_flaky)
+            results_array = entry[self.results_json.RESULTS_KEY]
+            flaky_types = self._flaky_types_in_results(results_array, only_ignore_very_flaky)
             if len(flaky_types) > 1:
-                line = self._line_from_test_and_flaky_types(test_path, flaky_types)
+                bug_urls = entry.get(self.results_json.BUGS_KEY)
+                line = self._line_from_test_and_flaky_types_and_bug_urls(test_path, flaky_types, bug_urls)
                 lines.append(line)
         return lines
 
-    def _all_types_in_results(self, run_length_encoded_results):
-        results = set()
+    def _flaky_types_in_results(self, run_length_encoded_results, only_ignore_very_flaky=False):
+        results_map = {}
+        seen_results = {}
 
         for result_item in run_length_encoded_results:
-            _, result_types = self.results_json.occurances_and_type_from_result_item(result_item)
-
-            for result_type in result_types:
-                if result_type not in self.RESULT_TYPES_TO_IGNORE:
-                    results.add(result_type)
-
-        return results
-
-    def _result_to_enum(self, result):
-        return TestExpectations.EXPECTATIONS[result.lower()]
-
-    def _flaky_types_in_results(self, results_entry, only_ignore_very_flaky):
-        flaky_results = set()
-
-        # Always include pass as an expected result. Passes will never turn the bot red.
-        # This fixes cases where the expectations have an implicit Pass, e.g. [ Slow ].
-        latest_expectations = [PASS]
-        if self.results_json.EXPECTATIONS_KEY in results_entry:
-            expectations_list = results_entry[self.results_json.EXPECTATIONS_KEY].split(' ')
-            latest_expectations += [self._result_to_enum(expectation) for expectation in expectations_list]
-
-        for result_item in results_entry[self.results_json.RESULTS_KEY]:
-            _, result_types_str = self.results_json.occurances_and_type_from_result_item(result_item)
-
-            result_types = []
-            for result_type in result_types_str:
-                # TODO(ojan): Remove this if-statement once crbug.com/514378 is fixed.
-                if result_type not in self.NON_RESULT_TYPES:
-                    result_types.append(self.results_json.expectation_for_type(result_type))
-
-            # It didn't flake if it didn't retry.
-            if len(result_types) <= 1:
+            _, result_type = self.results_json.occurances_and_type_from_result_item(result_item)
+            if result_type in self.RESULT_TYPES_TO_IGNORE:
                 continue
 
-            # If the test ran as expected after only one retry, it's not very flaky.
-            # It's only very flaky if it failed the first run and the first retry
-            # and then ran as expected in one of the subsequent retries.
-            # If there are only two entries, then that means it failed on the first
-            # try and ran as expected on the second because otherwise we'd have
-            # a third entry from the next try.
-            if only_ignore_very_flaky and len(result_types) == 2:
+            if only_ignore_very_flaky and result_type not in seen_results:
+                # Only consider a short-lived result if we've seen it more than once.
+                # Otherwise, we include lots of false-positives due to tests that fail
+                # for a couple runs and then start passing.
+                # FIXME: Maybe we should make this more liberal and consider it a flake
+                # even if we only see that failure once.
+                seen_results[result_type] = True
                 continue
 
-            has_unexpected_results = False
-            for result_type in result_types:
-                result_enum = self._result_to_enum(result_type)
-                # TODO(ojan): We really should be grabbing the expected results from the time
-                # of the run instead of looking at the latest expected results. That's a lot
-                # more complicated though. So far we've been looking at the aggregated
-                # results_small.json off test_results.appspot, which has all the information
-                # for the last 100 runs. In order to do this, we'd need to look at the
-                # individual runs' full_results.json, which would be slow and more complicated.
-                # The only thing we lose by not fixing this is that a test that was flaky
-                # and got fixed will still get printed out until 100 runs have passed.
-                if not TestExpectations.result_was_expected(result_enum, latest_expectations, test_needs_rebaselining=False):
-                    has_unexpected_results = True
-                    break
+            results_map[result_type] = True
 
-            if has_unexpected_results:
-                flaky_results = flaky_results.union(set(result_types))
-
-        return flaky_results
+        return results_map.keys()

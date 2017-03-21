@@ -42,8 +42,7 @@ from webkitpy.common.system.filesystem import FileSystem
 
 class GenericFileSystemTests(object):
     """Tests that should pass on either a real or mock filesystem."""
-    # Pylint gets confused about this being a mixin: pylint: disable=no-member
-
+    # pylint gets confused about this being a mixin: pylint: disable=E1101
     def setup_generic_test_dir(self):
         fs = self.fs
         self.generic_test_dir = str(self.fs.mkdtemp())
@@ -136,9 +135,7 @@ class GenericFileSystemTests(object):
         self.assertTrue(self.fs.exists('bardir'))
         self.assertTrue(self.fs.exists(self.fs.join('bardir', 'baz')))
 
-
 class RealFileSystemTest(unittest.TestCase, GenericFileSystemTests):
-
     def setUp(self):
         self.fs = FileSystem()
         self.setup_generic_test_dir()
@@ -215,7 +212,7 @@ class RealFileSystemTest(unittest.TestCase, GenericFileSystemTests):
         fs = FileSystem()
 
         with fs.mkdtemp(prefix='filesystem_unittest_') as base_path:
-            sub_path = os.path.join(base_path, 'newdir')
+            sub_path = os.path.join(base_path, "newdir")
             self.assertFalse(os.path.exists(sub_path))
             self.assertFalse(fs.isdir(sub_path))
 
@@ -259,6 +256,7 @@ class RealFileSystemTest(unittest.TestCase, GenericFileSystemTests):
         text_path = None
 
         unicode_text_string = u'\u016An\u012Dc\u014Dde\u033D'
+        hex_equivalent = '\xC5\xAA\x6E\xC4\xAD\x63\xC5\x8D\x64\x65\xCC\xBD'
         try:
             text_path = tempfile.mktemp(prefix='tree_unittest_')
             file = fs.open_text_file_for_writing(text_path)
@@ -324,5 +322,5 @@ class RealFileSystemTest(unittest.TestCase, GenericFileSystemTests):
         fs = FileSystem()
 
         self.assertEqual(fs.sep, os.sep)
-        self.assertEqual(fs.join('foo', 'bar'),
-                         os.path.join('foo', 'bar'))
+        self.assertEqual(fs.join("foo", "bar"),
+                          os.path.join("foo", "bar"))
