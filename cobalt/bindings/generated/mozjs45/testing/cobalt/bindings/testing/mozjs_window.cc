@@ -510,6 +510,96 @@ bool get_window(
 }
 
 
+bool get_onEvent(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject object(context, &args.thisv().toObject());
+  const JSClass* proto_class =
+      MozjsWindow::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<Window>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  Window* impl =
+      wrapper_private->wrappable<Window>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->on_event(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+bool set_onEvent(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject object(context, &args.thisv().toObject());
+
+  const JSClass* proto_class =
+      MozjsWindow::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<Window>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  Window* impl =
+      wrapper_private->wrappable<Window>().get();
+  TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
+  if (args.length() != 1) {
+    NOTREACHED();
+    return false;
+  }
+  FromJSValue(context, args[0], (kConversionFlagNullable), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_on_event(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 bool fcn_getStackTrace(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -626,6 +716,12 @@ const JSPropertySpec prototype_properties[] = {
     JSPROP_SHARED | JSPROP_ENUMERATE,
     { { &get_window, NULL } },
     JSNATIVE_WRAPPER(NULL),
+  },
+  {  // Read/Write property
+    "onEvent",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &get_onEvent, NULL } },
+    { { &set_onEvent, NULL } },
   },
   JS_PS_END
 };
