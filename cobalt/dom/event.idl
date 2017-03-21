@@ -38,3 +38,5 @@ interface Event {
 
   void initEvent(DOMString type, boolean bubbles, boolean cancelable);
 };
+
+typedef unsigned long long DOMTimeStamp;
