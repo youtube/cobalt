@@ -24,7 +24,12 @@ TEST(SbSocketGetLocalInterfaceTest, SunnyDay) {
   SbSocketAddress address;
   // Initialize to something invalid.
   SbMemorySet(&address, 0xFE, sizeof(address));
+#if SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+  address.type = kSbSocketAddressTypeIpv4;
   EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
+#else
+  EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
+#endif  // SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
   EXPECT_EQ(0, address.port);
   EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
   EXPECT_FALSE(IsUnspecified(&address));
@@ -32,7 +37,11 @@ TEST(SbSocketGetLocalInterfaceTest, SunnyDay) {
 }
 
 TEST(SbSocketGetLocalInterfaceTest, RainyDayNull) {
+#if SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
   EXPECT_FALSE(SbSocketGetLocalInterfaceAddress(NULL));
+#else
+  EXPECT_FALSE(SbSocketGetInterfaceAddress(NULL, NULL, NULL));
+#endif  // SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
 }
 
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,12 @@
 
 #include "starboard/socket.h"
 
-#if SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#if SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
 
-bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* /*out_address*/) {
+bool SbSocketGetInterfaceAddress(const SbSocketAddress* const /*destination*/,
+                                 SbSocketAddress* /*out_source_address*/,
+                                 SbSocketAddress* /*out_netmask*/) {
   return false;
 }
 
-#endif  // SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#endif  // SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
