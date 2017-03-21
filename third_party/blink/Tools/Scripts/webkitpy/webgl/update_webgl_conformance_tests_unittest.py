@@ -34,15 +34,14 @@ from webkitpy.webgl import update_webgl_conformance_tests as webgl
 
 
 def construct_script(name):
-    return '<script src=\'' + name + '\'></script>\n'
+    return "<script src=\"" + name + "\"></script>\n"
 
 
 def construct_style(name):
-    return '<link rel=\'stylesheet\' href=\'' + name + '\'>'
+    return "<link rel=\"stylesheet\" href=\"" + name + "\">"
 
 
 class TestTranslation(unittest.TestCase):
-
     def assert_unchanged(self, text):
         self.assertEqual(text, webgl.translate_khronos_test(text))
 
@@ -50,16 +49,16 @@ class TestTranslation(unittest.TestCase):
         self.assertEqual(output, webgl.translate_khronos_test(input))
 
     def test_simple_unchanged(self):
-        self.assert_unchanged('')
-        self.assert_unchanged('<html></html>')
+        self.assert_unchanged("")
+        self.assert_unchanged("<html></html>")
 
     def test_header_strip(self):
-        single_line_header = '<!-- single line header. -->'
+        single_line_header = "<!-- single line header. -->"
         multi_line_header = """<!-- this is a multi-line
                 header.  it should all be removed too.
                 -->"""
-        text = '<html></html>'
-        self.assert_translate(single_line_header, '')
+        text = "<html></html>"
+        self.assert_translate(single_line_header, "")
         self.assert_translate(single_line_header + text, text)
         self.assert_translate(multi_line_header + text, text)
 
@@ -69,22 +68,22 @@ class TestTranslation(unittest.TestCase):
     def test_include_rewriting(self):
         # Mappings to None are unchanged
         styles = {
-            '../resources/js-test-style.css': '../../js/resources/js-test-style.css',
-            'fail.css': None,
-            'resources/stylesheet.css': None,
-            '../resources/style.css': None,
+            "../resources/js-test-style.css": "../../js/resources/js-test-style.css",
+            "fail.css": None,
+            "resources/stylesheet.css": None,
+            "../resources/style.css": None,
         }
         scripts = {
-            '../resources/js-test-pre.js': '../../js/resources/js-test-pre.js',
-            '../resources/js-test-post.js': '../../js/resources/js-test-post.js',
-            '../resources/desktop-gl-constants.js': 'resources/desktop-gl-constants.js',
+            "../resources/js-test-pre.js": "../../js/resources/js-test-pre.js",
+            "../resources/js-test-post.js": "../../js/resources/js-test-post.js",
+            "../resources/desktop-gl-constants.js": "resources/desktop-gl-constants.js",
 
-            'resources/shadow-offset.js': None,
-            '../resources/js-test-post-async.js': None,
+            "resources/shadow-offset.js": None,
+            "../resources/js-test-post-async.js": None,
         }
 
-        input_text = ''
-        output_text = ''
+        input_text = ""
+        output_text = ""
         for input, output in styles.items():
             input_text += construct_style(input)
             output_text += construct_style(output if output else input)

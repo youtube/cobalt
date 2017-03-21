@@ -27,12 +27,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import errno
-import json
 import logging
-import math
 import re
 
-from webkitpy.layout_tests.layout_package.json_results_generator import convert_times_trie_to_flat_paths
 from webkitpy.layout_tests.models import test_expectations
 
 
@@ -40,91 +37,29 @@ _log = logging.getLogger(__name__)
 
 
 class LayoutTestFinder(object):
-
     def __init__(self, port, options):
         self._port = port
         self._options = options
         self._filesystem = self._port.host.filesystem
-        self.LAYOUT_TESTS_DIRECTORIES = ('src', 'third_party', 'WebKit', 'LayoutTests')
+        self.LAYOUT_TESTS_DIRECTORY = 'LayoutTests'
 
-    def find_tests(self, args, test_list=None, fastest_percentile=None):
+    def find_tests(self, options, args):
         paths = self._strip_test_dir_prefixes(args)
-        if test_list:
-            paths += self._strip_test_dir_prefixes(self._read_test_names_from_file(test_list, self._port.TEST_PATH_SEPARATOR))
-
-        all_tests = []
-        if not paths or fastest_percentile:
-            all_tests = self._port.tests(None)
-
-        path_tests = []
-        if paths:
-            path_tests = self._port.tests(paths)
-
-        test_files = None
-        running_all_tests = False
-        if fastest_percentile:
-            times_trie = self._times_trie()
-            if times_trie:
-                fastest_tests = self._fastest_tests(times_trie, all_tests, fastest_percentile)
-                test_files = list(set(fastest_tests).union(path_tests))
-            else:
-                _log.warning('Running all the tests the first time to generate timing data.')
-                test_files = all_tests
-                running_all_tests = True
-        elif paths:
-            test_files = path_tests
-        else:
-            test_files = all_tests
-            running_all_tests = True
-
-        return (paths, test_files, running_all_tests)
-
-    def _times_trie(self):
-        times_ms_path = self._port.bot_test_times_path()
-        if self._filesystem.exists(times_ms_path):
-            return json.loads(self._filesystem.read_text_file(times_ms_path))
-        else:
-            return {}
-
-    # The following line should run the fastest 50% of tests *and*
-    # the css3/flexbox tests. It should *not* run the fastest 50%
-    # of the css3/flexbox tests.
-    #
-    # run-webkit-tests --fastest=50 css3/flexbox
-    def _fastest_tests(self, times_trie, all_tests, fastest_percentile):
-        times = convert_times_trie_to_flat_paths(times_trie)
-
-        # Ignore tests with a time==0 because those are skipped tests.
-        sorted_times = sorted([test for (test, time) in times.iteritems() if time],
-                              key=lambda t: (times[t], t))
-        clamped_percentile = max(0, min(100, fastest_percentile))
-        number_of_tests_to_return = int(len(sorted_times) * clamped_percentile / 100)
-        fastest_tests = set(sorted_times[:number_of_tests_to_return])
-
-        # Don't try to run tests in the times_trie that no longer exist,
-        fastest_tests = fastest_tests.intersection(all_tests)
-
-        # For fastest tests, include any tests not in the times_ms.json so that
-        # new tests get run in the fast set.
-        unaccounted_tests = set(all_tests) - set(times.keys())
-
-        # Using a set to dedupe here means that --order=None won't work, but that's
-        # ok because --fastest already runs in an arbitrary order.
-        return list(fastest_tests.union(unaccounted_tests))
+        if options.test_list:
+            paths += self._strip_test_dir_prefixes(self._read_test_names_from_file(options.test_list, self._port.TEST_PATH_SEPARATOR))
+        test_files = self._port.tests(paths)
+        return (paths, test_files)
 
     def _strip_test_dir_prefixes(self, paths):
         return [self._strip_test_dir_prefix(path) for path in paths if path]
 
     def _strip_test_dir_prefix(self, path):
-        # Remove src/third_party/WebKit/LayoutTests/ from the front of the test path,
-        # or any subset of these.
-        for i in range(len(self.LAYOUT_TESTS_DIRECTORIES)):
-            # Handle both "LayoutTests/foo/bar.html" and "LayoutTests\foo\bar.html" if
-            # the filesystem uses '\\' as a directory separator
-            for separator in (self._port.TEST_PATH_SEPARATOR, self._filesystem.sep):
-                directory_prefix = separator.join(self.LAYOUT_TESTS_DIRECTORIES[i:]) + separator
-                if path.startswith(directory_prefix):
-                    return path[len(directory_prefix):]
+        # Handle both "LayoutTests/foo/bar.html" and "LayoutTests\foo\bar.html" if
+        # the filesystem uses '\\' as a directory separator.
+        if path.startswith(self.LAYOUT_TESTS_DIRECTORY + self._port.TEST_PATH_SEPARATOR):
+            return path[len(self.LAYOUT_TESTS_DIRECTORY + self._port.TEST_PATH_SEPARATOR):]
+        if path.startswith(self.LAYOUT_TESTS_DIRECTORY + self._filesystem.sep):
+            return path[len(self.LAYOUT_TESTS_DIRECTORY + self._filesystem.sep):]
         return path
 
     def _read_test_names_from_file(self, filenames, test_path_separator):
@@ -139,10 +74,10 @@ class LayoutTestFinder(object):
                     line = self._strip_comments(line)
                     if line:
                         tests.append(line)
-            except IOError as error:
-                if error.errno == errno.ENOENT:
+            except IOError, e:
+                if e.errno == errno.ENOENT:
                     _log.critical('')
-                    _log.critical('--test-list file "%s" not found', file)
+                    _log.critical('--test-list file "%s" not found' % file)
                 raise
         return tests
 
@@ -177,30 +112,60 @@ class LayoutTestFinder(object):
         return tests_to_skip
 
     def split_into_chunks(self, test_names):
-        """split into a list to run and a set to skip, based on --shard_index and --total_shards."""
-        if self._options.shard_index is None and self._options.total_shards is None:
+        """split into a list to run and a set to skip, based on --run-chunk and --run-part."""
+        if not self._options.run_chunk and not self._options.run_part:
             return test_names, set()
 
-        if self._options.shard_index is None:
-            raise ValueError('Must provide --shard-index or GTEST_SHARD_INDEX when sharding.')
-        if self._options.total_shards is None:
-            raise ValueError('Must provide --total-shards or GTEST_TOTAL_SHARDS when sharding.')
-        if self._options.shard_index >= self._options.total_shards:
-            raise ValueError('Shard index (%d) should be less than total shards (%d)!' % (
-                self._options.shard_index, self._options.total_shards))
+        # If the user specifies they just want to run a subset of the tests,
+        # just grab a subset of the non-skipped tests.
+        chunk_value = self._options.run_chunk or self._options.run_part
+        try:
+            (chunk_num, chunk_len) = chunk_value.split(":")
+            chunk_num = int(chunk_num)
+            assert(chunk_num >= 0)
+            test_size = int(chunk_len)
+            assert(test_size > 0)
+        except AssertionError:
+            _log.critical("invalid chunk '%s'" % chunk_value)
+            return (None, None)
 
-        return self._split_into_chunks(test_names, self._options.shard_index, self._options.total_shards)
+        # Get the number of tests
+        num_tests = len(test_names)
 
-    @staticmethod
-    def _split_into_chunks(test_names, index, count):
-        chunk_size = int(math.ceil(len(test_names) * 1.0 / count))
+        # Get the start offset of the slice.
+        if self._options.run_chunk:
+            chunk_len = test_size
+            # In this case chunk_num can be really large. We need
+            # to make the slave fit in the current number of tests.
+            slice_start = (chunk_num * chunk_len) % num_tests
+        else:
+            # Validate the data.
+            assert(test_size <= num_tests)
+            assert(chunk_num <= test_size)
 
-        chunk_start = index * chunk_size
-        chunk_end = (index + 1) * chunk_size
+            # To count the chunk_len, and make sure we don't skip
+            # some tests, we round to the next value that fits exactly
+            # all the parts.
+            rounded_tests = num_tests
+            if rounded_tests % test_size != 0:
+                rounded_tests = (num_tests + test_size - (num_tests % test_size))
 
-        tests_to_run = test_names[chunk_start:chunk_end]
-        other_tests = test_names[:chunk_start] + test_names[chunk_end:]
+            chunk_len = rounded_tests / test_size
+            slice_start = chunk_len * (chunk_num - 1)
+            # It does not mind if we go over test_size.
 
-        _log.debug('chunk slice [%d:%d] of %d is %d tests', chunk_start, chunk_end, len(test_names), len(tests_to_run))
+        # Get the end offset of the slice.
+        slice_end = min(num_tests, slice_start + chunk_len)
 
-        return tests_to_run, other_tests
+        tests_to_run = test_names[slice_start:slice_end]
+
+        _log.debug('chunk slice [%d:%d] of %d is %d tests' % (slice_start, slice_end, num_tests, (slice_end - slice_start)))
+
+        # If we reached the end and we don't have enough tests, we run some
+        # from the beginning.
+        if slice_end - slice_start < chunk_len:
+            extra = chunk_len - (slice_end - slice_start)
+            _log.debug('   last chunk is partial, appending [0:%d]' % extra)
+            tests_to_run.extend(test_names[0:extra])
+
+        return (tests_to_run, set(test_names) - set(tests_to_run))

@@ -24,11 +24,10 @@
 
 import unittest
 
-from webkitpy.style.checkers import jsonchecker
+import jsonchecker
 
 
 class MockErrorHandler(object):
-
     def __init__(self, handle_style_error):
         self.turned_off_filtering = False
         self._handle_style_error = handle_style_error

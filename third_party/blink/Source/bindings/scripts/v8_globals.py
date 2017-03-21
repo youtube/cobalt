@@ -29,3 +29,4 @@
 """Module to share global variables (includes and interfaces) across modules."""
 
 includes = set()
+interfaces = {}

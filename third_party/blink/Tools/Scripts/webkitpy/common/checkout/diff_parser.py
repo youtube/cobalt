@@ -33,9 +33,52 @@ import re
 
 _log = logging.getLogger(__name__)
 
-INDEX_PATTERN = re.compile(r'^diff --git \w/(.+) \w/(?P<FilePath>.+)')
-LINES_CHANGED_PATTERN = re.compile(r"^@@ -(?P<OldStartLine>\d+)(,\d+)? \+(?P<NewStartLine>\d+)(,\d+)? @@")
+conversion_patterns = (
+    (re.compile("^diff --git \w/(.+) \w/(?P<FilePath>.+)"), lambda matched: "Index: " + matched.group('FilePath') + "\n"),
+    (re.compile("^new file.*"), lambda matched: "\n"),
+    (re.compile("^index (([0-9a-f]{7}\.\.[0-9a-f]{7})|([0-9a-f]{40}\.\.[0-9a-f]{40})) [0-9]{6}"), lambda matched: ("=" * 67) + "\n"),
+    (re.compile("^--- \w/(?P<FilePath>.+)"), lambda matched: "--- " + matched.group('FilePath') + "\n"),
+    (re.compile("^\+\+\+ \w/(?P<FilePath>.+)"), lambda matched: "+++ " + matched.group('FilePath') + "\n"),
+)
 
+index_pattern = re.compile(r"^Index: (?P<FilePath>.+)")
+lines_changed_pattern = re.compile(r"^@@ -(?P<OldStartLine>\d+)(,\d+)? \+(?P<NewStartLine>\d+)(,\d+)? @@")
+diff_git_pattern = re.compile(r"^diff --git \w/")
+
+
+def git_diff_to_svn_diff(line):
+    """Converts a git formatted diff line to a svn formatted line.
+
+    Args:
+      line: A string representing a line of the diff.
+    """
+    for pattern, conversion in conversion_patterns:
+        matched = pattern.match(line)
+        if matched:
+            return conversion(matched)
+    return line
+
+
+# This function exists so we can unittest get_diff_converter function
+def svn_diff_to_svn_diff(line):
+    return line
+
+
+def get_diff_converter(lines):
+    """Gets a converter function of diff lines.
+
+    Args:
+      lines: The lines of a diff file.
+             If this line is git formatted, we'll return a
+             converter from git to SVN.
+    """
+    for i, line in enumerate(lines[:-1]):
+        # Stop when we find the first patch
+        if line[:3] == "+++" and lines[i + 1] == "---":
+            break
+        if diff_git_pattern.match(line):
+            return git_diff_to_svn_diff
+    return svn_diff_to_svn_diff
 
 _INITIAL_STATE = 1
 _DECLARED_FILE_PATH = 2
@@ -96,10 +139,12 @@ class DiffParser(object):
         current_file = None
         old_diff_line = None
         new_diff_line = None
+        transform_line = get_diff_converter(diff_input)
         for line in diff_input:
-            line = line.rstrip('\n')
+            line = line.rstrip("\n")
+            line = transform_line(line)
 
-            file_declaration = INDEX_PATTERN.match(line)
+            file_declaration = index_pattern.match(line)
             if file_declaration:
                 filename = file_declaration.group('FilePath')
                 current_file = DiffFile(filename)
@@ -107,10 +152,11 @@ class DiffParser(object):
                 state = _DECLARED_FILE_PATH
                 continue
 
-            lines_changed = LINES_CHANGED_PATTERN.match(line)
+            lines_changed = lines_changed_pattern.match(line)
             if lines_changed:
                 if state != _DECLARED_FILE_PATH and state != _PROCESSING_CHUNK:
-                    _log.error('Unexpected line change without file path declaration: %r', line)
+                    _log.error('Unexpected line change without file path '
+                               'declaration: %r' % line)
                 old_diff_line = int(lines_changed.group('OldStartLine'))
                 new_diff_line = int(lines_changed.group('NewStartLine'))
                 state = _PROCESSING_CHUNK
@@ -131,5 +177,6 @@ class DiffParser(object):
                     # Nothing to do.  We may still have some added lines.
                     pass
                 else:
-                    _log.error('Unexpected diff format when parsing a chunk: %r', line)
+                    _log.error('Unexpected diff format when parsing a '
+                               'chunk: %r' % line)
         return files

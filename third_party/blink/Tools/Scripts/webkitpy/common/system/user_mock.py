@@ -35,7 +35,7 @@ class MockUser(object):
 
     @classmethod
     def prompt(cls, message, repeat=1, raw_input=raw_input):
-        return 'Mock user response'
+        return "Mock user response"
 
     @classmethod
     def prompt_with_list(cls, list_title, list_items, can_choose_multiple=False, raw_input=raw_input):
@@ -59,7 +59,7 @@ class MockUser(object):
 
     def open_url(self, url):
         self.opened_urls.append(url)
-        if url.startswith('file://'):
-            _log.info('MOCK: user.open_url: file://...')
+        if url.startswith("file://"):
+            _log.info("MOCK: user.open_url: file://...")
             return
-        _log.info('MOCK: user.open_url: %s', url)
+        _log.info("MOCK: user.open_url: %s" % url)

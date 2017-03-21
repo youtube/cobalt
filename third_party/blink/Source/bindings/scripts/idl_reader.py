@@ -42,49 +42,6 @@ from interface_dependency_resolver import InterfaceDependencyResolver
 from utilities import idl_filename_to_component, idl_filename_to_interface_name
 
 
-def validate_blink_idl_definitions(idl_filename, idl_file_basename,
-                                   definitions):
-    """Validate file contents with filename convention.
-
-       The Blink IDL conventions are:
-       - If an IDL file defines an interface, a dictionary, or an exception,
-         the IDL file must contain exactly one definition. The definition
-         name must agree with the file's basename, unless it is a partial
-         definition. (e.g., 'partial interface Foo' can be in FooBar.idl).
-       - An IDL file can contain typedefs and enums without having other
-         definitions. There is no filename convention in this case.
-       - Otherwise, an IDL file is invalid.
-    """
-    targets = (definitions.interfaces.values() +
-               definitions.dictionaries.values())
-    number_of_targets = len(targets)
-    if number_of_targets > 1:
-        raise Exception(
-            'Expected exactly 1 definition in file {0}, but found {1}'
-            .format(idl_filename, number_of_targets))
-    if number_of_targets == 0:
-        if not (definitions.enumerations or definitions.typedefs):
-            raise Exception(
-                'No definition found in %s' % idl_filename)
-        return
-    target = targets[0]
-    idl_interface_name = idl_filename_to_interface_name(idl_filename)
-    if not target.is_partial and target.name != idl_interface_name:
-        if target.name.lower() == idl_interface_name.lower():
-            # Names differ only by capitalization. This could indicate a
-            # problem with the special tokens in the snake_case->TitleCase
-            # conversion in
-            raise Exception(
-                '"Unexpected capitalization of definition name "{0}" for IDL file name "{1}". '
-                'Does a special token need to be added to '
-                'idl_filename_to_interface_name in utilities.py?'
-                .format(target.name, os.path.basename(idl_filename)))
-        else:
-            raise Exception(
-                'Definition name "{0}" disagrees with IDL file name "{1}".'
-                .format(target.name, os.path.basename(idl_filename)))
-
-
 class IdlReader(object):
     def __init__(self, extend_attributes_filename=None, interfaces_info=None, outputdir=''):
         self.extended_attribute_validator = None
@@ -126,11 +83,37 @@ class IdlReader(object):
         if ast.GetProperty('ERRORS'):
             raise Exception('Encountered %d error(s) parsing %s' % (
                 ast.GetProperty('ERRORS'), idl_filename))
-        idl_file_basename, _ = os.path.splitext(os.path.basename(idl_filename))
-        definitions = IdlDefinitions(ast)
+        idl_interface_name = idl_filename_to_interface_name(idl_filename)
+        definitions = IdlDefinitions(idl_interface_name, ast)
 
-        validate_blink_idl_definitions(
-            idl_filename, idl_file_basename, definitions)
+        # Validate file contents with filename convention
+        # The Blink IDL filenaming convention is that the file
+        # <definition_name>.idl MUST contain exactly 1 definition
+        # (interface, dictionary or exception), and the definition name must
+        # agree with the file's basename, unless it is a partial definition.
+        # (e.g., 'partial interface Foo' can be in FooBar.idl).
+        targets = (definitions.interfaces.values() +
+                   definitions.dictionaries.values())
+        number_of_targets = len(targets)
+        if number_of_targets != 1:
+            raise Exception(
+                'Expected exactly 1 definition in file {0}, but found {1}'
+                .format(idl_filename, number_of_targets))
+        target = targets[0]
+        if not target.is_partial and target.name != idl_interface_name:
+            if target.name.lower() == idl_interface_name.lower():
+                # Names differ only by capitalization. This could indicate a
+                # problem with the special tokens in the snake_case->TitleCase
+                # conversion in
+                raise Exception(
+                    '"Unexpected capitalization of definition name "{0}" for IDL file name "{1}". '
+                    'Does a special token need to be added to '
+                    'idl_filename_to_interface_name in utilities.py?'
+                    .format(target.name, os.path.basename(idl_filename)))
+            else:
+                raise Exception(
+                    'Definition name "{0}" disagrees with IDL file name "{1}".'
+                    .format(target.name, os.path.basename(idl_filename)))
 
         # Validate extended attributes
         if not self.extended_attribute_validator:

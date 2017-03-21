@@ -30,13 +30,14 @@
 
 import atexit
 import subprocess
+import sys
 import threading
 import urllib
 
 
 def abspath_to_uri(platform, path):
     """Converts a platform-specific absolute path to a file: URL."""
-    return 'file:' + _escape(_convert_path(platform, path))
+    return "file:" + _escape(_convert_path(platform, path))
 
 
 def cygpath(path):
@@ -77,7 +78,7 @@ class _CygPath(object):
         self._child_process = None
 
     def start(self):
-        assert self._child_process is None
+        assert(self._child_process is None)
         args = ['cygpath', '-f', '-', '-wa']
         self._child_process = subprocess.Popen(args,
                                                stdin=subprocess.PIPE,
@@ -97,7 +98,7 @@ class _CygPath(object):
     def convert(self, path):
         if not self.is_running():
             self.start()
-        self._child_process.stdin.write('%s\r\n' % path)
+        self._child_process.stdin.write("%s\r\n" % path)
         self._child_process.stdin.flush()
         windows_path = self._child_process.stdout.readline().rstrip()
         # Some versions of cygpath use lowercase drive letters while others
@@ -126,9 +127,9 @@ def _convert_path(platform, path):
 
 def _winpath_to_uri(path):
     """Converts a window absolute path to a file: URL."""
-    return '///' + path.replace('\\', '/')
+    return "///" + path.replace("\\", "/")
 
 
 def _unixypath_to_uri(path):
     """Converts a unix-style path to a file: URL."""
-    return '//' + path
+    return "//" + path

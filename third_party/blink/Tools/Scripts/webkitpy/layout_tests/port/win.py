@@ -29,14 +29,14 @@
 """Windows implementation of the Port interface."""
 
 import errno
+import os
 import logging
 
-# The _winreg library is only available on Windows.
-# https://docs.python.org/2/library/_winreg.html
 try:
-    import _winreg  # pylint: disable=import-error
-except ImportError:
-    _winreg = None  # pylint: disable=invalid-name
+    import _winreg
+except ImportError as e:
+    _winreg = None
+    WindowsError = Exception  # this shuts up pylint.
 
 from webkitpy.layout_tests.breakpad.dump_reader_win import DumpReaderWin
 from webkitpy.layout_tests.models import test_run_results
@@ -50,25 +50,23 @@ _log = logging.getLogger(__name__)
 class WinPort(base.Port):
     port_name = 'win'
 
-    SUPPORTED_VERSIONS = ('win7', 'win10')
+    # FIXME: Figure out how to unify this with base.TestConfiguration.all_systems()?
+    SUPPORTED_VERSIONS = ('xp', 'win7')
 
-    FALLBACK_PATHS = {'win10': ['win']}
-    FALLBACK_PATHS['win7'] = ['win7'] + FALLBACK_PATHS['win10']
+    FALLBACK_PATHS = { 'win7': [ 'win' ]}
+    FALLBACK_PATHS['xp'] = ['win-xp'] + FALLBACK_PATHS['win7']
 
     DEFAULT_BUILD_DIRECTORIES = ('build', 'out')
 
-    BUILD_REQUIREMENTS_URL = 'https://chromium.googlesource.com/chromium/src/+/master/docs/windows_build_instructions.md'
+    BUILD_REQUIREMENTS_URL = 'http://www.chromium.org/developers/how-tos/build-instructions-windows'
 
     @classmethod
     def determine_full_port_name(cls, host, options, port_name):
         if port_name.endswith('win'):
             assert host.platform.is_win()
             # We don't maintain separate baselines for vista, so we pretend it is win7.
-            if host.platform.os_version in ('vista', '7sp0', '7sp1'):
+            if host.platform.os_version in ('vista', '7sp0', '7sp1', 'future'):
                 version = 'win7'
-            # Same for win8, we treat it as win10.
-            elif host.platform.os_version in ('8', '8.1', '10', 'future'):
-                version = 'win10'
             else:
                 version = host.platform.os_version
             port_name = port_name + '-' + version
@@ -77,16 +75,14 @@ class WinPort(base.Port):
     def __init__(self, host, port_name, **kwargs):
         super(WinPort, self).__init__(host, port_name, **kwargs)
         self._version = port_name[port_name.index('win-') + len('win-'):]
-        assert self._version in self.SUPPORTED_VERSIONS, '%s is not in %s' % (self._version, self.SUPPORTED_VERSIONS)
-        if self.get_option('disable_breakpad'):
-            self._dump_reader = None
-        else:
+        assert self._version in self.SUPPORTED_VERSIONS, "%s is not in %s" % (self._version, self.SUPPORTED_VERSIONS)
+        if not self.get_option('disable_breakpad'):
             self._dump_reader = DumpReaderWin(host, self._build_path())
-        self._crash_service = None
-        self._crash_service_available = None
+            self._crash_service = None
+            self._crash_service_available = None
 
-    def additional_driver_flag(self):
-        flags = super(WinPort, self).additional_driver_flag()
+    def additional_drt_flag(self):
+        flags = super(WinPort, self).additional_drt_flag()
         flags += ['--enable-direct-write']
         if not self.get_option('disable_breakpad'):
             flags += ['--enable-crash-reporter', '--crash-dumps-dir=%s' % self._dump_reader.crash_dumps_directory()]
@@ -103,7 +99,7 @@ class WinPort(base.Port):
                 res = self._check_reg(r'.cgi\Shell\ExecCGI\Command') and res
                 res = self._check_reg(r'.pl\Shell\ExecCGI\Command') and res
             else:
-                _log.warning('Could not check the registry; http may not work correctly.')
+                _log.warning("Could not check the registry; http may not work correctly.")
 
         return res
 
@@ -111,7 +107,7 @@ class WinPort(base.Port):
         # see comments in check_httpd(), above, for why this routine exists and what it's doing.
         try:
             # Note that we HKCR is a union of HKLM and HKCR (with the latter
-            # overriding the former), so reading from HKCR ensures that we get
+            # overridding the former), so reading from HKCR ensures that we get
             # the value if it is set in either place. See als comments below.
             hkey = _winreg.OpenKey(_winreg.HKEY_CLASSES_ROOT, sub_key)
             args = _winreg.QueryValue(hkey, '').split()
@@ -121,10 +117,11 @@ class WinPort(base.Port):
             # existing entry points to a valid path and has the right command line.
             if len(args) == 2 and self._filesystem.exists(args[0]) and args[0].endswith('perl.exe') and args[1] == '-wT':
                 return True
-        except WindowsError as error:  # WindowsError is not defined on non-Windows platforms - pylint: disable=undefined-variable
-            if error.errno != errno.ENOENT:
-                raise
+        except WindowsError, e:
+            if e.errno != errno.ENOENT:
+                raise e
             # The key simply probably doesn't exist.
+            pass
 
         # Note that we write to HKCU so that we don't need privileged access
         # to the registry, and that will get reflected in HKCR when it is read, above.
@@ -139,7 +136,7 @@ class WinPort(base.Port):
 
         if not self.get_option('disable_breakpad'):
             assert not self._crash_service, 'Already running a crash service'
-            if self._crash_service_available is None:
+            if self._crash_service_available == None:
                 self._crash_service_available = self._check_crash_service_available()
             if not self._crash_service_available:
                 return
@@ -154,25 +151,30 @@ class WinPort(base.Port):
             self._crash_service.stop()
             self._crash_service = None
 
-    def setup_environ_for_server(self):
-        env = super(WinPort, self).setup_environ_for_server()
+    def setup_environ_for_server(self, server_name=None):
+        env = super(WinPort, self).setup_environ_for_server(server_name)
 
         # FIXME: This is a temporary hack to get the cr-win bot online until
         # someone from the cr-win port can take a look.
         apache_envvars = ['SYSTEMDRIVE', 'SYSTEMROOT', 'TEMP', 'TMP']
-        for key, value in self.host.environ.copy().items():
+        for key, value in os.environ.items():
             if key not in env and key in apache_envvars:
                 env[key] = value
 
         # Put the cygwin directory first in the path to find cygwin1.dll.
-        env['PATH'] = '%s;%s' % (self.path_from_chromium_base('third_party', 'cygwin', 'bin'), env['PATH'])
+        env["PATH"] = "%s;%s" % (self.path_from_chromium_base("third_party", "cygwin", "bin"), env["PATH"])
         # Configure the cygwin directory so that pywebsocket finds proper
         # python executable to run cgi program.
-        env['CYGWIN_PATH'] = self.path_from_chromium_base('third_party', 'cygwin', 'bin')
+        env["CYGWIN_PATH"] = self.path_from_chromium_base("third_party", "cygwin", "bin")
         if self.get_option('register_cygwin'):
-            setup_mount = self.path_from_chromium_base('third_party', 'cygwin', 'setup_mount.bat')
+            setup_mount = self.path_from_chromium_base("third_party", "cygwin", "setup_mount.bat")
             self._executive.run_command([setup_mount])  # Paths are all absolute, so this does not require a cwd.
         return env
+
+    def _modules_to_search_for_symbols(self):
+        # FIXME: we should return the path to the ffmpeg equivalents to detect if we have the mp3 and aac codecs installed.
+        # See https://bugs.webkit.org/show_bug.cgi?id=89706.
+        return []
 
     def check_build(self, needs_http, printer):
         result = super(WinPort, self).check_build(needs_http, printer)
@@ -184,7 +186,7 @@ class WinPort(base.Port):
         if result:
             _log.error('For complete Windows build requirements, please see:')
             _log.error('')
-            _log.error('    https://chromium.googlesource.com/chromium/src/+/master/docs/windows_build_instructions.md')
+            _log.error('    http://dev.chromium.org/developers/how-tos/build-instructions-windows')
         return result
 
     def operating_system(self):
@@ -204,15 +206,15 @@ class WinPort(base.Port):
         return self.path_from_chromium_base('third_party', 'apache-win32', 'bin', 'httpd.exe')
 
     def path_to_apache_config_file(self):
-        return self._filesystem.join(self.apache_config_directory(), 'win-httpd.conf')
+        return self._filesystem.join(self.layout_tests_dir(), 'http', 'conf', 'win-httpd.conf')
 
     #
     # PROTECTED ROUTINES
     #
 
-    def _path_to_driver(self, target=None):
+    def _path_to_driver(self, configuration=None):
         binary_name = '%s.exe' % self.driver_name()
-        return self._build_path_with_target(target, binary_name)
+        return self._build_path_with_configuration(configuration, binary_name)
 
     def _path_to_crash_service(self):
         binary_name = 'content_shell_crash_service.exe'
@@ -222,9 +224,12 @@ class WinPort(base.Port):
         binary_name = 'image_diff.exe'
         return self._build_path(binary_name)
 
+    def _path_to_wdiff(self):
+        return self.path_from_chromium_base('third_party', 'cygwin', 'bin', 'wdiff.exe')
+
     def _check_crash_service_available(self):
         """Checks whether the crash service binary is present."""
-        result = self._check_file_exists(self._path_to_crash_service(), 'content_shell_crash_service.exe')
+        result = self._check_file_exists(self._path_to_crash_service(), "content_shell_crash_service.exe")
         if not result:
             _log.error("    Could not find crash service, unexpected crashes won't be symbolized.")
             _log.error('    Did you build the target blink_tests?')

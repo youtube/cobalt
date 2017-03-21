@@ -3,12 +3,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
 import unittest
 
 from idl_lexer import IDLLexer
 from idl_ppapi_lexer import IDLPPAPILexer
-
 
 #
 # FileToTokens
@@ -34,10 +32,9 @@ def TextToTokens(lexer, text):
 class WebIDLLexer(unittest.TestCase):
   def setUp(self):
     self.lexer = IDLLexer()
-    cur_dir = os.path.dirname(os.path.realpath(__file__))
     self.filenames = [
-        os.path.join(cur_dir, 'test_lexer/values.in'),
-        os.path.join(cur_dir, 'test_lexer/keywords.in')
+        'test_lexer/values.in',
+        'test_lexer/keywords.in'
     ]
 
   #
@@ -92,10 +89,9 @@ class WebIDLLexer(unittest.TestCase):
 class PepperIDLLexer(WebIDLLexer):
   def setUp(self):
     self.lexer = IDLPPAPILexer()
-    cur_dir = os.path.dirname(os.path.realpath(__file__))
     self.filenames = [
-        os.path.join(cur_dir, 'test_lexer/values_ppapi.in'),
-        os.path.join(cur_dir, 'test_lexer/keywords_ppapi.in')
+        'test_lexer/values_ppapi.in',
+        'test_lexer/keywords_ppapi.in'
     ]
 
 

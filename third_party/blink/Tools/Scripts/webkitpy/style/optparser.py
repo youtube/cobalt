@@ -24,9 +24,10 @@
 
 import logging
 from optparse import OptionParser
+import os.path
 import sys
 
-from webkitpy.style.filter import validate_filter_rules
+from filter import validate_filter_rules
 # This module should not import anything from checker.py.
 
 _log = logging.getLogger(__name__)
@@ -96,8 +97,8 @@ Paths:
   detected.  This is because all file paths will already be relative
   to the source root and so will not need to be converted."""
 
-_EPILOG = ('This script can miss errors and does not substitute for '
-           'code review.')
+_EPILOG = ("This script can miss errors and does not substitute for "
+           "code review.")
 
 
 # This class should not have knowledge of the flag key names.
@@ -108,6 +109,7 @@ class DefaultCommandOptionValues(object):
     Attributes:
       output_format: A string that is the default output format.
       min_confidence: An integer that is the default minimum confidence level.
+
     """
 
     def __init__(self, min_confidence, output_format):
@@ -138,24 +140,24 @@ class CommandOptionValues(object):
       output_format: A string that is the output format.  The supported
                      output formats are "emacs" which emacs can parse
                      and "vs7" which Microsoft Visual Studio 7 can parse.
-    """
 
+    """
     def __init__(self,
                  filter_rules=None,
                  git_commit=None,
                  diff_files=None,
                  is_verbose=False,
                  min_confidence=1,
-                 output_format='emacs'):
+                 output_format="emacs"):
         if filter_rules is None:
             filter_rules = []
 
         if (min_confidence < 1) or (min_confidence > 5):
             raise ValueError('Invalid "min_confidence" parameter: value '
-                             'must be an integer between 1 and 5 inclusive. '
+                             "must be an integer between 1 and 5 inclusive. "
                              'Value given: "%s".' % min_confidence)
 
-        if output_format not in ('emacs', 'vs7'):
+        if output_format not in ("emacs", "vs7"):
             raise ValueError('Invalid "output_format" parameter: '
                              'value must be "emacs" or "vs7". '
                              'Value given: "%s".' % output_format)
@@ -196,7 +198,7 @@ class ArgumentPrinter(object):
     """Supports the printing of check-webkit-style command arguments."""
 
     def _flag_pair_to_string(self, flag_key, flag_value):
-        return '--%(key)s=%(val)s' % {'key': flag_key, 'val': flag_value}
+        return '--%(key)s=%(val)s' % {'key': flag_key, 'val': flag_value }
 
     def to_flag_string(self, options):
         """Return a flag string of the given CommandOptionValues instance.
@@ -205,6 +207,7 @@ class ArgumentPrinter(object):
 
         Args:
           options: A CommandOptionValues instance.
+
         """
         flags = {}
         flags['min-confidence'] = options.min_confidence
@@ -212,7 +215,7 @@ class ArgumentPrinter(object):
         # Only include the filter flag if user-provided rules are present.
         filter_rules = options.filter_rules
         if filter_rules:
-            flags['filter'] = ','.join(filter_rules)
+            flags['filter'] = ",".join(filter_rules)
         if options.git_commit:
             flags['git-commit'] = options.git_commit
         if options.diff_files:
@@ -243,6 +246,7 @@ class ArgumentParser(object):
       stderr_write: A function that takes a string as a parameter and
                     serves as stderr.write.  Defaults to sys.stderr.write.
                     This parameter should be specified only for unit tests.
+
     """
 
     def __init__(self,
@@ -268,6 +272,7 @@ class ArgumentParser(object):
                         attribute in the class docstring.
           stderr_write: See the documentation of the corresponding
                         attribute in the class docstring.
+
         """
         if base_filter_rules is None:
             base_filter_rules = []
@@ -283,9 +288,9 @@ class ArgumentParser(object):
         self.stderr_write = stderr.write
 
         self._parser = self._create_option_parser(stderr=stderr,
-                                                  usage=usage,
-                                                  default_min_confidence=self.default_options.min_confidence,
-                                                  default_output_format=self.default_options.output_format)
+            usage=usage,
+            default_min_confidence=self.default_options.min_confidence,
+            default_output_format=self.default_options.output_format)
 
     def _create_option_parser(self, stderr, usage,
                               default_min_confidence, default_output_format):
@@ -301,36 +306,36 @@ class ArgumentParser(object):
                        '"--filter -whitespace,+whitespace/braces".  To display '
                        'all categories and which are enabled by default, pass '
                        """no value (e.g. '-f ""' or '--filter=').""")
-        parser.add_option('-f', '--filter-rules', metavar='RULES',
-                          dest='filter_value', help=filter_help)
+        parser.add_option("-f", "--filter-rules", metavar="RULES",
+                          dest="filter_value", help=filter_help)
 
-        git_commit_help = ('check all changes in the given commit. '
-                           "Use 'commit_id..' to check all changes after commit_id")
-        parser.add_option('-g', '--git-diff', '--git-commit',
-                          metavar='COMMIT', dest='git_commit', help=git_commit_help,)
+        git_commit_help = ("check all changes in the given commit. "
+                           "Use 'commit_id..' to check all changes after commmit_id")
+        parser.add_option("-g", "--git-diff", "--git-commit",
+                          metavar="COMMIT", dest="git_commit", help=git_commit_help,)
 
-        diff_files_help = 'diff the files passed on the command line rather than checking the style of every line'
-        parser.add_option('--diff-files', action='store_true', dest='diff_files', default=False, help=diff_files_help)
+        diff_files_help = "diff the files passed on the command line rather than checking the style of every line"
+        parser.add_option("--diff-files", action="store_true", dest="diff_files", default=False, help=diff_files_help)
 
-        min_confidence_help = ('set the minimum confidence of style errors '
-                               'to report.  Can be an integer 1-5, with 1 '
-                               'displaying all errors.  Defaults to %default.')
-        parser.add_option('-m', '--min-confidence', metavar='INT',
-                          type='int', dest='min_confidence',
+        min_confidence_help = ("set the minimum confidence of style errors "
+                               "to report.  Can be an integer 1-5, with 1 "
+                               "displaying all errors.  Defaults to %default.")
+        parser.add_option("-m", "--min-confidence", metavar="INT",
+                          type="int", dest="min_confidence",
                           default=default_min_confidence,
                           help=min_confidence_help)
 
         output_format_help = ('set the output format, which can be "emacs" '
                               'or "vs7" (for Visual Studio).  '
                               'Defaults to "%default".')
-        parser.add_option('-o', '--output-format', metavar='FORMAT',
-                          choices=['emacs', 'vs7'],
-                          dest='output_format', default=default_output_format,
+        parser.add_option("-o", "--output-format", metavar="FORMAT",
+                          choices=["emacs", "vs7"],
+                          dest="output_format", default=default_output_format,
                           help=output_format_help)
 
-        verbose_help = 'enable verbose logging.'
-        parser.add_option('-v', '--verbose', dest='is_verbose', default=False,
-                          action='store_true', help=verbose_help)
+        verbose_help = "enable verbose logging."
+        parser.add_option("-v", "--verbose", dest="is_verbose", default=False,
+                          action="store_true", help=verbose_help)
 
         # Override OptionParser's error() method so that option help will
         # also display when an error occurs.  Normally, just the usage
@@ -350,7 +355,7 @@ class ArgumentParser(object):
         # the flag options.
         help = self._parser.format_help()
         # Separate help from the error message with a single blank line.
-        self.stderr_write(help + '\n')
+        self.stderr_write(help + "\n")
         if error_message:
             _log.error(error_message)
 
@@ -386,6 +391,7 @@ class ArgumentParser(object):
         Args:
           flag_value: A string of comma-separated filter rules, for
                       example "-whitespace,+whitespace/indent".
+
         """
         filters = []
         for uncleaned_filter in flag_value.split(','):
@@ -406,6 +412,7 @@ class ArgumentParser(object):
 
           paths: The list of paths to check.
           options: A CommandOptionValues instance.
+
         """
         (options, paths) = self._parser.parse_args(args=args)
 
@@ -436,7 +443,7 @@ class ArgumentParser(object):
 
         try:
             validate_filter_rules(filter_rules, self._all_categories)
-        except ValueError as err:
+        except ValueError, err:
             self._parse_error(err)
 
         options = CommandOptionValues(filter_rules=filter_rules,
@@ -447,3 +454,4 @@ class ArgumentParser(object):
                                       output_format=output_format)
 
         return (paths, options)
+

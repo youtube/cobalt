@@ -30,12 +30,18 @@ import StringIO
 import unittest
 
 from webkitpy.common.host_mock import MockHost
+
+from webkitpy.layout_tests.models import test_expectations
+from webkitpy.layout_tests.models import test_failures
+from webkitpy.layout_tests.models import test_run_results
 from webkitpy.layout_tests.models import test_run_results
 from webkitpy.layout_tests.models import test_run_results_unittest
 from webkitpy.layout_tests.views import buildbot_results
 
 
 class BuildBotPrinterTests(unittest.TestCase):
+    def assertEmpty(self, stream):
+        self.assertFalse(stream.getvalue())
 
     def assertNotEmpty(self, stream):
         self.assertTrue(stream.getvalue())
@@ -66,7 +72,6 @@ class BuildBotPrinterTests(unittest.TestCase):
         summary = test_run_results_unittest.summarized_results(port, expected=False, passing=False, flaky=True)
         printer.print_unexpected_results(summary)
         self.assertNotEmpty(out)
-        self.assertNotIn('failures/expected/crash.html', out.getvalue())
 
         printer, out = self.get_printer()
         summary = test_run_results_unittest.summarized_results(port, expected=False, passing=False, flaky=False)
@@ -83,31 +88,22 @@ class BuildBotPrinterTests(unittest.TestCase):
         printer.print_unexpected_results(summary)
         output = out.getvalue()
         self.assertTrue(output)
-        self.assertTrue('Skip' not in output)
+        self.assertTrue(output.find('Skip') == -1)
 
     def test_print_unexpected_results_fail_on_retry_also(self):
         port = MockHost().port_factory.get('test')
         printer, out = self.get_printer()
-        summary = test_run_results_unittest.summarized_results(port, expected=False, passing=False, flaky=False)
+        summary = test_run_results_unittest.summarized_results(port, expected=False, passing=False, flaky=True, fail_on_retry=True)
         printer.print_unexpected_results(summary)
         output = out.getvalue()
-        self.assertIn(
-            'Regressions: Unexpected crashes (1)\n'
-            '  failures/expected/audio.html [ Crash Leak Leak Leak ]',
-            output)
-        self.assertIn(
-            'Regressions: Unexpected text-only failures (1)\n'
-            '  failures/expected/timeout.html [ Failure Failure Crash Leak ]',
-            output)
+        self.assertIn('Regressions: Unexpected crashes (1)\n  failures/expected/timeout.html [ Crash Failure ]', output)
 
     def test_print_results(self):
         port = MockHost().port_factory.get('test')
         printer, out = self.get_printer()
         initial_results = test_run_results_unittest.run_results(port)
         full_summary = test_run_results_unittest.summarized_results(port, expected=False, passing=True, flaky=False)
-        failing_summary = test_run_results_unittest.summarized_results(
-            port, expected=False, passing=True, flaky=False, only_include_failing=True)
-        details = test_run_results.RunDetails(failing_summary['num_regressions'],
-                                              full_summary, failing_summary, initial_results, None)
+        failing_summary = test_run_results_unittest.summarized_results(port, expected=False, passing=True, flaky=False, only_include_failing=True)
+        details = test_run_results.RunDetails(failing_summary['num_regressions'], full_summary, failing_summary, initial_results, None)
         printer.print_results(details)
         self.assertTrue(out.getvalue().find('but passed') != -1)

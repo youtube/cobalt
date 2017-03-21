@@ -51,6 +51,7 @@ class TextFileReader(object):
                                  processed this instance actually because
                                  the files don't have any modified lines
                                  but should be treated as processed.
+
     """
 
     def __init__(self, filesystem, processor):
@@ -58,6 +59,7 @@ class TextFileReader(object):
 
         Arguments:
           processor: A ProcessorBase instance.
+
         """
         # FIXME: Although TextFileReader requires a FileSystem it circumvents it in two places!
         self.filesystem = filesystem
@@ -70,6 +72,7 @@ class TextFileReader(object):
 
         Raises:
           IOError: If the file does not exist or cannot be read.
+
         """
         # Support the UNIX convention of using "-" for stdin.
         if file_path == '-':
@@ -104,23 +107,24 @@ class TextFileReader(object):
 
         Raises:
           SystemExit: If no file at file_path exists.
+
         """
         self.file_count += 1
 
-        if not self.filesystem.exists(file_path) and file_path != '-':
-            _log.error("File does not exist: '%s'", file_path)
+        if not self.filesystem.exists(file_path) and file_path != "-":
+            _log.error("File does not exist: '%s'" % file_path)
             sys.exit(1)  # FIXME: This should throw or return instead of exiting directly.
 
         if not self._processor.should_process(file_path):
-            _log.debug("Skipping file: '%s'", file_path)
+            _log.debug("Skipping file: '%s'" % file_path)
             return
-        _log.debug("Processing file: '%s'", file_path)
+        _log.debug("Processing file: '%s'" % file_path)
 
         try:
             lines = self._read_lines(file_path)
-        except IOError as err:
+        except IOError, err:
             message = ("Could not read file. Skipping: '%s'\n  %s" % (file_path, err))
-            _log.warning(message)
+            _log.warn(message)
             return
 
         self._processor.process(lines, file_path, **kwargs)
@@ -128,7 +132,7 @@ class TextFileReader(object):
     def _process_directory(self, directory):
         """Process all files in the given directory, recursively."""
         # FIXME: We should consider moving to self.filesystem.files_under() (or adding walk() to FileSystem)
-        for dir_path, _, file_names in os.walk(directory):
+        for dir_path, dir_names, file_names in os.walk(directory):
             for file_name in file_names:
                 file_path = self.filesystem.join(dir_path, file_name)
                 self.process_file(file_path)
