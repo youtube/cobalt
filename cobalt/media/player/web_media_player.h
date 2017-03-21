@@ -165,27 +165,6 @@ class WebMediaPlayer {
     return false;
   }
 
-  // Returns whether keySystem is supported. If true, the result will be
-  // reported by an event.
-  virtual MediaKeyException GenerateKeyRequest(
-      const std::string& /* key_system */, const unsigned char* /* init_data */,
-      unsigned /* init_data_length */) {
-    return kMediaKeyExceptionKeySystemNotSupported;
-  }
-  virtual MediaKeyException AddKey(const std::string& /* key_system */,
-                                   const unsigned char* /* key */,
-                                   unsigned /* key_length */,
-                                   const unsigned char* /* init_data */,
-                                   unsigned /* init_data_length */,
-                                   const std::string& /* session_id */) {
-    return kMediaKeyExceptionKeySystemNotSupported;
-  }
-  virtual MediaKeyException CancelKeyRequest(
-      const std::string& /* key_system */,
-      const std::string& /* session_id */) {
-    return kMediaKeyExceptionKeySystemNotSupported;
-  }
-
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
 
   // Instruct WebMediaPlayer to enter/exit fullscreen.
@@ -213,21 +192,6 @@ class WebMediaPlayer {
 //       as |NetworkStateChanged|, |SourceOpened|, |EncryptedMediaInitData|.
 class WebMediaPlayerClient {
  public:
-  enum MediaKeyErrorCode {
-    kMediaKeyErrorCodeUnknown = 1,
-    kMediaKeyErrorCodeClient,
-    kMediaKeyErrorCodeService,
-    kMediaKeyErrorCodeOutput,
-    kMediaKeyErrorCodeHardwareChange,
-    kMediaKeyErrorCodeDomain,
-    kUnknownError = kMediaKeyErrorCodeUnknown,
-    kClientError = kMediaKeyErrorCodeClient,
-    kServiceError = kMediaKeyErrorCodeService,
-    kOutputError = kMediaKeyErrorCodeOutput,
-    kHardwareChangeError = kMediaKeyErrorCodeHardwareChange,
-    kDomainError = kMediaKeyErrorCodeDomain,
-  };
-
   virtual void NetworkStateChanged() = 0;
   virtual void ReadyStateChanged() = 0;
   virtual void TimeChanged() = 0;
@@ -248,34 +212,9 @@ class WebMediaPlayerClient {
   // Notifies the client that a video is encrypted. Client is supposed to call
   // |WebMediaPlayer::SetDrmSystem| as soon as possible to avoid stalling
   // playback.
-  virtual void EncryptedMediaInitData(EmeInitDataType init_data_type,
-                                      const unsigned char* init_data,
-                                      unsigned init_data_length) = 0;
-  // TODO: Make the EME related functions pure virtual again once
-  // we have proper EME implementation. Currently empty implementation are
-  // provided to make media temporarily work.
-  virtual void KeyAdded(const std::string& /* key_system */,
-                        const std::string& /* session_id */) {
-    NOTIMPLEMENTED();
-  }
-  virtual void KeyError(const std::string& /* key_system */,
-                        const std::string& /* session_id */, MediaKeyErrorCode,
-                        unsigned short /* system_code */) {
-    NOTIMPLEMENTED();
-  }
-  virtual void KeyMessage(const std::string& /* key_system */,
-                          const std::string& /* session_id */,
-                          const unsigned char* /* message */,
-                          unsigned /* message_length */,
-                          const std::string& /* default_url */) {
-    NOTIMPLEMENTED();
-  }
-  virtual void KeyNeeded(const std::string& /* key_system */,
-                         const std::string& /* session_id */,
-                         const unsigned char* /* init_data */,
-                         unsigned /* init_data_length */) {
-    NOTIMPLEMENTED();
-  }
+  virtual void EncryptedMediaInitDataEncountered(EmeInitDataType init_data_type,
+                                                 const unsigned char* init_data,
+                                                 unsigned init_data_length) = 0;
   // TODO: Revisit the necessity of the following functions.
   virtual void CloseHelperPlugin() { NOTREACHED(); }
   virtual void DisableAcceleratedCompositing() {}
