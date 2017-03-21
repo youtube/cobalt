@@ -135,8 +135,8 @@ void AppendData(const std::string& id, const std::vector<uint8_t>& data,
   const float kLowWaterMarkInSeconds = 5.f;
   const size_t kMaxBytesToAppend = 1024 * 1024;
 
-  Ranges<TimeDelta> ranges = player->SourceBuffered(id);
   while (*offset < data.size()) {
+    Ranges<TimeDelta> ranges = player->SourceBuffered(id);
     float end_of_buffer =
         ranges.size() == 0 ? 0.f : ranges.end(ranges.size() - 1).InSecondsF();
     float media_time = player->GetCurrentTime();
