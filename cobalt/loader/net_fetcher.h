@@ -60,7 +60,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   }
 
  private:
-  void ProcessCSPReject();
+  void Start();
 
   // Empty struct to ensure the caller of |HandleError()| knows that |this|
   // may have been destroyed and handles it appropriately.
@@ -82,9 +82,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   base::ThreadChecker thread_checker_;
   scoped_ptr<net::URLFetcher> url_fetcher_;
   csp::SecurityCallback security_callback_;
-  // Ensure we can cancel any in-flight ProcessCSPReject() task if we are
-  // destroyed after being constructed, but before ProcessCSPReject() runs.
-  base::CancelableClosure csp_reject_callback_;
+  // Ensure we can cancel any in-flight Start() task if we are destroyed
+  // after being constructed, but before Start() runs.
+  base::CancelableClosure start_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };
