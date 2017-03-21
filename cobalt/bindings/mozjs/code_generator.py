@@ -17,9 +17,17 @@ Defines CodeGeneratorMozjs and ExpressionGeneratorMozjs classes.
 """
 
 import os
+import sys
 
-from cobalt.bindings.code_generator_cobalt import CodeGeneratorCobalt
-from cobalt.bindings.expression_generator import ExpressionGenerator
+# Add the bindings directory to the path.
+module_path, module_filename = os.path.split(os.path.realpath(__file__))
+cobalt_bindings_dir = os.path.normpath(os.path.join(module_path, os.pardir))
+sys.path.append(cobalt_bindings_dir)
+
+from code_generator_cobalt import CodeGeneratorCobalt  # pylint: disable=g-import-not-at-top
+from expression_generator import ExpressionGenerator
+
+TEMPLATES_DIR = os.path.normpath(os.path.join(module_path, 'templates'))
 
 
 class ExpressionGeneratorMozjs(ExpressionGenerator):
@@ -46,10 +54,9 @@ class CodeGeneratorMozjs(CodeGeneratorCobalt):
 
   _expression_generator = ExpressionGeneratorMozjs()
 
-  def __init__(self, *args, **kwargs):
-    module_path, _ = os.path.split(os.path.realpath(__file__))
-    templates_dir = os.path.normpath(os.path.join(module_path, 'templates'))
-    super(CodeGeneratorMozjs, self).__init__(templates_dir, *args, **kwargs)
+  def __init__(self, interfaces_info, cache_dir, output_dir):
+    CodeGeneratorCobalt.__init__(self, interfaces_info, TEMPLATES_DIR,
+                                 cache_dir, output_dir)
 
   @property
   def generated_file_prefix(self):

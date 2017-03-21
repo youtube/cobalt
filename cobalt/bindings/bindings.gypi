@@ -146,6 +146,12 @@
       '<@(engine_bindings_scripts)',
     ],
 
+    # Prevents unnecessary rebuilds by not outputting a file if it has not
+    # changed. This flag exists to support some build tools that have trouble
+    # with dependencies having an older timestamp than their dependents. Ninja
+    # does not have this problem.
+    'write_file_only_if_changed': 1,
+
     # Caches and intermediate structures.
     'bindings_scripts_output_dir': '<(bindings_output_dir)/scripts',
 
@@ -165,10 +171,8 @@
     # (in Blink this is core or modules) and then these are combined. While Cobalt
     # currently does not and may not need to distinguish between components, we adhere to
     # Blink's process for simplicity.
-    'component_info_pickle':
-        '<(bindings_scripts_output_dir)/component_info.pickle',
-    'interfaces_info_individual_pickle':
-        '<(bindings_scripts_output_dir)/interfaces_info_individual.pickle',
+    'interfaces_info_component_pickle':
+        '<(bindings_scripts_output_dir)/interfaces_info_component.pickle',
     'interfaces_info_combined_pickle':
         '<(bindings_scripts_output_dir)/interfaces_info_overall.pickle',
 
@@ -261,10 +265,10 @@
           '<(generated_source_output_dir)',
           '--interfaces-info',
           '<(interfaces_info_combined_pickle)',
-          '--component-info',
-          '<(component_info_pickle)',
           '--extended-attributes',
           '<(extended_attributes_file)',
+          '--write-file-only-if-changed',
+          '<(write_file_only_if_changed)',
           '<(RULE_INPUT_PATH)',
         ],
         'message': 'Generating binding from <(RULE_INPUT_PATH)',
@@ -349,10 +353,10 @@
           '<(generated_source_output_dir)',
           '--interfaces-info',
           '<(interfaces_info_combined_pickle)',
-          '--component-info',
-          '<(component_info_pickle)',
           '--extended-attributes',
           '<(extended_attributes_file)',
+          '--write-file-only-if-changed',
+          '<(write_file_only_if_changed)',
           '<(RULE_INPUT_PATH)',
         ],
         'message': 'Generating dictionary from <(RULE_INPUT_PATH)',
@@ -409,8 +413,10 @@
           '<@(dependency_idl_files)',
           '<@(unsupported_interface_idl_files)'],
         'generated_idl_files': ['<(global_constructors_generated_idl_file)'],
-        'component_info_file':'<(component_info_pickle)',
-        'interfaces_info_file': '<(interfaces_info_individual_pickle)',
+        # This file is currently unused for Cobalt, but we need to specify something.
+        'component_info_file':
+            '<(bindings_scripts_output_dir)/unused/component_info.pickle',
+        'interfaces_info_file': '<(interfaces_info_component_pickle)',
         'output_file': '<(interfaces_info_file)',
         'cache_directory': '<(bindings_scripts_output_dir)',
         'root_directory': '../..',
@@ -425,7 +431,7 @@
           'interfaces_info_individual',
       ],
       'variables': {
-        'input_files': ['<(interfaces_info_individual_pickle)'],
+        'input_files': ['<(interfaces_info_component_pickle)'],
         'output_file': '<(interfaces_info_combined_pickle)',
       },
       'includes': ['../../third_party/blink/Source/bindings/scripts/interfaces_info_overall.gypi'],
