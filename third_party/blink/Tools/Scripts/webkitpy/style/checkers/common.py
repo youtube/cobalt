@@ -29,8 +29,8 @@
 #        after moving the relevant cpp_unittest.ErrorCollector code
 #        into a shared location and refactoring appropriately.
 categories = set([
-    "whitespace/carriage_return",
-    "whitespace/tab"])
+    'whitespace/carriage_return',
+    'whitespace/tab'])
 
 
 class CarriageReturnChecker(object):
@@ -43,16 +43,16 @@ class CarriageReturnChecker(object):
     def check(self, lines):
         """Check for and strip trailing carriage returns from lines."""
         for line_number in range(len(lines)):
-            if not lines[line_number].endswith("\r"):
+            if not lines[line_number].endswith('\r'):
                 continue
 
             self._handle_style_error(line_number + 1,  # Correct for offset.
-                                     "whitespace/carriage_return",
+                                     'whitespace/carriage_return',
                                      1,
-                                     "One or more unexpected \\r (^M) found; "
-                                     "better to use only a \\n")
+                                     'One or more unexpected \\r (^M) found; '
+                                     'better to use only a \\n')
 
-            lines[line_number] = lines[line_number].rstrip("\r")
+            lines[line_number] = lines[line_number].rstrip('\r')
 
         return lines
 
@@ -68,7 +68,7 @@ class TabChecker(object):
     def check(self, lines):
         # FIXME: share with cpp_style.
         for line_number, line in enumerate(lines):
-            if "\t" in line:
+            if '\t' in line:
                 self.handle_style_error(line_number + 1,
-                                        "whitespace/tab", 5,
-                                        "Line contains tab character.")
+                                        'whitespace/tab', 5,
+                                        'Line contains tab character.')

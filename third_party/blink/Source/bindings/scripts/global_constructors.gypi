@@ -64,8 +64,6 @@
       '<(idl_files_list)',
       '--global-objects-file',
       '<(global_objects_file)',
-      '--write-file-only-if-changed',
-      '<(write_file_only_if_changed)',
       '--',
       '<@(global_names_idl_files)',
     ],

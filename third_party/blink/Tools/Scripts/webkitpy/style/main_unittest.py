@@ -20,23 +20,18 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import unittest
-
-from main import change_directory
 from webkitpy.common.system.filesystem_mock import MockFileSystem
-from webkitpy.common.system.logtesting import LogTesting
+from webkitpy.common.system.log_testing import LoggingTestCase
+from webkitpy.style.main import change_directory
 
 
-class ChangeDirectoryTest(unittest.TestCase):
-    _original_directory = "/original"
-    _checkout_root = "/WebKit"
+class ChangeDirectoryTest(LoggingTestCase):
+    _original_directory = '/original'
+    _checkout_root = '/chromium/src'
 
     def setUp(self):
-        self._log = LogTesting.setUp(self)
+        super(ChangeDirectoryTest, self).setUp()
         self.filesystem = MockFileSystem(dirs=[self._original_directory, self._checkout_root], cwd=self._original_directory)
-
-    def tearDown(self):
-        self._log.tearDown()
 
     def _change_directory(self, paths, checkout_root):
         return change_directory(self.filesystem, paths=paths, checkout_root=checkout_root)
@@ -44,7 +39,7 @@ class ChangeDirectoryTest(unittest.TestCase):
     def _assert_result(self, actual_return_value, expected_return_value,
                        expected_log_messages, expected_current_directory):
         self.assertEqual(actual_return_value, expected_return_value)
-        self._log.assertMessages(expected_log_messages)
+        self.assertLog(expected_log_messages)
         self.assertEqual(self.filesystem.getcwd(), expected_current_directory)
 
     def test_paths_none(self):
@@ -52,21 +47,21 @@ class ChangeDirectoryTest(unittest.TestCase):
         self._assert_result(paths, None, [], self._checkout_root)
 
     def test_paths_convertible(self):
-        paths = ["/WebKit/foo1.txt", "/WebKit/foo2.txt"]
+        paths = ['/chromium/src/foo1.txt', '/chromium/src/foo2.txt']
         paths = self._change_directory(checkout_root=self._checkout_root, paths=paths)
-        self._assert_result(paths, ["foo1.txt", "foo2.txt"], [], self._checkout_root)
+        self._assert_result(paths, ['foo1.txt', 'foo2.txt'], [], self._checkout_root)
 
-    def test_with_scm_paths_unconvertible(self):
-        paths = ["/WebKit/foo1.txt", "/outside/foo2.txt"]
+    def test_with_git_paths_unconvertible(self):
+        paths = ['/chromium/src/foo1.txt', '/outside/foo2.txt']
         paths = self._change_directory(checkout_root=self._checkout_root, paths=paths)
         log_messages = [
-"""WARNING: Path-dependent style checks may not work correctly:
+            """WARNING: Path-dependent style checks may not work correctly:
 
-  One of the given paths is outside the WebKit checkout of the current
+  One of the given paths is outside the repository of the current
   working directory:
 
     Path: /outside/foo2.txt
-    Checkout root: /WebKit
+    Checkout root: /chromium/src
 
   Pass only files below the checkout root to ensure correct results.
   See the help documentation for more info.
