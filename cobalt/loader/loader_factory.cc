@@ -23,31 +23,21 @@ namespace loader {
 
 namespace {
 
-void StartThreadWithPriority(base::Thread* thread,
-                             const base::ThreadPriority priority) {
-  DCHECK(thread != NULL);
-  base::Thread::Options thread_options(MessageLoop::TYPE_DEFAULT,
-                                       0 /* default stack size */, priority);
-  thread->StartWithOptions(thread_options);
-}
+// The ResourceLoader thread uses the default stack size, which is requested
+// by passing in 0 for its stack size.
+const size_t kLoadThreadStackSize = 0;
 
 }  // namespace
 
 LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
-    render_tree::ResourceProvider* resource_provider,
-    base::ThreadPriority software_decoder_thread_priority,
-    base::ThreadPriority hardware_decoder_thread_priority,
-    base::ThreadPriority fetcher_thread_priority)
+                             render_tree::ResourceProvider* resource_provider,
+                             base::ThreadPriority loader_thread_priority)
     : fetcher_factory_(fetcher_factory),
       resource_provider_(resource_provider),
-      software_decoder_thread_(new base::Thread("SoftwareDecoderThread")),
-      hardware_decoder_thread_(new base::Thread("HardwareDecoderThread")),
-      fetcher_thread_(new base::Thread("FetcherThread")) {
-  StartThreadWithPriority(software_decoder_thread_.get(),
-                          software_decoder_thread_priority);
-  StartThreadWithPriority(hardware_decoder_thread_.get(),
-                          hardware_decoder_thread_priority);
-  StartThreadWithPriority(fetcher_thread_.get(), fetcher_thread_priority);
+      load_thread_("ResourceLoader") {
+  base::Thread::Options options(MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize,
+                                loader_thread_priority);
+  load_thread_.StartWithOptions(options);
 }
 
 scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
@@ -55,17 +45,12 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
     const image::ImageDecoder::SuccessCallback& success_callback,
     const image::ImageDecoder::ErrorCallback& error_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(fetcher_thread_);
-  DCHECK(software_decoder_thread_);
-  DCHECK(hardware_decoder_thread_);
 
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback,
-                         fetcher_thread_->message_loop()),
+      MakeFetcherCreator(url, url_security_callback),
       scoped_ptr<Decoder>(new image::ThreadedImageDecoderProxy(
           resource_provider_, success_callback, error_callback,
-          software_decoder_thread_->message_loop(),
-          hardware_decoder_thread_->message_loop())),
+          load_thread_.message_loop())),
       error_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
   OnLoaderCreated(loader.get());
@@ -79,10 +64,9 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback, NULL),
-      scoped_ptr<Decoder>(
-          new font::TypefaceDecoder(resource_provider_, success_callback,
-                                    error_callback)),
+      MakeFetcherCreator(url, url_security_callback),
+      scoped_ptr<Decoder>(new font::TypefaceDecoder(
+          resource_provider_, success_callback, error_callback)),
       error_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
   OnLoaderCreated(loader.get());
@@ -97,10 +81,9 @@ scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback, NULL),
-      scoped_ptr<Decoder>(
-          new mesh::MeshDecoder(resource_provider_, success_callback,
-                                error_callback)),
+      MakeFetcherCreator(url, url_security_callback),
+      scoped_ptr<Decoder>(new mesh::MeshDecoder(
+          resource_provider_, success_callback, error_callback)),
       error_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
   OnLoaderCreated(loader.get());
@@ -108,21 +91,17 @@ scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
 }
 
 Loader::FetcherCreator LoaderFactory::MakeFetcherCreator(
-    const GURL& url, const csp::SecurityCallback& url_security_callback,
-    MessageLoop* message_loop) {
+    const GURL& url, const csp::SecurityCallback& url_security_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  return base::Bind(&FetcherFactory::CreateSecureFetcherWithMessageLoop,
+  return base::Bind(&FetcherFactory::CreateSecureFetcher,
                     base::Unretained(fetcher_factory_), url,
-                    url_security_callback, message_loop);
+                    url_security_callback);
 }
 
 void LoaderFactory::Suspend() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(resource_provider_);
-  DCHECK(fetcher_thread_);
-  DCHECK(software_decoder_thread_);
-  DCHECK(hardware_decoder_thread_);
 
   resource_provider_ = NULL;
   for (LoaderSet::const_iterator iter = active_loaders_.begin();
@@ -130,31 +109,12 @@ void LoaderFactory::Suspend() {
     (*iter)->Suspend();
   }
 
-  // Wait for all fetcher thread messages to be flushed before
-  // returning.
+  // Wait for all loader thread messages to be flushed before returning.
   base::WaitableEvent messages_flushed(true, false);
-  if (fetcher_thread_) {
-    fetcher_thread_->message_loop()->PostTask(
-        FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                              base::Unretained(&messages_flushed)));
+  load_thread_.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
+                            base::Unretained(&messages_flushed)));
   messages_flushed.Wait();
-  }
-
-  // Wait for all decoder thread messages to be flushed before returning.
-  if (hardware_decoder_thread_) {
-    messages_flushed.Reset();
-    hardware_decoder_thread_->message_loop()->PostTask(
-        FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                              base::Unretained(&messages_flushed)));
-    messages_flushed.Wait();
-  }
-  if (software_decoder_thread_) {
-    messages_flushed.Reset();
-    software_decoder_thread_->message_loop()->PostTask(
-        FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                              base::Unretained(&messages_flushed)));
-    messages_flushed.Wait();
-  }
 }
 
 void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
