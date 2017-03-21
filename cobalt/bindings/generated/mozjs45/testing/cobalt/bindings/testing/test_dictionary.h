@@ -167,6 +167,15 @@ class TestDictionary {
   int32_t non_default_member_;
 };
 
+// This ostream override is necessary for MOCK_METHODs commonly used
+// in idl test code
+inline std::ostream& operator<<(
+    std::ostream& stream, const cobalt::bindings::testing::TestDictionary& in) {
+  UNREFERENCED_PARAMETER(in);
+  stream << "[TestDictionary]";
+  return stream;
+}
+
 }  // namespace cobalt
 }  // namespace bindings
 }  // namespace testing
