@@ -35,15 +35,3 @@ def _GetSrcRoot():
 
 
 sys.path.insert(0, _GetSrcRoot())
-
-# Add blink's python tools to the path.
-
-sys.path.append(
-    os.path.normpath(
-        os.path.join(_GetSrcRoot(), 'third_party', 'blink', 'Tools',
-                     'Scripts')))
-
-sys.path.append(
-    os.path.normpath(
-        os.path.join(_GetSrcRoot(), 'third_party', 'blink', 'Source',
-                     'bindings', 'scripts')))
