@@ -130,6 +130,7 @@
         '<(DEPTH)/starboard/shared/linux/get_home_directory.cc',
         '<(DEPTH)/starboard/shared/linux/memory_get_stack_bounds.cc',
         '<(DEPTH)/starboard/shared/linux/page_internal.cc',
+        '<(DEPTH)/starboard/shared/linux/socket_get_interface_address.cc',
         '<(DEPTH)/starboard/shared/linux/socket_get_local_interface_address.cc',
         '<(DEPTH)/starboard/shared/linux/system_get_random_data.cc',
         '<(DEPTH)/starboard/shared/linux/system_get_stack.cc',

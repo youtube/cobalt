@@ -108,6 +108,13 @@
 // SbMediaIsVideoSupported().
 #define SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// SbSocketGetInterfaceAddress() is introduced to let applications find out
+// which source IP address and the associated netmask will be used to connect to
+// the destination. This is very important for multi-home devices, and for
+// certain conditions in IPv6.
+#define SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
