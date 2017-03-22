@@ -100,9 +100,9 @@ void DrawRectColorTexture::ExecuteRasterizeNormal(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
-  graphics_state->ActiveTexture(
-      program->GetFragmentShader().u_texture_texunit());
-  GL_CALL(glBindTexture(texture_->GetTarget(), texture_->gl_handle()));
+  graphics_state->ActiveBindTexture(
+      program->GetFragmentShader().u_texture_texunit(),
+      texture_->GetTarget(), texture_->gl_handle());
   GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
 }
 
