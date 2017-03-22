@@ -42,6 +42,7 @@ AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
       frames_in_buffer_(0),
       offset_in_frames_(0),
       frames_consumed_(0),
+      frames_consumed_set_at_(SbTimeGetMonotonicNow()),
       end_of_stream_written_(false),
       end_of_stream_decoded_(false),
       decoder_(decoder.Pass()),
@@ -51,6 +52,20 @@ AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   frame_buffers_[0] = &frame_buffer_[0];
+
+// TODO: The audio sink on Android is currently broken on certain devices,
+// which causes all of playback to hang.  Log it for now, so we can tell
+// when it happens, but this should be removed once the sink is fixed.
+#if defined(NDEBUG)
+  const bool kLogFramesConsumed = false;
+#else
+  const bool kLogFramesConsumed = true;
+#endif
+  if (kLogFramesConsumed) {
+    log_frames_consumed_closure_ =
+        Bind(&AudioRendererImpl::LogFramesConsumed, this);
+    job_queue_->Schedule(log_frames_consumed_closure_, kSbTimeSecond);
+  }
 }
 
 AudioRendererImpl::~AudioRendererImpl() {
@@ -62,6 +77,10 @@ AudioRendererImpl::~AudioRendererImpl() {
 
   if (read_from_decoder_closure_.is_valid()) {
     job_queue_->Remove(read_from_decoder_closure_);
+  }
+
+  if (log_frames_consumed_closure_.is_valid()) {
+    job_queue_->Remove(log_frames_consumed_closure_);
   }
 }
 
@@ -143,6 +162,7 @@ void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   frames_in_buffer_ = 0;
   offset_in_frames_ = 0;
   frames_consumed_ = 0;
+  frames_consumed_set_at_ = SbTimeGetMonotonicNow();
   end_of_stream_written_ = false;
   end_of_stream_decoded_ = false;
   pending_decoded_audio_ = NULL;
@@ -210,6 +230,7 @@ void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
   offset_in_frames_ %= kMaxCachedFrames;
   frames_in_buffer_ -= frames_consumed;
   frames_consumed_ += frames_consumed;
+  frames_consumed_set_at_ = SbTimeGetMonotonicNow();
 
   bool decoded_audio_available =
       pending_decoded_audio_ ||
@@ -219,6 +240,19 @@ void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
         Bind(&AudioRendererImpl::ReadFromDecoder, this);
     job_queue_->Schedule(read_from_decoder_closure_);
   }
+}
+
+void AudioRendererImpl::LogFramesConsumed() {
+  SbTimeMonotonic time_since =
+      SbTimeGetMonotonicNow() - frames_consumed_set_at_;
+  if (time_since > kSbTimeSecond) {
+    SB_DLOG(WARNING) << "|frames_consumed_| has not been updated for "
+                     << (time_since / kSbTimeSecond) << "."
+                     << ((time_since / (kSbTimeSecond / 10)) % 10)
+                     << " seconds, and |pending_decoded_audio_| is "
+                     << (!!pending_decoded_audio_ ? "" : "not ") << "ready.";
+  }
+  job_queue_->Schedule(log_frames_consumed_closure_, kSbTimeSecond);
 }
 
 // Try to read some audio data from the decoder.  Note that this operation is
