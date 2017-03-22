@@ -43,9 +43,30 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
       rect_(rect),
       texture_(texture),
       vertex_buffer_(NULL) {
-  base_state_.opacity *= color.a();
-  color_ = GetGLRGBA(color.r(), color.g(), color.b(), base_state_.opacity);
+  color_ = GetGLRGBA(color * base_state_.opacity);
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
+}
+
+DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
+    const BaseState& base_state,
+    const math::RectF& rect, const render_tree::ColorRGBA& color,
+    const GenerateTextureFunction& generate_texture)
+    : DrawObject(base_state),
+      texcoord_transform_(math::Matrix3F::Identity()),
+      rect_(rect),
+      texture_(NULL),
+      generate_texture_(generate_texture),
+      vertex_buffer_(NULL) {
+  color_ = GetGLRGBA(color * base_state_.opacity);
+  graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
+}
+
+void DrawRectColorTexture::ExecutePreVertexBuffer(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  if (!generate_texture_.is_null()) {
+    generate_texture_.Run(&texture_, &texcoord_transform_);
+  }
 }
 
 void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
