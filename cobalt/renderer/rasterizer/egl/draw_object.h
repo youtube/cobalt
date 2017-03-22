@@ -18,6 +18,7 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
+#include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
@@ -79,6 +80,9 @@ class DrawObject {
   // Return a uint32_t suitable to be transferred as 4 unsigned bytes
   // representing color to a GL shader.
   static uint32_t GetGLRGBA(float r, float g, float b, float a);
+  static uint32_t GetGLRGBA(const render_tree::ColorRGBA& color) {
+    return GetGLRGBA(color.r(), color.g(), color.b(), color.a());
+  }
 
   BaseState base_state_;
 };

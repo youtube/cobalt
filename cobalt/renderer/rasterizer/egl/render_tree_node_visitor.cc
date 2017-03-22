@@ -134,6 +134,18 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     }
   }
 
+  // Handle opacity-only filter.
+  if (data.opacity_filter &&
+      !data.viewport_filter &&
+      !data.blur_filter &&
+      !data.map_to_mesh_filter) {
+    float old_opacity = draw_state_.opacity;
+    draw_state_.opacity *= data.opacity_filter->opacity();
+    data.source->Accept(this);
+    draw_state_.opacity = old_opacity;
+    return;
+  }
+
   NOTIMPLEMENTED();
 }
 
@@ -186,8 +198,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     } else {
       scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
           draw_state_, data.destination_rect,
-          // Treat alpha as premultiplied in the texture.
-          render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, draw_state_.opacity),
+          render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
           hardware_image->GetTextureEGL(), texcoord_transform));
       AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectColorTexture,
                          image_node->GetBounds());
@@ -232,12 +243,18 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   } else {
     // Handle drawing the content.
     if (brush) {
-      render_tree::SolidColorBrush* solid_brush =
-          base::polymorphic_downcast<render_tree::SolidColorBrush*>
+      const render_tree::SolidColorBrush* solid_brush =
+          base::polymorphic_downcast<const render_tree::SolidColorBrush*>
               (brush.get());
+      const render_tree::ColorRGBA& brush_color(solid_brush->color());
+      render_tree::ColorRGBA content_color(
+          brush_color.r() * brush_color.a(),
+          brush_color.g() * brush_color.a(),
+          brush_color.b() * brush_color.a(),
+          brush_color.a());
       scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-          draw_state_, content_rect, solid_brush->color()));
-      if (draw_state_.opacity * solid_brush->color().a() == 1.0f) {
+          draw_state_, content_rect, content_color));
+      if (draw_state_.opacity * content_color.a() == 1.0f) {
         AddOpaqueDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor);
       } else {
         AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor,
@@ -281,11 +298,20 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node) {
   math::RectF draw_rect(-kBorderWidth + trans_x, -kBorderWidth + trans_y,
       viewport.width(), viewport.height());
 
-  scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
-      draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
-          scoped_refptr<render_tree::Node>(node), viewport)));
-  AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture,
-                     draw_rect);
+  if (draw_state_.opacity == 1.0f) {
+    scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
+        draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
+            scoped_refptr<render_tree::Node>(node), viewport)));
+    AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture,
+                       draw_rect);
+  } else {
+    scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
+        draw_state_, draw_rect, render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+        base::Bind(*fallback_rasterize_,
+            scoped_refptr<render_tree::Node>(node), viewport)));
+    AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectColorTexture,
+                       draw_rect);
+  }
 }
 
 bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
