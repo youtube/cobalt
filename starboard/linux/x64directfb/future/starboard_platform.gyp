@@ -18,6 +18,12 @@
       'product_name': 'starboard_platform_future',
       'type': 'static_library',
       'sources': [
+        '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
+        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_only.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/media_is_video_supported_h264_1080p_hfr_only.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/decode_target_create_blitter.cc',
