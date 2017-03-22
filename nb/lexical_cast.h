@@ -114,7 +114,15 @@ uint32_t lexical_cast<uint32_t>(const char* s, bool* cast_ok) {
 // uint64_t types will have a max value of int64_t. But this is acceptable.
 template <>
 uint64_t lexical_cast<uint64_t>(const char* s, bool* cast_ok) {
-  return NarrowingLexicalCast<uint64_t>(s, cast_ok);
+  int64_t val_i64 = lexical_cast<int64_t>(s, cast_ok);
+  // Handle failure condition for negative values.
+  if (val_i64 < 0) {
+    val_i64 = 0;
+    if (cast_ok) {
+      *cast_ok = false;
+    }
+  }
+  return static_cast<uint64_t>(val_i64);
 }
 
 }  // namespace nb
