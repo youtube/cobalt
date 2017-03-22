@@ -193,6 +193,12 @@
         '../speech/speech_recognition_result.idl',
         '../speech/speech_recognition_result_list.idl',
 
+        '../speech/speech_synthesis.idl',
+        '../speech/speech_synthesis_error_event.idl',
+        '../speech/speech_synthesis_event.idl',
+        '../speech/speech_synthesis_utterance.idl',
+        '../speech/speech_synthesis_voice.idl',
+
         '../web_animations/animatable.idl',
         '../web_animations/animation.idl',
         '../web_animations/animation_effect_read_only.idl',
@@ -242,6 +248,7 @@
         '../dom/non_element_parent_node.idl',
         '../dom/parent_node.idl',
         '../dom/performance__high_resolution_time.idl',
+        '../dom/speech_synthesis_getter.idl',
         '../dom/url_utils.idl',
         '../dom/window__animation_timing.idl',
         '../dom/window_cssom.idl',
