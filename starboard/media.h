@@ -495,6 +495,8 @@ SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system);
 
+#if SB_API_VERSION < SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+
 // Indicates whether a given combination of
 // (|frame_width| x |frame_height|) frames at |bitrate| and |fps| is supported
 // on this platform with |video_codec|. If |video_codec| is not supported under
@@ -523,6 +525,8 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaVideoCodec audio_codec,
                                        int64_t bitrate);
 
+#endif  // SB_API_VERSION < SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+
 // Returns information about whether the playback of the specific media
 // described by |mime| and encrypted using |key_system| can be played.
 //
@@ -531,12 +535,13 @@ SB_EXPORT bool SbMediaIsAudioSupported(SbMediaVideoCodec audio_codec,
 //
 // |mime|: The mime information of the media in the form of |video/webm|
 //   or |video/mp4; codecs="avc1.42001E"|. It may include arbitrary parameters
-//   like "codecs", "channels", etc.
+//   like "codecs", "channels", etc.  Note that the "codecs" parameter may
+//   contain more than one codec, delimited by comma.
 // |key_system|: A lowercase value in fhe form of "com.example.somesystem"
-// as suggested by https://w3c.github.io/encrypted-media/#key-system
-// that can be matched exactly with known DRM key systems of the platform.
-// When |key_system| is an empty string, the return value is an indication for
-// non-encrypted media.
+//   as suggested by https://w3c.github.io/encrypted-media/#key-system
+//   that can be matched exactly with known DRM key systems of the platform.
+//   When |key_system| is an empty string, the return value is an indication for
+//   non-encrypted media.
 SB_EXPORT SbMediaSupportType
 SbMediaCanPlayMimeAndKeySystem(const char* mime, const char* key_system);
 
