@@ -18,9 +18,6 @@
 #ifndef STARBOARD_LINUX_X64DIRECTFB_FUTURE_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64DIRECTFB_FUTURE_CONFIGURATION_PUBLIC_H_
 
-// Include the X64DIRECTFB Linux configuration.
-#include "starboard/linux/x64directfb/configuration_public.h"
-
 // The API version implemented by this platform.
 #undef SB_API_VERSION
 #define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
@@ -28,5 +25,8 @@
 #undef SB_IS_PLAYER_PRODUCING_TEXTURE
 #undef SB_IS_PLAYER_COMPOSITED
 #undef SB_IS_PLAYER_PUNCHED_OUT
+
+// Include the X64DIRECTFB Linux configuration.
+#include "starboard/linux/x64directfb/configuration_public.h"
 
 #endif  // STARBOARD_LINUX_X64DIRECTFB_FUTURE_CONFIGURATION_PUBLIC_H_
