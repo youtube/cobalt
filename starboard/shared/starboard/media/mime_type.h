@@ -59,7 +59,7 @@ class MimeType {
   const std::string& type() const { return type_; }
   const std::string& subtype() const { return subtype_; }
 
-  std::vector<std::string> GetCodecs() const;
+  const std::vector<std::string>& GetCodecs() const;
 
   int GetParamCount() const;
   ParamType GetParamType(int index) const;
@@ -92,6 +92,7 @@ class MimeType {
   std::string type_;
   std::string subtype_;
   Params params_;
+  mutable std::vector<std::string> codecs_;
 };
 
 }  // namespace media
