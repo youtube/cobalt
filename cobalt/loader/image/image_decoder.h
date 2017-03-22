@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/atomicops.h"
 #include "base/callback.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/image/image.h"
@@ -49,6 +50,11 @@ class ImageDecoder : public Decoder {
   void Finish() OVERRIDE;
   bool Suspend() OVERRIDE;
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
+
+  // Called when this ImageDecoder's deletion has been posted to a message loop.
+  // This prevents any additional decoding from occuring prior to the decoder
+  // being deleted.
+  void SetDeletionPending();
 
   // Call this function to use the StubImageDecoder which produces a small image
   // without decoding.
@@ -84,6 +90,9 @@ class ImageDecoder : public Decoder {
   State state_;
   std::string error_message_;
   std::string mime_type_;
+  // Whether or not there is a pending task deleting this decoder on a message
+  // loop.
+  base::subtle::Atomic32 is_deletion_pending_;
 };
 
 }  // namespace image
