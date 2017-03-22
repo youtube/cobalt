@@ -24,6 +24,7 @@
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/websocket/buffered_amount_tracker.h"
 #include "cobalt/websocket/web_socket_event_interface.h"
 #include "cobalt/websocket/web_socket_frame_container.h"
 #include "cobalt/websocket/web_socket_handshake_helper.h"
@@ -87,7 +88,8 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   void DoConnect(
       scoped_refptr<cobalt::network::URLRequestContextGetter> context,
       const GURL& url, base::WaitableEvent* job_created_event);
-  void SendFrame(const scoped_array<char> data, const int length);
+  void SendFrame(const scoped_array<char> data, const int length,
+                 const int overhead_bytes);
   void OnHandshakeComplete(const std::string& selected_subprotocol);
 
   void ProcessCompleteMessage(
@@ -131,6 +133,8 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   net::WebSocketFrameParser frame_parser_;
   WebSocketFrameContainer current_frame_container_;
   WebSocketMessageContainer current_message_container_;
+
+  BufferedAmountTracker buffered_amount_tracker_;
 
   scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;
   scoped_refptr<base::SingleThreadTaskRunner> owner_task_runner_;
