@@ -31,17 +31,25 @@
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 1,
+    'cobalt_enable_jit': 0,
+
+    # Reduce garbage collection threshold from the default of 8MB in order to
+    # save on memory.  This will mean that garbage collection occurs more
+    # frequently.
+    'mozjs_garbage_collection_threshold_in_bytes%': 4 * 1024 * 1024,
 
     'platform_libraries': [
       '-lasound',
       '-lavcodec',
       '-lavformat',
-      '-lavresample',
       '-lavutil',
       '-ldlog',
     ],
     'linker_flags': [
+    ],
+    'linker_flags_gold': [
+      '-O3',
+      '-flto',
     ],
     'compiler_flags_debug': [
       '-O0',
@@ -49,13 +57,17 @@
     'compiler_flags_devel': [
       '-O2',
     ],
-    'compiler_flags_qa': [
+    'compiler_flags_cc_qa': [
       '-fno-rtti',
-      '-O2',
+    ],
+    'compiler_flags_qa': [
+      '-O3',
+    ],
+    'compiler_flags_cc_gold': [
+      '-fno-rtti',
     ],
     'compiler_flags_gold': [
-      '-fno-rtti',
-      '-O2',
+      '-O3',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
@@ -66,30 +78,9 @@
           '-g',
         ],
         'compiler_flags_qa': [
-          '-g',
-          #'-gline-tables-only',
         ],
         'compiler_flags_gold': [
-          '-g',
-          #'-gline-tables-only',
-        ],
-      }],
-      ['use_asan==0', {
-        'linker_flags': [
-          # We don't wrap these symbols, but this ensures that they aren't
-          # linked in. We do have to allow them to linked in when using ASAN, as
-          # it needs to use its own version of these allocators in the Starboard
-          # implementation.
-          '-Wl,--wrap=malloc',
-          '-Wl,--wrap=calloc',
-          '-Wl,--wrap=realloc',
-          '-Wl,--wrap=memalign',
-          '-Wl,--wrap=reallocalign',
-          '-Wl,--wrap=free',
-          '-Wl,--wrap=strdup',
-          '-Wl,--wrap=malloc_usable_size',
-          '-Wl,--wrap=malloc_stats_fast',
-          '-Wl,--wrap=__cxa_demangle',
+          '-flto',
         ],
       }],
     ],
@@ -97,6 +88,8 @@
 
   'target_defaults': {
     'defines': [
+      # Cobalt on Tizen flag
+      'COBALT_TIZEN',
       'PNG_SKIP_SETJMP_CHECK',
       '__STDC_FORMAT_MACROS', # so that we get PRI*
       # Enable GNU extensions to get prototypes like ffsl.
@@ -106,6 +99,18 @@
       '-pthread',
       # Do not warn about locally defined but not used.
       '-Wno-unused-local-typedefs',
+      # Do not warn about XXX is deprecated.
+      '-Wno-deprecated-declarations',
+      # Do not warn about missing initializer for member XXX.
+      '-Wno-missing-field-initializers',
+      # Do not warn about unused functions.
+      '-Wno-unused-function',
+      # Do not warn about type qualifiers ignored on function return type.
+      '-Wno-ignored-qualifiers',
+      # Do not warn about the use of multi-line comments.
+      '-Wno-comment',
+      # Do not warn about sign compares.
+      '-Wno-sign-compare',
     ],
     'cflags_c': [
       '-std=c11',
@@ -131,25 +136,5 @@
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
-    'target_conditions': [
-      ['cobalt_code==1', {
-        'cflags': [
-          '-Wall',
-          '-Wextra',
-          '-Wunreachable-code',
-          # Do not warn about deprecated function.
-          '-Wno-deprecated-declarations',
-          # Do not warn about narrowing conversion.
-          '-Wno-narrowing',
-        ],
-      },{
-        'cflags': [
-          # Do not warn about unused function params.
-          '-Wno-unused-parameter',
-          # Do not warn for implicit type conversions that may change a value.
-          '-Wno-conversion',
-        ],
-      }],
-    ],
   }, # end of target_defaults
 }

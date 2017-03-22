@@ -15,35 +15,28 @@ Requires(postun): /sbin/ldconfig
 #####################
 BuildRequires: cmake, bison, python, gperf
 BuildRequires: libasound-devel
+BuildRequires: pkgconfig(aul)
+BuildRequires: pkgconfig(capi-appfw-application)
+BuildRequires: pkgconfig(capi-media-audio-io)
+BuildRequires: pkgconfig(capi-system-info)
 BuildRequires: pkgconfig(dlog)
 BuildRequires: pkgconfig(edbus)
 BuildRequires: pkgconfig(elementary)
 BuildRequires: pkgconfig(evas)
+BuildRequires: pkgconfig(gles20)
 BuildRequires: pkgconfig(icu-i18n)
 BuildRequires: pkgconfig(libxml-2.0)
 BuildRequires: pkgconfig(openssl)
+BuildRequires: pkgconfig(tizen-extension-client)
 BuildRequires: pkgconfig(wayland-client)
 BuildRequires: pkgconfig(wayland-egl)
-BuildRequires: pkgconfig(aul)
-BuildRequires: pkgconfig(capi-appfw-application)
-BuildRequires: pkgconfig(tizen-extension-client)
-
-%if "%{?use_public_repo}" == "1"
-BuildRequires: pkgconfig(egl)
-BuildRequires: pkgconfig(glesv2)
-%else
-BuildRequires: pkgconfig(capi-media-audio-io)
-BuildRequires: pkgconfig(capi-system-info)
-BuildRequires: pkgconfig(gles20)
 %if "%{?target}" == "samsungtv"
 BuildRequires: pkgconfig(capi-media-player)
 BuildRequires: pkgconfig(drmdecrypt)
 %else
 BuildRequires: pkgconfig(libavcodec)
 BuildRequires: pkgconfig(libavformat)
-BuildRequires: pkgconfig(libavresample)
 BuildRequires: pkgconfig(libavutil)
-%endif
 %endif
 
 %description
