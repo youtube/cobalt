@@ -18,33 +18,19 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
+#include "base/time.h"
 #include "starboard/user.h"
 
 namespace cobalt {
 namespace account {
 
 struct AccessToken {
-  // The size of the buffer pointed to by |token_buffer|.
-  const uint32_t token_buffer_size;
+  // The token value.
+  std::string token_value;
 
-  // Buffer holding the token value.
-  // TODO: Change to std::string and remove token_buffer_size
-  scoped_array<char> token_buffer;
-
-  // If true, |expiry| will be set. If false, the token never expires.
-  bool has_expiry;
-
-  // The absolute time that this token expires. It is valid to use the value
-  // of |expiry| only if |has_expiry| is true.
-  // TODO: Change to base::optional<base::Time> and remove has_expiry
-  SbTime expiry;
-
-  explicit AccessToken(uint32_t token_buffer_size)
-      : token_buffer_size(token_buffer_size),
-        token_buffer(new char[token_buffer_size]) {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AccessToken);
+  // The absolute time that this token expires, if any.
+  base::optional<base::Time> expiry;
 };
 
 // Platform-specific mechanism to authorize a user to access protected resources

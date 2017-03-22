@@ -91,26 +91,28 @@ void H5vccAccountManager::RequestOperationInternal(
       break;
   }
 
+  std::string token_value;
   uint64_t expiration_in_seconds = 0;
   if (access_token) {
-    SbTime expires_in = access_token->expiry - SbTimeGetNow();
-    // If this token's expiry is in the past, then we didn't get a valid token.
-    if (expires_in < 0) {
-      DLOG(WARNING) << "User authorization expires in the past.";
-      access_token.reset(NULL);
-    } else {
-      expiration_in_seconds = expires_in / kSbTimeSecond;
+    token_value = access_token->token_value;
+    if (access_token->expiry) {
+      base::TimeDelta expires_in =
+          access_token->expiry.value() - base::Time::Now();
+      // If this token's expiry is in the past, then it's not a valid token.
+      base::TimeDelta zero;
+      if (expires_in < zero) {
+        DLOG(WARNING) << "User authorization expires in the past.";
+        token_value.clear();
+      } else {
+        expiration_in_seconds = expires_in.InSeconds();
+      }
     }
   }
-  // If we did not get a valid token to return to the caller, set the token
-  // buffer to an empty string.
-  const char* token_buffer =
-      access_token ? access_token->token_buffer.get() : "";
 
   owning_message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&H5vccAccountManager::SendResult, this,
-                 base::Passed(&token_callback), std::string(token_buffer),
+                 base::Passed(&token_callback), token_value,
                  expiration_in_seconds));
 }
 
