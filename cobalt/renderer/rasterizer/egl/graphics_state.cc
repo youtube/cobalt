@@ -89,19 +89,25 @@ void GraphicsState::UseProgram(GLuint program) {
 }
 
 void GraphicsState::Viewport(int x, int y, int width, int height) {
-  viewport_ = math::Rect(x, y, width, height);
   // Incoming origin is top-left, but GL origin is bottom-left, so flip
   // vertically.
-  GL_CALL(glViewport(x, render_target_size_.height() - y - height,
-                     width, height));
+  if (state_dirty_ || viewport_.x() != x || viewport_.y() != y ||
+      viewport_.width() != width || viewport_.height() != height) {
+    viewport_.SetRect(x, y, width, height);
+    GL_CALL(glViewport(x, render_target_size_.height() - y - height,
+                       width, height));
+  }
 }
 
 void GraphicsState::Scissor(int x, int y, int width, int height) {
   // Incoming origin is top-left, but GL origin is bottom-left, so flip
   // vertically.
-  scissor_ = math::Rect(x, y, width, height);
-  GL_CALL(glScissor(x, render_target_size_.height() - y - height,
-                    width, height));
+  if (state_dirty_ || scissor_.x() != x || scissor_.y() != y ||
+      scissor_.width() != width || scissor_.height() != height) {
+    scissor_.SetRect(x, y, width, height);
+    GL_CALL(glScissor(x, render_target_size_.height() - y - height,
+                      width, height));
+  }
 }
 
 void GraphicsState::EnableBlend() {
@@ -146,10 +152,24 @@ void GraphicsState::DisableDepthWrite() {
   }
 }
 
-void GraphicsState::ActiveTexture(GLenum texture_unit) {
-  if (texture_unit_ != texture_unit) {
-    texture_unit_ = texture_unit;
-    GL_CALL(glActiveTexture(texture_unit));
+void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
+                                      GLuint texture) {
+  int texunit_index = texture_unit - GL_TEXTURE0;
+
+  // Update only if it doesn't match the current state.
+  if (texunit_index >= kNumTextureUnitsCached ||
+      texunit_target_[texunit_index] != target ||
+      texunit_texture_[texunit_index] != texture) {
+    if (texture_unit_ != texture_unit) {
+      texture_unit_ = texture_unit;
+      GL_CALL(glActiveTexture(texture_unit));
+    }
+    GL_CALL(glBindTexture(target, texture));
+
+    if (texunit_index < kNumTextureUnitsCached) {
+      texunit_target_[texunit_index] = target;
+      texunit_texture_[texunit_index] = texture;
+    }
   }
 }
 
@@ -291,6 +311,8 @@ void GraphicsState::Reset() {
 
   array_buffer_handle_ = 0;
   texture_unit_ = 0;
+  memset(&texunit_target_, 0, sizeof(texunit_target_));
+  memset(&texunit_texture_, 0, sizeof(texunit_texture_));
   enabled_vertex_attrib_array_mask_ = 0;
   disable_vertex_attrib_array_mask_ = 0;
   clip_adjustment_dirty_ = true;
