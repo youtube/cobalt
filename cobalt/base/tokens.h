@@ -32,6 +32,7 @@ namespace base {
     MacroOpWithNameOnly(assertive)                            \
     MacroOpWithNameOnly(attributes)                           \
     MacroOpWithNameOnly(blur)                                 \
+    MacroOpWithNameOnly(boundary)                             \
     MacroOpWithNameOnly(canplay)                              \
     MacroOpWithNameOnly(canplaythrough)                       \
     MacroOpWithNameOnly(change)                               \
@@ -40,6 +41,7 @@ namespace base {
     MacroOpWithNameOnly(close)                                \
     MacroOpWithNameOnly(durationchange)                       \
     MacroOpWithNameOnly(emptied)                              \
+    MacroOpWithNameOnly(end)                                  \
     MacroOpWithNameOnly(ended)                                \
     MacroOpWithNameOnly(error)                                \
     MacroOpWithNameOnly(focus)                                \
@@ -55,6 +57,7 @@ namespace base {
     MacroOpWithNameOnly(loadedmetadata)                       \
     MacroOpWithNameOnly(loadend)                              \
     MacroOpWithNameOnly(loadstart)                            \
+    MacroOpWithNameOnly(mark)                                 \
     MacroOpWithNameOnly(message)                              \
     MacroOpWithNameOnly(needkey)                              \
     MacroOpWithNameOnly(nomatch)                              \
@@ -71,6 +74,7 @@ namespace base {
     MacroOpWithNameOnly(removesourcebuffer)                   \
     MacroOpWithNameOnly(removetrack)                          \
     MacroOpWithNameOnly(result)                               \
+    MacroOpWithNameOnly(resume)                               \
     MacroOpWithNameOnly(securitypolicyviolation)              \
     MacroOpWithNameOnly(seeked)                               \
     MacroOpWithNameOnly(seeking)                              \
@@ -79,6 +83,7 @@ namespace base {
     MacroOpWithNameOnly(sourceclose)                          \
     MacroOpWithNameOnly(sourceended)                          \
     MacroOpWithNameOnly(sourceopen)                           \
+    MacroOpWithNameOnly(start)                                \
     MacroOpWithNameOnly(storage)                              \
     MacroOpWithNameOnly(stalled)                              \
     MacroOpWithNameOnly(suspend)                              \
@@ -90,6 +95,7 @@ namespace base {
     MacroOpWithNameOnly(update)                               \
     MacroOpWithNameOnly(updateend)                            \
     MacroOpWithNameOnly(updatestart)                          \
+    MacroOpWithNameOnly(voiceschanged)                        \
     MacroOpWithNameOnly(volumechange)                         \
     MacroOpWithNameOnly(waiting)
 
@@ -110,7 +116,7 @@ namespace base {
     MacroOpWithNameAndValue(document_name, "#document")                 \
     MacroOpWithNameAndValue(domcontentloaded, "DOMContentLoaded")       \
     MacroOpWithNameAndValue(empty_pseudo_class_selector, "empty")       \
-    MacroOpWithNameAndValue(false_token, "false")                         \
+    MacroOpWithNameAndValue(false_token, "false")                       \
     MacroOpWithNameAndValue(focus_pseudo_class_selector, "focus")       \
     MacroOpWithNameAndValue(hover_pseudo_class_selector, "hover")       \
     MacroOpWithNameAndValue(id_selector_prefix, "#")                    \
