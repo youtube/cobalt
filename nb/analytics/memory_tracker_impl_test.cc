@@ -25,6 +25,35 @@
 #define STRESS_TEST_DURATION_SECONDS 1
 #define NUM_STRESS_TEST_THREADS 3
 
+// The following is necessary to prevent operator new from being optimized
+// out using some compilers. This is required because we rely on operator new
+// to report memory usage. Overly aggressive optimizing compilers will
+// eliminate the call to operator new, even though it causes a lost of side
+// effects. This will therefore break the memory reporting mechanism. This is
+// a bug in the compiler.
+//
+// The solution here is to use macro-replacement to substitute calls to global
+// new to instead be delegated to our custom new, which prevents elimination
+// by using a temporay volatile.
+namespace {
+struct CustomObject {
+  static CustomObject Make() {
+    CustomObject o;
+    return o;
+  }
+};
+}
+
+void* operator new(std::size_t size, CustomObject ignored) {
+  SB_UNREFERENCED_PARAMETER(ignored);
+  // Volitile prevent optimization and elmination of operator new.
+  volatile void* ptr = SbMemoryAllocate(size);
+  return const_cast<void*>(ptr);
+}
+
+#define NEW_NO_OPTIMIZER_ELIMINATION new (CustomObject::Make())
+#define new NEW_NO_OPTIMIZER_ELIMINATION
+
 namespace nb {
 namespace analytics {
 namespace {
