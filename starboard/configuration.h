@@ -96,6 +96,11 @@
 // Deleted the vestigal struct SbUserApplicationTokenResults from user.h.
 #define SB_DELETE_USER_APPLICATION_TOKEN_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Use a unified implementation of SbMediaCanPlayMimeAndKeySystem() based on
+// SbMediaIsSupported(), SbMediaIsAudioSupported(), and
+// SbMediaIsVideoSupported().
+#define SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
@@ -512,6 +517,20 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if !defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
 #error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
 #endif
+
+#if SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+
+#if !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
+#error \
+    "Your platform must define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND."
+#endif  // !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
+
+#if !defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
+#error \
+    "Your platform must define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND."
+#endif  // !defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
+
+#endif  // SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 

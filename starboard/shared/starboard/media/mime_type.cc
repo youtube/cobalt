@@ -136,12 +136,16 @@ MimeType::MimeType(const std::string& content_type) : is_valid_(false) {
   is_valid_ = true;
 }
 
-std::vector<std::string> MimeType::GetCodecs() const {
+const std::vector<std::string>& MimeType::GetCodecs() const {
+  if (!codecs_.empty()) {
+    return codecs_;
+  }
   int codecs_index = GetParamIndexByName("codecs");
   if (codecs_index != 0) {
-    return std::vector<std::string>();
+    return codecs_;
   }
-  return SplitAndTrim(params_[0].value, ',');
+  codecs_ = SplitAndTrim(params_[0].value, ',');
+  return codecs_;
 }
 
 int MimeType::GetParamCount() const {
