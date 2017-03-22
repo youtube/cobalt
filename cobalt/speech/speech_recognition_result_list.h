@@ -18,6 +18,7 @@
 #include <limits>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_recognition_result.h"
 

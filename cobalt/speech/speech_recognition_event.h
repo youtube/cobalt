@@ -15,6 +15,7 @@
 #ifndef COBALT_SPEECH_SPEECH_RECOGNITION_EVENT_H_
 #define COBALT_SPEECH_SPEECH_RECOGNITION_EVENT_H_
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
