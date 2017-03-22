@@ -58,6 +58,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/script/script.gyp:script',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/net/net.gyp:http_server',
       ],
       'conditions': [

@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {

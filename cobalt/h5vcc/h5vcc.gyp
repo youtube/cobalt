@@ -60,6 +60,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
       ],
       'include_dirs': [
         # For cobalt_build_id.h

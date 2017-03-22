@@ -91,6 +91,7 @@
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:animations',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],
     },
