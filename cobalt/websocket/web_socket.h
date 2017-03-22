@@ -135,7 +135,8 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
     this->DispatchEvent(new dom::Event(base::Tokens::close()));
   }
   void OnSentData(int amount_sent) OVERRIDE {
-    UNREFERENCED_PARAMETER(amount_sent);
+    DCHECK_GE(buffered_amount_, amount_sent);
+    buffered_amount_ -= amount_sent;
   }
   void OnReceivedData(bool is_text_frame,
                       scoped_refptr<net::IOBufferWithSize> data) OVERRIDE;

@@ -225,8 +225,6 @@ void WebSocketImpl::OnReceivedData(net::SocketStream *socket, const char *data,
     return;
   }
 
-  DLOG(INFO) << "ReceivedData " << len << " bytes.";
-
   std::size_t payload_offset = 0;
   if (!ProcessHandshake(&payload_offset)) {
     return;  // Handshake is still in progress.
@@ -244,7 +242,6 @@ void WebSocketImpl::OnReceivedData(net::SocketStream *socket, const char *data,
     DLOG(INFO) << "Error while decoding websocket: " << websocket_error;
     return;
   }
-  DLOG(INFO) << "Received " << frame_chunks.size() << " chunks.";
 
   bool protocol_violation_occured = false;
 
@@ -272,14 +269,6 @@ void WebSocketImpl::OnReceivedData(net::SocketStream *socket, const char *data,
         }
       }
     }
-
-    //    if (header) {
-    //      DLOG(INFO) << "Got a chunk " << header->opcode << " "
-    //                 << chunk->final_chunk;
-    //    } else {
-    //      DLOG(INFO) << "Got a chunk ? "
-    //                 << " " << chunk->final_chunk;
-    //    }
 
     // Note that |MoveInto| transfers ownership of the pointer.
     WebSocketFrameContainer::ErrorCode move_into_retval =
@@ -498,14 +487,18 @@ void WebSocketImpl::OnSentData(net::SocketStream *socket, int amount_sent) {
   UNREFERENCED_PARAMETER(amount_sent);
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
-  DLOG(INFO) << "Websocket Sent " << amount_sent << " bytes.";
+  std::size_t payload_sent = buffered_amount_tracker_.Pop(amount_sent);
+  DCHECK_GE(payload_sent, 0ul);
+  DCHECK_LE(payload_sent, static_cast<unsigned int>(kint32max));
+
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnSentData,
-                            base::Unretained(delegate_), amount_sent));
+      FROM_HERE,
+      base::Bind(&WebsocketEventInterface::OnSentData,
+                 base::Unretained(delegate_), static_cast<int>(payload_sent)));
 }
 
 void WebSocketImpl::OnClose(net::SocketStream *socket) {
-  DLOG(INFO) << "Got a close yaar";
+  DLOG(INFO) << "Got a close.";
   UNREFERENCED_PARAMETER(socket);
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   owner_task_runner_->PostTask(
@@ -535,6 +528,8 @@ void WebSocketImpl::OnConnected(net::SocketStream *socket,
   std::string header_string;
   handshake_helper_.GenerateHandshakeRequest(
       connect_url_, origin_, desired_sub_protocols_, &header_string);
+
+  buffered_amount_tracker_.Add(false, header_string.size());
 
   job_->SendData(header_string.data(), static_cast<int>(header_string.size()));
 }
@@ -582,14 +577,20 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader &header,
                                    static_cast<int>(payload_length));
   }
 
+  int overhead_bytes = static_cast<int>(frame_size);
+  if ((header.opcode == net::WebSocketFrameHeader::kOpCodeText) ||
+      (header.opcode == net::WebSocketFrameHeader::kOpCodeBinary)) {
+    // Only consider text and binary frames as "payload".
+    overhead_bytes = application_payload_offset;
+  }
   if (delegate_task_runner_->BelongsToCurrentThread()) {
     // this behavior is not just an optimization, but required in case
     // we are closing the connection
-    SendFrame(data_ptr.Pass(), static_cast<int>(frame_size));
+    SendFrame(data_ptr.Pass(), static_cast<int>(frame_size), overhead_bytes);
   } else {
-    base::Closure do_send_closure(base::Bind(&WebSocketImpl::SendFrame, this,
-                                             base::Passed(data_ptr.Pass()),
-                                             static_cast<int>(frame_size)));
+    base::Closure do_send_closure(base::Bind(
+        &WebSocketImpl::SendFrame, this, base::Passed(data_ptr.Pass()),
+        static_cast<int>(frame_size), overhead_bytes));
     delegate_task_runner_->PostTask(FROM_HERE, do_send_closure);
   }
 
@@ -672,6 +673,8 @@ bool WebSocketImpl::SendText(const char *data, std::size_t length,
   header.masked = true;
   header.payload_length = length;
 
+  *buffered_amount += length;
+
   return SendHelper(header, data, error_message);
 }
 
@@ -691,6 +694,8 @@ bool WebSocketImpl::SendBinary(const char *data, std::size_t length,
   header.opcode = net::WebSocketFrameHeader::kOpCodeBinary;
   header.masked = true;
   header.payload_length = length;
+
+  *buffered_amount += length;
 
   return SendHelper(header, data, error_message);
 }
@@ -763,10 +768,20 @@ bool WebSocketImpl::SendPong(base::StringPiece payload,
   return SendHelper(header, payload.data(), error_message);
 }
 
-void WebSocketImpl::SendFrame(const scoped_array<char> data, const int length) {
+void WebSocketImpl::SendFrame(const scoped_array<char> data, const int length,
+                              const int overhead_bytes) {
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+
   DCHECK(data);
   DCHECK_GE(length, 0);
+  DCHECK_GE(length, overhead_bytes);
+
+  buffered_amount_tracker_.Add(false, overhead_bytes);
+  int user_payload_bytes = length - overhead_bytes;
+  if (user_payload_bytes > 0) {
+    buffered_amount_tracker_.Add(true, user_payload_bytes);
+  }
+
   job_->SendData(data.get(), length);
 }
 
