@@ -83,7 +83,8 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
-      state_(kWaitingForHeader) {
+      state_(kWaitingForHeader),
+      is_deletion_pending_(false) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::ImageDecoder()");
   signature_cache_.position = 0;
 
@@ -129,6 +130,14 @@ LoadResponseType ImageDecoder::OnResponseStarted(
 void ImageDecoder::DecodeChunk(const char* data, size_t size) {
   TRACE_EVENT1("cobalt::loader::image_decoder", "ImageDecoder::DecodeChunk",
                "size", size);
+  // If there's a deletion pending, then just clear out the decoder and return.
+  // There's no point in doing any additional processing that'll get thrown
+  // away without ever being used.
+  if (base::subtle::Acquire_Load(&is_deletion_pending_)) {
+    decoder_.reset();
+    return;
+  }
+
   if (size == 0) {
     DLOG(WARNING) << "Decoder received 0 bytes.";
     return;
@@ -139,6 +148,14 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
 
 void ImageDecoder::Finish() {
   TRACE_EVENT0("cobalt::loader::image_decoder", "ImageDecoder::Finish");
+  // If there's a deletion pending, then just clear out the decoder and return.
+  // There's no point in doing any additional processing that'll get thrown
+  // away without ever being used.
+  if (base::subtle::Acquire_Load(&is_deletion_pending_)) {
+    decoder_.reset();
+    return;
+  }
+
   switch (state_) {
     case kDecoding:
       DCHECK(decoder_);
@@ -196,7 +213,7 @@ void ImageDecoder::Finish() {
 bool ImageDecoder::Suspend() {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::Suspend()");
   if (state_ == kDecoding) {
-    DCHECK(decoder_);
+    DCHECK(decoder_ || base::subtle::Acquire_Load(&is_deletion_pending_));
     decoder_.reset();
   }
   state_ = kSuspended;
@@ -218,6 +235,10 @@ void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
   if (!resource_provider_) {
     state_ = kNoResourceProvider;
   }
+}
+
+void ImageDecoder::SetDeletionPending() {
+  base::subtle::Acquire_Store(&is_deletion_pending_, true);
 }
 
 void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
