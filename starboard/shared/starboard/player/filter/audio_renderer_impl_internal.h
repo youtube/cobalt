@@ -79,6 +79,7 @@ class AudioRendererImpl : public AudioRenderer {
                           bool* is_playing,
                           bool* is_eos_reached);
   void ConsumeFrames(int frames_consumed);
+  void LogFramesConsumed();
 
   void ReadFromDecoder();
   bool AppendDecodedAudio_Locked(
@@ -109,8 +110,10 @@ class AudioRendererImpl : public AudioRenderer {
   int offset_in_frames_;
 
   int frames_consumed_;
+  SbTimeMonotonic frames_consumed_set_at_;
   bool end_of_stream_written_;
   bool end_of_stream_decoded_;
+  Closure log_frames_consumed_closure_;
 
   scoped_ptr<AudioDecoder> decoder_;
   SbAudioSink audio_sink_;
