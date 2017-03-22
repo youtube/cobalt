@@ -38,6 +38,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
       ],
     },
@@ -52,6 +53,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom_testing',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
