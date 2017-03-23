@@ -252,12 +252,6 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   if the audio codec is |kSbMediaAudioCodecAac|. Otherwise, |audio_header|
 //   can be NULL. See media.h for the format of the |SbMediaAudioHeader| struct.
 //
-// |video_header|: The caller must provide a populated |video_header|.  See
-//   media.h for the format of the |SbMediaVideoHeader| struct.  Note that this
-//   can be NULL to indicate that the caller has no information on the maximum
-//   resolution.  In this case the implementation should assume that the video
-//   can reach the maximum resolution the implementation supports.
-//
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into
 //   SbPlayerWriteSample().
@@ -287,8 +281,6 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   use the provider to create SbDecodeTargets. A provider could also
 //   potentially be required by the player, in which case, if the provider is
 //   not given, the player will fail by returning kSbPlayerInvalid.
-#if SB_API_VERSION <= 3
-
 SB_EXPORT SbPlayer SbPlayerCreate(
     SbWindow window,
     SbMediaVideoCodec video_codec,
@@ -300,34 +292,15 @@ SB_EXPORT SbPlayer SbPlayerCreate(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     void* context
-#if SB_API_VERSION == 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    ,
+    SbPlayerOutputMode output_mode
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 3
     ,
     SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION == 3
+#endif  // SB_API_VERSION >= 3
     );  // NOLINT
-
-#else  // SB_API_VERSION <= 3
-
-SB_EXPORT SbPlayer
-SbPlayerCreate(SbWindow window,
-               SbMediaVideoCodec video_codec,
-               SbMediaAudioCodec audio_codec,
-               SbMediaTime duration_pts,
-               SbDrmSystem drm_system,
-               const SbMediaAudioHeader* audio_header,
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-               const SbMediaVideoHeader* video_header,
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-               SbPlayerDeallocateSampleFunc sample_deallocate_func,
-               SbPlayerDecoderStatusFunc decoder_status_func,
-               SbPlayerStatusFunc player_status_func,
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-               SbPlayerOutputMode output_mode,
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-               SbDecodeTargetProvider* provider,
-               void* context);
-
-#endif  // SB_API_VERSION <= 3
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // Returns true if the given player output mode is supported by the platform.

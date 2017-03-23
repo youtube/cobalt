@@ -33,15 +33,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaTime duration_pts,
                         SbDrmSystem drm_system,
                         const SbMediaAudioHeader* audio_header,
-                        const SbMediaVideoHeader* video_header,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
+                        void* context,
                         SbPlayerOutputMode output_mode,
-                        SbDecodeTargetProvider* provider,
-                        void* context) {
+                        SbDecodeTargetProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
-  SB_UNREFERENCED_PARAMETER(video_header);
   SB_UNREFERENCED_PARAMETER(provider);
 
   if (audio_codec != kSbMediaAudioCodecAac) {
