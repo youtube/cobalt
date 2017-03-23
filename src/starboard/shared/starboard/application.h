@@ -241,6 +241,14 @@ class Application {
   // must be run after the application stop event is handled.
   virtual void Teardown() {}
 
+  // Does any platform-specific tearing-down AFTER the application has
+  // processed the Suspend event, but before actual suspension.
+  virtual void OnSuspend() {}
+
+  // Does any platform-specific initialization BEFORE the application has
+  // processed the Resume event.
+  virtual void OnResume() {}
+
 #if SB_HAS(PLAYER) &&                                             \
     (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
      SB_IS(PLAYER_PUNCHED_OUT))
