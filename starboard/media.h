@@ -474,20 +474,6 @@ typedef struct SbMediaAudioHeader {
   int8_t audio_specific_config[8];
 } SbMediaAudioHeader;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-// Used to pass extra video information to SbPlayerCreate().
-typedef struct SbMediaVideoHeader {
-  // The maximum frame width of this video.  This takes alignment into account
-  // and can be greater than or equal to the maximum visible width of the video.
-  int max_encoded_frame_width;
-
-  // The maximum frame height of this video.  This takes alignment into account
-  // and can be greater than or equal to the maximum visible height of the
-  // video.
-  int max_encoded_frame_height;
-} SbMediaVideoHeader;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
 // --- Constants -------------------------------------------------------------
 // One second in SbMediaTime (90KHz ticks).
 #define kSbMediaTimeSecond ((SbMediaTime)(90000))
