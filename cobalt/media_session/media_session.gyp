@@ -21,12 +21,28 @@
       'target_name': 'media_session',
       'type': 'static_library',
       'sources': [
-        'media_session.h'
-        'media_metadata.h'
+        'default_media_session_client.h',
+        'media_session.h',
+        'media_session.cc',
+        'media_metadata.h',
+        'media_session_client.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries'
       ],
+      # This target doesn't generate any headers, but it exposes generated
+      # header files (for idl dictionaries) through this module's public header
+      # files. So mark this target as a hard dependency to ensure that any
+      # dependent targets wait until this target (and its hard dependencies) are
+      # built.
+      'hard_dependency': 1,
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
+      ]
     },
   ],
 }
