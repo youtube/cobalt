@@ -348,14 +348,14 @@ void TCPClientSocketStarboard::DoDisconnect() {
 }
 
 bool TCPClientSocketStarboard::IsConnected() const {
-  if (socket_ < 0 || waiting_connect())
+  if (!SbSocketIsValid(socket_) || waiting_connect())
     return false;
 
   return SbSocketIsConnected(socket_);
 }
 
 bool TCPClientSocketStarboard::IsConnectedAndIdle() const {
-  if (socket_ < 0 || waiting_connect())
+  if (!SbSocketIsValid(socket_) || waiting_connect())
     return false;
 
   return SbSocketIsConnectedAndIdle(socket_);
