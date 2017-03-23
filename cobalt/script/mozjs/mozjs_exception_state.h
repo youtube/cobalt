@@ -35,6 +35,9 @@ class MozjsExceptionState : public ExceptionState {
 
   bool is_exception_set() const { return is_exception_set_; }
 
+  static JSObject* CreateErrorObject(JSContext* context,
+                                     SimpleExceptionType type);
+
  private:
   bool is_exception_set_;
   JSContext* context_;
