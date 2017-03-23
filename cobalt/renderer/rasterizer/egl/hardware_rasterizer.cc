@@ -270,11 +270,11 @@ void HardwareRasterizer::Impl::RasterizeTree(
 
   // Rasterize to offscreen targets using skia.
   {
-    TRACE_EVENT0("cobalt::renderer", "PreVertexBuffer");
+    TRACE_EVENT0("cobalt::renderer", "OffscreenRasterize");
 
     // Reset the skia graphics context since the egl rasterizer dirtied it.
     GetFallbackContext()->resetContext();
-    draw_object_manager.ExecutePreVertexBuffer(graphics_state_.get(),
+    draw_object_manager.ExecuteOffscreenRasterize(graphics_state_.get(),
         shader_program_manager_.get());
 
     {
@@ -293,15 +293,15 @@ void HardwareRasterizer::Impl::RasterizeTree(
   graphics_state_->Clear();
 
   {
-    TRACE_EVENT0("cobalt::renderer", "UpdateVertexBuffer");
-    draw_object_manager.ExecuteUpdateVertexBuffer(graphics_state_.get(),
+    TRACE_EVENT0("cobalt::renderer", "OnscreenUpdateVertexBuffer");
+    draw_object_manager.ExecuteOnscreenUpdateVertexBuffer(graphics_state_.get(),
         shader_program_manager_.get());
     graphics_state_->UpdateVertexData();
   }
 
   {
-    TRACE_EVENT0("cobalt::renderer", "RasterizeNormal");
-    draw_object_manager.ExecuteRasterizeNormal(graphics_state_.get(),
+    TRACE_EVENT0("cobalt::renderer", "OnscreenRasterize");
+    draw_object_manager.ExecuteOnscreenRasterize(graphics_state_.get(),
         shader_program_manager_.get());
   }
 
