@@ -61,7 +61,7 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
-void DrawRectColorTexture::ExecutePreVertexBuffer(
+void DrawRectColorTexture::ExecuteOffscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   if (!generate_texture_.is_null()) {
@@ -69,7 +69,7 @@ void DrawRectColorTexture::ExecutePreVertexBuffer(
   }
 }
 
-void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
+void DrawRectColorTexture::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   VertexAttributes attributes[4] = {
@@ -94,7 +94,7 @@ void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
-void DrawRectColorTexture::ExecuteRasterizeNormal(
+void DrawRectColorTexture::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexColorTexcoord,

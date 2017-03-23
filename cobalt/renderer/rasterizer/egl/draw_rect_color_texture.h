@@ -47,11 +47,11 @@ class DrawRectColorTexture : public DrawObject {
                        const render_tree::ColorRGBA& color,
                        const GenerateTextureFunction& generate_texture);
 
-  void ExecutePreVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
 
  private:
