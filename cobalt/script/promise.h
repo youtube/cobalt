@@ -18,6 +18,7 @@
 #define COBALT_SCRIPT_PROMISE_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/exception_message.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/script_value.h"
 
@@ -35,8 +36,9 @@ class Promise {
 
   // Call the |reject| function passed as an argument to the Promise's executor
   // function.
-  // TODO: Pass an exception value.
   virtual void Reject() const = 0;
+  virtual void Reject(SimpleExceptionType exception) const = 0;
+  virtual void Reject(const scoped_refptr<ScriptException>& result) const = 0;
   virtual ~Promise() {}
 };
 
@@ -51,8 +53,9 @@ class Promise<void> {
 
   // Call the |reject| function passed as an argument to the Promise's executor
   // function.
-  // TODO: Pass an exception value.
   virtual void Reject() const = 0;
+  virtual void Reject(SimpleExceptionType exception) const = 0;
+  virtual void Reject(const scoped_refptr<ScriptException>& result) const = 0;
   virtual ~Promise() {}
 };
 

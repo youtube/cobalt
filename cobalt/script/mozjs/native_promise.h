@@ -18,6 +18,7 @@
 #define COBALT_SCRIPT_MOZJS_NATIVE_PROMISE_H_
 
 #include "cobalt/script/mozjs/conversion_helpers.h"
+#include "cobalt/script/mozjs/mozjs_exception_state.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs/promise_wrapper.h"
 #include "cobalt/script/mozjs/type_traits.h"
@@ -50,6 +51,31 @@ class NativePromiseBase : public Promise<T> {
       JSAutoRequest auto_request(context_);
       JSAutoCompartment auto_compartment(context_, promise_resolver);
       promise_resolver_->Reject(JS::UndefinedHandleValue);
+    }
+  }
+
+  void Reject(SimpleExceptionType exception) const OVERRIDE {
+    JS::RootedObject promise_resolver(context_,
+                                      promise_resolver_->get().GetObject());
+    if (promise_resolver) {
+      JSAutoRequest auto_request(context_);
+      JSAutoCompartment auto_compartment(context_, promise_resolver);
+      JS::RootedValue error_result(
+          context_, OBJECT_TO_JSVAL(MozjsExceptionState::CreateErrorObject(
+                        context_, exception)));
+      promise_resolver_->Reject(error_result);
+    }
+  }
+
+  void Reject(const scoped_refptr<ScriptException>& result) const OVERRIDE {
+    JS::RootedObject promise_resolver(context_,
+                                      promise_resolver_->get().GetObject());
+    if (promise_resolver) {
+      JSAutoRequest auto_request(context_);
+      JSAutoCompartment auto_compartment(context_, promise_resolver);
+      JS::RootedValue converted_result(context_);
+      ToJSValue(context_, result, &converted_result);
+      promise_resolver_->Reject(converted_result);
     }
   }
 
