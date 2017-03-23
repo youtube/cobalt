@@ -331,37 +331,19 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
-#if SB_API_VERSION <= 3
-
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
       &audio_header, &StarboardPlayer::DeallocateSampleCB,
       &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
-#if SB_API_VERSION == 3
-      ,
-      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
-#endif  // SB_API_VERSION == 3
-      );
-
-#else  //  SB_API_VERSION <= 3
-
-  player_ = SbPlayerCreate(
-      window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
-      &audio_header,
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-      NULL,
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-      &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
-      &StarboardPlayer::PlayerStatusCB,
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-      output_mode_,
+      ,
+      output_mode_
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #if SB_API_VERSION >= 3
-      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider(),  // provider
+      ,
+      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
 #endif  // SB_API_VERSION >= 3
-      this);
-
-#endif  //  SB_API_VERSION <= 3
+      );
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
