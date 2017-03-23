@@ -93,9 +93,6 @@
 // ints.
 #define SB_INPUT_FLOATING_POINT_INPUT_VECTOR_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// SbPlayerCreate() will accept SbMediaVideoHeader as a parameter.
-#define SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION SB_EXPERIMENTAL_API_VERSION
-
 // Deleted the vestigal struct SbUserApplicationTokenResults from user.h.
 #define SB_DELETE_USER_APPLICATION_TOKEN_VERSION SB_EXPERIMENTAL_API_VERSION
 
