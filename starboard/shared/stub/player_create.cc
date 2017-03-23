@@ -18,7 +18,6 @@
 #error "SbPlayerCreate requires SB_HAS(PLAYER)."
 #endif
 
-#if SB_API_VERSION <= 3
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,
@@ -29,30 +28,14 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbPlayerDecoderStatusFunc /*decoder_status_func*/,
                         SbPlayerStatusFunc /*player_status_func*/,
                         void* /*context*/
-#if SB_API_VERSION == 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+                        ,
+                        SbPlayerOutputMode output_mode
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_VERSION(3)
                         ,
                         SbDecodeTargetProvider* /*provider*/
-#endif  // SB_API_VERSION == 3
-
-#else  // SB_API_VERSION <= 3
-SbPlayer SbPlayerCreate(SbWindow /*window*/,
-                        SbMediaVideoCodec /*video_codec*/,
-                        SbMediaAudioCodec /*audio_codec*/,
-                        SbMediaTime /*duration_pts*/,
-                        SbDrmSystem /*drm_system*/,
-                        const SbMediaAudioHeader* /*audio_header*/,
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-                        const SbMediaVideoHeader* /*video_header*/,
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-                        SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
-                        SbPlayerDecoderStatusFunc /*decoder_status_func*/,
-                        SbPlayerStatusFunc /*player_status_func*/,
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-                        SbPlayerOutputMode /*output_mode*/,
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-                        SbDecodeTargetProvider* /*provider*/,
-                        void* /*context*/
-#endif  // SB_API_VERSION <= 3
+#endif
                         ) {
   return kSbPlayerInvalid;
 }

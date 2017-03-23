@@ -52,12 +52,6 @@ TEST(SbPlayerTest, SunnyDay) {
                                           audio_header.number_of_channels *
                                           audio_header.bits_per_sample / 8;
 
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-  SbMediaVideoHeader video_header;
-  video_header.max_encoded_frame_width = 1280;
-  video_header.max_encoded_frame_height = 720;
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
@@ -79,30 +73,19 @@ TEST(SbPlayerTest, SunnyDay) {
     decode_target_provider.context = NULL;
 #endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION <= 3
     SbPlayer player =
         SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
                        SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
                        &audio_header, NULL, NULL, NULL, NULL
-#if SB_API_VERSION == 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+                       ,
+                       output_mode
+#endif
+#if SB_API_VERSION >= 3
                        ,
                        &decode_target_provider
 #endif
                        );  // NOLINT
-#else                      // SB_API_VERSION <= 3
-  SbPlayer player =
-      SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
-                     SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, &audio_header,
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-                     &video_header,
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-                     NULL, NULL, NULL,
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-                     output_mode,
-#endif
-                     &decode_target_provider, NULL);
-#endif  // SB_API_VERSION <= 3
-
     EXPECT_TRUE(SbPlayerIsValid(player));
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

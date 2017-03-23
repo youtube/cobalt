@@ -25,7 +25,6 @@ using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
 
-#if SB_API_VERSION <= 3
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
@@ -36,34 +35,16 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
                         void* context
-#if SB_API_VERSION == 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+                        ,
+                        SbPlayerOutputMode output_mode
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 3
                         ,
                         SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION == 3
+#endif  // SB_API_VERSION >= 3
                         ) {
-#else  // SB_API_VERSION <= 3
-SbPlayer SbPlayerCreate(SbWindow window,
-                        SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        SbMediaTime duration_pts,
-                        SbDrmSystem drm_system,
-                        const SbMediaAudioHeader* audio_header,
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-                        const SbMediaVideoHeader* video_header,
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-                        SbPlayerDeallocateSampleFunc sample_deallocate_func,
-                        SbPlayerDecoderStatusFunc decoder_status_func,
-                        SbPlayerStatusFunc player_status_func,
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-                        SbPlayerOutputMode output_mode,
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-                        SbDecodeTargetProvider* provider,
-                        void* context) {
-#endif  // SB_API_VERSION <= 3
   SB_UNREFERENCED_PARAMETER(window);
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-  SB_UNREFERENCED_PARAMETER(video_header);
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
 
   if (audio_codec != kSbMediaAudioCodecAac) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
