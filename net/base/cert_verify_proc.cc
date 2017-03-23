@@ -7,6 +7,7 @@
 #include "base/metrics/histogram.h"
 #include "base/sha1.h"
 #include "build/build_config.h"
+#include "nb/memory_scope.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
@@ -27,7 +28,6 @@
 #else
 #error Implement certificate verification.
 #endif
-
 
 namespace net {
 
@@ -75,6 +75,7 @@ int CertVerifyProc::Verify(X509Certificate* cert,
                            int flags,
                            CRLSet* crl_set,
                            CertVerifyResult* verify_result) {
+  TRACK_MEMORY_SCOPE("Network");
   verify_result->Reset();
   verify_result->verified_cert = cert;
 
