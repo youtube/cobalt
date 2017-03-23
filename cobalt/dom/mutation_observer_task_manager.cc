@@ -67,12 +67,19 @@ void MutationObserverTaskManager::NotifyMutationObservers() {
   //    microtask subtask to run these steps: [HTML]
   //
   // Subtask steps are implemented in MutationObserver::Notify.
-  for (MutationObserverSet::iterator it = observers_.begin();
-       it != observers_.end(); ++it) {
-    MutationObserver* observer = *it;
-    if (!observer->Notify()) {
-      DLOG(ERROR) << "Exception when notifying mutation observer.";
+
+  // Calling Notify could eventually add/remove observers from the set, so make
+  // a copy of it.
+  MutationObserverSet observers_copy = observers_;
+  while (!observers_copy.empty()) {
+    MutationObserver* observer = *observers_copy.begin();
+    // Check that this observer was not removed as a side effect of Notify().
+    if (observers_.find(observer) != observers_.end()) {
+      if (!observer->Notify()) {
+        DLOG(ERROR) << "Exception when notifying mutation observer.";
+      }
     }
+    observers_copy.erase(observers_copy.begin());
   }
 }
 
