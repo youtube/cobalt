@@ -23,6 +23,10 @@
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/filters/shell_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
+#include "starboard/types.h"
+
+namespace cobalt {
+namespace media {
 
 namespace {
 
@@ -56,8 +60,7 @@ const char* kMediaEme = "Media.EME.";
 // greater than or equal to duration() - kEndOfStreamEpsilonInSeconds".
 const double kEndOfStreamEpsilonInSeconds = 2.;
 
-bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
-                          double position) {
+bool IsNearTheEndOfStream(const WebMediaPlayerImpl* wmpi, double position) {
   float duration = wmpi->GetDuration();
   if (base::IsFinite(duration)) {
     // If video is very short, we always treat a position as near the end.
@@ -85,8 +88,6 @@ base::TimeDelta ConvertSecondsToTimestamp(float seconds) {
 
 }  // namespace
 
-namespace media {
-
 #define BIND_TO_RENDER_LOOP(function) \
   BindToCurrentLoop(base::Bind(function, AsWeakPtr()))
 
@@ -101,6 +102,7 @@ typedef base::Callback<void(const std::string&, const std::string&,
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     PipelineWindow window, WebMediaPlayerClient* client,
     WebMediaPlayerDelegate* delegate,
+    DecoderBuffer::Allocator* buffer_allocator,
     const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
     const scoped_refptr<MediaLog>& media_log)
     : pipeline_thread_("media_pipeline"),
@@ -109,6 +111,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       main_loop_(MessageLoop::current()),
       client_(client),
       delegate_(delegate),
+      buffer_allocator_(buffer_allocator),
       video_frame_provider_(video_frame_provider),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
       media_log_(media_log),
@@ -116,6 +119,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false) {
+  DCHECK(buffer_allocator_);
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
 
@@ -134,6 +138,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
 
+  if (video_frame_provider_) {
+    video_frame_provider_->SetOutputMode(
+        ShellVideoFrameProvider::kOutputModeInvalid);
+  }
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
   }
@@ -198,6 +206,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
   // Media source pipelines can start immediately.
   chunk_demuxer_.reset(new ChunkDemuxer(
+      buffer_allocator_,
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnEncryptedMediaInitData),
       media_log_, true));
@@ -226,7 +235,7 @@ void WebMediaPlayerImpl::LoadProgressive(
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   progressive_demuxer_.reset(
-      new ShellDemuxer(pipeline_thread_.message_loop_proxy(),
+      new ShellDemuxer(pipeline_thread_.message_loop_proxy(), buffer_allocator_,
                        proxy_->data_source(), media_log_));
 
   state_.is_progressive = true;
@@ -606,6 +615,10 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 
   switch (buffering_state) {
     case Pipeline::kHaveMetadata:
+      video_frame_provider_->SetOutputMode(
+          (pipeline_->IsPunchOutMode()
+               ? ShellVideoFrameProvider::kOutputModePunchOut
+               : ShellVideoFrameProvider::kOutputModeDecodeToTexture));
       SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
       break;
     case Pipeline::kPrerollCompleted:
@@ -645,7 +658,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
+      client_->PreferDecodeToTexture());
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
@@ -738,3 +752,4 @@ void WebMediaPlayerImpl::OnDurationChanged() {
 }
 
 }  // namespace media
+}  // namespace cobalt

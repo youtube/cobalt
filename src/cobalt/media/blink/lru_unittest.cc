@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include <list>
 
 #include "base/logging.h"
 #include "cobalt/media/base/test_random.h"
 #include "cobalt/media/blink/lru.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Range of integer used in tests below.
 // We keep the integers small to get lots of re-use of integers.
 const int kTestIntRange = 16;
 
+namespace cobalt {
 namespace media {
 
 class LRUTest;
@@ -232,3 +232,4 @@ TEST_F(LRUTest, RandomTest) {
 }
 
 }  // namespace media
+}  // namespace cobalt

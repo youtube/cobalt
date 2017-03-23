@@ -7,6 +7,7 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 
+namespace cobalt {
 namespace media {
 
 WebMVideoClient::WebMVideoClient(const scoped_refptr<MediaLog>& media_log)
@@ -27,6 +28,7 @@ void WebMVideoClient::Reset() {
   display_height_ = -1;
   display_unit_ = -1;
   alpha_mode_ = -1;
+  inside_projection_list_ = false;
   colour_parsed_ = false;
 }
 
@@ -98,15 +100,32 @@ WebMParserClient* WebMVideoClient::OnListStart(int id) {
     return &colour_parser_;
   }
 
+  if (id == kWebMIdProjection && !inside_projection_list_) {
+    inside_projection_list_ = true;
+    return this;
+  }
+
   return this;
 }
 
 bool WebMVideoClient::OnListEnd(int id) {
   if (id == kWebMIdColour) colour_parsed_ = true;
+
+  if (id == kWebMIdProjection && inside_projection_list_) {
+    inside_projection_list_ = false;
+    return true;
+  }
+
   return true;
 }
 
 bool WebMVideoClient::OnUInt(int id, int64_t val) {
+  if (inside_projection_list_) {
+    // Accept and ignore all integer fields under kWebMIdProjection list. This
+    // currently includes the kWebMIdProjectionType field.
+    return true;
+  }
+
   int64_t* dst = NULL;
 
   switch (id) {
@@ -156,13 +175,27 @@ bool WebMVideoClient::OnUInt(int id, int64_t val) {
 }
 
 bool WebMVideoClient::OnBinary(int id, const uint8_t* data, int size) {
+  if (inside_projection_list_) {
+    // Accept and ignore all binary fields under kWebMIdProjection list. This
+    // currently includes the kWebMIdProjectionPrivate field.
+    return true;
+  }
+
   // Accept binary fields we don't care about for now.
   return true;
 }
 
 bool WebMVideoClient::OnFloat(int id, double val) {
+  if (inside_projection_list_) {
+    // Accept and ignore float fields under kWebMIdProjection list. This
+    // currently includes the kWebMIdProjectionPosePitch,
+    // kWebMIdProjectionPoseYaw, kWebMIdProjectionPoseRoll fields.
+    return true;
+  }
+
   // Accept float fields we don't care about for now.
   return true;
 }
 
 }  // namespace media
+}  // namespace cobalt

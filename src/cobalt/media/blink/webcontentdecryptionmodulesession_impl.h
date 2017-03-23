@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULESESSION_IMPL_H_
 #define COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULESESSION_IMPL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -18,9 +15,11 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/media/base/media_keys.h"
 #include "cobalt/media/blink/new_session_cdm_result_promise.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleSession.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 class CdmSessionAdapter;
@@ -88,5 +87,6 @@ class WebContentDecryptionModuleSessionImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULESESSION_IMPL_H_

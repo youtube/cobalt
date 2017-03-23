@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_CDM_SESSION_ADAPTER_H_
 #define COBALT_MEDIA_BLINK_CDM_SESSION_ADAPTER_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <string>
 #include <vector>
@@ -16,11 +14,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/media/base/media_keys.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleSession.h"
 
 class GURL;
 
+namespace cobalt {
 namespace media {
 
 struct CdmConfig;
@@ -149,5 +149,6 @@ class CdmSessionAdapter : public base::RefCounted<CdmSessionAdapter> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_CDM_SESSION_ADAPTER_H_

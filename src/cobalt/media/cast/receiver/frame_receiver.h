@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_RECEIVER_FRAME_RECEIVER_H_
 #define COBALT_MEDIA_CAST_RECEIVER_FRAME_RECEIVER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 
@@ -26,7 +23,9 @@
 #include "media/cast/net/rtp/receiver_stats.h"
 #include "media/cast/net/rtp/rtp_defines.h"
 #include "media/cast/net/rtp/rtp_parser.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -205,5 +204,6 @@ class FrameReceiver : public RtpPayloadFeedback,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_RECEIVER_FRAME_RECEIVER_H_

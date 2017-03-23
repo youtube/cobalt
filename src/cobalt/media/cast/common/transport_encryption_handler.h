@@ -7,8 +7,6 @@
 
 // Helper class to handle encryption for the Cast Transport library.
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -16,12 +14,14 @@
 #include "base/strings/string_piece.h"
 #include "base/threading/non_thread_safe.h"
 #include "media/cast/common/frame_id.h"
+#include "starboard/types.h"
 
 namespace crypto {
 class Encryptor;
 class SymmetricKey;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -51,5 +51,6 @@ class TransportEncryptionHandler : public base::NonThreadSafe {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_COMMON_TRANSPORT_ENCRYPTION_HANDLER_H_

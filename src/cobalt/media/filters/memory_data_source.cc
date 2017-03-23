@@ -7,7 +7,9 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 MemoryDataSource::MemoryDataSource(const uint8_t* data, size_t size)
@@ -31,7 +33,7 @@ void MemoryDataSource::Read(int64_t position, int size, uint8_t* data,
 
   if (clamped_size > 0) {
     DCHECK(data);
-    memcpy(data, data_ + position, clamped_size);
+    SbMemoryCopy(data, data_ + position, clamped_size);
   }
 
   read_cb.Run(clamped_size);
@@ -51,3 +53,4 @@ bool MemoryDataSource::IsStreaming() { return false; }
 void MemoryDataSource::SetBitrate(int bitrate) {}
 
 }  // namespace media
+}  // namespace cobalt

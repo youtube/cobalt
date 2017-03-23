@@ -20,11 +20,11 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/math/rect_f.h"
-#include "cobalt/math/size.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/node_visitor.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
@@ -33,8 +33,8 @@
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
+#include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
-#include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
 namespace cobalt {
 namespace renderer {
@@ -47,17 +47,18 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   typedef base::Callback<backend::TextureEGL*(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::Size& viewport_size)>
+      const math::RectF& viewport)>
       FallbackRasterizeFunction;
 
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
-                        ShaderProgramManager* shader_program_manager,
+                        DrawObjectManager* draw_object_manager,
                         const FallbackRasterizeFunction* fallback_rasterize);
 
   void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
     NOTREACHED();
   }
   void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
+  void Visit(render_tree::MatrixTransform3DNode* transform_3d_node) OVERRIDE;
   void Visit(render_tree::MatrixTransformNode* transform_node) OVERRIDE;
   void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
   void Visit(render_tree::ImageNode* image_node) OVERRIDE;
@@ -66,25 +67,20 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::RectShadowNode* shadow_node) OVERRIDE;
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
-  void ExecuteDraw(DrawObject::ExecutionStage stage);
-
  private:
-  enum DrawType {
-    kDrawRectTexture = 0,
-    kDrawPolyColor,
-    kDrawTransparent,
-    kDrawCount,
-  };
-
+  void FallbackRasterize(render_tree::Node* node);
   bool IsVisible(const math::RectF& bounds);
-  void AddDrawObject(scoped_ptr<DrawObject> object, DrawType type);
+  void AddOpaqueDraw(scoped_ptr<DrawObject> object,
+                     DrawObjectManager::DrawType type);
+  void AddTransparentDraw(scoped_ptr<DrawObject> object,
+                          DrawObjectManager::DrawType type,
+                          const math::RectF& local_bounds);
 
   GraphicsState* graphics_state_;
-  ShaderProgramManager* shader_program_manager_;
+  DrawObjectManager* draw_object_manager_;
   const FallbackRasterizeFunction* fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;
-  ScopedVector<DrawObject> draw_objects_[kDrawCount];
 };
 
 }  // namespace egl

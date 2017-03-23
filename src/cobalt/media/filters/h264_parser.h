@@ -7,8 +7,6 @@
 #ifndef COBALT_MEDIA_FILTERS_H264_PARSER_H_
 #define COBALT_MEDIA_FILTERS_H264_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
 
 #include <map>
@@ -21,9 +19,11 @@
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/video_codecs.h"
 #include "cobalt/media/filters/h264_bit_reader.h"
+#include "starboard/types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 struct SubsampleEntry;
@@ -487,5 +487,6 @@ class MEDIA_EXPORT H264Parser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_H264_PARSER_H_

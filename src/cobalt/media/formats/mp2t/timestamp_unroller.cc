@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -83,3 +84,4 @@ void TimestampUnroller::Reset() {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "cobalt/media/filters/h264_bitstream_buffer.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -54,3 +54,4 @@ INSTANTIATE_TEST_CASE_P(AppendNumBits, H264BitstreamBufferAppendBitsTest,
                         ::testing::Range(static_cast<uint64_t>(1),
                                          static_cast<uint64_t>(65)));
 }  // namespace media
+}  // namespace cobalt

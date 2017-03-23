@@ -5,14 +5,14 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_PARSER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_PARSER_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Interface for receiving WebM parser events.
@@ -156,5 +156,6 @@ int MEDIA_EXPORT WebMParseElementHeader(const uint8_t* buf, int size, int* id,
                                         int64_t* element_size);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_PARSER_H_

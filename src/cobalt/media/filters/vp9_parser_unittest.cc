@@ -13,7 +13,6 @@
 // The first two are expected frame entropy, fhdr->initial_frame_context and
 // fhdr->frame_context.
 // If |should_update| is true, it follows by the frame context to update.
-#include <stdint.h>
 #include <string.h>
 
 #include <string>
@@ -23,8 +22,11 @@
 #include "cobalt/media/base/test_data_util.h"
 #include "cobalt/media/filters/ivf_parser.h"
 #include "cobalt/media/filters/vp9_parser.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class Vp9ParserTest : public ::testing::Test {
@@ -148,11 +150,11 @@ TEST_F(Vp9ParserTest, StreamFileParsingWithCompressedHeader) {
 
     Vp9FrameContext frame_context;
     ReadContext(&frame_context);
-    EXPECT_TRUE(memcmp(&frame_context, &fhdr.initial_frame_context,
-                       sizeof(frame_context)) == 0);
+    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.initial_frame_context,
+                                sizeof(frame_context)) == 0);
     ReadContext(&frame_context);
-    EXPECT_TRUE(memcmp(&frame_context, &fhdr.frame_context,
-                       sizeof(frame_context)) == 0);
+    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.frame_context,
+                                sizeof(frame_context)) == 0);
 
     // test-25fps.vp9 doesn't need frame update from driver.
     auto context_refresh_cb = GetContextRefreshCb(fhdr);
@@ -183,11 +185,11 @@ TEST_F(Vp9ParserTest, StreamFileParsingWithContextUpdate) {
 
     Vp9FrameContext frame_context;
     ReadContext(&frame_context);
-    EXPECT_TRUE(memcmp(&frame_context, &fhdr.initial_frame_context,
-                       sizeof(frame_context)) == 0);
+    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.initial_frame_context,
+                                sizeof(frame_context)) == 0);
     ReadContext(&frame_context);
-    EXPECT_TRUE(memcmp(&frame_context, &fhdr.frame_context,
-                       sizeof(frame_context)) == 0);
+    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.frame_context,
+                                sizeof(frame_context)) == 0);
 
     bool should_update = ReadShouldContextUpdate();
     auto context_refresh_cb = GetContextRefreshCb(fhdr);
@@ -312,3 +314,4 @@ TEST_F(Vp9ParserTest, VerifyInterFrame) {
 }
 
 }  // namespace media
+}  // namespace cobalt

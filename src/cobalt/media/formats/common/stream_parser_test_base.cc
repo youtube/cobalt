@@ -15,6 +15,7 @@
 #include "cobalt/media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static std::string BufferQueueToString(
@@ -133,3 +134,4 @@ void StreamParserTestBase::OnEndOfSegment() {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -89,6 +89,13 @@
 // control of the playback speed of video at runtime.
 #define SB_PLAYER_SET_PLAYBACK_RATE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Change input.h's SbInputVector structure to contain float members instead of
+// ints.
+#define SB_INPUT_FLOATING_POINT_INPUT_VECTOR_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// SbPlayerCreate() will accept SbMediaVideoHeader as a parameter.
+#define SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)

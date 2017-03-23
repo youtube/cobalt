@@ -4,16 +4,16 @@
 
 #include "cobalt/media/base/audio_buffer_converter.h"
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "cobalt/media/base/audio_buffer.h"
 #include "cobalt/media/base/sinc_resampler.h"
 #include "cobalt/media/base/test_helpers.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Important: Use an odd buffer size here so SIMD issues are caught.
@@ -238,3 +238,4 @@ TEST_F(AudioBufferConverterTest, LargeBuffersResampling) {
 }
 
 }  // namespace media
+}  // namespace cobalt

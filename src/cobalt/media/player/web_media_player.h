@@ -30,6 +30,7 @@
 // this file and we want to keep their parameters.
 MSVC_PUSH_DISABLE_WARNING(4100)
 
+namespace cobalt {
 namespace media {
 
 class WebMediaPlayer {
@@ -232,6 +233,12 @@ class WebMediaPlayerClient {
   virtual float Volume() const = 0;
   virtual void SourceOpened(ChunkDemuxer* chunk_demuxer) = 0;
   virtual std::string SourceURL() const = 0;
+  // Clients should implement this in order to indicate a preference for whether
+  // a video should be decoded to a texture or through a punch out system.  If
+  // the preferred output mode is not supported, the player will fallback to
+  // one that is.  This can be used to indicate that, say, for spherical video
+  // playback, we would like a decode-to-texture output mode.
+  virtual bool PreferDecodeToTexture() const { return false; }
   // TODO: Make the EME related functions pure virtual again once
   // we have proper EME implementation. Currently empty implementation are
   // provided to make media temporarily work.
@@ -266,6 +273,7 @@ class WebMediaPlayerClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 MSVC_POP_WARNING()
 

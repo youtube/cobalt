@@ -21,6 +21,7 @@
 using testing::SaveArg;
 using testing::_;
 
+namespace cobalt {
 namespace media {
 
 class WebMStreamParserTest : public testing::Test {
@@ -196,3 +197,4 @@ TEST_F(WebMStreamParserTest, ColourElement) {
 }
 
 }  // namespace media
+}  // namespace cobalt

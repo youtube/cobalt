@@ -10,6 +10,7 @@
 #include "base/location.h"
 #include "media/base/video_frame.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -154,3 +155,4 @@ void SizeAdaptableVideoEncoderBase::OnEncodedVideoFrame(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

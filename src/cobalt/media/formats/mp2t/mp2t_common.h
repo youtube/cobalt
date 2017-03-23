@@ -17,11 +17,13 @@
     }                                                           \
   } while (0)
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 const int kMp2tAudioTrackId = 1;
 const int kMp2tVideoTrackId = 2;
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_MP2T_COMMON_H_

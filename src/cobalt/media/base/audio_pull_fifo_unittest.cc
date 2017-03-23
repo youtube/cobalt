@@ -12,6 +12,7 @@
 #include "cobalt/media/base/audio_pull_fifo.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Block diagram of a possible real-world usage:
@@ -98,3 +99,4 @@ INSTANTIATE_TEST_CASE_P(AudioPullFifoTest, AudioPullFifoTest,
                                         440, 433, 500));
 
 }  // namespace media
+}  // namespace cobalt

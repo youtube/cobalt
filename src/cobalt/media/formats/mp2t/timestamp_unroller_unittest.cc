@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <vector>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/test/perf_test_suite.h"
 #include "media/formats/mp2t/timestamp_unroller.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -58,3 +58,4 @@ TEST(TimestampUnrollerTest, SingleStream) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

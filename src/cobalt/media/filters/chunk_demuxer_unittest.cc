@@ -4,9 +4,6 @@
 
 #include "cobalt/media/filters/chunk_demuxer.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <queue>
 #include <utility>
@@ -33,6 +30,9 @@
 #include "cobalt/media/formats/webm/webm_cluster_parser.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 #include "cobalt/media/media_features.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::AnyNumber;
@@ -45,6 +45,7 @@ using ::testing::SetArgumentPointee;
 using ::testing::StrictMock;
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 
 const uint8_t kTracksHeader[] = {
@@ -265,7 +266,7 @@ class ChunkDemuxerTest : public ::testing::Test {
       if (stream_flags & USE_ALTERNATE_TEXT_TRACK_ID)
         str[4] = kAlternateTextTrackNum;
 
-      const int len = strlen(str);
+      const int len = SbStringGetLength(str);
       DCHECK_EQ(len, 32);
       const uint8_t* const buf = reinterpret_cast<const uint8_t*>(str);
       text_track_entry = DecoderBuffer::CopyFrom(buf, len);
@@ -278,24 +279,25 @@ class ChunkDemuxerTest : public ::testing::Test {
     buffer->reset(new uint8_t[*size]);
 
     uint8_t* buf = buffer->get();
-    memcpy(buf, ebml_header->data(), ebml_header->data_size());
+    SbMemoryCopy(buf, ebml_header->data(), ebml_header->data_size());
     buf += ebml_header->data_size();
 
-    memcpy(buf, info->data(), info->data_size());
+    SbMemoryCopy(buf, info->data(), info->data_size());
     buf += info->data_size();
 
-    memcpy(buf, kTracksHeader, kTracksHeaderSize);
+    SbMemoryCopy(buf, kTracksHeader, kTracksHeaderSize);
     WriteInt64(buf + kTracksSizeOffset, tracks_element_size);
     buf += kTracksHeaderSize;
 
     // TODO(xhwang): Simplify this! Probably have test data files that contain
     // ContentEncodings directly instead of trying to create one at run-time.
     if (has_video) {
-      memcpy(buf, video_track_entry->data(), video_track_entry->data_size());
+      SbMemoryCopy(buf, video_track_entry->data(),
+                   video_track_entry->data_size());
       if (is_video_encrypted) {
-        memcpy(buf + video_track_entry->data_size(),
-               video_content_encodings->data(),
-               video_content_encodings->data_size());
+        SbMemoryCopy(buf + video_track_entry->data_size(),
+                     video_content_encodings->data(),
+                     video_content_encodings->data_size());
         WriteInt64(buf + kVideoTrackSizeOffset,
                    video_track_entry->data_size() +
                        video_content_encodings->data_size() -
@@ -306,11 +308,12 @@ class ChunkDemuxerTest : public ::testing::Test {
     }
 
     if (has_audio) {
-      memcpy(buf, audio_track_entry->data(), audio_track_entry->data_size());
+      SbMemoryCopy(buf, audio_track_entry->data(),
+                   audio_track_entry->data_size());
       if (is_audio_encrypted) {
-        memcpy(buf + audio_track_entry->data_size(),
-               audio_content_encodings->data(),
-               audio_content_encodings->data_size());
+        SbMemoryCopy(buf + audio_track_entry->data_size(),
+                     audio_content_encodings->data(),
+                     audio_content_encodings->data_size());
         WriteInt64(buf + kAudioTrackSizeOffset,
                    audio_track_entry->data_size() +
                        audio_content_encodings->data_size() -
@@ -321,7 +324,8 @@ class ChunkDemuxerTest : public ::testing::Test {
     }
 
     if (has_text) {
-      memcpy(buf, text_track_entry->data(), text_track_entry->data_size());
+      SbMemoryCopy(buf, text_track_entry->data(),
+                   text_track_entry->data_size());
       buf += text_track_entry->data_size();
     }
   }
@@ -2036,13 +2040,13 @@ TEST_F(ChunkDemuxerTest, AppendingInPieces) {
   size_t buffer_size = info_tracks_size + cluster_a->size() + cluster_b->size();
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
   uint8_t* dst = buffer.get();
-  memcpy(dst, info_tracks.get(), info_tracks_size);
+  SbMemoryCopy(dst, info_tracks.get(), info_tracks_size);
   dst += info_tracks_size;
 
-  memcpy(dst, cluster_a->data(), cluster_a->size());
+  SbMemoryCopy(dst, cluster_a->data(), cluster_a->size());
   dst += cluster_a->size();
 
-  memcpy(dst, cluster_b->data(), cluster_b->size());
+  SbMemoryCopy(dst, cluster_b->data(), cluster_b->size());
   dst += cluster_b->size();
 
   ExpectInitMediaLogs(HAS_AUDIO | HAS_VIDEO);
@@ -4589,3 +4593,4 @@ TEST_F(ChunkDemuxerTest, RemovingIdMustRemoveStreams) {
 // multiple tracks. crbug.com/646900
 
 }  // namespace media
+}  // namespace cobalt

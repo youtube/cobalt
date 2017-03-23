@@ -11,6 +11,7 @@
 #include "cobalt/media/base/audio_timestamp_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioClockTest : public testing::Test {
@@ -377,3 +378,4 @@ TEST_F(AudioClockTest, FramesToTimePrecision) {
 }
 
 }  // namespace media
+}  // namespace cobalt

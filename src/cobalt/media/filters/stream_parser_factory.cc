@@ -4,8 +4,6 @@
 
 #include "cobalt/media/filters/stream_parser_factory.h"
 
-#include <stddef.h>
-
 #include <set>
 
 #include "base/basictypes.h"
@@ -26,7 +24,9 @@
 
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/mp4_stream_parser.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 typedef bool (*CodecIDValidatorFunction)(
@@ -59,6 +59,7 @@ struct CodecInfo {
 };
 
 typedef StreamParser* (*ParserFactoryFunction)(
+    DecoderBuffer::Allocator* buffer_allocator,
     const std::vector<std::string>& codecs,
     const scoped_refptr<MediaLog>& media_log);
 
@@ -70,7 +71,7 @@ struct SupportedTypeInfo {
 
 static const CodecInfo kVP8CodecInfo = {"vp8", CodecInfo::VIDEO, NULL,
                                         CodecInfo::HISTOGRAM_VP8};
-static const CodecInfo kVP9CodecInfo = {"vp9", CodecInfo::VIDEO, NULL,
+static const CodecInfo kVP9CodecInfo = {"vp9*", CodecInfo::VIDEO, NULL,
                                         CodecInfo::HISTOGRAM_VP9};
 static const CodecInfo kVorbisCodecInfo = {"vorbis", CodecInfo::AUDIO, NULL,
                                            CodecInfo::HISTOGRAM_VORBIS};
@@ -83,9 +84,10 @@ static const CodecInfo* kVideoWebMCodecs[] = {
 static const CodecInfo* kAudioWebMCodecs[] = {&kVorbisCodecInfo,
                                               &kOpusCodecInfo, NULL};
 
-static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs,
+static StreamParser* BuildWebMParser(DecoderBuffer::Allocator* buffer_allocator,
+                                     const std::vector<std::string>& codecs,
                                      const scoped_refptr<MediaLog>& media_log) {
-  return new WebMStreamParser();
+  return new WebMStreamParser(buffer_allocator);
 }
 
 // AAC Object Type IDs that Chrome supports.
@@ -177,7 +179,8 @@ static const CodecInfo* kAudioMP4Codecs[] = {
     &kAC3CodecInfo2,     &kAC3CodecInfo3,       &kEAC3CodecInfo1,
     &kEAC3CodecInfo2,    &kEAC3CodecInfo3,      NULL};
 
-static StreamParser* BuildMP4Parser(const std::vector<std::string>& codecs,
+static StreamParser* BuildMP4Parser(DecoderBuffer::Allocator* buffer_allocator,
+                                    const std::vector<std::string>& codecs,
                                     const scoped_refptr<MediaLog>& media_log) {
   std::set<int> audio_object_types;
 
@@ -208,7 +211,8 @@ static StreamParser* BuildMP4Parser(const std::vector<std::string>& codecs,
     }
   }
 
-  return new mp4::MP4StreamParser(audio_object_types, has_sbr);
+  return new mp4::MP4StreamParser(buffer_allocator, audio_object_types,
+                                  has_sbr);
 }
 
 static const CodecInfo kMP3CodecInfo = {NULL, CodecInfo::AUDIO, NULL,
@@ -216,18 +220,20 @@ static const CodecInfo kMP3CodecInfo = {NULL, CodecInfo::AUDIO, NULL,
 
 static const CodecInfo* kAudioMP3Codecs[] = {&kMP3CodecInfo, NULL};
 
-static StreamParser* BuildMP3Parser(const std::vector<std::string>& codecs,
+static StreamParser* BuildMP3Parser(DecoderBuffer::Allocator* buffer_allocator,
+                                    const std::vector<std::string>& codecs,
                                     const scoped_refptr<MediaLog>& media_log) {
-  return new MPEG1AudioStreamParser();
+  return new MPEG1AudioStreamParser(buffer_allocator);
 }
 
 static const CodecInfo kADTSCodecInfo = {NULL, CodecInfo::AUDIO, NULL,
                                          CodecInfo::HISTOGRAM_MPEG4AAC};
 static const CodecInfo* kAudioADTSCodecs[] = {&kADTSCodecInfo, NULL};
 
-static StreamParser* BuildADTSParser(const std::vector<std::string>& codecs,
+static StreamParser* BuildADTSParser(DecoderBuffer::Allocator* buffer_allocator,
+                                     const std::vector<std::string>& codecs,
                                      const scoped_refptr<MediaLog>& media_log) {
-  return new ADTSStreamParser();
+  return new ADTSStreamParser(buffer_allocator);
 }
 
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
@@ -352,8 +358,11 @@ bool StreamParserFactory::IsTypeSupported(
 }
 
 scoped_ptr<StreamParser> StreamParserFactory::Create(
-    const std::string& type, const std::vector<std::string>& codecs,
+    DecoderBuffer::Allocator* buffer_allocator, const std::string& type,
+    const std::vector<std::string>& codecs,
     const scoped_refptr<MediaLog>& media_log) {
+  DCHECK(buffer_allocator);
+
   scoped_ptr<StreamParser> stream_parser;
   ParserFactoryFunction factory_function;
   std::vector<CodecInfo::HistogramTag> audio_codecs;
@@ -372,10 +381,11 @@ scoped_ptr<StreamParser> StreamParserFactory::Create(
                                 CodecInfo::HISTOGRAM_MAX + 1);
     }
 
-    stream_parser.reset(factory_function(codecs, media_log));
+    stream_parser.reset(factory_function(buffer_allocator, codecs, media_log));
   }
 
   return stream_parser.Pass();
 }
 
 }  // namespace media
+}  // namespace cobalt

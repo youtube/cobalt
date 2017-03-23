@@ -25,7 +25,7 @@
 import os
 import unittest
 
-from python import PythonChecker
+from webkitpy.style.checkers.python import PythonChecker
 
 
 class PythonCheckerTest(unittest.TestCase):
@@ -34,13 +34,14 @@ class PythonCheckerTest(unittest.TestCase):
 
     def test_init(self):
         """Test __init__() method."""
+
         def _mock_handle_style_error(self):
             pass
 
         checker = PythonChecker("foo.txt", _mock_handle_style_error)
         self.assertEqual(checker._file_path, "foo.txt")
         self.assertEqual(checker._handle_style_error,
-                          _mock_handle_style_error)
+                         _mock_handle_style_error)
 
     def test_check(self):
         """Test check() method."""
@@ -55,9 +56,15 @@ class PythonCheckerTest(unittest.TestCase):
         file_path = os.path.join(current_dir, "python_unittest_input.py")
 
         checker = PythonChecker(file_path, _mock_handle_style_error)
-        checker.check(lines=[])
+        checker.check()
 
-        self.assertEqual(errors, [
-            (4, "pep8/W291", 5, "trailing whitespace"),
-            (4, "pylint/E0602", 5, "Undefined variable 'error'"),
-            ])
+        self.assertEqual(
+            [
+                (2, 'pep8/W291', 5, 'trailing whitespace'),
+                (3, 'pep8/E261', 5, 'at least two spaces before inline comment'),
+                (3, 'pep8/E262', 5, "inline comment should start with '# '"),
+                (2, 'pylint/C0303(trailing-whitespace)', 5, '[] Trailing whitespace'),
+                (2, 'pylint/E0602(undefined-variable)', 5, u"[] Undefined variable 'error'"),
+                (3, 'pylint/W0611(unused-import)', 5, '[] Unused import math'),
+            ],
+            errors)

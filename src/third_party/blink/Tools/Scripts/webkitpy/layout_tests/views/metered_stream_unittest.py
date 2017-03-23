@@ -107,6 +107,7 @@ class RegularTest(unittest.TestCase):
         self.logger.info('foo %s %d', 'bar', 2)
         self.assertEqual(self.buflist, ['foo bar 2\n'])
 
+
 class TtyTest(RegularTest):
     verbose = False
     isatty = True
@@ -114,14 +115,19 @@ class TtyTest(RegularTest):
     def test_basic(self):
         buflist = self._basic([0, 1, 1.05, 1.1, 2])
         self.assertEqual(buflist, ['foo',
-                                     MeteredStream._erasure('foo'), 'bar',
-                                     MeteredStream._erasure('bar'), 'baz 2',
-                                     MeteredStream._erasure('baz 2'), 'done\n'])
+                                   MeteredStream._erasure('foo'), 'bar',
+                                   MeteredStream._erasure('bar'), 'baz 2',
+                                   MeteredStream._erasure('baz 2'), 'done\n'])
 
     def test_log_after_update(self):
         buflist = self._log_after_update()
         self.assertEqual(buflist, ['foo',
-                                     MeteredStream._erasure('foo'), 'bar\n'])
+                                   MeteredStream._erasure('foo'), 'bar\n'])
+
+    def test_bytestream(self):
+        self.meter.write('German umlauts: \xe4\xf6\xfc')
+        self.meter.write(u'German umlauts: \xe4\xf6\xfc')
+        self.assertEqual(self.buflist, ['German umlauts: ???', 'German umlauts: ???'])
 
 
 class VerboseTest(RegularTest):
@@ -132,18 +138,18 @@ class VerboseTest(RegularTest):
         buflist = self._basic([0, 1, 2.1, 13, 14.1234])
         # We don't bother to match the hours and minutes of the timestamp since
         # the local timezone can vary and we can't set that portably and easily.
-        self.assertTrue(re.match('\d\d:\d\d:00.000 8675 foo\n', buflist[0]))
-        self.assertTrue(re.match('\d\d:\d\d:01.000 8675 bar\n', buflist[1]))
-        self.assertTrue(re.match('\d\d:\d\d:13.000 8675 baz 2\n', buflist[2]))
-        self.assertTrue(re.match('\d\d:\d\d:14.123 8675 done\n', buflist[3]))
+        self.assertTrue(re.match(r'\d\d:\d\d:00.000 8675 foo\n', buflist[0]))
+        self.assertTrue(re.match(r'\d\d:\d\d:01.000 8675 bar\n', buflist[1]))
+        self.assertTrue(re.match(r'\d\d:\d\d:13.000 8675 baz 2\n', buflist[2]))
+        self.assertTrue(re.match(r'\d\d:\d\d:14.123 8675 done\n', buflist[3]))
         self.assertEqual(len(buflist), 4)
 
     def test_log_after_update(self):
         buflist = self._log_after_update()
-        self.assertTrue(re.match('\d\d:\d\d:00.000 8675 foo\n', buflist[0]))
+        self.assertTrue(re.match(r'\d\d:\d\d:00.000 8675 foo\n', buflist[0]))
 
         # The second argument should have a real timestamp and pid, so we just check the format.
-        self.assertTrue(re.match('\d\d:\d\d:\d\d.\d\d\d \d+ bar\n', buflist[1]))
+        self.assertTrue(re.match(r'\d\d:\d\d:\d\d.\d\d\d \d+ bar\n', buflist[1]))
 
         self.assertEqual(len(buflist), 2)
 

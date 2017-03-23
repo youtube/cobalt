@@ -17,18 +17,10 @@
 
 #include <vector>
 
-#include "starboard/audio_sink.h"
-#include "starboard/common/scoped_ptr.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
-#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/types.h"
 
 namespace starboard {
 namespace shared {
@@ -38,81 +30,21 @@ namespace filter {
 
 class AudioRenderer {
  public:
-  AudioRenderer(JobQueue* job_queue,
-                scoped_ptr<AudioDecoder> decoder,
-                const SbMediaAudioHeader& audio_header);
-  ~AudioRenderer();
+  virtual ~AudioRenderer() {}
 
-  bool is_valid() const { return true; }
-
-  void WriteSample(const InputBuffer& input_buffer);
-  void WriteEndOfStream();
-
-  void Play();
-  void Pause();
+  virtual void WriteSample(const InputBuffer& input_buffer) = 0;
+  virtual void WriteEndOfStream() = 0;
+  virtual void Play() = 0;
+  virtual void Pause() = 0;
 #if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
-  void SetPlaybackRate(double playback_rate);
+  virtual void SetPlaybackRate(double playback_rate) = 0;
 #endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
-  void Seek(SbMediaTime seek_to_pts);
-
-  bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
-  bool IsEndOfStreamPlayed() const;
-  bool CanAcceptMoreData() const;
-  bool IsSeekingInProgress() const;
-  SbMediaTime GetCurrentTime();
-
- private:
-  // Preroll considered finished after either kPrerollFrames is cached or EOS
-  // is reached.
-  static const size_t kPrerollFrames = 64 * 1024;
-  // Set a soft limit for the max audio frames we can cache so we can:
-  // 1. Avoid using too much memory.
-  // 2. Have the audio cache full to simulate the state that the renderer can
-  //    no longer accept more data.
-  static const size_t kMaxCachedFrames = 256 * 1024;
-
-  void UpdateSourceStatus(int* frames_in_buffer,
-                          int* offset_in_frames,
-                          bool* is_playing,
-                          bool* is_eos_reached);
-  void ConsumeFrames(int frames_consumed);
-
-  void ReadFromDecoder();
-  bool AppendDecodedAudio_Locked(
-      const scoped_refptr<DecodedAudio>& decoded_audio);
-
-  // SbAudioSink callbacks
-  static void UpdateSourceStatusFunc(int* frames_in_buffer,
-                                     int* offset_in_frames,
-                                     bool* is_playing,
-                                     bool* is_eos_reached,
-                                     void* context);
-  static void ConsumeFramesFunc(int frames_consumed, void* context);
-
-  JobQueue* job_queue_;
-  const int channels_;
-  const int bytes_per_frame_;
-
-  double playback_rate_;
-
-  Mutex mutex_;
-  bool paused_;
-  bool seeking_;
-  SbMediaTime seeking_to_pts_;
-
-  std::vector<uint8_t> frame_buffer_;
-  uint8_t* frame_buffers_[1];
-  int frames_in_buffer_;
-  int offset_in_frames_;
-
-  int frames_consumed_;
-  bool end_of_stream_written_;
-  bool end_of_stream_decoded_;
-
-  scoped_ptr<AudioDecoder> decoder_;
-  SbAudioSink audio_sink_;
-  scoped_refptr<DecodedAudio> pending_decoded_audio_;
-  Closure read_from_decoder_closure_;
+  virtual void Seek(SbMediaTime seek_to_pts) = 0;
+  virtual bool IsEndOfStreamWritten() const = 0;
+  virtual bool IsEndOfStreamPlayed() const = 0;
+  virtual bool CanAcceptMoreData() const = 0;
+  virtual bool IsSeekingInProgress() const = 0;
+  virtual SbMediaTime GetCurrentTime() = 0;
 };
 
 }  // namespace filter

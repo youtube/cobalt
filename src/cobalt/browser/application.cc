@@ -26,13 +26,13 @@
 #include "base/string_split.h"
 #include "base/time.h"
 #include "build/build_config.h"
-#include "cobalt/account/account_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
+#include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/loader/image/image_decoder.h"
@@ -354,8 +354,13 @@ Application::Application(const base::Closure& quit_closure)
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  math::Size window_size = InitSystemWindow(command_line);
+
+  WebModule::Options web_options(window_size);
+
   // Create the main components of our browser.
-  BrowserModule::Options options;
+  BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
   options.language = language;
   options.initial_deep_link = GetInitialDeepLink();
@@ -364,7 +369,9 @@ Application::Application(const base::Closure& quit_closure)
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
   ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
+    options.web_module_options.javascript_options.disable_jit = true;
+  }
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
@@ -440,41 +447,7 @@ Application::Application(const base::Closure& quit_closure)
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-  base::optional<math::Size> viewport_size;
-  if (command_line->HasSwitch(browser::switches::kViewport)) {
-    const std::string switchValue =
-        command_line->GetSwitchValueASCII(browser::switches::kViewport);
-    std::vector<std::string> lengths;
-    base::SplitString(switchValue, 'x', &lengths);
-    if (lengths.size() >= 1) {
-      int width = -1;
-      if (base::StringToInt(lengths[0], &width) && width >= 1) {
-        int height = -1;
-        if (lengths.size() < 2) {
-          // Allow shorthand specification of the viewport by only giving the
-          // width. This calculates the height at 4:3 aspect ratio for smaller
-          // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-          if (width >= 1280) {
-            viewport_size.emplace(width, 9 * width / 16);
-          } else {
-            viewport_size.emplace(width, 3 * width / 4);
-          }
-        } else if (base::StringToInt(lengths[1], &height) && height >= 1) {
-          viewport_size.emplace(width, height);
-        } else {
-          DLOG(ERROR) << "Invalid value specified for viewport height: "
-                      << switchValue << ". Using default viewport size.";
-        }
-      } else {
-        DLOG(ERROR) << "Invalid value specified for viewport width: "
-                    << switchValue << ". Using default viewport size.";
-      }
-    }
-  }
-
-  system_window_ =
-      system_window::CreateSystemWindow(&event_dispatcher_, viewport_size);
-  account_manager_ = account::AccountManager::Create(&event_dispatcher_);
+  account_manager_.reset(new account::AccountManager());
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
                                           account_manager_.get(), options));
   UpdateAndMaybeRegisterUserAgent();
@@ -482,10 +455,6 @@ Application::Application(const base::Closure& quit_closure)
   app_status_ = kRunningAppStatus;
 
   // Register event callbacks.
-  account_event_callback_ =
-      base::Bind(&Application::OnAccountEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(account::AccountEvent::TypeId(),
-                                     account_event_callback_);
   network_event_callback_ =
       base::Bind(&Application::OnNetworkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(network::NetworkEvent::TypeId(),
@@ -547,8 +516,6 @@ Application::~Application() {
   memory_tracker_tool_.reset(NULL);
 
   // Unregister event callbacks.
-  event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
-                                        account_event_callback_);
   event_dispatcher_.RemoveEventCallback(network::NetworkEvent::TypeId(),
                                         network_event_callback_);
   event_dispatcher_.RemoveEventCallback(
@@ -572,21 +539,6 @@ void Application::Quit() {
   }
 
   app_status_ = kQuitAppStatus;
-}
-
-void Application::OnAccountEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnAccountEvent()");
-  const account::AccountEvent* account_event =
-      base::polymorphic_downcast<const account::AccountEvent*>(event);
-  if (account_event->type() == account::AccountEvent::kSignedIn) {
-    DLOG(INFO) << "Got signed in event, checking for age restriction.";
-    if (account_manager_->IsAgeRestricted()) {
-      browser_module_->Navigate(GURL("h5vcc://age-restricted"));
-    }
-  } else if (account_event->type() == account::AccountEvent::kSignedOut) {
-    DLOG(INFO) << "Got signed out event.";
-    browser_module_->Navigate(GURL("h5vcc://signed-out"));
-  }
 }
 
 void Application::OnNetworkEvent(const base::Event* event) {
@@ -732,6 +684,49 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
 
 void Application::UpdatePeriodicLiteStats() {
   c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
+}
+
+math::Size Application::InitSystemWindow(CommandLine* command_line) {
+  base::optional<math::Size> viewport_size;
+  if (command_line->HasSwitch(browser::switches::kViewport)) {
+    const std::string switchValue =
+        command_line->GetSwitchValueASCII(browser::switches::kViewport);
+    std::vector<std::string> lengths;
+    base::SplitString(switchValue, 'x', &lengths);
+    if (lengths.size() >= 1) {
+      int width = -1;
+      if (base::StringToInt(lengths[0], &width) && width >= 1) {
+        int height = -1;
+        if (lengths.size() < 2) {
+          // Allow shorthand specification of the viewport by only giving the
+          // width. This calculates the height at 4:3 aspect ratio for smaller
+          // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
+          if (width >= 1280) {
+            viewport_size.emplace(width, 9 * width / 16);
+          } else {
+            viewport_size.emplace(width, 3 * width / 4);
+          }
+        } else if (base::StringToInt(lengths[1], &height) && height >= 1) {
+          viewport_size.emplace(width, height);
+        } else {
+          DLOG(ERROR) << "Invalid value specified for viewport height: "
+                      << switchValue << ". Using default viewport size.";
+        }
+      } else {
+        DLOG(ERROR) << "Invalid value specified for viewport width: "
+                    << switchValue << ". Using default viewport size.";
+      }
+    }
+  }
+
+  system_window_.reset(
+      new system_window::SystemWindow(&event_dispatcher_, viewport_size));
+
+  math::Size window_size = system_window_->GetWindowSize();
+  if (viewport_size) {
+    DCHECK_EQ(viewport_size, window_size);
+  }
+  return window_size;
 }
 
 void Application::UpdatePeriodicStats() {

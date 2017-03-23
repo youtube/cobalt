@@ -39,7 +39,6 @@ import v8_types
 import v8_utilities
 
 CALLBACK_INTERFACE_H_INCLUDES = frozenset([
-    'bindings/core/v8/ActiveDOMCallback.h',
     'bindings/core/v8/DOMWrapperWorld.h',
     'bindings/core/v8/ScopedPersistent.h',
 ])
@@ -63,18 +62,18 @@ def cpp_type(idl_type):
         return 'void'
     # Callbacks use raw pointers, so raw_type=True
     raw_cpp_type = idl_type.cpp_type_args(raw_type=True)
-    if raw_cpp_type.startswith(('Vector', 'HeapVector', 'WillBeHeapVector')):
+    # Pass containers and dictionaries to callback method by const reference rather than by value
+    if raw_cpp_type.startswith(('Vector', 'HeapVector')) or idl_type.is_dictionary:
         return 'const %s&' % raw_cpp_type
     return raw_cpp_type
 
 IdlTypeBase.callback_cpp_type = property(cpp_type)
 
 
-def callback_interface_context(callback_interface):
+def callback_interface_context(callback_interface, _):
     includes.clear()
     includes.update(CALLBACK_INTERFACE_CPP_INCLUDES)
     return {
-        'conditional_string': v8_utilities.conditional_string(callback_interface),
         'cpp_class': callback_interface.name,
         'v8_class': v8_utilities.v8_class_name(callback_interface),
         'header_includes': set(CALLBACK_INTERFACE_H_INCLUDES),

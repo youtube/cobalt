@@ -24,6 +24,8 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/bindings/testing/arbitrary_interface.h"
+#include "cobalt/bindings/testing/mozjs_arbitrary_interface.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
@@ -35,6 +37,7 @@
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/mozjs_value_handle.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -47,11 +50,14 @@
 namespace {
 using cobalt::bindings::testing::SequenceUser;
 using cobalt::bindings::testing::MozjsSequenceUser;
+using cobalt::bindings::testing::ArbitraryInterface;
+using cobalt::bindings::testing::MozjsArbitraryInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
+using cobalt::script::ValueHandle;
 using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
@@ -70,6 +76,7 @@ using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::kConversionFlagClamped;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;

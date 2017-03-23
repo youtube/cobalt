@@ -28,11 +28,12 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/loader/mesh/mesh_projection.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/rounded_corners.h"
@@ -56,9 +57,13 @@ class ContainingBlock;
 
 class UsedStyleProvider {
  public:
+  typedef base::Callback<scoped_refptr<render_tree::Node>(
+      const scoped_refptr<render_tree::Node>&)> AttachCameraNodeFunction;
+
   UsedStyleProvider(dom::HTMLElementContext* html_element_context,
                     loader::image::ImageCache* image_cache,
                     dom::FontCache* font_cache,
+                    const AttachCameraNodeFunction& attach_camera_node_function,
                     loader::mesh::MeshCache* mesh_cache = NULL);
 
   scoped_refptr<dom::FontList> GetUsedFontList(
@@ -67,15 +72,19 @@ class UsedStyleProvider {
       const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_weight_refptr);
 
-  scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url);
-  scoped_refptr<render_tree::Mesh> ResolveURLToMesh(const GURL& url);
-
+  scoped_refptr<loader::image::Image> ResolveURLToImage(const GURL& url);
+  scoped_refptr<loader::mesh::MeshProjection> ResolveURLToMeshProjection(
+      const GURL& url);
   bool has_image_cache(const loader::image::ImageCache* image_cache) const {
     return image_cache == image_cache_;
   }
 
   dom::HTMLElementContext* html_element_context() const {
     return html_element_context_;
+  }
+
+  const AttachCameraNodeFunction attach_camera_node_function() const {
+    return attach_camera_node_function_;
   }
 
  private:
@@ -87,6 +96,7 @@ class UsedStyleProvider {
   dom::HTMLElementContext* html_element_context_;
   loader::image::ImageCache* const image_cache_;
   dom::FontCache* const font_cache_;
+  AttachCameraNodeFunction attach_camera_node_function_;
   loader::mesh::MeshCache* const mesh_cache_;
 
   // |font_list_key_| is retained in between lookups so that the font names

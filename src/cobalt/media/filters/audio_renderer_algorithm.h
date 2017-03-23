@@ -21,8 +21,6 @@
 #ifndef COBALT_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
 #define COBALT_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
@@ -30,7 +28,9 @@
 #include "cobalt/media/base/audio_buffer.h"
 #include "cobalt/media/base/audio_buffer_queue.h"
 #include "cobalt/media/base/audio_parameters.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 class AudioBus;
@@ -213,5 +213,6 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_

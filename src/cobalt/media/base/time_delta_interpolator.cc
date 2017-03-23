@@ -4,14 +4,14 @@
 
 #include "cobalt/media/base/time_delta_interpolator.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
 #include "base/tick_clock.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 TimeDeltaInterpolator::TimeDeltaInterpolator(base::TickClock* tick_clock)
@@ -77,3 +77,4 @@ base::TimeDelta TimeDeltaInterpolator::GetInterpolatedTime() {
 }
 
 }  // namespace media
+}  // namespace cobalt

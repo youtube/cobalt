@@ -17,44 +17,39 @@
 #include "base/path_service.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/base/media_log.h"
+#include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "starboard/event.h"
+#include "starboard/string.h"
 
 namespace cobalt {
 namespace media {
 namespace sandbox {
 
-using ::media::ChunkDemuxer;
-using ::media::DecoderBuffer;
-using ::media::DemuxerStream;
-using ::media::MediaTracks;
-
 namespace {
 
-class DemuxerHostStub : public ::media::DemuxerHost {
+class DemuxerHostStub : public DemuxerHost {
   void OnBufferedTimeRangesChanged(
-      const ::media::Ranges<base::TimeDelta>& ranges) OVERRIDE {}
+      const Ranges<base::TimeDelta>& ranges) OVERRIDE {}
 
   void SetDuration(base::TimeDelta duration) OVERRIDE {}
 
-  void OnDemuxerError(::media::PipelineStatus error) OVERRIDE {}
+  void OnDemuxerError(PipelineStatus error) OVERRIDE {}
 
-  void AddTextStream(::media::DemuxerStream* text_stream,
-                     const ::media::TextTrackConfig& config) OVERRIDE {}
+  void AddTextStream(DemuxerStream* text_stream,
+                     const TextTrackConfig& config) OVERRIDE {}
 
-  void RemoveTextStream(::media::DemuxerStream* text_stream) OVERRIDE {}
+  void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE {}
 };
 
 void OnDemuxerOpen() {}
 
-void OnEncryptedMediaInitData(::media::EmeInitDataType type,
+void OnEncryptedMediaInitData(EmeInitDataType type,
                               const std::vector<uint8_t>& init_data) {}
 
 void OnInitSegmentReceived(scoped_ptr<MediaTracks> tracks) {}
 
-void OnDemuxerStatus(::media::PipelineStatus status) {
-  status = ::media::PIPELINE_OK;
-}
+void OnDemuxerStatus(PipelineStatus status) { status = PIPELINE_OK; }
 
 std::string LoadFile(const std::string& file_name) {
   FilePath file_path(file_name);
@@ -107,19 +102,27 @@ int SandboxMain(int argc, char** argv) {
     return 1;
   }
 
+  DecoderBufferAllocator decoder_buffer_allocator;
   MessageLoop message_loop;
-
   DemuxerHostStub demuxer_host;
   scoped_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
-      base::Bind(OnDemuxerOpen), base::Bind(OnEncryptedMediaInitData),
-      new ::media::MediaLog, false));
+      &decoder_buffer_allocator, base::Bind(OnDemuxerOpen),
+      base::Bind(OnEncryptedMediaInitData), new MediaLog, false));
   demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus), false);
 
   ChunkDemuxer::Status status =
       demuxer->AddId("audio", "audio/mp4", "mp4a.40.2");
   DCHECK_EQ(status, ChunkDemuxer::kOk);
-  status = demuxer->AddId("video", "video/mp4", "avc1.640028");
+
+  int video_url_length = SbStringGetLength(argv[2]);
+  if (video_url_length > 5 &&
+      SbStringCompare(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
+    status = demuxer->AddId("video", "video/webm", "vp9");
+  } else {
+    status = demuxer->AddId("video", "video/mp4", "avc1.640028");
+  }
   DCHECK_EQ(status, ChunkDemuxer::kOk);
+
   base::TimeDelta timestamp_offset;
 
   std::string audio_content = LoadFile(argv[1]);
@@ -135,7 +138,7 @@ int SandboxMain(int argc, char** argv) {
   demuxer->AppendData("video", reinterpret_cast<uint8*>(&video_content[0]),
                       video_content.size(), base::TimeDelta(),
                       base::TimeDelta::Max(), &timestamp_offset);
-  demuxer->MarkEndOfStream(::media::PIPELINE_OK);
+  demuxer->MarkEndOfStream(PIPELINE_OK);
 
   DemuxerStream* audio_stream = demuxer->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer->GetStream(DemuxerStream::VIDEO);

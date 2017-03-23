@@ -54,10 +54,8 @@ RE_WINDOWDRIVER_CREATED = re.compile(
 RE_WEBMODULE_LOADED = re.compile(
     r"^\[\d+/\d+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule")
 
-STARTUP_TIMEOUT_SECONDS = 2 * 60
-
-WEBDRIVER_HTTP_TIMEOUT_SECS = 2 * 60
-
+DEFAULT_STARTUP_TIMEOUT_SECONDS = 2 * 60
+WEBDRIVER_HTTP_TIMEOUT_SECONDS = 2 * 60
 COBALT_EXIT_TIMEOUT_SECONDS = 5
 
 COBALT_WEBDRIVER_CAPABILITIES = {
@@ -133,14 +131,15 @@ class CobaltRunner(object):
     except KeyboardInterrupt:
       # potentially from thread.interrupt_main(). We will treat as
       # a timeout regardless
+      self.SetShouldExit(failed=True)
       raise TimeoutException
     return self
 
   def __exit__(self, exc_type, exc_value, traceback):
     # The unittest module terminates with a SystemExit
     # If this is a successful exit, then this is a successful run
-    success = exc_type is None or (exc_type is SystemExit and
-                                   not exc_value.code)
+    success = exc_type is None or (exc_type is SystemExit and not exc_value.code
+                                  )
     self.SetShouldExit(failed=not success)
     self.thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
 
@@ -181,14 +180,18 @@ class CobaltRunner(object):
     url = "http://{}:{}/".format(self._GetProcessIPAddress(), port)
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
-    self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECS)
+    self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
     print("Selenium Connected\n", file=self.log_file)
     _webdriver = self.webdriver
     self.test_script_started.set()
 
   def WaitForStart(self):
     """Waits for the webdriver client to attach to Cobalt."""
-    if not self.test_script_started.wait(STARTUP_TIMEOUT_SECONDS):
+    startup_timeout_seconds = self.launcher.GetStartupTimeout()
+    if not startup_timeout_seconds:
+      startup_timeout_seconds = DEFAULT_STARTUP_TIMEOUT_SECONDS
+
+    if not self.test_script_started.wait(startup_timeout_seconds):
       self.SetShouldExit(failed=True)
       raise TimeoutException
     print("Cobalt started", file=self.log_file)

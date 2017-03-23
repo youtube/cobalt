@@ -22,6 +22,7 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/base/video_codecs.h"
 
+namespace cobalt {
 namespace media {
 
 using base::TimeDelta;
@@ -90,6 +91,16 @@ class MEDIA_EXPORT SourceBufferState {
   // |ended| - Set to true if end of stream has been signaled and the special
   // end of stream range logic needs to be executed.
   Ranges<TimeDelta> GetBufferedRanges(TimeDelta duration, bool ended) const;
+
+  // Returns the range of buffered audio data in this source, capped at
+  // |duration|. |ended| - Set to true if end of stream has been signaled and
+  // the special end of stream range logic needs to be executed.
+  Ranges<TimeDelta> GetAudioBufferedRanges(TimeDelta duration,
+                                           bool ended) const;
+
+  // Returns the timestamp of the video keyframe that is at or before the last
+  // seek timestamp.  This function assumes that there is only one video stream.
+  TimeDelta GetVideoSeekKeyframeTimestamp() const;
 
   // Returns the highest PTS of currently buffered frames in this source, or
   // base::TimeDelta() if none of the streams contain buffered data.
@@ -224,5 +235,6 @@ class MEDIA_EXPORT SourceBufferState {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STATE_H_

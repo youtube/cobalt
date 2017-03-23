@@ -20,6 +20,7 @@
 #include <string>
 
 #include "cobalt/bindings/testing/test_dictionary.h"
+#include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -31,6 +32,10 @@ class DictionaryInterface : public script::Wrappable {
  public:
   MOCK_METHOD1(DictionaryOperation,
                void(const TestDictionary& test_dictionary));
+
+  MOCK_METHOD0(dictionary_sequence, TestDictionary());
+  MOCK_METHOD1(set_dictionary_sequence,
+               void(script::Sequence<TestDictionary> test_dictionary));
 
   DEFINE_WRAPPABLE_TYPE(DictionaryInterface);
 };

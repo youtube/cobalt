@@ -14,13 +14,14 @@
 
 #include "cobalt/media/base/shell_media_platform.h"
 
+namespace cobalt {
+namespace media {
+
 namespace {
 
-media::ShellMediaPlatform* s_shell_media_platform_;
+ShellMediaPlatform* s_shell_media_platform_;
 
 }  // namespace
-
-namespace media {
 
 // static
 ShellMediaPlatform* ShellMediaPlatform::Instance() {
@@ -33,3 +34,4 @@ void ShellMediaPlatform::SetInstance(ShellMediaPlatform* shell_media_platform) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -15,6 +15,7 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/media_util.h"
 
+namespace cobalt {
 namespace media {
 
 static bool IsStreamValidAndEncrypted(DemuxerStream* stream) {
@@ -393,3 +394,4 @@ void DecryptingDemuxerStream::InitializeDecoderConfig() {
 }
 
 }  // namespace media
+}  // namespace cobalt

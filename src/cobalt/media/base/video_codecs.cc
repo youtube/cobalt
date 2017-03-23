@@ -10,7 +10,9 @@
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 // The names come from src/third_party/ffmpeg/libavcodec/codec_desc.c
@@ -261,7 +263,7 @@ bool ParseHEVCCodecId(const std::string& codec_id, VideoCodecProfile* profile,
   if (level_idc) *level_idc = static_cast<uint8_t>(general_level_idc);
 
   uint8_t constraint_flags[6];
-  memset(constraint_flags, 0, sizeof(constraint_flags));
+  SbMemorySet(constraint_flags, 0, sizeof(constraint_flags));
 
   if (elem.size() > 10) {
     DVLOG(4) << __func__ << ": unexpected number of trailing bytes in HEVC "
@@ -296,3 +298,4 @@ VideoCodec StringToVideoCodec(const std::string& codec_id) {
 }
 
 }  // namespace media
+}  // namespace cobalt

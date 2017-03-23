@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/bind.h"
@@ -13,7 +11,10 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/blink/multibuffer_reader.h"
 #include "net/base/net_errors.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 MultiBufferReader::MultiBufferReader(
@@ -98,7 +99,7 @@ int64_t MultiBufferReader::TryRead(uint8_t* data, int64_t len) {
     if (offset > static_cast<size_t>(i->second->data_size())) break;
     size_t tocopy =
         std::min<size_t>(len - bytes_read, i->second->data_size() - offset);
-    memcpy(data, i->second->data() + offset, tocopy);
+    SbMemoryCopy(data, i->second->data() + offset, tocopy);
     data += tocopy;
     bytes_read += tocopy;
     p += tocopy;
@@ -235,3 +236,4 @@ void MultiBufferReader::PinRange(MultiBuffer::BlockId begin,
 }
 
 }  // namespace media
+}  // namespace cobalt

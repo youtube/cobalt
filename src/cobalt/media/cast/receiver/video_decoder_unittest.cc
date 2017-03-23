@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
-#include <cstdlib>
 #include <vector>
 
 #include "base/bind.h"
@@ -20,8 +17,10 @@
 #include "media/cast/test/utility/default_config.h"
 #include "media/cast/test/utility/standalone_cast_environment.h"
 #include "media/cast/test/utility/video_utility.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -233,3 +232,4 @@ INSTANTIATE_TEST_CASE_P(, VideoDecoderTest, ::testing::Values(CODEC_VIDEO_VP8));
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

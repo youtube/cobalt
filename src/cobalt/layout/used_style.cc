@@ -40,6 +40,7 @@
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -408,10 +409,12 @@ float GetFontSize(const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
 UsedStyleProvider::UsedStyleProvider(
     dom::HTMLElementContext* html_element_context,
     loader::image::ImageCache* image_cache, dom::FontCache* font_cache,
+    const AttachCameraNodeFunction& attach_camera_node_function,
     loader::mesh::MeshCache* mesh_cache)
     : html_element_context_(html_element_context),
       image_cache_(image_cache),
       font_cache_(font_cache),
+      attach_camera_node_function_(attach_camera_node_function),
       mesh_cache_(mesh_cache) {}
 
 scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
@@ -464,13 +467,14 @@ scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
   return last_font_list_;
 }
 
-scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
+scoped_refptr<loader::image::Image> UsedStyleProvider::ResolveURLToImage(
     const GURL& url) {
+  DCHECK(image_cache_);
   return image_cache_->CreateCachedResource(url)->TryGetResource();
 }
 
-scoped_refptr<render_tree::Mesh> UsedStyleProvider::ResolveURLToMesh(
-    const GURL& url) {
+scoped_refptr<loader::mesh::MeshProjection>
+UsedStyleProvider::ResolveURLToMeshProjection(const GURL& url) {
   DCHECK(mesh_cache_);
   return mesh_cache_->CreateCachedResource(url)->TryGetResource();
 }
@@ -583,40 +587,64 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     cssom::AbsoluteURLValue* url_value) {
   // Deal with the case that background image is an image resource as opposed to
   // "linear-gradient".
-  scoped_refptr<render_tree::Image> used_background_image =
+  scoped_refptr<loader::image::Image> used_background_image =
       used_style_provider_->ResolveURLToImage(url_value->value());
+  if (!used_background_image) {
+    return;
+  }
 
-  if (used_background_image) {
-    UsedBackgroundSizeProvider used_background_size_provider(
-        frame_.size(), used_background_image->GetSize());
-    background_size_->Accept(&used_background_size_provider);
+  UsedBackgroundSizeProvider used_background_size_provider(
+      frame_.size(), used_background_image->GetSize());
+  background_size_->Accept(&used_background_size_provider);
 
-    math::SizeF single_image_size =
-        math::SizeF(used_background_size_provider.width(),
-                    used_background_size_provider.height());
-    UsedBackgroundPositionProvider used_background_position_provider(
-        frame_.size(), single_image_size);
-    background_position_->Accept(&used_background_position_provider);
+  math::SizeF single_image_size =
+      math::SizeF(used_background_size_provider.width(),
+                  used_background_size_provider.height());
+  UsedBackgroundPositionProvider used_background_position_provider(
+      frame_.size(), single_image_size);
+  background_position_->Accept(&used_background_position_provider);
 
-    UsedBackgroundRepeatProvider used_background_repeat_provider;
-    background_repeat_->Accept(&used_background_repeat_provider);
+  UsedBackgroundRepeatProvider used_background_repeat_provider;
+  background_repeat_->Accept(&used_background_repeat_provider);
 
-    BackgroundImageTransformData image_transform_data =
-        GetImageTransformationData(
-            &used_background_size_provider, &used_background_position_provider,
-            &used_background_repeat_provider, frame_, single_image_size);
+  BackgroundImageTransformData image_transform_data =
+      GetImageTransformationData(
+          &used_background_size_provider, &used_background_position_provider,
+          &used_background_repeat_provider, frame_, single_image_size);
 
-    math::RectF image_rect(image_transform_data.composition_node_translation,
-                           image_transform_data.image_node_size);
+  math::RectF image_rect(image_transform_data.composition_node_translation,
+                         image_transform_data.image_node_size);
 
-    is_opaque_ = used_background_image->IsOpaque() &&
-                 image_rect.x() <= frame_.x() && image_rect.y() <= frame_.y() &&
-                 image_rect.right() >= frame_.right() &&
-                 image_rect.bottom() >= frame_.bottom();
+  is_opaque_ = used_background_image->IsOpaque() &&
+               image_rect.x() <= frame_.x() && image_rect.y() <= frame_.y() &&
+               image_rect.right() >= frame_.right() &&
+               image_rect.bottom() >= frame_.bottom();
 
+  if (!used_background_image->IsAnimated()) {
+    loader::image::StaticImage* static_image =
+        base::polymorphic_downcast<loader::image::StaticImage*>(
+            used_background_image.get());
+    DCHECK(static_image);
     background_node_ = new render_tree::ImageNode(
-        used_background_image, image_rect,
+        static_image->image(), image_rect,
         image_transform_data.image_node_transform_matrix);
+  } else {
+    scoped_refptr<loader::image::AnimatedImage> animated_image =
+        base::polymorphic_downcast<loader::image::AnimatedImage*>(
+            used_background_image.get());
+    DCHECK(animated_image);
+    scoped_refptr<render_tree::ImageNode> image_node =
+        new render_tree::ImageNode(
+            NULL, image_rect, image_transform_data.image_node_transform_matrix);
+    render_tree::animations::AnimateNode::Builder animate_node_builder;
+    animate_node_builder.Add(
+        image_node,
+        base::Bind(&loader::image::AnimatedImage::AnimateCallback,
+                   animated_image, image_rect,
+                   image_transform_data.image_node_transform_matrix));
+
+    background_node_ = new render_tree::animations::AnimateNode(
+        animate_node_builder, image_node);
   }
 }
 

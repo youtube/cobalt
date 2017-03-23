@@ -5,11 +5,13 @@
 #ifndef COBALT_MEDIA_BASE_FAKE_MEDIA_RESOURCES_H_
 #define COBALT_MEDIA_BASE_FAKE_MEDIA_RESOURCES_H_
 
+namespace cobalt {
 namespace media {
 
 // Call if tests require non-empty resource strings.
 void SetUpFakeMediaResources();
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FAKE_MEDIA_RESOURCES_H_

@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_MPEG1AUDIO_H_
 #define COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_MPEG1AUDIO_H_
 
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 #include <utility>
@@ -19,7 +17,9 @@
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
 #include "media/formats/mp2t/es_parser.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 class AudioTimestampHelper;
 class BitReader;
@@ -27,6 +27,7 @@ class OffsetByteQueue;
 class StreamParserBuffer;
 }
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -87,5 +88,6 @@ class MEDIA_EXPORT EsParserMpeg1Audio : public EsParser {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_MPEG1AUDIO_H_

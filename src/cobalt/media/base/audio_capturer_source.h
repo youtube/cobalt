@@ -13,6 +13,7 @@
 #include "cobalt/media/base/audio_parameters.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // AudioCapturerSource is an interface representing the source for
@@ -65,5 +66,6 @@ class AudioCapturerSource
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_CAPTURER_SOURCE_H_

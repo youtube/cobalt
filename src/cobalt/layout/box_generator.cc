@@ -51,8 +51,13 @@
 namespace cobalt {
 namespace layout {
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+using media::ShellVideoFrameProvider;
+using media::VideoFrame;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::ShellVideoFrameProvider;
 using ::media::VideoFrame;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 
@@ -327,7 +332,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
         video_element->GetVideoFrameProvider()->GetOutputMode();
     if (output_mode != ShellVideoFrameProvider::kOutputModeInvalid) {
       is_punch_out =
-          output_mode ==  ShellVideoFrameProvider::kOutputModePunchOut;
+          output_mode == ShellVideoFrameProvider::kOutputModePunchOut;
     }
   }
 

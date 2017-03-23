@@ -10,8 +10,6 @@
 // that moves across the screen
 
 #include <math.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <functional>
@@ -45,8 +43,11 @@
 #include "media/cast/test/utility/default_config.h"
 #include "media/cast/test/utility/udp_proxy.h"
 #include "media/cast/test/utility/video_utility.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -112,7 +113,7 @@ std::map<RtpTimeTicks, LoggingEventCounts> GetEventCountsForFrameEvents(
     auto map_it = event_counter_for_frame.find(frame_event.rtp_timestamp);
     if (map_it == event_counter_for_frame.end()) {
       LoggingEventCounts new_counter;
-      memset(&new_counter, 0, sizeof(new_counter));
+      SbMemorySet(&new_counter, 0, sizeof(new_counter));
       ++(new_counter.counter[frame_event.type]);
       event_counter_for_frame.insert(
           std::make_pair(frame_event.rtp_timestamp, new_counter));
@@ -132,7 +133,7 @@ std::map<uint16_t, LoggingEventCounts> GetEventCountsForPacketEvents(
     auto map_it = event_counter_for_packet.find(packet_event.packet_id);
     if (map_it == event_counter_for_packet.end()) {
       LoggingEventCounts new_counter;
-      memset(&new_counter, 0, sizeof(new_counter));
+      SbMemorySet(&new_counter, 0, sizeof(new_counter));
       ++(new_counter.counter[packet_event.type]);
       event_counter_for_packet.insert(
           std::make_pair(packet_event.packet_id, new_counter));
@@ -1249,3 +1250,4 @@ TEST_F(End2EndTest, TestSetPlayoutDelay) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

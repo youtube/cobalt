@@ -23,6 +23,7 @@
 #include "base/run_loop.h"
 #include "base/string_util.h"
 #include "base/values.h"
+#include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/layout_tests/test_utils.h"
@@ -163,8 +164,9 @@ std::string RunWebPlatformTest(const GURL& url) {
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options;
+  browser::WebModule::Options web_module_options(kDefaultViewportSize);
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
+
   // Prepare a slot for our results to be placed when ready.
   base::optional<browser::WebModule::LayoutResults> results;
   base::RunLoop run_loop;

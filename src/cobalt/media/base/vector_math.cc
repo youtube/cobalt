@@ -7,6 +7,8 @@
 
 #include <algorithm>
 
+#include "starboard/types.h"
+
 #include "base/logging.h"
 #include "build/build_config.h"
 
@@ -34,6 +36,7 @@
 #define EWMAAndMaxPower_FUNC EWMAAndMaxPower_C
 #endif
 
+namespace cobalt {
 namespace media {
 namespace vector_math {
 
@@ -285,3 +288,4 @@ std::pair<float, float> EWMAAndMaxPower_NEON(float initial_value,
 
 }  // namespace vector_math
 }  // namespace media
+}  // namespace cobalt

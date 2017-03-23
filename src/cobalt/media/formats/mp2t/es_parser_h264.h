@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_H264_H_
 #define COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_H264_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <utility>
 
@@ -18,7 +16,9 @@
 #include "media/base/video_decoder_config.h"
 #include "media/formats/mp2t/es_adapter_video.h"
 #include "media/formats/mp2t/es_parser.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 class EncryptionScheme;
 class H264Parser;
@@ -26,6 +26,7 @@ struct H264SPS;
 class OffsetByteQueue;
 }
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -88,5 +89,6 @@ class MEDIA_EXPORT EsParserH264 : public EsParser {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_ES_PARSER_H264_H_

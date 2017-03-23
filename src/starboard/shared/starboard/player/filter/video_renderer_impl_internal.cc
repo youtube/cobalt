@@ -152,12 +152,6 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
 }
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
-// static
-scoped_ptr<VideoRenderer> VideoRenderer::Create(
-    scoped_ptr<VideoDecoder> video_decoder) {
-  return scoped_ptr<VideoRenderer>(new VideoRendererImpl(video_decoder.Pass()));
-}
-
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard

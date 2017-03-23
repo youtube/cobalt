@@ -185,7 +185,7 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          h5vcc_url_handler_(this, system_window, account_manager)),
+          h5vcc_url_handler_(this, system_window)),
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
       will_quit_(false),
@@ -244,7 +244,8 @@ BrowserModule::BrowserModule(const GURL& url,
       renderer_module_.render_target()->GetSize(),
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
-      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
+      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
+      web_module_options_.javascript_options));
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Always render the debug console. It will draw nothing if disabled.
@@ -329,6 +330,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
+  options.input_poller = input_device_manager_->input_poller();
   web_module_.reset(new WebModule(
       url, base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
                       base::Unretained(this)),

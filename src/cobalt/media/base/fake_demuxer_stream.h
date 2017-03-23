@@ -16,6 +16,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }  // namespace base
 
+namespace cobalt {
 namespace media {
 
 class FakeDemuxerStream : public DemuxerStream {
@@ -126,5 +127,6 @@ class FakeDemuxerStreamProvider : public DemuxerStreamProvider {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FAKE_DEMUXER_STREAM_H_

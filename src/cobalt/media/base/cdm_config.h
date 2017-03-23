@@ -5,6 +5,7 @@
 #ifndef COBALT_MEDIA_BASE_CDM_CONFIG_H_
 #define COBALT_MEDIA_BASE_CDM_CONFIG_H_
 
+namespace cobalt {
 namespace media {
 
 // The runtime configuration for new CDM instances as computed by
@@ -23,5 +24,6 @@ struct CdmConfig {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_CONFIG_H_

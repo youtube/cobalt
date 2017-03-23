@@ -5,16 +5,17 @@
 #include "cobalt/media/blink/webmediaplayer_util.h"
 
 #include <math.h>
-#include <stddef.h>
 #include <string>
 #include <utility>
 
 #include "base/metrics/histogram.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/media_client.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/URLConversion.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayerEncryptedMediaClient.h"
 
+namespace cobalt {
 namespace media {
 
 blink::WebTimeRanges ConvertToWebTimeRanges(
@@ -254,3 +255,4 @@ OutputDeviceStatusCB ConvertToOutputDeviceStatusCB(
 }
 
 }  // namespace media
+}  // namespace cobalt

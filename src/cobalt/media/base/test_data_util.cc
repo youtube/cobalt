@@ -4,14 +4,14 @@
 
 #include "cobalt/media/base/test_data_util.h"
 
-#include <stdint.h>
-
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "cobalt/media/base/decoder_buffer.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 const base::FilePath::CharType kTestDataPath[] =
@@ -54,3 +54,4 @@ scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name) {
 }
 
 }  // namespace media
+}  // namespace cobalt

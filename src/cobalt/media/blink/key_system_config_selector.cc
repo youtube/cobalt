@@ -4,7 +4,6 @@
 
 #include "cobalt/media/blink/key_system_config_selector.h"
 
-#include <stddef.h>
 #include <utility>
 
 #include "base/bind.h"
@@ -17,12 +16,14 @@
 #include "cobalt/media/base/mime_util.h"
 #include "cobalt/media/blink/webmediaplayer_util.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/URLConversion.h"
 #include "third_party/WebKit/public/platform/WebMediaKeySystemConfiguration.h"
 #include "third_party/WebKit/public/platform/WebSecurityOrigin.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 #include "third_party/WebKit/public/platform/WebVector.h"
 
+namespace cobalt {
 namespace media {
 
 using EmeFeatureRequirement =
@@ -918,3 +919,4 @@ void KeySystemConfigSelector::OnPermissionResult(
 }
 
 }  // namespace media
+}  // namespace cobalt

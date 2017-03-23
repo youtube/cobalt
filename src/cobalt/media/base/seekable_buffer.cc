@@ -9,7 +9,9 @@
 #include "base/logging.h"
 #include "cobalt/media/base/data_buffer.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 SeekableBuffer::SeekableBuffer(int backward_capacity, int forward_capacity)
@@ -199,7 +201,8 @@ int SeekableBuffer::InternalRead(uint8_t* data, int size, bool advance_position,
 
       // |data| is NULL if we are seeking forward, so there's no need to copy.
       if (data)
-        memcpy(data + taken, buffer->data() + current_buffer_offset, copied);
+        SbMemoryCopy(data + taken, buffer->data() + current_buffer_offset,
+                     copied);
 
       // Increase total number of bytes copied, which regulates when to end this
       // loop.
@@ -264,3 +267,4 @@ void SeekableBuffer::UpdateCurrentTime(BufferQueue::iterator buffer,
 }
 
 }  // namespace media
+}  // namespace cobalt

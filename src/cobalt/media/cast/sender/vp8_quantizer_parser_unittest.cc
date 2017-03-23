@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <cstdlib>
 
 #include "base/macros.h"
@@ -15,8 +13,10 @@
 #include "media/cast/sender/vp8_quantizer_parser.h"
 #include "media/cast/test/utility/default_config.h"
 #include "media/cast/test/utility/video_utility.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -151,3 +151,4 @@ TEST_F(Vp8QuantizerParserTest, VariedQuantizer) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

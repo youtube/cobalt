@@ -4,8 +4,6 @@
 
 #include "media/cast/sender/audio_sender.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -24,8 +22,10 @@
 #include "media/cast/net/cast_transport_config.h"
 #include "media/cast/net/cast_transport_impl.h"
 #include "media/cast/test/utility/audio_utility.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -167,3 +167,4 @@ TEST_F(AudioSenderTest, RtcpTimer) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -5,10 +5,10 @@
 #ifndef COBALT_MEDIA_BASE_ENCRYPTION_SCHEME_H_
 #define COBALT_MEDIA_BASE_ENCRYPTION_SCHEME_H_
 
-#include <stdint.h>
-
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Specification of whether and how the stream is encrypted (in whole or part).
@@ -75,5 +75,6 @@ class MEDIA_EXPORT EncryptionScheme {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_ENCRYPTION_SCHEME_H_

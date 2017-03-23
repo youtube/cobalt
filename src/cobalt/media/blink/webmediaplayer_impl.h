@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_
 #define COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,6 +35,7 @@
 #include "cobalt/media/filters/pipeline_controller.h"
 #include "cobalt/media/renderers/skcanvas_video_renderer.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebAudioSourceProvider.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 #include "third_party/WebKit/public/platform/WebMediaPlayer.h"
@@ -67,6 +66,7 @@ class GLES2Interface;
 }
 }
 
+namespace cobalt {
 namespace media {
 class ChunkDemuxer;
 class GpuVideoAcceleratorFactories;
@@ -560,5 +560,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_IMPL_H_

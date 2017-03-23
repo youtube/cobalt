@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_FRAME_H_
 #define COBALT_MEDIA_BASE_VIDEO_FRAME_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,6 +19,7 @@
 #include "cobalt/media/base/video_frame_metadata.h"
 #include "cobalt/media/base/video_types.h"
 #include "gpu/command_buffer/common/mailbox_holder.h"
+#include "starboard/types.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
@@ -31,6 +29,7 @@
 #include "base/mac/scoped_cftyperef.h"
 #endif
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
@@ -512,5 +511,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_FRAME_H_

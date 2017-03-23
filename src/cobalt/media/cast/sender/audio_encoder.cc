@@ -4,8 +4,6 @@
 
 #include "media/cast/sender/audio_encoder.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <limits>
 #include <string>
@@ -22,6 +20,8 @@
 #include "media/base/audio_sample_types.h"
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/constants.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 #if !defined(OS_IOS)
 #include "third_party/opus/src/include/opus.h"
@@ -31,6 +31,7 @@
 #include <AudioToolbox/AudioToolbox.h>
 #endif
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -390,7 +391,7 @@ class AudioEncoder::AppleAacImpl : public AudioEncoder::ImplBase {
 
     // Request AAC-LC encoding, with no downmixing or downsampling.
     AudioStreamBasicDescription out_asbd;
-    memset(&out_asbd, 0, sizeof(AudioStreamBasicDescription));
+    SbMemorySet(&out_asbd, 0, sizeof(AudioStreamBasicDescription));
     out_asbd.mSampleRate = sampling_rate;
     out_asbd.mFormatID = kAudioFormatMPEG4AAC;
     out_asbd.mChannelsPerFrame = num_channels_;
@@ -772,3 +773,4 @@ void AudioEncoder::InsertAudio(std::unique_ptr<AudioBus> audio_bus,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

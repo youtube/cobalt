@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_TEST_HELPERS_H_
 #define COBALT_MEDIA_BASE_TEST_HELPERS_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 
@@ -21,6 +19,7 @@
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/sample_format.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/gfx/size.h"
 
@@ -29,6 +28,7 @@ class RunLoop;
 class TimeDelta;
 }
 
+namespace cobalt {
 namespace media {
 
 class AudioBuffer;
@@ -238,5 +238,6 @@ MATCHER(WebMClusterBeforeFirstInfo, "") {
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEST_HELPERS_H_

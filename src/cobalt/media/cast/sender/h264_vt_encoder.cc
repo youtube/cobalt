@@ -4,8 +4,6 @@
 
 #include "media/cast/sender/h264_vt_encoder.h"
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
@@ -23,7 +21,9 @@
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/constants.h"
 #include "media/cast/sender/video_frame_factory.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -578,3 +578,4 @@ void H264VideoToolboxEncoder::CompressionCallback(void* encoder_opaque,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

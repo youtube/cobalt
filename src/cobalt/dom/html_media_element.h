@@ -42,15 +42,21 @@ namespace dom {
 
 class MediaSource;
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ChunkDemuxer ChunkDemuxer;
+typedef media::WebMediaPlayer WebMediaPlayer;
+typedef media::WebMediaPlayerClient WebMediaPlayerClient;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::WebMediaPlayer WebMediaPlayer;
+typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
+#endif  // defined(WebMediaPlayerDelegate)
+
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   https://www.w3.org/TR/html5/embedded-content-0.html#media-element
 // It also implements methods defined in Encrypted Media Extensions.
 //   https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html
-class HTMLMediaElement : public HTMLElement,
-                         private ::media::WebMediaPlayerClient {
+class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
  public:
-  typedef ::media::WebMediaPlayer WebMediaPlayer;
-
   HTMLMediaElement(Document* document, base::Token tag_name);
   ~HTMLMediaElement() OVERRIDE;
 
@@ -219,11 +225,12 @@ class HTMLMediaElement : public HTMLElement,
   void SawUnsupportedTracks() OVERRIDE;
   float Volume() const OVERRIDE;
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) OVERRIDE;
+  void SourceOpened(ChunkDemuxer* chunk_demuxer) OVERRIDE;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   void SourceOpened() OVERRIDE;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const OVERRIDE;
+  bool PreferDecodeToTexture() const OVERRIDE;
   void KeyAdded(const std::string& key_system,
                 const std::string& session_id) OVERRIDE;
   void KeyError(const std::string& key_system, const std::string& session_id,

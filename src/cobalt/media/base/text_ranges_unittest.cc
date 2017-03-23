@@ -4,11 +4,11 @@
 
 #include "cobalt/media/base/text_ranges.h"
 
-#include <stddef.h>
-
 #include "base/time.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class TextRangesTest : public ::testing::Test {
@@ -143,3 +143,4 @@ TEST_F(TextRangesTest, TestThreeRanges) {
 }
 
 }  // namespace media
+}  // namespace cobalt

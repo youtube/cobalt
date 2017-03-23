@@ -4,8 +4,6 @@
 
 #include "cobalt/media/formats/mpeg/mpeg1_audio_stream_parser.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,8 +11,10 @@
 #include "base/memory/ptr_util.h"
 #include "cobalt/media/base/test_data_util.h"
 #include "cobalt/media/formats/common/stream_parser_test_base.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class MPEG1AudioStreamParserTest : public StreamParserTestBase,
@@ -100,3 +100,4 @@ TEST_F(MPEG1AudioStreamParserTest, MetadataParsing) {
 }
 
 }  // namespace media
+}  // namespace cobalt

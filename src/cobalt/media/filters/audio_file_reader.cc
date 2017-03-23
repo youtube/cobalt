@@ -4,8 +4,6 @@
 
 #include "cobalt/media/filters/audio_file_reader.h"
 
-#include <stddef.h>
-
 #include <cmath>
 
 #include "base/logging.h"
@@ -13,7 +11,10 @@
 #include "base/time.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // AAC(M4A) decoding specific constants.
@@ -210,8 +211,9 @@ int AudioFileReader::Read(AudioBus* audio_bus) {
         }
       } else if (codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP) {
         for (int ch = 0; ch < audio_bus->channels(); ++ch) {
-          memcpy(audio_bus->channel(ch) + current_frame,
-                 av_frame->extended_data[ch], sizeof(float) * frames_read);
+          SbMemoryCopy(audio_bus->channel(ch) + current_frame,
+                       av_frame->extended_data[ch],
+                       sizeof(float) * frames_read);
         }
       } else {
         audio_bus->FromInterleavedPartial(av_frame->data[0], current_frame,
@@ -294,3 +296,4 @@ const AVStream* AudioFileReader::GetAVStreamForTesting() const {
 }
 
 }  // namespace media
+}  // namespace cobalt

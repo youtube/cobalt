@@ -14,23 +14,20 @@
 
 #include "cobalt/dom/ui_event_with_key_state.h"
 
-#include "cobalt/system_window/keyboard_event.h"
+#include "cobalt/system_window/input_event.h"
 
 namespace cobalt {
 namespace dom {
 
 // For simplicity, we make sure these match, to avoid doing a conversion.
-COMPILE_ASSERT(UIEventWithKeyState::kNoModifier ==
-                       system_window::KeyboardEvent::kNoModifier &&
-                   UIEventWithKeyState::kAltKey ==
-                       system_window::KeyboardEvent::kAltKey &&
-                   UIEventWithKeyState::kCtrlKey ==
-                       system_window::KeyboardEvent::kCtrlKey &&
-                   UIEventWithKeyState::kMetaKey ==
-                       system_window::KeyboardEvent::kMetaKey &&
-                   UIEventWithKeyState::kShiftKey ==
-                       system_window::KeyboardEvent::kShiftKey,
-               Mismatched_modifier_enums);
+COMPILE_ASSERT(
+    UIEventWithKeyState::kNoModifier ==
+            system_window::InputEvent::kNoModifier &&
+        UIEventWithKeyState::kAltKey == system_window::InputEvent::kAltKey &&
+        UIEventWithKeyState::kCtrlKey == system_window::InputEvent::kCtrlKey &&
+        UIEventWithKeyState::kMetaKey == system_window::InputEvent::kMetaKey &&
+        UIEventWithKeyState::kShiftKey == system_window::InputEvent::kShiftKey,
+    Mismatched_modifier_enums);
 
 bool UIEventWithKeyState::GetModifierState(const std::string& keyArg) const {
   // Standard names of modifier keys defined here:

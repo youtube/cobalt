@@ -10,9 +10,11 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/rand_util.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class MemoryDataSourceTest : public ::testing::Test {
@@ -39,8 +41,8 @@ class MemoryDataSourceTest : public ::testing::Test {
         base::Bind(&MemoryDataSourceTest::ReadCB, base::Unretained(this)));
 
     if (expected_read_size != DataSource::kReadError) {
-      EXPECT_EQ(
-          0, memcmp(data_.data() + position, data.data(), expected_read_size));
+      EXPECT_EQ(0, SbMemoryCompare(data_.data() + position, data.data(),
+                                   expected_read_size));
     }
   }
 
@@ -110,3 +112,4 @@ TEST_F(MemoryDataSourceTest, GetSize) {
 }
 
 }  // namespace media
+}  // namespace cobalt

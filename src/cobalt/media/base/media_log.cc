@@ -10,6 +10,7 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 
+namespace cobalt {
 namespace media {
 
 // A count of all MediaLogs created in the current process. Used to generate
@@ -221,12 +222,6 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateSeekEvent(float seconds) {
   return event.Pass();
 }
 
-/*scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineStateChangedEvent(
-    PipelineImpl::State state) {
-  NOTREACHED();
-  return scoped_ptr<MediaLogEvent>();
-}*/
-
 scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineErrorEvent(
     PipelineStatus error) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::PIPELINE_ERROR));
@@ -288,3 +283,4 @@ LogHelper::LogHelper(MediaLog::MediaLogLevel level,
 LogHelper::~LogHelper() { media_log_->AddLogEvent(level_, stream_.str()); }
 
 }  // namespace media
+}  // namespace cobalt

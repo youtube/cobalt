@@ -5,19 +5,20 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_SOFTWARE_VIDEO_ENCODER_H_
 #define COBALT_MEDIA_CAST_SENDER_SOFTWARE_VIDEO_ENCODER_H_
 
-#include <stdint.h>
-
 #include "base/memory/ref_counted.h"
 #include "media/cast/sender/sender_encoded_frame.h"
+#include "starboard/types.h"
 
 namespace base {
 class TimeTicks;
 }
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -43,5 +44,6 @@ class SoftwareVideoEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_SOFTWARE_VIDEO_ENCODER_H_

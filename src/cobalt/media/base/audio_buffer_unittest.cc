@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <limits>
 #include <memory>
 
 #include "cobalt/media/base/audio_buffer.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/test_helpers.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kSampleRate = 4800;
@@ -373,3 +373,4 @@ TEST(AudioBufferTest, TrimRangePlanar) {
 TEST(AudioBufferTest, TrimRangeInterleaved) { TrimRangeTest(kSampleFormatF32); }
 
 }  // namespace media
+}  // namespace cobalt

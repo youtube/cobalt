@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -19,6 +17,7 @@
 #include "cobalt/media/base/mock_filters.h"
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/filters/decrypting_demuxer_stream.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
@@ -27,6 +26,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 static const int kFakeBufferSize = 16;
@@ -521,3 +521,4 @@ TEST_F(DecryptingDemuxerStreamTest, Destroy_AfterReset) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -34,6 +34,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/filters/chunk_demuxer.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
@@ -61,7 +62,7 @@ void NeedKeyCB(const std::string& type, scoped_array<uint8> init_data,
 }
 
 bool IsMP4(const std::vector<uint8>& content) {
-  return content.size() >= 8 && memcmp(&content[4], "ftyp", 4) == 0;
+  return content.size() >= 8 && SbMemoryCompare(&content[4], "ftyp", 4) == 0;
 }
 
 std::vector<std::string> MakeStringVector(const char* string) {
@@ -230,7 +231,7 @@ bool LoadIVF(const std::vector<uint8>& content,
   const size_t kIVFFileHeaderSize = 32;
   const size_t kIVFFrameHeaderSize = 12;
   if (content.size() < kIVFFileHeaderSize ||
-      memcmp(&content[0], "DKIF", 4) != 0) {
+      SbMemoryCompare(&content[0], "DKIF", 4) != 0) {
     return false;
   }
   size_t offset = kIVFFileHeaderSize;

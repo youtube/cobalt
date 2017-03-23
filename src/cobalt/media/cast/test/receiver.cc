@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <climits>
@@ -47,11 +45,13 @@
 #include "media/cast/test/utility/input_builder.h"
 #include "media/cast/test/utility/standalone_cast_environment.h"
 #include "net/base/ip_address.h"
+#include "starboard/types.h"
 
 #if defined(USE_X11)
 #include "media/cast/test/linux_output_window.h"
 #endif  // defined(USE_X11)
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -537,6 +537,7 @@ class NaivePlayer : public InProcessReceiver,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/bind.h"
@@ -18,9 +15,11 @@
 #include "media/cast/receiver/audio_decoder.h"
 #include "media/cast/test/utility/audio_utility.h"
 #include "media/cast/test/utility/standalone_cast_environment.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/opus/src/include/opus.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -233,3 +232,4 @@ INSTANTIATE_TEST_CASE_P(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

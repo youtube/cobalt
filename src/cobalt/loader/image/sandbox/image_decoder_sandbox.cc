@@ -39,7 +39,7 @@ using system_window::SystemWindow;
 using file_util::FileEnumerator;
 
 struct ImageDecoderCallback {
-  void SuccessCallback(const scoped_refptr<render_tree::Image>& value) {
+  void SuccessCallback(const scoped_refptr<loader::image::Image>& value) {
     image = value;
   }
 
@@ -47,7 +47,7 @@ struct ImageDecoderCallback {
     LOG(ERROR) << error_message;
   }
 
-  scoped_refptr<render_tree::Image> image;
+  scoped_refptr<loader::image::Image> image;
 };
 
 std::vector<FilePath> GetImagePaths(const char* extention) {
@@ -129,10 +129,10 @@ int SandboxMain(int argc, char** argv) {
 
   base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
-  scoped_ptr<SystemWindow> system_window =
-      cobalt::system_window::CreateSystemWindow(
+  scoped_ptr<SystemWindow> system_window(
+      new cobalt::system_window::SystemWindow(
           &event_dispatcher,
-          cobalt::math::Size(kViewportWidth, kViewportHeight));
+          cobalt::math::Size(kViewportWidth, kViewportHeight)));
 
   // Construct a renderer module using default options.
   RendererModule::Options renderer_module_options;

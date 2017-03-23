@@ -28,7 +28,9 @@
 #include "base/logging.h"
 #include "media/base/video_frame.h"
 #include "media/cast/test/utility/barcode.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -55,25 +57,25 @@ bool EncodeBarcode(const std::vector<bool>& bits,
   size_t padding = (row_bytes - bytes_required) / 2;
   unsigned char* pos = &bytes[padding];
   // Two leading black bars.
-  memset(pos, 0, unit_size);
+  SbMemorySet(pos, 0, unit_size);
   pos += unit_size * 2;
-  memset(pos, 0, unit_size);
+  SbMemorySet(pos, 0, unit_size);
   pos += unit_size * 2;
   for (size_t bit = 0; bit < bits.size(); bit++) {
-    memset(pos, 0, bits[bit] ? unit_size * 2 : unit_size);
+    SbMemorySet(pos, 0, bits[bit] ? unit_size * 2 : unit_size);
     pos += unit_size * 3;
   }
-  memset(pos, 0, unit_size);
+  SbMemorySet(pos, 0, unit_size);
   pos += unit_size * 2;
-  memset(pos, 0, unit_size);
+  SbMemorySet(pos, 0, unit_size);
   pos += unit_size;
   DCHECK_LE(pos - &bytes.front(), row_bytes);
 
   // Now replicate this one row into all rows in kYPlane.
   for (int row = 0; row < output_frame->rows(VideoFrame::kYPlane); row++) {
-    memcpy(output_frame->data(VideoFrame::kYPlane) +
-               output_frame->stride(VideoFrame::kYPlane) * row,
-           &bytes.front(), row_bytes);
+    SbMemoryCopy(output_frame->data(VideoFrame::kYPlane) +
+                     output_frame->stride(VideoFrame::kYPlane) * row,
+                 &bytes.front(), row_bytes);
   }
   return true;
 }
@@ -168,3 +170,4 @@ bool DecodeBarcode(const scoped_refptr<VideoFrame>& frame,
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
 #define COBALT_MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -19,9 +17,11 @@
 #include "cobalt/media/base/video_codecs.h"
 #include "cobalt/media/base/video_types.h"
 #include "cobalt/media/formats/webm/webm_colour_parser.h"
+#include "starboard/types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 MEDIA_EXPORT VideoCodec
@@ -137,5 +137,6 @@ class MEDIA_EXPORT VideoDecoderConfig {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_DECODER_CONFIG_H_

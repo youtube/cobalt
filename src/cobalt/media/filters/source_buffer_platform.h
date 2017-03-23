@@ -5,10 +5,10 @@
 #ifndef COBALT_MEDIA_FILTERS_SOURCE_BUFFER_PLATFORM_H_
 #define COBALT_MEDIA_FILTERS_SOURCE_BUFFER_PLATFORM_H_
 
-#include <stddef.h>
-
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // The maximum amount of data in bytes the stream will keep in memory.
@@ -16,5 +16,6 @@ MEDIA_EXPORT extern const size_t kSourceBufferAudioMemoryLimit;
 MEDIA_EXPORT extern const size_t kSourceBufferVideoMemoryLimit;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_PLATFORM_H_

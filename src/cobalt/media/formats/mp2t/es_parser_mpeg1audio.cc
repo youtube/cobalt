@@ -19,6 +19,7 @@
 #include "media/formats/mp2t/mp2t_common.h"
 #include "media/formats/mpeg/mpeg1_audio_stream_parser.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -194,3 +195,4 @@ void EsParserMpeg1Audio::SkipMpeg1AudioFrame(
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

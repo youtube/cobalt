@@ -13,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string_split.h"
 
+namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
@@ -36,5 +37,6 @@ std::string GetURLQueryString(const base::StringPairs& query_params);
 scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEST_DATA_UTIL_H_

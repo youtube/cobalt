@@ -12,8 +12,6 @@
 #ifndef COBALT_MEDIA_FILTERS_VP9_PARSER_H_
 #define COBALT_MEDIA_FILTERS_VP9_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
 
 #include <deque>
@@ -23,7 +21,9 @@
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 const int kVp9MaxProfile = 4;
@@ -430,5 +430,6 @@ class MEDIA_EXPORT Vp9Parser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_VP9_PARSER_H_

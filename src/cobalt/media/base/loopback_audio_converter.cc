@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/loopback_audio_converter.h"
 
+namespace cobalt {
 namespace media {
 
 LoopbackAudioConverter::LoopbackAudioConverter(
@@ -20,3 +21,4 @@ double LoopbackAudioConverter::ProvideInput(AudioBus* audio_bus,
 }
 
 }  // namespace media
+}  // namespace cobalt

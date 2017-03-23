@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/decryptor.h"
 
+namespace cobalt {
 namespace media {
 
 Decryptor::Decryptor() {}
@@ -11,3 +12,4 @@ Decryptor::Decryptor() {}
 Decryptor::~Decryptor() {}
 
 }  // namespace media
+}  // namespace cobalt

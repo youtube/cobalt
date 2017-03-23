@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_
 #define COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_
 
-#include <stdint.h>
-
 #include <set>
 #include <vector>
 
@@ -17,9 +15,12 @@
 #include "cobalt/media/base/audio_timestamp_helper.h"
 #include "cobalt/media/base/bit_reader.h"
 #include "cobalt/media/base/byte_queue.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/stream_parser.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
@@ -28,7 +29,8 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
   // referred to as the sync code in the MP3 and ADTS header specifications.
   // |codec_delay| is the number of samples the decoder will output before the
   // first real frame.
-  MPEGAudioStreamParserBase(uint32_t start_code_mask, AudioCodec audio_codec,
+  MPEGAudioStreamParserBase(DecoderBuffer::Allocator* buffer_allocator,
+                            uint32_t start_code_mask, AudioCodec audio_codec,
                             int codec_delay);
   ~MPEGAudioStreamParserBase() OVERRIDE;
 
@@ -123,6 +125,8 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
   // Returns true if the buffers are sent successfully.
   bool SendBuffers(BufferQueue* buffers, bool end_of_segment);
 
+  DecoderBuffer::Allocator* buffer_allocator_;
+
   State state_;
 
   InitCB init_cb_;
@@ -145,5 +149,6 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MPEG_MPEG_AUDIO_STREAM_PARSER_BASE_H_

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #include <string>
@@ -16,8 +14,11 @@
 #include "cobalt/media/filters/h264_parser.h"
 #include "cobalt/media/formats/mp4/avc.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -220,7 +221,7 @@ TEST_P(AVCConversionTest, ParseCorrectly) {
   EXPECT_TRUE(AVC::ConvertFrameToAnnexB(GetParam(), &buf, &subsamples));
   EXPECT_TRUE(AVC::IsValidAnnexB(buf, subsamples));
   EXPECT_EQ(buf.size(), sizeof(kExpected));
-  EXPECT_EQ(0, memcmp(kExpected, &buf[0], sizeof(kExpected)));
+  EXPECT_EQ(0, SbMemoryCompare(kExpected, &buf[0], sizeof(kExpected)));
   EXPECT_EQ("P,SDC", AnnexBToString(buf, subsamples));
 }
 
@@ -325,7 +326,8 @@ TEST_F(AVCConversionTest, ConvertConfigToAnnexB) {
   std::vector<uint8_t> buf;
   std::vector<SubsampleEntry> subsamples;
   EXPECT_TRUE(AVC::ConvertConfigToAnnexB(avc_config, &buf));
-  EXPECT_EQ(0, memcmp(kExpectedParamSets, &buf[0], sizeof(kExpectedParamSets)));
+  EXPECT_EQ(0, SbMemoryCompare(kExpectedParamSets, &buf[0],
+                               sizeof(kExpectedParamSets)));
   EXPECT_EQ("SPS,SPS,PPS", AnnexBToString(buf, subsamples));
 }
 
@@ -442,3 +444,4 @@ TEST_F(AVCConversionTest, InsertParamSetsAnnexB) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

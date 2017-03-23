@@ -4,14 +4,18 @@
 
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 
-#include <stddef.h>
-
 #include "cobalt/media/base/bit_reader.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
+#include "starboard/types.h"
+
+namespace cobalt {
+namespace media {
+
+namespace {
 
 // The elementary stream size is specific by up to 4 bytes.
 // The MSB of a byte indicates if there are more bytes for the size.
-static bool ReadESSize(media::BitReader* reader, uint32_t* size) {
+static bool ReadESSize(BitReader* reader, uint32_t* size) {
   uint8_t msb;
   uint8_t byte;
 
@@ -28,7 +32,7 @@ static bool ReadESSize(media::BitReader* reader, uint32_t* size) {
   return true;
 }
 
-namespace media {
+}  // namespace
 
 namespace mp4 {
 
@@ -111,3 +115,4 @@ bool ESDescriptor::ParseDecoderSpecificInfo(BitReader* reader) {
 }  // namespace mp4
 
 }  // namespace media
+}  // namespace cobalt

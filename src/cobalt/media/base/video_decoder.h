@@ -15,6 +15,7 @@
 #include "cobalt/media/base/pipeline_status.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 class CdmContext;
@@ -117,5 +118,6 @@ class MEDIA_EXPORT VideoDecoder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_DECODER_H_

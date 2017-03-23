@@ -4,7 +4,6 @@
 
 #include "media/cast/sender/video_sender.h"
 
-#include <stdint.h>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -16,7 +15,9 @@
 #include "media/cast/net/cast_transport_config.h"
 #include "media/cast/sender/performance_metrics_overlay.h"
 #include "media/cast/sender/video_encoder.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -328,3 +329,4 @@ void VideoSender::OnEncodedVideoFrame(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

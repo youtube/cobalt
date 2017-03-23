@@ -5,13 +5,13 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_SAMPLE_TO_GROUP_ITERATOR_H_
 #define COBALT_MEDIA_FORMATS_MP4_SAMPLE_TO_GROUP_ITERATOR_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/basictypes.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -48,5 +48,6 @@ class MEDIA_EXPORT SampleToGroupIterator {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_SAMPLE_TO_GROUP_ITERATOR_H_

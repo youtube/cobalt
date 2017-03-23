@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_MOCK_FILTERS_H_
 #define COBALT_MEDIA_BASE_MOCK_FILTERS_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -33,8 +31,10 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/base/video_frame.h"
 #include "cobalt/media/base/video_renderer.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 class MockPipelineClient : public Pipeline::Client {
@@ -377,5 +377,6 @@ class MockStreamParser : public StreamParser {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MOCK_FILTERS_H_

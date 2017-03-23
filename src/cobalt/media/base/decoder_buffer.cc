@@ -3,31 +3,64 @@
 // found in the LICENSE file.
 
 #include "cobalt/media/base/decoder_buffer.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
-// Allocates a block of memory which is padded for use with the SIMD
-// optimizations used by FFmpeg.
-static uint8_t* AllocateFFmpegSafeBlock(size_t size) {
-  uint8_t* const block = reinterpret_cast<uint8_t*>(base::AlignedAlloc(
-      size + DecoderBuffer::kPaddingSize, DecoderBuffer::kAlignmentSize));
-  memset(block + size, 0, DecoderBuffer::kPaddingSize);
-  return block;
+DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
+                                                      Type type, size_t size)
+    : allocator_(allocator), type_(type), ptr_(NULL) {
+  if (size > 0) {
+    DCHECK(allocator_);
+    ptr_ = static_cast<uint8_t*>(
+        allocator_->Allocate(type_, size + kPaddingSize, kAlignmentSize));
+    if (ptr_) {
+      SbMemorySet(ptr_ + size, 0, kPaddingSize);
+    }
+  }
 }
 
-DecoderBuffer::DecoderBuffer(size_t size)
-    : allocated_size_(size),
-      size_(size),
+DecoderBuffer::ScopedAllocatorPtr::~ScopedAllocatorPtr() {
+  // |allocator_| can be NULL for EOS buffer.
+  if (allocator_ && ptr_) {
+    allocator_->Free(type_, ptr_);
+  }
+}
+
+DecoderBuffer::DecoderBuffer()
+    : allocator_(NULL),
+      type_(DemuxerStream::UNKNOWN),
+      allocated_size_(0),
+      size_(0),
+      data_(NULL, DemuxerStream::UNKNOWN, 0),
       side_data_size_(0),
-      is_key_frame_(false) {
-  Initialize();
-}
+      side_data_(NULL, DemuxerStream::UNKNOWN, 0),
+      splice_timestamp_(kNoTimestamp),
+      is_key_frame_(false) {}
 
-DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size,
-                             const uint8_t* side_data, size_t side_data_size)
-    : allocated_size_(size),
+DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type, size_t size)
+    : allocator_(allocator),
+      type_(type),
+      allocated_size_(size),
       size_(size),
+      data_(allocator_, type, size),
+      side_data_size_(0),
+      side_data_(allocator_, type, 0),
+      splice_timestamp_(kNoTimestamp),
+      is_key_frame_(false) {}
+
+DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
+                             const uint8_t* data, size_t size,
+                             const uint8_t* side_data, size_t side_data_size)
+    : allocator_(allocator),
+      type_(type),
+      allocated_size_(size),
+      size_(size),
+      data_(allocator_, type, size),
       side_data_size_(side_data_size),
+      side_data_(allocator_, type, side_data_size),
+      splice_timestamp_(kNoTimestamp),
       is_key_frame_(false) {
   if (!data) {
     CHECK_EQ(size_, 0u);
@@ -35,9 +68,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size,
     return;
   }
 
-  Initialize();
-
-  memcpy(data_.get(), data, size_);
+  SbMemoryCopy(data_.get(), data, size_);
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -45,41 +76,74 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size,
   }
 
   DCHECK_GT(side_data_size_, 0u);
-  memcpy(side_data_.get(), side_data, side_data_size_);
+  SbMemoryCopy(side_data_.get(), side_data, side_data_size_);
 }
 
 DecoderBuffer::~DecoderBuffer() {}
 
-void DecoderBuffer::Initialize() {
-  data_.reset(AllocateFFmpegSafeBlock(size_));
-  if (side_data_size_ > 0)
-    side_data_.reset(AllocateFFmpegSafeBlock(side_data_size_));
-  splice_timestamp_ = kNoTimestamp;
+// static
+scoped_refptr<DecoderBuffer> DecoderBuffer::Create(Allocator* allocator,
+                                                   Type type, size_t size) {
+  DCHECK_GT(size, 0);
+  scoped_refptr<DecoderBuffer> decoder_buffer =
+      new DecoderBuffer(allocator, type, size);
+  if (decoder_buffer->has_data()) {
+    return decoder_buffer;
+  }
+  return NULL;
 }
 
 // static
-scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
+scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(Allocator* allocator,
+                                                     Type type,
+                                                     const uint8_t* data,
                                                      size_t data_size) {
   // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
   CHECK(data);
-  return make_scoped_refptr(new DecoderBuffer(data, data_size, NULL, 0));
+  scoped_refptr<DecoderBuffer> decoder_buffer =
+      new DecoderBuffer(allocator, type, data, data_size, NULL, 0);
+  if (decoder_buffer->has_data()) {
+    return decoder_buffer;
+  }
+  return NULL;
 }
 
 // static
-scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
-                                                     size_t data_size,
-                                                     const uint8_t* side_data,
-                                                     size_t side_data_size) {
+scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
+    Allocator* allocator, Type type, const uint8_t* data, size_t data_size,
+    const uint8_t* side_data, size_t side_data_size) {
   // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
   CHECK(data);
   CHECK(side_data);
-  return make_scoped_refptr(
-      new DecoderBuffer(data, data_size, side_data, side_data_size));
+  scoped_refptr<DecoderBuffer> decoder_buffer = new DecoderBuffer(
+      allocator, type, data, data_size, side_data, side_data_size);
+  if (decoder_buffer->has_data() && decoder_buffer->has_side_data()) {
+    return decoder_buffer;
+  }
+  return NULL;
 }
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {
-  return make_scoped_refptr(new DecoderBuffer(NULL, 0, NULL, 0));
+  return make_scoped_refptr(new DecoderBuffer);
+}
+
+const char* DecoderBuffer::GetTypeName() const {
+  switch (type()) {
+    case DemuxerStream::AUDIO:
+      return "audio";
+    case DemuxerStream::VIDEO:
+      return "video";
+    case DemuxerStream::TEXT:
+      return "text";
+    case DemuxerStream::UNKNOWN:
+      return "unknown";
+    case DemuxerStream::NUM_TYPES:
+      // Fall-through to NOTREACHED().
+      break;
+  }
+  NOTREACHED();
+  return "";
 }
 
 std::string DecoderBuffer::AsHumanReadableString() {
@@ -88,7 +152,8 @@ std::string DecoderBuffer::AsHumanReadableString() {
   }
 
   std::ostringstream s;
-  s << "timestamp: " << timestamp_.InMicroseconds()
+  s << "type: " << GetTypeName()
+    << " timestamp: " << timestamp_.InMicroseconds()
     << " duration: " << duration_.InMicroseconds() << " size: " << size_
     << " side_data_size: " << side_data_size_
     << " is_key_frame: " << is_key_frame_
@@ -106,16 +171,5 @@ void DecoderBuffer::set_timestamp(base::TimeDelta timestamp) {
   timestamp_ = timestamp;
 }
 
-void DecoderBuffer::CopySideDataFrom(const uint8_t* side_data,
-                                     size_t side_data_size) {
-  if (side_data_size > 0) {
-    side_data_size_ = side_data_size;
-    side_data_.reset(AllocateFFmpegSafeBlock(side_data_size_));
-    memcpy(side_data_.get(), side_data, side_data_size_);
-  } else {
-    side_data_.reset();
-    side_data_size_ = 0;
-  }
-}
-
 }  // namespace media
+}  // namespace cobalt

@@ -4,14 +4,15 @@
 
 #include "cobalt/media/filters/h264_to_annex_b_bitstream_converter.h"
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class H264ToAnnexBBitstreamConverterTest : public testing::Test {
@@ -329,8 +330,8 @@ TEST_F(H264ToAnnexBBitstreamConverterTest, FailureHeaderBufferOverflow) {
   // Simulate 10 sps AVCDecoderConfigurationRecord,
   // which would extend beyond the buffer.
   uint8_t corrupted_header[sizeof(kHeaderDataOkWithFieldLen4)];
-  memcpy(corrupted_header, kHeaderDataOkWithFieldLen4,
-         sizeof(kHeaderDataOkWithFieldLen4));
+  SbMemoryCopy(corrupted_header, kHeaderDataOkWithFieldLen4,
+               sizeof(kHeaderDataOkWithFieldLen4));
   // 6th byte, 5 LSBs contain the number of sps's.
   corrupted_header[5] = corrupted_header[5] | 0xA;
 
@@ -359,8 +360,8 @@ TEST_F(H264ToAnnexBBitstreamConverterTest, FailureNalUnitBreakage) {
 
   // Simulate NAL unit broken in middle by writing only some of the data.
   uint8_t corrupted_nal_unit[sizeof(kPacketDataOkWithFieldLen4) - 100];
-  memcpy(corrupted_nal_unit, kPacketDataOkWithFieldLen4,
-         sizeof(kPacketDataOkWithFieldLen4) - 100);
+  SbMemoryCopy(corrupted_nal_unit, kPacketDataOkWithFieldLen4,
+               sizeof(kPacketDataOkWithFieldLen4) - 100);
 
   // Calculate buffer size for actual NAL unit, should return 0 because of
   // incomplete input buffer.
@@ -471,3 +472,4 @@ TEST_F(H264ToAnnexBBitstreamConverterTest, CorruptedPacket) {
 }
 
 }  // namespace media
+}  // namespace cobalt

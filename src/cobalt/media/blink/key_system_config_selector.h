@@ -26,6 +26,7 @@ class WebString;
 
 }  // namespace blink
 
+namespace cobalt {
 namespace media {
 
 struct CdmConfig;
@@ -92,5 +93,6 @@ class MEDIA_BLINK_EXPORT KeySystemConfigSelector {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_KEY_SYSTEM_CONFIG_SELECTOR_H_

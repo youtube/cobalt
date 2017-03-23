@@ -5,11 +5,11 @@
 #ifndef COBALT_MEDIA_FORMATS_MP2T_TIMESTAMP_UNROLLER_H_
 #define COBALT_MEDIA_FORMATS_MP2T_TIMESTAMP_UNROLLER_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -44,5 +44,6 @@ class MEDIA_EXPORT TimestampUnroller {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP2T_TIMESTAMP_UNROLLER_H_

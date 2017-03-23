@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/files/file_path.h"
@@ -12,9 +10,11 @@
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
 #include "cobalt/media/filters/blocking_url_protocol.h"
 #include "cobalt/media/filters/file_data_source.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class BlockingUrlProtocolTest : public testing::Test {
@@ -116,3 +116,4 @@ TEST_F(BlockingUrlProtocolTest, IsStreaming) {
 }
 
 }  // namespace media
+}  // namespace cobalt

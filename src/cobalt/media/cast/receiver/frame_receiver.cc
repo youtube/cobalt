@@ -30,6 +30,7 @@ media::cast::RtcpTimeData CreateRtcpTimeData(base::TimeTicks now) {
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -382,3 +383,4 @@ void FrameReceiver::SendRtcpReport(
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

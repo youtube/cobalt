@@ -4,15 +4,13 @@
 
 #include "cobalt/media/formats/webm/webm_parser.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 
 #include "base/basictypes.h"
 #include "cobalt/media/formats/webm/cluster_builder.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,6 +20,7 @@ using ::testing::ReturnNull;
 using ::testing::StrictMock;
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 
 enum { kBlockCount = 5 };
@@ -408,3 +407,4 @@ TEST_F(WebMParserTest, ZeroPaddedStrings) {
 }
 
 }  // namespace media
+}  // namespace cobalt

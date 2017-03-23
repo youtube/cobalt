@@ -146,17 +146,16 @@
       '<@(engine_bindings_scripts)',
     ],
 
-    # Prevents unnecessary rebuilds by not outputting a file if it has not
-    # changed. This flag exists to support some build tools that have trouble
-    # with dependencies having an older timestamp than their dependents. Ninja
-    # does not have this problem.
-    'write_file_only_if_changed': 1,
-
     # Caches and intermediate structures.
     'bindings_scripts_output_dir': '<(bindings_output_dir)/scripts',
 
     # Directory containing generated IDL files.
     'generated_idls_output_dir': '<(bindings_output_dir)/idl',
+
+    # Base directory into which generated bindings source files will be
+    # generated. Directory structure will mirror the directory structure
+    # that the .idl files came from.
+    'generated_source_output_dir': '<(bindings_output_dir)/source',
 
     # File containing a whitelist of Extended Attributes that the code generation
     # pipeline understands
@@ -166,15 +165,17 @@
     # (in Blink this is core or modules) and then these are combined. While Cobalt
     # currently does not and may not need to distinguish between components, we adhere to
     # Blink's process for simplicity.
-    'interfaces_info_component_pickle':
-        '<(bindings_scripts_output_dir)/interfaces_info_component.pickle',
+    'component_info_pickle':
+        '<(bindings_scripts_output_dir)/component_info.pickle',
+    'interfaces_info_individual_pickle':
+        '<(bindings_scripts_output_dir)/interfaces_info_individual.pickle',
     'interfaces_info_combined_pickle':
         '<(bindings_scripts_output_dir)/interfaces_info_overall.pickle',
 
     # All source files that will be generated from the source IDL files.
     'generated_sources':
         ['<!@pymod_do_main(cobalt.build.path_conversion -s'
-         ' --output_directory <(SHARED_INTERMEDIATE_DIR)'
+         ' --output_directory <(generated_source_output_dir)'
          ' --output_extension cc --output_prefix <(prefix)_'
          ' --base_directory <(DEPTH)'
          ' <@(source_idl_files))'],
@@ -247,9 +248,9 @@
         ],
         'outputs': [
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e cc -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
+              '-e cc -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e h -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
+              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
           'python',
@@ -257,13 +258,13 @@
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
           '--output-dir',
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
           '--interfaces-info',
           '<(interfaces_info_combined_pickle)',
+          '--component-info',
+          '<(component_info_pickle)',
           '--extended-attributes',
           '<(extended_attributes_file)',
-          '--write-file-only-if-changed',
-          '<(write_file_only_if_changed)',
           '<(RULE_INPUT_PATH)',
         ],
         'message': 'Generating binding from <(RULE_INPUT_PATH)',
@@ -273,7 +274,7 @@
         'defines': [ '<@(bindings_defines)' ],
         'include_dirs': [
           '<@(bindings_include_dirs)',
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
         ],
         'sources': [
           '<@(generated_sources)',
@@ -297,9 +298,9 @@
       'sources': [
         '<@(dictionary_idl_files)',
       ],
-      'all_dependent_settings': {
+      'direct_dependent_settings': {
         'include_dirs': [
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
         ]
       },
       'rules': [{
@@ -335,9 +336,9 @@
         ],
         'outputs': [
           '<!@pymod_do_main(cobalt.build.path_conversion -s '
-              '-e h -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
+              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e h -d <(SHARED_INTERMEDIATE_DIR) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
+              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
           'python',
@@ -345,13 +346,13 @@
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
           '--output-dir',
-          '<(SHARED_INTERMEDIATE_DIR)',
+          '<(generated_source_output_dir)',
           '--interfaces-info',
           '<(interfaces_info_combined_pickle)',
+          '--component-info',
+          '<(component_info_pickle)',
           '--extended-attributes',
           '<(extended_attributes_file)',
-          '--write-file-only-if-changed',
-          '<(write_file_only_if_changed)',
           '<(RULE_INPUT_PATH)',
         ],
         'message': 'Generating dictionary from <(RULE_INPUT_PATH)',
@@ -408,10 +409,8 @@
           '<@(dependency_idl_files)',
           '<@(unsupported_interface_idl_files)'],
         'generated_idl_files': ['<(global_constructors_generated_idl_file)'],
-        # This file is currently unused for Cobalt, but we need to specify something.
-        'component_info_file':
-            '<(bindings_scripts_output_dir)/unused/component_info.pickle',
-        'interfaces_info_file': '<(interfaces_info_component_pickle)',
+        'component_info_file':'<(component_info_pickle)',
+        'interfaces_info_file': '<(interfaces_info_individual_pickle)',
         'output_file': '<(interfaces_info_file)',
         'cache_directory': '<(bindings_scripts_output_dir)',
         'root_directory': '../..',
@@ -426,7 +425,7 @@
           'interfaces_info_individual',
       ],
       'variables': {
-        'input_files': ['<(interfaces_info_component_pickle)'],
+        'input_files': ['<(interfaces_info_individual_pickle)'],
         'output_file': '<(interfaces_info_combined_pickle)',
       },
       'includes': ['../../third_party/blink/Source/bindings/scripts/interfaces_info_overall.gypi'],

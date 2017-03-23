@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "cobalt/media/filters/vp9_raw_bits_reader.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(Vp9RawBitsReaderTest, ReadBool) {
@@ -66,3 +66,4 @@ TEST(Vp9RawBitsReader, ReadSignedLiteral) {
 }
 
 }  // namespace media
+}  // namespace cobalt

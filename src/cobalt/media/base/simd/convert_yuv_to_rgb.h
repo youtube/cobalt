@@ -5,11 +5,10 @@
 #ifndef COBALT_MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
 #define COBALT_MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "media/base/yuv_convert.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // These methods are exported for testing purposes only.  Library users should
@@ -71,6 +70,7 @@ MEDIA_EXPORT void LinearScaleYUVToRGB32RowWithRange_C(
     const int16_t* convert_table);
 
 }  // namespace media
+}  // namespace cobalt
 
 // Assembly functions are declared without namespace.
 extern "C" {

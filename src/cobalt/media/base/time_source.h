@@ -11,6 +11,7 @@
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
 
+namespace cobalt {
 namespace media {
 
 // A TimeSource is capable of providing the current media time.
@@ -79,5 +80,6 @@ class MEDIA_EXPORT TimeSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TIME_SOURCE_H_

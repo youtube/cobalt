@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
 
+#include "base/callback.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -28,20 +29,33 @@ namespace egl {
 // Handles drawing a textured rectangle.
 class DrawRectTexture : public DrawObject {
  public:
+  typedef base::Callback<backend::TextureEGL*(void)>
+      GenerateTextureFunction;
+
   DrawRectTexture(GraphicsState* graphics_state,
                   const BaseState& base_state,
                   const math::RectF& rect,
                   const backend::TextureEGL* texture,
                   const math::Matrix3F& texcoord_transform);
 
-  void Execute(GraphicsState* graphics_state,
-               ShaderProgramManager* program_manager,
-               ExecutionStage stage) OVERRIDE;
+  DrawRectTexture(GraphicsState* graphics_state,
+                  const BaseState& base_state,
+                  const math::RectF& rect,
+                  const GenerateTextureFunction& generate_texture,
+                  const math::Matrix3F& texcoord_transform);
+
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
 
  private:
   math::Matrix3F texcoord_transform_;
   math::RectF rect_;
   const backend::TextureEGL* texture_;
+  GenerateTextureFunction generate_texture_;
 
   uint8_t* vertex_buffer_;
 };

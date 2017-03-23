@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/container_names.h"
 
-#include <stddef.h>
-
 #include <cctype>
 #include <limits>
 
@@ -13,7 +11,12 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "cobalt/media/base/bit_reader.h"
+#include "starboard/character.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 namespace container_names {
@@ -53,9 +56,9 @@ static uint32_t Read32LE(const uint8_t* p) {
 // end of the buffer.
 static bool StartsWith(const uint8_t* buffer, size_t buffer_size,
                        const char* prefix) {
-  size_t prefix_size = strlen(prefix);
+  size_t prefix_size = SbStringGetLength(prefix);
   return (prefix_size <= buffer_size &&
-          memcmp(buffer, prefix, prefix_size) == 0);
+          SbMemoryCompare(buffer, prefix, prefix_size) == 0);
 }
 
 // Helper function to do buffer comparisons with another buffer (to allow for
@@ -63,7 +66,7 @@ static bool StartsWith(const uint8_t* buffer, size_t buffer_size,
 static bool StartsWith(const uint8_t* buffer, size_t buffer_size,
                        const uint8_t* prefix, size_t prefix_size) {
   return (prefix_size <= buffer_size &&
-          memcmp(buffer, prefix, prefix_size) == 0);
+          SbMemoryCompare(buffer, prefix, prefix_size) == 0);
 }
 
 // Helper function to read up to 64 bits from a bit stream.
@@ -604,7 +607,7 @@ static bool CheckHls(const uint8_t* buffer, int buffer_size) {
     // "#EXT-X-MEDIA-SEQUENCE:" somewhere in the buffer. Other playlists (like
     // WinAmp) only have additional lines with #EXTINF
     // (http://en.wikipedia.org/wiki/M3U).
-    int offset = strlen(kHlsSignature);
+    int offset = SbStringGetLength(kHlsSignature);
     while (offset < buffer_size) {
       if (buffer[offset] == '#') {
         if (StartsWith(buffer + offset, buffer_size - offset, kHls1) ||
@@ -1098,14 +1101,14 @@ static bool VerifyNumber(const uint8_t* buffer, int buffer_size, int* offset,
   RCHECK(*offset < buffer_size);
 
   // Skip over any leading space.
-  while (isspace(buffer[*offset])) {
+  while (SbCharacterIsSpace(buffer[*offset])) {
     ++(*offset);
     RCHECK(*offset < buffer_size);
   }
 
   // Need to process up to max_digits digits.
   int numSeen = 0;
-  while (--max_digits >= 0 && isdigit(buffer[*offset])) {
+  while (--max_digits >= 0 && SbCharacterIsDigit(buffer[*offset])) {
     ++numSeen;
     ++(*offset);
     if (*offset >= buffer_size) return true;  // Out of space but seen a digit.
@@ -1600,3 +1603,4 @@ MediaContainerName DetermineContainer(const uint8_t* buffer, int buffer_size) {
 }  // namespace container_names
 
 }  // namespace media
+}  // namespace cobalt

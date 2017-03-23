@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_CDM_INITIALIZED_PROMISE_H_
 #define COBALT_MEDIA_BASE_CDM_INITIALIZED_PROMISE_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/memory/ref_counted.h"
@@ -14,7 +12,9 @@
 #include "cobalt/media/base/cdm_promise.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_keys.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Promise to be resolved when the CDM is initialized. It owns the MediaKeys
@@ -39,5 +39,6 @@ class MEDIA_EXPORT CdmInitializedPromise : public SimpleCdmPromise {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_INITIALIZED_PROMISE_H_

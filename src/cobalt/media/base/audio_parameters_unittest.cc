@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include "base/basictypes.h"
 #include "base/string_number_conversions.h"
 #include "cobalt/media/base/audio_parameters.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 TEST(AudioParameters, Constructor_Default) {
@@ -224,3 +224,4 @@ TEST(AudioParameters, Constructor_ValidChannelCounts) {
 }
 
 }  // namespace media
+}  // namespace cobalt

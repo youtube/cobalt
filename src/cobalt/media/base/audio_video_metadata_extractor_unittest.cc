@@ -13,6 +13,7 @@
 #include "cobalt/media/filters/file_data_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 std::unique_ptr<AudioVideoMetadataExtractor> GetExtractor(
@@ -208,3 +209,4 @@ TEST(AudioVideoMetadataExtractorTest, AudioMP3) {
 #endif
 
 }  // namespace media
+}  // namespace cobalt

@@ -88,8 +88,34 @@ def record_test_result(name, result):
   value_to_record = result
 
   string_value_to_record = json.JSONEncoder().encode(value_to_record)
-  print("{}: {} {}".format(TEST_RESULT, name, string_value_to_record))
+  print("{}: {} {}\n".format(TEST_RESULT, name, string_value_to_record))
   sys.stdout.flush()
+
+
+class RecordStrategyMax(object):
+  """"Records the max of an array of values."""
+
+  def run(self, name, values):
+    """Records the max of an array of values.
+
+    Args:
+      name: string name of test case
+      values: must be array of JSON encodable scalar
+    """
+    record_test_result("{}Max".format(name), max(values))
+
+
+class RecordStrategyMin(object):
+  """"Records the min of an array of values."""
+
+  def run(self, name, values):
+    """Records the min of an array of values.
+
+    Args:
+      name: string name of test case
+      values: must be array of JSON encodable scalar
+    """
+    record_test_result("{}Min".format(name), min(values))
 
 
 class RecordStrategyMean(object):
@@ -141,24 +167,6 @@ class RecordStrategyPercentile(object):
     """
     record_test_result("{}Pct{}".format(name, self.percentile),
                        container_util.percentile(values, self.percentile))
-
-
-class RecordStrategyPercentiles(object):
-  """"Records the 25th, 50th, 75th, and 95th percentiles of the values."""
-
-  def run(self, name, values):
-    """"Records the 25th, 50th, 75th, and 95th percentiles of the values.
-
-    Args:
-      name: string name of test case
-      values: must be array of JSON encodable scalar
-    Raises:
-      RuntimeError: Raised on invalid args.
-    """
-    RecordStrategyPercentile(25).run(name, values)
-    RecordStrategyPercentile(50).run(name, values)
-    RecordStrategyPercentile(75).run(name, values)
-    RecordStrategyPercentile(95).run(name, values)
 
 
 class ResultsRecorder(object):

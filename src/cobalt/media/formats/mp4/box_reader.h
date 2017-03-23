@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_BOX_READER_H_
 #define COBALT_MEDIA_FORMATS_MP4_BOX_READER_H_
 
-#include <stdint.h>
-
 #include <limits>
 #include <map>
 #include <vector>
@@ -17,7 +15,9 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/formats/mp4/fourccs.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -277,5 +277,6 @@ bool BoxReader::ReadAllChildrenInternal(std::vector<T>* children,
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_BOX_READER_H_

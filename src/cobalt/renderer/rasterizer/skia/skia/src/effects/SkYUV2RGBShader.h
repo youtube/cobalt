@@ -77,7 +77,6 @@ class SkYUV2RGBShader : public SkShader {
   virtual Context* onCreateContext(
       const ContextRec&, void* storage) const SK_OVERRIDE;
 
-
  private:
   void InitializeShaders();
 

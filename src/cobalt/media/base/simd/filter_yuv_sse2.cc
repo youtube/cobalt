@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #if defined(_MSC_VER)
 #include <intrin.h>
 #else
@@ -12,7 +10,9 @@
 #endif
 
 #include "media/base/simd/filter_yuv.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 void FilterYUVRows_SSE2(uint8_t* dest, const uint8_t* src0, const uint8_t* src1,
@@ -66,3 +66,4 @@ void FilterYUVRows_SSE2(uint8_t* dest, const uint8_t* src0, const uint8_t* src1,
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -5,10 +5,10 @@
 #ifndef COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_
 #define COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_
 
-#include <stdint.h>
-
 #include "media/base/yuv_convert.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // These methods are exported for testing purposes only.  Library users should
@@ -47,5 +47,6 @@ MEDIA_EXPORT void ConvertRGB24ToYUV_C(const uint8_t* rgbframe, uint8_t* yplane,
                                       int ystride, int uvstride);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SIMD_CONVERT_RGB_TO_YUV_H_

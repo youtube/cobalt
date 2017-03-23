@@ -30,14 +30,15 @@
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
-#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/url_registry.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
 #include "cobalt/dom/window_timers.h"
+#include "cobalt/input/input_poller.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
@@ -50,7 +51,6 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
-#include "cobalt/system_window/starboard/system_window.h"
 #include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
@@ -58,6 +58,7 @@
 namespace cobalt {
 namespace dom {
 
+class Camera3D;
 class Console;
 class Document;
 class Element;
@@ -66,6 +67,7 @@ class History;
 class HTMLElementContext;
 class LocalStorageDatabase;
 class Location;
+class MediaSource;
 class Navigator;
 class Performance;
 class Screen;
@@ -86,6 +88,7 @@ class Window : public EventTarget {
       const base::SourceLocation&, const base::Closure&,
       const base::Callback<void(const std::string&)>&)>
       HTMLDecoderCreatorCallback;
+  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
   Window(int width, int height, cssom::CSSParser* css_parser,
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
@@ -100,7 +103,7 @@ class Window : public EventTarget {
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,
          script::ScriptRunner* script_runner,
-         MediaSource::Registry* media_source_registry,
+         MediaSourceRegistry* media_source_registry,
          DomStatTracker* dom_stat_tracker, const GURL& url,
          const std::string& user_agent, const std::string& language,
          const base::Callback<void(const GURL&)> navigation_callback,
@@ -113,6 +116,7 @@ class Window : public EventTarget {
          const base::Closure& ran_animation_frame_callbacks_callback,
          const base::Closure& window_close_callback,
          system_window::SystemWindow* system_window,
+         const scoped_refptr<input::InputPoller>& input_poller,
          int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
@@ -227,6 +231,8 @@ class Window : public EventTarget {
   //
   const scoped_refptr<Console>& console() const;
 
+  const scoped_refptr<Camera3D>& camera_3d() const;
+
 #if defined(ENABLE_TEST_RUNNER)
   const scoped_refptr<TestRunner>& test_runner() const;
 #endif  // ENABLE_TEST_RUNNER
@@ -254,6 +260,10 @@ class Window : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
+  void StartDocumentLoad(
+      loader::FetcherFactory* fetcher_factory, const GURL& url,
+      Parser* dom_parser,
+      const base::Callback<void(const std::string&)>& error_callback);
   class RelayLoadEvent;
 
   ~Window() OVERRIDE;
@@ -275,6 +285,7 @@ class Window : public EventTarget {
   scoped_refptr<Navigator> navigator_;
   scoped_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
+  scoped_refptr<Camera3D> camera_3d_;
   scoped_ptr<WindowTimers> window_timers_;
   scoped_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;

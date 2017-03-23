@@ -20,12 +20,14 @@
 
 #include "base/debug/trace_event.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/framebuffer.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/frame_rate_throttler.h"
+#include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
@@ -57,7 +59,7 @@ class HardwareRasterizer::Impl {
 
   backend::TextureEGL* SubmitToFallbackRasterizer(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::Size& viewport_size);
+      const math::RectF& viewport);
 
   render_tree::ResourceProvider* GetResourceProvider() {
     return fallback_rasterizer_->GetResourceProvider();
@@ -140,11 +142,12 @@ void HardwareRasterizer::Impl::Submit(
   graphics_state_->Scissor(0, 0, target_size.width(), target_size.height());
 
   {
+    DrawObjectManager draw_object_manager;
     RenderTreeNodeVisitor::FallbackRasterizeFunction fallback_rasterize =
         base::Bind(&HardwareRasterizer::Impl::SubmitToFallbackRasterizer,
                    base::Unretained(this));
     RenderTreeNodeVisitor visitor(graphics_state_.get(),
-                                  shader_program_manager_.get(),
+                                  &draw_object_manager,
                                   &fallback_rasterize);
 
     {
@@ -154,23 +157,33 @@ void HardwareRasterizer::Impl::Submit(
 
     graphics_state_->BeginFrame();
 
-    // Update vertex data buffer.
     {
       TRACE_EVENT0("cobalt::renderer", "UpdateVertexBuffer");
-      visitor.ExecuteDraw(DrawObject::kStageUpdateVertexBuffer);
+      draw_object_manager.ExecuteUpdateVertexBuffer(graphics_state_.get(),
+          shader_program_manager_.get());
       graphics_state_->UpdateVertexData();
     }
 
     {
       TRACE_EVENT0("cobalt::renderer", "RasterizeOffscreen");
-      visitor.ExecuteDraw(DrawObject::kStageRasterizeOffscreen);
+
+      // Reset the skia graphics context since the egl rasterizer dirtied it.
+      GetGrContext()->resetContext();
+
+      draw_object_manager.ExecuteRasterizeOffscreen(graphics_state_.get(),
+          shader_program_manager_.get());
+      GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+      // Reset the egl graphics state since skia dirtied it.
+      graphics_state_->SetDirty();
     }
 
     graphics_state_->Clear();
 
     {
       TRACE_EVENT0("cobalt::renderer", "RasterizeNormal");
-      visitor.ExecuteDraw(DrawObject::kStageRasterizeNormal);
+      draw_object_manager.ExecuteRasterizeNormal(graphics_state_.get(),
+          shader_program_manager_.get());
     }
 
     graphics_state_->EndFrame();
@@ -197,10 +210,11 @@ void HardwareRasterizer::Impl::Submit(
 
 backend::TextureEGL* HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const math::Size& viewport_size) {
+    const math::RectF& viewport) {
   TRACE_EVENT0("cobalt::renderer", "SubmitToFallbackRasterizer");
 
   // Get an offscreen target for rendering.
+  math::Size viewport_size(viewport.width(), viewport.height());
   OffscreenTarget* offscreen_target = NULL;
   for (OffscreenTargetList::iterator iter = unused_offscreen_targets_.begin();
        iter != unused_offscreen_targets_.end(); ++iter) {
@@ -223,7 +237,7 @@ backend::TextureEGL* HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     skia_desc.fWidth = viewport_size.width();
     skia_desc.fHeight = viewport_size.height();
     skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
-    skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
+    skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
     skia_desc.fSampleCnt = 0;
     skia_desc.fStencilBits = 0;
     skia_desc.fRenderTargetHandle = offscreen_target->framebuffer->gl_handle();
@@ -241,11 +255,11 @@ backend::TextureEGL* HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
   backend::FramebufferEGL* framebuffer = offscreen_target->framebuffer.get();
   SkCanvas* canvas = offscreen_target->skia_surface->getCanvas();
 
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->gl_handle()));
   canvas->save();
+  canvas->clear(SkColorSetARGB(0, 0, 0, 0));
+  canvas->translate(viewport.x(), viewport.y());
   fallback_rasterizer_->SubmitOffscreen(render_tree, canvas);
   canvas->restore();
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
   return framebuffer->GetColorTexture();
 }

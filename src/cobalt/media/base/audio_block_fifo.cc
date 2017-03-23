@@ -4,12 +4,12 @@
 
 #include "cobalt/media/base/audio_block_fifo.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 AudioBlockFifo::AudioBlockFifo(int channels, int frames, int blocks)
@@ -114,3 +114,4 @@ void AudioBlockFifo::IncreaseCapacity(int blocks) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -14,7 +12,9 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 class EncryptionScheme;
 class VideoDecoderConfig;
@@ -59,6 +59,7 @@ class WebMVideoClient : public WebMParserClient {
   int64_t display_height_;
   int64_t display_unit_;
   int64_t alpha_mode_;
+  bool inside_projection_list_;
 
   WebMColourParser colour_parser_;
   bool colour_parsed_;
@@ -67,5 +68,6 @@ class WebMVideoClient : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_

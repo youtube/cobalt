@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/hdr_metadata.h"
 
+namespace cobalt {
 namespace media {
 
 MasteringMetadata::MasteringMetadata()
@@ -27,3 +28,4 @@ HDRMetadata::HDRMetadata() : max_cll(0), max_fall(0) {}
 HDRMetadata::HDRMetadata(const HDRMetadata& rhs) { *this = rhs; }
 
 }  // namespace media
+}  // namespace cobalt

@@ -4,14 +4,13 @@
 
 #include "cobalt/media/filters/vp8_bool_decoder.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/basictypes.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -124,3 +123,4 @@ TEST_F(Vp8BoolDecoderTest, DecodeBoolsWithParitiesAndIncreasingProbabilities) {
 }
 
 }  // namespace media
+}  // namespace cobalt

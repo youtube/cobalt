@@ -4,14 +4,14 @@
 
 #include "cobalt/media/base/audio_point.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 std::string PointsToString(const std::vector<Point>& points) {
@@ -60,3 +60,4 @@ std::vector<Point> ParsePointsFromString(const std::string& points_string) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -12,6 +12,7 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_pending_task.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -52,5 +53,6 @@ class SkewedSingleThreadTaskRunner : public base::SingleThreadTaskRunner {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_SKEWED_SINGLE_THREAD_TASK_RUNNER_H_

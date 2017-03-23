@@ -156,10 +156,11 @@ MozjsEngine::~MozjsEngine() {
   JS_DestroyRuntime(runtime_);
 }
 
-scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
+scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment(
+    const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new MozjsGlobalEnvironment(runtime_);
+  return new MozjsGlobalEnvironment(runtime_, options);
 }
 
 void MozjsEngine::CollectGarbage() {
@@ -258,7 +259,21 @@ JSBool MozjsEngine::ErrorHookCallback(JSContext* context, const char* message,
 
 JSBool MozjsEngine::ReportJSError(JSContext* context, const char* message,
                                   JSErrorReport* report) {
-  if (!error_handler_.is_null() && report && report->filename) {
+  const bool is_invalid =
+      error_handler_.is_null() || !report || !report->filename;
+
+  if (is_invalid) {
+    return true;  // Allow error to propagate in the mozilla engine.
+  }
+
+  // Report errors, warnings and uncaught exceptions. All other errors
+  // (like strict warnings) are ignored.
+  const bool do_report_error =
+      (report->flags == JSREPORT_ERROR) ||
+      (report->flags & JSREPORT_WARNING) ||
+      (report->errorNumber == JSMSG_UNCAUGHT_EXCEPTION);
+
+  if (do_report_error) {
     std::string file_name = report->filename;
     // Line/column can be zero for internal javascript exceptions. In this
     // case set the values to 1, otherwise the base::SourceLocation object
@@ -271,6 +286,7 @@ JSBool MozjsEngine::ReportJSError(JSContext* context, const char* message,
     base::SourceLocation source_location(file_name, line, column);
     error_handler_.Run(source_location, message);
   }
+
   return true;  // Allow error to propagate in the mozilla engine.
 }
 

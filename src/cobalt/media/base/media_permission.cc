@@ -4,6 +4,7 @@
 
 #include "cobalt/media/base/media_permission.h"
 
+namespace cobalt {
 namespace media {
 
 MediaPermission::MediaPermission() {}
@@ -11,3 +12,4 @@ MediaPermission::MediaPermission() {}
 MediaPermission::~MediaPermission() {}
 
 }  // namespace media
+}  // namespace cobalt

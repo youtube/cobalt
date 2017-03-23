@@ -21,7 +21,7 @@ namespace {
 
 class EmptyDeleter {
  public:
-  void operator()(double){};
+  void operator()(double) {}
 };
 class CacheTest : public ::testing::Test {
  public:
@@ -68,7 +68,6 @@ TEST_F(CacheTest, Evict) {
 
   // This should evict 12, since we're a LRU cache.
   cache.put(15, -5.0);
-
 
   EXPECT_EQ(cache.find(10), cache.end());
   EXPECT_EQ(cache.find(12), cache.end());

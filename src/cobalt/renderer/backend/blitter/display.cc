@@ -17,7 +17,7 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
-#include "cobalt/system_window/starboard/system_window.h"
+#include "cobalt/system_window/system_window.h"
 
 #if SB_HAS(BLITTER)
 
@@ -51,10 +51,7 @@ class DisplayRenderTargetBlitter : public RenderTargetBlitter {
 
 DisplayRenderTargetBlitter::DisplayRenderTargetBlitter(
     SbBlitterDevice device, system_window::SystemWindow* system_window) {
-  SbWindow starboard_window =
-      base::polymorphic_downcast<system_window::SystemWindowStarboard*>(
-          system_window)
-          ->GetSbWindow();
+  SbWindow starboard_window = system_window->GetSbWindow();
 
   swap_chain_ = SbBlitterCreateSwapChainFromWindow(device, starboard_window);
   CHECK(SbBlitterIsSwapChainValid(swap_chain_));

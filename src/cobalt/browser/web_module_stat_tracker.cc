@@ -297,8 +297,6 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       << ", "
       << "\"CntDomHtmlElementsCreated\":"
       << dom_stat_tracker_->html_elements_created_count() << ", "
-      << "\"CntDomHtmlElementsDestroyed\":"
-      << dom_stat_tracker_->html_elements_destroyed_count() << ", "
       << "\"CntDomUpdateMatchingRules\":"
       << dom_stat_tracker_->update_matching_rules_count() << ", "
       << "\"CntDomUpdateComputedStyle\":"
@@ -311,8 +309,6 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       << "\"CntLayoutBoxes\":" << layout_stat_tracker_->total_boxes() << ", "
       << "\"CntLayoutBoxesCreated\":"
       << layout_stat_tracker_->boxes_created_count() << ", "
-      << "\"CntLayoutBoxesDestroyed\":"
-      << layout_stat_tracker_->boxes_destroyed_count() << ", "
       << "\"CntLayoutUpdateSize\":" << layout_stat_tracker_->update_size_count()
       << ", "
       << "\"CntLayoutRenderAndAnimate\":"

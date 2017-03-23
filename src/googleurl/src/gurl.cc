@@ -252,7 +252,7 @@ GURL GURL::ResolveWithCharsetConverter(
   output.Complete();
   result.is_valid_ = true;
   if (result.SchemeIsFileSystem()) {
-    result.inner_url_ = new GURL(spec_.data(), result.parsed_.Length(),
+    result.inner_url_ = new GURL(result.spec_.data(), result.parsed_.Length(),
                                  *result.parsed_.inner_parsed(), true);
   }
   return result;

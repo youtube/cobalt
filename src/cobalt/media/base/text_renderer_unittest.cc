@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/text_renderer.h"
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -24,9 +22,11 @@
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/filters/webvtt_util.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // Local implementation of the TextTrack interface.
@@ -1192,3 +1192,4 @@ TEST_F(TextRendererTest, AddRemovePause) {
 }
 
 }  // namespace media
+}  // namespace cobalt

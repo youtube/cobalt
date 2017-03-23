@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
 #define COBALT_MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/media/filters/ffmpeg_glue.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Simple FFmpegURLProtocol that reads from a buffer.
@@ -40,5 +40,6 @@ class MEDIA_EXPORT InMemoryUrlProtocol : public FFmpegURLProtocol {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_

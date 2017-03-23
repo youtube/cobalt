@@ -33,7 +33,8 @@ StarboardPlayer::StarboardPlayer(
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper)
+    SbPlayerSetBoundsHelper* set_bounds_helper,
+    bool prefer_decode_to_texture)
     : message_loop_(message_loop),
       window_(window),
       drm_system_(drm_system),
@@ -57,7 +58,8 @@ StarboardPlayer::StarboardPlayer(
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   output_mode_ = ComputeSbPlayerOutputMode(
-      MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system);
+      MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
+      prefer_decode_to_texture);
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   CreatePlayer();
 
@@ -329,19 +331,37 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
+#if SB_API_VERSION <= 3
+
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
       &audio_header, &StarboardPlayer::DeallocateSampleCB,
       &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-      ,
-      output_mode_
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+#if SB_API_VERSION == 3
       ,
       ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION == 3
       );
+
+#else  //  SB_API_VERSION <= 3
+
+  player_ = SbPlayerCreate(
+      window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
+      &audio_header,
+#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
+      NULL,
+#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
+      &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
+      &StarboardPlayer::PlayerStatusCB,
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+      output_mode_,
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 3
+      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider(),  // provider
+#endif  // SB_API_VERSION >= 3
+      this);
+
+#endif  //  SB_API_VERSION <= 3
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -502,15 +522,23 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player,
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
-    SbMediaVideoCodec codec, SbDrmSystem drm_system) {
-  // If available, choose punch-out mode, since it will almost always be
-  // the most performant.  If it is unavailable, then fallback to
-  // decode-to-texture.
-  SbPlayerOutputMode output_mode = kSbPlayerOutputModeDecodeToTexture;
+    SbMediaVideoCodec codec,
+    SbDrmSystem drm_system,
+    bool prefer_decode_to_texture) {
+  // Try to choose the output mode according to the passed in value of
+  // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
+  // though, fallback to an output mode that is available.
+  SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
   if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
                                   drm_system)) {
     output_mode = kSbPlayerOutputModePunchOut;
   }
+  if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
+      SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
+                                  drm_system)) {
+    output_mode = kSbPlayerOutputModeDecodeToTexture;
+  }
+  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
 
   return output_mode;
 }

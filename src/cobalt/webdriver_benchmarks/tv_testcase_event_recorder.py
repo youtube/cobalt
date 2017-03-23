@@ -72,9 +72,9 @@ class EventRecorder(object):
 
     # Count record strategies
     count_record_strategies = []
+    count_record_strategies.append(tv_testcase_util.RecordStrategyMax())
+    count_record_strategies.append(tv_testcase_util.RecordStrategyMedian())
     count_record_strategies.append(tv_testcase_util.RecordStrategyMean())
-    count_record_strategies.append(
-        tv_testcase_util.RecordStrategyPercentile(50))
 
     # Count recorders
     self._add_value_dictionary_recorder("CntDomEventListeners",
@@ -83,8 +83,6 @@ class EventRecorder(object):
     self._add_value_dictionary_recorder("CntDomHtmlElements",
                                         count_record_strategies)
     self._add_value_dictionary_recorder("CntDomHtmlElementsCreated",
-                                        count_record_strategies)
-    self._add_value_dictionary_recorder("CntDomHtmlElementsDestroyed",
                                         count_record_strategies)
     self._add_value_dictionary_recorder("CntDomUpdateMatchingRules",
                                         count_record_strategies)
@@ -98,8 +96,6 @@ class EventRecorder(object):
                                         count_record_strategies)
     self._add_value_dictionary_recorder("CntLayoutBoxesCreated",
                                         count_record_strategies)
-    self._add_value_dictionary_recorder("CntLayoutBoxesDestroyed",
-                                        count_record_strategies)
     self._add_value_dictionary_recorder("CntLayoutUpdateSize",
                                         count_record_strategies)
     self._add_value_dictionary_recorder("CntLayoutRenderAndAnimate",
@@ -111,7 +107,13 @@ class EventRecorder(object):
     duration_record_strategies = []
     duration_record_strategies.append(tv_testcase_util.RecordStrategyMean())
     duration_record_strategies.append(
-        tv_testcase_util.RecordStrategyPercentiles())
+        tv_testcase_util.RecordStrategyPercentile(25))
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(50))
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(75))
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(95))
 
     # Duration recorders
     self._add_value_dictionary_recorder("DurTotalUs",

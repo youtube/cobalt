@@ -4,14 +4,15 @@
 
 #include "cobalt/media/base/bit_reader_core.h"
 
-#include <stdint.h>
-
 #include "base/sys_byteorder.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace {
 const int kRegWidthInBits = sizeof(uint64_t) * 8;
 }
 
+namespace cobalt {
 namespace media {
 
 BitReaderCore::ByteStreamProvider::ByteStreamProvider() {}
@@ -147,7 +148,7 @@ bool BitReaderCore::Refill(int min_nbits) {
   if (window_size == 0) return false;
 
   reg_next_ = 0;
-  memcpy(&reg_next_, byte_stream_window, window_size);
+  SbMemoryCopy(&reg_next_, byte_stream_window, window_size);
   reg_next_ = base::NetToHost64(reg_next_);
   nbits_next_ = window_size * 8;
 
@@ -178,3 +179,4 @@ void BitReaderCore::RefillCurrentRegister() {
 }
 
 }  // namespace media
+}  // namespace cobalt

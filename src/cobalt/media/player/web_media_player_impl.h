@@ -57,6 +57,7 @@
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/pipeline.h"
@@ -75,6 +76,7 @@
 
 #endif  // defined(OS_STARBOARD)
 
+namespace cobalt {
 namespace media {
 
 class ChunkDemuxer;
@@ -106,6 +108,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerImpl(
       PipelineWindow window, WebMediaPlayerClient* client,
       WebMediaPlayerDelegate* delegate,
+      DecoderBuffer::Allocator* buffer_allocator,
       const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
       const scoped_refptr<MediaLog>& media_log);
   ~WebMediaPlayerImpl() OVERRIDE;
@@ -274,6 +277,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   WebMediaPlayerClient* client_;
   WebMediaPlayerDelegate* delegate_;
+  DecoderBuffer::Allocator* buffer_allocator_;
   scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
@@ -304,5 +308,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_IMPL_H_

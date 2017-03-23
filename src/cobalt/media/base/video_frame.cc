@@ -19,8 +19,10 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/video_util.h"
+#include "starboard/memory.h"
 #include "ui/gfx/geometry/point.h"
 
+namespace cobalt {
 namespace media {
 
 // Static POD class for generating unique identifiers for each VideoFrame.
@@ -813,9 +815,9 @@ VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
       unique_id_(g_unique_id_generator.GetNext()) {
   DCHECK(IsValidConfig(format_, storage_type, coded_size_, visible_rect_,
                        natural_size_));
-  memset(&mailbox_holders_, 0, sizeof(mailbox_holders_));
-  memset(&strides_, 0, sizeof(strides_));
-  memset(&data_, 0, sizeof(data_));
+  SbMemorySet(&mailbox_holders_, 0, sizeof(mailbox_holders_));
+  SbMemorySet(&strides_, 0, sizeof(strides_));
+  SbMemorySet(&data_, 0, sizeof(data_));
 }
 
 VideoFrame::~VideoFrame() {
@@ -898,7 +900,7 @@ VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
                        base::TimeDelta timestamp)
     : VideoFrame(format, storage_type, coded_size, visible_rect, natural_size,
                  timestamp) {
-  memcpy(&mailbox_holders_, mailbox_holders, sizeof(mailbox_holders_));
+  SbMemoryCopy(&mailbox_holders_, mailbox_holders, sizeof(mailbox_holders_));
   mailbox_holders_release_cb_ = mailbox_holder_release_cb;
 }
 
@@ -1068,7 +1070,7 @@ void VideoFrame::AllocateYUV(bool zero_initialize_memory) {
 
   uint8_t* data = reinterpret_cast<uint8_t*>(
       base::AlignedAlloc(data_size, kFrameAddressAlignment));
-  if (zero_initialize_memory) memset(data, 0, data_size);
+  if (zero_initialize_memory) SbMemorySet(data, 0, data_size);
 
   for (size_t plane = 0; plane < NumPlanes(format_); ++plane)
     data_[plane] = data + offset[plane];
@@ -1077,3 +1079,4 @@ void VideoFrame::AllocateYUV(bool zero_initialize_memory) {
 }
 
 }  // namespace media
+}  // namespace cobalt

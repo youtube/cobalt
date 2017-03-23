@@ -5,7 +5,9 @@
 #include "cobalt/media/filters/in_memory_url_protocol.h"
 
 #include "cobalt/media/ffmpeg/ffmpeg_common.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 InMemoryUrlProtocol::InMemoryUrlProtocol(const uint8_t* data, int64_t size,
@@ -24,7 +26,7 @@ int InMemoryUrlProtocol::Read(int size, uint8_t* data) {
   if (size > available_bytes) size = available_bytes;
 
   if (size > 0) {
-    memcpy(data, data_ + position_, size);
+    SbMemoryCopy(data, data_ + position_, size);
     position_ += size;
   }
 
@@ -54,3 +56,4 @@ bool InMemoryUrlProtocol::GetSize(int64_t* size_out) {
 bool InMemoryUrlProtocol::IsStreaming() { return streaming_; }
 
 }  // namespace media
+}  // namespace cobalt

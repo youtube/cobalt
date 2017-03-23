@@ -18,7 +18,6 @@
 #include "cobalt/browser/application.h"
 #if defined(OS_STARBOARD)
 #include "cobalt/browser/starboard/event_handler.h"
-#include "cobalt/system_window/starboard/system_window.h"
 #endif
 
 namespace {

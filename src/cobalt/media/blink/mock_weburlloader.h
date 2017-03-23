@@ -9,6 +9,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/WebKit/public/platform/WebURLLoader.h"
 
+namespace cobalt {
 namespace media {
 
 class MockWebURLLoader : public blink::WebURLLoader {
@@ -31,5 +32,6 @@ class MockWebURLLoader : public blink::WebURLLoader {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_MOCK_WEBURLLOADER_H_

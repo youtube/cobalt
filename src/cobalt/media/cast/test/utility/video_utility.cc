@@ -5,16 +5,17 @@
 #include "media/cast/test/utility/video_utility.h"
 
 #include <math.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <cstdio>
 
 #include "base/rand_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/libyuv/include/libyuv/compare.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -154,13 +155,14 @@ bool PopulateVideoFrameFromFile(VideoFrame* frame, FILE* video_file) {
   const size_t count = fread(raw_data, 1, frame_size, video_file);
   if (count != frame_size) return false;
 
-  memcpy(y_plane, raw_data, width * height);
-  memcpy(u_plane, raw_data + width * height, half_width * half_height);
-  memcpy(v_plane, raw_data + width * height + half_width * half_height,
-         half_width * half_height);
+  SbMemoryCopy(y_plane, raw_data, width * height);
+  SbMemoryCopy(u_plane, raw_data + width * height, half_width * half_height);
+  SbMemoryCopy(v_plane, raw_data + width * height + half_width * half_height,
+               half_width * half_height);
   delete[] raw_data;
   return true;
 }
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

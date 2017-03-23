@@ -10,8 +10,6 @@
 #ifndef COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 #define COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 
-#include <stddef.h>
-
 #include <deque>
 #include <list>
 #include <string>
@@ -27,7 +25,9 @@
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 class SourceBufferRange;
@@ -88,6 +88,9 @@ class SourceBufferStreamState {
   // True if more data needs to be appended before the Seek() can complete,
   // false if no Seek() has been requested or the Seek() is completed.
   bool seek_pending_;
+
+  // The timestamp of the keyframe right before the seek timestamp.
+  base::TimeDelta seek_keyframe_timestamp_;
 
   // True if the end of the stream has been signalled.
   bool end_of_stream_;
@@ -205,6 +208,11 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // Returns true if the SourceBufferStream has seeked to a time without
   // buffered data and is waiting for more data to be appended.
   bool IsSeekPending() const;
+
+  // Returns the timestamp of the keyframe before the seek timestamp.  Note that
+  // this value is only valid (thus this function should only be called) when
+  // IsSeekPending() returns false.
+  base::TimeDelta GetSeekKeyframeTimestamp() const;
 
   // Notifies the SourceBufferStream that the media duration has been changed to
   // |duration| so it should drop any data past that point.
@@ -495,5 +503,6 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_

@@ -6,6 +6,7 @@
 
 #include <ostream>
 
+namespace cobalt {
 namespace media {
 
 std::ostream& operator<<(std::ostream& os, const DecodeStatus& status) {
@@ -24,3 +25,4 @@ std::ostream& operator<<(std::ostream& os, const DecodeStatus& status) {
 }
 
 }  // namespace media
+}  // namespace cobalt

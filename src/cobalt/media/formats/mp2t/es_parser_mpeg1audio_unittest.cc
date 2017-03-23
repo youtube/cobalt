@@ -14,6 +14,7 @@
 #include "media/formats/mp2t/es_parser_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 class AudioDecoderConfig;
 
@@ -77,3 +78,4 @@ TEST_F(EsParserMpeg1AudioTest, NoTimingInfo) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

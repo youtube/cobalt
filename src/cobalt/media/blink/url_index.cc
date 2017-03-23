@@ -13,6 +13,7 @@
 #include "cobalt/media/blink/resource_multibuffer_data_provider.h"
 #include "cobalt/media/blink/url_index.h"
 
+namespace cobalt {
 namespace media {
 
 const int kBlockSizeShift = 15;  // 1<<15 == 32kb
@@ -264,3 +265,4 @@ scoped_refptr<UrlData> UrlIndex::TryInsert(
 }
 
 }  // namespace media
+}  // namespace cobalt

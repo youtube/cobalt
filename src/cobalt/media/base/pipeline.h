@@ -42,6 +42,7 @@ typedef SbWindow PipelineWindow;
 typedef void* PipelineWindow;
 #endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
 
+namespace cobalt {
 namespace media {
 
 class MediaLog;
@@ -103,7 +104,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const PipelineStatusCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
-                     const base::Closure& duration_change_cb) = 0;
+                     const base::Closure& duration_change_cb,
+                     bool prefer_decode_to_texture) = 0;
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.
@@ -179,5 +181,6 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_PIPELINE_H_

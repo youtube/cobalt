@@ -19,6 +19,7 @@
 #include "base/synchronization/lock.h"
 #include "ui/gfx/rect.h"
 
+namespace cobalt {
 namespace media {
 
 class StarboardPlayer;
@@ -39,5 +40,6 @@ class SbPlayerSetBoundsHelper
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_

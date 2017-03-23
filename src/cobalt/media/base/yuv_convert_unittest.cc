@@ -4,9 +4,6 @@
 
 #include "cobalt/media/base/yuv_convert.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 
@@ -20,6 +17,8 @@
 #include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
 #include "cobalt/media/base/simd/convert_yuv_to_rgb.h"
 #include "cobalt/media/base/simd/filter_yuv.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/rect.h"
 
@@ -100,6 +99,7 @@ static void SwapRedAndBlueChannels(unsigned char* pixels, size_t buffer_size) {
 }
 #endif
 
+namespace cobalt {
 namespace media {
 
 TEST(YUVConvertTest, YV12) {
@@ -341,7 +341,7 @@ TEST(YUVConvertTest, Clamp) {
   SwapRedAndBlueChannels(rgb, kBpp);
 #endif
 
-  int expected_test = memcmp(rgb, expected, sizeof(expected));
+  int expected_test = SbMemoryCompare(rgb, expected, sizeof(expected));
   EXPECT_EQ(0, expected_test);
 }
 
@@ -521,8 +521,9 @@ TEST(YUVConvertTest, YUVAtoARGB_MMX_MatchReference) {
       rgb_converted_bytes.get(), kSourceWidth, kSourceHeight, kSourceWidth,
       kSourceWidth / 2, kSourceWidth, kSourceWidth * kBpp, media::YV12);
 
-  EXPECT_EQ(0, memcmp(rgb_converted_bytes.get(), rgb_converted_bytes_ref.get(),
-                      kRGBSizeConverted));
+  EXPECT_EQ(0,
+            SbMemoryCompare(rgb_converted_bytes.get(),
+                            rgb_converted_bytes_ref.get(), kRGBSizeConverted));
 }
 #endif  // !defined(OS_ANDROID)
 
@@ -625,8 +626,8 @@ TEST(YUVConvertTest, ConvertYUVToRGB32Row_SSE) {
                            rgb_bytes_converted.get(), kWidth,
                            GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(), rgb_bytes_converted.get(),
-                      kWidth * kBpp));
+  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+                               rgb_bytes_converted.get(), kWidth * kBpp));
 }
 
 // 64-bit release + component builds on Windows are too smart and optimizes
@@ -655,8 +656,8 @@ TEST(YUVConvertTest, ScaleYUVToRGB32Row_SSE) {
                          rgb_bytes_converted.get(), kWidth, kSourceDx,
                          GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(), rgb_bytes_converted.get(),
-                      kWidth * kBpp));
+  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+                               rgb_bytes_converted.get(), kWidth * kBpp));
 }
 
 TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_SSE) {
@@ -682,8 +683,8 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_SSE) {
       yuv_bytes.get() + kSourceVOffset, rgb_bytes_converted.get(), kWidth,
       kSourceDx, GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(), rgb_bytes_converted.get(),
-                      kWidth * kBpp));
+  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+                               rgb_bytes_converted.get(), kWidth * kBpp));
 }
 #endif  // defined(OS_WIN) && (ARCH_CPU_X86 || COMPONENT_BUILD)
 
@@ -691,8 +692,8 @@ TEST(YUVConvertTest, FilterYUVRows_C_OutOfBounds) {
   std::unique_ptr<uint8_t[]> src(new uint8_t[16]);
   std::unique_ptr<uint8_t[]> dst(new uint8_t[16]);
 
-  memset(src.get(), 0xff, 16);
-  memset(dst.get(), 0, 16);
+  SbMemorySet(src.get(), 0xff, 16);
+  SbMemorySet(dst.get(), 0, 16);
 
   media::FilterYUVRows_C(dst.get(), src.get(), src.get(), 1, 255);
 
@@ -712,8 +713,8 @@ TEST(YUVConvertTest, FilterYUVRows_SSE2_OutOfBounds) {
   std::unique_ptr<uint8_t[]> src(new uint8_t[16]);
   std::unique_ptr<uint8_t[]> dst(new uint8_t[16]);
 
-  memset(src.get(), 0xff, 16);
-  memset(dst.get(), 0, 16);
+  SbMemorySet(src.get(), 0xff, 16);
+  SbMemorySet(dst.get(), 0, 16);
 
   media::FilterYUVRows_SSE2(dst.get(), src.get(), src.get(), 1, 255);
 
@@ -735,8 +736,8 @@ TEST(YUVConvertTest, FilterYUVRows_SSE2_UnalignedDestination) {
   std::unique_ptr<uint8_t[]> dst_sample(new uint8_t[kSize]);
   std::unique_ptr<uint8_t[]> dst(new uint8_t[kSize]);
 
-  memset(dst_sample.get(), 0, kSize);
-  memset(dst.get(), 0, kSize);
+  SbMemorySet(dst_sample.get(), 0, kSize);
+  SbMemorySet(dst.get(), 0, kSize);
   for (int i = 0; i < kSize; ++i) src[i] = 100 + i;
 
   media::FilterYUVRows_C(dst_sample.get(), src.get(), src.get(), 37, 128);
@@ -747,7 +748,7 @@ TEST(YUVConvertTest, FilterYUVRows_SSE2_UnalignedDestination) {
   media::FilterYUVRows_SSE2(dst_ptr, src.get(), src.get(), 37, 128);
   media::EmptyRegisterState();
 
-  EXPECT_EQ(0, memcmp(dst_sample.get(), dst_ptr, 37));
+  EXPECT_EQ(0, SbMemoryCompare(dst_sample.get(), dst_ptr, 37));
 }
 
 #if defined(ARCH_CPU_X86_64)
@@ -769,8 +770,8 @@ TEST(YUVConvertTest, ScaleYUVToRGB32Row_SSE2_X64) {
                               rgb_bytes_converted.get(), kWidth, kSourceDx,
                               GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(), rgb_bytes_converted.get(),
-                      kWidth * kBpp));
+  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+                               rgb_bytes_converted.get(), kWidth * kBpp));
 }
 
 TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_MMX_X64) {
@@ -790,8 +791,8 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_MMX_X64) {
       yuv_bytes.get() + kSourceVOffset, rgb_bytes_converted.get(), kWidth,
       kSourceDx, GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(), rgb_bytes_converted.get(),
-                      kWidth * kBpp));
+  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+                               rgb_bytes_converted.get(), kWidth * kBpp));
 }
 
 #endif  // defined(ARCH_CPU_X86_64)
@@ -799,3 +800,4 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_MMX_X64) {
 #endif  // defined(ARCH_CPU_X86_FAMILY)
 
 }  // namespace media
+}  // namespace cobalt

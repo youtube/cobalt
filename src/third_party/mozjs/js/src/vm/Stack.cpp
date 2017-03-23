@@ -559,6 +559,12 @@ ScriptFrameIter::settleOnActivation()
 
 #ifdef JS_ION
         if (activation->isJit()) {
+            // JS_ION crashes on certain platforms. The fix is to skip the JIT
+            // frames when it will crash due to an empty jit stack.
+            if (NULL == data_.activations_.jitTop()) {
+              ++data_.activations_;
+              continue;
+            }
             data_.ionFrames_ = jit::IonFrameIterator(data_.activations_);
 
             // Stop at the first scripted frame.

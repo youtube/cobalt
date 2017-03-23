@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_AUDIO_RENDERER_SINK_H_
 #define COBALT_MEDIA_BASE_AUDIO_RENDERER_SINK_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/callback.h"
@@ -14,8 +12,10 @@
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/audio_parameters.h"
 #include "cobalt/media/base/output_device_info.h"
+#include "starboard/types.h"
 #include "url/origin.h"
 
+namespace cobalt {
 namespace media {
 
 // AudioRendererSink is an interface representing the end-point for
@@ -107,5 +107,6 @@ class SwitchableAudioRendererSink : public RestartableAudioRendererSink {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_RENDERER_SINK_H_

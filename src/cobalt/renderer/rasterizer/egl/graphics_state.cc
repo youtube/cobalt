@@ -24,19 +24,17 @@ namespace rasterizer {
 namespace egl {
 
 GraphicsState::GraphicsState()
-    : vertex_data_reserved_(kVertexDataAlignment - 1),
+    : frame_index_(0),
+      vertex_data_reserved_(kVertexDataAlignment - 1),
       vertex_data_allocated_(0),
-      vertex_data_buffer_handle_(0),
       vertex_data_buffer_updated_(false) {
-  GL_CALL(glGenBuffers(1, &vertex_data_buffer_handle_));
+  GL_CALL(glGenBuffers(kNumFramesBuffered, &vertex_data_buffer_handle_[0]));
   memset(clip_adjustment_, 0, sizeof(clip_adjustment_));
   Reset();
 }
 
 GraphicsState::~GraphicsState() {
-  if (vertex_data_buffer_handle_ != 0) {
-    GL_CALL(glDeleteBuffers(1, &vertex_data_buffer_handle_));
-  }
+  GL_CALL(glDeleteBuffers(kNumFramesBuffered, &vertex_data_buffer_handle_[0]));
 }
 
 void GraphicsState::SetDirty() {
@@ -57,7 +55,7 @@ void GraphicsState::EndFrame() {
   vertex_data_reserved_ = kVertexDataAlignment - 1;
   vertex_data_allocated_ = 0;
   vertex_data_buffer_updated_ = false;
-  UseProgram(0);
+  frame_index_ = (frame_index_ + 1) % kNumFramesBuffered;
 }
 
 void GraphicsState::Clear() {
@@ -81,9 +79,9 @@ void GraphicsState::UseProgram(GLuint program) {
     GL_CALL(glUseProgram(program));
   }
 
-  if (array_buffer_handle_ != vertex_data_buffer_handle_) {
-    array_buffer_handle_ = vertex_data_buffer_handle_;
-    GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vertex_data_buffer_handle_));
+  if (array_buffer_handle_ != vertex_data_buffer_handle_[frame_index_]) {
+    array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
+    GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
   }
 
   // Disable any vertex attribute arrays that will not be used.
@@ -190,7 +188,7 @@ void GraphicsState::UpdateClipAdjustment(GLint handle) {
 }
 
 void GraphicsState::UpdateTransformMatrix(GLint handle,
-                                             const math::Matrix3F& transform) {
+                                          const math::Matrix3F& transform) {
   // Manually transpose our row-major matrix to column-major. Don't rely on
   // glUniformMatrix3fv to do it, since the driver may not support that.
   float transpose[] = {
@@ -227,7 +225,10 @@ uint8_t* GraphicsState::AllocateVertexData(size_t bytes) {
 void GraphicsState::UpdateVertexData() {
   DCHECK(!vertex_data_buffer_updated_);
   vertex_data_buffer_updated_ = true;
-  GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, vertex_data_buffer_handle_));
+  if (array_buffer_handle_ != vertex_data_buffer_handle_[frame_index_]) {
+    array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
+    GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
+  }
   if (vertex_data_allocated_ > 0) {
     GL_CALL(glBufferData(GL_ARRAY_BUFFER, vertex_data_allocated_,
                          &vertex_data_buffer_[0], GL_STREAM_DRAW));
@@ -252,6 +253,7 @@ void GraphicsState::VertexAttribPointer(GLint index, GLint size, GLenum type,
 }
 
 void GraphicsState::VertexAttribFinish() {
+  enabled_vertex_attrib_array_mask_ &= ~disable_vertex_attrib_array_mask_;
   for (int index = 0; disable_vertex_attrib_array_mask_ != 0; ++index) {
     if ((disable_vertex_attrib_array_mask_ & 1) != 0) {
       GL_CALL(glDisableVertexAttribArray(index));

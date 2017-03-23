@@ -47,7 +47,8 @@ class StubWindow {
         url_("about:blank"),
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
     engine_ = script::JavaScriptEngine::CreateEngine();
-    global_environment_ = engine_->CreateGlobalEnvironment();
+    global_environment_ = engine_->CreateGlobalEnvironment(
+        script::JavaScriptEngine::Options());
     window_ = new dom::Window(
         1920, 1080, css_parser_.get(), dom_parser_.get(),
         fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
@@ -58,7 +59,7 @@ class StubWindow {
         std::string() /* default security policy */, dom::kCspEnforcementEnable,
         base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
-        base::Closure() /* window_close */, NULL);
+        base::Closure() /* window_close */, NULL, NULL);
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 

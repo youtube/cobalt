@@ -5,10 +5,9 @@
 #ifndef COBALT_MEDIA_BASE_YUV_CONVERT_H_
 #define COBALT_MEDIA_BASE_YUV_CONVERT_H_
 
-#include <stdint.h>
-
 #include "build/build_config.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 // Visual Studio 2010 does not support MMX intrinsics on x64.
 // Some win64 yuv_convert code paths use SSE+MMX yasm, so without rewriting
@@ -21,6 +20,7 @@
 #define MEDIA_MMX_INTRINSICS_AVAILABLE
 #endif
 
+namespace cobalt {
 namespace media {
 
 // Type of YUV surface.
@@ -108,5 +108,6 @@ MEDIA_EXPORT void ConvertRGB24ToYUV(const uint8_t* rgbframe, uint8_t* yplane,
 MEDIA_EXPORT void EmptyRegisterState();
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_YUV_CONVERT_H_

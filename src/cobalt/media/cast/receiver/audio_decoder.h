@@ -13,6 +13,7 @@
 #include "media/cast/constants.h"
 #include "media/cast/net/cast_transport_config.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -59,5 +60,6 @@ class AudioDecoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_RECEIVER_AUDIO_DECODER_H_

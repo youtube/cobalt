@@ -120,6 +120,7 @@ void SoftwareRasterizer::Impl::Submit(
     RenderTreeNodeVisitor visitor(
         render_target, &create_scratch_surface_function, base::Closure(),
         RenderTreeNodeVisitor::RenderImageFallbackFunction(),
+        RenderTreeNodeVisitor::RenderImageWithMeshFallbackFunction(),
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
 

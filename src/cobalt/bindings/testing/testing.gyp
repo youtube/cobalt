@@ -50,6 +50,7 @@
         'get_opaque_root_interface.idl',
         'global_interface_parent.idl',
         'indexed_getter_interface.idl',
+        'interface_with_any.idl',
         'interface_with_unsupported_properties.idl',
         'named_constructor_interface.idl',
         'named_getter_interface.idl',
@@ -125,15 +126,20 @@
       ],
       'defines': [ '<@(bindings_defines)'],
       'dependencies': [
+        'generated_dictionaries',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+      'export_dependent_settings': [
+        'generated_dictionaries',
       ],
     },
     {
       'target_name': 'bindings_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'any_bindings_test.cc',
         'boolean_type_bindings_test.cc',
         'callback_function_test.cc',
         'callback_interface_test.cc',

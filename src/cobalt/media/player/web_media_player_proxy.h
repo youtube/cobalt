@@ -10,6 +10,7 @@
 #include "base/message_loop_proxy.h"
 #include "cobalt/media/player/buffered_data_source.h"
 
+namespace cobalt {
 namespace media {
 
 class WebMediaPlayerImpl;
@@ -46,5 +47,6 @@ class WebMediaPlayerProxy
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_PROXY_H_

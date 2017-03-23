@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_
 #define COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -17,12 +14,14 @@
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 
 namespace IPC {
 template <class P>
 struct ParamTraits;
 }
 
+namespace cobalt {
 namespace media {
 
 // Class for passing bitstream buffers around.  Does not take ownership of the
@@ -95,5 +94,6 @@ class MEDIA_EXPORT BitstreamBuffer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_BITSTREAM_BUFFER_H_

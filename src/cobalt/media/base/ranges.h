@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_RANGES_H_
 #define COBALT_MEDIA_BASE_RANGES_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <ostream>
 #include <utility>
@@ -16,7 +13,9 @@
 #include "base/logging.h"
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Ranges allows holding an ordered list of ranges of [start,end) intervals.
@@ -157,5 +156,6 @@ Ranges<T> Ranges<T>::IntersectionWith(const Ranges<T>& other) const {
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_RANGES_H_

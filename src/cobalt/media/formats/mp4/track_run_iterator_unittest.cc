@@ -4,9 +4,6 @@
 
 #include "cobalt/media/formats/mp4/track_run_iterator.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -16,6 +13,8 @@
 #include "cobalt/media/base/mock_media_log.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -100,6 +99,7 @@ const uint8_t kFragmentCencSampleGroupKeyId[] = {
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -776,7 +776,7 @@ TEST_F(TrackRunIteratorTest, SharedAuxInfoTest) {
   EXPECT_TRUE(iter_->CacheAuxInfo(kAuxInfo, arraysize(kAuxInfo)));
   std::unique_ptr<DecryptConfig> config = iter_->GetDecryptConfig();
   ASSERT_EQ(arraysize(kIv1), config->iv().size());
-  EXPECT_TRUE(!memcmp(kIv1, config->iv().data(), config->iv().size()));
+  EXPECT_TRUE(!SbMemoryCompare(kIv1, config->iv().data(), config->iv().size()));
   iter_->AdvanceSample();
   EXPECT_EQ(iter_->GetMaxClearOffset(), 50);
   iter_->AdvanceRun();
@@ -785,7 +785,7 @@ TEST_F(TrackRunIteratorTest, SharedAuxInfoTest) {
   EXPECT_TRUE(iter_->CacheAuxInfo(kAuxInfo, arraysize(kAuxInfo)));
   EXPECT_EQ(iter_->GetMaxClearOffset(), 200);
   ASSERT_EQ(arraysize(kIv1), config->iv().size());
-  EXPECT_TRUE(!memcmp(kIv1, config->iv().data(), config->iv().size()));
+  EXPECT_TRUE(!SbMemoryCompare(kIv1, config->iv().data(), config->iv().size()));
   iter_->AdvanceSample();
   EXPECT_EQ(iter_->GetMaxClearOffset(), 201);
 }
@@ -878,3 +878,4 @@ TEST_F(TrackRunIteratorTest, KeyFrameFlagCombinations) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

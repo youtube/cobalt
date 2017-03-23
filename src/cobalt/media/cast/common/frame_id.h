@@ -5,13 +5,13 @@
 #ifndef COBALT_MEDIA_CAST_COMMON_FRAME_ID_H_
 #define COBALT_MEDIA_CAST_COMMON_FRAME_ID_H_
 
-#include <stdint.h>
-
 #include <limits>
 #include <sstream>
 
 #include "media/cast/common/expanded_value_base.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -107,5 +107,6 @@ class FrameId : public ExpandedValueBase<int64_t, FrameId> {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_COMMON_FRAME_ID_H_

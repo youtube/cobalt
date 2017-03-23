@@ -5,16 +5,16 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
 #define COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
 #include "build/build_config.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/video_types.h"
+#include "starboard/types.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 // TODO(wjia): this type should be defined in a common place and
@@ -146,5 +146,6 @@ struct MEDIA_EXPORT VideoCaptureParams {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_CAPTURE_TYPES_H_

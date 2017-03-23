@@ -9,6 +9,7 @@
 #include "third_party/WebKit/public/platform/WebInbandTextTrack.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 class WebInbandTextTrackImpl : public blink::WebInbandTextTrack {
@@ -37,5 +38,6 @@ class WebInbandTextTrackImpl : public blink::WebInbandTextTrack {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBINBANDTEXTTRACK_IMPL_H_

@@ -5,14 +5,14 @@
 #ifndef COBALT_MEDIA_BASE_TEXT_RANGES_H_
 #define COBALT_MEDIA_BASE_TEXT_RANGES_H_
 
-#include <stddef.h>
-
 #include <map>
 
 #include "base/basictypes.h"
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Helper class used by the TextRenderer to filter out text cues that
@@ -80,7 +80,7 @@ class MEDIA_EXPORT TextRanges {
   void NewRange(base::TimeDelta start_time);
 
   // Coalesce curr_range with the range that immediately follows.
-  void Merge(Range& curr_range, const RangeMap::iterator& next_range_itr);
+  void Merge(const RangeMap::iterator& next_range_itr, Range* curr_range);
 
   // The collection of time ranges, each of which is bounded
   // (inclusive) by the key and Range::last_time.
@@ -93,5 +93,6 @@ class MEDIA_EXPORT TextRanges {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_TEXT_RANGES_H_

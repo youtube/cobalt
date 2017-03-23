@@ -22,12 +22,14 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/filters/shell_parser.h"
 
+namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
@@ -95,6 +97,7 @@ class ShellDemuxerStream : public DemuxerStream {
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
   ShellDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
+               DecoderBuffer::Allocator* buffer_allocator,
                DataSource* data_source,
                const scoped_refptr<MediaLog>& media_log);
   ~ShellDemuxer() OVERRIDE;
@@ -155,6 +158,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
+  DecoderBuffer::Allocator* buffer_allocator_;
   DemuxerHost* host_;
 
   // Thread on which all blocking operations are executed.
@@ -176,5 +180,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_

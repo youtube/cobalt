@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_URL_DEMUXER_H_
 #define COBALT_MEDIA_BASE_MEDIA_URL_DEMUXER_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
@@ -15,7 +13,9 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/media/base/demuxer.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Class that saves a URL for later retrieval. To be used in conjunction with
@@ -67,5 +67,6 @@ class MEDIA_EXPORT MediaUrlDemuxer : public Demuxer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_URL_DEMUXER_H_

@@ -14,6 +14,7 @@
 #include "third_party/WebKit/public/platform/WebSecurityOrigin.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 
+namespace cobalt {
 namespace media {
 
 class WebEncryptedMediaClientImpl;
@@ -54,5 +55,6 @@ class WebContentDecryptionModuleAccessImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULEACCESS_IMPL_H_

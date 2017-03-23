@@ -4,9 +4,6 @@
 
 #include "media/cast/sender/performance_metrics_overlay.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <string>
 
@@ -14,7 +11,9 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "media/base/video_frame.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -304,3 +303,4 @@ void MaybeRenderPerformanceMetricsOverlay(base::TimeDelta target_playout_delay,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

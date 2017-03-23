@@ -4,13 +4,13 @@
 
 #include "media/cast/common/transport_encryption_handler.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "crypto/encryptor.h"
 #include "crypto/symmetric_key.h"
 #include "media/cast/net/cast_transport_defines.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -99,3 +99,4 @@ bool TransportEncryptionHandler::Decrypt(FrameId frame_id,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

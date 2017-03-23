@@ -78,7 +78,8 @@ void RendererModule::Resume() {
         base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
                    options_),
         display_->GetRenderTarget(), graphics_context_.get(),
-        options_.submit_even_if_render_tree_is_unchanged));
+        options_.submit_even_if_render_tree_is_unchanged,
+        renderer::Pipeline::kClearToBlack));
   }
 }
 

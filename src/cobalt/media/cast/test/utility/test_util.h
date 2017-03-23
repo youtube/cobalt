@@ -5,11 +5,12 @@
 #ifndef COBALT_MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
 #define COBALT_MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
+#include "starboard/types.h"
+
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -28,5 +29,6 @@ class MeanAndError {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_TEST_UTILITY_TEST_UTIL_H_

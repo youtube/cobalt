@@ -4,6 +4,7 @@
 
 #include "media/cast/common/frame_id.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -15,3 +16,4 @@ std::ostream& operator<<(std::ostream& out, const FrameId rhs) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

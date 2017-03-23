@@ -77,6 +77,7 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     const CreateScratchSurfaceFunction* create_scratch_surface_function,
     const base::Closure& reset_skia_context_function,
     const RenderImageFallbackFunction& render_image_fallback_function,
+    const RenderImageWithMeshFallbackFunction& render_image_with_mesh_function,
     SurfaceCacheDelegate* surface_cache_delegate,
     common::SurfaceCache* surface_cache, Type visitor_type)
     : draw_state_(render_target),
@@ -85,7 +86,8 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
       surface_cache_(surface_cache),
       visitor_type_(visitor_type),
       reset_skia_context_function_(reset_skia_context_function),
-      render_image_fallback_function_(render_image_fallback_function) {
+      render_image_fallback_function_(render_image_fallback_function),
+      render_image_with_mesh_function_(render_image_with_mesh_function) {
   DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
   if (surface_cache_delegate_) {
     // Update our surface cache delegate to point to this render tree node
@@ -274,8 +276,8 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   {
     RenderTreeNodeVisitor sub_visitor(
         canvas, create_scratch_surface_function_, reset_skia_context_function_,
-        render_image_fallback_function_, surface_cache_delegate_,
-        surface_cache_, kType_SubVisitor);
+        render_image_fallback_function_, render_image_with_mesh_function_,
+        surface_cache_delegate_, surface_cache_, kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -369,26 +371,58 @@ bool SourceCanRenderWithOpacity(render_tree::Node* source) {
   }
   return false;
 }
+
+// Tries to render a mapped-to-mesh node, returning false if it fails (which
+// would happen if we try to apply a map-to-mesh filter to a render tree node
+// that we don't currently support).
+bool TryRenderMapToRect(
+    render_tree::Node* source, const render_tree::MapToMeshFilter& mesh_filter,
+    const RenderTreeNodeVisitor::RenderImageWithMeshFallbackFunction&
+        render_onto_mesh,
+    RenderTreeNodeVisitorDrawState* draw_state) {
+  if (source->GetTypeId() == base::GetTypeId<render_tree::ImageNode>()) {
+    render_tree::ImageNode* image_node =
+        base::polymorphic_downcast<render_tree::ImageNode*>(source);
+    // Since we don't have the tools to render equirectangular meshes directly
+    // within Skia, delegate the task to our host rasterizer.
+    render_onto_mesh.Run(image_node, mesh_filter, draw_state);
+    return true;
+  } else if (source->GetTypeId() ==
+             base::GetTypeId<render_tree::CompositionNode>()) {
+    // If we are a composition of a single node with no translation, and that
+    // single node can itself be valid source, then follow through to the
+    // single child and try to render it with map-to-mesh.
+    render_tree::CompositionNode* composition_node =
+        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
+    typedef render_tree::CompositionNode::Children Children;
+    const Children& children = composition_node->data().children();
+    if (children.size() == 1 && composition_node->data().offset().IsZero() &&
+        TryRenderMapToRect(children[0].get(), mesh_filter, render_onto_mesh,
+                           draw_state)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
+  // If we're dealing with a map-to-mesh filter, handle it all by itself.
   if (filter_node->data().map_to_mesh_filter) {
-    // TODO: Implement support for MapToMeshFilter instead of punching out
-    //       the area that it occupies.
-    SkPaint paint;
-    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
-    paint.setARGB(0, 0, 0, 0);
-
-    math::RectF bounds = filter_node->GetBounds();
-    SkRect sk_rect = SkRect::MakeXYWH(bounds.x(), bounds.y(), bounds.width(),
-                                      bounds.height());
-
-    draw_state_.render_target->drawRect(sk_rect, paint);
-
+    render_tree::Node* source = filter_node->data().source;
+    if (!source) {
+      return;
+    }
+    // WIP TODO: pass in the mesh in the filter here.
+    if (TryRenderMapToRect(source, *filter_node->data().map_to_mesh_filter,
+                           render_image_with_mesh_function_, &draw_state_)) {
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
-    draw_state_.render_target->flush();
+      draw_state_.render_target->flush();
 #endif
-
+    } else {
+      DCHECK(false) << "We don't support map-to-mesh on other than ImageNodes.";
+    }
     return;
   }
 
@@ -698,6 +732,24 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   } else {
     NOTREACHED();
   }
+
+#if ENABLE_FLUSH_AFTER_EVERY_NODE
+  draw_state_.render_target->flush();
+#endif
+}
+
+void RenderTreeNodeVisitor::Visit(
+    render_tree::MatrixTransform3DNode* matrix_transform_3d_node) {
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
+  TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransform3DNode)");
+#endif
+
+  glm::mat4 before = draw_state_.transform_3d;
+  draw_state_.transform_3d *= matrix_transform_3d_node->data().transform;
+
+  matrix_transform_3d_node->data().source->Accept(this);
+
+  draw_state_.transform_3d = before;
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   draw_state_.render_target->flush();

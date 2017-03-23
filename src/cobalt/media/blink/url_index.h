@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_URL_INDEX_H_
 #define COBALT_MEDIA_BLINK_URL_INDEX_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <string>
 #include <utility>
@@ -21,8 +18,10 @@
 #include "cobalt/media/blink/media_blink_export.h"
 #include "cobalt/media/blink/multibuffer.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/web/WebFrame.h"
 
+namespace cobalt {
 namespace media {
 
 const int64_t kPositionNotSpecified = -1;
@@ -259,5 +258,6 @@ class MEDIA_BLINK_EXPORT UrlIndex {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_URL_INDEX_H_

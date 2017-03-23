@@ -8,7 +8,9 @@
 
 #include "base/logging.h"
 #include "cobalt/media/base/audio_bus.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 AudioPullFifo::AudioPullFifo(int channels, int frames, const ReadCB& read_cb)
@@ -56,7 +58,7 @@ int AudioPullFifo::ReadFromFifo(AudioBus* destination, int frames_to_provide,
   for (int ch = 0; ch < fifo_->channels(); ++ch) {
     const float* src = fifo_->channel(ch) + fifo_index_;
     float* dest = destination->channel(ch) + write_pos;
-    memcpy(dest, src, frames * sizeof(*src));
+    SbMemoryCopy(dest, src, frames * sizeof(*src));
   }
 
   fifo_index_ += frames;
@@ -64,3 +66,4 @@ int AudioPullFifo::ReadFromFifo(AudioBus* destination, int frames_to_provide,
 }
 
 }  // namespace media
+}  // namespace cobalt

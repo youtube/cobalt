@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CLUSTER_PARSER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_CLUSTER_PARSER_H_
 
-#include <stdint.h>
-
 #include <deque>
 #include <map>
 #include <set>
@@ -15,13 +13,16 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/stream_parser.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
 #include "cobalt/media/formats/webm/webm_tracks_parser.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
@@ -144,7 +145,8 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   typedef std::map<int, Track> TextTrackMap;
 
  public:
-  WebMClusterParser(int64_t timecode_scale, int audio_track_num,
+  WebMClusterParser(DecoderBuffer::Allocator* buffer_allocator,
+                    int64_t timecode_scale, int audio_track_num,
                     base::TimeDelta audio_default_duration, int video_track_num,
                     base::TimeDelta video_default_duration,
                     const WebMTracksParser::TextTracks& text_tracks,
@@ -248,6 +250,8 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // as TimeDelta or kNoTimestamp upon failure to read duration from packet.
   base::TimeDelta ReadOpusDuration(const uint8_t* data, int size);
 
+  DecoderBuffer::Allocator* buffer_allocator_;
+
   // Tracks the number of MEDIA_LOGs made in process of reading encoded
   // duration. Useful to prevent log spam.
   int num_duration_errors_;
@@ -304,5 +308,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CLUSTER_PARSER_H_

@@ -5,10 +5,10 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_
 
-#include <stdint.h>
-
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // WebM element IDs.
@@ -165,6 +165,12 @@ const int kWebMIdPrimaryGChromaticityX = 0x55D3;
 const int kWebMIdPrimaryGChromaticityY = 0x55D4;
 const int kWebMIdPrimaryRChromaticityX = 0x55D1;
 const int kWebMIdPrimaryRChromaticityY = 0x55D2;
+const int kWebMIdProjection = 0x7670;
+const int kWebMIdProjectionPosePitch = 0x7674;
+const int kWebMIdProjectionPoseRoll = 0x7675;
+const int kWebMIdProjectionPoseYaw = 0x7673;
+const int kWebMIdProjectionPrivate = 0x7672;
+const int kWebMIdProjectionType = 0x7671;
 const int kWebMIdRange = 0x55B9;
 const int kWebMIdReferenceBlock = 0xFB;
 const int kWebMIdReferencePriority = 0xFA;
@@ -254,5 +260,6 @@ MEDIA_EXPORT extern const char kWebMCodecDescriptions[];
 MEDIA_EXPORT extern const char kWebMCodecMetadata[];
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CONSTANTS_H_

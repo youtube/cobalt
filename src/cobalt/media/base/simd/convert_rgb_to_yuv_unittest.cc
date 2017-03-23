@@ -4,12 +4,11 @@
 
 #include "media/base/simd/convert_rgb_to_yuv.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 
 #include "base/cpu.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

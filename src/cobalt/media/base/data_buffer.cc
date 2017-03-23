@@ -6,6 +6,9 @@
 
 #include <utility>
 
+#include "starboard/memory.h"
+
+namespace cobalt {
 namespace media {
 
 DataBuffer::DataBuffer(int buffer_size)
@@ -31,7 +34,7 @@ DataBuffer::DataBuffer(const uint8_t* data, int data_size)
 
   CHECK_GE(data_size, 0);
   data_.reset(new uint8_t[buffer_size_]);
-  memcpy(data_.get(), data, data_size_);
+  SbMemoryCopy(data_.get(), data, data_size_);
 }
 
 DataBuffer::~DataBuffer() {}
@@ -48,3 +51,4 @@ scoped_refptr<DataBuffer> DataBuffer::CreateEOSBuffer() {
   return make_scoped_refptr(new DataBuffer(NULL, 0));
 }
 }  // namespace media
+}  // namespace cobalt

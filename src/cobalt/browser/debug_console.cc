@@ -159,10 +159,12 @@ DebugConsole::DebugConsole(
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback) {
+    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
+    const script::JavaScriptEngine::Options& js_options) {
   mode_ = GetInitialMode();
 
-  WebModule::Options web_module_options;
+  WebModule::Options web_module_options(window_dimensions);
+  web_module_options.javascript_options = js_options;
   web_module_options.name = "DebugConsoleWebModule";
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
   // javascript.

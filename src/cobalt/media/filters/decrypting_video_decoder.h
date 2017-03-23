@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_
 #define COBALT_MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
@@ -16,11 +14,13 @@
 #include "cobalt/media/base/decryptor.h"
 #include "cobalt/media/base/video_decoder.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
@@ -117,5 +117,6 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_DECRYPTING_VIDEO_DECODER_H_

@@ -5,17 +5,17 @@
 #ifndef COBALT_MEDIA_BLINK_CACHE_UTIL_H_
 #define COBALT_MEDIA_BLINK_CACHE_UTIL_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/time.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 
 namespace blink {
 class WebURLResponse;
 }
 
+namespace cobalt {
 namespace media {
 
 // Reasons that a cached WebURLResponse will *not* prevent a future request to
@@ -46,5 +46,6 @@ base::TimeDelta MEDIA_BLINK_EXPORT
 GetCacheValidUntil(const blink::WebURLResponse& response);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_CACHE_UTIL_H_

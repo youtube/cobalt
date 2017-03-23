@@ -30,6 +30,7 @@
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
@@ -387,9 +388,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   resource_provider_ = data.resource_provider;
 
   // Currently we rely on a platform to explicitly specify that it supports
-  // the map-to-mesh filter via the ENABLE_MTM define (and the 'enable_mtm' gyp
-  // variable).  When we have better support for checking for decode to texture
-  // support, it would be nice to switch this logic to something like:
+  // the map-to-mesh filter via the ENABLE_MAP_TO_MESH define (and the
+  // 'enable_map_to_mesh' gyp variable).  When we have better support for
+  // checking for decode to texture support, it would be nice to switch this
+  // logic to something like:
   //
   //   supports_map_to_mesh =
   //      (resource_provider_->Supports3D() && SbPlayerSupportsDecodeToTexture()
@@ -400,7 +402,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // cannot render them, since web apps may check for map-to-mesh support by
   // testing whether it parses or not via the CSS.supports() Web API.
   css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
-#if defined(ENABLE_MTM)
+#if defined(ENABLE_MAP_TO_MESH)
       css_parser::Parser::kSupportsMapToMesh;
 #else
       css_parser::Parser::kDoesNotSupportMapToMesh;
@@ -423,9 +425,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   loader_factory_.reset(
       new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
-                                data.options.software_decoder_thread_priority,
-                                data.options.hardware_decoder_thread_priority,
-                                data.options.fetcher_lifetime_thread_priority));
+                                data.options.loader_thread_priority));
 
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
@@ -475,7 +475,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
 
-  global_environment_ = javascript_engine_->CreateGlobalEnvironment();
+  global_environment_ = javascript_engine_->CreateGlobalEnvironment(
+      data.options.javascript_options);
   DCHECK(global_environment_);
 
   execution_state_ =
@@ -507,7 +508,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.system_window_,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
+      data.options.input_poller, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -846,10 +848,11 @@ void WebModule::DestructionObserver::WillDestroyCurrentMessageLoop() {
   web_module_->impl_.reset();
 }
 
-WebModule::Options::Options()
+WebModule::Options::Options(const math::Size& ui_dimensions)
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-      image_cache_capacity(COBALT_IMAGE_CACHE_SIZE_IN_BYTES),
+      image_cache_capacity(
+          static_cast<int>(memory_settings::GetImageCacheSize(ui_dimensions))),
       remote_typeface_cache_capacity(
           COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
       mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
@@ -858,9 +861,7 @@ WebModule::Options::Options()
       track_event_stats(false),
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
-      software_decoder_thread_priority(base::kThreadPriority_Low),
-      hardware_decoder_thread_priority(base::kThreadPriority_High),
-      fetcher_lifetime_thread_priority(base::kThreadPriority_High),
+      loader_thread_priority(base::kThreadPriority_Low),
       tts_engine(NULL) {}
 
 WebModule::WebModule(

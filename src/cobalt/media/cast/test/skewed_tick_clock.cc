@@ -6,6 +6,7 @@
 
 #include "base/time/time.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -36,3 +37,4 @@ base::TimeTicks SkewedTickClock::NowTicks() {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

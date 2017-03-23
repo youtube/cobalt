@@ -175,7 +175,7 @@ TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
     Pipeline pipeline(
         base::Bind(render_module_options.create_rasterizer_function,
                    graphics_context.get(), render_module_options),
-        dummy_output_surface, NULL, true);
+        dummy_output_surface, NULL, true, Pipeline::kNoClear);
 
     // Our test render tree will consist of only a single ImageNode.
     scoped_refptr<ImageNode> test_node = new ImageNode(

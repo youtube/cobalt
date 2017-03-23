@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_FILTERS_FILE_DATA_SOURCE_H_
 #define COBALT_MEDIA_FILTERS_FILE_DATA_SOURCE_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
@@ -14,7 +12,9 @@
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
 #include "cobalt/media/base/data_source.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Basic data source that treats the URL as a file path, and uses the file
@@ -53,5 +53,6 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_FILE_DATA_SOURCE_H_

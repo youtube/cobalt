@@ -4,14 +4,15 @@
 
 #include "cobalt/media/filters/h265_parser.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "cobalt/media/base/decrypt_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 #define READ_BITS_OR_RETURN(num_bits, out)                                 \
@@ -33,7 +34,7 @@ namespace media {
     }                                                                \
   } while (0)
 
-H265NALU::H265NALU() { memset(this, 0, sizeof(*this)); }
+H265NALU::H265NALU() { SbMemorySet(this, 0, sizeof(*this)); }
 
 H265Parser::H265Parser() { Reset(); }
 
@@ -153,3 +154,4 @@ H265Parser::Result H265Parser::AdvanceToNextNALU(H265NALU* nalu) {
 }
 
 }  // namespace media
+}  // namespace cobalt

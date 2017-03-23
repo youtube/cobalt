@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_BASE_BIT_READER_CORE_H_
 #define COBALT_MEDIA_BASE_BIT_READER_CORE_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT BitReaderCore {
@@ -122,5 +122,6 @@ class MEDIA_EXPORT BitReaderCore {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_BIT_READER_CORE_H_

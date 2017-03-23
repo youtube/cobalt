@@ -25,6 +25,8 @@
 #include "cobalt/media/base/shell_buffer_factory.h"
 #include "cobalt/media/filters/shell_mp4_parser.h"
 #include "lb_platform.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -200,7 +202,7 @@ class SampleTable {
     CHECK_GE(position, file_offset_);
     CHECK_LE(position + size, file_offset_ + combined_.size());
     uint32 offset = position - file_offset_;
-    memcpy(data, &combined_[0] + offset, size);
+    SbMemoryCopy(data, &combined_[0] + offset, size);
     ++read_count_;
     read_bytes_ += size;
     return size;

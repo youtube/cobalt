@@ -4,8 +4,6 @@
 
 #include "cobalt/media/filters/decrypting_audio_decoder.h"
 
-#include <stdint.h>
-
 #include <cstdlib>
 
 #include "base/bind.h"
@@ -22,7 +20,9 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 static inline bool IsOutOfSync(const base::TimeDelta& timestamp_1,
@@ -355,3 +355,4 @@ void DecryptingAudioDecoder::ProcessDecodedFrames(
 }
 
 }  // namespace media
+}  // namespace cobalt

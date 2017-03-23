@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_AUDIO_BUFFER_H_
 #define COBALT_MEDIA_BASE_AUDIO_BUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/basictypes.h"
@@ -18,6 +15,7 @@
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/sample_format.h"
+#include "starboard/types.h"
 
 namespace mojo {
 template <typename T, typename U>
@@ -26,6 +24,7 @@ template <typename T>
 class StructPtr;
 };
 
+namespace cobalt {
 namespace media {
 class AudioBus;
 
@@ -171,5 +170,6 @@ class MEDIA_EXPORT AudioBuffer
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_BUFFER_H_

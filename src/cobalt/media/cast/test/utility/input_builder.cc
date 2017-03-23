@@ -11,7 +11,9 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -73,3 +75,4 @@ bool InputBuilder::ValidateInput(const std::string& input) const {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

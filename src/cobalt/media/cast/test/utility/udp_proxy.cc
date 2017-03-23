@@ -22,7 +22,9 @@
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
 #include "net/udp/udp_server_socket.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -821,3 +823,4 @@ std::unique_ptr<UDPProxy> UDPProxy::Create(
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

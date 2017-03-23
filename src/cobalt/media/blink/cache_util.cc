@@ -4,8 +4,6 @@
 
 #include "cobalt/media/blink/cache_util.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <string>
 
@@ -15,6 +13,7 @@
 #include "base/time.h"
 #include "net/http/http_util.h"
 #include "net/http/http_version.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebString.h"
 #include "third_party/WebKit/public/platform/WebURLResponse.h"
 
@@ -23,6 +22,7 @@ using base::TimeDelta;
 using net::HttpVersion;
 using blink::WebURLResponse;
 
+namespace cobalt {
 namespace media {
 
 enum { kHttpOK = 200, kHttpPartialContent = 206 };
@@ -128,3 +128,4 @@ base::TimeDelta GetCacheValidUntil(const WebURLResponse& response) {
 }
 
 }  // namespace media
+}  // namespace cobalt

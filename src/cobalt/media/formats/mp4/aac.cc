@@ -4,8 +4,6 @@
 
 #include "cobalt/media/formats/mp4/aac.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
@@ -13,7 +11,9 @@
 #include "cobalt/media/base/bit_reader.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -264,3 +264,4 @@ bool AAC::SkipGASpecificConfig(BitReader* bit_reader) const {
 }  // namespace mp4
 
 }  // namespace media
+}  // namespace cobalt

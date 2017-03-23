@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/big_endian.h"
 #include "base/logging.h"
+#include "starboard/memory.h"
 
 using base::BigEndianReader;
 
@@ -32,6 +33,7 @@ using base::BigEndianReader;
     *(out) = _out;                                                         \
   } while (0)
 
+namespace cobalt {
 namespace media {
 
 static bool InRange(int value, int a, int b) {
@@ -273,7 +275,7 @@ static bool SearchEOI(const char* buffer, size_t length, const char** eoi_ptr) {
 
   while (reader.remaining() > 0) {
     const char* marker1_ptr = static_cast<const char*>(
-        memchr(reader.ptr(), JPEG_MARKER_PREFIX, reader.remaining()));
+        SbMemoryFindByte(reader.ptr(), JPEG_MARKER_PREFIX, reader.remaining()));
     if (!marker1_ptr) return false;
     reader.Skip(marker1_ptr - reader.ptr() + 1);
 
@@ -434,7 +436,7 @@ bool ParseJpegPicture(const uint8_t* buffer, size_t length,
   DCHECK(buffer);
   DCHECK(result);
   BigEndianReader reader(reinterpret_cast<const char*>(buffer), length);
-  memset(result, 0, sizeof(JpegParseResult));
+  SbMemorySet(result, 0, sizeof(JpegParseResult));
 
   uint8_t marker1, marker2;
   READ_U8_OR_RETURN_FALSE(&marker1);
@@ -467,3 +469,4 @@ bool ParseJpegStream(const uint8_t* buffer, size_t length,
 }
 
 }  // namespace media
+}  // namespace cobalt

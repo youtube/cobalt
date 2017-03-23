@@ -4,19 +4,20 @@
 
 #include "cobalt/media/formats/mpeg/adts_stream_parser.h"
 
-#include <stddef.h>
-
 #include "build/build_config.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/formats/mp4/aac.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 static const uint32_t kADTSStartCodeMask = 0xfff00000;
 
-ADTSStreamParser::ADTSStreamParser()
-    : MPEGAudioStreamParserBase(kADTSStartCodeMask, kCodecAAC, 0) {}
+ADTSStreamParser::ADTSStreamParser(DecoderBuffer::Allocator* buffer_allocator)
+    : MPEGAudioStreamParserBase(buffer_allocator, kADTSStartCodeMask, kCodecAAC,
+                                0) {}
 
 ADTSStreamParser::~ADTSStreamParser() {}
 
@@ -103,3 +104,4 @@ int ADTSStreamParser::ParseFrameHeader(const uint8_t* data, int size,
 }
 
 }  // namespace media
+}  // namespace cobalt

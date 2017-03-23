@@ -5,13 +5,13 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_UTIL_H_
 #define COBALT_MEDIA_BASE_VIDEO_UTIL_H_
 
-#include <stdint.h>
-
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
+namespace cobalt {
 namespace media {
 
 class VideoFrame;
@@ -109,5 +109,6 @@ MEDIA_EXPORT bool I420CopyWithPadding(const VideoFrame& src_frame,
                                       VideoFrame* dst_frame) WARN_UNUSED_RESULT;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_VIDEO_UTIL_H_

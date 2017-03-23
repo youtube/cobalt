@@ -5,14 +5,13 @@
 #ifndef COBALT_MEDIA_BASE_CDM_KEY_INFORMATION_H_
 #define COBALT_MEDIA_BASE_CDM_KEY_INFORMATION_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 struct MEDIA_EXPORT CdmKeyInformation {
@@ -45,5 +44,6 @@ struct MEDIA_EXPORT CdmKeyInformation {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_CDM_KEY_INFORMATION_H_

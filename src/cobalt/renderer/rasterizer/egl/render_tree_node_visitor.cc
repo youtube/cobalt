@@ -21,6 +21,7 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
@@ -40,13 +41,30 @@ math::Rect RoundRectFToInt(const math::RectF& input) {
   return math::Rect(left, top, right - left, bottom - top);
 }
 
+bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
+  return matrix(2, 0) == 0 && matrix(2, 1) == 0 && matrix(2, 2) == 1 &&
+         matrix(0, 1) == 0 && matrix(1, 0) == 0;
+}
+
+int32_t NextPowerOf2(int32_t num) {
+  // Return the smallest power of 2 that is greater than or equal to num.
+  // This flips on all bits <= num, then num+1 will be the next power of 2.
+  --num;
+  num |= num >> 1;
+  num |= num >> 2;
+  num |= num >> 4;
+  num |= num >> 8;
+  num |= num >> 16;
+  return num + 1;
+}
+
 }  // namespace
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
-    ShaderProgramManager* shader_program_manager,
+    DrawObjectManager* draw_object_manager,
     const FallbackRasterizeFunction* fallback_rasterize)
     : graphics_state_(graphics_state),
-      shader_program_manager_(shader_program_manager),
+      draw_object_manager_(draw_object_manager),
       fallback_rasterize_(fallback_rasterize) {
   // Let the first draw object render in front of the clear depth.
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
@@ -67,6 +85,12 @@ void RenderTreeNodeVisitor::Visit(
   }
   draw_state_.transform(0, 2) -= data.offset().x();
   draw_state_.transform(1, 2) -= data.offset().y();
+}
+
+void RenderTreeNodeVisitor::Visit(
+    render_tree::MatrixTransform3DNode* transform_3d_node) {
+  // TODO: Ignore the 3D transform matrix for now.
+  transform_3d_node->data().source->Accept(this);
 }
 
 void RenderTreeNodeVisitor::Visit(
@@ -92,8 +116,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       !data.blur_filter &&
       !data.map_to_mesh_filter) {
     const math::Matrix3F& transform = draw_state_.transform;
-    if (transform(2, 0) == 0 && transform(2, 1) == 0 && transform(2, 2) == 1 &&
-        transform(0, 1) == 0 && transform(1, 0) == 0) {
+    if (IsOnlyScaleAndTranslate(transform)) {
       // Transform local viewport to world viewport.
       const math::RectF& filter_viewport = data.viewport_filter->viewport();
       math::RectF transformed_viewport(
@@ -145,23 +168,40 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // GPU resource.
   skia_image->EnsureInitialized();
 
+  // Calculate matrix to transform texture coordinates according to the local
+  // transform.
+  math::Matrix3F texcoord_transform(math::Matrix3F::Identity());
+  if (IsOnlyScaleAndTranslate(data.local_transform)) {
+    texcoord_transform(0, 0) = data.local_transform(0, 0) != 0 ?
+        1.0f / data.local_transform(0, 0) : 0;
+    texcoord_transform(1, 1) = data.local_transform(1, 1) != 0 ?
+        1.0f / data.local_transform(1, 1) : 0;
+    texcoord_transform(0, 2) = -texcoord_transform(0, 0) *
+                               data.local_transform(0, 2);
+    texcoord_transform(1, 2) = -texcoord_transform(1, 1) *
+                               data.local_transform(1, 2);
+  } else {
+    texcoord_transform = data.local_transform.Inverse();
+  }
+
   // Different shaders are used depending on whether the image has a single
   // plane or multiple planes.
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
-    math::Matrix3F texcoord_transform =
-        data.local_transform.IsIdentity() ?
-            math::Matrix3F::Identity() :
-            data.local_transform.Inverse();
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
-
     if (hardware_image->IsOpaque() && draw_state_.opacity == 1.0f) {
       scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
           draw_state_, data.destination_rect,
           hardware_image->GetTextureEGL(), texcoord_transform));
-      AddDrawObject(draw.Pass(), kDrawRectTexture);
+      AddOpaqueDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture);
     } else {
-      NOTIMPLEMENTED();
+      scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
+          draw_state_, data.destination_rect,
+          // Treat alpha as premultiplied in the texture.
+          render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, draw_state_.opacity),
+          hardware_image->GetTextureEGL(), texcoord_transform));
+      AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectColorTexture,
+                         image_node->GetBounds());
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
@@ -209,9 +249,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
       scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
           draw_state_, content_rect, solid_brush->color()));
       if (draw_state_.opacity * solid_brush->color().a() == 1.0f) {
-        AddDrawObject(draw.Pass(), kDrawPolyColor);
+        AddOpaqueDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor);
       } else {
-        AddDrawObject(draw.Pass(), kDrawTransparent);
+        AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor,
+                           rect_node->GetBounds());
       }
     }
   }
@@ -230,24 +271,41 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
     return;
   }
 
-  NOTIMPLEMENTED();
+  FallbackRasterize(text_node);
 }
 
-void RenderTreeNodeVisitor::ExecuteDraw(DrawObject::ExecutionStage stage) {
-  for (int type = 0; type < kDrawCount; ++type) {
-    if (type == kDrawTransparent) {
-      graphics_state_->EnableBlend();
-      graphics_state_->DisableDepthWrite();
-    } else {
-      graphics_state_->DisableBlend();
-      graphics_state_->EnableDepthWrite();
-    }
+void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node) {
+  // Use fallback_rasterize_ to render to an offscreen target. Add a small
+  // buffer to allow anti-aliased edges (e.g. rendered text).
+  const int kBorderWidth = 1;
 
-    for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->Execute(graphics_state_,
-                                          shader_program_manager_, stage);
-    }
-  }
+  math::RectF node_bounds(node->GetBounds());
+
+  // Use power-of-2 texture sizes to ensure good performance on most GPUs.
+  // Some nodes, like TextNode, may have an internal offset for rendering,
+  // so the offscreen target must accommodate that.
+  math::RectF viewport(kBorderWidth, kBorderWidth,
+      NextPowerOf2(node_bounds.right() + 2 * kBorderWidth),
+      NextPowerOf2(node_bounds.bottom() + 2 * kBorderWidth));
+
+  // Adjust the draw rect to accomodate the extra border.
+  math::RectF draw_rect(-kBorderWidth, -kBorderWidth,
+      node_bounds.right() + 2 * kBorderWidth,
+      node_bounds.bottom() + 2 * kBorderWidth);
+
+  // Use the texcoord transform matrix to handle the change in offscreen
+  // target size to the next power of 2.
+  math::Matrix3F texcoord_transform(math::Matrix3F::FromValues(
+      draw_rect.width() / viewport.width(), 0, 0,
+      0, draw_rect.height() / viewport.height(), 0,
+      0, 0, 1));
+
+  scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
+      draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
+          scoped_refptr<render_tree::Node>(node), viewport),
+      texcoord_transform));
+  AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture,
+                     draw_rect);
 }
 
 bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
@@ -256,9 +314,16 @@ bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
   return !intersection.IsEmpty();
 }
 
-void RenderTreeNodeVisitor::AddDrawObject(scoped_ptr<DrawObject> object,
-                                          DrawType type) {
-  draw_objects_[type].push_back(object.release());
+void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
+    DrawObjectManager::DrawType type) {
+  draw_object_manager_->AddOpaqueDraw(object.Pass(), type);
+  draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
+}
+
+void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
+    DrawObjectManager::DrawType type, const math::RectF& local_bounds) {
+  draw_object_manager_->AddTransparentDraw(object.Pass(), type,
+      draw_state_.transform.MapRect(local_bounds));
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
 }
 

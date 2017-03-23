@@ -23,7 +23,9 @@
 
 #include "cobalt/media/base/shell_media_platform.h"
 
+namespace cobalt {
 namespace media {
+
 class ShellMediaPlatformStarboard : public ShellMediaPlatform {
  public:
   explicit ShellMediaPlatformStarboard(
@@ -74,7 +76,9 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
   cobalt::render_tree::ResourceProvider* resource_provider_;
   scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
 };
+
 }  // namespace media
+}  // namespace cobalt
 
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
 

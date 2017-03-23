@@ -13,6 +13,7 @@ namespace gfx {
 class Size;
 }
 
+namespace cobalt {
 namespace media {
 
 class VideoFrame;
@@ -48,5 +49,6 @@ class VideoFrameFactory {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_VIDEO_FRAME_FACTORY_H_

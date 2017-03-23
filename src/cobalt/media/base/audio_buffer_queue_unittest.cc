@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/audio_buffer_queue.h"
 
-#include <stdint.h>
-
 #include <limits>
 #include <memory>
 
@@ -15,8 +13,10 @@
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 const int kSampleRate = 44100;
@@ -345,3 +345,4 @@ TEST(AudioBufferQueueTest, Peek) {
 }
 
 }  // namespace media
+}  // namespace cobalt

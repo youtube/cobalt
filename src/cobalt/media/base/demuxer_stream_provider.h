@@ -10,6 +10,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "googleurl/src/gurl.h"
 
+namespace cobalt {
 namespace media {
 
 // Abstract class that defines how to retrieve "media sources" in DemuxerStream
@@ -55,5 +56,6 @@ class MEDIA_EXPORT DemuxerStreamProvider {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_DEMUXER_STREAM_PROVIDER_H_

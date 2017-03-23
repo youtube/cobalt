@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "cobalt/media/base/audio_sample_types.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 template <typename TestConfig>
@@ -221,3 +221,4 @@ typedef ::testing::Types<
 INSTANTIATE_TYPED_TEST_CASE_P(CommonTypes, SampleTypeTraitsTest, TestConfigs);
 
 }  // namespace media
+}  // namespace cobalt

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "build/build_config.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
 
@@ -12,6 +10,8 @@
 #else
 #include <mmintrin.h>
 #include <emmintrin.h>
+
+#include "starboard/types.h"
 #endif
 
 #if defined(COMPILER_MSVC)
@@ -20,6 +20,7 @@
 #define SIMD_ALIGNED(var) var __attribute__((aligned(16)))
 #endif
 
+namespace cobalt {
 namespace media {
 
 #define FIX_SHIFT 12
@@ -365,3 +366,4 @@ void ConvertRGB32ToYUV_SSE2_Reference(const uint8_t* rgbframe, uint8_t* yplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

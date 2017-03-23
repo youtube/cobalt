@@ -91,8 +91,8 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   scoped_ptr<Display> test_display;
   scoped_refptr<RenderTarget> test_surface;
   if (output_surface_type == kOutputSurfaceTypeDisplay) {
-    test_system_window = cobalt::system_window::CreateSystemWindow(
-        &event_dispatcher, cobalt::math::Size(kViewportWidth, kViewportHeight));
+    test_system_window.reset(new cobalt::system_window::SystemWindow(
+        &event_dispatcher, cobalt::math::Size(kViewportWidth, kViewportHeight)));
     test_display = graphics_system->CreateDisplay(test_system_window.get());
     test_surface = test_display->GetRenderTarget();
   } else if (output_surface_type == kOutputSurfaceTypeOffscreen) {

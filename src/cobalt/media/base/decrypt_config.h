@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_DECRYPT_CONFIG_H_
 #define COBALT_MEDIA_BASE_DECRYPT_CONFIG_H_
 
-#include <stdint.h>
-
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -14,7 +12,9 @@
 #include "base/basictypes.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/subsample_entry.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Contains all information that a decryptor needs to decrypt a media sample.
@@ -62,9 +62,10 @@ class MEDIA_EXPORT DecryptConfig {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 inline std::ostream& operator<<(std::ostream& os,
-                                const media::DecryptConfig& obj) {
+                                const cobalt::media::DecryptConfig& obj) {
   return obj.Print(os);
 }
 

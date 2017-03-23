@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #if defined(_MSC_VER)
 #include <intrin.h>
 #else
@@ -12,7 +10,9 @@
 
 #include "media/base/simd/convert_yuv_to_rgb.h"
 #include "media/base/yuv_convert.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 void ConvertYUVAToARGB_MMX(const uint8_t* yplane, const uint8_t* uplane,
@@ -54,3 +54,4 @@ void ConvertYUVToRGB32_SSE(const uint8_t* yplane, const uint8_t* uplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

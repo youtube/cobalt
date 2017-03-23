@@ -21,7 +21,9 @@
 #include "base/stringprintf.h"
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/formats/mp4/es_descriptor.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // how many bytes to skip within an avc1 before the config atoms start?
@@ -660,3 +662,4 @@ uint64 ShellMP4Parser::TimeToTicks(base::TimeDelta time, uint32 time_scale_hz) {
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/base/shell_data_source_reader.h"
 
+namespace cobalt {
 namespace media {
 
 // per-atom sizes of individual table entries
@@ -208,5 +209,6 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_SHELL_MP4_MAP_H_

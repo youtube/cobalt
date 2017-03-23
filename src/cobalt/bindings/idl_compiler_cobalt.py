@@ -17,47 +17,80 @@ Based on and uses blink's IDL compiler found in the blink repository at
 third_party/blink/Source/bindings/scripts/idl_compiler.py.
 """
 
+from optparse import OptionParser
 import os
-import sys
+import pickle
 
 import bootstrap_path  # pylint: disable=g-bad-import-order,unused-import
 
-module_path, module_filename = os.path.split(os.path.realpath(__file__))
-# Adding this to the path allows us to import from blink's bindings.scripts
-blink_source_dir = os.path.normpath(
-    os.path.join(module_path, os.pardir, os.pardir, 'third_party', 'blink',
-                 'Source'))
-sys.path.append(blink_source_dir)
+from idl_compiler import IdlCompiler
+from utilities import ComponentInfoProviderCobalt
+from utilities import idl_filename_to_interface_name
+from utilities import write_file
 
-from bindings.scripts.idl_compiler import IdlCompiler  # pylint: disable=g-import-not-at-top
-from bindings.scripts.idl_compiler import parse_options
+
+def create_component_info_provider(interfaces_info_path, component_info_path):
+  with open(os.path.join(interfaces_info_path)) as interface_info_file:
+    interfaces_info = pickle.load(interface_info_file)
+  with open(os.path.join(component_info_path)) as component_info_file:
+    component_info = pickle.load(component_info_file)
+  return ComponentInfoProviderCobalt(interfaces_info, component_info)
+
+
+def parse_options():
+  """Parse command line options. Based on parse_options in idl_compiler.py."""
+  parser = OptionParser()
+  parser.add_option(
+      '--cache-directory', help='cache directory, defaults to output directory')
+  parser.add_option('--output-directory')
+  parser.add_option('--interfaces-info')
+  parser.add_option('--component-info')
+  parser.add_option(
+      '--extended-attributes',
+      help='file containing whitelist of supported extended attributes')
+
+  options, args = parser.parse_args()
+  if options.output_directory is None:
+    parser.error('Must specify output directory using --output-directory.')
+  if len(args) != 1:
+    parser.error('Must specify exactly 1 input file as argument, but %d given.'
+                 % len(args))
+  idl_filename = os.path.realpath(args[0])
+  return options, idl_filename
 
 
 class IdlCompilerCobalt(IdlCompiler):
 
-  def __init__(self, code_generator_class, *args, **kwargs):
+  def __init__(self, *args, **kwargs):
     IdlCompiler.__init__(self, *args, **kwargs)
-    self.code_generator = code_generator_class(
-        self.interfaces_info, self.cache_directory, self.output_directory)
 
-  def compile_file(self, idl_filename):
-    self.compile_and_write(idl_filename)
+  def compile_and_write(self, idl_filename):
+    interface_name = idl_filename_to_interface_name(idl_filename)
+    definitions = self.reader.read_idl_definitions(idl_filename)
+    # Merge all component definitions into a single list, since we don't really
+    # care about components in Cobalt.
+    assert len(definitions) == 1
+    output_code_list = self.code_generator.generate_code(
+        definitions.values()[0], interface_name)
+
+    # Generator may choose to omit the file.
+    if output_code_list is None:
+      return
+
+    for output_path, output_code in output_code_list:
+      write_file(output_code, output_path)
 
 
 def generate_bindings(code_generator_class):
   """This will be called from the engine-specific idl_compiler.py script."""
   options, input_filename = parse_options()
-  if options.generate_impl:
-    # Currently not used in Cobalt
-    raise NotImplementedError
-  else:
-    # |input_filename| should be a path of an IDL file.
-    idl_compiler = IdlCompilerCobalt(
-        code_generator_class,
-        options.output_directory,
-        cache_directory=options.cache_directory,
-        interfaces_info_filename=options.interfaces_info_file,
-        only_if_changed=options.write_file_only_if_changed,
-        target_component=options.target_component,
-        extended_attributes_filepath=options.extended_attributes)
-    idl_compiler.compile_file(input_filename)
+  # |input_filename| should be a path of an IDL file.
+  cobalt_info_provider = create_component_info_provider(options.interfaces_info,
+                                                        options.component_info)
+  idl_compiler = IdlCompilerCobalt(
+      options.output_directory,
+      cache_directory=options.cache_directory,
+      code_generator_class=code_generator_class,
+      info_provider=cobalt_info_provider,
+      extended_attributes_filepath=options.extended_attributes)
+  idl_compiler.compile_file(input_filename)

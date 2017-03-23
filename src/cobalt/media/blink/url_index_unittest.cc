@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <list>
 #include <string>
 
@@ -11,8 +9,10 @@
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
 #include "cobalt/media/blink/url_index.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class UrlIndexTest : public testing::Test {
@@ -157,3 +157,4 @@ TEST_F(UrlIndexTest, TryInsert) {
 }
 
 }  // namespace media
+}  // namespace cobalt

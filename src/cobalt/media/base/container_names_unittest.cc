@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "base/files/file_util.h"
 #include "cobalt/media/base/container_names.h"
 #include "cobalt/media/base/test_data_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 namespace container_names {
@@ -46,11 +47,11 @@ TEST(ContainerNamesTest, CheckSmallBuffer) {
 
   // Try a large buffer all zeros.
   char buffer3[4096];
-  memset(buffer3, 0, sizeof(buffer3));
+  SbMemorySet(buffer3, 0, sizeof(buffer3));
   VERIFY(buffer3, CONTAINER_UNKNOWN);
 
   // Reuse buffer, but all \n this time.
-  memset(buffer3, '\n', sizeof(buffer3));
+  SbMemorySet(buffer3, '\n', sizeof(buffer3));
   VERIFY(buffer3, CONTAINER_UNKNOWN);
 }
 
@@ -248,3 +249,4 @@ TEST(ContainerNamesTest, FileCheckUNKNOWN) {
 }  // namespace container_names
 
 }  // namespace media
+}  // namespace cobalt

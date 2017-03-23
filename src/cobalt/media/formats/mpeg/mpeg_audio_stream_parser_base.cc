@@ -17,7 +17,9 @@
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kMpegAudioTrackId = 1;
@@ -50,14 +52,17 @@ static int LocateEndOfHeaders(const uint8_t* buf, int buf_len, int i) {
   return -1;
 }
 
-MPEGAudioStreamParserBase::MPEGAudioStreamParserBase(uint32_t start_code_mask,
-                                                     AudioCodec audio_codec,
-                                                     int codec_delay)
-    : state_(UNINITIALIZED),
+MPEGAudioStreamParserBase::MPEGAudioStreamParserBase(
+    DecoderBuffer::Allocator* buffer_allocator, uint32_t start_code_mask,
+    AudioCodec audio_codec, int codec_delay)
+    : buffer_allocator_(buffer_allocator),
+      state_(UNINITIALIZED),
       in_media_segment_(false),
       start_code_mask_(start_code_mask),
       audio_codec_(audio_codec),
-      codec_delay_(codec_delay) {}
+      codec_delay_(codec_delay) {
+  DCHECK(buffer_allocator_);
+}
 
 MPEGAudioStreamParserBase::~MPEGAudioStreamParserBase() {}
 
@@ -225,8 +230,9 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data, int size,
   // TODO(wolenetz/acolwell): Validate and use a common cross-parser TrackId
   // type and allow multiple audio tracks, if applicable. See
   // https://crbug.com/341581.
-  scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
-      data, frame_size, true, DemuxerStream::AUDIO, kMpegAudioTrackId);
+  scoped_refptr<StreamParserBuffer> buffer =
+      StreamParserBuffer::CopyFrom(buffer_allocator_, data, frame_size, true,
+                                   DemuxerStream::AUDIO, kMpegAudioTrackId);
   buffer->set_timestamp(timestamp_helper_->GetTimestamp());
   buffer->set_duration(timestamp_helper_->GetFrameDuration(sample_count));
   buffers->push_back(buffer);
@@ -242,7 +248,7 @@ int MPEGAudioStreamParserBase::ParseIcecastHeader(const uint8_t* data,
 
   if (size < 4) return 0;
 
-  if (memcmp("ICY ", data, 4)) return -1;
+  if (SbMemoryCompare("ICY ", data, 4)) return -1;
 
   int locate_size = std::min(size, kMaxIcecastHeaderSize);
   int offset = LocateEndOfHeaders(data, locate_size, 4);
@@ -265,7 +271,7 @@ int MPEGAudioStreamParserBase::ParseID3v1(const uint8_t* data, int size) {
 
   // TODO(acolwell): Add code to actually validate ID3v1 data and
   // expose it as a metadata text track.
-  return !memcmp(data, "TAG+", 4) ? kID3v1ExtendedSize : kID3v1Size;
+  return !SbMemoryCompare(data, "TAG+", 4) ? kID3v1ExtendedSize : kID3v1Size;
 }
 
 int MPEGAudioStreamParserBase::ParseID3v2(const uint8_t* data, int size) {
@@ -324,7 +330,7 @@ int MPEGAudioStreamParserBase::FindNextValidStartCode(const uint8_t* data,
   while (start < end) {
     int bytes_left = end - start;
     const uint8_t* candidate_start_code =
-        static_cast<const uint8_t*>(memchr(start, 0xff, bytes_left));
+        static_cast<const uint8_t*>(SbMemoryFindByte(start, 0xff, bytes_left));
 
     if (!candidate_start_code) return 0;
 
@@ -393,3 +399,4 @@ bool MPEGAudioStreamParserBase::SendBuffers(BufferQueue* buffers,
 }
 
 }  // namespace media
+}  // namespace cobalt

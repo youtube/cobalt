@@ -29,6 +29,10 @@
     'cobalt_config%': 'gold',
     'cobalt_fastbuild%': 0,
 
+    # Enable support for the map to mesh filter, which is primarily used to
+    # implement spherical video playback.
+    'enable_map_to_mesh%': 0,
+
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency with smaller font package size.
     # See content/fonts/README.md for more details.
@@ -166,7 +170,10 @@
     # Determines the capacity of the image cache which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
     # ideally) these images are cached within GPU memory.
-    'image_cache_size_in_bytes%': 32 * 1024 * 1024,
+    # Set to -1 to automatically calculate the value at runtime, based on
+    # features like windows dimensions and the value of
+    # SbSystemGetTotalGPUMemory().
+    'image_cache_size_in_bytes%': -1,
 
     # Determines the capacity of the remote typefaces cache which manages all
     # typefaces downloaded from a web page.
@@ -174,8 +181,10 @@
 
     # Determines the capacity of the mesh cache. Each mesh is held compressed
     # in main memory, to be inflated into a GPU buffer when needed for
-    # projection. Default to 0 and set by platforms that support map-to-mesh.
-    'mesh_cache_size_in_bytes%': 0,
+    # projection. When set to 'auto', will be adjusted according to whether
+    # the enable_map_to_mesh is true or not.  If enable_map_to_mesh is false,
+    # then the mesh cache size will be set to 0.
+    'mesh_cache_size_in_bytes%': 'auto',
 
     # Only relevant if you are using the Blitter API.
     # Determines the capacity of the software surface cache, which is used to

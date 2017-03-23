@@ -34,5 +34,4 @@ class ConstantsInterface : public script::Wrappable {
 }  // namespace bindings
 }  // namespace cobalt
 
-
 #endif  // COBALT_BINDINGS_TESTING_CONSTANTS_INTERFACE_H_

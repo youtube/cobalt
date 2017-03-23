@@ -32,16 +32,13 @@ SplashScreen::SplashScreen(
     const SplashScreen::Options& options)
     : render_tree_produced_callback_(render_tree_produced_callback)
     , is_ready_(true, false) {
-  WebModule::Options web_module_options;
+  WebModule::Options web_module_options(window_dimensions);
   web_module_options.name = "SplashScreenWebModule";
 
   // We want the splash screen to load and appear as quickly as possible, so
   // we set it and its image decoding thread to be high priority.
   web_module_options.thread_priority = base::kThreadPriority_High;
-  web_module_options.software_decoder_thread_priority =
-      base::kThreadPriority_High;
-  web_module_options.hardware_decoder_thread_priority =
-      base::kThreadPriority_High;
+  web_module_options.loader_thread_priority = base::kThreadPriority_High;
 
   web_module_.reset(new WebModule(
       options.url,

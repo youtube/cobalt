@@ -19,7 +19,9 @@
 #include "base/numerics/safe_conversions.h"
 #include "cobalt/media/filters/vp9_compressed_header_parser.h"
 #include "cobalt/media/filters/vp9_uncompressed_header_parser.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 bool Vp9FrameHeader::IsKeyframe() const {
@@ -40,9 +42,9 @@ bool Vp9FrameContext::IsValid() const {
   // probs should be in [1, 255] range.
   static_assert(sizeof(Vp9Prob) == 1,
                 "following checks assuming Vp9Prob is single byte");
-  if (memchr(tx_probs_8x8, 0, sizeof(tx_probs_8x8))) return false;
-  if (memchr(tx_probs_16x16, 0, sizeof(tx_probs_16x16))) return false;
-  if (memchr(tx_probs_32x32, 0, sizeof(tx_probs_32x32))) return false;
+  if (SbMemoryFindByte(tx_probs_8x8, 0, sizeof(tx_probs_8x8))) return false;
+  if (SbMemoryFindByte(tx_probs_16x16, 0, sizeof(tx_probs_16x16))) return false;
+  if (SbMemoryFindByte(tx_probs_32x32, 0, sizeof(tx_probs_32x32))) return false;
 
   for (auto& a : coef_probs) {
     for (auto& ai : a) {
@@ -58,25 +60,32 @@ bool Vp9FrameContext::IsValid() const {
       }
     }
   }
-  if (memchr(skip_prob, 0, sizeof(skip_prob))) return false;
-  if (memchr(inter_mode_probs, 0, sizeof(inter_mode_probs))) return false;
-  if (memchr(interp_filter_probs, 0, sizeof(interp_filter_probs))) return false;
-  if (memchr(is_inter_prob, 0, sizeof(is_inter_prob))) return false;
-  if (memchr(comp_mode_prob, 0, sizeof(comp_mode_prob))) return false;
-  if (memchr(single_ref_prob, 0, sizeof(single_ref_prob))) return false;
-  if (memchr(comp_ref_prob, 0, sizeof(comp_ref_prob))) return false;
-  if (memchr(y_mode_probs, 0, sizeof(y_mode_probs))) return false;
-  if (memchr(uv_mode_probs, 0, sizeof(uv_mode_probs))) return false;
-  if (memchr(partition_probs, 0, sizeof(partition_probs))) return false;
-  if (memchr(mv_joint_probs, 0, sizeof(mv_joint_probs))) return false;
-  if (memchr(mv_sign_prob, 0, sizeof(mv_sign_prob))) return false;
-  if (memchr(mv_class_probs, 0, sizeof(mv_class_probs))) return false;
-  if (memchr(mv_class0_bit_prob, 0, sizeof(mv_class0_bit_prob))) return false;
-  if (memchr(mv_bits_prob, 0, sizeof(mv_bits_prob))) return false;
-  if (memchr(mv_class0_fr_probs, 0, sizeof(mv_class0_fr_probs))) return false;
-  if (memchr(mv_fr_probs, 0, sizeof(mv_fr_probs))) return false;
-  if (memchr(mv_class0_hp_prob, 0, sizeof(mv_class0_hp_prob))) return false;
-  if (memchr(mv_hp_prob, 0, sizeof(mv_hp_prob))) return false;
+  if (SbMemoryFindByte(skip_prob, 0, sizeof(skip_prob))) return false;
+  if (SbMemoryFindByte(inter_mode_probs, 0, sizeof(inter_mode_probs)))
+    return false;
+  if (SbMemoryFindByte(interp_filter_probs, 0, sizeof(interp_filter_probs)))
+    return false;
+  if (SbMemoryFindByte(is_inter_prob, 0, sizeof(is_inter_prob))) return false;
+  if (SbMemoryFindByte(comp_mode_prob, 0, sizeof(comp_mode_prob))) return false;
+  if (SbMemoryFindByte(single_ref_prob, 0, sizeof(single_ref_prob)))
+    return false;
+  if (SbMemoryFindByte(comp_ref_prob, 0, sizeof(comp_ref_prob))) return false;
+  if (SbMemoryFindByte(y_mode_probs, 0, sizeof(y_mode_probs))) return false;
+  if (SbMemoryFindByte(uv_mode_probs, 0, sizeof(uv_mode_probs))) return false;
+  if (SbMemoryFindByte(partition_probs, 0, sizeof(partition_probs)))
+    return false;
+  if (SbMemoryFindByte(mv_joint_probs, 0, sizeof(mv_joint_probs))) return false;
+  if (SbMemoryFindByte(mv_sign_prob, 0, sizeof(mv_sign_prob))) return false;
+  if (SbMemoryFindByte(mv_class_probs, 0, sizeof(mv_class_probs))) return false;
+  if (SbMemoryFindByte(mv_class0_bit_prob, 0, sizeof(mv_class0_bit_prob)))
+    return false;
+  if (SbMemoryFindByte(mv_bits_prob, 0, sizeof(mv_bits_prob))) return false;
+  if (SbMemoryFindByte(mv_class0_fr_probs, 0, sizeof(mv_class0_fr_probs)))
+    return false;
+  if (SbMemoryFindByte(mv_fr_probs, 0, sizeof(mv_fr_probs))) return false;
+  if (SbMemoryFindByte(mv_class0_hp_prob, 0, sizeof(mv_class0_hp_prob)))
+    return false;
+  if (SbMemoryFindByte(mv_hp_prob, 0, sizeof(mv_hp_prob))) return false;
 
   return true;
 }
@@ -145,9 +154,9 @@ void Vp9Parser::Context::Vp9FrameContextManager::UpdateFromClient(
 }
 
 void Vp9Parser::Context::Reset() {
-  memset(&segmentation_, 0, sizeof(segmentation_));
-  memset(&loop_filter_, 0, sizeof(loop_filter_));
-  memset(&ref_slots_, 0, sizeof(ref_slots_));
+  SbMemorySet(&segmentation_, 0, sizeof(segmentation_));
+  SbMemorySet(&loop_filter_, 0, sizeof(loop_filter_));
+  SbMemorySet(&ref_slots_, 0, sizeof(ref_slots_));
   for (auto& manager : frame_context_managers_) manager.Reset();
 }
 
@@ -220,7 +229,7 @@ Vp9Parser::Result Vp9Parser::ParseNextFrame(Vp9FrameHeader* fhdr) {
     curr_frame_info_ = frames_.front();
     frames_.pop_front();
 
-    memset(&curr_frame_header_, 0, sizeof(curr_frame_header_));
+    SbMemorySet(&curr_frame_header_, 0, sizeof(curr_frame_header_));
 
     Vp9UncompressedHeaderParser uncompressed_parser(&context_);
     if (!uncompressed_parser.Parse(curr_frame_info_.ptr, curr_frame_info_.size,
@@ -500,7 +509,7 @@ void Vp9Parser::SetupLoopFilter() {
     }
 
     if (!loop_filter.delta_enabled) {
-      memset(loop_filter.lvl[i], level, sizeof(loop_filter.lvl[i]));
+      SbMemorySet(loop_filter.lvl[i], level, sizeof(loop_filter.lvl[i]));
     } else {
       loop_filter.lvl[i][Vp9RefType::VP9_FRAME_INTRA][0] = ClampLf(
           level + loop_filter.ref_deltas[Vp9RefType::VP9_FRAME_INTRA] * scale);
@@ -540,3 +549,4 @@ void Vp9Parser::UpdateSlots() {
 }
 
 }  // namespace media
+}  // namespace cobalt

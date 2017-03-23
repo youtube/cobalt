@@ -4,9 +4,6 @@
 
 #include "media/cast/sender/video_sender.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -27,9 +24,11 @@
 #include "media/cast/test/utility/default_config.h"
 #include "media/cast/test/utility/video_utility.h"
 #include "media/video/fake_video_encode_accelerator.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -630,3 +629,4 @@ TEST_F(VideoSenderTest, CancelSendingOnReceivingPli) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

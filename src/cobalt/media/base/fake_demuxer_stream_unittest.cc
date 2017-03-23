@@ -14,6 +14,7 @@
 #include "cobalt/media/base/demuxer_stream.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 const int kNumBuffersInOneConfig = 9;
@@ -268,3 +269,4 @@ TEST_F(FakeDemuxerStreamTest, SeekToStart_AfterEOS) {
 }
 
 }  // namespace media
+}  // namespace cobalt

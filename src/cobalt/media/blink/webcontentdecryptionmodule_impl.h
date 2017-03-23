@@ -5,15 +5,13 @@
 #ifndef COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_
 #define COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModule.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 
@@ -24,6 +22,7 @@ class WebLocalFrame;
 class WebSecurityOrigin;
 }
 
+namespace cobalt {
 namespace media {
 
 struct CdmConfig;
@@ -73,5 +72,6 @@ inline WebContentDecryptionModuleImpl* ToWebContentDecryptionModuleImpl(
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBCONTENTDECRYPTIONMODULE_IMPL_H_

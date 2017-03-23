@@ -15,8 +15,8 @@
 #ifndef COBALT_LAYOUT_TESTS_LAYOUT_SNAPSHOT_H_
 #define COBALT_LAYOUT_TESTS_LAYOUT_SNAPSHOT_H_
 
-#include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {

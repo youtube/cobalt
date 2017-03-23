@@ -14,6 +14,7 @@
 
 #include "cobalt/layout/layout_manager.h"
 
+#include <cmath>
 #include <string>
 
 #include "base/bind.h"
@@ -21,12 +22,15 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/cssom/cascade_precedence.h"
+#include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
+#include "cobalt/render_tree/animations/animate_node.h"
+#include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "third_party/icu/source/common/unicode/brkiter.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 
@@ -97,6 +101,39 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(Impl);
 };
 
+namespace {
+
+void UpdateCamera(
+    float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3DImpl> camera,
+    render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
+    base::TimeDelta time) {
+  UNREFERENCED_PARAMETER(time);
+  transform_node_builder->transform =
+      camera->QueryViewPerspectiveMatrix(width_to_height_aspect_ratio);
+}
+
+scoped_refptr<render_tree::Node> AttachCameraNodes(
+    const scoped_refptr<dom::Window> window,
+    const scoped_refptr<render_tree::Node>& source) {
+  // Attach a 3D transform node that applies the current camera matrix transform
+  // to the rest of the render tree.
+  scoped_refptr<render_tree::MatrixTransform3DNode> transform_node =
+      new render_tree::MatrixTransform3DNode(
+          source, glm::mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+
+  // We setup an animation on the camera transform node such that the camera
+  // is driven by the renderer thread and can bypass layout entirely.
+  render_tree::animations::AnimateNode::Builder animate_node_builder;
+  animate_node_builder.Add(
+      transform_node,
+      base::Bind(&UpdateCamera, window->inner_width() / window->inner_height(),
+                 window->camera_3d()->impl()));
+  return new render_tree::animations::AnimateNode(animate_node_builder,
+                                                  transform_node);
+}
+
+}  // namespace
+
 LayoutManager::Impl::Impl(
     const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
@@ -109,6 +146,7 @@ LayoutManager::Impl::Impl(
           new UsedStyleProvider(window->html_element_context(),
                                 window->html_element_context()->image_cache(),
                                 window->document()->font_cache(),
+                                base::Bind(&AttachCameraNodes, window),
                                 window->html_element_context()->mesh_cache())),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
@@ -300,6 +338,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       run_on_render_tree_produced_callback = false;
     }
 #endif  // ENABLE_TEST_RUNNER
+
     if (run_on_render_tree_produced_callback) {
       on_render_tree_produced_callback_.Run(LayoutResults(
           render_tree_root, base::TimeDelta::FromMillisecondsD(

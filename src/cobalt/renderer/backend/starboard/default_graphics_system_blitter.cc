@@ -16,7 +16,6 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/blitter/graphics_system.h"
-#include "cobalt/system_window/starboard/system_window.h"
 
 namespace cobalt {
 namespace renderer {

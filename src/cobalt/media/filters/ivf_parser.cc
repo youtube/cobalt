@@ -5,7 +5,9 @@
 #include "base/logging.h"
 #include "base/sys_byteorder.h"
 #include "cobalt/media/filters/ivf_parser.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 void IvfFileHeader::ByteSwap() {
@@ -39,11 +41,11 @@ bool IvfParser::Initialize(const uint8_t* stream, size_t size,
     return false;
   }
 
-  memcpy(file_header, ptr_, sizeof(IvfFileHeader));
+  SbMemoryCopy(file_header, ptr_, sizeof(IvfFileHeader));
   file_header->ByteSwap();
 
-  if (memcmp(file_header->signature, kIvfHeaderSignature,
-             sizeof(file_header->signature)) != 0) {
+  if (SbMemoryCompare(file_header->signature, kIvfHeaderSignature,
+                      sizeof(file_header->signature)) != 0) {
     DLOG(ERROR) << "IVF signature mismatch";
     return false;
   }
@@ -70,7 +72,7 @@ bool IvfParser::ParseNextFrame(IvfFrameHeader* frame_header,
     return false;
   }
 
-  memcpy(frame_header, ptr_, sizeof(IvfFrameHeader));
+  SbMemoryCopy(frame_header, ptr_, sizeof(IvfFrameHeader));
   frame_header->ByteSwap();
   ptr_ += sizeof(IvfFrameHeader);
 
@@ -86,3 +88,4 @@ bool IvfParser::ParseNextFrame(IvfFrameHeader* frame_header,
 }
 
 }  // namespace media
+}  // namespace cobalt

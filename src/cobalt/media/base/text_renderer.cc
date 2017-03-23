@@ -4,8 +4,6 @@
 
 #include "cobalt/media/base/text_renderer.h"
 
-#include <stddef.h>
-
 #include <string>
 #include <utility>
 
@@ -17,7 +15,10 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/text_cue.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 TextRenderer::TextRenderer(
@@ -182,11 +183,11 @@ void TextRenderer::BufferReady(DemuxerStream* stream,
   // The side data contains both the cue id and cue settings,
   // each terminated with a NUL.
   const char* id_ptr = reinterpret_cast<const char*>(input->side_data());
-  size_t id_len = strlen(id_ptr);
+  size_t id_len = SbStringGetLength(id_ptr);
   std::string id(id_ptr, id_len);
 
   const char* settings_ptr = id_ptr + id_len + 1;
-  size_t settings_len = strlen(settings_ptr);
+  size_t settings_len = SbStringGetLength(settings_ptr);
   std::string settings(settings_ptr, settings_len);
 
   // The cue payload is stored in the data-part of the input buffer.
@@ -309,3 +310,4 @@ TextRenderer::TextTrackState::TextTrackState(std::unique_ptr<TextTrack> tt)
 TextRenderer::TextTrackState::~TextTrackState() {}
 
 }  // namespace media
+}  // namespace cobalt

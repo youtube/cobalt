@@ -9,8 +9,6 @@
 #include <math.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -39,7 +37,11 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/udp/udp_socket.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace test {
@@ -113,6 +115,7 @@ class QueueManager {
 }  // namespace test
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 base::TimeTicks last_printout;
 
@@ -229,7 +232,7 @@ int tun_alloc(char* dev, int flags) {
   }
 
   /* preparation of the struct ifr, of type "struct ifreq" */
-  memset(&ifr, 0, sizeof(ifr));
+  SbMemorySet(&ifr, 0, sizeof(ifr));
 
   ifr.ifr_flags = flags; /* IFF_TUN or IFF_TAP, plus maybe IFF_NO_PI */
 
@@ -237,7 +240,7 @@ int tun_alloc(char* dev, int flags) {
     /* if a device name was specified, put it in the structure; otherwise,
      * the kernel will try to allocate the "next" device of the
      * specified type */
-    strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+    SbStringCopy(ifr.ifr_name, dev, IFNAMSIZ);
   }
 
   /* try to create the device */
@@ -251,7 +254,7 @@ int tun_alloc(char* dev, int flags) {
      * interface to the variable "dev", so the caller can know
      * it. Note that the caller MUST reserve space in *dev (see calling
      * code below) */
-    strcpy(dev, ifr.ifr_name);
+    SbStringCopyUnsafe(dev, ifr.ifr_name);
   }
 
   /* this is the special file descriptor that the caller will use to talk

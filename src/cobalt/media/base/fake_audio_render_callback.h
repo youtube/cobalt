@@ -5,13 +5,13 @@
 #ifndef COBALT_MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
 #define COBALT_MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "cobalt/media/base/audio_converter.h"
 #include "cobalt/media/base/audio_renderer_sink.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+namespace cobalt {
 namespace media {
 
 // Fake RenderCallback which will fill each request with a sine wave.  Sine
@@ -65,5 +65,6 @@ class FakeAudioRenderCallback : public AudioRendererSink::RenderCallback,
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_

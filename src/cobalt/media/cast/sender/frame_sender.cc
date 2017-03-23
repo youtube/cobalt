@@ -16,6 +16,7 @@
 #include "media/cast/constants.h"
 #include "media/cast/sender/sender_encoded_frame.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 namespace {
@@ -462,3 +463,4 @@ bool FrameSender::ShouldDropNextFrame(base::TimeDelta frame_duration) const {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

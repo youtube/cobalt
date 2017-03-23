@@ -4,9 +4,6 @@
 
 #include "cobalt/media/base/audio_bus.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <limits>
 
@@ -16,7 +13,10 @@
 #include "cobalt/media/base/audio_sample_types.h"
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/vector_math.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 static bool IsAligned(void* ptr) {
@@ -160,8 +160,8 @@ void AudioBus::ZeroFramesPartial(int start_frame, int frames) {
   if (frames <= 0) return;
 
   for (size_t i = 0; i < channel_data_.size(); ++i) {
-    memset(channel_data_[i] + start_frame, 0,
-           frames * sizeof(*channel_data_[i]));
+    SbMemorySet(channel_data_[i] + start_frame, 0,
+                frames * sizeof(*channel_data_[i]));
   }
 }
 
@@ -299,8 +299,9 @@ void AudioBus::CopyPartialFramesTo(int source_start_frame, int frame_count,
   // Since we don't know if the other AudioBus is wrapped or not (and we don't
   // want to care), just copy using the public channel() accessors.
   for (int i = 0; i < channels(); ++i) {
-    memcpy(dest->channel(i) + dest_start_frame, channel(i) + source_start_frame,
-           sizeof(*channel(i)) * frame_count);
+    SbMemoryCopy(dest->channel(i) + dest_start_frame,
+                 channel(i) + source_start_frame,
+                 sizeof(*channel(i)) * frame_count);
   }
 }
 
@@ -332,3 +333,4 @@ AudioBusRefCounted::AudioBusRefCounted(int channels, int frames)
 AudioBusRefCounted::~AudioBusRefCounted() {}
 
 }  // namespace media
+}  // namespace cobalt

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <memory>
 
 #include "base/at_exit.h"
@@ -22,9 +20,11 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/filters/ffmpeg_demuxer.h"
 #include "cobalt/media/filters/file_data_source.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_test.h"
 
+namespace cobalt {
 namespace media {
 
 static const int kBenchmarkIterations = 100;
@@ -235,3 +235,4 @@ TEST(DemuxerPerfTest, MAYBE_Demuxer) {
 }
 
 }  // namespace media
+}  // namespace cobalt

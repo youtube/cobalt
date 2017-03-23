@@ -20,10 +20,15 @@
 #include "cobalt/media/formats/webm/webm_info_parser.h"
 #include "cobalt/media/formats/webm/webm_tracks_parser.h"
 
+namespace cobalt {
 namespace media {
 
-WebMStreamParser::WebMStreamParser()
-    : state_(kWaitingForInit), unknown_segment_size_(false) {}
+WebMStreamParser::WebMStreamParser(DecoderBuffer::Allocator* buffer_allocator)
+    : buffer_allocator_(buffer_allocator),
+      state_(kWaitingForInit),
+      unknown_segment_size_(false) {
+  DCHECK(buffer_allocator_);
+}
 
 WebMStreamParser::~WebMStreamParser() {}
 
@@ -221,7 +226,8 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
   }
 
   cluster_parser_.reset(new WebMClusterParser(
-      info_parser.timecode_scale(), tracks_parser.audio_track_num(),
+      buffer_allocator_, info_parser.timecode_scale(),
+      tracks_parser.audio_track_num(),
       tracks_parser.GetAudioDefaultDuration(timecode_scale_in_us),
       tracks_parser.video_track_num(),
       tracks_parser.GetVideoDefaultDuration(timecode_scale_in_us),
@@ -272,3 +278,4 @@ void WebMStreamParser::OnEncryptedMediaInitData(const std::string& key_id) {
 }
 
 }  // namespace media
+}  // namespace cobalt

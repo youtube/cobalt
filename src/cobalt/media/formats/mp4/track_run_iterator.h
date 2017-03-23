@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
 #define COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/basictypes.h"
@@ -17,7 +14,9 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
 #include "cobalt/media/formats/mp4/box_definitions.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 class DecryptConfig;
@@ -115,5 +114,6 @@ class MEDIA_EXPORT TrackRunIterator {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_TRACK_RUN_ITERATOR_H_

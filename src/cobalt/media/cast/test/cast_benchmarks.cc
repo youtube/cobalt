@@ -22,8 +22,6 @@
 // $ pprof ./out/Release/cast_benchmarks $PROFILE_FILE --gv
 
 #include <math.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <map>
 #include <utility>
@@ -64,8 +62,10 @@
 #include "media/cast/test/utility/test_util.h"
 #include "media/cast/test/utility/udp_proxy.h"
 #include "media/cast/test/utility/video_utility.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -690,6 +690,7 @@ class CastBenchmark {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;

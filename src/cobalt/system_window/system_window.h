@@ -22,17 +22,18 @@
 #include "base/optional.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/math/size.h"
+#include "cobalt/system_window/input_event.h"
+#include "starboard/input.h"
+#include "starboard/key.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace system_window {
 
-// A SystemWindow represents a window on desktop systems as well as
-// as a mechanism for routing system events and notifications.
-// The SystemWindow routes callbacks for user input, and provides the
-// information necessary to create a display render target for a graphics
-// system. A SystemWindow is typically created via a call to
-// CreateSystemWindow(), which should be implemented on every Cobalt
-// platform.
+// A SystemWindow represents a window on desktop systems as well as as a
+// mechanism for routing system events and notifications.  The SystemWindow
+// routes callbacks for user input, and provides the information necessary to
+// create a display render target for a graphics system.
 class SystemWindow {
  public:
   // Enumeration of possible responses for the dialog callback.
@@ -47,9 +48,7 @@ class SystemWindow {
 
   // Enumeration of possible message codes for a dialog.
   enum DialogMessageCode {
-    kDialogConnectionError,
-    kDialogUserSignedOut,
-    kDialogUserAgeRestricted
+    kDialogConnectionError
   };
 
   // Options structure for dialog creation. It is expected that each platform
@@ -62,37 +61,48 @@ class SystemWindow {
     DialogCallback callback;
   };
 
-  explicit SystemWindow(base::EventDispatcher* event_dispatcher)
-      : event_dispatcher_(event_dispatcher) {}
-  virtual ~SystemWindow();
+  SystemWindow(base::EventDispatcher* event_dispatcher,
+               const base::optional<math::Size>& window_size);
+  ~SystemWindow();
 
   // Launches a system dialog.
-  virtual void ShowDialog(const DialogOptions& options);
+  void ShowDialog(const DialogOptions& options);
 
   // Returns the dimensions of the window.
-  virtual math::Size GetWindowSize() const = 0;
+  math::Size GetWindowSize() const;
 
   // video pixel ratio = resolution of video output / resolution of window.  Its
   // value is usually 1.0.  Set it to a value greater than 1.0 allows the video
   // to be played in higher resolution than the window.
-  virtual float GetVideoPixelRatio() const { return 1.f; }
+  float GetVideoPixelRatio() const;
 
   base::EventDispatcher* event_dispatcher() const { return event_dispatcher_; }
 
- private:
-  base::EventDispatcher* event_dispatcher_;
-};
+  // Returns a handle to the Starboard window object.
+  SbWindow GetSbWindow();
 
-// The implementation of this function should be platform specific, and will
-// create and return a platform-specific system window object. The system
-// window object routes callbacks for user input and provides the information
-// necessary to create a display render target for a graphics system.
-// Explicitly setting a window size will result in the system attempting to
-// accommmodate the preferred size, but not all systems may be able to
-// fulfill the request.  |window_size| can be left blank to let the system
-// choose a default window size.
-scoped_ptr<SystemWindow> CreateSystemWindow(
-    base::EventDispatcher*, const base::optional<math::Size>& window_size);
+  // Gets the platform-specific window handle as a void*.
+  void* GetWindowHandle();
+
+  // Handles a single Starboard input event, dispatching any appropriate events.
+  void HandleInputEvent(const SbInputData& data);
+
+  // Called when the user closes the dialog.
+  void HandleDialogClose(SbSystemPlatformErrorResponse response);
+
+ private:
+  void UpdateModifiers(SbKey key, bool pressed);
+  InputEvent::Modifiers GetModifiers();
+
+  base::EventDispatcher* event_dispatcher_;
+
+  SbWindow window_;
+
+  bool key_down_;
+
+  // The current dialog callback. Only one dialog may be open at a time.
+  DialogCallback current_dialog_callback_;
+};
 
 }  // namespace system_window
 }  // namespace cobalt

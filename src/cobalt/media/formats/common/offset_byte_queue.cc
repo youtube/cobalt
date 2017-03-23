@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 OffsetByteQueue::OffsetByteQueue() : buf_(NULL), size_(0), head_(0) {}
@@ -59,3 +60,4 @@ bool OffsetByteQueue::Trim(int64_t max_offset) {
 void OffsetByteQueue::Sync() { queue_.Peek(&buf_, &size_); }
 
 }  // namespace media
+}  // namespace cobalt

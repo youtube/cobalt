@@ -23,6 +23,26 @@
 #define TestDictionary_conversion_h
 
 #include "cobalt/bindings/testing/test_dictionary.h"
+
+#include "cobalt/script/exception_state.h"
+
+namespace cobalt {
+namespace script {
+namespace mozjs {
+
+void ToJSValue(
+    JSContext* context,
+    const cobalt::bindings::testing::TestDictionary& in_dictionary,
+    JS::MutableHandleValue out_value);
+
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags,
+                 cobalt::script::ExceptionState* exception_state,
+                 cobalt::bindings::testing::TestDictionary* out_dictionary);
+}  // namespace mozjs
+}  // namespace script
+}  // namespace cobalt
+
 #include "cobalt/script/mozjs/conversion_helpers.h"
 
 using cobalt::bindings::testing::TestDictionary;
@@ -45,6 +65,17 @@ inline void ToJSValue(
     ToJSValue(context, in_dictionary.boolean_member(), &member_value);
     if (!JS_DefineProperty(context, dictionary_object,
                            "booleanMember",
+                           member_value, NULL, NULL, kPropertyAttributes)) {
+      // Some internal error occurred.
+      NOTREACHED();
+      return;
+    }
+  }
+  if (in_dictionary.has_short_clamp_member()) {
+    JS::RootedValue member_value(context);
+    ToJSValue(context, in_dictionary.short_clamp_member(), &member_value);
+    if (!JS_DefineProperty(context, dictionary_object,
+                           "shortClampMember",
                            member_value, NULL, NULL, kPropertyAttributes)) {
       // Some internal error occurred.
       NOTREACHED();
@@ -147,11 +178,34 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!boolean_member.isUndefined()) {
     bool converted_value;
-    FromJSValue(context, boolean_member, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                boolean_member,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
     out_dictionary->set_boolean_member(converted_value);
+  }
+  JS::RootedValue short_clamp_member(context);
+  if (!JS_GetProperty(context, dictionary_object,
+                      "shortClampMember",
+                      short_clamp_member.address())) {
+    exception_state->SetSimpleException(kSimpleError);
+    return;
+  }
+  if (!short_clamp_member.isUndefined()) {
+    int16_t converted_value;
+    FromJSValue(context,
+                short_clamp_member,
+                (kConversionFlagClamped),
+                exception_state,
+                &converted_value);
+    if (context->isExceptionPending()) {
+      return;
+    }
+    out_dictionary->set_short_clamp_member(converted_value);
   }
   JS::RootedValue long_member(context);
   if (!JS_GetProperty(context, dictionary_object,
@@ -162,7 +216,11 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!long_member.isUndefined()) {
     int32_t converted_value;
-    FromJSValue(context, long_member, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                long_member,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
@@ -177,7 +235,11 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!double_member.isUndefined()) {
     double converted_value;
-    FromJSValue(context, double_member, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                double_member,
+                (kConversionFlagRestricted),
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
@@ -192,7 +254,11 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!string_member.isUndefined()) {
     std::string converted_value;
-    FromJSValue(context, string_member, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                string_member,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
@@ -207,7 +273,11 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!interface_member.isUndefined()) {
     scoped_refptr<ArbitraryInterface> converted_value;
-    FromJSValue(context, interface_member, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                interface_member,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
@@ -222,7 +292,11 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!member_with_default.isUndefined()) {
     int32_t converted_value;
-    FromJSValue(context, member_with_default, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                member_with_default,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
@@ -237,7 +311,11 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!non_default_member.isUndefined()) {
     int32_t converted_value;
-    FromJSValue(context, non_default_member, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                non_default_member,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
@@ -245,8 +323,8 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
 }
 
-}
-}
-}
+}  // namespace mozjs
+}  // namespace script
+}  // namespace cobalt
 
 #endif  // TestDictionary_h

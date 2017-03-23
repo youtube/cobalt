@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <familyset version="1">
 <!--
-    NOTE: Families with a "fallback" value of "true" are added to the fallback
-    list, regardless of whether or not they are named. Fallback fonts are chosen
-    based on a match: full BCP-47 language tag including script, then just
-    language, and finally order (the first font containing the glyph). Order of
-    appearance is also the tiebreaker for weight matching.
+    Fallback fonts are chosen based on a match: full BCP-47 language tag
+    including script, then just language, and finally order (the first font
+    containing the glyph). Order of appearance is also the tiebreaker for weight
+    matching.
+
+    NOTE: When the optional family attribute "fallback" is included for a
+    family, then it dictates whether or not that family is added to the fallback
+    list. However, when it is not included, then the lack of a "name" attribute
+    causes the family to be added to the fallback list.
 
     The pages attribute indicates which character pages are contained within
     the font. It is used with character fallback to allow the system to quickly
@@ -14,12 +18,8 @@
     indexed, and each page contains 256 characters, so character 1000 would be
     contained within page 3.
 -->
-    <!-- Ideally, this font should only be used if there are no other fonts in
-         our final image. -->
-    <family name="Minimal Roboto">
-        <font font_name="Minimal Roboto" postscript_name="Minimal Roboto" style="normal" weight="400">MinimalRoboto.ttf</font>
-    </family>
-    <family name="sans-serif-smallcaps">
-        <font font_name="Carrois Gothic SC" postscript_name="CarroisGothicSC-Regular" style="normal" weight="400">CarroisGothicSC-Regular.ttf</font>
+    <!-- first family is default -->
+    <family>
+        <font weight="400" style="normal">Roboto-Regular-Subsetted.ttf</font>
     </family>
 </familyset>

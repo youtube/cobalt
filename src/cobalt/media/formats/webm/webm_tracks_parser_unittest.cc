@@ -4,9 +4,6 @@
 
 #include "cobalt/media/formats/webm/webm_tracks_parser.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/channel_layout.h"
@@ -14,6 +11,7 @@
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/formats/webm/tracks_builder.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,6 +21,7 @@ using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 
 static const double kDefaultTimecodeScaleInUs = 1000.0;  // 1 ms resolution
@@ -212,3 +211,4 @@ TEST_F(WebMTracksParserTest, HighTrackUID) {
 }
 
 }  // namespace media
+}  // namespace cobalt

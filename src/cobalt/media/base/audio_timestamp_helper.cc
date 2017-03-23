@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 // static
@@ -85,3 +86,4 @@ base::TimeDelta AudioTimestampHelper::ComputeTimestamp(
 }
 
 }  // namespace media
+}  // namespace cobalt

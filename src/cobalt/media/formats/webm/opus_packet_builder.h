@@ -5,14 +5,14 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_OPUS_PACKET_BUILDER_H_
 #define COBALT_MEDIA_FORMATS_WEBM_OPUS_PACKET_BUILDER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_vector.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // From Opus RFC. See https://tools.ietf.org/html/rfc6716#page-14
@@ -42,5 +42,6 @@ class OpusPacket {
 ScopedVector<OpusPacket> BuildAllOpusPackets();
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_OPUS_PACKET_BUILDER_H_

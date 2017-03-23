@@ -13,6 +13,7 @@
 #include "media/formats/mp2t/es_parser_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 class AudioDecoderConfig;
 
@@ -85,3 +86,4 @@ TEST_F(EsParserAdtsTest, AacSampleRate) {
 }
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

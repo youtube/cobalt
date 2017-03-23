@@ -19,8 +19,8 @@
 
 #include "base/callback.h"
 #include "cobalt/loader/decoder.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
-#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -34,27 +34,12 @@ namespace image {
 // image.
 class ImageDecoder : public Decoder {
  public:
-  typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
-      SuccessCallback;
+  typedef base::Callback<void(const scoped_refptr<Image>&)> SuccessCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ImageDecoder(render_tree::ResourceProvider* resource_provider,
                const SuccessCallback& success_callback,
                const ErrorCallback& error_callback);
-
-  // Ensure that the image data decoder is initialized so that
-  // IsHardwareDecoder() can be queried to call DecodeChunk() from an
-  // appropriate thread. Returns whether DecodeChunk() is ready to be called.
-  //
-  // Optionally, DecodeChunk() will initialize the image data decoder as
-  // needed, but care must be taken to call the function from one consistent
-  // thread when using this approach.
-  bool EnsureDecoderIsInitialized(const char* data, size_t size);
-
-  // Returns whether the current image data decoder is a software or hardware
-  // decoder. This is intended to help decide which thread should be used to
-  // call DecodeChunk().
-  bool IsHardwareDecoder() const;
 
   // From Decoder.
   LoadResponseType OnResponseStarted(
@@ -97,7 +82,6 @@ class ImageDecoder : public Decoder {
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
-  size_t data_consumed_size;
   std::string error_message_;
   std::string mime_type_;
 };

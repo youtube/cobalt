@@ -6,6 +6,7 @@
 
 #include "cobalt/media/base/media_log.h"
 
+namespace cobalt {
 namespace media {
 
 static const uint32_t kMPEG1StartCodeMask = 0xffe00000;
@@ -196,9 +197,10 @@ bool MPEG1AudioStreamParser::ParseHeader(
   return true;
 }
 
-
-MPEG1AudioStreamParser::MPEG1AudioStreamParser()
-    : MPEGAudioStreamParserBase(kMPEG1StartCodeMask, kCodecMP3, kCodecDelay) {}
+MPEG1AudioStreamParser::MPEG1AudioStreamParser(
+    DecoderBuffer::Allocator* buffer_allocator)
+    : MPEGAudioStreamParserBase(buffer_allocator, kMPEG1StartCodeMask,
+                                kCodecMP3, kCodecDelay) {}
 
 MPEG1AudioStreamParser::~MPEG1AudioStreamParser() {}
 
@@ -256,3 +258,4 @@ int MPEG1AudioStreamParser::ParseFrameHeader(
 }
 
 }  // namespace media
+}  // namespace cobalt

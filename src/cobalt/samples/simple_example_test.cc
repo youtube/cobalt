@@ -14,6 +14,9 @@
 
 #include "cobalt/samples/simple_example.h"
 
+#include <string>
+#include <vector>
+
 #include "base/base_paths.h"
 #include "base/file_path.h"
 #include "base/file_util.h"

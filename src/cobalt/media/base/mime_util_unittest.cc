@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include "base/basictypes.h"
 #include "base/string_split.h"
 #include "base/stringprintf.h"
@@ -11,12 +9,14 @@
 #include "cobalt/media/base/mime_util.h"
 #include "cobalt/media/base/mime_util_internal.h"
 #include "cobalt/media/media_features.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_ANDROID)
 #include "base/android/build_info.h"
 #endif
 
+namespace cobalt {
 namespace media {
 namespace internal {
 
@@ -428,3 +428,4 @@ TEST(IsCodecSupportedOnPlatformTest, HLSDoesNotSupportMPEG2AAC) {
 
 }  // namespace internal
 }  // namespace media
+}  // namespace cobalt

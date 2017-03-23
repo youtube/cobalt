@@ -43,6 +43,26 @@
 {% endif %}
 {% block includes %}
 #include "{{header_file}}"
+
+#include "cobalt/script/exception_state.h"
+
+namespace cobalt {
+namespace script {
+namespace mozjs {
+
+void ToJSValue(
+    JSContext* context,
+    const {{components|join('::')}}::{{class_name}}& in_dictionary,
+    JS::MutableHandleValue out_value);
+
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags,
+                 cobalt::script::ExceptionState* exception_state,
+                 {{components|join('::')}}::{{class_name}}* out_dictionary);
+}  // namespace mozjs
+}  // namespace script
+}  // namespace cobalt
+
 #include "cobalt/script/mozjs/conversion_helpers.h"
 {% for include in header_includes %}
 #include "{{include}}"
@@ -116,7 +136,11 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   }
   if (!{{member.name}}.isUndefined()) {
     {{member.type}} converted_value;
-    FromJSValue(context, {{member.name}}, 0, exception_state, &converted_value);
+    FromJSValue(context,
+                {{member.name}},
+                {{member.conversion_flags}},
+                exception_state,
+                &converted_value);
     if (context->isExceptionPending()) {
       return;
     }
@@ -125,9 +149,9 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 {% endfor %}
 }
 
-}
-}
-}
+}  // namespace mozjs
+}  // namespace script
+}  // namespace cobalt
 
 {% if conditional %}
 #endif  // defined({{conditional}})

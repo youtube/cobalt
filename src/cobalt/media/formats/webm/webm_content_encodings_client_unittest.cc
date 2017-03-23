@@ -4,8 +4,6 @@
 
 #include "cobalt/media/formats/webm/webm_content_encodings_client.h"
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/bind.h"
@@ -13,11 +11,13 @@
 #include "cobalt/media/base/mock_media_log.h"
 #include "cobalt/media/formats/webm/webm_constants.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 // Matchers for verifying common media log entry strings.
@@ -282,3 +282,4 @@ TEST_F(WebMContentEncodingsClientTest, InvalidContentEncAlgo) {
 }
 
 }  // namespace media
+}  // namespace cobalt

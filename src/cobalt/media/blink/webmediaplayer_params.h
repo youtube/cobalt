@@ -5,13 +5,12 @@
 #ifndef COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_PARAMS_H_
 #define COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_PARAMS_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/blink/media_blink_export.h"
 #include "cobalt/media/filters/context_3d.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -23,6 +22,7 @@ class WebContentDecryptionModule;
 class WebMediaPlayerClient;
 }
 
+namespace cobalt {
 namespace media {
 
 class SwitchableAudioRendererSink;
@@ -110,5 +110,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerParams {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBMEDIAPLAYER_PARAMS_H_

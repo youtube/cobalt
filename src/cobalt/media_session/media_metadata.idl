@@ -19,6 +19,6 @@ interface MediaMetadata {
   attribute DOMString title;
   attribute DOMString artist;
   attribute DOMString album;
-  // TODO FrozenArray not implemented in current IDL parser.
-  // attribute FrozenArray<MediaImage> artwork;
+  // TODO make this be FrozenArray<MediaImage> when available
+  attribute sequence<MediaImage> artwork;
 };

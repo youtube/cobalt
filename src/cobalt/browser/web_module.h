@@ -84,7 +84,7 @@ class WebModule {
 
     // All optional parameters defined in this structure should have their
     // values initialized in the default constructor to useful defaults.
-    Options();
+    explicit Options(const math::Size& ui_dimensions);
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -151,24 +151,20 @@ class WebModule {
     // performing layouts.  The default value is base::kThreadPriority_Normal.
     base::ThreadPriority thread_priority;
 
-    // Specifies the priority that the web module's corresponding software
-    // decoder thread will be assigned.  This is the thread responsible for
-    // performing resource decoding, such as image decoding, with a software
-    // codec.  The default value is base::kThreadPriority_Low.
-    base::ThreadPriority software_decoder_thread_priority;
-
-    // Specifies the priority that the web module's hardware decoder thread
-    // will use.  The default value is base::kThreadPriority_High.
-    base::ThreadPriority hardware_decoder_thread_priority;
-
-    // Specifies the priority that the web module's corresponding fetcher
-    // lifetime thread will be assigned.  This is the thread responsible for
-    // fetcher creation and handling callbacks from NetFetcher.
-    // The default value is base::kThreadPriority_High.
-    base::ThreadPriority fetcher_lifetime_thread_priority;
+    // Specifies the priority that the web module's corresponding loader thread
+    // will be assigned.  This is the thread responsible for performing resource
+    // decoding, such as image decoding.  The default value is
+    // base::kThreadPriority_Low.
+    base::ThreadPriority loader_thread_priority;
 
     // TTSEngine instance to use for text-to-speech.
     accessibility::TTSEngine* tts_engine;
+
+    // InputPoller to use for constantly polling the input key position or
+    // state. For example, this is used to support 3D camera movements.
+    scoped_refptr<input::InputPoller> input_poller;
+
+    script::JavaScriptEngine::Options javascript_options;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -185,7 +181,7 @@ class WebModule {
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
             system_window::SystemWindow* system_window,
-            float layout_refresh_rate, const Options& options = Options());
+            float layout_refresh_rate, const Options& options);
   ~WebModule();
 
   // Call this to inject a keyboard event into the web module.

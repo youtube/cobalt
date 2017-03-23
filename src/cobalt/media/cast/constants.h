@@ -11,8 +11,9 @@
 // non-POD constants, functions, interfaces, or any logic to this module.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <stdint.h>
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -68,5 +69,6 @@ enum OperationalStatus {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_CONSTANTS_H_

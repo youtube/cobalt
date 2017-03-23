@@ -28,24 +28,18 @@ namespace browser {
 class H5vccURLHandler : public URLHandler {
  public:
   explicit H5vccURLHandler(BrowserModule* browser_module,
-                           system_window::SystemWindow* system_window,
-                           account::AccountManager* account_manager);
+                           system_window::SystemWindow* system_window);
   ~H5vccURLHandler() {}
 
  private:
   bool HandleURL(const GURL& url);
   bool HandleNetworkFailure();
-  bool HandleSignedOut();
-  bool HandleAgeRestricted();
 
   // Dialog response handlers.
   void OnNetworkFailureDialogResponse(
       system_window::SystemWindow::DialogResponse response);
-  void OnSignedOutDialogResponse(
-      system_window::SystemWindow::DialogResponse response);
 
   system_window::SystemWindow* system_window_;
-  account::AccountManager* account_manager_;
   GURL url_;
 };
 

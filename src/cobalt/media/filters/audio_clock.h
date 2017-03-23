@@ -5,15 +5,15 @@
 #ifndef COBALT_MEDIA_FILTERS_AUDIO_CLOCK_H_
 #define COBALT_MEDIA_FILTERS_AUDIO_CLOCK_H_
 
-#include <stdint.h>
-
 #include <cmath>
 #include <deque>
 
 #include "base/basictypes.h"
 #include "base/time.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Models a queue of buffered audio in a playback pipeline for use with
@@ -142,5 +142,6 @@ class MEDIA_EXPORT AudioClock {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_AUDIO_CLOCK_H_

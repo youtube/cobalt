@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_VP8_ENCODER_H_
 #define COBALT_MEDIA_CAST_SENDER_VP8_ENCODER_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/macros.h"
@@ -14,13 +12,16 @@
 #include "media/base/feedback_signal_accumulator.h"
 #include "media/cast/cast_config.h"
 #include "media/cast/sender/software_video_encoder.h"
+#include "starboard/types.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_encoder.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 class VideoFrame;
 }
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -93,5 +94,6 @@ class Vp8Encoder : public SoftwareVideoEncoder {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_VP8_ENCODER_H_

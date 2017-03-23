@@ -11,7 +11,9 @@
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 static base::TimeDelta CalculateDuration(int frames, double sample_rate) {
@@ -66,7 +68,7 @@ AudioBuffer::AudioBuffer(SampleFormat sample_format,
     // Copy each channel's data into the appropriate spot.
     for (int i = 0; i < channel_count_; ++i) {
       channel_data_.push_back(data_.get() + i * block_size_per_channel);
-      if (data) memcpy(channel_data_[i], data[i], data_size_per_channel);
+      if (data) SbMemoryCopy(channel_data_[i], data[i], data_size_per_channel);
     }
     return;
   }
@@ -80,7 +82,7 @@ AudioBuffer::AudioBuffer(SampleFormat sample_format,
       static_cast<uint8_t*>(base::AlignedAlloc(data_size_, kChannelAlignment)));
   channel_data_.reserve(1);
   channel_data_.push_back(data_.get());
-  if (data) memcpy(data_.get(), data[0], data_size_);
+  if (data) SbMemoryCopy(data_.get(), data[0], data_size_);
 }
 
 AudioBuffer::~AudioBuffer() {}
@@ -162,8 +164,8 @@ void AudioBuffer::ReadFrames(int frames_to_copy, int source_frame_offset,
       const float* source_data =
           reinterpret_cast<const float*>(channel_data_[ch]) +
           source_frame_offset;
-      memcpy(dest->channel(ch) + dest_frame_offset, source_data,
-             sizeof(float) * frames_to_copy);
+      SbMemoryCopy(dest->channel(ch) + dest_frame_offset, source_data,
+                   sizeof(float) * frames_to_copy);
     }
     return;
   }
@@ -242,9 +244,9 @@ void AudioBuffer::TrimRange(int start, int end) {
       case kSampleFormatPlanarS32:
         // Planar data must be shifted per channel.
         for (int ch = 0; ch < channel_count_; ++ch) {
-          memmove(channel_data_[ch] + start * bytes_per_channel,
-                  channel_data_[ch] + end * bytes_per_channel,
-                  bytes_per_channel * frames_to_copy);
+          SbMemoryMove(channel_data_[ch] + start * bytes_per_channel,
+                       channel_data_[ch] + end * bytes_per_channel,
+                       bytes_per_channel * frames_to_copy);
         }
         break;
       case kSampleFormatU8:
@@ -254,9 +256,9 @@ void AudioBuffer::TrimRange(int start, int end) {
       case kSampleFormatF32: {
         // Interleaved data can be shifted all at once.
         const int frame_size = channel_count_ * bytes_per_channel;
-        memmove(channel_data_[0] + start * frame_size,
-                channel_data_[0] + end * frame_size,
-                frame_size * frames_to_copy);
+        SbMemoryMove(channel_data_[0] + start * frame_size,
+                     channel_data_[0] + end * frame_size,
+                     frame_size * frames_to_copy);
         break;
       }
       case kUnknownSampleFormat:
@@ -271,3 +273,4 @@ void AudioBuffer::TrimRange(int start, int end) {
 }
 
 }  // namespace media
+}  // namespace cobalt

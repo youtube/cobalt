@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "build/build_config.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 static int clip_byte(int x) {
@@ -84,3 +84,4 @@ void ConvertRGB24ToYUV_C(const uint8_t* rgbframe, uint8_t* yplane,
 }
 
 }  // namespace media
+}  // namespace cobalt

@@ -54,7 +54,6 @@ class UrlSrcValue : public PropertyValue {
   const scoped_refptr<PropertyValue> url_;
   const std::string format_;
 
-
   DISALLOW_COPY_AND_ASSIGN(UrlSrcValue);
 };
 

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -19,6 +17,7 @@
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/base/video_frame.h"
 #include "cobalt/media/filters/decrypting_video_decoder.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
@@ -27,6 +26,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
+namespace cobalt {
 namespace media {
 
 const uint8_t kFakeKeyId[] = {0x4b, 0x65, 0x79, 0x20, 0x49, 0x44};
@@ -478,3 +478,4 @@ TEST_F(DecryptingVideoDecoderTest, Destroy_AfterReset) {
 }
 
 }  // namespace media
+}  // namespace cobalt

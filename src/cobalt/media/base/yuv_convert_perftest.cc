@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/base_paths.h"
@@ -16,10 +14,12 @@
 #include "build/build_config.h"
 #include "cobalt/media/base/simd/convert_yuv_to_rgb.h"
 #include "cobalt/media/base/yuv_convert.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_test.h"
 #include "third_party/libyuv/include/libyuv/row.h"
 
+namespace cobalt {
 namespace media {
 #if !defined(ARCH_CPU_ARM_FAMILY) && !defined(ARCH_CPU_MIPS_FAMILY)
 // Size of raw image.
@@ -212,3 +212,4 @@ TEST_F(YUVConvertPerfTest, LinearScaleYUVToRGB32Row_SSE) {
 #endif  // !defined(ARCH_CPU_ARM_FAMILY) && !defined(ARCH_CPU_MIPS_FAMILY)
 
 }  // namespace media
+}  // namespace cobalt

@@ -4,8 +4,6 @@
 
 #include "media/cast/sender/fake_software_video_encoder.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/json/json_writer.h"
@@ -13,9 +11,11 @@
 #include "media/base/video_frame.h"
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/constants.h"
+#include "starboard/types.h"
 
 #ifndef OFFICIAL_BUILD
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -81,5 +81,6 @@ void FakeSoftwareVideoEncoder::GenerateKeyFrame() { next_frame_is_key_ = true; }
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif

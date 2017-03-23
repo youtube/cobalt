@@ -6,6 +6,7 @@
 
 #include "base/power_monitor/power_monitor.h"
 
+namespace cobalt {
 namespace media {
 
 // The minimum amount of media playback which can elapse before we'll report
@@ -250,3 +251,4 @@ void WatchTimeReporter::UpdateWatchTime() {
 }
 
 }  // namespace media
+}  // namespace cobalt

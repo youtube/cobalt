@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_MULTIBUFFER_READER_H_
 #define COBALT_MEDIA_BLINK_MULTIBUFFER_READER_H_
 
-#include <stdint.h>
-
 #include <limits>
 #include <map>
 #include <set>
@@ -15,7 +13,9 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/media/blink/media_blink_export.h"
 #include "cobalt/media/blink/multibuffer.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Wrapper for MultiBuffer that offers a simple byte-reading
@@ -169,5 +169,6 @@ class MEDIA_BLINK_EXPORT MultiBufferReader
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_MULTIBUFFER_READER_H_

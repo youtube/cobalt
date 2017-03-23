@@ -22,6 +22,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
+namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
@@ -139,5 +140,6 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_DECRYPTING_DEMUXER_STREAM_H_

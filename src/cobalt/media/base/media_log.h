@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_MEDIA_LOG_H_
 #define COBALT_MEDIA_BASE_MEDIA_LOG_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <sstream>
 #include <string>
 
@@ -17,9 +14,10 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log_event.h"
-//#include "cobalt/media/base/pipeline_impl.h"
 #include "cobalt/media/base/pipeline_status.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
@@ -65,8 +63,6 @@ class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
                                             base::TimeDelta value);
   scoped_ptr<MediaLogEvent> CreateLoadEvent(const std::string& url);
   scoped_ptr<MediaLogEvent> CreateSeekEvent(float seconds);
-  // scoped_ptr<MediaLogEvent> CreatePipelineStateChangedEvent(
-  //  PipelineImpl::State state);
   scoped_ptr<MediaLogEvent> CreatePipelineErrorEvent(PipelineStatus error);
   scoped_ptr<MediaLogEvent> CreateVideoSizeSetEvent(size_t width,
                                                     size_t height);
@@ -146,5 +142,6 @@ class MEDIA_EXPORT LogHelper {
                              : "")
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_MEDIA_LOG_H_

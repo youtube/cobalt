@@ -9,8 +9,6 @@
 #ifndef COBALT_MEDIA_CAST_SENDER_FRAME_SENDER_H_
 #define COBALT_MEDIA_CAST_SENDER_FRAME_SENDER_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
@@ -20,7 +18,9 @@
 #include "media/cast/net/cast_transport.h"
 #include "media/cast/net/rtcp/rtcp_defines.h"
 #include "media/cast/sender/congestion_control.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -203,5 +203,6 @@ class FrameSender {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_CAST_SENDER_FRAME_SENDER_H_

@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_AUDIO_PARAMETERS_H_
 #define COBALT_MEDIA_BASE_AUDIO_PARAMETERS_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -18,7 +16,9 @@
 #include "cobalt/media/base/audio_point.h"
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Use a struct-in-struct approach to ensure that we can calculate the required
@@ -222,5 +222,6 @@ inline bool operator<(const AudioParameters& a, const AudioParameters& b) {
 }
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_AUDIO_PARAMETERS_H_

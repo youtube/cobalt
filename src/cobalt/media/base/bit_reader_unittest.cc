@@ -4,12 +4,11 @@
 
 #include "cobalt/media/base/bit_reader.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/basictypes.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 static void SetBit(uint8_t* buf, size_t size, size_t bit_pos) {
@@ -137,3 +136,4 @@ TEST(BitReaderTest, BitsReadTest) {
 }
 
 }  // namespace media
+}  // namespace cobalt

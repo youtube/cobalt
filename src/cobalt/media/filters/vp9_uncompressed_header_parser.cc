@@ -5,7 +5,9 @@
 #include "cobalt/media/filters/vp9_uncompressed_header_parser.h"
 
 #include "base/logging.h"
+#include "starboard/memory.h"
 
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -755,7 +757,7 @@ Vp9InterpolationFilter Vp9UncompressedHeaderParser::ReadInterpolationFilter() {
 }
 
 void Vp9UncompressedHeaderParser::SetupPastIndependence(Vp9FrameHeader* fhdr) {
-  memset(&context_->segmentation_, 0, sizeof(context_->segmentation_));
+  SbMemorySet(&context_->segmentation_, 0, sizeof(context_->segmentation_));
   ResetLoopfilter();
   fhdr->frame_context = kVp9DefaultFrameContext;
   DCHECK(fhdr->frame_context.IsValid());
@@ -896,7 +898,7 @@ void Vp9UncompressedHeaderParser::ResetLoopfilter() {
   loop_filter.ref_deltas[VP9_FRAME_GOLDEN] = -1;
   loop_filter.ref_deltas[VP9_FRAME_ALTREF] = -1;
 
-  memset(loop_filter.mode_deltas, 0, sizeof(loop_filter.mode_deltas));
+  SbMemorySet(loop_filter.mode_deltas, 0, sizeof(loop_filter.mode_deltas));
 }
 
 // 6.2 Uncompressed header syntax
@@ -1081,3 +1083,4 @@ bool Vp9UncompressedHeaderParser::Parse(const uint8_t* stream, off_t frame_size,
 }
 
 }  // namespace media
+}  // namespace cobalt

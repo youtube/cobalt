@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "cobalt/render_tree/image.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #if defined(STARBOARD)
 #include "starboard/decode_target.h"
@@ -40,10 +40,6 @@ class ImageDataDecoder {
   virtual ~ImageDataDecoder() {}
 
   virtual std::string GetTypeString() const = 0;
-
-  // Hardware and software decoders run on seperate threads -- allowing them
-  // to use different thread priorities for decoding.
-  virtual bool IsHardwareDecoder() const { return false; }
 
   scoped_ptr<render_tree::ImageData> RetrieveImageData() {
     return image_data_.Pass();
@@ -70,6 +66,12 @@ class ImageDataDecoder {
   // Return true if decoding succeeded.
   bool FinishWithSuccess();
 
+  // If a format supports animation, subclass should implement these methods.
+  // When has_animation() is true, the intermediate result is returned in
+  // animated_image().
+  virtual bool has_animation() const { return false; }
+  virtual scoped_refptr<AnimatedImage> animated_image() { return NULL; }
+
  protected:
   enum State {
     kWaitingForHeader,
@@ -86,6 +88,10 @@ class ImageDataDecoder {
   virtual void FinishInternal() {}
 
   bool AllocateImageData(const math::Size& size, bool has_alpha);
+
+  render_tree::ResourceProvider* resource_provider() {
+    return resource_provider_;
+  }
 
   render_tree::ImageData* image_data() const { return image_data_.get(); }
 

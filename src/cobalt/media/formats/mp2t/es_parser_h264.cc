@@ -20,6 +20,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -282,3 +283,4 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

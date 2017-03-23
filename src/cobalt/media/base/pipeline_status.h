@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_BASE_PIPELINE_STATUS_H_
 #define COBALT_MEDIA_BASE_PIPELINE_STATUS_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/callback.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Status states for pipeline.  All codes except PIPELINE_OK indicate errors.
@@ -74,5 +74,6 @@ struct PipelineStatistics {
 typedef base::Callback<void(const PipelineStatistics&)> StatisticsCB;
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_PIPELINE_STATUS_H_

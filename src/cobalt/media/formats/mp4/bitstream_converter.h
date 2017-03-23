@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_FORMATS_MP4_BITSTREAM_CONVERTER_H_
 #define COBALT_MEDIA_FORMATS_MP4_BITSTREAM_CONVERTER_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 struct SubsampleEntry;
@@ -43,5 +43,6 @@ class BitstreamConverter
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_MP4_BITSTREAM_CONVERTER_H_

@@ -15,10 +15,12 @@
 #include "build/build_config.h"
 #include "cobalt/media/base/vector_math.h"
 #include "cobalt/media/base/vector_math_testing.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using std::fill;
 
+namespace cobalt {
 namespace media {
 
 // Default test values.
@@ -161,7 +163,7 @@ class EWMATestScenario {
         smoothing_factor_(smoothing_factor),
         expected_final_avg_(initial_value),
         expected_max_(0.0f) {
-    if (data_len_ > 0) memcpy(data_.get(), src, len * sizeof(float));
+    if (data_len_ > 0) SbMemoryCopy(data_.get(), src, len * sizeof(float));
   }
 
   // Copy constructor and assignment operator for ::testing::Values(...).
@@ -174,8 +176,8 @@ class EWMATestScenario {
     } else {
       this->data_.reset(static_cast<float*>(base::AlignedAlloc(
           other.data_len_ * sizeof(float), vector_math::kRequiredAlignment)));
-      memcpy(this->data_.get(), other.data_.get(),
-             other.data_len_ * sizeof(float));
+      SbMemoryCopy(this->data_.get(), other.data_.get(),
+                   other.data_len_ * sizeof(float));
     }
     this->data_len_ = other.data_len_;
     this->expected_final_avg_ = other.expected_final_avg_;
@@ -378,3 +380,4 @@ INSTANTIATE_TEST_CASE_P(
             .HasExpectedResult(0.00031748f, 4.0f)));
 
 }  // namespace media
+}  // namespace cobalt

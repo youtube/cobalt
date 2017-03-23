@@ -5,14 +5,14 @@
 #ifndef COBALT_MEDIA_BLINK_BUFFERED_DATA_SOURCE_HOST_IMPL_H_
 #define COBALT_MEDIA_BLINK_BUFFERED_DATA_SOURCE_HOST_IMPL_H_
 
-#include <stdint.h>
-
 #include "base/basictypes.h"
 #include "base/time.h"
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/blink/interval_map.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Interface for testing purposes.
@@ -65,5 +65,6 @@ class MEDIA_BLINK_EXPORT BufferedDataSourceHostImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_BUFFERED_DATA_SOURCE_HOST_IMPL_H_

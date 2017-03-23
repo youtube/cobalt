@@ -4,7 +4,6 @@
 
 #include "cobalt/media/base/pipeline_impl.h"
 
-#include <stddef.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -28,6 +27,7 @@
 #include "cobalt/media/base/text_renderer.h"
 #include "cobalt/media/base/text_track_config.h"
 #include "cobalt/media/base/time_delta_interpolator.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/size.h"
 
@@ -46,6 +46,7 @@ using ::testing::SaveArg;
 using ::testing::StrictMock;
 using ::testing::WithArg;
 
+namespace cobalt {
 namespace media {
 
 ACTION_P(SetDemuxerProperties, duration) { arg0->SetDuration(duration); }
@@ -1091,3 +1092,4 @@ INSTANTIATE_TEARDOWN_TEST(ErrorAndStop, Playing);
 INSTANTIATE_TEARDOWN_TEST(ErrorAndStop, Suspended);
 
 }  // namespace media
+}  // namespace cobalt

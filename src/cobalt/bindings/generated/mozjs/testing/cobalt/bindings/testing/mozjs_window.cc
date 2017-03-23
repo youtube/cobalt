@@ -50,6 +50,7 @@
 #include "cobalt/bindings/testing/global_interface_parent.h"
 #include "cobalt/bindings/testing/implemented_interface.h"
 #include "cobalt/bindings/testing/indexed_getter_interface.h"
+#include "cobalt/bindings/testing/interface_with_any.h"
 #include "cobalt/bindings/testing/interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/mozjs_anonymous_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/mozjs_anonymous_named_getter_interface.h"
@@ -77,6 +78,7 @@
 #include "cobalt/bindings/testing/mozjs_global_interface_parent.h"
 #include "cobalt/bindings/testing/mozjs_implemented_interface.h"
 #include "cobalt/bindings/testing/mozjs_indexed_getter_interface.h"
+#include "cobalt/bindings/testing/mozjs_interface_with_any.h"
 #include "cobalt/bindings/testing/mozjs_interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/mozjs_named_constructor_interface.h"
 #include "cobalt/bindings/testing/mozjs_named_getter_interface.h"
@@ -129,6 +131,7 @@
 #include "cobalt/script/mozjs/mozjs_object_handle.h"
 #include "cobalt/script/mozjs/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs/mozjs_value_handle.h"
 #include "cobalt/script/mozjs/proxy_handler.h"
 #include "cobalt/script/mozjs/type_traits.h"
 #include "cobalt/script/mozjs/wrapper_factory.h"
@@ -171,6 +174,7 @@ using cobalt::bindings::testing::GetOpaqueRootInterface;
 using cobalt::bindings::testing::GlobalInterfaceParent;
 using cobalt::bindings::testing::ImplementedInterface;
 using cobalt::bindings::testing::IndexedGetterInterface;
+using cobalt::bindings::testing::InterfaceWithAny;
 using cobalt::bindings::testing::InterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::MozjsAnonymousIndexedGetterInterface;
 using cobalt::bindings::testing::MozjsAnonymousNamedGetterInterface;
@@ -202,6 +206,7 @@ using cobalt::bindings::testing::MozjsGetOpaqueRootInterface;
 using cobalt::bindings::testing::MozjsGlobalInterfaceParent;
 using cobalt::bindings::testing::MozjsImplementedInterface;
 using cobalt::bindings::testing::MozjsIndexedGetterInterface;
+using cobalt::bindings::testing::MozjsInterfaceWithAny;
 using cobalt::bindings::testing::MozjsInterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::MozjsNamedConstructorInterface;
 using cobalt::bindings::testing::MozjsNamedGetterInterface;
@@ -248,6 +253,7 @@ using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
 using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
+using cobalt::script::ValueHandle;
 using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
@@ -266,6 +272,7 @@ using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::kConversionFlagClamped;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
@@ -509,6 +516,88 @@ JSBool get_window(
   return !exception_state.is_exception_set();
 }
 
+JSBool get_onEvent(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JS::MutableHandleValue vp) {
+  const JSClass* proto_class =
+      MozjsWindow::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<Window>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  Window* impl =
+      wrapper_private->wrappable<Window>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->on_event(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    vp.set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+JSBool set_onEvent(
+    JSContext* context, JS::HandleObject object, JS::HandleId id,
+    JSBool strict, JS::MutableHandleValue vp) {
+  const JSClass* proto_class =
+      MozjsWindow::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<Window>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  Window* impl =
+      wrapper_private->wrappable<Window>().get();
+  TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
+  FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_on_event(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 JSBool fcn_getStackTrace(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -624,6 +713,12 @@ const JSPropertySpec prototype_properties[] = {
       JSPROP_SHARED | JSPROP_ENUMERATE | JSPROP_READONLY,
       JSOP_WRAPPER(&get_window),
       JSOP_NULLWRAPPER,
+  },
+  {  // Read/Write property
+      "onEvent", 0,
+      JSPROP_SHARED | JSPROP_ENUMERATE,
+      JSOP_WRAPPER(&get_onEvent),
+      JSOP_WRAPPER(&set_onEvent),
   },
   JS_PS_END
 };
@@ -954,6 +1049,10 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
       IndexedGetterInterface::IndexedGetterInterfaceWrappableType(),
       base::Bind(MozjsIndexedGetterInterface::CreateProxy),
       base::Bind(MozjsIndexedGetterInterface::PrototypeClass));
+  wrapper_factory->RegisterWrappableType(
+      InterfaceWithAny::InterfaceWithAnyWrappableType(),
+      base::Bind(MozjsInterfaceWithAny::CreateProxy),
+      base::Bind(MozjsInterfaceWithAny::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       InterfaceWithUnsupportedProperties::InterfaceWithUnsupportedPropertiesWrappableType(),
       base::Bind(MozjsInterfaceWithUnsupportedProperties::CreateProxy),

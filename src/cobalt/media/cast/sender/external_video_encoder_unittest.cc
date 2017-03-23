@@ -4,12 +4,13 @@
 
 #include "media/cast/sender/external_video_encoder.h"
 
-#include <stdint.h>
-
 #include "media/base/video_frame.h"
 #include "media/base/video_types.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -20,9 +21,9 @@ scoped_refptr<VideoFrame> CreateFrame(const uint8_t* y_plane_data,
   scoped_refptr<VideoFrame> result = VideoFrame::CreateFrame(
       PIXEL_FORMAT_I420, size, gfx::Rect(size), size, base::TimeDelta());
   for (int y = 0, y_end = size.height(); y < y_end; ++y) {
-    memcpy(result->visible_data(VideoFrame::kYPlane) +
-               y * result->stride(VideoFrame::kYPlane),
-           y_plane_data + y * size.width(), size.width());
+    SbMemoryCopy(result->visible_data(VideoFrame::kYPlane) +
+                     y * result->stride(VideoFrame::kYPlane),
+                 y_plane_data + y * size.width(), size.width());
   }
   return result;
 }
@@ -35,7 +36,7 @@ TEST(QuantizerEstimator, EstimatesForTrivialFrames) {
   const gfx::Size frame_size(320, 180);
   const std::unique_ptr<uint8_t[]> black_frame_data(
       new uint8_t[frame_size.GetArea()]);
-  memset(black_frame_data.get(), 0, frame_size.GetArea());
+  SbMemorySet(black_frame_data.get(), 0, frame_size.GetArea());
   const scoped_refptr<VideoFrame> black_frame =
       CreateFrame(black_frame_data.get(), frame_size);
 
@@ -78,3 +79,4 @@ TEST(QuantizerEstimator, EstimatesForTrivialFrames) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

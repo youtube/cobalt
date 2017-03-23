@@ -4,8 +4,6 @@
 
 #include "cobalt/media/formats/mp4/mp4_stream_parser.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <limits>
 #include <utility>
@@ -30,7 +28,10 @@
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 namespace mp4 {
 
@@ -38,9 +39,11 @@ namespace {
 const int kMaxEmptySampleLogs = 20;
 }  // namespace
 
-MP4StreamParser::MP4StreamParser(const std::set<int>& audio_object_types,
+MP4StreamParser::MP4StreamParser(DecoderBuffer::Allocator* buffer_allocator,
+                                 const std::set<int>& audio_object_types,
                                  bool has_sbr)
-    : state_(kWaitingForInit),
+    : buffer_allocator_(buffer_allocator),
+      state_(kWaitingForInit),
       moof_head_(0),
       mdat_tail_(0),
       highest_end_offset_(0),
@@ -466,7 +469,8 @@ void MP4StreamParser::OnEncryptedMediaInitData(
   std::vector<uint8_t> init_data(total_size);
   size_t pos = 0;
   for (size_t i = 0; i < headers.size(); i++) {
-    memcpy(&init_data[pos], &headers[i].raw_box[0], headers[i].raw_box.size());
+    SbMemoryCopy(&init_data[pos], &headers[i].raw_box[0],
+                 headers[i].raw_box.size());
     pos += headers[i].raw_box.size();
   }
   encrypted_media_init_data_cb_.Run(kEmeInitDataTypeCenc, init_data);
@@ -611,8 +615,8 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
       audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
 
   scoped_refptr<StreamParserBuffer> stream_buf = StreamParserBuffer::CopyFrom(
-      &frame_buf[0], frame_buf.size(), runs_->is_keyframe(), buffer_type,
-      runs_->track_id());
+      buffer_allocator_, &frame_buf[0], frame_buf.size(), runs_->is_keyframe(),
+      buffer_type, runs_->track_id());
 
   if (decrypt_config) stream_buf->set_decrypt_config(decrypt_config.Pass());
 
@@ -707,3 +711,4 @@ bool MP4StreamParser::ComputeHighestEndOffset(const MovieFragment& moof) {
 
 }  // namespace mp4
 }  // namespace media
+}  // namespace cobalt

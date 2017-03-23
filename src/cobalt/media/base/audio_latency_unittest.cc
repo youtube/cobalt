@@ -4,12 +4,12 @@
 
 #include "cobalt/media/base/audio_latency.h"
 
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 // TODO(olka): extend unit tests, use real-world sample rates.
@@ -53,3 +53,4 @@ TEST(AudioLatency, RtcBufferSizes) {
   }
 }
 }  // namespace media
+}  // namespace cobalt

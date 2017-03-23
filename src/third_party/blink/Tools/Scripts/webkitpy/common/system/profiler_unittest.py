@@ -28,13 +28,14 @@
 
 import unittest
 
-from webkitpy.common.system.platforminfo_mock import MockPlatformInfo
-from webkitpy.common.system.systemhost_mock import MockSystemHost
+from webkitpy.common.system.platform_info_mock import MockPlatformInfo
+from webkitpy.common.system.system_host_mock import MockSystemHost
 
 from .profiler import ProfilerFactory, GooglePProf
 
 
 class ProfilerFactoryTest(unittest.TestCase):
+
     def _assert_default_profiler_name(self, os_name, expected_profiler_name):
         profiler_name = ProfilerFactory.default_profiler_name(MockPlatformInfo(os_name))
         self.assertEqual(profiler_name, expected_profiler_name)
@@ -61,6 +62,7 @@ class ProfilerFactoryTest(unittest.TestCase):
 
 
 class GooglePProfTest(unittest.TestCase):
+
     def test_pprof_output_regexp(self):
         pprof_output = """
 sometimes

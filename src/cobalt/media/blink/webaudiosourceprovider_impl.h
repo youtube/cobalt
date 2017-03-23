@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_WEBAUDIOSOURCEPROVIDER_IMPL_H_
 #define COBALT_MEDIA_BLINK_WEBAUDIOSOURCEPROVIDER_IMPL_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/basictypes.h"
@@ -15,6 +13,7 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/media/base/audio_renderer_sink.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebAudioSourceProvider.h"
 #include "third_party/WebKit/public/platform/WebVector.h"
 
@@ -22,6 +21,7 @@ namespace blink {
 class WebAudioSourceProviderClient;
 }
 
+namespace cobalt {
 namespace media {
 
 // WebAudioSourceProviderImpl is either one of two things (but not both):
@@ -109,5 +109,6 @@ class MEDIA_BLINK_EXPORT WebAudioSourceProviderImpl
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_WEBAUDIOSOURCEPROVIDER_IMPL_H_

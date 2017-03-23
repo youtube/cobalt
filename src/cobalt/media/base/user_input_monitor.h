@@ -5,8 +5,6 @@
 #ifndef COBALT_MEDIA_BASE_USER_INPUT_MONITOR_H_
 #define COBALT_MEDIA_BASE_USER_INPUT_MONITOR_H_
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/basictypes.h"
@@ -14,6 +12,7 @@
 #include "base/observer_list_threadsafe.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
 struct SkIPoint;
 
@@ -21,6 +20,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }  // namespace base
 
+namespace cobalt {
 namespace media {
 
 // Monitors and notifies about mouse movements and keyboard events.
@@ -89,5 +89,6 @@ class MEDIA_EXPORT UserInputMonitor {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BASE_USER_INPUT_MONITOR_H_

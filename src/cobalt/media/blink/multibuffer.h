@@ -5,9 +5,6 @@
 #ifndef COBALT_MEDIA_BLINK_MULTIBUFFER_H_
 #define COBALT_MEDIA_BLINK_MULTIBUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 #include <map>
 #include <memory>
@@ -26,7 +23,9 @@
 #include "cobalt/media/blink/interval_map.h"
 #include "cobalt/media/blink/lru.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Used to identify a block of data in the multibuffer.
@@ -40,6 +39,7 @@ class MultiBuffer;
 typedef std::pair<MultiBuffer*, MultiBufferBlockId> MultiBufferGlobalBlockId;
 
 }  // namespace media
+}  // namespace cobalt
 
 namespace BASE_HASH_NAMESPACE {
 
@@ -52,6 +52,7 @@ struct hash<media::MultiBufferGlobalBlockId> {
 
 }  // namespace BASE_HASH_NAMESPACE
 
+namespace cobalt {
 namespace media {
 
 // Freeing a lot of blocks can be expensive, to keep thing
@@ -354,5 +355,6 @@ class MEDIA_BLINK_EXPORT MultiBuffer {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_MULTIBUFFER_H_

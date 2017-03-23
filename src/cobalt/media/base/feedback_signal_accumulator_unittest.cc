@@ -6,6 +6,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 
 class FeedbackSignalAccumulatorTest : public ::testing::Test {
@@ -200,3 +201,4 @@ TEST_F(FeedbackSignalAccumulatorTest, IgnoresUpdatesThatAreOutOfOrder) {
 }
 
 }  // namespace media
+}  // namespace cobalt

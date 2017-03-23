@@ -48,7 +48,13 @@ class StartupTest(tv_testcase.TvTestCase):
     blank_to_browse_record_strategies.append(
         tv_testcase_util.RecordStrategyMean())
     blank_to_browse_record_strategies.append(
-        tv_testcase_util.RecordStrategyPercentiles())
+        tv_testcase_util.RecordStrategyPercentile(25))
+    blank_to_browse_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(50))
+    blank_to_browse_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(75))
+    blank_to_browse_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(95))
 
     # Blank to browser recorder
     blank_to_browse_recorder = tv_testcase_util.ResultsRecorder(

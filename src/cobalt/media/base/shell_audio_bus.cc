@@ -17,6 +17,9 @@
 #include <algorithm>
 #include <limits>
 
+#include "starboard/memory.h"
+
+namespace cobalt {
 namespace media {
 
 namespace {
@@ -31,8 +34,9 @@ inline void ConvertSample(ShellAudioBus::SampleType src_type,
                           ShellAudioBus::SampleType dest_type,
                           uint8* dest_ptr) {
   if (src_type == dest_type) {
-    memcpy(dest_ptr, src_ptr,
-           src_type == ShellAudioBus::kInt16 ? sizeof(int16) : sizeof(float));
+    SbMemoryCopy(dest_ptr, src_ptr, src_type == ShellAudioBus::kInt16
+                                        ? sizeof(int16)
+                                        : sizeof(float));
   } else if (src_type == ShellAudioBus::kFloat32) {
     float sample_in_float = *reinterpret_cast<const float*>(src_ptr);
     int32 sample_in_int32 =
@@ -153,12 +157,12 @@ void ShellAudioBus::ZeroFrames(size_t start_frame, size_t end_frame) {
     return;
   }
   if (storage_type_ == kInterleaved) {
-    memset(GetSamplePtr(0, start_frame), 0,
-           GetSampleSizeInBytes() * (end_frame - start_frame) * channels_);
+    SbMemorySet(GetSamplePtr(0, start_frame), 0,
+                GetSampleSizeInBytes() * (end_frame - start_frame) * channels_);
   } else {
     for (size_t channel = 0; channel < channels_; ++channel) {
-      memset(GetSamplePtr(channel, start_frame), 0,
-             GetSampleSizeInBytes() * (end_frame - start_frame));
+      SbMemorySet(GetSamplePtr(channel, start_frame), 0,
+                  GetSampleSizeInBytes() * (end_frame - start_frame));
     }
   }
 }
@@ -174,12 +178,12 @@ void ShellAudioBus::Assign(const ShellAudioBus& source) {
       storage_type_ == source.storage_type_) {
     size_t frames = std::min(frames_, source.frames_);
     if (storage_type_ == kInterleaved) {
-      memcpy(GetSamplePtr(0, 0), source.GetSamplePtr(0, 0),
-             GetSampleSizeInBytes() * frames * channels_);
+      SbMemoryCopy(GetSamplePtr(0, 0), source.GetSamplePtr(0, 0),
+                   GetSampleSizeInBytes() * frames * channels_);
     } else {
       for (size_t channel = 0; channel < channels_; ++channel) {
-        memcpy(GetSamplePtr(channel, 0), source.GetSamplePtr(channel, 0),
-               GetSampleSizeInBytes() * frames);
+        SbMemoryCopy(GetSamplePtr(channel, 0), source.GetSamplePtr(channel, 0),
+                     GetSampleSizeInBytes() * frames);
       }
     }
     return;
@@ -353,3 +357,4 @@ const uint8* ShellAudioBus::GetSamplePtr(size_t channel, size_t frame) const {
 }
 
 }  // namespace media
+}  // namespace cobalt

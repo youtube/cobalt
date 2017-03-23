@@ -5,16 +5,16 @@
 #ifndef COBALT_MEDIA_BLINK_NEW_SESSION_CDM_RESULT_PROMISE_H_
 #define COBALT_MEDIA_BLINK_NEW_SESSION_CDM_RESULT_PROMISE_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/basictypes.h"
 #include "cobalt/media/base/cdm_promise.h"
 #include "cobalt/media/base/media_keys.h"
 #include "cobalt/media/blink/media_blink_export.h"
+#include "starboard/types.h"
 #include "third_party/WebKit/public/platform/WebContentDecryptionModuleResult.h"
 
+namespace cobalt {
 namespace media {
 
 enum class SessionInitStatus {
@@ -67,5 +67,6 @@ class MEDIA_BLINK_EXPORT NewSessionCdmResultPromise
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_BLINK_NEW_SESSION_CDM_RESULT_PROMISE_H_

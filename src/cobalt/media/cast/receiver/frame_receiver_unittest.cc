@@ -4,9 +4,6 @@
 
 #include "media/cast/receiver/frame_receiver.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <deque>
 #include <memory>
 #include <utility>
@@ -24,10 +21,12 @@
 #include "media/cast/net/rtcp/rtcp_utility.h"
 #include "media/cast/net/rtcp/test_rtcp_packet_builder.h"
 #include "media/cast/test/utility/default_config.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -453,3 +452,4 @@ TEST_F(FrameReceiverTest, ReceivesFramesRefusingToSkipAny) {
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

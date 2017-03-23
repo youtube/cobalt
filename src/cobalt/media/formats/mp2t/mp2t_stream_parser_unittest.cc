@@ -4,9 +4,6 @@
 
 #include "media/formats/mp2t/mp2t_stream_parser.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -26,8 +23,10 @@
 #include "media/base/test_data_util.h"
 #include "media/base/text_track_config.h"
 #include "media/base/video_decoder_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
 namespace media {
 namespace mp2t {
 
@@ -317,3 +316,4 @@ TEST_F(Mp2tStreamParserTest, AudioInPrivateStream1) {
 
 }  // namespace mp2t
 }  // namespace media
+}  // namespace cobalt

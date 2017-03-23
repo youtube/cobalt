@@ -32,34 +32,47 @@ from webkitpy.common.memoized import memoized
 
 
 class _TestObject(object):
+
     def __init__(self):
-        self.callCount = 0
+        self.call_count = 0
 
     @memoized
-    def memoized_add(self, argument):
-        """testing docstring"""
-        self.callCount += 1
-        if argument is None:
-            return None  # Avoid the TypeError from None + 1
+    def memoized_add_one(self, argument):
+        self.call_count += 1
         return argument + 1
 
 
 class MemoizedTest(unittest.TestCase):
-    def test_caching(self):
-        test = _TestObject()
-        test.callCount = 0
-        self.assertEqual(test.memoized_add(1), 2)
-        self.assertEqual(test.callCount, 1)
-        self.assertEqual(test.memoized_add(1), 2)
-        self.assertEqual(test.callCount, 1)
 
-        # Validate that callCount is working as expected.
-        self.assertEqual(test.memoized_add(2), 3)
-        self.assertEqual(test.callCount, 2)
-
-    def test_tearoff(self):
+    def test_multiple_identical_calls(self):
+        # When a function is called multiple times with identical arguments,
+        # the call count doesn't increase past 1.
         test = _TestObject()
-        # Make sure that get()/tear-offs work:
-        tearoff = test.memoized_add
-        self.assertEqual(tearoff(4), 5)
-        self.assertEqual(test.callCount, 1)
+        self.assertEqual(test.memoized_add_one(1), 2)
+        self.assertEqual(test.memoized_add_one(1), 2)
+        self.assertEqual(test.call_count, 1)
+
+    def test_different_calls(self):
+        # Validate that call_count is working as expected.
+        test = _TestObject()
+        self.assertEqual(test.memoized_add_one(1), 2)
+        self.assertEqual(test.memoized_add_one(2), 3)
+        self.assertEqual(test.call_count, 2)
+
+    def test_reassign_function(self):
+        # The function can be assigned to a different variable.
+        test = _TestObject()
+        add_one = test.memoized_add_one
+        self.assertEqual(add_one(4), 5)
+        self.assertEqual(test.call_count, 1)
+
+    def test_non_hashable_args(self):
+        test = _TestObject()
+        try:
+            test.memoized_add_one([])
+            self.fail('Expected TypeError.')
+        except TypeError as error:
+            self.assertEqual(
+                error.message,
+                'Cannot call memoized function memoized_add_one with '
+                'unhashable arguments: unhashable type: \'list\'')

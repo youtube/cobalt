@@ -463,13 +463,13 @@ bool IsStringASCII(const base::StringPiece& str) {
   return DoIsStringASCII(str);
 }
 
-bool IsStringUTF8(const std::string& str) {
+bool IsStringUTF8(const base::StringPiece& str) {
   const char *src = str.data();
-  int32 src_len = static_cast<int32>(str.length());
-  int32 char_index = 0;
+  int32_t src_len = static_cast<int32_t>(str.length());
+  int32_t char_index = 0;
 
   while (char_index < src_len) {
-    int32 code_point;
+    int32_t code_point;
     CBU8_NEXT(src, char_index, src_len, code_point);
     if (!base::IsValidCharacter(code_point))
       return false;

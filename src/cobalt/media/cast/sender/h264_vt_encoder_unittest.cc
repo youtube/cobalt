@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <queue>
 
 #include "base/bind.h"
@@ -30,6 +28,8 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_video_decoder.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -55,6 +55,7 @@ void MediaTestSuite::Initialize() {
 
 }  // namespace
 
+namespace cobalt {
 namespace media {
 namespace cast {
 
@@ -181,8 +182,9 @@ void CreateFrameAndMemsetPlane(VideoFrameFactory* const video_frame_factory) {
   CVPixelBufferLockBaseAddress(cv_pixel_buffer, 0);
   auto* ptr = CVPixelBufferGetBaseAddressOfPlane(cv_pixel_buffer, 0);
   ASSERT_TRUE(ptr);
-  memset(ptr, 0xfe, CVPixelBufferGetBytesPerRowOfPlane(cv_pixel_buffer, 0) *
-                        CVPixelBufferGetHeightOfPlane(cv_pixel_buffer, 0));
+  SbMemorySet(ptr, 0xfe,
+              CVPixelBufferGetBytesPerRowOfPlane(cv_pixel_buffer, 0) *
+                  CVPixelBufferGetHeightOfPlane(cv_pixel_buffer, 0));
   CVPixelBufferUnlockBaseAddress(cv_pixel_buffer, 0);
 }
 
@@ -411,3 +413,4 @@ TEST_F(H264VideoToolboxEncoderTest,
 
 }  // namespace cast
 }  // namespace media
+}  // namespace cobalt

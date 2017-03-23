@@ -5,12 +5,12 @@
 #ifndef COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
 #define COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_
 
-#include <stdint.h>
-
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_export.h"
+#include "starboard/types.h"
 
+namespace cobalt {
 namespace media {
 
 // Fills an initialized DecryptConfig, which can be sent to the Decryptor if
@@ -25,5 +25,6 @@ bool MEDIA_EXPORT WebMCreateDecryptConfig(
     scoped_ptr<DecryptConfig>* decrypt_config, int* data_offset);
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FORMATS_WEBM_WEBM_CRYPTO_HELPERS_H_

@@ -190,6 +190,9 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
     video_frame_provider_->UnregisterMediaTimeAndSeekingStateCB(
         media_time_and_seeking_state_cb_);
     media_time_and_seeking_state_cb_.Reset();
+
+    video_frame_provider_->SetOutputMode(
+        ShellVideoFrameProvider::kOutputModeInvalid);
   }
 
 #if defined(__LB_ANDROID__)
@@ -1087,13 +1090,13 @@ void WebMediaPlayerImpl::StartPipeline() {
   }
 
   pipeline_->Start(
-      filter_collection_.Pass(),
-      set_decryptor_ready_cb,
+      filter_collection_.Pass(), set_decryptor_ready_cb,
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
+      client_->PreferDecodeToTexture());
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {

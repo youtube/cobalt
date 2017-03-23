@@ -8,6 +8,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 
+namespace cobalt {
 namespace media {
 
 FakeAudioRendererSink::FakeAudioRendererSink()
@@ -92,3 +93,4 @@ void FakeAudioRendererSink::ChangeState(State new_state) {
 }
 
 }  // namespace media
+}  // namespace cobalt

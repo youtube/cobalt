@@ -14,6 +14,7 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/timestamp_constants.h"
 
+namespace cobalt {
 namespace media {
 
 class MEDIA_EXPORT AudioTimestampValidator {
@@ -63,5 +64,6 @@ class MEDIA_EXPORT AudioTimestampValidator {
 };
 
 }  // namespace media
+}  // namespace cobalt
 
 #endif  // COBALT_MEDIA_FILTERS_AUDIO_TIMESTAMP_VALIDATOR_H_

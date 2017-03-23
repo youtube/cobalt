@@ -18,8 +18,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
@@ -54,6 +56,9 @@ class WebSocketTest : public ::testing::Test {
 
  protected:
   WebSocketTest() : settings_(new FakeSettings()) {}
+
+  // A nested message loop needs a non-nested message loop to exist.
+  MessageLoop message_loop_;
 
   scoped_ptr<FakeSettings> settings_;
   StrictMock<MockExceptionState> exception_state_;
