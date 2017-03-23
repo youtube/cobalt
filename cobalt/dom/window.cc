@@ -39,7 +39,10 @@
 #include "cobalt/dom/screen.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/window_timers.h"
+#include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
+
+using cobalt::media_session::MediaSession;
 
 namespace cobalt {
 namespace dom {
@@ -89,6 +92,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Closure& window_close_callback,
                system_window::SystemWindow* system_window,
                const scoped_refptr<input::InputPoller>& input_poller,
+               const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
       height_(height),
@@ -111,7 +115,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
               dom_max_element_depth)))),
       document_loader_(NULL),
       history_(new History()),
-      navigator_(new Navigator(user_agent, language)),
+      navigator_(new Navigator(user_agent, language, media_session)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
