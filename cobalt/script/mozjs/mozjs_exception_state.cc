@@ -20,6 +20,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/script/mozjs/conversion_helpers.h"
+#include "third_party/mozjs/js/src/jsexn.h"
 
 namespace cobalt {
 namespace script {
@@ -96,6 +97,18 @@ void MozjsExceptionState::SetSimpleExceptionWithArgs(MessageType message_type,
   va_end(arguments);
 
   is_exception_set_ = true;
+}
+
+JSObject* MozjsExceptionState::CreateErrorObject(JSContext* context,
+                                                 SimpleExceptionType type) {
+  JSExnType mozjs_type = ConvertToMozjsExceptionType(type);
+  JS::RootedObject error_prototype(context);
+  if (!JS_GetClassPrototype(context, GetExceptionProtoKey(mozjs_type),
+                            error_prototype.address())) {
+    DLOG(ERROR) << "Failed to get Error prototype.";
+    return NULL;
+  }
+  return JS_NewObject(context, NULL, error_prototype, NULL);
 }
 
 }  // namespace mozjs
