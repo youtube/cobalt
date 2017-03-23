@@ -28,8 +28,8 @@ import bootstrap_path  # pylint: disable=unused-import
 from cobalt.tools import paths
 from starboard.tools import platform
 
-_CLANG_REVISION = '264915-1'
-_CLANG_VERSION = '3.9.0'
+_CLANG_REVISION = '298539-1'
+_CLANG_VERSION = '5.0.0'
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 
