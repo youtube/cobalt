@@ -450,7 +450,7 @@ void Document::OnCSSMutation() {
 
   scoped_refptr<HTMLHtmlElement> current_html = html();
   if (current_html) {
-    current_html->InvalidateComputedStylesRecursively();
+    current_html->InvalidateComputedStylesOfNodeAndDescendants();
   }
 
   RecordMutation();
@@ -465,7 +465,10 @@ void Document::OnDOMMutation() {
 }
 
 void Document::OnTypefaceLoadEvent() {
-  InvalidateLayoutBoxesFromNodeAndDescendants();
+  scoped_refptr<HTMLHtmlElement> current_html = html();
+  if (current_html) {
+    current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
+  }
   RecordMutation();
 }
 
@@ -581,7 +584,10 @@ void Document::SetPartialLayout(const std::string& mode_string) {
        mode_token_iterator != mode_tokens.end(); ++mode_token_iterator) {
     const std::string& mode_token = *mode_token_iterator;
     if (mode_token == "wipe") {
-      InvalidateLayoutBoxesFromNodeAndDescendants();
+      scoped_refptr<HTMLHtmlElement> current_html = html();
+      if (current_html) {
+        current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
+      }
       DLOG(INFO) << "Partial Layout state wiped";
     } else if (mode_token == "off") {
       partial_layout_is_enabled_ = false;
@@ -610,7 +616,7 @@ void Document::SetViewport(const math::Size& viewport_size) {
 
   scoped_refptr<HTMLHtmlElement> current_html = html();
   if (current_html) {
-    current_html->InvalidateComputedStylesRecursively();
+    current_html->InvalidateComputedStylesOfNodeAndDescendants();
   }
 }
 
@@ -648,20 +654,22 @@ void Document::UpdateSelectorTree() {
   }
 }
 
-void Document::InvalidateLayout() {
-  // Set all invalidation flags and recursively invalidate the computed style.
-  is_selector_tree_dirty_ = true;
+void Document::PurgeCachedResources() {
+  // Set the computed style to dirty so that it'll be able to update any
+  // elements that had images purged when it resumes.
   is_computed_style_dirty_ = true;
-  are_font_faces_dirty_ = true;
-  are_keyframes_dirty_ = true;
 
   scoped_refptr<HTMLHtmlElement> current_html = html();
   if (current_html) {
-    current_html->InvalidateComputedStylesRecursively();
+    current_html->PurgeCachedBackgroundImagesOfNodeAndDescendants();
   }
+}
 
-  // Finally, also destroy all cached layout boxes.
-  InvalidateLayoutBoxesFromNodeAndDescendants();
+void Document::InvalidateLayoutBoxes() {
+  scoped_refptr<HTMLHtmlElement> current_html = html();
+  if (current_html) {
+    current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
+  }
 }
 
 void Document::DisableJit() {
@@ -730,7 +738,7 @@ void Document::UpdateKeyframes() {
     // the keyframes map changed.
     scoped_refptr<HTMLHtmlElement> current_html = html();
     if (current_html) {
-      current_html->InvalidateComputedStylesRecursively();
+      current_html->InvalidateComputedStylesOfNodeAndDescendants();
     }
   }
 }

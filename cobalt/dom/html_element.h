@@ -202,8 +202,14 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return css_computed_style_declaration_->data();
   }
 
-  // Invalidates the cached computed style of this element and its descendants.
-  void InvalidateComputedStylesRecursively() OVERRIDE;
+  void PurgeCachedBackgroundImagesOfNodeAndDescendants() OVERRIDE;
+  void InvalidateComputedStylesOfNodeAndDescendants() OVERRIDE;
+  void InvalidateLayoutBoxesOfNodeAndAncestors() OVERRIDE;
+  void InvalidateLayoutBoxesOfNodeAndDescendants() OVERRIDE;
+  void InvalidateLayoutBoxSizes() OVERRIDE;
+  void InvalidateLayoutBoxCrossReferences() OVERRIDE;
+  void InvalidateLayoutBoxRenderTreeNodes() OVERRIDE;
+
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
@@ -230,11 +236,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
-  void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
-  void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
-  void InvalidateLayoutBoxSizesFromNode() OVERRIDE;
-  void InvalidateLayoutBoxCrossReferencesFromNode() OVERRIDE;
-  void InvalidateRenderTreeNodesFromNode() OVERRIDE;
 
   // Determines whether this element is focusable.
   bool IsFocusable() const { return HasAttribute("tabindex"); }
@@ -258,10 +259,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   ~HTMLElement() OVERRIDE;
 
   void CopyDirectionality(const HTMLElement& other);
-
-  // Releases image resources and invalidates computed style if there are images
-  // associated with this html element in the image cache.
-  void ReleaseImagesAndInvalidateComputedStyleIfNecessary() OVERRIDE;
 
   // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
   // make stat updates even after its weak pointer to its document has been
