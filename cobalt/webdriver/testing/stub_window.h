@@ -26,6 +26,7 @@
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module_stub.h"
+#include "cobalt/media_session/media_session.h"
 #include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
 
@@ -59,7 +60,7 @@ class StubWindow {
         std::string() /* default security policy */, dom::kCspEnforcementEnable,
         base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
-        base::Closure() /* window_close */, NULL, NULL);
+        base::Closure() /* window_close */, NULL, NULL, NULL);
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 

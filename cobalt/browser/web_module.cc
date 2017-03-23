@@ -45,6 +45,7 @@
 #include "cobalt/dom/url.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/media_session/default_media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
@@ -368,6 +369,8 @@ class WebModule::Impl {
   scoped_ptr<base::ConsoleCommandManager::CommandHandler>
       partial_layout_command_handler_;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+  scoped_ptr<media_session::MediaSessionClient> media_session_client_;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -495,6 +498,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
+  media_session_client_.reset(new media_session::DefaultMediaSessionClient());
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
@@ -514,8 +519,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.system_window_,
-      data.options.input_poller, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth);
+      data.options.input_poller, media_session_client_->GetMediaSession(),
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -592,6 +597,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
     screen_reader_.reset(new accessibility::ScreenReader(
         window_->document(), tts_engine, &mutation_observer_task_manager_));
   }
+
   is_running_ = true;
 }
 
@@ -602,6 +608,7 @@ WebModule::Impl::~Impl() {
   global_environment_->SetReportEvalCallback(base::Closure());
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
   document_load_observer_.reset();
+  media_session_client_.reset();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset();
