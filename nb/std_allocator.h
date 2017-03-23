@@ -19,6 +19,8 @@
 
 #include <memory>
 
+#include "starboard/types.h"
+
 namespace nb {
 
 // A standard container compatible allocator that delegates allocations to a
