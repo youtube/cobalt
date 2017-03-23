@@ -622,11 +622,6 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
   }
 }
 
-void HTMLElement::InvalidateComputedStylesRecursively() {
-  computed_style_valid_ = false;
-  Node::InvalidateComputedStylesRecursively();
-}
-
 void HTMLElement::UpdateComputedStyleRecursively(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
@@ -666,31 +661,42 @@ void HTMLElement::UpdateComputedStyleRecursively(
   }
 }
 
-void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
-  layout_boxes_.reset();
-  ReleaseImagesAndInvalidateComputedStyleIfNecessary();
-  Node::InvalidateLayoutBoxesFromNodeAndAncestors();
+void HTMLElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
+  if (!cached_background_images_.empty()) {
+    cached_background_images_.clear();
+    computed_style_valid_ = false;
+  }
+  PurgeCachedBackgroundImagesOfDescendants();
 }
 
-void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
-  layout_boxes_.reset();
-  ReleaseImagesAndInvalidateComputedStyleIfNecessary();
-  Node::InvalidateLayoutBoxesFromNodeAndDescendants();
+void HTMLElement::InvalidateComputedStylesOfNodeAndDescendants() {
+  computed_style_valid_ = false;
+  InvalidateComputedStylesOfDescendants();
 }
 
-void HTMLElement::InvalidateLayoutBoxSizesFromNode() {
+void HTMLElement::InvalidateLayoutBoxesOfNodeAndAncestors() {
+  layout_boxes_.reset();
+  InvalidateLayoutBoxesOfAncestors();
+}
+
+void HTMLElement::InvalidateLayoutBoxesOfNodeAndDescendants() {
+  layout_boxes_.reset();
+  InvalidateLayoutBoxesOfDescendants();
+}
+
+void HTMLElement::InvalidateLayoutBoxSizes() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateSizes();
   }
 }
 
-void HTMLElement::InvalidateLayoutBoxCrossReferencesFromNode() {
+void HTMLElement::InvalidateLayoutBoxCrossReferences() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateCrossReferences();
   }
 }
 
-void HTMLElement::InvalidateRenderTreeNodesFromNode() {
+void HTMLElement::InvalidateLayoutBoxRenderTreeNodes() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateRenderTreeNodes();
   }
@@ -760,8 +766,8 @@ void HTMLElement::SetDirectionality(const std::string& value) {
   }
 
   if (directionality_ != previous_directionality) {
-    InvalidateLayoutBoxesFromNodeAndAncestors();
-    InvalidateLayoutBoxesFromNodeAndDescendants();
+    InvalidateLayoutBoxesOfNodeAndAncestors();
+    InvalidateLayoutBoxesOfDescendants();
   }
 }
 
@@ -817,20 +823,29 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
 // Flags tracking which cached values must be invalidated.
 struct UpdateComputedStyleInvalidationFlags {
   UpdateComputedStyleInvalidationFlags()
-      : invalidate_descendant_computed_styles(false),
+      : purge_cached_background_images_of_descendants(false),
+        invalidate_computed_styles_of_descendants(false),
         invalidate_layout_boxes(false),
         invalidate_sizes(false),
         invalidate_cross_references(false),
         invalidate_render_tree_nodes(false) {}
 
-  bool invalidate_descendant_computed_styles;
+  bool purge_cached_background_images_of_descendants;
+  bool invalidate_computed_styles_of_descendants;
   bool invalidate_layout_boxes;
   bool invalidate_sizes;
   bool invalidate_cross_references;
   bool invalidate_render_tree_nodes;
 };
 
-bool NewComputedStyleInvalidatesDescendantComputedStyles(
+bool NewComputedStylePurgesCachedBackgroundImagesOfDescendants(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
+  return old_computed_style->display() != cssom::KeywordValue::GetNone() &&
+         new_computed_style->display() == cssom::KeywordValue::GetNone();
+}
+
+bool NewComputedStyleInvalidatesComputedStylesOfDescendants(
     const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
     const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
   return !non_trivial_static_fields.Get()
@@ -865,15 +880,27 @@ bool NewComputedStyleInvalidatesCrossReferences(
                                          new_computed_style);
 }
 
-void UpdateInvalidationFlagsForNewComputedStyle(
+enum IsPseudoElement {
+  kIsNotPseudoElement,
+  kIsPseudoElement,
+};
+
+void UpdateInvalidationFlagsFromNewComputedStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
     const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style,
-    bool animations_modified, UpdateComputedStyleInvalidationFlags* flags) {
+    bool animations_modified, IsPseudoElement is_pseudo_element,
+    UpdateComputedStyleInvalidationFlags* flags) {
   if (old_computed_style) {
-    if (!flags->invalidate_descendant_computed_styles &&
-        NewComputedStyleInvalidatesDescendantComputedStyles(
+    if (!flags->purge_cached_background_images_of_descendants &&
+        is_pseudo_element == kIsNotPseudoElement &&
+        NewComputedStylePurgesCachedBackgroundImagesOfDescendants(
             old_computed_style, new_computed_style)) {
-      flags->invalidate_descendant_computed_styles = true;
+      flags->purge_cached_background_images_of_descendants = true;
+    }
+    if (!flags->invalidate_computed_styles_of_descendants &&
+        NewComputedStyleInvalidatesComputedStylesOfDescendants(
+            old_computed_style, new_computed_style)) {
+      flags->invalidate_computed_styles_of_descendants = true;
       flags->invalidate_layout_boxes = true;
     } else if (!flags->invalidate_layout_boxes) {
       if (NewComputedStyleInvalidatesLayoutBoxes(old_computed_style,
@@ -965,9 +992,9 @@ void HTMLElement::UpdateComputedStyle(
             computed_style(), &css_transitions_, &css_animations_,
             document->keyframes_map(), &animations_modified);
 
-    UpdateInvalidationFlagsForNewComputedStyle(
+    UpdateInvalidationFlagsFromNewComputedStyle(
         computed_style(), new_computed_style, animations_modified,
-        &invalidation_flags);
+        kIsNotPseudoElement, &invalidation_flags);
 
     css_computed_style_declaration_->SetData(new_computed_style);
 
@@ -1003,9 +1030,9 @@ void HTMLElement::UpdateComputedStyle(
               pseudo_elements_[pseudo_element_type]->css_animations(),
               document->keyframes_map(), &animations_modified);
 
-      UpdateInvalidationFlagsForNewComputedStyle(
+      UpdateInvalidationFlagsFromNewComputedStyle(
           pseudo_elements_[pseudo_element_type]->computed_style(),
-          pseudo_element_computed_style, animations_modified,
+          pseudo_element_computed_style, animations_modified, kIsPseudoElement,
           &invalidation_flags);
 
       pseudo_elements_[pseudo_element_type]
@@ -1014,22 +1041,25 @@ void HTMLElement::UpdateComputedStyle(
     }
   }
 
-  if (invalidation_flags.invalidate_descendant_computed_styles) {
-    InvalidateComputedStylesRecursively();
+  if (invalidation_flags.purge_cached_background_images_of_descendants) {
+    PurgeCachedBackgroundImagesOfDescendants();
+  }
+  if (invalidation_flags.invalidate_computed_styles_of_descendants) {
+    InvalidateComputedStylesOfDescendants();
   }
 
   if (invalidation_flags.invalidate_layout_boxes) {
-    InvalidateLayoutBoxesFromNodeAndAncestors();
-    InvalidateLayoutBoxesFromNodeAndDescendants();
+    InvalidateLayoutBoxesOfNodeAndAncestors();
+    InvalidateLayoutBoxesOfDescendants();
   } else {
     if (invalidation_flags.invalidate_sizes) {
-      InvalidateLayoutBoxSizesFromNode();
+      InvalidateLayoutBoxSizes();
     }
     if (invalidation_flags.invalidate_cross_references) {
-      InvalidateLayoutBoxCrossReferencesFromNode();
+      InvalidateLayoutBoxCrossReferences();
     }
     if (invalidation_flags.invalidate_render_tree_nodes) {
-      InvalidateRenderTreeNodesFromNode();
+      InvalidateLayoutBoxRenderTreeNodes();
     }
   }
 
@@ -1079,20 +1109,13 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 
 void HTMLElement::OnBackgroundImageLoaded() {
   node_document()->RecordMutation();
-  InvalidateRenderTreeNodesFromNode();
+  InvalidateLayoutBoxRenderTreeNodes();
 }
 
 bool HTMLElement::IsRootElement() {
   // The html element represents the root of an HTML document.
   //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
   return AsHTMLHtmlElement() != NULL;
-}
-
-void HTMLElement::ReleaseImagesAndInvalidateComputedStyleIfNecessary() {
-  if (!cached_background_images_.empty()) {
-    cached_background_images_.clear();
-    computed_style_valid_ = false;
-  }
 }
 
 }  // namespace dom

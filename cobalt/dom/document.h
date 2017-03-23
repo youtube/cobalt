@@ -325,8 +325,8 @@ class Document : public Node, public cssom::MutationObserver {
   // Exposed for test purposes.
   void UpdateSelectorTree();
 
-  // Invalidates the document's cached layout tree and associated data.
-  void InvalidateLayout();
+  void PurgeCachedResources();
+  void InvalidateLayoutBoxes();
 
   // Disable just-in-time compilation of JavaScript code.
   void DisableJit();

@@ -649,7 +649,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
   }
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   node_document()->OnDOMMutation();
-  InvalidateLayoutBoxesFromNodeAndAncestors();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
 }
 
 void HTMLMediaElement::ScheduleLoad() {
@@ -1618,7 +1618,7 @@ void HTMLMediaElement::PlayerOutputModeUpdated() {
   // the video render tree differently depending on whether we are in punch-out
   // or decode-to-texture.
   node_document()->OnDOMMutation();
-  InvalidateLayoutBoxesFromNodeAndAncestors();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
 }
 
 }  // namespace dom
