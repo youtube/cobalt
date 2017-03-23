@@ -71,12 +71,15 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
-  void FallbackRasterize(render_tree::Node* node);
+  void FallbackRasterize(render_tree::Node* node,
+                         DrawObjectManager::OffscreenType offscreen_type);
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
-                     DrawObjectManager::DrawType type);
+                     DrawObjectManager::OnscreenType onscreen_type,
+                     DrawObjectManager::OffscreenType offscreen_type);
   void AddTransparentDraw(scoped_ptr<DrawObject> object,
-                          DrawObjectManager::DrawType type,
+                          DrawObjectManager::OnscreenType onscreen_type,
+                          DrawObjectManager::OffscreenType offscreen_type,
                           const math::RectF& local_bounds);
 
   GraphicsState* graphics_state_;

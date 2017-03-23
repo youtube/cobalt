@@ -39,7 +39,7 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
                                     sizeof(VertexAttributes));
 }
 
-void DrawPolyColor::ExecuteUpdateVertexBuffer(
+void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   vertex_buffer_ = graphics_state->AllocateVertexData(
@@ -48,7 +48,7 @@ void DrawPolyColor::ExecuteUpdateVertexBuffer(
                attributes_.size() * sizeof(VertexAttributes));
 }
 
-void DrawPolyColor::ExecuteRasterizeNormal(
+void DrawPolyColor::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexColor,
