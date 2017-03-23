@@ -1260,17 +1260,5 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
 
 }
 
-// MSVS compiler does not need this explicit instantiation, and generates a
-// compiler error.
-#if !defined(_MSC_VER)
-// Explicitly instantiate the template function for template type Window
-// This is needed to prevent link errors when trying to resolve the template
-// instantiation.
-template
-void GlobalEnvironment::CreateGlobalObject<Window>(
-    const scoped_refptr<Window>& global_interface,
-    EnvironmentSettings* environment_settings);
-#endif
-
 }  // namespace script
 }  // namespace cobalt

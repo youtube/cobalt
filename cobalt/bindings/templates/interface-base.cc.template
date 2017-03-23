@@ -101,18 +101,6 @@ void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
 {% endblock create_global_object_impl %}
 }
 
-// MSVS compiler does not need this explicit instantiation, and generates a
-// compiler error.
-#if !defined(_MSC_VER)
-// Explicitly instantiate the template function for template type {{impl_class}}
-// This is needed to prevent link errors when trying to resolve the template
-// instantiation.
-template
-void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
-    const scoped_refptr<{{impl_class}}>& global_interface,
-    EnvironmentSettings* environment_settings);
-#endif
-
 }  // namespace script
 }  // namespace cobalt
 {% endif %}
