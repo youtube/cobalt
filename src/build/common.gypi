@@ -167,6 +167,7 @@
       'enable_app_list%': '<(enable_app_list)',
       'use_default_render_theme%': '<(use_default_render_theme)',
       'buildtype%': '<(buildtype)',
+      'tizen_os%': 0,
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -1264,6 +1265,17 @@
           # Native Client loader for 64-bit Windows.
           'NACL_WIN64',
         ],
+      }],
+
+      ['tizen_os==1',{
+        'use_system_icu': 1,
+        'use_system_libxml': 1,
+        'use_system_openssl': 1,
+      }, {
+        'use_system_icu%': 0,
+        'use_system_libjpeg%': 0,
+        'use_system_libxml%': 0,
+        'use_system_openssl%': 0,
       }],
 
       ['os_posix==1 and chromeos==0 and OS!="android" and OS!="ios"', {

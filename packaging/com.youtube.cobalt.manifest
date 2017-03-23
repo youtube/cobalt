@@ -1,0 +1,9 @@
+<manifest>
+  <define>
+    <domain name="com.youtube.cobalt" policy="shared" />
+  </define>
+  <request>
+    <domain name="_"/>
+  </request>
+</manifest>
+
