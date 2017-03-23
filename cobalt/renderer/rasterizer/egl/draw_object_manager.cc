@@ -61,6 +61,7 @@ void DrawObjectManager::AddTransparentDraw(scoped_ptr<DrawObject> object,
 
 void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  graphics_state->DisableDepthTest();
   for (int type = 0; type < kOffscreenCount; ++type) {
     for (size_t index = 0; index < offscreen_order_[type].size(); ++index) {
       offscreen_order_[type][index]->ExecuteOffscreenRasterize(graphics_state,
@@ -82,6 +83,8 @@ void DrawObjectManager::ExecuteOnscreenUpdateVertexBuffer(
 
 void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  graphics_state->EnableDepthTest();
+
   for (int type = 0; type < kOnscreenCount; ++type) {
     if (type == kOnscreenTransparent) {
       graphics_state->EnableBlend();
