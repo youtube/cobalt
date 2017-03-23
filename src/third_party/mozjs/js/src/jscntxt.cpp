@@ -1275,7 +1275,7 @@ JSRuntime::getDefaultLocale()
         return defaultLocale;
 
     char *locale, *lang, *p;
-#if defined(STARBOARD)
+#if defined(STARBOARD) && !SB_IS(TIZEN_OS)
     locale = const_cast<char*>(uloc_getDefault());
 #elif defined(HAVE_SETLOCALE)
     locale = setlocale(LC_ALL, NULL);
