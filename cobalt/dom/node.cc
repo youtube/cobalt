@@ -482,34 +482,48 @@ void Node::OnRemovedFromDocument() {
   }
 }
 
-void Node::InvalidateComputedStylesRecursively() {
+void Node::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
+  PurgeCachedBackgroundImagesOfDescendants();
+}
+
+void Node::InvalidateComputedStylesOfNodeAndDescendants() {
+  InvalidateComputedStylesOfDescendants();
+}
+
+void Node::InvalidateLayoutBoxesOfNodeAndAncestors() {
+  InvalidateLayoutBoxesOfAncestors();
+}
+
+void Node::InvalidateLayoutBoxesOfNodeAndDescendants() {
+  InvalidateLayoutBoxesOfDescendants();
+}
+
+void Node::PurgeCachedBackgroundImagesOfDescendants() {
   Node* child = first_child_;
   while (child) {
-    child->InvalidateComputedStylesRecursively();
+    child->PurgeCachedBackgroundImagesOfNodeAndDescendants();
     child = child->next_sibling_;
   }
 }
 
-void Node::PurgeCachedResourceReferencesRecursively() {
-  ReleaseImagesAndInvalidateComputedStyleIfNecessary();
-
+void Node::InvalidateComputedStylesOfDescendants() {
   Node* child = first_child_;
   while (child) {
-    child->PurgeCachedResourceReferencesRecursively();
+    child->InvalidateComputedStylesOfNodeAndDescendants();
     child = child->next_sibling_;
   }
 }
 
-void Node::InvalidateLayoutBoxesFromNodeAndAncestors() {
+void Node::InvalidateLayoutBoxesOfAncestors() {
   if (parent_) {
-    parent_->InvalidateLayoutBoxesFromNodeAndAncestors();
+    parent_->InvalidateLayoutBoxesOfNodeAndAncestors();
   }
 }
 
-void Node::InvalidateLayoutBoxesFromNodeAndDescendants() {
+void Node::InvalidateLayoutBoxesOfDescendants() {
   Node* child = first_child_;
   while (child) {
-    child->InvalidateLayoutBoxesFromNodeAndDescendants();
+    child->InvalidateLayoutBoxesOfNodeAndDescendants();
     child = child->next_sibling_;
   }
 }
@@ -674,7 +688,7 @@ void Node::Insert(const scoped_refptr<Node>& node,
   // being changed.
   // NOTE: The added node does not have any invalidations done, because they
   // occur on the remove and are guaranteed to not be needed at this point.
-  InvalidateLayoutBoxesFromNodeAndAncestors();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
 
   if (inserted_into_document_) {
     node->OnInsertedIntoDocument();
@@ -711,12 +725,18 @@ void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
 
   // Invalidate the layout boxes of the previous parent as a result of its
   // children being changed.
-  InvalidateLayoutBoxesFromNodeAndAncestors();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
+
+  // Purge any cached background images now that this node and its descendants
+  // are no longer in the tree, so that the images can be released from the
+  // resource cache.
+  node->PurgeCachedBackgroundImagesOfNodeAndDescendants();
+
   // Invalidate the styles and layout boxes of the node being removed from
   // the tree. These are no longer valid as a result of the child and its
   // descendants losing their inherited styles.
-  node->InvalidateComputedStylesRecursively();
-  node->InvalidateLayoutBoxesFromNodeAndDescendants();
+  node->InvalidateComputedStylesOfNodeAndDescendants();
+  node->InvalidateLayoutBoxesOfNodeAndDescendants();
 
   bool was_inserted_to_document = node->inserted_into_document_;
   if (was_inserted_to_document) {
