@@ -30,6 +30,10 @@ GraphicsState::GraphicsState()
       vertex_data_buffer_updated_(false) {
   GL_CALL(glGenBuffers(kNumFramesBuffered, &vertex_data_buffer_handle_[0]));
   memset(clip_adjustment_, 0, sizeof(clip_adjustment_));
+  SetDirty();
+  blend_enabled_ = false;
+  depth_test_enabled_ = false;
+  depth_write_enabled_ = true;
   Reset();
 }
 
@@ -47,7 +51,14 @@ void GraphicsState::BeginFrame() {
   if (vertex_data_reserved_ > vertex_data_buffer_.capacity()) {
     vertex_data_buffer_.reserve(vertex_data_reserved_);
   }
+
+  // Reset to default GL state. Assume the current state is dirty, so just
+  // set the cached state. The actual GL state will be updated to match the
+  // cached state when needed.
   SetDirty();
+  blend_enabled_ = false;
+  depth_test_enabled_ = false;
+  depth_write_enabled_ = true;
 }
 
 void GraphicsState::EndFrame() {
@@ -56,6 +67,16 @@ void GraphicsState::EndFrame() {
   vertex_data_allocated_ = 0;
   vertex_data_buffer_updated_ = false;
   frame_index_ = (frame_index_ + 1) % kNumFramesBuffered;
+
+  // Force default GL state. The current state may be marked dirty, so don't
+  // rely on any functions which check the cached state before issuing GL calls.
+  GL_CALL(glDisable(GL_BLEND));
+  GL_CALL(glDisable(GL_DEPTH_TEST));
+  GL_CALL(glDepthMask(GL_TRUE));
+
+  // Since the GL state was changed without going through the cache, mark it
+  // as dirty.
+  SetDirty();
 }
 
 void GraphicsState::Clear() {
@@ -317,17 +338,21 @@ void GraphicsState::Reset() {
   disable_vertex_attrib_array_mask_ = 0;
   clip_adjustment_dirty_ = true;
 
-  blend_enabled_ = true;
-  DisableBlend();
+  if (blend_enabled_) {
+    GL_CALL(glEnable(GL_BLEND));
+  } else {
+    GL_CALL(glDisable(GL_BLEND));
+  }
   GL_CALL(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
 
-  depth_test_enabled_ = false;
-  EnableDepthTest();
+  if (depth_test_enabled_) {
+    GL_CALL(glEnable(GL_DEPTH_TEST));
+  } else {
+    GL_CALL(glDisable(GL_DEPTH_TEST));
+  }
+  GL_CALL(glDepthMask(depth_write_enabled_ ? GL_TRUE : GL_FALSE));
   GL_CALL(glDepthFunc(GL_LESS));
   GL_CALL(glDepthRangef(0.0f, 1.0f));
-
-  depth_write_enabled_ = false;
-  EnableDepthWrite();
 
   GL_CALL(glDisable(GL_DITHER));
   GL_CALL(glDisable(GL_CULL_FACE));
