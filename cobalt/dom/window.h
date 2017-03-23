@@ -57,6 +57,12 @@
 #include "starboard/window.h"
 
 namespace cobalt {
+namespace media_session {
+class MediaSession;
+}  // namespace media_session
+}  // namespace cobalt
+
+namespace cobalt {
 namespace dom {
 
 class Camera3D;
@@ -91,34 +97,36 @@ class Window : public EventTarget {
       HTMLDecoderCreatorCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
-  Window(int width, int height, cssom::CSSParser* css_parser,
-         Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
-         render_tree::ResourceProvider** resource_provider,
-         loader::image::ImageCache* image_cache,
-         loader::image::ReducedCacheCapacityManager*
-             reduced_image_cache_capacity_manager,
-         loader::font::RemoteTypefaceCache* remote_typeface_cache,
-         loader::mesh::MeshCache* mesh_cache,
-         LocalStorageDatabase* local_storage_database,
-         media::CanPlayTypeHandler* can_play_type_handler,
-         media::WebMediaPlayerFactory* web_media_player_factory,
-         script::ExecutionState* execution_state,
-         script::ScriptRunner* script_runner,
-         MediaSourceRegistry* media_source_registry,
-         DomStatTracker* dom_stat_tracker, const GURL& url,
-         const std::string& user_agent, const std::string& language,
-         const base::Callback<void(const GURL&)> navigation_callback,
-         const base::Callback<void(const std::string&)>& error_callback,
-         network_bridge::CookieJar* cookie_jar,
-         const network_bridge::PostSender& post_sender,
-         const std::string& default_security_policy,
-         dom::CspEnforcementType csp_enforcement_mode,
-         const base::Closure& csp_policy_changed_callback,
-         const base::Closure& ran_animation_frame_callbacks_callback,
-         const base::Closure& window_close_callback,
-         system_window::SystemWindow* system_window,
-         const scoped_refptr<input::InputPoller>& input_poller,
-         int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
+  Window(
+      int width, int height, cssom::CSSParser* css_parser, Parser* dom_parser,
+      loader::FetcherFactory* fetcher_factory,
+      render_tree::ResourceProvider** resource_provider,
+      loader::image::ImageCache* image_cache,
+      loader::image::ReducedCacheCapacityManager*
+          reduced_image_cache_capacity_manager,
+      loader::font::RemoteTypefaceCache* remote_typeface_cache,
+      loader::mesh::MeshCache* mesh_cache,
+      LocalStorageDatabase* local_storage_database,
+      media::CanPlayTypeHandler* can_play_type_handler,
+      media::WebMediaPlayerFactory* web_media_player_factory,
+      script::ExecutionState* execution_state,
+      script::ScriptRunner* script_runner,
+      MediaSourceRegistry* media_source_registry,
+      DomStatTracker* dom_stat_tracker, const GURL& url,
+      const std::string& user_agent, const std::string& language,
+      const base::Callback<void(const GURL&)> navigation_callback,
+      const base::Callback<void(const std::string&)>& error_callback,
+      network_bridge::CookieJar* cookie_jar,
+      const network_bridge::PostSender& post_sender,
+      const std::string& default_security_policy,
+      dom::CspEnforcementType csp_enforcement_mode,
+      const base::Closure& csp_policy_changed_callback,
+      const base::Closure& ran_animation_frame_callbacks_callback,
+      const base::Closure& window_close_callback,
+      system_window::SystemWindow* system_window,
+      const scoped_refptr<input::InputPoller>& input_poller,
+      const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
+      int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
   //

@@ -14,19 +14,20 @@
 
 #include "cobalt/dom/navigator.h"
 
-#include "cobalt/media_session/media_session.h"
+#include "cobalt/media_session/media_session_client.h"
 
 using cobalt::media_session::MediaSession;
 
 namespace cobalt {
 namespace dom {
 
-Navigator::Navigator(const std::string& user_agent, const std::string& language)
+Navigator::Navigator(const std::string& user_agent, const std::string& language,
+                     scoped_refptr<MediaSession> media_session)
     : user_agent_(user_agent),
       language_(language),
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),
-      media_session_(new MediaSession()) {}
+      media_session_(media_session) {}
 
 const std::string& Navigator::language() const { return language_; }
 
