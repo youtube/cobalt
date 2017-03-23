@@ -24,6 +24,7 @@
 #include "base/threading/thread_local.h"
 #include "base/time.h"
 #include "base/tracked_objects.h"
+#include "nb/memory_scope.h"
 
 #if defined(OS_MACOSX)
 #include "base/message_pump_mac.h"
@@ -675,6 +676,7 @@ void MessageLoop::HistogramEvent(int event) {
 }
 
 bool MessageLoop::DoWork() {
+  TRACK_MEMORY_SCOPE("TaskProcessor");
   if (!nestable_tasks_allowed_) {
     // Task can't be executed right now.
     return false;
