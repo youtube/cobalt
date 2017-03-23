@@ -17,7 +17,7 @@
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "base/time.h"
-#include "nb/memory_scope.h"
+
 #include "starboard/event.h"
 #include "starboard/system.h"
 
@@ -105,7 +105,6 @@ void MessagePumpUIStarboard::ScheduleWork() {
 
 void MessagePumpUIStarboard::ScheduleDelayedWork(
     const base::TimeTicks& delayed_work_time) {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
   base::TimeDelta delay;
   if (!delayed_work_time.is_null()) {
     delay = delayed_work_time - base::TimeTicks::Now();
