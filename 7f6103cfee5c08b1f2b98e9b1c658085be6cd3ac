@@ -1,0 +1,256 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "a674e0d7_d94c35aa",
+        "filename": "packaging/README.md",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "We had talked earlier (many months ago) about finding a way to move this packaging/ directory into the starboard/tizen directory. If it has to be at this location, maybe we can add a script to move it here?",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "329a2ad8_f96a56a2",
+        "filename": "src/build/common.gypi",
+        "patchSetId": 2
+      },
+      "lineNbr": 1273,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "Is it possible to set these in your gyp_configuration.gypi ?",
+      "range": {
+        "startLine": 1271,
+        "startChar": 0,
+        "endLine": 1273,
+        "endChar": 32
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "e288b856_ecfa988c",
+        "filename": "src/build/tizen/system.gyp",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "Who depends on these targets? Can we move this gyp into starboard/tizen?",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "1d75d384_68d7385d",
+        "filename": "src/starboard/shared/wayland/dev_input.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 330,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "Can we make 2 changes here?\n1. Move inside an anonymous namespace,\n2. Rename to CapitalizedCamelCase\nlike:\n\n    namespace {\n    \n    void KeyboardHandleKeyMap(...);\n    // ...\n    \n    }  // namespace\n\nThis will fit our style guide...",
+      "range": {
+        "startLine": 330,
+        "startChar": 0,
+        "endLine": 330,
+        "endChar": 35
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "312c0d89_abc8580e",
+        "filename": "src/starboard/shared/wayland/window_internal.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 35,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "I guess ideally this would be SB_CAN_USE_WAYLAND_VIDEO_WINDOW or something similar, but we can leave it for now.",
+      "range": {
+        "startLine": 35,
+        "startChar": 12,
+        "endLine": 35,
+        "endChar": 36
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "955208da_1efa7179",
+        "filename": "src/starboard/tizen/armv7l/gyp_configuration.gypi",
+        "patchSetId": 2
+      },
+      "lineNbr": 29,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "Is this still needed?",
+      "range": {
+        "startLine": 28,
+        "startChar": 0,
+        "endLine": 29,
+        "endChar": 26
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5d811e83_53bf994e",
+        "filename": "src/starboard/tizen/armv7l/thread_types_public.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "We weren\u0027t careful about this before, but even these forwarding headers should have #include guards",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "57c84a6c_acda2cea",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_adaptor.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 15,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "newline",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "a71b9879_1bec4648",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "Prefer SB_DLOG, as SB_LOG gets included in production code, even if it isn\u0027t printed.\n\nSB_DLOG is compiled out in QA and GOLD builds.",
+      "range": {
+        "startLine": 51,
+        "startChar": 2,
+        "endLine": 51,
+        "endChar": 8
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "c7c382ba_4a8903f0",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 78,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "Is this code still needed? Google style says not to keep commented-out code around.",
+      "range": {
+        "startLine": 68,
+        "startChar": 0,
+        "endLine": 78,
+        "endChar": 2
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "78de2ebf_f0c4c15e",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 80,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "Google style says to make all comments full sentences with capitalization and punctuation:\n\n    // Starts the thread.\n\nAlso, it suggests that if the comment just says what the code does, that you can just leave it out.",
+      "range": {
+        "startLine": 80,
+        "startChar": 2,
+        "endLine": 80,
+        "endChar": 17
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "ae017c85_5d6119f5",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 16,
+      "author": {
+        "id": 5010
+      },
+      "writtenOn": "2017-03-23T06:02:15Z",
+      "side": 1,
+      "message": "This should match the path:\n\n    STARBOARD_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_",
+      "range": {
+        "startLine": 16,
+        "startChar": 8,
+        "endLine": 16,
+        "endChar": 74
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    }
+  ]
+}
