@@ -230,13 +230,15 @@ void LayoutManager::Impl::Suspend() {
   // Mark that we are suspended so that we don't try to perform any layouts.
   suspended_ = true;
 
+  // Invalidate any cached layout boxes from the document prior to clearing
+  // the initial containing block. That'll ensure that the full box tree is
+  // destroyed when the containing block is destroyed and that no children of
+  // |initial_containing_block_| are holding on to stale parent pointers.
+  window_->document()->InvalidateLayoutBoxes();
+
   // Clear our reference to the initial containing block to allow any resources
   // like images that were referenced by it to be released.
   initial_containing_block_ = NULL;
-
-  // Invalidate the document's layout so that all references to any resources
-  // such as images will be released.
-  window_->document()->InvalidateLayout();
 }
 
 void LayoutManager::Impl::Resume() {
