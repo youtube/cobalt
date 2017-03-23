@@ -133,6 +133,7 @@ class MozjsUserObjectHolder
 
   JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;
+  JSContext* context_;
   WrapperFactory* wrapper_factory_;
 };
 
