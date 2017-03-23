@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
+#include "cobalt/bindings/testing/exception_object_interface.h"
 #include "cobalt/bindings/testing/promise_interface.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
+#include "cobalt/script/exception_message.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -76,6 +78,47 @@ TEST_F(PromiseTest, RejectVoidPromise) {
 
   EXPECT_CALL(test_mock(), OnSuccess());
   reference.value().Reject();
+}
+
+TEST_F(PromiseTest, RejectWithExceptionObject) {
+  typedef PromiseInterface::VoidPromiseValue VoidPromiseValue;
+  scoped_ptr<VoidPromiseValue> promise =
+      global_environment_->script_value_factory()->CreateBasicPromise<void>();
+  VoidPromiseValue::StrongReference reference(*promise);
+  EXPECT_CALL(test_mock(), ReturnVoidPromise()).WillOnce(Return(promise.get()));
+
+  EXPECT_TRUE(
+      EvaluateScript("var promise = test.returnVoidPromise();\n"
+                     "var onReject = function(error) {\n"
+                     "  if (error.message == 'apple') {\n"
+                     "    test.onSuccess();\n"
+                     "  }\n"
+                     "};\n"
+                     "promise.catch(onReject)\n"));
+  EXPECT_CALL(test_mock(), OnSuccess());
+  scoped_refptr<ExceptionObjectInterface> exception_object(
+      new ExceptionObjectInterface());
+  EXPECT_CALL(*exception_object, message()).WillOnce(Return("apple"));
+  reference.value().Reject(exception_object);
+}
+
+TEST_F(PromiseTest, RejectWithSimpleException) {
+  typedef PromiseInterface::VoidPromiseValue VoidPromiseValue;
+  scoped_ptr<VoidPromiseValue> promise =
+      global_environment_->script_value_factory()->CreateBasicPromise<void>();
+  VoidPromiseValue::StrongReference reference(*promise);
+  EXPECT_CALL(test_mock(), ReturnVoidPromise()).WillOnce(Return(promise.get()));
+
+  EXPECT_TRUE(
+      EvaluateScript("var promise = test.returnVoidPromise();\n"
+                     "var onReject = function(error) {\n"
+                     "  if (error.name == 'TypeError') {\n"
+                     "    test.onSuccess();\n"
+                     "  }\n"
+                     "};\n"
+                     "promise.catch(onReject)\n"));
+  EXPECT_CALL(test_mock(), OnSuccess());
+  reference.value().Reject(script::kTypeError);
 }
 
 TEST_F(PromiseTest, BooleanPromise) {
