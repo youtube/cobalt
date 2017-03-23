@@ -15,20 +15,29 @@
 #ifndef COBALT_MEDIA_SESSION_MEDIA_SESSION_H_
 #define COBALT_MEDIA_SESSION_MEDIA_SESSION_H_
 
+#include <map>
+
 #include "cobalt/media_session/media_metadata.h"
 
+#include "base/containers/small_map.h"
+#include "base/location.h"
 #include "base/logging.h"
+#include "base/message_loop_proxy.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 
 namespace cobalt {
 namespace media_session {
 
+class MediaSessionClient;
+
 class MediaSession : public script::Wrappable {
  public:
   typedef script::CallbackFunction<void()> MediaSessionActionHandler;
   typedef script::ScriptValue<MediaSessionActionHandler>
       MediaSessionActionHandlerHolder;
+  typedef script::ScriptValue<MediaSessionActionHandler>::Reference
+      MediaSessionActionHandlerReference;
   enum MediaSessionPlaybackState { kNone, kPaused, kPlaying };
 
   enum MediaSessionAction {
@@ -37,31 +46,41 @@ class MediaSession : public script::Wrappable {
     kSeekbackward,
     kSeekforward,
     kPrevioustrack,
-    kNexttrack
+    kNexttrack,
+    kFinalElement
   };
 
-  MediaSession() : state_(kNone) {}
+ private:
+  typedef base::SmallMap<
+      std::map<MediaSessionAction, MediaSessionActionHandlerReference*>,
+      MediaSessionAction::kFinalElement> ActionMap;
+
+ public:
+  explicit MediaSession(MediaSessionClient* client);
 
   scoped_refptr<MediaMetadata> metadata() const { return metadata_; }
 
-  void set_metadata(scoped_refptr<MediaMetadata> value) { metadata_ = value; }
+  void set_metadata(scoped_refptr<MediaMetadata> value);
 
   MediaSessionPlaybackState playback_state() const { return state_; }
 
-  void set_playback_state(MediaSessionPlaybackState state) { state_ = state; }
+  void set_playback_state(MediaSessionPlaybackState state);
 
   void SetActionHandler(MediaSessionAction action,
-                        const MediaSessionActionHandlerHolder& handler) {
-    UNREFERENCED_PARAMETER(action);
-    UNREFERENCED_PARAMETER(handler);
-    NOTIMPLEMENTED();
-  }
+                        const MediaSessionActionHandlerHolder& handler);
 
   DEFINE_WRAPPABLE_TYPE(MediaSession);
 
  private:
+  void MaybeQueueChangeTask();
+  void OnChanged();
+
+  ActionMap action_map_;
+  MediaSessionClient* media_session_client_;
   scoped_refptr<MediaMetadata> metadata_;
   MediaSessionPlaybackState state_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
+  bool is_change_task_queued_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaSession);
 };
