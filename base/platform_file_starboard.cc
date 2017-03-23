@@ -261,7 +261,7 @@ bool FlushPlatformFile(PlatformFile file) {
 }
 
 bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo *info) {
-  if (!info || file < 0)
+  if (!info || !SbFileIsValid(file))
     return false;
 
   SbFileInfo file_info;
