@@ -167,6 +167,7 @@
       'enable_app_list%': '<(enable_app_list)',
       'use_default_render_theme%': '<(use_default_render_theme)',
       'buildtype%': '<(buildtype)',
+      'tizen_os%': 0,
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.

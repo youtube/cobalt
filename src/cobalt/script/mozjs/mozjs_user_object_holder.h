@@ -131,8 +131,8 @@ class MozjsUserObjectHolder
   typedef base::hash_map<const Wrappable*, base::WeakPtr<WrapperPrivate> >
       WrappableAndPrivateHashMap;
 
-  JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;
+  JSContext* context_;
   WrapperFactory* wrapper_factory_;
 };
 

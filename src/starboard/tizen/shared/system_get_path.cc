@@ -40,8 +40,14 @@ bool GetExecutablePath(char* out_path, int path_size) {
   }
 
   path[bytes_read] = '\0';
-  if (bytes_read > path_size) {
+  if (bytes_read > (size_t)path_size) {
     return false;
+  }
+
+  const char* parent_path = SbStringFindLastCharacter(path, '/');
+  if (parent_path && 0 == SbStringCompareNoCase(parent_path, "/bin")) {
+    bytes_read = (size_t)(parent_path - path);
+    path[bytes_read] = '\0';
   }
 
   SbStringCopy(out_path, path, path_size);
@@ -66,6 +72,26 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
   *last_slash = '\0';
   return true;
 }
+
+// For Tizen specific directory structure
+// +- bin
+// +- content
+//    +- data
+//    +- dir_source_root
+bool GetPackageDirectory(char* out_path, int path_size) {
+  if (!GetExecutableDirectory(out_path, path_size)) {
+    return false;
+  }
+
+  // parent of executable directory
+  char* last_slash = strrchr(out_path, '/');
+  if (!last_slash) {
+    return false;
+  }
+  *last_slash = '\0';
+
+  return true;
+}
 }  // namespace
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
@@ -79,7 +105,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
   switch (path_id) {
     case kSbSystemPathContentDirectory:
-      if (!GetExecutableDirectory(path, kPathSize)) {
+      if (!GetPackageDirectory(path, kPathSize)) {
         return false;
       }
       if (SbStringConcat(path, "/content/data", kPathSize) >= kPathSize) {
@@ -107,7 +133,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       SbDirectoryCreate(path);
       break;
     case kSbSystemPathSourceDirectory:
-      if (!GetExecutableDirectory(path, kPathSize)) {
+      if (!GetPackageDirectory(path, kPathSize)) {
         return false;
       }
       if (SbStringConcat(path, "/content/dir_source_root", kPathSize) >=
