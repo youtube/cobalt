@@ -246,22 +246,19 @@ class Node : public EventTarget {
   // removed from to its owner document.
   virtual void OnRemovedFromDocument();
 
-  // Invalidate computed styles from this node and all child nodes.
-  virtual void InvalidateComputedStylesRecursively();
-  // Invalidate layout boxes from this node and all parent nodes.
-  virtual void InvalidateLayoutBoxesFromNodeAndAncestors();
-  // Invalidate layout boxes from this node and all child nodes.
-  virtual void InvalidateLayoutBoxesFromNodeAndDescendants();
-  // Invalidate the sizes within the layout boxes of this node.
-  virtual void InvalidateLayoutBoxSizesFromNode() {}
-  // Invalidate the cross references within the layout boxes of this node.
-  virtual void InvalidateLayoutBoxCrossReferencesFromNode() {}
-  // Invalidate the render tree nodes within the layout boxes of this node.
-  virtual void InvalidateRenderTreeNodesFromNode() {}
+  virtual void PurgeCachedBackgroundImagesOfNodeAndDescendants();
+  virtual void InvalidateComputedStylesOfNodeAndDescendants();
+  virtual void InvalidateLayoutBoxesOfNodeAndAncestors();
+  virtual void InvalidateLayoutBoxesOfNodeAndDescendants();
 
-  // Releases image resources and invalidates computed style if there are images
-  // associated with this html element in the image cache.
-  virtual void ReleaseImagesAndInvalidateComputedStyleIfNecessary() {}
+  virtual void InvalidateLayoutBoxSizes() {}
+  virtual void InvalidateLayoutBoxCrossReferences() {}
+  virtual void InvalidateLayoutBoxRenderTreeNodes() {}
+
+  void PurgeCachedBackgroundImagesOfDescendants();
+  void InvalidateComputedStylesOfDescendants();
+  void InvalidateLayoutBoxesOfAncestors();
+  void InvalidateLayoutBoxesOfDescendants();
 
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();
