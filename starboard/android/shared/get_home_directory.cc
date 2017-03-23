@@ -28,9 +28,13 @@ namespace starboard {
 namespace shared {
 namespace nouser {
 
+// With a single SbUser representing the Android platform, the 'file_storage'
+// SbStorage implementation writes a single SbStorageRecord for all accounts in
+// the home directory we return here.  This is analogous to a web browser
+// providing a single cookie store no matter what any particular web app does to
+// present signing in as different users.
 bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
   int len = SbStringCopy(out_path, g_app_files_dir, path_size);
-  // TODO: Append the value of kSbUserPropertyUserId
   return len < path_size;
 }
 
