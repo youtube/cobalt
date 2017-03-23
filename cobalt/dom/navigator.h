@@ -32,7 +32,8 @@ namespace dom {
 // https://www.w3.org/TR/html5/webappapis.html#navigator
 class Navigator : public script::Wrappable {
  public:
-  Navigator(const std::string& user_agent, const std::string& language);
+  Navigator(const std::string& user_agent, const std::string& language,
+            scoped_refptr<cobalt::media_session::MediaSession> media_session);
 
   // Web API: NavigatorID
   const std::string& user_agent() const;
