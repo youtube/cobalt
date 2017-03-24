@@ -18,9 +18,24 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/script/exception_message.h"
 
 namespace cobalt {
 namespace dom {
+namespace {
+// script::ExceptionState that will DCHECK on exception.
+class NativeExceptionState : public script::ExceptionState {
+ public:
+  void SetException(const scoped_refptr<script::ScriptException>&) OVERRIDE {
+    NOTREACHED();
+  }
+
+  void SetSimpleExceptionVA(script::SimpleExceptionType, const char*,
+                            va_list) OVERRIDE {
+    NOTREACHED();
+  }
+};
+}  // namespace
 // Abstract base class for a MutationCallback.
 class MutationObserver::CallbackInternal {
  public:
@@ -87,17 +102,8 @@ MutationObserver::~MutationObserver() {
 
 void MutationObserver::Observe(const scoped_refptr<Node>& target,
                                const MutationObserverInit& options) {
-  if (!target) {
-    // |target| is not nullable, so if this is NULL that indicates a bug in the
-    // bindings layer.
-    NOTREACHED();
-    return;
-  }
-  if (!target->RegisterMutationObserver(make_scoped_refptr(this), options)) {
-    // TODO: Throw TypeError.
-    NOTREACHED();
-  }
-  TrackObservedNode(target);
+  NativeExceptionState exception_state;
+  ObserveInternal(target, options, &exception_state);
 }
 
 void MutationObserver::Disconnect() {
@@ -162,6 +168,23 @@ void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {
     ++it;
   }
   observed_nodes_.push_back(base::AsWeakPtr(node.get()));
+}
+
+void MutationObserver::ObserveInternal(
+    const scoped_refptr<Node>& target, const MutationObserverInit& options,
+    script::ExceptionState* exception_state) {
+  if (!target) {
+    // |target| is not nullable, so if this is NULL that indicates a bug in the
+    // bindings layer.
+    NOTREACHED();
+    return;
+  }
+  if (!target->RegisterMutationObserver(make_scoped_refptr(this), options)) {
+    // This fails if the options are invalid.
+    exception_state->SetSimpleException(script::kTypeError, "Invalid options.");
+    return;
+  }
+  TrackObservedNode(target);
 }
 
 }  // namespace dom
