@@ -59,16 +59,6 @@ class ExceptionObjectSetter {
   scoped_refptr<script::ScriptException> exception_object_;
 };
 
-std::string GetExceptionMessageString(script::MessageType message_type,
-                                      int dummy, ...) {
-  va_list arguments;
-  va_start(arguments, dummy);
-  std::string error_string = base::StringPrintV(
-      GetExceptionMessageFormat(message_type), arguments);
-  va_end(arguments);
-  return error_string;
-}
-
 }  // namespace
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromConstructor) {
@@ -145,16 +135,6 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
   EXPECT_CALL(*exception_object, message()).WillOnce(Return("the message"));
   EXPECT_TRUE(EvaluateScript("error.message;", &result));
   EXPECT_STREQ("the message", result.c_str());
-}
-
-TEST_F(ExceptionsBindingsTest, GetExceptionMessageStringTest) {
-  std::string error_message =
-      GetExceptionMessageString(script::kWrongByteLengthMultiple, 0, 8);
-  EXPECT_STREQ("Byte length should be a multiple of 8.", error_message.c_str());
-  error_message =
-      GetExceptionMessageString(script::kWrongByteOffsetMultiple, 0, 16);
-  EXPECT_STREQ("Byte offset should be a multiple of 16.",
-               error_message.c_str());
 }
 
 }  // namespace testing
