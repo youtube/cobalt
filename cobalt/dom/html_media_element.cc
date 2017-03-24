@@ -629,9 +629,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
     // Set a new reduced cache capacity.
     reduced_image_cache_capacity_request_.emplace(
         html_element_context()->reduced_image_cache_capacity_manager());
-    // Empty all non-referenced images from the image cache to make room for
-    // the video decoder.
-    html_element_context()->image_cache()->Purge();
+
     // Ensure that all resource destructions are flushed and the memory is
     // reclaimed.
     if (*html_element_context()->resource_provider()) {
