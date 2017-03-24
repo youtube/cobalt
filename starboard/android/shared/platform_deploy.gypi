@@ -31,6 +31,7 @@
             '../apk/app/src/main/java/foo/cobalt/media/VideoSurfaceView.java',
             '../apk/app/src/main/java/foo/cobalt/PlatformError.java',
             '../apk/app/src/main/java/foo/cobalt/UsedByNative.java',
+            '../apk/app/src/main/java/foo/cobalt/UserAuthorizer.java',
           ],
           'manifest': '../apk/app/src/main/AndroidManifest.xml',
           'keystore_path': 'debug.keystore',
