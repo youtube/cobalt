@@ -23,6 +23,7 @@
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/test/empty_document.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -395,6 +396,16 @@ TEST_F(MutationObserverTest, InvalidOptions) {
   options.set_character_data_old_value(true);
   EXPECT_FALSE(observer_list.AddMutationObserver(observer, options));
   EXPECT_EQ(0, observer_list.registered_observers().size());
+}
+
+TEST_F(MutationObserverTest, InvalidOptionsRaisesException) {
+  scoped_refptr<dom::Element> target = CreateDiv();
+  scoped_refptr<MutationObserver> observer = CreateObserver();
+  MutationObserverInit invalid_options;
+
+  script::testing::MockExceptionState exception_state;
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(script::kTypeError, _, _));
+  observer->Observe(target, invalid_options, &exception_state);
 }
 
 TEST_F(MutationObserverTest, AddChildNodes) {
