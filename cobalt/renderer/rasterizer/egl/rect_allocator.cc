@@ -22,8 +22,15 @@ namespace rasterizer {
 namespace egl {
 
 namespace {
-bool FirstRectIsSmaller(const math::Rect& a, const math::Rect& b) {
-  return a.width() < b.width() || a.height() < b.height();
+// Sort by descending area then width and height. This will place smaller
+// blocks at the end of the free list. Allocations will use the block with
+// the smallest area of sufficient dimensions in order to minimize waste.
+  bool FirstRectIsBigger(const math::Rect& a, const math::Rect& b) {
+  const float area_a = a.width() * a.height();
+  const float area_b = b.width() * b.height();
+  return (area_a > area_b) ||
+         (area_a == area_b && (a.width() > b.width() ||
+                               a.height() > b.height()));
 }
 }  // namespace
 
@@ -45,58 +52,82 @@ void RectAllocator::Reset(const math::Size& total_size) {
 
 math::Rect RectAllocator::Allocate(const math::Size& alloc_size) {
   math::Rect allocation(0, 0, alloc_size.width(), alloc_size.height());
-  MemoryList::iterator pos = std::lower_bound(unused_.begin(), unused_.end(),
-                                              allocation, FirstRectIsSmaller);
-  if (pos != unused_.end()) {
-    // Found an unused block big enough for the allocation.
-    math::Rect memory = *pos;
-    unused_.erase(pos);
 
-    // Use top-left of memory block for the allocation, and return the bottom
-    // and right portions as unused blocks.
-    // +-------+-------+
-    // | Alloc | Right |
-    // +-------+-------+
-    // |    Bottom     |
-    // +---------------+
-    allocation.set_x(memory.x());
-    allocation.set_y(memory.y());
+  // Find the first block that is too small for the requested allocation.
+  MemoryList::iterator pos = std::upper_bound(
+      unused_.begin(), unused_.end(), allocation, FirstRectIsBigger);
 
-    if (memory.width() != allocation.width()) {
-      if (memory.height() != allocation.height()) {
-        // Return bottom and right of memory block as unused.
-        math::Rect right(memory.x() + allocation.width(), memory.y(),
-                         memory.width() - allocation.width(),
-                         allocation.height());
-        AddUnused(right);
+  // All blocks before "pos" will have sufficient area, but a sequential search
+  // must be used to find a block of sufficient width and height.
+  while (pos != unused_.begin()) {
+    --pos;
+    if (pos->width() >= allocation.width() &&
+        pos->height() >= allocation.height()) {
+      // Found an unused block big enough for the allocation.
+      math::Rect memory = *pos;
+      unused_.erase(pos);
+
+      // Use top-left of memory block for the allocation, and return the
+      // bottom and right portions as unused blocks. The split can be done
+      // in one of two ways:
+      // +-------+-------+      +-------+-------+
+      // | Alloc | Right |      | Alloc |       |
+      // +-------+-------+  or  +-------+ Right +
+      // |    Bottom     |      |Bottom |       |
+      // +---------------+      +-------+-------+
+      allocation.set_x(memory.x());
+      allocation.set_y(memory.y());
+
+      if (memory.width() != allocation.width()) {
+        if (memory.height() != allocation.height()) {
+          // Return bottom and right of memory block as unused.
+          // Preserve the largest block.
+          const float remaining_width = memory.width() - allocation.width();
+          const float remaining_height = memory.height() - allocation.height();
+          if (memory.width() * remaining_height >=
+              remaining_width * memory.height()) {
+            // Bottom portion is bigger.
+            math::Rect right(memory.x() + allocation.width(), memory.y(),
+                             remaining_width, allocation.height());
+            memory.set_y(memory.y() + allocation.height());
+            memory.set_height(remaining_height);
+            AddUnused(memory);
+            AddUnused(right);
+          } else {
+            // Right portion is bigger.
+            math::Rect bottom(memory.x(), memory.y() + allocation.height(),
+                              allocation.width(), remaining_height);
+            memory.set_x(memory.x() + allocation.width());
+            memory.set_width(remaining_width);
+            AddUnused(memory);
+            AddUnused(bottom);
+          }
+        } else {
+          // Return right of memory block as unused.
+          memory.set_x(memory.x() + allocation.width());
+          memory.set_width(memory.width() - allocation.width());
+          AddUnused(memory);
+        }
+      } else if (memory.height() != allocation.height()) {
+        // Return bottom of memory block as unused.
         memory.set_y(memory.y() + allocation.height());
         memory.set_height(memory.height() - allocation.height());
         AddUnused(memory);
-      } else {
-        // Return right of memory block as unused.
-        memory.set_x(memory.x() + allocation.width());
-        memory.set_width(memory.width() - allocation.width());
-        AddUnused(memory);
       }
-    } else if (memory.height() != allocation.height()) {
-      // Return bottom of memory block as unused.
-      memory.set_y(memory.y() + allocation.height());
-      memory.set_height(memory.height() - allocation.height());
-      AddUnused(memory);
-    }
 
-    return allocation;
-  } else {
-    // Not enough unused space for the allocation.
-    return math::Rect(0, 0, 0, 0);
+      return allocation;
+    }
   }
+
+  // Not enough unused space for the allocation.
+  return math::Rect(0, 0, 0, 0);
 }
 
 void RectAllocator::AddUnused(const math::Rect& memory) {
   DCHECK_LE(memory.right(), total_size_.width());
   DCHECK_LE(memory.bottom(), total_size_.height());
-  MemoryList::iterator pos = std::lower_bound(unused_.begin(), unused_.end(),
-                                              memory, FirstRectIsSmaller);
+  MemoryList::iterator pos = std::lower_bound(
+      unused_.begin(), unused_.end(), memory, FirstRectIsBigger);
   unused_.insert(pos, memory);
 }
 
