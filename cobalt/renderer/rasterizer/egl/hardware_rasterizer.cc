@@ -101,8 +101,7 @@ class HardwareRasterizer::Impl {
     return fallback_rasterizer_->GetGrContext();
   }
 
-  void RasterizeTree(const scoped_refptr<render_tree::Node>& render_tree,
-                     const Options& options);
+  void RasterizeTree(const scoped_refptr<render_tree::Node>& render_tree);
 
   void AllocateOffscreenTarget(const math::SizeF& size,
       OffscreenAtlas** out_atlas, math::RectF* out_target_rect);
@@ -180,7 +179,15 @@ void HardwareRasterizer::Impl::Submit(
   const math::Size& target_size = render_target->GetSize();
   graphics_state_->SetClipAdjustment(target_size);
   graphics_state_->Viewport(0, 0, target_size.width(), target_size.height());
-  graphics_state_->Scissor(0, 0, target_size.width(), target_size.height());
+
+  // Update only the dirty pixels if the render target contents are preserved
+  // between frames.
+  if (options.dirty && render_target_egl->ContentWasPreservedAfterSwap()) {
+    graphics_state_->Scissor(options.dirty->x(), options.dirty->y(),
+        options.dirty->width(), options.dirty->height());
+  } else {
+    graphics_state_->Scissor(0, 0, target_size.width(), target_size.height());
+  }
 
   // Set initial characteristics for offscreen target handling.
   if (offscreen_atlas_size_.IsEmpty()) {
@@ -208,7 +215,7 @@ void HardwareRasterizer::Impl::Submit(
         SK_ColorTRANSPARENT);
   }
 
-  RasterizeTree(render_tree, options);
+  RasterizeTree(render_tree);
 
   frame_rate_throttler_.EndInterval();
   graphics_context_->SwapBuffers(render_target_egl);
@@ -250,8 +257,7 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
 }
 
 void HardwareRasterizer::Impl::RasterizeTree(
-    const scoped_refptr<render_tree::Node>& render_tree,
-    const Options& options) {
+    const scoped_refptr<render_tree::Node>& render_tree) {
   DrawObjectManager draw_object_manager;
   RenderTreeNodeVisitor::FallbackRasterizeFunction fallback_rasterize =
       base::Bind(&HardwareRasterizer::Impl::SubmitToFallbackRasterizer,

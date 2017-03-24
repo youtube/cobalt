@@ -146,7 +146,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     return;
   }
 
-  NOTIMPLEMENTED();
+  // Use the fallback rasterizer to handle everything else.
+  FallbackRasterize(filter_node, DrawObjectManager::kOffscreenSkiaFilter);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
@@ -207,7 +208,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
-    NOTIMPLEMENTED();
+    FallbackRasterize(image_node,
+                      DrawObjectManager::kOffscreenSkiaMultiPlaneImage);
   } else {
     NOTREACHED();
   }
@@ -219,7 +221,18 @@ void RenderTreeNodeVisitor::Visit(
     return;
   }
 
-  NOTIMPLEMENTED();
+  const render_tree::PunchThroughVideoNode::Builder& data = video_node->data();
+  math::RectF mapped_rect = draw_state_.transform.MapRect(data.rect);
+  data.set_bounds_cb.Run(
+      math::Rect(static_cast<int>(mapped_rect.x()),
+                 static_cast<int>(mapped_rect.y()),
+                 static_cast<int>(mapped_rect.width()),
+                 static_cast<int>(mapped_rect.height())));
+
+  scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+      draw_state_, data.rect, render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)));
+  AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
+      DrawObjectManager::kOffscreenNone);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
@@ -228,21 +241,30 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   const render_tree::RectNode::Builder& data = rect_node->data();
-
   const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
-  math::RectF content_rect(data.rect);
-  if (data.border) {
-    content_rect.Inset(data.border->left.width,
-                       data.border->top.width,
-                       data.border->right.width,
-                       data.border->bottom.width);
-  }
 
-  if (data.rounded_corners ||
-      (brush && brush->GetTypeId() !=
-          base::GetTypeId<render_tree::SolidColorBrush>())) {
-    NOTIMPLEMENTED();
+  // Only solid color brushes are supported at this time.
+  const bool brush_supported = !brush || brush->GetTypeId() ==
+      base::GetTypeId<render_tree::SolidColorBrush>();
+
+  // Borders are not supported natively by this rasterizer at this time. The
+  // difficulty lies in getting anti-aliased borders and minimizing state
+  // switches (due to anti-aliased borders requiring transparency). However,
+  // by using the fallback rasterizer, both can be accomplished -- sort to
+  // minimize state switches while rendering anti-aliased borders to the
+  // offscreen target, then use a single shader to render those.
+  const bool border_supported = !data.border;
+
+  if (data.rounded_corners) {
+    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectRounded);
+  } else if (!brush_supported) {
+    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectBrush);
+  } else if (!border_supported) {
+    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectBorder);
   } else {
+    DCHECK(!data.border);
+    const math::RectF& content_rect(data.rect);
+
     // Handle drawing the content.
     if (brush) {
       const render_tree::SolidColorBrush* solid_brush =
@@ -272,7 +294,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
     return;
   }
 
-  NOTIMPLEMENTED();
+  FallbackRasterize(shadow_node, DrawObjectManager::kOffscreenSkiaShadow);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {

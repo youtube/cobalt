@@ -29,6 +29,7 @@ class RenderTargetEGL : public RenderTarget {
       : swap_count_(0)
       , has_been_made_current_(false)
       , content_preserved_on_swap_(false)
+      , content_cleared_on_swap_(false)
       , is_surface_bad_(false)
   {}
 
@@ -43,9 +44,11 @@ class RenderTargetEGL : public RenderTarget {
 
   virtual bool IsWindowRenderTarget() const { return false; }
 
-  // Returns whether the render target contents are preserved after the
-  // target has been displayed via eglSwapBuffers().
-  bool IsContentPreservedOnSwap() const { return content_preserved_on_swap_; }
+  // Returns whether the render target contents were preserved after the
+  // target was displayed via eglSwapBuffers().
+  bool ContentWasPreservedAfterSwap() const {
+    return content_preserved_on_swap_ && !content_cleared_on_swap_;
+  }
 
   int64 swap_count() { return swap_count_; }
   void increment_swap_count() { ++swap_count_; }
@@ -56,12 +59,15 @@ class RenderTargetEGL : public RenderTarget {
   bool is_surface_bad() const { return is_surface_bad_; }
   void set_surface_bad() { is_surface_bad_ = true; }
 
+  void set_cleared_on_swap(bool cleared) { content_cleared_on_swap_ = cleared; }
+
  protected:
   virtual ~RenderTargetEGL() {}
 
   int64 swap_count_;
   bool has_been_made_current_;
   bool content_preserved_on_swap_;
+  bool content_cleared_on_swap_;
   bool is_surface_bad_;
 };
 
