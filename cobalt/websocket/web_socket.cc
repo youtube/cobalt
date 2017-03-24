@@ -23,6 +23,7 @@
 #include "base/string_piece.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/script/global_environment.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_constants.h"
@@ -404,6 +405,7 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
   binary_type_ = dom::MessageEvent::kBlob;
   is_secure_ = false;
   port_ = -1;
+  preventing_gc_ = false;
   SetReadyState(kConnecting);
 
   settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
@@ -560,6 +562,84 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const bool require_network_module)
     : require_network_module_(require_network_module) {
   Initialize(settings, url, sub_protocols, exception_state);
+}
+
+void WebSocket::PotentiallyAllowGarbageCollection() {
+  bool prevent_gc = false;
+  switch (ready_state()) {
+    case kOpen:
+      //  Per spec, "A WebSocket object whose readyState attribute's value was
+      //  set to OPEN (1) as of the last time the event loop started executing a
+      //  task must not be garbage collected if there are any event listeners
+      //  registered for message events, error, or close events..
+      //  A WebSocket object with an established connection that has data queued
+      //  to be transmitted to the network must not be garbage collected."
+      prevent_gc = HasOnMessageListener() || HasOnErrorListener() ||
+                   HasOnCloseListener() || HasOutstandingData();
+      break;
+    case kConnecting:
+      //  Per spec, "WebSocket object whose readyState attribute's value was set
+      //  to CONNECTING (0) as of the last time the event loop started executing
+      //  a task must not be garbage collected if there are any event listeners
+      //  registered for open events, message events, error events, or close
+      //  events."
+      prevent_gc = HasOnOpenListener() || HasOnMessageListener() ||
+                   HasOnErrorListener() || HasOnCloseListener() ||
+                   HasOutstandingData();
+      break;
+    case kClosing:
+      //  Per spec, "A WebSocket object whose readyState attribute's value was
+      //  set to CLOSING (2) as of the last time the event loop started
+      //  executing a task must not be garbage collected if there are any event
+      //  listeners registered for error or close events."
+      prevent_gc =
+          HasOnErrorListener() || HasOnCloseListener() || HasOutstandingData();
+      break;
+    case kClosed:
+      prevent_gc = false;
+      break;
+    default:
+      NOTREACHED() << "Invalid ready_state: " << ready_state();
+  }
+
+  if (prevent_gc != preventing_gc_) {
+    if (prevent_gc) {
+      PreventGarbageCollection();
+    } else {
+      AllowGarbageCollection();
+    }
+
+    // The above function calls should change |preventing_gc_|.
+    DCHECK_EQ(prevent_gc, preventing_gc_);
+  }
+}
+
+void WebSocket::PreventGarbageCollection() {
+  settings_->global_environment()->PreventGarbageCollection(
+      make_scoped_refptr(this));
+  DCHECK(!preventing_gc_);
+  preventing_gc_ = true;
+}
+
+void WebSocket::AllowGarbageCollection() {
+  DCHECK(preventing_gc_);
+
+  // Note: the fall through in this switch statement is on purpose.
+  switch (ready_state_) {
+    case kConnecting:
+      DCHECK(!HasOnOpenListener());
+    case kOpen:
+      DCHECK(!HasOnMessageListener());
+    case kClosing:
+      DCHECK(!HasOnErrorListener());
+      DCHECK(!HasOnCloseListener());
+    default:
+      break;
+  }
+
+  preventing_gc_ = false;
+  settings_->global_environment()->AllowGarbageCollection(
+      make_scoped_refptr(this));
 }
 
 }  // namespace websocket
