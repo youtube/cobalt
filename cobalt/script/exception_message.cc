@@ -17,6 +17,16 @@
 namespace cobalt {
 namespace script {
 
+// Exception message contains an exception information. It includes a
+// |message_type| which is the index of each exception message, a
+// |exception_type| which is based on the spec. of simple exception, and a
+//  message |format|.
+struct ExceptionMessage {
+  MessageType message_type;
+  SimpleExceptionType exception_type;
+  const char* message;
+};
+
 ExceptionMessage kMessages[kNumMessageTypes] = {
     {kSimpleError, kError, " "},
     {kSimpleTypeError, kTypeError, " "},
@@ -44,17 +54,12 @@ ExceptionMessage kMessages[kNumMessageTypes] = {
     {kOutsideBounds, kRangeError, "Offset is outside the object's bounds."},
     {kInvalidLength, kRangeError, "Invalid length."},
     {kNotAnArrayBuffer, kTypeError, "Value is not an ArrayBuffer."},
-    {kWrongByteOffsetMultiple, kRangeError,
-     "Byte offset should be a multiple of %d."},
-    {kWrongByteLengthMultiple, kRangeError,
-     "Byte length should be a multiple of %d."},
-    {kPropertySyntaxError, kSyntaxError, "%s."},
 };
 
-const char* GetExceptionMessageFormat(MessageType message_type) {
+const char* GetExceptionMessage(MessageType message_type) {
   DCHECK_GT(message_type, kNoError);
   DCHECK_LT(message_type, kNumMessageTypes);
-  return kMessages[message_type].format;
+  return kMessages[message_type].message;
 }
 
 SimpleExceptionType GetSimpleExceptionType(MessageType message_type) {

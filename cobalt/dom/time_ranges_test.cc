@@ -17,33 +17,12 @@
 #include <limits>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/testing/fake_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
 namespace {
-
-class FakeExceptionState : public script::ExceptionState {
- public:
-  void SetException(
-      const scoped_refptr<script::ScriptException>& exception) OVERRIDE {
-    dom_exception_ = make_scoped_refptr(
-        base::polymorphic_downcast<DOMException*>(exception.get()));
-  }
-  void SetSimpleExceptionWithArgs(script::MessageType /*message_type*/,
-                                  int /*dummy*/, ...) OVERRIDE {
-    // no-op
-  }
-  dom::DOMException::ExceptionCode GetExceptionCode() {
-    return dom_exception_ ? static_cast<dom::DOMException::ExceptionCode>(
-                                dom_exception_->code())
-                          : dom::DOMException::kNone;
-  }
-
- private:
-  scoped_refptr<dom::DOMException> dom_exception_;
-};
 
 void CheckEqual(const scoped_refptr<TimeRanges>& time_ranges1,
                 const scoped_refptr<TimeRanges>& time_ranges2) {
@@ -55,6 +34,8 @@ void CheckEqual(const scoped_refptr<TimeRanges>& time_ranges1,
 }
 
 }  // namespace
+
+using testing::FakeExceptionState;
 
 TEST(TimeRangesTest, Constructors) {
   scoped_refptr<TimeRanges> time_ranges = new TimeRanges;

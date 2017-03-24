@@ -17,7 +17,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/property_definitions.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/testing/fake_exception_state.h"
 #include "cobalt/script/exception_state.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,29 +27,7 @@ namespace cssom {
 
 using ::testing::_;
 using ::testing::Return;
-
-namespace {
-class FakeExceptionState : public script::ExceptionState {
- public:
-  void SetException(
-      const scoped_refptr<script::ScriptException>& exception) OVERRIDE {
-    dom_exception_ = make_scoped_refptr(
-        base::polymorphic_downcast<dom::DOMException*>(exception.get()));
-  }
-  void SetSimpleExceptionWithArgs(script::MessageType /*message_type*/,
-                                  int /*dummy*/, ...) OVERRIDE {
-    // no-op
-  }
-  dom::DOMException::ExceptionCode GetExceptionCode() {
-    return dom_exception_ ? static_cast<dom::DOMException::ExceptionCode>(
-                                dom_exception_->code())
-                          : dom::DOMException::kNone;
-  }
-
- private:
-  scoped_refptr<dom::DOMException> dom_exception_;
-};
-}  // namespace
+using dom::testing::FakeExceptionState;
 
 TEST(CSSComputedStyleDeclarationTest, CSSTextSetterRaisesException) {
   scoped_refptr<CSSComputedStyleDeclaration> style =
