@@ -66,7 +66,6 @@ class ImageDecoder : public Decoder {
     kDecoding,
     kNotApplicable,
     kUnsupportedImageFormat,
-    kNoResourceProvider,
     kSuspended,
   };
 
@@ -90,6 +89,7 @@ class ImageDecoder : public Decoder {
   State state_;
   std::string error_message_;
   std::string mime_type_;
+
   // Whether or not there is a pending task deleting this decoder on a message
   // loop.
   base::subtle::Atomic32 is_deletion_pending_;

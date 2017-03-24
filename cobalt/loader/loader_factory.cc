@@ -34,7 +34,8 @@ LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
                              base::ThreadPriority loader_thread_priority)
     : fetcher_factory_(fetcher_factory),
       resource_provider_(resource_provider),
-      load_thread_("ResourceLoader") {
+      load_thread_("ResourceLoader"),
+      is_suspended_(false) {
   base::Thread::Options options(MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize,
                                 loader_thread_priority);
   load_thread_.StartWithOptions(options);
@@ -52,7 +53,8 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
           resource_provider_, success_callback, error_callback,
           load_thread_.message_loop())),
       error_callback,
-      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
+      is_suspended_));
   OnLoaderCreated(loader.get());
   return loader.Pass();
 }
@@ -68,7 +70,8 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
       scoped_ptr<Decoder>(new font::TypefaceDecoder(
           resource_provider_, success_callback, error_callback)),
       error_callback,
-      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
+      is_suspended_));
   OnLoaderCreated(loader.get());
   return loader.Pass();
 }
@@ -85,7 +88,8 @@ scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
       scoped_ptr<Decoder>(new mesh::MeshDecoder(
           resource_provider_, success_callback, error_callback)),
       error_callback,
-      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this))));
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
+      is_suspended_));
   OnLoaderCreated(loader.get());
   return loader.Pass();
 }
@@ -102,8 +106,11 @@ Loader::FetcherCreator LoaderFactory::MakeFetcherCreator(
 void LoaderFactory::Suspend() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(resource_provider_);
+  DCHECK(!is_suspended_);
 
+  is_suspended_ = true;
   resource_provider_ = NULL;
+
   for (LoaderSet::const_iterator iter = active_loaders_.begin();
        iter != active_loaders_.end(); ++iter) {
     (*iter)->Suspend();
@@ -121,8 +128,11 @@ void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(resource_provider);
   DCHECK(!resource_provider_);
+  DCHECK(is_suspended_);
 
+  is_suspended_ = false;
   resource_provider_ = resource_provider;
+
   for (LoaderSet::const_iterator iter = active_loaders_.begin();
        iter != active_loaders_.end(); ++iter) {
     (*iter)->Resume(resource_provider);
