@@ -24,6 +24,7 @@ namespace speech {
 
 SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator)
     : paused_(false), navigator_(navigator) {
+#if SB_HAS(SPEECH_SYNTHESIS)
   const char* kVoiceName = "Cobalt";
   std::string voice_urn(kVoiceName);
   std::string voice_lang(navigator_->language());
@@ -31,6 +32,7 @@ SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator)
   voice_urn.append(voice_lang);
   voices_.push_back(
       new SpeechSynthesisVoice(voice_urn, kVoiceName, voice_lang, false, true));
+#endif
 }
 
 SpeechSynthesis::~SpeechSynthesis() {}
