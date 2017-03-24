@@ -119,7 +119,7 @@ class ThreadHoldsWriteLockForTime : public AbstractTestThread {
 };
 TEST(RWLock, HoldsLockForTime) {
   const SbTime kTimeToHold = kSbTimeMillisecond * 5;
-  const SbTime kAllowedError = kSbTimeMillisecond * 2;
+  const SbTime kAllowedError = kSbTimeMillisecond * 10;
 
   ThreadHoldsWriteLockForTime::SharedData shared_data(kTimeToHold);
   ThreadHoldsWriteLockForTime thread(&shared_data);
