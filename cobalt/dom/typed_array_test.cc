@@ -335,43 +335,34 @@ TYPED_TEST(TypedArrayTest, ExceptionInConstructor) {
   }
 
   StrictMock<MockExceptionState> exception_state;
-  script::MessageType message_type;
-
-  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
-      .WillOnce(SaveArg<0>(&message_type));
 
   // Create an ArrayBuffer whose size isn't a multiple of
   // TypeParam::kBytesPerElement.
   scoped_refptr<ArrayBuffer> array_buffer =
       new ArrayBuffer(NULL, TypeParam::kBytesPerElement + 1);
+
   // The size of the array_buffer isn't a multiple of
   // TypeParam::kBytesPerElement.
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(script::kRangeError, _, _));
   scoped_refptr<TypeParam> array =
       new TypeParam(NULL, array_buffer, &exception_state);
-  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 
-  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
-      .WillOnce(SaveArg<0>(&message_type));
   // Neither the size of the array_buffer nor the byte_offset is a multiple of
   // TypeParam::kBytesPerElement, but SetSimpleException() should only be called
   // once.
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(script::kRangeError, _, _));
   array = new TypeParam(NULL, array_buffer, 1, &exception_state);
-  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 
-  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
-      .WillOnce(SaveArg<0>(&message_type));
   // Now the size of the array_buffer is a multiple of
   // TypeParam::kBytesPerElement but the byte_offset isn't.
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(script::kRangeError, _, _));
   array_buffer = new ArrayBuffer(NULL, TypeParam::kBytesPerElement);
   array = new TypeParam(NULL, array_buffer, 1, &exception_state);
-  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 
-  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
-      .WillOnce(SaveArg<0>(&message_type));
   // Both the size of the array_buffer and the byte_offset are multiples of
   // TypeParam::kBytesPerElement but array_buffer cannot hold 2 elements.
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(script::kRangeError, _, _));
   array = new TypeParam(NULL, array_buffer, 0, 2, &exception_state);
-  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 
   // The size of the array_buffer isn't a multiple of
   // TypeParam::kBytesPerElement but the byte_offset is.  Also the whole typed
@@ -389,25 +380,19 @@ TYPED_TEST(TypedArrayTest, ExceptionInSet) {
   }
 
   StrictMock<MockExceptionState> exception_state;
-  script::MessageType message_type;
-
-  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
-      .WillOnce(SaveArg<0>(&message_type));
 
   static const uint32 kLength = 5;
   scoped_refptr<TypeParam> source =
       new TypeParam(NULL, kLength + 1, &exception_state);
   scoped_refptr<TypeParam> dest =
       new TypeParam(NULL, kLength, &exception_state);
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(script::kRangeError, _, _));
   dest->Set(source, &exception_state);
-  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 
-  EXPECT_CALL(exception_state, SetSimpleExceptionVA(_, _))
-      .WillOnce(SaveArg<0>(&message_type));
   source = new TypeParam(NULL, kLength, &exception_state);
   dest = new TypeParam(NULL, kLength + 1, &exception_state);
+  EXPECT_CALL(exception_state, SetSimpleExceptionVA(script::kRangeError, _, _));
   dest->Set(source, 2, &exception_state);
-  EXPECT_EQ(script::kRangeError, GetSimpleExceptionType(message_type));
 
   dest->Set(source, 1, &exception_state);
 }
