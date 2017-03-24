@@ -90,6 +90,10 @@ class LoaderFactory {
   // Thread to run asynchronous fetchers and decoders on.  At the moment,
   // image decoding is the only thing done on this thread.
   base::Thread load_thread_;
+
+  // Whether or not the LoaderFactory is currently suspended. While it is, all
+  // loaders created by it begin in a suspended state.
+  bool is_suspended_;
 };
 
 }  // namespace loader
