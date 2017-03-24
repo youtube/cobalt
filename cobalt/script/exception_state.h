@@ -14,6 +14,8 @@
 #ifndef COBALT_SCRIPT_EXCEPTION_STATE_H_
 #define COBALT_SCRIPT_EXCEPTION_STATE_H_
 
+#include <stdarg.h>
+
 #include <string>
 
 #include "cobalt/script/exception_message.h"
@@ -28,16 +30,24 @@ class ExceptionState {
   virtual void SetException(
       const scoped_refptr<ScriptException>& exception) = 0;
 
-  // The 'dummy' parameter avoids MessageType being the last (only) parameter
-  // before varadic arguments to avoid promoting the enum to an int, which is an
-  // error in newer clang because passing an object that undergoes default
-  // argument promotion to 'va_start' has undefined behavior.
-  virtual void SetSimpleExceptionWithArgs(MessageType message_type,
-                                          int dummy, ...) = 0;
-
+  // Use MessageType for commonly used exceptions.
   void SetSimpleException(MessageType message_type) {
-    SetSimpleExceptionWithArgs(message_type, 0);
+    const char* message = GetExceptionMessage(message_type);
+    SimpleExceptionType type = GetSimpleExceptionType(message_type);
+    SetSimpleException(type, message);
   }
+
+  // Set a simple exception with the specified error message.
+  void SetSimpleException(SimpleExceptionType type, const char* format, ...) {
+    va_list arguments;
+    va_start(arguments, format);
+    SetSimpleExceptionVA(type, format, arguments);
+    va_end(arguments);
+  }
+
+ protected:
+  virtual void SetSimpleExceptionVA(SimpleExceptionType, const char* format,
+                                    va_list args) = 0;
 };
 
 }  // namespace script

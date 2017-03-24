@@ -136,8 +136,8 @@ base::optional<std::string> DOMStringMap::AnonymousNamedGetter(
   if (attribute_name) {
     return element_->GetAttribute(*attribute_name);
   } else {
-    exception_state->SetSimpleExceptionWithArgs(script::kPropertySyntaxError, 0,
-                                                property_name.c_str());
+    exception_state->SetSimpleException(script::kSyntaxError,
+                                        property_name.c_str());
     return base::nullopt;
   }
 }
@@ -150,8 +150,8 @@ void DOMStringMap::AnonymousNamedSetter(
   if (attribute_name) {
     element_->SetAttribute(*attribute_name, value);
   } else {
-    exception_state->SetSimpleExceptionWithArgs(script::kPropertySyntaxError, 0,
-                                                property_name.c_str());
+    exception_state->SetSimpleException(script::kSyntaxError,
+                                        property_name.c_str());
   }
 }
 
