@@ -163,12 +163,12 @@ TEST_F(DOMStringMapTest, ContainsMultipleHyphens) {
 
 TEST_F(DOMStringMapTest, InvalidPropertyName) {
   EXPECT_CALL(exception_state_,
-              SetSimpleExceptionVA(script::kPropertySyntaxError, _));
+              SetSimpleExceptionVA(script::kSyntaxError, _, _));
   dom_string_map_->AnonymousNamedSetter("hyphen-lowercase", "Los Angeles",
                                         &exception_state_);
 
   EXPECT_CALL(exception_state_,
-              SetSimpleExceptionVA(script::kPropertySyntaxError, _));
+              SetSimpleExceptionVA(script::kSyntaxError, _, _));
   dom_string_map_->AnonymousNamedGetter("hyphen-lowercase", &exception_state_);
 }
 

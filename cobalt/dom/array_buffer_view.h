@@ -42,6 +42,9 @@ class ArrayBufferView : public script::Wrappable {
                   uint32 byte_length);
   ~ArrayBufferView();
 
+  static const char* kWrongByteOffsetMultipleErrorFormat;
+  static const char* kWrongByteLengthMultipleErrorFormat;
+
  private:
   scoped_refptr<ArrayBuffer> buffer_;
   uint32 byte_offset_;

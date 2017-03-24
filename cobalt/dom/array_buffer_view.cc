@@ -17,6 +17,11 @@
 namespace cobalt {
 namespace dom {
 
+const char* ArrayBufferView::kWrongByteOffsetMultipleErrorFormat =
+    "Byte offset should be a multiple of %d.";
+const char* ArrayBufferView::kWrongByteLengthMultipleErrorFormat =
+    "Byte length should be a multiple of %d.";
+
 ArrayBufferView::ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer)
     : buffer_(buffer), byte_offset_(0), byte_length_(buffer->byte_length()) {}
 
