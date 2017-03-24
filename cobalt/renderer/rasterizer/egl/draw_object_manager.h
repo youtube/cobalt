@@ -41,8 +41,17 @@ class DrawObjectManager {
     kOnscreenCount,
   };
 
+  // Order offscreen rendering by descending expected pixel area. This helps
+  // make better use of the offscreen texture atlas as smaller requests can
+  // fill in gaps created by the larger requests.
   enum OffscreenType {
-    kOffscreenSkiaText = 0,
+    kOffscreenSkiaFilter = 0,
+    kOffscreenSkiaShadow,
+    kOffscreenSkiaMultiPlaneImage,
+    kOffscreenSkiaRectRounded,
+    kOffscreenSkiaRectBrush,
+    kOffscreenSkiaRectBorder,
+    kOffscreenSkiaText,
     kOffscreenCount,
     kOffscreenNone,     // ExecuteOffscreenRasterize will not be run for these.
   };
