@@ -94,6 +94,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onclose(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::close(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   const EventListenerScriptValue* onerror() const {
@@ -102,6 +103,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onerror(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::error(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   const EventListenerScriptValue* onmessage() const {
@@ -110,6 +112,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onmessage(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::message(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   const EventListenerScriptValue* onopen() const {
@@ -118,6 +121,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onopen(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::open(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   std::string GetHost() const { return resolved_url_.host(); }
@@ -153,6 +157,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   void OnSentData(int amount_sent) OVERRIDE {
     DCHECK_GE(buffered_amount_, amount_sent);
     buffered_amount_ -= amount_sent;
+    PotentiallyAllowGarbageCollection();
   }
   void OnReceivedData(bool is_text_frame,
                       scoped_refptr<net::IOBufferWithSize> data) OVERRIDE;
@@ -169,10 +174,26 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   void SetReadyState(const uint16 ready_state) {
     DCHECK(thread_checker_.CalledOnValidThread());
     ready_state_ = ready_state;
+    PotentiallyAllowGarbageCollection();
   }
+
+  // TODO: Investigate if these are worth optimizing.
+  bool HasOnOpenListener() const { return (onopen() != NULL); }
+  bool HasOnMessageListener() const { return (onmessage() != NULL); }
+  bool HasOnErrorListener() const { return (onerror() != NULL); }
+  bool HasOnCloseListener() const { return (onclose() != NULL); }
+  bool HasOutstandingData() const { return (buffered_amount_ > 0); }
+
+  void PotentiallyAllowGarbageCollection();
 
   // Returns false if the check fails.
   bool CheckReadyState(script::ExceptionState* exception_state);
+
+  // Per https://www.w3.org/TR/websockets/#garbage-collection, prevent garbage
+  // collection of this object while connection is live and event listeners are
+  // registered.
+  void AllowGarbageCollection();
+  void PreventGarbageCollection();
 
   // https://www.w3.org/TR/websockets/#dom-websocket-bufferedamount
   int32 buffered_amount_;
@@ -198,6 +219,8 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   bool require_network_module_;
   dom::DOMSettings* settings_;
   scoped_refptr<WebSocketImpl> impl_;
+
+  bool preventing_gc_;
 
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, BadOrigin);
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, GoodOrigin);
