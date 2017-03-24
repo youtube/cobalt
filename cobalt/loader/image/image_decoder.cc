@@ -19,11 +19,11 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #include "cobalt/loader/image/image_decoder_starboard.h"
-#if defined(__LB_PS3__)
+#if defined(USE_PS3_JPEG_IMAGE_DECODER)
 #include "cobalt/loader/image/jpeg_image_decoder_ps3.h"
-#else  // defined(__LB_PS3__)
+#else  // defined(USE_PS3_JPEG_IMAGE_DECODER)
 #include "cobalt/loader/image/jpeg_image_decoder.h"
-#endif  // defined(__LB_PS3__)
+#endif  // defined(USE_PS3_JPEG_IMAGE_DECODER)
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
@@ -347,13 +347,13 @@ scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     return make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider));
   } else if (image_type == kImageTypeJPEG) {
-#if defined(__LB_PS3__)
+#if defined(USE_PS3_JPEG_IMAGE_DECODER)
     return make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoderPS3(resource_provider));
-#else   // defined(__LB_PS3__)
+#else   // defined(USE_PS3_JPEG_IMAGE_DECODER)
     return make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoder(resource_provider));
-#endif  // defined(__LB_PS3__)
+#endif  // defined(USE_PS3_JPEG_IMAGE_DECODER)
   } else if (image_type == kImageTypePNG) {
     return make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider));
