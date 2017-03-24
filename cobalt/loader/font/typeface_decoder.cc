@@ -26,14 +26,13 @@ TypefaceDecoder::TypefaceDecoder(
       success_callback_(success_callback),
       error_callback_(error_callback),
       is_raw_data_too_large_(false),
-      suspended_(false) {
-  DCHECK(resource_provider_);
+      is_suspended_(!resource_provider_) {
   DCHECK(!success_callback_.is_null());
   DCHECK(!error_callback_.is_null());
 }
 
 void TypefaceDecoder::DecodeChunk(const char* data, size_t size) {
-  if (suspended_) {
+  if (is_suspended_) {
     DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
     return;
   }
@@ -65,19 +64,13 @@ void TypefaceDecoder::DecodeChunk(const char* data, size_t size) {
 }
 
 void TypefaceDecoder::Finish() {
-  if (suspended_) {
+  if (is_suspended_) {
     DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
     return;
   }
 
   if (is_raw_data_too_large_) {
     error_callback_.Run("Raw typeface data size too large");
-    return;
-  }
-
-  if (!resource_provider_) {
-    error_callback_.Run(
-        "No resource provider was passed to the TypefaceDecoder.");
     return;
   }
 
@@ -96,21 +89,24 @@ void TypefaceDecoder::Finish() {
 void TypefaceDecoder::ReleaseRawData() { raw_data_.reset(); }
 
 bool TypefaceDecoder::Suspend() {
-  DCHECK(!suspended_);
-  suspended_ = true;
-  is_raw_data_too_large_ = false;
+  DCHECK(!is_suspended_);
+  DCHECK(resource_provider_);
+
+  is_suspended_ = true;
   resource_provider_ = NULL;
+
+  is_raw_data_too_large_ = false;
   ReleaseRawData();
+
   return true;
 }
 
 void TypefaceDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
-  if (!suspended_) {
-    DCHECK_EQ(resource_provider_, resource_provider);
-    return;
-  }
+  DCHECK(is_suspended_);
+  DCHECK(!resource_provider_);
+  DCHECK(resource_provider);
 
-  suspended_ = false;
+  is_suspended_ = false;
   resource_provider_ = resource_provider;
 }
 
