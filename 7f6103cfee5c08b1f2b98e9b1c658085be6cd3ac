@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "4f4107fd_fc0d5442",
+        "filename": "packaging/README.md",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "a674e0d7_d94c35aa",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "329a2ad8_f96a56a2",
         "filename": "src/build/common.gypi",
         "patchSetId": 2
@@ -30,6 +48,30 @@
       "writtenOn": "2017-03-23T06:02:15Z",
       "side": 1,
       "message": "Is it possible to set these in your gyp_configuration.gypi ?",
+      "range": {
+        "startLine": 1271,
+        "startChar": 0,
+        "endLine": 1273,
+        "endChar": 32
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "9b7ac397_474f1679",
+        "filename": "src/build/common.gypi",
+        "patchSetId": 2
+      },
+      "lineNbr": 1273,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "329a2ad8_f96a56a2",
       "range": {
         "startLine": 1271,
         "startChar": 0,
@@ -59,6 +101,24 @@
     },
     {
       "key": {
+        "uuid": "67c9e2a1_81fa2f78",
+        "filename": "src/build/tizen/system.gyp",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "e288b856_ecfa988c",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "1d75d384_68d7385d",
         "filename": "src/starboard/shared/wayland/dev_input.h",
         "patchSetId": 2
@@ -70,6 +130,30 @@
       "writtenOn": "2017-03-23T06:02:15Z",
       "side": 1,
       "message": "Can we make 2 changes here?\n1. Move inside an anonymous namespace,\n2. Rename to CapitalizedCamelCase\nlike:\n\n    namespace {\n    \n    void KeyboardHandleKeyMap(...);\n    // ...\n    \n    }  // namespace\n\nThis will fit our style guide...",
+      "range": {
+        "startLine": 330,
+        "startChar": 0,
+        "endLine": 330,
+        "endChar": 35
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "ef828889_d8f7b25a",
+        "filename": "src/starboard/shared/wayland/dev_input.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 330,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "1d75d384_68d7385d",
       "range": {
         "startLine": 330,
         "startChar": 0,
@@ -105,6 +189,30 @@
     },
     {
       "key": {
+        "uuid": "2b87be41_58ccd299",
+        "filename": "src/starboard/shared/wayland/window_internal.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 35,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "312c0d89_abc8580e",
+      "range": {
+        "startLine": 35,
+        "startChar": 12,
+        "endLine": 35,
+        "endChar": 36
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "9dac5eff_94d8f027",
         "filename": "src/starboard/tizen/armv7l/configuration_public.h",
         "patchSetId": 2
@@ -116,6 +224,30 @@
       "writtenOn": "2017-03-23T07:05:12Z",
       "side": 1,
       "message": "Is this intended? Is it because the same binary will target dual- and quad-core devices?",
+      "range": {
+        "startLine": 74,
+        "startChar": 26,
+        "endLine": 74,
+        "endChar": 27
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "a1217b19_f00890f4",
+        "filename": "src/starboard/tizen/armv7l/configuration_public.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 74,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "9dac5eff_94d8f027",
       "range": {
         "startLine": 74,
         "startChar": 26,
@@ -198,6 +330,30 @@
     },
     {
       "key": {
+        "uuid": "4ebd5348_e4124f7c",
+        "filename": "src/starboard/tizen/armv7l/gyp_configuration.gypi",
+        "patchSetId": 2
+      },
+      "lineNbr": 29,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "955208da_1efa7179",
+      "range": {
+        "startLine": 28,
+        "startChar": 0,
+        "endLine": 29,
+        "endChar": 26
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "5d811e83_53bf994e",
         "filename": "src/starboard/tizen/armv7l/thread_types_public.h",
         "patchSetId": 2
@@ -209,6 +365,24 @@
       "writtenOn": "2017-03-23T06:02:15Z",
       "side": 1,
       "message": "We weren\u0027t careful about this before, but even these forwarding headers should have #include guards",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "f98c8ce8_9cffb7eb",
+        "filename": "src/starboard/tizen/armv7l/thread_types_public.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "5d811e83_53bf994e",
       "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": false
@@ -232,6 +406,24 @@
     },
     {
       "key": {
+        "uuid": "138fbbab_92278a5a",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_adaptor.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 15,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "57c84a6c_acda2cea",
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "a71b9879_1bec4648",
         "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
         "patchSetId": 2
@@ -243,6 +435,30 @@
       "writtenOn": "2017-03-23T06:02:15Z",
       "side": 1,
       "message": "Prefer SB_DLOG, as SB_LOG gets included in production code, even if it isn\u0027t printed.\n\nSB_DLOG is compiled out in QA and GOLD builds.",
+      "range": {
+        "startLine": 51,
+        "startChar": 2,
+        "endLine": 51,
+        "endChar": 8
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "4493d1dc_ade0a7d1",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "a71b9879_1bec4648",
       "range": {
         "startLine": 51,
         "startChar": 2,
@@ -278,6 +494,30 @@
     },
     {
       "key": {
+        "uuid": "f32ad99d_fcf6fa6f",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 78,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "c7c382ba_4a8903f0",
+      "range": {
+        "startLine": 68,
+        "startChar": 0,
+        "endLine": 78,
+        "endChar": 2
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "78de2ebf_f0c4c15e",
         "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
         "patchSetId": 2
@@ -301,6 +541,30 @@
     },
     {
       "key": {
+        "uuid": "144870a4_ca23bd2a",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 80,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "78de2ebf_f0c4c15e",
+      "range": {
+        "startLine": 80,
+        "startChar": 2,
+        "endLine": 80,
+        "endChar": 17
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "ae017c85_5d6119f5",
         "filename": "src/starboard/tizen/shared/audio/audio_sink_private.h",
         "patchSetId": 2
@@ -312,6 +576,30 @@
       "writtenOn": "2017-03-23T06:02:15Z",
       "side": 1,
       "message": "This should match the path:\n\n    STARBOARD_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_",
+      "range": {
+        "startLine": 16,
+        "startChar": 8,
+        "endLine": 16,
+        "endChar": 74
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "0651a7de_96623cfa",
+        "filename": "src/starboard/tizen/shared/audio/audio_sink_private.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 16,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "ae017c85_5d6119f5",
       "range": {
         "startLine": 16,
         "startChar": 8,
@@ -358,6 +646,30 @@
       "writtenOn": "2017-03-23T08:18:10Z",
       "side": 1,
       "message": "This may be inherited from my example code...",
+      "parentUuid": "11bc2c73_755b1067",
+      "range": {
+        "startLine": 107,
+        "startChar": 40,
+        "endLine": 107,
+        "endChar": 41
+      },
+      "revId": "7f6103cfee5c08b1f2b98e9b1c658085be6cd3ac",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "a369ce12_8a6a1d19",
+        "filename": "src/starboard/tizen/shared/system_get_path.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 107,
+      "author": {
+        "id": 5240
+      },
+      "writtenOn": "2017-03-24T04:07:04Z",
+      "side": 1,
+      "message": "Done",
       "parentUuid": "11bc2c73_755b1067",
       "range": {
         "startLine": 107,
