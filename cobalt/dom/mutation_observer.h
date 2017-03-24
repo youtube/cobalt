@@ -24,6 +24,7 @@
 #include "cobalt/dom/mutation_record.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
@@ -63,7 +64,15 @@ class MutationObserver : public script::Wrappable {
   ~MutationObserver();
 
   void Observe(const scoped_refptr<Node>& target,
+               const MutationObserverInit& options,
+               script::ExceptionState* exception_state) {
+    ObserveInternal(target, options, exception_state);
+  }
+
+  // Call this from native code. Will DCHECK on exception.
+  void Observe(const scoped_refptr<Node>& target,
                const MutationObserverInit& options);
+
   void Disconnect();
   MutationRecordSequence TakeRecords();
 
@@ -86,6 +95,10 @@ class MutationObserver : public script::Wrappable {
 
  private:
   void TrackObservedNode(const scoped_refptr<dom::Node>& node);
+
+  void ObserveInternal(const scoped_refptr<Node>& target,
+                       const MutationObserverInit& options,
+                       script::ExceptionState* exception_state);
 
   scoped_ptr<CallbackInternal> callback_;
   typedef std::vector<base::WeakPtr<dom::Node> > WeakNodeVector;
