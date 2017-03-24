@@ -155,6 +155,8 @@ void StarboardPlayer::PrepareForSeek() {
   ++ticket_;
 #if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, true);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, 0.f);
 #endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   seek_pending_ = true;
 }
@@ -183,6 +185,8 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   seek_pending_ = false;
 #if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, playback_rate_ == 0.0);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, playback_rate_);
 #endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
