@@ -83,14 +83,10 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
-      state_(kWaitingForHeader),
+      state_(resource_provider_ ? kWaitingForHeader : kSuspended),
       is_deletion_pending_(false) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::ImageDecoder()");
   signature_cache_.position = 0;
-
-  if (!resource_provider_) {
-    state_ = kNoResourceProvider;
-  }
 }
 
 LoadResponseType ImageDecoder::OnResponseStarted(
@@ -197,9 +193,6 @@ void ImageDecoder::Finish() {
     case kUnsupportedImageFormat:
       error_callback_.Run("Unsupported image format.");
       break;
-    case kNoResourceProvider:
-      error_callback_.Run("No resource provider was passed to the decoder.");
-      break;
     case kSuspended:
       DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
       break;
@@ -212,6 +205,9 @@ void ImageDecoder::Finish() {
 
 bool ImageDecoder::Suspend() {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::Suspend()");
+  DCHECK_NE(state_, kSuspended);
+  DCHECK(resource_provider_);
+
   if (state_ == kDecoding) {
     DCHECK(decoder_ || base::subtle::Acquire_Load(&is_deletion_pending_));
     decoder_.reset();
@@ -224,17 +220,12 @@ bool ImageDecoder::Suspend() {
 
 void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::Resume()");
-  if (state_ != kSuspended) {
-    DCHECK_EQ(resource_provider_, resource_provider);
-    return;
-  }
+  DCHECK_EQ(state_, kSuspended);
+  DCHECK(!resource_provider_);
+  DCHECK(resource_provider);
 
   state_ = kWaitingForHeader;
   resource_provider_ = resource_provider;
-
-  if (!resource_provider_) {
-    state_ = kNoResourceProvider;
-  }
 }
 
 void ImageDecoder::SetDeletionPending() {
@@ -268,7 +259,6 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
     case kNotApplicable:
     case kUnsupportedImageFormat:
     case kSuspended:
-    case kNoResourceProvider:
     default: {
       // Do not attempt to continue processing data.
       DCHECK(!decoder_);

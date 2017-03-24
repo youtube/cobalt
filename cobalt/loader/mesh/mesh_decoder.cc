@@ -199,13 +199,17 @@ MeshDecoder::MeshDecoder(render_tree::ResourceProvider* resource_provider,
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
-      suspended_(false) {
-  DCHECK(resource_provider_);
+      is_suspended_(!resource_provider_) {
   DCHECK(!success_callback_.is_null());
   DCHECK(!error_callback_.is_null());
 }
 
 void MeshDecoder::DecodeChunk(const char* data, size_t size) {
+  if (is_suspended_) {
+    DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
+    return;
+  }
+
   if (!raw_data_) {
     raw_data_ = make_scoped_ptr(new std::vector<uint8>());
   }
@@ -216,10 +220,8 @@ void MeshDecoder::DecodeChunk(const char* data, size_t size) {
   memcpy(&((*raw_data_)[start_size]), data, size);
 }
 
-void MeshDecoder::ReleaseRawData() { raw_data_.reset(); }
-
 void MeshDecoder::Finish() {
-  if (suspended_) {
+  if (is_suspended_) {
     DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
     return;
   }
@@ -249,22 +251,26 @@ void MeshDecoder::Finish() {
 }
 
 bool MeshDecoder::Suspend() {
-  DCHECK(!suspended_);
-  suspended_ = true;
+  DCHECK(!is_suspended_);
+  DCHECK(resource_provider_);
+
+  is_suspended_ = true;
   resource_provider_ = NULL;
+
   ReleaseRawData();
   return true;
 }
 
 void MeshDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
-  if (!suspended_) {
-    DCHECK_EQ(resource_provider_, resource_provider);
-    return;
-  }
+  DCHECK(is_suspended_);
+  DCHECK(!resource_provider_);
+  DCHECK(resource_provider);
 
-  suspended_ = false;
+  is_suspended_ = false;
   resource_provider_ = resource_provider;
 }
+
+void MeshDecoder::ReleaseRawData() { raw_data_.reset(); }
 
 }  // namespace mesh
 }  // namespace loader

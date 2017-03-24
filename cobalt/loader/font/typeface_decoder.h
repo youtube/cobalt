@@ -56,7 +56,7 @@ class TypefaceDecoder : public Decoder {
   scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data_;
   bool is_raw_data_too_large_;
 
-  bool suspended_;
+  bool is_suspended_;
 };
 
 }  // namespace font
