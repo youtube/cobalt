@@ -405,11 +405,66 @@ def VeryifyVersionOfBuiltClangMatchesVERSION():
            % (version_out, VERSION))
     sys.exit(1)
 
+# Returns true if there is no stdout/stderr
+# Or if there is a stdout/stderr and the user types "Y" or "y".
+def AskIfWantToWipeOutFolder():
+  if sys.stdout.isatty() or sys.stderr.isatty():
+    # Prompt the user, if there's a TTY.
+    reply = raw_input('clang was updated. You need to do a clean build. Want me'
+                      ' (update.py) to clean out your out/ folder? [yN]');
+    if reply == "y" or reply == "Y":
+      return True
+
+    return False
+
+  return True
+
+
+# Clobber the out/ folder for configs that use clang.
+def ClobberOutFolderForClang():
+  should_wipe_out_folder = None
+
+  directory_name_of_current_file = os.path.dirname(os.path.abspath(__file__))
+  out_dir_with_dots = os.path.join(directory_name_of_current_file, '..', '..',
+                                   '..', 'out')
+  out_dir = os.path.abspath(out_dir_with_dots)
+
+  out_subdirs = [os.path.join(out_dir, d)
+                 for d in os.listdir(out_dir)]
+  for build_folder in filter(os.path.isdir, out_subdirs):
+    if not os.path.exists(os.path.join(build_folder, 'build.ninja')):
+      continue
+
+    package_version_filename = os.path.join(build_folder, 'cr_build_revision')
+    package_version = None
+    try:
+      with open(package_version_filename, 'r') as f:
+        package_version = f.read()
+    except IOError:
+      # File does not exist
+      pass
+
+    if package_version == PACKAGE_VERSION:
+      continue
+
+    if should_wipe_out_folder is None:
+      should_wipe_out_folder = AskIfWantToWipeOutFolder()
+
+    if should_wipe_out_folder is False:
+      break
+
+    RunCommand(['ninja', '-C', build_folder, '-t', 'clean'])
+
+    with open(package_version_filename, 'w') as f:
+      f.write(PACKAGE_VERSION)
+
 
 def UpdateClang(args):
 
   # Required for LTO, which is used when is_official_build = true.
   need_gold_plugin = sys.platform.startswith('linux')
+
+  ClobberOutFolderForClang()
 
   if ReadStampFile(
       STAMP_FILE) == PACKAGE_VERSION and not args.force_local_build:
