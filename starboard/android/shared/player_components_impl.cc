@@ -16,8 +16,8 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/video_decoder.h"
+#include "starboard/android/shared/video_renderer.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -31,6 +31,7 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     const VideoParameters& video_parameters) {
   using AudioDecoderImpl = ::starboard::android::shared::AudioDecoder;
   using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
+  using VideoRendererImpl = ::starboard::android::shared::VideoRenderer;
 
   AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
       audio_parameters.audio_codec, audio_parameters.audio_header,
@@ -55,7 +56,7 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
                             audio_parameters.audio_header);
 
   VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(scoped_ptr<VideoDecoder>(video_decoder).Pass());
+      new VideoRendererImpl(scoped_ptr<VideoDecoderImpl>(video_decoder).Pass());
 
   return scoped_ptr<PlayerComponents>(
       new PlayerComponents(audio_renderer, video_renderer));

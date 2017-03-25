@@ -32,6 +32,7 @@ const SbTimeMonotonic kUpdateInterval = 10 * kSbTimeMillisecond;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
+const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
@@ -104,6 +105,19 @@ void AudioDecoder::Reset() {
   jint status = media_codec_bridge_->Flush();
   if (status != MEDIA_CODEC_OK) {
     SB_LOG(ERROR) << "|flush| failed with status: " << status;
+  }
+
+  // Clear out pending work, however if we were supposed to write the codec
+  // config data and hadn't yet, we will still need to do so even after being
+  // reset.
+  bool had_write_codec_config = false;
+  while (!pending_work_.empty()) {
+    had_write_codec_config |=
+        pending_work_.front().type == Event::kWriteCodecConfig;
+    pending_work_.pop();
+  }
+  if (had_write_codec_config) {
+    pending_work_.push(Event(Event::kWriteCodecConfig));
   }
 
   while (!decoded_audios_.empty()) {
@@ -181,6 +195,22 @@ bool AudioDecoder::ProcessOneInputBuffer() {
       status = media_codec_bridge_->QueueSecureInputBuffer(
           dequeue_input_result.index, kNoOffset, *event.input_buffer.drm_info(),
           pts_us);
+
+      if (status == MEDIA_CODEC_NO_KEY) {
+        SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "
+                         "MEDIA_CODEC_NO_KEY, will try again later.";
+        // We will try this input buffer again later after |drm_system_| tries
+        // to take care of our key.  We still need to return this input buffer
+        // to media codec, though.
+        status = media_codec_bridge_->QueueInputBuffer(
+            dequeue_input_result.index, kNoOffset, kNoSize, pts_us,
+            kNoBufferFlags);
+        if (status != MEDIA_CODEC_OK) {
+          SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
+        }
+        return false;
+      }
+
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
