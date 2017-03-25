@@ -210,6 +210,9 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         delete event;
         return true;
       }
+      if (state() == kStateSuspended) {
+        OnResume();
+      }
       break;
     case kSbEventTypeStop:
       if (state() == kStateStarted) {
@@ -252,6 +255,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     case kSbEventTypeSuspend:
       SB_DCHECK(state() == kStatePaused);
       state_ = kStateSuspended;
+      OnSuspend();
       break;
     case kSbEventTypeResume:
       SB_DCHECK(state() == kStateSuspended);
