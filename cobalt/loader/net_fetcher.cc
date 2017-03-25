@@ -64,10 +64,6 @@ bool IsResponseCodeSuccess(int response_code) {
   // was successful *and* we get a 2xx response back.
   // We also accept a response code of -1 for URLs where response code is not
   // meaningful, like "data:"
-  // TODO: 304s are unexpected since we don't enable the HTTP cache,
-  // meaning we don't add the If-Modified-Since header to our request.
-  // However, it's unclear what would happen if we did, so DCHECK.
-  DCHECK_NE(response_code, 304) << "Unsupported status code";
   return response_code == -1 || response_code / 100 == 2;
 }
 }  // namespace
