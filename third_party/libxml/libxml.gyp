@@ -51,6 +51,25 @@
                 ],
               },
             }],
+            ['tizen_os == 1', {
+              'type': 'none',
+              'direct_dependent_settings': {
+                'cflags': [
+                  '<!@(pkg-config --cflags libxml-2.0)',
+                ],
+                'defines': [
+                  'USE_SYSTEM_LIBXML',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(pkg-config --libs-only-L --libs-only-other libxml-2.0)',
+                ],
+                'libraries': [
+                  '<!@(pkg-config --libs-only-l libxml-2.0)',
+                ],
+              },
+            }],
             ['OS == "ios"', {
               'type': 'static_library',
               'sources': [
