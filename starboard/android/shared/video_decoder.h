@@ -39,6 +39,8 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+class VideoRenderer;
+
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder {
  public:
@@ -51,18 +53,13 @@ class VideoDecoder
                         SbDecodeTargetProvider* decode_target_provider);
   ~VideoDecoder() SB_OVERRIDE;
 
-  void SetHost(Host* host) SB_OVERRIDE;
   void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
-
-  // TODO: Remove this from the video decoder interface.
-  void SetCurrentTime(SbMediaTime current_time) SB_OVERRIDE {
-    current_time_ = ConvertSbMediaTimeToMicroseconds(current_time);
-  }
-
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
+  void SetHost(VideoRenderer* host);
+  int GetPendingWorkSize() { return event_queue_.size(); }
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
  private:
@@ -111,15 +108,14 @@ class VideoDecoder
       deque_.clear();
     }
 
+    size_t size() {
+      ScopedLock lock(mutex_);
+      return deque_.size();
+    }
+
    private:
     ::starboard::Mutex mutex_;
     std::deque<Event> deque_;
-  };
-
-  struct OutputBufferHandle {
-    jint index;
-    SbTime pts_microseconds;
-    jint flags;
   };
 
   static void* ThreadEntryPoint(void* context);
@@ -141,7 +137,7 @@ class VideoDecoder
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  Host* host_;
+  VideoRenderer* host_;
   DrmSystem* drm_system_;
 
   // Events are processed in a queue, except for when handling events of type

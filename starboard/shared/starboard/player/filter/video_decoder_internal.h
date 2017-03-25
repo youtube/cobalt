@@ -32,24 +32,7 @@ class VideoDecoder {
  public:
   enum Status { kNeedMoreInput, kBufferFull, kFatalError };
 
-  class Host {
-   public:
-    // |frame| can contain a decoded frame or be NULL when |status| is not
-    // kFatalError.   When status is kFatalError, |frame| will be NULL.  Its
-    // user should only call WriteInputFrame() when |status| is kNeedMoreInput
-    // or when the instance is just created.  Also note that calling Reset() or
-    // dtor from this callback will result in deadlock.
-    virtual void OnDecoderStatusUpdate(
-        Status status,
-        const scoped_refptr<VideoFrame>& frame) = 0;
-
-   protected:
-    ~Host() {}
-  };
-
   virtual ~VideoDecoder() {}
-
-  virtual void SetHost(Host* host) = 0;
 
   // Send encoded video frame stored in |input_buffer| to decode.
   virtual void WriteInputBuffer(const InputBuffer& input_buffer) = 0;
@@ -63,12 +46,6 @@ class VideoDecoder {
   // after this function returns unless WriteInputFrame() or WriteEndOfStream()
   // is called again.
   virtual void Reset() = 0;
-
-  // In certain cases, a decoder may benefit from knowing the current time of
-  // the audio decoder that it is following.  This optional function provides
-  // the renderer that owns the decoder an opportunity to provide this
-  // information to the decoder.
-  virtual void SetCurrentTime(SbMediaTime current_time) {}
 
 #if SB_API_VERSION >= 3
   // May be called from an arbitrary thread (e.g. a renderer thread).
@@ -84,6 +61,32 @@ class VideoDecoder {
                                   SbMediaVideoCodec codec,
                                   SbDrmSystem drm_system);
 #endif  // SB_API_VERSION >= 3
+};
+
+// An extended |VideoDecoder| that is capable of providing |VideoFrame|s to
+// |Host| that owns it.  If the platform's video decoder implementation can
+// satisfy this interface, then the default video renderer implementation may
+// be used.  If not, then the platform will also likely require a video
+// renderer implementation that is somehow capable of receiving video frames
+// (through |VideoFrame| or possibly some other means).
+class HostedVideoDecoder : public VideoDecoder {
+ public:
+  class Host {
+   public:
+    // |frame| can contain a decoded frame or be NULL when |status| is not
+    // kFatalError.   When status is kFatalError, |frame| will be NULL.  Its
+    // user should only call WriteInputFrame() when |status| is kNeedMoreInput
+    // or when the instance is just created.  Also note that calling Reset() or
+    // dtor from this callback will result in deadlock.
+    virtual void OnDecoderStatusUpdate(
+        Status status,
+        const scoped_refptr<VideoFrame>& frame) = 0;
+
+   protected:
+    ~Host() {}
+  };
+
+  virtual void SetHost(Host* host) = 0;
 };
 
 }  // namespace filter

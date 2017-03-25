@@ -35,10 +35,12 @@ namespace player {
 namespace filter {
 
 // A default implementation of |VideoRenderer| that only depends on the
-// |VideoDecoder| interface, rather than a platform specific implementation.
-class VideoRendererImpl : public VideoRenderer {
+// |HostedVideoDecoder| interface, rather than a platform specific
+// implementation.
+class VideoRendererImpl : public VideoRenderer,
+                          private HostedVideoDecoder::Host {
  public:
-  explicit VideoRendererImpl(scoped_ptr<VideoDecoder> decoder);
+  explicit VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder);
 
   int GetDroppedFrames() const SB_OVERRIDE { return dropped_frames_; }
 
@@ -94,7 +96,7 @@ class VideoRendererImpl : public VideoRenderer {
   bool need_more_input_;
   int dropped_frames_;
 
-  scoped_ptr<VideoDecoder> decoder_;
+  scoped_ptr<HostedVideoDecoder> decoder_;
 };
 
 }  // namespace filter

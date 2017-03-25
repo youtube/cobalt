@@ -20,6 +20,7 @@
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/video_renderer.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/decode_target.h"
@@ -40,6 +41,7 @@ const SbTime kSbTimeNone = -1;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
+const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
 // Map an |SbMediaVideoCodec| into its corresponding mime type string.
@@ -97,7 +99,7 @@ VideoDecoder::~VideoDecoder() {
   ClearVideoWindow();
 }
 
-void VideoDecoder::SetHost(Host* host) {
+void VideoDecoder::SetHost(VideoRenderer* host) {
   SB_DCHECK(host != NULL);
   SB_DCHECK(host_ == NULL);
   host_ = host;
@@ -229,13 +231,9 @@ void VideoDecoder::DecoderThreadFunc() {
 
     if (event.type == Event::kReset) {
       SB_LOG(INFO) << "Reset event occurred.";
-      while (output_buffer_handles.size() > 0) {
-        OutputBufferHandle& output_buffer_handle =
-            output_buffer_handles.front();
-        media_codec_bridge_->ReleaseOutputBuffer(output_buffer_handle.index,
-                                                 false);
-        output_buffer_handles.pop_front();
-      }
+      // |media_codec_bridge_->Flush| will reclaim the actual output buffers,
+      // so we just need to forget that we have these handles.
+      output_buffer_handles.clear();
       jint status = media_codec_bridge_->Flush();
       if (status != MEDIA_CODEC_OK) {
         SB_LOG(ERROR) << "Failed to flush video media codec.";
@@ -250,47 +248,11 @@ void VideoDecoder::DecoderThreadFunc() {
       did_input = ProcessOneInputBuffer(&pending_work);
       did_output = ProcessOneOutputBuffer(&output_buffer_handles);
     }
-    host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
 
-    // TODO: This logic should be moved into the video renderer, which we call
-    // into through |host_->OnDecoderStatusUpdate|.  Then, |current_time_|
-    // does not need to be passed into us, and we can also handle seeking
-    // logic properly.
-    while (output_buffer_handles.size() > 0) {
-      // TODO: Carefully tune these values towards the best playback
-      // experience across multiple devices.
-      SbTime lower_bound = current_time_ - 17 * 1000;
-      SbTime upper_bound = current_time_ + 17 * 1000;
-
-      OutputBufferHandle& output_buffer_handle = output_buffer_handles.front();
-
-      if (output_buffer_handle.flags & BUFFER_FLAG_END_OF_STREAM) {
-        media_codec_bridge_->ReleaseOutputBuffer(output_buffer_handle.index,
-                                                 false);
-        jint status = media_codec_bridge_->Flush();
-        if (status != MEDIA_CODEC_OK) {
-          SB_LOG(ERROR) << "Failed to flush media codec.";
-        }
-
-        host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
-        output_buffer_handles.pop_front();
-        SB_DCHECK(output_buffer_handles.empty())
-            << "Expected end of stream output buffer to be the last buffer.";
-        break;
-      }
-
-      if (output_buffer_handle.pts_microseconds < upper_bound) {
-        // TODO: Figure out whether not rendering late frames provides a
-        // better playback experience or not.
-        media_codec_bridge_->ReleaseOutputBuffer(output_buffer_handle.index,
-                                                 true);
-        output_buffer_handles.pop_front();
-      } else {
-        // All the frames later than us will also be above |upper_bound|, so
-        // we can stop.
-        break;
-      }
-    }
+    // Pass all of our decoded frames into our host, which will decide whether
+    // to drop them, render them, or hold them.
+    host_->HandleDecodedFrames(media_codec_bridge_.get(),
+                               &output_buffer_handles);
 
     if (event.type == Event::kInvalid) {
       SbThreadSleep(10 * 1000);
@@ -341,6 +303,22 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
     status = media_codec_bridge_->QueueSecureInputBuffer(
         dequeue_input_result.index, kNoOffset, *input_buffer.drm_info(),
         ConvertSbMediaTimeToMicroseconds(input_buffer.pts()));
+
+    if (status == MEDIA_CODEC_NO_KEY) {
+      SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "
+                       "MEDIA_CODEC_NO_KEY, will try again later.";
+      // We will try this input buffer again later after |drm_system_| tries
+      // to take care of our key.  We still need to return this input buffer
+      // to media codec, though.
+      pending_work->push_front(event);
+      status = media_codec_bridge_->QueueInputBuffer(
+          dequeue_input_result.index, kNoOffset, kNoSize,
+          ConvertSbMediaTimeToMicroseconds(input_buffer.pts()), kNoBufferFlags);
+      if (status != MEDIA_CODEC_OK) {
+        SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
+      }
+      return false;
+    }
   } else if (is_eos) {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, 0, kNoPts,
@@ -377,10 +355,18 @@ bool VideoDecoder::ProcessOneOutputBuffer(
     return false;
   }
 
+  if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED) {
+    SB_DLOG(INFO) << "Output buffers changed, trying to dequeue again.";
+    return true;
+  }
+
+  if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_FORMAT_CHANGED) {
+    SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
+    return true;
+  }
+
   SbMediaTime out_pts = ConvertMicrosecondsToSbMediaTime(
       dequeue_output_result.presentation_time_microseconds);
-  host_->OnDecoderStatusUpdate(kBufferFull,
-                               VideoFrame::CreateEmptyFrame(out_pts));
 
   OutputBufferHandle output_buffer_handle = {
       dequeue_output_result.index,
