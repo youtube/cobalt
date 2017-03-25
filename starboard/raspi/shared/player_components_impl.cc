@@ -47,8 +47,8 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
                             scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
                             audio_parameters.audio_header);
 
-  VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(scoped_ptr<VideoDecoder>(video_decoder).Pass());
+  VideoRendererImpl* video_renderer = new VideoRendererImpl(
+      scoped_ptr<HostedVideoDecoder>(video_decoder).Pass());
 
   return scoped_ptr<PlayerComponents>(
       new PlayerComponents(audio_renderer, video_renderer));

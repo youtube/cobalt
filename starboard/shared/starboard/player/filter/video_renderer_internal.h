@@ -31,7 +31,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class VideoRenderer : protected VideoDecoder::Host {
+class VideoRenderer {
  public:
   virtual ~VideoRenderer() {}
 
