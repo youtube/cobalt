@@ -22,7 +22,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-VideoRendererImpl::VideoRendererImpl(scoped_ptr<VideoDecoder> decoder)
+VideoRendererImpl::VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder)
     : seeking_(false),
       seeking_to_pts_(0),
       end_of_stream_written_(false),
@@ -80,8 +80,6 @@ void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
 scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
     SbMediaTime media_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-  decoder_->SetCurrentTime(media_time);
 
   if (frames_.empty()) {
     return last_displayed_frame_;
