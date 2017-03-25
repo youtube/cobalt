@@ -135,6 +135,9 @@
     #   "cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found"
     'gl_type%': 'system_gles2',
 
+    # Temporary indicator for Tizen - should eventually move to feature defines.
+    'tizen_os%': 0,
+
     # Cache parameters
 
     # The following set of parameters define how much memory is reserved for
