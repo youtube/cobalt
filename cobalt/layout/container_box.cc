@@ -265,11 +265,10 @@ bool ContainerBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
-void ContainerBox::InvalidateCrossReferencesOfBoxAndAncestors() {
+void ContainerBox::InvalidateCrossReferencesOfBox() {
   // NOTE: The cross reference containers are not cleared here. Instead they are
   // cleared when the cross references are updated.
   are_cross_references_valid_ = false;
-  Box::InvalidateCrossReferencesOfBoxAndAncestors();
 }
 
 ContainerBox* ContainerBox::AsContainerBox() { return this; }
