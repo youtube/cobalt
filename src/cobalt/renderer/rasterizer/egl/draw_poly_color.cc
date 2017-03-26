@@ -29,8 +29,7 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
     const BaseState& base_state, const math::RectF& rect,
     const render_tree::ColorRGBA& color)
     : DrawObject(base_state) {
-  float alpha = base_state_.opacity * color.a();
-  uint32_t color32 = GetGLRGBA(color.r(), color.g(), color.b(), alpha);
+  uint32_t color32 = GetGLRGBA(color * base_state_.opacity);
   attributes_.reserve(4);
   AddVertex(rect.x(), rect.y(), color32);
   AddVertex(rect.x(), rect.bottom(), color32);
@@ -40,7 +39,7 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
                                     sizeof(VertexAttributes));
 }
 
-void DrawPolyColor::ExecuteUpdateVertexBuffer(
+void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   vertex_buffer_ = graphics_state->AllocateVertexData(
@@ -49,7 +48,7 @@ void DrawPolyColor::ExecuteUpdateVertexBuffer(
                attributes_.size() * sizeof(VertexAttributes));
 }
 
-void DrawPolyColor::ExecuteRasterizeNormal(
+void DrawPolyColor::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexColor,
@@ -72,7 +71,7 @@ void DrawPolyColor::ExecuteRasterizeNormal(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, color));
   graphics_state->VertexAttribFinish();
-  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
 }
 
 void DrawPolyColor::AddVertex(float x, float y, uint32_t color) {

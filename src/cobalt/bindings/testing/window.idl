@@ -20,8 +20,12 @@ interface Window : GlobalInterfaceParent {
 
   // Exercise a similar setup to EventHandler.
   attribute TestEventHandler onEvent;
+
+  // This is needed for the Promise polyfill.
+  long setTimeout(TimerCallback handler, optional long timeout);
 };
 
 // Exercise a similar setup to EventHandler.
 typedef SingleOperationInterface? TestEventHandler;
 
+callback TimerCallback = void();

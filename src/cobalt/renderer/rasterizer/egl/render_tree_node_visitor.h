@@ -19,6 +19,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -45,9 +46,11 @@ namespace egl {
 // DrawObjects which must then be processed using calls to ExecuteDraw.
 class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
-  typedef base::Callback<backend::TextureEGL*(
+  typedef base::Callback<void(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::RectF& viewport)>
+      const math::RectF& viewport,
+      const backend::TextureEGL** out_texture,
+      math::Matrix3F* out_texcoord_transform)>
       FallbackRasterizeFunction;
 
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
@@ -68,12 +71,15 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
-  void FallbackRasterize(render_tree::Node* node);
+  void FallbackRasterize(render_tree::Node* node,
+                         DrawObjectManager::OffscreenType offscreen_type);
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
-                     DrawObjectManager::DrawType type);
+                     DrawObjectManager::OnscreenType onscreen_type,
+                     DrawObjectManager::OffscreenType offscreen_type);
   void AddTransparentDraw(scoped_ptr<DrawObject> object,
-                          DrawObjectManager::DrawType type,
+                          DrawObjectManager::OnscreenType onscreen_type,
+                          DrawObjectManager::OffscreenType offscreen_type,
                           const math::RectF& local_bounds);
 
   GraphicsState* graphics_state_;

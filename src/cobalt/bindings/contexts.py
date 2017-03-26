@@ -19,6 +19,7 @@ dicts that will be used by Jinja in JS bindings generation.
 """
 
 from idl_definitions import IdlTypedef
+from idl_types import IdlPromiseType
 from idl_types import IdlSequenceType
 from name_conversion import capitalize_function_name
 from name_conversion import convert_to_cobalt_constant_name
@@ -40,6 +41,10 @@ def is_any_type(idl_type):
 
 def is_sequence_type(idl_type):
   return isinstance(idl_type, IdlSequenceType)
+
+
+def is_promise_type(idl_type):
+  return isinstance(idl_type, IdlPromiseType)
 
 
 def idl_literal_to_cobalt_literal(idl_type, idl_literal):
@@ -237,6 +242,8 @@ class ContextBuilder(object):
       cobalt_type = 'ValueHandle'
     elif idl_type.is_dictionary:
       cobalt_type = get_interface_name(idl_type)
+    elif is_promise_type(idl_type):
+      cobalt_type = 'NativePromise'
 
     assert cobalt_type, 'Unsupported idl_type %s' % idl_type
 

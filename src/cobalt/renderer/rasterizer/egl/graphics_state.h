@@ -74,8 +74,9 @@ class GraphicsState {
   void EnableDepthWrite();
   void DisableDepthWrite();
 
-  // Make the specified texture unit active.
-  void ActiveTexture(GLenum texture_unit);
+  // Bind a texture to a given texture unit. Combines glActiveTexture and
+  // glBindTexture.
+  void ActiveBindTexture(GLenum texture_unit, GLenum target, GLuint texture);
 
   // Set the clip adjustment to be used with vertex shaders. This transforms
   // the vertex coordinates from view space to clip space.
@@ -137,6 +138,10 @@ class GraphicsState {
   bool blend_enabled_;
   bool depth_test_enabled_;
   bool depth_write_enabled_;
+
+  static const int kNumTextureUnitsCached = 8;
+  GLenum texunit_target_[kNumTextureUnitsCached];
+  GLuint texunit_texture_[kNumTextureUnitsCached];
 
   static const int kNumFramesBuffered = 3;
   int frame_index_;

@@ -155,6 +155,8 @@ void StarboardPlayer::PrepareForSeek() {
   ++ticket_;
 #if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, true);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, 0.f);
 #endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   seek_pending_ = true;
 }
@@ -183,6 +185,8 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   seek_pending_ = false;
 #if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
   SbPlayerSetPause(player_, playback_rate_ == 0.0);
+#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+  SbPlayerSetPlaybackRate(player_, playback_rate_);
 #endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
 }
 
@@ -330,38 +334,19 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
-#if SB_API_VERSION <= 3
-
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
       &audio_header, &StarboardPlayer::DeallocateSampleCB,
       &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
-#if SB_API_VERSION == 3
-      ,
-      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
-#endif  // SB_API_VERSION == 3
-      );
-
-#else  //  SB_API_VERSION <= 3
-
-  player_ = SbPlayerCreate(
-      window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
-      &audio_header,
-#if SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-      NULL,
-#endif  // SB_API_VERSION >= SB_PLAYER_CREATE_WITH_VIDEO_HEADER_VERSION
-      &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
-      &StarboardPlayer::PlayerStatusCB,
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-      output_mode_,
+      ,
+      output_mode_
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 #if SB_API_VERSION >= 3
-      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider(),  // provider
+      ,
+      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
 #endif  // SB_API_VERSION >= 3
-      this);
-
-#endif  //  SB_API_VERSION <= 3
-
+      );
   DCHECK(SbPlayerIsValid(player_));
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION

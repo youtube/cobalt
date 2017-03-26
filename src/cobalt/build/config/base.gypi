@@ -115,6 +115,9 @@
     # moved to starboard.
     'starboard_path%': 'starboard/<(target_arch)',
 
+    # List of platform-specific targets that get compiled into cobalt.
+    'cobalt_platform_dependencies%': [],
+
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
     #   'none'   - No EGL + GLES implementation is available on this platform.
@@ -131,6 +134,9 @@
     # Choosing an unsupported value will result in a GYP error:
     #   "cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found"
     'gl_type%': 'system_gles2',
+
+    # Temporary indicator for Tizen - should eventually move to feature defines.
+    'tizen_os%': 0,
 
     # Cache parameters
 

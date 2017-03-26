@@ -54,7 +54,9 @@ void ScreenReader::OnLoad() {
   init.set_character_data(true);
   init.set_child_list(true);
 
-  live_region_observer_->Observe(document_->body(), init);
+  if (document_->body()) {
+    live_region_observer_->Observe(document_->body(), init);
+  }
 }
 
 void ScreenReader::OnFocusChanged() {

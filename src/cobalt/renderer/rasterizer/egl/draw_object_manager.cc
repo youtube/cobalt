@@ -20,19 +20,25 @@ namespace rasterizer {
 namespace egl {
 
 void DrawObjectManager::AddOpaqueDraw(scoped_ptr<DrawObject> object,
-                                      DrawType type) {
-  draw_objects_[type].push_back(object.release());
+                                      OnscreenType onscreen_type,
+                                      OffscreenType offscreen_type) {
+  if (offscreen_type != kOffscreenNone) {
+    offscreen_order_[offscreen_type].push_back(object.get());
+  }
+
+  draw_objects_[onscreen_type].push_back(object.release());
 }
 
 void DrawObjectManager::AddTransparentDraw(scoped_ptr<DrawObject> object,
-                                           DrawType type,
+                                           OnscreenType onscreen_type,
+                                           OffscreenType offscreen_type,
                                            const math::RectF& bounds) {
   // Try to sort the transparent object next to another object of its type.
   // However, this can only be done as long as its bounds do not overlap with
   // the other object while swapping draw order.
   size_t position = transparent_object_info_.size();
   while (position > 0) {
-    if (transparent_object_info_[position - 1].type <= type) {
+    if (transparent_object_info_[position - 1].type <= onscreen_type) {
       break;
     }
     if (transparent_object_info_[position - 1].bounds.Intersects(bounds)) {
@@ -41,48 +47,66 @@ void DrawObjectManager::AddTransparentDraw(scoped_ptr<DrawObject> object,
     --position;
   }
 
+  if (offscreen_type != kOffscreenNone) {
+    offscreen_order_[offscreen_type].push_back(object.get());
+  }
+
   transparent_object_info_.insert(
       transparent_object_info_.begin() + position,
-      TransparentObjectInfo(type, bounds));
-  draw_objects_[kDrawTransparent].insert(
-      draw_objects_[kDrawTransparent].begin() + position,
+      TransparentObjectInfo(onscreen_type, bounds));
+  draw_objects_[kOnscreenTransparent].insert(
+      draw_objects_[kOnscreenTransparent].begin() + position,
       object.release());
 }
 
-void DrawObjectManager::ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  for (int type = 0; type < kDrawCount; ++type) {
-    for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->ExecuteUpdateVertexBuffer(graphics_state,
+  graphics_state->DisableDepthTest();
+  for (int type = 0; type < kOffscreenCount; ++type) {
+    for (size_t index = 0; index < offscreen_order_[type].size(); ++index) {
+      offscreen_order_[type][index]->ExecuteOffscreenRasterize(graphics_state,
           program_manager);
     }
   }
 }
 
-void DrawObjectManager::ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+void DrawObjectManager::ExecuteOnscreenUpdateVertexBuffer(
+    GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  for (int type = 0; type < kDrawCount; ++type) {
+  for (int type = 0; type < kOnscreenCount; ++type) {
     for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->ExecuteRasterizeOffscreen(graphics_state,
-          program_manager);
+      draw_objects_[type][index]->ExecuteOnscreenUpdateVertexBuffer(
+          graphics_state, program_manager);
     }
   }
 }
 
-void DrawObjectManager::ExecuteRasterizeNormal(GraphicsState* graphics_state,
+void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  for (int type = 0; type < kDrawCount; ++type) {
-    if (type == kDrawTransparent) {
+  graphics_state->EnableDepthTest();
+
+  for (int type = 0; type < kOnscreenCount; ++type) {
+    if (type == kOnscreenTransparent) {
       graphics_state->EnableBlend();
       graphics_state->DisableDepthWrite();
+
+      // Transparent objects must be drawn in the order they were added to
+      // maintain correctness.
+      for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
+        draw_objects_[type][index]->ExecuteOnscreenRasterize(graphics_state,
+            program_manager);
+      }
     } else {
       graphics_state->DisableBlend();
       graphics_state->EnableDepthWrite();
-    }
 
-    for (size_t index = 0; index < draw_objects_[type].size(); ++index) {
-      draw_objects_[type][index]->ExecuteRasterizeNormal(graphics_state,
-          program_manager);
+      // Opaque objects can be drawn in front-to-back order to take advantage
+      // of z-culling.
+      for (size_t index = draw_objects_[type].size(); index > 0;) {
+        --index;
+        draw_objects_[type][index]->ExecuteOnscreenRasterize(graphics_state,
+            program_manager);
+      }
     }
   }
 }

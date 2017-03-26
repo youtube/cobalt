@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
+#include "nb/memory_scope.h"
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
@@ -19,6 +20,7 @@ MessagePumpDefault::MessagePumpDefault()
 }
 
 void MessagePumpDefault::Run(Delegate* delegate) {
+  TRACK_MEMORY_SCOPE("TaskProcessor");
   DCHECK(keep_running_) << "Quit must have been called outside of Run!";
 
   for (;;) {

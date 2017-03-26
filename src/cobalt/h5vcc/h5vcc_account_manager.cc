@@ -15,14 +15,14 @@
 #include "cobalt/h5vcc/h5vcc_account_manager.h"
 
 #include "base/memory/scoped_ptr.h"
-#include "starboard/ps4/application_linking.h"
 #include "starboard/user.h"
 
 namespace cobalt {
 namespace h5vcc {
 
 H5vccAccountManager::H5vccAccountManager()
-    : thread_("AccountManager"), owning_message_loop_(MessageLoop::current()) {
+    : thread_("AccountManager"), owning_message_loop_(MessageLoop::current()),
+      user_authorizer_(account::UserAuthorizer::Create()) {
   thread_.Start();
 }
 
@@ -71,55 +71,48 @@ void H5vccAccountManager::RequestOperationInternal(
   SbUser current_user = SbUserGetCurrent();
   DCHECK(SbUserIsValid(current_user));
 
-  static size_t kBufferSize = SbUserMaxAuthenticationTokenSizeInBytes();
-  scoped_array<char> token_buffer(new char[kBufferSize]);
-  SbUserApplicationTokenResults token_results;
-  token_results.token_buffer_size = kBufferSize;
-  token_results.token_buffer = token_buffer.get();
+  scoped_ptr<account::AccessToken> access_token(NULL);
 
-  bool got_valid_token = false;
   switch (operation) {
     case kPairing:
-      got_valid_token =
-          SbUserRequestApplicationLinking(current_user, &token_results);
-      DLOG_IF(INFO, !got_valid_token) << "Application linking request failed.";
+      access_token = user_authorizer_->AuthorizeUser(current_user);
+      DLOG_IF(INFO, !access_token) << "User authorization request failed.";
       break;
     case kUnpairing:
-      if (SbUserRequestApplicationUnlinking(current_user)) {
-        got_valid_token = false;
+      if (user_authorizer_->DeauthorizeUser(current_user)) {
         break;
       }
       // The user canceled the flow, or there was some error. Fall into the next
       // case to get an access token if available and return that.
-      DLOG(INFO) << "Application unlinking request failed. Try to get token.";
+      DLOG(INFO) << "User deauthorization request failed. Try to get token.";
     case kGetToken:
-      got_valid_token =
-          SbUserRequestAuthenticationToken(current_user, &token_results);
-      DLOG_IF(INFO, !got_valid_token) << "Authentication token request failed.";
+      access_token = user_authorizer_->RefreshAuthorization(current_user);
+      DLOG_IF(INFO, !access_token) << "Authorization refresh request failed.";
       break;
   }
 
+  std::string token_value;
   uint64_t expiration_in_seconds = 0;
-  if (got_valid_token) {
-    SbTime expires_in = token_results.expiry - SbTimeGetNow();
-    // If this token's expiry is in the past, then we didn't get a valid token.
-    if (expires_in < 0) {
-      DLOG(WARNING) << "Authentication token expires in the past.";
-      got_valid_token = false;
-    } else {
-      expiration_in_seconds = expires_in / kSbTimeSecond;
+  if (access_token) {
+    token_value = access_token->token_value;
+    if (access_token->expiry) {
+      base::TimeDelta expires_in =
+          access_token->expiry.value() - base::Time::Now();
+      // If this token's expiry is in the past, then it's not a valid token.
+      base::TimeDelta zero;
+      if (expires_in < zero) {
+        DLOG(WARNING) << "User authorization expires in the past.";
+        token_value.clear();
+      } else {
+        expiration_in_seconds = expires_in.InSeconds();
+      }
     }
-  }
-  // If we did not get a valid token to return to the caller, set the token
-  // buffer to an empty string.
-  if (!got_valid_token) {
-    token_buffer[0] = '\0';
   }
 
   owning_message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&H5vccAccountManager::SendResult, this,
-                 base::Passed(&token_callback), std::string(token_buffer.get()),
+                 base::Passed(&token_callback), token_value,
                  expiration_in_seconds));
 }
 

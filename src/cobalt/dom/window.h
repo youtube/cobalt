@@ -51,6 +51,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/speech/speech_synthesis.h"
 #include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
@@ -227,6 +228,12 @@ class Window : public EventTarget {
   //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
   const scoped_refptr<Performance>& performance() const;
 
+  // Web API: SpeechSynthesisGetter (implements)
+  //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#tts-section
+  scoped_refptr<speech::SpeechSynthesis> speech_synthesis() const {
+    return speech_synthesis_;
+  }
+
   // Custom, not in any spec.
   //
   const scoped_refptr<Console>& console() const;
@@ -291,6 +298,7 @@ class Window : public EventTarget {
       animation_frame_request_callback_list_;
 
   scoped_refptr<Crypto> crypto_;
+  scoped_refptr<speech::SpeechSynthesis> speech_synthesis_;
 
   scoped_refptr<Storage> local_storage_;
   scoped_refptr<Storage> session_storage_;

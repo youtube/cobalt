@@ -43,12 +43,33 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
       rect_(rect),
       texture_(texture),
       vertex_buffer_(NULL) {
-  base_state_.opacity *= color.a();
-  color_ = GetGLRGBA(color.r(), color.g(), color.b(), base_state_.opacity);
+  color_ = GetGLRGBA(color * base_state_.opacity);
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
-void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
+DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
+    const BaseState& base_state,
+    const math::RectF& rect, const render_tree::ColorRGBA& color,
+    const GenerateTextureFunction& generate_texture)
+    : DrawObject(base_state),
+      texcoord_transform_(math::Matrix3F::Identity()),
+      rect_(rect),
+      texture_(NULL),
+      generate_texture_(generate_texture),
+      vertex_buffer_(NULL) {
+  color_ = GetGLRGBA(color * base_state_.opacity);
+  graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
+}
+
+void DrawRectColorTexture::ExecuteOffscreenRasterize(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  if (!generate_texture_.is_null()) {
+    generate_texture_.Run(&texture_, &texcoord_transform_);
+  }
+}
+
+void DrawRectColorTexture::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   VertexAttributes attributes[4] = {
@@ -73,7 +94,7 @@ void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
-void DrawRectColorTexture::ExecuteRasterizeNormal(
+void DrawRectColorTexture::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexColorTexcoord,
@@ -100,9 +121,9 @@ void DrawRectColorTexture::ExecuteRasterizeNormal(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
-  graphics_state->ActiveTexture(
-      program->GetFragmentShader().u_texture_texunit());
-  GL_CALL(glBindTexture(texture_->GetTarget(), texture_->gl_handle()));
+  graphics_state->ActiveBindTexture(
+      program->GetFragmentShader().u_texture_texunit(),
+      texture_->GetTarget(), texture_->gl_handle());
   GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
 }
 

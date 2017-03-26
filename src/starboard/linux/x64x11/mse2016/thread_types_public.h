@@ -12,8 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/user.h"
-
-void SbUserStartSignIn() {
-  // Do nothing on this platform.
-}
+#include "starboard/linux/x64x11/thread_types_public.h"

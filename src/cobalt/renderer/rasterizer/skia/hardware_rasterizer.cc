@@ -456,8 +456,7 @@ void HardwareRasterizer::Impl::Submit(
   } else if (options.dirty) {
     // Only a portion of the display is dirty. Reuse the previous frame
     // if possible.
-    if (render_target_egl->IsContentPreservedOnSwap() &&
-        render_target_egl->swap_count() >= 3) {
+    if (render_target_egl->ContentWasPreservedAfterSwap()) {
       canvas->clipRect(CobaltRectFToSkiaRect(*options.dirty));
     }
   }
@@ -518,11 +517,6 @@ void HardwareRasterizer::Impl::SubmitOffscreen(
         surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
         surface_cache_ ? &surface_cache_.value() : NULL);
     render_tree->Accept(&visitor);
-  }
-
-  {
-    TRACE_EVENT0("cobalt::renderer", "Skia Flush");
-    canvas->flush();
   }
 }
 

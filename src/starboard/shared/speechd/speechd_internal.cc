@@ -66,7 +66,7 @@ void SpeechDispatcher::Speak(const char* text) {
   if (connection_ && text && *text) {
     // Priority SPD_MESSAGE will be queued with other text of same priority.
     int result = spd_say(connection_, SPD_MESSAGE, text);
-    if (result != 0) {
+    if (result < 0) {
       SB_DLOG(ERROR) << "Failed to speak: " << text;
     }
   }

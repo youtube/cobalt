@@ -33,37 +33,60 @@ namespace egl {
 // objects to minimize GPU state changes.
 class DrawObjectManager {
  public:
-  enum DrawType {
-    kDrawRectTexture = 0,
-    kDrawRectColorTexture,
-    kDrawPolyColor,
-    kDrawTransparent,
-    kDrawCount,
+  enum OnscreenType {
+    kOnscreenRectTexture = 0,
+    kOnscreenRectColorTexture,
+    kOnscreenPolyColor,
+    kOnscreenTransparent,
+    kOnscreenCount,
   };
 
-  void AddOpaqueDraw(scoped_ptr<DrawObject> object, DrawType type);
-  void AddTransparentDraw(scoped_ptr<DrawObject> object, DrawType type,
+  // Order offscreen rendering by descending expected pixel area. This helps
+  // make better use of the offscreen texture atlas as smaller requests can
+  // fill in gaps created by the larger requests.
+  enum OffscreenType {
+    kOffscreenSkiaFilter = 0,
+    kOffscreenSkiaShadow,
+    kOffscreenSkiaMultiPlaneImage,
+    kOffscreenSkiaRectRounded,
+    kOffscreenSkiaRectBrush,
+    kOffscreenSkiaRectBorder,
+    kOffscreenSkiaText,
+    kOffscreenCount,
+    kOffscreenNone,     // ExecuteOffscreenRasterize will not be run for these.
+  };
+
+  void AddOpaqueDraw(scoped_ptr<DrawObject> object,
+                     OnscreenType onscreen_type,
+                     OffscreenType offscreen_type);
+  void AddTransparentDraw(scoped_ptr<DrawObject> object,
+                          OnscreenType onscreen_type,
+                          OffscreenType offscreen_type,
                           const math::RectF& bounds);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
-  void ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
-  void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
 
  private:
   struct TransparentObjectInfo {
-    TransparentObjectInfo(DrawType object_type,
+    TransparentObjectInfo(OnscreenType onscreen_type,
                           const math::RectF& object_bounds)
         : bounds(object_bounds),
-          type(object_type) {}
+          type(onscreen_type) {}
     math::RectF bounds;
-    DrawType type;
+    OnscreenType type;
   };
 
-  ScopedVector<DrawObject> draw_objects_[kDrawCount];
+  ScopedVector<DrawObject> draw_objects_[kOnscreenCount];
   std::vector<TransparentObjectInfo> transparent_object_info_;
+
+  // Manage execution order of objects in the draw_objects_ vectors. This does
+  // not manage destruction of objects.
+  std::vector<DrawObject*> offscreen_order_[kOffscreenCount];
 };
 
 }  // namespace egl

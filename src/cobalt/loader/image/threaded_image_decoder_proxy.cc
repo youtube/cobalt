@@ -77,6 +77,9 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
 // loop, where it will be deleted after any pending tasks involving it are
 // done.
 ThreadedImageDecoderProxy::~ThreadedImageDecoderProxy() {
+  // Notify the ImageDecoder that there's a pending deletion to ensure that no
+  // additional work is done decoding the image.
+  image_decoder_->SetDeletionPending();
   load_message_loop_->DeleteSoon(FROM_HERE, image_decoder_.release());
 }
 

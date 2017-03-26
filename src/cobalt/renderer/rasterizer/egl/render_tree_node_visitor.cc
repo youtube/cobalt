@@ -15,6 +15,7 @@
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -44,18 +45,6 @@ math::Rect RoundRectFToInt(const math::RectF& input) {
 bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
   return matrix(2, 0) == 0 && matrix(2, 1) == 0 && matrix(2, 2) == 1 &&
          matrix(0, 1) == 0 && matrix(1, 0) == 0;
-}
-
-int32_t NextPowerOf2(int32_t num) {
-  // Return the smallest power of 2 that is greater than or equal to num.
-  // This flips on all bits <= num, then num+1 will be the next power of 2.
-  --num;
-  num |= num >> 1;
-  num |= num >> 2;
-  num |= num >> 4;
-  num |= num >> 8;
-  num |= num >> 16;
-  return num + 1;
 }
 
 }  // namespace
@@ -145,7 +134,20 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     }
   }
 
-  NOTIMPLEMENTED();
+  // Handle opacity-only filter.
+  if (data.opacity_filter &&
+      !data.viewport_filter &&
+      !data.blur_filter &&
+      !data.map_to_mesh_filter) {
+    float old_opacity = draw_state_.opacity;
+    draw_state_.opacity *= data.opacity_filter->opacity();
+    data.source->Accept(this);
+    draw_state_.opacity = old_opacity;
+    return;
+  }
+
+  // Use the fallback rasterizer to handle everything else.
+  FallbackRasterize(filter_node, DrawObjectManager::kOffscreenSkiaFilter);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
@@ -193,19 +195,21 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
       scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
           draw_state_, data.destination_rect,
           hardware_image->GetTextureEGL(), texcoord_transform));
-      AddOpaqueDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture);
+      AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenRectTexture,
+          DrawObjectManager::kOffscreenNone);
     } else {
       scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
           draw_state_, data.destination_rect,
-          // Treat alpha as premultiplied in the texture.
-          render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, draw_state_.opacity),
+          render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
           hardware_image->GetTextureEGL(), texcoord_transform));
-      AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectColorTexture,
-                         image_node->GetBounds());
+      AddTransparentDraw(draw.Pass(),
+          DrawObjectManager::kOnscreenRectColorTexture,
+          DrawObjectManager::kOffscreenNone, image_node->GetBounds());
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
-    NOTIMPLEMENTED();
+    FallbackRasterize(image_node,
+                      DrawObjectManager::kOffscreenSkiaMultiPlaneImage);
   } else {
     NOTREACHED();
   }
@@ -217,7 +221,18 @@ void RenderTreeNodeVisitor::Visit(
     return;
   }
 
-  NOTIMPLEMENTED();
+  const render_tree::PunchThroughVideoNode::Builder& data = video_node->data();
+  math::RectF mapped_rect = draw_state_.transform.MapRect(data.rect);
+  data.set_bounds_cb.Run(
+      math::Rect(static_cast<int>(mapped_rect.x()),
+                 static_cast<int>(mapped_rect.y()),
+                 static_cast<int>(mapped_rect.width()),
+                 static_cast<int>(mapped_rect.height())));
+
+  scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+      draw_state_, data.rect, render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)));
+  AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
+      DrawObjectManager::kOffscreenNone);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
@@ -226,33 +241,49 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   const render_tree::RectNode::Builder& data = rect_node->data();
-
   const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
-  math::RectF content_rect(data.rect);
-  if (data.border) {
-    content_rect.Inset(data.border->left.width,
-                       data.border->top.width,
-                       data.border->right.width,
-                       data.border->bottom.width);
-  }
 
-  if (data.rounded_corners ||
-      (brush && brush->GetTypeId() !=
-          base::GetTypeId<render_tree::SolidColorBrush>())) {
-    NOTIMPLEMENTED();
+  // Only solid color brushes are supported at this time.
+  const bool brush_supported = !brush || brush->GetTypeId() ==
+      base::GetTypeId<render_tree::SolidColorBrush>();
+
+  // Borders are not supported natively by this rasterizer at this time. The
+  // difficulty lies in getting anti-aliased borders and minimizing state
+  // switches (due to anti-aliased borders requiring transparency). However,
+  // by using the fallback rasterizer, both can be accomplished -- sort to
+  // minimize state switches while rendering anti-aliased borders to the
+  // offscreen target, then use a single shader to render those.
+  const bool border_supported = !data.border;
+
+  if (data.rounded_corners) {
+    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectRounded);
+  } else if (!brush_supported) {
+    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectBrush);
+  } else if (!border_supported) {
+    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectBorder);
   } else {
+    DCHECK(!data.border);
+    const math::RectF& content_rect(data.rect);
+
     // Handle drawing the content.
     if (brush) {
-      render_tree::SolidColorBrush* solid_brush =
-          base::polymorphic_downcast<render_tree::SolidColorBrush*>
+      const render_tree::SolidColorBrush* solid_brush =
+          base::polymorphic_downcast<const render_tree::SolidColorBrush*>
               (brush.get());
+      const render_tree::ColorRGBA& brush_color(solid_brush->color());
+      render_tree::ColorRGBA content_color(
+          brush_color.r() * brush_color.a(),
+          brush_color.g() * brush_color.a(),
+          brush_color.b() * brush_color.a(),
+          brush_color.a());
       scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-          draw_state_, content_rect, solid_brush->color()));
-      if (draw_state_.opacity * solid_brush->color().a() == 1.0f) {
-        AddOpaqueDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor);
+          draw_state_, content_rect, content_color));
+      if (draw_state_.opacity * content_color.a() == 1.0f) {
+        AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
+            DrawObjectManager::kOffscreenNone);
       } else {
-        AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawPolyColor,
-                           rect_node->GetBounds());
+        AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
+            DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
       }
     }
   }
@@ -263,7 +294,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
     return;
   }
 
-  NOTIMPLEMENTED();
+  FallbackRasterize(shadow_node, DrawObjectManager::kOffscreenSkiaShadow);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
@@ -271,41 +302,45 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
     return;
   }
 
-  FallbackRasterize(text_node);
+  FallbackRasterize(text_node, DrawObjectManager::kOffscreenSkiaText);
 }
 
-void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node) {
+void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
+    DrawObjectManager::OffscreenType offscreen_type) {
+  DCHECK_NE(offscreen_type, DrawObjectManager::kOffscreenNone);
+
   // Use fallback_rasterize_ to render to an offscreen target. Add a small
   // buffer to allow anti-aliased edges (e.g. rendered text).
   const int kBorderWidth = 1;
-
   math::RectF node_bounds(node->GetBounds());
-
-  // Use power-of-2 texture sizes to ensure good performance on most GPUs.
-  // Some nodes, like TextNode, may have an internal offset for rendering,
-  // so the offscreen target must accommodate that.
   math::RectF viewport(kBorderWidth, kBorderWidth,
-      NextPowerOf2(node_bounds.right() + 2 * kBorderWidth),
-      NextPowerOf2(node_bounds.bottom() + 2 * kBorderWidth));
-
-  // Adjust the draw rect to accomodate the extra border.
-  math::RectF draw_rect(-kBorderWidth, -kBorderWidth,
       node_bounds.right() + 2 * kBorderWidth,
       node_bounds.bottom() + 2 * kBorderWidth);
 
-  // Use the texcoord transform matrix to handle the change in offscreen
-  // target size to the next power of 2.
-  math::Matrix3F texcoord_transform(math::Matrix3F::FromValues(
-      draw_rect.width() / viewport.width(), 0, 0,
-      0, draw_rect.height() / viewport.height(), 0,
-      0, 0, 1));
+  // Adjust the draw rect to accomodate the extra border and align texels with
+  // pixels. Perform the smallest fractional pixel shift for alignment.
+  float trans_x = std::floor(draw_state_.transform(0, 2) + 0.5f) -
+      draw_state_.transform(0, 2);
+  float trans_y = std::floor(draw_state_.transform(1, 2) + 0.5f) -
+      draw_state_.transform(1, 2);
+  math::RectF draw_rect(-kBorderWidth + trans_x, -kBorderWidth + trans_y,
+      viewport.width(), viewport.height());
 
-  scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
-      draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
-          scoped_refptr<render_tree::Node>(node), viewport),
-      texcoord_transform));
-  AddTransparentDraw(draw.Pass(), DrawObjectManager::kDrawRectTexture,
-                     draw_rect);
+  if (draw_state_.opacity == 1.0f) {
+    scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
+        draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
+            scoped_refptr<render_tree::Node>(node), viewport)));
+    AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenRectTexture,
+        offscreen_type, draw_rect);
+  } else {
+    scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
+        draw_state_, draw_rect, render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+        base::Bind(*fallback_rasterize_,
+            scoped_refptr<render_tree::Node>(node), viewport)));
+    AddTransparentDraw(draw.Pass(),
+        DrawObjectManager::kOnscreenRectColorTexture, offscreen_type,
+        draw_rect);
+  }
 }
 
 bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
@@ -315,15 +350,19 @@ bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
 }
 
 void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
-    DrawObjectManager::DrawType type) {
-  draw_object_manager_->AddOpaqueDraw(object.Pass(), type);
+    DrawObjectManager::OnscreenType onscreen_type,
+    DrawObjectManager::OffscreenType offscreen_type) {
+  draw_object_manager_->AddOpaqueDraw(object.Pass(), onscreen_type,
+      offscreen_type);
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
 }
 
 void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
-    DrawObjectManager::DrawType type, const math::RectF& local_bounds) {
-  draw_object_manager_->AddTransparentDraw(object.Pass(), type,
-      draw_state_.transform.MapRect(local_bounds));
+    DrawObjectManager::OnscreenType onscreen_type,
+    DrawObjectManager::OffscreenType offscreen_type,
+    const math::RectF& local_bounds) {
+  draw_object_manager_->AddTransparentDraw(object.Pass(), onscreen_type,
+      offscreen_type, draw_state_.transform.MapRect(local_bounds));
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
 }
 

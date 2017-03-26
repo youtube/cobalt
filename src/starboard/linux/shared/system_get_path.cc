@@ -78,7 +78,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   path[0] = '\0';
 
   switch (path_id) {
-    case kSbSystemPathContentDirectory: {
+    case kSbSystemPathContentDirectory:
       if (!GetExecutableDirectory(path, kPathSize)) {
         return false;
       }
@@ -86,9 +86,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
       break;
-    }
-
-    case kSbSystemPathCacheDirectory: {
+    case kSbSystemPathCacheDirectory:
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
       }
@@ -98,9 +96,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
       SbDirectoryCreate(path);
       break;
-    }
-
-    case kSbSystemPathDebugOutputDirectory: {
+    case kSbSystemPathDebugOutputDirectory:
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
       }
@@ -110,9 +106,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
       SbDirectoryCreate(path);
       break;
-    }
-
-    case kSbSystemPathSourceDirectory: {
+    case kSbSystemPathSourceDirectory:
       if (!GetExecutableDirectory(path, kPathSize)) {
         return false;
       }
@@ -121,25 +115,18 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
       break;
-    }
-
-    case kSbSystemPathTempDirectory: {
+    case kSbSystemPathTempDirectory:
       if (SbStringCopy(path, "/tmp/cobalt", kPathSize) >= kPathSize) {
         return false;
       }
 
       SbDirectoryCreate(path);
       break;
-    }
-
-    case kSbSystemPathTestOutputDirectory: {
+    case kSbSystemPathTestOutputDirectory:
       return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
                              path_size);
-    }
-
-    case kSbSystemPathExecutableFile: {
+    case kSbSystemPathExecutableFile:
       return GetExecutablePath(out_path, path_size);
-    }
   }
 
   int length = strlen(path);

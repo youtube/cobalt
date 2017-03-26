@@ -415,7 +415,10 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
 
   surface->increment_swap_count();
   if (surface->IsWindowRenderTarget() && surface->swap_count() <= 2) {
+    surface->set_cleared_on_swap(true);
     SecurityClear();
+  } else {
+    surface->set_cleared_on_swap(false);
   }
 }
 

@@ -47,10 +47,9 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
 DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
     const math::RectF& rect,
-    const GenerateTextureFunction& generate_texture,
-    const math::Matrix3F& texcoord_transform)
+    const GenerateTextureFunction& generate_texture)
     : DrawObject(base_state),
-      texcoord_transform_(texcoord_transform),
+      texcoord_transform_(math::Matrix3F::Identity()),
       rect_(rect),
       texture_(NULL),
       generate_texture_(generate_texture),
@@ -58,7 +57,15 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
-void DrawRectTexture::ExecuteUpdateVertexBuffer(
+void DrawRectTexture::ExecuteOffscreenRasterize(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  if (!generate_texture_.is_null()) {
+    generate_texture_.Run(&texture_, &texcoord_transform_);
+  }
+}
+
+void DrawRectTexture::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   VertexAttributes attributes[4] = {
@@ -83,15 +90,7 @@ void DrawRectTexture::ExecuteUpdateVertexBuffer(
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
-void DrawRectTexture::ExecuteRasterizeOffscreen(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  if (!generate_texture_.is_null()) {
-    texture_ = generate_texture_.Run();
-  }
-}
-
-void DrawRectTexture::ExecuteRasterizeNormal(
+void DrawRectTexture::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexTexcoord,
@@ -114,9 +113,9 @@ void DrawRectTexture::ExecuteRasterizeNormal(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
-  graphics_state->ActiveTexture(
-      program->GetFragmentShader().u_texture_texunit());
-  GL_CALL(glBindTexture(texture_->GetTarget(), texture_->gl_handle()));
+  graphics_state->ActiveBindTexture(
+      program->GetFragmentShader().u_texture_texunit(),
+      texture_->GetTarget(), texture_->gl_handle());
   GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
 }
 

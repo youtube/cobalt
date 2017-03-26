@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Samsung Electronics. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/user.h"
+#include "starboard/window.h"
 
-bool SbUserIsAgeRestricted(SbUser user) {
-  return false;
+#include "starboard/shared/wayland/application_wayland.h"
+
+SbWindow SbWindowCreate(const SbWindowOptions* options) {
+  return starboard::shared::wayland::ApplicationWayland::Get()->CreateWindow(
+      options);
 }

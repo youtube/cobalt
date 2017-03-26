@@ -18,6 +18,7 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
+#include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
@@ -42,12 +43,31 @@ class DrawObject {
 
   virtual ~DrawObject() {}
 
-  // Issue GL commands to rasterize the object.
-  virtual void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) = 0;
-  virtual void ExecuteRasterizeOffscreen(GraphicsState* graphics_state,
+  // This stage is used to render to offscreen targets. It specifically runs
+  // before vertex data is updated for onscreen rendering in order to allow
+  // this stage to modify that data. For example, this stage may rasterize to
+  // an offscreen atlas, so the location within the atlas might impact the
+  // texture coordinates used for the onscreen rasterize stage.
+  //
+  // If this stage needs to use vertex data of its own, then a new stage,
+  // ExecuteOffscreenUpdateVertexBuffer, should be created. This stage should
+  // be handled similarly to the current ExecuteOnscreenUpdateVertexBuffer.
+  virtual void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) {}
-  virtual void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+
+  // This stage is used to update the vertex buffer for the onscreen rasterize
+  // stage. Vertex data is handled by the GraphicsState to minimize the number
+  // of vertex buffers needed. Once this stage is executed, the rasterizer will
+  // then notify the GraphicsState to send all vertex data from all draw
+  // objects to the GPU.
+  virtual void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) = 0;
+
+  // This stage is used to render to the main render target. Although it can be
+  // used to rasterize to any number of render targets, it is best to use a
+  // different stage for offscreen rendering in order to minimize the cost of
+  // switching render targets.
+  virtual void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) = 0;
 
  protected:
@@ -56,6 +76,9 @@ class DrawObject {
   // Return a uint32_t suitable to be transferred as 4 unsigned bytes
   // representing color to a GL shader.
   static uint32_t GetGLRGBA(float r, float g, float b, float a);
+  static uint32_t GetGLRGBA(const render_tree::ColorRGBA& color) {
+    return GetGLRGBA(color.r(), color.g(), color.b(), color.a());
+  }
 
   BaseState base_state_;
 };

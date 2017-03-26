@@ -116,10 +116,12 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
   }
 
   if (!html_parser_context_) {
+#if !defined(USE_SYSTEM_LIBXML)
     // Suppress emitting a <p> element at the root level. This is needed to
     // prevent a <p> tag being added to text at the root level, for example
     // when used for setting an element's innerHTML.
     htmlEmitImpliedRootLevelParagraph(0);
+#endif
 
     html_parser_context_ =
         htmlCreatePushParserCtxt(&html_sax_handler, this, current_chunk.c_str(),

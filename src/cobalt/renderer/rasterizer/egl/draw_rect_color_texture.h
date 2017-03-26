@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_COLOR_TEXTURE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_COLOR_TEXTURE_H_
 
+#include "base/callback.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
@@ -29,6 +30,10 @@ namespace egl {
 // Handles drawing a textured rectangle modulated by a given color.
 class DrawRectColorTexture : public DrawObject {
  public:
+  typedef base::Callback<void(const backend::TextureEGL** out_texture,
+                              math::Matrix3F* out_texcoord_transform)>
+      GenerateTextureFunction;
+
   DrawRectColorTexture(GraphicsState* graphics_state,
                        const BaseState& base_state,
                        const math::RectF& rect,
@@ -36,9 +41,17 @@ class DrawRectColorTexture : public DrawObject {
                        const backend::TextureEGL* texture,
                        const math::Matrix3F& texcoord_transform);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
+  DrawRectColorTexture(GraphicsState* graphics_state,
+                       const BaseState& base_state,
+                       const math::RectF& rect,
+                       const render_tree::ColorRGBA& color,
+                       const GenerateTextureFunction& generate_texture);
+
+  void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteRasterizeNormal(GraphicsState* graphics_state,
+  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
 
  private:
@@ -46,6 +59,7 @@ class DrawRectColorTexture : public DrawObject {
   math::RectF rect_;
   uint32_t color_;
   const backend::TextureEGL* texture_;
+  GenerateTextureFunction generate_texture_;
 
   uint8_t* vertex_buffer_;
 };
