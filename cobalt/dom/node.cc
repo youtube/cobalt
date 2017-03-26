@@ -498,6 +498,18 @@ void Node::InvalidateLayoutBoxesOfNodeAndDescendants() {
   InvalidateLayoutBoxesOfDescendants();
 }
 
+void Node::InvalidateLayoutBoxSizesOfNodeAndAncestors() {
+  InvalidateLayoutBoxSizesOfAncestors();
+}
+
+void Node::InvalidateLayoutBoxCrossReferencesOfNodeAndAncestors() {
+  InvalidateLayoutBoxCrossReferencesOfAncestors();
+}
+
+void Node::InvalidateLayoutBoxRenderTreeNodesOfNodeAndAncestors() {
+  InvalidateLayoutBoxRenderTreeNodesOfAncestors();
+}
+
 void Node::PurgeCachedBackgroundImagesOfDescendants() {
   Node* child = first_child_;
   while (child) {
@@ -525,6 +537,24 @@ void Node::InvalidateLayoutBoxesOfDescendants() {
   while (child) {
     child->InvalidateLayoutBoxesOfNodeAndDescendants();
     child = child->next_sibling_;
+  }
+}
+
+void Node::InvalidateLayoutBoxSizesOfAncestors() {
+  if (parent_) {
+    parent_->InvalidateLayoutBoxSizesOfNodeAndAncestors();
+  }
+}
+
+void Node::InvalidateLayoutBoxCrossReferencesOfAncestors() {
+  if (parent_) {
+    parent_->InvalidateLayoutBoxCrossReferencesOfNodeAndAncestors();
+  }
+}
+
+void Node::InvalidateLayoutBoxRenderTreeNodesOfAncestors() {
+  if (parent_) {
+    parent_->InvalidateLayoutBoxRenderTreeNodesOfNodeAndAncestors();
   }
 }
 
