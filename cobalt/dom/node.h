@@ -250,15 +250,17 @@ class Node : public EventTarget {
   virtual void InvalidateComputedStylesOfNodeAndDescendants();
   virtual void InvalidateLayoutBoxesOfNodeAndAncestors();
   virtual void InvalidateLayoutBoxesOfNodeAndDescendants();
-
-  virtual void InvalidateLayoutBoxSizes() {}
-  virtual void InvalidateLayoutBoxCrossReferences() {}
-  virtual void InvalidateLayoutBoxRenderTreeNodes() {}
+  virtual void InvalidateLayoutBoxSizesOfNodeAndAncestors();
+  virtual void InvalidateLayoutBoxCrossReferencesOfNodeAndAncestors();
+  virtual void InvalidateLayoutBoxRenderTreeNodesOfNodeAndAncestors();
 
   void PurgeCachedBackgroundImagesOfDescendants();
   void InvalidateComputedStylesOfDescendants();
   void InvalidateLayoutBoxesOfAncestors();
   void InvalidateLayoutBoxesOfDescendants();
+  void InvalidateLayoutBoxSizesOfAncestors();
+  void InvalidateLayoutBoxCrossReferencesOfAncestors();
+  void InvalidateLayoutBoxRenderTreeNodesOfAncestors();
 
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateGenerationForNodeAndAncestors();
