@@ -212,6 +212,12 @@ class WebModule::Impl {
  private:
   class DocumentLoadedObserver;
 
+  // Purge all resource caches owned by the WebModule.
+  void PurgeResourceCaches();
+
+  // Disable callbacks in all resource caches owned by the WebModule.
+  void DisableCallbacksInResourceCaches();
+
   // Injects a list of custom window attributes into the WebModule's window
   // object.
   void InjectCustomWindowAttributes(
@@ -606,8 +612,7 @@ WebModule::Impl::~Impl() {
   // callback to occur into a DOM object that is being kept alive by a JS engine
   // reference even after the DOM tree has been destroyed. This can result in a
   // crash when the callback attempts to access a stale Document pointer.
-  remote_typeface_cache_->DisableCallbacks();
-  image_cache_->DisableCallbacks();
+  DisableCallbacksInResourceCaches();
 
   screen_reader_.reset();
   layout_manager_.reset();
@@ -777,8 +782,7 @@ void WebModule::Impl::SuspendLoaders() {
 
   // Purge the resource caches before running any suspend logic. This will force
   // any pending callbacks that the caches are batching to run.
-  image_cache_->Purge();
-  remote_typeface_cache_->Purge();
+  PurgeResourceCaches();
 
   // Stop the generation of render trees.
   layout_manager_->Suspend();
@@ -804,8 +808,7 @@ void WebModule::Impl::FinishSuspend() {
   // Clear out all resource caches. We need to do this after we abort all
   // in-progress loads, and after we clear all document references, or they will
   // still be referenced and won't be cleared from the cache.
-  image_cache_->Purge();
-  remote_typeface_cache_->Purge();
+  PurgeResourceCaches();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // The debug overlay may be holding onto a render tree, clear that out.
@@ -848,6 +851,18 @@ void WebModule::Impl::ReportScriptError(
      << source_location.line_number << ","
      << source_location.column_number << "): " << error_message << "\n";
   SbLogRaw(ss.str().c_str());
+}
+
+void WebModule::Impl::PurgeResourceCaches() {
+  image_cache_->Purge();
+  remote_typeface_cache_->Purge();
+  mesh_cache_->Purge();
+}
+
+void WebModule::Impl::DisableCallbacksInResourceCaches() {
+  image_cache_->DisableCallbacks();
+  remote_typeface_cache_->DisableCallbacks();
+  mesh_cache_->DisableCallbacks();
 }
 
 WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)
