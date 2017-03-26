@@ -212,19 +212,22 @@ class Box : public base::RefCounted<Box> {
   // Margin box.
   LayoutUnit GetMarginBoxWidth() const;
   LayoutUnit GetMarginBoxHeight() const;
-  const Vector2dLayoutUnit& margin_box_offset_from_containing_block() const {
-    return margin_box_offset_from_containing_block_;
-  }
   LayoutUnit GetMarginBoxLeftEdge() const;
   LayoutUnit GetMarginBoxTopEdge() const;
+  LayoutUnit margin_left() const { return margin_insets_.left(); }
+  LayoutUnit margin_top() const { return margin_insets_.top(); }
+  LayoutUnit margin_right() const { return margin_insets_.right(); }
+  LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
+
   LayoutUnit GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetMarginBoxStartEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
   LayoutUnit GetMarginBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  LayoutUnit margin_top() const { return margin_insets_.top(); }
-  LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
+  const Vector2dLayoutUnit& margin_box_offset_from_containing_block() const {
+    return margin_box_offset_from_containing_block_;
+  }
 
   // Border box.
   LayoutUnit GetBorderBoxWidth() const;
@@ -233,6 +236,10 @@ class Box : public base::RefCounted<Box> {
   SizeLayoutUnit GetBorderBoxSize() const;
   LayoutUnit GetBorderBoxLeftEdge() const;
   LayoutUnit GetBorderBoxTopEdge() const;
+  LayoutUnit border_left_width() const { return border_insets_.left(); }
+  LayoutUnit border_top_width() const { return border_insets_.top(); }
+  LayoutUnit border_right_width() const { return border_insets_.right(); }
+  LayoutUnit border_bottom_width() const { return border_insets_.bottom(); }
 
   // Padding box.
   LayoutUnit GetPaddingBoxWidth() const;
@@ -240,6 +247,10 @@ class Box : public base::RefCounted<Box> {
   SizeLayoutUnit GetPaddingBoxSize() const;
   LayoutUnit GetPaddingBoxLeftEdge() const;
   LayoutUnit GetPaddingBoxTopEdge() const;
+  LayoutUnit padding_left() const { return padding_insets_.left(); }
+  LayoutUnit padding_top() const { return padding_insets_.top(); }
+  LayoutUnit padding_right() const { return padding_insets_.right(); }
+  LayoutUnit padding_bottom() const { return padding_insets_.bottom(); }
 
   // Content box.
   LayoutUnit width() const { return content_size_.width(); }
@@ -397,19 +408,6 @@ class Box : public base::RefCounted<Box> {
   // changed as well.
   virtual bool ValidateUpdateSizeInputs(const LayoutParams& params);
 
-  // Invalidating the sizes causes them to be re-calculated the next time they
-  // are needed.
-  void InvalidateUpdateSizeInputsOfBox();
-  void InvalidateUpdateSizeInputsOfBoxAndAncestors();
-
-  // Invalidating the cross references causes them to be re-calculated the next
-  // time they are needed.
-  virtual void InvalidateCrossReferencesOfBoxAndAncestors();
-
-  // Invalidating the render tree nodes causes them to be re-generated the next
-  // time they are needed.
-  void InvalidateRenderTreeNodesOfBoxAndAncestors();
-
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
   // on the subclasses to provide the actual content.
@@ -470,6 +468,22 @@ class Box : public base::RefCounted<Box> {
   // layout.
   void InvalidateParent() { parent_ = NULL; }
 
+  // Invalidating the sizes causes them to be re-calculated the next time they
+  // are needed.
+  void InvalidateUpdateSizeInputsOfBox() {
+    last_update_size_params_ = base::nullopt;
+  }
+
+  // Invalidating the cross references causes them to be re-calculated the next
+  // time they are needed.
+  virtual void InvalidateCrossReferencesOfBox() {}
+
+  // Invalidating the render tree nodes causes them to be re-generated the next
+  // time they are needed.
+  void InvalidateRenderTreeNodesOfBox() {
+    cached_render_tree_node_info_ = base::nullopt;
+  }
+
  protected:
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
@@ -491,32 +505,18 @@ class Box : public base::RefCounted<Box> {
   //
   // Used values of "margin" properties are set by overriders
   // of |UpdateContentSizeAndMargins| method.
-  LayoutUnit margin_left() const { return margin_insets_.left(); }
   void set_margin_left(LayoutUnit margin_left) {
     margin_insets_.set_left(margin_left);
   }
   void set_margin_top(LayoutUnit margin_top) {
     margin_insets_.set_top(margin_top);
   }
-  LayoutUnit margin_right() const { return margin_insets_.right(); }
   void set_margin_right(LayoutUnit margin_right) {
     margin_insets_.set_right(margin_right);
   }
   void set_margin_bottom(LayoutUnit margin_bottom) {
     margin_insets_.set_bottom(margin_bottom);
   }
-
-  // Border box read-only accessors.
-  LayoutUnit border_left_width() const { return border_insets_.left(); }
-  LayoutUnit border_top_width() const { return border_insets_.top(); }
-  LayoutUnit border_right_width() const { return border_insets_.right(); }
-  LayoutUnit border_bottom_width() const { return border_insets_.bottom(); }
-
-  // Padding box read-only accessors.
-  LayoutUnit padding_left() const { return padding_insets_.left(); }
-  LayoutUnit padding_top() const { return padding_insets_.top(); }
-  LayoutUnit padding_right() const { return padding_insets_.right(); }
-  LayoutUnit padding_bottom() const { return padding_insets_.bottom(); }
 
   // Content box setters.
   //
@@ -567,6 +567,10 @@ class Box : public base::RefCounted<Box> {
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
       const base::optional<LayoutUnit>& possibly_overconstrained_margin_left,
       const base::optional<LayoutUnit>& possibly_overconstrained_margin_right);
+
+  // Invalidating the render tree nodes causes them to be re-generated the next
+  // time they are needed.
+  void InvalidateRenderTreeNodesOfBoxAndAncestors();
 
  private:
   struct CachedRenderTreeNodeInfo {
@@ -700,7 +704,6 @@ class Box : public base::RefCounted<Box> {
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
-  friend class LayoutBoxes;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };

@@ -206,9 +206,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void InvalidateComputedStylesOfNodeAndDescendants() OVERRIDE;
   void InvalidateLayoutBoxesOfNodeAndAncestors() OVERRIDE;
   void InvalidateLayoutBoxesOfNodeAndDescendants() OVERRIDE;
-  void InvalidateLayoutBoxSizes() OVERRIDE;
-  void InvalidateLayoutBoxCrossReferences() OVERRIDE;
-  void InvalidateLayoutBoxRenderTreeNodes() OVERRIDE;
+  void InvalidateLayoutBoxSizesOfNodeAndAncestors() OVERRIDE;
+  void InvalidateLayoutBoxCrossReferencesOfNodeAndAncestors() OVERRIDE;
+  void InvalidateLayoutBoxRenderTreeNodesOfNodeAndAncestors() OVERRIDE;
 
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
