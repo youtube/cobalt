@@ -15,4 +15,5 @@
 interface ExtendedIDLAttributesInterface {
   [CallWith=EnvironmentSettings] void callWithSettings();
   void clampArgument([Clamp] unsigned short arg);
+  [ImplementedAs=attribute_default] attribute boolean default;
 };
