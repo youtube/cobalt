@@ -59,8 +59,9 @@ class HardwareRasterizer::Impl {
 #if defined(ENABLE_DEBUG_CONSOLE)
   void OnToggleHighlightSoftwareDraws(const std::string& message);
 #endif
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   void SetupLastFrameSurface(int width, int height);
-
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   base::ThreadChecker thread_checker_;
 
   backend::GraphicsContextBlitter* context_;
@@ -133,7 +134,11 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   }
 }
 
-HardwareRasterizer::Impl::~Impl() { SbBlitterDestroySurface(current_frame_); }
+HardwareRasterizer::Impl::~Impl() {
+  if (SbBlitterIsSurfaceValid(current_frame_)) {
+    SbBlitterDestroySurface(current_frame_);
+  }
+}
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 void HardwareRasterizer::Impl::OnToggleHighlightSoftwareDraws(
@@ -158,12 +163,19 @@ void HardwareRasterizer::Impl::Submit(
       base::polymorphic_downcast<backend::RenderTargetBlitter*>(
           render_target.get());
 
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   if (!SbBlitterIsSurfaceValid(current_frame_)) {
     SetupLastFrameSurface(width, height);
   }
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
-  CHECK(SbBlitterSetRenderTarget(
-      context, SbBlitterGetRenderTargetFromSurface(current_frame_)));
+  SbBlitterRenderTarget visitor_render_target = kSbBlitterInvalidRenderTarget;
+  if (SbBlitterIsSurfaceValid(current_frame_)) {
+    visitor_render_target = SbBlitterGetRenderTargetFromSurface(current_frame_);
+  } else {
+    visitor_render_target = render_target_blitter->GetSbRenderTarget();
+  }
+  CHECK(SbBlitterSetRenderTarget(context, visitor_render_target));
 
   // Update our surface cache to do per-frame calculations such as deciding
   // which render tree nodes are candidates for caching in this upcoming
@@ -193,14 +205,15 @@ void HardwareRasterizer::Impl::Submit(
     // Visit the render tree with our Blitter API visitor.
     BoundsStack start_bounds(context_->GetSbBlitterContext(),
                              math::Rect(render_target_blitter->GetSize()));
-    if (options.dirty && !cleared) {
+
+    if (SbBlitterIsSurfaceValid(current_frame_) && options.dirty && !cleared) {
       // If a dirty rectangle was specified, limit our redrawing to within it.
       start_bounds.Push(*options.dirty);
     }
 
     RenderState initial_render_state(
-        SbBlitterGetRenderTargetFromSurface(current_frame_), Transform(),
-        start_bounds);
+        visitor_render_target, Transform(), start_bounds);
+
 #if defined(ENABLE_DEBUG_CONSOLE)
     initial_render_state.highlight_software_draws =
         toggle_highlight_software_draws_;
@@ -214,14 +227,17 @@ void HardwareRasterizer::Impl::Submit(
     render_tree->Accept(&visitor);
   }
 
-  // Finally flip the surface to make visible the rendered results.
-  CHECK(SbBlitterSetRenderTarget(context,
-                                 render_target_blitter->GetSbRenderTarget()));
-  CHECK(SbBlitterSetBlending(context, false));
-  CHECK(SbBlitterSetModulateBlitsWithColor(context, false));
-  CHECK(SbBlitterBlitRectToRect(context, current_frame_,
-                                SbBlitterMakeRect(0, 0, width, height),
-                                SbBlitterMakeRect(0, 0, width, height)));
+  if (SbBlitterIsSurfaceValid(current_frame_)) {
+    // Finally flip the surface to make visible the rendered results.
+    CHECK(SbBlitterSetRenderTarget(context,
+                                   render_target_blitter->GetSbRenderTarget()));
+    CHECK(SbBlitterSetBlending(context, false));
+    CHECK(SbBlitterSetModulateBlitsWithColor(context, false));
+    CHECK(SbBlitterBlitRectToRect(context, current_frame_,
+                                  SbBlitterMakeRect(0, 0, width, height),
+                                  SbBlitterMakeRect(0, 0, width, height)));
+  }
+
   CHECK(SbBlitterFlushContext(context));
   frame_rate_throttler_.EndInterval();
   render_target_blitter->Flip();
@@ -234,11 +250,13 @@ render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
 }
 
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 void HardwareRasterizer::Impl::SetupLastFrameSurface(int width, int height) {
   current_frame_ =
       SbBlitterCreateRenderTargetSurface(context_->GetSbBlitterDevice(), width,
                                          height, kSbBlitterSurfaceFormatRGBA8);
 }
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context,
