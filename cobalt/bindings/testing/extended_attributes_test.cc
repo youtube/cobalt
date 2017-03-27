@@ -43,6 +43,35 @@ TEST_F(ExtendedAttributesTest, ClampArgument) {
                              NULL));
 }
 
+TEST_F(ExtendedAttributesTest, ImplementedAsAttributeGetter) {
+  EXPECT_CALL(test_mock(), attribute_default()).WillOnce(Return(true));
+  EXPECT_TRUE(EvaluateScript("var result = test.default;", NULL));
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof result;", &result));
+  EXPECT_STREQ("boolean", result.c_str());
+
+  EXPECT_TRUE(EvaluateScript("result;", &result));
+  EXPECT_STREQ("true", result.c_str());
+
+  EXPECT_CALL(test_mock(), attribute_default()).WillOnce(Return(false));
+  EXPECT_TRUE(EvaluateScript("var result = test.default;", NULL));
+
+  EXPECT_TRUE(EvaluateScript("typeof result;", &result));
+  EXPECT_STREQ("boolean", result.c_str());
+
+  EXPECT_TRUE(EvaluateScript("result;", &result));
+  EXPECT_STREQ("false", result.c_str());
+}
+
+TEST_F(ExtendedAttributesTest, ImplementedAsAttributeSetter) {
+  EXPECT_CALL(test_mock(), set_attribute_default(true));
+  EXPECT_TRUE(EvaluateScript(StringPrintf("test.default = true;"), NULL));
+
+  EXPECT_CALL(test_mock(), set_attribute_default(false));
+  EXPECT_TRUE(EvaluateScript(StringPrintf("test.default = false;"), NULL));
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
