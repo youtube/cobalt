@@ -166,7 +166,7 @@
     # surface cache facilitates the reuse of temporary offscreen surfaces
     # within a single frame.  This setting is only relevant when using the
     # hardware-accelerated Skia rasterizer.
-    'scratch_surface_cache_size_in_bytes%': 7 * 1024 * 1024,
+    'scratch_surface_cache_size_in_bytes%': 0,
 
     # Determines the capacity of the surface cache.  The surface cache tracks
     # which render tree nodes are being re-used across frames and stores the
