@@ -268,10 +268,12 @@
     # as expected, rather than requiring it to be set for each platform.
     #'javascript_engine%': 'mozjs',
 
-    # Enable jit by default. It can be set to 0 to run in interpreter-only mode.
+    # Disable jit and run in interpreter-only mode by default. It can be set to
+    # 1 to run in jit mode.  We have found that disabling jit often results in
+    # faster JavaScript execution and lower memory usage.
     # Setting this to 1 on a platform or engine for which there is no JIT
     # implementation is a no-op.
-    'cobalt_enable_jit%': 1,
+    'cobalt_enable_jit%': 0,
 
     # Customize variables used by Chromium's build/common.gypi.
 
