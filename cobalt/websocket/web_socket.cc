@@ -269,12 +269,12 @@ void WebSocket::Close(const uint16 code, const std::string& reason,
     return;
   }
 
-  switch (ready_state_) {
+  switch (ready_state()) {
     case kOpen:
     case kConnecting:
       DCHECK(impl_);
       impl_->Close(net::WebSocketError(code), reason);
-      ready_state_ = kClosing;
+      SetReadyState(kClosing);
       break;
     case kClosing:
     case kClosed:
@@ -291,7 +291,7 @@ bool WebSocket::CheckReadyState(script::ExceptionState* exception_state) {
   // Per Websockets API spec:
   // "If the readyState attribute is CONNECTING, it must throw an
   // InvalidStateError exception"
-  if (ready_state_ == kConnecting) {
+  if (ready_state() == kConnecting) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
                              "readyState is not in CONNECTING state",
                              exception_state);
@@ -402,7 +402,7 @@ void WebSocket::OnConnected(const std::string& selected_subprotocol) {
   DLOG(INFO) << "Websockets selected subprotocol: [" << selected_subprotocol
              << "]";
   protocol_ = selected_subprotocol;
-  ready_state_ = kOpen;
+  SetReadyState(kOpen);
   this->DispatchEvent(new dom::Event(base::Tokens::open()));
 }
 
