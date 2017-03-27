@@ -63,8 +63,11 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
   // Setup our configuration to support RGBA and compatibility with PBuffer
   // objects (for offscreen rendering).
   EGLint attribute_list[] = {EGL_SURFACE_TYPE,    // this must be first
-                             EGL_WINDOW_BIT | EGL_PBUFFER_BIT |
-                                EGL_SWAP_BEHAVIOR_PRESERVED_BIT,
+                             EGL_WINDOW_BIT | EGL_PBUFFER_BIT
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
+                                 | EGL_SWAP_BEHAVIOR_PRESERVED_BIT
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
+                             ,
                              EGL_RED_SIZE,
                              8,
                              EGL_GREEN_SIZE,
@@ -85,13 +88,15 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 #endif
                              EGL_NONE};
 
+  EGLint num_configs;
+  eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs);
+
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   // Try to allow preservation of the frame contents between swap calls --
   // this will allow rendering of only parts of the frame that have changed.
   DCHECK_EQ(EGL_SURFACE_TYPE, attribute_list[0]);
   EGLint& surface_type_value = attribute_list[1];
 
-  EGLint num_configs;
-  eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs);
   if (eglGetError() != EGL_SUCCESS || num_configs == 0) {
     // Swap buffer preservation may not be supported. Try to find a config
     // without the feature.
@@ -99,6 +104,8 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
     EGL_CALL(
         eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs));
   }
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
+
   DCHECK_EQ(1, num_configs);
 
 #if defined(GLES3_SUPPORTED)

@@ -52,6 +52,7 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
   surface_ = eglCreateWindowSurface(display_, config_, native_window_, NULL);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   // Configure the surface to preserve contents on swap.
   EGLBoolean surface_attrib_set =
       eglSurfaceAttrib(display_, surface_,
@@ -61,6 +62,7 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
   // set the error condition.
   content_preserved_on_swap_ =
       eglGetError() == EGL_SUCCESS && surface_attrib_set == EGL_TRUE;
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
   // Query and cache information about the surface now that we have created it.
   EGLint egl_surface_width;

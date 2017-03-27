@@ -39,7 +39,6 @@
     'utils.cc',
     'utils.h',
   ],
-
   'dependencies': [
     '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
   ],
@@ -47,4 +46,11 @@
     '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
   ],
 
+  'conditions': [
+    ['render_dirty_region_only==1', {
+      'defines': [
+        'COBALT_RENDER_DIRTY_REGION_ONLY',
+      ],
+    }],
+  ],
 }
