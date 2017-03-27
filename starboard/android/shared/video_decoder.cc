@@ -218,8 +218,17 @@ void VideoDecoder::DecoderThreadFunc() {
   // so it does not need to be thread-safe.
   std::deque<Event> pending_work;
   // A queue of media codec output buffers that we have taken from the media
-  // codec brige.
+  // codec bridge.
   std::deque<OutputBufferHandle> output_buffer_handles;
+
+  // We will switch off each iteration between attempting to enqueue an input
+  // buffer and then handling owned output buffers, and attempting to dequeue
+  // and output buffer and then handling owned output buffers.
+  enum MediaCodecWorkType {
+    kAttemptHandleInputBuffer,
+    kAttemptHandleOutputBuffer,
+  };
+  MediaCodecWorkType work_type = kAttemptHandleInputBuffer;
 
   for (;;) {
     Event event = event_queue_.PollFront();
@@ -238,24 +247,31 @@ void VideoDecoder::DecoderThreadFunc() {
       if (status != MEDIA_CODEC_OK) {
         SB_LOG(ERROR) << "Failed to flush video media codec.";
       }
-      pending_work.clear();
       return;
     }
 
-    bool did_input = true;
-    bool did_output = true;
-    while (did_input || did_output) {
-      did_input = ProcessOneInputBuffer(&pending_work);
-      did_output = ProcessOneOutputBuffer(&output_buffer_handles);
+    bool did_work = false;
+    if (work_type == kAttemptHandleInputBuffer) {
+      did_work |= ProcessOneInputBuffer(&pending_work);
+      work_type = kAttemptHandleOutputBuffer;
+    } else if (work_type == kAttemptHandleOutputBuffer) {
+      did_work |= ProcessOneOutputBuffer(&output_buffer_handles);
+      work_type = kAttemptHandleInputBuffer;
+    } else {
+      SB_NOTREACHED();
     }
 
     // Pass all of our decoded frames into our host, which will decide whether
-    // to drop them, render them, or hold them.
+    // to drop them, render them, or hold them.  If our host does anything
+    // with at least one frame, then we consider that work, and will do
+    // another loop iteration immediately.
+    size_t previous_size = output_buffer_handles.size();
     host_->HandleDecodedFrames(media_codec_bridge_.get(),
                                &output_buffer_handles);
+    did_work |= (output_buffer_handles.size() != previous_size);
 
-    if (event.type == Event::kInvalid) {
-      SbThreadSleep(10 * 1000);
+    if (event.type == Event::kInvalid && !did_work) {
+      SbThreadSleep(kSbTimeMillisecond / 2);
       continue;
     }
   }
