@@ -48,6 +48,7 @@ def _GetHostOS():
   host_os_names = {
       'linux2': 'linux',
       'linux3': 'linux',
+      'darwin': 'linux',
       'win32': 'win',
   }
 
