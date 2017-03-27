@@ -71,7 +71,7 @@ def GetRevinfo():
   try:
     revinfo_cmd = ['gclient', 'revinfo', '-a']
 
-    if sys.platform.startswith('linux'):
+    if sys.platform.startswith('linux') or sys.platform == 'darwin':
       use_shell = False
     else:
       # Windows needs shell to find gclient in the PATH.
