@@ -423,13 +423,15 @@ class ContextBuilder(object):
 
   def attribute_context(self, interface, attribute, definitions):
     """Create template values for attribute bindings."""
+    cobalt_name = attribute.extended_attributes.get(
+        'ImplementedAs', convert_to_cobalt_name(attribute.name))
     context = {
         'idl_name':
             attribute.name,
         'getter_function_name':
-            convert_to_cobalt_name(attribute.name),
+            cobalt_name,
         'setter_function_name':
-            'set_' + convert_to_cobalt_name(attribute.name),
+            'set_' + cobalt_name,
         'type':
             self.typed_object_to_cobalt_type(interface, attribute),
         'is_static':

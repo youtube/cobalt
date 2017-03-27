@@ -20,7 +20,5 @@ interface SpeechSynthesisVoice {
   readonly attribute DOMString lang;
   readonly attribute boolean localService;
 
-  // Not supported by IDL compiler: Results in a member using a reserved
-  // keyword, IDL compiler doesn't support ImplementedAs.
-  // [ImplementedAs=attribute_default] readonly attribute boolean default;
+  [ImplementedAs=attribute_default] readonly attribute boolean default;
 };
