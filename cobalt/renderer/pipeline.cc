@@ -236,7 +236,6 @@ void Pipeline::ClearCurrentRenderTree(
 }
 
 void Pipeline::RasterizeCurrentTree() {
-  TRACK_MEMORY_SCOPE("Gfx");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
