@@ -26,6 +26,7 @@
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "nb/memory_scope.h"
 
 using cobalt::render_tree::Node;
 using cobalt::render_tree::animations::AnimateNode;
@@ -235,6 +236,7 @@ void Pipeline::ClearCurrentRenderTree(
 }
 
 void Pipeline::RasterizeCurrentTree() {
+  TRACK_MEMORY_SCOPE("Gfx");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
