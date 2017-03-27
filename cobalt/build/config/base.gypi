@@ -67,6 +67,19 @@
     #                 still be available and valid, but it will do nothing.
     'rasterizer_type%': 'hardware',
 
+    # If set to 1, will enable support for rendering only the regions of the
+    # display that are modified due to animations, instead of re-rendering the
+    # entire scene each frame.  This feature can reduce startup time where
+    # usually there is a small loading spinner animating on the screen.  On GLES
+    # renderers, Cobalt will attempt to implement this support by using
+    # eglSurfaceAttrib(..., EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED), otherwise
+    # the dirty region will be silently disabled.  On Blitter API platforms,
+    # if this is enabled, we explicitly create an extra offscreen full-size
+    # intermediate surface to render into.  Note that some GLES driver
+    # implementations may internally allocate an extra full screen surface to
+    # support this feature.
+    'render_dirty_region_only%': 1,
+
     # Modify this value to adjust the default rasterizer setting for your
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
