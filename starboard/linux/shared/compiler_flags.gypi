@@ -42,6 +42,9 @@
     ],
     'conditions': [
       ['clang==1', {
+        'linker_flags': [
+          '-fuse-ld=lld',
+        ],
         'common_clang_flags': [
           '-Werror',
           '-fcolor-diagnostics',
