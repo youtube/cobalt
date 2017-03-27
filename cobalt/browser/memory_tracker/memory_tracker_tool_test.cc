@@ -31,7 +31,7 @@ using ::nb::analytics::AllocationVisitor;
 TEST(MemoryTrackerToolTest, AllocationSizeBinner) {
   const size_t index =
       AllocationSizeBinner::GetBucketIndexForAllocationSize(24);
-  EXPECT_EQ(5, index);
+  EXPECT_EQ(5, static_cast<int>(index));
 
   const size_t kAllocSize = 24;
 
@@ -44,8 +44,8 @@ TEST(MemoryTrackerToolTest, AllocationSizeBinner) {
   size_t min_val = 0;
   size_t max_val = 0;
   AllocationSizeBinner::GetSizeRange(kAllocSize, &min_val, &max_val);
-  EXPECT_EQ(16, min_val);
-  EXPECT_EQ(31, max_val);
+  EXPECT_EQ(16, static_cast<int>(min_val));
+  EXPECT_EQ(31, static_cast<int>(max_val));
 
   // 0 -> [0,0]
   // 1 -> [1,1]
@@ -62,8 +62,8 @@ TEST(MemoryTrackerToolTest, AllocationSizeBinner) {
   size_t min_value = 0;
   size_t max_value = 0;
   binner.GetLargestSizeRange(&min_value, &max_value);
-  EXPECT_EQ(min_value, 8);
-  EXPECT_EQ(max_value, 15);
+  EXPECT_EQ(min_value, static_cast<int>(8));
+  EXPECT_EQ(max_value, static_cast<int>(15));
 
   std::string csv_string = binner.ToCSVString();
 
