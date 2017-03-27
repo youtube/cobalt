@@ -127,3 +127,6 @@ Unforgeable
 NewObject
 SameObject
 
+# Allows to specify an alternate method name for an attribute implementation.
+# Can be used to avoid using reserved keywords for method names.
+ImplementedAs=*
