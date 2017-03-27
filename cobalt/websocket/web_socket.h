@@ -131,6 +131,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   void OnConnected(const std::string& selected_subprotocol) OVERRIDE;
 
   void OnDisconnected() OVERRIDE {
+    SetReadyState(kClosed);
     this->DispatchEvent(new dom::Event(base::Tokens::close()));
   }
   void OnSentData(int amount_sent) OVERRIDE {
@@ -147,6 +148,11 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
                   script::ExceptionState* exception_state);
 
   void Connect(const GURL& url, const std::vector<std::string>& sub_protocols);
+
+  void SetReadyState(const uint16 ready_state) {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    ready_state_ = ready_state;
+  }
 
   // Returns false if the check fails.
   bool CheckReadyState(script::ExceptionState* exception_state);
