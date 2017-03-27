@@ -63,6 +63,9 @@ void SavegameThread::Flush(scoped_ptr<Savegame::ByteVector> raw_bytes_ptr,
     // because we won't be able to reload it. Something must have
     // gone wrong, and it's far better to leave any existing readable
     // data that's persisted than it is to risk making it unreadable.
+    if (!on_flush_complete.is_null()) {
+      on_flush_complete.Run();
+    }
     return;
   }
   thread_->message_loop()->PostTask(
@@ -107,7 +110,6 @@ void SavegameThread::FlushOnIOThread(
       const int kMaxConsecutiveFlushFailures = 2;
       DCHECK_LT(++num_consecutive_flush_failures_,
                 kMaxConsecutiveFlushFailures);
-      return;
     }
   }
 
