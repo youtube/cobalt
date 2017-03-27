@@ -61,6 +61,14 @@
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         'common',
       ],
+
+      'conditions': [
+        ['render_dirty_region_only==1', {
+          'defines': [
+            'COBALT_RENDER_DIRTY_REGION_ONLY',
+          ],
+        }],
+      ],
     },
 
     # The Blitter software rasterizer uses Skia to rasterize render trees on
