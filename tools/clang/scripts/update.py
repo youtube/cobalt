@@ -429,6 +429,9 @@ def ClobberOutFolderForClang():
                                    '..', 'out')
   out_dir = os.path.abspath(out_dir_with_dots)
 
+  if not os.path.exists(out_dir):
+    return
+
   out_subdirs = [os.path.join(out_dir, d)
                  for d in os.listdir(out_dir)]
   for build_folder in filter(os.path.isdir, out_subdirs):
