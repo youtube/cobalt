@@ -1410,7 +1410,7 @@ void MemoryTrackerLeakFinder::Run(Params* params) {
   // Run function does almost nothing.
   params->logger()->Output("MemoryTrackerLeakFinder running...");
 
-  static const int kMaxSamples = 400;
+  static const size_t kMaxSamples = 400;
 
   // This value will decay whenever the buffer fills up and is compressed via
   // sample elimination.
