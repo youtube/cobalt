@@ -22,10 +22,7 @@
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/egl/framebuffer.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
-#include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
 #include "third_party/skia/include/core/SkCanvas.h"
-#include "third_party/skia/include/core/SkRefCnt.h"
-#include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 
 namespace cobalt {
@@ -40,8 +37,10 @@ class OffscreenTargetManager {
  public:
   OffscreenTargetManager(backend::GraphicsContextEGL* graphics_context,
                          GrContext* skia_context);
+  ~OffscreenTargetManager();
 
-  // Update must be called once per frame.
+  // Update must be called once per frame, before any allocation requests are
+  // made for that frame.
   void Update(const math::Size& frame_size);
 
   // Return whether a cached version of the requested render target is
@@ -62,20 +61,16 @@ class OffscreenTargetManager {
 
  private:
   // Use an atlas for offscreen targets.
-  struct OffscreenAtlas {
-    explicit OffscreenAtlas(const math::Size& size) : allocator(size) {}
-    RectAllocator allocator;
-    scoped_ptr<backend::FramebufferEGL> framebuffer;
-    SkAutoTUnref<SkSurface> skia_surface;
-  };
+  struct OffscreenAtlas;
 
-  OffscreenAtlas* AddOffscreenAtlas(const math::Size& size);
+  OffscreenAtlas* CreateOffscreenAtlas(const math::Size& size);
 
   backend::GraphicsContextEGL* graphics_context_;
   GrContext* skia_context_;
 
   typedef ScopedVector<OffscreenAtlas> OffscreenAtlasList;
   OffscreenAtlasList offscreen_atlases_;
+  scoped_ptr<OffscreenAtlas> offscreen_cache_;
 
   // Size of the smallest offscreen target atlas that can hold all offscreen
   // targets requested this frame.
