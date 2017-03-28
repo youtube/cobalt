@@ -89,6 +89,7 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 #include "cobalt/media/shell_video_data_allocator_common.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "nb/memory_pool.h"
+#include "starboard/common/locked_ptr.h"
 
 namespace media {
 
@@ -134,12 +135,12 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 
   // Optional GPU Memory buffer pool, for buffer offloading.
   scoped_ptr<cobalt::render_tree::RawImageMemory> gpu_memory_buffer_space_;
-  scoped_ptr<nb::MemoryPool> gpu_memory_pool_;
+  starboard::LockedPtr<nb::MemoryPool> gpu_memory_pool_;
 
   // Main Memory buffer pool.
   scoped_ptr_malloc<uint8, base::ScopedPtrAlignedFree>
       main_memory_buffer_space_;
-  scoped_ptr<nb::MemoryPool> main_memory_pool_;
+  starboard::LockedPtr<nb::MemoryPool> main_memory_pool_;
 
   ShellVideoDataAllocatorCommon video_data_allocator_;
   scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
