@@ -655,7 +655,7 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
 void SignalWaitable(base::WaitableEvent* event) { event->Signal(); }
 
 // Test that we can properly decode animated WEBP image.
-TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
+TEST(ImageDecoderTest, DISABLED_DecodeAnimatedWEBPImage) {
   MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
@@ -682,7 +682,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
 }
 
 // Test that we can properly decode animated WEBP image in multiple chunks.
-TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
+TEST(ImageDecoderTest, DISABLED_DecodeAnimatedWEBPImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
