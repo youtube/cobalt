@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/compiler.h"
@@ -128,6 +129,21 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   DEFINE_WRAPPABLE_TYPE(WebSocket)
 
  private:
+  // The following constructors are used for testing only.
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            script::ExceptionState* exception_state,
+            const bool require_network_module);
+
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            const std::string& sub_protocol,
+            script::ExceptionState* exception_state,
+            const bool require_network_module);
+
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            const std::vector<std::string>& sub_protocols,
+            script::ExceptionState* exception_state,
+            const bool require_network_module);
+
   void OnConnected(const std::string& selected_subprotocol) OVERRIDE;
 
   void OnDisconnected() OVERRIDE {
@@ -144,7 +160,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
     this->DispatchEvent(new dom::Event(base::Tokens::error()));
   }
 
-  void Initialize(dom::DOMSettings* dom_settings, const std::string& url,
+  void Initialize(script::EnvironmentSettings* settings, const std::string& url,
                   const std::vector<std::string>& sub_protocols,
                   script::ExceptionState* exception_state);
 
@@ -179,10 +195,28 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   std::string resource_name_;  // The path of the URL.
   std::string entry_script_origin_;
 
+  bool require_network_module_;
   dom::DOMSettings* settings_;
   scoped_refptr<WebSocketImpl> impl_;
 
-  FRIEND_TEST(WebSocketTest, GoodOrigin);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, BadOrigin);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, GoodOrigin);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, TestInitialReadyState);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, SyntaxErrorWhenBadScheme);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseWsAndWssCorrectly);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, CheckSecure);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, SyntaxErrorWhenRelativeUrl);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, URLHasFragments);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, URLHasPort);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, URLHasNoPort);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseHost);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseResourceName);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseEmptyResourceName);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseResourceNameWithQuery);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, FailUnsecurePort);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, FailInvalidSubProtocols);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, SubProtocols);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, DuplicatedSubProtocols);
 
   DISALLOW_COPY_AND_ASSIGN(WebSocket);
 };

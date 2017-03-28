@@ -41,13 +41,12 @@ class FakeSettings : public dom::DOMSettings {
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                          NULL, NULL),
         base_("https://example.com") {
-    this->set_network_module(&network_module_);
+    this->set_network_module(NULL);
   }
   const GURL& base_url() const OVERRIDE { return base_; }
 
   // public members, so that they're easier for testing.
   GURL base_;
-  cobalt::network::NetworkModule network_module_;
 };
 
 class WebSocketTest : public ::testing::Test {
@@ -73,7 +72,7 @@ TEST_F(WebSocketTest, BadOrigin) {
       .WillOnce(SaveArg<0>(&exception));
 
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "ws://example.com", &exception_state_));
+      new WebSocket(settings(), "ws://example.com", &exception_state_, false));
 
   ASSERT_TRUE(exception.get());
   dom::DOMException& dom_exception(
@@ -100,8 +99,8 @@ TEST_F(WebSocketTest, GoodOrigin) {
     base::polymorphic_downcast<FakeSettings*>(settings())->base_ =
         GURL(new_base);
 
-    scoped_refptr<WebSocket> ws(
-        new WebSocket(settings(), "ws://example.com", &exception_state_));
+    scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com",
+                                              &exception_state_, false));
 
     ASSERT_FALSE(exception.get());
     EXPECT_EQ(ws->entry_script_origin_, test_case.expected_output);
@@ -111,7 +110,7 @@ TEST_F(WebSocketTest, GoodOrigin) {
 TEST_F(WebSocketTest, TestInitialReadyState) {
   scoped_ptr<FakeSettings> settings_;
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "ws://example.com", &exception_state_));
+      new WebSocket(settings(), "ws://example.com", &exception_state_, false));
   EXPECT_EQ(ws->ready_state(), WebSocket::kConnecting);
 }
 
@@ -121,8 +120,8 @@ TEST_F(WebSocketTest, SyntaxErrorWhenBadScheme) {
   EXPECT_CALL(exception_state_, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
 
-  scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "badscheme://example.com", &exception_state_));
+  scoped_refptr<WebSocket> ws(new WebSocket(
+      settings(), "badscheme://example.com", &exception_state_, false));
 
   dom::DOMException& dom_exception(
       *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
@@ -137,22 +136,22 @@ TEST_F(WebSocketTest, SyntaxErrorWhenBadScheme) {
 TEST_F(WebSocketTest, ParseWsAndWssCorrectly) {
   EXPECT_CALL(exception_state_, SetException(_)).Times(0);
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "ws://example.com/", &exception_state_));
+      new WebSocket(settings(), "ws://example.com/", &exception_state_, false));
 
   EXPECT_CALL(exception_state_, SetException(_)).Times(0);
   scoped_refptr<WebSocket> wss(
-      new WebSocket(settings(), "wss://example.com", &exception_state_));
+      new WebSocket(settings(), "wss://example.com", &exception_state_, false));
 }
 
 TEST_F(WebSocketTest, CheckSecure) {
   EXPECT_CALL(exception_state_, SetException(_)).Times(0);
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "ws://example.com/", &exception_state_));
+      new WebSocket(settings(), "ws://example.com/", &exception_state_, false));
   EXPECT_FALSE(ws->IsSecure());
 
   EXPECT_CALL(exception_state_, SetException(_)).Times(0);
   scoped_refptr<WebSocket> wss(
-      new WebSocket(settings(), "wss://example.com", &exception_state_));
+      new WebSocket(settings(), "wss://example.com", &exception_state_, false));
 
   EXPECT_TRUE(wss->IsSecure());
 }
@@ -165,7 +164,7 @@ TEST_F(WebSocketTest, SyntaxErrorWhenRelativeUrl) {
       .WillOnce(SaveArg<0>(&exception));
 
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "relative_url", &exception_state_));
+      new WebSocket(settings(), "relative_url", &exception_state_, false));
 
   dom::DOMException& dom_exception(
       *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
@@ -183,7 +182,7 @@ TEST_F(WebSocketTest, URLHasFragments) {
       .WillOnce(SaveArg<0>(&exception));
 
   scoped_refptr<WebSocket> ws(new WebSocket(
-      settings(), "wss://example.com/#fragment", &exception_state_));
+      settings(), "wss://example.com/#fragment", &exception_state_, false));
 
   dom::DOMException& dom_exception(
       *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
@@ -195,8 +194,8 @@ TEST_F(WebSocketTest, URLHasFragments) {
 }
 
 TEST_F(WebSocketTest, URLHasPort) {
-  scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "wss://example.com:789", &exception_state_));
+  scoped_refptr<WebSocket> ws(new WebSocket(settings(), "wss://example.com:789",
+                                            &exception_state_, false));
 
   EXPECT_EQ(ws->GetPort(), 789);
   EXPECT_EQ(ws->GetPortAsString(), "789");
@@ -208,13 +207,13 @@ TEST_F(WebSocketTest, URLHasNoPort) {
   // otherwise let port be 443.
 
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "ws://example.com", &exception_state_));
+      new WebSocket(settings(), "ws://example.com", &exception_state_, false));
 
   EXPECT_EQ(ws->GetPort(), 80);
   EXPECT_EQ(ws->GetPortAsString(), "80");
 
   scoped_refptr<WebSocket> wss(
-      new WebSocket(settings(), "wss://example.com", &exception_state_));
+      new WebSocket(settings(), "wss://example.com", &exception_state_, false));
 
   EXPECT_EQ(wss->GetPort(), 443);
   EXPECT_EQ(wss->GetPortAsString(), "443");
@@ -225,7 +224,7 @@ TEST_F(WebSocketTest, ParseHost) {
   // Let host be the value of the <host> component of url, converted to ASCII
   // lowercase.
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "wss://eXAmpLe.com", &exception_state_));
+      new WebSocket(settings(), "wss://eXAmpLe.com", &exception_state_, false));
 
   std::string host(ws->GetHost());
   EXPECT_EQ(host, "example.com");
@@ -237,7 +236,7 @@ TEST_F(WebSocketTest, ParseResourceName) {
   // empty) of
   // url.
   scoped_refptr<WebSocket> ws(new WebSocket(
-      settings(), "ws://eXAmpLe.com/resource_name", &exception_state_));
+      settings(), "ws://eXAmpLe.com/resource_name", &exception_state_, false));
 
   std::string resource_name(ws->GetResourceName());
   EXPECT_EQ(resource_name, "/resource_name");
@@ -248,7 +247,7 @@ TEST_F(WebSocketTest, ParseEmptyResourceName) {
   // If resource name is the empty string, set it to a single character U+002F
   // SOLIDUS (/).
   scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "ws://example.com", &exception_state_));
+      new WebSocket(settings(), "ws://example.com", &exception_state_, false));
 
   std::string resource_name(ws->GetResourceName());
   EXPECT_EQ(resource_name, "/");
@@ -261,7 +260,7 @@ TEST_F(WebSocketTest, ParseResourceNameWithQuery) {
   // component.
   scoped_refptr<WebSocket> ws(
       new WebSocket(settings(), "ws://example.com/resource_name?abc=xyz&j=3",
-                    &exception_state_));
+                    &exception_state_, false));
 
   std::string resource_name(ws->GetResourceName());
   EXPECT_EQ(resource_name, "/resource_name?abc=xyz&j=3");
@@ -273,8 +272,8 @@ TEST_F(WebSocketTest, FailUnsecurePort) {
   EXPECT_CALL(exception_state_, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
 
-  scoped_refptr<WebSocket> ws(
-      new WebSocket(settings(), "ws://example.com:22", &exception_state_));
+  scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com:22",
+                                            &exception_state_, false));
 
   dom::DOMException& dom_exception(
       *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
@@ -317,7 +316,7 @@ TEST_F(WebSocketTest, FailInvalidSubProtocols) {
 
     scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com",
                                               test_case.sub_protocol,
-                                              &exception_state_));
+                                              &exception_state_, false));
 
     if (test_case.exception_thrown) {
       dom::DOMException& dom_exception(
@@ -335,8 +334,9 @@ TEST_F(WebSocketTest, SubProtocols) {
     std::vector<std::string> sub_protocols;
     sub_protocols.push_back("chat.example.com");
     sub_protocols.push_back("bicker.example.com");
-    scoped_refptr<WebSocket> ws(new WebSocket(
-        settings(), "ws://example.com", sub_protocols, &exception_state_));
+    scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com",
+                                              sub_protocols, &exception_state_,
+                                              false));
 
     ASSERT_FALSE(exception.get());
   }
@@ -344,7 +344,8 @@ TEST_F(WebSocketTest, SubProtocols) {
     scoped_refptr<script::ScriptException> exception;
     std::string sub_protocol("chat");
     scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com",
-                                              sub_protocol, &exception_state_));
+                                              sub_protocol, &exception_state_,
+                                              false));
 
     ASSERT_FALSE(exception.get());
   }
@@ -358,8 +359,8 @@ TEST_F(WebSocketTest, DuplicatedSubProtocols) {
   std::vector<std::string> sub_protocols;
   sub_protocols.push_back("chat");
   sub_protocols.push_back("chat");
-  scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com",
-                                            sub_protocols, &exception_state_));
+  scoped_refptr<WebSocket> ws(new WebSocket(
+      settings(), "ws://example.com", sub_protocols, &exception_state_, false));
 
   ASSERT_TRUE(exception.get());
 
