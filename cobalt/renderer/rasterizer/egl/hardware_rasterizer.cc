@@ -16,7 +16,6 @@
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
-#include <vector>
 
 #include "base/debug/trace_event.h"
 #include "base/memory/scoped_vector.h"
@@ -75,7 +74,6 @@ class HardwareRasterizer::Impl {
   scoped_ptr<ShaderProgramManager> shader_program_manager_;
   scoped_ptr<OffscreenTargetManager> offscreen_target_manager_;
 
-  std::vector<SkCanvas*> skia_canvases_used_this_frame_;
   backend::GraphicsContextEGL* graphics_context_;
   FrameRateThrottler frame_rate_throttler_;
   base::ThreadChecker thread_checker_;
@@ -161,6 +159,10 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
   backend::FramebufferEGL* framebuffer = NULL;
   SkCanvas* canvas = NULL;
 
+  // It's possible for the desired viewport to be larger than can be allocated.
+  // In this situation, rendering will need to be scaled down.
+  math::RectF viewport_actual(viewport);
+
   // See if there is already a cache of the results. If not, then allocate
   // a target and render to it.
   if (!offscreen_target_manager_->GetCachedOffscreenTarget(
@@ -171,26 +173,48 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
         &framebuffer, &canvas, &target_rect);
 
     // Use skia to rasterize to the allocated offscreen target.
-    if (std::find(skia_canvases_used_this_frame_.begin(),
-                  skia_canvases_used_this_frame_.end(),
-                  canvas) == skia_canvases_used_this_frame_.end()) {
-      skia_canvases_used_this_frame_.push_back(canvas);
-    }
     canvas->save();
-    canvas->clipRect(SkRect::MakeXYWH(
-        target_rect.x(), target_rect.y(),
-        viewport.width() + 0.5f, viewport.height() + 0.5f));
-    canvas->translate(viewport.x() + target_rect.x(),
-                      viewport.y() + target_rect.y());
+    if (target_rect.width() < viewport.width() ||
+        target_rect.height() < viewport.height()) {
+      // The allocated offscreen target is smaller than requested. Scale
+      // rendering so it can fit into the smaller target.
+      math::SizeF scale(target_rect.width() / viewport.width(),
+                        target_rect.height() / viewport.height());
+      viewport_actual.SetRect(viewport_actual.x() * scale.width(),
+                              viewport_actual.y() * scale.height(),
+                              viewport_actual.width() * scale.width(),
+                              viewport_actual.height() * scale.height());
+      canvas->clipRect(SkRect::MakeXYWH(
+          target_rect.x(), target_rect.y(),
+          viewport_actual.width() + 0.5f, viewport_actual.height() + 0.5f));
+      canvas->translate(viewport_actual.x() + target_rect.x(),
+                        viewport_actual.y() + target_rect.y());
+      canvas->scale(scale.width(), scale.height());
+    } else {
+      canvas->clipRect(SkRect::MakeXYWH(
+          target_rect.x(), target_rect.y(),
+          viewport_actual.width() + 0.5f, viewport_actual.height() + 0.5f));
+      canvas->translate(viewport_actual.x() + target_rect.x(),
+                        viewport_actual.y() + target_rect.y());
+    }
     fallback_rasterizer_->SubmitOffscreen(render_tree, canvas);
     canvas->restore();
+  } else if (target_rect.width() < viewport.width() ||
+             target_rect.height() < viewport.height()) {
+    // The cached offscreen target is smaller than originally requested.
+    math::SizeF scale(target_rect.width() / viewport.width(),
+                      target_rect.height() / viewport.height());
+    viewport_actual.SetRect(viewport_actual.x() * scale.width(),
+                            viewport_actual.y() * scale.height(),
+                            viewport_actual.width() * scale.width(),
+                            viewport_actual.height() * scale.height());
   }
 
   float scale_x = 1.0f / framebuffer->GetSize().width();
   float scale_y = 1.0f / framebuffer->GetSize().height();
   *out_texcoord_transform = math::Matrix3F::FromValues(
-      viewport.width() * scale_x, 0, target_rect.x() * scale_x,
-      0, viewport.height() * scale_y, target_rect.y() * scale_y,
+      viewport_actual.width() * scale_x, 0, target_rect.x() * scale_x,
+      0, viewport_actual.height() * scale_y, target_rect.y() * scale_y,
       0, 0, 1);
   *out_texture = framebuffer->GetColorTexture();
 }
@@ -224,11 +248,7 @@ void HardwareRasterizer::Impl::RasterizeTree(
 
     {
       TRACE_EVENT0("cobalt::renderer", "Skia Flush");
-      for (size_t index = 0; index < skia_canvases_used_this_frame_.size();
-           ++index) {
-        skia_canvases_used_this_frame_[index]->flush();
-      }
-      skia_canvases_used_this_frame_.clear();
+      offscreen_target_manager_->Flush();
     }
 
     // Reset the egl graphics state since skia dirtied it.
