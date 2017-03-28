@@ -47,6 +47,11 @@ size_t GetImageCacheSize(const math::Size& dimensions) {
   return static_cast<int>(return_val);
 }
 
+math::Size GetSkiaAtlasTextureSize() {
+  return math::Size(COBALT_SKIA_GLYPH_ATLAS_WIDTH,
+                    COBALT_SKIA_GLYPH_ATLAS_HEIGHT);
+}
+
 size_t CalculateImageCacheSize(const math::Size& dimensions) {
   const double display_scale = DisplayScaleTo1080p(dimensions);
   static const size_t kReferenceSize1080p = 32 * 1024 * 1024;

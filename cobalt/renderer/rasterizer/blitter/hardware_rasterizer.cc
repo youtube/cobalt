@@ -43,6 +43,7 @@ namespace blitter {
 class HardwareRasterizer::Impl {
  public:
   explicit Impl(backend::GraphicsContext* graphics_context,
+                int skia_atlas_width, int skia_atlas_height,
                 int scratch_surface_size_in_bytes,
                 int surface_cache_size_in_bytes,
                 int software_surface_cache_size_in_bytes);
@@ -92,6 +93,7 @@ class HardwareRasterizer::Impl {
 };
 
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                               int skia_atlas_width, int skia_atlas_height,
                                int scratch_surface_size_in_bytes,
                                int surface_cache_size_in_bytes,
                                int software_surface_cache_size_in_bytes)
@@ -240,9 +242,12 @@ void HardwareRasterizer::Impl::SetupLastFrameSurface(int width, int height) {
 
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context,
+    int skia_atlas_width, int skia_atlas_height,
     int scratch_surface_size_in_bytes, int surface_cache_size_in_bytes,
     int software_surface_cache_size_in_bytes)
-    : impl_(new Impl(graphics_context, scratch_surface_size_in_bytes,
+    : impl_(new Impl(graphics_context,
+                     skia_atlas_width, skia_atlas_height,
+                     scratch_surface_size_in_bytes,
                      surface_cache_size_in_bytes,
                      software_surface_cache_size_in_bytes)) {}
 
