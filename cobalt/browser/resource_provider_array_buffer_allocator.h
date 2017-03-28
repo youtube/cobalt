@@ -15,10 +15,10 @@
 #ifndef COBALT_BROWSER_RESOURCE_PROVIDER_ARRAY_BUFFER_ALLOCATOR_H_
 #define COBALT_BROWSER_RESOURCE_PROVIDER_ARRAY_BUFFER_ALLOCATOR_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "nb/memory_pool.h"
+#include "starboard/common/locked_ptr.h"
 
 namespace cobalt {
 namespace browser {
@@ -37,7 +37,7 @@ class ResourceProviderArrayBufferAllocator
   void Free(void* p) OVERRIDE;
 
   scoped_ptr<render_tree::RawImageMemory> gpu_memory_buffer_space_;
-  scoped_ptr<nb::MemoryPool> gpu_memory_pool_;
+  starboard::LockedPtr<nb::MemoryPool> gpu_memory_pool_;
 };
 
 }  // namespace browser

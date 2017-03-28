@@ -15,8 +15,8 @@
 #ifndef COBALT_MEDIA_MEDIA_BUFFER_ALLOCATOR_H_
 #define COBALT_MEDIA_MEDIA_BUFFER_ALLOCATOR_H_
 
-#include "base/optional.h"
 #include "nb/memory_pool.h"
+#include "starboard/common/scoped_ptr.h"
 
 namespace cobalt {
 namespace media {
@@ -30,14 +30,13 @@ class MediaBufferAllocator {
         main_pool_size_(main_pool_size),
         small_allocation_pool_size_(small_allocation_pool_size),
         small_allocation_threshold_(small_allocation_threshold),
-        main_pool_(pool_, main_pool_size_, true, /* thread_safe */
-                   true /* verify_full_capacity */) {
+        main_pool_(starboard::make_scoped_ptr(new nb::MemoryPool(
+            pool_, main_pool_size_, true /* verify_full_capacity */))) {
     if (small_allocation_pool_size_ > 0u) {
       DCHECK_GT(small_allocation_threshold_, 0u);
-      small_allocation_pool_.emplace(pool_ + main_pool_size_,
-                                     small_allocation_pool_size_,
-                                     true, /* thread_safe */
-                                     true /* verify_full_capacity */);
+      small_allocation_pool_.set(starboard::make_scoped_ptr(new nb::MemoryPool(
+          pool_ + main_pool_size_, small_allocation_pool_size_,
+          true /* verify_full_capacity */)));
     } else {
       DCHECK_EQ(small_allocation_pool_size_, 0u);
       DCHECK_EQ(small_allocation_threshold_, 0u);
@@ -46,11 +45,12 @@ class MediaBufferAllocator {
 
   void* Allocate(size_t size, size_t alignment) {
     void* p = NULL;
-    if (size < small_allocation_threshold_ && small_allocation_pool_) {
+    if (size < small_allocation_threshold_ &&
+        small_allocation_pool_->is_valid()) {
       p = small_allocation_pool_->Allocate(size, alignment);
     }
     if (!p) {
-      p = main_pool_.Allocate(size, alignment);
+      p = main_pool_->Allocate(size, alignment);
     }
     if (!p && small_allocation_pool_) {
       p = small_allocation_pool_->Allocate(size, alignment);
@@ -59,14 +59,14 @@ class MediaBufferAllocator {
   }
 
   void Free(void* p) {
-    if (p >= pool_ + main_pool_size_ && small_allocation_pool_) {
+    if (p >= pool_ + main_pool_size_ && small_allocation_pool_->is_valid()) {
       DCHECK_LT(p, pool_ + main_pool_size_ + small_allocation_pool_size_);
       small_allocation_pool_->Free(p);
       return;
     }
     DCHECK_GE(p, pool_);
     DCHECK_LT(p, pool_ + main_pool_size_);
-    main_pool_.Free(p);
+    main_pool_->Free(p);
   }
 
  private:
@@ -75,8 +75,8 @@ class MediaBufferAllocator {
   size_t small_allocation_pool_size_;
   size_t small_allocation_threshold_;
 
-  nb::MemoryPool main_pool_;
-  base::optional<nb::MemoryPool> small_allocation_pool_;
+  starboard::LockedPtr<nb::MemoryPool> main_pool_;
+  starboard::LockedPtr<nb::MemoryPool> small_allocation_pool_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaBufferAllocator);
 };

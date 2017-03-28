@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 
+#include "starboard/common/scoped_ptr.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -24,9 +26,9 @@ ResourceProviderArrayBufferAllocator::ResourceProviderArrayBufferAllocator(
   DCHECK(gpu_memory_buffer_space_);
   DCHECK(gpu_memory_buffer_space_->GetMemory());
 
-  gpu_memory_pool_.reset(new nb::MemoryPool(
-      gpu_memory_buffer_space_->GetMemory(),
-      gpu_memory_buffer_space_->GetSizeInBytes(), true /* thread_safe */));
+  gpu_memory_pool_.set(starboard::make_scoped_ptr(
+      new nb::MemoryPool(gpu_memory_buffer_space_->GetMemory(),
+                         gpu_memory_buffer_space_->GetSizeInBytes())));
 }
 
 void* ResourceProviderArrayBufferAllocator::Allocate(size_t size) {
