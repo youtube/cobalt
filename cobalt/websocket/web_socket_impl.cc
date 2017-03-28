@@ -57,7 +57,7 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
                              WebsocketEventInterface *delegate)
     : network_module_(network_module),
       delegate_(delegate),
-      handshake_helper_(network_module->GetUserAgent()),
+      handshake_helper_(network_module ? network_module->GetUserAgent() : ""),
       handshake_completed_(false) {
   DCHECK(delegate_);
   DCHECK(MessageLoop::current());
@@ -67,6 +67,9 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
 
 void WebSocketImpl::Connect(const std::string &origin, const GURL &url,
                             const std::vector<std::string> &sub_protocols) {
+  if (!network_module_) {
+    return;
+  }
   DCHECK(network_module_->url_request_context_getter());
   thread_checker_.CalledOnValidThread();
   origin_ = origin;
