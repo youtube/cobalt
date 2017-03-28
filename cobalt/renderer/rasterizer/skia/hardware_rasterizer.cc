@@ -55,7 +55,8 @@ namespace skia {
 
 class HardwareRasterizer::Impl {
  public:
-  Impl(backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,
+  Impl(backend::GraphicsContext* graphics_context, int skia_atlas_width,
+       int skia_atlas_height, int skia_cache_size_in_bytes,
        int scratch_surface_cache_size_in_bytes,
        int surface_cache_size_in_bytes);
   ~Impl();
@@ -310,6 +311,7 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
 }
 
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                               int skia_atlas_width, int skia_atlas_height,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
                                int surface_cache_size_in_bytes)
@@ -327,8 +329,9 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   // Create a GrContext object that wraps the passed in Cobalt GraphicsContext
   // object.
   gr_context_.reset(GrContext::Create(
-      kCobalt_GrBackend,
-      reinterpret_cast<GrBackendContext>(graphics_context_)));
+      kCobalt_GrBackend, reinterpret_cast<GrBackendContext>(graphics_context_),
+      skia_atlas_width, skia_atlas_height));
+
   DCHECK(gr_context_);
   // The GrContext manages a resource cache internally using GrResourceCache
   // which by default caches 96MB of resources.  This is used for helping with
@@ -584,9 +587,11 @@ HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
 void HardwareRasterizer::Impl::ResetSkiaState() { gr_context_->resetContext(); }
 
 HardwareRasterizer::HardwareRasterizer(
-    backend::GraphicsContext* graphics_context, int skia_cache_size_in_bytes,
+    backend::GraphicsContext* graphics_context, int skia_atlas_width,
+    int skia_atlas_height, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes)
-    : impl_(new Impl(graphics_context, skia_cache_size_in_bytes,
+    : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
+                     skia_cache_size_in_bytes,
                      scratch_surface_cache_size_in_bytes,
                      surface_cache_size_in_bytes)) {}
 
