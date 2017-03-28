@@ -97,6 +97,9 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       }
     } else {
       animated_webp_image_->AppendChunk(data, input_byte);
+      if (animated_webp_image_->is_ready()) {
+        animated_webp_image_->Play();
+      }
     }
   }
 
