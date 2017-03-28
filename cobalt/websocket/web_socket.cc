@@ -160,31 +160,17 @@ const uint16 WebSocket::kClosed;
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      script::ExceptionState* exception_state)
-    : buffered_amount_(0),
-      ready_state_(kConnecting),
-      binary_type_(dom::MessageEvent::kBlob),
-      is_secure_(false),
-      port_(-1),
-      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
+    : require_network_module_(true) {
   const std::vector<std::string> empty;
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  Initialize(dom_settings, url, empty, exception_state);
+  Initialize(settings, url, empty, exception_state);
 }
 
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      const std::vector<std::string>& sub_protocols,
                      script::ExceptionState* exception_state)
-    : buffered_amount_(0),
-      ready_state_(kConnecting),
-      binary_type_(dom::MessageEvent::kBlob),
-      is_secure_(false),
-      port_(-1),
-      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  Initialize(dom_settings, url, sub_protocols, exception_state);
+    : require_network_module_(true) {
+  Initialize(settings, url, sub_protocols, exception_state);
 }
 
 std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
@@ -200,17 +186,10 @@ std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url, const std::string& sub_protocol,
                      script::ExceptionState* exception_state)
-    : buffered_amount_(0),
-      ready_state_(kConnecting),
-      binary_type_(dom::MessageEvent::kBlob),
-      is_secure_(false),
-      port_(-1),
-      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
+    : require_network_module_(true) {
   std::vector<std::string> sub_protocols;
   sub_protocols.push_back(sub_protocol);
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  Initialize(dom_settings, url, sub_protocols, exception_state);
+  Initialize(settings, url, sub_protocols, exception_state);
 }
 
 void WebSocket::set_binary_type(const std::string& binary_type,
@@ -416,13 +395,19 @@ void WebSocket::OnReceivedData(bool is_text_frame,
                                             response_type_code, data));
 }
 
-void WebSocket::Initialize(dom::DOMSettings* dom_settings,
+void WebSocket::Initialize(script::EnvironmentSettings* settings,
                            const std::string& url,
                            const std::vector<std::string>& sub_protocols,
                            script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  buffered_amount_ = 0;
+  binary_type_ = dom::MessageEvent::kBlob;
+  is_secure_ = false;
+  port_ = -1;
+  SetReadyState(kConnecting);
 
-  if (!dom_settings) {
+  settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
+  if (!settings_) {
     dom::DOMException::Raise(dom::DOMException::kNone,
                              "Internal error: Unable to get DOM settings.",
                              exception_state);
@@ -430,7 +415,15 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
     return;
   }
 
-  if (!dom_settings->base_url().is_valid()) {
+  if (require_network_module_ && !settings_->network_module()) {
+    dom::DOMException::Raise(dom::DOMException::kNone,
+                             "Internal error: Unable to get network module.",
+                             exception_state);
+    NOTREACHED() << "Unable to get network module.";
+    return;
+  }
+
+  if (!settings_->base_url().is_valid()) {
     dom::DOMException::Raise(
         dom::DOMException::kNone,
         "Internal error: base_url (the url of the entry script) must be valid.",
@@ -440,7 +433,7 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
     // GetOrigin() can only be called on valid urls.
     // Since origin does not contain fragments, spec() is guaranteed
     // to return an ASCII encoded string.
-    entry_script_origin_ = dom_settings->base_url().GetOrigin().spec();
+    entry_script_origin_ = settings_->base_url().GetOrigin().spec();
   }
 
   // Per spec:
@@ -448,7 +441,7 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
   // port, resource name, and secure. If this fails, throw a SyntaxError
   // exception and abort these steps. [WSP]"
 
-  resolved_url_ = dom_settings->base_url().Resolve(url);
+  resolved_url_ = settings_->base_url().Resolve(url);
   if (resolved_url_.is_empty()) {
     dom::DOMException::Raise(dom::DOMException::kSyntaxErr, "url is empty",
                              exception_state);
@@ -461,7 +454,7 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
     return;
   }
 
-  bool is_absolute = IsURLAbsolute(dom_settings, url);
+  bool is_absolute = IsURLAbsolute(settings_, url);
 
   if (!is_absolute) {
     std::string error_message = "Only relative URLs are supported.  [" + url +
@@ -531,7 +524,6 @@ void WebSocket::Connect(const GURL& url,
                         const std::vector<std::string>& sub_protocols) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(settings_);
-  DCHECK(settings_->network_module());
 
   GURL origin_gurl = settings_->base_url().GetOrigin();
   const std::string& origin = origin_gurl.possibly_invalid_spec();
@@ -539,10 +531,35 @@ void WebSocket::Connect(const GURL& url,
   impl_ = make_scoped_refptr<WebSocketImpl>(
       new WebSocketImpl(settings_->network_module(), this));
 
-  UNREFERENCED_PARAMETER(origin);
-  UNREFERENCED_PARAMETER(url);
-  UNREFERENCED_PARAMETER(sub_protocols);
-  // impl_->Connect(origin, url, sub_protocols);
+  impl_->Connect(origin, url, sub_protocols);
+}
+
+WebSocket::WebSocket(script::EnvironmentSettings* settings,
+                     const std::string& url,
+                     script::ExceptionState* exception_state,
+                     const bool require_network_module)
+    : require_network_module_(require_network_module) {
+  const std::vector<std::string> empty;
+  Initialize(settings, url, empty, exception_state);
+}
+
+WebSocket::WebSocket(script::EnvironmentSettings* settings,
+                     const std::string& url, const std::string& sub_protocol,
+                     script::ExceptionState* exception_state,
+                     const bool require_network_module)
+    : require_network_module_(require_network_module) {
+  std::vector<std::string> sub_protocols;
+  sub_protocols.push_back(sub_protocol);
+  Initialize(settings, url, sub_protocols, exception_state);
+}
+
+WebSocket::WebSocket(script::EnvironmentSettings* settings,
+                     const std::string& url,
+                     const std::vector<std::string>& sub_protocols,
+                     script::ExceptionState* exception_state,
+                     const bool require_network_module)
+    : require_network_module_(require_network_module) {
+  Initialize(settings, url, sub_protocols, exception_state);
 }
 
 }  // namespace websocket
