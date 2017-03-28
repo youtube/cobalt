@@ -52,8 +52,6 @@
           'sources': [
             'decoder_working_memory_allocator_impl_ps4.cc',
             'decoder_working_memory_allocator_impl_ps4.h',
-            'shell_video_data_allocator_stub.cc',
-            'shell_video_data_allocator_stub.h',
           ],
         }],
         ['OS=="lb_shell"', {
