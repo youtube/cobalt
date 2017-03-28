@@ -655,7 +655,7 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
 void SignalWaitable(base::WaitableEvent* event) { event->Signal(); }
 
 // Test that we can properly decode animated WEBP image.
-TEST(ImageDecoderTest, DISABLED_DecodeAnimatedWEBPImage) {
+TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
   MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
@@ -672,6 +672,7 @@ TEST(ImageDecoderTest, DISABLED_DecodeAnimatedWEBPImage) {
   base::WaitableEvent decoded_frames_event(true, false);
   animated_webp_image->SetDecodedFramesCallback(
       base::Bind(&SignalWaitable, &decoded_frames_event));
+  animated_webp_image->Play();
   decoded_frames_event.Wait();
 
   // The image should contain the whole undecoded data from the file.
@@ -682,7 +683,7 @@ TEST(ImageDecoderTest, DISABLED_DecodeAnimatedWEBPImage) {
 }
 
 // Test that we can properly decode animated WEBP image in multiple chunks.
-TEST(ImageDecoderTest, DISABLED_DecodeAnimatedWEBPImageWithMultipleChunks) {
+TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
@@ -702,6 +703,7 @@ TEST(ImageDecoderTest, DISABLED_DecodeAnimatedWEBPImageWithMultipleChunks) {
   base::WaitableEvent decoded_frames_event(true, false);
   animated_webp_image->SetDecodedFramesCallback(
       base::Bind(&SignalWaitable, &decoded_frames_event));
+  animated_webp_image->Play();
   decoded_frames_event.Wait();
 
   // The image should contain the whole undecoded data from the file.
