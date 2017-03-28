@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
 
+#include <algorithm>
+
 #include "base/hash_tables.h"
 #include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
@@ -98,13 +100,15 @@ bool IsPowerOf2(int32_t num) {
 struct OffscreenTargetManager::OffscreenAtlas {
   explicit OffscreenAtlas(const math::Size& size)
       : allocator(size),
-        allocations_used(0) {}
+        allocations_used(0),
+        needs_flush(false) {}
 
   RectAllocator allocator;
   AllocationMap allocation_map;
   size_t allocations_used;
   scoped_ptr<backend::FramebufferEGL> framebuffer;
   SkAutoTUnref<SkSurface> skia_surface;
+  bool needs_flush;
 };
 
 OffscreenTargetManager::OffscreenTargetManager(
@@ -132,38 +136,75 @@ void OffscreenTargetManager::Update(const math::Size& frame_size) {
       offscreen_atlas_size_.SetSize(16, 16);
       offscreen_target_size_mask_.SetSize(0, 0);
     }
+    offscreen_atlas_size_max_.SetSize(
+        NextPowerOf2(frame_size.width()),
+        NextPowerOf2(frame_size.height()));
 
     offscreen_atlases_.push_back(CreateOffscreenAtlas(offscreen_atlas_size_));
     offscreen_cache_.reset(CreateOffscreenAtlas(offscreen_atlas_size_));
   }
 
-  // Keep only the largest offscreen target atlas.
-  while (offscreen_atlases_.size() > 1) {
-    offscreen_atlases_.erase(offscreen_atlases_.begin());
+  // Keep only the largest offscreen target atlas unless they are at the max
+  // atlas size -- in which case, all those atlases are likely needed.
+  for (size_t index = 0; index < offscreen_atlases_.size() - 1;) {
+    const math::Size& size = offscreen_atlases_[index]->framebuffer->GetSize();
+    if (size.width() < offscreen_atlas_size_max_.width() ||
+        size.height() < offscreen_atlas_size_max_.height()) {
+      offscreen_atlases_.erase(offscreen_atlases_.begin() + index);
+    } else {
+      ++index;
+    }
   }
 
-  // Use the current atlas as the cache if more allocations were used in it
-  // than the cache itself.
-  OffscreenAtlas* current_atlas = offscreen_atlases_.back();
-  if (offscreen_cache_->allocations_used < current_atlas->allocations_used) {
-    // Just swap the current atlas with the cache if they are the same size.
-    // Otherwise, delete the old atlas and create a new current atlas.
-    if (offscreen_cache_->framebuffer->GetSize() ==
-        current_atlas->framebuffer->GetSize()) {
-      current_atlas = offscreen_cache_.release();
-    } else {
-      current_atlas = CreateOffscreenAtlas(offscreen_atlas_size_);
+  // If any of the current atlases has more allocations used than the
+  // current cache, then use that as the new cache.
+  size_t most_used_atlas_index = 0;
+  for (size_t index = 1; index < offscreen_atlases_.size(); ++index) {
+    if (offscreen_atlases_[most_used_atlas_index]->allocations_used <
+        offscreen_atlases_[index]->allocations_used) {
+      most_used_atlas_index = index;
     }
-    offscreen_cache_.reset(offscreen_atlases_.back());
-    offscreen_atlases_.weak_erase(offscreen_atlases_.end() - 1);
-    offscreen_atlases_.push_back(current_atlas);
+  }
+
+  OffscreenAtlas* most_used_atlas = offscreen_atlases_[most_used_atlas_index];
+  if (offscreen_cache_->allocations_used < most_used_atlas->allocations_used) {
+    // Just swap the current atlas with the cache if they are the same size.
+    // Otherwise, delete the old atlas and create a new atlas as its
+    // replacement.
+    OffscreenAtlas* new_atlas;
+    if (offscreen_cache_->framebuffer->GetSize() ==
+        most_used_atlas->framebuffer->GetSize()) {
+      new_atlas = offscreen_cache_.release();
+    } else {
+      new_atlas = CreateOffscreenAtlas(offscreen_atlas_size_);
+    }
+    offscreen_cache_.reset(offscreen_atlases_[most_used_atlas_index]);
+    offscreen_atlases_.weak_erase(offscreen_atlases_.begin() +
+                                  most_used_atlas_index);
+    offscreen_atlases_.push_back(new_atlas);
   }
   offscreen_cache_->allocations_used = 0;
 
-  // Reset the current atlas for use this frame.
-  current_atlas->allocator.Reset();
-  current_atlas->allocation_map.clear();
-  current_atlas->allocations_used = 0;
+  // Reset all current atlases for use this frame.
+  for (size_t index = 0; index < offscreen_atlases_.size(); ++index) {
+    OffscreenAtlas* atlas = offscreen_atlases_[index];
+    atlas->allocator.Reset();
+    atlas->allocation_map.clear();
+    atlas->allocations_used = 0;
+  }
+}
+
+void OffscreenTargetManager::Flush() {
+  if (offscreen_cache_->needs_flush) {
+    offscreen_cache_->needs_flush = false;
+    offscreen_cache_->skia_surface->getCanvas()->flush();
+  }
+  for (size_t index = 0; index < offscreen_atlases_.size(); ++index) {
+    if (offscreen_atlases_[index]->needs_flush) {
+      offscreen_atlases_[index]->needs_flush = false;
+      offscreen_atlases_[index]->skia_surface->getCanvas()->flush();
+    }
+  }
 }
 
 bool OffscreenTargetManager::GetCachedOffscreenTarget(
@@ -191,13 +232,16 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
   // aligned width or height).
   DCHECK(IsPowerOf2(offscreen_target_size_mask_.width() + 1));
   DCHECK(IsPowerOf2(offscreen_target_size_mask_.height() + 1));
-  math::Size target_size(
+  math::Size ideal_size(
       (static_cast<int>(size.width() + 0.5f) +
           offscreen_target_size_mask_.width()) &
           ~offscreen_target_size_mask_.width(),
       (static_cast<int>(size.height() + 0.5f) +
           offscreen_target_size_mask_.height()) &
           ~offscreen_target_size_mask_.height());
+  math::Size target_size(
+      std::min(ideal_size.width(), offscreen_atlas_size_max_.width()),
+      std::min(ideal_size.height(), offscreen_atlas_size_max_.height()));
   math::Rect target_rect(0, 0, 0, 0);
   OffscreenAtlas* atlas = NULL;
 
@@ -206,11 +250,15 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
   target_rect = atlas->allocator.Allocate(target_size);
 
   if (target_rect.IsEmpty()) {
-    // See if there's room in the most recently created offscreen target atlas.
-    // Don't search any other atlases since we want to quickly find an offscreen
-    // atlas size large enough to hold all offscreen targets needed in a frame.
-    atlas = offscreen_atlases_.back();
-    target_rect = atlas->allocator.Allocate(target_size);
+    // See if there's room in the most recently created offscreen target
+    // atlases.
+    for (size_t index = offscreen_atlases_.size(); index > 0;) {
+      atlas = offscreen_atlases_[--index];
+      target_rect = atlas->allocator.Allocate(target_size);
+      if (!target_rect.IsEmpty()) {
+        break;
+      }
+    }
   }
 
   if (target_rect.IsEmpty()) {
@@ -227,9 +275,11 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
     }
     if (!grew) {
       // Grow the offscreen atlas while keeping it square-ish.
-      if (offscreen_atlas_size_.width() <= offscreen_atlas_size_.height()) {
+      if (offscreen_atlas_size_.width() <= offscreen_atlas_size_.height() &&
+          offscreen_atlas_size_.width() < offscreen_atlas_size_max_.width()) {
         offscreen_atlas_size_.set_width(offscreen_atlas_size_.width() * 2);
-      } else {
+      } else if (offscreen_atlas_size_.height() <
+                 offscreen_atlas_size_max_.height()) {
         offscreen_atlas_size_.set_height(offscreen_atlas_size_.height() * 2);
       }
     }
@@ -248,6 +298,7 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
   atlas->allocation_map.insert(AllocationMap::value_type(
       AllocationKey(node, size), target_rect));
   atlas->allocations_used += 1;
+  atlas->needs_flush = true;
 
   *out_framebuffer = atlas->framebuffer.get();
   *out_skia_canvas = atlas->skia_surface->getCanvas();
