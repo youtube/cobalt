@@ -22,15 +22,10 @@ namespace nb {
 
 MemoryPool::MemoryPool(void* buffer,
                        std::size_t size,
-                       bool thread_safe,
                        bool verify_full_capacity,
                        std::size_t small_allocation_threshold)
     : no_free_allocator_(buffer, size),
-      reuse_allocator_(
-          scoped_ptr<Allocator>(new ReuseAllocator(&no_free_allocator_,
-                                                   size,
-                                                   small_allocation_threshold)),
-          thread_safe) {
+      reuse_allocator_(&no_free_allocator_, size, small_allocation_threshold) {
   SB_DCHECK(buffer);
   SB_DCHECK(size != 0U);
 

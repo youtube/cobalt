@@ -18,7 +18,6 @@
 #define NB_MEMORY_POOL_H_
 
 #include "nb/allocator.h"
-#include "nb/allocator_decorator.h"
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/reuse_allocator.h"
 
@@ -31,7 +30,6 @@ class MemoryPool : public Allocator {
  public:
   MemoryPool(void* buffer,
              std::size_t size,
-             bool thread_safe,
              bool verify_full_capacity = false,
              std::size_t small_allocation_threshold = 0);
 
@@ -56,7 +54,7 @@ class MemoryPool : public Allocator {
   // A reuse allocator that will be setup to fallback on the no free allocator
   // to expand its pool as memory is required for which there is no re-usable
   // space already.
-  AllocatorDecorator reuse_allocator_;
+  ReuseAllocator reuse_allocator_;
 };
 
 }  // namespace nb
