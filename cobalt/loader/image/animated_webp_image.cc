@@ -41,6 +41,7 @@ AnimatedWebPImage::AnimatedWebPImage(
       is_opaque_(is_opaque),
       demux_(NULL),
       demux_state_(WEBP_DEMUX_PARSING_HEADER),
+      is_ready_(false),
       frame_count_(0),
       loop_count_(kLoopInfinite),
       background_color_(0),
@@ -52,6 +53,22 @@ AnimatedWebPImage::AnimatedWebPImage(
 scoped_refptr<render_tree::Image> AnimatedWebPImage::GetFrame() {
   base::AutoLock lock(lock_);
   return current_frame_image_;
+}
+
+void AnimatedWebPImage::Play() {
+  base::AutoLock lock(lock_);
+
+  if (!is_ready_) {
+    return;
+  }
+  is_ready_ = false;
+
+  current_frame_time_ = base::TimeTicks::Now();
+  current_frame_index_ = 0;
+  thread_.Start();
+  thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&AnimatedWebPImage::DecodeFrames, base::Unretained(this)));
 }
 
 void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
@@ -66,20 +83,14 @@ void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
   // Update frame count.
   int new_frame_count = WebPDemuxGetI(demux_, WEBP_FF_FRAME_COUNT);
   if (new_frame_count > 0 && frame_count_ == 0) {
-    // We've just received the first frame, start playing animation now.
+    // We've just received the first frame.
 
     loop_count_ = WebPDemuxGetI(demux_, WEBP_FF_LOOP_COUNT);
     background_color_ = WebPDemuxGetI(demux_, WEBP_FF_BACKGROUND_COLOR);
     if (size_.width() > 0 && size_.height() > 0) {
       image_buffer_.resize(size_.width() * size_.height() * kPixelSize);
       FillImageBufferWithBackgroundColor();
-
-      current_frame_time_ = base::TimeTicks::Now();
-      current_frame_index_ = 0;
-      thread_.Start();
-      thread_.message_loop()->PostTask(
-          FROM_HERE,
-          base::Bind(&AnimatedWebPImage::DecodeFrames, base::Unretained(this)));
+      is_ready_ = true;
     }
   }
   frame_count_ = new_frame_count;
