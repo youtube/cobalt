@@ -42,13 +42,17 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #elif defined(COBALT_FORCE_CUSTOM_RASTERIZER)
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
-          graphics_context, options.skia_cache_size_in_bytes,
+          graphics_context, options.skia_texture_atlas_dimensions.width(),
+          options.skia_texture_atlas_dimensions.height(),
+          options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
-          graphics_context, options.skia_cache_size_in_bytes,
+          graphics_context, options.skia_texture_atlas_dimensions.width(),
+          options.skia_texture_atlas_dimensions.height(),
+          options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
@@ -60,7 +64,9 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
-          graphics_context, options.scratch_surface_cache_size_in_bytes,
+          graphics_context, options.skia_texture_atlas_dimensions.width(),
+          options.skia_texture_atlas_dimensions.height(),
+          options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes,
           options.software_surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
