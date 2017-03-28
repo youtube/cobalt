@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "nb/allocator.h"
-#include "nb/allocator_decorator.h"
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/reuse_allocator.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
