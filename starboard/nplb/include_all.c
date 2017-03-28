@@ -22,6 +22,7 @@
 #include "starboard/character.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
+#include "starboard/cryptography.h"
 #include "starboard/decode_target.h"
 #include "starboard/directory.h"
 #include "starboard/double.h"

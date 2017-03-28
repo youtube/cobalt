@@ -115,6 +115,11 @@
 #define SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// In newly-introduced starboard/cryptography.h,
+//   * Optional support for accelerated cryptography, which can, in
+//     particular, be used for accelerating SSL.
+#define SB_CRYPTOGRAPHY_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
