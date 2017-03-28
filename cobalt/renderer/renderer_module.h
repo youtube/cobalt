@@ -46,6 +46,10 @@ class RendererModule {
     // hardware-accelerated Skia rasterizer.
     int scratch_surface_cache_size_in_bytes;
 
+    // Represents the dimensions of the skia texture atlas which holds all of
+    // the glyph textures used during rendering.
+    math::Size skia_texture_atlas_dimensions;
+
     // Determines the capacity of the skia cache.  The Skia cache is maintained
     // within Skia and is used to cache the results of complicated effects such
     // as shadows, so that Skia draw calls that are used repeatedly across
