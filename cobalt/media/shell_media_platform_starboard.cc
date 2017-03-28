@@ -22,6 +22,7 @@
 #include "media/audio/shell_audio_streamer.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_cached_decoder_buffer.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
@@ -56,21 +57,20 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
     DCHECK(gpu_memory_buffer_space_->GetMemory());
     DCHECK_GE(gpu_memory_buffer_space_->GetSizeInBytes(),
               kGPUMemoryBufferBudget);
-    gpu_memory_pool_.reset(new nb::MemoryPool(
+    gpu_memory_pool_.set(starboard::make_scoped_ptr(new nb::MemoryPool(
         gpu_memory_buffer_space_->GetMemory(),
-        gpu_memory_buffer_space_->GetSizeInBytes(), true, /* thread_safe */
-        true /* verify_full_capacity */, kSmallAllocationThreshold));
+        gpu_memory_buffer_space_->GetSizeInBytes(),
+        true /* verify_full_capacity */, kSmallAllocationThreshold)));
   }
 
   DCHECK_LE(0, kMainMemoryBufferBudget > 0);
   main_memory_buffer_space_.reset(static_cast<uint8*>(
       base::AlignedAlloc(kMainMemoryBufferBudget, kMediaBufferAlignment)));
   DCHECK(main_memory_buffer_space_);
-  main_memory_pool_.reset(new nb::MemoryPool(main_memory_buffer_space_.get(),
-                                             kMainMemoryBufferBudget,
-                                             true, /* thread_safe */
-                                             true, /* verify_full_capacity */
-                                             kSmallAllocationThreshold));
+  main_memory_pool_.set(starboard::make_scoped_ptr(new nb::MemoryPool(
+      main_memory_buffer_space_.get(), kMainMemoryBufferBudget,
+      true, /* verify_full_capacity */
+      kSmallAllocationThreshold)));
 
   ShellBufferFactory::Initialize();
   ShellAudioStreamer::Initialize();
@@ -105,16 +105,9 @@ void ShellMediaPlatformStarboard::FreeBuffer(void* ptr) {
 scoped_refptr<DecoderBuffer>
 ShellMediaPlatformStarboard::ProcessBeforeLeavingDemuxer(
     const scoped_refptr<DecoderBuffer>& buffer) {
-  if (!buffer || buffer->IsEndOfStream() || buffer->GetDataSize() == 0 ||
-      !kGPUMemoryBufferBudget)
-    return buffer;
-  void* cached_buffer =
-      main_memory_pool_->Allocate(buffer->GetDataSize(), kMediaBufferAlignment);
-  if (!cached_buffer) return buffer;
-  return new ShellCachedDecoderBuffer(
-      buffer, cached_buffer,
-      base::Bind(&nb::MemoryPool::Free,
-                 base::Unretained(main_memory_pool_.get())));
+  // TODO: Completely remove GPU buffer for the new DecoderBuffer
+  //       implementation.
+  return buffer;
 }
 
 bool ShellMediaPlatformStarboard::IsOutputProtected() {
