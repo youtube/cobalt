@@ -83,6 +83,9 @@ class AnimatedImage : public Image {
   // Get the current frame. Implementation should be thread safe.
   virtual scoped_refptr<render_tree::Image> GetFrame() = 0;
 
+  // Start playing the animation. Implementation should be thread safe.
+  virtual void Play() = 0;
+
   // This callback is intended to be used in a render_tree::AnimateNode.
   void AnimateCallback(const math::RectF& destination_rect,
                        const math::Matrix3F& local_transform,

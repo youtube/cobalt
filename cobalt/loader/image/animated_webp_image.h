@@ -49,11 +49,15 @@ class AnimatedWebPImage : public AnimatedImage {
 
   scoped_refptr<render_tree::Image> GetFrame() OVERRIDE;
 
+  void Play() OVERRIDE;
+
   void AppendChunk(const uint8* data, size_t input_byte);
 
   void SetDecodedFramesCallback(const base::Closure& callback) {
     decoded_callback_ = callback;
   }
+
+  bool is_ready() { return is_ready_; }
 
  private:
   ~AnimatedWebPImage() OVERRIDE;
@@ -72,6 +76,7 @@ class AnimatedWebPImage : public AnimatedImage {
   const bool is_opaque_;
   WebPDemuxer* demux_;
   WebPDemuxState demux_state_;
+  bool is_ready_;
   int frame_count_;
   // The remaining number of times to loop the animation. kLoopInfinite means
   // looping infinitely.
