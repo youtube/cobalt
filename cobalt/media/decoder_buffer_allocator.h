@@ -18,6 +18,7 @@
 #include "base/compiler_specific.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "nb/memory_pool.h"
+#include "starboard/common/locked_ptr.h"
 
 namespace cobalt {
 namespace media {
@@ -32,7 +33,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
 
  private:
   void* memory_block_;
-  nb::MemoryPool memory_pool_;
+  starboard::LockedPtr<nb::MemoryPool> memory_pool_;
 };
 
 }  // namespace media
