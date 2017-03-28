@@ -379,11 +379,26 @@ scoped_refptr<HTMLHtmlElement> Document::html() const {
 }
 
 void Document::SetActiveElement(Element* active_element) {
+  // Invalidate matching rules on old and new active element.
+  if (active_element_) {
+    HTMLElement* html_element = active_element_->AsHTMLElement();
+    if (html_element) {
+      html_element->InvalidateMatchingRulesRecursively();
+    }
+  }
   if (active_element) {
+    HTMLElement* html_element = active_element->AsHTMLElement();
+    if (html_element) {
+      html_element->InvalidateMatchingRulesRecursively();
+    }
     active_element_ = base::AsWeakPtr(active_element);
   } else {
     active_element_.reset();
   }
+
+  // Record mutation and trigger layout.
+  is_computed_style_dirty_ = true;
+  RecordMutation();
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnFocusChanged());
 }
 
