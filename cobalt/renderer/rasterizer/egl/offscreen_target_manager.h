@@ -43,6 +43,9 @@ class OffscreenTargetManager {
   // made for that frame.
   void Update(const math::Size& frame_size);
 
+  // Flush all render targets that have been used thus far.
+  void Flush();
+
   // Return whether a cached version of the requested render target is
   // available. If a cache does exist, then the output parameters are set,
   // otherwise, they are untouched.
@@ -68,13 +71,15 @@ class OffscreenTargetManager {
   backend::GraphicsContextEGL* graphics_context_;
   GrContext* skia_context_;
 
-  typedef ScopedVector<OffscreenAtlas> OffscreenAtlasList;
-  OffscreenAtlasList offscreen_atlases_;
+  ScopedVector<OffscreenAtlas> offscreen_atlases_;
   scoped_ptr<OffscreenAtlas> offscreen_cache_;
 
   // Size of the smallest offscreen target atlas that can hold all offscreen
   // targets requested this frame.
   math::Size offscreen_atlas_size_;
+
+  // Limit for the largest offscreen atlas that should be used.
+  math::Size offscreen_atlas_size_max_;
 
   // Align offscreen targets to a particular size to more efficiently use the
   // offscreen target atlas. Use a power of 2 for the alignment so that a bit
