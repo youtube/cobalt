@@ -24,8 +24,6 @@
         ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
           'sources': [
             'allocator.h',
-            'allocator_decorator.cc',
-            'allocator_decorator.h',
             'analytics/memory_tracker.cc',
             'analytics/memory_tracker.h',
             'analytics/memory_tracker_impl.cc',
