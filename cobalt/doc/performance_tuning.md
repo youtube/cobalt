@@ -339,3 +339,35 @@ increase the speed at which images can be decoded.
 
 **Tags:** *startup, browse-to-watch, input latency.*
 
+
+### Use Chromium's about:tracing tool to debug Cobalt performance
+
+Cobalt has support for generating profiling data that is viewable through
+Chromium's about:tracing tool.  This feature is available in all Cobalt
+configurations except for "gold" ("qa" is the best build to use for performance
+investigations here). There are currently two ways to tell Cobalt
+to generate this data:
+
+1. The command line option, "--timed_trace=XX" will instruct Cobalt to trace
+   upon startup, for XX seconds (e.g. "--timed_trace=25").  When completed,
+   the output will be written to the file `timed_trace.json`.
+2. Using the debug console (hit CTRL+O on a keyboard once or twice), type in the
+   command "d.trace()" and hit enter.  Cobalt will begin a trace.  After
+   some time has passed (and presumably you have performed some actions), you
+   can open the debug console again and type "d.trace()" again to end the trace.
+   The trace output will be written to the file `triggered_trace.json`.
+
+The directory the output files will be placed within is the directory that the
+Starboard function `SbSystemGetPath()` returns with a `path_id` of
+`kSbSystemPathDebugOutputDirectory`, so you may need to check your
+implementation of `SbSystemGetPath()` to discover where this is.
+
+Once the trace file is created, it can be opened in Chrome by navigating to
+`about:tracing` or `chrome://tracing`, clicking the "Load" button near the top
+left, and then opening the JSON file created earlier.
+
+Of particular interest in the output view is the `MainWebModule` thread where
+JavaScript and layout are executed, and `Rasterizer` where per-frame rendering
+takes place.
+
+**Tags:** *framerate, startup, browse-to-watch, input latency.*
