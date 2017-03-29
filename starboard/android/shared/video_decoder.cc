@@ -139,6 +139,12 @@ void VideoDecoder::Reset() {
 
   decoder_thread_ = kSbThreadInvalid;
   stream_ended_ = false;
+
+  TeardownCodec();
+  if (!InitializeCodec()) {
+    // TODO: Communicate this failure to our clients somehow.
+    SB_LOG(ERROR) << "Failed to initialize codec after reset.";
+  }
 }
 
 bool VideoDecoder::InitializeCodec() {
