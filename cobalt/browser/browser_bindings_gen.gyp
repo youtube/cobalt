@@ -211,6 +211,7 @@
         '../webdriver/script_executor_params.idl',
         '../webdriver/script_executor_result.idl',
 
+        '../websocket/close_event.idl',
         '../websocket/web_socket.idl',
 
         '../xhr/xml_http_request.idl',
@@ -223,6 +224,7 @@
         '../dom/blob_property_bag.idl',
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
+        '../websocket/close_event_init.idl',
     ],
 
     # Partial interfaces and the right-side of "implements". Also includes
