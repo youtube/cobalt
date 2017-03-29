@@ -39,7 +39,7 @@ namespace memory_settings {
 // 8K:        7,680 x 4,320
 // Cinema 4K: 4,096 x 2,160
 // 4k/UHD:    3,840 x 2,160
-// 2K:        2,048 x 1,080
+// 2K:        2,560 x 1,440
 // WUXGA:     1,920 x 1,200
 // 1080p:     1,920 x 1,080
 // 720p:      1,280 x 720
@@ -88,6 +88,8 @@ math::Size GetDimensions(StandardDisplaySettings enum_value) {
   return GetDimensions(k1080p);
 }
 
+// Tests the expectation that CalculateImageCacheSize() is a pure function
+// (side effect free) and will produce the expected results.
 TEST(MemorySettings, CalculateImageCacheSize) {
   EXPECT_EQ(kMinImageCacheSize, CalculateImageCacheSize(GetDimensions(k720p)));
   EXPECT_EQ(32 * 1024 * 1024,  // 32MB.
@@ -103,6 +105,10 @@ TEST(MemorySettings, CalculateImageCacheSize) {
   EXPECT_EQ(kMaxImageCacheSize, CalculateImageCacheSize(GetDimensions(k8k)));
 }
 
+// Tests the expectation that GetImageCacheSize() will change it's behavior
+// when COBALT_IMAGE_CACHE_SIZE_IN_BYTES is defined to a value that is greater
+// than -1, or will otherwise produce values identical values to
+// CalculateImageCacheSize().
 TEST(MemorySettings, GetImageCacheSize) {
   if (COBALT_IMAGE_CACHE_SIZE_IN_BYTES >= 0) {
     // Expect that regardless of the display size, the value returned will
@@ -122,6 +128,83 @@ TEST(MemorySettings, GetImageCacheSize) {
               GetImageCacheSize(GetDimensions(k1080p)));
     EXPECT_EQ(CalculateImageCacheSize(GetDimensions(kUHD4k)),
               GetImageCacheSize(GetDimensions(kUHD4k)));
+  }
+}
+
+// Tests the expectation that CalculateSkiaAtlasTextureSize() is a pure
+// function (side effect free) and will produce expected results.
+TEST(MemorySettings, CalculateSkiaAtlasTextureSize) {
+  math::Size ui_dimensions;
+  math::Size atlas_texture_size;
+
+  // Test that the small resolution of 480p produces a texture atlas
+  // that is minimal.
+  ui_dimensions = GetDimensions(k480p);
+  atlas_texture_size = CalculateSkiaAtlasTextureSize(ui_dimensions);
+  EXPECT_EQ(kMinSkiaTextureAtlasWidth, atlas_texture_size.width());
+  EXPECT_EQ(kMinSkiaTextureAtlasHeight, atlas_texture_size.height());
+
+  // Test that expected resolution of 1080p produces a 4096x4096
+  // atlas texture.
+  ui_dimensions = GetDimensions(k1080p);
+  atlas_texture_size = CalculateSkiaAtlasTextureSize(ui_dimensions);
+  EXPECT_EQ(2048, atlas_texture_size.width());
+  EXPECT_EQ(2048, atlas_texture_size.height());
+
+  // Test that expected resolution of 4k produces a 8192x4096
+  // atlas texture.
+  ui_dimensions = GetDimensions(kUHD4k);
+  atlas_texture_size = CalculateSkiaAtlasTextureSize(ui_dimensions);
+  EXPECT_EQ(8192, atlas_texture_size.width());
+  EXPECT_EQ(4096, atlas_texture_size.height());
+
+  // Test that ultra-high 8k resolution produces expected results.
+  ui_dimensions = GetDimensions(k8k);
+  atlas_texture_size = CalculateSkiaAtlasTextureSize(ui_dimensions);
+  EXPECT_EQ(16384, atlas_texture_size.width());
+  EXPECT_EQ(16384, atlas_texture_size.height());
+}
+
+// Tests the expectation that GetImageCacheSize() will change it's behavior
+// when COBALT_IMAGE_CACHE_SIZE_IN_BYTES is defined to a value that is greater
+// than -1, or will otherwise produce values identical values to
+// CalculateImageCacheSize().
+//
+// Tests the expectation that GetSkiaAtlasTextureSize() will change it's
+// behavior when COBALT_SKIA_GLYPH_ATLAS_WIDTH and/or
+// COBALT_SKIA_GLYPH_ATLAS_HEIGHT is defined to a value greater than -1, but
+// will otherwise produce values identical to values to
+// CalculateSkiaAtlasTextureSize().
+TEST(MemorySettings, GetSkiaAtlasTextureSize) {
+  std::vector<StandardDisplaySettings> display_sizes;
+  display_sizes.push_back(k720p);
+  display_sizes.push_back(k1080p);
+  display_sizes.push_back(kUHD4k);
+
+  for (size_t i = 0; i < display_sizes.size(); ++i) {
+    math::Size ui_resolution = GetDimensions(display_sizes[i]);
+
+    // Allows #defined based overrides.
+    math::Size texture_atlas = GetSkiaAtlasTextureSize(ui_resolution);
+
+    // Calculates without respect for overrides.
+    math::Size reference_texture_atlas =
+        CalculateSkiaAtlasTextureSize(ui_resolution);
+
+    // (0) silences compiler warning about "dead code".
+    if (COBALT_SKIA_GLYPH_ATLAS_WIDTH >= (0)) {
+      // Expect that override is in effect.
+      EXPECT_EQ(COBALT_SKIA_GLYPH_ATLAS_WIDTH, texture_atlas.width());
+    } else {
+      EXPECT_EQ(texture_atlas.width(), reference_texture_atlas.width());
+    }
+
+    if (COBALT_SKIA_GLYPH_ATLAS_HEIGHT >= (0)) {
+      // Expect that override is in effect.
+      EXPECT_EQ(COBALT_SKIA_GLYPH_ATLAS_HEIGHT, texture_atlas.height());
+    } else {
+      EXPECT_EQ(texture_atlas.height(), reference_texture_atlas.height());
+    }
   }
 }
 
