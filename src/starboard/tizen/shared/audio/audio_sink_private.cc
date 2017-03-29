@@ -52,7 +52,7 @@ SbAudioSinkPrivate::SbAudioSinkPrivate(
                 << sampling_frequency_hz << ", sample_type "
                 << audio_sample_type << ", storage_type "
                 << audio_frame_storage_type << ", frame_buffers "
-                << static_cast<int>(frame_buffers) << ", frame_buff_sz "
+                << std::hex << frame_buffers << ", frame_buff_sz "
                 << frames_per_channel;
 
   int capi_ret;

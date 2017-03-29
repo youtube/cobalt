@@ -46,6 +46,13 @@ Youtube Engine based on Cobalt
 %setup -q
 
 #define specific parameters
+
+%if "%{?bin_name}"
+%define _name %{bin_name}
+%else
+%define _name cobalt
+%endif
+
 %if "%{?build_type}"
 %define _build_type %{build_type}
 %else
@@ -64,7 +71,6 @@ Youtube Engine based on Cobalt
 %define _chipset armv7l
 %endif
 
-%define _name cobalt
 %define _pkgname com.youtube.cobalt
 %define _outdir src/out/%{_target}-%{_chipset}_%{_build_type}
 %define _manifestdir /usr/share/packages
@@ -100,16 +106,25 @@ rm -rf %{buildroot}
 install -d %{buildroot}%{_bindir}
 install -d %{buildroot}%{_manifestdir}
 install -d %{buildroot}%{_contentdir}/data/fonts/
+# TODO : if _name is 'all', we should copy all binaries
 install -m 0755 %{_outdir}/%{_name} %{buildroot}%{_bindir}
+
 %if "%{?target}" == "samsungtv"
 cp -rd %{_outdir}/content/data/fonts/fonts.xml %{buildroot}%{_contentdir}/data/fonts/
 %else
 cp -rd %{_outdir}/content/data/fonts %{buildroot}%{_contentdir}/data/
 %endif
+
 cp -rd %{_outdir}/content/data/ssl %{buildroot}%{_contentdir}/data/
+
 %if %{_build_type} != "gold"
 cp -rd %{_outdir}/content/data/web %{buildroot}%{_contentdir}/data/
 %endif
+
+%if %{_name} != "cobalt"
+cp -rd %{_outdir}/content/dir_source_root %{buildroot}%{_contentdir}/
+%endif
+
 cp src/starboard/tizen/packaging/%{_pkgname}.xml %{buildroot}%{_manifestdir}
 
 %post

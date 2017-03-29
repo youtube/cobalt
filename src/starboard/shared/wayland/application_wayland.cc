@@ -286,16 +286,16 @@ void ApplicationWayland::WindowRaise() {
     wl_shell_surface_set_toplevel(window_->shell_surface);
 }
 
-void ApplicationWayland::Pause() {
-  Application::Pause(NULL, NULL);
+void ApplicationWayland::Pause(void* context, EventHandledCallback callback) {
+  Application::Pause(context, callback);
 
   ScopedLock lock(observers_mutex_);
   std::for_each(observers_.begin(), observers_.end(),
                 [](StateObserver* i) { i->OnAppPause(); });
 }
 
-void ApplicationWayland::Unpause() {
-  Application::Unpause(NULL, NULL);
+void ApplicationWayland::Unpause(void* context, EventHandledCallback callback) {
+  Application::Unpause(context, callback);
 
   ScopedLock lock(observers_mutex_);
   std::for_each(observers_.begin(), observers_.end(),

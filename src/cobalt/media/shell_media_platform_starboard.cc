@@ -25,6 +25,8 @@
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
+#define POOL_BUFFERS 0
+
 namespace media {
 
 namespace {
@@ -48,7 +50,7 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
                             kVideoFrameAlignment),
       video_frame_provider_(new ShellVideoFrameProvider) {
   DCHECK(!Instance());
-
+#if POOL_BUFFERS
   if (kGPUMemoryBufferBudget > 0) {
     gpu_memory_buffer_space_ = resource_provider->AllocateRawImageMemory(
         kGPUMemoryBufferBudget, kMediaBufferAlignment);
@@ -71,6 +73,7 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
                                              true, /* thread_safe */
                                              true, /* verify_full_capacity */
                                              kSmallAllocationThreshold));
+#endif
 
   ShellBufferFactory::Initialize();
   ShellAudioStreamer::Initialize();
@@ -87,24 +90,33 @@ ShellMediaPlatformStarboard::~ShellMediaPlatformStarboard() {
 }
 
 void* ShellMediaPlatformStarboard::AllocateBuffer(size_t size) {
+#if POOL_BUFFERS
   if (kGPUMemoryBufferBudget) {
     return gpu_memory_pool_->Allocate(size, kMediaBufferAlignment);
   }
 
   return main_memory_pool_->Allocate(size, kMediaBufferAlignment);
+#else
+  return SbMemoryAllocateAligned(kMediaBufferAlignment, size);
+#endif
 }
 
 void ShellMediaPlatformStarboard::FreeBuffer(void* ptr) {
+#if POOL_BUFFERS
   if (kGPUMemoryBufferBudget) {
     return gpu_memory_pool_->Free(ptr);
   }
 
   return main_memory_pool_->Free(ptr);
+#else
+  return SbMemoryDeallocateAligned(ptr);
+#endif
 }
 
 scoped_refptr<DecoderBuffer>
 ShellMediaPlatformStarboard::ProcessBeforeLeavingDemuxer(
     const scoped_refptr<DecoderBuffer>& buffer) {
+#if POOL_BUFFERS
   if (!buffer || buffer->IsEndOfStream() || buffer->GetDataSize() == 0 ||
       !kGPUMemoryBufferBudget)
     return buffer;
@@ -115,6 +127,9 @@ ShellMediaPlatformStarboard::ProcessBeforeLeavingDemuxer(
       buffer, cached_buffer,
       base::Bind(&nb::MemoryPool::Free,
                  base::Unretained(main_memory_pool_.get())));
+#else
+  return buffer;
+#endif
 }
 
 bool ShellMediaPlatformStarboard::IsOutputProtected() {

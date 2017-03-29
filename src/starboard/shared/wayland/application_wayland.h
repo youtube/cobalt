@@ -67,8 +67,8 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   void CreateKey(int key, int state, bool is_repeat);
 
   // state change
-  void Pause() SB_OVERRIDE;
-  void Unpause() SB_OVERRIDE;
+  void Pause(void* context, EventHandledCallback callback) SB_OVERRIDE;
+  void Unpause(void* context, EventHandledCallback callback) SB_OVERRIDE;
 
   // state change observer
   class StateObserver {
