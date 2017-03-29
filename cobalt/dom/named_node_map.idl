@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/DOM-Level-3-Core/core.html#ID-1780488922
+// https://dom.spec.whatwg.org/#interface-namednodemap
 
 interface NamedNodeMap {
   readonly attribute unsigned long length;
   getter Attr? item(unsigned long index);
-  getter Attr? getNamedItem(DOMString name);
+  getter Attr? getNamedItem(DOMString qualifiedName);
+  Attr? setNamedItem(Attr attr);
+  Attr removeNamedItem(DOMString qualifiedName);
 };
