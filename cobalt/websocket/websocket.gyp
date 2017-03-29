@@ -23,6 +23,7 @@
       'sources': [
         'buffered_amount_tracker.cc',
         'buffered_amount_tracker.h',
+        'close_event.h',
         'sec_web_socket_key.h',
         'web_socket.cc',
         'web_socket.h',
@@ -38,6 +39,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
@@ -76,3 +78,4 @@
     },
   ],
 }
+

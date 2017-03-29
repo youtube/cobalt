@@ -21,9 +21,11 @@
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
+#include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/websocket/close_event.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_constants.h"
@@ -33,6 +35,8 @@
 namespace {
 
 typedef uint16 SerializedCloseStatusCodeType;
+
+static const std::string kComma = ",";
 
 bool IsURLAbsolute(cobalt::dom::DOMSettings* dom_settings,
                    const std::string& url) {
@@ -185,11 +189,12 @@ std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket.
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
-                     const std::string& url, const std::string& sub_protocol,
+                     const std::string& url,
+                     const std::string& sub_protocol_list,
                      script::ExceptionState* exception_state)
     : require_network_module_(true) {
   std::vector<std::string> sub_protocols;
-  sub_protocols.push_back(sub_protocol);
+  Tokenize(sub_protocol_list, kComma, &sub_protocols);
   Initialize(settings, url, sub_protocols, exception_state);
 }
 
@@ -248,6 +253,8 @@ void WebSocket::Close(const uint16 code, const std::string& reason,
                              exception_state);
     return;
   }
+
+  DLOG(INFO) << "Websocket close code " << code;
 
   switch (ready_state()) {
     case kOpen:
@@ -384,6 +391,16 @@ void WebSocket::OnConnected(const std::string& selected_subprotocol) {
   protocol_ = selected_subprotocol;
   SetReadyState(kOpen);
   this->DispatchEvent(new dom::Event(base::Tokens::open()));
+}
+
+void WebSocket::OnDisconnected(bool was_clean, uint16 code,
+                               const std::string& reason) {
+  SetReadyState(kClosed);
+  CloseEventInit close_event_init;
+  close_event_init.set_was_clean(was_clean);
+  close_event_init.set_code(code);
+  close_event_init.set_reason(reason);
+  this->DispatchEvent(new CloseEvent(base::Tokens::close(), close_event_init));
 }
 
 void WebSocket::OnReceivedData(bool is_text_frame,
