@@ -14,6 +14,7 @@
 
 #include "cobalt/renderer/frame_rate_throttler.h"
 
+#include "base/debug/trace_event.h"
 #include "base/threading/platform_thread.h"
 
 namespace cobalt {
@@ -28,6 +29,7 @@ void FrameRateThrottler::BeginInterval() {
 void FrameRateThrottler::EndInterval() {
   // Throttle presentation of new frames if a minimum frame time is specified.
   if (COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS > 0) {
+    TRACE_EVENT0("cobalt::renderer", "FrameRateThrottler::EndInterval()");
     if (!begin_time_.is_null()) {
       base::TimeDelta elapsed = base::TimeTicks::HighResNow() - begin_time_;
       base::TimeDelta wait_time =
