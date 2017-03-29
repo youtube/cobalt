@@ -21,6 +21,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
+#include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/network/network_module.h"
@@ -82,8 +83,17 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   void OnError(const net::SocketStream* socket, int error) OVERRIDE;
 
  private:
+  struct CloseInfo {
+    CloseInfo(const net::WebSocketError code, const std::string& reason)
+        : code(code), reason(reason) {}
+    explicit CloseInfo(const net::WebSocketError code) : code(code) {}
+
+    net::WebSocketError code;
+    std::string reason;
+  };
+
   void DoDetach(base::WaitableEvent* waitable_event);
-  void DoClose(const net::WebSocketError code, const std::string& reason);
+  void DoClose(const CloseInfo& close_info);
   void DoPong(const scoped_refptr<net::IOBufferWithSize> payload);
   void DoConnect(
       scoped_refptr<cobalt::network::URLRequestContextGetter> context,
@@ -116,8 +126,7 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   // Returns true if the handshake has been fully processed.
   bool ProcessHandshake(std::size_t* payload_offset);
 
-  void TrampolineClose(
-      const net::WebSocketError error_code = net::kWebSocketErrorProtocolError);
+  void TrampolineClose(const CloseInfo& close_info);
 
   base::ThreadChecker thread_checker_;
   net::WebSocketJob::State GetCurrentState() const;
@@ -134,6 +143,7 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   WebSocketFrameContainer current_frame_container_;
   WebSocketMessageContainer current_message_container_;
 
+  base::optional<CloseInfo> peer_close_info_;
   BufferedAmountTracker buffered_amount_tracker_;
 
   scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;

@@ -37,7 +37,7 @@
 namespace cobalt {
 namespace websocket {
 
-// This class represents a WebSocket.  It will abide by RFC 6455 "The WebSocket
+// This class represents a WebSocket.  It abides by RFC 6455 "The WebSocket
 // Protocol", and implements the The WebSocket API spec at
 // https://www.w3.org/TR/websockets/ (as of Jan 2017).
 class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
@@ -139,7 +139,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
             const bool require_network_module);
 
   WebSocket(script::EnvironmentSettings* settings, const std::string& url,
-            const std::string& sub_protocol,
+            const std::string& sub_protocol_list,
             script::ExceptionState* exception_state,
             const bool require_network_module);
 
@@ -150,10 +150,9 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void OnConnected(const std::string& selected_subprotocol) OVERRIDE;
 
-  void OnDisconnected() OVERRIDE {
-    SetReadyState(kClosed);
-    this->DispatchEvent(new dom::Event(base::Tokens::close()));
-  }
+  void OnDisconnected(bool was_clean, uint16 code,
+                      const std::string& reason) OVERRIDE;
+
   void OnSentData(int amount_sent) OVERRIDE {
     DCHECK_GE(buffered_amount_, amount_sent);
     buffered_amount_ -= amount_sent;
