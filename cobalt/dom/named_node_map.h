@@ -31,18 +31,19 @@ class Attr;
 class Element;
 
 // The NamedNodeMap interface represents a collection of Attr objects. Objects
-// inside a NamedNodeMap are not in any particular order.
-//   https://www.w3.org/TR/DOM-Level-3-Core/core.html#ID-1780488922
+// inside a NamedNodeMap are not in any particular order, unlike NodeList,
+// although they may be accessed by an index as in an array.
+// A NamedNodeMap object is live and will thus be auto-updated if changes are
+// made to its contents internally or elsewhere.
+//   https://dom.spec.whatwg.org/#interface-namednodemap
 //
-// Although called NamedNodeMap, this interface doesn't deal with Node objects
-// but with Attr objects, which were originally a specialized class of Node.
+// This interface is a legacy interface defined in DOM Level 3 Core, and is
+// referenced in DOM4. The whatwg live spec changes some definitions that is
+// adopted by major browsers. The whatwg version is followed here.
 //
 // Using Attr objects directly to represent Element attributes would incur
 // a significant memory overhead. Instead, NamedNodeMap and Attr are created
 // on demand and proxy the content of the actual attributes.
-//
-// Note that DOM4 deprecates this class and replaces it with a read-only
-// array of Attr objects.
 class NamedNodeMap : public script::Wrappable,
                      public base::SupportsWeakPtr<NamedNodeMap> {
  public:
@@ -57,10 +58,11 @@ class NamedNodeMap : public script::Wrappable,
   scoped_refptr<Attr> SetNamedItem(const scoped_refptr<Attr>& attribute);
   scoped_refptr<Attr> RemoveNamedItem(const std::string& name);
 
-  // Custom, not in any spec.
-  //
   bool CanQueryNamedProperty(const std::string& name) const;
   void EnumerateNamedProperties(script::PropertyEnumerator* enumerator) const;
+
+  // Custom, not in any spec.
+  //
   void SetAttributeInternal(const std::string& name, const std::string& value);
   void RemoveAttributeInternal(const std::string& name);
 
@@ -71,17 +73,14 @@ class NamedNodeMap : public script::Wrappable,
  private:
   ~NamedNodeMap();
 
-  void ConstructProxyAttributes();
   scoped_refptr<Attr> GetOrCreateAttr(const std::string& name) const;
+
+  typedef base::hash_map<std::string, base::WeakPtr<Attr> > NameToAttrMap;
 
   // The element that contains the actual attributes.
   scoped_refptr<Element> element_;
-  // This vector contains the names of the proxy attributes.
-  typedef std::vector<std::string> AttributeNameVector;
-  AttributeNameVector attribute_names_;
   // Vector of weak pointers to Attr objects that proxies the actual attributes.
-  typedef base::hash_map<std::string, base::WeakPtr<Attr> > ProxyAttributeMap;
-  mutable ProxyAttributeMap proxy_attributes_;
+  mutable NameToAttrMap proxy_attributes_;
 
   DISALLOW_COPY_AND_ASSIGN(NamedNodeMap);
 };
