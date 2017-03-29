@@ -287,6 +287,7 @@ class Node : public EventTarget {
 
   scoped_refptr<Node> PreRemove(const scoped_refptr<Node>& child);
   void Remove(const scoped_refptr<Node>& node, bool suppress_observers);
+  void ReplaceAll(const scoped_refptr<Node>& node);
 
   // Called everytime mutation happens, i.e. when a child is inserted or removed
   // from this node.

@@ -5,19 +5,16 @@ nodes/MutationObserver-attributes.html,PASS
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: creation mutation
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: prefixed attribute creation mutation
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: removal mutation
-# TODO: Triage these failures.
+# Sets Element.localName, which isn't implemented in Cobalt.
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.attributes.value: update mutation
+# Input element is not supported in Cobalt
 nodes/MutationObserver-attributes.html,FAIL,attributes HTMLInputElement.type: type update mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.add: same value mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.remove: missing token removal mutation
+# Cobalt doesn't implement DomTokenList.toggle
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token removal mutation
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token addition mutation
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token removal mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token removal no mutation
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced missing token removal no mutation
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced existing token addition no mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced existing token removal no mutation
-nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token addition no mutation
 nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token addition mutation
 
 # Most of these tests use operations such as insertData, replaceData, etc.,
@@ -28,21 +25,15 @@ nodes/MutationObserver-characterData.html,PASS,characterData Text.data: simple m
 nodes/MutationObserver-characterData.html,PASS,characterData/characterDataOldValue alone Text.data: simple mutation
 
 nodes/MutationObserver-childList.html,PASS
-# Node.textContent tests fail because set_text_content doesn't run the
-# replace-all algorithm exactly.
-# TODO: Fix this.
-nodes/MutationObserver-childList.html,FAIL,childList Node.textContent: replace content mutation
 # Cobalt doesn't implement Node.normalize.
 nodes/MutationObserver-childList.html,FAIL,childList Node.normalize mutation
 nodes/MutationObserver-childList.html,FAIL,childList Node.normalize mutations
-# TODO: Investigate failures.
-nodes/MutationObserver-childList.html,FAIL,childList Node.insertBefore: addition mutation
-nodes/MutationObserver-childList.html,FAIL,childList Node.insertBefore: removal and addition mutations
 
 nodes/MutationObserver-disconnect.html,PASS
 
 nodes/MutationObserver-document.html,PASS
-# TODO: Investigate failures.
+# These fail because Cobalt doesn't support Event Loop, and MutationObserver spec relies on the concept of
+# queuing a microtask to ensure that queued events get dispatched at the correct time.
 nodes/MutationObserver-document.html,FAIL,parser insertion mutations
 nodes/MutationObserver-document.html,FAIL,parser script insertion mutation
 nodes/MutationObserver-document.html,FAIL,removal of parent during parsing

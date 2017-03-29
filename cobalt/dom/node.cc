@@ -682,8 +682,7 @@ void Node::Insert(const scoped_refptr<Node>& node,
       scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
       added_nodes->AppendNode(node);
       mutation_reporter.ReportChildListMutation(
-          added_nodes, NULL, child && child->previous_sibling_
-                                 ? child->previous_sibling_
+          added_nodes, NULL, child ? child->previous_sibling_
                                  : this->last_child_ /* previous_sibling */,
           child /* next_sibling */);
     }
@@ -821,6 +820,59 @@ void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
     scoped_refptr<Document> document = node->owner_document();
     if (document) {
       document->OnDOMMutation();
+    }
+  }
+}
+
+// Algorithm for ReplaceAll:
+//   https://www.w3.org/TR/dom/#concept-node-replace-all
+void Node::ReplaceAll(const scoped_refptr<Node>& node) {
+  // 1. If node is not null, adopt node into parent's node document.
+  if (node) {
+    node->AdoptIntoDocument(this->node_document());
+  }
+
+  // 2. Let removedNodes be parent's children.
+  scoped_refptr<NodeList> removed_nodes = new NodeList();
+  scoped_refptr<Node> next_child = first_child_;
+  while (next_child) {
+    removed_nodes->AppendNode(next_child);
+    next_child = next_child->next_sibling();
+  }
+
+  // 3. Let addedNodes be the empty list if node is null, node's children if
+  //    node is a DocumentFragment node, and a list containing node otherwise.
+  scoped_refptr<NodeList> added_nodes = new NodeList();
+  if (node) {
+    added_nodes->AppendNode(node);
+  }
+
+  // 4. Remove all parent's children, in tree order, with the suppress observers
+  //    flag set.
+  while (HasChildNodes()) {
+    Remove(first_child(), true);
+  }
+
+  // 5. If node is not null, insert node into parent before null with the
+  //    suppress observers flag set.
+  if (node) {
+    Insert(node, NULL, true);
+  }
+
+  // 6. Queue a mutation record of "childList" for parent with addedNodes
+  //    addedNodes and removedNodes removedNodes.
+  scoped_ptr<RegisteredObserverVector> observers =
+      GatherInclusiveAncestorsObservers();
+  if (!observers->empty()) {
+    MutationReporter mutation_reporter(this, observers.Pass());
+    scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
+    if (node) {
+      added_nodes->AppendNode(node);
+    }
+    if (added_nodes->length() > 0 || removed_nodes->length() > 0) {
+      mutation_reporter.ReportChildListMutation(
+          added_nodes, removed_nodes, NULL /* previous_sibling */,
+          NULL /* next_sibling */);
     }
   }
 }
