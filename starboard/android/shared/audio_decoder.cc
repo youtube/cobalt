@@ -107,21 +107,18 @@ void AudioDecoder::Reset() {
     SB_LOG(ERROR) << "|flush| failed with status: " << status;
   }
 
-  // Clear out pending work, however if we were supposed to write the codec
-  // config data and hadn't yet, we will still need to do so even after being
-  // reset.
-  bool had_write_codec_config = false;
   while (!pending_work_.empty()) {
-    had_write_codec_config |=
-        pending_work_.front().type == Event::kWriteCodecConfig;
     pending_work_.pop();
-  }
-  if (had_write_codec_config) {
-    pending_work_.push(Event(Event::kWriteCodecConfig));
   }
 
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
+  }
+
+  TeardownCodec();
+  if (!InitializeCodec()) {
+    // TODO: Communicate this failure to our clients somehow.
+    SB_LOG(ERROR) << "Failed to initialize codec after reset.";
   }
 }
 
