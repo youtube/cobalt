@@ -213,8 +213,10 @@
     # result in visible stutter. Such thrashing is more likely to occur when CJK
     # language glyphs are rendered and when the size of the glyphs in pixels is
     # larger, such as for higher resolution displays.
-    'skia_glyph_atlas_width%': '2048',
-    'skia_glyph_atlas_height%': '2048',
+    # The negative default values indicates to the engine that these settings
+    # should be automatically set.
+    'skia_glyph_atlas_width%': '-1',
+    'skia_glyph_atlas_height%': '-1',
 
     # Determines the size of garbage collection threshold. After this many bytes
     # have been allocated, the mozjs garbage collector will run. Lowering this

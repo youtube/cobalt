@@ -448,7 +448,7 @@ Application::Application(const base::Closure& quit_closure)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   options.renderer_module_options.skia_texture_atlas_dimensions =
-      memory_settings::GetSkiaAtlasTextureSize();
+      memory_settings::GetSkiaAtlasTextureSize(window_size);
 
   account_manager_.reset(new account::AccountManager());
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
