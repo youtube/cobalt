@@ -30,17 +30,32 @@ namespace memory_settings {
 // CalculateImageCacheSize().
 size_t GetImageCacheSize(const math::Size& dimensions);
 
-// Get's the width and height of the skia atlas texture.
-math::Size GetSkiaAtlasTextureSize();
+// Get's the width and height of the skia atlas texture. Optionally applies
+// overrides if they have been defined.
+math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution);
 
 // Calculates the ImageCacheSize in bytes.
 // The return ranges from [kMinImageCacheSize, kMaxImageCacheSize].
 size_t CalculateImageCacheSize(const math::Size& dimensions);
 
+// Calculates the SkiaAtlasTextureSize.
+// When the ui resolution is 1920x1080, then the returned atlas texture size
+// will be 8192x4096. The texture will scale up and down, by powers of two,
+// in relation to the input ui_resolution. The returned value will be clamped
+// such that
+// kMinSkiaTextureAtlasWidth <= output.width() <= kMaxSkiaTextureAtlasWidth
+// and
+// kMinSkiaTextureAtlasHeight <= output.height() <= kMaxSkiaTextureAtlasHeight
+// will be true.
+math::Size CalculateSkiaAtlasTextureSize(const math::Size& ui_resolution);
+
 /////////////////////////////// Implementation ///////////////////////////////
 enum MemorySizes {
   kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
-  kMaxImageCacheSize = 64 * 1024 * 1024   // 64mb
+  kMaxImageCacheSize = 64 * 1024 * 1024,  // 64mb
+
+  kMinSkiaTextureAtlasWidth = 2048,
+  kMinSkiaTextureAtlasHeight = 2048,
 };
 
 }  // namespace memory_settings
