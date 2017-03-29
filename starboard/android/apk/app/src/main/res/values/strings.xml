@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">Cobalt On Android TV</string>
+  <string name="sign_in_error">There was an error signing in</string>
+  <string name="missing_account">Account not available:\n%1s</string>
 </resources>
