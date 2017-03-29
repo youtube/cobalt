@@ -97,14 +97,18 @@ base::optional<std::string> Element::text_content() const {
 void Element::set_text_content(
     const base::optional<std::string>& text_content) {
   TRACK_MEMORY_SCOPE("DOM");
-  // Remove all children and replace them with a single Text node.
-  while (HasChildNodes()) {
-    RemoveChild(first_child());
-  }
+  // https://www.w3.org/TR/dom/#dom-node-textcontent
+  // 1. Let node be null.
+  scoped_refptr<Node> new_node;
+
+  // 2. If new value is not the empty string, set node to a new Text node whose
+  //    data is new value.
   std::string new_text_content = text_content.value_or("");
   if (!new_text_content.empty()) {
-    AppendChild(new Text(node_document(), new_text_content));
+    new_node = new Text(node_document(), new_text_content);
   }
+  // 3. Replace all with node within the context object.
+  ReplaceAll(new_node);
 }
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
