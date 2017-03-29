@@ -92,13 +92,18 @@ class MemoryTrackerToolThread : public base::SimpleThread {
 // called during destruction.
 class MemoryTrackerPrint : public AbstractMemoryTrackerTool {
  public:
-  MemoryTrackerPrint() {}
+  MemoryTrackerPrint();
+  ~MemoryTrackerPrint() OVERRIDE;
 
   // Overridden so that the thread can exit gracefully.
   virtual void Run(Params* params) OVERRIDE;
   virtual std::string tool_name() const OVERRIDE {
     return "MemoryTrackerPrintThread";
   }
+
+ private:
+  class CvalsMap;
+  scoped_ptr<CvalsMap> cvals_map_;
 };
 
 // Generates CSV values of the engine.
