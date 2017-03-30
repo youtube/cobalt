@@ -27,10 +27,6 @@ namespace {
 const int kPixelSize = 4;
 const int kLoopInfinite = 0;
 
-inline uint32_t DivideBy255(uint32_t value) {
-  return (value + 1 + (value >> 8)) >> 8;
-}
-
 }  // namespace
 
 AnimatedWebPImage::AnimatedWebPImage(
@@ -45,7 +41,6 @@ AnimatedWebPImage::AnimatedWebPImage(
       frame_count_(0),
       loop_count_(kLoopInfinite),
       background_color_(0),
-      should_dispose_previous_frame_(false),
       current_frame_index_(0),
       next_frame_index_(0),
       resource_provider_(resource_provider) {}
@@ -98,36 +93,37 @@ void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
 
 void AnimatedWebPImage::DecodeFrames() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeFrames()");
-  base::AutoLock lock(lock_);
+  DCHECK(!image_buffer_.empty());
 
   UpdateTimelineInfo();
 
   // Decode the frames from current frame to next frame and blend the results.
   for (int frame_index = current_frame_index_ + 1;
        frame_index <= next_frame_index_; ++frame_index) {
-    // Dispose previous frame if necessary.
-    if (should_dispose_previous_frame_) {
-      FillImageBufferWithBackgroundColor();
-    }
+    WebPIterator webp_iterator;
+    WEBPImageDecoder webp_image_decoder(resource_provider_);
 
     // Decode the current frame.
-    WebPIterator webp_iterator;
-    WebPDemuxGetFrame(demux_, frame_index, &webp_iterator);
-    if (!webp_iterator.complete) {
-      break;
-    }
-    WEBPImageDecoder webp_image_decoder(resource_provider_);
-    webp_image_decoder.DecodeChunk(webp_iterator.fragment.bytes,
-                                   webp_iterator.fragment.size);
-    if (!webp_image_decoder.FinishWithSuccess()) {
-      LOG(ERROR) << "Failed to decode WebP image frame.";
-      break;
+    {
+      TRACE_EVENT0("cobalt::loader::image", "Decoding");
+      base::AutoLock lock(lock_);
+
+      WebPDemuxGetFrame(demux_, frame_index, &webp_iterator);
+      if (!webp_iterator.complete) {
+        break;
+      }
+      webp_image_decoder.DecodeChunk(webp_iterator.fragment.bytes,
+                                     webp_iterator.fragment.size);
+      if (!webp_image_decoder.FinishWithSuccess()) {
+        LOG(ERROR) << "Failed to decode WebP image frame.";
+        break;
+      }
     }
 
-    // Alpha blend the current frame on top of previous frame.
+    // Alpha blend the current frame on top of the buffer.
     {
       TRACE_EVENT0("cobalt::loader::image", "Blending");
-      DCHECK(!image_buffer_.empty());
+
       uint8_t* image_buffer_memory = &image_buffer_[0];
       uint8_t* next_frame_memory = webp_image_decoder.GetOriginalMemory();
       // Alpha-blending: Given that each of the R, G, B and A channels is 8-bit,
@@ -149,14 +145,13 @@ void AnimatedWebPImage::DecodeFrames() {
                            kPixelSize;
         for (int x = 0; x < webp_iterator.width; ++x) {
           uint32_t dst_factor = dst[3] * (255 - src[3]);
-          dst[3] = static_cast<uint8_t>(src[3] + DivideBy255(dst_factor));
+          dst[3] = static_cast<uint8_t>(src[3] + dst_factor / 255);
           if (dst[3] == 0) {
             dst[0] = dst[1] = dst[2] = 0;
           } else {
             for (int i = 0; i < 3; ++i) {
               dst[i] = static_cast<uint8_t>(
-                  (src[i] * src[3] + DivideBy255(dst[i] * dst_factor)) /
-                  dst[3]);
+                  (src[i] * src[3] + dst[i] * dst_factor / 255) / dst[3]);
             }
           }
 
@@ -166,25 +161,43 @@ void AnimatedWebPImage::DecodeFrames() {
       }
     }
 
-    // Record the dispose method for current frame.
-    should_dispose_previous_frame_ =
-        webp_iterator.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND;
+    // Generate render tree image.
+    {
+      TRACE_EVENT0("cobalt::loader::image", "Generating render tree image");
+      base::AutoLock lock(lock_);
+
+      scoped_ptr<render_tree::ImageData> next_frame_data = AllocateImageData();
+      DCHECK(next_frame_data);
+      SbMemoryCopy(next_frame_data->GetMemory(), &image_buffer_[0],
+                   size_.width() * size_.height() * kPixelSize);
+      current_frame_image_ =
+          resource_provider_->CreateImage(next_frame_data.Pass());
+    }
+
+    // Dispose the current frame using its dispose method.
+    {
+      TRACE_EVENT0("cobalt::loader::image", "Disposing");
+
+      if (webp_iterator.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND) {
+        for (int y = 0; y < webp_iterator.height; ++y) {
+          uint8_t* dst = &image_buffer_[0] +
+                         ((y + webp_iterator.y_offset) * size_.width() +
+                          webp_iterator.x_offset) *
+                             kPixelSize;
+          for (int x = 0; x < webp_iterator.width; ++x) {
+            *reinterpret_cast<uint32_t*>(dst) = background_color_;
+            dst += kPixelSize;
+          }
+        }
+      } else {
+        DCHECK_EQ(WEBP_MUX_DISPOSE_NONE, webp_iterator.dispose_method);
+      }
+    }
+
     WebPDemuxReleaseIterator(&webp_iterator);
   }
 
-  // Generate the next frame render tree image if necessary.
-  if (current_frame_index_ != next_frame_index_) {
-    current_frame_index_ = next_frame_index_;
-    scoped_ptr<render_tree::ImageData> next_frame_data = AllocateImageData();
-    DCHECK(next_frame_data);
-    DCHECK(!image_buffer_.empty());
-    uint8_t* image_buffer_memory = &image_buffer_[0];
-    uint8_t* next_frame_memory = next_frame_data->GetMemory();
-    SbMemoryCopy(next_frame_memory, image_buffer_memory,
-                 size_.width() * size_.height() * kPixelSize);
-    current_frame_image_ =
-        resource_provider_->CreateImage(next_frame_data.Pass());
-  }
+  current_frame_index_ = next_frame_index_;
 
   // Set up the next time to call the decode callback.
   base::TimeDelta delay = next_frame_time_ - base::TimeTicks::Now();
@@ -202,6 +215,8 @@ void AnimatedWebPImage::DecodeFrames() {
 }
 
 void AnimatedWebPImage::UpdateTimelineInfo() {
+  base::AutoLock lock(lock_);
+
   base::TimeTicks current_time = base::TimeTicks::Now();
   next_frame_index_ = current_frame_index_ ? current_frame_index_ : 1;
   while (true) {
@@ -246,6 +261,7 @@ void AnimatedWebPImage::FillImageBufferWithBackgroundColor() {
 }
 
 AnimatedWebPImage::~AnimatedWebPImage() {
+  base::AutoLock lock(lock_);
   WebPDemuxDelete(demux_);
   thread_.Stop();
 }
