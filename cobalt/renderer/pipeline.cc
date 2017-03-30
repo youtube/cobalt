@@ -190,7 +190,8 @@ void Pipeline::RasterizeToRGBAPixels(
   }
   // Create a new target that is the same dimensions as the display target.
   scoped_refptr<backend::RenderTarget> offscreen_target =
-      graphics_context_->CreateOffscreenRenderTarget(render_target_->GetSize());
+      graphics_context_->CreateDownloadableOffscreenRenderTarget(
+          render_target_->GetSize());
 
   // Rasterize this submission into the newly created target.
   RasterizeSubmissionToRenderTarget(render_tree_submission, offscreen_target);
