@@ -58,6 +58,7 @@ class DrawRectTexture : public DrawObject {
   GenerateTextureFunction generate_texture_;
 
   uint8_t* vertex_buffer_;
+  bool tile_texture_;
 };
 
 }  // namespace egl
