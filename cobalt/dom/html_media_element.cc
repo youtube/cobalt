@@ -879,6 +879,9 @@ void HTMLMediaElement::ClearMediaPlayer() {
 
 void HTMLMediaElement::NoneSupported() {
   MLOG();
+
+  DLOG(WARNING) << "HTMLMediaElement::NoneSupported() error.";
+
   StopPeriodicTimers();
   load_state_ = kWaitingForSource;
 
