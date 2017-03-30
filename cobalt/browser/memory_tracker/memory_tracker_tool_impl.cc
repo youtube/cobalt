@@ -489,7 +489,8 @@ void MemoryTrackerPrint::Run(Params* params) {
       SB_DCHECK(-1 != num_group_allocs);
       SB_DCHECK(-1 != total_group_bytes);
 
-      cvals_map_->Update(group->name(), total_group_bytes);
+      cvals_map_->Update(group->name(),
+                         static_cast<size_t>(total_group_bytes));
 
       num_allocs += num_group_allocs;
       total_bytes += total_group_bytes;
@@ -498,7 +499,7 @@ void MemoryTrackerPrint::Run(Params* params) {
                   NumberFormatWithCommas(num_group_allocs));
     }
 
-    cvals_map_->Update("Total", total_bytes);
+    cvals_map_->Update("Total", static_cast<size_t>(total_bytes));
 
     ss << kNewLine;
 
