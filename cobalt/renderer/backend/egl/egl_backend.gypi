@@ -18,6 +18,7 @@
     'display.h',
     'framebuffer.h',
     'framebuffer.cc',
+    'framebuffer_render_target.h',
     'graphics_context.cc',
     'graphics_context.h',
     'graphics_system.cc',

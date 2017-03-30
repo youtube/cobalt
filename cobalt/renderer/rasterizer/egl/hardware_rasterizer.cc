@@ -68,7 +68,8 @@ class HardwareRasterizer::Impl {
     return fallback_rasterizer_->GetGrContext();
   }
 
-  void RasterizeTree(const scoped_refptr<render_tree::Node>& render_tree);
+  void RasterizeTree(const scoped_refptr<render_tree::Node>& render_tree,
+                     backend::RenderTargetEGL* render_target);
 
   scoped_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
   scoped_ptr<GraphicsState> graphics_state_;
@@ -140,7 +141,7 @@ void HardwareRasterizer::Impl::Submit(
 
   offscreen_target_manager_->Update(target_size);
 
-  RasterizeTree(render_tree);
+  RasterizeTree(render_tree, render_target_egl);
 
   frame_rate_throttler_.EndInterval();
   graphics_context_->SwapBuffers(render_target_egl);
@@ -233,7 +234,8 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
 }
 
 void HardwareRasterizer::Impl::RasterizeTree(
-    const scoped_refptr<render_tree::Node>& render_tree) {
+    const scoped_refptr<render_tree::Node>& render_tree,
+    backend::RenderTargetEGL* render_target) {
   DrawObjectManager draw_object_manager;
   RenderTreeNodeVisitor::FallbackRasterizeFunction fallback_rasterize =
       base::Bind(&HardwareRasterizer::Impl::SubmitToFallbackRasterizer,
@@ -253,6 +255,8 @@ void HardwareRasterizer::Impl::RasterizeTree(
   // Rasterize to offscreen targets using skia.
   {
     TRACE_EVENT0("cobalt::renderer", "OffscreenRasterize");
+    backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+        graphics_context_, render_target);
 
     // Reset the skia graphics context since the egl rasterizer dirtied it.
     GetFallbackContext()->resetContext();
