@@ -194,6 +194,29 @@ void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
   }
 }
 
+void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
+    GLuint texture, GLint texture_wrap_mode) {
+  int texunit_index = texture_unit - GL_TEXTURE0;
+
+  if (texture_unit_ != texture_unit) {
+    texture_unit_ = texture_unit;
+    GL_CALL(glActiveTexture(texture_unit));
+    GL_CALL(glBindTexture(target, texture));
+  } else if (texunit_index >= kNumTextureUnitsCached ||
+             texunit_target_[texunit_index] != target ||
+             texunit_texture_[texunit_index] != texture) {
+    GL_CALL(glBindTexture(target, texture));
+  }
+
+  if (texunit_index < kNumTextureUnitsCached) {
+    texunit_target_[texunit_index] = target;
+    texunit_texture_[texunit_index] = texture;
+  }
+
+  GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_S, texture_wrap_mode));
+  GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_T, texture_wrap_mode));
+}
+
 void GraphicsState::SetClipAdjustment(const math::Size& render_target_size) {
   render_target_size_ = render_target_size;
   clip_adjustment_dirty_ = true;
