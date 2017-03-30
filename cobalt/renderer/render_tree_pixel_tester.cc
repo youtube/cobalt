@@ -64,7 +64,8 @@ RenderTreePixelTester::RenderTreePixelTester(
   // Create our offscreen surface that will be the target of our test
   // rasterizations.
   test_surface_ =
-      graphics_context_->CreateOffscreenRenderTarget(test_surface_dimensions);
+      graphics_context_->CreateDownloadableOffscreenRenderTarget(
+          test_surface_dimensions);
 
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
