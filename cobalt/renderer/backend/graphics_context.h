@@ -48,6 +48,14 @@ class GraphicsContext {
   virtual scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) = 0;
 
+  // Similar to CreateOffscreenRenderTarget, but this should be used when
+  // the target will be used with DownloadPixelDataAsRGBA. This render target
+  // is more compatible for reading.
+  virtual scoped_refptr<RenderTarget> CreateDownloadableOffscreenRenderTarget(
+      const math::Size& dimensions) {
+    return CreateOffscreenRenderTarget(dimensions);
+  }
+
   // Initializes any values that are needed in a debugging context.
   virtual void InitializeDebugContext() {}
 
