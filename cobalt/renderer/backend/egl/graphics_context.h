@@ -55,6 +55,9 @@ class GraphicsContextEGL : public GraphicsContext {
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE;
 
+  scoped_refptr<RenderTarget> CreateDownloadableOffscreenRenderTarget(
+      const math::Size& dimensions) OVERRIDE;
+
   void InitializeDebugContext() OVERRIDE;
 
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
