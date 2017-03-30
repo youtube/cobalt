@@ -61,6 +61,11 @@ class Allocator {
   // Frees memory previously allocated via any call to Allocate().
   virtual void Free(void* memory) = 0;
 
+  // Frees memory with a size. By default it will delegate to Free().
+  virtual void FreeWithSize(void* memory, std::size_t /*size*/) {
+    Free(memory);
+  }
+
   // Returns the allocator's total capacity for allocations.  It will always
   // be true that GetSize() <= GetCapacity(), though it is possible for
   // capacity to grow and change over time.  It is also possible that due to,
