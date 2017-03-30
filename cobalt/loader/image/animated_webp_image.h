@@ -82,7 +82,6 @@ class AnimatedWebPImage : public AnimatedImage {
   // looping infinitely.
   int loop_count_;
   uint32_t background_color_;
-  bool should_dispose_previous_frame_;
   int current_frame_index_;
   int next_frame_index_;
   render_tree::ResourceProvider* resource_provider_;
