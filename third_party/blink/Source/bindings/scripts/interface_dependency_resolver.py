@@ -159,7 +159,9 @@ def merge_interface_dependencies(definitions, component, target_interface, depen
     # Sort so order consistent, so can compare output from run to run.
     for dependency_idl_filename in sorted(dependency_idl_filenames):
         dependency_definitions = reader.read_idl_file(dependency_idl_filename)
-        dependency_component = idl_filename_to_component(dependency_idl_filename)
+        # For Cobalt, always use the component where |definitions| is located
+        # so interfaces will get merged together.
+        dependency_component = component
 
         dependency_interface = next(dependency_definitions.interfaces.itervalues())
         dependency_interface_basename, _ = os.path.splitext(os.path.basename(dependency_idl_filename))
