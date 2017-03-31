@@ -38,9 +38,16 @@ double DisplayScaleTo1080p(const math::Size& dimensions) {
   return num_pixels / kNumReferencePixels;
 }
 
-class LinearInterpolate {
+// LinearRemap is a type of linear interpolation which maps a value from
+// one number line to a corresponding value on another number line.
+// Example:
+//  LinearRemap linear_remap(0, 1, 5, 10);
+//  EXPECT_EQ(5.0f, linear_remap.Map(0));
+//  EXPECT_EQ(7.5f, linear_remap.Map(.5));
+//  EXPECT_EQ(10.f, linear_remap.Map(1));
+class LinearRemap {
  public:
-  LinearInterpolate(double amin, double amax, double bmin, double bmax)
+  LinearRemap(double amin, double amax, double bmin, double bmax)
       : amin_(amin), amax_(amax), bmin_(bmin), bmax_(bmax) {}
 
   // Maps the value from the number line [amin,amax] to [bmin,bmax]. For
@@ -48,7 +55,7 @@ class LinearInterpolate {
   //   Map(amin) -> bmin.
   //   Map(amax) -> bmax.
   //   Map((amax+amin)/2) -> (bmax+bmin)/2.
-  double Map(double value) {
+  double Map(double value) const {
     value -= amin_;
     value /= (amax_ - amin_);
     value *= (bmax_ - bmin_);
@@ -57,7 +64,7 @@ class LinearInterpolate {
   }
 
  private:
-  double amin_, amax_, bmin_, bmax_;
+  const double amin_, amax_, bmin_, bmax_;
 };
 
 math::Size ExpandTextureSizeToContain(const int64_t num_pixels) {
@@ -91,16 +98,15 @@ size_t GetImageCacheSize(const math::Size& dimensions) {
 math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution) {
   math::Size texture_size = CalculateSkiaAtlasTextureSize(ui_resolution);
 
-  // (0) silences compiler warning about "dead code".
-  if (COBALT_SKIA_GLYPH_ATLAS_WIDTH >= (0)) {
-    // Width was overridden.
-    texture_size.set_width(COBALT_SKIA_GLYPH_ATLAS_WIDTH);
-  }
+#if COBALT_SKIA_GLYPH_ATLAS_WIDTH >= 0
+  // Width was overridden.
+  texture_size.set_width(COBALT_SKIA_GLYPH_ATLAS_WIDTH);
+#endif
 
-  if (COBALT_SKIA_GLYPH_ATLAS_HEIGHT >= (0)) {
-    // Height was overridden.
-    texture_size.set_height(COBALT_SKIA_GLYPH_ATLAS_HEIGHT);
-  }
+#if COBALT_SKIA_GLYPH_ATLAS_HEIGHT >= 0
+  // Width was overridden.
+  texture_size.set_height(COBALT_SKIA_GLYPH_ATLAS_HEIGHT);
+#endif
 
   return texture_size;
 }
@@ -127,12 +133,13 @@ math::Size CalculateSkiaAtlasTextureSize(const math::Size& ui_resolution) {
   // of ui_resolution pixels to the number of texture atlas pixels such that:
   // 1080p (1920x1080) => maps to => 2048x2048 texture atlas pixels
   // 4k    (3840x2160) => maps to => 8192x4096 texture atlas pixels
-  LinearInterpolate interp(1920 * 1080, 3840 * 2160, 2048 * 2048, 4096 * 8192);
+  LinearRemap remap(1920 * 1080, 3840 * 2160,
+                    2048 * 2048, 4096 * 8192);
 
   // Apply mapping.
   const int num_ui_pixels = ui_resolution.GetArea();
   const int64_t num_atlas_pixels =
-      static_cast<int64_t>(interp.Map(num_ui_pixels));
+      static_cast<int64_t>(remap.Map(num_ui_pixels));
 
   // Texture atlas sizes are generated in powers of two. This function will
   // produce such a texture.
