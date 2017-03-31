@@ -24,6 +24,11 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
+////////////////////////////// Get Functions //////////////////////////////////
+// These Get*() functions are sensitive to build setting-overrides. In this
+// case they are side-effect sensitive. If build setting-overrides are not
+// in effect, then Get*() functions will call Calculate*() functions.
+
 // Gets the ImageCacheSize in bytes from the given dimensions. If
 // COBALT_IMAGE_CACHE_SIZE_IN_BYTES is defined, then this is the value
 // that is returned, otherwise the value is generated via a call to
@@ -37,6 +42,14 @@ math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution);
 // Gets the software surface cache. Applies overrides if they have been
 // defined.
 size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution);
+
+// Get's the SkiaCachSize. Optionally applies overrides if they have been
+// defined.
+size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution);
+
+////////////////////////// Calculate Functions ////////////////////////////////
+// These functions are exposed here for testing purposes and should not be used
+// directly.
 
 // Calculates the ImageCacheSize in bytes.
 // The return ranges from [kMinImageCacheSize, kMaxImageCacheSize].
@@ -62,6 +75,7 @@ enum MemorySizes {
   kMinSkiaTextureAtlasHeight = 2048,
 
   kDefaultSoftwareSurfaceCacheSize = 8 * 1024 * 1024,  // 8MB default.
+  kMinSkiaCacheSize = 4 * 1024 * 1024,  // 4mb.
 };
 
 }  // namespace memory_settings
