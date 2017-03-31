@@ -115,6 +115,12 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   GURL url_;
   network::NetworkModule* network_module_;
   scoped_ptr<net::URLFetcher> fetcher_;
+  // |fetcher_| has to be destroyed on the thread it's created.  So it cannot be
+  // safely destroyed inside Read_Locked().  Save |fetcher_| into
+  // |fetcher_to_be_destroyed_| to ensure that it is properly destroyed either
+  // inside CreateNewFetcher() or in the dtor while still allow |fetcher_| to be
+  // set to NULL to invalidate outstanding read.
+  scoped_ptr<net::URLFetcher> fetcher_to_be_destroyed_;
 
   // |buffer_| stores a continuous block of data of target resource starts from
   // |buffer_offset_|.  When the target resource can be fit into |buffer_|,
