@@ -14,7 +14,6 @@
 
 {
   'defines': [
-    'COBALT_SKIA_CACHE_SIZE_IN_BYTES=<(skia_cache_size_in_bytes)',
     'COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES=<(scratch_surface_cache_size_in_bytes)',
     'COBALT_SURFACE_CACHE_SIZE_IN_BYTES=<(surface_cache_size_in_bytes)',
   ],

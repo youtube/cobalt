@@ -370,6 +370,9 @@ Application::Application(const base::Closure& quit_closure)
       static_cast<int>(
           memory_settings::GetSoftwareSurfaceCacheSizeInBytes(window_size));
 
+  options.renderer_module_options.skia_cache_size_in_bytes =
+      static_cast<int>(memory_settings::GetSkiaCacheSizeInBytes(window_size));
+
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
   ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
