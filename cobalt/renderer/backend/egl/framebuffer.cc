@@ -56,18 +56,27 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   // Create and attach a depth buffer if requested.
   depthbuffer_handle_ = 0;
   if (depth_format != GL_NONE) {
-    GL_CALL(glGenRenderbuffers(1, &depthbuffer_handle_));
-    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer_handle_));
-    GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, depth_format, size_.width(),
-        size_.height()));
-    GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-        GL_RENDERBUFFER, depthbuffer_handle_));
-    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+    CreateDepthAttachment(depth_format);
   }
 
   // Verify the framebuffer object is valid.
   DCHECK_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER), GL_FRAMEBUFFER_COMPLETE);
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+}
+
+void FramebufferEGL::EnsureDepthBufferAttached(GLenum depth_format) {
+  if (depthbuffer_handle_ == 0) {
+    GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+        graphics_context_);
+
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_handle_));
+    CreateDepthAttachment(depth_format);
+
+    // Verify the framebuffer object is valid.
+    DCHECK_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+              GL_FRAMEBUFFER_COMPLETE);
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+  }
 }
 
 FramebufferEGL::~FramebufferEGL() {
@@ -76,6 +85,16 @@ FramebufferEGL::~FramebufferEGL() {
   if (depthbuffer_handle_ != 0) {
     GL_CALL(glDeleteRenderbuffers(1, &depthbuffer_handle_));
   }
+}
+
+void FramebufferEGL::CreateDepthAttachment(GLenum depth_format) {
+  GL_CALL(glGenRenderbuffers(1, &depthbuffer_handle_));
+  GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer_handle_));
+  GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, depth_format, size_.width(),
+      size_.height()));
+  GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+      GL_RENDERBUFFER, depthbuffer_handle_));
+  GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 }
 
 }  // namespace backend
