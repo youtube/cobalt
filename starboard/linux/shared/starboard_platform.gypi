@@ -28,12 +28,7 @@
       '<(DEPTH)/starboard/shared/alsa/audio_sink_get_nearest_supported_sample_frequency.cc',
       '<(DEPTH)/starboard/shared/alsa/audio_sink_is_audio_frame_storage_type_supported.cc',
       '<(DEPTH)/starboard/shared/alsa/audio_sink_is_audio_sample_type_supported.cc',
-      '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_aligned_unchecked.cc',
-      '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_unchecked.cc',
-      '<(DEPTH)/starboard/shared/dlmalloc/memory_free.cc',
-      '<(DEPTH)/starboard/shared/dlmalloc/memory_free_aligned.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
-      '<(DEPTH)/starboard/shared/dlmalloc/memory_reallocate_unchecked.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
       '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_decoder.cc',
       '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_decoder.h',
@@ -286,6 +281,25 @@
       '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
       '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
       '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
+    ],
+    'conditions': [
+      ['use_dlmalloc_allocator==1', {
+        'starboard_platform_sources': [
+          '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_aligned_unchecked.cc',
+          '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_unchecked.cc',
+          '<(DEPTH)/starboard/shared/dlmalloc/memory_free.cc',
+          '<(DEPTH)/starboard/shared/dlmalloc/memory_free_aligned.cc',
+          '<(DEPTH)/starboard/shared/dlmalloc/memory_reallocate_unchecked.cc',
+        ],
+      }, {
+        'starboard_platform_sources': [
+          '<(DEPTH)/starboard/shared/iso/memory_allocate_unchecked.cc',
+          '<(DEPTH)/starboard/shared/iso/memory_free.cc',
+          '<(DEPTH)/starboard/shared/iso/memory_reallocate_unchecked.cc',
+          '<(DEPTH)/starboard/shared/posix/memory_allocate_aligned_unchecked.cc',
+          '<(DEPTH)/starboard/shared/posix/memory_free_aligned.cc',
+        ],
+      }]
     ],
     'starboard_platform_dependencies': [
       '<(DEPTH)/starboard/common/common.gyp:common',
