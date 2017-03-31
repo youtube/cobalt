@@ -36,7 +36,8 @@ extern "C" void _sanitizer_options_link_helper() { }
 // http://clang.llvm.org/docs/AddressSanitizer.html#issue-suppression
 // http://llvm.org/svn/llvm-project/compiler-rt/trunk/lib/sanitizer_common/sanitizer_suppressions.cc
 SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
-  return "leak:egl_gallium.so\n";
+  return
+      "leak:egl_gallium.so\n";
 }
 
 #endif  // defined(ADDRESS_SANITIZER)
