@@ -333,7 +333,8 @@ bool Element::HasAttribute(const std::string& name) const {
 
 scoped_refptr<HTMLCollection> Element::GetElementsByTagName(
     const std::string& tag_name) const {
-  return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
+  const std::string lower_tag_name = StringToLowerASCII(tag_name);
+  return HTMLCollection::CreateWithElementsByTagName(this, lower_tag_name);
 }
 
 scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
