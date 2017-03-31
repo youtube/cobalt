@@ -684,25 +684,22 @@ void HTMLElement::InvalidateLayoutBoxesOfNodeAndDescendants() {
   InvalidateLayoutBoxesOfDescendants();
 }
 
-void HTMLElement::InvalidateLayoutBoxSizesOfNodeAndAncestors() {
+void HTMLElement::InvalidateLayoutBoxSizes() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateSizes();
   }
-  InvalidateLayoutBoxSizesOfAncestors();
 }
 
-void HTMLElement::InvalidateLayoutBoxCrossReferencesOfNodeAndAncestors() {
+void HTMLElement::InvalidateLayoutBoxCrossReferences() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateCrossReferences();
   }
-  InvalidateLayoutBoxCrossReferencesOfAncestors();
 }
 
-void HTMLElement::InvalidateLayoutBoxRenderTreeNodesOfNodeAndAncestors() {
+void HTMLElement::InvalidateLayoutBoxRenderTreeNodes() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateRenderTreeNodes();
   }
-  InvalidateLayoutBoxRenderTreeNodesOfAncestors();
 }
 
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
@@ -829,16 +826,16 @@ struct UpdateComputedStyleInvalidationFlags {
       : purge_cached_background_images_of_descendants(false),
         invalidate_computed_styles_of_descendants(false),
         invalidate_layout_boxes(false),
-        invalidate_sizes_of_node_and_ancestors(false),
-        invalidate_cross_references_of_node_and_ancestors(false),
-        invalidate_render_tree_nodes_of_node_and_ancestors(false) {}
+        invalidate_sizes(false),
+        invalidate_cross_references(false),
+        invalidate_render_tree_nodes(false) {}
 
   bool purge_cached_background_images_of_descendants;
   bool invalidate_computed_styles_of_descendants;
   bool invalidate_layout_boxes;
-  bool invalidate_sizes_of_node_and_ancestors;
-  bool invalidate_cross_references_of_node_and_ancestors;
-  bool invalidate_render_tree_nodes_of_node_and_ancestors;
+  bool invalidate_sizes;
+  bool invalidate_cross_references;
+  bool invalidate_render_tree_nodes;
 };
 
 bool NewComputedStylePurgesCachedBackgroundImagesOfDescendants(
@@ -910,22 +907,21 @@ void UpdateInvalidationFlagsFromNewComputedStyle(
                                                  new_computed_style)) {
         flags->invalidate_layout_boxes = true;
       } else {
-        if (!flags->invalidate_sizes_of_node_and_ancestors &&
+        if (!flags->invalidate_sizes &&
             NewComputedStyleInvalidatesSizes(old_computed_style,
                                              new_computed_style)) {
-          flags->invalidate_sizes_of_node_and_ancestors = true;
-          flags->invalidate_render_tree_nodes_of_node_and_ancestors = true;
+          flags->invalidate_sizes = true;
+          flags->invalidate_render_tree_nodes = true;
         }
-        if (!flags->invalidate_cross_references_of_node_and_ancestors &&
+        if (!flags->invalidate_cross_references &&
             NewComputedStyleInvalidatesCrossReferences(old_computed_style,
                                                        new_computed_style)) {
-          flags->invalidate_cross_references_of_node_and_ancestors = true;
-          flags->invalidate_render_tree_nodes_of_node_and_ancestors = true;
+          flags->invalidate_cross_references = true;
+          flags->invalidate_render_tree_nodes = true;
         }
 
-        flags->invalidate_render_tree_nodes_of_node_and_ancestors =
-            flags->invalidate_render_tree_nodes_of_node_and_ancestors ||
-            animations_modified ||
+        flags->invalidate_render_tree_nodes =
+            flags->invalidate_render_tree_nodes || animations_modified ||
             !new_computed_style->DoDeclaredPropertiesMatch(old_computed_style);
       }
     }
@@ -1056,14 +1052,14 @@ void HTMLElement::UpdateComputedStyle(
     InvalidateLayoutBoxesOfNodeAndAncestors();
     InvalidateLayoutBoxesOfDescendants();
   } else {
-    if (invalidation_flags.invalidate_sizes_of_node_and_ancestors) {
-      InvalidateLayoutBoxSizesOfNodeAndAncestors();
+    if (invalidation_flags.invalidate_sizes) {
+      InvalidateLayoutBoxSizes();
     }
-    if (invalidation_flags.invalidate_cross_references_of_node_and_ancestors) {
-      InvalidateLayoutBoxCrossReferencesOfNodeAndAncestors();
+    if (invalidation_flags.invalidate_cross_references) {
+      InvalidateLayoutBoxCrossReferences();
     }
-    if (invalidation_flags.invalidate_render_tree_nodes_of_node_and_ancestors) {
-      InvalidateLayoutBoxRenderTreeNodesOfNodeAndAncestors();
+    if (invalidation_flags.invalidate_render_tree_nodes) {
+      InvalidateLayoutBoxRenderTreeNodes();
     }
   }
 
@@ -1113,7 +1109,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 
 void HTMLElement::OnBackgroundImageLoaded() {
   node_document()->RecordMutation();
-  InvalidateLayoutBoxRenderTreeNodesOfNodeAndAncestors();
+  InvalidateLayoutBoxRenderTreeNodes();
 }
 
 bool HTMLElement::IsRootElement() {
