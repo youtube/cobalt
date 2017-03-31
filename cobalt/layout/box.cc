@@ -118,6 +118,26 @@ void Box::UpdateSize(const LayoutParams& layout_params) {
   InvalidateRenderTreeNodesOfBoxAndAncestors();
 }
 
+bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
+  if (last_update_size_params_ && params == *last_update_size_params_) {
+    return true;
+  } else {
+    last_update_size_params_ = params;
+    return false;
+  }
+}
+
+void Box::InvalidateUpdateSizeInputsOfBox() {
+  last_update_size_params_ = base::nullopt;
+}
+
+void Box::InvalidateUpdateSizeInputsOfBoxAndAncestors() {
+  InvalidateUpdateSizeInputsOfBox();
+  if (parent_) {
+    parent_->InvalidateUpdateSizeInputsOfBoxAndAncestors();
+  }
+}
+
 void Box::SetStaticPositionLeftFromParent(LayoutUnit left) {
   if (left != static_position_offset_from_parent_.x()) {
     static_position_offset_from_parent_.set_x(left);
@@ -168,6 +188,19 @@ LayoutUnit Box::GetStaticPositionTop() const {
   DCHECK(IsAbsolutelyPositioned());
   return static_position_offset_from_parent_.y() +
          static_position_offset_from_containing_block_to_parent_.y();
+}
+
+void Box::InvalidateCrossReferencesOfBoxAndAncestors() {
+  if (parent_) {
+    parent_->InvalidateCrossReferencesOfBoxAndAncestors();
+  }
+}
+
+void Box::InvalidateRenderTreeNodesOfBoxAndAncestors() {
+  cached_render_tree_node_info_ = base::nullopt;
+  if (parent_) {
+    parent_->InvalidateRenderTreeNodesOfBoxAndAncestors();
+  }
 }
 
 LayoutUnit Box::GetMarginBoxWidth() const {
@@ -361,15 +394,6 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
   // the placement requirement, so that later boxes will know that they don't
   // need to fulfill it themselves.
   *is_placement_requirement_met = box_meets_placement_requirement;
-}
-
-bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
-  if (last_update_size_params_ && params == *last_update_size_params_) {
-    return true;
-  } else {
-    last_update_size_params_ = params;
-    return false;
-  }
 }
 
 void Box::RenderAndAnimate(
@@ -1272,13 +1296,6 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
         (containing_block_width - border_box_width) / 2;
     set_margin_left(horizontal_margin);
     set_margin_right(horizontal_margin);
-  }
-}
-
-void Box::InvalidateRenderTreeNodesOfBoxAndAncestors() {
-  InvalidateRenderTreeNodesOfBox();
-  if (parent_) {
-    parent_->InvalidateRenderTreeNodesOfBoxAndAncestors();
   }
 }
 
