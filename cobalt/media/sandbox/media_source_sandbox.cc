@@ -32,7 +32,7 @@
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/video_frame.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "net/base/net_util.h"
+#include "starboard/file.h"
 
 namespace cobalt {
 namespace media {
@@ -50,55 +50,18 @@ using ::media::WebMediaPlayer;
 
 using base::TimeDelta;
 using render_tree::Image;
+using starboard::ScopedFile;
 
-GURL ResolveUrl(const char* arg) {
-  GURL video_url(arg);
-  if (!video_url.is_valid()) {
-    // Assume the input is a path.
-    // Try to figure out the path to this file and convert it to a URL.
-    FilePath result(arg);
-    if (!result.IsAbsolute()) {
-      FilePath content_path;
-      PathService::Get(base::DIR_EXE, &content_path);
-      DCHECK(content_path.IsAbsolute());
-      // TODO: Get the "real" exe path.
-      result = content_path.DirName().DirName().Append(result);
-    }
-    video_url = net::FilePathToFileURL(result);
+FilePath ResolvePath(const char* path) {
+  FilePath result(path);
+  if (!result.IsAbsolute()) {
+    FilePath content_path;
+    PathService::Get(base::DIR_SOURCE_ROOT, &content_path);
+    DCHECK(content_path.IsAbsolute());
+    result = content_path.Append(result);
   }
-  return video_url;
+  return result;
 }
-
-// Note that this class loads the content of the url into memory, so it won't
-// work with large media files.
-class Loader : loader::Fetcher::Handler {
- public:
-  Loader(const GURL& url, loader::FetcherFactory* fetcher_factory)
-      : done_(false), error_(false) {
-    fetcher_ = fetcher_factory->CreateFetcher(url, this);
-  }
-
-  bool done() const { return done_; }
-  bool error() const { return error_; }
-  const std::vector<uint8_t>& buffer() const { return buffer_; }
-
- private:
-  void OnReceived(loader::Fetcher* fetcher, const char* data,
-                  size_t size) OVERRIDE {
-    buffer_.insert(buffer_.end(), reinterpret_cast<const uint8_t*>(data),
-                   reinterpret_cast<const uint8_t*>(data) + size);
-  }
-  void OnDone(loader::Fetcher* fetcher) OVERRIDE { done_ = true; }
-  void OnError(loader::Fetcher* fetcher, const std::string& error) OVERRIDE {
-    buffer_.clear();
-    error_ = true;
-  }
-
-  scoped_ptr<loader::Fetcher> fetcher_;
-  std::vector<uint8_t> buffer_;
-  bool done_;
-  bool error_;
-};
 
 std::vector<std::string> MakeStringVector(const char* string) {
   std::vector<std::string> result;
@@ -124,18 +87,19 @@ void AddSourceBuffers(const std::string audio_id, const std::string video_id,
   CHECK_EQ(status, WebMediaPlayer::kAddIdStatusOk);
 }
 
-bool IsWebMURL(const GURL& url) {
-  std::string filename = url.ExtractFileName();
+bool IsWebM(const FilePath& path) {
+  std::string filename = path.value();
   return filename.size() >= 5 &&
          filename.substr(filename.size() - 5) == ".webm";
 }
 
-void AppendData(const std::string& id, const std::vector<uint8_t>& data,
-                size_t* offset, WebMediaPlayer* player) {
+void AppendData(WebMediaPlayer* player, const std::string& id, ScopedFile* file,
+                int64* offset) {
   const float kLowWaterMarkInSeconds = 5.f;
-  const size_t kMaxBytesToAppend = 1024 * 1024;
+  const int64 kMaxBytesToAppend = 1024 * 1024;
+  char buffer[kMaxBytesToAppend];
 
-  while (*offset < data.size()) {
+  while (*offset < file->GetSize()) {
     Ranges<TimeDelta> ranges = player->SourceBuffered(id);
     float end_of_buffer =
         ranges.size() == 0 ? 0.f : ranges.end(ranges.size() - 1).InSecondsF();
@@ -143,8 +107,10 @@ void AppendData(const std::string& id, const std::vector<uint8_t>& data,
     if (end_of_buffer - media_time > kLowWaterMarkInSeconds) {
       break;
     }
-    size_t bytes_to_append = std::min(kMaxBytesToAppend, data.size() - *offset);
-    player->SourceAppend(id, &data[0] + *offset, bytes_to_append);
+    int64 bytes_to_append =
+        std::min(kMaxBytesToAppend, file->GetSize() - *offset);
+    file->Read(buffer, bytes_to_append);
+    player->SourceAppend(id, reinterpret_cast<uint8*>(buffer), bytes_to_append);
     *offset += bytes_to_append;
   }
 }
@@ -160,7 +126,8 @@ scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
 int SandboxMain(int argc, char** argv) {
   if (argc != 3 && argc != 4) {
     LOG(ERROR) << "Usage: " << argv[0]
-               << " [--null_audio_streamer] <audio url|path> <video url|path>";
+               << " [--null_audio_streamer] <audio file path> "
+               << "<video file path>";
     return 1;
   }
   MediaSandbox media_sandbox(
@@ -169,51 +136,36 @@ int SandboxMain(int argc, char** argv) {
   WebMediaPlayerHelper player_helper(media_sandbox.GetMediaModule());
 
   // Note that we can't access PathService until MediaSandbox is initialized.
-  GURL audio_url = ResolveUrl(argv[argc - 2]);
-  GURL video_url = ResolveUrl(argv[argc - 1]);
+  FilePath audio_path = ResolvePath(argv[argc - 2]);
+  FilePath video_path = ResolvePath(argv[argc - 1]);
 
-  if (!audio_url.is_valid()) {
-    LOG(ERROR) << "Invalid Audio URL: " << audio_url;
+  ScopedFile audio_file(audio_path.value().c_str(),
+                        kSbFileOpenOnly | kSbFileRead);
+  ScopedFile video_file(video_path.value().c_str(),
+                        kSbFileOpenOnly | kSbFileRead);
+
+  if (!audio_file.IsValid()) {
+    LOG(ERROR) << "Failed to open audio file: " << audio_path.value();
     return 1;
   }
 
-  if (!video_url.is_valid()) {
-    LOG(ERROR) << "Invalid Video URL: " << video_url;
+  if (!video_file.IsValid()) {
+    LOG(ERROR) << "Failed to open video file: " << video_path.value();
     return 1;
   }
 
-  LOG(INFO) << "Loading " << audio_url << " and " << video_url;
-
-  Loader audio_loader(audio_url, media_sandbox.GetFetcherFactory());
-  Loader video_loader(video_url, media_sandbox.GetFetcherFactory());
-
-  bool audio_finished = false;
-  bool video_finished = false;
-  while (!audio_finished || !video_finished) {
-    MessageLoop::current()->RunUntilIdle();
-    audio_finished = audio_loader.done() || audio_loader.error();
-    video_finished = video_loader.done() || video_loader.error();
-  }
-
-  if (audio_loader.error()) {
-    LOG(ERROR) << "Failed to load audio: " << audio_url;
-    return 1;
-  }
-
-  if (video_loader.error()) {
-    LOG(ERROR) << "Failed to load video: " << video_url;
-    return 1;
-  }
+  LOG(INFO) << "Playing " << audio_path.value() << " and "
+            << video_path.value();
 
   WebMediaPlayer* player = player_helper.player();
 
   const std::string kAudioId = "audio";
   const std::string kVideoId = "video";
 
-  AddSourceBuffers(kAudioId, kVideoId, IsWebMURL(video_url), player);
+  AddSourceBuffers(kAudioId, kVideoId, IsWebM(video_path), player);
 
-  size_t audio_offset = 0;
-  size_t video_offset = 0;
+  int64 audio_offset = 0;
+  int64 video_offset = 0;
   bool eos_appended = false;
 
   scoped_refptr<VideoFrame> last_frame;
@@ -222,10 +174,10 @@ int SandboxMain(int argc, char** argv) {
       base::Bind(FrameCB, base::Unretained(&player_helper)));
 
   for (;;) {
-    AppendData(kAudioId, audio_loader.buffer(), &audio_offset, player);
-    AppendData(kVideoId, video_loader.buffer(), &video_offset, player);
-    if (!eos_appended && audio_offset == audio_loader.buffer().size() &&
-        video_offset == video_loader.buffer().size()) {
+    AppendData(player, kAudioId, &audio_file, &audio_offset);
+    AppendData(player, kVideoId, &video_file, &video_offset);
+    if (!eos_appended && video_offset == video_file.GetSize()) {
+      player->SourceAbort(kAudioId);
       player->SourceEndOfStream(WebMediaPlayer::kEndOfStreamStatusNoError);
       eos_appended = true;
     }
