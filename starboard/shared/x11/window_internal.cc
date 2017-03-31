@@ -264,19 +264,19 @@ void SbWindowPrivate::Composite(
 
     int dest_x = bounds_x + (bounds_width - video_width) / 2;
     int dest_y = bounds_y + (bounds_height - video_height) / 2;
-    XRenderComposite(display, PictOpSrc, video_picture, NULL,
+    XRenderComposite(display, PictOpSrc, video_picture, None,
                      composition_picture, 0, 0, 0, 0, dest_x, dest_y,
                      video_width, video_height);
   }
 
   // Composite (with blending) the GL output on top of the composition pixmap
   // that already has the current video frame if video is playing.
-  XRenderComposite(display, PictOpOver, gl_picture, NULL, composition_picture,
+  XRenderComposite(display, PictOpOver, gl_picture, None, composition_picture,
                    0, 0, 0, 0, 0, 0, width, height);
 
   // Now that we have a fully-composited frame in composition_pixmap, render it
   // to the window, which acts as our front buffer.
-  XRenderComposite(display, PictOpSrc, composition_picture, NULL,
+  XRenderComposite(display, PictOpSrc, composition_picture, None,
                    window_picture, 0, 0, 0, 0, 0, 0, width, height);
   XSynchronize(display, False);
 }
