@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/application.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -51,6 +52,7 @@
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 #if defined(OS_STARBOARD)
+#include "nb/lexical_cast.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #endif  // defined(OS_STARBOARD)
@@ -195,6 +197,30 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+// Represents a parsed int.
+struct ParsedIntValue {
+ public:
+  ParsedIntValue() : value_(0), error_(false) {}
+  ParsedIntValue(const ParsedIntValue& other)
+      : value_(other.value_), error_(other.error_) {}
+  int value_;
+  bool error_;  // true if there was a parse error.
+};
+// Parses a string like "1234x5678" to vector of parsed int values.
+std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
+  std::vector<ParsedIntValue> output;
+
+  std::vector<std::string> lengths;
+  base::SplitString(value_str, 'x', &lengths);
+
+  for (size_t i = 0; i < lengths.size(); ++i) {
+    ParsedIntValue parsed_value;
+    parsed_value.error_ = !base::StringToInt(lengths[i], &parsed_value.value_);
+    output.push_back(parsed_value);
+  }
+  return output;
+}
+
 std::string GetMinLogLevelString() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -233,6 +259,45 @@ void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
       LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
     }
   }
+}
+
+// Gets the command override for kSkiaTextureAtlasDimensions override. If
+// the command line parameters exist then the return value will be a valid
+// math::Size object, otherwise it will be an empty value.
+// The command line siwtch value will be of the form:
+// cobalt --skia_atlas_texture_dimensions=2048x2048.
+base::optional<math::Size> GetSkiaGlyphTextureAtlasDimensionsIfSet(
+    CommandLine* command_line) {
+  base::optional<math::Size> output;
+
+  if (!command_line->HasSwitch(
+          browser::switches::kSkiaTextureAtlasDimensions)) {
+    return output;
+  }
+
+  std::string value = command_line->GetSwitchValueNative(
+      browser::switches::kSkiaTextureAtlasDimensions);
+
+  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(value);
+
+  // Only accept parse results in the form of 1234x5678.
+  bool parse_ok = (parsed_ints.size() == 2);
+  if (parse_ok) {
+    parse_ok = parse_ok &&
+               !parsed_ints[0].error_ &&
+               !parsed_ints[1].error_;
+  }
+
+  if (!parse_ok) {
+    LOG(ERROR) << browser::switches::kSkiaTextureAtlasDimensions
+               << " could not parse " << value;
+    return output;
+  }
+  const int width = parsed_ints[0].value_;
+  const int height = parsed_ints[1].value_;
+
+  output = math::Size(width, height);
+  return output;
 }
 
 void ApplyCommandLineSettingsToRendererOptions(
@@ -369,11 +434,14 @@ Application::Application(const base::Closure& quit_closure)
   options.renderer_module_options.software_surface_cache_size_in_bytes =
       static_cast<int>(
           memory_settings::GetSoftwareSurfaceCacheSizeInBytes(window_size));
+  base::optional<math::Size> skia_texture_atlas_override =
+      GetSkiaGlyphTextureAtlasDimensionsIfSet(command_line);
 
-  options.renderer_module_options.skia_cache_size_in_bytes =
-      static_cast<int>(memory_settings::GetSkiaCacheSizeInBytes(window_size));
-
+  options.renderer_module_options.skia_texture_atlas_dimensions =
+      memory_settings::GetSkiaAtlasTextureSize(window_size,
+                                               skia_texture_atlas_override);
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
+
   ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
@@ -453,9 +521,6 @@ Application::Application(const base::Closure& quit_closure)
         memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
-  options.renderer_module_options.skia_texture_atlas_dimensions =
-      memory_settings::GetSkiaAtlasTextureSize(window_size);
 
   account_manager_.reset(new account::AccountManager());
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
@@ -701,23 +766,31 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
   if (command_line->HasSwitch(browser::switches::kViewport)) {
     const std::string switchValue =
         command_line->GetSwitchValueASCII(browser::switches::kViewport);
-    std::vector<std::string> lengths;
-    base::SplitString(switchValue, 'x', &lengths);
-    if (lengths.size() >= 1) {
-      int width = -1;
-      if (base::StringToInt(lengths[0], &width) && width >= 1) {
-        int height = -1;
-        if (lengths.size() < 2) {
+
+    std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switchValue);
+
+    if (parsed_ints.size() >= 1) {
+      const ParsedIntValue parsed_width = parsed_ints[0];
+      if (!parsed_width.error_) {
+        const ParsedIntValue* parsed_height_ptr = NULL;
+        if (parsed_ints.size() >= 2) {
+          parsed_height_ptr = &parsed_ints[1];
+        }
+
+        if (!parsed_height_ptr) {
           // Allow shorthand specification of the viewport by only giving the
           // width. This calculates the height at 4:3 aspect ratio for smaller
           // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-          if (width >= 1280) {
-            viewport_size.emplace(width, 9 * width / 16);
+          if (parsed_width.value_ >= 1280) {
+            viewport_size.emplace(parsed_width.value_,
+                                  9 * parsed_width.value_ / 16);
           } else {
-            viewport_size.emplace(width, 3 * width / 4);
+            viewport_size.emplace(parsed_width.value_,
+                                  3 * parsed_width.value_ / 4);
           }
-        } else if (base::StringToInt(lengths[1], &height) && height >= 1) {
-          viewport_size.emplace(width, height);
+        } else if (!parsed_height_ptr->error_) {
+          viewport_size.emplace(parsed_width.value_,
+                                parsed_height_ptr->value_);
         } else {
           DLOG(ERROR) << "Invalid value specified for viewport height: "
                       << switchValue << ". Using default viewport size.";
