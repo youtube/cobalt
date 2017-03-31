@@ -366,6 +366,10 @@ Application::Application(const base::Closure& quit_closure)
   options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
 
+  options.renderer_module_options.software_surface_cache_size_in_bytes =
+      static_cast<int>(
+          memory_settings::GetSoftwareSurfaceCacheSizeInBytes(window_size));
+
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
   ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 

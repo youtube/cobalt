@@ -105,6 +105,14 @@ math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution) {
   return texture_size;
 }
 
+size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution) {
+  SB_UNREFERENCED_PARAMETER(ui_resolution);
+#if COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES >= 0
+  return COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES;
+#endif
+  return kDefaultSoftwareSurfaceCacheSize;
+}
+
 size_t CalculateImageCacheSize(const math::Size& dimensions) {
   const double display_scale = DisplayScaleTo1080p(dimensions);
   static const size_t kReferenceSize1080p = 32 * 1024 * 1024;
