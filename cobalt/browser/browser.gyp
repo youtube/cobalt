@@ -57,6 +57,7 @@
         'web_module_stat_tracker.h',
       ],
       'defines': [
+        'COBALT_SKIA_CACHE_SIZE_IN_BYTES=<(skia_cache_size_in_bytes)',
         'COBALT_SKIA_GLYPH_ATLAS_WIDTH=<(skia_glyph_atlas_width)',
         'COBALT_SKIA_GLYPH_ATLAS_HEIGHT=<(skia_glyph_atlas_height)',
         'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
@@ -178,6 +179,7 @@
         'memory_tracker/memory_tracker_tool_test.cc',
       ],
       'defines': [
+        'COBALT_SKIA_CACHE_SIZE_IN_BYTES=<(skia_cache_size_in_bytes)',
         'COBALT_SKIA_GLYPH_ATLAS_WIDTH=<(skia_glyph_atlas_width)',
         'COBALT_SKIA_GLYPH_ATLAS_HEIGHT=<(skia_glyph_atlas_height)',
         'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',

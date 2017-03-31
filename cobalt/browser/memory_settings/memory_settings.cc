@@ -119,6 +119,14 @@ size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution) {
   return kDefaultSoftwareSurfaceCacheSize;
 }
 
+size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution) {
+  SB_UNREFERENCED_PARAMETER(ui_resolution);
+#if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
+  return COBALT_SKIA_CACHE_SIZE_IN_BYTES;
+#endif
+  return kMinSkiaCacheSize;
+}
+
 size_t CalculateImageCacheSize(const math::Size& dimensions) {
   const double display_scale = DisplayScaleTo1080p(dimensions);
   static const size_t kReferenceSize1080p = 32 * 1024 * 1024;
@@ -133,8 +141,7 @@ math::Size CalculateSkiaAtlasTextureSize(const math::Size& ui_resolution) {
   // of ui_resolution pixels to the number of texture atlas pixels such that:
   // 1080p (1920x1080) => maps to => 2048x2048 texture atlas pixels
   // 4k    (3840x2160) => maps to => 8192x4096 texture atlas pixels
-  LinearRemap remap(1920 * 1080, 3840 * 2160,
-                    2048 * 2048, 4096 * 8192);
+  LinearRemap remap(1920 * 1080, 3840 * 2160, 2048 * 2048, 4096 * 8192);
 
   // Apply mapping.
   const int num_ui_pixels = ui_resolution.GetArea();
