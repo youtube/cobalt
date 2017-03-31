@@ -55,8 +55,8 @@ void StandaloneJavascriptRunner::ExecuteFile(const FilePath& path) {
 
 void StandaloneJavascriptRunner::CommonInitialization(
     const JavaScriptEngine::Options& options) {
-  engine_ = JavaScriptEngine::CreateEngine();
-  global_environment_ = engine_->CreateGlobalEnvironment(options);
+  engine_ = JavaScriptEngine::CreateEngine(options);
+  global_environment_ = engine_->CreateGlobalEnvironment();
   environment_settings_.reset(new EnvironmentSettings());
 }
 
