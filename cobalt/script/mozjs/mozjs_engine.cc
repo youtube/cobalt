@@ -103,11 +103,13 @@ bool DummyPreserveWrapperCallback(JSContext *cx, JSObject *obj) {
 }
 }  // namespace
 
-MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
+MozjsEngine::MozjsEngine(const Options& options)
+    : accumulated_extra_memory_cost_(0),
+      moz_options_(options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   // TODO: Investigate the benefit of helper threads and things like
   // parallel compilation.
-  runtime_ = JS_NewRuntime(MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES,
+  runtime_ = JS_NewRuntime(moz_options_.js_options.gc_threshold_bytes,
                            JS_NO_HELPER_THREADS);
   CHECK(runtime_);
 
@@ -156,11 +158,10 @@ MozjsEngine::~MozjsEngine() {
   JS_DestroyRuntime(runtime_);
 }
 
-scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment(
-    const JavaScriptEngine::Options& options) {
+scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new MozjsGlobalEnvironment(runtime_, options);
+  return new MozjsGlobalEnvironment(runtime_, moz_options_.js_options);
 }
 
 void MozjsEngine::CollectGarbage() {
@@ -172,8 +173,10 @@ void MozjsEngine::CollectGarbage() {
 void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
   accumulated_extra_memory_cost_ += bytes;
-  if (accumulated_extra_memory_cost_ >
-      MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES) {
+
+  const bool do_collect_garbage = accumulated_extra_memory_cost_ >
+                                  moz_options_.js_options.gc_threshold_bytes;
+  if (do_collect_garbage) {
     accumulated_extra_memory_cost_ = 0;
     CollectGarbage();
   }
@@ -292,9 +295,12 @@ JSBool MozjsEngine::ReportJSError(JSContext* context, const char* message,
 
 }  // namespace mozjs
 
-scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine() {
+scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
+    const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
-  return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine());
+  mozjs::MozjsEngine::Options moz_options(options);
+  return make_scoped_ptr<JavaScriptEngine>(
+      new mozjs::MozjsEngine(moz_options));
 }
 
 }  // namespace script

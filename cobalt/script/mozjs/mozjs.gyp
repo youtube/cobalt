@@ -49,7 +49,6 @@
         'embed_mozjs_resources_as_header_files',
       ],
       'defines': [
-        'MOZJS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
         'ENGINE_SUPPORTS_INT64',
       ],
       'all_dependent_settings': {
