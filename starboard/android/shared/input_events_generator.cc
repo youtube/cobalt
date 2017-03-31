@@ -30,9 +30,7 @@ namespace shared {
 
 using ::starboard::shared::starboard::Application;
 
-namespace {
-
-SbKey AInputEventToSbKey(AInputEvent *event) {
+SbKey InputEventsGenerator::AInputEventToSbKey(AInputEvent *event) {
   int32_t keycode = AKeyEvent_getKeyCode(event);
   switch (keycode) {
     // Modifiers
@@ -87,13 +85,21 @@ SbKey AInputEventToSbKey(AInputEvent *event) {
 
     // D-pad
     case AKEYCODE_DPAD_UP:
-      return kSbKeyGamepadDPadUp;
+      return IsDpadEventFromStick(event)
+          ? kSbKeyGamepadLeftStickUp
+          : kSbKeyGamepadDPadUp;
     case AKEYCODE_DPAD_DOWN:
-      return kSbKeyGamepadDPadDown;
+      return IsDpadEventFromStick(event)
+          ? kSbKeyGamepadLeftStickDown
+          : kSbKeyGamepadDPadDown;
     case AKEYCODE_DPAD_LEFT:
-      return kSbKeyGamepadDPadLeft;
+      return IsDpadEventFromStick(event)
+          ? kSbKeyGamepadLeftStickLeft
+          : kSbKeyGamepadDPadLeft;
     case AKEYCODE_DPAD_RIGHT:
-      return kSbKeyGamepadDPadRight;
+      return IsDpadEventFromStick(event)
+          ? kSbKeyGamepadLeftStickRight
+          : kSbKeyGamepadDPadRight;
     case AKEYCODE_DPAD_CENTER:
       return kSbKeyGamepad1;
 
@@ -281,6 +287,54 @@ SbKey AInputEventToSbKey(AInputEvent *event) {
   }
 }
 
+bool InputEventsGenerator::IsDpadEventFromStick(AInputEvent *event) {
+  // Synthesized events from the stick are always fallback events.
+  if ((AKeyEvent_getFlags(event) & AKEY_EVENT_FLAG_FALLBACK) == 0) {
+    return false;
+  }
+
+  int32_t keycode = AKeyEvent_getKeyCode(event);
+  bool is_dpad =
+      keycode == AKEYCODE_DPAD_UP ||
+      keycode == AKEYCODE_DPAD_DOWN ||
+      keycode == AKEYCODE_DPAD_LEFT ||
+      keycode == AKEYCODE_DPAD_RIGHT;
+  if (!is_dpad) {
+    SB_NOTREACHED();
+    return false;
+  }
+
+  int axis =
+      (keycode == AKEYCODE_DPAD_LEFT || keycode == AKEYCODE_DPAD_RIGHT)
+      ? kHatX : kHatY;
+  float sign =
+      (keycode == AKEYCODE_DPAD_LEFT || keycode == AKEYCODE_DPAD_UP)
+      ? -1.0 : 1.0;
+
+  // The "hat" is the dpad on the game controller, which sends motion events as
+  // if it's analog, even though it's a digital input. If the hat is pressed
+  // then that's what the fallback event is from.
+  bool is_hat;
+  if (AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP) {
+    // Are we waiting for this up event from the hat?
+    is_hat = (hat_pressed_[axis] == keycode);
+    if (is_hat) {
+      hat_pressed_[axis] = 0;
+    }
+  } else {
+    is_hat = (sign * hat_value_[axis]) >= 0.5;
+    if (is_hat) {
+      // Now we're waiting for the up event from the hat for this keycode.
+      hat_pressed_[axis] = keycode;
+    }
+  }
+  // If it's not from the hat, then it's from the stick.
+  return !is_hat;
+}
+
+// TODO: Move the anonymous namespace to the top of the file.
+namespace {
+
 SbKeyLocation AInputEventToSbKeyLocation(AInputEvent *event) {
   int32_t keycode = AKeyEvent_getKeyCode(event);
   switch (keycode) {
@@ -354,7 +408,8 @@ float GetFlat(jobject input_device, int axis) {
 
 }  // namespace
 
-InputEventsGenerator::InputEventsGenerator(SbWindow window) : window_(window) {
+InputEventsGenerator::InputEventsGenerator(SbWindow window)
+    : window_(window), hat_value_(), hat_pressed_() {
   SB_DCHECK(SbWindowIsValid(window_));
 }
 
@@ -476,7 +531,7 @@ bool InputEventsGenerator::ProcessKeyEvent(
 bool InputEventsGenerator::ProcessMotionEvent(
     AInputEvent* android_event,
     std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
-  if (AInputEvent_getSource(android_event) != AINPUT_SOURCE_JOYSTICK) {
+  if ((AInputEvent_getSource(android_event) & AINPUT_SOURCE_JOYSTICK) == 0) {
     // Only handles joystick motion events.
     return false;
   }
@@ -487,9 +542,17 @@ bool InputEventsGenerator::ProcessMotionEvent(
   ProcessJoyStickEvent(kRightX, AMOTION_EVENT_AXIS_Z, android_event, events);
   ProcessJoyStickEvent(kRightY, AMOTION_EVENT_AXIS_RZ, android_event, events);
 
-  // Lie to Android and tell it that we did not process the motion event.
-  // That way Android will also process joystick motion events to generate
-  // equivalent key events for us.
+  // Remember the "hat" input values (dpad on the game controller) for
+  // IsDpadEventFromStick() to differentiate hat vs. stick fallback events.
+  hat_value_[kHatX] =
+      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_X, 0);
+  hat_value_[kHatY] =
+      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_Y, 0);
+
+  // Lie to Android and tell it that we did not process the motion event,
+  // causing Android to synthesize dpad key events for us. When we handle
+  // those synthesized key events we'll enqueue kSbKeyGamepadLeft rather
+  // than kSbKeyGamepadDPad events if they're from the joystick.
   return false;
 }
 
