@@ -29,10 +29,16 @@ class GlobalEnvironment;
 class JavaScriptEngine {
  public:
   struct Options {
-    Options() : disable_jit(false) {}
+    Options() : disable_jit(false), gc_threshold_bytes(1024*1024) {}
+
     // Default false. When set to true then the javascript engine should
     // disable the just-in-time compiler.
     bool disable_jit;
+
+    // Determines the size of garbage collection threshold. After this many
+    // bytes have been allocated, the garbage collector will run.
+    // Default is 1MB (see default constructor).
+    size_t gc_threshold_bytes;
   };
 
   typedef base::Callback<void(const base::SourceLocation& location,
@@ -41,11 +47,11 @@ class JavaScriptEngine {
   // Initialize a JavaScript engine. The JavaScript engine should only be
   // accessed from the thread that called CreateEngine.
   // This function is defined per-implementation.
-  static scoped_ptr<JavaScriptEngine> CreateEngine();
+  static scoped_ptr<JavaScriptEngine> CreateEngine(
+      const Options& options = Options());
 
   // Create a new JavaScript global object proxy.
-  virtual scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment(
-      const Options& options) = 0;
+  virtual scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() = 0;
 
   // Kick off the engine's garbage collection synchronously.
   virtual void CollectGarbage() = 0;
