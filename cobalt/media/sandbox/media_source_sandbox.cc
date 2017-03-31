@@ -174,12 +174,14 @@ int SandboxMain(int argc, char** argv) {
       base::Bind(FrameCB, base::Unretained(&player_helper)));
 
   for (;;) {
-    AppendData(player, kAudioId, &audio_file, &audio_offset);
-    AppendData(player, kVideoId, &video_file, &video_offset);
-    if (!eos_appended && video_offset == video_file.GetSize()) {
-      player->SourceAbort(kAudioId);
-      player->SourceEndOfStream(WebMediaPlayer::kEndOfStreamStatusNoError);
-      eos_appended = true;
+    if (!eos_appended) {
+      AppendData(player, kAudioId, &audio_file, &audio_offset);
+      AppendData(player, kVideoId, &video_file, &video_offset);
+      if (video_offset == video_file.GetSize()) {
+        player->SourceAbort(kAudioId);
+        player->SourceEndOfStream(WebMediaPlayer::kEndOfStreamStatusNoError);
+        eos_appended = true;
+      }
     }
 
     if (player_helper.IsPlaybackFinished()) {
