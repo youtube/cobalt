@@ -31,8 +31,7 @@ class FramebufferRenderTargetEGL : public RenderTargetEGL {
   FramebufferRenderTargetEGL(GraphicsContextEGL* graphics_context,
                              const math::Size& size)
       : framebuffer_(
-            new FramebufferEGL(graphics_context, size, GL_RGBA, GL_NONE)) {
-  }
+            new FramebufferEGL(graphics_context, size, GL_RGBA, GL_NONE)) {}
 
   const math::Size& GetSize() OVERRIDE { return framebuffer_->GetSize(); }
 
@@ -41,6 +40,11 @@ class FramebufferRenderTargetEGL : public RenderTargetEGL {
 
   // This handle is suitable for use with glBindFramebuffer.
   intptr_t GetPlatformHandle() OVERRIDE { return framebuffer_->gl_handle(); }
+
+  // Create a depth buffer for the render target if it doesn't already have one.
+  void EnsureDepthBufferAttached(GLenum depth_format) {
+    framebuffer_->EnsureDepthBufferAttached(depth_format);
+  }
 
   // Get the color texture attachment of the framebuffer.
   TextureEGL* GetColorTexture() const {
