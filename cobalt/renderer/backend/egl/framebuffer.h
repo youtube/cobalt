@@ -39,6 +39,10 @@ class FramebufferEGL {
 
   const math::Size& GetSize() const { return size_; }
 
+  // Ensure the framebuffer has a depth buffer. If not, then create and
+  // attach one with the specified format.
+  void EnsureDepthBufferAttached(GLenum depth_format);
+
   // Return the color attachment for the framebuffer as a texture.
   TextureEGL* GetColorTexture() const { return color_texture_.get(); }
 
@@ -46,6 +50,8 @@ class FramebufferEGL {
   GLuint gl_handle() const { return framebuffer_handle_; }
 
  private:
+  void CreateDepthAttachment(GLenum depth_format);
+
   GraphicsContextEGL* graphics_context_;
   math::Size size_;
 
