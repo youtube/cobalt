@@ -81,7 +81,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
   // Set default options from the current build's Starboard configuration.
   surface_cache_size_in_bytes = COBALT_SURFACE_CACHE_SIZE_IN_BYTES;
-  skia_cache_size_in_bytes = COBALT_SKIA_CACHE_SIZE_IN_BYTES;
+  // Default to 4MB, but this may be modified externally.
+  skia_cache_size_in_bytes = 4 * 1024 * 1024;
   scratch_surface_cache_size_in_bytes =
       COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
   // 8MB default for software_surface_cache.

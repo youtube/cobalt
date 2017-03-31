@@ -67,7 +67,7 @@ math::Size GetDimensions(StandardDisplaySettings enum_value) {
       return math::Size(3840, 2160);
     }
     case k2k: {
-      return math::Size(2048, 1080);
+      return math::Size(2560, 1440);
     }
     case kWUXGA: {
       return math::Size(1920, 1200);
@@ -215,6 +215,15 @@ TEST(MemorySettings, GetSoftwareSurfaceCacheSizeInBytes) {
   EXPECT_EQ(skia_cache_size, COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);
 #else
   EXPECT_EQ(skia_cache_size, kDefaultSoftwareSurfaceCacheSize);
+#endif
+}
+
+TEST(MemorySettings, GetSkiaCacheSizeInBytes) {
+  size_t skia_cache_size = GetSkiaCacheSizeInBytes(GetDimensions(k1080p));
+#if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
+  EXPECT_EQ(skia_cache_size, COBALT_SKIA_CACHE_SIZE_IN_BYTES);
+#else
+  EXPECT_EQ(skia_cache_size, kMinSkiaCacheSize);
 #endif
 }
 
