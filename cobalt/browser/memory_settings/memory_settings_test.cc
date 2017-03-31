@@ -208,6 +208,16 @@ TEST(MemorySettings, GetSkiaAtlasTextureSize) {
   }
 }
 
+TEST(MemorySettings, GetSoftwareSurfaceCacheSizeInBytes) {
+  size_t skia_cache_size =
+      GetSoftwareSurfaceCacheSizeInBytes(GetDimensions(k1080p));
+#if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
+  EXPECT_EQ(skia_cache_size, COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);
+#else
+  EXPECT_EQ(skia_cache_size, kDefaultSoftwareSurfaceCacheSize);
+#endif
+}
+
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt
