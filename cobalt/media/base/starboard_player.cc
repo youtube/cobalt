@@ -511,7 +511,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     output_mode = kSbPlayerOutputModePunchOut;
   }
   if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
-      SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
+      SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture, codec,
                                   drm_system)) {
     output_mode = kSbPlayerOutputModeDecodeToTexture;
   }
