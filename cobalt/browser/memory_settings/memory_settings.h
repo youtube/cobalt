@@ -53,7 +53,7 @@ size_t CalculateImageCacheSize(const math::Size& dimensions);
 // will be true.
 math::Size CalculateSkiaAtlasTextureSize(const math::Size& ui_resolution);
 
-/////////////////////////////// Implementation ///////////////////////////////
+// These internal values are exposed for testing.
 enum MemorySizes {
   kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
   kMaxImageCacheSize = 64 * 1024 * 1024,  // 64mb
