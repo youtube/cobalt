@@ -140,7 +140,7 @@ void LayoutBoxes::InvalidateSizes() {
        box_iterator != boxes_.end(); ++box_iterator) {
     Box* box = *box_iterator;
     do {
-      box->InvalidateUpdateSizeInputsOfBox();
+      box->InvalidateUpdateSizeInputsOfBoxAndAncestors();
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
@@ -151,7 +151,7 @@ void LayoutBoxes::InvalidateCrossReferences() {
        box_iterator != boxes_.end(); ++box_iterator) {
     Box* box = *box_iterator;
     do {
-      box->InvalidateCrossReferencesOfBox();
+      box->InvalidateCrossReferencesOfBoxAndAncestors();
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
@@ -162,7 +162,7 @@ void LayoutBoxes::InvalidateRenderTreeNodes() {
        box_iterator != boxes_.end(); ++box_iterator) {
     Box* box = *box_iterator;
     do {
-      box->InvalidateRenderTreeNodesOfBox();
+      box->InvalidateRenderTreeNodesOfBoxAndAncestors();
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
