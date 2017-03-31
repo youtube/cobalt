@@ -95,19 +95,34 @@ size_t GetImageCacheSize(const math::Size& dimensions) {
   return static_cast<int>(return_val);
 }
 
-math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution) {
+math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution,
+                                   const base::optional<math::Size> override) {
   math::Size texture_size = CalculateSkiaAtlasTextureSize(ui_resolution);
 
+  if (override) {
+    texture_size = override.value();
+    if (texture_size.width() < memory_settings::kMinSkiaTextureAtlasWidth) {
+      texture_size.set_width(memory_settings::kMinSkiaTextureAtlasWidth);
+      LOG(ERROR) << "Width was invalid and was instead set to "
+                 << memory_settings::kMinSkiaTextureAtlasWidth;
+    }
+
+    if (texture_size.height() < memory_settings::kMinSkiaTextureAtlasHeight) {
+      texture_size.set_height(memory_settings::kMinSkiaTextureAtlasHeight);
+      LOG(ERROR) << "Height was invalid and was instead set to "
+                 << memory_settings::kMinSkiaTextureAtlasHeight;
+    }
+  } else {
 #if COBALT_SKIA_GLYPH_ATLAS_WIDTH >= 0
-  // Width was overridden.
-  texture_size.set_width(COBALT_SKIA_GLYPH_ATLAS_WIDTH);
+    // Width was overridden.
+    texture_size.set_width(COBALT_SKIA_GLYPH_ATLAS_WIDTH);
 #endif
 
 #if COBALT_SKIA_GLYPH_ATLAS_HEIGHT >= 0
-  // Width was overridden.
-  texture_size.set_height(COBALT_SKIA_GLYPH_ATLAS_HEIGHT);
+    // Width was overridden.
+    texture_size.set_height(COBALT_SKIA_GLYPH_ATLAS_HEIGHT);
 #endif
-
+  }
   return texture_size;
 }
 

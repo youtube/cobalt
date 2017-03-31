@@ -161,6 +161,8 @@ const char kViewport[] = "viewport";
 // Specifies that javascript jit should be disabled.
 const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 
+const char kSkiaTextureAtlasDimensions[] = "skia_atlas_texture_dimensions";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

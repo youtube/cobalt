@@ -181,11 +181,14 @@ TEST(MemorySettings, GetSkiaAtlasTextureSize) {
   display_sizes.push_back(k1080p);
   display_sizes.push_back(kUHD4k);
 
+  base::optional<math::Size> no_override;
+
   for (size_t i = 0; i < display_sizes.size(); ++i) {
     math::Size ui_resolution = GetDimensions(display_sizes[i]);
 
     // Allows #defined based overrides.
-    math::Size texture_atlas = GetSkiaAtlasTextureSize(ui_resolution);
+    math::Size texture_atlas =
+        GetSkiaAtlasTextureSize(ui_resolution, no_override);
 
     // Calculates without respect for overrides.
     math::Size reference_texture_atlas =
@@ -206,6 +209,21 @@ TEST(MemorySettings, GetSkiaAtlasTextureSize) {
       EXPECT_EQ(texture_atlas.height(), reference_texture_atlas.height());
     }
   }
+}
+
+// Tests the expectation that a command override will be used when specified.
+TEST(MemorySettings, GetSkiaAtlasTextureSizeCommandOverride) {
+  const int width = kMinSkiaTextureAtlasWidth + 1;
+  const int height = kMinSkiaTextureAtlasHeight + 1;
+
+  base::optional<math::Size> command_override = math::Size(width, height);
+
+  math::Size ui_resolution = GetDimensions(k1080p);
+
+  math::Size texture_atlas =
+      GetSkiaAtlasTextureSize(ui_resolution, command_override);
+  EXPECT_EQ(width, texture_atlas.width());
+  EXPECT_EQ(height, texture_atlas.height());
 }
 
 TEST(MemorySettings, GetSoftwareSurfaceCacheSizeInBytes) {
