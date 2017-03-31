@@ -54,7 +54,8 @@ class HardwareRasterizer::Impl {
 
   void SubmitToFallbackRasterizer(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::RectF& viewport,
+      const math::RectF& viewport_unscaled,
+      const math::SizeF& viewport_scale,
       const backend::TextureEGL** out_texture,
       math::Matrix3F* out_texcoord_transform);
 
@@ -148,7 +149,8 @@ void HardwareRasterizer::Impl::Submit(
 
 void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const math::RectF& viewport,
+    const math::RectF& viewport_unscaled,
+    const math::SizeF& viewport_scale,
     const backend::TextureEGL** out_texture,
     math::Matrix3F* out_texcoord_transform) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -158,6 +160,12 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
   math::RectF target_rect(0, 0, 0, 0);
   backend::FramebufferEGL* framebuffer = NULL;
   SkCanvas* canvas = NULL;
+
+  // Handle scaling of contents as requested.
+  math::RectF viewport(viewport_unscaled.x() * viewport_scale.width(),
+                       viewport_unscaled.y() * viewport_scale.height(),
+                       viewport_unscaled.width() * viewport_scale.width(),
+                       viewport_unscaled.height() * viewport_scale.height());
 
   // It's possible for the desired viewport to be larger than can be allocated.
   // In this situation, rendering will need to be scaled down.
@@ -197,6 +205,11 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
       canvas->translate(viewport_actual.x() + target_rect.x(),
                         viewport_actual.y() + target_rect.y());
     }
+
+    if (viewport_scale.width() != 1.0f || viewport_scale.height() != 1.0f) {
+      canvas->scale(viewport_scale.width(), viewport_scale.height());
+    }
+
     fallback_rasterizer_->SubmitOffscreen(render_tree, canvas);
     canvas->restore();
   } else if (target_rect.width() < viewport.width() ||

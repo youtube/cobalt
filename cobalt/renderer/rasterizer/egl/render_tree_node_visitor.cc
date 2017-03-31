@@ -317,6 +317,17 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
       node_bounds.right() + 2 * kBorderWidth,
       node_bounds.bottom() + 2 * kBorderWidth);
 
+  // Determine if the contents need to be scaled to preserve fidelity when
+  // rasterized onscreen.
+  const float kScaleThreshold = 1.0f;
+  math::RectF mapped_viewport(draw_state_.transform.MapRect(viewport));
+  math::SizeF viewport_scale(1.0f, 1.0f);
+  if (mapped_viewport.width() > viewport.width() + kScaleThreshold ||
+      mapped_viewport.height() > viewport.height() + kScaleThreshold) {
+    viewport_scale.set_width(mapped_viewport.width() / viewport.width());
+    viewport_scale.set_height(mapped_viewport.height() / viewport.height());
+  }
+
   // Adjust the draw rect to accomodate the extra border and align texels with
   // pixels. Perform the smallest fractional pixel shift for alignment.
   float trans_x = std::floor(draw_state_.transform(0, 2) + 0.5f) -
@@ -329,14 +340,14 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
   if (draw_state_.opacity == 1.0f) {
     scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
         draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
-            scoped_refptr<render_tree::Node>(node), viewport)));
+            scoped_refptr<render_tree::Node>(node), viewport, viewport_scale)));
     AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenRectTexture,
         offscreen_type, draw_rect);
   } else {
     scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
         draw_state_, draw_rect, render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
         base::Bind(*fallback_rasterize_,
-            scoped_refptr<render_tree::Node>(node), viewport)));
+            scoped_refptr<render_tree::Node>(node), viewport, viewport_scale)));
     AddTransparentDraw(draw.Pass(),
         DrawObjectManager::kOnscreenRectColorTexture, offscreen_type,
         draw_rect);
