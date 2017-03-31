@@ -17,6 +17,7 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_MEMORY_SETTINGS_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_MEMORY_SETTINGS_H_
 
+#include "base/optional.h"
 #include "cobalt/math/size.h"
 #include "starboard/types.h"
 
@@ -37,7 +38,8 @@ size_t GetImageCacheSize(const math::Size& dimensions);
 
 // Gets the width and height of the skia atlas texture. Optionally applies
 // overrides if they have been defined.
-math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution);
+math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution,
+                                   const base::optional<math::Size> override);
 
 // Gets the software surface cache. Applies overrides if they have been
 // defined.
