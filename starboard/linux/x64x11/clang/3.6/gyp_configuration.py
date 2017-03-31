@@ -32,7 +32,7 @@ class PlatformConfig(shared_configuration.PlatformConfig):
 
   def __init__(self, platform, asan_enabled_by_default=True):
     super(PlatformConfig, self).__init__(
-        platform, asan_enabled_by_default, goma_supports_compiler=False)
+        platform, goma_supports_compiler=False)
 
   def GetEnvironmentVariables(self):
     env_variables = {
