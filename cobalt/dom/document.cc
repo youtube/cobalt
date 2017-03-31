@@ -163,7 +163,8 @@ scoped_refptr<DOMImplementation> Document::implementation() {
 
 scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
     const std::string& local_name) const {
-  return HTMLCollection::CreateWithElementsByTagName(this, local_name);
+  const std::string lower_local_name = StringToLowerASCII(local_name);
+  return HTMLCollection::CreateWithElementsByTagName(this, lower_local_name);
 }
 
 scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
