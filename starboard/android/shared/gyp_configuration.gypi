@@ -198,11 +198,7 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      # Limit to gnu++98. This allows Linux to be a canary build for any
-      # C++11 features that are not supported on some platforms' compilers.
-      # We do allow ourselves GNU extensions, which are assumed to exist
-      # by Chromium code.
-      '-std=gnu++98',
+      '-std=gnu++11',
     ],
     'ldflags': [
       # TODO: Figure out how to export ANativeActivity_onCreate()
@@ -232,6 +228,9 @@
           '-Wno-shift-negative-value',
           # Width of bit-field exceeds width of its type- value will be truncated
           '-Wno-bitfield-width',
+          # Do not warn about an implicit exception spec mismatch.  This is
+          # safe, since we do not enable exceptions.
+          '-Wno-implicit-exception-spec-mismatch',
         ],
       }],
       ['_type=="executable"', {
