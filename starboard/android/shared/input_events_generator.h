@@ -49,6 +49,11 @@ class InputEventsGenerator {
     kNumAxes,
   };
 
+  enum HatAxis {
+    kHatX,
+    kHatY,
+  };
+
   bool ProcessKeyEvent(
       AInputEvent* android_event,
       std::vector< ::starboard::shared::starboard::Application::Event*>*
@@ -65,11 +70,21 @@ class InputEventsGenerator {
           events);
   void UpdateDeviceFlatMapIfNecessary(AInputEvent* android_event);
 
+  SbKey AInputEventToSbKey(AInputEvent *event);
+  bool IsDpadEventFromStick(AInputEvent *event);
+
   SbWindow window_;
 
   // Map the device id with joystick flat position.
   // Cache the flat area of joystick to avoid calling jni functions frequently.
   std::map<int32_t, std::vector<float> > device_flat_;
+
+  // The curent X/Y analog values of the "hat" (dpad on the game controller).
+  float hat_value_[2];
+
+  // The keycode for the X/Y axes of the "hat" for which we have sent a pressed
+  // event and are still waiting to send the unpressed event.
+  int32_t hat_pressed_[2];
 };
 
 }  // namespace shared
