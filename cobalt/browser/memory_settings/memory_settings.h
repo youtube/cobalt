@@ -49,6 +49,8 @@ size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution);
 // defined.
 size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution);
 
+uint32_t GetJsEngineGarbageCollectionThresholdInBytes();
+
 ////////////////////////// Calculate Functions ////////////////////////////////
 // These functions are exposed here for testing purposes and should not be used
 // directly.

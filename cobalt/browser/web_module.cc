@@ -476,7 +476,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new browser::WebModuleStatTracker(name_, data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
-  javascript_engine_ = script::JavaScriptEngine::CreateEngine();
+  script::JavaScriptEngine::Options options;
+  options.gc_threshold_bytes =
+      memory_settings::GetJsEngineGarbageCollectionThresholdInBytes();
+
+  javascript_engine_ = script::JavaScriptEngine::CreateEngine(options);
   DCHECK(javascript_engine_);
 
 #if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
@@ -490,8 +494,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
 
-  global_environment_ = javascript_engine_->CreateGlobalEnvironment(
-      data.options.javascript_options);
+  global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
   execution_state_ =

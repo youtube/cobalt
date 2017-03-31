@@ -142,6 +142,10 @@ size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution) {
   return kMinSkiaCacheSize;
 }
 
+uint32_t GetJsEngineGarbageCollectionThresholdInBytes() {
+  return COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES;
+}
+
 size_t CalculateImageCacheSize(const math::Size& dimensions) {
   const double display_scale = DisplayScaleTo1080p(dimensions);
   static const size_t kReferenceSize1080p = 32 * 1024 * 1024;
