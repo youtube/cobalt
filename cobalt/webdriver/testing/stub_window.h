@@ -48,8 +48,7 @@ class StubWindow {
         url_("about:blank"),
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
     engine_ = script::JavaScriptEngine::CreateEngine();
-    global_environment_ = engine_->CreateGlobalEnvironment(
-        script::JavaScriptEngine::Options());
+    global_environment_ = engine_->CreateGlobalEnvironment();
     window_ = new dom::Window(
         1920, 1080, css_parser_.get(), dom_parser_.get(),
         fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
