@@ -55,7 +55,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
 
   // Invalidates the cross references, indicating that they need to be
   // re-generated the next time they are needed.
-  void InvalidateCrossReferencesOfBox() OVERRIDE;
+  void InvalidateCrossReferencesOfBoxAndAncestors() OVERRIDE;
 
   ContainerBox* AsContainerBox() OVERRIDE;
   const ContainerBox* AsContainerBox() const OVERRIDE;
