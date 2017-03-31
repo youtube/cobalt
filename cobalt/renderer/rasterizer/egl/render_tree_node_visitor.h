@@ -48,7 +48,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   typedef base::Callback<void(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::RectF& viewport,
+      const math::RectF& viewport_unscaled,
+      const math::SizeF& viewport_scale,
       const backend::TextureEGL** out_texture,
       math::Matrix3F* out_texcoord_transform)>
       FallbackRasterizeFunction;
