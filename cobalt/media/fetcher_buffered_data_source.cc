@@ -175,7 +175,6 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
 
 void FetcherBufferedDataSource::OnURLFetchDownloadData(
     const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
-  UNREFERENCED_PARAMETER(source);
   DCHECK(message_loop_->BelongsToCurrentThread());
   size_t size = download_data->size();
   if (size == 0) {
@@ -252,7 +251,7 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
 
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
-    if (total_size_of_resource_ && last_request_size_ != 0) {
+    if (!total_size_of_resource_ && last_request_size_ != 0) {
       total_size_of_resource_ = buffer_offset_ + buffer_.GetLength();
     }
   } else {
@@ -273,7 +272,8 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
 
   base::AutoLock auto_lock(lock_);
 
-  fetcher_.reset();
+  DCHECK(!fetcher_);
+  fetcher_to_be_destroyed_.reset();
 
   DCHECK_GE(static_cast<int64>(last_request_offset_), 0);
   DCHECK_GE(static_cast<int64>(last_request_size_), 0);
@@ -352,8 +352,8 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
   pending_read_size_ = size;
   pending_read_data_ = data;
 
-  // Combine the range of the buffer and any ongoing fetch to see if the read
-  // is overlapped with it.
+  // Combine the range of the buffer and any ongoing fetch to see if the read is
+  // overlapped with it.
   if (fetcher_) {
     uint64 begin = last_request_offset_;
     uint64 end = last_request_offset_ + last_request_size_;
@@ -367,9 +367,9 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
     }
   }
 
-  // Now we have to issue a new fetch and we no longer care about the range
-  // of the current fetch in progress if there is any.  Ideally the request
-  // range starts at |last_read_position_ - kBackwardBytes| with length of
+  // Now we have to issue a new fetch and we no longer care about the range of
+  // the current fetch in progress if there is any.  Ideally the request range
+  // starts at |last_read_position_ - kBackwardBytes| with length of
   // buffer_.GetMaxCapacity().
   if (last_read_position_ > kBackwardBytes) {
     last_request_offset_ = last_read_position_ - kBackwardBytes;
@@ -406,6 +406,7 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
       &FetcherBufferedDataSource::CreateNewFetcher, base::Unretained(this));
   cancelable_create_fetcher_closure_ =
       new CancelableClosure(create_fetcher_closure);
+  fetcher_to_be_destroyed_.reset(fetcher_.release());
   message_loop_->PostTask(FROM_HERE,
                           cancelable_create_fetcher_closure_->AsClosure());
 }
