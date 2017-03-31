@@ -84,8 +84,8 @@ void RendererModule::Options::SetPerPlatformDefaultOptions() {
   skia_cache_size_in_bytes = COBALT_SKIA_CACHE_SIZE_IN_BYTES;
   scratch_surface_cache_size_in_bytes =
       COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
-  software_surface_cache_size_in_bytes =
-      COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES;
+  // 8MB default for software_surface_cache.
+  software_surface_cache_size_in_bytes = 8 * 1024 * 1024;
 
   // If there is no need to frequently flip the display buffer, then enable
   // support for an optimization where the scene is not re-rasterized each frame
