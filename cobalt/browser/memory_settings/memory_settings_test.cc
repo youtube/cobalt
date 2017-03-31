@@ -144,7 +144,7 @@ TEST(MemorySettings, CalculateSkiaAtlasTextureSize) {
   EXPECT_EQ(kMinSkiaTextureAtlasWidth, atlas_texture_size.width());
   EXPECT_EQ(kMinSkiaTextureAtlasHeight, atlas_texture_size.height());
 
-  // Test that expected resolution of 1080p produces a 4096x4096
+  // Test that expected resolution of 1080p produces a 2048x2048
   // atlas texture.
   ui_dimensions = GetDimensions(k1080p);
   atlas_texture_size = CalculateSkiaAtlasTextureSize(ui_dimensions);
