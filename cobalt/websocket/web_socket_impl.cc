@@ -111,6 +111,7 @@ void WebSocketImpl::DoConnect(
   job_created_event->Signal();  // Signal that this->job_ has been assigned.
 
   job_->set_context(context->GetURLRequestContext());
+  job_->set_network_task_runner(context->GetNetworkTaskRunner());
   job_->Connect();
 
   DCHECK_EQ(GetCurrentState(), net::WebSocketJob::CONNECTING);
@@ -129,15 +130,38 @@ void WebSocketImpl::DoClose(const CloseInfo &close_info) {
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   net::WebSocketJob::State current_state = GetCurrentState();
-  if ((current_state != net::WebSocketJob::CLOSED) &&
-      (current_state != net::WebSocketJob::CLOSING)) {
-    // Write the close frame
-    std::string error_message;
-    if (!SendClose(close_info.code, close_info.reason, &error_message)) {
-      DLOG(ERROR) << "Error while sending websocket close: " << error_message;
+  switch (current_state) {
+    case net::WebSocketJob::CONNECTING:
+    case net::WebSocketJob::OPEN: {
+      // Write the close frame
+      std::string error_message;
+      if (!SendClose(close_info.code, close_info.reason, &error_message)) {
+        DLOG(ERROR) << "Error while sending websocket close: " << error_message;
+      }
+      net::WebSocketJob::State new_state;
+      if (peer_close_info_) {
+        // We have received a Close frame from the peer.
+        new_state = net::WebSocketJob::RECV_CLOSED;
+      } else {
+        // We have not received a Close frame from the peer.
+        new_state = net::WebSocketJob::SEND_CLOSED;
+      }
+      job_->SetState(new_state);
+      job_->Close();
+      break;
     }
+    case net::WebSocketJob::SEND_CLOSED:
+      if (peer_close_info_) {
+        // Closing handshake is now complete.
+        job_->SetState(net::WebSocketJob::CLOSE_WAIT);
+        job_->Close();
+      }
+    case net::WebSocketJob::CLOSE_WAIT:
+    case net::WebSocketJob::CLOSED:
+    case net::WebSocketJob::INITIALIZED:
+    case net::WebSocketJob::RECV_CLOSED:
+      break;
   }
-  job_->Close();
 }
 
 void WebSocketImpl::DoPong(const scoped_refptr<net::IOBufferWithSize> payload) {
@@ -146,8 +170,8 @@ void WebSocketImpl::DoPong(const scoped_refptr<net::IOBufferWithSize> payload) {
 
   net::WebSocketJob::State current_state = GetCurrentState();
 
-  if ((current_state == net::WebSocketJob::CLOSED) ||
-      (current_state == net::WebSocketJob::CLOSING)) {
+  if (!((current_state == net::WebSocketJob::CONNECTING) ||
+        (current_state == net::WebSocketJob::OPEN))) {
     return;
   }
 
@@ -482,21 +506,23 @@ void WebSocketImpl::HandleClose(
       payload_length -= sizeof(status_code_on_wire);
 
       if (net::IsValidCloseStatusCode(status_code_on_wire)) {
-        DLOG(INFO) << "Received close status code in close "
+        DLOG(INFO) << "Websocket received close status code: "
                    << status_code_on_wire;
         peer_close_info_->code = net::WebSocketError(status_code_on_wire);
       } else {
-        DLOG(ERROR) << "Received invalid status code in close "
+        DLOG(ERROR) << "Websocket received invalid close status code: "
                     << outgoing_status_code;
         outgoing_status_code = net::kWebSocketErrorProtocolError;
       }
 
       close_reason.assign(payload_pointer, payload_length);
-      if (IsStringUTF8(close_reason)) {
-        DLOG(INFO) << "Websocket close reason [" << close_reason << "]";
-        peer_close_info_->reason = close_reason;
-      } else {
-        outgoing_status_code = net::kWebSocketErrorProtocolError;
+      if (payload_length > 0) {
+        if (IsStringUTF8(close_reason)) {
+          DLOG(INFO) << "Websocket close reason [" << close_reason << "]";
+          peer_close_info_->reason = close_reason;
+        } else {
+          outgoing_status_code = net::kWebSocketErrorProtocolError;
+        }
       }
     }
   }
@@ -608,8 +634,9 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader &header,
   DCHECK_EQ(application_payload_offset + payload_length, frame_size);
   if (payload_length != 0) {
     char *payload_offset = data_ptr.get() + application_payload_offset;
-    COMPILE_ASSERT(kMaxFramePayloadInBytes < kint32max,
-                   frame_payload_size_too_big);
+    COMPILE_ASSERT(
+        kMaxFramePayloadInBytes < static_cast<std::size_t>(kint32max),
+        frame_payload_size_too_big);
     SbMemoryCopy(payload_offset, data, static_cast<int>(payload_length));
     net::MaskWebSocketFramePayload(masking_key, 0, payload_offset,
                                    static_cast<int>(payload_length));
@@ -677,7 +704,8 @@ bool WebSocketImpl::ProcessHandshake(std::size_t *payload_offset) {
   } else {
     DLOG(ERROR) << "Handshake response is invalid: " << error_message;
     // Something is wrong, let's shutdown.
-    job_->Close();
+    CloseInfo close_info(net::kWebSocketErrorProtocolError);
+    DoClose(close_info);
   }
 
   return false;
