@@ -28,6 +28,7 @@
 #include "cobalt/renderer/rasterizer/blitter/linear_gradient.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
+#include "cobalt/renderer/rasterizer/common/utils.h"
 #include "starboard/blitter.h"
 
 #if SB_HAS(BLITTER)
@@ -111,27 +112,6 @@ void RenderTreeNodeVisitor::Visit(
   render_state_.transform.ApplyOffset(-composition_node->data().offset());
 }
 
-namespace {
-bool SourceCanRenderWithOpacity(render_tree::Node* source) {
-  if (source->GetTypeId() == base::GetTypeId<render_tree::ImageNode>() ||
-      source->GetTypeId() == base::GetTypeId<render_tree::RectNode>()) {
-    return true;
-  } else if (source->GetTypeId() ==
-             base::GetTypeId<render_tree::CompositionNode>()) {
-    // If we are a composition of valid sources, then we also allow
-    // rendering through a viewport here.
-    render_tree::CompositionNode* composition_node =
-        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
-    typedef render_tree::CompositionNode::Children Children;
-    const Children& children = composition_node->data().children();
-    if (children.size() == 1 && SourceCanRenderWithOpacity(children[0].get())) {
-      return true;
-    }
-  }
-  return false;
-}
-}  // namespace
-
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   TRACE_EVENT0_IF_ENABLED("Visit(FilterNode)");
 
@@ -170,7 +150,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     // we know that opacity is in the range (0, 1), exclusive.
     float opacity = filter_node->data().opacity_filter->opacity();
 
-    if (SourceCanRenderWithOpacity(source)) {
+    if (common::utils::NodeCanRenderWithOpacity(source)) {
       float original_opacity = render_state_.opacity;
       render_state_.opacity *= opacity;
 
