@@ -42,6 +42,7 @@
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
+#include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
@@ -103,6 +104,7 @@ class Window : public EventTarget {
       int width, int height, cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
       render_tree::ResourceProvider** resource_provider,
+      loader::image::AnimatedImageTracker* animated_image_tracker,
       loader::image::ImageCache* image_cache,
       loader::image::ReducedCacheCapacityManager*
           reduced_image_cache_capacity_manager,
