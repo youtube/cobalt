@@ -26,6 +26,7 @@ HTMLElementContext::HTMLElementContext(
     script::ScriptRunner* script_runner,
     MediaSourceRegistry* media_source_registry,
     render_tree::ResourceProvider** resource_provider,
+    loader::image::AnimatedImageTracker* animated_image_tracker,
     loader::image::ImageCache* image_cache,
     loader::image::ReducedCacheCapacityManager*
         reduced_image_cache_capacity_manager,
@@ -40,6 +41,7 @@ HTMLElementContext::HTMLElementContext(
       script_runner_(script_runner),
       media_source_registry_(media_source_registry),
       resource_provider_(resource_provider),
+      animated_image_tracker_(animated_image_tracker),
       image_cache_(image_cache),
       reduced_image_cache_capacity_manager_(
           reduced_image_cache_capacity_manager),

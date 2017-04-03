@@ -56,7 +56,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
             NULL /* can_play_type_handler */,
             NULL /* web_media_player_factory */, &stub_script_runner_,
             NULL /* media_source_registry */, NULL /* resource_provider */,
-            NULL /* image_cache */,
+            NULL /* animated_image_tracker */, NULL /* image_cache */,
             NULL /* reduced_image_cache_capacity_manager */,
             NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */),

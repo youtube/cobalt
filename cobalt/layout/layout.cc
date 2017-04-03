@@ -152,6 +152,11 @@ scoped_refptr<render_tree::Node> Layout(
         ->RenderAndAnimate(&render_tree_root_builder, math::Vector2dF(0, 0));
   }
 
+  // During computed style update and RenderAndAnimate, we get the actual images
+  // that are linked to their URLs. Now go through them and update the playing
+  // status for animated images.
+  used_style_provider->UpdateAnimatedImages();
+
   render_tree::CompositionNode* static_root_node =
       new render_tree::CompositionNode(render_tree_root_builder.Pass());
 
