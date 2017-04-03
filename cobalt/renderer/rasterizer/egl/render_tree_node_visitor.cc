@@ -47,6 +47,25 @@ bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
          matrix(0, 1) == 0 && matrix(1, 0) == 0;
 }
 
+bool SourceCanRenderWithOpacity(render_tree::Node* source) {
+  if (source->GetTypeId() == base::GetTypeId<render_tree::ImageNode>() ||
+      source->GetTypeId() == base::GetTypeId<render_tree::RectNode>()) {
+    return true;
+  } else if (source->GetTypeId() ==
+             base::GetTypeId<render_tree::CompositionNode>()) {
+    // If we are a composition of valid sources, then we also allow
+    // rendering through a viewport here.
+    render_tree::CompositionNode* composition_node =
+        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
+    typedef render_tree::CompositionNode::Children Children;
+    const Children& children = composition_node->data().children();
+    if (children.size() == 1 && SourceCanRenderWithOpacity(children[0].get())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
@@ -138,7 +157,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   if (data.opacity_filter &&
       !data.viewport_filter &&
       !data.blur_filter &&
-      !data.map_to_mesh_filter) {
+      !data.map_to_mesh_filter &&
+      SourceCanRenderWithOpacity(data.source)) {
     float old_opacity = draw_state_.opacity;
     draw_state_.opacity *= data.opacity_filter->opacity();
     data.source->Accept(this);
@@ -311,11 +331,15 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
 
   // Use fallback_rasterize_ to render to an offscreen target. Add a small
   // buffer to allow anti-aliased edges (e.g. rendered text).
-  const int kBorderWidth = 1;
+  const float kBorderWidth = 1.0f;
   math::RectF node_bounds(node->GetBounds());
-  math::RectF viewport(kBorderWidth, kBorderWidth,
-      node_bounds.right() + 2 * kBorderWidth,
-      node_bounds.bottom() + 2 * kBorderWidth);
+  math::RectF viewport(
+      // Viewport position is used to translate rendering within the offscreen
+      // render target. Use as small a target as possible.
+      kBorderWidth - node_bounds.x(),
+      kBorderWidth - node_bounds.y(),
+      node_bounds.width() + 2 * kBorderWidth,
+      node_bounds.height() + 2 * kBorderWidth);
 
   // Determine if the contents need to be scaled to preserve fidelity when
   // rasterized onscreen.
@@ -334,7 +358,7 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
       draw_state_.transform(0, 2);
   float trans_y = std::floor(draw_state_.transform(1, 2) + 0.5f) -
       draw_state_.transform(1, 2);
-  math::RectF draw_rect(-kBorderWidth + trans_x, -kBorderWidth + trans_y,
+  math::RectF draw_rect(trans_x - viewport.x(), trans_y - viewport.y(),
       viewport.width(), viewport.height());
 
   if (draw_state_.opacity == 1.0f) {
