@@ -52,7 +52,7 @@ class StubWindow {
         script::JavaScriptEngine::Options());
     window_ = new dom::Window(
         1920, 1080, css_parser_.get(), dom_parser_.get(),
-        fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
+        fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
         &local_storage_database_, stub_media_module_.get(),
         stub_media_module_.get(), NULL, NULL, NULL, dom_stat_tracker_.get(),
         url_, "", "en-US", base::Callback<void(const GURL&)>(),
