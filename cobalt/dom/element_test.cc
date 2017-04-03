@@ -60,7 +60,7 @@ ElementTest::ElementTest()
       dom_stat_tracker_(new DomStatTracker("ElementTest")),
       html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
                             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            dom_stat_tracker_.get(), "") {
+                            NULL, dom_stat_tracker_.get(), "") {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);
 }

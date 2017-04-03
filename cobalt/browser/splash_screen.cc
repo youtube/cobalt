@@ -39,6 +39,8 @@ SplashScreen::SplashScreen(
   // we set it and its image decoding thread to be high priority.
   web_module_options.thread_priority = base::kThreadPriority_High;
   web_module_options.loader_thread_priority = base::kThreadPriority_High;
+  web_module_options.animated_image_decode_thread_priority =
+      base::kThreadPriority_High;
 
   web_module_.reset(new WebModule(
       options.url,

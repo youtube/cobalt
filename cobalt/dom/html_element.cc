@@ -53,6 +53,7 @@
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/rule_matching.h"
+#include "cobalt/loader/image/animated_image_tracker.h"
 
 namespace cobalt {
 namespace dom {
@@ -662,6 +663,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
 }
 
 void HTMLElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
+  ClearActiveBackgroundImages();
   if (!cached_background_images_.empty()) {
     cached_background_images_.clear();
     computed_style_valid_ = false;
@@ -1066,7 +1068,20 @@ void HTMLElement::UpdateComputedStyle(
   computed_style_valid_ = true;
 }
 
+void HTMLElement::ClearActiveBackgroundImages() {
+  if (html_element_context() &&
+      html_element_context()->animated_image_tracker()) {
+    for (std::vector<GURL>::iterator it = active_background_images_.begin();
+         it != active_background_images_.end(); ++it) {
+      html_element_context()->animated_image_tracker()->DecreaseURLCount(*it);
+    }
+  }
+  active_background_images_.clear();
+}
+
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
+  ClearActiveBackgroundImages();
+
   // Don't fetch or cache the image if the display of this element is turned
   // off.
   if (computed_style()->display() != cssom::KeywordValue::GetNone()) {
@@ -1085,19 +1100,26 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
         continue;
       }
 
-      cssom::AbsoluteURLValue* absolute_url =
-          base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
-              property_list_value->value()[i].get());
-      if (absolute_url->value().is_valid()) {
-        scoped_refptr<loader::image::CachedImage> cached_image =
-            html_element_context()->image_cache()->CreateCachedResource(
-                absolute_url->value());
-        base::Closure loaded_callback = base::Bind(
-            &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
-        cached_images.push_back(
-            new loader::image::CachedImageReferenceWithCallbacks(
-                cached_image, loaded_callback, base::Closure()));
+      // Skip invalid URL.
+      GURL absolute_url = base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
+                              property_list_value->value()[i].get())
+                              ->value();
+      if (!absolute_url.is_valid()) {
+        continue;
       }
+
+      active_background_images_.push_back(absolute_url);
+      html_element_context()->animated_image_tracker()->IncreaseURLCount(
+          absolute_url);
+
+      scoped_refptr<loader::image::CachedImage> cached_image =
+          html_element_context()->image_cache()->CreateCachedResource(
+              absolute_url);
+      base::Closure loaded_callback = base::Bind(
+          &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
+      cached_images.push_back(
+          new loader::image::CachedImageReferenceWithCallbacks(
+              cached_image, loaded_callback, base::Closure()));
     }
 
     cached_background_images_ = cached_images.Pass();
