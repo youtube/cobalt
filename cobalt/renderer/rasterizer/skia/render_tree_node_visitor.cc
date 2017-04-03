@@ -38,6 +38,7 @@
 #include "cobalt/render_tree/rounded_corners.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/rasterizer/common/offscreen_render_coordinate_mapping.h"
+#include "cobalt/renderer/rasterizer/common/utils.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
@@ -353,25 +354,6 @@ bool SourceCanRenderWithRoundedCorners(render_tree::Node* source) {
   return false;
 }
 
-bool SourceCanRenderWithOpacity(render_tree::Node* source) {
-  if (source->GetTypeId() == base::GetTypeId<render_tree::ImageNode>() ||
-      source->GetTypeId() == base::GetTypeId<render_tree::RectNode>()) {
-    return true;
-  } else if (source->GetTypeId() ==
-             base::GetTypeId<render_tree::CompositionNode>()) {
-    // If we are a composition of valid sources, then we also allow
-    // rendering through a viewport here.
-    render_tree::CompositionNode* composition_node =
-        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
-    typedef render_tree::CompositionNode::Children Children;
-    const Children& children = composition_node->data().children();
-    if (children.size() == 1 && SourceCanRenderWithOpacity(children[0].get())) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // Tries to render a mapped-to-mesh node, returning false if it fails (which
 // would happen if we try to apply a map-to-mesh filter to a render tree node
 // that we don't currently support).
@@ -478,7 +460,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       // If an opacity filter is being applied, we must render to a separate
       // texture first.
       (!filter_node->data().opacity_filter ||
-       SourceCanRenderWithOpacity(filter_node->data().source)) &&
+       common::utils::NodeCanRenderWithOpacity(filter_node->data().source)) &&
       // If transforms are applied to the viewport, then we will render to
       // a separate texture first.
       total_matrix.rectStaysRect() &&

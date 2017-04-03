@@ -21,6 +21,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
+#include "cobalt/renderer/rasterizer/common/utils.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
@@ -45,25 +46,6 @@ math::Rect RoundRectFToInt(const math::RectF& input) {
 bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
   return matrix(2, 0) == 0 && matrix(2, 1) == 0 && matrix(2, 2) == 1 &&
          matrix(0, 1) == 0 && matrix(1, 0) == 0;
-}
-
-bool SourceCanRenderWithOpacity(render_tree::Node* source) {
-  if (source->GetTypeId() == base::GetTypeId<render_tree::ImageNode>() ||
-      source->GetTypeId() == base::GetTypeId<render_tree::RectNode>()) {
-    return true;
-  } else if (source->GetTypeId() ==
-             base::GetTypeId<render_tree::CompositionNode>()) {
-    // If we are a composition of valid sources, then we also allow
-    // rendering through a viewport here.
-    render_tree::CompositionNode* composition_node =
-        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
-    typedef render_tree::CompositionNode::Children Children;
-    const Children& children = composition_node->data().children();
-    if (children.size() == 1 && SourceCanRenderWithOpacity(children[0].get())) {
-      return true;
-    }
-  }
-  return false;
 }
 
 }  // namespace
@@ -158,7 +140,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       !data.viewport_filter &&
       !data.blur_filter &&
       !data.map_to_mesh_filter &&
-      SourceCanRenderWithOpacity(data.source)) {
+      common::utils::NodeCanRenderWithOpacity(data.source)) {
     float old_opacity = draw_state_.opacity;
     draw_state_.opacity *= data.opacity_filter->opacity();
     data.source->Accept(this);
