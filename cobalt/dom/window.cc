@@ -69,6 +69,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
                render_tree::ResourceProvider** resource_provider,
+               loader::image::AnimatedImageTracker* animated_image_tracker,
                loader::image::ImageCache* image_cache,
                loader::image::ReducedCacheCapacityManager*
                    reduced_image_cache_capacity_manager,
@@ -100,8 +101,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       html_element_context_(new HTMLElementContext(
           fetcher_factory, css_parser, dom_parser, can_play_type_handler,
           web_media_player_factory, script_runner, media_source_registry,
-          resource_provider, image_cache, reduced_image_cache_capacity_manager,
-          remote_typeface_cache, mesh_cache, dom_stat_tracker, language)),
+          resource_provider, animated_image_tracker, image_cache,
+          reduced_image_cache_capacity_manager, remote_typeface_cache,
+          mesh_cache, dom_stat_tracker, language)),
       performance_(new Performance(new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),

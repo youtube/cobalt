@@ -20,9 +20,10 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/callback.h"
+#include "base/cancelable_callback.h"
 #include "base/debug/trace_event.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
@@ -49,20 +50,25 @@ class AnimatedWebPImage : public AnimatedImage {
 
   scoped_refptr<render_tree::Image> GetFrame() OVERRIDE;
 
-  void Play() OVERRIDE;
+  void Play(const scoped_refptr<base::MessageLoopProxy>& message_loop) OVERRIDE;
+
+  void Stop() OVERRIDE;
 
   void AppendChunk(const uint8* data, size_t input_byte);
-
-  void SetDecodedFramesCallback(const base::Closure& callback) {
-    decoded_callback_ = callback;
-  }
-
-  bool is_ready() { return is_ready_; }
 
  private:
   ~AnimatedWebPImage() OVERRIDE;
 
+  // To be called the decoding thread, to cancel future decodings.
+  void StopInternal();
+
+  void PlayInternal();
+
+  // Decodes all frames until current time.
   void DecodeFrames();
+
+  // Decodes the frame with the given index, returns if it succeeded.
+  bool DecodeOneFrame(int frame_index);
 
   // Updates the index and time info of the current and next frames.
   void UpdateTimelineInfo();
@@ -71,12 +77,12 @@ class AnimatedWebPImage : public AnimatedImage {
 
   scoped_ptr<render_tree::ImageData> AllocateImageData();
 
-  base::Thread thread_;
   const math::Size size_;
   const bool is_opaque_;
   WebPDemuxer* demux_;
   WebPDemuxState demux_state_;
-  bool is_ready_;
+  bool received_first_frame_;
+  bool is_playing_;
   int frame_count_;
   // The remaining number of times to loop the animation. kLoopInfinite means
   // looping infinitely.
@@ -85,7 +91,9 @@ class AnimatedWebPImage : public AnimatedImage {
   int current_frame_index_;
   int next_frame_index_;
   render_tree::ResourceProvider* resource_provider_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
+  base::CancelableClosure decode_closure_;
   base::TimeTicks current_frame_time_;
   base::TimeTicks next_frame_time_;
   // The original encoded data.
@@ -93,7 +101,6 @@ class AnimatedWebPImage : public AnimatedImage {
   // The alpha-blended frame.
   std::vector<uint8> image_buffer_;
   scoped_refptr<render_tree::Image> current_frame_image_;
-  base::Closure decoded_callback_;
   base::Lock lock_;
 };
 

@@ -48,9 +48,9 @@ class DocumentLoader : public dom::DocumentObserver {
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
-        loader_factory_(new loader::LoaderFactory(
-            &fetcher_factory_, resource_provider_stub_.get(),
-            base::kThreadPriority_Low)),
+        loader_factory_(new loader::LoaderFactory(&fetcher_factory_,
+                                                  resource_provider_stub_.get(),
+                                                  base::kThreadPriority_Low)),
         image_cache_(loader::image::CreateImageCache(
             "Test.ImageCache", 32U * 1024 * 1024, loader_factory_.get())),
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
@@ -60,7 +60,8 @@ class DocumentLoader : public dom::DocumentObserver {
             NULL /* can_play_type_handler  */,
             NULL /* web_media_player_factory */, &script_runner_,
             NULL /* media_source_registry */, &resource_provider_,
-            image_cache_.get(), NULL /* reduced_image_cache_capacity_manager */,
+            NULL /* animated_image_tracker */, image_cache_.get(),
+            NULL /* reduced_image_cache_capacity_manager */,
             NULL /* remote_font_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */) {}
   void Load(const GURL& url) {
