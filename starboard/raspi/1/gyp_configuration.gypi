@@ -38,6 +38,9 @@
     'arm_version': 6,
     'armv7': 0,
     'arm_neon': 0,
+    
+    'skia_glyph_atlas_width%': '2048',
+    'skia_glyph_atlas_height%': '2048',
 
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.
