@@ -32,6 +32,9 @@ bool SystemDeviceTypeIsTv(SbSystemDeviceType device_type) {
     case kSbSystemDeviceTypeOverTheTopBox:
     case kSbSystemDeviceTypeSetTopBox:
     case kSbSystemDeviceTypeTV:
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+    case kSbSystemDeviceTypeAndroidTV:
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
       return true;
     case kSbSystemDeviceTypeDesktopPC:
     case kSbSystemDeviceTypeUnknown:
