@@ -89,11 +89,39 @@ std::string GetLocalIpAddress() {
       ip_addr.FromSockAddr(reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
   DCHECK(result);
 #elif defined(OS_STARBOARD)
+
+#if SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+  SbSocketAddress local_ip;
+  SbMemorySet(&(local_ip.address), 0, sizeof(local_ip.address));
+
+  bool result = false;
+
+  // Prefer IPv4 addresses, as they're easier to type for debugging.
+  SbSocketAddressType address_types[] = {kSbSocketAddressTypeIpv4,
+                                         kSbSocketAddressTypeIpv6};
+
+  for (std::size_t i = 0; i != SB_ARRAY_SIZE(address_types); ++i) {
+    SbSocketAddress destination;
+    SbMemorySet(&(destination.address), 0, sizeof(destination.address));
+    destination.type = address_types[i];
+    if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
+      continue;
+    }
+
+    if (ip_addr.FromSbSocketAddress(&local_ip)) {
+      result = true;
+      break;
+    }
+  }
+
+  DCHECK(result);
+#else
   SbSocketAddress sb_address;
   bool result = SbSocketGetLocalInterfaceAddress(&sb_address);
   DCHECK(result);
   result = ip_addr.FromSbSocketAddress(&sb_address);
-  DCHECK(result);
+#endif  // SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+
 #else
 #error "Not Implemented."
 #endif
