@@ -27,6 +27,8 @@
         'streaming_best_fit_line.h',
         'surface_cache.cc',
         'surface_cache.h',
+        'utils.h',
+        'utils.cc',
       ],
 
       'dependencies': [
