@@ -157,6 +157,12 @@ class WebModule {
     // base::kThreadPriority_Low.
     base::ThreadPriority loader_thread_priority;
 
+    // Specifies the priority tha the web module's animated image decoding
+    // thread will be assigned. This thread is responsible for decoding,
+    // blending and constructing individual frames from animated images. The
+    // default value is base::kThreadPriority_Low.
+    base::ThreadPriority animated_image_decode_thread_priority;
+
     // TTSEngine instance to use for text-to-speech.
     accessibility::TTSEngine* tts_engine;
 

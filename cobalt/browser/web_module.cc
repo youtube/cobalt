@@ -45,6 +45,7 @@
 #include "cobalt/dom/url.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/media_session/default_media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
@@ -275,6 +276,8 @@ class WebModule::Impl {
   // URL.
   scoped_ptr<loader::LoaderFactory> loader_factory_;
 
+  scoped_ptr<loader::image::AnimatedImageTracker> animated_image_tracker_;
+
   // ImageCache that is used to manage image cache logic.
   scoped_ptr<loader::image::ImageCache> image_cache_;
 
@@ -436,6 +439,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
                                 data.options.loader_thread_priority));
 
+  animated_image_tracker_.reset(new loader::image::AnimatedImageTracker(
+      data.options.animated_image_decode_thread_priority));
+
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
       base::StringPrintf("%s.ImageCache", name_.c_str()),
@@ -503,7 +509,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-      &resource_provider_, image_cache_.get(),
+      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(), data.media_module,
       data.media_module, execution_state_.get(), script_runner_.get(),
@@ -637,6 +643,7 @@ WebModule::Impl::~Impl() {
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();
+  animated_image_tracker_.reset();
   image_cache_.reset();
   fetcher_factory_.reset();
   dom_parser_.reset();
@@ -893,6 +900,7 @@ WebModule::Options::Options(const math::Size& ui_dimensions)
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
       loader_thread_priority(base::kThreadPriority_Low),
+      animated_image_decode_thread_priority(base::kThreadPriority_Low),
       tts_engine(NULL) {}
 
 WebModule::WebModule(

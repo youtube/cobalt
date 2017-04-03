@@ -16,6 +16,7 @@
 #define COBALT_DOM_HTML_ELEMENT_H_
 
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
@@ -283,6 +284,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // directionality does not invalidate the computed style.
   void SetDirectionality(const std::string& value);
 
+  // Clear the list of active background images, and notify the animated image
+  // tracker to stop the animations.
+  void ClearActiveBackgroundImages();
+
   void UpdateCachedBackgroundImagesFromComputedStyle();
 
   // This will be called when the image data associated with this element's
@@ -332,6 +337,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   base::WeakPtr<DOMStringMap> dataset_;
+
+  std::vector<GURL> active_background_images_;
 
   // |cached_background_images_| contains a list of CachedImage references for
   // all images referenced by the computed value for the background_image CSS

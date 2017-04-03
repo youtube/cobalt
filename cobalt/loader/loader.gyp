@@ -47,6 +47,8 @@
         'image/image_decoder.h',
         'image/image_decoder_starboard.cc',
         'image/image_decoder_starboard.h',
+        'image/animated_image_tracker.cc',
+        'image/animated_image_tracker.h',
         'image/jpeg_image_decoder.cc',
         'image/jpeg_image_decoder.h',
         'image/png_image_decoder.cc',

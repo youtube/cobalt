@@ -142,12 +142,9 @@ LayoutManager::Impl::Impl(
     LayoutStatTracker* layout_stat_tracker)
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
-      used_style_provider_(
-          new UsedStyleProvider(window->html_element_context(),
-                                window->html_element_context()->image_cache(),
-                                window->document()->font_cache(),
-                                base::Bind(&AttachCameraNodes, window),
-                                window->html_element_context()->mesh_cache())),
+      used_style_provider_(new UsedStyleProvider(
+          window->html_element_context(), window->document()->font_cache(),
+          base::Bind(&AttachCameraNodes, window))),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
       layout_dirty_(StringPrintf("%s.Layout.IsDirty", name.c_str()), true,
