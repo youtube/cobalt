@@ -9,7 +9,10 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time.h"
+#include "base/timer.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
@@ -38,8 +41,14 @@ class NET_EXPORT WebSocketJob
     INITIALIZED = -1,
     CONNECTING = 0,
     OPEN = 1,
-    CLOSING = 2,
-    CLOSED = 3,
+    SEND_CLOSED = 2,  // A Close frame has been sent but not received.
+    RECV_CLOSED = 3,  // Used briefly between receiving a Close frame and
+                      // sending the response. Once the response is sent, the
+                      // state changes to CLOSED.
+    CLOSE_WAIT = 4,   // The Closing Handshake has completed, but the remote
+                      // server has not yet closed the connection.
+    CLOSED = 5,       // The Closing Handshake has completed and the connection
+                      // has been closed; or the connection is failed.
   };
 
   explicit WebSocketJob(SocketStream::Delegate* delegate);
@@ -74,6 +83,11 @@ class NET_EXPORT WebSocketJob
     return handshake_response_.get();
   }
 
+  void SetState(const State new_state) {
+    DCHECK_GE(new_state, state_);  // states should only move forward.
+    state_ = new_state;
+  }
+
  private:
   friend class WebSocketThrottle;
   virtual ~WebSocketJob();
@@ -102,6 +116,11 @@ class NET_EXPORT WebSocketJob
   bool SendDataInternal(const char* data, int length);
   void CloseInternal();
   void SendPending();
+  void CloseTimeout();
+  void StopTimer(base::WaitableEvent* timer_stop_event);
+
+  void WaitForSocketClose();
+  void DelayedClose();
 
   SocketStream::Delegate* delegate_;
   State state_;
@@ -123,6 +142,9 @@ class NET_EXPORT WebSocketJob
   std::vector<char> received_data_after_handshake_;
 
   std::string challenge_;
+
+  base::TimeDelta closing_handshake_timeout_;
+  scoped_ptr<base::OneShotTimer<WebSocketJob> > close_timer_;
 
   base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_;
   base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_for_send_pending_;
