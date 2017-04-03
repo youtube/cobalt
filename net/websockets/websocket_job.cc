@@ -9,6 +9,7 @@
 #include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/string_tokenizer.h"
+#include "base/synchronization/waitable_event.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -26,6 +27,12 @@
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
 
 namespace {
+
+// RFC 6455 (https://tools.ietf.org/html/rfc6455#section-7.1.1) advises
+// to use 2 * Maximum Segment Life to wait for the close on the tcp connection.
+// However, Chromium team has found that some servers wait for the client to
+// close the connection, and this leads to unnecessary long wait times.
+const int kClosingHandshakeTimeoutSeconds = 60;
 
 // lower-case header names.
 const char* const kCookieHeaders[] = {
@@ -54,6 +61,22 @@ class WebSocketJobInitSingleton {
 static base::LazyInstance<WebSocketJobInitSingleton> g_websocket_job_init =
     LAZY_INSTANCE_INITIALIZER;
 
+bool IsWebSocketAlive(net::WebSocketJob::State state) {
+  switch (state) {
+    case net::WebSocketJob::OPEN:
+    case net::WebSocketJob::SEND_CLOSED:
+    case net::WebSocketJob::RECV_CLOSED:
+    case net::WebSocketJob::CLOSE_WAIT:
+      return true;
+    case net::WebSocketJob::INITIALIZED:
+    case net::WebSocketJob::CONNECTING:
+    case net::WebSocketJob::CLOSED:
+      return false;
+  }
+
+  return false;
+}
+
 }  // anonymous namespace
 
 namespace net {
@@ -72,6 +95,8 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       started_to_send_handshake_request_(false),
       handshake_request_sent_(0),
       response_cookies_save_index_(0),
+      closing_handshake_timeout_(
+          base::TimeDelta::FromSeconds(kClosingHandshakeTimeoutSeconds)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_for_send_pending_(this)) {
 }
@@ -80,6 +105,24 @@ WebSocketJob::~WebSocketJob() {
   DCHECK_EQ(CLOSED, state_);
   DCHECK(!delegate_);
   DCHECK(!socket_.get());
+
+  base::WaitableEvent timer_stop_event(false, false);
+
+  if (network_task_runner()) {
+    network_task_runner()->PostTask(
+        FROM_HERE, base::Bind(&WebSocketJob::StopTimer, base::Unretained(this),
+                              &timer_stop_event));
+    timer_stop_event.Wait();
+  }
+}
+
+void WebSocketJob::StopTimer(base::WaitableEvent* timer_stop_event) {
+  if (close_timer_) {
+    close_timer_.reset();
+  }
+  if (timer_stop_event) {
+    timer_stop_event->Signal();
+  }
 }
 
 void WebSocketJob::Connect() {
@@ -97,8 +140,7 @@ bool WebSocketJob::SendData(const char* data, int len) {
     case CONNECTING:
       return SendHandshakeRequest(data, len);
 
-    case OPEN:
-      {
+    case OPEN: {
         scoped_refptr<IOBufferWithSize> buffer = new IOBufferWithSize(len);
         SbMemoryCopy(buffer->data(), data, len);
         if (current_send_buffer_ || !send_buffer_queue_.empty()) {
@@ -108,26 +150,50 @@ bool WebSocketJob::SendData(const char* data, int len) {
         current_send_buffer_ = new DrainableIOBuffer(buffer.get(), len);
         return SendDataInternal(current_send_buffer_->data(),
                                 current_send_buffer_->BytesRemaining());
+        break;
       }
 
-    case CLOSING:
+      case CLOSE_WAIT:
+      case SEND_CLOSED:
+      case RECV_CLOSED:
     case CLOSED:
       return false;
   }
   return false;
 }
 
+void WebSocketJob::CloseTimeout() {
+  DLOG(INFO) << "Close timed out";
+  // DCHECK to make sure we've either:
+  // 1. Sent the close message, but timed out waiting to received a response
+  // 2. Closing handshake is complete, but the server has not closed the
+  // connection.
+  DCHECK((state_ == SEND_CLOSED) || (state_ == CLOSE_WAIT));
+  state_ = CLOSED;
+  CloseInternal();
+}
+
 void WebSocketJob::Close() {
   if (state_ == CLOSED)
     return;
 
-  state_ = CLOSING;
   if (current_send_buffer_) {
     // Will close in SendPending.
     return;
   }
-  state_ = CLOSED;
-  CloseInternal();
+
+  WaitForSocketClose();
+}
+
+void WebSocketJob::DelayedClose() {
+  if (!close_timer_) {
+    DLOG(INFO) << "Delaying close";
+    close_timer_ = make_scoped_ptr<base::OneShotTimer<WebSocketJob> >(
+        new base::OneShotTimer<WebSocketJob>());
+    close_timer_->Start(
+        FROM_HERE, closing_handshake_timeout_,
+        base::Bind(&WebSocketJob::CloseTimeout, base::Unretained(this)));
+  }
 }
 
 void WebSocketJob::RestartWithAuth(const AuthCredentials& credentials) {
@@ -194,7 +260,7 @@ void WebSocketJob::OnSentData(SocketStream* socket, int amount_sent) {
     return;
   }
   if (delegate_) {
-    DCHECK(state_ == OPEN || state_ == CLOSING);
+    DCHECK(IsWebSocketAlive(state_));
     if (!current_send_buffer_) {
       VLOG(1) << "OnSentData current_send_buffer=NULL amount_sent="
               << amount_sent;
@@ -228,13 +294,16 @@ void WebSocketJob::OnReceivedData(
     OnReceivedHandshakeResponse(socket, data, len);
     return;
   }
-  DCHECK(state_ == OPEN || state_ == CLOSING);
+  DCHECK(IsWebSocketAlive(state_));
   if (delegate_ && len > 0)
     delegate_->OnReceivedData(socket, data, len);
 }
 
 void WebSocketJob::OnClose(SocketStream* socket) {
   state_ = CLOSED;
+  if (close_timer_) {
+    close_timer_.reset();
+  }
   WebSocketThrottle::GetInstance()->RemoveFromQueue(this);
   WebSocketThrottle::GetInstance()->WakeupSocketIfNecessary();
 
@@ -494,6 +563,27 @@ void WebSocketJob::CloseInternal() {
     socket_->Close();
 }
 
+void WebSocketJob::WaitForSocketClose() {
+  switch (state_) {
+    case CLOSE_WAIT:
+    case CLOSED:
+    case OPEN:
+      break;
+    case INITIALIZED:
+    case CONNECTING:
+      NOTREACHED();
+      break;
+    case SEND_CLOSED:
+    // Close frame has been sent, so wait for peer to send a close reponse,
+    // and a socket close.
+    case RECV_CLOSED:
+      // Our reponse to a close frame has gone out (since |send_buffer_queue_|
+      // is empty.  So wait for the peer to close the connection;
+      DelayedClose();
+      break;
+  }
+}
+
 void WebSocketJob::SendPending() {
   if (current_send_buffer_)
     return;
@@ -501,8 +591,7 @@ void WebSocketJob::SendPending() {
   // Current buffer has been sent. Try next if any.
   if (send_buffer_queue_.empty()) {
     // No more data to send.
-    if (state_ == CLOSING)
-      CloseInternal();
+    WaitForSocketClose();
     return;
   }
 
