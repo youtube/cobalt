@@ -27,6 +27,8 @@
 #include "cobalt/script/sequence.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
+using cobalt::bindings::testing::ArbitraryInterface;
+
 namespace cobalt {
 namespace bindings {
 namespace testing {

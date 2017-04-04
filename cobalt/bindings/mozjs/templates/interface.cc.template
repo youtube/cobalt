@@ -26,6 +26,8 @@
 {% extends "interface-base.cc.template" %}
 {% block includes %}
 {{ super() }}
+#include "{{generated_conversion_include}}"
+
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
