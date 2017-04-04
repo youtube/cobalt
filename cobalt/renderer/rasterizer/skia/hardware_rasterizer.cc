@@ -426,9 +426,12 @@ void HardwareRasterizer::Impl::Submit(
     // max allowed saved surfaces.
     if (sk_output_surface_map_.size() > kMaxSkSurfaceCount) {
       SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
-      DLOG(WARNING) << "Erasing the SkSurface for RenderTarget " << iter->first
-        << " this should not happen often or else it means the surface map is"
-        << " probably thrashing.";
+      DLOG(WARNING)
+          << "Erasing the SkSurface for RenderTarget " << iter->first
+          << ". This may happen nominally during movement-triggered "
+          << "replacement of SkSurfaces or else it may indicate the surface "
+          << "map is thrashing because the total number of RenderTargets ("
+          << kMaxSkSurfaceCount << ") has been exceeded.";
       iter->second->unref();
       sk_output_surface_map_.erase(iter);
     }
