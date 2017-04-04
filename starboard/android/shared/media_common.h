@@ -26,7 +26,6 @@ namespace android {
 namespace shared {
 
 const int64_t kSecondInMicroseconds = 1000 * 1000;
-const char kMimeTypeAac[] = "audio/mp4a-latm";
 
 inline SbMediaTime ConvertMicrosecondsToSbMediaTime(
     int64_t time_in_microseconds) {
@@ -40,6 +39,28 @@ inline int64_t ConvertSbMediaTimeToMicroseconds(SbMediaTime media_time) {
 inline bool IsWidevine(const char* key_system) {
   return SbStringCompareAll(key_system, "com.widevine") == 0 ||
          SbStringCompareAll(key_system, "com.widevine.alpha") == 0;
+}
+
+// Map a supported |SbMediaAudioCodec| into its corresponding mime type
+// string.  Returns |NULL| if |audio_codec| is not supported.
+inline const char* SupportedAudioCodecToMimeType(
+    const SbMediaAudioCodec audio_codec) {
+  if (audio_codec == kSbMediaAudioCodecAac) {
+    return "audio/mp4a-latm";
+  }
+  return NULL;
+}
+
+// Map a supported |SbMediaVideoCodec| into its corresponding mime type
+// string.  Returns |NULL| if |video_codec| is not supported.
+inline const char* SupportedVideoCodecToMimeType(
+    const SbMediaVideoCodec video_codec) {
+  if (video_codec == kSbMediaVideoCodecVp9) {
+    return "video/x-vnd.on2.vp9";
+  } else if (video_codec == kSbMediaVideoCodecH264) {
+    return "video/avc";
+  }
+  return NULL;
 }
 
 }  // namespace shared
