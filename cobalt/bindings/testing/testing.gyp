@@ -76,6 +76,7 @@
     ],
 
     'dictionary_idl_files': [
+        'dictionary_with_dictionary_member.idl',
         'test_dictionary.idl',
     ],
 
