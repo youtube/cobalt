@@ -47,10 +47,13 @@ def is_promise_type(idl_type):
   return isinstance(idl_type, IdlPromiseType)
 
 
-def idl_literal_to_cobalt_literal(idl_type, idl_literal):
+def idl_literal_to_cobalt_literal(interface, idl_type, idl_literal):
   """Map IDL literal to the corresponding cobalt value."""
   if idl_literal.is_null and not idl_type.is_interface_type:
     return 'base::nullopt'
+  if idl_type.is_enum:
+    return '%s::%s' % (interface.name,
+                       convert_to_cobalt_enumeration_value(idl_literal.value))
   return str(idl_literal)
 
 
@@ -297,7 +300,7 @@ class ContextBuilder(object):
         'is_variadic':
             argument.is_variadic,
         'default_value':
-            idl_literal_to_cobalt_literal(argument.idl_type,
+            idl_literal_to_cobalt_literal(interface, argument.idl_type,
                                           argument.default_value)
             if argument.default_value else None,
     }
@@ -609,7 +612,8 @@ class ContextBuilder(object):
                 self.resolve_typedef(dictionary_member.idl_type),
                 dictionary_member.extended_attributes),
         'default_value':
-            idl_literal_to_cobalt_literal(dictionary_member.idl_type,
+            idl_literal_to_cobalt_literal(dictionary,
+                                          dictionary_member.idl_type,
                                           dictionary_member.default_value)
             if dictionary_member.default_value else None,
     }
