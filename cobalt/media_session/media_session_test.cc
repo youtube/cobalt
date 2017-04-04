@@ -45,8 +45,7 @@ TEST(MediaSessionTest, MediaSessionTest) {
 
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
-  session->set_playback_state(
-      MediaSession::MediaSessionPlaybackState::kPlaying);
+  session->set_playback_state(MediaSession::kPlaying);
 
   run_loop.Run();
 }
