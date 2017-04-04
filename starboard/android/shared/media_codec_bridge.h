@@ -68,12 +68,12 @@ struct SurfaceDimensions {
 class MediaCodecBridge {
  public:
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
-      const std::string& mime,
+      SbMediaAudioCodec audio_codec,
       const SbMediaAudioHeader& audio_header,
       jobject j_media_crypto);
 
   static scoped_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
-      const std::string& mime,
+      SbMediaVideoCodec video_codec,
       int width,
       int height,
       jobject j_surface,
