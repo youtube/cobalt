@@ -17,7 +17,11 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include "base/bind.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
@@ -26,6 +30,11 @@
 namespace cobalt {
 namespace renderer {
 namespace backend {
+
+namespace {
+void DoNothing() {
+}
+}  // namespace
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                        scoped_ptr<TextureDataEGL> texture_source_data,
@@ -62,7 +71,7 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
 
 TextureEGL::TextureEGL(
     GraphicsContextEGL* graphics_context,
-    const scoped_refptr<PBufferRenderTargetEGL>& render_target)
+    const scoped_refptr<RenderTargetEGL>& render_target)
     : graphics_context_(graphics_context),
       size_(render_target->GetSize()),
       format_(GL_RGBA),
@@ -71,27 +80,51 @@ TextureEGL::TextureEGL(
 
   source_render_target_ = render_target;
 
-  // First we create the OpenGL texture object and maintain a handle to it.
-  GL_CALL(glGenTextures(1, &gl_handle_));
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, gl_handle_));
-  SetupInitialTextureParameters();
+  if (render_target->GetSurface() != EGL_NO_SURFACE) {
+    // This is a PBufferRenderTargetEGL. Need to bind a texture to the surface.
+    const PBufferRenderTargetEGL* pbuffer_target =
+        base::polymorphic_downcast<const PBufferRenderTargetEGL*>
+            (render_target.get());
 
-  // This call attaches the EGL PBuffer object to the currently bound OpenGL
-  // texture object, effectively allowing the PBO render target to be used
-  // as a texture by referencing gl_handle_ from now on.
-  EGL_CALL(eglBindTexImage(render_target->display(),
-                           render_target->GetSurface(),
-                           EGL_BACK_BUFFER));
+    // First we create the OpenGL texture object and maintain a handle to it.
+    GL_CALL(glGenTextures(1, &gl_handle_));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, gl_handle_));
+    SetupInitialTextureParameters();
 
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+    // This call attaches the EGL PBuffer object to the currently bound OpenGL
+    // texture object, effectively allowing the PBO render target to be used
+    // as a texture by referencing gl_handle_ from now on.
+    EGL_CALL(eglBindTexImage(pbuffer_target->display(),
+                             pbuffer_target->GetSurface(),
+                             EGL_BACK_BUFFER));
+
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+  } else {
+    // This is a FramebufferRenderTargetEGL. Wrap its color texture attachment.
+    const FramebufferRenderTargetEGL* framebuffer_target =
+        base::polymorphic_downcast<const FramebufferRenderTargetEGL*>
+            (render_target.get());
+
+    const TextureEGL* color_attachment = framebuffer_target->GetColorTexture();
+    format_ = color_attachment->GetFormat();
+    target_ = color_attachment->GetTarget();
+    gl_handle_ = color_attachment->gl_handle();
+
+    // Do not destroy the wrapped texture. Let the render target do that.
+    delete_function_ = base::Bind(&DoNothing);
+  }
 }
 
 TextureEGL::~TextureEGL() {
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
-  if (source_render_target_) {
-    EGL_CALL(eglReleaseTexImage(source_render_target_->display(),
-                                source_render_target_->GetSurface(),
+  if (source_render_target_ &&
+      source_render_target_->GetSurface() != EGL_NO_SURFACE) {
+    const PBufferRenderTargetEGL* pbuffer_target =
+        base::polymorphic_downcast<const PBufferRenderTargetEGL*>
+            (source_render_target_.get());
+    EGL_CALL(eglReleaseTexImage(pbuffer_target->display(),
+                                pbuffer_target->GetSurface(),
                                 EGL_BACK_BUFFER));
   }
 
