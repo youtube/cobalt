@@ -30,6 +30,88 @@ namespace shared {
 
 using ::starboard::shared::starboard::Application;
 
+namespace {
+
+SbKeyLocation AInputEventToSbKeyLocation(AInputEvent *event) {
+  int32_t keycode = AKeyEvent_getKeyCode(event);
+  switch (keycode) {
+    case AKEYCODE_ALT_LEFT:
+    case AKEYCODE_CTRL_LEFT:
+    case AKEYCODE_META_LEFT:
+    case AKEYCODE_SHIFT_LEFT:
+      return kSbKeyLocationLeft;
+    case AKEYCODE_ALT_RIGHT:
+    case AKEYCODE_CTRL_RIGHT:
+    case AKEYCODE_META_RIGHT:
+    case AKEYCODE_SHIFT_RIGHT:
+      return kSbKeyLocationRight;
+  }
+  return kSbKeyLocationUnspecified;
+}
+
+unsigned int AInputEventToSbModifiers(AInputEvent *event) {
+  int32_t meta = AKeyEvent_getMetaState(event);
+  unsigned int modifiers = kSbKeyModifiersNone;
+  if (meta & AMETA_ALT_ON) {
+    modifiers |= kSbKeyModifiersAlt;
+  }
+  if (meta & AMETA_CTRL_ON) {
+    modifiers |= kSbKeyModifiersCtrl;
+  }
+  if (meta & AMETA_META_ON) {
+    modifiers |= kSbKeyModifiersMeta;
+  }
+  if (meta & AMETA_SHIFT_ON) {
+    modifiers |= kSbKeyModifiersShift;
+  }
+  return modifiers;
+}
+
+Application::Event* CreateMoveEventWithKey(int32_t device_id,
+                                           SbWindow window,
+                                           SbKey key,
+                                           const SbInputVector& input_vector) {
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  // window
+  data->window = window;
+  data->type = kSbInputEventTypeMove;
+  data->device_type = kSbInputDeviceTypeGamepad;
+  data->device_id = device_id;
+
+  // key
+  data->key = key;
+  data->key_location = kSbKeyLocationUnspecified;
+  data->key_modifiers = kSbKeyModifiersNone;
+  data->position = input_vector;
+
+  return new Application::Event(kSbEventTypeInput, data,
+                                &Application::DeleteDestructor<SbInputData>);
+}
+
+float GetFlat(jobject input_device, int axis) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject motion_range = env->CallObjectMethodOrAbort(
+      input_device, "getMotionRange",
+      "(I)Landroid/view/InputDevice$MotionRange;", axis);
+
+  float flat = env->CallFloatMethodOrAbort(motion_range, "getFlat", "()F");
+
+  env->DeleteLocalRef(motion_range);
+  SB_DCHECK(flat < 1.0f);
+  return flat;
+}
+
+}  // namespace
+
+InputEventsGenerator::InputEventsGenerator(SbWindow window)
+    : window_(window), hat_value_(), hat_pressed_() {
+  SB_DCHECK(SbWindowIsValid(window_));
+}
+
+InputEventsGenerator::~InputEventsGenerator() {}
+
 SbKey InputEventsGenerator::AInputEventToSbKey(AInputEvent *event) {
   int32_t keycode = AKeyEvent_getKeyCode(event);
   switch (keycode) {
@@ -331,89 +413,6 @@ bool InputEventsGenerator::IsDpadEventFromStick(AInputEvent *event) {
   // If it's not from the hat, then it's from the stick.
   return !is_hat;
 }
-
-// TODO: Move the anonymous namespace to the top of the file.
-namespace {
-
-SbKeyLocation AInputEventToSbKeyLocation(AInputEvent *event) {
-  int32_t keycode = AKeyEvent_getKeyCode(event);
-  switch (keycode) {
-    case AKEYCODE_ALT_LEFT:
-    case AKEYCODE_CTRL_LEFT:
-    case AKEYCODE_META_LEFT:
-    case AKEYCODE_SHIFT_LEFT:
-      return kSbKeyLocationLeft;
-    case AKEYCODE_ALT_RIGHT:
-    case AKEYCODE_CTRL_RIGHT:
-    case AKEYCODE_META_RIGHT:
-    case AKEYCODE_SHIFT_RIGHT:
-      return kSbKeyLocationRight;
-  }
-  return kSbKeyLocationUnspecified;
-}
-
-unsigned int AInputEventToSbModifiers(AInputEvent *event) {
-  int32_t meta = AKeyEvent_getMetaState(event);
-  unsigned int modifiers = kSbKeyModifiersNone;
-  if (meta & AMETA_ALT_ON) {
-    modifiers |= kSbKeyModifiersAlt;
-  }
-  if (meta & AMETA_CTRL_ON) {
-    modifiers |= kSbKeyModifiersCtrl;
-  }
-  if (meta & AMETA_META_ON) {
-    modifiers |= kSbKeyModifiersMeta;
-  }
-  if (meta & AMETA_SHIFT_ON) {
-    modifiers |= kSbKeyModifiersShift;
-  }
-  return modifiers;
-}
-
-Application::Event* CreateMoveEventWithKey(int32_t device_id,
-                                           SbWindow window,
-                                           SbKey key,
-                                           const SbInputVector& input_vector) {
-  SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
-
-  // window
-  data->window = window;
-  data->type = kSbInputEventTypeMove;
-  data->device_type = kSbInputDeviceTypeGamepad;
-  data->device_id = device_id;
-
-  // key
-  data->key = key;
-  data->key_location = kSbKeyLocationUnspecified;
-  data->key_modifiers = kSbKeyModifiersNone;
-  data->position = input_vector;
-
-  return new Application::Event(kSbEventTypeInput, data,
-                                &Application::DeleteDestructor<SbInputData>);
-}
-
-float GetFlat(jobject input_device, int axis) {
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject motion_range = env->CallObjectMethodOrAbort(
-      input_device, "getMotionRange",
-      "(I)Landroid/view/InputDevice$MotionRange;", axis);
-
-  float flat = env->CallFloatMethodOrAbort(motion_range, "getFlat", "()F");
-
-  env->DeleteLocalRef(motion_range);
-  SB_DCHECK(flat < 1.0f);
-  return flat;
-}
-
-}  // namespace
-
-InputEventsGenerator::InputEventsGenerator(SbWindow window)
-    : window_(window), hat_value_(), hat_pressed_() {
-  SB_DCHECK(SbWindowIsValid(window_));
-}
-
-InputEventsGenerator::~InputEventsGenerator() {}
 
 // For a left joystick, AMOTION_EVENT_AXIS_X reports the absolute X position of
 // the joystick. The value is normalized to a range from -1.0 (left) to 1.0
