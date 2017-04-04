@@ -86,6 +86,20 @@ class MozjsUserObjectHolder
     }
   }
 
+  void PreventGarbageCollection() OVERRIDE {
+    if (prevent_garbage_collection_count_++ == 0 && handle_) {
+      JSAutoRequest auto_request(context_);
+      persistent_root_ = JS::PersistentRootedValue(context_, handle_->value());
+    }
+  }
+
+  void AllowGarbageCollection() {
+    if (prevent_garbage_collection_count_++ == 0 && handle_) {
+      JSAutoRequest auto_request(context_);
+      persistent_root_ = base::nullopt;
+    }
+  }
+
   const typename MozjsUserObjectType::BaseType* GetScriptValue()
       const OVERRIDE {
     return handle_ ? &handle_.value() : NULL;
@@ -134,6 +148,8 @@ class MozjsUserObjectHolder
   JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;
   WrapperFactory* wrapper_factory_;
+  int prevent_garbage_collection_count_;
+  base::optional<JS::Value> persistent_root_;
 };
 
 }  // namespace mozjs

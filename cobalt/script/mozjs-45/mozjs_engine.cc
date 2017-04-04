@@ -206,10 +206,11 @@ MozjsEngine::~MozjsEngine() {
   JS_DestroyRuntime(runtime_);
 }
 
-scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
+scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment(
+    const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new MozjsGlobalEnvironment(runtime_);
+  return new MozjsGlobalEnvironment(runtime_, options);
 }
 
 void MozjsEngine::CollectGarbage() {
@@ -233,9 +234,6 @@ size_t MozjsEngine::UpdateMemoryStatsAndReturnReserved() {
 
 bool MozjsEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
   error_handler_ = handler;
-  JSDebugErrorHook hook = ErrorHookCallback;
-  void* closure = this;
-  JS_SetDebugErrorHook(runtime_, hook, closure);
   return true;
 }
 
@@ -294,14 +292,8 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
   }
 }
 
-JSBool MozjsEngine::ErrorHookCallback(JSContext* context, const char* message,
-                                      JSErrorReport* report, void* closure) {
-  MozjsEngine* this_ptr = static_cast<MozjsEngine*>(closure);
-  return this_ptr->ReportJSError(context, message, report);
-}
-
-JSBool MozjsEngine::ReportJSError(JSContext* context, const char* message,
-                                  JSErrorReport* report) {
+bool MozjsEngine::ReportJSError(JSContext* context, const char* message,
+                                JSErrorReport* report) {
   const bool is_invalid =
       error_handler_.is_null() || !report || !report->filename;
   if (is_invalid) {

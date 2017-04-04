@@ -30,7 +30,8 @@ class MozjsEngine : public JavaScriptEngine {
   MozjsEngine();
   ~MozjsEngine() OVERRIDE;
 
-  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
+  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment(
+      const JavaScriptEngine::Options& options) OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
   size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
@@ -43,10 +44,8 @@ class MozjsEngine : public JavaScriptEngine {
   static void GCCallback(JSRuntime* runtime, JSGCStatus status, void* data);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                bool is_compartment, void* data);
-  static JSBool ErrorHookCallback(JSContext* context, const char* message,
-                                  JSErrorReport* report, void* closure);
-  JSBool ReportJSError(JSContext* context, const char* message,
-                       JSErrorReport* report);
+  bool ReportJSError(JSContext* context, const char* message,
+                     JSErrorReport* report);
 
   base::ThreadChecker thread_checker_;
 
