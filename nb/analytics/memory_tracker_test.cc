@@ -102,6 +102,9 @@ class MemoryTrackerTest : public ::testing::Test {
   }
   static void TearDownTestCase() {
     s_memory_tracker_->RemoveGlobalTrackingHooks();
+    // Give time for all threads to sync up to the fact that the memory tracker
+    // has been removed.
+    SbThreadSleep(50 * kSbTimeMillisecond);
   }
   static bool s_memory_tracker_enabled_;
 };
