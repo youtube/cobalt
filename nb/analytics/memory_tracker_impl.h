@@ -71,6 +71,7 @@ class MemoryTrackerImpl : public MemoryTracker {
   void RemoveGlobalTrackingHooks() SB_OVERRIDE {
     SbMemorySetReporter(NULL);
     NbSetMemoryScopeReporter(NULL);
+    global_hooks_installed_ = false;
   }
 
   bool AddMemoryTracking(const void* memory, size_t size) SB_OVERRIDE;
