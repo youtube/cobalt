@@ -23,15 +23,33 @@
 #include "nb/analytics/memory_tracker.h"
 #include "nb/atomic.h"
 #include "nb/simple_thread.h"
+#include "nb/std_allocator.h"
 #include "nb/thread_local_boolean.h"
 #include "nb/thread_local_pointer.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 
 namespace nb {
 namespace analytics {
+
+// This is used to build the std allocators for the internal data structures so
+// that they don't attempt to report memory allocations, while reporting
+// memory allocations.
+class NoReportAllocator {
+ public:
+  NoReportAllocator() {}
+  NoReportAllocator(const NoReportAllocator&) {}
+  static void* Allocate(size_t n) {
+    return SbMemoryAllocateNoReport(n);
+  }
+  // Second argument can be used for accounting, but is otherwise optional.
+  static void Deallocate(void* ptr, size_t /* not used*/) {
+    SbMemoryDeallocateNoReport(ptr);
+  }
+};
 
 class AllocationGroup;
 class AllocationRecord;
@@ -73,7 +91,14 @@ class AtomicStringAllocationGroupMap {
   void GetAll(std::vector<const AllocationGroup*>* output) const;
 
  private:
-  typedef std::map<std::string, AllocationGroup*> Map;
+  // This map bypasses memory reporting of internal memory structures.
+  typedef std::map<
+      std::string,
+      AllocationGroup*,
+      std::less<std::string>,
+      nb::StdAllocator<
+          std::pair<const std::string, AllocationGroup*>,
+          NoReportAllocator> > Map;
   Map group_map_;
   AllocationGroup* unaccounted_group_;
   mutable starboard::Mutex mutex_;
@@ -131,11 +156,19 @@ class AtomicAllocationMap {
   void Clear();
 
  private:
-  SB_DISALLOW_COPY_AND_ASSIGN(AtomicAllocationMap);
-  typedef std::map<const void*, AllocationRecord> PointerMap;
+  // This map bypasses memory reporting of internal memory structures.
+  typedef std::map<
+      const void*,
+      AllocationRecord,
+      std::less<const void*>,  // required, when specifying allocator.
+      nb::StdAllocator<
+          std::pair<const void*, AllocationRecord>,
+          NoReportAllocator> > PointerMap;
 
   PointerMap pointer_map_;
   mutable starboard::Mutex mutex_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(AtomicAllocationMap);
 };
 
 // A per-pointer map of allocations to AllocRecords. This is a hybrid data
