@@ -28,7 +28,7 @@ namespace media_session {
 // Platforms should subclass this to connect MediaSession to their platform.
 class MediaSessionClient {
  public:
-  typedef std::bitset<MediaSession::MediaSessionAction::kFinalElement>
+  typedef std::bitset<MediaSession::kCountMediaSessionActions>
       AvailableActionsSet;
   MediaSessionClient()
       : media_session_(new MediaSession(this)),
@@ -45,7 +45,7 @@ class MediaSessionClient {
   MediaSession::MediaSessionPlaybackState GetGuessedPlaybackState() {
     DCHECK(thread_checker_.CalledOnValidThread());
     NOTIMPLEMENTED();
-    return MediaSession::MediaSessionPlaybackState::kNone;
+    return MediaSession::kNone;
   }
 
   // Retrieves the set of currently available mediasession actions
