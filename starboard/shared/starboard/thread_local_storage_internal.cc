@@ -119,7 +119,9 @@ TLSKeyManager::TLSKeyManager() {
 }
 
 SbThreadLocalKey TLSKeyManager::CreateKey(SbThreadLocalDestructor destructor) {
-  SbThreadLocalKey key = new SbThreadLocalKeyPrivate();
+  void* memory_block =
+      SbMemoryAllocateNoReport(sizeof(SbThreadLocalKeyPrivate));
+  SbThreadLocalKey key = new(memory_block) SbThreadLocalKeyPrivate();
 
   ScopedLock lock(mutex_);
   key->index = GetUnusedKeyIndex();
@@ -143,7 +145,8 @@ void TLSKeyManager::DestroyKey(SbThreadLocalKey key) {
   SB_DCHECK(IsKeyActive(key));
   data_->key_table_[key->index].valid = false;
 
-  delete key;
+  key.~SbThreadLocalKey();
+  SbMemoryDeallocateNoReport(key);
 }
 
 bool TLSKeyManager::SetLocalValue(SbThreadLocalKey key, void* value) {
