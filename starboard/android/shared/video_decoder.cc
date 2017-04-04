@@ -45,31 +45,6 @@ const jlong kNoPts = 0;
 const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
-// Map an |SbMediaVideoCodec| into its corresponding mime type string.
-const char* GetMimeTypeFromCodecType(const SbMediaVideoCodec type) {
-  switch (type) {
-    case kSbMediaVideoCodecNone:
-      return NULL;
-    case kSbMediaVideoCodecH264:
-      return "video/avc";
-    case kSbMediaVideoCodecH265:
-      return "video/hevc";
-    case kSbMediaVideoCodecMpeg2:
-      return NULL;
-    case kSbMediaVideoCodecTheora:
-      return NULL;
-    case kSbMediaVideoCodecVc1:
-      return NULL;
-    case kSbMediaVideoCodecVp10:
-      return NULL;
-    case kSbMediaVideoCodecVp8:
-      return "video/x-vnd.on2.vp8";
-    case kSbMediaVideoCodecVp9:
-      return "video/x-vnd.on2.vp9";
-  }
-  return NULL;
-}
-
 }  // namespace
 
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
@@ -151,11 +126,6 @@ void VideoDecoder::Reset() {
 }
 
 bool VideoDecoder::InitializeCodec() {
-  const char* mime = GetMimeTypeFromCodecType(video_codec_);
-  if (!mime) {
-    SB_LOG(ERROR) << "Mime type " << mime << " is not supported.";
-  }
-
   // Setup the output surface object.  If we are in punch-out mode, target
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
@@ -197,7 +167,7 @@ bool VideoDecoder::InitializeCodec() {
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      mime, width, height, j_output_surface, j_media_crypto);
+      video_codec_, width, height, j_output_surface, j_media_crypto);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge.";
     return false;

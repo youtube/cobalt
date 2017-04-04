@@ -52,11 +52,11 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            JobQueue* job_queue,
                            SbDrmSystem drm_system)
     : stream_ended_(false),
+      audio_codec_(audio_codec),
       audio_header_(audio_header),
       job_queue_(job_queue),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       sample_type_(GetSupportedSampleType()) {
-  SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
   SB_DCHECK(job_queue_);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   if (!InitializeCodec()) {
@@ -126,7 +126,7 @@ bool AudioDecoder::InitializeCodec() {
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      kMimeTypeAac, audio_header_, j_media_crypto);
+      audio_codec_, audio_header_, j_media_crypto);
   if (!media_codec_bridge_) {
     return false;
   }

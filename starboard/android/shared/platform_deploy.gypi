@@ -27,7 +27,7 @@
             '../apk/app/src/main/java/foo/cobalt/IsEmulator.java',
             '../apk/app/src/main/java/foo/cobalt/media/CobaltPlaybackStateHelper.java',
             '../apk/app/src/main/java/foo/cobalt/media/MediaCodecBridge.java',
-            '../apk/app/src/main/java/foo/cobalt/media/MediaCodecSelector.java',
+            '../apk/app/src/main/java/foo/cobalt/media/MediaCodecUtil.java',
             '../apk/app/src/main/java/foo/cobalt/media/MediaDrmBridge.java',
             '../apk/app/src/main/java/foo/cobalt/media/VideoSurfaceView.java',
             '../apk/app/src/main/java/foo/cobalt/PlatformError.java',
