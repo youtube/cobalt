@@ -24,7 +24,10 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/bindings/testing/mozjs_dictionary_with_dictionary_member.h"
 #include "cobalt/bindings/testing/mozjs_test_dictionary.h"
+
+#include "mozjs_gen_type_conversion.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
@@ -50,6 +53,7 @@
 namespace {
 using cobalt::bindings::testing::DictionaryInterface;
 using cobalt::bindings::testing::MozjsDictionaryInterface;
+using cobalt::bindings::testing::DictionaryWithDictionaryMember;
 using cobalt::bindings::testing::TestDictionary;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
@@ -338,6 +342,71 @@ JSBool fcn_dictionaryOperation(
   return !exception_state.is_exception_set();
 }
 
+JSBool fcn_testOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  const JSClass* proto_class =
+      MozjsDictionaryInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DictionaryInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DictionaryInterface* impl =
+      wrapper_private->wrappable<DictionaryInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<DictionaryWithDictionaryMember >::ConversionType dict;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &dict);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->TestOperation(dict);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
@@ -353,6 +422,13 @@ const JSFunctionSpec prototype_functions[] = {
   {
       "dictionaryOperation",
       JSOP_WRAPPER(&fcn_dictionaryOperation),
+      1,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
+  {
+      "testOperation",
+      JSOP_WRAPPER(&fcn_testOperation),
       1,
       JSPROP_ENUMERATE,
       NULL,

@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/bindings/testing/dictionary_with_dictionary_member.h"
 #include "cobalt/bindings/testing/test_dictionary.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
@@ -36,6 +37,8 @@ class DictionaryInterface : public script::Wrappable {
   MOCK_METHOD0(dictionary_sequence, TestDictionary());
   MOCK_METHOD1(set_dictionary_sequence,
                void(script::Sequence<TestDictionary> test_dictionary));
+
+  void TestOperation(DictionaryWithDictionaryMember /* dict */) {}
 
   DEFINE_WRAPPABLE_TYPE(DictionaryInterface);
 };
