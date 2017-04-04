@@ -229,6 +229,15 @@ class Context {
   // Called when eglReleaseTexImage() is called.
   bool ReleaseTextureFromEGLSurface(egl::Surface* surface);
 
+  // Utility functions for use by other modules.
+  nb::scoped_refptr<Texture> GetTexture(uint32_t id) {
+    return resource_manager_->GetTexture(id);
+  }
+
+  DrawStateDirtyFlags* GetDrawStateDirtyFlags() {
+    return &draw_state_dirty_flags_;
+  }
+
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();
