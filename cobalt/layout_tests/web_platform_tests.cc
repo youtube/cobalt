@@ -302,6 +302,10 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(dom, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests("dom")));
+
+INSTANTIATE_TEST_CASE_P(
+    mediasession, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")));
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests
