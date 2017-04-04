@@ -28,6 +28,7 @@
         'engine_template_files': [
           '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/callback-interface.h.template',
+          '<(DEPTH)/cobalt/bindings/mozjs/templates/conversion-declaration.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/dictionary-conversion.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs/templates/interface.h.template',
@@ -36,8 +37,12 @@
         'engine_bindings_scripts': [
           '<(DEPTH)/cobalt/bindings/mozjs/code_generator_mozjs.py',
           '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler_mozjs.py',
+          '<(DEPTH)/cobalt/bindings/mozjs/generate_conversion_header_mozjs.py',
         ],
-        'engine_idl_compiler': '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler_mozjs.py',
+        'engine_idl_compiler':
+            '<(DEPTH)/cobalt/bindings/mozjs/idl_compiler_mozjs.py',
+        'engine_conversion_header_generator_script':
+            '<(DEPTH)/cobalt/bindings/mozjs/generate_conversion_header_mozjs.py',
       }],
     ],
   },
