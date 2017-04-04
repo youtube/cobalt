@@ -21,4 +21,6 @@ enum TestEnum {
 [Constructor]
 interface EnumerationInterface {
   attribute TestEnum enumProperty;
+
+  void optionalEnumWithDefault(optional TestEnum value = "beta");
 };
