@@ -25,6 +25,8 @@
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
 
+#include "mozjs_gen_type_conversion.h"
+
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"
