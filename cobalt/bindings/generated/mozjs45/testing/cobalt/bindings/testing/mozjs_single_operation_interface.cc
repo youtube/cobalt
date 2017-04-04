@@ -22,6 +22,8 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/mozjs_arbitrary_interface.h"
 
+#include "mozjs_gen_type_conversion.h"
+
 #include "cobalt/script/logging_exception_state.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_interface.h"

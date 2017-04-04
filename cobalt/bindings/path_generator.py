@@ -35,6 +35,16 @@ class PathBuilder(object):
     self.engine_prefix = engine_prefix
     self.interfaces_info = interfaces_info
 
+  @property
+  def generated_conversion_header_path(self):
+    return os.path.join(self.generated_root,
+                        '%s_gen_type_conversion.h' % self.engine_prefix)
+
+  @property
+  def generated_conversion_include_path(self):
+    return os.path.relpath(self.generated_conversion_header_path,
+                           self.generated_root)
+
   def NamespaceComponents(self, interface_name):
     """Get the interface's namespace as a list of namespace components."""
     # Get the IDL filename relative to the cobalt directory, and split the
