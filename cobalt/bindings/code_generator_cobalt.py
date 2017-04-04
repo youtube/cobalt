@@ -246,12 +246,15 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
   def generate_dictionary_code(self, definitions, dictionary_name, dictionary):
     header_template_filename = 'dictionary.h.template'
     conversion_template_filename = 'dictionary-conversion.h.template'
-    template_context = self.build_dictionary_context(dictionary, definitions)
+    implementation_context = self.build_dictionary_context(
+        dictionary, definitions, False)
+    conversion_context = self.build_dictionary_context(dictionary, definitions,
+                                                       True)
 
     header_text = self.render_template(header_template_filename,
-                                       template_context)
+                                       implementation_context)
     conversion_text = self.render_template(conversion_template_filename,
-                                           template_context)
+                                           conversion_context)
 
     header_path = self.path_builder.DictionaryHeaderFullPath(dictionary_name)
     conversion_header_path = (
@@ -259,14 +262,29 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     return ((header_path, header_text), (conversion_header_path,
                                          conversion_text),)
 
+  def generate_conversion_code(self):
+    generated_types = list()
+    generated_types.extend(
+        self.info_provider.interfaces_info['callback_interfaces'])
+    generated_types.extend(self.info_provider.interfaces_info['dictionaries'])
+
+    context = {
+        'generated_types':
+            self.referenced_class_contexts(generated_types, False)
+    }
+    header_template_filename = 'conversion-declaration.h.template'
+    header_text = self.render_template(header_template_filename, context)
+
+    return self.path_builder.generated_conversion_header_path, header_text
+
   def referenced_class_contexts(self,
                                 interface_names,
-                                implementation_only=False):
+                                include_bindings_class=True):
     """Returns a list of jinja contexts describing referenced C++ classes.
 
     Args:
       interface_names: A list of interfaces.
-      implementation_only: Only include implemetation headers.
+      include_bindings_class: Include headers and classes uses only in bindings.
     Returns:
       list() of jinja contexts (python dicts) with information about C++ classes
       related to the interfaces in |interface_names|. dict has the following
@@ -288,16 +306,31 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
 
       # Information about the Cobalt implementation class.
       if is_dictionary:
-        referenced_classes.append({
-            'fully_qualified_name':
-                '%s::%s' % (namespace, interface_name),
-            'include':
-                self.path_builder.BindingsHeaderIncludePath(interface_name),
-            'conditional':
-                conditional,
-            'is_callback_interface':
-                is_callback_interface,
-        })
+        # The conversion header #includes the implementation, so just need to
+        # add one.
+        if include_bindings_class:
+          referenced_classes.append({
+              'fully_qualified_name':
+                  '%s::%s' % (namespace, interface_name),
+              'include':
+                  self.path_builder.DictionaryConversionHeaderIncludePath(
+                      interface_name),
+              'conditional':
+                  conditional,
+              'is_callback_interface':
+                  is_callback_interface,
+          })
+        else:
+          referenced_classes.append({
+              'fully_qualified_name':
+                  '%s::%s' % (namespace, interface_name),
+              'include':
+                  self.path_builder.DictionaryHeaderIncludePath(interface_name),
+              'conditional':
+                  conditional,
+              'is_callback_interface':
+                  is_callback_interface,
+          })
       else:
         referenced_classes.append({
             'fully_qualified_name':
@@ -309,7 +342,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
             'is_callback_interface':
                 is_callback_interface,
         })
-        if not implementation_only:
+        if include_bindings_class:
           referenced_classes.append({
               'fully_qualified_name':
                   '%s::%s' % (namespace,
@@ -337,10 +370,12 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
             normalize_slashes(os.path.relpath(module_path_pyname, cobalt_dir)),
         'template_path':
             normalize_slashes(os.path.relpath(template.filename, cobalt_dir)),
+        'generated_conversion_include':
+            self.path_builder.generated_conversion_include_path,
     }
     return context
 
-  def build_dictionary_context(self, dictionary, definitions):
+  def build_dictionary_context(self, dictionary, definitions, for_conversion):
     context_builder = ContextBuilder(self.info_provider)
     context = {
         'class_name':
@@ -356,7 +391,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         get_interface_type_names_from_typed_objects(self.info_provider,
                                                     dictionary.members))
     referenced_class_contexts = self.referenced_class_contexts(
-        referenced_interface_names, True)
+        referenced_interface_names, for_conversion)
+
     context['includes'] = sorted((interface['include']
                                   for interface in referenced_class_contexts))
     context['forward_declarations'] = sorted(
