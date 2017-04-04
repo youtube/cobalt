@@ -46,14 +46,15 @@ class MediaSession : public script::Wrappable {
     kSeekbackward,
     kSeekforward,
     kPrevioustrack,
-    kNexttrack,
-    kFinalElement
+    kNexttrack
+    // If you add a value here, be sure to change kCountMediaSessionActions
   };
+  static const int kCountMediaSessionActions = 6;
 
  private:
   typedef base::SmallMap<
       std::map<MediaSessionAction, MediaSessionActionHandlerReference*>,
-      MediaSessionAction::kFinalElement> ActionMap;
+      kCountMediaSessionActions> ActionMap;
 
  public:
   explicit MediaSession(MediaSessionClient* client);
