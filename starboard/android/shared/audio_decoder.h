@@ -93,6 +93,7 @@ class AudioDecoder
   bool stream_ended_;
   std::queue<Event> pending_work_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
+  SbMediaAudioCodec audio_codec_;
   SbMediaAudioHeader audio_header_;
 
   JobQueue* job_queue_;

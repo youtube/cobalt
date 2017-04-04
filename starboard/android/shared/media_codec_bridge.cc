@@ -20,11 +20,15 @@ namespace shared {
 
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
-    const std::string& mime,
+    SbMediaAudioCodec audio_codec,
     const SbMediaAudioHeader& audio_header,
     jobject j_media_crypto) {
+  const char* mime = SupportedAudioCodecToMimeType(audio_codec);
+  if (!mime) {
+    return scoped_ptr<MediaCodecBridge>(NULL);
+  }
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTFOrAbort(mime.c_str());
+  jstring j_mime = env->NewStringUTFOrAbort(mime);
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
       "(Ljava/lang/String;ZZIILandroid/media/MediaCrypto;)Lfoo/cobalt/media/"
@@ -43,13 +47,17 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
-    const std::string& mime,
+    SbMediaVideoCodec video_codec,
     int width,
     int height,
     jobject j_surface,
     jobject j_media_crypto) {
+  const char* mime = SupportedVideoCodecToMimeType(video_codec);
+  if (!mime) {
+    return scoped_ptr<MediaCodecBridge>(NULL);
+  }
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTFOrAbort(mime.c_str());
+  jstring j_mime = env->NewStringUTFOrAbort(mime);
 
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
