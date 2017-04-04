@@ -23,6 +23,7 @@
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/mozjs-45/interface_data.h"
 #include "cobalt/script/mozjs-45/opaque_root_tracker.h"
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
@@ -44,7 +45,8 @@ class WeakHandle;
 class MozjsGlobalEnvironment : public GlobalEnvironment,
                                public Wrappable::CachedWrapperAccessor {
  public:
-  explicit MozjsGlobalEnvironment(JSRuntime* runtime);
+  MozjsGlobalEnvironment(JSRuntime* runtime,
+                         const JavaScriptEngine::Options& options);
   ~MozjsGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;
@@ -82,6 +84,10 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   JSObject* global_object() const {
     return js::GetProxyTargetObject(global_object_proxy_);
   }
+
+  // TODO: Have and make use of a script value factory and implement this
+  // getter.
+  ScriptValueFactory* script_value_factory() OVERRIDE { return NULL; }
 
   WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 

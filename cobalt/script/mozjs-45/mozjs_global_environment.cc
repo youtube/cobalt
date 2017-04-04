@@ -117,7 +117,8 @@ ProxyHandler::IndexedPropertyHooks MozjsStubHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsStubHandler> proxy_handler;
 }  // namespace
 
-MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
+MozjsGlobalEnvironment::MozjsGlobalEnvironment(
+    JSRuntime* runtime, const JavaScriptEngine::Options& options)
     : context_(NULL),
       garbage_collection_count_(0),
       cached_interface_data_deleter_(&cached_interface_data_),
