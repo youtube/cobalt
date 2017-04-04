@@ -284,6 +284,69 @@ JSBool set_enumProperty(
   return !exception_state.is_exception_set();
 }
 
+JSBool fcn_optionalEnumWithDefault(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, object.address())) {
+    NOTREACHED();
+    return false;
+  }
+  const JSClass* proto_class =
+      MozjsEnumerationInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<EnumerationInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  EnumerationInterface* impl =
+      wrapper_private->wrappable<EnumerationInterface>().get();
+  // Optional arguments with default values
+  TypeTraits<EnumerationInterface::TestEnum >::ConversionType value =
+      EnumerationInterface::kBeta;
+  size_t num_set_arguments = 1;
+  if (args.length() > 0) {
+    JS::RootedValue optional_value0(
+        context, args[0]);
+    FromJSValue(context,
+                optional_value0,
+                kNoConversionFlags,
+                &exception_state,
+                &value);
+    if (exception_state.is_exception_set()) {
+      return false;
+    }
+  }
+
+  impl->OptionalEnumWithDefault(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
@@ -296,6 +359,13 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
+  {
+      "optionalEnumWithDefault",
+      JSOP_WRAPPER(&fcn_optionalEnumWithDefault),
+      0,
+      JSPROP_ENUMERATE,
+      NULL,
+  },
   JS_FS_END
 };
 
