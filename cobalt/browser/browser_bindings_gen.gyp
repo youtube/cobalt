@@ -117,7 +117,7 @@
         #'../dom/media_key_message_event_init.idl',
         '../dom/media_key_needed_event.idl',
         #'../dom/media_key_session.idl',
-        '../dom/media_key_status_map.idl',
+        #'../dom/media_key_status_map.idl',
         #'../dom/media_key_system_access.idl',
         #'../dom/media_key_system_configuration.idl',
         #'../dom/media_key_system_media_capability.idl',
