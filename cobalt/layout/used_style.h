@@ -133,6 +133,9 @@ render_tree::ColorRGBA GetUsedColor(
 LayoutUnit GetUsedLength(
     const scoped_refptr<cssom::PropertyValue>& length_refptr);
 
+LayoutUnit GetUsedNonNegativeLength(
+    const scoped_refptr<cssom::PropertyValue>& length_refptr);
+
 class UsedBackgroundNodeProvider
     : public cssom::NotReachedPropertyValueVisitor {
  public:

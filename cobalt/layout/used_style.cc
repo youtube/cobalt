@@ -516,6 +516,21 @@ LayoutUnit GetUsedLength(
   return LayoutUnit(length->value());
 }
 
+LayoutUnit GetUsedNonNegativeLength(
+    const scoped_refptr<cssom::PropertyValue>& length_refptr) {
+  cssom::LengthValue* length =
+      base::polymorphic_downcast<cssom::LengthValue*>(length_refptr.get());
+  DCHECK_EQ(length->unit(), cssom::kPixelsUnit);
+  LayoutUnit layout_unit(length->value());
+  if (layout_unit < LayoutUnit(0)) {
+    DLOG(WARNING) << "Invalid non-negative layout length "
+                  << layout_unit.toFloat() << ", original length was "
+                  << length->value();
+    layout_unit = LayoutUnit(0);
+  }
+  return layout_unit;
+}
+
 class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit UsedLengthValueProvider(LayoutUnit percentage_base,

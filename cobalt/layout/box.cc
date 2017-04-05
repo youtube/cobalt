@@ -624,22 +624,22 @@ render_tree::BorderStyle GetRenderTreeBorderStyle(
 Border CreateBorderFromStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>& style) {
   render_tree::BorderSide left(
-      GetUsedLength(style->border_left_width()).toFloat(),
+      GetUsedNonNegativeLength(style->border_left_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_left_style()),
       GetUsedColor(style->border_left_color()));
 
   render_tree::BorderSide right(
-      GetUsedLength(style->border_right_width()).toFloat(),
+      GetUsedNonNegativeLength(style->border_right_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_right_style()),
       GetUsedColor(style->border_right_color()));
 
   render_tree::BorderSide top(
-      GetUsedLength(style->border_top_width()).toFloat(),
+      GetUsedNonNegativeLength(style->border_top_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_top_style()),
       GetUsedColor(style->border_top_color()));
 
   render_tree::BorderSide bottom(
-      GetUsedLength(style->border_bottom_width()).toFloat(),
+      GetUsedNonNegativeLength(style->border_bottom_width()).toFloat(),
       GetRenderTreeBorderStyle(style->border_bottom_style()),
       GetUsedColor(style->border_bottom_color()));
 
