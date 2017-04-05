@@ -23,6 +23,7 @@
 #include "base/message_loop.h"
 #include "base/run_loop.h"
 
+using ::testing::AtLeast;
 using ::testing::InvokeWithoutArgs;
 
 namespace cobalt {
@@ -45,7 +46,52 @@ TEST(MediaSessionTest, MediaSessionTest) {
 
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
+  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
+
   session->set_playback_state(MediaSession::kPlaying);
+
+  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+
+  run_loop.Run();
+}
+
+TEST(MediaSessionTest, GetActualPlaybackState) {
+  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::RunLoop run_loop;
+
+  MockMediaSessionClient client;
+
+  ON_CALL(client, OnMediaSessionChanged())
+      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+  EXPECT_CALL(client, OnMediaSessionChanged()).Times(AtLeast(2));
+
+  scoped_refptr<MediaSession> session = client.GetMediaSession();
+
+  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
+
+  client.UpdatePlatformPlaybackState(MediaSession::kPlaying);
+
+  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+
+  session->set_playback_state(MediaSession::kPlaying);
+
+  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+
+  session->set_playback_state(MediaSession::kPaused);
+
+  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+
+  client.UpdatePlatformPlaybackState(MediaSession::kPaused);
+
+  EXPECT_EQ(MediaSession::kPaused, client.GetActualPlaybackState());
+
+  session->set_playback_state(MediaSession::kNone);
+
+  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
+
+  client.UpdatePlatformPlaybackState(MediaSession::kNone);
+
+  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
 
   run_loop.Run();
 }
