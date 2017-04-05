@@ -173,7 +173,7 @@ class InterfaceInfoCollector(object):
             'full_paths': [],
             'include_paths': [],
         })
-        self.enumerations = set()
+        self.enumerations = {}
         self.union_types = set()
         self.typedefs = {}
         self.callback_functions = {}
@@ -229,12 +229,16 @@ class InterfaceInfoCollector(object):
                 'component_dir': idl_filename_to_component(idl_filename),
                 'full_path': os.path.realpath(idl_filename),
             }
-        # Check enum duplication.
-        for enum_name in definitions.enumerations.keys():
-            for defined_enum in self.enumerations:
-                if defined_enum.name == enum_name:
-                    raise Exception('Enumeration %s has multiple definitions' % enum_name)
-        self.enumerations.update(definitions.enumerations.values())
+
+        # Include more information about the enum for Cobalt.
+        for enum_name, values in definitions.enumerations.iteritems():
+            # Check enum duplication.
+            if self.enumerations.has_key(enum_name):
+                raise Exception('Enumeration %s has multiple definitions' % enum_name)
+            self.enumerations[enum_name] = {
+                'values': values,
+                'full_path': os.path.realpath(idl_filename),
+            }
 
         if definitions.interfaces:
             definition = next(definitions.interfaces.itervalues())
@@ -342,8 +346,7 @@ class InterfaceInfoCollector(object):
         """Returns component wide information as a dict."""
         return {
             'callback_functions': self.callback_functions,
-            'enumerations': dict((enum.name, enum.values)
-                                 for enum in self.enumerations),
+            'enumerations': self.enumerations,
             'typedefs': self.typedefs,
             'union_types': self.union_types,
         }
