@@ -47,13 +47,12 @@ def is_promise_type(idl_type):
   return isinstance(idl_type, IdlPromiseType)
 
 
-def idl_literal_to_cobalt_literal(interface, idl_type, idl_literal):
+def idl_literal_to_cobalt_literal(idl_type, idl_literal):
   """Map IDL literal to the corresponding cobalt value."""
   if idl_literal.is_null and not idl_type.is_interface_type:
     return 'base::nullopt'
   if idl_type.is_enum:
-    return '%s::%s' % (interface.name,
-                       convert_to_cobalt_enumeration_value(idl_literal.value))
+    return convert_to_cobalt_enumeration_value(idl_type, idl_literal.value)
   return str(idl_literal)
 
 
@@ -235,6 +234,8 @@ class ContextBuilder(object):
       cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
     elif idl_type.is_union_type:
       cobalt_type = self.idl_union_type_to_cobalt(idl_type)
+    elif idl_type.is_enum:
+      cobalt_type = idl_type.name
     elif is_sequence_type(idl_type):
       cobalt_type = self.idl_sequence_type_to_cobalt(idl_type)
     elif idl_type.name == 'void':
@@ -260,8 +261,6 @@ class ContextBuilder(object):
     idl_type = self.resolve_typedef(typed_object.idl_type)
     if idl_type.is_callback_function:
       cobalt_type = interface.name + '::' + get_interface_name(idl_type)
-    elif idl_type.is_enum:
-      cobalt_type = '%s::%s' % (interface.name, get_interface_name(idl_type))
     else:
       cobalt_type = self.idl_type_to_cobalt_type(idl_type)
     if getattr(typed_object, 'is_variadic', False):
@@ -300,7 +299,7 @@ class ContextBuilder(object):
         'is_variadic':
             argument.is_variadic,
         'default_value':
-            idl_literal_to_cobalt_literal(interface, argument.idl_type,
+            idl_literal_to_cobalt_literal(argument.idl_type,
                                           argument.default_value)
             if argument.default_value else None,
     }
@@ -483,10 +482,10 @@ class ContextBuilder(object):
   def enumeration_context(self, enumeration):
     """Create template values for IDL enumeration type bindings."""
     return {
-        'name':
+        'enumeration_name':
             enumeration.name,
-        'value_pairs': [(convert_to_cobalt_enumeration_value(value), value,)
-                        for value in enumeration.values],
+        'value_pairs': [(convert_to_cobalt_enumeration_value(
+            enumeration.name, value), value,) for value in enumeration.values],
     }
 
   def constant_context(self, constant):
@@ -612,8 +611,7 @@ class ContextBuilder(object):
                 self.resolve_typedef(dictionary_member.idl_type),
                 dictionary_member.extended_attributes),
         'default_value':
-            idl_literal_to_cobalt_literal(dictionary,
-                                          dictionary_member.idl_type,
+            idl_literal_to_cobalt_literal(dictionary_member.idl_type,
                                           dictionary_member.default_value)
             if dictionary_member.default_value else None,
     }
