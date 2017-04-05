@@ -28,8 +28,9 @@
         'engine_template_files': [
           '<(DEPTH)/cobalt/bindings/mozjs45/templates/callback-interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs45/templates/callback-interface.h.template',
-          '<(DEPTH)/cobalt/bindings/mozjs45/templates/conversion-declaration.h.template',
-          '<(DEPTH)/cobalt/bindings/mozjs45/templates/dictionary-conversion.h.template',
+          '<(DEPTH)/cobalt/bindings/mozjs45/templates/dictionary-conversion.cc.template',
+          '<(DEPTH)/cobalt/bindings/mozjs45/templates/enumeration-conversion.cc.template',
+          '<(DEPTH)/cobalt/bindings/mozjs45/templates/generated-types.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs45/templates/interface.cc.template',
           '<(DEPTH)/cobalt/bindings/mozjs45/templates/interface.h.template',
           '<(DEPTH)/cobalt/bindings/mozjs45/templates/macros.cc.template',

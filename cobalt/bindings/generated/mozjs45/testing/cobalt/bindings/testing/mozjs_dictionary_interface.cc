@@ -24,8 +24,8 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
-#include "cobalt/bindings/testing/mozjs_dictionary_with_dictionary_member.h"
-#include "cobalt/bindings/testing/mozjs_test_dictionary.h"
+#include "cobalt/bindings/testing/dictionary_with_dictionary_member.h"
+#include "cobalt/bindings/testing/test_dictionary.h"
 
 #include "mozjs_gen_type_conversion.h"
 

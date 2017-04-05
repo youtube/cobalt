@@ -135,6 +135,7 @@ def get_interface_type_names_from_idl_types(info_provider, idl_type_list):
       idl_type = idl_type.resolve_typedefs(info_provider.typedefs)
       if isinstance(idl_type, IdlTypedef):
         idl_type = idl_type.idl_type
+
       if idl_type.is_interface_type:
         yield get_interface_name(idl_type)
       if idl_type.is_dictionary:
@@ -143,6 +144,8 @@ def get_interface_type_names_from_idl_types(info_provider, idl_type_list):
         for interface_name in get_interface_type_names_from_idl_types(
             info_provider, idl_type.member_types):
           yield interface_name
+      elif idl_type.is_enum:
+        yield idl_type.name
       elif isinstance(idl_type, IdlSequenceType):
         for interface_name in get_interface_type_names_from_idl_types(
             info_provider, [idl_type.element_type]):
@@ -193,8 +196,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     self.jinja_env = initialize_jinja_env(cache_dir,
                                           os.path.abspath(templates_dir))
     self.path_builder = path_generator.PathBuilder(
-        self.generated_file_prefix, self.info_provider.interfaces_info,
-        cobalt_dir, output_dir)
+        self.generated_file_prefix, self.info_provider, cobalt_dir, output_dir)
 
   @abc.abstractproperty
   def generated_file_prefix(self):
@@ -220,6 +222,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
       return self.generate_dictionary_code(
           definitions, definition_name,
           definitions.dictionaries[definition_name])
+    if definition_name in definitions.enumerations:
+      return self.generate_enum_code(definitions, definition_name,
+                                     definitions.enumerations[definition_name])
     raise ValueError('%s is not in IDL definitions' % definition_name)
 
   def generate_interface_code(self, definitions, interface_name, interface):
@@ -245,7 +250,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
 
   def generate_dictionary_code(self, definitions, dictionary_name, dictionary):
     header_template_filename = 'dictionary.h.template'
-    conversion_template_filename = 'dictionary-conversion.h.template'
+    conversion_template_filename = 'dictionary-conversion.cc.template'
     implementation_context = self.build_dictionary_context(
         dictionary, definitions, False)
     conversion_context = self.build_dictionary_context(dictionary, definitions,
@@ -257,25 +262,82 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
                                            conversion_context)
 
     header_path = self.path_builder.DictionaryHeaderFullPath(dictionary_name)
-    conversion_header_path = (
-        self.path_builder.DictionaryConversionHeaderFullPath(dictionary_name))
-    return ((header_path, header_text), (conversion_header_path,
+    conversion_impl_path = (
+        self.path_builder.DictionaryConversionImplementationPath(
+            dictionary_name))
+    return ((header_path, header_text), (conversion_impl_path,
+                                         conversion_text),)
+
+  def generate_enum_code(self, definitions, enumeration_name, enumeration):
+    header_template_filename = 'enumeration.h.template'
+    conversion_template_filename = 'enumeration-conversion.cc.template'
+    context_builder = ContextBuilder(self.info_provider)
+    context = context_builder.enumeration_context(enumeration)
+
+    context['components'] = self.path_builder.NamespaceComponents(
+        enumeration_name)
+    context['namespace'] = self.path_builder.Namespace(enumeration_name)
+    context['fully_qualified_name'] = self.path_builder.FullClassName(
+        enumeration_name)
+    context['enum_include'] = self.path_builder.EnumHeaderIncludePath(
+        enumeration_name)
+
+    header_text = self.render_template(header_template_filename, context)
+    conversion_text = self.render_template(conversion_template_filename,
+                                           context)
+
+    header_path = self.path_builder.EnumHeaderFullPath(enumeration_name)
+    conversion_impl_path = (
+        self.path_builder.EnumConversionImplementationFullPath(enumeration_name)
+    )
+    return ((header_path, header_text), (conversion_impl_path,
                                          conversion_text),)
 
   def generate_conversion_code(self):
-    generated_types = list()
-    generated_types.extend(
-        self.info_provider.interfaces_info['callback_interfaces'])
-    generated_types.extend(self.info_provider.interfaces_info['dictionaries'])
+    enumerations = list(self.info_provider.enumerations.keys())
+    dictionaries = list(self.info_provider.interfaces_info['dictionaries'])
+    includes = [
+        self.path_builder.DictionaryHeaderIncludePath(dictionary)
+        for dictionary in dictionaries
+    ]
+    includes.extend([
+        self.path_builder.EnumHeaderIncludePath(enum) for enum in enumerations
+    ])
 
     context = {
-        'generated_types':
-            self.referenced_class_contexts(generated_types, False)
+        'dictionaries': self.referenced_class_contexts(dictionaries, False),
+        'enumerations': self.referenced_class_contexts(enumerations, False),
+        'includes': includes,
     }
-    header_template_filename = 'conversion-declaration.h.template'
+
+    header_template_filename = 'generated-types.h.template'
     header_text = self.render_template(header_template_filename, context)
 
     return self.path_builder.generated_conversion_header_path, header_text
+
+  def referenced_dictionary_context(self, dictionary_name, dictionary_info):
+    namespace = '::'.join(
+        self.path_builder.NamespaceComponents(dictionary_name))
+
+    return {
+        'fully_qualified_name':
+            '%s::%s' % (namespace, dictionary_name),
+        'include':
+            self.path_builder.DictionaryHeaderIncludePath(dictionary_name),
+        'conditional':
+            dictionary_info['conditional'],
+        'is_callback_interface':
+            False,
+    }
+
+  def referenced_enum_context(self, enum_name):
+    namespace = '::'.join(self.path_builder.NamespaceComponents(enum_name))
+    return {
+        'fully_qualified_name': '%s::%s' % (namespace, enum_name),
+        'include': self.path_builder.EnumHeaderIncludePath(enum_name),
+        'conditional': None,
+        'is_callback_interface': False,
+    }
 
   def referenced_class_contexts(self,
                                 interface_names,
@@ -297,41 +359,20 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     referenced_classes = []
     # Iterate over it as a set to uniquify the list.
     for interface_name in set(interface_names):
-      interface_info = self.info_provider.interfaces_info[interface_name]
-      is_dictionary = interface_info['is_dictionary']
-      namespace = '::'.join(
-          self.path_builder.NamespaceComponents(interface_name))
-      conditional = interface_info['conditional']
-      is_callback_interface = interface_name in IdlType.callback_interfaces
+      if interface_name in self.info_provider.enumerations:
+        # If this is an enumeration, get the enum context and continue.
+        referenced_classes.append(self.referenced_enum_context(interface_name))
+        continue
 
-      # Information about the Cobalt implementation class.
-      if is_dictionary:
-        # The conversion header #includes the implementation, so just need to
-        # add one.
-        if include_bindings_class:
-          referenced_classes.append({
-              'fully_qualified_name':
-                  '%s::%s' % (namespace, interface_name),
-              'include':
-                  self.path_builder.DictionaryConversionHeaderIncludePath(
-                      interface_name),
-              'conditional':
-                  conditional,
-              'is_callback_interface':
-                  is_callback_interface,
-          })
-        else:
-          referenced_classes.append({
-              'fully_qualified_name':
-                  '%s::%s' % (namespace, interface_name),
-              'include':
-                  self.path_builder.DictionaryHeaderIncludePath(interface_name),
-              'conditional':
-                  conditional,
-              'is_callback_interface':
-                  is_callback_interface,
-          })
+      interface_info = self.info_provider.interfaces_info[interface_name]
+      if interface_info['is_dictionary']:
+        referenced_classes.append(
+            self.referenced_dictionary_context(interface_name, interface_info))
       else:
+        namespace = '::'.join(
+            self.path_builder.NamespaceComponents(interface_name))
+        conditional = interface_info['conditional']
+        is_callback_interface = interface_name in IdlType.callback_interfaces
         referenced_classes.append({
             'fully_qualified_name':
                 '%s::%s' % (namespace, interface_name),
@@ -493,6 +534,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     all_interfaces = []
     for interface_name in referenced_interface_names:
       if (interface_name not in IdlType.callback_interfaces and
+          interface_name not in IdlType.enums and
           not interfaces_info[interface_name]['unsupported'] and
           not interfaces_info[interface_name]['is_dictionary']):
         all_interfaces.append({
