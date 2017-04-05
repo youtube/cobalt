@@ -1603,17 +1603,8 @@ const std::string* MemoryTrackerLeakFinder::GetOrCreateCplusPlusSymbol(
 }
 
 const std::string* MemoryTrackerLeakFinder::TryGetJavascriptSymbol() {
-  script::mozjs::util::StackTraceGenerator* js_stack_gen =
-      script::mozjs::util::GetThreadLocalStackTraceGenerator();
-  if (!js_stack_gen || !js_stack_gen->Valid()) return NULL;
-
-  // Only get one symbol.
-  char buffer[256];
-  if (!js_stack_gen->GenerateStackTraceString(1, buffer, sizeof(buffer))) {
-    return NULL;
-  }
-  const char* file_name = BaseNameFast(buffer);
-  return &string_pool_.Intern(file_name);
+  // TODO: Actually get and use a stack trace here.
+  return NULL;
 }
 
 void MemoryTrackerLeakFinder::SampleSnapshot(
