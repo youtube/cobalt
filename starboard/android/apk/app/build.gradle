@@ -111,7 +111,11 @@ COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
 
         def buildTaskName = "buildCobalt${abi.capitalize()}${buildType.capitalize()}"
         task(buildTaskName, type: Exec) {
-            commandLine 'sh', 'cobalt-ninja.sh', '-C', cobaltNinjaDir, STARBOARD_APP
+            def ninjaArgs = ['-C', cobaltNinjaDir, STARBOARD_APP]
+            if (project.hasProperty('cobaltPlatformDeploy') && cobaltPlatformDeploy.toBoolean()) {
+                ninjaArgs.add(0, '-n')
+            }
+            commandLine = ['sh', 'cobalt-ninja.sh', *ninjaArgs]
         }
 
         def copyTaskName = "copyCobalt${abi.capitalize()}${buildType.capitalize()}"
