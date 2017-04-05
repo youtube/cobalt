@@ -104,8 +104,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const PipelineStatusCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
-                     const base::Closure& duration_change_cb,
-                     bool prefer_decode_to_texture) = 0;
+                     const base::Closure& duration_change_cb) = 0;
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.
@@ -176,8 +175,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // Get the SetBoundsCB used to set the bounds of the video frame.
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
 
-  // Returns whether the player is configured for outputting in punch out mode.
-  virtual bool IsPunchOutMode() { return false; }
+  // Updates the player's preference for decode-to-texture versus punch through.
+  virtual void SetDecodeToTextureOutputMode(bool /*enabled*/) {}
 };
 
 }  // namespace media
