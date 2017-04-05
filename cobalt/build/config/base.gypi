@@ -303,7 +303,9 @@
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
     'sb_libevent_method%': 'epoll',
-    'cobalt_media_source_2016%': 0,
+    # Use media source extension implementation that is conformed to the
+    # Candidate Recommandation of July 5th 2016.
+    'cobalt_media_source_2016%': 1,
   },
 
   'target_defaults': {
