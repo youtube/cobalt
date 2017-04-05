@@ -17,6 +17,9 @@
 #include "media/base/shell_video_frame_provider.h"
 
 #include "base/logging.h"
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#include "starboard/decode_target.h"
+#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 namespace media {
 
@@ -98,6 +101,41 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
   }
   return current_frame_;
 }
+
+void ShellVideoFrameProvider::SetOutputMode(OutputMode output_mode) {
+  base::AutoLock auto_lock(frames_lock_);
+  output_mode_ = output_mode;
+}
+
+ShellVideoFrameProvider::OutputMode ShellVideoFrameProvider::GetOutputMode()
+    const {
+  base::AutoLock auto_lock(frames_lock_);
+  return output_mode_;
+}
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+void ShellVideoFrameProvider::SetGetCurrentSbDecodeTargetFunction(
+    GetCurrentSbDecodeTargetFunction function) {
+  base::AutoLock auto_lock(frames_lock_);
+  get_current_sb_decode_target_function_ = function;
+}
+
+void ShellVideoFrameProvider::ResetGetCurrentSbDecodeTargetFunction() {
+  base::AutoLock auto_lock(frames_lock_);
+  get_current_sb_decode_target_function_.Reset();
+}
+
+SbDecodeTarget ShellVideoFrameProvider::GetCurrentSbDecodeTarget() const {
+  base::AutoLock auto_lock(frames_lock_);
+  if (get_current_sb_decode_target_function_.is_null()) {
+    return kSbDecodeTargetInvalid;
+  } else {
+    return get_current_sb_decode_target_function_.Run();
+  }
+}
+
+#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 void ShellVideoFrameProvider::AddFrame(const scoped_refptr<VideoFrame>& frame) {
   base::AutoLock auto_lock(frames_lock_);

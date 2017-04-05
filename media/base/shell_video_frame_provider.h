@@ -69,8 +69,8 @@ class ShellVideoFrameProvider
   // returns NULL.
   const scoped_refptr<VideoFrame>& GetCurrentFrame();
 
-  void SetOutputMode(OutputMode output_mode) { output_mode_ = output_mode; }
-  OutputMode GetOutputMode() const { return output_mode_; }
+  void SetOutputMode(OutputMode output_mode);
+  OutputMode GetOutputMode() const;
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   // For Starboard platforms that have a decode-to-texture player, we enable
@@ -80,21 +80,11 @@ class ShellVideoFrameProvider
   // Starboard implementation to provide us with the current video frame when
   // needed.
   void SetGetCurrentSbDecodeTargetFunction(
-      GetCurrentSbDecodeTargetFunction function) {
-    get_current_sb_decode_target_function_ = function;
-  }
+      GetCurrentSbDecodeTargetFunction function);
 
-  void ResetGetCurrentSbDecodeTargetFunction() {
-    get_current_sb_decode_target_function_.Reset();
-  }
+  void ResetGetCurrentSbDecodeTargetFunction();
 
-  SbDecodeTarget GetCurrentSbDecodeTarget() const {
-    if (get_current_sb_decode_target_function_.is_null()) {
-      return kSbDecodeTargetInvalid;
-    } else {
-      return get_current_sb_decode_target_function_.Run();
-    }
-  }
+  SbDecodeTarget GetCurrentSbDecodeTarget() const;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   void AddFrame(const scoped_refptr<VideoFrame>& frame);

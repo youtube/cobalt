@@ -124,8 +124,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
              const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
-             const base::Closure& duration_change_cb,
-             bool prefer_decode_to_texture) OVERRIDE;
+             const base::Closure& duration_change_cb) OVERRIDE;
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.
