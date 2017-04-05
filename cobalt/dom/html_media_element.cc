@@ -19,6 +19,7 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/debug/trace_event.h"
 #include "base/guid.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -145,11 +146,13 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false) {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement");
   MLOG();
   html_media_element_count_log.Get().count++;
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement");
   MLOG();
   ClearMediaSource();
   html_media_element_count_log.Get().count--;
@@ -166,6 +169,7 @@ std::string HTMLMediaElement::src() const {
 }
 
 void HTMLMediaElement::set_src(const std::string& src) {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::set_src");
   MLOG() << src;
   SetAttribute("src", src);
   ClearMediaPlayer();
@@ -200,6 +204,7 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
 }
 
 void HTMLMediaElement::Load() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Load");
   // LoadInternal may result in a 'beforeload' event, which can make arbitrary
   // DOM mutations.
   scoped_refptr<HTMLMediaElement> protect(this);
@@ -487,6 +492,7 @@ void HTMLMediaElement::set_loop(bool loop) {
 }
 
 void HTMLMediaElement::Play() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Play");
   MLOG();
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
@@ -513,6 +519,7 @@ void HTMLMediaElement::Play() {
 }
 
 void HTMLMediaElement::Pause() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Pause");
   MLOG();
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
@@ -609,11 +616,13 @@ void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleEvent");
   MLOG() << event->type();
   event_queue_.Enqueue(event);
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::CreateMediaPlayer");
   MLOG();
   if (src().empty()) {
     reduced_image_cache_capacity_request_ = base::nullopt;
@@ -652,6 +661,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
 }
 
 void HTMLMediaElement::ScheduleLoad() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleLoad");
   if (!pending_load_) {
     PrepareForLoad();
     pending_load_ = true;
@@ -664,6 +674,7 @@ void HTMLMediaElement::ScheduleLoad() {
 }
 
 void HTMLMediaElement::PrepareForLoad() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PrepareForLoad");
   // Perform the cleanup required for the resource load algorithm to run.
   StopPeriodicTimers();
   load_timer_.Stop();
@@ -727,6 +738,7 @@ void HTMLMediaElement::PrepareForLoad() {
 }
 
 void HTMLMediaElement::LoadInternal() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::LoadInternal");
   DCHECK(node_document());
 
   // Select media resource.
@@ -857,6 +869,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ClearMediaPlayer");
   MLOG();
 
   ClearMediaSource();
@@ -923,6 +936,7 @@ void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error) {
 // This is kept as a one shot timer to be in sync with the original code. It
 // should be replaced by PostTask if this is any future rewrite.
 void HTMLMediaElement::OnLoadTimer() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::OnLoadTimer");
   scoped_refptr<HTMLMediaElement> protect(this);
 
   if (pending_load_) {
@@ -1502,6 +1516,7 @@ float HTMLMediaElement::Volume() const { return volume(NULL); }
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
 void HTMLMediaElement::SourceOpened(media::ChunkDemuxer* chunk_demuxer) {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened");
   BeginProcessingMediaPlayerCallback();
   DCHECK(media_source_);
   media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);

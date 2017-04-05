@@ -17,6 +17,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "starboard/decode_target.h"
 
@@ -54,8 +55,15 @@ class ShellVideoFrameProvider
 
   scoped_refptr<VideoFrame> GetCurrentFrame() { return NULL; }
 
-  void SetOutputMode(OutputMode output_mode) { output_mode_ = output_mode; }
-  OutputMode GetOutputMode() const { return output_mode_; }
+  void SetOutputMode(OutputMode output_mode) {
+    base::AutoLock auto_lock(lock_);
+    output_mode_ = output_mode;
+  }
+
+  ShellVideoFrameProvider::OutputMode GetOutputMode() const {
+    base::AutoLock auto_lock(lock_);
+    return output_mode_;
+  }
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   // For Starboard platforms that have a decode-to-texture player, we enable
@@ -66,14 +74,17 @@ class ShellVideoFrameProvider
   // needed.
   void SetGetCurrentSbDecodeTargetFunction(
       GetCurrentSbDecodeTargetFunction function) {
+    base::AutoLock auto_lock(lock_);
     get_current_sb_decode_target_function_ = function;
   }
 
   void ResetGetCurrentSbDecodeTargetFunction() {
+    base::AutoLock auto_lock(lock_);
     get_current_sb_decode_target_function_.Reset();
   }
 
   SbDecodeTarget GetCurrentSbDecodeTarget() const {
+    base::AutoLock auto_lock(lock_);
     if (get_current_sb_decode_target_function_.is_null()) {
       return kSbDecodeTargetInvalid;
     } else {
@@ -83,6 +94,8 @@ class ShellVideoFrameProvider
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
  private:
+  mutable base::Lock lock_;
+
   OutputMode output_mode_;
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
