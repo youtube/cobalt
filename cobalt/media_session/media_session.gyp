@@ -26,6 +26,7 @@
         'media_session.cc',
         'media_metadata.h',
         'media_session_client.h',
+        'media_session_client.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
