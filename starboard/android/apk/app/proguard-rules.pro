@@ -10,15 +10,12 @@
 # Annotations are implemented as attributes, so we have to explicitly keep them.
 -keepattributes *Annotation*
 
-# Keep the annotations that proguard needs to process.
--keep class foo.cobalt.UsedByNative
-
-# Just because native code accesses members of a class, does not mean that the
-# class itself needs to be annotated - only classes that are explicitly
-# referenced in native code should be annotated.
+# Keep classes, methods, and fields that are accessed with JNI.
+-keep @interface foo.cobalt.UsedByNative
 -keep @foo.cobalt.UsedByNative class *
-
-# Methods and fields that are referenced in native code should be annotated.
--keepclassmembers class * {
-    @foo.cobalt.UsedByNative *;
+-keepclasseswithmembers class * {
+  @foo.cobalt.UsedByNative <methods>;
+}
+-keepclasseswithmembers class * {
+  @foo.cobalt.UsedByNative <fields>;
 }
