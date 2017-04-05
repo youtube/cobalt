@@ -14,6 +14,7 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/enumeration_interface.h"
+#include "cobalt/bindings/testing/test_enum.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,13 +32,13 @@ typedef InterfaceBindingsTest<EnumerationInterface> EnumerationBindingsTest;
 TEST_F(EnumerationBindingsTest, SetEnumeration) {
   InSequence dummy;
 
-  EXPECT_CALL(test_mock(), set_enum_property(EnumerationInterface::kAlpha));
+  EXPECT_CALL(test_mock(), set_enum_property(kTestEnumAlpha));
   EXPECT_TRUE(EvaluateScript("test.enumProperty = \"alpha\";", NULL));
 
-  EXPECT_CALL(test_mock(), set_enum_property(EnumerationInterface::kBeta));
+  EXPECT_CALL(test_mock(), set_enum_property(kTestEnumBeta));
   EXPECT_TRUE(EvaluateScript("test.enumProperty = \"beta\";", NULL));
 
-  EXPECT_CALL(test_mock(), set_enum_property(EnumerationInterface::kGamma));
+  EXPECT_CALL(test_mock(), set_enum_property(kTestEnumGamma));
   EXPECT_TRUE(EvaluateScript("test.enumProperty = \"gamma\";", NULL));
 }
 
@@ -45,18 +46,15 @@ TEST_F(EnumerationBindingsTest, GetEnumeration) {
   InSequence dummy;
   std::string result;
 
-  EXPECT_CALL(test_mock(), enum_property())
-      .WillOnce(Return(EnumerationInterface::kAlpha));
+  EXPECT_CALL(test_mock(), enum_property()).WillOnce(Return(kTestEnumAlpha));
   EXPECT_TRUE(EvaluateScript("test.enumProperty == \"alpha\";", &result));
   EXPECT_STREQ("true", result.c_str());
 
-  EXPECT_CALL(test_mock(), enum_property())
-      .WillOnce(Return(EnumerationInterface::kBeta));
+  EXPECT_CALL(test_mock(), enum_property()).WillOnce(Return(kTestEnumBeta));
   EXPECT_TRUE(EvaluateScript("test.enumProperty == \"beta\";", &result));
   EXPECT_STREQ("true", result.c_str());
 
-  EXPECT_CALL(test_mock(), enum_property())
-      .WillOnce(Return(EnumerationInterface::kGamma));
+  EXPECT_CALL(test_mock(), enum_property()).WillOnce(Return(kTestEnumGamma));
   EXPECT_TRUE(EvaluateScript("test.enumProperty == \"gamma\";", &result));
   EXPECT_STREQ("true", result.c_str());
 }
