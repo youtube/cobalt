@@ -20,7 +20,8 @@
 # Input variables:
 #   source_idl_files: All IDL files for which a bindings wrapper should be
 #       created.
-#   dictionary_idl_files: All IDL files for IDL dictionaries.
+#   generated_header_idl_files: IDL files for IDL dictionaries and IDL enums. A
+#       header will be generated for these that can be #included in
 #   dependency_idl_files: IDL files that are dependencies of other IDLs, but no
 #       bindings wrapper will be created. For example, partial interfaces and
 #       the right-hand-side of implements statements.
@@ -89,11 +90,10 @@
     # directory of each IDL.
     'source_idl_files': [],
 
-    # A class definition that matches the dictionary definition and is
-    # suitable to be included and used in Cobalt code will be generated, as well
-    # as a conversion function between an instance of this class and a JS
-    # object.
-    'dictionary_idl_files': [],
+    # For each IDL file in this list, a header file that can be #included in
+    # Cobalt will be generated, as well as a .cc file that implements the
+    # conversion to/from a JS value.
+    'generated_header_idl_files': [],
 
     # Partial interfaces and the right-side of "implements"
     # Code will not get generated for these interfaces; they are used to add
@@ -182,6 +182,15 @@
          ' --base_directory <(DEPTH)'
          ' <@(source_idl_files))'],
 
+    # .cc files that implement conversion functions to/from a JS value for
+    # generated types (enums and dictionaries).
+    'generated_type_conversions':
+        ['<!@pymod_do_main(cobalt.build.path_conversion -s'
+         ' --output_directory <(generated_source_output_dir)'
+         ' --output_extension cc --output_prefix <(prefix)_'
+         ' --base_directory <(DEPTH)'
+         ' <@(generated_header_idl_files))'],
+
     # Generated IDL file that will define all the constructors that should be
     # on the Window object
     'global_constructors_generated_idl_file':
@@ -211,7 +220,7 @@
       'dependencies': [
         'cached_jinja_templates',
         'cached_lex_yacc_tables',
-        'generated_dictionaries',
+        'generated_types',
         'generated_type_conversion',
         'global_constructors_idls',
         'interfaces_info_overall',
@@ -289,6 +298,7 @@
         ],
         'sources': [
           '<@(generated_sources)',
+          '<@(generated_type_conversions)',
         ],
         'defines': [ '<@(bindings_defines)'],
       }
@@ -297,7 +307,7 @@
     {
       # Based on the generated_bindings target above. Main difference is that
       # this produces two .h files, and takes the dictionary idl files as input.
-      'target_name': 'generated_dictionaries',
+      'target_name': 'generated_types',
       'type': 'none',
       'hard_dependency': 1,
       'dependencies': [
@@ -307,7 +317,7 @@
         'interfaces_info_overall',
       ],
       'sources': [
-        '<@(dictionary_idl_files)',
+        '<@(generated_header_idl_files)',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -349,7 +359,7 @@
           '<!@pymod_do_main(cobalt.build.path_conversion -s '
               '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
+              '-e cc -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
           'python',
@@ -390,7 +400,7 @@
       ],
       'sources': [
         '<@(source_idl_files)',
-        '<@(dictionary_idl_files)'
+        '<@(generated_header_idl_files)'
       ],
       'actions': [{
         'action_name': 'generate_type_conversion_header',
@@ -445,7 +455,7 @@
       'target_name': 'global_objects',
       'variables': {
         'idl_files': [
-          '<@(source_idl_files)', '<@(dictionary_idl_files)'
+          '<@(source_idl_files)', '<@(generated_header_idl_files)'
         ],
         'output_file': '<(bindings_scripts_output_dir)/GlobalObjects.pickle',
       },
@@ -486,7 +496,8 @@
       ],
       'variables': {
         'static_idl_files': [
-          '<@(source_idl_files)', '<@(dictionary_idl_files)',
+          '<@(source_idl_files)',
+          '<@(generated_header_idl_files)',
           '<@(dependency_idl_files)',
           '<@(unsupported_interface_idl_files)'],
         'generated_idl_files': ['<(global_constructors_generated_idl_file)'],
