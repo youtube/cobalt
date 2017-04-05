@@ -589,8 +589,11 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
   scoped_refptr<loader::mesh::MeshProjection> mesh_projection(
       used_style_provider()->ResolveURLToMeshProjection(url));
 
-  DCHECK(mesh_projection)
-      << "Could not load mesh specified by map-to-mesh filter.";
+  if (!mesh_projection) {
+    DLOG(WARNING)
+        << "Could not load mesh specified by map-to-mesh filter.";
+    return;
+  }
 
   scoped_refptr<render_tree::Mesh> left_eye_mesh = mesh_projection->GetMesh(
       loader::mesh::MeshProjection::kLeftEyeOrMonoCollection);
