@@ -24,6 +24,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/bindings/testing/test_enum.h"
 
 #include "mozjs_gen_type_conversion.h"
 
@@ -51,6 +52,7 @@
 namespace {
 using cobalt::bindings::testing::EnumerationInterface;
 using cobalt::bindings::testing::MozjsEnumerationInterface;
+using cobalt::bindings::testing::TestEnum;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
 using cobalt::script::OpaqueHandle;
@@ -81,15 +83,6 @@ using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::mozjs::kNoConversionFlags;
-// Declare and define these in the same namespace that the other overloads
-// were brought into with the using declaration.
-void ToJSValue(
-    JSContext* context,
-    EnumerationInterface::TestEnum in_enum,
-    JS::MutableHandleValue out_value);
-void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 EnumerationInterface::TestEnum* out_enum);
 }  // namespace
 
 namespace cobalt {
@@ -272,7 +265,7 @@ JSBool set_enumProperty(
       WrapperPrivate::GetFromObject(context, object);
   EnumerationInterface* impl =
       wrapper_private->wrappable<EnumerationInterface>().get();
-  TypeTraits<EnumerationInterface::TestEnum >::ConversionType value;
+  TypeTraits<TestEnum >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -326,8 +319,8 @@ JSBool fcn_optionalEnumWithDefault(
   EnumerationInterface* impl =
       wrapper_private->wrappable<EnumerationInterface>().get();
   // Optional arguments with default values
-  TypeTraits<EnumerationInterface::TestEnum >::ConversionType value =
-      EnumerationInterface::kBeta;
+  TypeTraits<TestEnum >::ConversionType value =
+      kTestEnumBeta;
   size_t num_set_arguments = 1;
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
@@ -559,58 +552,3 @@ JSBool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-namespace {
-
-inline void ToJSValue(
-    JSContext* context,
-    EnumerationInterface::TestEnum in_enum,
-    JS::MutableHandleValue out_value) {
-
-  switch (in_enum) {
-    case EnumerationInterface::kAlpha:
-      ToJSValue(context, std::string("alpha"), out_value);
-      return;
-    case EnumerationInterface::kBeta:
-      ToJSValue(context, std::string("beta"), out_value);
-      return;
-    case EnumerationInterface::kGamma:
-      ToJSValue(context, std::string("gamma"), out_value);
-      return;
-    default:
-      NOTREACHED();
-      out_value.set(JS::UndefinedValue());
-  }
-}
-
-
-inline void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 EnumerationInterface::TestEnum* out_enum) {
-  DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
-  // JSValue -> IDL enum algorithm described here:
-  // http://heycam.github.io/webidl/#es-enumeration
-  // 1. Let S be the result of calling ToString(V).
-  JS::RootedString rooted_string(context, JS_ValueToString(context, value));
-
-  JSBool match = JS_FALSE;
-// 3. Return the enumeration value of type E that is equal to S.
-if (JS_StringEqualsAscii(
-      context, rooted_string, "alpha", &match)
-      && match) {
-    *out_enum = EnumerationInterface::kAlpha;
-  } else if (JS_StringEqualsAscii(
-      context, rooted_string, "beta", &match)
-      && match) {
-    *out_enum = EnumerationInterface::kBeta;
-  } else if (JS_StringEqualsAscii(
-      context, rooted_string, "gamma", &match)
-      && match) {
-    *out_enum = EnumerationInterface::kGamma;
-  } else {
-    // 2. If S is not one of E's enumeration values, then throw a TypeError.
-    exception_state->SetSimpleException(cobalt::script::kConvertToEnumFailed);
-    return;
-  }
-}
-}  // namespace

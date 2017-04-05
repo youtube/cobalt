@@ -55,6 +55,7 @@ def convert_to_regular_cobalt_name(class_name):
 
 
 def convert_to_cobalt_name(class_name):
+  """Convert an IDL attribute name to Cobalt naming convention."""
   replacement = []
 
   for token in special_token_re.split(class_name):
@@ -78,10 +79,10 @@ def convert_to_cobalt_constant_name(constant_name):
                         for token in constant_name.split('_')))
 
 
-def convert_to_cobalt_enumeration_value(enum_value):
-  return 'k' + ''.join(
+def convert_to_cobalt_enumeration_value(enum_type, enum_value):
+  return 'k%s%s' % (enum_type, ''.join(
       (token.capitalize()
-       for token in enumeration_value_word_delimeter_re.split(enum_value)))
+       for token in enumeration_value_word_delimeter_re.split(enum_value))))
 
 
 def get_interface_name(idl_type):
