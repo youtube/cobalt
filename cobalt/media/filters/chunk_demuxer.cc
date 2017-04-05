@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "base/debug/trace_event.h"
 #include "base/location.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
@@ -422,6 +423,7 @@ std::string ChunkDemuxer::GetDisplayName() const { return "ChunkDemuxer"; }
 void ChunkDemuxer::Initialize(DemuxerHost* host,
                               const PipelineStatusCB& init_cb,
                               bool enable_text_tracks) {
+  TRACE_EVENT0("cobalt::media", "ChunkDemuxer::Initialize");
   DLOG(INFO) << "This is an ASYNC MEDIA SOURCE playback.";
   DVLOG(1) << "Init()";
 
@@ -1111,6 +1113,7 @@ bool ChunkDemuxer::IsSeekWaitingForData_Locked() const {
 
 void ChunkDemuxer::OnSourceInitDone(
     const std::string& source_id, const StreamParser::InitParameters& params) {
+  TRACE_EVENT0("cobalt::media", "ChunkDemuxer::OnSourceInitDone");
   DVLOG(1) << "OnSourceInitDone source_id=" << source_id
            << " duration=" << params.duration.InSecondsF();
   lock_.AssertAcquired();

@@ -12,6 +12,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"
+#include "base/debug/trace_event.h"
 #include "base/float_util.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
@@ -119,6 +120,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false) {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::WebMediaPlayerImpl");
+
   DCHECK(buffer_allocator_);
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
@@ -136,12 +139,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 }
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::~WebMediaPlayerImpl");
+
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
 
-  if (video_frame_provider_) {
-    video_frame_provider_->SetOutputMode(
-        ShellVideoFrameProvider::kOutputModeInvalid);
-  }
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
   }
@@ -196,6 +197,8 @@ URLSchemeForHistogram URLScheme(const GURL& url) {
 }  // anonymous namespace
 
 void WebMediaPlayerImpl::LoadMediaSource() {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadMediaSource");
+
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   // Handle any volume changes that occured before load().
@@ -219,6 +222,8 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 void WebMediaPlayerImpl::LoadProgressive(
     const GURL& url, scoped_ptr<BufferedDataSource> data_source,
     CORSMode cors_mode) {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadProgressive");
+
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
@@ -247,6 +252,8 @@ void WebMediaPlayerImpl::CancelLoad() {
 }
 
 void WebMediaPlayerImpl::Play() {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::Play");
+
   DCHECK_EQ(main_loop_, MessageLoop::current());
 #if defined(__LB_ANDROID__)
   audio_focus_bridge_.RequestAudioFocus();
@@ -615,10 +622,6 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 
   switch (buffering_state) {
     case Pipeline::kHaveMetadata:
-      video_frame_provider_->SetOutputMode(
-          (pipeline_->IsPunchOutMode()
-               ? ShellVideoFrameProvider::kOutputModePunchOut
-               : ShellVideoFrameProvider::kOutputModeDecodeToTexture));
       SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
       break;
     case Pipeline::kPrerollCompleted:
@@ -628,8 +631,10 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 }
 
 void WebMediaPlayerImpl::OnDemuxerOpened() {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::OnDemuxerOpened");
   DCHECK_EQ(main_loop_, MessageLoop::current());
   DCHECK(chunk_demuxer_);
+
   GetClient()->SourceOpened(chunk_demuxer_.get());
 }
 
@@ -651,15 +656,17 @@ void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
 }
 
 void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::StartPipeline");
+
   state_.starting = true;
 
+  pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
       demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
-      client_->PreferDecodeToTexture());
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged));
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
@@ -690,6 +697,8 @@ void WebMediaPlayerImpl::SetReadyState(WebMediaPlayer::ReadyState state) {
 }
 
 void WebMediaPlayerImpl::Destroy() {
+  TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::Destroy");
+
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
 
   // If |main_loop_| has already stopped, do nothing here.
