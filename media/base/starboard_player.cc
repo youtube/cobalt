@@ -73,6 +73,8 @@ StarboardPlayer::~StarboardPlayer() {
 
   set_bounds_helper_->SetPlayer(NULL);
 
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ShellVideoFrameProvider::kOutputModeInvalid);
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   ShellMediaPlatform::Instance()
       ->GetVideoFrameProvider()
@@ -316,6 +318,25 @@ void StarboardPlayer::Resume() {
   state_ = kResuming;
 }
 
+namespace {
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+ShellVideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
+    SbPlayerOutputMode output_mode) {
+  switch (output_mode) {
+    case kSbPlayerOutputModeDecodeToTexture:
+      return ShellVideoFrameProvider::kOutputModeDecodeToTexture;
+    case kSbPlayerOutputModePunchOut:
+      return ShellVideoFrameProvider::kOutputModePunchOut;
+    case kSbPlayerOutputModeInvalid:
+      return ShellVideoFrameProvider::kOutputModeInvalid;
+  }
+
+  NOTREACHED();
+  return ShellVideoFrameProvider::kOutputModeInvalid;
+}
+#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+}  // namespace
+
 void StarboardPlayer::CreatePlayer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -369,8 +390,12 @@ void StarboardPlayer::CreatePlayer() {
             base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
                        base::Unretained(this)));
   }
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ToVideoFrameProviderOutputMode(output_mode_));
+#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ShellVideoFrameProvider::kOutputModePunchOut);
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
   set_bounds_helper_->SetPlayer(this);
 }
 
