@@ -108,6 +108,35 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                                         global_environment->wrapper_factory());
 }
 
+// ValueHandle -> JSValue
+void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
+               JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  JS::RootedValue js_value(context);
+  if (value_handle_holder) {
+    // Downcast to MozjsValueHandleHolder so we can get the JS object.
+    const MozjsValueHandleHolder* mozjs_value_handle_holder =
+        base::polymorphic_downcast<const MozjsValueHandleHolder*>(
+            value_handle_holder);
+    js_value = mozjs_value_handle_holder->js_value();
+  }
+
+  out_value.set(js_value);
+}
+
+// JSValue -> ValueHandle
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 MozjsValueHandleHolder* out_holder) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
+      << "Unexpected conversion flags found.";
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  *out_holder = MozjsValueHandleHolder(value, context,
+                                       global_environment->wrapper_factory());
+}
+
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
