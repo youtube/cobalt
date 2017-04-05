@@ -53,9 +53,10 @@ enum ConversionFlags {
   kConversionFlagNullable = 1 << 1,
   kConversionFlagTreatNullAsEmptyString = 1 << 2,
   kConversionFlagTreatUndefinedAsEmptyString = 1 << 3,
+  kConversionFlagClamped = 1 << 4,
 
   // Valid conversion flags for numeric values.
-  kConversionFlagsNumeric = kConversionFlagRestricted,
+  kConversionFlagsNumeric = kConversionFlagRestricted | kConversionFlagClamped,
 
   // Valid conversion flags for string types.
   kConversionFlagsString = kConversionFlagTreatNullAsEmptyString |
