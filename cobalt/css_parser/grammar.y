@@ -6480,18 +6480,22 @@ entry_point:
   | kPropertyValueEntryPointToken maybe_whitespace maybe_declaration {
     scoped_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration != NULL) {
-      DCHECK_EQ(1, property_declaration->property_values.size()) <<
-          "Cannot parse shorthand properties as single property values.";
-      if (property_declaration->is_important) {
-        parser_impl->LogWarning(
-          @1, "!important is not allowed when setting single property values.");
+      if (property_declaration->property_values.size() != 1) {
+        parser_impl->LogError(
+            @1, "Cannot parse shorthand properties as single property values.");
       } else {
-        if (!property_declaration->property_values[0].value) {
+        if (property_declaration->is_important) {
           parser_impl->LogWarning(
-            @1, "declaration must have a property value.");
+            @1,
+            "!important is not allowed when setting single property values.");
         } else {
-          parser_impl->set_property_value(
-              property_declaration->property_values[0].value);
+          if (!property_declaration->property_values[0].value) {
+            parser_impl->LogWarning(
+              @1, "declaration must have a property value.");
+          } else {
+            parser_impl->set_property_value(
+                property_declaration->property_values[0].value);
+          }
         }
       }
     }
