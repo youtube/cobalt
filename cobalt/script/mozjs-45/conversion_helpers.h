@@ -29,10 +29,12 @@
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/mozjs-45/union_type_conversion_forward.h"
 #include "cobalt/script/mozjs-45/util/algorithm_helpers.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/value_handle.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/public/CharacterEncoding.h"
 #include "third_party/mozjs-45/js/public/Conversions.h"
@@ -290,16 +292,25 @@ inline void FromJSValue(
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
   DCHECK(out_number);
 
   uint32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
-  bool success = JS::ToUint32(context, value, &out);
+  // TODO: Consider only creating |value_to_convert| if the conversion flag is
+  // set.
+  JS::RootedValue value_to_convert(context);
+  if (conversion_flags & kConversionFlagClamped) {
+    ClampedValue<T>(context, value, &value_to_convert);
+  } else {
+    value_to_convert.set(value);
+  }
+  bool success = JS::ToUint32(context, value_to_convert, &out);
   DCHECK(success);
-
+  if (!success) {
+    exception_state->SetSimpleException(kNotUint64Type);
+    return;
+  }
   *out_number = static_cast<T>(out);
 }
 
@@ -314,8 +325,6 @@ inline void FromJSValue(
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
   DCHECK(out_number);
 
   uint64_t out;
@@ -446,6 +455,15 @@ void ToJSValue(JSContext* context,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  MozjsObjectHandleHolder* out_holder);
+
+// ValueHandle -> JSValue
+void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
+               JS::MutableHandleValue out_value);
+
+// JSValue -> ValueHandle
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 MozjsValueHandleHolder* out_holder);
 
 // object -> JSValue
 template <typename T>
