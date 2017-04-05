@@ -30,5 +30,12 @@ RC_FILE=$(dirname $0)/.cobaltrc
 SRC_DIR=$(cd $(dirname $0)/../../../..; pwd)
 PATH=$PATH:${SRC_DIR}/third_party/llvm-build/Release+Asserts/bin
 
+# Do nothing if -n is the first argument.
+if [ "$1" == "-n" ]; then
+  shift
+  echo "Skipping: ninja $@"
+  exit
+fi
+
 # Execute the ninja we found, or fail if we didn't find it.
 exec ${DEPOT_TOOLS}/ninja "$@"
