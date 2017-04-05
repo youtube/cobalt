@@ -190,9 +190,6 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
     video_frame_provider_->UnregisterMediaTimeAndSeekingStateCB(
         media_time_and_seeking_state_cb_);
     media_time_and_seeking_state_cb_.Reset();
-
-    video_frame_provider_->SetOutputMode(
-        ShellVideoFrameProvider::kOutputModeInvalid);
   }
 
 #if defined(__LB_ANDROID__)
@@ -968,10 +965,6 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 
   switch (buffering_state) {
     case Pipeline::kHaveMetadata:
-      video_frame_provider_->SetOutputMode(
-          (pipeline_->IsPunchOutMode() ?
-               ShellVideoFrameProvider::kOutputModePunchOut :
-               ShellVideoFrameProvider::kOutputModeDecodeToTexture));
       SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
       break;
     case Pipeline::kPrerollCompleted:
@@ -982,6 +975,7 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 
 void WebMediaPlayerImpl::OnDemuxerOpened() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
+
   GetClient()->SourceOpened();
 }
 
@@ -1089,14 +1083,14 @@ void WebMediaPlayerImpl::StartPipeline() {
                                         base::Unretained(decryptor_.get()));
   }
 
+  pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
       filter_collection_.Pass(), set_decryptor_ready_cb,
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
-      client_->PreferDecodeToTexture());
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged));
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
