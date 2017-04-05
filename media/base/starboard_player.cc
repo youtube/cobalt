@@ -139,11 +139,21 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   if (is_encrypted) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
+#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+  const void* sample_buffers[] = {buffer->GetData()};
+  int sample_buffer_sizes[] = {buffer->GetDataSize()};
+  SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
+                      sample_buffers, sample_buffer_sizes, 1,
+                      TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
+                      type == DemuxerStream::VIDEO ? &video_info : NULL,
+                      drm_info.subsample_count > 0 ? &drm_info : NULL);
+#else   // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
   SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
                       buffer->GetData(), buffer->GetDataSize(),
                       TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
                       type == DemuxerStream::VIDEO ? &video_info : NULL,
                       drm_info.subsample_count > 0 ? &drm_info : NULL);
+#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
 }
 
 void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
