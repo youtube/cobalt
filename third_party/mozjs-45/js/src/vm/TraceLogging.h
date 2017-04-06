@@ -111,7 +111,11 @@ class TraceLoggerEvent {
         return !!payload_;
     }
 
+#if defined(JS_TRACE_LOGGING)
     TraceLoggerEvent& operator=(const TraceLoggerEvent& other);
+#else
+    TraceLoggerEvent& operator=(const TraceLoggerEvent& other) { return *this; }
+#endif
     TraceLoggerEvent(const TraceLoggerEvent& event) = delete;
 };
 
