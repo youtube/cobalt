@@ -354,8 +354,9 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 
 #if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
 
-// Writes a sample of the given media type to |player|'s input stream. The
-// lifetime of |sample_buffers|, |sample_buffers|, |video_sample_info|, and
+// Writes a single sample of the given media type to |player|'s input stream.
+// Its data may be passed in via more than one buffers.  The lifetime of
+// |sample_buffers|, |sample_buffer_sizes|, |video_sample_info|, and
 // |sample_drm_info| (as well as member |subsample_mapping| contained inside it)
 // are not guaranteed past the call to SbPlayerWriteSample. That means that
 // before returning, the implementation must synchronously copy any information
@@ -378,7 +379,8 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 //   call into SbPlayerWriteSample(), so it must be copied if its content will
 //   be used after SbPlayerWriteSample() returns.
 // |number_of_sample_buffers|: Specify the number of elements contained inside
-//   |sample_buffers| and |sample_buffer_sizes|.  It has to be at least one.
+//   |sample_buffers| and |sample_buffer_sizes|.  It has to be at least one, or
+//   the call will be ignored.
 // |sample_pts|: The timestamp of the sample in 90KHz ticks (PTS). Note that
 //   samples MAY be written "slightly" out of order.
 // |video_sample_info|: Information about a video sample. This value is
