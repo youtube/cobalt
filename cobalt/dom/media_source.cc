@@ -73,7 +73,7 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
 }  // namespace
 
 MediaSource::MediaSource()
-    : ready_state_(kClosed),
+    : ready_state_(kMediaSourceReadyStateClosed),
       player_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       source_buffers_(new SourceBufferList(&event_queue_)) {}
@@ -90,7 +90,7 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
 double MediaSource::duration(script::ExceptionState* exception_state) const {
   UNREFERENCED_PARAMETER(exception_state);
 
-  if (ready_state_ == kClosed) {
+  if (ready_state_ == kMediaSourceReadyStateClosed) {
     return std::numeric_limits<float>::quiet_NaN();
   }
 
@@ -104,7 +104,7 @@ void MediaSource::set_duration(double duration,
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
-  if (ready_state_ != kOpen) {
+  if (ready_state_ != kMediaSourceReadyStateOpen) {
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
@@ -131,7 +131,7 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
     return NULL;
   }
 
-  if (!player_ || ready_state_ != kOpen) {
+  if (!player_ || ready_state_ != kMediaSourceReadyStateOpen) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return NULL;
@@ -182,18 +182,16 @@ void MediaSource::RemoveSourceBuffer(
   player_->SourceRemoveId(source_buffer->id());
 }
 
-MediaSource::ReadyState MediaSource::ready_state() const {
-  return ready_state_;
-}
+MediaSourceReadyState MediaSource::ready_state() const { return ready_state_; }
 
 void MediaSource::EndOfStream(script::ExceptionState* exception_state) {
   // If there is no error string provided, treat it as empty.
-  EndOfStream(kNoError, exception_state);
+  EndOfStream(kMediaSourceEndOfStreamErrorNoError, exception_state);
 }
 
-void MediaSource::EndOfStream(EndOfStreamError error,
+void MediaSource::EndOfStream(MediaSourceEndOfStreamError error,
                               script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ != kOpen) {
+  if (!player_ || ready_state_ != kMediaSourceReadyStateOpen) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
@@ -201,18 +199,18 @@ void MediaSource::EndOfStream(EndOfStreamError error,
   WebMediaPlayer::EndOfStreamStatus eos_status =
       WebMediaPlayer::kEndOfStreamStatusNoError;
 
-  if (error == kNoError) {
+  if (error == kMediaSourceEndOfStreamErrorNoError) {
     eos_status = WebMediaPlayer::kEndOfStreamStatusNoError;
-  } else if (error == kNetwork) {
+  } else if (error == kMediaSourceEndOfStreamErrorNetwork) {
     eos_status = WebMediaPlayer::kEndOfStreamStatusNetworkError;
-  } else if (error == kDecode) {
+  } else if (error == kMediaSourceEndOfStreamErrorDecode) {
     eos_status = WebMediaPlayer::kEndOfStreamStatusDecodeError;
   } else {
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
 
-  SetReadyState(kEnded);
+  SetReadyState(kMediaSourceReadyStateEnded);
   player_->SourceEndOfStream(eos_status);
 }
 
@@ -243,7 +241,7 @@ void MediaSource::ScheduleEvent(base::Token event_name) {
 scoped_refptr<TimeRanges> MediaSource::GetBuffered(
     const SourceBuffer* source_buffer,
     script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ == kClosed) {
+  if (!player_ || ready_state_ == kMediaSourceReadyStateClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return NULL;
@@ -263,7 +261,7 @@ scoped_refptr<TimeRanges> MediaSource::GetBuffered(
 bool MediaSource::SetTimestampOffset(const SourceBuffer* source_buffer,
                                      double timestamp_offset,
                                      script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ == kClosed) {
+  if (!player_ || ready_state_ == kMediaSourceReadyStateClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return false;
@@ -284,13 +282,13 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
     return;
   }
 
-  if (!player_ || ready_state_ == kClosed) {
+  if (!player_ || ready_state_ == kMediaSourceReadyStateClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
-  if (ready_state_ == kEnded) {
-    SetReadyState(kOpen);
+  if (ready_state_ == kMediaSourceReadyStateEnded) {
+    SetReadyState(kMediaSourceReadyStateOpen);
   }
 
   TRACE_EVENT1("media_stack", "MediaSource::Append()", "size", size);
@@ -314,7 +312,7 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
 
 void MediaSource::Abort(const SourceBuffer* source_buffer,
                         script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ != kOpen) {
+  if (!player_ || ready_state_ != kMediaSourceReadyStateOpen) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
@@ -323,27 +321,28 @@ void MediaSource::Abort(const SourceBuffer* source_buffer,
   DCHECK(aborted);
 }
 
-void MediaSource::SetReadyState(ReadyState ready_state) {
+void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
   if (ready_state_ == ready_state) {
     return;
   }
 
-  ReadyState old_state = ready_state_;
+  MediaSourceReadyState old_state = ready_state_;
   ready_state_ = ready_state;
 
-  if (ready_state_ == kClosed) {
+  if (ready_state_ == kMediaSourceReadyStateClosed) {
     source_buffers_->Clear();
     player_ = NULL;
     ScheduleEvent(base::Tokens::sourceclose());
     return;
   }
 
-  if (old_state == kOpen && ready_state_ == kEnded) {
+  if (old_state == kMediaSourceReadyStateOpen &&
+      ready_state_ == kMediaSourceReadyStateEnded) {
     ScheduleEvent(base::Tokens::sourceended());
     return;
   }
 
-  if (ready_state_ == kOpen) {
+  if (ready_state_ == kMediaSourceReadyStateOpen) {
     ScheduleEvent(base::Tokens::sourceopen());
   }
 }

@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/dom_parser_supported_type.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
@@ -33,21 +34,12 @@ class HTMLElementContext;
 //   https://www.w3.org/TR/DOM-Parsing/#the-domparser-interface
 class DOMParser : public script::Wrappable {
  public:
-  enum SupportedType {
-    kTextHtml,
-    kTextXml,
-    kApplicationXml,
-    kApplicationXhtmlXml,
-    kImageSvgXml,
-    kMaxSupportedType,
-  };
-
   explicit DOMParser(script::EnvironmentSettings* environment_settings);
   explicit DOMParser(HTMLElementContext* html_element_context);
 
   // Web API: DOMParser
   scoped_refptr<Document> ParseFromString(const std::string& str,
-                                          const SupportedType& type);
+                                          DOMParserSupportedType type);
 
   DEFINE_WRAPPABLE_TYPE(DOMParser);
 

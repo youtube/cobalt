@@ -43,7 +43,7 @@ class TrackDefaultList : public script::Wrappable {
       script::ExceptionState* exception_state) {
     // |track_defaults| shouldn't contain two or more TrackDefault objects with
     // the same |type| and the same |byte_stream_track_id|.
-    typedef std::pair<TrackDefault::TrackDefaultType, std::string> TypeAndId;
+    typedef std::pair<TrackDefaultType, std::string> TypeAndId;
     std::set<TypeAndId> type_and_ids;
     for (script::Sequence<scoped_refptr<TrackDefault> >::size_type i = 0;
          i < track_defaults.size(); ++i) {

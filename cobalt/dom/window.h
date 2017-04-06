@@ -51,7 +51,6 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
-#include "cobalt/speech/speech_synthesis.h"
 #include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
@@ -60,6 +59,9 @@ namespace cobalt {
 namespace media_session {
 class MediaSession;
 }  // namespace media_session
+namespace speech {
+class SpeechSynthesis;
+}  // namespace speech
 }  // namespace cobalt
 
 namespace cobalt {
@@ -238,9 +240,7 @@ class Window : public EventTarget {
 
   // Web API: SpeechSynthesisGetter (implements)
   //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#tts-section
-  scoped_refptr<speech::SpeechSynthesis> speech_synthesis() const {
-    return speech_synthesis_;
-  }
+  scoped_refptr<speech::SpeechSynthesis> speech_synthesis() const;
 
   // Custom, not in any spec.
   //

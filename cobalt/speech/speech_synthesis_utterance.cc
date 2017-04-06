@@ -55,7 +55,7 @@ SpeechSynthesisUtterance::~SpeechSynthesisUtterance() {
 void SpeechSynthesisUtterance::DispatchErrorCancelledEvent() {
   if (pending_speak_) {
     SB_DLOG(INFO) << "Utterance has a pending Speak()";
-    DispatchErrorEvent(SpeechSynthesisErrorEvent::kCanceled);
+    DispatchErrorEvent(kSpeechSynthesisErrorCodeCanceled);
   }
 }
 
@@ -71,7 +71,7 @@ void SpeechSynthesisUtterance::DispatchEndEvent() {
 }
 
 void SpeechSynthesisUtterance::DispatchErrorEvent(
-    SpeechSynthesisErrorEvent::SpeechErrorCode error_code) {
+    SpeechSynthesisErrorCode error_code) {
   pending_speak_ = false;
   DispatchEvent(new SpeechSynthesisErrorEvent(error_code, this));
 }

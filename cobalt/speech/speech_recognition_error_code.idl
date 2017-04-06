@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/speech/speech_recognition_error.h"
+// https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-section
 
-#include "cobalt/base/tokens.h"
-
-namespace cobalt {
-namespace speech {
-
-SpeechRecognitionError::SpeechRecognitionError(
-    SpeechRecognitionErrorCode error_code, const std::string& message)
-    : dom::Event(base::Tokens::error()),
-      error_code_(error_code),
-      message_(message) {}
-
-}  // namespace speech
-}  // namespace cobalt
+enum SpeechRecognitionErrorCode {
+  "no-speech",
+  "aborted",
+  "audio-capture",
+  "network",
+  "not-allowed",
+  "service-not-allowed",
+  "bad-grammar",
+  "language-not-supported"
+};

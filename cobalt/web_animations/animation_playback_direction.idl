@@ -12,19 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-media-source-20160705/#trackdefault
-
-[
-  Constructor(TrackDefaultType type,
-              DOMString language,
-              DOMString label,
-              sequence<DOMString> kinds,
-              optional DOMString byteStreamTrackID = ""),
-  RaisesException=Constructor,
-] interface TrackDefault {
-  readonly attribute TrackDefaultType type;
-  readonly attribute DOMString byteStreamTrackID;
-  readonly attribute DOMString language;
-  readonly attribute DOMString label;
-  sequence<DOMString> getKinds();
-};
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-playbackdirection-enumeration
+enum AnimationPlaybackDirection { "normal", "reverse", "alternate", "alternate-reverse" };
