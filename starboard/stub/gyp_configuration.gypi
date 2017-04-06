@@ -26,6 +26,8 @@
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
 
+    'cobalt_media_source_2016': 1,
+
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.
     'compiler_flags_host': [

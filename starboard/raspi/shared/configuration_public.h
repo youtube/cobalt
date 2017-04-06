@@ -281,6 +281,8 @@
 #define SB_IS_PLAYER_PUNCHED_OUT 1
 #endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
+#if SB_API_VERSION < SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
+
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
 // being used by audio buffers but will also make JavaScript app less likely to
@@ -316,6 +318,8 @@
 // SB_MEDIA_MAIN_BUFFER_BUDGET has to be set to a non-zero value to avoid
 // media buffers being decoded when being stored in GPU.
 #define SB_MEDIA_GPU_BUFFER_BUDGET 0U
+
+#endif  // SB_API_VERSION < SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
 
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed

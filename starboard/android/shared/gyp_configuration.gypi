@@ -40,6 +40,8 @@
     'javascript_engine': 'mozjs',
     'cobalt_enable_jit': 0,
 
+    'cobalt_media_source_2016': 1,
+
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [
       '<(DEPTH)/starboard/android/shared/cobalt/cobalt_platform.gyp:cobalt_platform',
