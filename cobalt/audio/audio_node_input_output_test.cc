@@ -59,7 +59,7 @@ class AudioDestinationNodeMock : public AudioNode,
 void FillAudioBusFromOneSource(
     size_t num_of_src_channel, size_t num_of_frames,
     scoped_array<uint8> src_data,
-    const AudioNode::ChannelInterpretation& interpretation,
+    const AudioNodeChannelInterpretation& interpretation,
     ShellAudioBus* audio_bus, bool* silence) {
   scoped_refptr<AudioBufferSourceNode> source(new AudioBufferSourceNode(NULL));
   scoped_refptr<AudioBuffer> buffer(
@@ -81,7 +81,8 @@ TEST(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   float src_data_in_float[50];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -122,7 +123,8 @@ TEST(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kDiscrete;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationDiscrete;
 
   float src_data_in_float[50];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -163,7 +165,8 @@ TEST(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 1;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   float src_data_in_float[25];
   for (size_t i = 0; i < num_of_frames; ++i) {
@@ -198,7 +201,8 @@ TEST(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 1;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kDiscrete;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationDiscrete;
 
   float src_data_in_float[25];
   for (size_t i = 0; i < num_of_frames; ++i) {
@@ -233,7 +237,8 @@ TEST(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   float src_data_in_float[100];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -274,7 +279,8 @@ TEST(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kDiscrete;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationDiscrete;
 
   float src_data_in_float[100];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -315,7 +321,8 @@ TEST(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 10;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   float src_data_in_float[60];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -356,7 +363,8 @@ TEST(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 10;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kDiscrete;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationDiscrete;
 
   float src_data_in_float[60];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -397,7 +405,8 @@ TEST(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   float src_data_in_float[50];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -434,7 +443,8 @@ TEST(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kDiscrete;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationDiscrete;
 
   float src_data_in_float[50];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -471,7 +481,8 @@ TEST(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   float src_data_in_float[100];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -508,7 +519,8 @@ TEST(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kDiscrete;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationDiscrete;
 
   float src_data_in_float[100];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -545,7 +557,8 @@ TEST(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 10;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   float src_data_in_float[60];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -582,7 +595,8 @@ TEST(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 10;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kDiscrete;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationDiscrete;
 
   float src_data_in_float[60];
   for (size_t c = 0; c < num_of_src_channel; ++c) {
@@ -618,7 +632,8 @@ TEST(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
 TEST(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 2;
-  AudioNode::ChannelInterpretation interpretation = AudioNode::kSpeakers;
+  AudioNodeChannelInterpretation interpretation =
+      kAudioNodeChannelInterpretationSpeakers;
 
   size_t num_of_frames_1 = 25;
   float src_data_in_float_1[50];

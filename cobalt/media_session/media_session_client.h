@@ -28,11 +28,10 @@ namespace media_session {
 // Platforms should subclass this to connect MediaSession to their platform.
 class MediaSessionClient {
  public:
-  typedef std::bitset<MediaSession::kCountMediaSessionActions>
-      AvailableActionsSet;
+  typedef std::bitset<kMediaSessionActionNumActions> AvailableActionsSet;
   MediaSessionClient()
       : media_session_(new MediaSession(this)),
-        platform_playback_state_(MediaSession::kNone) {}
+        platform_playback_state_(kMediaSessionPlaybackStateNone) {}
 
   virtual ~MediaSessionClient() {}
 
@@ -42,7 +41,7 @@ class MediaSessionClient {
   // Retrieves the current actual playback state.
   // https://wicg.github.io/mediasession/#actual-playback-state
   // Must be called on the browser thread.
-  MediaSession::MediaSessionPlaybackState GetActualPlaybackState();
+  MediaSessionPlaybackState GetActualPlaybackState();
 
   // Retrieves the set of currently available mediasession actions
   // per "media session actions update algorithm"
@@ -52,12 +51,11 @@ class MediaSessionClient {
   // Sets the platform's current playback state. This is used to compute
   // the "guessed playback state"
   // https://wicg.github.io/mediasession/#guessed-playback-state
-  void UpdatePlatformPlaybackState(
-      MediaSession::MediaSessionPlaybackState state);
+  void UpdatePlatformPlaybackState(MediaSessionPlaybackState state);
 
   // Invokes a given media session action
   // https://wicg.github.io/mediasession/#actions-model
-  void InvokeAction(MediaSession::MediaSessionAction action);
+  void InvokeAction(MediaSessionAction action);
 
   // Invoked on the browser thread when any metadata, playback state,
   // or supported session actions change.
@@ -66,7 +64,7 @@ class MediaSessionClient {
  private:
   base::ThreadChecker thread_checker_;
   scoped_refptr<MediaSession> media_session_;
-  MediaSession::MediaSessionPlaybackState platform_playback_state_;
+  MediaSessionPlaybackState platform_playback_state_;
 };
 
 }  // namespace media_session

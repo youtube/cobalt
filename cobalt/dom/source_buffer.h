@@ -42,10 +42,6 @@ class MediaSource;
 // shared between different versions of MSE.
 class SourceBuffer : public dom::EventTarget {
  public:
-  // Web API: SourceBuffer
-  //
-  enum AppendMode { kSegments, kSequence };
-
   // Custom, not in any spec.
   //
   SourceBuffer(const scoped_refptr<MediaSource>& media_source,

@@ -65,7 +65,7 @@ void SpeechSynthesis::Resume() {
 
 void SpeechSynthesis::DispatchErrorEvent(
     const scoped_refptr<SpeechSynthesisUtterance>& utterance,
-    SpeechSynthesisErrorEvent::SpeechErrorCode error_code) {
+    SpeechSynthesisErrorCode error_code) {
   utterance->DispatchErrorEvent(error_code);
   Cancel();
 }
@@ -88,12 +88,12 @@ void SpeechSynthesis::Speak(
   if (!utterance->lang().empty() &&
       utterance->lang() != navigator_->language()) {
     DispatchErrorEvent(utterance,
-                       SpeechSynthesisErrorEvent::kLanguageUnavailable);
+                       kSpeechSynthesisErrorCodeLanguageUnavailable);
     return;
   }
   if ((utterance->volume() != 1.0f) || (utterance->rate() != 1.0f) ||
       (utterance->pitch() != 1.0f)) {
-    DispatchErrorEvent(utterance, SpeechSynthesisErrorEvent::kInvalidArgument);
+    DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeInvalidArgument);
     return;
   }
 
@@ -109,8 +109,7 @@ void SpeechSynthesis::Speak(
   utterance->DispatchStartEvent();
   utterance->DispatchEndEvent();
 #else
-  DispatchErrorEvent(utterance,
-                     SpeechSynthesisErrorEvent::kSynthesisUnavailable);
+  DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeSynthesisUnavailable);
 #endif
 }
 
