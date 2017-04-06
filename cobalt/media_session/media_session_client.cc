@@ -48,8 +48,36 @@ MediaSessionPlaybackState MediaSessionClient::GetActualPlaybackState() {
 MediaSessionClient::AvailableActionsSet
 MediaSessionClient::GetAvailableActions() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  NOTIMPLEMENTED();
-  return AvailableActionsSet();
+  // "Available actions" are determined based on active media session
+  // and supported media session actions.
+  // Note for cobalt, there's only one window/tab so there's only one
+  // "active media session"
+  // https://wicg.github.io/mediasession/#actions-model
+  //
+  // Note that this is essentially the "media session actions update algorithm"
+  // inverted.
+  AvailableActionsSet result = AvailableActionsSet();
+
+  for (MediaSession::ActionMap::iterator it =
+         media_session_->action_map_.begin();
+       it != media_session_->action_map_.end();
+       ++it) {
+    result[it->first] = true;
+  }
+
+  switch (GetActualPlaybackState()) {
+    case kMediaSessionPlaybackStatePlaying:
+      // "If the active media session’s actual playback state is playing, remove
+      // play from available actions."
+      result[kMediaSessionActionPlay] = false;
+      break;
+    default:
+      // "Otherwise, remove pause from available actions."
+      result[kMediaSessionActionPause] = false;
+      break;
+  }
+
+  return result;
 }
 
 void MediaSessionClient::UpdatePlatformPlaybackState(
