@@ -53,6 +53,7 @@
         'audio_sink_is_audio_sample_type_supported.cc',
         'configuration_public.h',
         'decode_target_create.cc',
+        'decode_target_create.h',
         'decode_target_get_info.cc',
         'decode_target_internal.cc',
         'decode_target_internal.h',

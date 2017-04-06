@@ -31,9 +31,9 @@ From [`starboard/decode_target.h`](../decode_target.h),
 * `SbDecodeTargetRelease()`
 * `SbDecodeTargetGetInfo()`
 
-Note that it is possible that you may not need to implement
-`SbDecodeTargetCreate()` on your platform if you do not need to
-use the `SbDecodeTargetProvider`.  More on this later.
+Note that it is possible that you may not need to use the
+`SbDecodeTargetGraphicsContextProvider` parameter of SbPlayerCreate().  More on
+this later.
 
 ## Example Application Usage Pattern
 
@@ -92,31 +92,22 @@ support.
    `SbDecodeTargetRelease()` is made.  A call to `SbDecodeTargetRelease()`
    will be made to match each call to `SbPlayerGetCurrentFrame()`.
 
-## The `SbDecodeTargetProvider` object
+## The `SbDecodeTargetGraphicsContextProvider` object
 
 It is completely possible that a platform's Starboard implementation can
 properly implement decode-to-texture support without dealing with the
-`SbDecodeTargetProvider` object (passed in to `SbPlayerCreate()`).
-The `SbDecodeTargetProvider` reference gives platforms the ability to
-initialize and destroy `SbDecodeTarget` options while holding current the
-context (e.g. the GLES context) in which they will be rendered.  On some
-platforms this may not be necessary, but if it is necessary, then
-`SbDecodeTargetCreate()` will need to be implemented as well.
-
-The application will pass a `SbDecodeTargetProvider` into the
-`SbPlayerCreate()` call.  The `SbDecodeTargetProvider` contains two
-application-provided callbacks for creating and destroying `SbDecodeTarget`
-objects.  When `SbDecodeTargetProvider::acquire` is called, the application
-will arrange for the renderer's context (the one that will be current when
-`SbPlayerGetCurrentFrame()` is called and the resulting texture is rendered)
-to be acquired, and then call `SbDecodeTargetCreate()`.  So
-the implementation of `SbDecodeTargetCreate()` can assume that the graphics
-context will be acquired when it is called.  This is useful for example
-when the platform needs to make calls like `glGenTextures()`.  When
-`SbDecodeTargetProvider::release` is called, the application will similarly
-arrange to call `SbDecodeTargetRelease()` with the graphics context held
-current.  This is useful for example if the platform needs to make calls
-like `glDeleteTextures()`.
+`SbDecodeTargetGraphicsContextProvider` object (passed in to
+`SbPlayerCreate()`).  The `SbDecodeTargetGraphicsContextProvider` reference
+gives platforms references to the graphics objects that will later be used to
+render the decoded frames.  For example, on Blitter API platforms, a reference
+to the `SbBlitterDevice` object will be a mamber of
+`SbDecodeTargetGraphicsContextProvider`.  For EGL platforms, a `EGLDisplay` and
+`EGLContext` will be available, but additionally a
+`SbDecodeTargetGlesContextRunner` function pointer will be provided that will
+allow you to run arbitrary code on the renderer thread with the `EGLContext`
+held current.  This may be useful if your `SbDecodeTarget` creation code will
+required making GLES calls (e.g. `glGenTextures()`) in which a `EGLContext` must
+be held current.
 
 ## Performance Considerations
 

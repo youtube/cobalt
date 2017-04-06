@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/blitter.h"
 #include "starboard/decode_target.h"
 #include "starboard/player.h"
 #include "starboard/window.h"
@@ -22,7 +23,18 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_API_VERSION >= 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_HAS(GLES2)
+void GlesContextRunner(
+    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context) {
+  SB_UNREFERENCED_PARAMETER(graphics_context_provider);
+  SB_UNREFERENCED_PARAMETER(target_function);
+  SB_UNREFERENCED_PARAMETER(target_function_context);
+}
+#endif  // SB_HAS(GLES2)
+#elif SB_API_VERSION >= 3
 SbDecodeTarget SbDecodeTargetAcquireStub(void* /*context*/,
                                          SbDecodeTargetFormat /*format*/,
                                          int /*width*/,
@@ -66,7 +78,19 @@ TEST(SbPlayerTest, SunnyDay) {
     }
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
-#if SB_API_VERSION >= 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    SbDecodeTargetGraphicsContextProvider
+        decode_target_graphics_context_provider;
+#if SB_HAS(BLITTER)
+    decode_target_graphics_context_provider.device = kSbBlitterInvalidDevice;
+#elif SB_HAS(GLES2)
+    decode_target_graphics_context_provider.egl_display = NULL;
+    decode_target_graphics_context_provider.egl_context = NULL;
+    decode_target_graphics_context_provider.gles_context_runner =
+        &GlesContextRunner;
+    decode_target_graphics_context_provider.gles_context_runner_context = NULL;
+#endif  // SB_HAS(BLITTER)
+#elif SB_API_VERSION >= 3
     SbDecodeTargetProvider decode_target_provider;
     decode_target_provider.acquire = &SbDecodeTargetAcquireStub;
     decode_target_provider.release = &SbDecodeTargetReleaseStub;
@@ -79,9 +103,9 @@ TEST(SbPlayerTest, SunnyDay) {
                        &audio_header, NULL, NULL, NULL, NULL
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
                        ,
-                       output_mode
-#endif
-#if SB_API_VERSION >= 3
+                       output_mode,
+                       &decode_target_graphics_context_provider
+#elif SB_API_VERSION >= 3
                        ,
                        &decode_target_provider
 #endif
