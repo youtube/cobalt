@@ -331,10 +331,20 @@ bool Element::HasAttribute(const std::string& name) const {
   return iter != attribute_map_.end();
 }
 
+// Algorithm for GetElementsByTagName:
+//   https://www.w3.org/TR/dom/#concept-getelementsbytagname
 scoped_refptr<HTMLCollection> Element::GetElementsByTagName(
     const std::string& tag_name) const {
-  const std::string lower_tag_name = StringToLowerASCII(tag_name);
-  return HTMLCollection::CreateWithElementsByTagName(this, lower_tag_name);
+  Document* document = node_document();
+  // 2. If the document is not an HTML document, then return an HTML collection
+  //    whose name is local name. If it is an HTML document, then return an,
+  //    HTML collection whose name is local name converted to ASCII lowercase.
+  if (document && document->IsXMLDocument()) {
+    return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
+  } else {
+    const std::string lower_tag_name = StringToLowerASCII(tag_name);
+    return HTMLCollection::CreateWithElementsByTagName(this, lower_tag_name);
+  }
 }
 
 scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
