@@ -303,9 +303,57 @@
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
     'sb_libevent_method%': 'epoll',
+
     # Use media source extension implementation that is conformed to the
     # Candidate Recommandation of July 5th 2016.
-    'cobalt_media_source_2016%': 1,
+    'cobalt_media_source_2016%': 0,
+
+    # Note that the following media buffer related variables are only used when
+    # |cobalt_media_source_2016| is set to 1.
+
+    # This can be set to "memory" or "file".  When it is set to "memory", the
+    # media buffers will be stored in main memory allocated by SbMemory
+    # functions.  When it is set to "file", the media buffers will be stored in
+    # a temporary file in the system cache folder acquired by calling
+    # SbSystemGetPath() with "kSbSystemPathCacheDirectory".  Note that when its
+    # value is "file" the media stack will still allocate memory to cache the
+    # the buffers in use.
+    'cobalt_media_buffer_storage_type%': 'memory',
+    # The amount of memory that will be used to store media buffers allocated
+    # during system startup.  To allocate a large chunk at startup helps with
+    # reducing frafmentation and can avoid failures to allocate incrementally.
+    # This can be set to 0.
+    'cobalt_media_buffer_initial_capacity%': 26 * 1024 * 1024,
+    # When the media stack needs more memory to store media buffers, it will
+    # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
+    # This can be set to 0, in which case the media stack will allocate extra
+    # memory on demand.  When |cobalt_media_buffer_initial_capacity| and this
+    # value are both set to 0, the media stack will allocate individual buffers
+    # directly using SbMemory functions.
+    'cobalt_media_buffer_allocation_unit%': 0 * 1024 * 1024,
+
+    # Specifies the maximum amount of memory used by audio or text buffers of
+    # media source before triggering a garbage collection.  A large value will
+    # cause more memory being used by audio buffers but will also make
+    # JavaScript app less likely to re-download audio data.  Note that the
+    # JavaScript app may experience significant difficulty if this value is too
+    # low.
+    'cobalt_media_buffer_non_video_budget%': 5 * 1024 * 1024,
+
+    # Specifies the maximum amount of memory used by video buffers of media
+    # source before triggering a garbage collection when the video resolution is
+    # lower than 1080p (1920x1080).  A large value will cause more memory being
+    # used by video buffers but will also make JavaScript app less likely to
+    # re-download video data.  Note that the JavaScript app may experience
+    # significant difficulty if this value is too low.
+    'cobalt_media_buffer_video_budget_1080p%': 16 * 1024 * 1024,
+    # Specifies the maximum amount of memory used by video buffers of media
+    # source before triggering a garbage collection when the video resolution is
+    # lower than 4k (3840x2160).  A large value will cause more memory being
+    # used by video buffers but will also make JavaScript app less likely to
+    # re-download video data.  Note that the JavaScript app may experience
+    # significant difficulty if this value is too low.
+    'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
   },
 
   'target_defaults': {
@@ -323,6 +371,11 @@
     },
     'defines': [
       'COBALT',
+      'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
+      'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
+      'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
+      'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
+      'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],
@@ -347,6 +400,24 @@
     'libraries': [ '<@(platform_libraries)' ],
 
     'conditions': [
+      ['cobalt_media_source_2016 == 1', {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2016=1',
+        ],
+      }, {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2012=1',
+        ],
+      }],
+      ['cobalt_media_buffer_storage_type == "memory"', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY=1',
+        ],
+      }, {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE=1',
+        ],
+      }],
       ['final_executable_type=="shared_library"', {
         'target_conditions': [
           ['_toolset=="target"', {
@@ -373,15 +444,6 @@
       ['webkit_target_type == "shared_library"', {
         'defines': [
           'COBALT_WEBKIT_SHARED=1',
-        ],
-      }],
-      ['cobalt_media_source_2016 == 1', {
-        'defines': [
-          'COBALT_MEDIA_SOURCE_2016=1',
-        ],
-      }, {
-        'defines': [
-          'COBALT_MEDIA_SOURCE_2012=1',
         ],
       }],
       ['OS == "lb_shell"', {
