@@ -84,7 +84,6 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   }
 
   SbSocketAddress local_ip = {0};
-  local_ip.port = addr->port();
 
   // Now get the IPAddress of the network card.
   SbSocketAddress destination = {0};
@@ -95,6 +94,7 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
     return ERR_FAILED;
   }
+  local_ip.port = addr->port();
 
   if (addr->FromSbSocketAddress(&local_ip)) {
     return OK;
