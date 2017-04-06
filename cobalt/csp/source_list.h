@@ -20,8 +20,11 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/hash_tables.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/csp/local_network_checker.h"
 #include "cobalt/csp/source.h"
 #include "googleurl/src/gurl.h"
 
@@ -56,12 +59,21 @@ class SourceList {
   bool ParseHash(const char* begin, const char* end, DigestValue* hash,
                  HashAlgorithm* hash_algorithm);
 
+  void AddSourceLocalhost();
+  void AddSourceLocalNetwork();
+  void AddSourcePrivateRange();
   void AddSourceSelf();
   void AddSourceStar();
   void AddSourceUnsafeInline();
   void AddSourceUnsafeEval();
   void AddSourceNonce(const std::string& nonce);
   void AddSourceHash(const HashAlgorithm&, const DigestValue& hash);
+
+  // For testing only
+  void SetLocalNetworkChecker(
+      scoped_ptr<LocalNetworkCheckerInterface> checker) {
+    local_network_checker_ = checker.Pass();
+  }
 
   ContentSecurityPolicy* policy_;
   std::vector<Source> list_;
@@ -70,11 +82,18 @@ class SourceList {
   bool allow_star_;
   bool allow_inline_;
   bool allow_eval_;
+  bool allow_insecure_connections_to_local_network_;
+  bool allow_insecure_connections_to_localhost_;
+  bool allow_insecure_connections_to_private_range_;
   base::hash_set<std::string> nonces_;
   // TODO: This is a hash_set in blink. Need to implement
   // a hash for HashValue.
   std::set<HashValue> hashes_;
   uint8 hash_algorithms_used_;
+
+  scoped_ptr<LocalNetworkCheckerInterface> local_network_checker_;
+
+  FRIEND_TEST_ALL_PREFIXES(SourceListTest, TestInsecureLocalNetworkDefault);
 
   DISALLOW_COPY_AND_ASSIGN(SourceList);
 };
