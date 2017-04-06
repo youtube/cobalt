@@ -161,10 +161,19 @@ scoped_refptr<DOMImplementation> Document::implementation() {
   return implementation_;
 }
 
+// Algorithm for GetElementsByTagName:
+//   https://www.w3.org/TR/dom/#concept-getelementsbytagname
 scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
     const std::string& local_name) const {
-  const std::string lower_local_name = StringToLowerASCII(local_name);
-  return HTMLCollection::CreateWithElementsByTagName(this, lower_local_name);
+  // 2. If the document is not an HTML document, then return an HTML collection
+  //    whose name is local name. If it is an HTML document, then return an,
+  //    HTML collection whose name is local name converted to ASCII lowercase.
+  if (IsXMLDocument()) {
+    return HTMLCollection::CreateWithElementsByTagName(this, local_name);
+  } else {
+    const std::string lower_local_name = StringToLowerASCII(local_name);
+    return HTMLCollection::CreateWithElementsByTagName(this, lower_local_name);
+  }
 }
 
 scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
@@ -213,10 +222,10 @@ scoped_refptr<Event> Document::CreateEvent(
     return new UIEvent(Event::Uninitialized);
   }
 
-  DOMException::Raise(DOMException::kNotSupportedErr,
-                      "document.createEvent does not support \""
-                        + interface_name + "\".",
-                      exception_state);
+  DOMException::Raise(
+      DOMException::kNotSupportedErr,
+      "document.createEvent does not support \"" + interface_name + "\".",
+      exception_state);
 
   // Return value will be ignored.
   return NULL;
