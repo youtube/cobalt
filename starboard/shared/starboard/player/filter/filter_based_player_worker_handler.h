@@ -44,12 +44,12 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
                                  const SbMediaAudioHeader& audio_header
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
                                  ,
-                                 SbPlayerOutputMode output_mode
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+                                 SbPlayerOutputMode output_mode,
+                                 SbDecodeTargetGraphicsContextProvider* provider
+#elif SB_API_VERSION >= 3
                                  ,
                                  SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
                                  );  // NOLINT(whitespace/parens)
 
  private:
@@ -106,10 +106,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   SbPlayerOutputMode output_mode_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+  SbDecodeTargetGraphicsContextProvider*
+      decode_target_graphics_context_provider_;
+#elif SB_API_VERSION >= 3
   SbDecodeTargetProvider* decode_target_provider_;
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 };
 
 }  // namespace filter

@@ -25,7 +25,6 @@
       },
       'sources': [
         'common.cc',
-        'decode_target_provider.cc',
         'flat_map.h',
         'memory.cc',
         'move.h',

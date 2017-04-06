@@ -85,7 +85,7 @@ typedef enum SbPlayerOutputMode {
   // draw every frame with its graphics rendering. It may be that we get a
   // texture handle, but cannot perform operations like glReadPixels on it if it
   // is DRM-protected, or it may not support DRM-protected content at all.  When
-  // this output mode is provided to SbCreatePlayer(), the application will be
+  // this output mode is provided to SbPlayerCreate(), the application will be
   // able to pull frames via calls to SbPlayerGetCurrentFrame().
   kSbPlayerOutputModeDecodeToTexture,
 
@@ -278,9 +278,10 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //
 // |provider|: Only present in Starboard version 3 and up.  If not |NULL|,
 //   then when output_mode == kSbPlayerOutputModeDecodeToTexture, the player MAY
-//   use the provider to create SbDecodeTargets. A provider could also
-//   potentially be required by the player, in which case, if the provider is
-//   not given, the player will fail by returning kSbPlayerInvalid.
+//   use the provider to create SbDecodeTargets on the renderer thread. A
+//   provider may not always be needed by the player, but if it is needed, and
+//   the provider is not given, the player will fail by returning
+//   kSbPlayerInvalid.
 SB_EXPORT SbPlayer SbPlayerCreate(
     SbWindow window,
     SbMediaVideoCodec video_codec,
@@ -294,12 +295,12 @@ SB_EXPORT SbPlayer SbPlayerCreate(
     void* context
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     ,
-    SbPlayerOutputMode output_mode
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider* context_provider
+#elif SB_API_VERSION >= 3
     ,
     SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION >= 3
+#endif
     );  // NOLINT
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
