@@ -233,10 +233,10 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
   DCHECK(IsPowerOf2(offscreen_target_size_mask_.width() + 1));
   DCHECK(IsPowerOf2(offscreen_target_size_mask_.height() + 1));
   math::Size ideal_size(
-      (static_cast<int>(size.width() + 0.5f) +
+      (std::max(static_cast<int>(size.width() + 0.5f), 1) +
           offscreen_target_size_mask_.width()) &
           ~offscreen_target_size_mask_.width(),
-      (static_cast<int>(size.height() + 0.5f) +
+      (std::max(static_cast<int>(size.height() + 0.5f), 1) +
           offscreen_target_size_mask_.height()) &
           ~offscreen_target_size_mask_.height());
   math::Size target_size(
