@@ -136,8 +136,6 @@
         'filters/shell_parser.h',
         'filters/shell_rbsp_stream.cc',
         'filters/shell_rbsp_stream.h',
-        'filters/source_buffer_platform.cc',
-        'filters/source_buffer_platform.h',
         'filters/source_buffer_range.cc',
         'filters/source_buffer_range.h',
         'filters/source_buffer_state.cc',
