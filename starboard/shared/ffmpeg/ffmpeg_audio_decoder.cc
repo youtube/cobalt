@@ -64,7 +64,7 @@ void ConvertSamples(int source_sample_format,
   av_free(context);
 }
 
-CodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
+AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
   switch (audio_codec) {
     case kSbMediaAudioCodecAac:
       return AV_CODEC_ID_AAC;
