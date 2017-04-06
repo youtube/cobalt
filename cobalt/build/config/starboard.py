@@ -67,7 +67,7 @@ class PlatformConfigStarboard(PlatformConfigBase):
         'use_asan': use_asan,
         # Whether to build with clang's Thread Sanitizer instrumentation.
         'use_tsan': use_tsan,
-        # Whether to emable VR.
+        # Whether to enable VR.
         'enable_vr': vr_enabled,
     }
     return variables
