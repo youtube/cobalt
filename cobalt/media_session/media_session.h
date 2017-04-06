@@ -34,6 +34,8 @@ namespace media_session {
 class MediaSessionClient;
 
 class MediaSession : public script::Wrappable {
+  friend class MediaSessionClient;
+
  public:
   typedef script::CallbackFunction<void()> MediaSessionActionHandler;
   typedef script::ScriptValue<MediaSessionActionHandler>
