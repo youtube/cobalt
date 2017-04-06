@@ -35,7 +35,7 @@ class OpenMaxImageDecodeComponent : private OpenMaxComponent {
   static OMX_IMAGE_CODINGTYPE GetCompressionFormat(const char* mime_type);
 
   // Decode the given data to a decode target.
-  SbDecodeTarget Decode(SbDecodeTargetProvider* provider,
+  SbDecodeTarget Decode(SbDecodeTargetGraphicsContextProvider* provider,
                         const char* mime_type,
                         SbDecodeTargetFormat output_format,
                         const void* data,
@@ -59,7 +59,7 @@ class OpenMaxImageDecodeComponent : private OpenMaxComponent {
 
   OpenMaxEglRenderComponent render_component_;
   State state_;
-  SbDecodeTargetProvider* target_provider_;
+  SbDecodeTargetGraphicsContextProvider* graphics_context_provider_;
   SbDecodeTargetPrivate* target_;
   OMX_IMAGE_CODINGTYPE input_format_;
 };

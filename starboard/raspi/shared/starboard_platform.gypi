@@ -37,6 +37,7 @@
         '<(DEPTH)/starboard/raspi/shared/dispmanx_util.h',
         '<(DEPTH)/starboard/raspi/shared/main.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/decode_target_create.cc',
+        '<(DEPTH)/starboard/raspi/shared/open_max/decode_target_create.h',
         '<(DEPTH)/starboard/raspi/shared/open_max/decode_target_get_info.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/decode_target_internal.h',
         '<(DEPTH)/starboard/raspi/shared/open_max/decode_target_release.cc',
