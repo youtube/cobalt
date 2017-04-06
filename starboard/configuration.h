@@ -108,6 +108,11 @@
 // SbMediaIsVideoSupported().
 #define SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce |ticket| parameter to SbDrmGenerateSessionUpdateRequest()
+// and SbDrmSessionUpdateRequestFunc to allow distinguishing between callbacks
+// from multiple concurrent calls.
+#define SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // SbSocketGetInterfaceAddress() is introduced to let applications find out
 // which source IP address and the associated netmask will be used to connect to
 // the destination. This is very important for multi-home devices, and for

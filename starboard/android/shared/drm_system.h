@@ -32,7 +32,8 @@ class DrmSystem : public ::SbDrmSystemPrivate {
             SbDrmSessionUpdatedFunc session_updated_callback);
 
   ~DrmSystem() SB_OVERRIDE;
-  void GenerateSessionUpdateRequest(const char* type,
+  void GenerateSessionUpdateRequest(int ticket,
+                                    const char* type,
                                     const void* initialization_data,
                                     int initialization_data_size) SB_OVERRIDE;
   void UpdateSession(const void* key,

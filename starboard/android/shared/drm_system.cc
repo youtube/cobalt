@@ -101,9 +101,11 @@ DrmSystem::~DrmSystem() {
   }
 }
 
-void DrmSystem::GenerateSessionUpdateRequest(const char* type,
-                                             const void* initialization_data,
-                                             int initialization_data_size) {
+void DrmSystem::GenerateSessionUpdateRequest(
+    int /*ticket*/,  // TODO: Implement ticket passing.
+    const char* type,
+    const void* initialization_data,
+    int initialization_data_size) {
   ScopedLocalJavaRef j_init_data(
       ByteArrayFromRaw(initialization_data, initialization_data_size));
   JniEnvExt* env = JniEnvExt::Get();
@@ -152,8 +154,10 @@ void DrmSystem::CallUpdateRequestCallback(const void* session_id,
                                           const void* content,
                                           int content_size,
                                           const char* url) {
-  update_request_callback_(this, context_, session_id, session_id_size, content,
-                           content_size, url);
+  update_request_callback_(this, context_,
+                           0,  // TODO: Implement ticket passing.
+                           session_id, session_id_size, content, content_size,
+                           url);
 }
 
 }  // namespace shared
