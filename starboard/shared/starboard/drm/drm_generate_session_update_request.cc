@@ -18,6 +18,9 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
+#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+                                       int ticket,
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
                                        const char* type,
                                        const void* initialization_data,
                                        int initialization_data_size) {
@@ -26,6 +29,9 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->GenerateSessionUpdateRequest(type, initialization_data,
-                                           initialization_data_size);
+  drm_system->GenerateSessionUpdateRequest(
+#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+      ticket,
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+      type, initialization_data, initialization_data_size);
 }
