@@ -50,7 +50,8 @@ class VideoDecoder
   explicit VideoDecoder(SbMediaVideoCodec video_codec,
                         SbDrmSystem drm_system,
                         SbPlayerOutputMode output_mode,
-                        SbDecodeTargetProvider* decode_target_provider);
+                        SbDecodeTargetGraphicsContextProvider*
+                            decode_target_graphics_context_provider);
   ~VideoDecoder() SB_OVERRIDE;
 
   void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
@@ -155,7 +156,9 @@ class VideoDecoder
 
   SbPlayerOutputMode output_mode_;
 
-  SbDecodeTargetProvider* decode_target_provider_;
+  SbDecodeTargetGraphicsContextProvider*
+      decode_target_graphics_context_provider_;
+
   // If decode-to-texture is enabled, then we store the decode target texture
   // inside of this |decode_target_| member.
   SbDecodeTarget decode_target_;

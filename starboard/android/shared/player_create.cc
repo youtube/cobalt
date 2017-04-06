@@ -38,7 +38,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerStatusFunc player_status_func,
                         void* context,
                         SbPlayerOutputMode output_mode,
-                        SbDecodeTargetProvider* provider) {
+                        SbDecodeTargetGraphicsContextProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
   SB_UNREFERENCED_PARAMETER(provider);
 
