@@ -12,4 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Remove this file. The code has been moved to starboard/common/new.cc
+// TODO: I believe this code will have to be linked into all DLLs on
+// Windows. I think Starboard can do this through GYP when the time comes.
+
+#include "starboard/memory.h"
+
+void* operator new(size_t size) {
+  return SbMemoryAllocate(size);
+}
+
+void operator delete(void* pointer) {
+  SbMemoryDeallocate(pointer);
+}
+
+void* operator new[](size_t size) {
+  return SbMemoryAllocate(size);
+}
+
+void operator delete[](void* pointer) {
+  SbMemoryDeallocate(pointer);
+}
