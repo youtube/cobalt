@@ -78,10 +78,17 @@ typedef struct SbDrmSystemPrivate* SbDrmSystem;
 // A callback that will receive generated session update request when requested
 // from a SbDrmSystem. |drm_system| will be the DRM system that
 // SbDrmGenerateSessionUpdateRequest() was called on. |context| will be the same
-// context that was passed into the call to SbDrmCreateSystem(). |session_id|
-// can be NULL if there was an error generating the request.
+// context that was passed into the call to SbDrmCreateSystem().
+#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+// |ticket| will be the same ticket that was passed
+// to SbDrmGenerateSessionUpdateRequest().
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+// |session_id| can be NULL if there was an error generating the request.
 typedef void (*SbDrmSessionUpdateRequestFunc)(SbDrmSystem drm_system,
                                               void* context,
+#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+                                              int ticket,
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
                                               const void* session_id,
                                               int session_id_size,
                                               const void* content,
@@ -146,9 +153,8 @@ SbDrmCreateSystem(const char* key_system,
 // |SbDrmCreateSystem|) and a populated request, or it sends NULL |session_id|
 // if an error occurred.
 //
-// |drm_system|'s |context| may be used to distinguish callbacks from
-// multiple concurrent calls to SbDrmGenerateSessionUpdateRequest(), and/or
-// to route callbacks back to an object instance.
+// |drm_system|'s |context| may be used to route callbacks back to an object
+// instance.
 //
 // Callbacks may be called either from the current thread before this function
 // returns or from another thread.
@@ -156,12 +162,22 @@ SbDrmCreateSystem(const char* key_system,
 // |drm_system|: The DRM system that defines the key system used for the
 // session update request payload as well as the callback function that is
 // called as a result of the function being called.
+#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+// |ticket|: The opaque ID that allows to distinguish callbacks from
+// multiple concurrent calls to SbDrmGenerateSessionUpdateRequest(),
+// which will be passed to |update_request_callback| as-is. It is
+// the responsibility of the caller to establish ticket uniqueness, issuing
+// multiple request with the same ticket may result in undefined behavior.
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
 // |type|: The case-sensitive type of the session update request payload.
 // |initialization_data|: The data for which the session update request payload
 // is created.
 // |initialization_data_size|: The size of the session update request payload.
 SB_EXPORT void SbDrmGenerateSessionUpdateRequest(
     SbDrmSystem drm_system,
+#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+    int ticket,
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
     const char* type,
     const void* initialization_data,
     int initialization_data_size);
