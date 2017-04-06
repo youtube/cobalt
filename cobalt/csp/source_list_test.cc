@@ -14,15 +14,56 @@
 
 #include "cobalt/csp/source_list.h"
 
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/csp/local_network_checker.h"
 #include "cobalt/csp/source.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/net_util.h"
+#include "starboard/memory.h"
+#include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace csp {
 
-namespace {
+class FakeLocalNetworkChecker : public LocalNetworkCheckerInterface {
+ public:
+  explicit FakeLocalNetworkChecker(
+      const SbSocketAddress& fake_address_in_network) {
+    SbMemoryCopy(&in_network_address_, &fake_address_in_network,
+                 sizeof(SbSocketAddress));
+  }
+
+  // LocalNetworkCheckerInterface interface
+  bool IsIPInLocalNetwork(const SbSocketAddress& destination) OVERRIDE {
+    if (destination.type != in_network_address_.type) {
+      return false;
+    }
+
+    std::size_t number_bytes_to_compare = net::kIPv4AddressSize;
+    switch (destination.type) {
+      case kSbSocketAddressTypeIpv4:
+        DCHECK_EQ(number_bytes_to_compare, net::kIPv4AddressSize);
+        break;
+#if SB_HAS(IPV6)
+      case kSbSocketAddressTypeIpv6:
+        number_bytes_to_compare = net::kIPv6AddressSize;
+        break;
+#endif
+      default:
+        NOTREACHED() << "Invalid type";
+        return false;
+    }
+
+    return (SbMemoryCompare(destination.address, in_network_address_.address,
+                            number_bytes_to_compare) == 0);
+  }
+
+ private:
+  SbSocketAddress in_network_address_;
+};
+
 void ParseSourceList(SourceList* source_list, const std::string& sources) {
   base::StringPiece characters(sources);
   source_list->Parse(characters);
@@ -161,7 +202,155 @@ TEST_F(SourceListTest, RedirectMatching) {
                                    ContentSecurityPolicy::kDidRedirect));
 }
 
-}  // namespace
+TEST_F(SourceListTest, TestInsecureLocalhostDefault) {
+  SourceList source_list(csp_.get(), "connect-src");
+
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost.localdomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://127.0.0.1/")));
+
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost.localdomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.1/")));
+
+#if SB_HAS(IPV6)
+  EXPECT_FALSE(source_list.Matches(GURL("http://::1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://::1/")));
+#endif
+}
+
+TEST_F(SourceListTest, TestInsecureLocalhost) {
+  SourceList source_list(csp_.get(), "connect-src");
+  std::string sources = "'cobalt-insecure-localhost'";
+  ParseSourceList(&source_list, sources);
+
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost.localdomain/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://127.0.0.1/")));
+#if SB_HAS(IPV6)
+  EXPECT_FALSE(source_list.Matches(GURL("http://::1/")));
+#endif
+
+  // Per CA/Browser forum, issuance of internal names is now prohibited.
+  // See: https://cabforum.org/internal-names/
+  // But, test it anyway.
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost.localdomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.1/")));
+#if SB_HAS(IPV6)
+  EXPECT_FALSE(source_list.Matches(GURL("https://::1/")));
+#endif
+}
+
+TEST_F(SourceListTest, TestInsecurePrivateRangeDefault) {
+  SourceList source_list(csp_.get(), "connect-src");
+
+  EXPECT_FALSE(source_list.Matches(GURL("http://10.0.0.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://172.16.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://192.168.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://0.0.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://255.255.255.255/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://10.0.0.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://172.16.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://192.168.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://0.0.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://255.255.255.255/")));
+}
+
+TEST_F(SourceListTest, TestInsecurePrivateRange) {
+  SourceList source_list(csp_.get(), "connect-src");
+  std::string sources = "'cobalt-insecure-private-range'";
+  ParseSourceList(&source_list, sources);
+
+  EXPECT_TRUE(source_list.Matches(GURL("http://10.0.0.1/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://172.16.1.1/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://192.168.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://10.0.0.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://172.16.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://192.168.1.1/")));
+
+  EXPECT_FALSE(source_list.Matches(GURL("http://255.255.255.255/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://0.0.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://255.255.255.255/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://0.0.0.0/")));
+
+#if SB_HAS(IPV6)
+  EXPECT_TRUE(source_list.Matches(GURL("http://[fd00::]/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://[fd00:1:2:3:4:5::]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[fd00::]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[fd00:1:2:3:4:5::]/")));
+
+  EXPECT_FALSE(source_list.Matches(
+      GURL("https://[2606:2800:220:1:248:1893:25c8:1946]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[FE80::]/")));
+#endif
+}
+
+TEST_F(SourceListTest, TestInsecureLocalNetworkDefault) {
+  SourceList source_list(csp_.get(), "connect-src");
+  std::string sources = "'cobalt-insecure-local-network'";
+  ParseSourceList(&source_list, sources);
+
+  {
+    SbSocketAddress neighboring_ip;
+    neighboring_ip.type = kSbSocketAddressTypeIpv4;
+    neighboring_ip.address[0] = 143;
+    neighboring_ip.address[1] = 195;
+    neighboring_ip.address[2] = 170;
+    neighboring_ip.address[3] = 1;
+
+    scoped_ptr<LocalNetworkCheckerInterface> checker(
+        new FakeLocalNetworkChecker(neighboring_ip));
+    source_list.SetLocalNetworkChecker(checker.Pass());
+  }
+
+  EXPECT_FALSE(source_list.Matches(GURL("http://172.16.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://143.195.170.2/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://143.195.170.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://172.16.1.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://143.195.170.2/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://143.195.170.1/")));
+
+#if SB_HAS(IPV6)
+  {
+    SbSocketAddress neighboring_ip;
+    // 2606:2800:220:1:248:1893:25c8:1946
+    neighboring_ip.type = kSbSocketAddressTypeIpv6;
+    neighboring_ip.address[0] = 0x26;
+    neighboring_ip.address[1] = 0x06;
+
+    neighboring_ip.address[2] = 0x28;
+    neighboring_ip.address[3] = 0x00;
+
+    neighboring_ip.address[4] = 0x2;
+    neighboring_ip.address[5] = 0x20;
+
+    neighboring_ip.address[6] = 0x0;
+    neighboring_ip.address[7] = 0x1;
+
+    neighboring_ip.address[8] = 0x02;
+    neighboring_ip.address[9] = 0x48;
+
+    neighboring_ip.address[10] = 0x18;
+    neighboring_ip.address[11] = 0x93;
+
+    neighboring_ip.address[12] = 0x25;
+    neighboring_ip.address[13] = 0xc8;
+
+    neighboring_ip.address[14] = 0x19;
+    neighboring_ip.address[15] = 0x46;
+
+    scoped_ptr<LocalNetworkCheckerInterface> checker(
+        new FakeLocalNetworkChecker(neighboring_ip));
+    source_list.SetLocalNetworkChecker(checker.Pass());
+  }
+
+  EXPECT_FALSE(source_list.Matches(GURL("http://[::1]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://[2606:1:2:3:4::1]/")));
+  EXPECT_TRUE(source_list.Matches(
+      GURL("http://[2606:2800:220:1:248:1893:25c8:1946]/")));
+#endif
+}
 
 }  // namespace csp
 }  // namespace cobalt
