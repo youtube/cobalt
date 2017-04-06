@@ -129,6 +129,10 @@
 // the video so multiple overlapping videos can be rendered.
 #define SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// No longer has media source buffer settings in Starboard.
+#define SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
@@ -559,6 +563,43 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
 
 #endif  // SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+
+#if SB_API_VERSION >= SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
+
+#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
+#error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
+#error "Use gyp variable |cobalt_media_buffer_non_video_budget| instead."
+#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
+
+#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
+#error "SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT is deprecated."
+#error "Use gyp variable |cobalt_media_buffer_video_budget_1080p| instead."
+#error "Use gyp variable |cobalt_media_buffer_video_budget_4k| instead."
+#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
+
+#if defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
+#error "SB_MEDIA_MAIN_BUFFER_BUDGET is deprecated."
+#endif  // defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
+
+#if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
+#error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
+#endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
+
+#if COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET <= 0
+#error "cobalt_media_buffer_non_video_budget has to be greater than 0."
+#endif  // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET < 0
+
+#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P <= 0
+#error "cobalt_media_buffer_video_budget_1080p has to be greater than 0."
+#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P < 0
+
+#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K < COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
+#error cobalt_media_buffer_video_budget_4k has to be greater than or equal to \
+           cobalt_media_buffer_video_budget_1080p.
+#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K <
+        //     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
+
+#endif  // SB_API_VERSION >= SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 

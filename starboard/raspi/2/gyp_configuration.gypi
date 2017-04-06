@@ -32,6 +32,7 @@
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs',
     'cobalt_enable_jit': 0,
+    'cobalt_media_source_2016': 1,
 
     # RasPi 2 is ARMv7
     'arm_version': 7,
