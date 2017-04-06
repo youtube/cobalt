@@ -17,6 +17,7 @@
 #include <cmath>
 
 #include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/decode_target_create.h"
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/media_common.h"
@@ -74,7 +75,8 @@ const char* GetMimeTypeFromCodecType(const SbMediaVideoCodec type) {
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbDrmSystem drm_system,
                            SbPlayerOutputMode output_mode,
-                           SbDecodeTargetProvider* decode_target_provider)
+                           SbDecodeTargetGraphicsContextProvider*
+                               decode_target_graphics_context_provider)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       host_(NULL),
@@ -83,7 +85,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       media_codec_bridge_(NULL),
       current_time_(kSbTimeNone),
       output_mode_(output_mode),
-      decode_target_provider_(decode_target_provider),
+      decode_target_graphics_context_provider_(
+          decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid),
       frame_width_(0),
       frame_height_(0) {
@@ -164,18 +167,21 @@ bool VideoDecoder::InitializeCodec() {
       SB_DCHECK(j_output_surface);
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
-      starboard::ScopedLock lock(decode_target_mutex_);
       // A width and height of (0, 0) is provided here because Android doesn't
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
       // by texture data until updateTexImage() is called on it.
-      decode_target_ = SbDecodeTargetAcquireFromProvider(
-          decode_target_provider_, kSbDecodeTargetFormat1PlaneRGBA, 0, 0);
-      if (!SbDecodeTargetIsValid(decode_target_)) {
+      SbDecodeTarget decode_target =
+          DecodeTargetCreate(decode_target_graphics_context_provider_,
+                             kSbDecodeTargetFormat1PlaneRGBA, 0, 0);
+      if (!SbDecodeTargetIsValid(decode_target)) {
         SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
         return false;
       }
-      j_output_surface = decode_target_->data->surface;
+      j_output_surface = decode_target->data->surface;
+
+      starboard::ScopedLock lock(decode_target_mutex_);
+      decode_target_ = decode_target;
     } break;
     case kSbPlayerOutputModeInvalid: {
       SB_NOTREACHED();
@@ -205,7 +211,8 @@ void VideoDecoder::TeardownCodec() {
 
   starboard::ScopedLock lock(decode_target_mutex_);
   if (SbDecodeTargetIsValid(decode_target_)) {
-    SbDecodeTargetReleaseToProvider(decode_target_provider_, decode_target_);
+    SbDecodeTargetReleaseInGlesContext(decode_target_graphics_context_provider_,
+                                       decode_target_);
     decode_target_ = kSbDecodeTargetInvalid;
   }
 }

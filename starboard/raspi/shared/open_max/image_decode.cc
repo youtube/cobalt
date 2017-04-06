@@ -23,7 +23,7 @@ namespace {
 starboard::Mutex decode_lock_;
 }
 
-SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
+SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
                              void* data,
                              int data_size,
                              const char* mime_type,

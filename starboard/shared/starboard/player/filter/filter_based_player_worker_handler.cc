@@ -44,12 +44,12 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     const SbMediaAudioHeader& audio_header
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     ,
-    SbPlayerOutputMode output_mode
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider* provider
+#elif SB_API_VERSION >= 3
     ,
     SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     )
     : player_worker_(NULL),
       job_queue_(NULL),
@@ -64,12 +64,12 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       paused_(false)
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
       ,
-      output_mode_(output_mode)
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+      output_mode_(output_mode),
+      decode_target_graphics_context_provider_(provider)
+#elif SB_API_VERSION >= 3
       ,
       decode_target_provider_(provider)
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 {
   bounds_ = PlayerWorker::Bounds();
 }
@@ -109,11 +109,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     ,
     output_mode_,
-    decode_target_provider_
+    decode_target_graphics_context_provider_
 #endif    // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   };      // NOLINT(whitespace/parens)
 
-  ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
   scoped_ptr<PlayerComponents> media_components =
       PlayerComponents::Create(audio_parameters, video_parameters);
   if (!media_components) {
@@ -121,6 +120,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   }
   SB_DCHECK(media_components->is_valid());
 
+  ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
   media_components->GetRenderers(&audio_renderer_, &video_renderer_);
 
   update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
@@ -299,10 +299,17 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   job_queue_->Remove(update_closure_);
 
   audio_renderer_.reset();
+
+  scoped_ptr<VideoRenderer> video_renderer;
   {
+    // Set |video_renderer_| to null with the lock, but we actually destroy
+    // it outside of the lock.  This is because the VideoRenderer destructor
+    // may post a task to destroy the SbDecodeTarget to the same thread that
+    // might call GetCurrentDecodeTarget(), which would try to take this lock.
     ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
-    video_renderer_.reset();
+    video_renderer = video_renderer_.Pass();
   }
+  video_renderer.reset();
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   if (output_mode_ == kSbPlayerOutputModePunchOut)

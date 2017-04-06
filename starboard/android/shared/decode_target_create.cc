@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/decode_target.h"
+#include "starboard/android/shared/decode_target_create.h"
 
 #include <android/native_window_jni.h>
 #include <jni.h>
@@ -23,9 +23,14 @@
 
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/decode_target.h"
 #include "starboard/shared/gles/gl_call.h"
 
 using starboard::android::shared::JniEnvExt;
+
+namespace starboard {
+namespace android {
+namespace shared {
 
 namespace {
 jobject CreateSurfaceTexture(int gl_texture_id) {
@@ -51,20 +56,17 @@ jobject CreateSurfaceFromSurfaceTexture(jobject surface_texture) {
 
   return global_surface;
 }
-}  // namespace
 
-SbDecodeTarget SbDecodeTargetCreate(void* display,
-                                    void* context,
-                                    SbDecodeTargetFormat format,
-                                    int width,
-                                    int height) {
-  SB_UNREFERENCED_PARAMETER(display);
-  SB_UNREFERENCED_PARAMETER(context);
+struct CreateParams {
+  int width;
+  int height;
+  SbDecodeTargetFormat format;
 
-  SB_DCHECK(format == kSbDecodeTargetFormat1PlaneRGBA);
-  if (format != kSbDecodeTargetFormat1PlaneRGBA) {
-    return kSbDecodeTargetInvalid;
-  }
+  SbDecodeTarget decode_target_out;
+};
+
+void CreateWithContextRunner(void* context) {
+  CreateParams* params = static_cast<CreateParams*>(context);
 
   // Setup the GL texture that Android's MediaCodec library will target with
   // the decoder.  We don't call glTexImage2d() on it, Android will handle
@@ -97,15 +99,15 @@ SbDecodeTarget SbDecodeTargetCreate(void* display,
       ANativeWindow_fromSurface(JniEnvExt::Get(), decode_target->data->surface);
 
   // Setup our publicly accessible decode target information.
-  decode_target->data->info.format = format;
+  decode_target->data->info.format = params->format;
   decode_target->data->info.is_opaque = true;
-  decode_target->data->info.width = width;
-  decode_target->data->info.height = height;
+  decode_target->data->info.width = params->width;
+  decode_target->data->info.height = params->height;
   decode_target->data->info.planes[0].texture = texture;
   decode_target->data->info.planes[0].gl_texture_target =
       GL_TEXTURE_EXTERNAL_OES;
-  decode_target->data->info.planes[0].width = width;
-  decode_target->data->info.planes[0].height = height;
+  decode_target->data->info.planes[0].width = params->width;
+  decode_target->data->info.planes[0].height = params->height;
 
   // These values will be initialized when SbPlayerGetCurrentFrame() is called.
   decode_target->data->info.planes[0].content_region.left = 0;
@@ -115,5 +117,32 @@ SbDecodeTarget SbDecodeTargetCreate(void* display,
 
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
 
-  return decode_target;
+  params->decode_target_out = decode_target;
 }
+
+}  // namespace
+
+SbDecodeTarget DecodeTargetCreate(
+    SbDecodeTargetGraphicsContextProvider* provider,
+    SbDecodeTargetFormat format,
+    int width,
+    int height) {
+  SB_DCHECK(format == kSbDecodeTargetFormat1PlaneRGBA);
+  if (format != kSbDecodeTargetFormat1PlaneRGBA) {
+    return kSbDecodeTargetInvalid;
+  }
+
+  CreateParams params;
+  params.width = width;
+  params.height = height;
+  params.format = format;
+  params.decode_target_out = kSbDecodeTargetInvalid;
+
+  SbDecodeTargetRunInGlesContext(
+      provider, &CreateWithContextRunner, &params);
+  return params.decode_target_out;
+}
+
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard
