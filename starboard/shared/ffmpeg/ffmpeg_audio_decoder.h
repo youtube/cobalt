@@ -49,6 +49,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   void InitializeCodec();
   void TeardownCodec();
 
+  SbMediaAudioCodec audio_codec_;
   SbMediaAudioSampleType sample_type_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;

@@ -64,16 +64,29 @@ void ConvertSamples(int source_sample_format,
   av_free(context);
 }
 
+CodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
+  switch (audio_codec) {
+    case kSbMediaAudioCodecAac:
+      return AV_CODEC_ID_AAC;
+    case kSbMediaAudioCodecOpus:
+      return AV_CODEC_ID_OPUS;
+    default:
+      return AV_CODEC_ID_NONE;
+  }
+}
+
 }  // namespace
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            const SbMediaAudioHeader& audio_header)
-    : sample_type_(GetSupportedSampleType()),
+    : audio_codec_(audio_codec),
+      sample_type_(GetSupportedSampleType()),
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
       audio_header_(audio_header) {
-  SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
+  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_codec) != AV_CODEC_ID_NONE)
+      << "Unsupported audio codec " << audio_codec;
 
   InitializeCodec();
 }
@@ -118,7 +131,7 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer) {
         codec_context_->channels * av_frame_->nb_samples *
             (sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4));
     if (codec_context_->sample_fmt == codec_context_->request_sample_fmt) {
-      SbMemoryCopy(decoded_audio->buffer(), av_frame_->extended_data,
+      SbMemoryCopy(decoded_audio->buffer(), *av_frame_->extended_data,
                    decoded_audio->size());
     } else {
       ConvertSamples(codec_context_->sample_fmt,
@@ -177,7 +190,7 @@ void AudioDecoder::InitializeCodec() {
   }
 
   codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
-  codec_context_->codec_id = AV_CODEC_ID_AAC;
+  codec_context_->codec_id = GetFfmpegCodecIdByMediaCodec(audio_codec_);
   // Request_sample_fmt is set by us, but sample_fmt is set by the decoder.
   if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
