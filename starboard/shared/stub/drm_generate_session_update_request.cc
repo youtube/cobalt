@@ -15,6 +15,9 @@
 #include "starboard/drm.h"
 
 void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
+#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+                                       int ticket,
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
                                        const char* type,
                                        const void* initialization_data,
                                        int initialization_data_size) {
