@@ -17,6 +17,9 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/log.h"
+#if SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+#include "starboard/shared/starboard/media/media_support_internal.h"
+#endif  // SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -46,18 +49,36 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         ) {
   SB_UNREFERENCED_PARAMETER(window);
 
+#if SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+  const int64_t kDefaultBitRate = 0;
+  if (!SbMediaIsAudioSupported(audio_codec, kDefaultBitRate)) {
+    SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
+    return kSbPlayerInvalid;
+  }
+
+  const int kDefaultFrameWidth = 0;
+  const int kDefaultFrameHeight = 0;
+  const int kDefaultFrameRate = 0;
+  if (!SbMediaIsVideoSupported(video_codec, kDefaultFrameWidth,
+                               kDefaultFrameHeight, kDefaultBitRate,
+                               kDefaultFrameRate)) {
+    SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
+    return kSbPlayerInvalid;
+  }
+#else   // SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
   if (audio_codec != kSbMediaAudioCodecAac) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;
   }
 
-  if (!audio_header) {
-    SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader";
-    return kSbPlayerInvalid;
-  }
-
   if (video_codec != kSbMediaVideoCodecH264) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
+    return kSbPlayerInvalid;
+  }
+#endif  // SB_API_VERSION >= SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+
+  if (!audio_header) {
+    SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader";
     return kSbPlayerInvalid;
   }
 
