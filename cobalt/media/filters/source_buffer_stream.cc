@@ -12,7 +12,7 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/media/base/timestamp_constants.h"
-#include "cobalt/media/filters/source_buffer_platform.h"
+#include "cobalt/media/base/video_resolution.h"
 #include "cobalt/media/filters/source_buffer_range.h"
 
 namespace cobalt {
@@ -157,7 +157,7 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       range_for_next_append_(ranges_.end()),
       last_output_buffer_timestamp_(kNoDecodeTimestamp()),
       max_interbuffer_distance_(kNoTimestamp),
-      memory_limit_(kSourceBufferAudioMemoryLimit) {
+      memory_limit_(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) {
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
 }
@@ -171,10 +171,14 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
       coded_frame_group_start_time_(kNoDecodeTimestamp()),
       range_for_next_append_(ranges_.end()),
       last_output_buffer_timestamp_(kNoDecodeTimestamp()),
-      max_interbuffer_distance_(kNoTimestamp),
-      memory_limit_(kSourceBufferVideoMemoryLimit) {
+      max_interbuffer_distance_(kNoTimestamp) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
+  VideoResolution resolution =
+      GetVideoResolution(video_config.visible_rect().size());
+  memory_limit_ = resolution <= kVideoResolution1080p
+                      ? COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
+                      : COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
@@ -188,7 +192,7 @@ SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
       range_for_next_append_(ranges_.end()),
       last_output_buffer_timestamp_(kNoDecodeTimestamp()),
       max_interbuffer_distance_(kNoTimestamp),
-      memory_limit_(kSourceBufferAudioMemoryLimit) {}
+      memory_limit_(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) {}
 
 SourceBufferStream::~SourceBufferStream() {
   while (!ranges_.empty()) {
@@ -1547,6 +1551,14 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   DVLOG(2) << "New video config - index: " << append_config_index_;
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
+
+  VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
+
+  // TODO: Reduce the memory limit when there is no more 4k samples cached.
+  if (resolution > kVideoResolution1080p) {
+    memory_limit_ = COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
+  }
+
   return true;
 }
 

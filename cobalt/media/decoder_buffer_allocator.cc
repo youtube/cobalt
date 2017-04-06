@@ -26,10 +26,12 @@ bool kPreAllocateAllMemory = true;
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
-    : memory_block_(SbMemoryAllocateAligned(DecoderBuffer::kAlignmentSize,
-                                            SB_MEDIA_MAIN_BUFFER_BUDGET)) {
-  memory_pool_.set(starboard::make_scoped_ptr(new nb::MemoryPool(
-      memory_block_, SB_MEDIA_MAIN_BUFFER_BUDGET, kPreAllocateAllMemory)));
+    : memory_block_(
+          SbMemoryAllocateAligned(DecoderBuffer::kAlignmentSize,
+                                  COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)) {
+  memory_pool_.set(starboard::make_scoped_ptr(
+      new nb::MemoryPool(memory_block_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
+                         kPreAllocateAllMemory)));
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
