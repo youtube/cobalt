@@ -46,11 +46,11 @@ TEST(MediaSessionTest, MediaSessionTest) {
 
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
-  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStateNone, client.GetActualPlaybackState());
 
-  session->set_playback_state(MediaSession::kPlaying);
+  session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
-  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
 
   run_loop.Run();
 }
@@ -67,31 +67,31 @@ TEST(MediaSessionTest, GetActualPlaybackState) {
 
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
-  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStateNone, client.GetActualPlaybackState());
 
-  client.UpdatePlatformPlaybackState(MediaSession::kPlaying);
+  client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePlaying);
 
-  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
 
-  session->set_playback_state(MediaSession::kPlaying);
+  session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
-  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
 
-  session->set_playback_state(MediaSession::kPaused);
+  session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
-  EXPECT_EQ(MediaSession::kPlaying, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStatePlaying, client.GetActualPlaybackState());
 
-  client.UpdatePlatformPlaybackState(MediaSession::kPaused);
+  client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePaused);
 
-  EXPECT_EQ(MediaSession::kPaused, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStatePaused, client.GetActualPlaybackState());
 
-  session->set_playback_state(MediaSession::kNone);
+  session->set_playback_state(kMediaSessionPlaybackStateNone);
 
-  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStateNone, client.GetActualPlaybackState());
 
-  client.UpdatePlatformPlaybackState(MediaSession::kNone);
+  client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStateNone);
 
-  EXPECT_EQ(MediaSession::kNone, client.GetActualPlaybackState());
+  EXPECT_EQ(kMediaSessionPlaybackStateNone, client.GetActualPlaybackState());
 
   run_loop.Run();
 }

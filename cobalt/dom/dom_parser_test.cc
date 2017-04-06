@@ -69,14 +69,8 @@ TEST_F(DOMParserTest, ParsesXML) {
       "  </Period>\n"
       "</MPD>\n";
   scoped_refptr<Document> document =
-      dom_parser_->ParseFromString(input, DOMParser::kTextXml);
+      dom_parser_->ParseFromString(input, kDOMParserSupportedTypeTextXml);
   EXPECT_TRUE(document->IsXMLDocument());
-}
-
-TEST_F(DOMParserTest, InvalidType) {
-  scoped_refptr<Document> document =
-      dom_parser_->ParseFromString("", DOMParser::kMaxSupportedType);
-  EXPECT_FALSE(document);
 }
 
 }  // namespace dom

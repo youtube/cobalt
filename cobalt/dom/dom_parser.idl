@@ -14,17 +14,9 @@
 
 // https://www.w3.org/TR/DOM-Parsing/#the-domparser-interface
 
-enum SupportedType {
-    "text/html",
-    "text/xml",
-    "application/xml",
-    "application/xhtml+xml",
-    "image/svg+xml"
-};
-
 [
   Constructor,
   ConstructorCallWith=EnvironmentSettings
 ] interface DOMParser {
-  [NewObject] Document parseFromString(DOMString str, SupportedType type);
+  [NewObject] Document parseFromString(DOMString str, DOMParserSupportedType type);
 };

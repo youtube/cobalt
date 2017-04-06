@@ -14,20 +14,6 @@
 
 // https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#tts-section
 
-enum SpeechErrorCode {
-  "canceled",
-  "interrupted",
-  "audio-busy",
-  "audio-hardware",
-  "network",
-  "synthesis-unavailable",
-  "synthesis-failed",
-  "language-unavailable",
-  "voice-unavailable",
-  "text-too-long",
-  "invalid-argument",
-};
-
 interface SpeechSynthesisErrorEvent : SpeechSynthesisEvent {
-  readonly attribute SpeechErrorCode error;
+  readonly attribute SpeechSynthesisErrorCode error;
 };

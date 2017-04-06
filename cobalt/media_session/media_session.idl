@@ -15,21 +15,6 @@
 // MediaSession interface
 // https://wicg.github.io/mediasession
 
-enum MediaSessionPlaybackState {
-  "none",
-  "paused",
-  "playing"
-};
-
-enum MediaSessionAction {
-  "play",
-  "pause",
-  "seekbackward",
-  "seekforward",
-  "previoustrack",
-  "nexttrack",
-};
-
 callback MediaSessionActionHandler = void();
 
 interface MediaSession {
