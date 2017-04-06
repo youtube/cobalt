@@ -29,6 +29,8 @@
         'directive.h',
         'directive_list.cc',
         'directive_list.h',
+        'local_network_checker.cc',
+        'local_network_checker.h',
         'media_list_directive.cc',
         'media_list_directive.h',
         'parsers.h',
