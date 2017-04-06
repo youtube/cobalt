@@ -72,7 +72,7 @@ class SpeechSynthesis : public dom::EventTarget {
 
   void DispatchErrorEvent(
       const scoped_refptr<SpeechSynthesisUtterance>& utterance,
-      SpeechSynthesisErrorEvent::SpeechErrorCode error_code);
+      SpeechSynthesisErrorCode error_code);
 
   bool paused_;
   typedef std::list<scoped_refptr<SpeechSynthesisUtterance> > UtterancesList;

@@ -65,10 +65,17 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/content/browser/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
       ],
       'include_dirs': [
         # Get protobuf headers from the chromium tree.

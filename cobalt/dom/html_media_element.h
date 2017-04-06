@@ -243,7 +243,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
                  unsigned int init_data_length) OVERRIDE;
   void ClearMediaSource();
 #if !defined(COBALT_MEDIA_SOURCE_2016)
-  void SetSourceState(MediaSource::ReadyState ready_state);
+  void SetSourceState(MediaSourceReadyState ready_state);
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   // Called whenever the player's output mode (e.g. punch-out,

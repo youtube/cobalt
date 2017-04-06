@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-media-source-20160705/#trackdefault
+// MediaSession interface
+// https://wicg.github.io/mediasession
 
-[
-  Constructor(TrackDefaultType type,
-              DOMString language,
-              DOMString label,
-              sequence<DOMString> kinds,
-              optional DOMString byteStreamTrackID = ""),
-  RaisesException=Constructor,
-] interface TrackDefault {
-  readonly attribute TrackDefaultType type;
-  readonly attribute DOMString byteStreamTrackID;
-  readonly attribute DOMString language;
-  readonly attribute DOMString label;
-  sequence<DOMString> getKinds();
+enum MediaSessionAction {
+  "play",
+  "pause",
+  "seekbackward",
+  "seekforward",
+  "previoustrack",
+  "nexttrack",
+
+  // Not part of spec, but used in Cobalt implementation.
+  "num-actions"
 };

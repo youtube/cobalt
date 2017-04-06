@@ -34,23 +34,21 @@ DOMParser::DOMParser(script::EnvironmentSettings* environment_settings) {
 DOMParser::DOMParser(HTMLElementContext* html_element_context)
     : html_element_context_(html_element_context) {}
 
-scoped_refptr<Document> DOMParser::ParseFromString(const std::string& str,
-                                                   const SupportedType& type) {
+scoped_refptr<Document> DOMParser::ParseFromString(
+    const std::string& str, DOMParserSupportedType type) {
   switch (type) {
-    case kTextHtml:
+    case kDOMParserSupportedTypeTextHtml:
       return html_element_context_->dom_parser()->ParseDocument(
           str, html_element_context_, GetInlineSourceLocation());
-    case kTextXml:
-    case kApplicationXml:
-    case kApplicationXhtmlXml:
-    case kImageSvgXml:
+    case kDOMParserSupportedTypeTextXml:
+    case kDOMParserSupportedTypeApplicationXml:
+    case kDOMParserSupportedTypeApplicationXhtmlXml:
+    case kDOMParserSupportedTypeImageSvgXml:
       return html_element_context_->dom_parser()->ParseXMLDocument(
           str, html_element_context_, GetInlineSourceLocation());
-    case kMaxSupportedType:
-    default:
-      LOG(WARNING) << "DOMParse.ParseFromString received invalid type value.";
-      return NULL;
   }
+  LOG(WARNING) << "DOMParse.ParseFromString received invalid type value.";
+  return NULL;
 }
 
 }  // namespace dom

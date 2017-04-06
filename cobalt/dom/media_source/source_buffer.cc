@@ -93,7 +93,7 @@ SourceBuffer::SourceBuffer(const std::string& id, MediaSource* media_source,
       media_source_(media_source),
       track_defaults_(new TrackDefaultList(NULL)),
       event_queue_(event_queue),
-      mode_(kSegments),
+      mode_(kSourceBufferAppendModeSegments),
       updating_(false),
       timestamp_offset_(0),
       audio_tracks_(new AudioTrackList(media_source->GetMediaElement())),
@@ -113,7 +113,7 @@ SourceBuffer::SourceBuffer(const std::string& id, MediaSource* media_source,
       id_, base::Bind(&SourceBuffer::InitSegmentReceived, this));
 }
 
-void SourceBuffer::set_mode(AppendMode mode,
+void SourceBuffer::set_mode(SourceBufferAppendMode mode,
                             script::ExceptionState* exception_state) {
   if (media_source_ == NULL) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
@@ -131,7 +131,7 @@ void SourceBuffer::set_mode(AppendMode mode,
     return;
   }
 
-  chunk_demuxer_->SetSequenceMode(id_, mode == kSequence);
+  chunk_demuxer_->SetSequenceMode(id_, mode == kSourceBufferAppendModeSequence);
 
   mode_ = mode;
 }
@@ -471,7 +471,7 @@ void SourceBuffer::AppendError() {
 
   ScheduleEvent(base::Tokens::error());
   ScheduleEvent(base::Tokens::updateend());
-  media_source_->EndOfStream(MediaSource::kDecode, NULL);
+  media_source_->EndOfStream(kMediaSourceEndOfStreamErrorDecode, NULL);
 }
 
 void SourceBuffer::OnRemoveTimer() {

@@ -73,7 +73,7 @@ bool MicrophoneManager::CreateIfNecessary() {
     microphone_.reset();
     state_ = kError;
     error_callback_.Run(new SpeechRecognitionError(
-        SpeechRecognitionError::kAudioCapture, "No microphone available."));
+        kSpeechRecognitionErrorCodeAudioCapture, "No microphone available."));
     return false;
   }
 }
@@ -90,7 +90,7 @@ void MicrophoneManager::OpenInternal() {
   if (!microphone_->Open()) {
     state_ = kError;
     error_callback_.Run(new SpeechRecognitionError(
-        SpeechRecognitionError::kAborted, "Microphone open failed."));
+        kSpeechRecognitionErrorCodeAborted, "Microphone open failed."));
     return;
   }
 
@@ -118,7 +118,7 @@ void MicrophoneManager::CloseInternal() {
     if (!microphone_->Close()) {
       state_ = kError;
       error_callback_.Run(new SpeechRecognitionError(
-          SpeechRecognitionError::kAborted, "Microphone close failed."));
+          kSpeechRecognitionErrorCodeAborted, "Microphone close failed."));
       return;
     }
     completion_callback_.Run();
@@ -147,7 +147,7 @@ void MicrophoneManager::Read() {
   } else if (read_bytes != 0) {
     state_ = kError;
     error_callback_.Run(new SpeechRecognitionError(
-        SpeechRecognitionError::kAborted, "Microphone read failed."));
+        kSpeechRecognitionErrorCodeAborted, "Microphone read failed."));
     poll_mic_events_timer_->Stop();
   }
 }
