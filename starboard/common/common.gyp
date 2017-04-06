@@ -29,6 +29,7 @@
         'flat_map.h',
         'memory.cc',
         'move.h',
+        'new.cc',
         'ref_counted.cc',
         'ref_counted.h',
         'reset_and_return.h',
