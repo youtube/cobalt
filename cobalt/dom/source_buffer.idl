@@ -15,11 +15,6 @@
 // https://www.w3.org/TR/media-source/#idl-def-SourceBuffer
 // https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer
 
-enum AppendMode {
-  "segments",
-  "sequence"
-};
-
 interface SourceBuffer : EventTarget {
   [RaisesException] readonly attribute TimeRanges buffered;
   [RaisesException] attribute double timestampOffset;
@@ -28,7 +23,7 @@ interface SourceBuffer : EventTarget {
   [RaisesException] void abort();
 
   // MSE 2016 Interface
-  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] attribute AppendMode mode;
+  [Conditional=COBALT_MEDIA_SOURCE_2016, RaisesException] attribute SourceBufferAppendMode mode;
   [Conditional=COBALT_MEDIA_SOURCE_2016] readonly attribute boolean updating;
   // [RaisesException] readonly attribute TimeRanges buffered;
   // [RaisesException] attribute double timestampOffset;

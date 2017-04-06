@@ -18,6 +18,7 @@
 #include "base/basictypes.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/speech/speech_synthesis_error_code.h"
 #include "cobalt/speech/speech_synthesis_event.h"
 
 namespace cobalt {
@@ -28,34 +29,20 @@ namespace speech {
 //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#tts-section
 class SpeechSynthesisErrorEvent : public SpeechSynthesisEvent {
  public:
-  enum SpeechErrorCode {
-    kCanceled,
-    kInterrupted,
-    kAudioBusy,
-    kAudioHardware,
-    kNetwork,
-    kSynthesisUnavailable,
-    kSynthesisFailed,
-    kLanguageUnavailable,
-    kVoiceUnavailable,
-    kTextTooLong,
-    kInvalidArgument
-  };
-
   explicit SpeechSynthesisErrorEvent(
-      SpeechErrorCode error_code,
+      SpeechSynthesisErrorCode error_code,
       const scoped_refptr<SpeechSynthesisUtterance>& utterance)
       : SpeechSynthesisEvent(base::Tokens::error(), utterance),
         error_code_(error_code) {}
 
-  SpeechErrorCode error() const { return error_code_; }
+  SpeechSynthesisErrorCode error() const { return error_code_; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesisErrorEvent);
 
  private:
   ~SpeechSynthesisErrorEvent() OVERRIDE {}
 
-  const SpeechErrorCode error_code_;
+  const SpeechSynthesisErrorCode error_code_;
 
   DISALLOW_COPY_AND_ASSIGN(SpeechSynthesisErrorEvent);
 };

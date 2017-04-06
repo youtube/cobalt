@@ -37,6 +37,7 @@
 #include "cobalt/dom/media_key_message_event.h"
 #include "cobalt/dom/media_key_needed_event.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -1203,7 +1204,8 @@ void HTMLMediaElement::Seek(float time) {
   // Always notify the media engine of a seek if the source is not closed. This
   // ensures that the source is always in a flushed state when the 'seeking'
   // event fires.
-  if (media_source_ && media_source_->ready_state() != MediaSource::kClosed) {
+  if (media_source_ &&
+      media_source_->ready_state() != kMediaSourceReadyStateClosed) {
     no_seek_required = false;
   }
 
@@ -1508,7 +1510,7 @@ void HTMLMediaElement::SourceOpened(media::ChunkDemuxer* chunk_demuxer) {
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
 void HTMLMediaElement::SourceOpened() {
   BeginProcessingMediaPlayerCallback();
-  SetSourceState(MediaSource::kOpen);
+  SetSourceState(kMediaSourceReadyStateOpen);
   EndProcessingMediaPlayerCallback();
 }
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -1597,18 +1599,18 @@ void HTMLMediaElement::ClearMediaSource() {
     media_source_ = NULL;
   }
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
-  SetSourceState(MediaSource::kClosed);
+  SetSourceState(kMediaSourceReadyStateClosed);
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 }
 
 #if !defined(COBALT_MEDIA_SOURCE_2016)
-void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
+void HTMLMediaElement::SetSourceState(MediaSourceReadyState ready_state) {
   MLOG() << ready_state;
   if (!media_source_) {
     return;
   }
   media_source_->SetReadyState(ready_state);
-  if (ready_state == MediaSource::kClosed) {
+  if (ready_state == kMediaSourceReadyStateClosed) {
     media_source_ = NULL;
   }
 }

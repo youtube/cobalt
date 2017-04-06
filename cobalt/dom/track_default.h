@@ -19,6 +19,7 @@
 
 #include "base/logging.h"
 #include "cobalt/dom/audio_track.h"
+#include "cobalt/dom/track_default_type.h"
 #include "cobalt/dom/video_track.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/sequence.h"
@@ -35,12 +36,6 @@ class TrackDefault : public script::Wrappable {
  public:
   // Web API: TrackDefault
   //
-  enum TrackDefaultType {
-    kAudio,
-    kVideo,
-    kText,
-  };
-
   TrackDefault(TrackDefaultType type, const std::string& language,
                const std::string& label,
                const script::Sequence<std::string>& kinds,
@@ -51,14 +46,14 @@ class TrackDefault : public script::Wrappable {
         language_(language),
         label_(label),
         kinds_(kinds) {
-    if (type == kAudio) {
+    if (type == kTrackDefaultTypeAudio) {
       for (script::Sequence<std::string>::size_type i = 0; i < kinds.size();
            ++i) {
         if (!AudioTrack::IsValidKind(kinds.at(i).c_str())) {
           exception_state->SetSimpleException(script::kSimpleTypeError);
         }
       }
-    } else if (type == kVideo) {
+    } else if (type == kTrackDefaultTypeVideo) {
       for (script::Sequence<std::string>::size_type i = 0; i < kinds.size();
            ++i) {
         if (!VideoTrack::IsValidKind(kinds.at(i).c_str())) {

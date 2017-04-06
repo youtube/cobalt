@@ -219,12 +219,30 @@
         '../xhr/xml_http_request_upload.idl',
     ],
 
-    'dictionary_idl_files': [
-        '../dom/mutation_observer_init.idl',
+
+    # IDL files that will end up generating a .h that will be #included in
+    # Cobalt directly. IDL files for dictionaries and enums.
+    'generated_header_idl_files': [
+        '../audio/audio_node_channel_count_mode.idl',
+        '../audio/audio_node_channel_interpretation.idl',
         '../dom/blob_property_bag.idl',
+        '../dom/dom_parser_supported_type.idl',
+        '../dom/media_key_status.idl',
+        '../dom/media_keys_requirement.idl',
+        '../dom/media_source_end_of_stream_error.idl',
+        '../dom/media_source_ready_state.idl',
+        '../dom/mutation_observer_init.idl',
+        '../dom/source_buffer_append_mode.idl',
+        '../dom/track_default_type.idl',
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
+        '../media_session/media_session_action.idl',
+        '../media_session/media_session_playback_state.idl',
+        '../speech/speech_synthesis_error_code.idl',
+        '../speech/speech_recognition_error_code.idl',
         '../websocket/close_event_init.idl',
+        '../web_animations/animation_fill_mode.idl',
+        '../web_animations/animation_playback_direction.idl',
     ],
 
     # Partial interfaces and the right-side of "implements". Also includes
