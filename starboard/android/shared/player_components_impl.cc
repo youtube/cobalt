@@ -43,7 +43,8 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
 
   VideoDecoderImpl* video_decoder = new VideoDecoderImpl(
       video_parameters.video_codec, video_parameters.drm_system,
-      video_parameters.output_mode, video_parameters.decode_target_provider);
+      video_parameters.output_mode,
+      video_parameters.decode_target_graphics_context_provider);
 
   if (!video_decoder->is_valid()) {
     delete video_decoder;

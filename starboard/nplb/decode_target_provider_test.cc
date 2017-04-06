@@ -18,10 +18,13 @@
 // which will define None to be 0L, which conflicts with gtest.
 #include "starboard/decode_target.h"  // NOLINT(build/include_order)
 
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
-
 namespace starboard {
 namespace nplb {
+
+#if SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && \
+    SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
 namespace {
 
 struct ProviderContext {
@@ -152,7 +155,10 @@ TEST(SbDecodeTargetProviderTest, RainyDayMultipleProviders) {
 }
 
 }  // namespace
+
+#endif  // SB_API_VERSION >= 3 && \
+        // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_HAS(GRAPHICS)
+
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)

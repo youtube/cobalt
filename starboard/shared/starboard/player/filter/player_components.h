@@ -40,7 +40,8 @@ struct VideoParameters {
   JobQueue* job_queue;
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   SbPlayerOutputMode output_mode;
-  SbDecodeTargetProvider* decode_target_provider;
+  SbDecodeTargetGraphicsContextProvider*
+      decode_target_graphics_context_provider;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 };
 
