@@ -14,17 +14,8 @@
 
 // https://www.w3.org/TR/2016/CR-media-source-20160705/#trackdefault
 
-[
-  Constructor(TrackDefaultType type,
-              DOMString language,
-              DOMString label,
-              sequence<DOMString> kinds,
-              optional DOMString byteStreamTrackID = ""),
-  RaisesException=Constructor,
-] interface TrackDefault {
-  readonly attribute TrackDefaultType type;
-  readonly attribute DOMString byteStreamTrackID;
-  readonly attribute DOMString language;
-  readonly attribute DOMString label;
-  sequence<DOMString> getKinds();
+enum TrackDefaultType {
+  "audio",
+  "video",
+  "text"
 };

@@ -110,13 +110,13 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
 
 MediaSource::MediaSource()
     : chunk_demuxer_(NULL),
-      ready_state_(kClosed),
+      ready_state_(kMediaSourceReadyStateClosed),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       source_buffers_(new SourceBufferList(&event_queue_)),
       active_source_buffers_(new SourceBufferList(&event_queue_)),
       live_seekable_range_(new TimeRanges) {}
 
-MediaSource::~MediaSource() { SetReadyState(kClosed); }
+MediaSource::~MediaSource() { SetReadyState(kMediaSourceReadyStateClosed); }
 
 scoped_refptr<SourceBufferList> MediaSource::source_buffers() const {
   return source_buffers_;
@@ -126,14 +126,12 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
   return active_source_buffers_;
 }
 
-MediaSource::ReadyState MediaSource::ready_state() const {
-  return ready_state_;
-}
+MediaSourceReadyState MediaSource::ready_state() const { return ready_state_; }
 
 double MediaSource::duration(script::ExceptionState* exception_state) const {
   UNREFERENCED_PARAMETER(exception_state);
 
-  if (ready_state_ == kClosed) {
+  if (ready_state_ == kMediaSourceReadyStateClosed) {
     return std::numeric_limits<float>::quiet_NaN();
   }
 
@@ -262,23 +260,23 @@ void MediaSource::RemoveSourceBuffer(
 
 void MediaSource::EndOfStream(script::ExceptionState* exception_state) {
   // If there is no error string provided, treat it as empty.
-  EndOfStream(kNoError, exception_state);
+  EndOfStream(kMediaSourceEndOfStreamErrorNoError, exception_state);
 }
 
-void MediaSource::EndOfStream(EndOfStreamError error,
+void MediaSource::EndOfStream(MediaSourceEndOfStreamError error,
                               script::ExceptionState* exception_state) {
   if (!IsOpen() || IsUpdating()) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
-  SetReadyState(kEnded);
+  SetReadyState(kMediaSourceReadyStateEnded);
 
   PipelineStatus pipeline_status = PIPELINE_OK;
 
-  if (error == kNetwork) {
+  if (error == kMediaSourceEndOfStreamErrorNetwork) {
     pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
-  } else if (error == kDecode) {
+  } else if (error == kMediaSourceEndOfStreamErrorDecode) {
     pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
   }
 
@@ -352,12 +350,14 @@ void MediaSource::SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer) {
   DCHECK(!chunk_demuxer_);
   DCHECK(attached_element_);
   chunk_demuxer_ = chunk_demuxer;
-  SetReadyState(kOpen);
+  SetReadyState(kMediaSourceReadyStateOpen);
 }
 
-void MediaSource::Close() { SetReadyState(kClosed); }
+void MediaSource::Close() { SetReadyState(kMediaSourceReadyStateClosed); }
 
-bool MediaSource::IsClosed() const { return ready_state_ == kClosed; }
+bool MediaSource::IsClosed() const {
+  return ready_state_ == kMediaSourceReadyStateClosed;
+}
 
 scoped_refptr<TimeRanges> MediaSource::GetBufferedRange() const {
   std::vector<scoped_refptr<TimeRanges> > ranges(
@@ -386,7 +386,7 @@ scoped_refptr<TimeRanges> MediaSource::GetBufferedRange() const {
   scoped_refptr<TimeRanges> intersection_ranges =
       new TimeRanges(0, highest_end_time);
 
-  bool ended = ready_state() == kEnded;
+  bool ended = ready_state() == kMediaSourceReadyStateEnded;
   for (size_t i = 0; i < ranges.size(); ++i) {
     scoped_refptr<TimeRanges> source_ranges = ranges[i].get();
 
@@ -471,15 +471,17 @@ void MediaSource::OnVideoTrackChanged(VideoTrack* video_track) {
 }
 
 void MediaSource::OpenIfInEndedState() {
-  if (ready_state_ != kEnded) {
+  if (ready_state_ != kMediaSourceReadyStateEnded) {
     return;
   }
 
-  SetReadyState(kOpen);
+  SetReadyState(kMediaSourceReadyStateOpen);
   chunk_demuxer_->UnmarkEndOfStream();
 }
 
-bool MediaSource::IsOpen() const { return ready_state_ == kOpen; }
+bool MediaSource::IsOpen() const {
+  return ready_state_ == kMediaSourceReadyStateOpen;
+}
 
 void MediaSource::SetSourceBufferActive(SourceBuffer* source_buffer,
                                         bool is_active) {
@@ -513,8 +515,8 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
   return attached_element_;
 }
 
-void MediaSource::SetReadyState(ReadyState ready_state) {
-  if (ready_state == kClosed) {
+void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
+  if (ready_state == kMediaSourceReadyStateClosed) {
     chunk_demuxer_ = NULL;
   }
 
@@ -522,7 +524,7 @@ void MediaSource::SetReadyState(ReadyState ready_state) {
     return;
   }
 
-  ReadyState old_state = ready_state_;
+  MediaSourceReadyState old_state = ready_state_;
   ready_state_ = ready_state;
 
   if (IsOpen()) {
@@ -530,7 +532,8 @@ void MediaSource::SetReadyState(ReadyState ready_state) {
     return;
   }
 
-  if (old_state == kOpen && ready_state_ == kEnded) {
+  if (old_state == kMediaSourceReadyStateOpen &&
+      ready_state_ == kMediaSourceReadyStateEnded) {
     ScheduleEvent(base::Tokens::sourceended());
     return;
   }

@@ -124,35 +124,35 @@ void ProcessAndFireErrorEvent(
       return;
     case proto::SpeechRecognitionEvent::STATUS_NO_SPEECH:
       error_event =
-          new SpeechRecognitionError(SpeechRecognitionError::kNoSpeech, "");
+          new SpeechRecognitionError(kSpeechRecognitionErrorCodeNoSpeech, "");
       break;
     case proto::SpeechRecognitionEvent::STATUS_ABORTED:
       error_event =
-          new SpeechRecognitionError(SpeechRecognitionError::kAborted, "");
+          new SpeechRecognitionError(kSpeechRecognitionErrorCodeAborted, "");
       break;
     case proto::SpeechRecognitionEvent::STATUS_AUDIO_CAPTURE:
-      error_event =
-          new SpeechRecognitionError(SpeechRecognitionError::kAudioCapture, "");
+      error_event = new SpeechRecognitionError(
+          kSpeechRecognitionErrorCodeAudioCapture, "");
       break;
     case proto::SpeechRecognitionEvent::STATUS_NETWORK:
       error_event =
-          new SpeechRecognitionError(SpeechRecognitionError::kNetwork, "");
+          new SpeechRecognitionError(kSpeechRecognitionErrorCodeNetwork, "");
       break;
     case proto::SpeechRecognitionEvent::STATUS_NOT_ALLOWED:
       error_event =
-          new SpeechRecognitionError(SpeechRecognitionError::kNotAllowed, "");
+          new SpeechRecognitionError(kSpeechRecognitionErrorCodeNotAllowed, "");
       break;
     case proto::SpeechRecognitionEvent::STATUS_SERVICE_NOT_ALLOWED:
       error_event = new SpeechRecognitionError(
-          SpeechRecognitionError::kServiceNotAllowed, "");
+          kSpeechRecognitionErrorCodeServiceNotAllowed, "");
       break;
     case proto::SpeechRecognitionEvent::STATUS_BAD_GRAMMAR:
       error_event =
-          new SpeechRecognitionError(SpeechRecognitionError::kBadGrammar, "");
+          new SpeechRecognitionError(kSpeechRecognitionErrorCodeBadGrammar, "");
       break;
     case proto::SpeechRecognitionEvent::STATUS_LANGUAGE_NOT_SUPPORTED:
       error_event = new SpeechRecognitionError(
-          SpeechRecognitionError::kLanguageNotSupported, "");
+          kSpeechRecognitionErrorCodeLanguageNotSupported, "");
       break;
   }
 
@@ -242,7 +242,7 @@ void SpeechRecognizer::OnURLFetchDownloadData(
       }
     } else {
       event_callback_.Run(new SpeechRecognitionError(
-          SpeechRecognitionError::kNetwork, "Network response failure."));
+          kSpeechRecognitionErrorCodeNetwork, "Network response failure."));
     }
   }
 }

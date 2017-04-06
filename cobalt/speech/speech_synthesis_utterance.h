@@ -123,8 +123,7 @@ class SpeechSynthesisUtterance : public dom::EventTarget {
 
   void DispatchStartEvent();
   void DispatchEndEvent();
-  void DispatchErrorEvent(
-      SpeechSynthesisErrorEvent::SpeechErrorCode error_code);
+  void DispatchErrorEvent(SpeechSynthesisErrorCode error_code);
 
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesisUtterance);
 

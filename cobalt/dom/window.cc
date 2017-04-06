@@ -41,6 +41,7 @@
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/speech/speech_synthesis.h"
 
 using cobalt::media_session::MediaSession;
 
@@ -321,6 +322,10 @@ scoped_refptr<Storage> Window::session_storage() const {
 
 const scoped_refptr<Performance>& Window::performance() const {
   return performance_;
+}
+
+scoped_refptr<speech::SpeechSynthesis> Window::speech_synthesis() const {
+  return speech_synthesis_;
 }
 
 const scoped_refptr<Console>& Window::console() const { return console_; }

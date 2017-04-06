@@ -21,7 +21,7 @@ namespace media_session {
 
 MediaSession::MediaSession(MediaSessionClient* client)
     : media_session_client_(client),
-      state_(kNone),
+      state_(kMediaSessionPlaybackStateNone),
       message_loop_(base::MessageLoopProxy::current()),
       is_change_task_queued_(false) {}
 
