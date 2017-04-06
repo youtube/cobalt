@@ -38,12 +38,12 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
-  if (sample_buffers != NULL) {
+  if (sample_buffers == NULL) {
     SB_DLOG(WARNING) << "|sample_buffers| cannot be NULL";
     return;
   }
 
-  if (sample_buffer_sizes != NULL) {
+  if (sample_buffer_sizes == NULL) {
     SB_DLOG(WARNING) << "|sample_buffer_sizes| cannot be NULL";
     return;
   }
