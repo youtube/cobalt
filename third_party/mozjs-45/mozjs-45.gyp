@@ -101,6 +101,11 @@
               'JS_NUNBOX32=1',
             ],
           }],
+          ['cobalt_config != "gold"', {
+            'defines': [
+              'JS_TRACE_LOGGING=1',
+            ],
+          }],
         ],
       },
       'include_dirs': [

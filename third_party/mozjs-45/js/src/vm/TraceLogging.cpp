@@ -83,6 +83,8 @@ rdtsc(void)
 
 #endif // defined(MOZ_HAVE_RDTSC)
 
+#if defined(JS_TRACE_LOGGING)
+
 class AutoTraceLoggerThreadStateLock
 {
   TraceLoggerThreadState* logging;
@@ -1029,3 +1031,5 @@ TraceLoggerEvent::operator=(const TraceLoggerEvent& other)
 
     return *this;
 }
+
+#endif  // defined(JS_TRACE_LOGGING)
