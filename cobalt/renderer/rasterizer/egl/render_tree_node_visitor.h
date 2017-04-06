@@ -72,7 +72,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
-  void FallbackRasterize(render_tree::Node* node,
+  void FallbackRasterize(scoped_refptr<render_tree::Node> node,
                          DrawObjectManager::OffscreenType offscreen_type);
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
@@ -88,6 +88,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   const FallbackRasterizeFunction* fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;
+  math::SizeF viewport_size_;
 };
 
 }  // namespace egl

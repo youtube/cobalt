@@ -18,6 +18,7 @@
 #include <cmath>
 
 #include "base/debug/trace_event.h"
+#include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
@@ -60,6 +61,7 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
 
   draw_state_.scissor.Intersect(graphics_state->GetScissor());
+  viewport_size_ = graphics_state->GetViewport().size();
 }
 
 void RenderTreeNodeVisitor::Visit(
@@ -307,9 +309,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   FallbackRasterize(text_node, DrawObjectManager::kOffscreenSkiaText);
 }
 
-void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
+void RenderTreeNodeVisitor::FallbackRasterize(
+    scoped_refptr<render_tree::Node> node,
     DrawObjectManager::OffscreenType offscreen_type) {
   DCHECK_NE(offscreen_type, DrawObjectManager::kOffscreenNone);
+  base::optional<math::Matrix3F> original_transform;
 
   // Use fallback_rasterize_ to render to an offscreen target. Add a small
   // buffer to allow anti-aliased edges (e.g. rendered text).
@@ -324,14 +328,30 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
       node_bounds.height() + 2 * kBorderWidth);
 
   // Determine if the contents need to be scaled to preserve fidelity when
-  // rasterized onscreen.
+  // rasterized onscreen. If the scaled size is larger than the main viewport's
+  // size, then just clamp to that.
   const float kScaleThreshold = 1.0f;
-  math::RectF mapped_viewport(draw_state_.transform.MapRect(viewport));
+  math::RectF mapped_bounds(draw_state_.transform.MapRect(node_bounds));
   math::SizeF viewport_scale(1.0f, 1.0f);
-  if (mapped_viewport.width() > viewport.width() + kScaleThreshold ||
-      mapped_viewport.height() > viewport.height() + kScaleThreshold) {
-    viewport_scale.set_width(mapped_viewport.width() / viewport.width());
-    viewport_scale.set_height(mapped_viewport.height() / viewport.height());
+  if (mapped_bounds.width() > viewport_size_.width() ||
+      mapped_bounds.height() > viewport_size_.height()) {
+    // Just render what will fit onscreen.
+    mapped_bounds.Intersect(draw_state_.scissor);
+    if (mapped_bounds.IsEmpty()) {
+      return;
+    }
+    viewport.SetRect(-mapped_bounds.x(), -mapped_bounds.y(),
+                     mapped_bounds.width(), mapped_bounds.height());
+    // Treat the offscreen render target as a window that maps onto the main
+    // render target.
+    original_transform = draw_state_.transform;
+    draw_state_.transform = math::Matrix3F::Identity();
+    node = new render_tree::MatrixTransformNode(node, *original_transform);
+  } else if (mapped_bounds.width() > node_bounds.width() + kScaleThreshold ||
+             mapped_bounds.height() > node_bounds.height() + kScaleThreshold) {
+    // Scale up the offscreen contents to avoid pixelation.
+    viewport_scale.set_width(mapped_bounds.width() / node_bounds.width());
+    viewport_scale.set_height(mapped_bounds.height() / node_bounds.height());
   }
 
   // Adjust the draw rect to accomodate the extra border and align texels with
@@ -357,6 +377,10 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
     AddTransparentDraw(draw.Pass(),
         DrawObjectManager::kOnscreenRectColorTexture, offscreen_type,
         draw_rect);
+  }
+
+  if (original_transform) {
+    draw_state_.transform = *original_transform;
   }
 }
 
