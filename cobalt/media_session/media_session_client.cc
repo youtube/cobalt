@@ -17,33 +17,32 @@
 namespace cobalt {
 namespace media_session {
 
-MediaSession::MediaSessionPlaybackState
-MediaSessionClient::GetActualPlaybackState() {
+MediaSessionPlaybackState MediaSessionClient::GetActualPlaybackState() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // Per https://wicg.github.io/mediasession/#guessed-playback-state
   // - If the "declared playback state" is "playing", then return "playing"
   // - Otherwise, return the guessed playback state
-  MediaSession::MediaSessionPlaybackState declared_state;
+  MediaSessionPlaybackState declared_state;
   declared_state = media_session_->playback_state();
-  if (declared_state == MediaSession::kPlaying) {
-    return MediaSession::kPlaying;
+  if (declared_state == kMediaSessionPlaybackStatePlaying) {
+    return kMediaSessionPlaybackStatePlaying;
   }
 
-  if (platform_playback_state_ == MediaSession::kPlaying) {
+  if (platform_playback_state_ == kMediaSessionPlaybackStatePlaying) {
     // "...guessed playback state is playing if any of them is
     // potentially playing and not muted..."
-    return MediaSession::kPlaying;
+    return kMediaSessionPlaybackStatePlaying;
   }
 
   // It's not super clear what to do when the declared state or the
   // active media session state is kPaused or kNone
 
-  if (declared_state == MediaSession::kPaused) {
-    return MediaSession::kPaused;
+  if (declared_state == kMediaSessionPlaybackStatePaused) {
+    return kMediaSessionPlaybackStatePaused;
   }
 
-  return MediaSession::kNone;
+  return kMediaSessionPlaybackStateNone;
 }
 
 MediaSessionClient::AvailableActionsSet
@@ -54,10 +53,9 @@ MediaSessionClient::GetAvailableActions() {
 }
 
 void MediaSessionClient::UpdatePlatformPlaybackState(
-    MediaSession::MediaSessionPlaybackState state) {
+    MediaSessionPlaybackState state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  MediaSession::MediaSessionPlaybackState prev_actual_state =
-      GetActualPlaybackState();
+  MediaSessionPlaybackState prev_actual_state = GetActualPlaybackState();
   platform_playback_state_ = state;
 
   if (prev_actual_state != GetActualPlaybackState()) {
@@ -65,7 +63,7 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
   }
 }
 
-void MediaSessionClient::InvokeAction(MediaSession::MediaSessionAction action) {
+void MediaSessionClient::InvokeAction(MediaSessionAction action) {
   UNREFERENCED_PARAMETER(action);
   DCHECK(thread_checker_.CalledOnValidThread());
   NOTIMPLEMENTED();

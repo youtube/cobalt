@@ -23,6 +23,8 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
+#include "cobalt/media_session/media_session_action.h"
+#include "cobalt/media_session/media_session_playback_state.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 
@@ -38,23 +40,11 @@ class MediaSession : public script::Wrappable {
       MediaSessionActionHandlerHolder;
   typedef script::ScriptValue<MediaSessionActionHandler>::Reference
       MediaSessionActionHandlerReference;
-  enum MediaSessionPlaybackState { kNone, kPaused, kPlaying };
-
-  enum MediaSessionAction {
-    kPlay,
-    kPause,
-    kSeekbackward,
-    kSeekforward,
-    kPrevioustrack,
-    kNexttrack
-    // If you add a value here, be sure to change kCountMediaSessionActions
-  };
-  static const int kCountMediaSessionActions = 6;
 
  private:
   typedef base::SmallMap<
       std::map<MediaSessionAction, MediaSessionActionHandlerReference*>,
-      kCountMediaSessionActions> ActionMap;
+      kMediaSessionActionNumActions> ActionMap;
 
  public:
   explicit MediaSession(MediaSessionClient* client);

@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/speech/speech_recognition_error_code.h"
 
 namespace cobalt {
 namespace speech {
@@ -29,20 +30,10 @@ namespace speech {
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-error
 class SpeechRecognitionError : public dom::Event {
  public:
-  enum ErrorCode {
-    kNoSpeech,
-    kAborted,
-    kAudioCapture,
-    kNetwork,
-    kNotAllowed,
-    kServiceNotAllowed,
-    kBadGrammar,
-    kLanguageNotSupported
-  };
+  SpeechRecognitionError(SpeechRecognitionErrorCode error_code,
+                         const std::string& message);
 
-  SpeechRecognitionError(ErrorCode error_code, const std::string& message);
-
-  ErrorCode error() const { return error_code_; }
+  SpeechRecognitionErrorCode error() const { return error_code_; }
   const std::string& message() const { return message_; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionError);
@@ -50,7 +41,7 @@ class SpeechRecognitionError : public dom::Event {
  private:
   ~SpeechRecognitionError() OVERRIDE {}
 
-  const ErrorCode error_code_;
+  const SpeechRecognitionErrorCode error_code_;
   const std::string message_;
 
   DISALLOW_COPY_AND_ASSIGN(SpeechRecognitionError);
