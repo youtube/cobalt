@@ -83,6 +83,17 @@
 //     (EGLDisplay, EGLContext) replaced by void* types, so that decode_target.h
 //     can avoid #including EGL/GLES2 headers.
 //   * SbDecodeTargetDestroy() is renamed to SbDecodeTargetRelease().
+// In starboard/player.h, starboard/image.h and starboard/decode_target.h,
+//   * Replace SbDecodeTargetProvider with
+//     SbDecodeTargetGraphicsContextProvider.
+//   * Instead of restricting Starboard implementations to only be able to run
+//     SbDecodeTarget creation and destruction code on the application's
+//     renderer's thread with the application's renderer's EGLContext current,
+//     Starboard implementations can now run arbitrary code on the application's
+//     renderer's thread with its EGLContext current.
+//   * Remove SbDecodeTargetCreate(), SbDecodeTarget creation is now an
+//     implementation detail to be dealt with in other Starboard API functions
+//     that create SbDecodeTargets, like SbImageDecode() or SbPlayerCreate().
 #define SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Support for setting the playback rate on an SbPlayer.  This allows for
