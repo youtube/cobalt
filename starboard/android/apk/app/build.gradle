@@ -94,9 +94,7 @@ afterEvaluate {
 COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
     // Add a build directory for each buildType to the Android JNI sourceSets for libstarboard.so
     // so that it can be included in the APK (the assemble task will pick up all the ABIs it holds).
-    // This is also the IMPORTED_LOCATION for the shared library during the CMake build of the
-    // native JNI code that calls into it. The capitalized buildType matches CMAKE_BUILD_TYPE.
-    def cobaltBuildDir = "build/cobalt/${buildType.capitalize()}"
+    def cobaltBuildDir = "${buildDir}/intermediates/cobalt/${buildType}"
     android.sourceSets.getByName(buildType).jniLibs.srcDir cobaltBuildDir
 
     // Include the Cobalt content directory as assets in the APK.

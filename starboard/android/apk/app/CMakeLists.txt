@@ -12,20 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The Gradle build already puts libstarboard.so into the APK, but we have to
+# declare it here as an imported library so that the debugger recognizes it.
+#
 # Since we don't build from source here, in order to debug in Android Studio
 # you have to manually set the debugger type so that LLDB will be started:
 # Run -> Edit Configurations -> "app" -> Debugger -> Debug Type = Hybrid
 
 cmake_minimum_required(VERSION 3.4.1)
-
-# Use native header files from all of Cobalt
-include_directories(../../../../)
-
-# The ninja-built native library is copied here by gradle before running CMake.
-set(starboard_lib_dir
-    ${CMAKE_SOURCE_DIR}/build/cobalt/${CMAKE_BUILD_TYPE}/${ANDROID_ABI})
-
-# Import the externally built library.
 add_library(starboard SHARED IMPORTED)
-set_target_properties(starboard PROPERTIES IMPORTED_LOCATION
-    ${starboard_lib_dir}/libstarboard.so)
+set_target_properties(starboard PROPERTIES IMPORTED_LOCATION libstarboard.so)
