@@ -397,10 +397,10 @@ Simulator::Create()
         return nullptr;
     }
 
-    if (getenv("ARM_SIM_ICACHE_CHECKS"))
+    if (js_sb_getenv("ARM_SIM_ICACHE_CHECKS"))
         Simulator::ICacheCheckingEnabled = true;
 
-    char* stopAtStr = getenv("ARM_SIM_STOP_AT");
+    char* stopAtStr = js_sb_getenv("ARM_SIM_STOP_AT");
     int64_t stopAt;
     if (stopAtStr && sscanf(stopAtStr, "%lld", &stopAt) == 1) {
         fprintf(stderr, "\nStopping simulation at icount %lld\n", stopAt);
@@ -2940,7 +2940,7 @@ Simulator::decodeType01(SimInstruction* instr)
               }
               case 7: { // BKPT
                 fprintf(stderr, "Simulator hit BKPT.\n");
-                if (getenv("ARM_SIM_DEBUGGER")) {
+                if (js_sb_getenv("ARM_SIM_DEBUGGER")) {
                     ArmDebugger dbg(this);
                     dbg.debug();
                 } else {

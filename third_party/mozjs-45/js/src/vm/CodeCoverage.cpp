@@ -527,7 +527,7 @@ LCovRuntime::~LCovRuntime()
 bool
 LCovRuntime::fillWithFilename(char *name, size_t length)
 {
-    const char* outDir = getenv("JS_CODE_COVERAGE_OUTPUT_DIR");
+    const char* outDir = js_sb_getenv("JS_CODE_COVERAGE_OUTPUT_DIR");
     if (!outDir || *outDir == 0)
         return false;
 

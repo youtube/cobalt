@@ -74,7 +74,7 @@ openPerfMap(const char* dir)
 void
 js::jit::CheckPerf() {
     if (!PerfChecked) {
-        const char* env = getenv("IONPERF");
+        const char* env = js_sb_getenv("IONPERF");
         if (env == nullptr) {
             PerfMode = PERF_MODE_NONE;
             fprintf(stderr, "Warning: JIT perf reporting requires IONPERF set to \"block\" or \"func\". ");

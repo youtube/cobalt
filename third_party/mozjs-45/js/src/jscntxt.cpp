@@ -1059,7 +1059,7 @@ ComputeIsJITBroken()
 #if !defined(ANDROID) || defined(GONK)
     return false;
 #else  // ANDROID
-    if (getenv("JS_IGNORE_JIT_BROKENNESS")) {
+    if (js_sb_getenv("JS_IGNORE_JIT_BROKENNESS")) {
         return false;
     }
 

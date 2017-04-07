@@ -1073,9 +1073,9 @@ js::InitRuntimeNumberState(JSRuntime* rt)
     decimalPoint = locale->decimal_point;
     grouping = locale->grouping;
 #else
-    thousandsSeparator = getenv("LOCALE_THOUSANDS_SEP");
-    decimalPoint = getenv("LOCALE_DECIMAL_POINT");
-    grouping = getenv("LOCALE_GROUPING");
+    thousandsSeparator = js_sb_getenv("LOCALE_THOUSANDS_SEP");
+    decimalPoint = js_sb_getenv("LOCALE_DECIMAL_POINT");
+    grouping = js_sb_getenv("LOCALE_GROUPING");
 #endif
     if (!thousandsSeparator)
         thousandsSeparator = "'";
