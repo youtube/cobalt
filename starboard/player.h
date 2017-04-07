@@ -466,9 +466,9 @@ SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
 // |width|: The width of the player, in pixels.
 // |height|: The height of the player, in pixels.
 SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
-#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX_VERSION
                                  int z_index,
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX_VERSION
                                  int x,
                                  int y,
                                  int width,
