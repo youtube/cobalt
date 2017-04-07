@@ -21,9 +21,9 @@
     SB_IS(PLAYER_PUNCHED_OUT)
 
 void SbPlayerSetBounds(SbPlayer player,
-#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX_VERSION
                        int /*z_index*/,
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX_VERSION
                        int x,
                        int y,
                        int width,
