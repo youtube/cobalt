@@ -38,6 +38,7 @@ class CspDelegate {
     kScript,
     kStyle,
     kXhr,
+    kWebSocket,
   };
 
   CspDelegate();

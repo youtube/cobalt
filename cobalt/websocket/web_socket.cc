@@ -23,7 +23,9 @@
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/websocket/close_event.h"
 #include "googleurl/src/gurl.h"
@@ -510,6 +512,13 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
     return;
   }
 
+  dom::CspDelegate* csp = csp_delegate();
+  if (csp &&
+      !csp->CanLoad(dom::CspDelegate::kWebSocket, resolved_url_, false)) {
+    dom::DOMException::Raise(dom::DOMException::kSecurityErr, exception_state);
+    return;
+  }
+
   if (!net::IsPortAllowedByDefault(GetPort())) {
     std::string error_message = "Connecting to port " + GetPortAsString() +
                                 " using websockets is not allowed.";
@@ -537,6 +546,18 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
   }
 
   Connect(resolved_url_, sub_protocols);
+}
+
+dom::CspDelegate* WebSocket::csp_delegate() const {
+  DCHECK(settings_);
+  if (!settings_) {
+    return NULL;
+  }
+  if (settings_->window() && settings_->window()->document()) {
+    return settings_->window()->document()->csp_delegate();
+  } else {
+    return NULL;
+  }
 }
 
 void WebSocket::Connect(const GURL& url,

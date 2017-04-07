@@ -47,6 +47,7 @@ const ResourcePair s_params[] = {
     {CspDelegate::kScript, "script-src"},
     {CspDelegate::kStyle, "style-src"},
     {CspDelegate::kXhr, "connect-src"},
+    {CspDelegate::kWebSocket, "connect-src"},
 };
 
 class MockViolationReporter : public CspViolationReporter {
