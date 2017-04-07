@@ -57,6 +57,11 @@
 # define HAVE_ARC4RANDOM
 #endif
 
+#if defined(STARBOARD)
+#undef HAVE_ARC4RANDOM
+#define HAVE_LOG2 1
+#endif
+
 using namespace js;
 
 using mozilla::Abs;

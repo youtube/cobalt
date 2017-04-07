@@ -17,54 +17,134 @@
   ],
   'variables': {
     'generated_include_directory': '<(SHARED_INTERMEDIATE_DIR)/mozjs-45/include',
-  },
-  'target_defaults': {
+
+    'common_cflags': [
+      '-include <(DEPTH)/third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
+      '-Wno-inline-new-delete',
+      '-Wno-invalid-offsetof',
+      '-Wno-unused-function',
+    ],
+    'common_defines': [
+      # Do not export symbols that are declare with JS_PUBLIC_[API|DATA].
+      'STATIC_JS_API=1',
+      # Do not use the default js_xxx allocator function implementations, but
+      # include "jscustomallocator.h", which should implement them.
+      'JS_USE_CUSTOM_ALLOCATOR=1',
+      # See vm/Probes.h for different values. This was the value set by the
+      # configure script when building for linux-release.
+      'JS_DEFAULT_JITREPORT_GRANULARITY=3',
+    ],
+    'common_include_dirs': [
+      '<(DEPTH)/third_party/mozjs-45/js/src',
+      '<(generated_include_directory)',
+      'cobalt_config/include',
+      '<(DEPTH)/third_party/icu/source/common',
+    ],
+
     'conditions': [
+      ['target_arch == "x86"', {
+        'common_defines': [
+          'JS_CPU_X86=1',
+          'JS_NUNBOX32=1',
+        ],
+      }],
       ['target_arch == "x64"', {
-        'defines': [
-          'JS_CODEGEN_X64=1',
+        'common_defines': [
           'JS_CPU_X64=1',
           'JS_PUNBOX64=1',
         ],
       }],
+      ['target_arch == "arm"', {
+        'common_defines': [
+          'JS_CPU_ARM=1',
+          'JS_NUNBOX32=1',
+        ],
+      }],
+      ['target_arch == "arm64"', {
+        'common_defines': [
+          'JS_CPU_ARM64=1',
+          'JS_PUNBOX64=1',
+        ],
+      }],
       ['target_arch == "mips"', {
-        'defines': [
-          'JS_CODEGEN_MIPS32=1',
+        'common_defines': [
           'JS_CPU_MIPS=1',
           'JS_NUNBOX32=1',
         ],
       }],
-      ['cobalt_config == "debug"', {
-        'defines': [
-          'DEBUG',
-          'JS_DEBUG',
+      ['target_arch == "mips64"', {
+        'common_defines': [
+          'JS_CPU_MIPS=1',
+          'JS_PUNBOX64=1',
         ],
       }],
+      # TODO: Remove once ps4 configuration todos are addressed.
+      ['target_arch == "ps4" or actual_target_arch == "ps4" or sb_target_platform == "ps4"', {
+        'common_defines': [
+          'JS_CPU_X64=1',
+          'JS_PUNBOX64=1',
+        ],
+      }],
+
+      ['cobalt_enable_jit == 0', {
+        'common_defines': [
+          'JS_CODEGEN_NONE=1',
+        ],
+      }],
+      ['target_arch == "x86" and cobalt_enable_jit == 1', {
+        'common_defines': [
+          'JS_CODEGEN_X86=1',
+        ],
+      }],
+      ['target_arch == "x64" and cobalt_enable_jit == 1', {
+        'common_defines': [
+          'JS_CODEGEN_X64=1',
+        ],
+      }],
+      ['target_arch == "arm" and cobalt_enable_jit == 1', {
+        'common_defines': [
+          'JS_CODEGEN_ARM=1',
+        ],
+      }],
+      ['target_arch == "arm64" and cobalt_enable_jit == 1', {
+        'common_defines': [
+          'JS_CODEGEN_ARM64=1',
+        ],
+      }],
+      ['target_arch == "mips" and cobalt_enable_jit == 1', {
+        'common_defines': [
+          'JS_CODEGEN_MIPS32=1',
+        ],
+      }],
+      ['target_arch == "mips64" and cobalt_enable_jit == 1', {
+        'common_defines': [
+          'JS_CODEGEN_MIPS64=1',
+        ],
+      }],
+
       ['cobalt_config != "gold"', {
-        'defines': [
+        'common_defines': [
           'JS_TRACE_LOGGING=1',
         ],
       }],
-      ['cobalt_config == "debug" and cobalt_enable_jit == 1', {
-        'defines': [
+      ['cobalt_config == "debug"', {
+        'common_defines': [
           'JS_JITSPEW=1',
+          'JS_METHODJIT_SPEW=1',
         ],
-      }],
-    ],
-    'defines': [
-      'JS_DEFAULT_JITREPORT_GRANULARITY=3',
+      }]
     ],
   },
+
+  'target_defaults': {
+    'defines': [ '<@(common_defines)', ],
+  },
+
   'targets': [
     {
       'target_name': 'mozjs-45_lib',
       'type': 'static_library',
-      'cflags': [
-        '-Wno-invalid-offsetof',
-        '-Wno-undefined-var-template',
-        '-Wno-unused-function',
-        '-include <(DEPTH)/third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
-      ],
+      'cflags': ['<@(common_cflags)'],
       'dependencies': [
         'build_include_directory',
         '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
@@ -73,50 +153,41 @@
         '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
       'direct_dependent_settings': {
-        'include_dirs': [
-          '<(DEPTH)/third_party/mozjs-45/js/src',
-          '<(generated_include_directory)',
-        ],
-        'cflags': [
-          '-Wno-invalid-offsetof',
-          '-Wno-undefined-var-template',
-          '-Wno-unused-function',
-          '-include <(DEPTH)/third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
-        ],
-        'defines': [
-          'STATIC_JS_API=1',
-        ],
-        'conditions': [
-          ['target_arch == "x64"', {
-            'defines': [
-              'JS_CODEGEN_X64=1',
-              'JS_CPU_X64=1',
-              'JS_PUNBOX64=1',
-            ],
-          }],
-          ['target_arch == "mips"', {
-            'defines': [
-              'JS_CODEGEN_MIPS32=1',
-              'JS_CPU_MIPS=1',
-              'JS_NUNBOX32=1',
-            ],
-          }],
-          ['cobalt_config != "gold"', {
-            'defines': [
-              'JS_TRACE_LOGGING=1',
-            ],
-          }],
-        ],
+        'include_dirs': [ '<@(common_include_dirs)' ],
+        'cflags': ['<@(common_cflags)'],
+        'defines': ['<@(common_defines)'],
       },
       'include_dirs': [
         '<(DEPTH)/third_party/mozjs-45/js/src',
-        '<(DEPTH)/third_party/icu/source/common',
-        '<(generated_include_directory)',
+        '<@(common_include_dirs)',
       ],
       'sources': [
         '<@(mozjs-45_sources)',
       ],
       'conditions': [
+        ['target_arch == "x86" and cobalt_enable_jit == 1', {
+          'sources': [
+            'js/src/jit/x86-shared/Architecture-x86-shared.cpp',
+            'js/src/jit/x86-shared/Assembler-x86-shared.cpp',
+            'js/src/jit/x86-shared/AssemblerBuffer-x86-shared.cpp',
+            'js/src/jit/x86-shared/BaselineCompiler-x86-shared.cpp',
+            'js/src/jit/x86-shared/BaselineIC-x86-shared.cpp',
+            'js/src/jit/x86-shared/CodeGenerator-x86-shared.cpp',
+            'js/src/jit/x86-shared/Disassembler-x86-shared.cpp',
+            'js/src/jit/x86-shared/Lowering-x86-shared.cpp',
+            'js/src/jit/x86-shared/MacroAssembler-x86-shared.cpp',
+            'js/src/jit/x86-shared/MoveEmitter-x86-shared.cpp',
+            'js/src/jit/x86/Assembler-x86.cpp',
+            'js/src/jit/x86/Bailouts-x86.cpp',
+            'js/src/jit/x86/BaselineCompiler-x86.cpp',
+            'js/src/jit/x86/BaselineIC-x86.cpp',
+            'js/src/jit/x86/CodeGenerator-x86.cpp',
+            'js/src/jit/x86/Lowering-x86.cpp',
+            'js/src/jit/x86/MacroAssembler-x86.cpp',
+            'js/src/jit/x86/SharedIC-x86.cpp',
+            'js/src/jit/x86/Trampoline-x86.cpp',
+          ],
+        }],
         ['target_arch == "x64" and cobalt_enable_jit == 1', {
           'sources': [
             'js/src/jit/x64/Assembler-x64.cpp',
@@ -138,12 +209,80 @@
             'js/src/jit/x86-shared/Lowering-x86-shared.cpp',
             'js/src/jit/x86-shared/MacroAssembler-x86-shared.cpp',
             'js/src/jit/x86-shared/MoveEmitter-x86-shared.cpp',
-            '<@(mozjs-45_jit_sources)',
-            ],
-          },
-        ],
+          ],
+        }],
+        ['target_arch == "arm" and cobalt_enable_jit == 1', {
+          'sources': [
+            'js/src/jit/arm/Architecture-arm.cpp',
+            'js/src/jit/arm/Architecture-arm.h',
+            'js/src/jit/arm/Assembler-arm.cpp',
+            'js/src/jit/arm/Assembler-arm.h',
+            'js/src/jit/arm/AtomicOperations-arm.h',
+            'js/src/jit/arm/Bailouts-arm.cpp',
+            'js/src/jit/arm/BaselineCompiler-arm.cpp',
+            'js/src/jit/arm/BaselineCompiler-arm.h',
+            'js/src/jit/arm/BaselineIC-arm.cpp',
+            'js/src/jit/arm/CodeGenerator-arm.cpp',
+            'js/src/jit/arm/CodeGenerator-arm.h',
+            'js/src/jit/arm/disasm/Constants-arm.cpp',
+            'js/src/jit/arm/disasm/Constants-arm.h',
+            'js/src/jit/arm/disasm/Disasm-arm.cpp',
+            'js/src/jit/arm/disasm/Disasm-arm.h',
+            'js/src/jit/arm/LIR-arm.h',
+            'js/src/jit/arm/LOpcodes-arm.h',
+            'js/src/jit/arm/Lowering-arm.cpp',
+            'js/src/jit/arm/Lowering-arm.h',
+            'js/src/jit/arm/MacroAssembler-arm-inl.h',
+            'js/src/jit/arm/MacroAssembler-arm.cpp',
+            'js/src/jit/arm/MacroAssembler-arm.h',
+            'js/src/jit/arm/MoveEmitter-arm.cpp',
+            'js/src/jit/arm/MoveEmitter-arm.h',
+            'js/src/jit/arm/SharedIC-arm.cpp',
+            'js/src/jit/arm/SharedICHelpers-arm.h',
+            'js/src/jit/arm/SharedICRegisters-arm.h',
+            'js/src/jit/arm/Trampoline-arm.cpp',
+          ],
+        }],
+        ['target_arch == "arm64" and cobalt_enable_jit == 1', {
+          'sources': [
+            'js/src/jit/arm64/Architecture-arm64.cpp',
+            'js/src/jit/arm64/Architecture-arm64.h',
+            'js/src/jit/arm64/Assembler-arm64.cpp',
+            'js/src/jit/arm64/Assembler-arm64.h',
+            'js/src/jit/arm64/AtomicOperations-arm64.h',
+            'js/src/jit/arm64/Bailouts-arm64.cpp',
+            'js/src/jit/arm64/BaselineCompiler-arm64.h',
+            'js/src/jit/arm64/BaselineIC-arm64.cpp',
+            'js/src/jit/arm64/CodeGenerator-arm64.cpp',
+            'js/src/jit/arm64/CodeGenerator-arm64.h',
+            'js/src/jit/arm64/DoubleEntryTable.tbl',
+            'js/src/jit/arm64/gen-double-encoder-table.py',
+            'js/src/jit/arm64/LIR-arm64.h',
+            'js/src/jit/arm64/LOpcodes-arm64.h',
+            'js/src/jit/arm64/Lowering-arm64.cpp',
+            'js/src/jit/arm64/Lowering-arm64.h',
+            'js/src/jit/arm64/MacroAssembler-arm64-inl.h',
+            'js/src/jit/arm64/MacroAssembler-arm64.cpp',
+            'js/src/jit/arm64/MacroAssembler-arm64.h',
+            'js/src/jit/arm64/MoveEmitter-arm64.cpp',
+            'js/src/jit/arm64/MoveEmitter-arm64.h',
+            'js/src/jit/arm64/SharedIC-arm64.cpp',
+            'js/src/jit/arm64/SharedICHelpers-arm64.h',
+            'js/src/jit/arm64/SharedICRegisters-arm64.h',
+            'js/src/jit/arm64/Trampoline-arm64.cpp',
+          ],
+        }],
         ['target_arch == "mips" and cobalt_enable_jit == 1', {
           'sources': [
+            'js/src/jit/mips-shared/Architecture-mips-shared.cpp',
+            'js/src/jit/mips-shared/Assembler-mips-shared.cpp',
+            'js/src/jit/mips-shared/Bailouts-mips-shared.cpp',
+            'js/src/jit/mips-shared/BaselineCompiler-mips-shared.cpp',
+            'js/src/jit/mips-shared/BaselineIC-mips-shared.cpp',
+            'js/src/jit/mips-shared/CodeGenerator-mips-shared.cpp',
+            'js/src/jit/mips-shared/Lowering-mips-shared.cpp',
+            'js/src/jit/mips-shared/MacroAssembler-mips-shared.cpp',
+            'js/src/jit/mips-shared/MoveEmitter-mips-shared.cpp',
             'js/src/jit/mips32/Architecture-mips32.cpp',
             'js/src/jit/mips32/Assembler-mips32.cpp',
             'js/src/jit/mips32/Bailouts-mips32.cpp',
@@ -155,6 +294,10 @@
             'js/src/jit/mips32/MoveEmitter-mips32.cpp',
             'js/src/jit/mips32/SharedIC-mips32.cpp',
             'js/src/jit/mips32/Trampoline-mips32.cpp',
+          ],
+        }],
+        ['target_arch == "mips64" and cobalt_enable_jit == 1', {
+          'sources': [
             'js/src/jit/mips-shared/Architecture-mips-shared.cpp',
             'js/src/jit/mips-shared/Assembler-mips-shared.cpp',
             'js/src/jit/mips-shared/Bailouts-mips-shared.cpp',
@@ -164,7 +307,22 @@
             'js/src/jit/mips-shared/Lowering-mips-shared.cpp',
             'js/src/jit/mips-shared/MacroAssembler-mips-shared.cpp',
             'js/src/jit/mips-shared/MoveEmitter-mips-shared.cpp',
-            '<@(mozjs-45_jit_sources)',
+            'js/src/jit/mips64/Architecture-mips64.cpp',
+            'js/src/jit/mips64/Assembler-mips64.cpp',
+            'js/src/jit/mips64/Bailouts-mips64.cpp',
+            'js/src/jit/mips64/BaselineCompiler-mips64.cpp',
+            'js/src/jit/mips64/BaselineIC-mips64.cpp',
+            'js/src/jit/mips64/CodeGenerator-mips64.cpp',
+            'js/src/jit/mips64/Lowering-mips64.cpp',
+            'js/src/jit/mips64/MacroAssembler-mips64.cpp',
+            'js/src/jit/mips64/MoveEmitter-mips64.cpp',
+            'js/src/jit/mips64/SharedIC-mips64.cpp',
+            'js/src/jit/mips64/Trampoline-mips64.cpp',
+          ],
+        }],
+        ['cobalt_enable_jit == 0', {
+          'sources': [
+            'js/src/jit/none/Trampoline-none.cpp',
           ],
         }],
       ],

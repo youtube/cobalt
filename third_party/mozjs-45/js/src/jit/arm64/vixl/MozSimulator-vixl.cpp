@@ -170,7 +170,7 @@ Simulator* Simulator::Create() {
   // FIXME: We should free it at some point.
   // FIXME: Note that it can't be stored in the SimulatorRuntime due to lifetime conflicts.
   Simulator *sim;
-  if (getenv("USE_DEBUGGER") != nullptr)
+  if (js_sb_getenv("USE_DEBUGGER") != nullptr)
     sim = js_new<Debugger>(decoder, stdout);
   else
     sim = js_new<Simulator>(decoder, stdout);
@@ -288,7 +288,7 @@ int64_t Simulator::call(uint8_t* entry, int argument_count, ...) {
   VIXL_ASSERT(entryStack == exitStack);
 
   int64_t result = xreg(0);
-  if (getenv("USE_DEBUGGER"))
+  if (js_sb_getenv("USE_DEBUGGER"))
       printf("LEAVE\n");
   return result;
 }
@@ -706,7 +706,7 @@ Simulator::VisitCallRedirection(const Instruction* instr)
   // Simulate a return.
   set_lr(savedLR);
   set_pc((Instruction*)savedLR);
-  if (getenv("USE_DEBUGGER"))
+  if (js_sb_getenv("USE_DEBUGGER"))
     printf("SVCRET\n");
 }
 

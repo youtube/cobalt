@@ -182,7 +182,7 @@ InitARMFlags()
     if (armHwCapFlags != HWCAP_UNINITIALIZED)
         return;
 
-    const char* env = getenv("ARMHWCAP");
+    const char* env = js_sb_getenv("ARMHWCAP");
     if (ParseARMHwCapFlags(env))
         return;
 

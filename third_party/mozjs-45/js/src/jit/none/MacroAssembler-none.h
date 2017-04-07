@@ -259,6 +259,14 @@ class MacroAssemblerNone : public Assembler
     template <typename T, typename S> void branchPrivatePtr(Condition, T, S, Label*) { MOZ_CRASH(); }
     template <typename T, typename S> void decBranchPtr(Condition, T, S, Label*) { MOZ_CRASH(); }
     template <typename T, typename S> void branchTest64(Condition, T, T, S, Label*) { MOZ_CRASH(); }
+
+    // These functions are missing from stock SpiderMonkey 45, but should be
+    // here, see:
+    //   https://bugzilla.mozilla.org/show_bug.cgi?id=1266366
+    //   https://bug1266366.bmoattachments.org/attachment.cgi?id=8743851
+    template <typename T, typename S> void branch64(Condition, T, S, Label*) { MOZ_CRASH(); }
+    template <typename T, typename S> void branch64(Condition, T, T, S, Label*) { MOZ_CRASH(); }
+
     template <typename T, typename S> void mov(T, S) { MOZ_CRASH(); }
     template <typename T, typename S> void movq(T, S) { MOZ_CRASH(); }
     template <typename T, typename S> void movePtr(T, S) { MOZ_CRASH(); }

@@ -487,8 +487,8 @@ bool js_StartPerf()
     }
 
     // Bail if MOZ_PROFILE_WITH_PERF is empty or undefined.
-    if (!getenv("MOZ_PROFILE_WITH_PERF") ||
-        !strlen(getenv("MOZ_PROFILE_WITH_PERF"))) {
+    if (!js_sb_getenv("MOZ_PROFILE_WITH_PERF") ||
+        !strlen(js_sb_getenv("MOZ_PROFILE_WITH_PERF"))) {
         return true;
     }
 
@@ -518,7 +518,7 @@ bool js_StartPerf()
         Vector<const char*, 0, SystemAllocPolicy> args;
         args.append(defaultArgs, ArrayLength(defaultArgs));
 
-        const char* flags = getenv("MOZ_PROFILE_PERF_FLAGS");
+        const char* flags = js_sb_getenv("MOZ_PROFILE_PERF_FLAGS");
         if (!flags) {
             flags = "--call-graph";
         }

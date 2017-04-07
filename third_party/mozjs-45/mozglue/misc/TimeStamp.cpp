@@ -52,7 +52,7 @@ TimeStamp::ProcessCreation(bool& aIsInconsistent)
   aIsInconsistent = false;
 
   if (sInitOnce.mProcessCreation.IsNull()) {
-    char* mozAppRestart = getenv("MOZ_APP_RESTART");
+    char* mozAppRestart = js_sb_getenv("MOZ_APP_RESTART");
     TimeStamp ts;
 
     /* When calling PR_SetEnv() with an empty value the existing variable may

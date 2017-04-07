@@ -43,6 +43,10 @@
 #include "js/HashTable.h"
 #include "js/Vector.h"
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 #ifdef JS_CPU_SPARC
 #ifdef __linux__  // bugzilla 502369
 static void sync_instruction_memory(caddr_t v, u_int len)
@@ -397,7 +401,17 @@ class ExecutableAllocator
 
     static unsigned initialProtectionFlags(ProtectionSetting protection);
 
-#if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
+#if defined(STARBOARD)
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+    static void cacheFlush(void* code, size_t size) {
+        SbMemoryFlush(code, size);
+    }
+#else  // SB_CAN(MAP_EXECUTABLE_MEMORY)
+    static void cacheFlush(void* code, size_t size) {
+        MOZ_CRASH();
+    }
+#endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
+#elif defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
     static void cacheFlush(void*, size_t)
     {
     }

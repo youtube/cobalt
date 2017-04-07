@@ -1901,11 +1901,11 @@ js::TryConvertToUnboxedLayout(ExclusiveContext* cx, Shape* templateShape,
 {
     bool isArray = !templateShape;
 
-    // Unboxed arrays are nightly only for now. The getenv() call will be
+    // Unboxed arrays are nightly only for now. The js_sb_getenv() call will be
     // removed when they are on by default. See bug 1153266.
     if (isArray) {
 #ifdef NIGHTLY_BUILD
-        if (!getenv("JS_OPTION_USE_UNBOXED_ARRAYS")) {
+        if (!js_sb_getenv("JS_OPTION_USE_UNBOXED_ARRAYS")) {
             if (!group->runtimeFromAnyThread()->options().unboxedArrays())
                 return true;
         }

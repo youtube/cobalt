@@ -156,7 +156,7 @@ __wrap_PR_GetEnv(const char *var)
     char *ev;
 
     pthread_mutex_lock(&_pr_envLock);
-    ev = getenv(var);
+    ev = js_sb_getenv(var);
     pthread_mutex_unlock(&_pr_envLock);
     return ev;
 }

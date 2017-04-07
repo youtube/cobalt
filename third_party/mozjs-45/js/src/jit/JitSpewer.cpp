@@ -109,7 +109,7 @@ static size_t ChannelIndentLevel[] =
 static bool
 FilterContainsLocation(JSScript* function)
 {
-    static const char* filter = getenv("IONFILTER");
+    static const char* filter = js_sb_getenv("IONFILTER");
 
     // If there is no filter we accept all outputs.
     if (!filter || !filter[0])
@@ -389,7 +389,7 @@ jit::CheckLogging()
     if (LoggingChecked)
         return;
     LoggingChecked = true;
-    const char* env = getenv("IONFLAGS");
+    const char* env = js_sb_getenv("IONFLAGS");
     if (!env)
         return;
     if (strstr(env, "help")) {

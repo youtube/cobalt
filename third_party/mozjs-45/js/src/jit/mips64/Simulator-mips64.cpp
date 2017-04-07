@@ -564,11 +564,11 @@ Simulator::Create()
         return nullptr;
     }
 
-    if (getenv("MIPS_SIM_ICACHE_CHECKS"))
+    if (js_sb_getenv("MIPS_SIM_ICACHE_CHECKS"))
         Simulator::ICacheCheckingEnabled = true;
 
     int64_t stopAt;
-    char* stopAtStr = getenv("MIPS_SIM_STOP_AT");
+    char* stopAtStr = js_sb_getenv("MIPS_SIM_STOP_AT");
     if (stopAtStr && sscanf(stopAtStr, "%ld", &stopAt) == 1) {
         fprintf(stderr, "\nStopping simulation at icount %ld\n", stopAt);
         Simulator::StopSimAt = stopAt;
