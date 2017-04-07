@@ -86,7 +86,7 @@ js::Nursery::init(uint32_t maxNurseryBytes)
     setCurrentChunk(0);
     updateDecommittedRegion();
 
-    char* env = getenv("JS_GC_PROFILE_NURSERY");
+    char* env = js_sb_getenv("JS_GC_PROFILE_NURSERY");
     if (env) {
         if (0 == strcmp(env, "help")) {
             fprintf(stderr, "JS_GC_PROFILE_NURSERY=N\n\n"

@@ -650,7 +650,7 @@ TraceLoggerThreadState::init()
     if (!threadLoggers.init())
         return false;
 
-    const char* env = getenv("TLLOG");
+    const char* env = js_sb_getenv("TLLOG");
     if (!env)
         env = "";
 
@@ -758,7 +758,7 @@ TraceLoggerThreadState::init()
     enabledTextIds[TraceLogger_Baseline] = enabledTextIds[TraceLogger_Engine];
     enabledTextIds[TraceLogger_IonMonkey] = enabledTextIds[TraceLogger_Engine];
 
-    const char* options = getenv("TLOPTIONS");
+    const char* options = js_sb_getenv("TLOPTIONS");
     if (options) {
         if (strstr(options, "help")) {
             fflush(nullptr);

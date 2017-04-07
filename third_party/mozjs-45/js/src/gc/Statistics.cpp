@@ -24,6 +24,10 @@
 #include "vm/Runtime.h"
 #include "vm/Time.h"
 
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#endif
+
 using namespace js;
 using namespace js::gc;
 using namespace js::gcstats;
@@ -709,7 +713,11 @@ Statistics::formatJsonSliceDescription(unsigned i, const SliceData& slice)
 UniqueChars
 FilterJsonKey(const char*const buffer)
 {
+#if defined(STARBOARD)
+    char* mut = SbStringDuplicate(buffer);
+#else
     char* mut = strdup(buffer);
+#endif
     char* c = mut;
     while (*c) {
         if (!isalpha(*c))
@@ -812,7 +820,7 @@ Statistics::Statistics(JSRuntime* rt)
         }
     }
 
-    char* env = getenv("MOZ_GCTIMER");
+    char* env = js_sb_getenv("MOZ_GCTIMER");
     if (env) {
         if (strcmp(env, "none") == 0) {
             fp = nullptr;

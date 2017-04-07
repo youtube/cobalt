@@ -1292,7 +1292,7 @@ GCRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
     tunables.setParameter(JSGC_MAX_BYTES, maxbytes, lock);
     setMaxMallocBytes(maxbytes);
 
-    const char* size = getenv("JSGC_MARK_STACK_LIMIT");
+    const char* size = js_sb_getenv("JSGC_MARK_STACK_LIMIT");
     if (size)
         setMarkStackLimit(atoi(size), lock);
 
@@ -1311,7 +1311,7 @@ GCRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
     }
 
 #ifdef JS_GC_ZEAL
-    const char* zealSpec = getenv("JS_GC_ZEAL");
+    const char* zealSpec = js_sb_getenv("JS_GC_ZEAL");
     if (zealSpec && zealSpec[0] && !parseAndSetZeal(zealSpec))
         return false;
 #endif
@@ -3400,7 +3400,9 @@ js::GetCPUCount()
 {
     static unsigned ncpus = 0;
     if (ncpus == 0) {
-# ifdef XP_WIN
+# if defined(STARBOARD)
+        ncpus = SbSystemGetNumberOfProcessors();
+# elif defined(XP_WIN)
         SYSTEM_INFO sysinfo;
         GetSystemInfo(&sysinfo);
         ncpus = unsigned(sysinfo.dwNumberOfProcessors);

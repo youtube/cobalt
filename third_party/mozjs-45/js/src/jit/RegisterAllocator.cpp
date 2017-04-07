@@ -467,6 +467,8 @@ AllocationIntegrityState::dump()
 #endif
 }
 
+#undef MAX
+#undef MIN
 const CodePosition CodePosition::MAX(UINT_MAX);
 const CodePosition CodePosition::MIN(0);
 

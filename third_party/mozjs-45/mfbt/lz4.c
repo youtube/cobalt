@@ -151,12 +151,24 @@
 /**************************************
    Memory routines
 **************************************/
+#if defined(STARBOARD)
+
+#include "starboard/memory.h"
+#define ALLOCATOR(n,s) SbMemoryCalloc(n,s)
+#define FREEMEM SbMemoryDeallocate
+#include "starboard/string.h"
+#define MEM_INIT SbMemorySet
+#define memcpy(d,s,c) SbMemoryCopy(d,s,c)
+
+#else  // defined(STARBOARD)
+
 #include <stdlib.h>   /* malloc, calloc, free */
 #define ALLOCATOR(n,s) calloc(n,s)
 #define FREEMEM        free
 #include <string.h>   /* memset, memcpy */
 #define MEM_INIT       memset
 
+#endif  // defined(STARBOARD)
 
 /**************************************
    Includes
