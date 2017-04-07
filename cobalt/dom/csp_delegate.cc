@@ -83,6 +83,9 @@ bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
     case kXhr:
       can_load = csp_->AllowConnectToSource(url, redirect_status);
       break;
+    case kWebSocket:
+      can_load = csp_->AllowConnectToSource(url, redirect_status);
+      break;
     default:
       NOTREACHED() << "Invalid resource type " << type;
       break;
