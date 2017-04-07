@@ -131,7 +131,7 @@ static bool InferSpewActive(SpewChannel channel)
     if (!checked) {
         checked = true;
         PodArrayZero(active);
-        const char* env = getenv("INFERFLAGS");
+        const char* env = js_sb_getenv("INFERFLAGS");
         if (!env)
             return false;
         if (strstr(env, "ops"))
@@ -153,7 +153,7 @@ static bool InferSpewColorable()
     static bool checked = false;
     if (!checked) {
         checked = true;
-        const char* env = getenv("TERM");
+        const char* env = js_sb_getenv("TERM");
         if (!env)
             return false;
         if (strcmp(env, "xterm-color") == 0 || strcmp(env, "xterm-256color") == 0)

@@ -10,7 +10,9 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#ifdef XP_WIN
+#if defined(STARBOARD)
+// Intentionally empty.
+#elif defined(XP_WIN)
 #include <direct.h>
 #include <process.h>
 #include <string.h>
@@ -94,6 +96,9 @@ IsAbsolutePath(const JSAutoByteString& filename)
 JSString*
 ResolvePath(JSContext* cx, HandleString filenameStr, PathResolutionMode resolveMode)
 {
+#if defined(STARBOARD)
+    return nullptr;
+#else  // defined(STARBOARD)
     JSAutoByteString filename(cx, filenameStr);
     if (!filename)
         return nullptr;
@@ -139,6 +144,7 @@ ResolvePath(JSContext* cx, HandleString filenameStr, PathResolutionMode resolveM
         return nullptr;
 
     return JS_NewStringCopyZ(cx, buffer);
+#endif  // defined(STARBOARD)
 }
 
 static JSObject*
@@ -462,7 +468,7 @@ os_getenv(JSContext* cx, unsigned argc, Value* vp)
     if (!keyBytes.encodeUtf8(cx, key))
         return false;
 
-    if (const char* valueBytes = getenv(keyBytes.ptr())) {
+    if (const char* valueBytes = js_sb_getenv(keyBytes.ptr())) {
         RootedString value(cx, JS_NewStringCopyZ(cx, valueBytes));
         if (!value)
             return false;
@@ -481,7 +487,11 @@ os_getpid(JSContext* cx, unsigned argc, Value* vp)
         JS_ReportError(cx, "os.getpid takes no arguments");
         return false;
     }
+#if defined(STARBOARD)
+    args.rval().setInt32(0);
+#else
     args.rval().setInt32(getpid());
+#endif
     return true;
 }
 
@@ -566,7 +576,7 @@ os_system(JSContext* cx, unsigned argc, Value* vp)
     return true;
 }
 
-#ifndef XP_WIN
+#if !defined(XP_WIN) && !defined(STARBOARD)
 static bool
 os_spawn(JSContext* cx, unsigned argc, Value* vp)
 {
@@ -698,7 +708,7 @@ static const JSFunctionSpecWithHelp os_functions[] = {
 "  Execute command on the current host, returning result code or throwing an\n"
 "  exception on failure."),
 
-#ifndef XP_WIN
+#if !defined(XP_WIN) && !defined(STARBOARD)
     JS_FN_HELP("spawn", os_spawn, 1, 0,
 "spawn(command)",
 "  Start up a separate process running the given command. Returns the pid."),

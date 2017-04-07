@@ -25,8 +25,8 @@
 #define JS_DEBUG 1
 #endif
 
-// Disabling this will fall back to getenv for locale-specific number
-// formatting.
+// Disabling this will fall back to js_sb_getenv for locale-
+// specific number formatting.
 // This can be removed when ENABLE_INTL_API is enabled, which requires a newer
 // version of ICU.
 #define HAVE_LOCALECONV 1
@@ -41,5 +41,13 @@
 #define MOZJS_MINOR_VERSION 2
 
 // #include "js/RequiredDefines.h"
+
+inline char* js_sb_getenv(const char* name) {
+  return nullptr;
+}
+
+inline char* js_sb_secure_getenv(const char* name) {
+  return nullptr;
+}
 
 #endif /* _JS_CONFDEFS_H_ */
