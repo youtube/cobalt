@@ -65,12 +65,6 @@ void CopyIntoObjectFromArray(T* out_destination,
   SbMemoryCopy(out_destination, source, sizeof(T));
 }
 
-void FlipAddr(in_addr* to_flip) {
-  to_flip->s_addr = SB_NET_TO_HOST_S32(to_flip->s_addr);
-}
-
-void FlipAddr(in6_addr*) {}  // No-op for templates
-
 bool GetPotentialMatch(const sockaddr* input_addr,
                        const in_addr** out_interface_addr) {
   if (!input_addr || input_addr->sa_family != AF_INET) {
@@ -110,7 +104,6 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
 
   in_addr_type to_match;
   CopyIntoObjectFromArray(&to_match, interface_address.address);
-  FlipAddr(&to_match);
 
   bool found_netmask = false;
   for (struct ifaddrs* interface = interface_addrs; interface != NULL;
@@ -354,14 +347,10 @@ bool FindSourceAddressForDestination(const SbSocketAddress& destination,
     return false;
   }
 
-  int sockname_retval = SbSocketGetLocalAddress(socket, out_source_address);
+  bool success = SbSocketGetLocalAddress(socket, out_source_address);
   bool socket_destroyed = SbSocketDestroy(socket);
   SB_DCHECK(socket_destroyed);
-  if (sockname_retval != 0) {
-    return false;
-  }
-
-  return true;
+  return success;
 }
 
 }  // namespace
