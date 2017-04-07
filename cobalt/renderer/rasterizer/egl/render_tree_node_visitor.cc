@@ -169,6 +169,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
+  bool clamp_texcoords = false;
+  bool is_opaque = skia_image->IsOpaque() && draw_state_.opacity == 1.0f;
 
   // Ensure any required backend processing is done to create the necessary
   // GPU resource.
@@ -186,36 +188,53 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
                                data.local_transform(0, 2);
     texcoord_transform(1, 2) = -texcoord_transform(1, 1) *
                                data.local_transform(1, 2);
+    if (texcoord_transform(0, 0) < 1.0f || texcoord_transform(1, 1) < 1.0f) {
+      // Edges may interpolate with texels outside the designated region.
+      // Use a fragment shader that clamps the texture coordinates to prevent
+      // that from happening.
+      clamp_texcoords = true;
+    }
   } else {
     texcoord_transform = data.local_transform.Inverse();
   }
 
   // Different shaders are used depending on whether the image has a single
   // plane or multiple planes.
+  scoped_ptr<DrawObject> draw;
+  DrawObjectManager::OnscreenType onscreen_type;
+
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
-    if (hardware_image->IsOpaque() && draw_state_.opacity == 1.0f) {
-      scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
-          draw_state_, data.destination_rect,
-          hardware_image->GetTextureEGL(), texcoord_transform));
-      AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenRectTexture,
-          DrawObjectManager::kOffscreenNone);
-    } else {
-      scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
-          draw_state_, data.destination_rect,
+    if (clamp_texcoords || !is_opaque) {
+      onscreen_type = DrawObjectManager::kOnscreenRectColorTexture;
+      draw.reset(new DrawRectColorTexture(graphics_state_, draw_state_,
+          data.destination_rect,
           render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
-          hardware_image->GetTextureEGL(), texcoord_transform));
-      AddTransparentDraw(draw.Pass(),
-          DrawObjectManager::kOnscreenRectColorTexture,
-          DrawObjectManager::kOffscreenNone, image_node->GetBounds());
+          hardware_image->GetTextureEGL(), texcoord_transform,
+          clamp_texcoords));
+    } else {
+      onscreen_type = DrawObjectManager::kOnscreenRectTexture;
+      draw.reset(new DrawRectTexture(graphics_state_, draw_state_,
+          data.destination_rect, hardware_image->GetTextureEGL(),
+          texcoord_transform));
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
     FallbackRasterize(image_node,
                       DrawObjectManager::kOffscreenSkiaMultiPlaneImage);
+    return;
   } else {
     NOTREACHED();
+    return;
+  }
+
+  if (is_opaque) {
+    AddOpaqueDraw(draw.Pass(), onscreen_type,
+        DrawObjectManager::kOffscreenNone);
+  } else {
+    AddTransparentDraw(draw.Pass(), onscreen_type,
+        DrawObjectManager::kOffscreenNone, image_node->GetBounds());
   }
 }
 
