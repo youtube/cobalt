@@ -120,6 +120,10 @@
 //     particular, be used for accelerating SSL.
 #define SB_CRYPTOGRAPHY_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Allow SbPlayerSetBounds to use an extra parameter to indicate the z-index of
+// the video so multiple overlapping videos can be rendered.
+#define SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)

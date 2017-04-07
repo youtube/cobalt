@@ -458,11 +458,17 @@ SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
 // with such frequent calls.
 //
 // |player|: The player that is being resized.
+// |z_index|: The z-index of the player.  When the bounds of multiple players
+//            are overlapped, the one with larger z-index will be rendered on
+//            top of the ones with smaller z-index.
 // |x|: The x-coordinate of the upper-left corner of the player.
 // |y|: The y-coordinate of the upper-left corner of the player.
 // |width|: The width of the player, in pixels.
 // |height|: The height of the player, in pixels.
 SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
+#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+                                 int z_index,
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
                                  int x,
                                  int y,
                                  int width,

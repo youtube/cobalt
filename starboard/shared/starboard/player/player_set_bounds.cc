@@ -20,7 +20,14 @@
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
     SB_IS(PLAYER_PUNCHED_OUT)
 
-void SbPlayerSetBounds(SbPlayer player, int x, int y, int width, int height) {
+void SbPlayerSetBounds(SbPlayer player,
+#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+                       int /*z_index*/,
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+                       int x,
+                       int y,
+                       int width,
+                       int height) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
     return;
