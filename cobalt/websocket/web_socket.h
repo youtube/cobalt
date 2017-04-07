@@ -26,6 +26,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/blob.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
@@ -129,6 +130,8 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   bool IsSecure() const { return is_secure_; }
   int GetPort() const { return resolved_url_.EffectiveIntPort(); }
   std::string GetPortAsString() const;
+
+  dom::CspDelegate* csp_delegate() const;
 
   DEFINE_WRAPPABLE_TYPE(WebSocket)
 
