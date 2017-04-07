@@ -161,7 +161,13 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
 void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
+  const int kZIndex = 0;
+  SbPlayerSetBounds(player_, kZIndex, rect.x(), rect.y(), rect.width(),
+                    rect.height());
+#else   // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
   SbPlayerSetBounds(player_, rect.x(), rect.y(), rect.width(), rect.height());
+#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX
 }
 
 void StarboardPlayer::PrepareForSeek() {
