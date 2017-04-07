@@ -38,12 +38,14 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
     const math::RectF& rect, const render_tree::ColorRGBA& color,
     const backend::TextureEGL* texture,
-    const math::Matrix3F& texcoord_transform)
+    const math::Matrix3F& texcoord_transform,
+    bool clamp_texcoords)
     : DrawObject(base_state),
       texcoord_transform_(texcoord_transform),
       rect_(rect),
       texture_(texture),
       vertex_buffer_(NULL),
+      clamp_texcoords_(clamp_texcoords),
       tile_texture_(false) {
   color_ = GetGLRGBA(color * base_state_.opacity);
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
@@ -59,6 +61,7 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
       texture_(NULL),
       generate_texture_(generate_texture),
       vertex_buffer_(NULL),
+      clamp_texcoords_(false),
       tile_texture_(false) {
   color_ = GetGLRGBA(color * base_state_.opacity);
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
@@ -96,10 +99,37 @@ void DrawRectColorTexture::ExecuteOnscreenUpdateVertexBuffer(
       sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 
-  for (int i = 0; i < arraysize(attributes); ++i) {
-    tile_texture_ = tile_texture_ ||
-        attributes[i].texcoord[0] < 0.0f || attributes[i].texcoord[0] > 1.0f ||
-        attributes[i].texcoord[1] < 0.0f || attributes[i].texcoord[1] > 1.0f;
+  // Find minimum and maximum texcoord values.
+  texcoord_clamp_[0] = attributes[0].texcoord[0];
+  texcoord_clamp_[1] = attributes[0].texcoord[1];
+  texcoord_clamp_[2] = attributes[0].texcoord[0];
+  texcoord_clamp_[3] = attributes[0].texcoord[1];
+  for (int i = 1; i < arraysize(attributes); ++i) {
+    float texcoord_u = attributes[i].texcoord[0];
+    float texcoord_v = attributes[i].texcoord[1];
+    if (texcoord_clamp_[0] > texcoord_u) {
+      texcoord_clamp_[0] = texcoord_u;
+    } else if (texcoord_clamp_[2] < texcoord_u) {
+      texcoord_clamp_[2] = texcoord_u;
+    }
+    if (texcoord_clamp_[1] > texcoord_v) {
+      texcoord_clamp_[1] = texcoord_v;
+    } else if (texcoord_clamp_[3] < texcoord_v) {
+      texcoord_clamp_[3] = texcoord_v;
+    }
+  }
+
+  tile_texture_ = texcoord_clamp_[0] < 0.0f || texcoord_clamp_[1] < 0.0f ||
+                  texcoord_clamp_[2] > 1.0f || texcoord_clamp_[3] > 1.0f;
+
+  if (clamp_texcoords_) {
+    // Inset 0.5-epsilon so the border texels are still sampled, but nothing
+    // beyond.
+    const float kTexelInset = 0.499f;
+    texcoord_clamp_[0] += kTexelInset / texture_->GetSize().width();
+    texcoord_clamp_[1] += kTexelInset / texture_->GetSize().height();
+    texcoord_clamp_[2] -= kTexelInset / texture_->GetSize().width();
+    texcoord_clamp_[3] -= kTexelInset / texture_->GetSize().height();
   }
 }
 
@@ -130,6 +160,8 @@ void DrawRectColorTexture::ExecuteOnscreenRasterize(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
+  GL_CALL(glUniform4fv(program->GetFragmentShader().u_texcoord_clamp(),
+      1, texcoord_clamp_));
 
   if (tile_texture_) {
     graphics_state->ActiveBindTexture(
