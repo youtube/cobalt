@@ -39,7 +39,8 @@ class DrawRectColorTexture : public DrawObject {
                        const math::RectF& rect,
                        const render_tree::ColorRGBA& color,
                        const backend::TextureEGL* texture,
-                       const math::Matrix3F& texcoord_transform);
+                       const math::Matrix3F& texcoord_transform,
+                       bool clamp_texcoords);
 
   DrawRectColorTexture(GraphicsState* graphics_state,
                        const BaseState& base_state,
@@ -62,6 +63,8 @@ class DrawRectColorTexture : public DrawObject {
   GenerateTextureFunction generate_texture_;
 
   uint8_t* vertex_buffer_;
+  float texcoord_clamp_[4];   // texcoord clamping (min u, min v, max u, max v)
+  bool clamp_texcoords_;
   bool tile_texture_;
 };
 
