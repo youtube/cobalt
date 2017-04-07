@@ -14,8 +14,12 @@
 
 #include "mozilla/TemplateLib.h"
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#else
 #include <stddef.h>
 #include <stdlib.h>
+#endif
 
 namespace mozilla {
 
@@ -76,13 +80,21 @@ public:
     if (aNumElems & mozilla::tl::MulOverflowMask<sizeof(T)>::value) {
       return nullptr;
     }
+#if defined(STARBOARD)
+    return static_cast<T*>(SbMemoryAllocate(aNumElems * sizeof(T)));
+#else
     return static_cast<T*>(malloc(aNumElems * sizeof(T)));
+#endif
   }
 
   template <typename T>
   T* maybe_pod_calloc(size_t aNumElems)
   {
+#if defined(STARBOARD)
+    return static_cast<T*>(SbMemoryCalloc(aNumElems, sizeof(T)));
+#else
     return static_cast<T*>(calloc(aNumElems, sizeof(T)));
+#endif
   }
 
   template <typename T>
@@ -91,7 +103,11 @@ public:
     if (aNewSize & mozilla::tl::MulOverflowMask<sizeof(T)>::value) {
       return nullptr;
     }
+#if defined(STARBOARD)
+    return static_cast<T*>(SbMemoryReallocate(aPtr, aNewSize * sizeof(T)));
+#else
     return static_cast<T*>(realloc(aPtr, aNewSize * sizeof(T)));
+#endif
   }
 
   template <typename T>
@@ -114,7 +130,11 @@ public:
 
   void free_(void* aPtr)
   {
+#if defined(STARBOARD)
+    SbMemoryDeallocate(aPtr);
+#else
     free(aPtr);
+#endif
   }
 
   void reportAllocOverflow() const

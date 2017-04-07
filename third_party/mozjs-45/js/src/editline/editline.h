@@ -81,7 +81,7 @@ extern void	rl_ttyset(int);
 extern void	rl_add_slash();
 
 #if	!defined(HAVE_STDLIB)
-extern char	*getenv();
+extern char	*js_sb_getenv();
 extern char	*malloc();
 extern char	*realloc();
 extern char	*memcpy();

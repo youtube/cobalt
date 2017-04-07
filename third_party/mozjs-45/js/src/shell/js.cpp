@@ -10,7 +10,12 @@
 #include "mozilla/Atomics.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/GuardObjects.h"
+#if !defined(STARBOARD)
+// mozalloc is only (minimally) used in the shell, and thus is not fully
+// starboardized.  Don't bother including it and just ifdef out references to
+// stuff from it.
 #include "mozilla/mozalloc.h"
+#endif  // !defined(STARBOARD)
 #include "mozilla/PodOperations.h"
 
 #ifdef XP_WIN
@@ -6541,7 +6546,7 @@ Shell(JSContext* cx, OptionParser* op, char** envp)
     if (op->getBoolOption("fuzzing-safe"))
         fuzzingSafe = true;
     else
-        fuzzingSafe = (getenv("MOZ_FUZZING_SAFE") && getenv("MOZ_FUZZING_SAFE")[0] != '0');
+        fuzzingSafe = (js_sb_getenv("MOZ_FUZZING_SAFE") && js_sb_getenv("MOZ_FUZZING_SAFE")[0] != '0');
 
     if (op->getBoolOption("disable-oom-functions"))
         disableOOMFunctions = true;
@@ -6579,7 +6584,7 @@ MaybeOverrideOutFileFromEnv(const char* const envVar,
                             FILE* defaultOut,
                             FILE** outFile)
 {
-    const char* outPath = getenv(envVar);
+    const char* outPath = js_sb_getenv(envVar);
     if (!outPath || !*outPath || !(*outFile = fopen(outPath, "w"))) {
         *outFile = defaultOut;
     }
@@ -6596,7 +6601,7 @@ static void
 PreInit()
 {
 #ifdef XP_WIN
-    const char* crash_option = getenv("XRE_NO_WINDOWS_CRASH_DIALOG");
+    const char* crash_option = js_sb_getenv("XRE_NO_WINDOWS_CRASH_DIALOG");
     if (crash_option && strncmp(crash_option, "1", 1)) {
         // Disable the segfault dialog. We want to fail the tests immediately
         // instead of hanging automation.
@@ -6886,7 +6891,9 @@ main(int argc, char** argv, char** envp)
 
     JS_SetNativeStackQuota(rt, gMaxStackSize);
 
+#if !defined(STARBOARD)
     JS::dbg::SetDebuggerMallocSizeOf(rt, moz_malloc_size_of);
+#endif
 
     if (!offThreadState.init())
         return 1;

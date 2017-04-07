@@ -81,7 +81,7 @@ js::gc::InitTrace(GCRuntime& gc)
     /* This currently does not support multiple runtimes. */
     MOZ_ALWAYS_TRUE(!gcTraceFile);
 
-    char* filename = getenv("JS_GC_TRACE");
+    char* filename = js_sb_getenv("JS_GC_TRACE");
     if (!filename)
         return true;
 

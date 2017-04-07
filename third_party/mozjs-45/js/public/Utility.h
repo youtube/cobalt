@@ -63,6 +63,10 @@ JS_Assert(const char* s, const char* file, int ln);
 # include "jscustomallocator.h"
 #else
 
+#if defined(STARBOARD)
+#error "Builds on top of starboard should always use a custom allocator."
+#endif
+
 namespace js {
 namespace oom {
 

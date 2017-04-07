@@ -1420,7 +1420,7 @@ js::SelfHostedFramesVisible()
     static bool visible = false;
     if (!checked) {
         checked = true;
-        char* env = getenv("MOZ_SHOW_ALL_JS_FRAMES");
+        char* env = js_sb_getenv("MOZ_SHOW_ALL_JS_FRAMES");
         visible = !!env;
     }
     return visible;
