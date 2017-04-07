@@ -9,7 +9,10 @@
 #ifndef mozilla_ThreadLocal_h
 #define mozilla_ThreadLocal_h
 
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+#include "starboard/atomic.h"
+#include "starboard/thread.h"
+#elif defined(XP_WIN)
 // This file will get included in any file that wants to add a profiler mark.
 // In order to not bring <windows.h> together we could include windef.h and
 // winbase.h which are sufficient to get the prototypes for the Tls* functions.
@@ -36,7 +39,9 @@ namespace mozilla {
 // sig_safe_t denotes an atomic type which can be read or stored in a single
 // instruction.  This means that data of this type is safe to be manipulated
 // from a signal handler, or other similar asynchronous execution contexts.
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+typedef SbAtomic32 sig_safe_t;
+#elif defined(XP_WIN)
 typedef unsigned long sig_safe_t;
 #else
 typedef sig_atomic_t sig_safe_t;
@@ -72,7 +77,9 @@ typedef sig_atomic_t sig_safe_t;
 template<typename T>
 class ThreadLocal
 {
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+  typedef SbThreadLocalKey key_t;
+#elif defined(XP_WIN)
   typedef unsigned long key_t;
 #else
   typedef pthread_key_t key_t;
@@ -119,7 +126,10 @@ ThreadLocal<T>::init()
                 "mozilla::ThreadLocal can't be used for types larger than "
                 "a pointer");
   MOZ_ASSERT(!initialized());
-#ifdef XP_WIN
+#if defined(STARBOARD)
+  mKey = SbThreadCreateLocalKey(nullptr);
+  mInited = SbThreadIsValidLocalKey(mKey);
+#elif defined(XP_WIN)
   mKey = TlsAlloc();
   mInited = mKey != 0xFFFFFFFFUL; // TLS_OUT_OF_INDEXES
 #else
@@ -134,7 +144,9 @@ ThreadLocal<T>::get() const
 {
   MOZ_ASSERT(initialized());
   void* h;
-#ifdef XP_WIN
+#if defined(STARBOARD)
+  h = SbThreadGetLocalValue(mKey);
+#elif defined(XP_WIN)
   h = TlsGetValue(mKey);
 #else
   h = pthread_getspecific(mKey);
@@ -148,7 +160,9 @@ ThreadLocal<T>::set(const T aValue)
 {
   MOZ_ASSERT(initialized());
   void* h = reinterpret_cast<void*>(static_cast<typename Helper<T>::Type>(aValue));
-#ifdef XP_WIN
+#if defined(STARBOARD)
+  bool succeeded = SbThreadSetLocalValue(mKey, h);
+#elif defined(XP_WIN)
   bool succeeded = TlsSetValue(mKey, h);
 #else
   bool succeeded = !pthread_setspecific(mKey, h);

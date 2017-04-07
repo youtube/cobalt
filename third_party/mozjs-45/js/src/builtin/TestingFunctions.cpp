@@ -59,7 +59,7 @@ static bool disableOOMFunctions = false;
 static bool
 EnvVarIsDefined(const char* name)
 {
-    const char* value = getenv(name);
+    const char* value = js_sb_getenv(name);
     return value && *value;
 }
 
@@ -70,7 +70,7 @@ EnvVarAsInt(const char* name, int* valueOut)
     if (!EnvVarIsDefined(name))
         return false;
 
-    *valueOut = atoi(getenv(name));
+    *valueOut = atoi(js_sb_getenv(name));
     return true;
 }
 #endif
@@ -3026,7 +3026,7 @@ GetLcovInfo(JSContext* cx, unsigned argc, Value* vp)
         return false;
 
     JSString* str = JS_NewStringCopyN(cx, content, length);
-    free(content);
+    js_free(content);
 
     if (!str)
         return false;

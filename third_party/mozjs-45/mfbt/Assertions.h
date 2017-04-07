@@ -38,10 +38,16 @@ void AnnotateMozCrashReason(const char* aReason);
 #  define MOZ_CRASH_ANNOTATE(...) do { /* nothing */ } while (0)
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#else
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef WIN32
+#endif
+
+#if defined(STARBOARD)
+#elif defined(WIN32)
    /*
     * TerminateProcess and GetCurrentProcess are defined in <winbase.h>, which
     * further depends on <windef.h>.  We hardcode these few definitions manually
@@ -152,7 +158,10 @@ static MOZ_COLD MOZ_ALWAYS_INLINE void
 MOZ_ReportAssertionFailure(const char* aStr, const char* aFilename, int aLine)
   MOZ_PRETEND_NORETURN_FOR_STATIC_ANALYSIS
 {
-#ifdef ANDROID
+#if defined(STARBOARD)
+  SbLogFormatF("Assertion failure: %s, at %s:%d\n", aStr, aFilename, aLine);
+  SbLogFlush();
+#elif defined(ANDROID)
   __android_log_print(ANDROID_LOG_FATAL, "MOZ_Assert",
                       "Assertion failure: %s, at %s:%d\n",
                       aStr, aFilename, aLine);
@@ -169,7 +178,10 @@ static MOZ_COLD MOZ_ALWAYS_INLINE void
 MOZ_ReportCrash(const char* aStr, const char* aFilename, int aLine)
   MOZ_PRETEND_NORETURN_FOR_STATIC_ANALYSIS
 {
-#ifdef ANDROID
+#if defined(STARBOARD)
+  SbLogFormatF("Hit MOZ_CRASH(%s) at %s:%d\n", aStr, aFilename, aLine);
+  SbLogFlush();
+#elif defined(ANDROID)
   __android_log_print(ANDROID_LOG_FATAL, "MOZ_CRASH",
                       "Hit MOZ_CRASH(%s) at %s:%d\n", aStr, aFilename, aLine);
 #else
@@ -185,7 +197,13 @@ MOZ_ReportCrash(const char* aStr, const char* aFilename, int aLine)
  * MOZ_REALLY_CRASH is used in the implementation of MOZ_CRASH().  You should
  * call MOZ_CRASH instead.
  */
-#if defined(_MSC_VER)
+#if defined(STARBOARD)
+#  define MOZ_REALLY_CRASH() \
+     do { \
+       *((volatile int*) NULL) = __LINE__; \
+       ::SbSystemBreakIntoDebugger(); \
+     } while (0)
+#elif defined(_MSC_VER)
    /*
     * On MSVC use the __debugbreak compiler intrinsic, which produces an inline
     * (not nested in a system function) breakpoint.  This distinctively invokes

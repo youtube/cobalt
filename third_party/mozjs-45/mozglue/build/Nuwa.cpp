@@ -1795,7 +1795,7 @@ ForkIPCProcess() {
   } else {
     // in the child
     sIsNuwaChildProcess = true;
-    if (getenv("MOZ_DEBUG_CHILD_PROCESS")) {
+    if (js_sb_getenv("MOZ_DEBUG_CHILD_PROCESS")) {
       printf("\n\nNUWA CHILDCHILDCHILDCHILD\n  debug me @ %d\n\n", getpid());
       sleep(30);
     }

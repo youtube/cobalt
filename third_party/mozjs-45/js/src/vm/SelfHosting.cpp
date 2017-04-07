@@ -1769,7 +1769,7 @@ JSRuntime::initSelfHosting(JSContext* cx)
     RootedValue rv(cx);
     bool ok = true;
 
-    char* filename = getenv("MOZ_SELFHOSTEDJS");
+    char* filename = js_sb_getenv("MOZ_SELFHOSTEDJS");
     if (filename) {
         RootedScript script(cx);
         if (Compile(cx, options, filename, &script))
