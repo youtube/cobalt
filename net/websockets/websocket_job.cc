@@ -402,11 +402,12 @@ void WebSocketJob::OnSentHandshakeRequest(
   if (handshake_request_sent_ >= handshake_request_->raw_length()) {
     // handshake request has been sent.
     // notify original size of handshake request to delegate.
+    std::size_t original_length = handshake_request_->original_length();
+    handshake_request_.reset();
     if (delegate_)
       delegate_->OnSentData(
           socket,
-          handshake_request_->original_length());
-    handshake_request_.reset();
+          original_length);
   }
 }
 
