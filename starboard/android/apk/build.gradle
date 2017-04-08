@@ -30,9 +30,10 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-// Move the 'buildDir' for all sub-projects into a sub-directory of the root's original 'buildDir'
-subprojects {
-    buildDir = new File(rootProject.buildDir, project.name)
-}
-// Now move the 'buildDir' for the root (this project) into a sub-directory too
-buildDir = new File(buildDir, name)
+// Move the 'buildDir' for all projects into sub-directories of the root's original 'buildDir'
+def rootBuildDir = buildDir
+allprojects { buildDir = new File(rootBuildDir, project.name) }
+
+// Make the canonical path of the optional 'cobaltProductDir' available to all projects.
+def productDir = hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : null
+allprojects { project.ext.cobaltProductDir = productDir }
