@@ -47,7 +47,7 @@ class ShellVideoFrameProvider
     kOutputModeInvalid,
   };
 
-  ShellVideoFrameProvider() : output_mode_(kOutputModePunchOut) {}
+  ShellVideoFrameProvider() : output_mode_(kOutputModeInvalid) {}
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
