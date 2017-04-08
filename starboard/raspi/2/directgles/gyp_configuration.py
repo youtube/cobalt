@@ -11,28 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Starboard Raspberry Pi 2 platform configuration for gyp_cobalt."""
 
-{
-  'target_defaults': {
-    'default_configuration': 'raspi-2_debug',
-    'configurations': {
-      'raspi-2_debug': {
-        'inherit_from': ['debug_base'],
-      },
-      'raspi-2_devel': {
-        'inherit_from': ['devel_base'],
-      },
-      'raspi-2_qa': {
-        'inherit_from': ['qa_base'],
-      },
-      'raspi-2_gold': {
-        'inherit_from': ['gold_base'],
-      },
-    }, # end of configurations
-  },
+import logging
+import os
+import sys
 
-  'includes': [
-    'architecture.gypi',
-    '../shared/gyp_configuration.gypi',
-  ],
-}
+_SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(_SCRIPT_DIR, '../..'))
+
+# pylint: disable=g-import-not-at-top
+from shared.gyp_configuration import RaspiPlatformConfig
+
+
+def CreatePlatformConfig():
+  try:
+    return RaspiPlatformConfig('raspi-2-directgles')
+  except RuntimeError as e:
+    logging.critical(e)
+    return None
