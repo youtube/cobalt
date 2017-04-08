@@ -34,9 +34,12 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     sdk_utils.InstallSdkIfNeeded(android_abi)
 
     self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
+    self.android_home = sdk_utils.GetSdkPath()
     self.ndk_path = sdk_utils.GetNdkPath()
     self.javac_classpath = sdk_utils.GetJavacClasspath()
     self.android_build_tools_path = sdk_utils.GetBuildToolsPath()
+
+    print('Using Android SDK at {}'.format(self.android_home))
     print('Using Android NDK at {}'.format(self.ndk_path))
 
   def GetBuildFormat(self):
@@ -50,6 +53,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     variables = super(PlatformConfig, self).GetVariables(
         configuration, use_clang=1)
     variables.update({
+        'ANDROID_HOME': self.android_home,
         'NDK_HOME': self.ndk_path,
         'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'ANDROID_ABI': self.android_abi,
