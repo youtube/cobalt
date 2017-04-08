@@ -20,25 +20,26 @@ final STARBOARD_APP = 'cobalt'
 //final STARBOARD_APP = 'starboard_glclear_example'
 //final STARBOARD_APP = 'starboard_window_example'
 
-// These are the ABIs that we target. It affects which architectures of Cobalt get built,
-// as well as which ABIs are expected for the split APKs.
-//final COBALT_ABIS = (String[]) ['x86', 'armeabi-v7a', 'arm64-v8a']
-final COBALT_ABIS = (String[]) ['x86']  // just one for Nexus Player & emulator for faster builds
-
 // Maps the Android build type to the Cobalt build configuration type
 final COBALT_BUILD_TYPE_MAP = [
         debug  : 'debug',
         release: 'gold',
 ]
+
 // Maps the Android ABI to the Cobalt target architecture
-// (Configure which are actually built in COBALT_ABIS above)
 final COBALT_ARCH_MAP = [
         'x86'        : 'x86',
         'x86_64'     : 'x64',
-        'armeabi'    : 'arm',
         'armeabi-v7a': 'arm',
         'arm64-v8a'  : 'arm64',
 ]
+final String[] SPLIT_ABI_NAMES = COBALT_ARCH_MAP.keySet()
+
+final getProductDir = { configType, arch ->
+    // If 'cobaltProductDir' was specified on the command line (see root project),
+    // use that instead of the relative path up to the 'out' directory.
+    cobaltProductDir ?: "../../../../out/android-${arch}_${configType}"
+}
 
 android {
     compileSdkVersion 25
@@ -54,14 +55,14 @@ android {
         versionCode 1
         versionName "1.0"
         ndk {
-            abiFilters COBALT_ABIS
+            abiFilters SPLIT_ABI_NAMES
         }
     }
     splits {
         abi {
             enable true
             reset()
-            include COBALT_ABIS
+            include SPLIT_ABI_NAMES
         }
     }
     buildTypes {
@@ -81,14 +82,52 @@ android {
     }
 }
 
-// Rollup tasks for each build type, which will depend on copy tasks for each ABI.
-task copyCobaltDebug
-task copyCobaltRelease
-// NDK build depends on Cobalt libraries being built and copied into the build directory.
-// (NDK tasks are created during evaluation, so hook dependencies late)
+// Flavors of the assemble tasks and externalNativeBuild (NDK/cmake) are created during evaluation
+// so we can only hook up to them after that's done.
 afterEvaluate {
-    externalNativeBuildDebug.dependsOn copyCobaltDebug
-    externalNativeBuildRelease.dependsOn copyCobaltRelease
+    android.buildTypes.each {
+        def buildType = it.name.capitalize()
+
+        def nativeBuildTask = tasks.findByName("externalNativeBuild${buildType}")
+
+        // Find all the assemble task flavors actually being built
+        def assembleTask = tasks.findByName("assemble${buildType}")
+        def assembleFlavors = assembleTask.taskDependencies.getDependencies(assembleTask).findAll {
+            it.name.startsWith('assemble')
+        }
+        if (assembleFlavors.size() > 1) {
+            assembleTask.dependsOn checkMultipleFlavors
+        }
+
+        // Leverage Android Studio's determination to assemble only the ABI split needed for the
+        // target device, and only run the cobalt tasks of the same flavor.
+        assembleFlavors.each { assemble ->
+            def flavor = assemble.name.replaceFirst('assemble', '')
+            def cobaltCopyTaskName = "cobaltCopy${flavor}"
+            // Run our build & copy tasks only when the same flavor assemble task is required
+            assemble.dependsOn cobaltCopyTaskName
+            // Run cmake only after we copied our .so file to where it will be picked up
+            // (not using 'dependsOn' since we only want to run for flavors being assembled)
+            nativeBuildTask.mustRunAfter cobaltCopyTaskName
+        }
+    }
+}
+
+task checkMultipleFlavors {
+    doLast {
+        if (cobaltProductDir) {
+            throw new IllegalArgumentException(
+                    "Can't build multiple ABIs when cobaltProductDir is set")
+        }
+    }
+}
+
+// Make proxy assemble tasks just depend on the Android assemble task of the right flavor. This
+// makes them available to specify on the command line, unlike the flavors of the assemble tasks,
+// which aren't created until during evaluation phase. We do not capitalize the ABI in the task
+// name so that it's easy to generate in GYP.
+COBALT_ARCH_MAP.keySet().each { abi ->
+    task "cobaltAssembleForDeploy_${abi}" dependsOn "assemble${abi.capitalize()}Debug"
 }
 
 COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
@@ -99,33 +138,33 @@ COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
 
     // Include the Cobalt content directory as assets in the APK.
     // Uses the x86 build for all architectures since we only need one and they're all the same.
-    def cobaltContentDir = "../../../../out/android-x86_${configType}/content/data"
+    def cobaltContentDir = "${getProductDir(configType, 'x86')}/content/data"
     android.sourceSets.getByName(buildType).assets.srcDir cobaltContentDir
 
     // Add build/copy tasks for each (buildType, abi) tuple to produce the Cobalt native library.
-    COBALT_ABIS.each { abi ->
-        def arch = COBALT_ARCH_MAP[abi]
-        def cobaltNinjaDir = "../../../../out/android-${arch}_${configType}"
+    COBALT_ARCH_MAP.each { abi, arch ->
+        def productDir = getProductDir(configType, arch)
 
-        def buildTaskName = "buildCobalt${abi.capitalize()}${buildType.capitalize()}"
-        task(buildTaskName, type: Exec) {
-            def ninjaArgs = ['-C', cobaltNinjaDir, STARBOARD_APP]
+        def buildTaskName = "cobaltBuild${abi.capitalize()}${buildType.capitalize()}"
+        def cobaltBuildTask = task(buildTaskName, type: Exec) {
+            def ninjaArgs = ['-C', productDir, STARBOARD_APP]
             if (project.hasProperty('cobaltPlatformDeploy') && cobaltPlatformDeploy.toBoolean()) {
                 ninjaArgs.add(0, '-n')
             }
             commandLine = ['sh', 'cobalt-ninja.sh', *ninjaArgs]
         }
+        cobaltBuildTask.mustRunAfter checkMultipleFlavors
 
-        def copyTaskName = "copyCobalt${abi.capitalize()}${buildType.capitalize()}"
+        def copyTaskName = "cobaltCopy${abi.capitalize()}${buildType.capitalize()}"
         task(copyTaskName, type: Copy, dependsOn: buildTaskName) {
-            from "${cobaltNinjaDir}/lib"
+            from "${productDir}/lib"
             into "${cobaltBuildDir}/${abi}"
             include "lib${STARBOARD_APP}.so"
             rename("lib${STARBOARD_APP}.so", 'libstarboard.so')
+            doLast {
+                source.files.each { println it }
+            }
         }
-
-        // The rollup copy task depends on each abi copy task.
-        tasks.getByName("copyCobalt${buildType.capitalize()}").dependsOn copyTaskName
     }
 }
 
