@@ -13,26 +13,21 @@
 # limitations under the License.
 
 {
-  'target_defaults': {
-    'default_configuration': 'raspi-2_debug',
-    'configurations': {
-      'raspi-2_debug': {
-        'inherit_from': ['debug_base'],
-      },
-      'raspi-2_devel': {
-        'inherit_from': ['devel_base'],
-      },
-      'raspi-2_qa': {
-        'inherit_from': ['qa_base'],
-      },
-      'raspi-2_gold': {
-        'inherit_from': ['gold_base'],
-      },
-    }, # end of configurations
-  },
+  'variables': {
+    # RasPi 2 is ARMv7
+    'arm_version': 7,
+    'armv7': 1,
+    'arm_neon': 0, # Disable neon until it shows measurable
+                   # benefit under cobalt benchmarks.
+    'arm_float_abi': 'hard',
 
-  'includes': [
-    'architecture.gypi',
-    '../shared/gyp_configuration.gypi',
-  ],
+    'compiler_flags': [
+      # Optimize for Raspberry Pi 2 chips.
+      '-march=armv7-a',
+      '-mtune=cortex-a8',
+      '-mfloat-abi=hard',
+      #'-mfpu=neon-vfpv4',  # Disable neon until it shows measurable
+                            # benefit under cobalt benchmarks.
+    ],
+  },
 }
