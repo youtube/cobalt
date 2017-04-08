@@ -39,7 +39,7 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::SoftwareRasterizer(
           graphics_context, options.surface_cache_size_in_bytes));
-#elif defined(COBALT_FORCE_CUSTOM_RASTERIZER)
+#elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
           graphics_context, options.skia_texture_atlas_dimensions.width(),
