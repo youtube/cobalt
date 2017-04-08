@@ -26,8 +26,8 @@ const int kBlockSizeBits = 128;
 const int kBlockSizeBytes = kBlockSizeBits / 8;
 
 TEST(SbCryptographyCreateTransformer, SunnyDay) {
-  char* initialization_vector[kBlockSizeBytes] = {0};
-  char* key[kBlockSizeBytes] = {0};
+  char initialization_vector[kBlockSizeBytes] = {0};
+  char key[kBlockSizeBytes] = {0};
 
   // Try to create a transformer for the most likely algorithm to be supported:
   // AES-128-CBC

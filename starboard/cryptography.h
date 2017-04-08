@@ -161,7 +161,7 @@ SB_EXPORT int SbCryptographyTransformBlock(
     SbCryptographyTransformer transformer,
     const void* in_data,
     int in_data_size,
-    const void* out_data,
+    void* out_data,
     int out_data_size);
 
 #ifdef __cplusplus
