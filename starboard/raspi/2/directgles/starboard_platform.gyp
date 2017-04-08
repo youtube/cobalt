@@ -11,28 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 {
-  'target_defaults': {
-    'default_configuration': 'raspi-2_debug',
-    'configurations': {
-      'raspi-2_debug': {
-        'inherit_from': ['debug_base'],
-      },
-      'raspi-2_devel': {
-        'inherit_from': ['devel_base'],
-      },
-      'raspi-2_qa': {
-        'inherit_from': ['qa_base'],
-      },
-      'raspi-2_gold': {
-        'inherit_from': ['gold_base'],
-      },
-    }, # end of configurations
-  },
-
   'includes': [
-    'architecture.gypi',
-    '../shared/gyp_configuration.gypi',
+    '../../shared/starboard_platform.gypi',
   ],
 }
