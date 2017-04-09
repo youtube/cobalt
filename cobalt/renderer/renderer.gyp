@@ -22,8 +22,6 @@
       'target_name': 'renderer',
       'type': 'static_library',
       'sources': [
-        'frame_rate_throttler.cc',
-        'frame_rate_throttler.h',
         'pipeline.cc',
         'pipeline.h',
         'renderer_module.cc',
