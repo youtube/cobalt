@@ -42,6 +42,11 @@
 
     'cobalt_media_source_2016': 1,
 
+    # Switch Android's SurfaceFlinger queue to "async mode" so that we don't
+    # queue up rendered frames which would interfere with frame timing and
+    # more importantly lead to input latency.
+    'cobalt_egl_swap_interval': 0,
+
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [
       '<(DEPTH)/starboard/android/shared/cobalt/cobalt_platform.gyp:cobalt_platform',
