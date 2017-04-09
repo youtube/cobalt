@@ -25,7 +25,6 @@
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
-#include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
@@ -78,7 +77,6 @@ class HardwareRasterizer::Impl {
   scoped_ptr<OffscreenTargetManager> offscreen_target_manager_;
 
   backend::GraphicsContextEGL* graphics_context_;
-  FrameRateThrottler frame_rate_throttler_;
   base::ThreadChecker thread_checker_;
 };
 
@@ -154,9 +152,7 @@ void HardwareRasterizer::Impl::Submit(
 
   RasterizeTree(render_tree, render_target_egl);
 
-  frame_rate_throttler_.EndInterval();
   graphics_context_->SwapBuffers(render_target_egl);
-  frame_rate_throttler_.BeginInterval();
 }
 
 void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(

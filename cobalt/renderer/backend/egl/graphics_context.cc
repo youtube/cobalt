@@ -442,6 +442,7 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   // current implementation of eglSwapBuffers() does nothing for PBuffers,
   // so only check for framebuffer render targets.
   if (surface->GetPlatformHandle() == 0) {
+    eglSwapInterval(display_, COBALT_EGL_SWAP_INTERVAL);
     eglSwapBuffers(display_, surface->GetSurface());
     EGLint swap_err = eglGetError();
     if (swap_err != EGL_SUCCESS) {
