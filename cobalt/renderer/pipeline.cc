@@ -216,7 +216,8 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
     // platform does not rate limit itself during swaps. This was changed from
     // 15ms to accommodate 120fps requirements on some platforms.
     rasterize_timer_.emplace(
-        FROM_HERE, base::TimeDelta::FromMilliseconds(7),
+        FROM_HERE, base::TimeDelta::FromMillisecondsD(
+                       COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true, true);
     rasterize_timer_->Reset();
