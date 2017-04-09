@@ -90,9 +90,7 @@ void SoftwareRasterizer::Submit(
       context_, render_target_egl);
 
   context_->Blit(output_texture->gl_handle(), 0, 0, width, height);
-  frame_rate_throttler_.EndInterval();
   context_->SwapBuffers(render_target_egl);
-  frame_rate_throttler_.BeginInterval();
 }
 
 render_tree::ResourceProvider* SoftwareRasterizer::GetResourceProvider() {

@@ -39,6 +39,9 @@
     'utils.cc',
     'utils.h',
   ],
+  'defines': [
+    'COBALT_EGL_SWAP_INTERVAL=<(cobalt_egl_swap_interval)',
+  ],
   'dependencies': [
     '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
   ],
