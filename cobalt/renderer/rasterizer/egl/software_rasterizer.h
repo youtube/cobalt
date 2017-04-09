@@ -19,7 +19,6 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/render_target.h"
-#include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
@@ -50,7 +49,6 @@ class SoftwareRasterizer : public Rasterizer {
  private:
   backend::GraphicsContextEGL* context_;
   skia::SoftwareRasterizer skia_rasterizer_;
-  FrameRateThrottler frame_rate_throttler_;
 };
 
 }  // namespace egl
