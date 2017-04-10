@@ -78,7 +78,7 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
 
 #if defined(OS_STARBOARD)
 
-#if SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#if SB_API_VERSION >= 4
   if (ret != 0) {
     return ERR_FAILED;
   }
@@ -106,7 +106,7 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   ret |= SbSocketGetLocalInterfaceAddress(&address) ? 0 : -1;
   address.port = addr->port();
   return (ret == 0 && addr->FromSbSocketAddress(&address)) ? OK : ERR_FAILED;
-#endif  // SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#endif  // SB_API_VERSION >= 4
 
 #else
   // Now get the IPAddress of the network card.
