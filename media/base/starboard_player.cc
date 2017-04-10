@@ -378,9 +378,10 @@ void StarboardPlayer::CreatePlayer() {
       &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
       ,
-      output_mode_
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+      output_mode_,
+      ShellMediaPlatform::Instance()->
+          GetSbDecodeTargetGraphicsContextProvider()
+#elif SB_API_VERSION >= 3
       ,
       ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
 #endif  // SB_API_VERSION >= 3
