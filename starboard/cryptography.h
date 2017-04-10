@@ -26,7 +26,7 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= SB_CRYPTOGRAPHY_API_VERSION
+#if SB_API_VERSION >= 4
 
 #ifdef __cplusplus
 extern "C" {
@@ -168,6 +168,6 @@ SB_EXPORT int SbCryptographyTransformBlock(
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION >= SB_CRYPTOGRAPHY_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 #endif  // STARBOARD_CRYPTOGRAPHY_H_

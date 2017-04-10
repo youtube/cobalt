@@ -18,7 +18,7 @@
 #include "starboard/memory.h"
 #include "starboard/socket.h"
 
-#if SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#if SB_API_VERSION >= 4
 
 using starboard::android::shared::JniEnvExt;
 
@@ -94,4 +94,4 @@ bool SbSocketGetInterfaceAddress(const SbSocketAddress* const /*destination*/,
   return true;
 }
 
-#endif  // SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#endif  // SB_API_VERSION >= 4

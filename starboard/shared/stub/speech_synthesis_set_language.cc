@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION < 4
 
 #include "starboard/speech_synthesis.h"
 

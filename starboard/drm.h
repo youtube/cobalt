@@ -79,16 +79,16 @@ typedef struct SbDrmSystemPrivate* SbDrmSystem;
 // from a SbDrmSystem. |drm_system| will be the DRM system that
 // SbDrmGenerateSessionUpdateRequest() was called on. |context| will be the same
 // context that was passed into the call to SbDrmCreateSystem().
-#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#if SB_API_VERSION >= 4
 // |ticket| will be the same ticket that was passed
 // to SbDrmGenerateSessionUpdateRequest().
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#endif  // SB_API_VERSION >= 4
 // |session_id| can be NULL if there was an error generating the request.
 typedef void (*SbDrmSessionUpdateRequestFunc)(SbDrmSystem drm_system,
                                               void* context,
-#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#if SB_API_VERSION >= 4
                                               int ticket,
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#endif  // SB_API_VERSION >= 4
                                               const void* session_id,
                                               int session_id_size,
                                               const void* content,
@@ -162,22 +162,22 @@ SbDrmCreateSystem(const char* key_system,
 // |drm_system|: The DRM system that defines the key system used for the
 // session update request payload as well as the callback function that is
 // called as a result of the function being called.
-#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#if SB_API_VERSION >= 4
 // |ticket|: The opaque ID that allows to distinguish callbacks from
 // multiple concurrent calls to SbDrmGenerateSessionUpdateRequest(),
 // which will be passed to |update_request_callback| as-is. It is
 // the responsibility of the caller to establish ticket uniqueness, issuing
 // multiple request with the same ticket may result in undefined behavior.
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#endif  // SB_API_VERSION >= 4
 // |type|: The case-sensitive type of the session update request payload.
 // |initialization_data|: The data for which the session update request payload
 // is created.
 // |initialization_data_size|: The size of the session update request payload.
 SB_EXPORT void SbDrmGenerateSessionUpdateRequest(
     SbDrmSystem drm_system,
-#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#if SB_API_VERSION >= 4
     int ticket,
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#endif  // SB_API_VERSION >= 4
     const char* type,
     const void* initialization_data,
     int initialization_data_size);

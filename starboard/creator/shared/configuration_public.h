@@ -328,7 +328,7 @@
 // supported composition methods below.
 #define SB_HAS_PLAYER 1
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
 // Specifies whether this platform's player will produce an OpenGL texture that
 // the client must draw every frame with its graphics rendering. It may be that
 // we get a texture handle, but cannot perform operations like GlReadPixels on
@@ -347,7 +347,7 @@
 // this case, changing the video bounds must be tightly synchronized between the
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION < 4
 
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
