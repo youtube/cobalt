@@ -51,11 +51,11 @@ class ImageDecoderStarboard : public ImageDataDecoder {
   const char* mime_type_;
   SbDecodeTargetFormat format_;
   std::vector<uint8> buffer_;
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider* provider_;
-#else   // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // #if SB_API_VERSION >= 4
   SbDecodeTargetProvider* provider_;
-#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // #if SB_API_VERSION >= 4
   SbDecodeTarget target_;
 };
 
