@@ -54,10 +54,10 @@ bool StarboardDecryptor::GenerateKeyRequest(const std::string& key_system,
   }
   DCHECK_EQ(key_system_, key_system);
   SbDrmGenerateSessionUpdateRequest(drm_system_,
-#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#if SB_API_VERSION >= 4
                                     0,  // No need to distinguish between
                                         // callbacks in EME 0.1b implementation.
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#endif                                  // SB_API_VERSION >= 4
                                     type.c_str(), init_data, init_data_length);
   return true;
 }
@@ -160,9 +160,9 @@ void StarboardDecryptor::OnKeyAdded(const void* session_id,
 // static
 void StarboardDecryptor::KeyRequestFunc(SbDrmSystem drm_system,
                                         void* context,
-#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#if SB_API_VERSION >= 4
                                         int /*ticket*/,
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#endif  // SB_API_VERSION >= 4
                                         const void* session_id,
                                         int session_id_size,
                                         const void* content,
