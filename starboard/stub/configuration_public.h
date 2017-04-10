@@ -134,6 +134,9 @@
 // Whether the current platform has microphone supported.
 #define SB_HAS_MICROPHONE 1
 
+// Whether the current platform has speech recognizer.
+#define SB_HAS_SPEECH_RECOGNIZER 1
+
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 1
 

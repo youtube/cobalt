@@ -62,6 +62,11 @@
 // enum to allow platform-specific  User-Agent suffix.
 #define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce 'starboard/speech_recognizer.h'
+// This newly-introduced 'starboard/speech_recognizer.h' adds the on-device
+// speech recognizer feature.
+#define SB_SPEECH_RECOGNIZER_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
@@ -531,6 +536,12 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
         //     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
 
 #endif  // SB_API_VERSION >= 4
+
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#if !defined(SB_HAS_SPEECH_RECOGNIZER)
+#error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
+#endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 
