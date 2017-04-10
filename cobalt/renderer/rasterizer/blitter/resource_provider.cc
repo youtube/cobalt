@@ -38,7 +38,11 @@ using render_tree::Typeface;
 ResourceProvider::ResourceProvider(
     SbBlitterDevice device,
     render_tree::ResourceProvider* skia_resource_provider)
-    : device_(device), skia_resource_provider_(skia_resource_provider) {}
+    : device_(device), skia_resource_provider_(skia_resource_provider) {
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  decode_target_graphics_context_provider_.device = device;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+}
 
 bool ResourceProvider::PixelFormatSupported(PixelFormat pixel_format) {
   return SbBlitterIsPixelFormatSupportedByPixelData(
