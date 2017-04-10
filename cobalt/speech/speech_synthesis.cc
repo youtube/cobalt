@@ -97,7 +97,7 @@ void SpeechSynthesis::Speak(
     return;
   }
 
-#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION < 4
   // DEPRECATED IN API VERSION 4
   std::string language =
       utterance->lang().empty() ? navigator_->language() : utterance->lang();

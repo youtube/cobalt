@@ -107,10 +107,10 @@ std::string UserAgentStringFactory::CreateDeviceTypeString() {
       return "STB";
     case YouTubeTVInfo::kTV:
       return "TV";
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
     case YouTubeTVInfo::kAndroidTV:
       return "ATV";
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
     case YouTubeTVInfo::kInvalidDeviceType:
     default:
       NOTREACHED();
