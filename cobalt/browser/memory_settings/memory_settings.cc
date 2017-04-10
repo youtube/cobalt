@@ -87,7 +87,11 @@ math::Size ExpandTextureSizeToContain(const int64_t num_pixels) {
 
 }  // namespace
 
-size_t GetImageCacheSize(const math::Size& dimensions) {
+size_t GetImageCacheSize(const math::Size& dimensions,
+                         const base::optional<size_t> override) {
+  if (override) {
+    return *override;
+  }
   if (COBALT_IMAGE_CACHE_SIZE_IN_BYTES >= 0) {
     return COBALT_IMAGE_CACHE_SIZE_IN_BYTES;
   }

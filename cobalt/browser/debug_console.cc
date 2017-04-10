@@ -163,9 +163,11 @@ DebugConsole::DebugConsole(
     const script::JavaScriptEngine::Options& js_options) {
   mode_ = GetInitialMode();
 
-  WebModule::Options web_module_options(window_dimensions);
+  WebModule::Options web_module_options;
   web_module_options.javascript_options = js_options;
   web_module_options.name = "DebugConsoleWebModule";
+  // The debug console does not load any image assets.
+  web_module_options.image_cache_capacity = 0;
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
   // javascript.
   web_module_options.csp_enforcement_mode = dom::kCspEnforcementDisable;
