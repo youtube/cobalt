@@ -64,6 +64,7 @@ class Display {
 
   bool MakeCurrent(EGLSurface draw, EGLSurface read, EGLContext ctx);
   bool SwapBuffers(EGLSurface surface);
+  bool SwapInterval(EGLint interval);
 
   DisplayImpl* impl() const { return impl_.get(); }
 

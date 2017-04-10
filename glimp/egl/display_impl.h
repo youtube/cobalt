@@ -87,6 +87,11 @@ class DisplayImpl {
   virtual nb::scoped_ptr<gles::ContextImpl> CreateContext(const Config* config,
                                                           int gles_version) = 0;
 
+  // Sets the swap behavior for this display.  This will be called when
+  // eglSwapInterval() is called.  Returns true on success and false on failure.
+  //   https://www.khronos.org/registry/EGL/sdk/docs/man/html/eglSwapInterval.xhtml
+  virtual bool SetSwapInterval(int interval) = 0;
+
  private:
 };
 
