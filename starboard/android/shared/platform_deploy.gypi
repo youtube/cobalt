@@ -24,6 +24,7 @@
             '../apk/app/src/main/java/foo/cobalt/CobaltActivity.java',
             '../apk/app/src/main/java/foo/cobalt/CobaltHttpHelper.java',
             '../apk/app/src/main/java/foo/cobalt/CobaltTextToSpeechHelper.java',
+            '../apk/app/src/main/java/foo/cobalt/IsEmulator.java',
             '../apk/app/src/main/java/foo/cobalt/media/CobaltPlaybackStateHelper.java',
             '../apk/app/src/main/java/foo/cobalt/media/MediaCodecBridge.java',
             '../apk/app/src/main/java/foo/cobalt/media/MediaCodecSelector.java',
