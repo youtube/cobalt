@@ -26,4 +26,7 @@ interface Camera3D {
                         float degrees_per_second);
   void clearKeyMapping(long keyCode);
   void clearAllKeyMappings();
+
+  // Resets the camera's orientation.
+  void reset();
 };
