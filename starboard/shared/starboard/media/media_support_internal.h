@@ -18,9 +18,9 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
-#if SB_API_VERSION < SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+#if SB_API_VERSION < 4
 #error "Incorrect SB_API_VERSION to include media_support_internal.h"
-#endif  // SB_API_VERSION < SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+#endif  // SB_API_VERSION < 4
 
 #ifdef __cplusplus
 extern "C" {

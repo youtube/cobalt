@@ -56,7 +56,7 @@ typedef enum SbUserPropertyId {
   kSbUserPropertyUserId,
 } SbUserPropertyId;
 
-#if SB_API_VERSION < SB_DELETE_USER_APPLICATION_TOKEN_VERSION
+#if SB_API_VERSION < 4
 #if SB_HAS(USER_APPLICATION_LINKING_SUPPORT)
 // Information about an application-specific authorization token.
 typedef struct SbUserApplicationTokenResults {

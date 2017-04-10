@@ -136,7 +136,7 @@ void AudioRendererImpl::Pause() {
   paused_ = true;
 }
 
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
 void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
@@ -146,7 +146,7 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
     audio_sink_->SetPlaybackRate(playback_rate);
   }
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
 
 void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -308,9 +308,9 @@ void AudioRendererImpl::ReadFromDecoder() {
         reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
         kMaxCachedFrames, &AudioRendererImpl::UpdateSourceStatusFunc,
         &AudioRendererImpl::ConsumeFramesFunc, this);
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
     audio_sink_->SetPlaybackRate(playback_rate_);
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
   }
 }
 
