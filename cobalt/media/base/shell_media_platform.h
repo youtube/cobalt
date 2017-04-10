@@ -63,7 +63,7 @@ class MEDIA_EXPORT ShellMediaPlatform {
     return NULL;
   }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   virtual SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() {
     return NULL;

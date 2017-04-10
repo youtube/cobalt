@@ -49,14 +49,14 @@ class ResourceProvider : public render_tree::ResourceProvider {
   bool SupportsSbDecodeTarget() OVERRIDE { return true; }
 #endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
     return &decode_target_graphics_context_provider_;
   }
 #elif SB_API_VERSION >= 3
   SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
@@ -117,10 +117,10 @@ class ResourceProvider : public render_tree::ResourceProvider {
   // rendering.
   render_tree::ResourceProvider* skia_resource_provider_;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace blitter

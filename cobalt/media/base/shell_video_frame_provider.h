@@ -49,9 +49,9 @@ class ShellVideoFrameProvider
 
   ShellVideoFrameProvider() : output_mode_(kOutputModeInvalid) {}
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   scoped_refptr<VideoFrame> GetCurrentFrame() { return NULL; }
 
@@ -65,7 +65,7 @@ class ShellVideoFrameProvider
     return output_mode_;
   }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   // For Starboard platforms that have a decode-to-texture player, we enable
   // this ShellVideoFrameProvider to act as a bridge for Cobalt code to query
   // for the current SbDecodeTarget.  In effect, we bypass all of
@@ -91,15 +91,15 @@ class ShellVideoFrameProvider
       return get_current_sb_decode_target_function_.Run();
     }
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
  private:
   mutable base::Lock lock_;
 
   OutputMode output_mode_;
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   DISALLOW_COPY_AND_ASSIGN(ShellVideoFrameProvider);
 };

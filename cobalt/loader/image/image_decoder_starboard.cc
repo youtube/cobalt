@@ -35,11 +35,11 @@ ImageDecoderStarboard::ImageDecoderStarboard(
     : ImageDataDecoder(resource_provider),
       mime_type_(mime_type),
       format_(format),
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
       provider_(resource_provider->GetSbDecodeTargetGraphicsContextProvider()),
-#else   // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // #if SB_API_VERSION >= 4
       provider_(resource_provider->GetSbDecodeTargetProvider()),
-#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // #if SB_API_VERSION >= 4
       target_(kSbDecodeTargetInvalid) {
   TRACE_EVENT0("cobalt::loader::image",
                "ImageDecoderStarboard::ImageDecoderStarboard()");

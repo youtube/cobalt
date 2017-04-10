@@ -212,25 +212,25 @@ class ResourceProviderStub : public ResourceProvider {
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
     NOTREACHED();
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
     SbDecodeTargetDestroy(decode_target);
-#else   // SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // 4
     SbDecodeTargetRelease(decode_target);
-#endif  // SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // 4
     return NULL;
   }
 
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 #endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
     return NULL;
   }
 #elif SB_API_VERSION >= 3
   SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) OVERRIDE {
