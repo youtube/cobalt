@@ -74,22 +74,30 @@ class ResourceProvider {
   virtual scoped_refptr<Image> CreateImage(
       scoped_ptr<ImageData> pixel_data) = 0;
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3
   // This function will consume an SbDecodeTarget object produced by
   // SbDecodeTargetCreate(), wrap it in a render_tree::Image that can be used
   // in a render tree, and return it to the caller.
   virtual scoped_refptr<Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget target) = 0;
 
+  // Whether SbDecodeTargetIsSupported or not.
+  virtual bool SupportsSbDecodeTarget() = 0;
+#endif  // SB_API_VERSION >= 3
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  // Return the SbDecodeTargetGraphicsContextProvider associated with the
+  // ResourceProvider, if it exists.  Returns NULL if SbDecodeTarget is not
+  // supported.
+  virtual SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() = 0;
+#elif SB_API_VERSION >= 3
   // Return the associated SbDecodeTargetProvider with the ResourceProvider,
   // if it exists.  Returns NULL if SbDecodeTarget is not supported.
   virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() = 0;
-
-  // Whether SbDecodeTargetIsSupported or not.
-  virtual bool SupportsSbDecodeTarget() = 0;
 #endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
+#endif  // SB_HAS(GRAPHICS)
 
   // Returns a raw chunk of memory that can later be passed into a function like
   // CreateMultiPlaneImageFromRawMemory() in order to create a texture.
