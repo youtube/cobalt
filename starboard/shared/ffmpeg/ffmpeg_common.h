@@ -33,6 +33,14 @@ namespace ffmpeg {
 
 void InitializeFfmpeg();
 
+// In Ffmpeg, the calls to avcodec_open2() and avcodec_close() are not
+// synchronized internally so it is the responsibility of its user to ensure
+// that these calls don't overlap.  The following functions acquires a lock
+// internally before calling avcodec_open2() and avcodec_close() to enforce
+// this.
+int OpenCodec(AVCodecContext* codec_context, const AVCodec* codec);
+void CloseCodec(AVCodecContext* codec_context);
+
 }  // namespace ffmpeg
 }  // namespace shared
 }  // namespace starboard

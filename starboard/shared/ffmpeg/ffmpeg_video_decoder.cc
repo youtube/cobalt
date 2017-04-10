@@ -265,7 +265,7 @@ void VideoDecoder::InitializeCodec() {
     return;
   }
 
-  int rv = avcodec_open2(codec_context_, codec, NULL);
+  int rv = OpenCodec(codec_context_, codec);
   if (rv < 0) {
     SB_LOG(ERROR) << "Unable to open codec";
     TeardownCodec();
@@ -281,7 +281,7 @@ void VideoDecoder::InitializeCodec() {
 
 void VideoDecoder::TeardownCodec() {
   if (codec_context_) {
-    avcodec_close(codec_context_);
+    CloseCodec(codec_context_);
     av_free(codec_context_);
     codec_context_ = NULL;
   }
