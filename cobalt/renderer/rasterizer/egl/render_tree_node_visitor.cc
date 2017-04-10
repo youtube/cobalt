@@ -25,6 +25,7 @@
 #include "cobalt/renderer/rasterizer/common/utils.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
@@ -313,11 +314,42 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
-  if (!IsVisible(shadow_node->GetBounds())) {
+  math::RectF node_bounds(shadow_node->GetBounds());
+  if (!IsVisible(node_bounds)) {
     return;
   }
 
-  FallbackRasterize(shadow_node, DrawObjectManager::kOffscreenSkiaShadow);
+  const render_tree::RectShadowNode::Builder& data = shadow_node->data();
+  if (data.rounded_corners || data.shadow.blur_sigma > 0.0f) {
+    FallbackRasterize(shadow_node, DrawObjectManager::kOffscreenSkiaShadow);
+    return;
+  }
+
+  scoped_ptr<DrawObject> draw_spread;
+
+  math::RectF spread_rect(data.rect);
+  spread_rect.Offset(data.shadow.offset);
+  if (data.inset) {
+    spread_rect.Inset(data.spread, data.spread);
+    spread_rect.Intersect(data.rect);
+    draw_spread.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
+        spread_rect, data.rect, data.shadow.color, data.rect, math::RectF()));
+    node_bounds.Union(data.rect);
+  } else {
+    spread_rect.Outset(data.spread, data.spread);
+    draw_spread.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
+        data.rect, spread_rect, data.shadow.color, spread_rect, data.rect));
+    node_bounds.Union(spread_rect);
+  }
+
+  // Since the depth buffer is polluted to create a stencil for pixels to be
+  // modified by the shadow, this draw must occur during the transparency
+  // pass. During this pass, all subsequent draws are guaranteed to be closer
+  // (i.e. pass the depth test) than pixels modified by previous transparency
+  // draws.
+  AddTransparentDraw(draw_spread.Pass(),
+      DrawObjectManager::kOnscreenRectShadow,
+      DrawObjectManager::kOffscreenNone, node_bounds);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
