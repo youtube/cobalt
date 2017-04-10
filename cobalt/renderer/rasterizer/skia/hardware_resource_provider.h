@@ -58,8 +58,9 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   // Return the associated SbDecodeTargetProvider with the ResourceProvider,
   // if it exists.  Returns NULL if SbDecodeTarget is not supported.
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE {
-    return &decode_target_provider_;
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+    return &decode_target_graphics_context_provider_;
   }
 
   // Whether SbDecodeTargetIsSupported or not.
@@ -137,11 +138,13 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
     SB_HAS(GRAPHICS)
-  static SbDecodeTarget DecodeTargetAcquire(void* context,
-                                            SbDecodeTargetFormat format,
-                                            int width, int height);
-  static void DecodeTargetRelease(void* context, SbDecodeTarget decode_target);
-  SbDecodeTargetProvider decode_target_provider_;
+  static void GraphicsContextRunner(
+      SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context);
+
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
            SB_HAS(GRAPHICS)
 
