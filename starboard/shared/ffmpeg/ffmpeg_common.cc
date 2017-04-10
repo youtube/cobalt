@@ -15,6 +15,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 
 #include "starboard/log.h"
+#include "starboard/mutex.h"
 #include "starboard/once.h"
 
 namespace starboard {
@@ -24,12 +25,26 @@ namespace ffmpeg {
 namespace {
 
 SbOnceControl ffmpeg_initialization_once = SB_ONCE_INITIALIZER;
+SbMutex codec_mutex = SB_MUTEX_INITIALIZER;
 
 }  // namespace
 
 void InitializeFfmpeg() {
   bool initialized = SbOnce(&ffmpeg_initialization_once, av_register_all);
   SB_DCHECK(initialized);
+}
+
+int OpenCodec(AVCodecContext* codec_context, const AVCodec* codec) {
+  SbMutexAcquire(&codec_mutex);
+  int result = avcodec_open2(codec_context, codec, NULL);
+  SbMutexRelease(&codec_mutex);
+  return result;
+}
+
+void CloseCodec(AVCodecContext* codec_context) {
+  SbMutexAcquire(&codec_mutex);
+  avcodec_close(codec_context);
+  SbMutexRelease(&codec_mutex);
 }
 
 }  // namespace ffmpeg
