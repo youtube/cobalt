@@ -857,19 +857,19 @@ void BrowserModule::Resume() {
 
   renderer_module_.Resume();
 
-  media_module_->Resume();
+  // Note that at this point, it is probable that this resource provider is
+  // different than the one that was managed in the associated call to
+  // Suspend().
+  render_tree::ResourceProvider* resource_provider =
+      renderer_module_.pipeline()->GetResourceProvider();
+
+  media_module_->Resume(resource_provider);
 
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   // Resume() is not supported on platforms that allocates ArrayBuffer on GPU
   // memory.
   NOTREACHED();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-
-  // Note that at this point, it is probable that this resource provider is
-  // different than the one that was managed in the associated call to
-  // Suspend().
-  render_tree::ResourceProvider* resource_provider =
-      renderer_module_.pipeline()->GetResourceProvider();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {

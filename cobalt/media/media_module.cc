@@ -49,8 +49,8 @@ void MediaModule::Suspend() {
   OnSuspend();
 }
 
-void MediaModule::Resume() {
-  OnResume();
+void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
+  OnResume(resource_provider);
   RunClosureOnMessageLoopAndWait(
       message_loop_,
       base::Bind(&MediaModule::ResumeTask, base::Unretained(this)));

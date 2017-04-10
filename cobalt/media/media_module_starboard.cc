@@ -99,6 +99,12 @@ class MediaModuleStarboard : public MediaModule {
     return system_window_;
   }
 
+  void OnSuspend() OVERRIDE { media_platform_.Suspend(); }
+
+  void OnResume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+    media_platform_.Resume(resource_provider);
+  }
+
  private:
   const Options options_;
   system_window::SystemWindow* system_window_;
