@@ -316,8 +316,12 @@ EGLBoolean EGLAPIENTRY eglSurfaceAttrib(EGLDisplay dpy,
 
 EGLBoolean EGLAPIENTRY eglSwapInterval(EGLDisplay dpy, EGLint interval) {
   egl::ScopedEGLLock egl_lock;
-  SB_NOTIMPLEMENTED();
-  return false;
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
+  if (!display) {
+    return false;
+  }
+
+  return display->SwapInterval(interval);
 }
 
 EGLBoolean EGLAPIENTRY eglBindAPI(EGLenum api) {
