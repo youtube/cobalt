@@ -68,12 +68,14 @@ browser::WebModule::LayoutResults SnapshotURL(
   scoped_ptr<media::MediaModule> stub_media_module(
       new media::MediaModuleStub());
 
+  // Use 128M of image cache to minimize the effect of image loading.
+  const size_t kImageCacheCapacity = 128 * 1024 * 1024;
+
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options(viewport_size);
+  browser::WebModule::Options web_module_options;
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
-  // Use 128M of image cache to minimize the effect of image loading.
-  web_module_options.image_cache_capacity = 128 * 1024 * 1024;
+  web_module_options.image_cache_capacity = kImageCacheCapacity;
 
   // Prepare a slot for our results to be placed when ready.
   base::optional<browser::WebModule::LayoutResults> results;

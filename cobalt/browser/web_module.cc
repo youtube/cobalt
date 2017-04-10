@@ -889,11 +889,10 @@ void WebModule::DestructionObserver::WillDestroyCurrentMessageLoop() {
   web_module_->impl_.reset();
 }
 
-WebModule::Options::Options(const math::Size& ui_dimensions)
+WebModule::Options::Options()
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-      image_cache_capacity(
-          static_cast<int>(memory_settings::GetImageCacheSize(ui_dimensions))),
+      image_cache_capacity(32 * 1024 * 1024),  // 32MB Default.
       remote_typeface_cache_capacity(
           COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
       mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
