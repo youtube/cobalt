@@ -37,11 +37,11 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ~StubAudioSink() SB_OVERRIDE;
 
   bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
     SB_NOTIMPLEMENTED();
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
 
  private:
   static void* ThreadEntryPoint(void* context);

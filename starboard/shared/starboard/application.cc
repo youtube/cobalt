@@ -128,9 +128,7 @@ void Application::Cancel(SbEventId id) {
   CancelTimedEvent(id);
 }
 
-#if SB_HAS(PLAYER) &&                                             \
-    (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-     SB_IS(PLAYER_PUNCHED_OUT))
+#if SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
 
 void Application::HandleFrame(SbPlayer player,
                               const scoped_refptr<VideoFrame>& frame,
@@ -141,7 +139,7 @@ void Application::HandleFrame(SbPlayer player,
   AcceptFrame(player, frame, x, y, width, height);
 }
 #endif  // SB_HAS(PLAYER) && \
-           (SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+           (SB_API_VERSION >= 4 || \
             SB_IS(PLAYER_PUNCHED_OUT))
 
 void Application::SetStartLink(const char* start_link) {

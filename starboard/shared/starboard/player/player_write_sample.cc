@@ -17,7 +17,7 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+#if SB_API_VERSION >= 4
 
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
@@ -52,7 +52,7 @@ void SbPlayerWriteSample(SbPlayer player,
                       sample_pts, video_sample_info, sample_drm_info);
 }
 
-#else  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+#else  // SB_API_VERSION >= 4
 
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
@@ -70,4 +70,4 @@ void SbPlayerWriteSample(SbPlayer player,
                       sample_pts, video_sample_info, sample_drm_info);
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_SCATTERED_VERSION
+#endif  // SB_API_VERSION >= 4

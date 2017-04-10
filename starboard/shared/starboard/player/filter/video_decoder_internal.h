@@ -54,7 +54,7 @@ class VideoDecoder {
   }
 #endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   // Individual implementations must implement this function to indicate which
   // output modes they support.
   static bool OutputModeSupported(SbPlayerOutputMode output_mode,
