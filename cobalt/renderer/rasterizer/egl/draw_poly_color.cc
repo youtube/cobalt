@@ -28,15 +28,17 @@ namespace egl {
 DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
     const BaseState& base_state, const math::RectF& rect,
     const render_tree::ColorRGBA& color)
-    : DrawObject(base_state) {
-  uint32_t color32 = GetGLRGBA(color * base_state_.opacity);
+    : DrawObject(base_state),
+      vertex_buffer_(NULL) {
   attributes_.reserve(4);
-  AddVertex(rect.x(), rect.y(), color32);
-  AddVertex(rect.x(), rect.bottom(), color32);
-  AddVertex(rect.right(), rect.y(), color32);
-  AddVertex(rect.right(), rect.bottom(), color32);
-  graphics_state->ReserveVertexData(attributes_.size() *
-                                    sizeof(VertexAttributes));
+  AddRect(rect, GetGLRGBA(color * base_state_.opacity));
+  graphics_state->ReserveVertexData(
+      attributes_.size() * sizeof(VertexAttributes));
+}
+
+DrawPolyColor::DrawPolyColor(const BaseState& base_state)
+    : DrawObject(base_state),
+      vertex_buffer_(NULL) {
 }
 
 void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
@@ -50,6 +52,12 @@ void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
 
 void DrawPolyColor::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  SetupShader(graphics_state, program_manager);
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
+}
+
+void DrawPolyColor::SetupShader(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexColor,
                 ShaderFragmentColor>* program;
@@ -71,7 +79,13 @@ void DrawPolyColor::ExecuteOnscreenRasterize(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, color));
   graphics_state->VertexAttribFinish();
-  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
+}
+
+void DrawPolyColor::AddRect(const math::RectF& rect, uint32_t color) {
+  AddVertex(rect.x(), rect.y(), color);
+  AddVertex(rect.x(), rect.bottom(), color);
+  AddVertex(rect.right(), rect.y(), color);
+  AddVertex(rect.right(), rect.bottom(), color);
 }
 
 void DrawPolyColor::AddVertex(float x, float y, uint32_t color) {
