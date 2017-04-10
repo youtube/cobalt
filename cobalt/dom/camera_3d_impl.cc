@@ -45,6 +45,11 @@ void Camera3DImpl::ClearAllKeyMappings() {
   keycode_map_.clear();
 }
 
+void Camera3DImpl::Reset() {
+  base::AutoLock lock(mutex_);
+  orientation_ = Orientation();
+}
+
 namespace {
 
 const float kPiF = static_cast<float>(M_PI);

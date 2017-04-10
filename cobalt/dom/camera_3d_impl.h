@@ -47,6 +47,8 @@ class Camera3DImpl : public base::RefCountedThreadSafe<Camera3DImpl> {
   void ClearKeyMapping(int keycode);
   void ClearAllKeyMappings();
 
+  void Reset();
+
   // Returns the camera's view-perspective matrix, setup according to the passed
   // in width/height aspect ratio.  It is likely that this function will be
   // called from another thread, like a renderer thread.
