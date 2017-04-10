@@ -39,39 +39,6 @@ using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageData;
 using cobalt::render_tree::RawImageMemory;
 
-namespace {
-
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
-    SB_HAS(GRAPHICS)
-
-void DecodeTargetAcquireOnRasterizer(
-    cobalt::renderer::backend::GraphicsContextEGL* context_egl,
-    SbDecodeTargetFormat format, int width, int height,
-    SbDecodeTarget* out_decode_target, base::WaitableEvent* done_event) {
-  cobalt::renderer::backend::GraphicsContextEGL::ScopedMakeCurrent
-      scoped_context(context_egl);
-
-  *out_decode_target =
-      SbDecodeTargetCreate(context_egl->system_egl()->GetDisplay(),
-                           context_egl->GetContext(), format, width, height);
-
-  done_event->Signal();
-}
-
-void DecodeTargetReleaseOnRasterizer(
-    cobalt::renderer::backend::GraphicsContextEGL* context_egl,
-    SbDecodeTarget decode_target) {
-  cobalt::renderer::backend::GraphicsContextEGL::ScopedMakeCurrent
-      scoped_context(context_egl);
-
-  SbDecodeTargetRelease(decode_target);
-}
-
-#endif  // SB_VERSION(SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION) && \
-           SB_HAS(GRAPHICS)
-
-}  // namespace
-
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
@@ -88,9 +55,13 @@ HardwareResourceProvider::HardwareResourceProvider(
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
     SB_HAS(GRAPHICS)
-  decode_target_provider_.acquire = &DecodeTargetAcquire;
-  decode_target_provider_.release = &DecodeTargetRelease;
-  decode_target_provider_.context = this;
+  decode_target_graphics_context_provider_.egl_display =
+      cobalt_context_->system_egl()->GetDisplay();
+  decode_target_graphics_context_provider_.egl_context =
+      cobalt_context_->GetContext();
+  decode_target_graphics_context_provider_.gles_context_runner =
+      &HardwareResourceProvider::GraphicsContextRunner;
+  decode_target_graphics_context_provider_.gles_context_runner_context = this;
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
            SB_HAS(GRAPHICS)
 }
@@ -198,38 +169,47 @@ scoped_refptr<render_tree::Image>
       content_region.Pass(), self_message_loop_));
 }
 
+namespace {
+void RunGraphicsContextRunnerOnRasterizerThread(
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context,
+    backend::GraphicsContextEGL* graphics_context,
+    base::WaitableEvent* done_event) {
+  backend::GraphicsContextEGL::ScopedMakeCurrent make_current(graphics_context);
+  target_function(target_function_context);
+  done_event->Signal();
+}
+}  // namespace
+
 // static
-SbDecodeTarget HardwareResourceProvider::DecodeTargetAcquire(void* context,
-    SbDecodeTargetFormat format, int width, int height) {
+void HardwareResourceProvider::GraphicsContextRunner(
+    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context) {
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
 
   HardwareResourceProvider* provider =
-      reinterpret_cast<HardwareResourceProvider*>(context);
+      reinterpret_cast<HardwareResourceProvider*>(
+          graphics_context_provider->gles_context_runner_context);
 
-  base::WaitableEvent done_event(true, false);
-
-  // Texture creation must occur on the rasterizer thread.
-  provider->self_message_loop_->PostTask(FROM_HERE,
-      base::Bind(&DecodeTargetAcquireOnRasterizer,
-                 provider->cobalt_context_,
-                 format, width, height,
-                 &decode_target, &done_event));
-  done_event.Wait();
-
-  return decode_target;
+  if (MessageLoop::current() != provider->self_message_loop_) {
+    // Post a task to the rasterizer thread to have it run the requested
+    // function, and wait for it to complete before returning.
+    base::WaitableEvent done_event(true, false);
+    provider->self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&RunGraphicsContextRunnerOnRasterizerThread,
+                              target_function, target_function_context,
+                              provider->cobalt_context_, &done_event));
+    done_event.Wait();
+  } else {
+    // If we are already on the rasterizer thread, just run the function
+    // directly.
+    backend::GraphicsContextEGL::ScopedMakeCurrent make_current(
+        provider->cobalt_context_);
+    target_function(target_function_context);
+  }
 }
 
-// static
-void HardwareResourceProvider::DecodeTargetRelease(void* context,
-    SbDecodeTarget decode_target) {
-  HardwareResourceProvider* provider =
-      reinterpret_cast<HardwareResourceProvider*>(context);
-
-  // Texture deletion must occur on the rasterizer thread.
-  provider->self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&DecodeTargetReleaseOnRasterizer,
-                            provider->cobalt_context_, decode_target));
-}
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
            SB_HAS(GRAPHICS)
 

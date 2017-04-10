@@ -44,7 +44,16 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
     return video_frame_provider_;
   }
 
-#if SB_API_VERSION >= 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+#if SB_HAS(GRAPHICS)
+    return resource_provider_->GetSbDecodeTargetGraphicsContextProvider();
+#else   // SB_HAS(GRAPHICS)
+    return NULL;
+#endif  // SB_HAS(GRAPHICS)
+  }
+#elif SB_API_VERSION >= 3
   SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE {
 #if SB_HAS(GRAPHICS)
     return resource_provider_->GetSbDecodeTargetProvider();
@@ -52,7 +61,7 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
     return NULL;
 #endif  // SB_HAS(GRAPHICS)
   }
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   void Suspend() OVERRIDE { resource_provider_ = NULL; }
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
