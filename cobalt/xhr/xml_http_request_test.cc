@@ -19,6 +19,7 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,8 +31,9 @@ using ::testing::Property;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
-using cobalt::dom::testing::FakeScriptValue;
+using cobalt::dom::EventListener;
 using cobalt::dom::testing::MockEventListener;
+using cobalt::script::testing::FakeScriptValue;
 using cobalt::script::testing::MockExceptionState;
 
 namespace cobalt {
@@ -151,7 +153,7 @@ TEST_F(XhrTest, InvalidMethod) {
 
 TEST_F(XhrTest, Open) {
   scoped_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptValue script_object(listener.get());
+  FakeScriptValue<EventListener> script_object(listener.get());
   xhr_->set_onreadystatechange(script_object);
   EXPECT_CALL(
       *listener,
