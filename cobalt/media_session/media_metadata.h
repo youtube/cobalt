@@ -16,6 +16,7 @@
 #define COBALT_MEDIA_SESSION_MEDIA_METADATA_H_
 
 #include <string>
+#include <vector>
 
 #include "cobalt/media_session/media_image.h"
 #include "cobalt/media_session/media_metadata_init.h"
@@ -39,6 +40,10 @@ class MediaMetadata : public script::Wrappable {
     if (init.has_album()) {
       album_ = init.album();
     }
+
+    if (init.has_artwork()) {
+      set_artwork(init.artwork());
+    }
   }
 
   scoped_refptr<MediaMetadata> metadata() {
@@ -57,10 +62,22 @@ class MediaMetadata : public script::Wrappable {
 
   void set_album(const std::string& value) { album_ = value; }
 
-  MediaImage const artwork() { return image_; }
+  script::Sequence<MediaImage> const artwork() {
+    script::Sequence<MediaImage> result;
+
+    for (std::vector<MediaImage>::iterator it = artwork_.begin();
+         it != artwork_.end();
+         ++it) {
+      result.push_back(*it);
+    }
+    return result;
+  }
 
   void set_artwork(script::Sequence<MediaImage> value) {
-    UNREFERENCED_PARAMETER(value);
+    artwork_.clear();
+    for (size_t i = 0; i < value.size(); ++i) {
+      artwork_.push_back(value.at(i));
+    }
   }
 
   DEFINE_WRAPPABLE_TYPE(MediaMetadata);
@@ -69,7 +86,7 @@ class MediaMetadata : public script::Wrappable {
   std::string title_;
   std::string artist_;
   std::string album_;
-  MediaImage image_;
+  std::vector<MediaImage> artwork_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaMetadata);
 };
