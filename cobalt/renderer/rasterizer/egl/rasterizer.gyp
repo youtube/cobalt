@@ -45,6 +45,8 @@
         'draw_poly_color.cc',
         'draw_rect_color_texture.h',
         'draw_rect_color_texture.cc',
+        'draw_rect_shadow_spread.h',
+        'draw_rect_shadow_spread.cc',
         'draw_rect_texture.h',
         'draw_rect_texture.cc',
         'graphics_state.h',

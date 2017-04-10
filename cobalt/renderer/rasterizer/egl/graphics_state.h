@@ -63,16 +63,22 @@ class GraphicsState {
   // Default = disabled.
   void EnableBlend();
   void DisableBlend();
+  bool IsBlendEnabled() const { return blend_enabled_; }
 
   // Control depth testing.
   // Default = enabled.
   void EnableDepthTest();
   void DisableDepthTest();
+  bool IsDepthTestEnabled() const { return depth_test_enabled_; }
 
   // Control writing to the depth buffer.
   // Default = enabled.
   void EnableDepthWrite();
   void DisableDepthWrite();
+  bool IsDepthWriteEnabled() const { return depth_write_enabled_; }
+
+  // Reset to the default depth function.
+  void ResetDepthFunc();
 
   // Bind a texture to a given texture unit. Combines glActiveTexture and
   // glBindTexture.
