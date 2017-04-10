@@ -110,25 +110,33 @@ TEST(MemorySettings, CalculateImageCacheSize) {
 // than -1, or will otherwise produce values identical values to
 // CalculateImageCacheSize().
 TEST(MemorySettings, GetImageCacheSize) {
+  base::optional<size_t> no_size_override;
   if (COBALT_IMAGE_CACHE_SIZE_IN_BYTES >= 0) {
     // Expect that regardless of the display size, the value returned will
     // be equal to COBALT_IMAGE_CACHE_SIZE_IN_BYTES
     EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-              GetImageCacheSize(GetDimensions(k720p)));
+              GetImageCacheSize(GetDimensions(k720p), no_size_override));
     EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-              GetImageCacheSize(GetDimensions(k1080p)));
+              GetImageCacheSize(GetDimensions(k1080p), no_size_override));
     EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-              GetImageCacheSize(GetDimensions(kUHD4k)));
+              GetImageCacheSize(GetDimensions(kUHD4k), no_size_override));
   } else {
     // ... otherwise expect that the GetImageCacheSize() is equal to
     // CalculateImageCacheSize().
     EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k720p)),
-              GetImageCacheSize(GetDimensions(k720p)));
+              GetImageCacheSize(GetDimensions(k720p), no_size_override));
     EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k1080p)),
-              GetImageCacheSize(GetDimensions(k1080p)));
+              GetImageCacheSize(GetDimensions(k1080p), no_size_override));
     EXPECT_EQ(CalculateImageCacheSize(GetDimensions(kUHD4k)),
-              GetImageCacheSize(GetDimensions(kUHD4k)));
+              GetImageCacheSize(GetDimensions(kUHD4k), no_size_override));
   }
+}
+
+// Tests the expectation that the override parameter will override any
+// built in settings.
+TEST(MemorySettings, GetImageCacheSizeOverride) {
+  base::optional<size_t> size_override = static_cast<size_t>(1234);
+  EXPECT_EQ(1234, GetImageCacheSize(GetDimensions(k720p), size_override));
 }
 
 // Tests the expectation that CalculateSkiaAtlasTextureSize() is a pure

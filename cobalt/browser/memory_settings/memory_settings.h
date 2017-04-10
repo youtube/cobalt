@@ -34,7 +34,8 @@ namespace memory_settings {
 // COBALT_IMAGE_CACHE_SIZE_IN_BYTES is defined, then this is the value
 // that is returned, otherwise the value is generated via a call to
 // CalculateImageCacheSize().
-size_t GetImageCacheSize(const math::Size& dimensions);
+size_t GetImageCacheSize(const math::Size& dimensions,
+                         const base::optional<size_t> override);
 
 // Gets the width and height of the skia atlas texture. Optionally applies
 // overrides if they have been defined.

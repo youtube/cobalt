@@ -122,7 +122,7 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
 
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options(kDefaultViewportSize);
+  browser::WebModule::Options web_module_options;
   web_module_options.tts_engine = &tts_engine_;
 
   // Set expected result from mutation.
