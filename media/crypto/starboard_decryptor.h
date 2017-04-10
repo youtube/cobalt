@@ -86,9 +86,9 @@ class StarboardDecryptor : public Decryptor {
 
   static void KeyRequestFunc(SbDrmSystem drm_system,
                              void* context,
-#if SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#if SB_API_VERSION >= 4
                              int ticket,
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_UPDATE_REQUEST_TICKET_VERSION
+#endif  // SB_API_VERSION >= 4
                              const void* session_id,
                              int session_id_size,
                              const void* content,
