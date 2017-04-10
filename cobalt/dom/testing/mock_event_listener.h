@@ -139,33 +139,6 @@ class MockEventListener : public EventListener {
             DoAll(SetArgPointee<2>(false), Return(base::optional<bool>())));
   }
 };
-
-class FakeScriptValue : public script::ScriptValue<EventListener> {
- public:
-  typedef script::ScriptValue<EventListener> BaseClass;
-  explicit FakeScriptValue(const MockEventListener* listener)
-      : mock_listener_(listener) {}
-
-  void RegisterOwner(script::Wrappable*) OVERRIDE {}
-  void DeregisterOwner(script::Wrappable*) OVERRIDE {}
-  void PreventGarbageCollection() OVERRIDE {}
-  void AllowGarbageCollection() OVERRIDE {}
-  const EventListener* GetScriptValue(void) const OVERRIDE {
-    return mock_listener_;
-  }
-  scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
-    return make_scoped_ptr<BaseClass>(new FakeScriptValue(mock_listener_));
-  }
-
-  bool EqualTo(const BaseClass& other) const OVERRIDE {
-    const FakeScriptValue* other_script_object =
-        base::polymorphic_downcast<const FakeScriptValue*>(&other);
-    return mock_listener_ == other_script_object->mock_listener_;
-  }
-
- private:
-  const MockEventListener* mock_listener_;
-};
 }  // namespace testing
 }  // namespace dom
 }  // namespace cobalt
