@@ -84,7 +84,7 @@ class WebModule {
 
     // All optional parameters defined in this structure should have their
     // values initialized in the default constructor to useful defaults.
-    explicit Options(const math::Size& ui_dimensions);
+    Options();
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to

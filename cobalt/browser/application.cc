@@ -313,10 +313,28 @@ void ApplyCommandLineSettingsToRendererOptions(
 }
 
 void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
-  SetIntegerIfSwitchIsSet(browser::switches::kImageCacheSizeInBytes,
-                          &options->image_cache_capacity);
   SetIntegerIfSwitchIsSet(browser::switches::kRemoteTypefaceCacheSizeInBytes,
                           &options->remote_typeface_cache_capacity);
+}
+
+base::optional<size_t> GetImageCacheOverrideIfSet(CommandLine* command_line) {
+  const char* switch_name = browser::switches::kImageCacheSizeInBytes;
+  base::optional<size_t> output;
+  if (!command_line->HasSwitch(switch_name)) {
+    return output;
+  }
+
+  std::string switch_value = command_line->GetSwitchValueNative(switch_name);
+
+  bool parse_ok = false;
+  int value = nb::lexical_cast<int>(switch_value.c_str(), &parse_ok);
+
+  if (value > 0 && parse_ok) {
+    output = static_cast<size_t>(value);
+  } else {
+    LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
+  }
+  return output;
 }
 
 // Restrict navigation to a couple of whitelisted URLs by default.
@@ -422,8 +440,13 @@ Application::Application(const base::Closure& quit_closure)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   math::Size window_size = InitSystemWindow(command_line);
 
-  WebModule::Options web_options(window_size);
+  base::optional<size_t> image_cache_size_override =
+      GetImageCacheOverrideIfSet(command_line);
+  const size_t image_cache_size = memory_settings::GetImageCacheSize(
+      window_size, image_cache_size_override);
 
+  WebModule::Options web_options;
+  web_options.image_cache_capacity = static_cast<int>(image_cache_size);
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
