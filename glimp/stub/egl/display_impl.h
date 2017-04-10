@@ -50,6 +50,8 @@ class DisplayImplStub : public DisplayImpl {
   nb::scoped_ptr<gles::ContextImpl> CreateContext(const Config* config,
                                                   int gles_version) SB_OVERRIDE;
 
+  bool SetSwapInterval(int interval) SB_OVERRIDE { return true; }
+
  private:
   void InitializeSupportedConfigs();
 
