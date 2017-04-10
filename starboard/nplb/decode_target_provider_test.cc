@@ -22,8 +22,7 @@ namespace starboard {
 namespace nplb {
 
 #if SB_HAS(GRAPHICS)
-#if SB_API_VERSION >= 3 && \
-    SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 3 && SB_API_VERSION < 4
 
 namespace {
 
@@ -53,11 +52,11 @@ void AcquireFalse(SbDecodeTargetProvider* provider) {
     bool valid = SbDecodeTargetIsValid(target);
     EXPECT_FALSE(valid);
     if (valid) {
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
       SbDecodeTargetRelease(target);
-#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // SB_API_VERSION >= 4
       SbDecodeTargetDestroy(target);
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
     }
   }
 }
@@ -157,7 +156,7 @@ TEST(SbDecodeTargetProviderTest, RainyDayMultipleProviders) {
 }  // namespace
 
 #endif  // SB_API_VERSION >= 3 && \
-        // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+        // SB_API_VERSION < 4
 #endif  // SB_HAS(GRAPHICS)
 
 }  // namespace nplb

@@ -14,10 +14,10 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
 
 bool SbPlayerSetPlaybackRate(SbPlayer /*player*/, double /*playback_rate*/) {
   return false;
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4

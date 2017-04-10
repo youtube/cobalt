@@ -18,7 +18,7 @@
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 
 // The API version implemented by this platform.
-#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
+#define SB_API_VERSION 4
 
 // --- System Header Configuration -------------------------------------------
 
@@ -260,7 +260,7 @@
 // supported composition methods below.
 #define SB_HAS_PLAYER 1
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
 // Specifies whether this platform's player will produce an OpenGL texture that
 // the client must draw every frame with its graphics rendering. It may be that
 // we get a texture handle, but cannot perform operations like GlReadPixels on
@@ -279,9 +279,9 @@
 // this case, changing the video bounds must be tightly synchronized between the
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION < 4
 
-#if SB_API_VERSION < SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
+#if SB_API_VERSION < 4
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
@@ -319,7 +319,7 @@
 // media buffers being decoded when being stored in GPU.
 #define SB_MEDIA_GPU_BUFFER_BUDGET 0U
 
-#endif  // SB_API_VERSION < SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
+#endif  // SB_API_VERSION < 4
 
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed

@@ -100,10 +100,10 @@
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
 #elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION < 4
 #endif  // SB_HAS(BLITTER)
 
 #ifdef __cplusplus
@@ -166,7 +166,7 @@ typedef enum SbDecodeTargetPlane {
   kSbDecodeTargetPlaneV = 2,
 } SbDecodeTargetPlane;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 #if SB_HAS(GLES2)
 struct SbDecodeTargetGraphicsContextProvider;
 
@@ -222,7 +222,7 @@ typedef struct SbDecodeTargetGraphicsContextProvider {
 #endif  // SB_HAS(BLITTER)
 } SbDecodeTargetGraphicsContextProvider;
 
-#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // SB_API_VERSION >= 4
 // A function that can produce an SbDecodeTarget of the given |format|, |width|,
 // and |height|.
 typedef SbDecodeTarget (*SbDecodeTargetAcquireFunction)(
@@ -247,9 +247,9 @@ typedef struct SbDecodeTargetProvider {
   // |context| will be passed into every call to |acquire| and |release|.
   void* context;
 } SbDecodeTargetProvider;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 
 // Defines a rectangular content region within a SbDecodeTargetInfoPlane
 // structure.
@@ -318,7 +318,7 @@ typedef struct SbDecodeTargetInfo {
   SbDecodeTargetInfoPlane planes[3];
 } SbDecodeTargetInfo;
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 // --- Constants -------------------------------------------------------------
 
@@ -338,7 +338,7 @@ static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
   return format != kSbDecodeTargetFormatInvalid;
 }
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
 
 #if SB_HAS(BLITTER)
 
@@ -427,7 +427,7 @@ static SB_C_INLINE void SbDecodeTargetReleaseToProvider(
   provider->release(provider->context, decode_target);
 }
 
-#else  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else  // SB_API_VERSION < 4
 
 // SBCHANGELOG: Rename SbDecodeTargetDestroy() to SbDecodeTargetRelease() to
 //              more accurately reflect its potential semantics as a reference
@@ -479,7 +479,7 @@ static SB_C_INLINE void SbDecodeTargetReleaseInGlesContext(
 
 #endif  // SB_HAS(GLES2)
 
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION < 4
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -93,11 +93,11 @@ TEST(SbSocketBindTest, SunnyDayLocalInterface) {
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   SbSocketAddress address = {0};
-#if SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#if SB_API_VERSION < 4
   EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
 #else
   EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
-#endif  // SB_API_VERSION < SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#endif  // SB_API_VERSION < 4
   EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));

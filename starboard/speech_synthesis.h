@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION < 4
 // DEPRECATED IN API VERSION 4
 // Must be called before any other function in this module,
 // or subsequent calls are allowed to fail silently.
