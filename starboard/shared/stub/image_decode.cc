@@ -19,7 +19,7 @@
 #error "SbImageDecode requires SB_VERSION(3) and SB_HAS(GRAPHICS)."
 #endif
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
                              void* data,
                              int data_size,
@@ -27,7 +27,7 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
                              SbDecodeTargetFormat format) {
   return kSbDecodeTargetInvalid;
 }
-#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // SB_API_VERSION >= 4
 SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
                              void* data,
                              int data_size,
@@ -35,4 +35,4 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
                              SbDecodeTargetFormat format) {
   return kSbDecodeTargetInvalid;
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4

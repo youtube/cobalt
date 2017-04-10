@@ -17,7 +17,7 @@
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(PLAYER) && SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_HAS(PLAYER) && SB_API_VERSION >= 4
 
 namespace starboard {
 namespace nplb {
@@ -45,4 +45,4 @@ TEST(SbPlayerOutputModeSupportedTest, RainyDayInvalid) {
 }  // namespace starboard
 
 #endif  // SB_HAS(PLAYER) && \
-           SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+           SB_API_VERSION >= 4

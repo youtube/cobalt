@@ -17,13 +17,12 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 
 void SbPlayerSetBounds(SbPlayer player,
-#if SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX_VERSION
+#if SB_API_VERSION >= 4
                        int /*z_index*/,
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_BOUNDS_WITH_Z_INDEX_VERSION
+#endif  // SB_API_VERSION >= 4
                        int x,
                        int y,
                        int width,
@@ -35,5 +34,5 @@ void SbPlayerSetBounds(SbPlayer player,
   player->SetBounds(x, y, width, height);
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+#endif  // SB_API_VERSION >= 4 || \
            SB_IS(PLAYER_PUNCHED_OUT)

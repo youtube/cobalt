@@ -14,7 +14,7 @@
 
 #include "starboard/speech_synthesis.h"
 
-#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION < 4
 // DEPRECATED IN API VERSION 4
 
 #include "starboard/shared/speechd/speechd_internal.h"
