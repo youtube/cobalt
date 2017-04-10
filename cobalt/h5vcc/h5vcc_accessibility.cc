@@ -21,7 +21,7 @@ namespace cobalt {
 namespace h5vcc {
 
 bool H5vccAccessibility::high_contrast_text() const {
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
   SbAccessibilityDisplaySettings settings;
   SbMemorySet(&settings, 0, sizeof(settings));
 
@@ -30,13 +30,13 @@ bool H5vccAccessibility::high_contrast_text() const {
   }
 
   return settings.is_high_contrast_text_enabled;
-#else  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#else   // SB_API_VERSION >= 4
   return  false;
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
 }
 
 bool H5vccAccessibility::text_to_speech() const {
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
   SbAccessibilityTextToSpeechSettings settings;
   SbMemorySet(&settings, 0, sizeof(settings));
 
@@ -46,9 +46,9 @@ bool H5vccAccessibility::text_to_speech() const {
 
   return settings.has_text_to_speech_setting &&
       settings.is_text_to_speech_enabled;
-#else  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#else   // SB_API_VERSION >= 4
   return  false;
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
 }
 
 }  // namespace h5vcc

@@ -90,7 +90,7 @@ std::string GetLocalIpAddress() {
   DCHECK(result);
 #elif defined(OS_STARBOARD)
 
-#if SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#if SB_API_VERSION >= 4
   SbSocketAddress local_ip;
   SbMemorySet(&(local_ip.address), 0, sizeof(local_ip.address));
 
@@ -120,7 +120,7 @@ std::string GetLocalIpAddress() {
   bool result = SbSocketGetLocalInterfaceAddress(&sb_address);
   DCHECK(result);
   result = ip_addr.FromSbSocketAddress(&sb_address);
-#endif  // SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#endif  // SB_API_VERSION >= 4
 
 #else
 #error "Not Implemented."
