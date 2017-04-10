@@ -18,6 +18,7 @@
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
+#include "cobalt/script/testing/fake_script_value.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::AllOf;
@@ -28,7 +29,7 @@ using ::testing::_;
 namespace cobalt {
 namespace dom {
 
-using testing::FakeScriptValue;
+using ::cobalt::script::testing::FakeScriptValue;
 using testing::MockEventListener;
 
 class EventQueueTest : public ::testing::Test {
@@ -54,8 +55,8 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
   scoped_ptr<MockEventListener> event_listener = MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
-  event_target->AddEventListener("event",
-                                 FakeScriptValue(event_listener.get()), false);
+  event_target->AddEventListener(
+      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target);
 
@@ -70,8 +71,8 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
-  event_target->AddEventListener("event",
-                                 FakeScriptValue(event_listener.get()), false);
+  event_target->AddEventListener(
+      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target);
 
@@ -86,8 +87,8 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
-  event_target->AddEventListener("event",
-                                 FakeScriptValue(event_listener.get()), false);
+  event_target->AddEventListener(
+      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
   event_listener->ExpectNoHandleEventCall();
 
   event_queue.Enqueue(event);
@@ -108,7 +109,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
 
   event->set_target(event_target_2);
   event_target_2->AddEventListener(
-      "event", FakeScriptValue(event_listener.get()), false);
+      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target_2);
 
