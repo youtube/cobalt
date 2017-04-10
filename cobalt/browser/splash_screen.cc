@@ -24,15 +24,16 @@ namespace browser {
 const char SplashScreen::Options::kDefaultSplashScreenURL[] =
     "h5vcc-embedded://splash_screen.html";
 
-SplashScreen::SplashScreen(
-    const WebModule::OnRenderTreeProducedCallback&
-        render_tree_produced_callback,
-    network::NetworkModule* network_module, const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const SplashScreen::Options& options)
-    : render_tree_produced_callback_(render_tree_produced_callback)
-    , is_ready_(true, false) {
-  WebModule::Options web_module_options(window_dimensions);
+SplashScreen::SplashScreen(const WebModule::OnRenderTreeProducedCallback&
+                               render_tree_produced_callback,
+                           network::NetworkModule* network_module,
+                           const math::Size& window_dimensions,
+                           render_tree::ResourceProvider* resource_provider,
+                           float layout_refresh_rate,
+                           const SplashScreen::Options& options)
+    : render_tree_produced_callback_(render_tree_produced_callback),
+      is_ready_(true, false) {
+  WebModule::Options web_module_options;
   web_module_options.name = "SplashScreenWebModule";
 
   // We want the splash screen to load and appear as quickly as possible, so
