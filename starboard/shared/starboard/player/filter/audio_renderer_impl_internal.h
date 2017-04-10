@@ -51,9 +51,9 @@ class AudioRendererImpl : public AudioRenderer {
 
   void Play() SB_OVERRIDE;
   void Pause() SB_OVERRIDE;
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) SB_OVERRIDE;
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
   void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
 
   bool IsEndOfStreamWritten() const SB_OVERRIDE {

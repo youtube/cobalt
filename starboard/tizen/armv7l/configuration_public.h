@@ -119,7 +119,7 @@
 // player and the graphics plane.
 #define SB_IS_PLAYER_PUNCHED_OUT 1
 
-#if SB_API_VERSION < SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
+#if SB_API_VERSION < 4
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
@@ -157,7 +157,7 @@
 // media buffers being decoded when being stored in GPU.
 #define SB_MEDIA_GPU_BUFFER_BUDGET 0U
 
-#endif  // SB_API_VERSION < SB_PLAYER_NO_MEDIA_SOURCE_BUFFER_SETTING_VERSION
+#endif  // SB_API_VERSION < 4
 
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.

@@ -58,9 +58,9 @@ class VideoRendererImpl : public VideoRenderer,
   bool CanAcceptMoreData() const SB_OVERRIDE;
   bool IsSeekingInProgress() const SB_OVERRIDE;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
  private:
   typedef std::list<scoped_refptr<VideoFrame> > Frames;

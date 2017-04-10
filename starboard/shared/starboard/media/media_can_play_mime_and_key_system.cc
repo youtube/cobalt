@@ -19,7 +19,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/string.h"
 
-#if SB_API_VERSION < SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+#if SB_API_VERSION < 4
 
 using starboard::shared::starboard::media::MimeType;
 
@@ -89,7 +89,7 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
   return kSbMediaSupportTypeNotSupported;
 }
 
-#else  // SB_API_VERSION < SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+#else  // SB_API_VERSION < 4
 
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -297,4 +297,4 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
   return CanPlayMimeAndKeySystem(mime_type, key_system);
 }
 
-#endif  // SB_API_VERSION < SB_MEDIA_UNIFIED_CAN_PLAY_MIME_VERSION
+#endif  // SB_API_VERSION < 4

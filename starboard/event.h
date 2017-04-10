@@ -152,7 +152,7 @@ typedef enum SbEventType {
   // directly. The data type is an internally-defined structure.
   kSbEventTypeScheduled,
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
   // The platform's accessibility settings have changed. The application should
   // query the accessibility settings using the appropriate APIs to get the
   // new settings.

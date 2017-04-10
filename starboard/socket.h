@@ -227,7 +227,7 @@ SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
 SB_EXPORT bool SbSocketGetLocalAddress(SbSocket socket,
                                        SbSocketAddress* out_address);
 
-#if SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#if SB_API_VERSION >= 4
 // Gets the source address and the netmask that would be used to connect to the
 // destination.  The netmask parameter is optional, and only populated if a
 // non-NULL parameter is passed in.  To determine which source IP will be used,
@@ -276,7 +276,7 @@ SB_EXPORT bool SbSocketGetInterfaceAddress(
 //   (or IPv6) addresses.
 SB_EXPORT bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address);
 
-#endif  // SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#endif  // SB_API_VERSION >= 4
 
 // Reads up to |data_size| bytes from |socket| into |out_data| and places the
 // source address of the packet in |out_source| if out_source is not NULL.

@@ -88,7 +88,7 @@ SB_EXPORT bool SbImageIsDecodeSupported(const char* mime_type,
 // kSbDecodeTargetInvalid will be returned, with any intermediate allocations
 // being cleaned up in the implementation.
 SB_EXPORT SbDecodeTarget SbImageDecode(
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
     SbDecodeTargetGraphicsContextProvider* context_provider,
 #else
     SbDecodeTargetProvider* provider,

@@ -14,7 +14,7 @@
 
 #include "starboard/socket.h"
 
-#if SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#if SB_API_VERSION >= 4
 
 bool SbSocketGetInterfaceAddress(const SbSocketAddress* const /*destination*/,
                                  SbSocketAddress* /*out_source_address*/,
@@ -22,4 +22,4 @@ bool SbSocketGetInterfaceAddress(const SbSocketAddress* const /*destination*/,
   return false;
 }
 
-#endif  // SB_API_VERSION >= SB_SOCKET_GET_SOURCE_ADDRESS_AND_NETMASK_VERSION
+#endif  // SB_API_VERSION >= 4

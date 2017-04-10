@@ -14,10 +14,10 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer /*player*/) {
   return kSbDecodeTargetInvalid;
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
