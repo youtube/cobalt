@@ -72,9 +72,12 @@ class MEDIA_EXPORT ShellMediaPlatform {
     return NULL;
   }
 
-#if SB_API_VERSION >= 3
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  virtual SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() { return NULL; }
+#elif SB_API_VERSION >= 3
   virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   // Total number of video frames which are populating in the pipeline when
   // prerolling.
