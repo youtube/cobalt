@@ -122,7 +122,7 @@ bool IsTextToSpeechEnabled() {
     return true;
   }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
   // Check if the tts feature is enabled in Starboard.
   SbAccessibilityTextToSpeechSettings tts_settings = {0};
   // Check platform settings.
@@ -130,7 +130,7 @@ bool IsTextToSpeechEnabled() {
     return tts_settings.has_text_to_speech_setting &&
            tts_settings.is_text_to_speech_enabled;
   }
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
   return false;
 }
 #endif  // SB_HAS(SPEECH_SYNTHESIS)

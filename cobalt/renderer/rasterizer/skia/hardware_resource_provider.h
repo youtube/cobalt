@@ -51,7 +51,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
 #if SB_HAS(GRAPHICS)
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
@@ -83,7 +83,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
@@ -136,8 +136,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   TextShaper text_shaper_;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
-    SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
   static void GraphicsContextRunner(
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
       SbDecodeTargetGlesContextRunnerTarget target_function,
@@ -145,7 +144,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+#endif  // SB_API_VERSION >= 4 && \
            SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was

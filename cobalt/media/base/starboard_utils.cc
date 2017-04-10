@@ -128,7 +128,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   }
 }
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
 // Ensure that the enums in starboard/media.h match enums in gfx::ColorSpace.
 #define ENUM_EQ(a, b) \
   COMPILE_ASSERT(static_cast<int>(a) == static_cast<int>(b), mismatching_enums)
@@ -279,7 +279,7 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 
   return sb_media_color_metadata;
 }
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 3
 
 }  // namespace media
 }  // namespace cobalt

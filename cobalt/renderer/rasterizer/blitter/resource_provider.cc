@@ -39,9 +39,9 @@ ResourceProvider::ResourceProvider(
     SbBlitterDevice device,
     render_tree::ResourceProvider* skia_resource_provider)
     : device_(device), skia_resource_provider_(skia_resource_provider) {
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   decode_target_graphics_context_provider_.device = device;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 }
 
 bool ResourceProvider::PixelFormatSupported(PixelFormat pixel_format) {
@@ -81,7 +81,7 @@ scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
 
 scoped_refptr<render_tree::Image>
 ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
   SbDecodeTargetFormat format = SbDecodeTargetGetFormat(decode_target);
   if (format == kSbDecodeTargetFormat1PlaneRGBA) {
     SbBlitterSurface surface =
@@ -94,7 +94,7 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
     SbDecodeTargetDestroy(decode_target);
     return make_scoped_refptr(
         new SinglePlaneImage(surface, is_opaque, base::Closure()));
-#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // SB_API_VERSION < 4
   SbDecodeTargetInfo info;
   SbMemorySet(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
@@ -113,16 +113,16 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
     return make_scoped_refptr(new SinglePlaneImage(
         plane.surface, info.is_opaque,
         base::Bind(&SbDecodeTargetRelease, decode_target)));
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION < 4
   }
 
   NOTREACHED()
       << "Only format kSbDecodeTargetFormat1PlaneRGBA is currently supported.";
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
   SbDecodeTargetDestroy(decode_target);
-#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // SB_API_VERSION < 4
   SbDecodeTargetRelease(decode_target);
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION < 4
   return NULL;
 }
 

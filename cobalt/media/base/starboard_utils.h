@@ -39,7 +39,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
                        SbDrmSampleInfo* drm_info,
                        SbDrmSubSampleMapping* subsample_mapping);
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const WebMColorMetadata& webm_color_metadata);
 #endif
