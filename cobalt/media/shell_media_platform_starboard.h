@@ -54,6 +54,11 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
   }
 #endif  // SB_API_VERSION >= 3
 
+  void Suspend() OVERRIDE { resource_provider_ = NULL; }
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+    resource_provider_ = resource_provider;
+  }
+
  private:
   void* AllocateBuffer(size_t size) OVERRIDE {
     UNREFERENCED_PARAMETER(size);
@@ -129,6 +134,12 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 #endif  // SB_HAS(GRAPHICS)
   }
 #endif  // SB_API_VERSION >= 3
+
+  void Suspend() OVERRIDE { resource_provider_ = NULL; }
+  void Resume(
+      cobalt::render_tree::ResourceProvider* resource_provider) OVERRIDE {
+    resource_provider_ = resource_provider;
+  }
 
  private:
   cobalt::render_tree::ResourceProvider* resource_provider_;
