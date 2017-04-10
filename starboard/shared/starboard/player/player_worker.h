@@ -78,9 +78,9 @@ class PlayerWorker {
     virtual bool WriteSample(InputBuffer input_buffer, bool* written) = 0;
     virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual bool SetPause(bool pause) = 0;
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
     virtual bool SetPlaybackRate(double playback_rate) = 0;
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
     virtual bool SetBounds(const Bounds& bounds) = 0;
 
     // Once this function returns, all processing on the Handler and related
@@ -88,9 +88,9 @@ class PlayerWorker {
     // after and is no longer safe to access.
     virtual void Stop() = 0;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
   };
 
   PlayerWorker(Host* host,
@@ -116,19 +116,18 @@ class PlayerWorker {
         Bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
   }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   void SetBounds(Bounds bounds) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetBounds, this, bounds));
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+#endif  // SB_API_VERSION >= 4 || \
            SB_IS(PLAYER_PUNCHED_OUT)
 
   void SetPause(bool pause) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetPause, this, pause));
   }
 
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) {
     // Arbitrary values to give the playback rate a valid range.  A particular
     // implementation may have stricter or looser requirement, or even only
@@ -145,17 +144,17 @@ class PlayerWorker {
     job_queue_->Schedule(
         Bind(&PlayerWorker::DoSetPlaybackRate, this, playback_rate));
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
 
   void UpdateDroppedVideoFrames(int dropped_video_frames) {
     host_->UpdateDroppedVideoFrames(dropped_video_frames);
   }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentDecodeTarget() {
     return handler_->GetCurrentDecodeTarget();
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
  private:
   void UpdateMediaTime(SbMediaTime time);
@@ -170,15 +169,14 @@ class PlayerWorker {
   void DoWriteSample(InputBuffer input_buffer);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetBounds(Bounds bounds);
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+#endif  // SB_API_VERSION >= 4 || \
            SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetPause(bool pause);
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
   void DoSetPlaybackRate(double rate);
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
   void DoStop();
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);

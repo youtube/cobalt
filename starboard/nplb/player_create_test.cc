@@ -23,7 +23,7 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 #if SB_HAS(GLES2)
 void GlesContextRunner(
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
@@ -67,7 +67,7 @@ TEST(SbPlayerTest, SunnyDay) {
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
 
@@ -76,9 +76,9 @@ TEST(SbPlayerTest, SunnyDay) {
     if (!SbPlayerOutputModeSupported(output_mode, kVideoCodec, kDrmSystem)) {
       continue;
     }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
     SbDecodeTargetGraphicsContextProvider
         decode_target_graphics_context_provider;
 #if SB_HAS(BLITTER)
@@ -101,7 +101,7 @@ TEST(SbPlayerTest, SunnyDay) {
         SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
                        SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
                        &audio_header, NULL, NULL, NULL, NULL
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
                        ,
                        output_mode,
                        &decode_target_graphics_context_provider
@@ -112,18 +112,18 @@ TEST(SbPlayerTest, SunnyDay) {
                        );  // NOLINT
     EXPECT_TRUE(SbPlayerIsValid(player));
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
     if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
       SbDecodeTarget current_frame = SbPlayerGetCurrentFrame(player);
     }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
     SbPlayerDestroy(player);
     SbWindowDestroy(window);
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 }
 
 }  // namespace nplb

@@ -129,10 +129,10 @@ typedef enum SbSystemDeviceType {
   // Desktop PC.
   kSbSystemDeviceTypeDesktopPC,
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   // Unknown device.
   kSbSystemDeviceTypeUnknown,
