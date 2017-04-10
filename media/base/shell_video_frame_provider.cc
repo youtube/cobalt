@@ -17,9 +17,9 @@
 #include "media/base/shell_video_frame_provider.h"
 
 #include "base/logging.h"
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 #include "starboard/decode_target.h"
-#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // #if SB_API_VERSION >= 4
 
 namespace media {
 
@@ -113,7 +113,7 @@ ShellVideoFrameProvider::OutputMode ShellVideoFrameProvider::GetOutputMode()
   return output_mode_;
 }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 
 void ShellVideoFrameProvider::SetGetCurrentSbDecodeTargetFunction(
     GetCurrentSbDecodeTargetFunction function) {
@@ -135,7 +135,7 @@ SbDecodeTarget ShellVideoFrameProvider::GetCurrentSbDecodeTarget() const {
   }
 }
 
-#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // #if SB_API_VERSION >= 4
 
 void ShellVideoFrameProvider::AddFrame(const scoped_refptr<VideoFrame>& frame) {
   base::AutoLock auto_lock(frames_lock_);
