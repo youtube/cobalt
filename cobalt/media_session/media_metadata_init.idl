@@ -18,6 +18,5 @@ dictionary MediaMetadataInit {
   DOMString title = "";
   DOMString artist = "";
   DOMString album = "";
-  // TODO FrozenArray not implemented in current IDL parser.
-  // attribute FrozenArray<MediaImage> artwork;
+  sequence<MediaImage> artwork;
 };
