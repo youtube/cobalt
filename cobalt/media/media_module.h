@@ -84,12 +84,14 @@ class MediaModule : public CanPlayTypeHandler,
   // from the main thread.  Sub-classes can override these functions for
   // platform specific tasks.
   virtual void OnSuspend() {}
-  virtual void OnResume() {}
+  virtual void OnResume(render_tree::ResourceProvider* resource_provider) {
+    UNREFERENCED_PARAMETER(resource_provider);
+  }
 
   virtual system_window::SystemWindow* system_window() const { return NULL; }
 
   void Suspend();
-  void Resume();
+  void Resume(render_tree::ResourceProvider* resource_provider);
 
 #if !defined(COBALT_MEDIA_SOURCE_2016)
 #if !defined(COBALT_BUILD_TYPE_GOLD)

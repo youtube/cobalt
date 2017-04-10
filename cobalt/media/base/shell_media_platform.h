@@ -22,6 +22,7 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/shell_video_frame_provider.h"
+#include "cobalt/render_tree/resource_provider.h"
 #include "starboard/decode_target.h"
 
 namespace cobalt {
@@ -46,7 +47,7 @@ class MEDIA_EXPORT ShellMediaPlatform {
   // The following functions will be called when the application enters or
   // leaves suspending status.
   virtual void Suspend() {}
-  virtual void Resume() {}
+  virtual void Resume(render_tree::ResourceProvider* /*resource_provider*/) {}
 
   // Media stack buffer allocate/free functions currently only used by
   // ShellBufferFactory.
