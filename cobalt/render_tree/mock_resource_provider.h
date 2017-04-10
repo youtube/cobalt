@@ -98,14 +98,14 @@ class MockResourceProvider : public ResourceProvider {
   bool SupportsSbDecodeTarget() { return false; }
 #endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() {
     return NULL;
   }
 #elif SB_API_VERSION >= 3
   SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 #endif  // SB_HAS(GRAPHICS)
 
