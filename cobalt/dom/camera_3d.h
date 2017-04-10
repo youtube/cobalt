@@ -49,6 +49,9 @@ class Camera3D : public script::Wrappable {
   // Clears all key mappings created by previous calls to |CreateKeyMapping|.
   void ClearAllKeyMappings();
 
+  // Resets the camera's orientation.
+  void Reset();
+
   // Custom, not in any spec.
   scoped_refptr<Camera3DImpl> impl() { return impl_; }
 

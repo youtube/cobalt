@@ -31,5 +31,7 @@ void Camera3D::ClearKeyMapping(int keycode) { impl_->ClearKeyMapping(keycode); }
 
 void Camera3D::ClearAllKeyMappings() { impl_->ClearAllKeyMappings(); }
 
+void Camera3D::Reset() { impl_->Reset(); }
+
 }  // namespace dom
 }  // namespace cobalt
