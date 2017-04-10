@@ -173,6 +173,10 @@ void GraphicsState::DisableDepthWrite() {
   }
 }
 
+void GraphicsState::ResetDepthFunc() {
+  GL_CALL(glDepthFunc(GL_LESS));
+}
+
 void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
                                       GLuint texture) {
   int texunit_index = texture_unit - GL_TEXTURE0;
@@ -374,7 +378,7 @@ void GraphicsState::Reset() {
     GL_CALL(glDisable(GL_DEPTH_TEST));
   }
   GL_CALL(glDepthMask(depth_write_enabled_ ? GL_TRUE : GL_FALSE));
-  GL_CALL(glDepthFunc(GL_LESS));
+  ResetDepthFunc();
   GL_CALL(glDepthRangef(0.0f, 1.0f));
 
   GL_CALL(glDisable(GL_DITHER));
