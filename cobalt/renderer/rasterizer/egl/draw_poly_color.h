@@ -39,7 +39,11 @@ class DrawPolyColor : public DrawObject {
   void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
 
- private:
+ protected:
+  explicit DrawPolyColor(const BaseState& base_state);
+  void SetupShader(GraphicsState* graphics_state,
+                   ShaderProgramManager* program_manager);
+  void AddRect(const math::RectF& rect, uint32_t color);
   void AddVertex(float x, float y, uint32_t color);
 
   struct VertexAttributes {
