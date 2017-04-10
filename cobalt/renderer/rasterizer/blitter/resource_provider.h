@@ -42,14 +42,21 @@ class ResourceProvider : public render_tree::ResourceProvider {
 
   void Finish() OVERRIDE {}
 
-#if SB_VERSION(3)
+#if SB_API_VERSION >= 3
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
 
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-
   bool SupportsSbDecodeTarget() OVERRIDE { return true; }
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+    return &decode_target_graphics_context_provider_;
+  }
+#elif SB_API_VERSION >= 3
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
@@ -109,6 +116,11 @@ class ResourceProvider : public render_tree::ResourceProvider {
   // ResourceProvider, as the Blitter API does not natively support font
   // rendering.
   render_tree::ResourceProvider* skia_resource_provider_;
+
+#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
+#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 };
 
 }  // namespace blitter
