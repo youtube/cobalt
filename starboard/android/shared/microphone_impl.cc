@@ -73,6 +73,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   void DeleteAudioRecoder();
 
   void ClearBuffer();
+  SLuint32 GetBufferCount();
 
   SLObjectItf engine_object_;
   SLEngineItf engine_;
@@ -121,12 +122,12 @@ SbMicrophoneImpl::~SbMicrophoneImpl() {
   Close();
   DeleteAudioRecoder();
 
-  // Destroy engine object.
-  if (engine_object_) {
-    (*engine_object_)->Destroy(engine_object_);
+  // On some devices, ClearBuffer() doesn't clear all the buffers in the
+  // |delivered_queue_|.
+  while (!delivered_queue_.empty()) {
+    delete[] delivered_queue_.front();
+    delivered_queue_.pop();
   }
-  engine_ = NULL;
-  engine_object_ = NULL;
 }
 
 bool SbMicrophoneImpl::Open() {
@@ -145,7 +146,12 @@ bool SbMicrophoneImpl::Open() {
   // Enqueues kNumOfOpenSLESBuffers zero buffers to get the ball rolling.
   // Add buffers to the queue before changing state to ensure that recording
   // starts as soon as the state is modified.
-  for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
+  // On some devices, SLAndroidSimpleBufferQueue::Clear() used in ClearBuffer()
+  // does not flush the buffers as intended and we therefore check the number of
+  // buffers already queued first. Enqueue() can return
+  // SL_RESULT_BUFFER_INSUFFICIENT otherwise.
+  int num_buffers_in_queue = GetBufferCount();
+  for (int i = 0; i < kNumOfOpenSLESBuffers - num_buffers_in_queue; ++i) {
     int16_t* buffer = new int16_t[frames_per_buffer_];
     SbMemorySet(buffer, 0, frames_size_);
     delivered_queue_.push(buffer);
@@ -155,6 +161,8 @@ bool SbMicrophoneImpl::Open() {
       return false;
     }
   }
+  num_buffers_in_queue = GetBufferCount();
+  SB_DCHECK(num_buffers_in_queue == kNumOfOpenSLESBuffers);
 
   // Start the recording by setting the state to |SL_RECORDSTATE_RECORDING|.
   // When the object is in the SL_RECORDSTATE_RECORDING state, adding buffers
@@ -365,6 +373,13 @@ void SbMicrophoneImpl::DeleteAudioRecoder() {
   buffer_object_ = NULL;
   recorder_ = NULL;
   recorder_object_ = NULL;
+
+  // Destroy engine object.
+  if (engine_object_) {
+    (*engine_object_)->Destroy(engine_object_);
+  }
+  engine_ = NULL;
+  engine_object_ = NULL;
 }
 
 void SbMicrophoneImpl::ClearBuffer() {
@@ -375,15 +390,26 @@ void SbMicrophoneImpl::ClearBuffer() {
   result = (*buffer_object_)->Clear(buffer_object_);
   CheckReturnValue(result);
 
-  while (!delivered_queue_.empty()) {
+  int num_buffers_in_queue = GetBufferCount();
+  while (delivered_queue_.size() > num_buffers_in_queue) {
     delete[] delivered_queue_.front();
     delivered_queue_.pop();
   }
+  SB_DCHECK(delivered_queue_.size() == num_buffers_in_queue);
 
   while (!ready_queue_.empty()) {
     delete[] ready_queue_.front();
     ready_queue_.pop();
   }
+}
+
+SLuint32 SbMicrophoneImpl::GetBufferCount() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
+  SLAndroidSimpleBufferQueueState state;
+  SLresult result = (*buffer_object_)->GetState(buffer_object_, &state);
+  CheckReturnValue(result);
+  return state.count;
 }
 
 }  // namespace shared
