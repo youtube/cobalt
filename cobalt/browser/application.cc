@@ -317,23 +317,40 @@ void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
                           &options->remote_typeface_cache_capacity);
 }
 
-base::optional<size_t> GetImageCacheOverrideIfSet(CommandLine* command_line) {
-  const char* switch_name = browser::switches::kImageCacheSizeInBytes;
-  base::optional<size_t> output;
+template <typename T>
+base::optional<T> ParseSetting(const CommandLine* command_line,
+                               const char* switch_name) {
+  base::optional<T> output;
   if (!command_line->HasSwitch(switch_name)) {
     return output;
   }
-
   std::string switch_value = command_line->GetSwitchValueNative(switch_name);
 
   bool parse_ok = false;
-  int value = nb::lexical_cast<int>(switch_value.c_str(), &parse_ok);
+  T value = nb::lexical_cast<T>(switch_value.c_str(), &parse_ok);
 
-  if (value > 0 && parse_ok) {
-    output = static_cast<size_t>(value);
+  if (parse_ok) {
+    output = static_cast<T>(value);
   } else {
     LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
   }
+  return output;
+}
+
+base::optional<size_t> GetImageCacheOverrideIfSet(
+    const CommandLine* command_line) {
+  base::optional<size_t> output =
+      ParseSetting<size_t>(command_line,
+                           browser::switches::kImageCacheSizeInBytes);
+  return output;
+}
+
+base::optional<uint32_t> GetJsEngineGarbageCollectionThresholdOverride(
+    const CommandLine* command_line) {
+
+  base::optional<uint32_t> output =
+      ParseSetting<uint32_t>(command_line,
+                             browser::switches::kJavaScriptGcThresholdInBytes);
   return output;
 }
 
@@ -466,12 +483,17 @@ Application::Application(const base::Closure& quit_closure)
       memory_settings::GetSkiaAtlasTextureSize(window_size,
                                                skia_texture_atlas_override);
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
-
   ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
     options.web_module_options.javascript_options.disable_jit = true;
   }
+
+  base::optional<uint32_t> js_gc_threshold_override =
+      GetJsEngineGarbageCollectionThresholdOverride(command_line);
+  options.web_module_options.javascript_options.gc_threshold_bytes =
+      memory_settings::GetJsEngineGarbageCollectionThresholdInBytes(
+          js_gc_threshold_override);
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
