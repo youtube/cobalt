@@ -430,6 +430,8 @@ Application::Application(const base::Closure& quit_closure)
   options.language = language;
   options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
+  options.renderer_module_options.skia_cache_size_in_bytes =
+      static_cast<int>(memory_settings::GetSkiaCacheSizeInBytes(window_size));
 
   options.renderer_module_options.software_surface_cache_size_in_bytes =
       static_cast<int>(

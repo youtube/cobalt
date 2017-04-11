@@ -140,8 +140,9 @@ size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution) {
   SB_UNREFERENCED_PARAMETER(ui_resolution);
 #if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
   return COBALT_SKIA_CACHE_SIZE_IN_BYTES;
+#else
+  return CalculateSkiaCacheSize(ui_resolution);
 #endif
-  return kMinSkiaCacheSize;
 }
 
 uint32_t GetJsEngineGarbageCollectionThresholdInBytes() {
@@ -192,6 +193,13 @@ size_t CalculateSoftwareSurfaceCacheSizeInBytes(
       static_cast<size_t>(remap.Map(ui_resolution.GetArea()));
 
   return surface_cache_size_in_bytes;
+}
+
+size_t CalculateSkiaCacheSize(const math::Size& ui_resolution) {
+  // This is normalized return 4MB @ 1080p and scales accordingly.
+  LinearRemap remap(0, 1920 * 1080, 0, 4 * 1024 * 1024);
+  size_t output = static_cast<size_t>(remap.Map(ui_resolution.GetArea()));
+  return std::max<size_t>(output, kMinSkiaCacheSize);
 }
 
 }  // namespace memory_settings
