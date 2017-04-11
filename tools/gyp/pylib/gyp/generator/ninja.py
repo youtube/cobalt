@@ -576,11 +576,7 @@ class NinjaWriter:
       return '%s %s: %s' % (verb, self.name, fallback)
 
   def IsCygwinRule(self, action):
-    if platform.system() == 'Linux':
-      return False
-    elif self.flavor == 'win':
-      return self.msvs_settings.IsRuleRunUnderCygwin(action)
-    elif self.flavor in ['ps3', 'xb1', 'ps4'] :
+    if self.flavor in ['ps3', 'ps4']:
       return str(action.get('msvs_cygwin_shell', 1)) != '0'
     return False
 
