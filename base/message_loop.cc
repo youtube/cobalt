@@ -690,7 +690,7 @@ void MessageLoop::HistogramEvent(int event) {
 }
 
 bool MessageLoop::DoWork() {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   if (!nestable_tasks_allowed_) {
     // Task can't be executed right now.
     return false;
