@@ -165,7 +165,7 @@ void MessagePumpIOStarboard::RemoveIOObserver(IOObserver* obs) {
 
 // Reentrant!
 void MessagePumpIOStarboard::Run(Delegate* delegate) {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   DCHECK(keep_running_) << "Quit must have been called outside of Run!";
   AutoReset<bool> auto_reset_in_run(&in_run_, true);
 
