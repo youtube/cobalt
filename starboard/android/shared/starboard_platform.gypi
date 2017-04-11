@@ -108,6 +108,7 @@
         'player_set_volume.cc',
         'sanitizer_options.cc',
         'socket_get_local_interface_address.cc',
+        'socket_get_interface_address.cc',
         'speech_synthesis_cancel.cc',
         'speech_synthesis_speak.cc',
         'system_get_connection_type.cc',
