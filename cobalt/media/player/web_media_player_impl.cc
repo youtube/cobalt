@@ -745,7 +745,7 @@ void WebMediaPlayerImpl::GetMediaTimeAndSeekingState(
 void WebMediaPlayerImpl::OnEncryptedMediaInitData(
     EmeInitDataType init_data_type, const std::vector<uint8_t>& init_data) {
   // TODO: Implement EME.
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {
