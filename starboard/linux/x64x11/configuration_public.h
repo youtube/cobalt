@@ -22,11 +22,6 @@
 #ifndef STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 
-// The API version implemented by this platform.
-#if !defined(SB_API_VERSION)
-#define SB_API_VERSION 2
-#endif
-
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
