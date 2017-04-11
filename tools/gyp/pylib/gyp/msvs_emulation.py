@@ -829,17 +829,13 @@ def GenerateXB1EnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
           'lbshell', 'build', 'platforms', 'DurangoVars.cmd'),
       'ADK'
   ]
-  # Using cygwin python so there is a bit of wrapping done to get the
-  # dos environment via set:
+  # Get the dos environment via set:
   # Use cmd /c to execute under native windows command
   args_cmd  = 'cmd /c '
-  # Convert the cygwin path i.e. /cygdrive/c .. to C:\ ..
-  args_bat  = '\"`cygpath -d \'' + vs_args[0] + '\'` '
-  # Create a list of the remaining arguments to the bat file
-  args_args = ' '.join(vs_args[1:])
-  args_set  = ' && set\"'
+  args_set  = '\"set\"'
 
-  args = args_cmd + args_bat + args_args + args_set
+  args = args_cmd + args_set
+
   popen = subprocess.Popen(
       args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   variables, _ = popen.communicate()
