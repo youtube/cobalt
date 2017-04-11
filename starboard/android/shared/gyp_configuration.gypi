@@ -41,6 +41,7 @@
     'cobalt_enable_jit': 0,
 
     'cobalt_media_source_2016': 1,
+    'cobalt_media_buffer_initial_capacity': 80 * 1024 * 1024,
 
     # Switch Android's SurfaceFlinger queue to "async mode" so that we don't
     # queue up rendered frames which would interfere with frame timing and
