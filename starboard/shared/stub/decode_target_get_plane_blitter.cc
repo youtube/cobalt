@@ -16,9 +16,11 @@
 
 #if SB_API_VERSION < 4
 
+#if SB_HAS(BLITTER)
 SbBlitterSurface SbDecodeTargetGetPlane(SbDecodeTarget /*decode_target*/,
                                         SbDecodeTargetPlane /*plane*/) {
   return kSbBlitterInvalidSurface;
 }
+#endif  // SB_HAS(BLITTER)
 
 #endif  // SB_API_VERSION < 4
