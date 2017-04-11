@@ -408,7 +408,7 @@ def VeryifyVersionOfBuiltClangMatchesVERSION():
 # Returns true if there is no stdout/stderr
 # Or if there is a stdout/stderr and the user types "Y" or "y".
 def AskIfWantToWipeOutFolder():
-  if sys.stdout.isatty() or sys.stderr.isatty():
+  if sys.stdin.isatty() and (sys.stdout.isatty() or sys.stderr.isatty()):
     # Prompt the user, if there's a TTY.
     reply = raw_input('clang was updated. You need to do a clean build. Want me'
                       ' (update.py) to clean out your out/ folder? [yN]');
