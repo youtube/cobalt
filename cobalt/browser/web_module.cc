@@ -476,11 +476,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new browser::WebModuleStatTracker(name_, data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
-  script::JavaScriptEngine::Options options;
-  options.gc_threshold_bytes =
-      memory_settings::GetJsEngineGarbageCollectionThresholdInBytes();
-
-  javascript_engine_ = script::JavaScriptEngine::CreateEngine(options);
+  javascript_engine_ =
+      script::JavaScriptEngine::CreateEngine(data.options.javascript_options);
   DCHECK(javascript_engine_);
 
 #if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
