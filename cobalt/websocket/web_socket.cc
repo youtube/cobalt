@@ -180,6 +180,8 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
   Initialize(settings, url, sub_protocols, exception_state);
 }
 
+WebSocket::~WebSocket() { impl_->SetWebSocketEventDelegate(NULL); }
+
 std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
   if (!IsValidBinaryType(binary_type_)) {
     NOTREACHED() << "Invalid binary_type_";
@@ -568,8 +570,8 @@ void WebSocket::Connect(const GURL& url,
   GURL origin_gurl = settings_->base_url().GetOrigin();
   const std::string& origin = origin_gurl.possibly_invalid_spec();
 
-  impl_ = make_scoped_refptr<WebSocketImpl>(
-      new WebSocketImpl(settings_->network_module(), this));
+  impl_ =
+      make_scoped_refptr(new WebSocketImpl(settings_->network_module(), this));
 
   impl_->Connect(origin, url, sub_protocols);
 }

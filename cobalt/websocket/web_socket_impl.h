@@ -55,6 +55,8 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   explicit WebSocketImpl(cobalt::network::NetworkModule* network_module,
                          WebsocketEventInterface* delegate);
 
+  void SetWebSocketEventDelegate(WebsocketEventInterface* delegate);
+
   // These functions are meant to be called from the Web Module thread.
   void Connect(const std::string& origin, const GURL& url,
                const std::vector<std::string>& sub_protocols);
@@ -127,6 +129,14 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   bool ProcessHandshake(std::size_t* payload_offset);
 
   void TrampolineClose(const CloseInfo& close_info);
+
+  void OnWebSocketConnected(const std::string& selected_subprotocol);
+  void OnWebSocketDisconnected(bool was_clean, uint16 code,
+                               const std::string& reason);
+  void OnWebSocketSentData(int amount_sent);
+  void OnWebSocketReceivedData(bool is_text_frame,
+                               scoped_refptr<net::IOBufferWithSize> data);
+  void OnWebSocketError();
 
   base::ThreadChecker thread_checker_;
   net::WebSocketJob::State GetCurrentState() const;

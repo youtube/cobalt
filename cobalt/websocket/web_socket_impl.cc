@@ -65,6 +65,12 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
   owner_task_runner_ = MessageLoop::current()->message_loop_proxy();
 }
 
+void WebSocketImpl::SetWebSocketEventDelegate(
+    WebsocketEventInterface *delegate) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  delegate_ = delegate;
+}
+
 void WebSocketImpl::Connect(const std::string &origin, const GURL &url,
                             const std::vector<std::string> &sub_protocols) {
   if (!network_module_) {
@@ -346,6 +352,37 @@ void WebSocketImpl::TrampolineClose(const CloseInfo &close_info) {
                                        do_close_closure);
 }
 
+void WebSocketImpl::OnWebSocketConnected(
+    const std::string &selected_subprotocol) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnConnected(selected_subprotocol);
+  }
+}
+
+void WebSocketImpl::OnWebSocketDisconnected(bool was_clean, uint16 code,
+                                            const std::string &reason) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnDisconnected(was_clean, code, reason);
+  }
+}
+
+void WebSocketImpl::OnWebSocketSentData(int amount_sent) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnSentData(amount_sent);
+  }
+}
+
+void WebSocketImpl::OnWebSocketReceivedData(
+    bool is_text_frame, scoped_refptr<net::IOBufferWithSize> data) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnReceivedData(is_text_frame, data);
+  }
+}
+
 void WebSocketImpl::ProcessCompleteMessage(
     const WebSocketMessageContainer &message_container) {
   if (message_container.GetCurrentPayloadSizeBytes() >
@@ -381,8 +418,8 @@ void WebSocketImpl::ProcessCompleteMessage(
   }
 
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnReceivedData,
-                            base::Unretained(delegate_), is_text_message, buf));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketReceivedData, this,
+                            is_text_message, buf));
 }
 
 void WebSocketImpl::ProcessControlMessage(
@@ -533,7 +570,6 @@ void WebSocketImpl::HandleClose(
 
 void WebSocketImpl::OnSentData(net::SocketStream *socket, int amount_sent) {
   UNREFERENCED_PARAMETER(socket);
-  UNREFERENCED_PARAMETER(amount_sent);
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   std::size_t payload_sent = buffered_amount_tracker_.Pop(amount_sent);
@@ -541,9 +577,8 @@ void WebSocketImpl::OnSentData(net::SocketStream *socket, int amount_sent) {
   DCHECK_LE(payload_sent, static_cast<unsigned int>(kint32max));
 
   owner_task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&WebsocketEventInterface::OnSentData,
-                 base::Unretained(delegate_), static_cast<int>(payload_sent)));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketSentData, this,
+                            static_cast<int>(payload_sent)));
 }
 
 void WebSocketImpl::OnClose(net::SocketStream *socket) {
@@ -565,9 +600,8 @@ void WebSocketImpl::OnClose(net::SocketStream *socket) {
              << close_reason << "]";
 
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnDisconnected,
-                            base::Unretained(delegate_), close_was_clean,
-                            close_code, close_reason));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketDisconnected, this,
+                            close_was_clean, close_code, close_reason));
 }
 
 // Currently only called in SocketStream::Finish(), so it is meant
@@ -601,8 +635,8 @@ void WebSocketImpl::OnConnected(net::SocketStream *socket,
 void WebSocketImpl::OnHandshakeComplete(
     const std::string &selected_subprotocol) {
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnConnected,
-                            base::Unretained(delegate_), selected_subprotocol));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketConnected, this,
+                            selected_subprotocol));
 }
 
 // Note that |payload_length| in |header| will define the payload length.
