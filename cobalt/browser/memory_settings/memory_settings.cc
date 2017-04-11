@@ -185,9 +185,10 @@ size_t CalculateSoftwareSurfaceCacheSizeInBytes(
     const math::Size& ui_resolution) {
 
   // LinearRemap defines a mapping function which will map the number
-  // of ui_resolution pixels to the number of texture atlas pixels such that:
-  // 720p (1280x720) => maps to => 4MB.
-  LinearRemap remap(0, 1280 * 720, 0, 4 * 1024 * 1024);
+  // of ui_resolution pixels to the number of surface texture cache such:
+  // 720p (1280x720)   => maps to => 4MB &
+  // 1080p (1920x1200) => maps to => 9MB
+  LinearRemap remap(1280 * 720, 1920*1080, 4 * 1024 * 1024, 9 * 1024 * 1024);
 
   size_t surface_cache_size_in_bytes =
       static_cast<size_t>(remap.Map(ui_resolution.GetArea()));
