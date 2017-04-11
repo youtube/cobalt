@@ -13,12 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'cobalt_media_source_2016': 1,
-  },
-
   'target_defaults': {
     'default_configuration': 'linux-x64x11-future_debug',
     'configurations': {
