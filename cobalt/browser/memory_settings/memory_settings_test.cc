@@ -250,11 +250,12 @@ TEST(MemorySettings, CalculateSoftwareSurfaceCacheSizeInBytes) {
 }
 
 TEST(MemorySettings, GetSkiaCacheSizeInBytes) {
-  size_t skia_cache_size = GetSkiaCacheSizeInBytes(GetDimensions(k1080p));
+  const math::Size ui_resolution = GetDimensions(k1080p);
+  size_t skia_cache_size = GetSkiaCacheSizeInBytes(ui_resolution);
 #if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
   EXPECT_EQ(skia_cache_size, COBALT_SKIA_CACHE_SIZE_IN_BYTES);
 #else
-  EXPECT_EQ(skia_cache_size, kMinSkiaCacheSize);
+  EXPECT_EQ(skia_cache_size, CalculateSkiaCacheSize(ui_resolution));
 #endif
 }
 
