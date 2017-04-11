@@ -149,7 +149,11 @@ size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution) {
 #endif
 }
 
-uint32_t GetJsEngineGarbageCollectionThresholdInBytes() {
+uint32_t GetJsEngineGarbageCollectionThresholdInBytes(
+    const base::optional<uint32_t>& override) {
+  if (override) {
+    return *override;
+  }
   return COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES;
 }
 

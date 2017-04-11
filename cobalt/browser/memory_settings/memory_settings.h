@@ -50,7 +50,10 @@ size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution);
 // defined.
 size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution);
 
-uint32_t GetJsEngineGarbageCollectionThresholdInBytes();
+// Get's the size of the Javascript garbage collection threshold. Optionally
+// applies override if it has been applied.
+uint32_t GetJsEngineGarbageCollectionThresholdInBytes(
+    const base::optional<uint32_t>& override);
 
 ////////////////////////// Calculate Functions ////////////////////////////////
 // These functions are exposed here for testing purposes and should not be used
