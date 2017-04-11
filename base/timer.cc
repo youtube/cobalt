@@ -32,7 +32,7 @@ class BaseTimerTaskInternal {
   }
 
   void Run() {
-    TRACK_MEMORY_SCOPE("TaskProcessor");
+    TRACK_MEMORY_SCOPE("MessageLoop");
     // timer_ is NULL if we were abandoned.
     if (!timer_)
       return;
@@ -144,7 +144,7 @@ void Timer::SetTaskInfo(const tracked_objects::Location& posted_from,
 // PostNewScheduledTask() to ensure that the default behavior of Timer is
 // exactly the same as before.
 void Timer::PostNewScheduledTask(TimeDelta delay) {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   DCHECK(scheduled_task_ == NULL);
   is_running_ = true;
   scheduled_task_ = new BaseTimerTaskInternal(this);
@@ -160,7 +160,7 @@ void Timer::PostNewScheduledTask(TimeDelta delay) {
 
 Timer::NewScheduledTaskInfo Timer::SetupNewScheduledTask(
     TimeDelta expected_delay) {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   DCHECK(scheduled_task_ == NULL);
   DCHECK(is_task_run_before_scheduling_next_);
   DCHECK(thread_id_);
@@ -180,7 +180,7 @@ Timer::NewScheduledTaskInfo Timer::SetupNewScheduledTask(
 
 void Timer::PostNewScheduledTask(NewScheduledTaskInfo task_info,
                                  TimeDelta delay) {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   // Some task runners expect a non-zero delay for PostDelayedTask.
   if (delay.ToInternalValue() == 0) {
     ThreadTaskRunnerHandle::Get()->PostTask(task_info.posted_from,
@@ -201,7 +201,7 @@ void Timer::AbandonScheduledTask() {
 }
 
 void Timer::RunScheduledTask() {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   // Task may have been disabled.
   if (!is_running_)
     return;
