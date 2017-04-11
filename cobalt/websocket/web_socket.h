@@ -58,6 +58,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   WebSocket(script::EnvironmentSettings* settings, const std::string& url,
             const std::vector<std::string>& sub_protocols,
             script::ExceptionState* exception_state);
+  ~WebSocket();
 
   // Readonly Attributes.
   uint32 buffered_amount() const { return buffered_amount_; }
