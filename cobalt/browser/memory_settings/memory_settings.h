@@ -74,6 +74,10 @@ math::Size CalculateSkiaAtlasTextureSize(const math::Size& ui_resolution);
 size_t CalculateSoftwareSurfaceCacheSizeInBytes(
     const math::Size& ui_resolution);
 
+// Calculates the SkiaCachSize from the ui_resolution. This is normalized
+// to be 4MB @ 1080p and scales accordingly.
+size_t CalculateSkiaCacheSize(const math::Size& ui_resolution);
+
 // These internal values are exposed for testing.
 enum MemorySizes {
   kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
