@@ -20,6 +20,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/javascript_engine.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -95,6 +96,7 @@ bool ArrayBuffer::Data::Offload() {
 
 void ArrayBuffer::Data::Initialize(script::EnvironmentSettings* settings,
                                    size_t size) {
+  TRACK_MEMORY_SCOPE("DOM");
   if (settings) {
     DOMSettings* dom_settings =
         base::polymorphic_downcast<dom::DOMSettings*>(settings);
@@ -143,6 +145,7 @@ void ArrayBuffer::Cache::ReportUsage(const Data* data) {
 }
 
 void ArrayBuffer::Cache::TryToOffload() {
+  TRACK_MEMORY_SCOPE("DOM");
   if (total_size_in_main_memory_ <= maximum_size_in_main_memory_) {
     return;
   }
@@ -200,6 +203,7 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
 
 scoped_refptr<ArrayBuffer> ArrayBuffer::Slice(
     script::EnvironmentSettings* settings, int start, int end) const {
+  TRACK_MEMORY_SCOPE("DOM");
   int clamped_start;
   int clamped_end;
   ClampRange(start, end, static_cast<int>(byte_length()), &clamped_start,
