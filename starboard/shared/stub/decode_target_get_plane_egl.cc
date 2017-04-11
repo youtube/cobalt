@@ -16,9 +16,11 @@
 
 #if SB_API_VERSION < 4
 
+#if SB_HAS(GLES2)
 GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                               SbDecodeTargetPlane plane) {
   return 0;
 }
+#endif  // SB_HAS(GLES2)
 
 #endif  // SB_API_VERSION < 4
