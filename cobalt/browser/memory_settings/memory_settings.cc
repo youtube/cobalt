@@ -128,10 +128,12 @@ math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution,
 
 size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution) {
   SB_UNREFERENCED_PARAMETER(ui_resolution);
-#if COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES >= 0
+#if !SB_HAS(BLITTER)
+  return 0;
+#elif COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES >= 0
   return COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES;
 #endif
-  return kDefaultSoftwareSurfaceCacheSize;
+  return CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution);
 }
 
 size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution) {
@@ -156,7 +158,7 @@ size_t CalculateImageCacheSize(const math::Size& dimensions) {
 }
 
 math::Size CalculateSkiaAtlasTextureSize(const math::Size& ui_resolution) {
-  // LinearInterpolate defines a mapping function which will map the number
+  // LinearRemap defines a mapping function which will map the number
   // of ui_resolution pixels to the number of texture atlas pixels such that:
   // 1080p (1920x1080) => maps to => 2048x2048 texture atlas pixels
   // 4k    (3840x2160) => maps to => 8192x4096 texture atlas pixels
@@ -176,6 +178,20 @@ math::Size CalculateSkiaAtlasTextureSize(const math::Size& ui_resolution) {
       std::max<int>(kMinSkiaTextureAtlasWidth, atlas_texture.width()),
       std::max<int>(kMinSkiaTextureAtlasWidth, atlas_texture.height()));
   return clamped_atlas_texture;
+}
+
+size_t CalculateSoftwareSurfaceCacheSizeInBytes(
+    const math::Size& ui_resolution) {
+
+  // LinearRemap defines a mapping function which will map the number
+  // of ui_resolution pixels to the number of texture atlas pixels such that:
+  // 720p (1280x720) => maps to => 4MB.
+  LinearRemap remap(0, 1280 * 720, 0, 4 * 1024 * 1024);
+
+  size_t surface_cache_size_in_bytes =
+      static_cast<size_t>(remap.Map(ui_resolution.GetArea()));
+
+  return surface_cache_size_in_bytes;
 }
 
 }  // namespace memory_settings

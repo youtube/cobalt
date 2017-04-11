@@ -227,13 +227,26 @@ TEST(MemorySettings, GetSkiaAtlasTextureSizeCommandOverride) {
 }
 
 TEST(MemorySettings, GetSoftwareSurfaceCacheSizeInBytes) {
-  size_t skia_cache_size =
-      GetSoftwareSurfaceCacheSizeInBytes(GetDimensions(k1080p));
-#if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
-  EXPECT_EQ(skia_cache_size, COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);
+  const math::Size ui_resolution = GetDimensions(k1080p);
+  const size_t software_surface_cache_size =
+      GetSoftwareSurfaceCacheSizeInBytes(ui_resolution);
+
+#if !SB_HAS(BLITTER)
+  EXPECT_EQ(software_surface_cache_size, 0);
+#elif COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
+  EXPECT_EQ(software_surface_cache_size,
+            COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);
 #else
-  EXPECT_EQ(skia_cache_size, kDefaultSoftwareSurfaceCacheSize);
+  EXPECT_EQ(software_surface_cache_size,
+            CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
 #endif
+}
+
+TEST(MemorySettings, CalculateSoftwareSurfaceCacheSizeInBytes) {
+  const math::Size ui_resolution = GetDimensions(k720p);
+  // Expect that a 720p resolution produces a 4mb SoftwareSurfaceCache.
+  EXPECT_EQ(4 * 1024 * 1024,
+            CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
 }
 
 TEST(MemorySettings, GetSkiaCacheSizeInBytes) {
