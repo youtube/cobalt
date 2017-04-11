@@ -134,7 +134,16 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
       const scoped_refptr<DecoderBuffer>& buffer) OVERRIDE;
   bool IsOutputProtected() OVERRIDE;
 
-#if SB_API_VERSION >= 3
+#if SB_API_VERSION >= 4
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+#if SB_HAS(GRAPHICS)
+    return resource_provider_->GetSbDecodeTargetGraphicsContextProvider();
+#else   // SB_HAS(GRAPHICS)
+    return NULL;
+#endif  // SB_HAS(GRAPHICS)
+  }
+#elif SB_API_VERSION >= 3
   virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() {
 #if SB_HAS(GRAPHICS)
     return resource_provider_->GetSbDecodeTargetProvider();
@@ -142,7 +151,7 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
     return NULL;
 #endif  // SB_HAS(GRAPHICS)
   }
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= 4
 
   void Suspend() OVERRIDE { resource_provider_ = NULL; }
   void Resume(
