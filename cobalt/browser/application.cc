@@ -306,10 +306,6 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
                           &options->scratch_surface_cache_size_in_bytes);
-  SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
-                          &options->skia_cache_size_in_bytes);
-  SetIntegerIfSwitchIsSet(browser::switches::kSoftwareSurfaceCacheSizeInBytes,
-                          &options->software_surface_cache_size_in_bytes);
 }
 
 void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
@@ -347,10 +343,28 @@ base::optional<size_t> GetImageCacheOverrideIfSet(
 
 base::optional<uint32_t> GetJsEngineGarbageCollectionThresholdOverride(
     const CommandLine* command_line) {
-
   base::optional<uint32_t> output =
-      ParseSetting<uint32_t>(command_line,
-                             browser::switches::kJavaScriptGcThresholdInBytes);
+      ParseSetting<uint32_t>(
+          command_line,
+          browser::switches::kJavaScriptGcThresholdInBytes);
+  return output;
+}
+
+base::optional<size_t> GetSoftwareSurfaceCacheSizeOverride(
+    const CommandLine* command_line) {
+  base::optional<size_t> output =
+      ParseSetting<size_t>(
+          command_line,
+          browser::switches::kSoftwareSurfaceCacheSizeInBytes);
+  return output;
+}
+
+base::optional<size_t> GetSkiasCacheSizeOverride(
+    const CommandLine* command_line) {
+  base::optional<size_t> output =
+      ParseSetting<size_t>(
+          command_line,
+          browser::switches::kSkiaCacheSizeInBytes);
   return output;
 }
 
@@ -470,12 +484,15 @@ Application::Application(const base::Closure& quit_closure)
   options.language = language;
   options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
-  options.renderer_module_options.skia_cache_size_in_bytes =
-      static_cast<int>(memory_settings::GetSkiaCacheSizeInBytes(window_size));
 
-  options.renderer_module_options.software_surface_cache_size_in_bytes =
+  base::optional<size_t> skia_cache_override =
+      GetSkiasCacheSizeOverride(command_line);
+
+  options.renderer_module_options.skia_cache_size_in_bytes =
       static_cast<int>(
-          memory_settings::GetSoftwareSurfaceCacheSizeInBytes(window_size));
+          memory_settings::GetSkiaCacheSizeInBytes(window_size,
+                                                   skia_cache_override));
+
   base::optional<math::Size> skia_texture_atlas_override =
       GetSkiaGlyphTextureAtlasDimensionsIfSet(command_line);
 
@@ -494,6 +511,14 @@ Application::Application(const base::Closure& quit_closure)
   options.web_module_options.javascript_options.gc_threshold_bytes =
       memory_settings::GetJsEngineGarbageCollectionThresholdInBytes(
           js_gc_threshold_override);
+
+  base::optional<size_t> software_surface_cache_override =
+      GetSoftwareSurfaceCacheSizeOverride(command_line);
+  options.renderer_module_options.software_surface_cache_size_in_bytes =
+      static_cast<int>(
+          memory_settings::GetSoftwareSurfaceCacheSizeInBytes(
+              window_size,
+              software_surface_cache_override));
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
