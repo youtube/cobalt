@@ -74,8 +74,10 @@ void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
   } else if (starboard_event->type == kSbEventTypeLink) {
     const char* link = static_cast<const char*>(starboard_event->data);
     cobalt_event.reset(new base::DeepLinkEvent(link));
+#if SB_API_VERSION >= 4
   } else if (starboard_event->type == kSbEventTypeAccessiblitySettingsChanged) {
     cobalt_event.reset(new base::AccessibilitySettingsChangedEvent());
+#endif
   }
 
   // Dispatch the Cobalt event, if created.
