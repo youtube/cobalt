@@ -56,6 +56,7 @@
         'poller.h',
         'polymorphic_downcast.h',
         'polymorphic_equatable.h',
+        'ref_counted_lock.h',
         'source_location.h',
         'stop_watch.cc',
         'stop_watch.h',
