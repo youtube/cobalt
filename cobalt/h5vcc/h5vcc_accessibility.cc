@@ -14,21 +14,68 @@
 
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
 
+#include "base/command_line.h"
 #include "base/message_loop.h"
+#include "cobalt/accessibility/starboard_tts_engine.h"
+#include "cobalt/accessibility/tts_engine.h"
+#include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
+#include "cobalt/browser/switches.h"
 #include "starboard/accessibility.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vccAccessibility::H5vccAccessibility(base::EventDispatcher* event_dispatcher)
+namespace {
+#if SB_HAS(SPEECH_SYNTHESIS)
+bool IsTextToSpeechEnabled() {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  // Check for a command-line override to enable TTS.
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
+    return true;
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+#if SB_API_VERSION >= 4
+  // Check if the tts feature is enabled in Starboard.
+  SbAccessibilityTextToSpeechSettings tts_settings = {0};
+  // Check platform settings.
+  if (SbAccessibilityGetTextToSpeechSettings(&tts_settings)) {
+    return tts_settings.has_text_to_speech_setting &&
+           tts_settings.is_text_to_speech_enabled;
+  }
+#endif  // SB_API_VERSION >= 4
+  return false;
+}
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
+}  // namespace
+
+H5vccAccessibility::H5vccAccessibility(
+    base::EventDispatcher* event_dispatcher,
+    const scoped_refptr<dom::Window>& window,
+    dom::MutationObserverTaskManager* mutation_observer_task_manager)
     : event_dispatcher_(event_dispatcher) {
   message_loop_proxy_ = base::MessageLoopProxy::current();
   event_dispatcher_->AddEventCallback(
       base::AccessibilitySettingsChangedEvent::TypeId(),
       base::Bind(&H5vccAccessibility::OnApplicationEvent,
                  base::Unretained(this)));
+#if SB_HAS(SPEECH_SYNTHESIS)
+  if (IsTextToSpeechEnabled()) {
+    // Create a StarboardTTSEngine if TTS is enabled.
+    tts_engine_.reset(new accessibility::StarboardTTSEngine());
+  }
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (!tts_engine_) {
+    tts_engine_.reset(new accessibility::TTSLogger());
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+  if (tts_engine_) {
+    screen_reader_.reset(new accessibility::ScreenReader(
+        window->document(), tts_engine_.get(), mutation_observer_task_manager));
+  }
 }
 
 bool H5vccAccessibility::high_contrast_text() const {
