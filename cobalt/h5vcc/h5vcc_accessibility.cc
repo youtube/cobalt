@@ -14,11 +14,22 @@
 
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
 
+#include "base/message_loop.h"
+#include "cobalt/base/accessibility_settings_changed_event.h"
 #include "starboard/accessibility.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
 namespace h5vcc {
+
+H5vccAccessibility::H5vccAccessibility(base::EventDispatcher* event_dispatcher)
+    : event_dispatcher_(event_dispatcher) {
+  message_loop_proxy_ = base::MessageLoopProxy::current();
+  event_dispatcher_->AddEventCallback(
+      base::AccessibilitySettingsChangedEvent::TypeId(),
+      base::Bind(&H5vccAccessibility::OnApplicationEvent,
+                 base::Unretained(this)));
+}
 
 bool H5vccAccessibility::high_contrast_text() const {
 #if SB_API_VERSION >= 4
@@ -49,6 +60,29 @@ bool H5vccAccessibility::text_to_speech() const {
 #else   // SB_API_VERSION >= 4
   return  false;
 #endif  // SB_API_VERSION >= 4
+}
+
+void H5vccAccessibility::AddHighContrastTextListener(
+    const H5vccAccessibilityCallbackHolder& holder) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
+  high_contrast_text_listener_.reset(
+      new H5vccAccessibilityCallbackReference(this, holder));
+}
+
+void H5vccAccessibility::OnApplicationEvent(const base::Event* event) {
+  UNREFERENCED_PARAMETER(event);
+  // This method should be called from the application event thread.
+  DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy_);
+  message_loop_proxy_->PostTask(
+      FROM_HERE, base::Bind(&H5vccAccessibility::InternalOnApplicationEvent,
+                            base::Unretained(this)));
+}
+
+void H5vccAccessibility::InternalOnApplicationEvent() {
+  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
+  if (high_contrast_text_listener_) {
+    high_contrast_text_listener_->value().Run();
+  }
 }
 
 }  // namespace h5vcc

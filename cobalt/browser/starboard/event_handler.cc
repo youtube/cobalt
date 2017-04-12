@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/network/network_event.h"
 #include "cobalt/system_window/application_event.h"
@@ -73,6 +74,8 @@ void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
   } else if (starboard_event->type == kSbEventTypeLink) {
     const char* link = static_cast<const char*>(starboard_event->data);
     cobalt_event.reset(new base::DeepLinkEvent(link));
+  } else if (starboard_event->type == kSbEventTypeAccessiblitySettingsChanged) {
+    cobalt_event.reset(new base::AccessibilitySettingsChangedEvent());
   }
 
   // Dispatch the Cobalt event, if created.
