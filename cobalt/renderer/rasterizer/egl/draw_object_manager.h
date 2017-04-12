@@ -38,6 +38,7 @@ class DrawObjectManager {
     kOnscreenRectColorTexture,
     kOnscreenPolyColor,
     kOnscreenRectShadow,
+    kOnscreenRectShadowBlur,
     kOnscreenTransparent,
     kOnscreenCount,
   };

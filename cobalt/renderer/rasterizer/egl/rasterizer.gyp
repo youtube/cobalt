@@ -37,6 +37,8 @@
       'type': 'static_library',
 
       'sources': [
+        'draw_depth_stencil.h',
+        'draw_depth_stencil.cc',
         'draw_object.h',
         'draw_object.cc',
         'draw_object_manager.h',
@@ -47,6 +49,8 @@
         'draw_rect_color_texture.cc',
         'draw_rect_shadow_spread.h',
         'draw_rect_shadow_spread.cc',
+        'draw_rect_shadow_blur.h',
+        'draw_rect_shadow_blur.cc',
         'draw_rect_texture.h',
         'draw_rect_texture.cc',
         'graphics_state.h',
