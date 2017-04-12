@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
+#include "cobalt/accessibility/screen_reader.h"
 #include "cobalt/accessibility/text_alternative.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/browser/web_module.h"
@@ -89,13 +90,27 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
     DLOG(ERROR) << error;
     Quit();
   }
-  void Quit() { quit_event_.Signal(); }
+  void Quit() {
+    quit_event_.Signal();
+    screen_reader_.reset();
+  }
+
+  scoped_refptr<script::Wrappable> CreateWindowAttribute(
+      const scoped_refptr<dom::Window>& window,
+      dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+    screen_reader_.reset(new accessibility::ScreenReader(
+        window->document(), &tts_engine_, mutation_observer_task_manager));
+
+    return NULL;
+  }
+
   static void OnRenderTreeProducedStub(
       const browser::WebModule::LayoutResults&) {}
 
  protected:
   MockTTSEngine tts_engine_;
   base::WaitableEvent quit_event_;
+  scoped_ptr<accessibility::ScreenReader> screen_reader_;
 };
 }  // namespace
 
@@ -123,7 +138,8 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
   browser::WebModule::Options web_module_options;
-  web_module_options.tts_engine = &tts_engine_;
+  web_module_options.injected_window_attributes["test"] = base::Bind(
+      &LiveRegionMutationTest::CreateWindowAttribute, base::Unretained(this));
 
   // Set expected result from mutation.
   std::string expected_speech = GetParam().expected_result;

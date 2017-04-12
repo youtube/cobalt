@@ -35,6 +35,8 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/keycode.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "nb/memory_scope.h"
@@ -189,8 +191,11 @@ void GetVideoContainerSizeOverride(math::Size* output_size) {
 #endif
 
 scoped_refptr<script::Wrappable> CreateH5VCC(
-    const h5vcc::H5vcc::Settings& settings) {
-  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
+    const h5vcc::H5vcc::Settings& settings,
+    const scoped_refptr<dom::Window>& window,
+    dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+  return scoped_refptr<script::Wrappable>(
+      new h5vcc::H5vcc(settings, window, mutation_observer_task_manager));
 }
 
 }  // namespace
