@@ -34,6 +34,9 @@ class ScreenReader : public dom::DocumentObserver {
   ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                dom::MutationObserverTaskManager* task_manager);
 
+  void set_enabled(bool enabled);
+  bool enabled() const { return enabled_; }
+
  protected:
   ~ScreenReader();
   // dom::DocumentObserver overrides.
@@ -49,6 +52,7 @@ class ScreenReader : public dom::DocumentObserver {
       const MutationRecordSequence& sequence,
       const scoped_refptr<dom::MutationObserver>& observer);
 
+  bool enabled_;
   dom::Document* document_;
   TTSEngine* tts_engine_;
   scoped_refptr<dom::MutationObserver> live_region_observer_;
