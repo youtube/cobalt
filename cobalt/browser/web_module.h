@@ -77,7 +77,9 @@ namespace browser {
 class WebModule {
  public:
   struct Options {
-    typedef base::Callback<scoped_refptr<script::Wrappable>()>
+    typedef base::Callback<scoped_refptr<script::Wrappable>(
+        const scoped_refptr<dom::Window>& window,
+        dom::MutationObserverTaskManager* mutation_observer_task_manager)>
         CreateObjectFunction;
     typedef base::hash_map<std::string, CreateObjectFunction>
         InjectedWindowAttributes;
@@ -162,9 +164,6 @@ class WebModule {
     // blending and constructing individual frames from animated images. The
     // default value is base::kThreadPriority_Low.
     base::ThreadPriority animated_image_decode_thread_priority;
-
-    // TTSEngine instance to use for text-to-speech.
-    accessibility::TTSEngine* tts_engine;
 
     // InputPoller to use for constantly polling the input key position or
     // state. For example, this is used to support 3D camera movements.
