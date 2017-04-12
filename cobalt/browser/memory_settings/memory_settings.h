@@ -44,11 +44,14 @@ math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution,
 
 // Gets the software surface cache. Applies overrides if they have been
 // defined.
-size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution);
+size_t GetSoftwareSurfaceCacheSizeInBytes(
+    const math::Size& ui_resolution,
+    const base::optional<size_t>& override);
 
 // Get's the SkiaCachSize. Optionally applies overrides if they have been
 // defined.
-size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution);
+size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution,
+                               const base::optional<size_t>& override);
 
 // Get's the size of the Javascript garbage collection threshold. Optionally
 // applies override if it has been applied.
