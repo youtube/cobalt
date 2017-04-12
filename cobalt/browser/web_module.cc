@@ -23,10 +23,6 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
-#include "cobalt/accessibility/screen_reader.h"
-#include "cobalt/accessibility/starboard_tts_engine.h"
-#include "cobalt/accessibility/tts_engine.h"
-#include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
@@ -112,28 +108,6 @@ class JSEngineStats {
   // actually occupied by JS objects, and the part that is not yet.
   base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory_;
 };
-
-#if SB_HAS(SPEECH_SYNTHESIS)
-bool IsTextToSpeechEnabled() {
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  // Check for a command-line override to enable TTS.
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
-    return true;
-  }
-#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-#if SB_API_VERSION >= 4
-  // Check if the tts feature is enabled in Starboard.
-  SbAccessibilityTextToSpeechSettings tts_settings = {0};
-  // Check platform settings.
-  if (SbAccessibilityGetTextToSpeechSettings(&tts_settings)) {
-    return tts_settings.has_text_to_speech_setting &&
-           tts_settings.is_text_to_speech_enabled;
-  }
-#endif  // SB_API_VERSION >= 4
-  return false;
-}
-#endif  // SB_HAS(SPEECH_SYNTHESIS)
 
 // StartupTimer is designed to measure time since the startup of the app.
 // It is loader initialized to have the most accurate start time as possible.
@@ -346,12 +320,6 @@ class WebModule::Impl {
 
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
-
-  // TTSEngine that the ScreenReader speaks to.
-  scoped_ptr<accessibility::TTSEngine> tts_engine_;
-
-  // Utters the text contents of the focused element.
-  scoped_ptr<accessibility::ScreenReader> screen_reader_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
@@ -583,27 +551,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
-  // If a TTSEngine was provided through the options, use it.
-  accessibility::TTSEngine* tts_engine = data.options.tts_engine;
-  if (!tts_engine) {
-#if SB_HAS(SPEECH_SYNTHESIS)
-    if (IsTextToSpeechEnabled()) {
-      // Create a StarboardTTSEngine if TTS is enabled.
-      tts_engine_.reset(new accessibility::StarboardTTSEngine());
-    }
-#endif  // SB_HAS(SPEECH_SYNTHESIS)
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-    if (!tts_engine_) {
-      tts_engine_.reset(new accessibility::TTSLogger());
-    }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-    tts_engine = tts_engine_.get();
-  }
-  if (tts_engine) {
-    screen_reader_.reset(new accessibility::ScreenReader(
-        window_->document(), tts_engine, &mutation_observer_task_manager_));
-  }
-
   is_running_ = true;
 }
 
@@ -627,7 +574,6 @@ WebModule::Impl::~Impl() {
   // crash when the callback attempts to access a stale Document pointer.
   DisableCallbacksInResourceCaches();
 
-  screen_reader_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
@@ -787,7 +733,9 @@ void WebModule::Impl::InjectCustomWindowAttributes(
   for (Options::InjectedWindowAttributes::const_iterator iter =
            attributes.begin();
        iter != attributes.end(); ++iter) {
-    global_environment_->Bind(iter->first, iter->second.Run());
+    global_environment_->Bind(
+        iter->first,
+        iter->second.Run(window_, &mutation_observer_task_manager_));
   }
 }
 
@@ -899,8 +847,7 @@ WebModule::Options::Options()
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
       loader_thread_priority(base::kThreadPriority_Low),
-      animated_image_decode_thread_priority(base::kThreadPriority_Low),
-      tts_engine(NULL) {}
+      animated_image_decode_thread_priority(base::kThreadPriority_Low) {}
 
 WebModule::WebModule(
     const GURL& initial_url,
