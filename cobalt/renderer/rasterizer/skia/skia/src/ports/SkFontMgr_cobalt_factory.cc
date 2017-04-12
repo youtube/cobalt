@@ -23,8 +23,8 @@ SkFontMgr* SkFontMgr::Factory() {
   CHECK(PathService::Get(base::DIR_EXE, &font_directory));
   font_directory = font_directory.Append(FILE_PATH_LITERAL("fonts"));
 
-  SkTArray<SkString, true> default_fonts;
-  default_fonts.push_back(SkString("sans-serif"));
+  SkTArray<SkString, true> default_families;
+  default_families.push_back(SkString("sans-serif"));
 
-  return new SkFontMgr_Cobalt(font_directory.value().c_str(), default_fonts);
+  return new SkFontMgr_Cobalt(font_directory.value().c_str(), default_families);
 }
