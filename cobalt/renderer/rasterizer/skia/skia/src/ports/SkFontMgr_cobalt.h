@@ -15,117 +15,18 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 
-#include <bitset>
-#include <limits>
 #include <string>
-#include <utility>
+#include <vector>
 
+#include "base/containers/small_map.h"
 #include "base/hash_tables.h"
-#include "cobalt/base/poller.h"
+#include "base/memory/scoped_vector.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
-#include "SkFontHost.h"
-#include "SkFontDescriptor.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "SkFontMgr.h"
-#include "SkThread.h"
-#include "SkTypefaceCache.h"
-
-class SkFontMgr_Cobalt;
-class SkTypeface_CobaltSystem;
-
-//  This class is used by SkFontMgr_Cobalt to hold SkTypeface_Cobalt families.
-//
-//  To avoid the memory hit from keeping all fonts around, both the full
-//  character map for fonts and the font faces for fonts are lazily loaded
-//  when needed. After this, they are retained in memory.
-//
-//  The style sets contain an array of page ranges, providing information on
-//  characters that are potentially contained. To determine whether or not a
-//  character is actually contained, the full character map is generated.
-class SkFontStyleSet_Cobalt : public SkFontStyleSet {
- public:
-  struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
-    // NOTE: |SkFontStyleSetEntry_Cobalt| objects are not guaranteed to last for
-    // the lifetime of |SkFontMgr_Cobalt| and can be removed by their owning
-    // |SkFontStyleSet_Cobalt| if their typeface fails to load properly. As a
-    // result, it is not safe to store their pointers outside of
-    // |SkFontStyleSet_Cobalt|.
-    SkFontStyleSetEntry_Cobalt(const SkString& file_path, const int index,
-                               const SkFontStyle& style,
-                               const std::string& full_name,
-                               const std::string& postscript_name)
-        : font_file_path(file_path),
-          ttc_index(index),
-          font_style(style),
-          full_font_name(full_name),
-          font_postscript_name(postscript_name),
-          typeface(NULL) {}
-
-    const SkString font_file_path;
-    const int ttc_index;
-    const SkFontStyle font_style;
-
-    // these two members are declared as std::string since we have a hasher
-    // for std::string, but not SkString at this point.
-    const std::string full_font_name;
-    const std::string font_postscript_name;
-
-    SkAutoTUnref<SkTypeface> typeface;
-  };
-
-  SkFontStyleSet_Cobalt(const SkFontMgr_Cobalt* const manager,
-                        const FontFamily& family, const char* base_path,
-                        SkMutex* const manager_owned_mutex);
-
-  // From SkFontStyleSet
-  virtual int count() SK_OVERRIDE;
-  // NOTE: SkFontStyleSet_Cobalt does not support |getStyle|, as publicly
-  // accessing styles by index is unsafe.
-  virtual void getStyle(int index, SkFontStyle* style,
-                        SkString* name) SK_OVERRIDE;
-  // NOTE: SkFontStyleSet_Cobalt does not support |createTypeface|, as
-  // publicly accessing styles by index is unsafe.
-  virtual SkTypeface* createTypeface(int index) SK_OVERRIDE;
-
-  virtual SkTypeface* matchStyle(const SkFontStyle& pattern) SK_OVERRIDE;
-
-  const SkString& get_family_name() const { return family_name_; }
-
- private:
-  // NOTE: It is the responsibility of the caller to lock the mutex before
-  // calling any of the non-const private functions.
-
-  SkTypeface* MatchStyleWithoutLocking(const SkFontStyle& pattern);
-  SkTypeface* MatchFullFontName(const std::string& name);
-  SkTypeface* MatchFontPostScriptName(const std::string& name);
-  SkTypeface* TryRetrieveTypefaceAndRemoveStyleOnFailure(int style_index);
-  bool ContainsTypeface(const SkTypeface* typeface);
-
-  bool ContainsCharacter(const SkFontStyle& style, SkUnichar character);
-  bool CharacterMapContainsCharacter(SkUnichar character);
-  void GenerateCharacterMapFromData(SkData* font_data, int ttc_index);
-
-  int GetClosestStyleIndex(const SkFontStyle& pattern);
-  void CreateSystemTypeface(SkFontStyleSetEntry_Cobalt* style);
-  void CreateSystemTypefaceFromData(SkFontStyleSetEntry_Cobalt* style,
-                                    SkData* data);
-
-  // NOTE: The following variables can safely be accessed outside of a lock.
-  const SkFontMgr_Cobalt* const font_manager_;
-  SkMutex* const manager_owned_mutex_;
-
-  SkString family_name_;
-  bool is_fallback_family_;
-  SkLanguage language_;
-  font_character_map::PageRanges page_ranges_;
-
-  // NOTE: The following characters require locking when being accessed.
-  bool is_character_map_generated_;
-  font_character_map::CharacterMap character_map_;
-
-  SkTArray<SkAutoTUnref<SkFontStyleSetEntry_Cobalt>, true> styles_;
-
-  friend class SkFontMgr_Cobalt;
-};
+#include "SkTArray.h"
+#include "SkTypeface.h"
 
 //  This class is essentially a collection of SkFontStyleSet_Cobalt, one
 //  SkFontStyleSet_Cobalt for each family. This class may be modified to load
@@ -141,6 +42,8 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 //  fallback fonts are checked in order.
 class SkFontMgr_Cobalt : public SkFontMgr {
  public:
+  typedef std::vector<SkFontStyleSet_Cobalt*> StyleSetArray;
+
   SkFontMgr_Cobalt(const char* directory,
                    const SkTArray<SkString, true>& default_fonts);
 
@@ -168,15 +71,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
 // NOTE: This always returns a non-NULL value. If no match can be found, then
 // the best match among the default family is returned.
-#ifdef SK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER
-  virtual SkTypeface* onMatchFamilyStyleCharacter(
-      const char family_name[], const SkFontStyle& style, const char* bcp47[],
-      int bcp47_count, SkUnichar character) const SK_OVERRIDE;
-#else
   virtual SkTypeface* onMatchFamilyStyleCharacter(
       const char family_name[], const SkFontStyle& style, const char bcp47[],
       SkUnichar character) const SK_OVERRIDE;
-#endif
 
   // NOTE: This returns NULL if a match is not found.
   virtual SkTypeface* onMatchFaceStyle(const SkTypeface* family_member,
@@ -185,15 +82,15 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   // NOTE: This returns NULL if the typeface cannot be created.
   virtual SkTypeface* onCreateFromData(SkData* data,
-                                       int ttc_index) const SK_OVERRIDE;
+                                       int face_index) const SK_OVERRIDE;
 
   // NOTE: This returns NULL if the typeface cannot be created.
   virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream,
-                                         int ttc_index) const SK_OVERRIDE;
+                                         int face_index) const SK_OVERRIDE;
 
   // NOTE: This returns NULL if the typeface cannot be created.
   virtual SkTypeface* onCreateFromFile(const char path[],
-                                       int ttc_index) const SK_OVERRIDE;
+                                       int face_index) const SK_OVERRIDE;
 
   // NOTE: This always returns a non-NULL value. If no match can be found, then
   // the best match among the default family is returned.
@@ -201,51 +98,27 @@ class SkFontMgr_Cobalt : public SkFontMgr {
       const char family_name[], unsigned style_bits) const SK_OVERRIDE;
 
  private:
-  struct TimedSystemTypeface {
-    TimedSystemTypeface(const SkTypeface_CobaltSystem* system_typeface,
-                        const base::TimeTicks& event_time)
-        : typeface(system_typeface), time(event_time) {}
-
-    const SkTypeface_CobaltSystem* typeface;
-    base::TimeTicks time;
-  };
-
   typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToStyleSetMap;
+  typedef base::SmallMap<base::hash_map<std::string, StyleSetArray*> >
+      NameToStyleSetArrayMap;
 
   void BuildNameToFamilyMap(const char* base_path,
                             SkTDArray<FontFamily*>* families);
-  void FindDefaultFont(const SkTArray<SkString, true>& default_fonts);
+  void FindDefaultFamily(const SkTArray<SkString, true>& default_families);
 
+  // Returns the first encountered fallback family that matches the language tag
+  // and supports the specified character.
   // NOTE: |style_sets_mutex_| should be locked prior to calling this function.
   SkTypeface* FindFamilyStyleCharacter(const SkFontStyle& style,
-                                       const SkString& lang_tag,
-                                       SkUnichar character) const;
+                                       const SkString& language_tag,
+                                       SkUnichar character);
 
-  void HandlePeriodicProcessing();
+  // Returns every fallback family that matches the language tag. If the tag is
+  // empty, then all fallback families are returned.
+  // NOTE: |style_sets_mutex_| should be locked prior to calling this function.
+  StyleSetArray* GetMatchingFallbackFamilies(const SkString& language_tag);
 
-  // System typeface stream related
-
-  // Called by SkTypeface_CobaltSystem when it opens a new stream, this adds
-  // the system typeface to the active open stream list and adds the stream's
-  // bytes into the open stream cache size.
-  // NOTE1: This assumes that the typeface is not already in the list.
-  // NOTE2: This requires the caller to lock |system_typeface_stream_mutex_|
-  void AddSystemTypefaceWithActiveOpenStream(
-      const SkTypeface_CobaltSystem* system_typeface) const;
-  // Called by SkTypeface_CobaltSystem when an already open stream shows
-  // activity, this moves the system typeface from the inactive open stream list
-  // to the active open stream list.
-  // NOTE: This requires the caller to lock |system_typeface_stream_mutex_|
-  void NotifySystemTypefaceOfOpenStreamActivity(
-      const SkTypeface_CobaltSystem* system_typeface) const;
-  // Called by |system_typeface_open_stream_timer_|, this handles periodic
-  // processing on the open streams, including moving typefaces from the
-  // active to the inactive list and releasing inactive open streams.
-  // NOTE: Handles locking |system_typeface_stream_mutex_| internally
-  void ProcessSystemTypefacesWithOpenStreams(
-      const base::TimeTicks& current_time) const;
-  // Mutex shared by all system typefaces for accessing/modifying stream data.
-  SkMutex& GetSystemTypefaceStreamMutex() const;
+  SkFileMemoryChunkStreamManager system_typeface_stream_manager_;
 
   SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> font_style_sets_;
 
@@ -256,41 +129,20 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   NameToStyleSetMap full_font_name_to_style_set_map_;
   NameToStyleSetMap font_postscript_name_to_style_set_map_;
 
-  SkTArray<SkFontStyleSet_Cobalt*> fallback_families_;
+  // Fallback families that are used during character fallback.
+  // All fallback families, regardless of language.
+  StyleSetArray fallback_families_;
+  // Language-specific fallback families. These are lazily populated from
+  // |fallback_families_| when a new language tag is requested.
+  ScopedVector<StyleSetArray> language_fallback_families_array_;
+  NameToStyleSetArrayMap language_fallback_families_map_;
 
+  // The default family that is used when no specific match is found during  a
+  // request.
   SkFontStyleSet_Cobalt* default_family_;
-  SkAutoTUnref<SkTypeface> default_typeface_;
-
-  // System typeface stream related
-  // NOTE: mutable is required on all variables potentially modified via calls
-  // from SkFontStyleSet_Cobalt::onOpenStream(), which is const.
-
-  // Tracking of active and inactive open streams among the system typefaces.
-  // The streams are initially active and are moved to the inactive list when
-  // the stream's underlying SkData no longer has any external references.
-  // Inactive open streams are stored and released in temporal order.
-  mutable SkTArray<const SkTypeface_CobaltSystem*>
-      system_typefaces_with_active_open_streams_;
-  mutable SkTArray<TimedSystemTypeface>
-      system_typefaces_with_inactive_open_streams_;
-
-  // This mutex is used when accessing/modifying both the system typeface stream
-  // data itself and the variables used with tracking that data.
-  mutable SkMutex system_typeface_stream_mutex_;
 
   // Mutex shared by all style sets for accessing their modifiable data.
   mutable SkMutex style_sets_mutex_;
-
-  // The last time that a partial purge of Skia's font cache was forced. This is
-  // done periodically to ensure that unused fonts are not indefinitely
-  // referenced by Skia.
-  base::TimeTicks last_font_cache_purge_time_;
-
-  // SkTypeface_CobaltSystem is a friend so that it can make system typeface
-  // open stream calls into SkFontMgr_Cobalt from
-  // SkTypeface_CobaltSystem::onOpenStream(). Those calls should not be
-  // accessible publicly.
-  friend class SkTypeface_CobaltSystem;
 };
 
 #endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
