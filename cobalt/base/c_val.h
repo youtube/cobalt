@@ -30,6 +30,7 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
+#include "cobalt/base/ref_counted_lock.h"
 
 // The CVal system allows you to mark certain variables to be part of the
 // CVal system and therefore analyzable and trackable by other systems.  All
@@ -139,7 +140,6 @@ inline std::ostream& operator<<(std::ostream& out, const SizeInBytes& size) {
 }  // namespace cval
 
 namespace CValDetail {
-
 // Introduce a Traits class so that we can convert from C++ type to
 // CValType.
 template <typename T>
@@ -524,8 +524,10 @@ class CValManager {
   // Lock that protects against CVals being registered/deregistered.
   base::Lock cvals_lock_;
 
-  // Lock that synchronizes |value_| reads/writes.
-  base::Lock values_lock_;
+  // Lock that synchronizes |value_| reads/writes. It exists as a refptr to
+  // ensure that CVals that survive longer than the CValManager can continue
+  // to use it after the CValManager has been destroyed.
+  scoped_refptr<base::RefCountedThreadSafeLock> value_lock_refptr_;
 
   // The actual value registry, mapping CVal name to actual CVal object.
   typedef base::hash_map<std::string, const CValDetail::CValBase*> NameVarMap;
@@ -559,9 +561,13 @@ class CValBase {
   virtual std::string GetValueAsPrettyString() const = 0;
 
  private:
+  virtual void OnManagerDestroyed() const {}
+
   std::string name_;
   std::string description_;
   CValType type_;
+
+  friend CValManager;
 };
 
 // This is a wrapper class that marks that we wish to track a value through
@@ -580,6 +586,7 @@ class CValImpl : public CValBase {
     CommonConstructor();
   }
   virtual ~CValImpl() {
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
     if (registered_) {
       CValManager::GetInstance()->UnregisterCVal(this);
     }
@@ -588,27 +595,20 @@ class CValImpl : public CValBase {
   operator T() const { return value(); }
 
   const CValImpl<T>& operator=(const T& rhs) {
-    bool value_changed;
-    {
-      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
-      value_changed = value_ != rhs;
-      if (value_changed) {
-        value_ = rhs;
-      }
-    }
-#if defined(ENABLE_DEBUG_C_VAL)
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
+    bool value_changed = value_ != rhs;
     if (value_changed) {
+      value_ = rhs;
+#if defined(ENABLE_DEBUG_C_VAL)
       OnValueChanged();
-    }
 #endif  // ENABLE_DEBUG_C_VAL
+    }
     return *this;
   }
 
   const CValImpl<T>& operator+=(const T& rhs) {
-    {
-      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
-      value_ += rhs;
-    }
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
+    value_ += rhs;
 #if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
 #endif  // ENABLE_DEBUG_C_VAL
@@ -616,10 +616,8 @@ class CValImpl : public CValBase {
   }
 
   const CValImpl<T>& operator-=(const T& rhs) {
-    {
-      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
-      value_ -= rhs;
-    }
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
+    value_ -= rhs;
 #if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
 #endif  // ENABLE_DEBUG_C_VAL
@@ -627,10 +625,8 @@ class CValImpl : public CValBase {
   }
 
   const CValImpl<T>& operator++() {
-    {
-      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
-      ++value_;
-    }
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
+    ++value_;
 #if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
 #endif  // ENABLE_DEBUG_C_VAL
@@ -638,10 +634,8 @@ class CValImpl : public CValBase {
   }
 
   const CValImpl<T>& operator--() {
-    {
-      base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
-      --value_;
-    }
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
+    --value_;
 #if defined(ENABLE_DEBUG_C_VAL)
     OnValueChanged();
 #endif  // ENABLE_DEBUG_C_VAL
@@ -654,19 +648,19 @@ class CValImpl : public CValBase {
 
   std::string GetValueAsString() const {
     // Can be called to get the value of a CVal without knowing the type first.
-    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
     return ValToString<T>(value_);
   }
 
   std::string GetValueAsPrettyString() const {
     // Similar to GetValueAsString(), but it will also format the string to
     // do things like make very large numbers more readable.
-    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
     return ValToPrettyString<T>(value_);
   }
 
   T value() const {
-    base::AutoLock auto_lock(CValManager::GetInstance()->values_lock_);
+    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
     return value_;
   }
 
@@ -678,21 +672,32 @@ class CValImpl : public CValBase {
 
   void RegisterWithManager() {
     if (!registered_) {
-      CValManager::GetInstance()->RegisterCVal(this);
+      CValManager* manager = CValManager::GetInstance();
+      manager->RegisterCVal(this);
+      value_lock_refptr_ = manager->value_lock_refptr_;
       registered_ = true;
     }
+  }
+
+  void OnManagerDestroyed() const {
+    // The value lock is locked by the manager prior to it calling
+    // OnManagerDestroyed  on its surviving CVals.
+    registered_ = false;
   }
 
 #if defined(ENABLE_DEBUG_C_VAL)
   void OnValueChanged() {
     // Push the value changed event to all listeners.
-    CValManager::GetInstance()->PushValueChangedEvent(
-        this, CValSpecificValue<T>(value_));
+    if (registered_) {
+      CValManager::GetInstance()->PushValueChangedEvent(
+          this, CValSpecificValue<T>(value_));
+    }
   }
 #endif  // ENABLE_DEBUG_C_VAL
 
   T value_;
   mutable bool registered_;
+  mutable scoped_refptr<RefCountedThreadSafeLock> value_lock_refptr_;
 };
 
 #if !defined(ENABLE_DEBUG_C_VAL)
