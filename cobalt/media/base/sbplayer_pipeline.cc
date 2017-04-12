@@ -165,12 +165,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // the filters.
   float playback_rate_;
 
-  // Whether the media contains rendered audio and video streams.
-  // TODO(fischman,scherkus): replace these with checks for
-  // {audio,video}_decoder_ once extraction of {Audio,Video}Decoder from the
-  // Filter heirarchy is done.
-  bool has_audio_;
-  bool has_video_;
+  // The saved audio and video demuxer streams.  Note that it is safe to store
+  // raw pointers of the demuxer streams, as the Demuxer guarantees that its
+  // |DemuxerStream|s live as long as the Demuxer itself.
+  DemuxerStream* audio_stream_;
+  DemuxerStream* video_stream_;
 
   mutable PipelineStatistics statistics_;
 
@@ -219,8 +218,8 @@ SbPlayerPipeline::SbPlayerPipeline(
       natural_size_(0, 0),
       volume_(1.f),
       playback_rate_(0.f),
-      has_audio_(false),
-      has_video_(false),
+      audio_stream_(NULL),
+      video_stream_(NULL),
       demuxer_(NULL),
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
@@ -345,12 +344,12 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
 
 bool SbPlayerPipeline::HasAudio() const {
   base::AutoLock auto_lock(lock_);
-  return has_audio_;
+  return audio_stream_ != NULL;
 }
 
 bool SbPlayerPipeline::HasVideo() const {
   base::AutoLock auto_lock(lock_);
-  return has_video_;
+  return video_stream_ != NULL;
 }
 
 float SbPlayerPipeline::GetPlaybackRate() const {
@@ -549,6 +548,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayer");
 
   DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(audio_stream_);
+  DCHECK(video_stream_);
 
   if (suspended_) {
     message_loop_->PostTask(
@@ -561,9 +562,9 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   // player is created.  In this case we should delay creating the player as the
   // creation of player may fail.
   const AudioDecoderConfig& audio_config =
-      demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
+      audio_stream_->audio_decoder_config();
   const VideoDecoderConfig& video_config =
-      demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
+      video_stream_->video_decoder_config();
 
   {
     base::AutoLock auto_lock(lock_);
@@ -612,29 +613,23 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     return;
   }
 
-  if (demuxer_->GetStream(DemuxerStream::AUDIO) == NULL ||
-      demuxer_->GetStream(DemuxerStream::VIDEO) == NULL) {
+  DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
+  DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
+  if (audio_stream == NULL || video_stream == NULL) {
     ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
 
   {
     base::AutoLock auto_lock(lock_);
-    has_audio_ = demuxer_->GetStream(DemuxerStream::AUDIO) != NULL;
-    DCHECK(has_audio_);
-    has_video_ = demuxer_->GetStream(DemuxerStream::VIDEO) != NULL;
+    audio_stream_ = audio_stream;
+    video_stream_ = video_stream;
 
     buffering_state_cb_.Run(kHaveMetadata);
 
-    const AudioDecoderConfig& audio_config =
-        demuxer_->GetStream(DemuxerStream::AUDIO)->audio_decoder_config();
-    bool is_encrypted = audio_config.is_encrypted();
-    if (has_video_) {
-      const VideoDecoderConfig& video_config =
-          demuxer_->GetStream(DemuxerStream::VIDEO)->video_decoder_config();
-      natural_size_ = video_config.natural_size();
-      is_encrypted |= video_config.is_encrypted();
-    }
+    bool is_encrypted = audio_stream_->audio_decoder_config().is_encrypted();
+    natural_size_ = video_stream_->video_decoder_config().natural_size();
+    is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
     if (is_encrypted) {
       // TODO: Migrate this
       // decryptor_ready_cb_.Run(
@@ -680,7 +675,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     return;
   }
 
-  DemuxerStream* stream = demuxer_->GetStream(type);
+  DemuxerStream* stream =
+      type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_;
+  DCHECK(stream);
 
   // In case if Stop() has been called.
   if (!player_) {
@@ -742,7 +739,9 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
     }
     video_read_in_progress_ = true;
   }
-  DemuxerStream* stream = demuxer_->GetStream(type);
+  DemuxerStream* stream =
+      type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_;
+  DCHECK(stream);
   stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
 }
 
