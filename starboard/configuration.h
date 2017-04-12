@@ -69,18 +69,20 @@
 // --- Common Helper Macros --------------------------------------------------
 
 // Determines a compile-time capability of the system.
-#define SB_CAN(SB_FEATURE) (defined(SB_CAN_##SB_FEATURE) && SB_CAN_##SB_FEATURE)
+#define SB_CAN(SB_FEATURE) \
+  ((defined SB_CAN_##SB_FEATURE) && SB_CAN_##SB_FEATURE)
 
 // Determines at compile-time whether this platform has a standard feature or
 // header available.
-#define SB_HAS(SB_FEATURE) (defined(SB_HAS_##SB_FEATURE) && SB_HAS_##SB_FEATURE)
+#define SB_HAS(SB_FEATURE) \
+  ((defined SB_HAS_##SB_FEATURE) && SB_HAS_##SB_FEATURE)
 
 // Determines at compile-time an inherent aspect of this platform.
-#define SB_IS(SB_FEATURE) (defined(SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
+#define SB_IS(SB_FEATURE) ((defined SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
 
 // Determines at compile-time whether this platform has a quirk.
 #define SB_HAS_QUIRK(SB_FEATURE) \
-  (defined(SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
+  ((defined SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
 
 // Determines at compile-time if this platform implements a given Starboard API
 // version number (or above).
