@@ -27,11 +27,21 @@
     'src/ports/SkFontMgr_cobalt.cc',
     'src/ports/SkFontMgr_cobalt.h',
     'src/ports/SkFontMgr_cobalt_factory.cc',
+    'src/ports/SkFontStyleSet_cobalt.cc',
+    'src/ports/SkFontStyleSet_cobalt.h',
     'src/ports/SkFontUtil_cobalt.cc',
     'src/ports/SkFontUtil_cobalt.h',
     'src/ports/SkOSFile_cobalt.cc',
+    'src/ports/SkStream_cobalt.cc',
+    'src/ports/SkStream_cobalt.h',
+    'src/ports/SkTypeface_cobalt.cc',
+    'src/ports/SkTypeface_cobalt.h',
     'src/ports/SkTLS_cobalt.cc',
     'src/ports/SkTime_cobalt.cc',
+  ],
+
+  'defines': [
+    'COBALT_SYSTEM_TYPEFACE_CACHE_CAPACITY_IN_BYTES=<(local_font_cache_size_in_bytes)',
   ],
 
   'include_dirs': [
