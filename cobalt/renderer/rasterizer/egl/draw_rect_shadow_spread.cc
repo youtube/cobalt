@@ -28,13 +28,12 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
     const BaseState& base_state, const math::RectF& inner_rect,
     const math::RectF& outer_rect, const render_tree::ColorRGBA& color,
     const math::RectF& include_scissor, const math::RectF& exclude_scissor)
-    : DrawPolyColor(base_state),
-      include_scissor_first_vert_(-1),
-      exclude_scissor_first_vert_(-1) {
+    : DrawDepthStencil(base_state) {
   // Reserve space for the box shadow's spread and possible scissor rects.
-  attributes_.reserve(18);
+  attributes_.reserve(10 + MaxVertsNeededForStencil());
 
-  // Box shadow's spread.
+  // Draw the box shadow's spread. This is a triangle strip covering the area
+  // between outer rect and inner rect.
   uint32_t color32 = GetGLRGBA(color * base_state_.opacity);
   AddVertex(outer_rect.x(), outer_rect.y(), color32);
   AddVertex(inner_rect.x(), inner_rect.y(), color32);
@@ -47,20 +46,7 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
   AddVertex(outer_rect.x(), outer_rect.y(), color32);
   AddVertex(inner_rect.x(), inner_rect.y(), color32);
 
-  // Include scissor only sets the depth of pixels inside the rect.
-  SB_DCHECK(!include_scissor.IsEmpty());
-  include_scissor_first_vert_ = static_cast<GLint>(attributes_.size());
-  AddRect(include_scissor, 0);
-
-  // Exclude scissor resets the depth of pixels inside the rect that were
-  // touched by the include scissor rect.
-  if (!exclude_scissor.IsEmpty()) {
-    float old_depth = base_state_.depth;
-    base_state_.depth = graphics_state->FarthestDepth();
-    exclude_scissor_first_vert_ = static_cast<GLint>(attributes_.size());
-    AddRect(exclude_scissor, 0);
-    base_state_.depth = old_depth;
-  }
+  AddStencil(include_scissor, exclude_scissor);
 
   graphics_state->ReserveVertexData(
       attributes_.size() * sizeof(VertexAttributes));
@@ -69,39 +55,10 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
 void DrawRectShadowSpread::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  size_t vert_count = attributes_.size();
   SetupShader(graphics_state, program_manager);
-
-  // Include and exclude scissor rects are used to stencil the writable pixels
-  // using the depth buffer. If a scissor rect has been specified, then only
-  // pixels whose depth == base_state_.depth are writable by the main polygon.
-  //
-  // Since these scissor rects pollute the depth buffer, they should only be
-  // used during the transparency pass. This ensures that all subsequent draws
-  // are for objects with closer depth or objects that don't overlap these
-  // pixels anyway.
-  SB_DCHECK(graphics_state->IsBlendEnabled());
-  SB_DCHECK(!graphics_state->IsDepthWriteEnabled());
-  SB_DCHECK(graphics_state->IsDepthTestEnabled());
-
-  // Set pixels in inclusive scissor rect to base_state_.depth.
-  SB_DCHECK(include_scissor_first_vert_ >= 0);
-  graphics_state->EnableDepthWrite();
-  vert_count -= 4;
-  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, include_scissor_first_vert_, 4));
-  GL_CALL(glDepthFunc(GL_EQUAL));
-  if (exclude_scissor_first_vert_ >= 0) {
-    // Set pixels in exclusive scissor rect to farthest depth.
-    vert_count -= 4;
-    GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, exclude_scissor_first_vert_, 4));
-  }
-  graphics_state->DisableDepthWrite();
-
-  // Draw the box shadow's spread.
-  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, vert_count));
-
-  // Restore normal depth test function.
-  graphics_state->ResetDepthFunc();
+  DrawStencil(graphics_state);
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 10));
+  UndoStencilState(graphics_state);
 }
 
 }  // namespace egl
