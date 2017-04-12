@@ -21,6 +21,7 @@
       'product_name': 'cobalt_base',
       'type': 'static_library',
       'sources': [
+        'accessibility_changed_event.h',
         'address_sanitizer.h',
         'clock.h',
         'cobalt_paths.h',
