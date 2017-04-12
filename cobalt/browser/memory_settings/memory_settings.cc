@@ -85,6 +85,15 @@ math::Size ExpandTextureSizeToContain(const int64_t num_pixels) {
   return texture_size;
 }
 
+static bool HasBlitter() {
+#if SB_HAS(BLITTER)
+  const bool has_blitter = true;
+#else
+  const bool has_blitter = false;
+#endif
+  return has_blitter;
+}
+
 }  // namespace
 
 size_t GetImageCacheSize(const math::Size& dimensions,
@@ -130,18 +139,28 @@ math::Size GetSkiaAtlasTextureSize(const math::Size& ui_resolution,
   return texture_size;
 }
 
-size_t GetSoftwareSurfaceCacheSizeInBytes(const math::Size& ui_resolution) {
+size_t GetSoftwareSurfaceCacheSizeInBytes(
+    const math::Size& ui_resolution,
+    const base::optional<size_t>& override) {
   SB_UNREFERENCED_PARAMETER(ui_resolution);
-#if !SB_HAS(BLITTER)
-  return 0;
-#elif COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES >= 0
+  if (!HasBlitter()) {  // Not active for non-blitter builds.
+    return 0;
+  }
+  if (override) {
+    return *override;
+  }
+#if COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES >= 0
   return COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES;
 #endif
   return CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution);
 }
 
-size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution) {
+size_t GetSkiaCacheSizeInBytes(const math::Size& ui_resolution,
+                               const base::optional<size_t>& override) {
   SB_UNREFERENCED_PARAMETER(ui_resolution);
+  if (override) {
+    return *override;
+  }
 #if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
   return COBALT_SKIA_CACHE_SIZE_IN_BYTES;
 #else
