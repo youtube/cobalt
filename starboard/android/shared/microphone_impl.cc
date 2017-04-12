@@ -36,19 +36,12 @@ namespace {
 const int kSampleRateInHz = 16000;
 const int kSampleRateInMillihertz = kSampleRateInHz * 1000;
 const int kNumOfOpenSLESBuffers = 2;
+const int kFramesPerBuffer = 128;
 
 bool CheckReturnValue(SLresult result) {
   SB_DCHECK(result == SL_RESULT_SUCCESS) << result;
   return result == SL_RESULT_SUCCESS;
 }
-
-int AudioOutputFramesPerBuffer() {
-  JniEnvExt* env = JniEnvExt::Get();
-  int frames = static_cast<int>(
-      env->CallActivityIntMethodOrAbort("audioOutputFramesPerBuffer", "()I"));
-  return frames;
-}
-
 }  // namespace
 
 class SbMicrophoneImpl : public SbMicrophonePrivate {
@@ -59,8 +52,6 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   bool Open() SB_OVERRIDE;
   bool Close() SB_OVERRIDE;
   int Read(void* out_audio_data, int audio_data_size) SB_OVERRIDE;
-
-  bool is_valid() const { return is_valid_; }
 
  private:
   enum State { kOpened, kClosed };
@@ -73,7 +64,6 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   void DeleteAudioRecoder();
 
   void ClearBuffer();
-  SLuint32 GetBufferCount();
 
   SLObjectItf engine_object_;
   SLEngineItf engine_;
@@ -90,8 +80,6 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   int frames_per_buffer_;
   // Buffer size.
   int frames_size_;
-  // Record if audio recorder is created successfully.
-  bool is_valid_;
   // Ready for read.
   std::queue<int16_t*> ready_queue_;
   // Delivered to BufferQueue.
@@ -111,23 +99,13 @@ SbMicrophoneImpl::SbMicrophoneImpl()
       buffer_object_(NULL),
       config_object_(NULL),
       state_(kClosed),
-      frames_per_buffer_(AudioOutputFramesPerBuffer()),
-      frames_size_(frames_per_buffer_ * sizeof(int16_t)) {
-  is_valid_ = CreateAudioRecoder();
-}
+      frames_per_buffer_(kFramesPerBuffer),
+      frames_size_(frames_per_buffer_ * sizeof(int16_t)) {}
 
 SbMicrophoneImpl::~SbMicrophoneImpl() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   Close();
-  DeleteAudioRecoder();
-
-  // On some devices, ClearBuffer() doesn't clear all the buffers in the
-  // |delivered_queue_|.
-  while (!delivered_queue_.empty()) {
-    delete[] delivered_queue_.front();
-    delivered_queue_.pop();
-  }
 }
 
 bool SbMicrophoneImpl::Open() {
@@ -143,15 +121,16 @@ bool SbMicrophoneImpl::Open() {
     return true;
   }
 
+  if (!CreateAudioRecoder()) {
+    SB_DLOG(WARNING) << "Create audio recorder failed.";
+    DeleteAudioRecoder();
+    return false;
+  }
+
   // Enqueues kNumOfOpenSLESBuffers zero buffers to get the ball rolling.
   // Add buffers to the queue before changing state to ensure that recording
   // starts as soon as the state is modified.
-  // On some devices, SLAndroidSimpleBufferQueue::Clear() used in ClearBuffer()
-  // does not flush the buffers as intended and we therefore check the number of
-  // buffers already queued first. Enqueue() can return
-  // SL_RESULT_BUFFER_INSUFFICIENT otherwise.
-  int num_buffers_in_queue = GetBufferCount();
-  for (int i = 0; i < kNumOfOpenSLESBuffers - num_buffers_in_queue; ++i) {
+  for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
     int16_t* buffer = new int16_t[frames_per_buffer_];
     SbMemorySet(buffer, 0, frames_size_);
     delivered_queue_.push(buffer);
@@ -161,14 +140,12 @@ bool SbMicrophoneImpl::Open() {
       return false;
     }
   }
-  num_buffers_in_queue = GetBufferCount();
-  SB_DCHECK(num_buffers_in_queue == kNumOfOpenSLESBuffers);
 
   // Start the recording by setting the state to |SL_RECORDSTATE_RECORDING|.
   // When the object is in the SL_RECORDSTATE_RECORDING state, adding buffers
   // will implicitly start the filling process.
-  SLresult result;
-  result = (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
+  SLresult result =
+      (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
   if (!CheckReturnValue(result)) {
     return false;
   }
@@ -186,14 +163,16 @@ bool SbMicrophoneImpl::Close() {
     return true;
   }
 
-  SLresult result;
   // Stop recording by setting the record state to |SL_RECORDSTATE_STOPPED|.
-  result = (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
+  SLresult result =
+      (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
   if (!CheckReturnValue(result)) {
     return false;
   }
 
   ClearBuffer();
+
+  DeleteAudioRecoder();
 
   state_ = kClosed;
   return true;
@@ -212,16 +191,19 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
     return 0;
   }
 
-  if (ready_queue_.empty()) {
-    return 0;
+  int read_bytes = 0;
+  // Keep draining the ready queue to send audio data.
+  while (!ready_queue_.empty() &&
+         audio_data_size - read_bytes >= frames_size_) {
+    int16_t* buffer = ready_queue_.front();
+    SbMemoryCopy(static_cast<uint8_t*>(out_audio_data) + read_bytes, buffer,
+                 frames_size_);
+    ready_queue_.pop();
+    delete[] buffer;
+    read_bytes += frames_size_;
   }
 
-  SB_DCHECK(audio_data_size >= frames_size_);
-  int16_t* buffer = ready_queue_.front();
-  SbMemoryCopy(out_audio_data, buffer, frames_size_);
-  ready_queue_.pop();
-  delete[] buffer;
-  return frames_size_;
+  return read_bytes;
 }
 
 // static
@@ -385,31 +367,21 @@ void SbMicrophoneImpl::DeleteAudioRecoder() {
 void SbMicrophoneImpl::ClearBuffer() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  SLresult result;
-  // Clear the buffer queue to get rid of old data when resuming recording.
-  result = (*buffer_object_)->Clear(buffer_object_);
-  CheckReturnValue(result);
+  // Clear the buffer queue to get rid of old data.
+  if (buffer_object_) {
+    SLresult result = (*buffer_object_)->Clear(buffer_object_);
+    CheckReturnValue(result);
+  }
 
-  int num_buffers_in_queue = GetBufferCount();
-  while (delivered_queue_.size() > num_buffers_in_queue) {
+  while (!delivered_queue_.empty()) {
     delete[] delivered_queue_.front();
     delivered_queue_.pop();
   }
-  SB_DCHECK(delivered_queue_.size() == num_buffers_in_queue);
 
   while (!ready_queue_.empty()) {
     delete[] ready_queue_.front();
     ready_queue_.pop();
   }
-}
-
-SLuint32 SbMicrophoneImpl::GetBufferCount() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-  SLAndroidSimpleBufferQueueState state;
-  SLresult result = (*buffer_object_)->GetState(buffer_object_, &state);
-  CheckReturnValue(result);
-  return state.count;
 }
 
 }  // namespace shared
@@ -427,8 +399,7 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
     out_info_array[0].max_sample_rate_hz =
         starboard::android::shared::kSampleRateInHz;
     out_info_array[0].min_read_size =
-        starboard::android::shared::AudioOutputFramesPerBuffer() *
-        sizeof(int16_t);
+        starboard::android::shared::kFramesPerBuffer;
   }
 
   return 1;
@@ -453,14 +424,7 @@ SbOnceControl s_instance_control = SB_ONCE_INITIALIZER;
 SbMicrophone s_microphone = kSbMicrophoneInvalid;
 
 void Initialize() {
-  starboard::android::shared::SbMicrophoneImpl* microphone =
-      new starboard::android::shared::SbMicrophoneImpl();
-  if (!microphone->is_valid()) {
-    delete microphone;
-    microphone = NULL;
-  }
-
-  s_microphone = microphone;
+  s_microphone = new starboard::android::shared::SbMicrophoneImpl();
 }
 
 SbMicrophone GetMicrophone() {
