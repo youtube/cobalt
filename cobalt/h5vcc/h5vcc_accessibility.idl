@@ -21,6 +21,10 @@ interface H5vccAccessibility {
   // True if the host operating system's "text to speech" accessibility
   // option is enabled.
   readonly attribute boolean textToSpeech;
+
+  // True if the built-in screen reader is enabled.
+  // Setting it to false disables the built-in screen reader.
+  attribute boolean builtInScreenReader;
 };
 
 callback H5vccAccessibilityCallback = void();

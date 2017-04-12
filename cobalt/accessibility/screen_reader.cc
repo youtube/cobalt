@@ -34,7 +34,7 @@ const char kRemovedFormatString[] = "Removed. %s";
 
 ScreenReader::ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                            dom::MutationObserverTaskManager* task_manager)
-    : document_(document), tts_engine_(tts_engine) {
+    : enabled_(true), document_(document), tts_engine_(tts_engine) {
   document_->AddObserver(this);
   live_region_observer_ = new dom::MutationObserver(
       base::Bind(&ScreenReader::MutationObserverCallback,
@@ -45,6 +45,10 @@ ScreenReader::ScreenReader(dom::Document* document, TTSEngine* tts_engine,
 ScreenReader::~ScreenReader() {
   live_region_observer_->Disconnect();
   document_->RemoveObserver(this);
+}
+
+void ScreenReader::set_enabled(bool value) {
+  enabled_ = value;
 }
 
 void ScreenReader::OnLoad() {
@@ -60,7 +64,9 @@ void ScreenReader::OnLoad() {
 }
 
 void ScreenReader::OnFocusChanged() {
-  // TODO: Only utter text if text-to-speech is enabled.
+  if (!enabled_) {
+    return;
+  }
   scoped_refptr<dom::Element> element = document_->active_element();
   if (element) {
     std::string text_alternative = ComputeTextAlternative(element);
@@ -74,6 +80,9 @@ void ScreenReader::MutationObserverCallback(
     const MutationRecordSequence& sequence,
     const scoped_refptr<dom::MutationObserver>& observer) {
   // TODO: Only check live regions if text-to-speech is enabled.
+  if (!enabled_) {
+    return;
+  }
   DCHECK_EQ(observer, live_region_observer_);
   for (size_t i = 0; i < sequence.size(); ++i) {
     scoped_refptr<dom::MutationRecord> record = sequence.at(i);
