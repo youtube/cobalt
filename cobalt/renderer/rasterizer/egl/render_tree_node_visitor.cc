@@ -25,6 +25,7 @@
 #include "cobalt/renderer/rasterizer/common/utils.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_blur.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
@@ -59,7 +60,7 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
       draw_object_manager_(draw_object_manager),
       fallback_rasterize_(fallback_rasterize) {
   // Let the first draw object render in front of the clear depth.
-  draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
+  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
 
   draw_state_.scissor.Intersect(graphics_state->GetScissor());
   viewport_size_ = graphics_state->GetViewport().size();
@@ -320,36 +321,89 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
   }
 
   const render_tree::RectShadowNode::Builder& data = shadow_node->data();
-  if (data.rounded_corners || data.shadow.blur_sigma > 0.0f) {
+  if (data.rounded_corners) {
     FallbackRasterize(shadow_node, DrawObjectManager::kOffscreenSkiaShadow);
     return;
   }
 
-  scoped_ptr<DrawObject> draw_spread;
+  scoped_ptr<DrawObject> draw;
+  render_tree::ColorRGBA shadow_color(
+      data.shadow.color.r() * data.shadow.color.a(),
+      data.shadow.color.g() * data.shadow.color.a(),
+      data.shadow.color.b() * data.shadow.color.a(),
+      data.shadow.color.a());
+  DrawObjectManager::OnscreenType onscreen_type =
+      DrawObjectManager::kOnscreenRectShadow;
 
   math::RectF spread_rect(data.rect);
   spread_rect.Offset(data.shadow.offset);
   if (data.inset) {
+    // data.rect is outermost.
+    // spread_rect is in the middle.
+    // blur_rect is innermost.
     spread_rect.Inset(data.spread, data.spread);
     spread_rect.Intersect(data.rect);
-    draw_spread.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-        spread_rect, data.rect, data.shadow.color, data.rect, math::RectF()));
-    node_bounds.Union(data.rect);
+    if (spread_rect.IsEmpty()) {
+      // Spread covers the whole data.rect.
+      spread_rect.set_origin(data.rect.CenterPoint());
+      spread_rect.set_size(math::SizeF());
+    }
+    if (!spread_rect.IsEmpty() && data.shadow.blur_sigma > 0.0f) {
+      math::RectF blur_rect(spread_rect);
+      math::Vector2dF blur_extent(data.shadow.BlurExtent());
+      blur_rect.Inset(blur_extent.x(), blur_extent.y());
+      blur_rect.Intersect(spread_rect);
+      if (blur_rect.IsEmpty()) {
+        // Blur covers all of spread.
+        blur_rect.set_origin(spread_rect.CenterPoint());
+        blur_rect.set_size(math::SizeF());
+      }
+      draw.reset(new DrawRectShadowBlur(graphics_state_, draw_state_,
+          blur_rect, data.rect, spread_rect, shadow_color, math::RectF(),
+          data.shadow.blur_sigma, data.inset));
+      onscreen_type = DrawObjectManager::kOnscreenRectShadowBlur;
+    } else {
+      draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
+          spread_rect, data.rect, shadow_color, data.rect, math::RectF()));
+    }
   } else {
+    // blur_rect is outermost.
+    // spread_rect is in the middle (barring negative |spread| values).
+    // data.rect is innermost (though it may not overlap due to offset).
     spread_rect.Outset(data.spread, data.spread);
-    draw_spread.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-        data.rect, spread_rect, data.shadow.color, spread_rect, data.rect));
-    node_bounds.Union(spread_rect);
+    if (spread_rect.IsEmpty()) {
+      // Negative spread shenanigans! Nothing to draw.
+      return;
+    }
+    math::RectF blur_rect(spread_rect);
+    if (data.shadow.blur_sigma > 0.0f) {
+      math::Vector2dF blur_extent(data.shadow.BlurExtent());
+      blur_rect.Outset(blur_extent.x(), blur_extent.y());
+      draw.reset(new DrawRectShadowBlur(graphics_state_, draw_state_,
+          data.rect, blur_rect, spread_rect, shadow_color, data.rect,
+          data.shadow.blur_sigma, data.inset));
+      onscreen_type = DrawObjectManager::kOnscreenRectShadowBlur;
+    } else {
+      draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
+          data.rect, spread_rect, shadow_color, spread_rect, data.rect));
+    }
+    node_bounds.Union(blur_rect);
   }
+
+  // Include or exclude scissor will touch these pixels.
+  node_bounds.Union(data.rect);
 
   // Since the depth buffer is polluted to create a stencil for pixels to be
   // modified by the shadow, this draw must occur during the transparency
   // pass. During this pass, all subsequent draws are guaranteed to be closer
   // (i.e. pass the depth test) than pixels modified by previous transparency
   // draws.
-  AddTransparentDraw(draw_spread.Pass(),
-      DrawObjectManager::kOnscreenRectShadow,
+  AddTransparentDraw(draw.Pass(), onscreen_type,
       DrawObjectManager::kOffscreenNone, node_bounds);
+
+  // Since the box shadow draw objects use the depth stencil object, two depth
+  // values were used. So skip an additional depth value.
+  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
@@ -446,7 +500,7 @@ void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
     DrawObjectManager::OffscreenType offscreen_type) {
   draw_object_manager_->AddOpaqueDraw(object.Pass(), onscreen_type,
       offscreen_type);
-  draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
+  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
 }
 
 void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
@@ -455,7 +509,7 @@ void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
     const math::RectF& local_bounds) {
   draw_object_manager_->AddTransparentDraw(object.Pass(), onscreen_type,
       offscreen_type, draw_state_.transform.MapRect(local_bounds));
-  draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
+  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
 }
 
 }  // namespace egl
