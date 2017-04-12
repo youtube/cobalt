@@ -197,7 +197,7 @@
     # nodes that are most CPU-expensive to render into surfaces.
     'surface_cache_size_in_bytes%': 0,
 
-    # Determines the capacity of the image cache which manages image surfaces
+    # Determines the capacity of the image cache, which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
     # ideally) these images are cached within GPU memory.
     # Set to -1 to automatically calculate the value at runtime, based on
@@ -205,9 +205,18 @@
     # SbSystemGetTotalGPUMemory().
     'image_cache_size_in_bytes%': -1,
 
-    # Determines the capacity of the remote typefaces cache which manages all
-    # typefaces downloaded from a web page.
-    'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
+    # Determines the capacity of the local font cache, which manages all fonts
+    # loaded from local files. Newly encountered sections of font files are
+    # lazily loaded into the cache, enabling subsequent requests to the same
+    # file sections to be handled via direct memory access. Once the limit is
+    # reached, further requests are handled via file stream.
+    # Setting the value to 0 disables memory caching and causes all font file
+    # accesses to be done using file streams.
+    'local_font_cache_size_in_bytes%': 16 * 1024 * 1024,
+
+    # Determines the capacity of the remote font cache, which manages all
+    # fonts downloaded from a web page.
+    'remote_font_cache_size_in_bytes%': 4 * 1024 * 1024,
 
     # Determines the capacity of the mesh cache. Each mesh is held compressed
     # in main memory, to be inflated into a GPU buffer when needed for
