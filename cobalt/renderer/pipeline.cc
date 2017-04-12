@@ -179,6 +179,7 @@ void Pipeline::Clear() {
 void Pipeline::RasterizeToRGBAPixels(
     const Submission& render_tree_submission,
     const RasterizationCompleteCallback& complete) {
+  TRACK_MEMORY_SCOPE("Renderer");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
 
   if (MessageLoop::current() != rasterizer_thread_.message_loop()) {
@@ -238,6 +239,7 @@ void Pipeline::ClearCurrentRenderTree(
 }
 
 void Pipeline::RasterizeCurrentTree() {
+  TRACK_MEMORY_SCOPE("Renderer");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
