@@ -141,10 +141,11 @@ void ReportErrorHandler(JSContext* context, const char* message,
 
 }  // namespace
 
-MozjsEngine::MozjsEngine() : accumulated_extra_memory_cost_(0) {
+MozjsEngine::MozjsEngine(const Options& options)
+    : accumulated_extra_memory_cost_(0), options_(options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   SbOnce(&g_js_init_once_control, CallInitAndRegisterShutDownOnce);
-  runtime_ = JS_NewRuntime(kGarbageCollectionThresholdBytes);
+  runtime_ = JS_NewRuntime(options_.js_options.gc_threshold_bytes);
   CHECK(runtime_);
 
   // Sets the size of the native stack that should not be exceeded.
@@ -206,11 +207,10 @@ MozjsEngine::~MozjsEngine() {
   JS_DestroyRuntime(runtime_);
 }
 
-scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment(
-    const JavaScriptEngine::Options& options) {
+scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new MozjsGlobalEnvironment(runtime_, options);
+  return new MozjsGlobalEnvironment(runtime_, options_.js_options);
 }
 
 void MozjsEngine::CollectGarbage() {
@@ -222,7 +222,10 @@ void MozjsEngine::CollectGarbage() {
 void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
   accumulated_extra_memory_cost_ += bytes;
-  if (accumulated_extra_memory_cost_ > kGarbageCollectionThresholdBytes) {
+
+  const bool do_collect_garbage =
+      accumulated_extra_memory_cost_ > options_.js_options.gc_threshold_bytes;
+  if (do_collect_garbage) {
     accumulated_extra_memory_cost_ = 0;
     CollectGarbage();
   }
@@ -321,9 +324,11 @@ bool MozjsEngine::ReportJSError(JSContext* context, const char* message,
 
 }  // namespace mozjs
 
-scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine() {
+scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
+    const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
-  return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine());
+  mozjs::MozjsEngine::Options moz_options(options);
+  return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(moz_options));
 }
 
 }  // namespace script
