@@ -78,6 +78,18 @@ H5vccAccessibility::H5vccAccessibility(
   }
 }
 
+bool H5vccAccessibility::built_in_screen_reader() const {
+  return screen_reader_ && screen_reader_->enabled();
+}
+
+void H5vccAccessibility::set_built_in_screen_reader(bool value) {
+  if (!screen_reader_) {
+    LOG(WARNING) << "h5vcc.accessibility.builtInScreenReader: not available";
+    return;
+  }
+  screen_reader_->set_enabled(value);
+}
+
 bool H5vccAccessibility::high_contrast_text() const {
 #if SB_API_VERSION >= 4
   SbAccessibilityDisplaySettings settings;

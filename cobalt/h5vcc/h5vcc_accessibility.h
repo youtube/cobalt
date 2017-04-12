@@ -45,6 +45,9 @@ class H5vccAccessibility : public script::Wrappable {
 
   bool text_to_speech() const;
 
+  bool built_in_screen_reader() const;
+  void set_built_in_screen_reader(bool value);
+
   DEFINE_WRAPPABLE_TYPE(H5vccAccessibility);
 
  private:
