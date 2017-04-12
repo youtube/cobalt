@@ -19,14 +19,14 @@
 
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
+#include "cobalt/renderer/rasterizer/egl/draw_depth_stencil.h"
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-// Example outset box shadow:
+// Example CSS box shadow (outset):
 //   +-------------------------------------+
 //   | Box shadow "blur" region            |
 //   |   +-----------------------------+   |
@@ -45,8 +45,10 @@ namespace egl {
 // Handles drawing the solid "spread" portion of a box shadow. This also
 // creates a stencil, using the depth buffer, for the pixels inside
 // |include_scissor| excluding those in |exclude_scissor|.
-class DrawRectShadowSpread : public DrawPolyColor {
+class DrawRectShadowSpread : public DrawDepthStencil {
  public:
+  // Fill the area between |inner_rect| and |outer_rect| with the specified
+  // color.
   DrawRectShadowSpread(GraphicsState* graphics_state,
                        const BaseState& base_state,
                        const math::RectF& inner_rect,
@@ -57,10 +59,6 @@ class DrawRectShadowSpread : public DrawPolyColor {
 
   void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-
- private:
-  GLint include_scissor_first_vert_;
-  GLint exclude_scissor_first_vert_;
 };
 
 }  // namespace egl
