@@ -35,6 +35,8 @@ class EventHandler {
   // of the system via |event_dispatcher_|.
   void DispatchEvent(const SbEvent* event) const;
 
+  void DispatchEventInternal(base::Event*) const;
+
   // The event dispatcher that dispatches Cobalt events to the rest of the
   // system.
   base::EventDispatcher* event_dispatcher_;
