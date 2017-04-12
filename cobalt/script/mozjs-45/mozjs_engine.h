@@ -27,11 +27,16 @@ namespace mozjs {
 
 class MozjsEngine : public JavaScriptEngine {
  public:
-  MozjsEngine();
+  struct Options {
+    explicit Options(const JavaScriptEngine::Options& js_options)
+        : js_options(js_options) {}
+    JavaScriptEngine::Options js_options;  // Generic settings.
+  };
+
+  explicit MozjsEngine(const Options& options);
   ~MozjsEngine() OVERRIDE;
 
-  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment(
-      const JavaScriptEngine::Options& options) OVERRIDE;
+  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
   size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
@@ -65,6 +70,8 @@ class MozjsEngine : public JavaScriptEngine {
 
   // Used to handle javascript errors.
   ErrorHandler error_handler_;
+
+  Options options_;
 };
 }  // namespace mozjs
 }  // namespace script
