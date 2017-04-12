@@ -837,7 +837,7 @@ void WebModule::DestructionObserver::WillDestroyCurrentMessageLoop() {
 WebModule::Options::Options()
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-      image_cache_capacity(32 * 1024 * 1024),  // 32MB Default.
+      image_cache_capacity(32 * 1024 * 1024),
       remote_typeface_cache_capacity(
           COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
       mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),

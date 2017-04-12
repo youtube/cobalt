@@ -235,10 +235,10 @@ TEST(MemorySettings, GetSkiaAtlasTextureSizeCommandOverride) {
 }
 
 TEST(MemorySettings, GetSoftwareSurfaceCacheSizeInBytes) {
+  base::optional<size_t> no_override;
   const math::Size ui_resolution = GetDimensions(k1080p);
   const size_t software_surface_cache_size =
-      GetSoftwareSurfaceCacheSizeInBytes(ui_resolution);
-
+      GetSoftwareSurfaceCacheSizeInBytes(ui_resolution, no_override);
 #if !SB_HAS(BLITTER)
   EXPECT_EQ(software_surface_cache_size, 0);
 #elif COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
@@ -247,6 +247,19 @@ TEST(MemorySettings, GetSoftwareSurfaceCacheSizeInBytes) {
 #else
   EXPECT_EQ(software_surface_cache_size,
             CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
+#endif
+}
+
+TEST(MemorySettings, GetSoftwareSurfaceCacheSizeInBytesOverride) {
+  base::optional<size_t> override = static_cast<size_t>(1234);
+  const math::Size ui_resolution = GetDimensions(k1080p);
+  const size_t software_surface_cache_size =
+      GetSoftwareSurfaceCacheSizeInBytes(ui_resolution, override);
+
+#if !SB_HAS(BLITTER)
+  EXPECT_EQ(0, software_surface_cache_size);
+#else
+  EXPECT_EQ(1234, software_surface_cache_size);
 #endif
 }
 
@@ -263,13 +276,22 @@ TEST(MemorySettings, CalculateSoftwareSurfaceCacheSizeInBytes) {
 }
 
 TEST(MemorySettings, GetSkiaCacheSizeInBytes) {
+  base::optional<size_t> no_override;
   const math::Size ui_resolution = GetDimensions(k1080p);
-  size_t skia_cache_size = GetSkiaCacheSizeInBytes(ui_resolution);
+  size_t skia_cache_size = GetSkiaCacheSizeInBytes(ui_resolution, no_override);
 #if COBALT_SKIA_CACHE_SIZE_IN_BYTES >= 0
   EXPECT_EQ(skia_cache_size, COBALT_SKIA_CACHE_SIZE_IN_BYTES);
 #else
   EXPECT_EQ(skia_cache_size, CalculateSkiaCacheSize(ui_resolution));
 #endif
+}
+
+TEST(MemorySettings, GetSkiaCacheSizeInBytesOverride) {
+  base::optional<size_t> override = static_cast<size_t>(1234);
+  const math::Size ui_resolution = GetDimensions(k1080p);
+  size_t skia_cache_size = GetSkiaCacheSizeInBytes(ui_resolution, override);
+
+  EXPECT_EQ(1234, skia_cache_size);
 }
 
 }  // namespace memory_settings
