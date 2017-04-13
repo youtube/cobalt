@@ -73,6 +73,11 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
         youtube_tv_info_->brand.c_str(), youtube_tv_info_->model.c_str(),
         CreateConnectionTypeString().c_str());
   }
+
+  if (!aux_field_.empty()) {
+    user_agent.append(" ");
+    user_agent.append(aux_field_);
+  }
   return user_agent;
 }
 
