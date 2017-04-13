@@ -66,6 +66,11 @@ inline T lexical_cast(const char* s, bool* cast_ok = NULL) {
   return value;
 }
 
+template <typename T>
+inline T lexical_cast(const std::string& s, bool* cast_ok = NULL) {
+  return lexical_cast<T>(s.c_str(), cast_ok);
+}
+
 // int8_t and uint8_t will normally be interpreted as a char, which will
 // result in only the first character being parsed. This is obviously not
 // what we want. Therefore we provide specializations for lexical_cast for
