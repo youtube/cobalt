@@ -169,10 +169,11 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
   //    whose name is local name. If it is an HTML document, then return an,
   //    HTML collection whose name is local name converted to ASCII lowercase.
   if (IsXMLDocument()) {
-    return HTMLCollection::CreateWithElementsByTagName(this, local_name);
+    return HTMLCollection::CreateWithElementsByLocalName(this, local_name);
   } else {
     const std::string lower_local_name = StringToLowerASCII(local_name);
-    return HTMLCollection::CreateWithElementsByTagName(this, lower_local_name);
+    return HTMLCollection::CreateWithElementsByLocalName(this,
+                                                         lower_local_name);
   }
 }
 
@@ -278,11 +279,6 @@ scoped_refptr<HTMLBodyElement> Document::body() const {
 void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
   // 1. If the new value is not a body or frameset element, then throw a
   //    HierarchyRequestError exception and abort these steps.
-  if (body->tag_name() != HTMLBodyElement::kTagName) {
-    // TODO: Throw JS HierarchyRequestError.
-    return;
-  }
-
   // 2. Otherwise, if the new value is the same as the body element, do nothing.
   //    Abort these steps.
   scoped_refptr<HTMLBodyElement> current_body = this->body();

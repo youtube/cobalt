@@ -156,10 +156,10 @@ bool IsElementWithClassName(const std::string& class_name, Node* node) {
          node->AsElement()->class_list()->Contains(class_name);
 }
 
-// Used to implement HTMLCollection::kElementsByTagName.
-bool IsElementWithTagName(const std::string& tag_name, Node* node) {
+// Used to implement HTMLCollection::kElementsByLocalName.
+bool IsElementWithLocalName(const std::string& local_name, Node* node) {
   return node->IsElement() &&
-         (tag_name == "*" || node->AsElement()->tag_name() == tag_name);
+         (local_name == "*" || node->AsElement()->local_name() == local_name);
 }
 
 }  // namespace
@@ -188,13 +188,13 @@ scoped_refptr<HTMLCollection> HTMLCollection::CreateWithElementsByClassName(
 }
 
 // static
-scoped_refptr<HTMLCollection> HTMLCollection::CreateWithElementsByTagName(
+scoped_refptr<HTMLCollection> HTMLCollection::CreateWithElementsByLocalName(
     const scoped_refptr<const Node>& base, const std::string& name) {
   if (!base) {
     return NULL;
   }
   return new NodeCollection<NodeDescendantsIterator>(
-      base, base::Bind(&IsElementWithTagName, name));
+      base, base::Bind(&IsElementWithLocalName, name));
 }
 
 HTMLCollection::HTMLCollection() { GlobalStats::GetInstance()->Add(this); }

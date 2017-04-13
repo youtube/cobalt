@@ -64,7 +64,7 @@ TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ELEMENT", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->local_name());
   EXPECT_FALSE(element->HasChildNodes());
 }
 
@@ -88,7 +88,7 @@ TEST_F(XMLDecoderTest, CanParseCDATASection) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ELEMENT", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->local_name());
 
   dom::CDATASection* cdata_section1 = element->first_child()->AsCDATASection();
   ASSERT_TRUE(cdata_section1);
@@ -111,7 +111,7 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ELEMENT", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
   EXPECT_EQ("a", element->attributes()->Item(0)->name());
@@ -131,11 +131,11 @@ TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ELEMENT", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
 }
 
 TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
@@ -149,7 +149,7 @@ TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ELEMENT", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
   EXPECT_EQ("A", element->attributes()->Item(0)->name());
@@ -171,7 +171,7 @@ TEST_F(XMLDecoderTest, CanDealWithFileAttack) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
 }
 
 TEST_F(XMLDecoderTest, CanDealWithHTMLAttack) {
@@ -187,7 +187,7 @@ TEST_F(XMLDecoderTest, CanDealWithHTMLAttack) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
 }
 
 TEST_F(XMLDecoderTest, CanDealWithAttack) {
@@ -203,7 +203,7 @@ TEST_F(XMLDecoderTest, CanDealWithAttack) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
 }
 
 TEST_F(XMLDecoderTest, CanDealWithPEAttack) {
@@ -219,7 +219,7 @@ TEST_F(XMLDecoderTest, CanDealWithPEAttack) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
 }
 
 TEST_F(XMLDecoderTest, CanDealWithDTDAttack) {
@@ -235,7 +235,7 @@ TEST_F(XMLDecoderTest, CanDealWithDTDAttack) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
 }
 
 TEST_F(XMLDecoderTest, CanDealWithLaughsAttack) {
@@ -267,7 +267,7 @@ TEST_F(XMLDecoderTest, CanDealWithLaughsAttack) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
 }
 
 TEST_F(XMLDecoderTest, CanDealWithXIncludeAttack) {
@@ -287,19 +287,19 @@ TEST_F(XMLDecoderTest, CanDealWithXIncludeAttack) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("root", element->tag_name());
+  EXPECT_EQ("root", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("child", element->tag_name());
+  EXPECT_EQ("child", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("name", element->tag_name());
+  EXPECT_EQ("name", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("xi:include", element->tag_name());
+  EXPECT_EQ("xi:include", element->local_name());
 }
 
 }  // namespace dom_parser

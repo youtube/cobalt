@@ -56,7 +56,7 @@ class Element : public Node {
       AttributeMap;
 
   explicit Element(Document* document);
-  Element(Document* document, base::Token tag_name);
+  Element(Document* document, base::Token local_name);
 
   // Web API: Node
   //
@@ -72,7 +72,7 @@ class Element : public Node {
   // Web API: Element
   //
 
-  base::Token tag_name() const { return tag_name_; }
+  base::Token tag_name() const;
 
   base::Token id() const { return id_attribute_; }
   void set_id(const std::string& value) { SetAttribute("id", value); }
@@ -91,7 +91,7 @@ class Element : public Node {
   bool HasAttribute(const std::string& name) const;
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
-      const std::string& tag_name) const;
+      const std::string& local_name) const;
   scoped_refptr<HTMLCollection> GetElementsByClassName(
       const std::string& class_name) const;
 
@@ -125,6 +125,9 @@ class Element : public Node {
 
   // Custom, not in any spec.
   //
+
+  base::Token local_name() const { return local_name_; }
+
   // Returns whether the element has no children at all except comments or
   // processing instructions.
   //   https://www.w3.org/TR/selectors4/#empty-pseudo
@@ -184,8 +187,8 @@ class Element : public Node {
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
 
-  // Tag name of the element.
-  base::Token tag_name_;
+  // Local name of the element.
+  base::Token local_name_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // The "id" attribute for this element. Stored here in addition to being

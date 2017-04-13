@@ -256,7 +256,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
-  HTMLElement(Document* document, base::Token tag_name);
+  HTMLElement(Document* document, base::Token local_name);
   ~HTMLElement() OVERRIDE;
 
   void CopyDirectionality(const HTMLElement& other);
