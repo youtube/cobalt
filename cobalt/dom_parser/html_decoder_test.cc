@@ -87,11 +87,11 @@ TEST_F(HTMLDecoderTest, CanParseEmptyDocument) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("html", element->tag_name());
+  EXPECT_EQ("html", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("body", element->tag_name());
+  EXPECT_EQ("body", element->local_name());
 }
 
 // TODO: Currently HTMLDecoder is using libxml2 SAX parser. It doesn't
@@ -110,11 +110,11 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyNulls) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("html", element->tag_name());
+  EXPECT_EQ("html", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("body", element->tag_name());
+  EXPECT_EQ("body", element->local_name());
 }
 
 TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlySpaces) {
@@ -129,11 +129,11 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlySpaces) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("html", element->tag_name());
+  EXPECT_EQ("html", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("body", element->tag_name());
+  EXPECT_EQ("body", element->local_name());
 }
 
 TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyHTML) {
@@ -148,11 +148,11 @@ TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyHTML) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("html", element->tag_name());
+  EXPECT_EQ("html", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("body", element->tag_name());
+  EXPECT_EQ("body", element->local_name());
 }
 
 TEST_F(HTMLDecoderTest, CanParseDocumentWithOnlyBody) {
@@ -167,11 +167,11 @@ TEST_F(HTMLDecoderTest, CanParseDocumentWithOnlyBody) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("html", element->tag_name());
+  EXPECT_EQ("html", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("body", element->tag_name());
+  EXPECT_EQ("body", element->local_name());
 }
 
 TEST_F(HTMLDecoderTest, DecodingWholeDocumentShouldAddImpliedTags) {
@@ -186,15 +186,15 @@ TEST_F(HTMLDecoderTest, DecodingWholeDocumentShouldAddImpliedTags) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("html", element->tag_name());
+  EXPECT_EQ("html", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("body", element->tag_name());
+  EXPECT_EQ("body", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
   EXPECT_FALSE(element->HasChildNodes());
 }
 
@@ -210,7 +210,7 @@ TEST_F(HTMLDecoderTest, DecodingDocumentFragmentShouldNotAddImpliedTags) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
   EXPECT_FALSE(element->HasChildNodes());
 }
 
@@ -226,7 +226,7 @@ TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("div", element->tag_name());
+  EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(4, element->attributes()->length());
   EXPECT_EQ("a", element->attributes()->Item(0)->name());
@@ -251,7 +251,7 @@ TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("div", element->tag_name());
+  EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
   EXPECT_EQ("a", element->attributes()->Item(0)->name());
@@ -272,11 +272,11 @@ TEST_F(HTMLDecoderTest, CanParseSelfClosingTags) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 
   element = element->next_element_sibling();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 }
 
 TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
@@ -291,7 +291,7 @@ TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 
   dom::Text* text = element->first_child()->AsText();
   ASSERT_TRUE(text);
@@ -325,7 +325,7 @@ TEST_F(HTMLDecoderTest, CanParseEscapedCharacters) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 
   dom::Text* text = element->first_child()->AsText();
   ASSERT_TRUE(text);
@@ -333,7 +333,7 @@ TEST_F(HTMLDecoderTest, CanParseEscapedCharacters) {
 
   element = element->next_element_sibling();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 
   text = element->first_child()->AsText();
   ASSERT_TRUE(text);
@@ -353,7 +353,7 @@ TEST_F(HTMLDecoderTest, CanParseEscapedInvalidUnicodeCharacters) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 
   dom::Text* text = element->first_child()->AsText();
   ASSERT_TRUE(text);
@@ -373,7 +373,7 @@ TEST_F(HTMLDecoderTest, CanParseUTF8EncodedSupplementaryCharacters) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 
   dom::Text* text = element->first_child()->AsText();
   ASSERT_TRUE(text);
@@ -400,7 +400,7 @@ TEST_F(HTMLDecoderTest, CanParseUTF8SplitInChunks) {
 
     dom::Element* element = root_->first_element_child();
     ASSERT_TRUE(element);
-    EXPECT_EQ("p", element->tag_name());
+    EXPECT_EQ("p", element->local_name());
 
     dom::Text* text = element->first_child()->AsText();
     ASSERT_TRUE(text);
@@ -424,15 +424,15 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("b", element->tag_name());
+  EXPECT_EQ("b", element->local_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("i", element->tag_name());
+  EXPECT_EQ("i", element->local_name());
 }
 
 // Misnested tags: <b><p></b></p>
@@ -451,11 +451,11 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags2) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("b", element->tag_name());
+  EXPECT_EQ("b", element->local_name());
 
   element = element->next_element_sibling();
   ASSERT_TRUE(element);
-  EXPECT_EQ("p", element->tag_name());
+  EXPECT_EQ("p", element->local_name());
 }
 
 TEST_F(HTMLDecoderTest, TagNamesShouldBeCaseInsensitive) {
@@ -470,7 +470,7 @@ TEST_F(HTMLDecoderTest, TagNamesShouldBeCaseInsensitive) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("div", element->tag_name());
+  EXPECT_EQ("div", element->local_name());
 }
 
 TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
@@ -485,7 +485,7 @@ TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
 
   dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("div", element->tag_name());
+  EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(1, element->attributes()->length());
   EXPECT_EQ("a", element->attributes()->Item(0)->name());
@@ -509,11 +509,11 @@ TEST_F(HTMLDecoderTest, LibxmlDecodingErrorShouldTerminateParsing) {
 
   root_ = document_->first_element_child();
   ASSERT_TRUE(root_);
-  EXPECT_EQ("html", root_->tag_name());
+  EXPECT_EQ("html", root_->local_name());
 
   dom::Element* head = root_->first_element_child();
   ASSERT_TRUE(head);
-  EXPECT_EQ("head", head->tag_name());
+  EXPECT_EQ("head", head->local_name());
 }
 
 }  // namespace dom_parser

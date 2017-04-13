@@ -44,8 +44,8 @@ class HTMLCollection : public script::Wrappable {
   // A collections of all descendants with a given class name.
   static scoped_refptr<HTMLCollection> CreateWithElementsByClassName(
       const scoped_refptr<const Node>& base, const std::string& name);
-  // A collections of all descendants with a given tag name.
-  static scoped_refptr<HTMLCollection> CreateWithElementsByTagName(
+  // A collections of all descendants with a given local name.
+  static scoped_refptr<HTMLCollection> CreateWithElementsByLocalName(
       const scoped_refptr<const Node>& base, const std::string& name);
 
   // Web API: HTMLCollection
