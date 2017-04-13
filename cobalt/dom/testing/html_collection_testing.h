@@ -168,9 +168,9 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   scoped_refptr<Node> b1 = a1->AppendChild(
       html_element_factory.CreateHTMLElement(document, base::Token("b1")));
   scoped_refptr<Node> c1 = b1->AppendChild(
-      html_element_factory.CreateHTMLElement(document, base::Token("tag")));
+      html_element_factory.CreateHTMLElement(document, base::Token("element")));
   scoped_refptr<Node> d1 = a3->AppendChild(
-      html_element_factory.CreateHTMLElement(document, base::Token("tag")));
+      html_element_factory.CreateHTMLElement(document, base::Token("element")));
 
   // GetElementsByTagName should return all elements when provided with
   // parameter "*".
@@ -183,9 +183,9 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   EXPECT_EQ(d1, collection->Item(4));
   EXPECT_EQ(kNullNode, collection->Item(5));
 
-  // GetElementsByTagName should only return elements with the specific tag name
-  // when that is provided.
-  collection = node->GetElementsByTagName("tag");
+  // GetElementsByTagName should only return elements with the specific local
+  // name when that is provided.
+  collection = node->GetElementsByTagName("element");
   EXPECT_EQ(2, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(d1, collection->Item(1));
@@ -202,7 +202,8 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
 
   // Add a new node with a matching tag.
   scoped_refptr<Node> a2 = node->InsertBefore(
-      html_element_factory.CreateHTMLElement(document, base::Token("tag")), a3);
+      html_element_factory.CreateHTMLElement(document, base::Token("element")),
+      a3);
   EXPECT_EQ(3, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(a2, collection->Item(1));

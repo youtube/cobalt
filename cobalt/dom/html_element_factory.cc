@@ -49,8 +49,8 @@ scoped_refptr<HTMLElement> CreateHTMLElementT(Document* document) {
 
 template <typename T>
 scoped_refptr<HTMLElement> CreateHTMLElementWithTagNameT(
-    const std::string& tag_name, Document* document) {
-  return new T(document, base::Token(tag_name));
+    const std::string& local_name, Document* document) {
+  return new T(document, base::Token(local_name));
 }
 
 }  // namespace

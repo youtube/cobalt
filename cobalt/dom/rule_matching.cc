@@ -171,7 +171,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // tree.
   //   https://www.w3.org/TR/selectors4/#type-selector
   void VisitTypeSelector(cssom::TypeSelector* type_selector) OVERRIDE {
-    if (type_selector->element_name() != element_->tag_name()) {
+    if (type_selector->element_name() != element_->local_name()) {
       element_ = NULL;
     }
   }
@@ -468,7 +468,7 @@ void ForEachChildOnNodes(
       // Type selector.
       if (node->HasSimpleSelector(cssom::kTypeSelector, combinator_type)) {
         GatherCandidateNodesFromMap(cssom::kTypeSelector, combinator_type,
-                                    selector_nodes_map, element->tag_name(),
+                                    selector_nodes_map, element->local_name(),
                                     &candidate_nodes);
       }
 
