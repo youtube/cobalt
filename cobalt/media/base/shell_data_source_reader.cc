@@ -49,9 +49,15 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
 
   int total_bytes_read = 0;
   while (size > 0 && !read_has_failed_) {
-    data_source_->Read(
-        position, size, data,
-        base::Bind(&ShellDataSourceReader::BlockingReadCompleted, this));
+    {
+      base::AutoLock auto_lock(lock_);
+      if (!data_source_) {
+        break;
+      }
+      data_source_->Read(
+          position, size, data,
+          base::Bind(&ShellDataSourceReader::BlockingReadCompleted, this));
+    }
 
     // wait for callback on read completion
     blocking_read_event_.Wait();
@@ -87,6 +93,8 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
 void ShellDataSourceReader::Stop() {
   if (data_source_) {
     data_source_->Stop();
+
+    base::AutoLock auto_lock(lock_);
     data_source_ = NULL;
   }
 }
@@ -99,7 +107,8 @@ void ShellDataSourceReader::BlockingReadCompleted(int bytes_read) {
 
 int64 ShellDataSourceReader::FileSize() {
   if (file_size_ == -1) {
-    if (!data_source_->GetSize(&file_size_)) {
+    base::AutoLock auto_lock(lock_);
+    if (data_source_ && !data_source_->GetSize(&file_size_)) {
       file_size_ = -1;
     }
   }
