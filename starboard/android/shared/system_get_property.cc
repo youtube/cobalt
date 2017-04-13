@@ -20,12 +20,15 @@
 #include "starboard/android/shared/private/keys.h"
 #endif  // SB_HAS_SPEECH_API_KEY
 
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/log.h"
 #include "starboard/string.h"
 
 // We can't #include "base/stringize_macros.h" in Starboard
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
+
+using starboard::android::shared::JniEnvExt;
 
 namespace {
 
@@ -100,7 +103,18 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 #else
       return false;
 #endif  // SB_HAS_SPEECH_API_KEY
+    case kSbSystemPropertyUserAgentAuxField: {
+      JniEnvExt* env = JniEnvExt::Get();
+      jstring aux_string = (jstring)env->CallActivityObjectMethodOrAbort(
+          "getUserAgentAuxField", "()Ljava/lang/String;");
 
+      const char* utf_chars = env->GetStringUTFChars(aux_string, NULL);
+      bool success =
+          CopyStringAndTestIfSuccess(out_value, value_length, utf_chars);
+      env->ReleaseStringUTFChars(aux_string, utf_chars);
+      env->DeleteLocalRef(aux_string);
+      return success;
+    }
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;
