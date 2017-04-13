@@ -31,6 +31,7 @@ namespace {
 
 const char kFriendlyName[] = "Android";
 const char kPlatformName[] = "Android; Linux " STRINGIZE(ANDROID_ABI);
+const char kUnknownValue[] = "unknown";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -43,12 +44,17 @@ bool CopyStringAndTestIfSuccess(char* out_value,
 
 bool GetAndroidSystemProperty(const char* system_property_name,
                               char* out_value,
-                              int value_length) {
+                              int value_length,
+                              const char* default_value) {
   if (value_length < PROP_VALUE_MAX) {
     return false;
   }
   // Note that __system_property_get returns empty string on no value
   __system_property_get(system_property_name, out_value);
+
+  if (strlen(out_value) == 0) {
+    SbStringCopy(out_value, default_value, value_length);
+  }
   return true;
 }
 
@@ -64,13 +70,16 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
   switch (property_id) {
     case kSbSystemPropertyBrandName:
       return GetAndroidSystemProperty("ro.product.manufacturer", out_value,
-                                      value_length);
+                                      value_length, kUnknownValue);
     case kSbSystemPropertyModelName:
       return GetAndroidSystemProperty("ro.product.model", out_value,
-                                      value_length);
+                                      value_length, kUnknownValue);
     case kSbSystemPropertyFirmwareVersion:
-      return GetAndroidSystemProperty("ro.build.id", out_value, value_length);
+      return GetAndroidSystemProperty("ro.build.id", out_value, value_length,
+                                      kUnknownValue);
     case kSbSystemPropertyChipsetModelNumber:
+      return GetAndroidSystemProperty("ro.board.platform", out_value,
+                                      value_length, kUnknownValue);
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
       return false;
