@@ -128,6 +128,10 @@ SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
 #define LONG_MAX INT_MAX
 #endif
 
+#if !defined(ULONG_MAX)
+#define ULONG_MAX UINT_MAX
+#endif
+
 #else  // SB_HAS(32_BIT_LONG)
 
 SB_COMPILE_ASSERT(sizeof(long) == sizeof(int64_t),  // NOLINT[runtime/int]
@@ -138,6 +142,10 @@ SB_COMPILE_ASSERT(sizeof(long) == sizeof(int64_t),  // NOLINT[runtime/int]
 
 #if !defined(LONG_MAX)
 #define LONG_MAX SB_INT64_C(0x7FFFFFFFFFFFFFFF)
+#endif
+
+#if !defined(ULONG_MAX)
+#define ULONG_MAX SB_INT64_C(0xFFFFFFFFFFFFFFFF)
 #endif
 
 #endif  // SB_HAS(32_BIT_LONG)
