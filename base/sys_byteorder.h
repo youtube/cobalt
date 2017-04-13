@@ -14,7 +14,9 @@
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/inet_poem.h"
+#elif defined(OS_WIN)
 #include <winsock2.h>
 #else
 #include <arpa/inet.h>

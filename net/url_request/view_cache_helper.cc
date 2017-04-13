@@ -4,6 +4,8 @@
 
 #include "net/url_request/view_cache_helper.h"
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/stringprintf.h"
