@@ -57,8 +57,13 @@ int ToPlatformFlags(SkFILE_Flags sk_flags) {
 }  // namespace
 
 SkFILE* sk_fopen(const char path[], SkFILE_Flags sk_flags) {
-  return ToSkFILE(base::CreatePlatformFile(
-      FilePath(path), ToPlatformFlags(sk_flags), NULL, NULL));
+  base::PlatformFile platform_file = base::CreatePlatformFile(
+      FilePath(path), ToPlatformFlags(sk_flags), NULL, NULL);
+  if (platform_file == base::kInvalidPlatformFileValue) {
+    return NULL;
+  }
+
+  return ToSkFILE(platform_file);
 }
 
 void sk_fclose(SkFILE* sk_file) {
