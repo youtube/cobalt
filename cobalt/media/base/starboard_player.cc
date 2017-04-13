@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -28,6 +29,46 @@
 namespace cobalt {
 namespace media {
 
+StarboardPlayer::CallbackHelper::CallbackHelper(StarboardPlayer* player)
+    : player_(player) {}
+
+void StarboardPlayer::CallbackHelper::ClearDecoderBufferCache() {
+  base::AutoLock auto_lock(lock_);
+  if (player_) {
+    player_->ClearDecoderBufferCache();
+  }
+}
+
+void StarboardPlayer::CallbackHelper::OnDecoderStatus(
+    SbPlayer player, SbMediaType type, SbPlayerDecoderState state, int ticket) {
+  base::AutoLock auto_lock(lock_);
+  if (player_) {
+    player_->OnDecoderStatus(player, type, state, ticket);
+  }
+}
+
+void StarboardPlayer::CallbackHelper::OnPlayerStatus(SbPlayer player,
+                                                     SbPlayerState state,
+                                                     int ticket) {
+  base::AutoLock auto_lock(lock_);
+  if (player_) {
+    player_->OnPlayerStatus(player, state, ticket);
+  }
+}
+
+void StarboardPlayer::CallbackHelper::OnDeallocateSample(
+    const void* sample_buffer) {
+  base::AutoLock auto_lock(lock_);
+  if (player_) {
+    player_->OnDeallocateSample(sample_buffer);
+  }
+}
+
+void StarboardPlayer::CallbackHelper::ResetPlayer() {
+  base::AutoLock auto_lock(lock_);
+  player_ = NULL;
+}
+
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const AudioDecoderConfig& audio_config,
@@ -35,13 +76,14 @@ StarboardPlayer::StarboardPlayer(
     SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture)
     : message_loop_(message_loop),
+      callback_helper_(
+          new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       audio_config_(audio_config),
       video_config_(video_config),
       window_(window),
       drm_system_(drm_system),
       host_(host),
       set_bounds_helper_(set_bounds_helper),
-      weak_this_(AsWeakPtr()),
       frame_width_(1),
       frame_height_(1),
       ticket_(SB_PLAYER_INITIAL_TICKET),
@@ -64,12 +106,14 @@ StarboardPlayer::StarboardPlayer(
 
   message_loop->PostTask(
       FROM_HERE,
-      base::Bind(&StarboardPlayer::ClearDecoderBufferCache, weak_this_));
+      base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
+                 callback_helper_));
 }
 
 StarboardPlayer::~StarboardPlayer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  callback_helper_->ResetPlayer();
   set_bounds_helper_->SetPlayer(NULL);
 
   ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
@@ -427,7 +471,8 @@ void StarboardPlayer::ClearDecoderBufferCache() {
 
   message_loop_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&StarboardPlayer::ClearDecoderBufferCache, weak_this_),
+      base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
+                 callback_helper_),
       base::TimeDelta::FromMilliseconds(
           kClearDecoderCacheIntervalInMilliseconds));
 }
@@ -520,8 +565,9 @@ void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
                                       SbPlayerDecoderState state, int ticket) {
   StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
-      FROM_HERE, base::Bind(&StarboardPlayer::OnDecoderStatus,
-                            helper->weak_this_, player, type, state, ticket));
+      FROM_HERE,
+      base::Bind(&StarboardPlayer::CallbackHelper::OnDecoderStatus,
+                 helper->callback_helper_, player, type, state, ticket));
 }
 
 // static
@@ -529,8 +575,8 @@ void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
                                      SbPlayerState state, int ticket) {
   StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
-      FROM_HERE, base::Bind(&StarboardPlayer::OnPlayerStatus,
-                            helper->weak_this_, player, state, ticket));
+      FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerStatus,
+                            helper->callback_helper_, player, state, ticket));
 }
 
 // static
@@ -538,8 +584,9 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                                          const void* sample_buffer) {
   StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
-      FROM_HERE, base::Bind(&StarboardPlayer::OnDeallocateSample,
-                            helper->weak_this_, sample_buffer));
+      FROM_HERE,
+      base::Bind(&StarboardPlayer::CallbackHelper::OnDeallocateSample,
+                 helper->callback_helper_, sample_buffer));
 }
 
 #if SB_API_VERSION >= 4
