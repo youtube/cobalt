@@ -25,7 +25,7 @@
 
 // The API version implemented by this platform.
 // TODO: b/35386031 cut a new Starboard release when we're done.
-#define SB_API_VERSION 4
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Architecture Configuration --------------------------------------------
 
