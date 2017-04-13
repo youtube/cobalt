@@ -72,6 +72,14 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
       youtube_tv_info_->network_operator = value;
     }
 
+#if SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_VERSION
+    result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value,
+                                 kSystemPropertyMaxLength);
+    if (result) {
+      aux_field_ = value;
+    }
+#endif  // SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_VERSION
+
     // Device Type
     switch (device_type) {
       case kSbSystemDeviceTypeBlueRayDiskPlayer:
