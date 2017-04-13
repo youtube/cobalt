@@ -189,5 +189,11 @@ TEST(lexical_cast, OnlyBase10) {
   EXPECT_EQ(100000, value);  //
 }
 
+TEST(lexical_cast, StdString) {
+  bool cast_ok = false;
+  uint32_t value = lexical_cast<uint32_t>(std::string("100000"), &cast_ok);
+  EXPECT_EQ(100000, value);
+}
+
 }  // namespace
 }  // namespace nb
