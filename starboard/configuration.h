@@ -168,7 +168,7 @@ struct CompileAssert {};
 #define SB_RESTRICT
 #endif  // COMPILER
 #else   // __cplusplus
-#define SB_RESTRICT restrict
+#define SB_RESTRICT __restrict
 #endif  // __cplusplus
 #endif  // SB_RESTRICT
 
