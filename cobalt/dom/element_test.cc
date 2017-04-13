@@ -32,6 +32,7 @@
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -52,6 +53,7 @@ class ElementTest : public ::testing::Test {
   scoped_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
+  scoped_refptr<XMLDocument> xml_document_;
 };
 
 ElementTest::ElementTest()
@@ -63,9 +65,11 @@ ElementTest::ElementTest()
                             NULL, dom_stat_tracker_.get(), "") {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);
+  xml_document_ = new XMLDocument(&html_element_context_);
 }
 
 ElementTest::~ElementTest() {
+  xml_document_ = NULL;
   document_ = NULL;
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
@@ -80,9 +84,9 @@ TEST_F(ElementTest, CreateElement) {
   ASSERT_TRUE(element);
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
-  EXPECT_EQ("element", element->node_name());
-
-  EXPECT_EQ("element", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->node_name());
+  EXPECT_EQ("ELEMENT", element->tag_name());
+  EXPECT_EQ("element", element->local_name());
   EXPECT_EQ("", element->id());
   EXPECT_EQ("", element->class_name());
 
@@ -117,6 +121,18 @@ TEST_F(ElementTest, AsElement) {
 
   EXPECT_EQ(element, node->AsElement());
   EXPECT_EQ(NULL, text->AsElement());
+}
+
+TEST_F(ElementTest, TagName) {
+  scoped_refptr<Element> element_in_html =
+      new Element(document_, base::Token("eLeMeNt"));
+  EXPECT_EQ("ELEMENT", element_in_html->tag_name());
+  EXPECT_EQ("eLeMeNt", element_in_html->local_name());
+
+  scoped_refptr<Element> element_in_xml =
+      new Element(xml_document_, base::Token("eLeMeNt"));
+  EXPECT_EQ("eLeMeNt", element_in_xml->tag_name());
+  EXPECT_EQ("eLeMeNt", element_in_html->local_name());
 }
 
 TEST_F(ElementTest, AttributeMethods) {
@@ -375,8 +391,14 @@ TEST_F(ElementTest, InnerHTML) {
       "  <element_b2>Text</element_b2>\n"
       "</element_a>";
   EXPECT_EQ(kExpectedHTML, root->inner_html());
+}
 
+TEST_F(ElementTest, SetInnerHTML) {
   // Setting inner HTML should remove all previous children.
+  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
+  scoped_refptr<Element> element_a =
+      root->AppendChild(new Element(document_, base::Token("element_a")))
+          ->AsElement();
   root->set_inner_html("");
   EXPECT_FALSE(root->HasChildNodes());
 

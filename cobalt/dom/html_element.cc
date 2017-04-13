@@ -483,7 +483,7 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
   scoped_refptr<HTMLElement> new_html_element =
       document->html_element_context()
           ->html_element_factory()
-          ->CreateHTMLElement(document, tag_name());
+          ->CreateHTMLElement(document, local_name());
   new_html_element->CopyAttributes(*this);
   new_html_element->CopyDirectionality(*this);
   new_html_element->style_->AssignFrom(*this->style_);
@@ -704,8 +704,8 @@ void HTMLElement::InvalidateLayoutBoxRenderTreeNodes() {
   }
 }
 
-HTMLElement::HTMLElement(Document* document, base::Token tag_name)
-    : Element(document, tag_name),
+HTMLElement::HTMLElement(Document* document, base::Token local_name)
+    : Element(document, local_name),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
       directionality_(kNoExplicitDirectionality),
       style_(new cssom::CSSDeclaredStyleDeclaration(

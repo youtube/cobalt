@@ -19,6 +19,7 @@
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/node.h"
 
 namespace cobalt {
@@ -56,7 +57,9 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
 bool HTMLMetaElement::IsDescendantOfHeadElement() const {
   for (scoped_refptr<Node> node = parent_node(); node;
        node = node->parent_node()) {
-    if (node->node_name() == "head") return true;
+    if (node->AsElement() && node->AsElement()->AsHTMLElement() &&
+        node->AsElement()->AsHTMLElement()->AsHTMLHeadElement())
+      return true;
   }
   return false;
 }
