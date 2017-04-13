@@ -31,10 +31,13 @@
 // SB_IMPORT: Specification for a symbol that is expected to be defined
 // externally to this module.
 
-#if defined(COMPONENT_BUILD)
+#if defined(COMPONENT_BUILD) || SB_IS(LIBRARY)
 // COMPONENT_BUILD is defined when generating shared libraries for each project,
 // rather than static libraries. This means we need to be careful about
 // EXPORT/IMPORT.
+// SB_IS_LIBRARY is defined when building Starboard as a shared library to be
+// linked into a client app. In this case, we want to explicitly define
+// EXPORT/IMPORT so that Starboard's symbols are visible to such clients.
 #if defined(STARBOARD_IMPLEMENTATION)
 // STARBOARD_IMPLEMENTATION is defined when building the Starboard library
 // sources, and shouldn't be defined when building sources that are clients of
@@ -47,7 +50,7 @@
 #define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM
 #define SB_IMPORT SB_EXPORT_PLATFORM
 #endif
-#else  // defined(COMPONENT_BUILD)
+#else  // defined(COMPONENT_BUILD) || SB_IS(LIBRARY)
 #define SB_EXPORT
 #define SB_EXPORT_PRIVATE
 #define SB_IMPORT
