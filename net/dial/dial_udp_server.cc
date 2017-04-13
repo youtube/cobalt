@@ -4,7 +4,11 @@
 
 #include "net/dial/dial_udp_server.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/inet_poem.h"
+#else
 #include <arpa/inet.h>
+#endif
 #include <utility>
 #include <vector>
 

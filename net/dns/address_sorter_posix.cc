@@ -4,7 +4,11 @@
 
 #include "net/dns/address_sorter_posix.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/inet_poem.h"
+#else
 #include <netinet/in.h>
+#endif
 
 #if defined(OS_MACOSX) || defined(OS_BSD)
 #include <sys/socket.h>  // Must be included before ifaddrs.h.
@@ -425,4 +429,3 @@ scoped_ptr<AddressSorter> AddressSorter::CreateAddressSorter() {
 }
 
 }  // namespace net
-
