@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/data_source.h"
 
@@ -58,6 +59,7 @@ class ShellDataSourceReader
   // blocking read callback
   virtual void BlockingReadCompleted(int bytes_read);
 
+  base::Lock lock_;
   DataSource* data_source_;
   base::WaitableEvent blocking_read_event_;
   int64 file_size_;
