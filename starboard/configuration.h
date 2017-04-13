@@ -58,6 +58,10 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Adds kSbSystemPropertyUserAgentAuxField to the SbSystemPropertyId
+// enum to allow platform-specific  User-Agent suffix.
+#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
