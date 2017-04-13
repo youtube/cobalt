@@ -205,6 +205,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::TimeDelta seek_time_;
   scoped_ptr<StarboardPlayer> player_;
   bool suspended_;
+  bool stopped_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -224,7 +225,8 @@ SbPlayerPipeline::SbPlayerPipeline(
       audio_read_in_progress_(false),
       video_read_in_progress_(false),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
-      suspended_(false) {}
+      suspended_(false),
+      stopped_(false) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_); }
 
@@ -287,6 +289,8 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
 
   DCHECK(stop_cb_.is_null());
   DCHECK(!stop_cb.is_null());
+
+  stopped_ = true;
 
   if (player_) {
     scoped_ptr<StarboardPlayer> player;
@@ -608,8 +612,19 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  if (stopped_) {
+    return;
+  }
+
   if (status != PIPELINE_OK) {
     ResetAndRunIfNotNull(&error_cb_, status);
+    return;
+  }
+
+  if (suspended_) {
+    message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status));
     return;
   }
 
