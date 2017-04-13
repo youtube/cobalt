@@ -71,7 +71,7 @@ DrmSystem::DrmSystem(void* context,
       j_media_drm_bridge_(NULL),
       j_media_crypto_(NULL) {
   JniEnvExt* env = JniEnvExt::Get();
-  j_media_drm_bridge_ = env->CallStaticObjectMethod(
+  j_media_drm_bridge_ = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaDrmBridge", "create",
       "(J)Lfoo/cobalt/media/MediaDrmBridge;", reinterpret_cast<jlong>(this));
   if (!j_media_drm_bridge_) {
@@ -79,8 +79,8 @@ DrmSystem::DrmSystem(void* context,
     return;
   }
   j_media_drm_bridge_ = env->ConvertLocalRefToGlobalRef(j_media_drm_bridge_);
-  j_media_crypto_ = env->CallObjectMethod(j_media_drm_bridge_, "getMediaCrypto",
-                                          "()Landroid/media/MediaCrypto;");
+  j_media_crypto_ = env->CallObjectMethodOrAbort(
+      j_media_drm_bridge_, "getMediaCrypto", "()Landroid/media/MediaCrypto;");
   if (!j_media_crypto_) {
     SB_LOG(ERROR) << "Failed to create MediaCrypto.";
     return;
@@ -95,7 +95,7 @@ DrmSystem::~DrmSystem() {
     j_media_crypto_ = NULL;
   }
   if (j_media_drm_bridge_) {
-    env->CallVoidMethod(j_media_drm_bridge_, "destroy", "()V");
+    env->CallVoidMethodOrAbort(j_media_drm_bridge_, "destroy", "()V");
     env->DeleteGlobalRef(j_media_drm_bridge_);
     j_media_drm_bridge_ = NULL;
   }
@@ -109,9 +109,10 @@ void DrmSystem::GenerateSessionUpdateRequest(
   ScopedLocalJavaRef j_init_data(
       ByteArrayFromRaw(initialization_data, initialization_data_size));
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTF(type);
-  env->CallVoidMethod(j_media_drm_bridge_, "createSession",
-                      "([BLjava/lang/String;)V", j_init_data.Get(), j_mime);
+  jstring j_mime = env->NewStringUTFOrAbort(type);
+  env->CallVoidMethodOrAbort(j_media_drm_bridge_, "createSession",
+                             "([BLjava/lang/String;)V", j_init_data.Get(),
+                             j_mime);
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
 }
@@ -124,7 +125,7 @@ void DrmSystem::UpdateSession(const void* key,
       ByteArrayFromRaw(session_id, session_id_size));
   ScopedLocalJavaRef j_response(ByteArrayFromRaw(key, key_size));
 
-  jboolean status = JniEnvExt::Get()->CallBooleanMethod(
+  jboolean status = JniEnvExt::Get()->CallBooleanMethodOrAbort(
       j_media_drm_bridge_, "updateSession", "([B[B)Z", j_session_id.Get(),
       j_response.Get());
   session_updated_callback_(this, context_, session_id, session_id_size,
@@ -135,8 +136,8 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef j_session_id(
       ByteArrayFromRaw(session_id, session_id_size));
-  env->CallVoidMethod(j_media_drm_bridge_, "closeSession", "([B)V",
-                      j_session_id.Get());
+  env->CallVoidMethodOrAbort(j_media_drm_bridge_, "closeSession", "([B)V",
+                             j_session_id.Get());
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {

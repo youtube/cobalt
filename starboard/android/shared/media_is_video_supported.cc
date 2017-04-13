@@ -33,7 +33,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
   JniEnvExt* env = JniEnvExt::Get();
   jstring j_mime = env->NewStringUTFOrAbort(mime);
-  return env->CallStaticBooleanMethod(
+  return env->CallStaticBooleanMethodOrAbort(
              "foo/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
              "(Ljava/lang/String;ZIIII)Z", j_mime, false, frame_width,
              frame_height, static_cast<jint>(bitrate), fps) == JNI_TRUE;
