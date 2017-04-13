@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
@@ -36,7 +35,7 @@ namespace cobalt {
 namespace media {
 
 // TODO: Add switch to disable caching
-class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
+class StarboardPlayer {
  public:
   class Host {
    public:
@@ -86,6 +85,24 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
     kResuming,
   };
 
+  // This class ensures that the callbacks posted to |message_loop_| are ignored
+  // automatically once StarboardPlayer is destroyed.
+  class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
+   public:
+    explicit CallbackHelper(StarboardPlayer* player);
+
+    void ClearDecoderBufferCache();
+    void OnDecoderStatus(SbPlayer player, SbMediaType type,
+                         SbPlayerDecoderState state, int ticket);
+    void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
+    void OnDeallocateSample(const void* sample_buffer);
+    void ResetPlayer();
+
+   private:
+    base::Lock lock_;
+    StarboardPlayer* player_;
+  };
+
   static const int64 kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
@@ -120,13 +137,14 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
 
   // The following variables are initialized in the ctor and never changed.
   const scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<CallbackHelper> callback_helper_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   const SbWindow window_;
   const SbDrmSystem drm_system_;
   Host* const host_;
+  // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
-  const base::WeakPtr<StarboardPlayer> weak_this_;
 
   // The following variables are only changed or accessed from the
   // |message_loop_|.
