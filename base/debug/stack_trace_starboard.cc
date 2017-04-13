@@ -14,6 +14,7 @@
 
 #include "base/debug/stack_trace.h"
 
+#include <algorithm>
 #include <ostream>
 
 #include "base/basictypes.h"

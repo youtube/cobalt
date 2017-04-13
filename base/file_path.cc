@@ -1214,7 +1214,7 @@ int FilePath::CompareIgnoreCase(const StringType& string1,
 // TODO(rolandsteiner) check if this is sufficient/correct.
 int FilePath::CompareIgnoreCase(const StringType& string1,
                                 const StringType& string2) {
-  int comparison = strcasecmp(string1.c_str(), string2.c_str());
+  int comparison = base::strcasecmp(string1.c_str(), string2.c_str());
   if (comparison < 0)
     return -1;
   if (comparison > 0)
