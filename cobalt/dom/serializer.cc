@@ -113,11 +113,11 @@ void Serializer::Visit(const DocumentType* document_type) {
 
 void Serializer::Visit(const Element* element) {
   if (entering_node_) {
-    *out_stream_ << "<" << element->tag_name();
+    *out_stream_ << "<" << element->local_name();
     WriteAtttributes(element, out_stream_);
     *out_stream_ << ">";
   } else {
-    *out_stream_ << "</" << element->tag_name() << ">";
+    *out_stream_ << "</" << element->local_name() << ">";
   }
 }
 

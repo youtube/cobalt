@@ -258,7 +258,7 @@ void LibxmlParserWrapper::OnEndElement(const std::string& name) {
       element->OnParserEndTag();
     }
 
-    if (element->node_name() == name) {
+    if (element->local_name() == name) {
       return;
     }
   }
