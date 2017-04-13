@@ -5,6 +5,7 @@
 #include "base/memory/aligned_memory.h"
 
 #include "base/logging.h"
+#include "starboard/memory.h"
 
 #if defined(OS_ANDROID) || defined(OS_NACL) || defined(__LB_SHELL__)
 #include <malloc.h>

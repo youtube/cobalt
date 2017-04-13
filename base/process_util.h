@@ -237,6 +237,16 @@ typedef int* LaunchSynchronizationHandle;
 
 // Options for launching a subprocess that are passed to LaunchProcess().
 // The default constructor constructs the object with default options.
+#if defined(OS_STARBOARD)
+struct LaunchOptions {
+  LaunchOptions()
+      : wait(false),
+        fds_to_remap(NULL),
+        maximize_rlimits(NULL),
+        new_process_group(false) {
+    environ = NULL;
+  }
+#else
 struct LaunchOptions {
   LaunchOptions() : wait(false),
 #if defined(OS_WIN)
@@ -257,6 +267,7 @@ struct LaunchOptions {
 #endif  // defined(OS_MACOSX)
 #endif  // !defined(OS_WIN)
       {}
+#endif  // defined(OS_STARBOARD)
 
   // If true, wait for the process to complete.
   bool wait;
