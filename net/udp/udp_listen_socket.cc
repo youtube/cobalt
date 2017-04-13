@@ -16,6 +16,8 @@
 
 #include "net/udp/udp_listen_socket.h"
 
+#include <algorithm>
+
 #if defined(OS_POSIX)
 #include <errno.h>
 #include <sys/types.h>
