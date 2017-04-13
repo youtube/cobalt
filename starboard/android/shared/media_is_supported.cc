@@ -25,7 +25,7 @@ SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
   if (!IsWidevine(key_system)) {
     return false;
   }
-  return JniEnvExt::Get()->CallStaticBooleanMethod(
+  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
              "foo/cobalt/media/MediaDrmBridge",
              "isWidevineCryptoSchemeSupported", "()Z") == JNI_TRUE;
 }

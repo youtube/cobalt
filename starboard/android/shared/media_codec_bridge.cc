@@ -137,7 +137,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
   ScopedLocalJavaRef j_encrypted_bytes(
       env->NewIntArrayFromRaw(encrypted_bytes.get(), subsample_count));
 
-  return env->CallIntMethod(
+  return env->CallIntMethodOrAbort(
       j_media_codec_bridge_, "queueSecureInputBuffer", "(II[B[B[I[IIIIIJ)I",
       index, offset, j_iv.Get(), j_key_id.Get(), j_clear_bytes.Get(),
       j_encrypted_bytes.Get(), subsample_count, CRYPTO_MODE_AES_CTR, 0, 0,
