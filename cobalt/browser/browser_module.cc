@@ -198,6 +198,14 @@ scoped_refptr<script::Wrappable> CreateH5VCC(
       new h5vcc::H5vcc(settings, window, mutation_observer_task_manager));
 }
 
+renderer::RendererModule::Options RendererModuleWithCameraOptions(
+    renderer::RendererModule::Options options,
+    scoped_refptr<input::Camera3D> camera_3d) {
+  options.get_camera_transform = base::Bind(
+      &input::Camera3D::GetCameraTransformAndUpdateOrientation, camera_3d);
+  return options;  // Copy.
+}
+
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url,
@@ -215,7 +223,13 @@ BrowserModule::BrowserModule(const GURL& url,
 #if defined(OS_STARBOARD)
       is_rendered_(false),
 #endif  // OS_STARBOARD
-      renderer_module_(system_window, options.renderer_module_options),
+      input_device_manager_(input::InputDeviceManager::CreateFromWindow(
+          base::Bind(&BrowserModule::OnKeyEventProduced,
+                     base::Unretained(this)),
+          system_window)),
+      renderer_module_(system_window, RendererModuleWithCameraOptions(
+                                          options.renderer_module_options,
+                                          input_device_manager_->camera_3d())),
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       array_buffer_allocator_(new ResourceProviderArrayBufferAllocator(
           renderer_module_.pipeline()->GetResourceProvider())),
@@ -247,8 +261,7 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          h5vcc_url_handler_(this, system_window)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(h5vcc_url_handler_(this, system_window)),
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
@@ -314,10 +327,6 @@ BrowserModule::BrowserModule(const GURL& url,
     OnFuzzerToggle(std::string());
   }
 #endif  // ENABLE_DEBUG_CONSOLE && ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
-  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
-      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
-      system_window);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_console_.reset(new DebugConsole(
@@ -433,7 +442,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
-  options.input_poller = input_device_manager_->input_poller();
+  options.camera_3d = input_device_manager_->camera_3d();
   web_module_.reset(new WebModule(
       url, base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
                       base::Unretained(this)),

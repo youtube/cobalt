@@ -18,6 +18,8 @@
       'target_name': 'input',
       'type': 'static_library',
       'sources': [
+        'camera_3d.h',
+        'create_default_camera_3d.h',
         'input_device_manager.h',
         'input_device_manager_fuzzer.cc',
         'input_device_manager_fuzzer.h',
@@ -50,6 +52,17 @@
             'input_device_manager_<(actual_target_arch).cc',
             'input_device_manager_desktop.cc',
             'input_device_manager_desktop.h',
+          ],
+        }],
+        ['enable_vr==1', {
+          'sources': [
+            'private/camera_3d_vr.cc',
+            'private/camera_3d_vr.h',
+          ],
+        }, { # enable_vr!=1
+          'sources': [
+            'camera_3d_input_poller.cc',
+            'camera_3d_input_poller.h',
           ],
         }],
       ],

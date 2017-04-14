@@ -493,7 +493,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.window_minimize_callback,
-      data.system_window_, data.options.input_poller,
+      data.system_window_, data.options.camera_3d,
       media_session_client_->GetMediaSession(),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
   DCHECK(window_);
