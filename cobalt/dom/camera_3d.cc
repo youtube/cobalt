@@ -19,8 +19,7 @@
 namespace cobalt {
 namespace dom {
 
-Camera3D::Camera3D(const scoped_refptr<input::InputPoller>& input_poller)
-    : impl_(new Camera3DImpl(input_poller)) {}
+Camera3D::Camera3D(const scoped_refptr<input::Camera3D>& impl) : impl_(impl) {}
 
 void Camera3D::CreateKeyMapping(int keycode, uint32 camera_axis,
                                 float degrees_per_second) {
