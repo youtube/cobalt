@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <!-- Error message when there's a problem connecting to the network. -->
   <string name="connectionError">Connection error.</string>
+  <!-- Error message when an action (e.g. flagging) fails because the user is signed out. -->
   <string name="signedOut">User is not signed in.</string>
+  <!-- Error message when an action fails because the user is under age. -->
   <string name="ageRestricted">User is age restricted.</string>
+  <!-- Error message when an something unexpected happened. -->
   <string name="unknownError">An unknown error occurred.</string>
+  <!-- Error message when either we can't get the account to sign in, or the account can't be authorized. -->
   <string name="sign_in_error">There was an error signing in</string>
+  <!-- Toast message indicating that the last used account is no longer available to automatically sign-in. -->
   <string name="missing_account">Account not available:\n%1s</string>
 </resources>
