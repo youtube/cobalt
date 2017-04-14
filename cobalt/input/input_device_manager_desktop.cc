@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "cobalt/input/create_default_camera_3d.h"
 #include "cobalt/input/input_poller_impl.h"
 #include "cobalt/system_window/input_event.h"
 
@@ -31,6 +32,10 @@ InputDeviceManagerDesktop::InputDeviceManagerDesktop(
                      base::Unretained(this))),
       keypress_generator_filter_(callback) {
   input_poller_ = new InputPollerImpl();
+  DCHECK(system_window_);
+  camera_3d_ =
+      CreatedDefaultCamera3D(system_window->GetSbWindow(), input_poller_);
+
   if (system_window_) {
     // Add this object's keyboard event callback to the system window.
     system_window_->event_dispatcher()->AddEventCallback(

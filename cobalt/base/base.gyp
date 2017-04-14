@@ -23,6 +23,7 @@
       'sources': [
         'accessibility_changed_event.h',
         'address_sanitizer.h',
+        'camera_transform.h',
         'clock.h',
         'cobalt_paths.h',
         'compiler.h',
