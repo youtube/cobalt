@@ -46,9 +46,11 @@ namespace rasterizer {
 namespace skia {
 
 HardwareResourceProvider::HardwareResourceProvider(
-    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context)
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+    SubmitOffscreenCallback submit_offscreen_callback)
     : cobalt_context_(cobalt_context),
       gr_context_(gr_context),
+      submit_offscreen_callback_(submit_offscreen_callback),
       self_message_loop_(MessageLoop::current()) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
@@ -369,6 +371,13 @@ scoped_refptr<render_tree::Mesh> HardwareResourceProvider::CreateMesh(
     scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     render_tree::Mesh::DrawMode draw_mode) {
   return new HardwareMesh(vertices.Pass(), draw_mode);
+}
+
+scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
+    const scoped_refptr<render_tree::Node>& root) {
+  return make_scoped_refptr(new HardwareFrontendImage(
+      root, submit_offscreen_callback_, cobalt_context_, gr_context_,
+      self_message_loop_));
 }
 
 }  // namespace skia

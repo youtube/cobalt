@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/typeface.h"
 
@@ -76,6 +77,10 @@ class MockResourceProvider : public ResourceProvider {
   MOCK_METHOD2(CreateMeshMock,
                render_tree::Mesh*(std::vector<render_tree::Mesh::Vertex>*,
                                   render_tree::Mesh::DrawMode));
+
+  MOCK_METHOD1(DrawOffscreenImage,
+               scoped_refptr<render_tree::Image>(
+                   const scoped_refptr<render_tree::Node>& root));
 
   scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
                                           PixelFormat pixel_format,

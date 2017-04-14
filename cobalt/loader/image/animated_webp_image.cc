@@ -17,6 +17,11 @@
 #include "cobalt/loader/image/animated_webp_image.h"
 
 #include "cobalt/loader/image/webp_image_decoder.h"
+#include "cobalt/render_tree/brush.h"
+#include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/node.h"
+#include "cobalt/render_tree/rect_node.h"
 #include "nb/memory_scope.h"
 #include "starboard/memory.h"
 
@@ -25,7 +30,6 @@ namespace loader {
 namespace image {
 namespace {
 
-const int kPixelSize = 4;
 const int kLoopInfinite = 0;
 const int kMinimumDelayInMilliseconds = 10;
 
@@ -33,23 +37,25 @@ const int kMinimumDelayInMilliseconds = 10;
 
 AnimatedWebPImage::AnimatedWebPImage(
     const math::Size& size, bool is_opaque,
+    render_tree::PixelFormat pixel_format,
     render_tree::ResourceProvider* resource_provider)
     : size_(size),
       is_opaque_(is_opaque),
+      pixel_format_(pixel_format),
       demux_(NULL),
       demux_state_(WEBP_DEMUX_PARSING_HEADER),
       received_first_frame_(false),
       is_playing_(false),
       frame_count_(0),
       loop_count_(kLoopInfinite),
-      background_color_(0),
       current_frame_index_(0),
       next_frame_index_(0),
+      should_dispose_previous_frame_to_background_(false),
       resource_provider_(resource_provider) {}
 
 scoped_refptr<render_tree::Image> AnimatedWebPImage::GetFrame() {
   base::AutoLock lock(lock_);
-  return current_frame_image_;
+  return current_canvas_;
 }
 
 void AnimatedWebPImage::Play(
@@ -92,11 +98,16 @@ void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
 
     received_first_frame_ = true;
     loop_count_ = WebPDemuxGetI(demux_, WEBP_FF_LOOP_COUNT);
-    background_color_ = WebPDemuxGetI(demux_, WEBP_FF_BACKGROUND_COLOR);
-    if (size_.width() > 0 && size_.height() > 0) {
-      image_buffer_.resize(size_.width() * size_.height() * kPixelSize);
-      FillImageBufferWithBackgroundColor();
-    }
+
+    // The default background color of the canvas in [Blue, Green, Red, Alpha]
+    // byte order. It is read in little endian order as an 32bit int.
+    uint32_t background_color = WebPDemuxGetI(demux_, WEBP_FF_BACKGROUND_COLOR);
+    background_color_ =
+        render_tree::ColorRGBA((background_color >> 16 & 0xff) / 255.0f,
+                               (background_color >> 8 & 0xff) / 255.0f,
+                               (background_color & 0xff) / 255.0f,
+                               (background_color >> 24 & 0xff) / 255.0f);
+
     if (is_playing_) {
       PlayInternal();
     }
@@ -164,6 +175,7 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
   base::AutoLock lock(lock_);
   WebPIterator webp_iterator;
   WEBPImageDecoder webp_image_decoder(resource_provider_);
+  scoped_refptr<render_tree::Image> next_frame_image;
 
   // Decode the current frame.
   {
@@ -179,78 +191,62 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
       LOG(ERROR) << "Failed to decode WebP image frame.";
       return false;
     }
+
+    scoped_ptr<render_tree::ImageData> next_frame_data = AllocateImageData(
+        math::Size(webp_iterator.width, webp_iterator.height));
+    DCHECK(next_frame_data);
+    {
+      TRACE_EVENT0("cobalt::loader::image", "SbMemoryCopy");
+      SbMemoryCopy(next_frame_data->GetMemory(),
+                   webp_image_decoder.GetOriginalMemory(),
+                   webp_iterator.width * webp_iterator.height *
+                       render_tree::BytesPerPixel(pixel_format_));
+    }
+    next_frame_image = resource_provider_->CreateImage(next_frame_data.Pass());
   }
 
   // Alpha blend the current frame on top of the buffer.
   {
     TRACE_EVENT0("cobalt::loader::image", "Blending");
 
-    uint8_t* image_buffer_memory = &image_buffer_[0];
-    uint8_t* next_frame_memory = webp_image_decoder.GetOriginalMemory();
-    // Alpha-blending: Given that each of the R, G, B and A channels is 8-bit,
-    // and the RGB channels are not premultiplied by alpha, the formula for
-    // blending 'dst' onto 'src' is:
-    // blend.A = src.A + dst.A * (1 - src.A / 255)
-    // if blend.A = 0 then
-    //   blend.RGB = 0
-    // else
-    //   blend.RGB = (src.RGB * src.A +
-    //                dst.RGB * dst.A * (1 - src.A / 255)) / blend.A
-    //   https://developers.google.com/speed/webp/docs/riff_container#animation
-    for (int y = 0; y < webp_iterator.height; ++y) {
-      uint8_t* src = next_frame_memory + (y * webp_iterator.width) * kPixelSize;
-      uint8_t* dst = image_buffer_memory +
-                     ((y + webp_iterator.y_offset) * size_.width() +
-                      webp_iterator.x_offset) *
-                         kPixelSize;
-      for (int x = 0; x < webp_iterator.width; ++x) {
-        uint32_t dst_factor = dst[3] * (255 - src[3]);
-        dst[3] = static_cast<uint8_t>(src[3] + dst_factor / 255);
-        if (dst[3] == 0) {
-          dst[0] = dst[1] = dst[2] = 0;
-        } else {
-          for (int i = 0; i < 3; ++i) {
-            dst[i] = static_cast<uint8_t>(
-                (src[i] * src[3] + dst[i] * dst_factor / 255) / dst[3]);
-          }
-        }
-
-        src += kPixelSize;
-        dst += kPixelSize;
-      }
-    }
-  }
-
-  // Generate render tree image.
-  {
-    TRACE_EVENT0("cobalt::loader::image", "Generating render tree image");
-
-    scoped_ptr<render_tree::ImageData> next_frame_data = AllocateImageData();
-    DCHECK(next_frame_data);
-    SbMemoryCopy(next_frame_data->GetMemory(), &image_buffer_[0],
-                 size_.width() * size_.height() * kPixelSize);
-    current_frame_image_ =
-        resource_provider_->CreateImage(next_frame_data.Pass());
-  }
-
-  // Dispose the current frame using its dispose method.
-  {
-    TRACE_EVENT0("cobalt::loader::image", "Disposing");
-
-    if (webp_iterator.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND) {
-      for (int y = 0; y < webp_iterator.height; ++y) {
-        uint8_t* dst = &image_buffer_[0] +
-                       ((y + webp_iterator.y_offset) * size_.width() +
-                        webp_iterator.x_offset) *
-                           kPixelSize;
-        for (int x = 0; x < webp_iterator.width; ++x) {
-          *reinterpret_cast<uint32_t*>(dst) = background_color_;
-          dst += kPixelSize;
-        }
-      }
+    render_tree::CompositionNode::Builder builder;
+    // Add the current canvas or, if there is not one, a background color
+    // rectangle;
+    if (current_canvas_) {
+      builder.AddChild(new render_tree::ImageNode(current_canvas_));
     } else {
-      DCHECK_EQ(WEBP_MUX_DISPOSE_NONE, webp_iterator.dispose_method);
+      scoped_ptr<render_tree::Brush> brush(
+          new render_tree::SolidColorBrush(background_color_));
+      builder.AddChild(
+          new render_tree::RectNode(math::RectF(size_), brush.Pass()));
     }
+    // Dispose previous frame by adding a solid rectangle.
+    if (should_dispose_previous_frame_to_background_) {
+      scoped_ptr<render_tree::Brush> brush(
+          new render_tree::SolidColorBrush(background_color_));
+      builder.AddChild(
+          new render_tree::RectNode(previous_frame_rect_, brush.Pass()));
+    }
+    // Add the current frame.
+    builder.AddChild(new render_tree::ImageNode(
+        next_frame_image,
+        math::Vector2dF(webp_iterator.x_offset, webp_iterator.y_offset)));
+
+    scoped_refptr<render_tree::Node> root =
+        new render_tree::CompositionNode(builder);
+
+    current_canvas_ = resource_provider_->DrawOffscreenImage(root);
+  }
+
+  if (webp_iterator.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND) {
+    should_dispose_previous_frame_to_background_ = true;
+    previous_frame_rect_ =
+        math::RectF(webp_iterator.x_offset, webp_iterator.y_offset,
+                    webp_iterator.width, webp_iterator.height);
+  } else if (webp_iterator.dispose_method == WEBP_MUX_DISPOSE_NONE) {
+    should_dispose_previous_frame_to_background_ = false;
+  } else {
+    NOTREACHED();
   }
 
   WebPDemuxReleaseIterator(&webp_iterator);
@@ -293,25 +289,12 @@ void AnimatedWebPImage::UpdateTimelineInfo() {
   }
 }
 
-void AnimatedWebPImage::FillImageBufferWithBackgroundColor() {
-  for (int y = 0; y < size_.height(); ++y) {
-    for (int x = 0; x < size_.width(); ++x) {
-      *reinterpret_cast<uint32_t*>(
-          &image_buffer_[(y * size_.width() + x) * kPixelSize]) =
-          background_color_;
-    }
-  }
-}
-
-scoped_ptr<render_tree::ImageData> AnimatedWebPImage::AllocateImageData() {
+scoped_ptr<render_tree::ImageData> AnimatedWebPImage::AllocateImageData(
+    const math::Size& size) {
   TRACK_MEMORY_SCOPE("Rendering");
-  render_tree::PixelFormat pixel_format = render_tree::kPixelFormatRGBA8;
-  if (!resource_provider_->PixelFormatSupported(pixel_format)) {
-    pixel_format = render_tree::kPixelFormatBGRA8;
-  }
   scoped_ptr<render_tree::ImageData> image_data =
       resource_provider_->AllocateImageData(
-          size_, pixel_format, render_tree::kAlphaFormatPremultiplied);
+          size, pixel_format_, render_tree::kAlphaFormatPremultiplied);
   DCHECK(image_data) << "Failed to allocate image.";
   return image_data.Pass();
 }

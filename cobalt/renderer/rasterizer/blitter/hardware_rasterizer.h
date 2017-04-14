@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_BLITTER_HARDWARE_RASTERIZER_H_
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/render_target.h"
