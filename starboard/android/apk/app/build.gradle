@@ -157,9 +157,8 @@ COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
 
         def copyTaskName = "cobaltCopy${abi.capitalize()}${buildType.capitalize()}"
         task(copyTaskName, type: Copy, dependsOn: buildTaskName) {
-            from "${productDir}/lib"
+            from "${productDir}/lib/lib${STARBOARD_APP}.so"
             into "${cobaltBuildDir}/${abi}"
-            include "lib${STARBOARD_APP}.so"
             rename("lib${STARBOARD_APP}.so", 'libstarboard.so')
             doLast {
                 source.files.each { println it }
