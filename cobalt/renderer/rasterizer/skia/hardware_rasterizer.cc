@@ -69,6 +69,10 @@ class HardwareRasterizer::Impl {
   void SubmitOffscreen(const scoped_refptr<render_tree::Node>& render_tree,
                        SkCanvas* canvas);
 
+  void SubmitOffscreenToRenderTarget(
+      const scoped_refptr<render_tree::Node>& render_tree,
+      const scoped_refptr<backend::RenderTarget>& render_target);
+
   render_tree::ResourceProvider* GetResourceProvider();
   GrContext* GetGrContext();
 
@@ -97,6 +101,12 @@ class HardwareRasterizer::Impl {
   SkSurface* CreateSkSurface(const math::Size& size);
   scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
       const math::Size& size);
+
+  void RasterizeRenderTreeToCanvas(
+      const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas);
+
+  SkCanvas* GetCanvasFromRenderTarget(
+      const scoped_refptr<backend::RenderTarget>& render_target);
 
   void ResetSkiaState();
 
@@ -391,8 +401,10 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
   // Setup a resource provider for resources to be used with a hardware
   // accelerated Skia rasterizer.
-  resource_provider_.reset(
-      new HardwareResourceProvider(graphics_context_, gr_context_));
+  resource_provider_.reset(new HardwareResourceProvider(
+      graphics_context_, gr_context_,
+      base::Bind(&HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget,
+                 base::Unretained(this))));
 
   graphics_context_->ReleaseCurrentContext();
 
@@ -459,42 +471,9 @@ void HardwareRasterizer::Impl::Submit(
 
   AdvanceFrame();
 
-  SkSurface* sk_output_surface;
-  SkSurfaceMap::iterator iter = sk_output_surface_map_.find(render_target);
-  if (iter == sk_output_surface_map_.end()) {
-    // Remove the least recently used SkSurface from the map if we exceed the
-    // max allowed saved surfaces.
-    if (sk_output_surface_map_.size() > kMaxSkSurfaceCount) {
-      SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
-      DLOG(WARNING)
-          << "Erasing the SkSurface for RenderTarget " << iter->first
-          << ". This may happen nominally during movement-triggered "
-          << "replacement of SkSurfaces or else it may indicate the surface "
-          << "map is thrashing because the total number of RenderTargets ("
-          << kMaxSkSurfaceCount << ") has been exceeded.";
-      iter->second->unref();
-      sk_output_surface_map_.erase(iter);
-    }
-    // Setup a Skia render target that wraps the passed in Cobalt render target.
-    SkAutoTUnref<GrRenderTarget> skia_render_target(
-        gr_context_->wrapBackendRenderTarget(
-            CobaltRenderTargetToSkiaBackendRenderTargetDesc(
-                render_target.get())));
-
-    // Create an SkSurface from the render target so that we can acquire a
-    // SkCanvas object from it in Submit().
-    sk_output_surface = CreateSkiaRenderTargetSurface(skia_render_target);
-    sk_output_surface_map_[render_target] = sk_output_surface;
-  } else {
-    sk_output_surface = sk_output_surface_map_[render_target];
-    // Mark this RenderTarget/SkCanvas pair as the most recently used by
-    // popping it and re-adding it.
-    sk_output_surface_map_.erase(iter);
-    sk_output_surface_map_[render_target] = sk_output_surface;
-  }
-
   // Get a SkCanvas that outputs to our hardware render target.
-  SkCanvas* canvas = sk_output_surface->getCanvas();
+  SkCanvas* canvas = GetCanvasFromRenderTarget(render_target);
+
   canvas->save();
 
   if (options.flags & Rasterizer::kSubmitFlags_Clear) {
@@ -507,25 +486,8 @@ void HardwareRasterizer::Impl::Submit(
     }
   }
 
-  {
-    TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
-    // Rasterize the passed in render tree to our hardware render target.
-    RenderTreeNodeVisitor::CreateScratchSurfaceFunction
-        create_scratch_surface_function =
-            base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
-                       base::Unretained(this));
-    RenderTreeNodeVisitor visitor(
-        canvas, &create_scratch_surface_function,
-        base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
-                   base::Unretained(this)),
-        base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
-                   base::Unretained(this)),
-        base::Bind(&HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL,
-                   base::Unretained(this)),
-        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
-        surface_cache_ ? &surface_cache_.value() : NULL);
-    render_tree->Accept(&visitor);
-  }
+  // Rasterize the passed in render tree to our hardware render target.
+  RasterizeRenderTreeToCanvas(render_tree, canvas);
 
   {
     TRACE_EVENT0("cobalt::renderer", "Skia Flush");
@@ -537,31 +499,32 @@ void HardwareRasterizer::Impl::Submit(
 }
 
 void HardwareRasterizer::Impl::SubmitOffscreen(
+    const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  RasterizeRenderTreeToCanvas(render_tree, canvas);
+}
+
+void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
     const scoped_refptr<render_tree::Node>& render_tree,
-    SkCanvas* canvas) {
+    const scoped_refptr<backend::RenderTarget>& render_target) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  // Caller is expected to reset gr_context as needed.
+  // Create a canvas from the render target.
+  GrBackendRenderTargetDesc skia_desc =
+      CobaltRenderTargetToSkiaBackendRenderTargetDesc(render_target.get());
+  skia_desc.fOrigin = graphics_context_->ComputeReadPixelsNeedVerticalFlip()
+                          ? kTopLeft_GrSurfaceOrigin
+                          : kBottomLeft_GrSurfaceOrigin;
+  SkAutoTUnref<GrRenderTarget> skia_render_target(
+      gr_context_->wrapBackendRenderTarget(skia_desc));
+  SkSurface* sk_output_surface =
+      CreateSkiaRenderTargetSurface(skia_render_target);
+  SkCanvas* canvas = sk_output_surface->getCanvas();
 
-  {
-    TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
-    // Rasterize the passed in render tree to our hardware render target.
-    RenderTreeNodeVisitor::CreateScratchSurfaceFunction
-        create_scratch_surface_function =
-            base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
-                       base::Unretained(this));
-    RenderTreeNodeVisitor visitor(
-        canvas, &create_scratch_surface_function,
-        base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
-                   base::Unretained(this)),
-        base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
-                   base::Unretained(this)),
-        base::Bind(&HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL,
-                   base::Unretained(this)),
-        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
-        surface_cache_ ? &surface_cache_.value() : NULL);
-    render_tree->Accept(&visitor);
-  }
+  // Render to the canvas and clean up.
+  RasterizeRenderTreeToCanvas(render_tree, canvas);
+  canvas->flush();
+  sk_output_surface->unref();
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
@@ -625,6 +588,65 @@ HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
   }
 }
 
+SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
+    const scoped_refptr<backend::RenderTarget>& render_target) {
+  SkSurface* sk_output_surface;
+  SkSurfaceMap::iterator iter = sk_output_surface_map_.find(render_target);
+  if (iter == sk_output_surface_map_.end()) {
+    // Remove the least recently used SkSurface from the map if we exceed the
+    // max allowed saved surfaces.
+    if (sk_output_surface_map_.size() > kMaxSkSurfaceCount) {
+      SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
+      DLOG(WARNING)
+          << "Erasing the SkSurface for RenderTarget " << iter->first
+          << ". This may happen nominally during movement-triggered "
+          << "replacement of SkSurfaces or else it may indicate the surface "
+          << "map is thrashing because the total number of RenderTargets ("
+          << kMaxSkSurfaceCount << ") has been exceeded.";
+      iter->second->unref();
+      sk_output_surface_map_.erase(iter);
+    }
+    // Setup a Skia render target that wraps the passed in Cobalt render target.
+    SkAutoTUnref<GrRenderTarget> skia_render_target(
+        gr_context_->wrapBackendRenderTarget(
+            CobaltRenderTargetToSkiaBackendRenderTargetDesc(
+                render_target.get())));
+
+    // Create an SkSurface from the render target so that we can acquire a
+    // SkCanvas object from it in Submit().
+    sk_output_surface = CreateSkiaRenderTargetSurface(skia_render_target);
+    sk_output_surface_map_[render_target] = sk_output_surface;
+  } else {
+    sk_output_surface = sk_output_surface_map_[render_target];
+    // Mark this RenderTarget/SkCanvas pair as the most recently used by
+    // popping it and re-adding it.
+    sk_output_surface_map_.erase(iter);
+    sk_output_surface_map_[render_target] = sk_output_surface;
+  }
+  return sk_output_surface->getCanvas();
+}
+
+void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
+    const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas) {
+  TRACE_EVENT0("cobalt::renderer", "RasterizeRenderTreeToCanvas");
+  RenderTreeNodeVisitor::CreateScratchSurfaceFunction
+      create_scratch_surface_function =
+          base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
+                     base::Unretained(this));
+  RenderTreeNodeVisitor visitor(
+      canvas, &create_scratch_surface_function,
+      base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
+                 base::Unretained(this)),
+      base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
+                 base::Unretained(this)),
+      base::Bind(&HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL,
+                 base::Unretained(this)),
+      surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
+      surface_cache_ ? &surface_cache_.value() : NULL);
+  DCHECK(render_tree);
+  render_tree->Accept(&visitor);
+}
+
 void HardwareRasterizer::Impl::ResetSkiaState() { gr_context_->resetContext(); }
 
 HardwareRasterizer::HardwareRasterizer(
@@ -648,8 +670,7 @@ void HardwareRasterizer::Submit(
 }
 
 void HardwareRasterizer::SubmitOffscreen(
-    const scoped_refptr<render_tree::Node>& render_tree,
-    SkCanvas* canvas) {
+    const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas) {
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::SubmitOffscreen()");
   impl_->SubmitOffscreen(render_tree, canvas);
 }

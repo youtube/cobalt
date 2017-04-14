@@ -323,6 +323,12 @@ class ResourceProviderStub : public ResourceProvider {
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE {
     return new MeshStub(vertices.Pass(), draw_mode);
   }
+
+  scoped_refptr<Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE {
+    UNREFERENCED_PARAMETER(root);
+    return scoped_refptr<Image>(NULL);
+  }
 };
 
 }  // namespace render_tree

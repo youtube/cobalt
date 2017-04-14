@@ -2846,6 +2846,14 @@ TEST_F(PixelTest, PunchThroughVideoNodePunchesThroughSetBoundsCBReturnsTrue) {
   TestTree(new CompositionNode(builder.Pass()));
 }
 
+TEST_F(PixelTest, DrawOffscreenImage) {
+  scoped_refptr<Node> root = CreateCascadedRectsOfDifferentColors(
+      ScaleSize(output_surface_size(), 0.5f, 0.5f));
+  scoped_refptr<Image> offscreen_image =
+      GetResourceProvider()->DrawOffscreenImage(root);
+  TestTree(new ImageNode(offscreen_image));
+}
+
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt

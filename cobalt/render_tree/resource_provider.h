@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/mesh.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/typeface.h"
 #if defined(STARBOARD)
 #include "starboard/decode_target.h"
@@ -214,6 +215,9 @@ class ResourceProvider {
   virtual scoped_refptr<Mesh> CreateMesh(
       scoped_ptr<std::vector<Mesh::Vertex> > vertices,
       Mesh::DrawMode draw_mode) = 0;
+
+  virtual scoped_refptr<Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) = 0;
 };
 
 }  // namespace render_tree
