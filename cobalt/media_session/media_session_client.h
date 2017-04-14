@@ -58,6 +58,7 @@ class MediaSessionClient {
 
   // Invokes a given media session action
   // https://wicg.github.io/mediasession/#actions-model
+  // Can be invoked from any thread.
   void InvokeAction(MediaSessionAction action);
 
   // Invoked on the browser thread when any metadata, playback state,
