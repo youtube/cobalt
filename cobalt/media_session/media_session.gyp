@@ -21,12 +21,18 @@
       'target_name': 'media_session',
       'type': 'static_library',
       'sources': [
-        'default_media_session_client.h',
         'media_session.h',
         'media_session.cc',
         'media_metadata.h',
         'media_session_client.h',
         'media_session_client.cc',
+      ],
+      'conditions': [
+        ['custom_media_session_client == 0', {
+          'sources': [
+            'default_media_session_client.cc',
+          ]
+        }]
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
