@@ -95,7 +95,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Closure& window_close_callback,
                const base::Closure& window_minimize_callback,
                system_window::SystemWindow* system_window,
-               const scoped_refptr<input::InputPoller>& input_poller,
+               const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
@@ -125,7 +125,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
-      camera_3d_(new Camera3D(input_poller)),
+      camera_3d_(new Camera3D(camera_3d)),
       ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),

@@ -14,6 +14,7 @@
 
 #include "cobalt/layout/layout_manager.h"
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 
@@ -104,14 +105,22 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 namespace {
 
 void UpdateCamera(
-    float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3DImpl> camera,
+    float width_to_height_aspect_ratio, scoped_refptr<input::Camera3D> camera,
     float max_horizontal_fov_rad, float max_vertical_fov_rad,
     render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
     base::TimeDelta time) {
   UNREFERENCED_PARAMETER(time);
-  transform_node_builder->transform = camera->QueryViewPerspectiveMatrix(
-      width_to_height_aspect_ratio, max_horizontal_fov_rad,
-      max_vertical_fov_rad);
+  float vertical_fov_rad =
+      std::min(max_vertical_fov_rad,
+               2 * static_cast<float>(atan(tan(max_horizontal_fov_rad * 0.5f) /
+                                           width_to_height_aspect_ratio)));
+  camera->UpdatePerspective(width_to_height_aspect_ratio, vertical_fov_rad);
+  base::CameraTransform transform(
+      camera->GetCameraTransformAndUpdateOrientation());
+  DCHECK(!transform.right_eye);
+  transform_node_builder->transform =
+      transform.left_eye_or_mono.projection_matrix *
+      transform.left_eye_or_mono.view_matrix;
 }
 
 scoped_refptr<render_tree::Node> AttachCameraNodes(
