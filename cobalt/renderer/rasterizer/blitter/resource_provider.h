@@ -23,6 +23,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/rasterizer/blitter/image.h"
 #include "starboard/blitter.h"
 #include "starboard/decode_target.h"
 
@@ -35,9 +36,9 @@ namespace blitter {
 
 class ResourceProvider : public render_tree::ResourceProvider {
  public:
-  explicit ResourceProvider(
-      SbBlitterDevice device,
-      render_tree::ResourceProvider* skia_resource_provider);
+  ResourceProvider(SbBlitterDevice device,
+                   render_tree::ResourceProvider* skia_resource_provider,
+                   SubmitOffscreenCallback submit_offscreen_callback);
   ~ResourceProvider() OVERRIDE {}
 
   void Finish() OVERRIDE {}
@@ -109,6 +110,9 @@ class ResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
 
+  scoped_refptr<render_tree::Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE;
+
  private:
   SbBlitterDevice device_;
 
@@ -116,6 +120,8 @@ class ResourceProvider : public render_tree::ResourceProvider {
   // ResourceProvider, as the Blitter API does not natively support font
   // rendering.
   render_tree::ResourceProvider* skia_resource_provider_;
+
+  SubmitOffscreenCallback submit_offscreen_callback_;
 
 #if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider

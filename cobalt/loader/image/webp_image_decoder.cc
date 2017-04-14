@@ -76,7 +76,7 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       has_animation_ = true;
       animated_webp_image_ = new AnimatedWebPImage(
           math::Size(config_.input.width, config_.input.height),
-          !!config_.input.has_alpha, resource_provider());
+          !!config_.input.has_alpha, pixel_format(), resource_provider());
     }
     set_state(kReadLines);
   }
@@ -137,7 +137,9 @@ bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
   TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::CreateInternalDecoder()");
-  config_.output.colorspace = has_alpha ? MODE_rgbA : MODE_RGBA;
+  config_.output.colorspace = pixel_format() == render_tree::kPixelFormatRGBA8
+                                  ? (has_alpha ? MODE_rgbA : MODE_RGBA)
+                                  : (has_alpha ? MODE_bgrA : MODE_BGRA);
   config_.output.u.RGBA.stride = image_data()->GetDescriptor().pitch_in_bytes;
   config_.output.u.RGBA.size =
       static_cast<size_t>(config_.output.u.RGBA.stride *

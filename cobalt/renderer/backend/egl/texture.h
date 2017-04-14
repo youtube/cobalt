@@ -53,9 +53,8 @@ class TextureEGL {
              const base::Closure& delete_function);
 
   // Create a texture from a pre-existing offscreen render target.
-  explicit TextureEGL(
-      GraphicsContextEGL* graphics_context,
-      const scoped_refptr<RenderTargetEGL>& render_target);
+  TextureEGL(GraphicsContextEGL* graphics_context,
+             const scoped_refptr<RenderTargetEGL>& render_target);
   virtual ~TextureEGL();
 
   const math::Size& GetSize() const { return size_; }
