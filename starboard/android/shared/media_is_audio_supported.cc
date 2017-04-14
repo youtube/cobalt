@@ -14,11 +14,13 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::SupportedAudioCodecToMimeType;
 
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
@@ -28,9 +30,9 @@ SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTFOrAbort(mime);
+  ScopedLocalJavaRef j_mime(env->NewStringUTFOrAbort(mime));
   return env->CallStaticBooleanMethodOrAbort(
              "foo/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
-             "(Ljava/lang/String;I)Z", j_mime,
+             "(Ljava/lang/String;I)Z", j_mime.Get(),
              static_cast<jint>(bitrate)) == JNI_TRUE;
 }
