@@ -46,6 +46,7 @@ class ApplicationAndroid
   bool DestroyWindow(SbWindow window);
   ANativeActivity* GetActivity();
   void SetExitOnActivityDestroy(int error_level);
+  void HandleDeepLink(const char* link_url);
 
  protected:
   // --- Application overrides ---
