@@ -26,6 +26,7 @@
 
     'gl_type': 'system_gles2',
 
+    'custom_media_session_client': 1,
     'enable_account_manager': 1,
     'enable_map_to_mesh': 1,
 
