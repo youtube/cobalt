@@ -29,6 +29,11 @@ class DefaultMediaSessionClient : public MediaSessionClient {
   virtual void OnMediaSessionChanged() {}
 };
 
+// static
+scoped_ptr<MediaSessionClient> MediaSessionClient::Create() {
+  return make_scoped_ptr<MediaSessionClient>(new DefaultMediaSessionClient());
+}
+
 }  // namespace media_session
 }  // namespace cobalt
 
