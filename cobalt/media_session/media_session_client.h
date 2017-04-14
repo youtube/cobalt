@@ -35,6 +35,9 @@ class MediaSessionClient {
 
   virtual ~MediaSessionClient() {}
 
+  // Creates platform-specific instance.
+  static scoped_ptr<MediaSessionClient> Create();
+
   // Retrieves the singleton MediaSession associated with this client.
   scoped_refptr<MediaSession>& GetMediaSession() { return media_session_; }
 
