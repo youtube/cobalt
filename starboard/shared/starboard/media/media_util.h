@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_
 
+#include <string>
+
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
@@ -24,6 +26,12 @@ namespace starboard {
 namespace media {
 
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);
+
+// Turns |eotf| into value of SbMediaTransferId.  If |eotf| isn't recognized the
+// function returns kSbMediaTransferIdReserved0.
+// This function supports all eotfs required by YouTube TV HTML5 Technical
+// Requirements (2018).
+SbMediaTransferId GetTransferIdFromString(const std::string& eotf);
 
 }  // namespace media
 }  // namespace starboard
