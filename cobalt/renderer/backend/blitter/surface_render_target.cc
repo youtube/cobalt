@@ -36,7 +36,9 @@ SurfaceRenderTargetBlitter::SurfaceRenderTargetBlitter(
 }
 
 SurfaceRenderTargetBlitter::~SurfaceRenderTargetBlitter() {
-  SbBlitterDestroySurface(surface_);
+  if (surface_ != kSbBlitterInvalidSurface) {
+    SbBlitterDestroySurface(surface_);
+  }
 }
 
 const math::Size& SurfaceRenderTargetBlitter::GetSize() { return size_; }

@@ -31,6 +31,10 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
+typedef base::Callback<void(const scoped_refptr<render_tree::Node>& render_tree,
+                            const scoped_refptr<backend::RenderTarget>&
+                                render_target)> SubmitOffscreenCallback;
+
 // Wraps a Cobalt backend::TextureEGL with a Skia GrTexture, and returns the
 // Skia ref-counted GrTexture object (that takes ownership of the cobalt
 // texture).
@@ -93,6 +97,11 @@ class HardwareFrontendImage : public SinglePlaneImage {
                         GrContext* gr_context,
                         scoped_ptr<math::Rect> content_region,
                         MessageLoop* rasterizer_message_loop);
+  HardwareFrontendImage(
+      const scoped_refptr<render_tree::Node>& root,
+      const SubmitOffscreenCallback& submit_offscreen_callback,
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+      MessageLoop* rasterizer_message_loop);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
@@ -130,6 +139,10 @@ class HardwareFrontendImage : public SinglePlaneImage {
       intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
   void InitializeBackendImageFromTexture(GrContext* gr_context);
+  void InitializeBackendImageFromRenderTree(
+      const scoped_refptr<render_tree::Node>& root,
+      const SubmitOffscreenCallback& submit_offscreen_callback,
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
 
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.

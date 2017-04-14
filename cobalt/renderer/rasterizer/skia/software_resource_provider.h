@@ -118,6 +118,9 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
 
+  scoped_refptr<render_tree::Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE;
+
  private:
   TextShaper text_shaper_;
 };

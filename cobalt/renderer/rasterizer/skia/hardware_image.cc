@@ -16,6 +16,7 @@
 
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
+#include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
@@ -223,6 +224,23 @@ HardwareFrontendImage::HardwareFrontendImage(
                  base::Unretained(this), gr_context);
 }
 
+HardwareFrontendImage::HardwareFrontendImage(
+    const scoped_refptr<render_tree::Node>& root,
+    const SubmitOffscreenCallback& submit_offscreen_callback,
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+    MessageLoop* rasterizer_message_loop)
+    : is_opaque_(false),
+      size_(static_cast<int>(root->GetBounds().size().width()),
+            static_cast<int>(root->GetBounds().size().height())),
+      rasterizer_message_loop_(rasterizer_message_loop) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareFrontendImage::HardwareFrontendImage()");
+  initialize_backend_image_ =
+      base::Bind(&HardwareFrontendImage::InitializeBackendImageFromRenderTree,
+                 base::Unretained(this), root, submit_offscreen_callback,
+                 cobalt_context, gr_context);
+}
+
 HardwareFrontendImage::~HardwareFrontendImage() {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::~HardwareFrontendImage()");
@@ -291,6 +309,24 @@ void HardwareFrontendImage::InitializeBackendImageFromRawImageData(
 void HardwareFrontendImage::InitializeBackendImageFromTexture(
     GrContext* gr_context) {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+  backend_image_->CommonInitialize(gr_context);
+}
+
+void HardwareFrontendImage::InitializeBackendImageFromRenderTree(
+    const scoped_refptr<render_tree::Node>& root,
+    const SubmitOffscreenCallback& submit_offscreen_callback,
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
+  DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
+
+  scoped_refptr<backend::FramebufferRenderTargetEGL> render_target(
+      new backend::FramebufferRenderTargetEGL(cobalt_context, size_));
+
+  submit_offscreen_callback.Run(root, render_target);
+
+  scoped_ptr<backend::TextureEGL> texture(
+      new backend::TextureEGL(cobalt_context, render_target));
+
+  backend_image_.reset(new HardwareBackendImage(texture.Pass()));
   backend_image_->CommonInitialize(gr_context);
 }
 

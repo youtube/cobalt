@@ -217,6 +217,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   SinglePlaneImage* blitter_image =
       base::polymorphic_downcast<SinglePlaneImage*>(skia_image);
 
+  // Ensure any required backend processing is done to create the necessary
+  // GPU resource.
+  if (blitter_image->EnsureInitialized()) {
+    // Restore the original render target, since it is possible that rendering
+    // took place to another render target in this call.
+    SbBlitterSetRenderTarget(context_, render_state_.render_target);
+  }
+
   // Apply the local image coordinate transform to the source rectangle.  Note
   // that the render tree local transform matrix is normalized, but the Blitter
   // API source rectangle is specified in pixel units, so we must multiply the
