@@ -54,6 +54,14 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                                        int64_t bitrate);
 
+// Indicates whether this platform supports |transfer_id| as a transfer
+// characteristics.  If |transfer_id| is not supported under any condition, this
+// function returns |false|.
+//
+// |transfer_id|: The id of transfer charateristics listed in SbMediaTransferId.
+SB_EXPORT bool SbMediaIsTransferCharacteristicsSupported(
+    SbMediaTransferId transfer_id);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

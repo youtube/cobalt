@@ -96,6 +96,7 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
 #include "starboard/shared/starboard/media/media_util.h"
 
 using starboard::shared::starboard::media::GetAudioCodecFromString;
+using starboard::shared::starboard::media::GetTransferIdFromString;
 using starboard::shared::starboard::media::GetVideoCodecFromString;
 using starboard::shared::starboard::media::IsAudioOutputSupported;
 using starboard::shared::starboard::media::MimeType;
@@ -244,6 +245,14 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
     if (SbStringGetLength(key_system) != 0) {
       if (!SbMediaIsSupported(video_codec, kSbMediaAudioCodecNone,
                               key_system)) {
+        return kSbMediaSupportTypeNotSupported;
+      }
+    }
+
+    std::string eotf = mime_type.GetParamStringValue("eotf", "");
+    if (!eotf.empty()) {
+      SbMediaTransferId transfer_id = GetTransferIdFromString(eotf);
+      if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
         return kSbMediaSupportTypeNotSupported;
       }
     }

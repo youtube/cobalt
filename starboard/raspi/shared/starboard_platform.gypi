@@ -334,6 +334,7 @@
         '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
         '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
