@@ -37,6 +37,17 @@ bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
   return false;
 }
 
+SbMediaTransferId GetTransferIdFromString(const std::string& eotf) {
+  if (eotf == "bt709") {
+    return kSbMediaTransferIdBt709;
+  } else if (eotf == "smpte2084") {
+    return kSbMediaTransferIdSmpteSt2084;
+  } else if (eotf == "arib-std-b67") {
+    return kSbMediaTransferIdAribStdB67;
+  }
+  return kSbMediaTransferIdUnknown;
+}
+
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared
