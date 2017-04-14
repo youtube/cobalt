@@ -165,9 +165,8 @@ class WebModule {
     // default value is base::kThreadPriority_Low.
     base::ThreadPriority animated_image_decode_thread_priority;
 
-    // InputPoller to use for constantly polling the input key position or
-    // state. For example, this is used to support 3D camera movements.
-    scoped_refptr<input::InputPoller> input_poller;
+    // To support 3D camera movements.
+    scoped_refptr<input::Camera3D> camera_3d;
 
     script::JavaScriptEngine::Options javascript_options;
   };

@@ -15,6 +15,7 @@
 #ifndef COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 #define COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 
+#include "cobalt/input/camera_3d.h"
 #include "cobalt/input/input_poller.h"
 #include "cobalt/input/key_event_handler.h"
 
@@ -41,12 +42,16 @@ class InputDeviceManager {
   virtual ~InputDeviceManager() {}
 
   scoped_refptr<InputPoller> input_poller() { return input_poller_; }
+  scoped_refptr<Camera3D> camera_3d() { return camera_3d_; }
 
  protected:
   InputDeviceManager() {}
 
   // Used for polling the input outside of InputDeviceManager.
   scoped_refptr<InputPoller> input_poller_;
+
+  // Used for holding the 3D camera state.
+  scoped_refptr<Camera3D> camera_3d_;
 };
 
 }  // namespace input

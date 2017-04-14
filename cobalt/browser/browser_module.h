@@ -262,6 +262,10 @@ class BrowserModule {
   bool is_rendered_;
 #endif  // OS_STARBOARD
 
+  // Wraps input device and produces input events that can be passed into
+  // the web module.
+  scoped_ptr<input::InputDeviceManager> input_device_manager_;
+
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
   renderer::RendererModule renderer_module_;
@@ -301,10 +305,6 @@ class BrowserModule {
 
   // Will be signalled when the WebModule's Window.onload event is fired.
   base::WaitableEvent web_module_loaded_;
-
-  // Wraps input device and produces input events that can be passed into
-  // the web module.
-  scoped_ptr<input::InputDeviceManager> input_device_manager_;
 
   // This will be called after the WebModule has been destroyed and recreated,
   // which could occur on navigation.

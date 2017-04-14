@@ -38,7 +38,7 @@
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
 #include "cobalt/dom/window_timers.h"
-#include "cobalt/input/input_poller.h"
+#include "cobalt/input/camera_3d.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
@@ -131,7 +131,7 @@ class Window : public EventTarget {
       const base::Closure& window_close_callback,
       const base::Closure& window_minimize_callback,
       system_window::SystemWindow* system_window,
-      const scoped_refptr<input::InputPoller>& input_poller,
+      const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
