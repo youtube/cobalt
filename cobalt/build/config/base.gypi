@@ -109,6 +109,9 @@
     # Set to 1 to build with DIAL support.
     'in_app_dial%': 0,
 
+    # Set to 1 to enable a custom MediaSessionClient.
+    'custom_media_session_client%': 0,
+
     # Set to 1 to enable H5vccAccountManager.
     'enable_account_manager%': 0,
 

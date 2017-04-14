@@ -46,7 +46,7 @@
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
-#include "cobalt/media_session/default_media_session_client.h"
+#include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
@@ -504,7 +504,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
-  media_session_client_.reset(new media_session::DefaultMediaSessionClient());
+  media_session_client_ = media_session::MediaSessionClient::Create();
 
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
