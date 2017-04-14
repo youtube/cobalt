@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "cobalt/math/size.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
@@ -36,7 +38,8 @@ namespace skia {
 class HardwareResourceProvider : public render_tree::ResourceProvider {
  public:
   HardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
-                           GrContext* gr_context);
+                           GrContext* gr_context,
+                           SubmitOffscreenCallback submit_offscreen_callback);
 
   void Finish() OVERRIDE;
 
@@ -130,9 +133,13 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
 
+  scoped_refptr<render_tree::Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE;
+
  private:
   backend::GraphicsContextEGL* cobalt_context_;
   GrContext* gr_context_;
+  SubmitOffscreenCallback submit_offscreen_callback_;
 
   TextShaper text_shaper_;
 

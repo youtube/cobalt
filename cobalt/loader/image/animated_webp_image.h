@@ -28,6 +28,7 @@
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "cobalt/loader/image/image.h"
+#include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "third_party/libwebp/webp/demux.h"
 
@@ -38,6 +39,7 @@ namespace image {
 class AnimatedWebPImage : public AnimatedImage {
  public:
   AnimatedWebPImage(const math::Size& size, bool is_opaque,
+                    render_tree::PixelFormat pixel_format,
                     render_tree::ResourceProvider* resource_provider);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
@@ -73,12 +75,11 @@ class AnimatedWebPImage : public AnimatedImage {
   // Updates the index and time info of the current and next frames.
   void UpdateTimelineInfo();
 
-  void FillImageBufferWithBackgroundColor();
-
-  scoped_ptr<render_tree::ImageData> AllocateImageData();
+  scoped_ptr<render_tree::ImageData> AllocateImageData(const math::Size& size);
 
   const math::Size size_;
   const bool is_opaque_;
+  const render_tree::PixelFormat pixel_format_;
   WebPDemuxer* demux_;
   WebPDemuxState demux_state_;
   bool received_first_frame_;
@@ -87,20 +88,20 @@ class AnimatedWebPImage : public AnimatedImage {
   // The remaining number of times to loop the animation. kLoopInfinite means
   // looping infinitely.
   int loop_count_;
-  uint32_t background_color_;
   int current_frame_index_;
   int next_frame_index_;
+  bool should_dispose_previous_frame_to_background_;
   render_tree::ResourceProvider* resource_provider_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
+  render_tree::ColorRGBA background_color_;
+  math::RectF previous_frame_rect_;
   base::CancelableClosure decode_closure_;
   base::TimeTicks current_frame_time_;
   base::TimeTicks next_frame_time_;
   // The original encoded data.
   std::vector<uint8> data_buffer_;
-  // The alpha-blended frame.
-  std::vector<uint8> image_buffer_;
-  scoped_refptr<render_tree::Image> current_frame_image_;
+  scoped_refptr<render_tree::Image> current_canvas_;
   base::Lock lock_;
 };
 

@@ -227,6 +227,12 @@ scoped_refptr<render_tree::Mesh> SoftwareResourceProvider::CreateMesh(
   return new SoftwareMesh(vertices.Pass(), draw_mode);
 }
 
+scoped_refptr<render_tree::Image> SoftwareResourceProvider::DrawOffscreenImage(
+    const scoped_refptr<render_tree::Node>& root) {
+  UNREFERENCED_PARAMETER(root);
+  return scoped_refptr<render_tree::Image>(NULL);
+}
+
 }  // namespace skia
 }  // namespace rasterizer
 }  // namespace renderer
