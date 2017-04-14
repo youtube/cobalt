@@ -15,11 +15,13 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::SupportedVideoCodecToMimeType;
 
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
@@ -32,9 +34,9 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTFOrAbort(mime);
+  ScopedLocalJavaRef j_mime(env->NewStringUTFOrAbort(mime));
   return env->CallStaticBooleanMethodOrAbort(
              "foo/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-             "(Ljava/lang/String;ZIIII)Z", j_mime, false, frame_width,
+             "(Ljava/lang/String;ZIIII)Z", j_mime.Get(), false, frame_width,
              frame_height, static_cast<jint>(bitrate), fps) == JNI_TRUE;
 }
