@@ -274,17 +274,51 @@ void ApplicationAndroid::SetExitOnActivityDestroy(int error_level) {
   exit_error_level_ = error_level;
 }
 
+void ApplicationAndroid::HandleDeepLink(const char* link_url) {
+  if (link_url == NULL || link_url[0] == '\0') {
+    return;
+  }
+  char* deep_link = SbStringDuplicate(link_url);
+  SB_DCHECK(deep_link);
+  Inject(new Event(kSbEventTypeLink, deep_link, SbMemoryDeallocate));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_foo_cobalt_CobaltActivity_handleDeepLink(
+    JNIEnv* env, jobject unused_this, jstring j_url) {
+  if (j_url) {
+    const char* utf_chars = env->GetStringUTFChars(j_url, NULL);
+    ApplicationAndroid::Get()->HandleDeepLink(utf_chars);
+    env->ReleaseStringUTFChars(j_url, utf_chars);
+  }
+}
+
+static std::string GetStartIntentUrl() {
+  JniEnvExt* env = JniEnvExt::Get();
+  std::string start_url;
+
+  jstring j_url = static_cast<jstring>(env->CallActivityObjectMethodOrAbort(
+      "getStartIntentUrl", "()Ljava/lang/String;"));
+  if (j_url) {
+    const char* utf_chars = env->GetStringUTFChars(j_url, NULL);
+    start_url.assign(utf_chars);
+    env->ReleaseStringUTFChars(j_url, utf_chars);
+  }
+  return start_url;
+}
+
 static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
   out_args->push_back(SbStringDuplicate("starboard"));
 
   JniEnvExt* env = JniEnvExt::Get();
 
-  jobjectArray args_array = (jobjectArray)env->CallActivityObjectMethodOrAbort(
-      "getArgs", "()[Ljava/lang/String;");
+  jobjectArray args_array = static_cast<jobjectArray>(
+      env->CallActivityObjectMethodOrAbort("getArgs", "()[Ljava/lang/String;"));
   jint argc = env->GetArrayLength(args_array);
 
   for (jint i = 0; i < argc; i++) {
-    jstring element = (jstring)env->GetObjectArrayElementOrAbort(args_array, i);
+    jstring element =
+        static_cast<jstring>(env->GetObjectArrayElementOrAbort(args_array, i));
     const char* utf_chars = env->GetStringUTFChars(element, NULL);
     out_args->push_back(SbStringDuplicate(utf_chars));
     env->ReleaseStringUTFChars(element, utf_chars);
@@ -303,9 +337,16 @@ extern "C" void android_main(struct android_app* state) {
   GetArgs(state, &args);
 
   ApplicationAndroid application(state);
+
+  std::string start_url(GetStartIntentUrl());
+  if (!start_url.empty()) {
+    application.SetStartLink(start_url.c_str());
+  }
+
   SbMutexAcquire(&app_created_mutex);
   SbConditionVariableSignal(&app_created_condition);
   SbMutexRelease(&app_created_mutex);
+
   state->userData = &application;
   state->onAppCmd = ApplicationAndroid::HandleCommand;
   state->onInputEvent = ApplicationAndroid::HandleInput;
