@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/threading/thread_checker.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -51,6 +52,10 @@ class HardwareRasterizer::Impl {
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
               const Options& options);
+
+  void SubmitOffscreenToRenderTarget(
+      const scoped_refptr<render_tree::Node>& render_tree,
+      const scoped_refptr<backend::RenderTarget>& render_target);
 
   render_tree::ResourceProvider* GetResourceProvider();
 
@@ -118,9 +123,12 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
           "scene software rasterization is occurring.")
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 {
-  resource_provider_ = scoped_ptr<render_tree::ResourceProvider>(
-      new ResourceProvider(context_->GetSbBlitterDevice(),
-                           software_surface_cache_.GetResourceProvider()));
+  resource_provider_ =
+      scoped_ptr<render_tree::ResourceProvider>(new ResourceProvider(
+          context_->GetSbBlitterDevice(),
+          software_surface_cache_.GetResourceProvider(),
+          base::Bind(&HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget,
+                     base::Unretained(this))));
 
   if (surface_cache_size_in_bytes > 0) {
     surface_cache_delegate_.emplace(context_->GetSbBlitterDevice(),
@@ -150,6 +158,7 @@ void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<backend::RenderTarget>& render_target,
     const Options& options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
+  DCHECK(thread_checker_.CalledOnValidThread());
 
   int width = render_target->GetSize().width();
   int height = render_target->GetSize().height();
@@ -208,8 +217,8 @@ void HardwareRasterizer::Impl::Submit(
       start_bounds.Push(*options.dirty);
     }
 
-    RenderState initial_render_state(
-        visitor_render_target, Transform(), start_bounds);
+    RenderState initial_render_state(visitor_render_target, Transform(),
+                                     start_bounds);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
     initial_render_state.highlight_software_draws =
@@ -239,6 +248,37 @@ void HardwareRasterizer::Impl::Submit(
   render_target_blitter->Flip();
 
   ++submit_count_;
+}
+
+void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    const scoped_refptr<backend::RenderTarget>& render_target) {
+  TRACE_EVENT0("cobalt::renderer",
+               "Rasterizer::SubmitOffscreenToRenderTarget()");
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  SbBlitterContext context = context_->GetSbBlitterContext();
+
+  backend::RenderTargetBlitter* render_target_blitter =
+      base::polymorphic_downcast<backend::RenderTargetBlitter*>(
+          render_target.get());
+
+  SbBlitterRenderTarget visitor_render_target =
+      render_target_blitter->GetSbRenderTarget();
+  CHECK(SbBlitterSetRenderTarget(context, visitor_render_target));
+
+  BoundsStack start_bounds(context_->GetSbBlitterContext(),
+                           math::Rect(render_target_blitter->GetSize()));
+
+  RenderState initial_render_state(visitor_render_target, Transform(),
+                                   start_bounds);
+
+  RenderTreeNodeVisitor visitor(
+      context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
+      initial_render_state, NULL, NULL, NULL, NULL, NULL);
+  render_tree->Accept(&visitor);
+
+  CHECK(SbBlitterFlushContext(context));
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {

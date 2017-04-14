@@ -15,7 +15,6 @@
 #include "cobalt/renderer/rasterizer/blitter/resource_provider.h"
 
 #include "base/bind.h"
-#include "cobalt/renderer/rasterizer/blitter/image.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_blitter_conversions.h"
 #include "starboard/blitter.h"
 
@@ -37,8 +36,11 @@ using render_tree::Typeface;
 
 ResourceProvider::ResourceProvider(
     SbBlitterDevice device,
-    render_tree::ResourceProvider* skia_resource_provider)
-    : device_(device), skia_resource_provider_(skia_resource_provider) {
+    render_tree::ResourceProvider* skia_resource_provider,
+    SubmitOffscreenCallback submit_offscreen_callback)
+    : device_(device),
+      skia_resource_provider_(skia_resource_provider),
+      submit_offscreen_callback_(submit_offscreen_callback) {
 #if SB_API_VERSION >= 4
   decode_target_graphics_context_provider_.device = device;
 #endif  // SB_API_VERSION >= 4
@@ -203,6 +205,12 @@ scoped_refptr<render_tree::Mesh> ResourceProvider::CreateMesh(
     render_tree::Mesh::DrawMode draw_mode) {
   NOTIMPLEMENTED();
   return scoped_refptr<render_tree::Mesh>(NULL);
+}
+
+scoped_refptr<render_tree::Image> ResourceProvider::DrawOffscreenImage(
+    const scoped_refptr<render_tree::Node>& root) {
+  return make_scoped_refptr(
+      new SinglePlaneImage(root, submit_offscreen_callback_, device_));
 }
 
 }  // namespace blitter
