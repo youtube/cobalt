@@ -16,6 +16,7 @@
 
 #include "cobalt/bindings/testing/script_object_owner.h"
 #include "cobalt/media_session/media_session_client.h"
+#include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -43,9 +44,7 @@ namespace {
 
 class MockCallbackFunction : public MediaSession::MediaSessionActionHandler {
  public:
-  virtual ReturnValue Run() const {
-    return CallbackResult<void>();
-  }
+  MOCK_CONST_METHOD0(Run, ReturnValue());
 };
 
 class MockMediaSessionClient : public MediaSessionClient {
@@ -131,14 +130,20 @@ TEST(MediaSessionTest, NullActionClears) {
   EXPECT_EQ(0, client.GetAvailableActions().to_ulong());
 
   MockCallbackFunction cf;
+  EXPECT_CALL(cf, Run())
+      .Times(1)
+      .WillRepeatedly(Return(CallbackResult<void>()));
   FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
 
   FakeScriptValue<MediaSession::MediaSessionActionHandler> null_holder(NULL);
 
   session->SetActionHandler(kMediaSessionActionPlay, holder);
   EXPECT_EQ(1, client.GetAvailableActions().to_ulong());
+  client.InvokeAction(kMediaSessionActionPlay);
+
   session->SetActionHandler(kMediaSessionActionPlay, null_holder);
   EXPECT_EQ(0, client.GetAvailableActions().to_ulong());
+  client.InvokeAction(kMediaSessionActionPlay);
 }
 
 TEST(MediaSessionTest, GetAvailableActions) {
@@ -157,6 +162,7 @@ TEST(MediaSessionTest, GetAvailableActions) {
   EXPECT_EQ(0, client.GetAvailableActions().to_ulong());
 
   MockCallbackFunction cf;
+  EXPECT_CALL(cf, Run()).Times(0);
   FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
 
   session->SetActionHandler(kMediaSessionActionPlay, holder);
