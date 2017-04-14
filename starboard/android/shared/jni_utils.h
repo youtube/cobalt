@@ -40,6 +40,12 @@ class ScopedLocalJavaRef {
     }
   }
   jobject Get() const { return j_object_; }
+  void Reset(jobject new_object) {
+    if (j_object_) {
+      JniEnvExt::Get()->DeleteLocalRef(j_object_);
+    }
+    j_object_ = new_object;
+  }
   operator bool() const { return j_object_; }
 
  private:
