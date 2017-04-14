@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <!-- Error message when there's a problem connecting to the network. -->
-  <string name="connectionError">Connection error.</string>
-  <!-- Error message when an action (e.g. flagging) fails because the user is signed out. -->
-  <string name="signedOut">User is not signed in.</string>
+  <string name="starboard_platform_connection_error">Connection error.</string>
+  <!-- Error message when an action fails because the user is signed out. -->
+  <string name="starboard_platform_signed_out">User is not signed in.</string>
   <!-- Error message when an action fails because the user is under age. -->
-  <string name="ageRestricted">User is age restricted.</string>
-  <!-- Error message when an something unexpected happened. -->
-  <string name="unknownError">An unknown error occurred.</string>
-  <!-- Error message when either we can't get the account to sign in, or the account can't be authorized. -->
-  <string name="sign_in_error">There was an error signing in</string>
-  <!-- Toast message indicating that the last used account is no longer available to automatically sign-in. -->
-  <string name="missing_account">Account not available:\n%1s</string>
+  <string name="starboard_platform_age_restricted">User is age restricted.</string>
+  <!-- Error message when we don't know about the specific error code. -->
+  <string name="starboard_platform_unknown_error">An unknown error occurred.</string>
+  <!-- Toast message when we can't get the device account to sign in. -->
+  <string name="starboard_account_picker_error">Account not available.</string>
+  <!-- Toast message when we the account can't be authorized. -->
+  <string name="starboard_account_auth_error">Account authorization failed.</string>
+  <!-- Toast message indicating that the selected account is no longer available to sign-in. -->
+  <string name="starboard_missing_account">Account not available:\n%1s</string>
 </resources>
