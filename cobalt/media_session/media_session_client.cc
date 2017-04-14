@@ -92,9 +92,21 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
 }
 
 void MediaSessionClient::InvokeAction(MediaSessionAction action) {
-  UNREFERENCED_PARAMETER(action);
-  DCHECK(thread_checker_.CalledOnValidThread());
-  NOTIMPLEMENTED();
+  if (base::MessageLoopProxy::current() != media_session_->message_loop_) {
+    media_session_->message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MediaSessionClient::InvokeAction,
+                              base::Unretained(this), action));
+    return;
+  }
+
+  MediaSession::ActionMap::iterator it =
+      media_session_->action_map_.find(action);
+
+  if (it == media_session_->action_map_.end()) {
+    return;
+  }
+
+  it->second->value().Run();
 }
 
 }  // namespace media_session
