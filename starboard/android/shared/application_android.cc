@@ -283,8 +283,8 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
   Inject(new Event(kSbEventTypeLink, deep_link, SbMemoryDeallocate));
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_foo_cobalt_CobaltActivity_handleDeepLink(
+extern "C" SB_EXPORT_PLATFORM
+void Java_foo_cobalt_coat_CobaltActivity_handleDeepLink(
     JNIEnv* env, jobject unused_this, jstring j_url) {
   if (j_url) {
     const char* utf_chars = env->GetStringUTFChars(j_url, NULL);
