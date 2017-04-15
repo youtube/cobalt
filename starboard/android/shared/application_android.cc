@@ -26,6 +26,7 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
@@ -297,12 +298,12 @@ static std::string GetStartIntentUrl() {
   JniEnvExt* env = JniEnvExt::Get();
   std::string start_url;
 
-  jstring j_url = static_cast<jstring>(env->CallActivityObjectMethodOrAbort(
+  ScopedLocalJavaRef<jstring> j_url(env->CallActivityObjectMethodOrAbort(
       "getStartIntentUrl", "()Ljava/lang/String;"));
   if (j_url) {
-    const char* utf_chars = env->GetStringUTFChars(j_url, NULL);
+    const char* utf_chars = env->GetStringUTFChars(j_url.Get(), NULL);
     start_url.assign(utf_chars);
-    env->ReleaseStringUTFChars(j_url, utf_chars);
+    env->ReleaseStringUTFChars(j_url.Get(), utf_chars);
   }
   return start_url;
 }
@@ -312,16 +313,16 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
 
   JniEnvExt* env = JniEnvExt::Get();
 
-  jobjectArray args_array = static_cast<jobjectArray>(
+  ScopedLocalJavaRef<jobjectArray> args_array(
       env->CallActivityObjectMethodOrAbort("getArgs", "()[Ljava/lang/String;"));
-  jint argc = env->GetArrayLength(args_array);
+  jint argc = env->GetArrayLength(args_array.Get());
 
   for (jint i = 0; i < argc; i++) {
-    jstring element =
-        static_cast<jstring>(env->GetObjectArrayElementOrAbort(args_array, i));
-    const char* utf_chars = env->GetStringUTFChars(element, NULL);
+    ScopedLocalJavaRef<jstring> element(
+        env->GetObjectArrayElementOrAbort(args_array.Get(), i));
+    const char* utf_chars = env->GetStringUTFChars(element.Get(), NULL);
     out_args->push_back(SbStringDuplicate(utf_chars));
-    env->ReleaseStringUTFChars(element, utf_chars);
+    env->ReleaseStringUTFChars(element.Get(), utf_chars);
   }
 }
 

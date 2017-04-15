@@ -106,13 +106,13 @@ void DrmSystem::GenerateSessionUpdateRequest(
     const char* type,
     const void* initialization_data,
     int initialization_data_size) {
-  ScopedLocalJavaRef j_init_data(
+  ScopedLocalJavaRef<jbyteArray> j_init_data(
       ByteArrayFromRaw(initialization_data, initialization_data_size));
   JniEnvExt* env = JniEnvExt::Get();
-  jstring j_mime = env->NewStringUTFOrAbort(type);
+  ScopedLocalJavaRef<jstring> j_mime(env->NewStringUTFOrAbort(type));
   env->CallVoidMethodOrAbort(j_media_drm_bridge_, "createSession",
                              "([BLjava/lang/String;)V", j_init_data.Get(),
-                             j_mime);
+                             j_mime.Get());
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
 }
@@ -121,9 +121,9 @@ void DrmSystem::UpdateSession(const void* key,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
-  ScopedLocalJavaRef j_session_id(
+  ScopedLocalJavaRef<jbyteArray> j_session_id(
       ByteArrayFromRaw(session_id, session_id_size));
-  ScopedLocalJavaRef j_response(ByteArrayFromRaw(key, key_size));
+  ScopedLocalJavaRef<jbyteArray> j_response(ByteArrayFromRaw(key, key_size));
 
   jboolean status = JniEnvExt::Get()->CallBooleanMethodOrAbort(
       j_media_drm_bridge_, "updateSession", "([B[B)Z", j_session_id.Get(),
@@ -134,7 +134,7 @@ void DrmSystem::UpdateSession(const void* key,
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef j_session_id(
+  ScopedLocalJavaRef<jbyteArray> j_session_id(
       ByteArrayFromRaw(session_id, session_id_size));
   env->CallVoidMethodOrAbort(j_media_drm_bridge_, "closeSession", "([B)V",
                              j_session_id.Get());
