@@ -19,6 +19,7 @@
 #include <string>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
@@ -38,11 +39,11 @@ AAssetManager* g_asset_manager;
 // buffer with the result.
 const char* GetAbsolutePath(JniEnvExt* env, jobject file_obj) {
   SB_DCHECK(file_obj);
-  jstring abs_path = (jstring)env->CallObjectMethodOrAbort(
-      file_obj, "getAbsolutePath", "()Ljava/lang/String;");
-  const char* utf_chars = env->GetStringUTFChars(abs_path, 0);
+  ScopedLocalJavaRef<jstring> abs_path(env->CallObjectMethodOrAbort(
+      file_obj, "getAbsolutePath", "()Ljava/lang/String;"));
+  const char* utf_chars = env->GetStringUTFChars(abs_path.Get(), 0);
   const char* result = SbStringDuplicate(utf_chars);
-  env->ReleaseStringUTFChars(abs_path, utf_chars);
+  env->ReleaseStringUTFChars(abs_path.Get(), utf_chars);
   return result;
 }
 

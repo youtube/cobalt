@@ -26,30 +26,32 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-// Wrapper class to manage the lifetime of a local reference to a |jobject|.
-// This is necessary for local references to |jobject|s that are obtained in
+// Wrapper class to manage the lifetime of a local reference to Java type
+// |JT|. This is necessary for local references to |JT|s that are obtained in
 // native code that was not called into from Java, since they will otherwise
 // not be cleaned up.
+template <typename JT>
 class ScopedLocalJavaRef {
  public:
-  explicit ScopedLocalJavaRef(jobject j_object = NULL) : j_object_(j_object) {}
+  explicit ScopedLocalJavaRef(jobject j_object = NULL)
+      : jt_(static_cast<JT>(j_object)) {}
   ~ScopedLocalJavaRef() {
-    if (j_object_) {
-      JniEnvExt::Get()->DeleteLocalRef(j_object_);
-      j_object_ = NULL;
+    if (jt_) {
+      JniEnvExt::Get()->DeleteLocalRef(jt_);
+      jt_ = NULL;
     }
   }
-  jobject Get() const { return j_object_; }
-  void Reset(jobject new_object) {
-    if (j_object_) {
-      JniEnvExt::Get()->DeleteLocalRef(j_object_);
+  JT Get() const { return jt_; }
+  void Reset(jobject j_object) {
+    if (jt_) {
+      JniEnvExt::Get()->DeleteLocalRef(jt_);
     }
-    j_object_ = new_object;
+    jt_ = static_cast<JT>(j_object);
   }
-  operator bool() const { return j_object_; }
+  operator bool() const { return jt_; }
 
  private:
-  jobject j_object_;
+  JT jt_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(ScopedLocalJavaRef);
 };
@@ -74,7 +76,7 @@ class ScopedJavaByteBuffer {
   }
 
  private:
-  ScopedLocalJavaRef j_byte_buffer_;
+  ScopedLocalJavaRef<jobject> j_byte_buffer_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(ScopedJavaByteBuffer);
 };

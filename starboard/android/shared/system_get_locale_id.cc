@@ -17,10 +17,12 @@
 #include <string>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/once.h"
 #include "starboard/string.h"
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
 namespace {
 
@@ -33,11 +35,11 @@ class LocaleInfo {
   LocaleInfo() {
     JniEnvExt* env = JniEnvExt::Get();
 
-    jstring result = static_cast<jstring>(env->CallActivityObjectMethodOrAbort(
+    ScopedLocalJavaRef<jstring> result(env->CallActivityObjectMethodOrAbort(
         "systemGetLocaleId", "()Ljava/lang/String;"));
-    const char* utf_chars = env->GetStringUTFChars(result, NULL);
+    const char* utf_chars = env->GetStringUTFChars(result.Get(), NULL);
     locale_id = utf_chars;
-    env->ReleaseStringUTFChars(result, utf_chars);
+    env->ReleaseStringUTFChars(result.Get(), utf_chars);
   }
 };
 

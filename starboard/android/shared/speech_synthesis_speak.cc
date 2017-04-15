@@ -15,14 +15,14 @@
 #include "starboard/speech_synthesis.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
 void SbSpeechSynthesisSpeak(const char* text) {
   JniEnvExt* env = JniEnvExt::Get();
-
-  jstring textString = env->NewStringUTFOrAbort(text);
-
-  env->CallActivityVoidMethodOrAbort("speechSynthesisSpeak",
-                                     "(Ljava/lang/String;)V", textString);
+  ScopedLocalJavaRef<jstring> j_text_string(env->NewStringUTFOrAbort(text));
+  env->CallActivityVoidMethodOrAbort(
+      "speechSynthesisSpeak", "(Ljava/lang/String;)V", j_text_string.Get());
 }
