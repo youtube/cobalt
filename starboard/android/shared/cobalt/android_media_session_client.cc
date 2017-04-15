@@ -154,9 +154,9 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     scoped_refptr<MediaSession> media_session(GetMediaSession());
     scoped_refptr<MediaMetadata> media_metadata(media_session->metadata());
 
-    ScopedLocalJavaRef title;
-    ScopedLocalJavaRef artist;
-    ScopedLocalJavaRef album;
+    ScopedLocalJavaRef<jstring> title;
+    ScopedLocalJavaRef<jstring> artist;
+    ScopedLocalJavaRef<jstring> album;
 
     if (media_metadata) {
       title.Reset(env->NewStringUTF(media_metadata->title().c_str()));
