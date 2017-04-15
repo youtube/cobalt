@@ -16,6 +16,7 @@
 
 #include "base/time.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/log.h"
 
 // We're in starboard source, but compiled with Cobalt.
@@ -75,12 +76,12 @@ AndroidUserAuthorizer::CreateAccessToken(jobject j_token) {
   JniEnvExt* env = JniEnvExt::Get();
   scoped_ptr<AccessToken> access_token(new AccessToken());
 
-  jstring j_token_string = (jstring)env->CallObjectMethodOrAbort(
-      j_token, "getTokenValue", "()Ljava/lang/String;");
+  ScopedLocalJavaRef<jstring> j_token_string(env->CallObjectMethodOrAbort(
+      j_token, "getTokenValue", "()Ljava/lang/String;"));
   if (j_token_string) {
-    const char* utf_chars = env->GetStringUTFChars(j_token_string, NULL);
+    const char* utf_chars = env->GetStringUTFChars(j_token_string.Get(), NULL);
     access_token->token_value.assign(utf_chars);
-    env->ReleaseStringUTFChars(j_token_string, utf_chars);
+    env->ReleaseStringUTFChars(j_token_string.Get(), utf_chars);
   }
 
   jlong j_expiry = env->CallLongMethodOrAbort(
