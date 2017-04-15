@@ -11,11 +11,11 @@
 -keepattributes *Annotation*
 
 # Keep classes, methods, and fields that are accessed with JNI.
--keep @interface foo.cobalt.UsedByNative
--keep @foo.cobalt.UsedByNative class *
+-keep @interface foo.cobalt.util.UsedByNative
+-keep @foo.cobalt.util.UsedByNative class *
 -keepclasseswithmembers class * {
-  @foo.cobalt.UsedByNative <methods>;
+  @foo.cobalt.util.UsedByNative <methods>;
 }
 -keepclasseswithmembers class * {
-  @foo.cobalt.UsedByNative <fields>;
+  @foo.cobalt.util.UsedByNative <fields>;
 }
