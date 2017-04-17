@@ -69,6 +69,8 @@ class MediaSessionClient {
   base::ThreadChecker thread_checker_;
   scoped_refptr<MediaSession> media_session_;
   MediaSessionPlaybackState platform_playback_state_;
+
+  DISALLOW_COPY_AND_ASSIGN(MediaSessionClient);
 };
 
 }  // namespace media_session
