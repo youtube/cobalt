@@ -285,7 +285,10 @@ def _DownloadInstallOrUpdateSdk():
 
   if _IsOnBuildbot():
     time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
-    p.stdin.write('y\n')
+    try:
+      p.stdin.write('y\n')
+    except IOError:
+      logging.warning("There were no SDK licenses to accept.")
 
   p.wait()
 
