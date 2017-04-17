@@ -13,5 +13,5 @@
   <!-- Toast message when we the account can't be authorized. -->
   <string name="starboard_account_auth_error">Account authorization failed.</string>
   <!-- Toast message indicating that the selected account is no longer available to sign-in. -->
-  <string name="starboard_missing_account">Account not available:\n%1s</string>
+  <string name="starboard_missing_account">Account not available:\n%1$s</string>
 </resources>
