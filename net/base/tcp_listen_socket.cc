@@ -66,18 +66,29 @@ TCPListenSocket::~TCPListenSocket() {}
 
 SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
 #if defined(OS_STARBOARD)
+  base::optional<IPEndPoint> endpoint = ToIPEndPoint(ip, port);
+  if (!endpoint) {
+    return kSbSocketInvalid;
+  }
+  SbSocketAddressType socket_address_type;
+  switch (endpoint->GetFamily()) {
+    case ADDRESS_FAMILY_IPV4:
+      socket_address_type = kSbSocketAddressTypeIpv4;
+      break;
+    case ADDRESS_FAMILY_IPV6:
+      socket_address_type = kSbSocketAddressTypeIpv6;
+      break;
+    default:
+      return kSbSocketInvalid;
+  }
+
   SocketDescriptor socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+      SbSocketCreate(socket_address_type, kSbSocketProtocolTcp);
   if (SbSocketIsValid(socket)) {
     SbSocketSetReuseAddress(socket, true);
-    base::optional<IPEndPoint> endpoint = ToIPEndPoint(ip, port);
 
     SbSocketAddress sb_address;
-    bool groovy = endpoint ? true : false;
-    if (groovy) {
-      groovy &= endpoint->ToSbSocketAddress(&sb_address);
-    }
-
+    bool groovy = endpoint->ToSbSocketAddress(&sb_address);
     if (groovy) {
       groovy &= (SbSocketBind(socket, &sb_address) == kSbSocketOk);
     }
