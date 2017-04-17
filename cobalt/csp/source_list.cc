@@ -18,6 +18,7 @@
 
 #include "base/base64.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/network/socket_address_parser.h"
 #include "googleurl/src/url_canon_ip.h"
 #include "googleurl/src/url_constants.h"
 #include "net/base/escape.h"
@@ -63,98 +64,14 @@ bool SchemeCanMatchStar(const GURL& url) {
            url.SchemeIs("filesystem"));
 }
 
-bool GetDestinationForHost(const char* spec,
-                           const url_parse::Component& host_component,
-                           SbSocketAddress* out_destination_address) {
-  if (!out_destination_address) {
-    NOTREACHED();
-    return false;
-  }
-
-  COMPILE_ASSERT(net::kIPv6AddressSize >= net::kIPv4AddressSize,
-                 bad_ip_address_length);
-  unsigned char address[net::kIPv6AddressSize];
-
-  int num_ipv4_components = 0;
-
-  // IPv4AddressToNumber will return either IPV4, BROKEN, or NEUTRAL.  If the
-  // input IP address is IPv6, then NEUTRAL will be returned, and a different
-  // function will be used to covert the hostname to IPv6 address.
-  // If the return value is IPV4, then address will be in network byte order.
-  url_canon::CanonHostInfo::Family family = url_canon::IPv4AddressToNumber(
-      spec, host_component, address, &num_ipv4_components);
-
-  switch (family) {
-    case url_canon::CanonHostInfo::IPV4: {
-      if (num_ipv4_components != net::kIPv4AddressSize) {
-        break;
-      }
-
-      SbMemorySet(out_destination_address, 0, sizeof(SbSocketAddress));
-      out_destination_address->type = kSbSocketAddressTypeIpv4;
-      DCHECK_GE(sizeof(address), static_cast<std::size_t>(num_ipv4_components));
-      SbMemoryCopy(out_destination_address->address, address,
-                   num_ipv4_components);
-
-      return true;
-    }
-    case url_canon::CanonHostInfo::NEUTRAL: {
-#if SB_HAS(IPV6)
-      if (!url_canon::IPv6AddressToNumber(spec, host_component, address)) {
-        break;
-      }
-
-      SbMemorySet(out_destination_address, 0, sizeof(SbSocketAddress));
-      out_destination_address->type = kSbSocketAddressTypeIpv6;
-      COMPILE_ASSERT(sizeof(address), kIPv6AddressLength);
-      SbMemoryCopy(out_destination_address->address, address, sizeof(address));
-      return true;
-#endif
-      break;
-    }
-    case url_canon::CanonHostInfo::BROKEN:
-      break;
-    case url_canon::CanonHostInfo::IPV6:
-      NOTREACHED() << "Invalid return value from IPv4AddressToNumber";
-      break;
-  }
-
-  return false;
-}
-
-bool IsIPInPrivateRange(const SbSocketAddress& ip) {
-  if (ip.type == kSbSocketAddressTypeIpv4) {
-    if (ip.address[0] == 10) {
-      // IP is in range 10.0.0.0 - 10.255.255.255 (10/8 prefix).
-      return true;
-    }
-    if ((ip.address[0] == 192) && (ip.address[1] == 168)) {
-      // IP is in range 192.168.0.0 - 192.168.255.255 (192.168/16 prefix).
-      return true;
-    }
-    if ((ip.address[0] == 172) &&
-        ((ip.address[1] >= 16) || (ip.address[1] <= 31))) {
-      // IP is in range 172.16.0.0 - 172.31.255.255 (172.16/12 prefix).
-      return true;
-    }
-  }
-#if SB_HAS(IPV6)
-  if (ip.type == kSbSocketAddressTypeIpv6) {
-    // Unique Local Addresses for IPv6 are fd00::/8.
-    return ip.address[0] == 0xfd && ip.address[1] == 0;
-  }
-#endif
-
-  return false;
-}
-
 bool IsInsecureScheme(const GURL& url) {
   return url.SchemeIs(url::kHttpScheme) || url.SchemeIs(url::kWsScheme);
 }
 
 }  // namespace
 
-SourceList::SourceList(ContentSecurityPolicy* policy,
+SourceList::SourceList(const LocalNetworkCheckerInterface* checker,
+                       ContentSecurityPolicy* policy,
                        const std::string& directive_name)
     : policy_(policy),
       directive_name_(directive_name),
@@ -166,7 +83,7 @@ SourceList::SourceList(ContentSecurityPolicy* policy,
       allow_insecure_connections_to_localhost_(false),
       allow_insecure_connections_to_private_range_(false),
       hash_algorithms_used_(0),
-      local_network_checker_(new LocalNetworkChecker()) {}
+      local_network_checker_(checker) {}
 
 bool SourceList::Matches(
     const GURL& url,
@@ -198,23 +115,21 @@ bool SourceList::Matches(
     return false;
   }
 
-  const char* valid_spec_cstr = valid_spec.c_str();
-  base::StringPiece host(valid_spec_cstr + parsed.host.begin, parsed.host.len);
-
   if (!IsInsecureScheme(url)) {
     return false;
   }
 
   if (allow_insecure_connections_to_localhost_) {
+    std::string host;
 #if SB_HAS(IPV6)
-    if (net::IsLocalhost(url.HostNoBrackets())) {
-      return true;
-    }
+    host = url.HostNoBrackets();
 #else
-    if (net::IsLocalhost(host.as_string())) {
+    host.append(valid_spec.c_str() + parsed.host.begin,
+                valid_spec.c_str() + parsed.host.begin + parsed.host.len);
+#endif
+    if (net::IsLocalhost(host)) {
       return true;
     }
-#endif
   }
 
   /* allow mixed content for local network or private ranges? */
@@ -225,12 +140,13 @@ bool SourceList::Matches(
 
   SbSocketAddress destination;
   // Note that GetDestinationForHost will only pass if host is a numeric IP.
-  if (!GetDestinationForHost(valid_spec_cstr, parsed.host, &destination)) {
+  if (!cobalt::network::ParseSocketAddress(valid_spec.c_str(), parsed.host,
+                                           &destination)) {
     return false;
   }
 
   if (allow_insecure_connections_to_private_range_ &&
-      IsIPInPrivateRange(destination)) {
+      local_network_checker_->IsIPInPrivateRange(destination)) {
     return true;
   }
 
