@@ -53,8 +53,10 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   bool Close() SB_OVERRIDE;
   int Read(void* out_audio_data, int audio_data_size) SB_OVERRIDE;
 
+  void SetPermission(bool is_granted);
+
  private:
-  enum State { kOpened, kClosed };
+  enum State { kWaitPermission, kPermissionGranted, kOpened, kClosed };
 
   static void SwapAndPublishBuffer(SLAndroidSimpleBufferQueueItf buf_obj,
                                    void* context);
@@ -64,6 +66,10 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   void DeleteAudioRecoder();
 
   void ClearBuffer();
+
+  bool RequestAudioPermission();
+  bool OpenWhenHasPermission();
+  bool CloseWhenHasPermission();
 
   SLObjectItf engine_object_;
   SLEngineItf engine_;
@@ -87,8 +93,6 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   // Used to synchronize the calls of microphone and the callback from audio
   // recorder.
   Mutex mutex_;
-  // Check if all the calls are from the same thread.
-  starboard::shared::starboard::ThreadChecker thread_checker_;
 };
 
 SbMicrophoneImpl::SbMicrophoneImpl()
@@ -103,13 +107,22 @@ SbMicrophoneImpl::SbMicrophoneImpl()
       frames_size_(frames_per_buffer_ * sizeof(int16_t)) {}
 
 SbMicrophoneImpl::~SbMicrophoneImpl() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   Close();
 }
 
+bool SbMicrophoneImpl::RequestAudioPermission() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject j_record_audio_helper =
+      static_cast<jobject>(env->CallActivityObjectMethodOrAbort(
+          "getRecordAudioPermissionHelper",
+          "()Lfoo/cobalt/RecordAudioPermissionHelper;"));
+  jboolean j_permission = env->CallBooleanMethodOrAbort(
+      j_record_audio_helper, "requestRecordAudioPermission", "(J)Z",
+      reinterpret_cast<intptr_t>(this));
+  return j_permission;
+}
+
 bool SbMicrophoneImpl::Open() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
   starboard::ScopedLock lock(mutex_);
 
   // If the microphone has already been started, the following microphone open
@@ -121,6 +134,20 @@ bool SbMicrophoneImpl::Open() {
     return true;
   }
 
+  if (!RequestAudioPermission()) {
+    state_ = kWaitPermission;
+    // If the permission is not set, this still fools the MicrophoneManager to
+    // call read() repeatedly to wait for user's response.
+    return true;
+  } else if (!OpenWhenHasPermission()) {
+    return false;
+  }
+
+  state_ = kOpened;
+  return true;
+}
+
+bool SbMicrophoneImpl::OpenWhenHasPermission() {
   if (!CreateAudioRecoder()) {
     SB_DLOG(WARNING) << "Create audio recorder failed.";
     DeleteAudioRecoder();
@@ -150,12 +177,10 @@ bool SbMicrophoneImpl::Open() {
     return false;
   }
 
-  state_ = kOpened;
   return true;
 }
 
 bool SbMicrophoneImpl::Close() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
   starboard::ScopedLock lock(mutex_);
 
   if (state_ == kClosed) {
@@ -163,6 +188,15 @@ bool SbMicrophoneImpl::Close() {
     return true;
   }
 
+  if (state_ == kOpened && !CloseWhenHasPermission()) {
+    return false;
+  }
+
+  state_ = kClosed;
+  return true;
+}
+
+bool SbMicrophoneImpl::CloseWhenHasPermission() {
   // Stop recording by setting the record state to |SL_RECORDSTATE_STOPPED|.
   SLresult result =
       (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
@@ -174,21 +208,28 @@ bool SbMicrophoneImpl::Close() {
 
   DeleteAudioRecoder();
 
-  state_ = kClosed;
   return true;
 }
 
 int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
   starboard::ScopedLock lock(mutex_);
 
-  if (state_ != kOpened) {
+  if (state_ == kClosed) {
     return -1;
   }
 
-  if (!out_audio_data || audio_data_size == 0) {
+  if (!out_audio_data || audio_data_size == 0 || state_ == kWaitPermission) {
     // No data is required.
     return 0;
+  }
+
+  if (state_ == kPermissionGranted) {
+    if (OpenWhenHasPermission()) {
+      state_ = kOpened;
+    } else {
+      state_ = kClosed;
+      return -1;
+    }
   }
 
   int read_bytes = 0;
@@ -204,6 +245,11 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
   }
 
   return read_bytes;
+}
+
+void SbMicrophoneImpl::SetPermission(bool is_granted) {
+  starboard::ScopedLock lock(mutex_);
+  state_ = is_granted ? kPermissionGranted : kClosed;
 }
 
 // static
@@ -237,8 +283,6 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
 }
 
 bool SbMicrophoneImpl::CreateAudioRecoder() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   SLresult result;
   // Initializes the engine object with specific option.
   // OpenSL ES for Android is designed for multi-threaded applications and
@@ -345,8 +389,6 @@ bool SbMicrophoneImpl::CreateAudioRecoder() {
 }
 
 void SbMicrophoneImpl::DeleteAudioRecoder() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   if (recorder_object_) {
     (*recorder_object_)->Destroy(recorder_object_);
   }
@@ -365,8 +407,6 @@ void SbMicrophoneImpl::DeleteAudioRecoder() {
 }
 
 void SbMicrophoneImpl::ClearBuffer() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   // Clear the buffer queue to get rid of old data.
   if (buffer_object_) {
     SLresult result = (*buffer_object_)->Clear(buffer_object_);
@@ -456,4 +496,18 @@ void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
 
   delete s_microphone;
   s_microphone = kSbMicrophoneInvalid;
+}
+
+extern "C" {
+SB_EXPORT_PLATFORM void
+Java_foo_cobalt_RecordAudioPermissionHelper_nativeSetPermission(
+    JNIEnv* env,
+    jobject jcaller,
+    jlong nativeSbMicrophoneImpl,
+    jboolean is_granted) {
+  starboard::android::shared::SbMicrophoneImpl* native =
+      reinterpret_cast<starboard::android::shared::SbMicrophoneImpl*>(
+          nativeSbMicrophoneImpl);
+  native->SetPermission(is_granted);
+}
 }
