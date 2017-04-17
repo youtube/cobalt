@@ -157,7 +157,11 @@ void OnPNGEncodeComplete(ScreenshotResultContext* context,
 
 }  // namespace
 
+#if SB_HAS(IPV6)
+const char WebDriverModule::kDefaultListenIp[] = "::";
+#else
 const char WebDriverModule::kDefaultListenIp[] = "0.0.0.0";
+#endif
 
 WebDriverModule::WebDriverModule(
     int server_port, const std::string& listen_ip,
