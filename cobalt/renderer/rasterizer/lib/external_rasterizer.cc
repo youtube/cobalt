@@ -79,9 +79,8 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       graphics_context_->CreateOffscreenRenderTarget(math::Size(1920, 1080));
   main_texture_.reset(new backend::TextureEGL(
       graphics_context_,
-      make_scoped_refptr(
-          base::polymorphic_downcast<backend::PBufferRenderTargetEGL*>(
-              main_offscreen_render_target_.get()))));
+      make_scoped_refptr(base::polymorphic_downcast<backend::RenderTargetEGL*>(
+          main_offscreen_render_target_.get()))));
 
   CbLibOnGraphicsContextCreated();
 }
