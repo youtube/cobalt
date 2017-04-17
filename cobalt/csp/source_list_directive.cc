@@ -17,10 +17,21 @@
 namespace cobalt {
 namespace csp {
 
+bool SourceListDirective::LocalNetworkChecker::IsIPInLocalNetwork(
+    const SbSocketAddress& destination) const {
+  return ::cobalt::network::IsIPInLocalNetwork(destination);
+}
+
+bool SourceListDirective::LocalNetworkChecker::IsIPInPrivateRange(
+    const SbSocketAddress& destination) const {
+  return ::cobalt::network::IsIPInPrivateRange(destination);
+}
+
 SourceListDirective::SourceListDirective(const std::string& name,
                                          const std::string& value,
                                          ContentSecurityPolicy* policy)
-    : Directive(name, value, policy), source_list_(policy, name) {
+    : Directive(name, value, policy),
+      source_list_(&local_network_checker_, policy, name) {
   source_list_.Parse(base::StringPiece(value));
 }
 

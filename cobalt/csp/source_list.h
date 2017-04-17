@@ -24,8 +24,8 @@
 #include "base/hash_tables.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
-#include "cobalt/csp/local_network_checker.h"
 #include "cobalt/csp/source.h"
+#include "cobalt/network/local_network.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -33,7 +33,17 @@ namespace csp {
 
 class SourceList {
  public:
-  SourceList(ContentSecurityPolicy* policy, const std::string& directive_name);
+  struct LocalNetworkCheckerInterface {
+    virtual bool IsIPInLocalNetwork(
+        const SbSocketAddress& destination) const = 0;
+    virtual bool IsIPInPrivateRange(
+        const SbSocketAddress& destination) const = 0;
+
+    virtual ~LocalNetworkCheckerInterface() {}
+  };
+
+  SourceList(const LocalNetworkCheckerInterface* checker,
+             ContentSecurityPolicy* policy, const std::string& directive_name);
   void Parse(const base::StringPiece& begin);
 
   bool Matches(const GURL& url,
@@ -69,12 +79,6 @@ class SourceList {
   void AddSourceNonce(const std::string& nonce);
   void AddSourceHash(const HashAlgorithm&, const DigestValue& hash);
 
-  // For testing only
-  void SetLocalNetworkChecker(
-      scoped_ptr<LocalNetworkCheckerInterface> checker) {
-    local_network_checker_ = checker.Pass();
-  }
-
   ContentSecurityPolicy* policy_;
   std::vector<Source> list_;
   std::string directive_name_;
@@ -91,7 +95,7 @@ class SourceList {
   std::set<HashValue> hashes_;
   uint8 hash_algorithms_used_;
 
-  scoped_ptr<LocalNetworkCheckerInterface> local_network_checker_;
+  const LocalNetworkCheckerInterface* local_network_checker_;
 
   FRIEND_TEST_ALL_PREFIXES(SourceListTest, TestInsecureLocalNetworkDefault);
 

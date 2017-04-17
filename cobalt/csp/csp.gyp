@@ -29,8 +29,6 @@
         'directive.h',
         'directive_list.cc',
         'directive_list.h',
-        'local_network_checker.cc',
-        'local_network_checker.h',
         'media_list_directive.cc',
         'media_list_directive.h',
         'parsers.h',
@@ -43,6 +41,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
