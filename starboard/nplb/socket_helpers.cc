@@ -30,7 +30,7 @@ SbOnceControl valid_port_once_control = SB_ONCE_INITIALIZER;
 
 void InitializePortNumberForTests() {
   // Create a listening socket. Let the system choose a port for us.
-  SbSocket socket = CreateListeningTcpIpv4Socket(0);
+  SbSocket socket = CreateListeningTcpSocket(kSbSocketAddressTypeIpv4, 0);
   SB_DCHECK(socket != kSbSocketInvalid);
 
   // Query which port this socket was bound to and save it to valid_port_number.
@@ -68,8 +68,7 @@ bool IsUnspecified(const SbSocketAddress* address) {
 
 bool IsLocalhost(const SbSocketAddress* address) {
   if (address->type == kSbSocketAddressTypeIpv4) {
-    return (address->address[0] == 127 && address->address[1] == 0 &&
-            address->address[2] == 0 && address->address[3] == 1);
+    return address->address[0] == 127;
   }
 
   if (address->type == kSbSocketAddressTypeIpv6) {
@@ -84,35 +83,34 @@ bool IsLocalhost(const SbSocketAddress* address) {
   return false;
 }
 
-SbSocketAddress GetIpv4Localhost(int port) {
-  SbSocketAddress address = GetIpv4Unspecified(port);
-  address.address[0] = 127;
-  address.address[3] = 1;
+SbSocketAddress GetLocalhostAddress(SbSocketAddressType address_type,
+                                    int port) {
+  SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
+  switch (address_type) {
+    case kSbSocketAddressTypeIpv4: {
+      address.address[0] = 127;
+      address.address[3] = 1;
+      return address;
+    }
+    case kSbSocketAddressTypeIpv6: {
+      address.address[15] = 1;
+      return address;
+    }
+  }
+  ADD_FAILURE() << "GetLocalhostAddress for unknown address type";
   return address;
 }
 
-SbSocketAddress GetIpv4Unspecified(int port) {
+SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
+                                      int port) {
   SbSocketAddress address = {0};
-  address.type = kSbSocketAddressTypeIpv4;
+  address.type = address_type;
   address.port = port;
   return address;
 }
 
-SbSocketAddress GetIpv6Localhost(int port) {
-  SbSocketAddress address = GetIpv6Unspecified(port);
-  address.address[15] = 1;
-  return address;
-}
-
-SbSocketAddress GetIpv6Unspecified(int port) {
-  SbSocketAddress address = {0};
-  address.type = kSbSocketAddressTypeIpv6;
-  address.port = port;
-  return address;
-}
-
-SbSocket CreateServerTcpIpv4Socket() {
-  SbSocket server_socket = CreateTcpIpv4Socket();
+SbSocket CreateServerTcpSocket(SbSocketAddressType address_type) {
+  SbSocket server_socket = SbSocketCreate(address_type, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(server_socket)) {
     ADD_FAILURE() << "SbSocketCreate failed";
     return kSbSocketInvalid;
@@ -127,13 +125,13 @@ SbSocket CreateServerTcpIpv4Socket() {
   return server_socket;
 }
 
-SbSocket CreateBoundTcpIpv4Socket(int port) {
-  SbSocket server_socket = CreateServerTcpIpv4Socket();
+SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
+  SbSocket server_socket = CreateServerTcpSocket(address_type);
   if (!SbSocketIsValid(server_socket)) {
     return kSbSocketInvalid;
   }
 
-  SbSocketAddress address = GetIpv4Unspecified(port);
+  SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
   SbSocketError result = SbSocketBind(server_socket, &address);
   if (result != kSbSocketOk) {
     ADD_FAILURE() << "SbSocketBind to " << port << " failed: " << result;
@@ -144,8 +142,8 @@ SbSocket CreateBoundTcpIpv4Socket(int port) {
   return server_socket;
 }
 
-SbSocket CreateListeningTcpIpv4Socket(int port) {
-  SbSocket server_socket = CreateBoundTcpIpv4Socket(port);
+SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
+  SbSocket server_socket = CreateBoundTcpSocket(address_type, port);
   if (!SbSocketIsValid(server_socket)) {
     return kSbSocketInvalid;
   }
@@ -160,15 +158,16 @@ SbSocket CreateListeningTcpIpv4Socket(int port) {
   return server_socket;
 }
 
-SbSocket CreateConnectingTcpIpv4Socket(int port) {
-  SbSocket client_socket = CreateTcpIpv4Socket();
+namespace {
+SbSocket CreateConnectingTcpSocket(SbSocketAddressType address_type, int port) {
+  SbSocket client_socket = SbSocketCreate(address_type, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(client_socket)) {
     ADD_FAILURE() << "SbSocketCreate failed";
     return kSbSocketInvalid;
   }
 
   // Connect to localhost:<port>.
-  SbSocketAddress address = GetIpv4Localhost(port);
+  SbSocketAddress address = GetLocalhostAddress(address_type, port);
 
   // This connect will probably return pending, but we'll assume it will connect
   // eventually.
@@ -181,6 +180,7 @@ SbSocket CreateConnectingTcpIpv4Socket(int port) {
 
   return client_socket;
 }
+}  // namespace
 
 SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
@@ -260,16 +260,19 @@ bool ReadBySpinning(SbSocket socket,
   return true;
 }
 
-ConnectedTrio CreateAndConnect(int port, SbTime timeout) {
-  // Set up a listening socket.
-  SbSocket listen_socket = CreateListeningTcpIpv4Socket(port);
+ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
+                               SbSocketAddressType client_address_type,
+                               int port,
+                               SbTime timeout) {
+  // Verify the listening socket.
+  SbSocket listen_socket = CreateListeningTcpSocket(server_address_type, port);
   if (!SbSocketIsValid(listen_socket)) {
     ADD_FAILURE() << "Could not create listen socket.";
     return ConnectedTrio();
   }
 
-  // Create a new socket to connect to the listening socket.
-  SbSocket client_socket = CreateConnectingTcpIpv4Socket(port);
+  // Verify the socket to connect to the listening socket.
+  SbSocket client_socket = CreateConnectingTcpSocket(client_address_type, port);
   if (!SbSocketIsValid(client_socket)) {
     ADD_FAILURE() << "Could not create client socket.";
     EXPECT_TRUE(SbSocketDestroy(listen_socket));

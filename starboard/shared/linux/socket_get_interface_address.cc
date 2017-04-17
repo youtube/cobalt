@@ -244,9 +244,7 @@ bool FindIPv6InterfaceIP(SbSocketAddress* out_interface_ip,
   for (struct ifaddrs* interface = interface_addrs; interface != NULL;
        interface = interface->ifa_next) {
     if (!(IFF_UP & interface->ifa_flags) ||
-        (IFF_LOOPBACK & interface->ifa_flags) ||
-        (IFA_F_TEMPORARY & interface->ifa_flags) ||
-        (IFA_F_DEPRECATED & interface->ifa_flags)) {
+        (IFF_LOOPBACK & interface->ifa_flags)) {
       continue;
     }
 

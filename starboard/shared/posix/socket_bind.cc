@@ -18,6 +18,7 @@
 #include <sys/socket.h>
 
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/socket_internal.h"
 
@@ -44,6 +45,20 @@ SbSocketError SbSocketBind(SbSocket socket,
                    << ", argument type = " << local_address->type;
     return (socket->error = sbposix::TranslateSocketErrno(EAFNOSUPPORT));
   }
+
+#if SB_HAS(IPV6)
+  // When binding to the IPV6 any address, ensure that the IPV6_V6ONLY flag is
+  // off to allow incoming IPV4 connections on the same socket.
+  // See https://www.ietf.org/rfc/rfc3493.txt for details.
+  if (local_address && (local_address->type == kSbSocketAddressTypeIpv6) &&
+      SbMemoryIsZero(local_address->address, 16)) {
+    if (!sbposix::SetBooleanSocketOption(socket, IPPROTO_IPV6, IPV6_V6ONLY,
+                                         "IPV6_V6ONLY", false)) {
+      // Silently ignore errors, assume the default behavior is as expected.
+      socket->error = kSbSocketOk;
+    }
+  }
+#endif
 
   int result = HANDLE_EINTR(
       bind(socket->socket_fd, sock_addr.sockaddr(), sock_addr.length));

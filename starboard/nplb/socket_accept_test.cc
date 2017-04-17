@@ -24,13 +24,17 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSocketAcceptTest, RainyDayNoConnection) {
+class SbSocketAcceptTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+TEST_P(SbSocketAcceptTest, RainyDayNoConnection) {
   // Set up a socket to listen.
   SbSocket server_socket =
-      CreateListeningTcpIpv4Socket(GetPortNumberForTests());
-  if (!SbSocketIsValid(server_socket)) {
-    return;
-  }
+      CreateListeningTcpSocket(GetAddressType(), GetPortNumberForTests());
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   // Don't create a socket to connect to it.
 
@@ -43,12 +47,10 @@ TEST(SbSocketAcceptTest, RainyDayNoConnection) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-TEST(SbSocketAcceptTest, RainyDayNotBound) {
+TEST_P(SbSocketAcceptTest, RainyDayNotBound) {
   // Set up a socket, but don't Bind or Listen.
-  SbSocket server_socket = CreateServerTcpIpv4Socket();
-  if (!SbSocketIsValid(server_socket)) {
-    return;
-  }
+  SbSocket server_socket = CreateServerTcpSocket(GetAddressType());
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   // Accept should result in an error.
   EXPECT_EQ(kSbSocketInvalid, SbSocketAccept(server_socket));
@@ -57,12 +59,11 @@ TEST(SbSocketAcceptTest, RainyDayNotBound) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-TEST(SbSocketAcceptTest, RainyDayNotListening) {
+TEST_P(SbSocketAcceptTest, RainyDayNotListening) {
   // Set up a socket, but don't Bind or Listen.
-  SbSocket server_socket = CreateBoundTcpIpv4Socket(GetPortNumberForTests());
-  if (!SbSocketIsValid(server_socket)) {
-    return;
-  }
+  SbSocket server_socket =
+      CreateBoundTcpSocket(GetAddressType(), GetPortNumberForTests());
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   // Accept should result in an error.
   EXPECT_EQ(kSbSocketInvalid, SbSocketAccept(server_socket));
@@ -70,6 +71,17 @@ TEST(SbSocketAcceptTest, RainyDayNotListening) {
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketAcceptTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketAcceptTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+#endif
 
 }  // namespace
 }  // namespace nplb
