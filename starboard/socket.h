@@ -435,11 +435,28 @@ inline std::ostream& operator<<(std::ostream& os,
   if (address.type == kSbSocketAddressTypeIpv6) {
     os << std::hex << "[";
     const uint16_t* fields = reinterpret_cast<const uint16_t*>(address.address);
-    for (int i = 0; i < 8; ++i) {
+    int i = 0;
+    while (fields[i] == 0) {
+      if (i == 0) {
+        os << ":";
+      }
+      ++i;
+      if (i == 8) {
+        os << ":";
+      }
+    }
+    for (; i < 8; ++i) {
       if (i != 0) {
         os << ":";
       }
+#if SB_IS(LITTLE_ENDIAN)
+      const uint8_t* fields8 = reinterpret_cast<const uint8_t*>(&fields[i]);
+      const uint16_t value = static_cast<uint16_t>(fields8[0]) * 256 |
+                             static_cast<uint16_t>(fields8[1]);
+      os << value;
+#else
       os << fields[i];
+#endif
     }
     os << "]" << std::dec;
   } else {
