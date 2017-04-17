@@ -206,16 +206,78 @@ TEST_F(SourceListTest, TestInsecureLocalhostDefault) {
   SourceList source_list(csp_.get(), "connect-src");
 
   EXPECT_FALSE(source_list.Matches(GURL("http://localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://locaLHost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost./")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://locaLHost./")));
   EXPECT_FALSE(source_list.Matches(GURL("http://localhost.localdomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost.locaLDomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost.localdomain./")));
   EXPECT_FALSE(source_list.Matches(GURL("http://127.0.0.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://127.0.0.1:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://127.0.1.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://127.1.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://127.0.0.255/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://127.0.255.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://127.255.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://example.localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://example.localhost:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://example.localhost./")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://example.locaLHost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://example.locaLHost./")));
 
   EXPECT_FALSE(source_list.Matches(GURL("https://localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://locaLHost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://locaLHost./")));
   EXPECT_FALSE(source_list.Matches(GURL("https://localhost.localdomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost.locaLDomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost.localdomain./")));
   EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.1:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.1.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.1.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.255/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.255.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.255.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.localhost:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.localhost./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.locaLHost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.locaLHost./")));
 
 #if SB_HAS(IPV6)
-  EXPECT_FALSE(source_list.Matches(GURL("http://::1/")));
-  EXPECT_FALSE(source_list.Matches(GURL("https://::1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost6/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost6:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost6./")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost6.localdomain6/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost6.localdomain6:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://localhost6.localdomain6./")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://[::1]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://[::1]:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://[0:0:0:0:0:0:0:1]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://[0:0:0:0:0:0:0:1]:80/")));
+  EXPECT_FALSE(source_list.Matches(
+      GURL("http://[0000:0000:0000:0000:0000:0000:0000:0001]/")));
+  EXPECT_FALSE(source_list.Matches(
+      GURL("http://[0000:0000:0000:0000:0000:0000:0000:0001]:80/")));
+
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6.localdomain6/")));
+  EXPECT_FALSE(
+      source_list.Matches(GURL("https://localhost6.localdomain6:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6.localdomain6./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[::1]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[::1]:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[0:0:0:0:0:0:0:1]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[0:0:0:0:0:0:0:1]:80/")));
+  EXPECT_FALSE(source_list.Matches(
+      GURL("https://[0000:0000:0000:0000:0000:0000:0000:0001]/")));
+  EXPECT_FALSE(source_list.Matches(
+      GURL("https://[0000:0000:0000:0000:0000:0000:0000:0001]:80/")));
 #endif
 }
 
@@ -225,20 +287,73 @@ TEST_F(SourceListTest, TestInsecureLocalhost) {
   ParseSourceList(&source_list, sources);
 
   EXPECT_TRUE(source_list.Matches(GURL("http://localhost/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost:80/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://locaLHost/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://localhost.localdomain/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost.locaLDomain/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://127.0.0.1/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://127.0.0.1:80/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://127.0.1.0/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://127.1.0.0/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://127.0.0.255/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://127.0.255.0/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://127.255.0.0/")));
+
 #if SB_HAS(IPV6)
-  EXPECT_FALSE(source_list.Matches(GURL("http://::1/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6:80/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6.localdomain6/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://localhost6.localdomain6:80/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://[::1]/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://[::1]:80/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://[0:0:0:0:0:0:0:1]/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://[0:0:0:0:0:0:0:1]:80/")));
+  EXPECT_TRUE(source_list.Matches(
+      GURL("http://[0000:0000:0000:0000:0000:0000:0000:0001]/")));
+  EXPECT_TRUE(source_list.Matches(
+      GURL("http://[0000:0000:0000:0000:0000:0000:0000:0001]:80/")));
 #endif
 
   // Per CA/Browser forum, issuance of internal names is now prohibited.
   // See: https://cabforum.org/internal-names/
   // But, test it anyway.
   EXPECT_FALSE(source_list.Matches(GURL("https://localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://locaLHost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://locaLHost./")));
   EXPECT_FALSE(source_list.Matches(GURL("https://localhost.localdomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost.locaLDomain/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost.localdomain./")));
   EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.1:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.1.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.1.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.0.255/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.0.255.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://127.255.0.0/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.localhost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.localhost:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.localhost./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.locaLHost/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example.locaLHost./")));
+
 #if SB_HAS(IPV6)
-  EXPECT_FALSE(source_list.Matches(GURL("https://::1/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6.localdomain6/")));
+  EXPECT_FALSE(
+      source_list.Matches(GURL("https://localhost6.localdomain6:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://localhost6.localdomain6./")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[::1]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[::1]:80/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[0:0:0:0:0:0:0:1]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[0:0:0:0:0:0:0:1]:80/")));
+  EXPECT_FALSE(source_list.Matches(
+      GURL("https://[0000:0000:0000:0000:0000:0000:0000:0001]/")));
+  EXPECT_FALSE(source_list.Matches(
+      GURL("https://[0000:0000:0000:0000:0000:0000:0000:0001]:80/")));
 #endif
 }
 
@@ -255,6 +370,18 @@ TEST_F(SourceListTest, TestInsecurePrivateRangeDefault) {
   EXPECT_FALSE(source_list.Matches(GURL("https://192.168.1.1/")));
   EXPECT_FALSE(source_list.Matches(GURL("https://0.0.0.0/")));
   EXPECT_FALSE(source_list.Matches(GURL("https://255.255.255.255/")));
+
+#if SB_HAS(IPV6)
+  EXPECT_FALSE(source_list.Matches(GURL("http://[fd00::]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://[fd00:1:2:3:4:5::]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[fd00::]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[fd00:1:2:3:4:5::]/")));
+
+  EXPECT_FALSE(source_list.Matches(
+      GURL("https://[2606:2800:220:1:248:1893:25c8:1946]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://[FE80::]/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://[FE80::]/")));
+#endif
 }
 
 TEST_F(SourceListTest, TestInsecurePrivateRange) {
