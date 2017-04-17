@@ -51,7 +51,7 @@ android {
         // Note: Please also change these values in
         // starboard/android.shared/platform_deploy.gypi
         minSdkVersion 21
-        targetSdkVersion 22  // TODO: Targeting Lollipop avoids runtime permissions for now
+        targetSdkVersion 25
         versionCode 1
         versionName "1.0"
         ndk {
