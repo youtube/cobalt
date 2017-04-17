@@ -29,15 +29,6 @@ namespace csp {
 
 namespace {
 
-// Even though StringPieces do not own the data, pointing to a C literal
-// should be OK.
-static const base::StringPiece kLocalHostRepresentations[] = {
-    base::StringPiece("localhost"), base::StringPiece("localhost.localdomain"),
-#if SB_HAS(IPV6)
-    base::StringPiece("::1"),
-#endif
-    base::StringPiece("127.0.0.1")};
-
 bool IsSourceListNone(const char* begin, const char* end) {
   SkipWhile<IsAsciiWhitespace>(&begin, end);
 
@@ -215,11 +206,15 @@ bool SourceList::Matches(
   }
 
   if (allow_insecure_connections_to_localhost_) {
-    const base::StringPiece* begin = kLocalHostRepresentations;
-    const base::StringPiece* end = begin + arraysize(kLocalHostRepresentations);
-    if (std::find(begin, end, host) != end) {
+#if SB_HAS(IPV6)
+    if (net::IsLocalhost(url.HostNoBrackets())) {
       return true;
     }
+#else
+    if (net::IsLocalhost(host.as_string())) {
+      return true;
+    }
+#endif
   }
 
   /* allow mixed content for local network or private ranges? */
