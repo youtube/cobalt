@@ -231,6 +231,11 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const OVERRIDE;
   bool PreferDecodeToTexture() const OVERRIDE;
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  void EncryptedMediaInitData(media::EmeInitDataType init_data_type,
+                              const unsigned char* init_data,
+                              unsigned int init_data_length) OVERRIDE;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   void KeyAdded(const std::string& key_system,
                 const std::string& session_id) OVERRIDE;
   void KeyError(const std::string& key_system, const std::string& session_id,

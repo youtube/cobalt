@@ -26,12 +26,10 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
-// Disable `unreferenced formal parameter` as we have many stub functions in
-// this file and we want to keep their parameters.
-MSVC_PUSH_DISABLE_WARNING(4100)
-
 namespace cobalt {
 namespace media {
+
+class DrmSystem;
 
 class WebMediaPlayer {
  public:
@@ -203,8 +201,16 @@ class WebMediaPlayer {
                                          size_t* /*out_size*/) {
     return false;
   }
+
+  // Sets the DRM system which must be initialized with the data passed
+  // in |WebMediaPlayerClient::EncryptedMediaInitData|.
+  //
+  // |drm_system| must not be NULL. The method can only be called once.
+  virtual void SetDrmSystem(DrmSystem* drm_system) = 0;
 };
 
+// TODO: Add prefix "On" to all methods that handle events, such
+//       as |NetworkStateChanged|, |SourceOpened|, |EncryptedMediaInitData|.
 class WebMediaPlayerClient {
  public:
   enum MediaKeyErrorCode {
@@ -239,6 +245,12 @@ class WebMediaPlayerClient {
   // one that is.  This can be used to indicate that, say, for spherical video
   // playback, we would like a decode-to-texture output mode.
   virtual bool PreferDecodeToTexture() const { return false; }
+  // Notifies the client that a video is encrypted. Client is supposed to call
+  // |WebMediaPlayer::SetDrmSystem| as soon as possible to avoid stalling
+  // playback.
+  virtual void EncryptedMediaInitData(EmeInitDataType init_data_type,
+                                      const unsigned char* init_data,
+                                      unsigned init_data_length) = 0;
   // TODO: Make the EME related functions pure virtual again once
   // we have proper EME implementation. Currently empty implementation are
   // provided to make media temporarily work.
@@ -274,7 +286,5 @@ class WebMediaPlayerClient {
 
 }  // namespace media
 }  // namespace cobalt
-
-MSVC_POP_WARNING()
 
 #endif  // COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
