@@ -85,6 +85,10 @@ SbDrmSystemWidevine::SbDrmSystemWidevine(
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
+#if SB_API_VERSION >= 4
+      ticket_(kSbDrmTicketInvalid),
+      ticket_thread_id_(SbThreadGetId()),
+#endif  // SB_API_VERSION >= 4
       buffer_(new BufferImpl()),
       cdm_(static_cast<cdm::ContentDecryptionModule*>(
           CreateCdmInstance(cdm::kCdmInterfaceVersion,
@@ -92,7 +96,6 @@ SbDrmSystemWidevine::SbDrmSystemWidevine(
                             SbStringGetLength(kWidevineKeySystem),
                             GetHostInterface,
                             this))),
-      session_update_request_ticket_set_(false),
       quitting_(false),
       timer_thread_(SbThreadCreate(0,
                                    kSbThreadNoPriority,
@@ -126,18 +129,22 @@ void SbDrmSystemWidevine::GenerateSessionUpdateRequest(
   // We assume that CDM is called from one thread and that CDM calls host's
   // methods synchronously on the same thread, so it shouldn't be possible
   // to request multiple concurrent session updates.
-  SB_DCHECK(!session_update_request_ticket_set_)
+  SB_DCHECK(GetTicket() == kSbDrmTicketInvalid)
       << "Another session update request is already pending.";
-  session_update_request_ticket_ = ticket;
-  session_update_request_ticket_set_ = true;
+  SetTicket(ticket);
 #endif  // SB_API_VERSION >= 4
 
   cdm::Status status = cdm_->GenerateKeyRequest(
       type, SbStringGetLength(type),
       reinterpret_cast<const uint8_t*>(initialization_data),
       initialization_data_size);
+
   if (status != cdm::kSuccess) {
-    session_update_request_ticket_set_ = false;
+#if SB_API_VERSION >= 4
+    // Reset ticket before invoking user-provided callback to indicate that
+    // no session update request is pending.
+    SetTicket(kSbDrmTicketInvalid);
+#endif  // SB_API_VERSION >= 4
 
     SB_DLOG(ERROR) << "GenerateKeyRequest status " << status;
     // Send an empty request to signal an error.
@@ -149,17 +156,24 @@ void SbDrmSystemWidevine::GenerateSessionUpdateRequest(
   }
 }
 
-void SbDrmSystemWidevine::UpdateSession(const void* key,
-                                        int key_size,
-                                        const void* session_id,
-                                        int session_id_size) {
+void SbDrmSystemWidevine::UpdateSession(
+#if SB_API_VERSION >= 4
+    int ticket,
+#endif  // SB_API_VERSION >= 4
+    const void* key,
+    int key_size,
+    const void* session_id,
+    int session_id_size) {
   cdm::Status status =
       cdm_->AddKey(reinterpret_cast<const char*>(session_id), session_id_size,
                    reinterpret_cast<const uint8_t*>(key), key_size, NULL, 0);
   bool succeeded = status == cdm::kSuccess;
   SB_DLOG_IF(ERROR, !succeeded) << "AddKey status " << status;
-  session_updated_callback_(this, context_, session_id, session_id_size,
-                            succeeded);
+  session_updated_callback_(this, context_,
+#if SB_API_VERSION >= 4
+                            ticket,
+#endif  // SB_API_VERSION >= 4
+                            session_id, session_id_size, succeeded);
 }
 
 void SbDrmSystemWidevine::CloseSession(const void* session_id,
@@ -258,29 +272,28 @@ void SbDrmSystemWidevine::SendKeyMessage(const char* web_session_id,
   SB_DCHECK(SbStringGetLength(default_url) == default_url_length);
 
 #if SB_API_VERSION >= 4
-  SB_DCHECK(session_update_request_ticket_set_)
-      << "Session update request ticket is not initialized.";
+  int ticket = GetTicket();
+  // Reset ticket before invoking user-provided callback to indicate that
+  // no session update request is pending.
+  SetTicket(kSbDrmTicketInvalid);
 #endif  // SB_API_VERSION >= 4
 
   session_update_request_callback_(this, context_,
 #if SB_API_VERSION >= 4
-                                   session_update_request_ticket_,
+                                   ticket,
 #endif  // SB_API_VERSION >= 4
                                    web_session_id, web_session_id_length,
                                    message, message_length, default_url);
-
-#if SB_API_VERSION >= 4
-  session_update_request_ticket_set_ = false;
-#endif  // SB_API_VERSION >= 4
 }
 
 void SbDrmSystemWidevine::SendKeyError(const char* web_session_id,
                                        int32_t web_session_id_length,
                                        cdm::MediaKeyError error_code,
                                        uint32_t system_code) {
-  // TODO: Pass |error_code| and |system_code| to the host.
-  session_updated_callback_(this, context_, web_session_id,
-                            web_session_id_length, false);
+  // CDM may call this method in response to |GenerateKeyRequest| and |AddKey|,
+  // as well as spontaneously.
+  //
+  // TODO: Handle spontaneous errors, such as license expiration.
 }
 
 namespace {
@@ -375,11 +388,27 @@ void SbDrmSystemWidevine::TimerThread() {
 
 // static
 void* SbDrmSystemWidevine::TimerThreadFunc(void* context) {
-  SbDrmSystemWidevine* host = reinterpret_cast<SbDrmSystemWidevine*>(context);
-  SB_DCHECK(host);
-  host->TimerThread();
+  SbDrmSystemWidevine* drm_system = static_cast<SbDrmSystemWidevine*>(context);
+  SB_DCHECK(drm_system);
+  drm_system->TimerThread();
   return NULL;
 }
+
+#if SB_API_VERSION >= 4
+
+void SbDrmSystemWidevine::SetTicket(int ticket) {
+  SB_DCHECK(SbThreadGetId() == ticket_thread_id_)
+      << "Ticket should only be set from the constructor thread.";
+  ticket_ = ticket;
+}
+
+int SbDrmSystemWidevine::GetTicket() const {
+  // Returning no ticket is a valid way to indicate that a host's method was
+  // called spontaneously by CDM, potentially from the timer thread.
+  return SbThreadGetId() == ticket_thread_id_ ? ticket_ : kSbDrmTicketInvalid;
+}
+
+#endif  // SB_API_VERSION >= 4
 
 }  // namespace widevine
 }  // namespace shared

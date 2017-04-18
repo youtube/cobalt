@@ -19,12 +19,17 @@
 
 #include "starboard/queue.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+#include "starboard/thread.h"
 #include "third_party/cdm/cdm/include/content_decryption_module.h"
 
 namespace starboard {
 namespace shared {
 namespace widevine {
 
+// Adapts Widevine's |ContentDecryptionModule| to Starboard's |SbDrmSystem|.
+//
+// When called through |cdm::Host| interface, this class is thread-safe.
+// All |SbDrmSystemPrivate| methods must be called from the constructor thread.
 class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
  public:
   SbDrmSystemWidevine(
@@ -41,14 +46,21 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
       const char* type,
       const void* initialization_data,
       int initialization_data_size) SB_OVERRIDE;
-  void UpdateSession(const void* key,
-                     int key_size,
-                     const void* session_id,
-                     int session_id_size) SB_OVERRIDE;
+  void UpdateSession(
+#if SB_API_VERSION >= 4
+      int ticket,
+#endif  // SB_API_VERSION >= 4
+      const void* key,
+      int key_size,
+      const void* session_id,
+      int session_id_size) SB_OVERRIDE;
   void CloseSession(const void* session_id, int session_id_size) SB_OVERRIDE;
   DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
 
   // From |cdm::Host|.
+  //
+  // At least |SendKeyMessage| and |SendKeyError| are known to be called
+  // by the CDM from both constructor and timer threads.
   cdm::Buffer* Allocate(int32_t capacity) SB_OVERRIDE;
   void SetTimer(int64_t delay_in_milliseconds, void* context) SB_OVERRIDE;
   double GetCurrentWallTimeInSeconds() SB_OVERRIDE;
@@ -87,23 +99,34 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
   void TimerThread();
   static void* TimerThreadFunc(void* context);
 
-  void* context_;
-  SbDrmSessionUpdateRequestFunc session_update_request_callback_;
-  SbDrmSessionUpdatedFunc session_updated_callback_;
+#if SB_API_VERSION >= 4
+  void SetTicket(int ticket);
+  int GetTicket() const;
+#endif  // SB_API_VERSION >= 4
 
-  BufferImpl* buffer_;
-  cdm::ContentDecryptionModule* cdm_;
+  void* const context_;
+  const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
+  const SbDrmSessionUpdatedFunc session_updated_callback_;
 
-  // |ContentDecryptionModule_1| has no way to associate a key request
-  // with a newly created session. To work around that
-  // |session_update_request_ticket_| is expected to be set before each call
-  // to |GenerateKeyRequest|.
-  bool session_update_request_ticket_set_;
-  int session_update_request_ticket_;
+#if SB_API_VERSION >= 4
+  // Ticket is is expected to be set before each call to |GenerateKeyRequest|
+  // and |AddKey|, so that it can be passed back through
+  // |session_update_request_callback_| and |session_updated_callback_|
+  // correspondingly.
+  int ticket_;
+  // |ticket_| is only valid on the constructor thread within the duration of
+  // call to |GenerateKeyRequest| or |AddKey|, but CDM may invoke host's methods
+  // spontaneously from the timer thread. In that case |GetTicket| need to
+  // return |kSbDrmTicketInvalid|.
+  const SbThreadId ticket_thread_id_;
+#endif  // SB_API_VERSION >= 4
 
-  bool quitting_;
+  BufferImpl* const buffer_;
+  cdm::ContentDecryptionModule* const cdm_;
+
+  volatile bool quitting_;
   Queue<Timer> timer_queue_;
-  SbThread timer_thread_;
+  const SbThread timer_thread_;
 };
 
 }  // namespace widevine

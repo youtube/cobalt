@@ -36,7 +36,8 @@ class DrmSystem : public ::SbDrmSystemPrivate {
                                     const char* type,
                                     const void* initialization_data,
                                     int initialization_data_size) SB_OVERRIDE;
-  void UpdateSession(const void* key,
+  void UpdateSession(int ticket,
+                     const void* key,
                      int key_size,
                      const void* session_id,
                      int session_id_size);

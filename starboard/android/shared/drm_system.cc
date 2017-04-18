@@ -117,7 +117,8 @@ void DrmSystem::GenerateSessionUpdateRequest(
   // |onSessionMessage|.
 }
 
-void DrmSystem::UpdateSession(const void* key,
+void DrmSystem::UpdateSession(int ticket,
+                              const void* key,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
@@ -128,7 +129,7 @@ void DrmSystem::UpdateSession(const void* key,
   jboolean status = JniEnvExt::Get()->CallBooleanMethodOrAbort(
       j_media_drm_bridge_, "updateSession", "([B[B)Z", j_session_id.Get(),
       j_response.Get());
-  session_updated_callback_(this, context_, session_id, session_id_size,
+  session_updated_callback_(this, context_, ticket, session_id, session_id_size,
                             status == JNI_TRUE);
 }
 
