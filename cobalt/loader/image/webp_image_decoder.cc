@@ -17,6 +17,7 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/loader/image/animated_webp_image.h"
+#include "nb/memory_scope.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -28,6 +29,7 @@ WEBPImageDecoder::WEBPImageDecoder(
     : ImageDataDecoder(resource_provider),
       internal_decoder_(NULL),
       has_animation_(false) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
   WebPInitDecoderConfig(&config_);
@@ -53,6 +55,7 @@ uint8_t* WEBPImageDecoder::GetOriginalMemory() {
 
 size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::DecodeChunkInternal()");
   if (state() == kWaitingForHeader) {
@@ -110,6 +113,7 @@ void WEBPImageDecoder::FinishInternal() {
 }
 
 bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::ReadHeader()");
   // Retrieve features from the bitstream. The *features structure is filled
   // with information gathered from the bitstream.
@@ -130,6 +134,7 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
 }
 
 bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::CreateInternalDecoder()");
   config_.output.colorspace = has_alpha ? MODE_rgbA : MODE_RGBA;

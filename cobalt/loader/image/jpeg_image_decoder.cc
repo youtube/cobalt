@@ -18,6 +18,7 @@
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "nb/memory_scope.h"
 #include "third_party/libjpeg/jpegint.h"
 
 namespace cobalt {
@@ -83,6 +84,7 @@ JPEGImageDecoder::JPEGImageDecoder(
     render_tree::ResourceProvider* resource_provider)
     : ImageDataDecoder(resource_provider) {
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::JPEGImageDecoder()");
+  TRACK_MEMORY_SCOPE("Rendering");
   memset(&info_, 0, sizeof(info_));
   memset(&source_manager_, 0, sizeof(source_manager_));
 
@@ -110,6 +112,7 @@ JPEGImageDecoder::~JPEGImageDecoder() {
 
 size_t JPEGImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "JPEGImageDecoder::DecodeChunkInternal()");
   // |client_data| is available for use by application.
@@ -176,6 +179,7 @@ MSVC_POP_WARNING();
 }
 
 bool JPEGImageDecoder::ReadHeader() {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadHeader()");
   if (jpeg_read_header(&info_, true) == JPEG_SUSPENDED) {
     // Since |jpeg_read_header| doesn't have enough data, go back to the state
@@ -194,6 +198,7 @@ bool JPEGImageDecoder::ReadHeader() {
 }
 
 bool JPEGImageDecoder::StartDecompress() {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::StartDecompress()");
   // jpeg_has_multiple_scans() returns TRUE if the incoming image file has more
   // than one scan.
@@ -221,6 +226,7 @@ bool JPEGImageDecoder::StartDecompress() {
 // TODO: support displaying the low resolution image while decoding
 // the progressive JPEG.
 bool JPEGImageDecoder::DecodeProgressiveJPEG() {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "JPEGImageDecoder::DecodeProgressiveJPEG()");
   int status;
@@ -299,6 +305,8 @@ void FillRow(int width, uint8* dest, JSAMPLE* source) {
 }
 
 bool JPEGImageDecoder::ReadLines() {
+  TRACK_MEMORY_SCOPE("Rendering");
+
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadLines()");
 
   // Creation of 2-D sample arrays which is for one row.
