@@ -1546,6 +1546,15 @@ bool HTMLMediaElement::PreferDecodeToTexture() const {
   return map_to_mesh_filter;
 }
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+void HTMLMediaElement::EncryptedMediaInitData(
+    media::EmeInitDataType /*init_data_type*/,
+    const unsigned char* /*init_data*/, unsigned int /*init_data_length*/) {
+  // TODO: Implement as per EME 2017.
+  NOTIMPLEMENTED();
+}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
 void HTMLMediaElement::KeyAdded(const std::string& key_system,
                                 const std::string& session_id) {
   MLOG() << key_system;
