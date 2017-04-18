@@ -16,6 +16,7 @@
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace loader {
@@ -71,6 +72,7 @@ PNGImageDecoder::PNGImageDecoder(
       info_(NULL),
       has_alpha_(false),
       interlace_buffer_(0) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::PNGImageDecoder()");
 
   png_ = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, DecodingFailed,
@@ -81,6 +83,7 @@ PNGImageDecoder::PNGImageDecoder(
 }
 
 size_t PNGImageDecoder::DecodeChunkInternal(const uint8* data, size_t size) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "PNGImageDecoder::DecodeChunkInternal()");
   // int setjmp(jmp_buf env) saves the current environment (ths program state),
@@ -130,6 +133,7 @@ PNGImageDecoder::~PNGImageDecoder() {
 // Called when we have obtained the header information (including the size).
 // static
 void PNGImageDecoder::HeaderAvailable(png_structp png, png_infop info) {
+  TRACK_MEMORY_SCOPE("Rendering");
   UNREFERENCED_PARAMETER(info);
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::~PNGImageDecoder()");
   PNGImageDecoder* decoder =
@@ -150,6 +154,7 @@ void PNGImageDecoder::RowAvailable(png_structp png, png_bytep row_buffer,
 // Called when decoding is done.
 // static
 void PNGImageDecoder::DecodeDone(png_structp png, png_infop info) {
+  TRACK_MEMORY_SCOPE("Rendering");
   UNREFERENCED_PARAMETER(info);
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::DecodeDone()");
 
@@ -159,6 +164,7 @@ void PNGImageDecoder::DecodeDone(png_structp png, png_infop info) {
 }
 
 void PNGImageDecoder::HeaderAvailableCallback() {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "PNGImageDecoder::HeaderAvailableCallback()");
   DCHECK_EQ(state(), kWaitingForHeader);
@@ -278,6 +284,7 @@ void FillRow(int width, uint8* dest, png_bytep source) {
 // from the previous pass.
 void PNGImageDecoder::RowAvailableCallback(png_bytep row_buffer,
                                            png_uint_32 row_index) {
+  TRACK_MEMORY_SCOPE("Rendering");
   DCHECK_EQ(state(), kReadLines);
 
   // Nothing to do if the row is unchanged, or the row is outside

@@ -17,6 +17,7 @@
 #include "cobalt/loader/image/animated_webp_image.h"
 
 #include "cobalt/loader/image/webp_image_decoder.h"
+#include "nb/memory_scope.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -75,6 +76,7 @@ void AnimatedWebPImage::Stop() {
 }
 
 void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
+  TRACK_MEMORY_SCOPE("Rendering");
   base::AutoLock lock(lock_);
 
   data_buffer_.insert(data_buffer_.end(), data, data + input_byte);
@@ -122,6 +124,7 @@ void AnimatedWebPImage::PlayInternal() {
 }
 
 void AnimatedWebPImage::DecodeFrames() {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeFrames()");
   DCHECK(is_playing_ && received_first_frame_);
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -157,6 +160,7 @@ void AnimatedWebPImage::DecodeFrames() {
 }
 
 bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
+  TRACK_MEMORY_SCOPE("Rendering");
   base::AutoLock lock(lock_);
   WebPIterator webp_iterator;
   WEBPImageDecoder webp_image_decoder(resource_provider_);
@@ -254,6 +258,7 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
 }
 
 void AnimatedWebPImage::UpdateTimelineInfo() {
+  TRACK_MEMORY_SCOPE("Rendering");
   base::AutoLock lock(lock_);
   base::TimeTicks current_time = base::TimeTicks::Now();
   next_frame_index_ = current_frame_index_ ? current_frame_index_ : 1;
@@ -299,6 +304,7 @@ void AnimatedWebPImage::FillImageBufferWithBackgroundColor() {
 }
 
 scoped_ptr<render_tree::ImageData> AnimatedWebPImage::AllocateImageData() {
+  TRACK_MEMORY_SCOPE("Rendering");
   render_tree::PixelFormat pixel_format = render_tree::kPixelFormatRGBA8;
   if (!resource_provider_->PixelFormatSupported(pixel_format)) {
     pixel_format = render_tree::kPixelFormatBGRA8;
