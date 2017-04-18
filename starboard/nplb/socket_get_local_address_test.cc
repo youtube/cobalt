@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -20,40 +22,54 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSocketGetLocalAddressTest, RainyDayInvalidSocket) {
+class SbSocketGetLocalAddressTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+class PairSbSocketGetLocalAddressTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketAddressType, SbSocketAddressType> > {
+ public:
+  SbSocketAddressType GetServerAddressType() { return GetParam().first; }
+  SbSocketAddressType GetClientAddressType() { return GetParam().second; }
+};
+
+TEST_F(SbSocketGetLocalAddressTest, RainyDayInvalidSocket) {
   SbSocketAddress address = {0};
   EXPECT_FALSE(SbSocketGetLocalAddress(kSbSocketInvalid, &address));
 }
 
-TEST(SbSocketGetLocalAddressTest, RainyDayNullAddress) {
-  SbSocket server_socket = CreateBoundTcpIpv4Socket(0);
-  EXPECT_TRUE(SbSocketIsValid(server_socket));
+TEST_P(SbSocketGetLocalAddressTest, RainyDayNullAddress) {
+  SbSocket server_socket = CreateBoundTcpSocket(GetAddressType(), 0);
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
   EXPECT_FALSE(SbSocketGetLocalAddress(server_socket, NULL));
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-TEST(SbSocketGetLocalAddressTest, RainyDayNullNull) {
+TEST_F(SbSocketGetLocalAddressTest, RainyDayNullNull) {
   EXPECT_FALSE(SbSocketGetLocalAddress(kSbSocketInvalid, NULL));
 }
 
-TEST(SbSocketGetLocalAddressTest, SunnyDayUnbound) {
-  SbSocket server_socket = CreateServerTcpIpv4Socket();
+TEST_P(SbSocketGetLocalAddressTest, SunnyDayUnbound) {
+  SbSocket server_socket = CreateServerTcpSocket(GetAddressType());
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
-  EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
+  EXPECT_EQ(GetAddressType(), address.type);
   EXPECT_EQ(0, address.port);
   EXPECT_TRUE(IsUnspecified(&address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-TEST(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
-  SbSocket server_socket = CreateBoundTcpIpv4Socket(0);
-  EXPECT_TRUE(SbSocketIsValid(server_socket));
+TEST_P(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
+  SbSocket server_socket = CreateBoundTcpSocket(GetAddressType(), 0);
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
-  EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
+  EXPECT_EQ(GetAddressType(), address.type);
   EXPECT_NE(0, address.port);
 
   // We bound to an unspecified address, so it should come back that way.
@@ -62,14 +78,14 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-TEST(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
-  SbSocket server_socket = CreateServerTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(server_socket));
+TEST_P(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
+  SbSocket server_socket = CreateServerTcpSocket(GetAddressType());
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   {
     SbSocketAddress address = {0};
+    address.type = GetAddressType();
 #if SB_API_VERSION < 4
-    address.type = kSbSocketAddressTypeIpv4;
     EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
 #else
     EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
@@ -79,19 +95,18 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
 
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
-  EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
+  EXPECT_EQ(GetAddressType(), address.type);
   EXPECT_NE(0, address.port);
   EXPECT_FALSE(IsUnspecified(&address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-TEST(SbSocketGetLocalAddressTest, SunnyDayConnected) {
+TEST_P(PairSbSocketGetLocalAddressTest, SunnyDayConnected) {
   const int kPort = GetPortNumberForTests();
-  ConnectedTrio trio = CreateAndConnect(kPort, kSocketTimeout);
-  if (!SbSocketIsValid(trio.server_socket)) {
-    return;
-  }
+  ConnectedTrio trio = CreateAndConnect(
+      GetServerAddressType(), GetClientAddressType(), kPort, kSocketTimeout);
+  ASSERT_TRUE(SbSocketIsValid(trio.server_socket));
 
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(trio.listen_socket, &address));
@@ -112,6 +127,29 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayConnected) {
   EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
   EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketGetLocalAddressTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketGetLocalAddressTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketGetLocalAddressTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketGetLocalAddressTest,
+    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
+                                     kSbSocketAddressTypeIpv4)));
+#endif
 
 }  // namespace
 }  // namespace nplb

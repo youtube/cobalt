@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
 #include "starboard/time.h"
@@ -20,6 +22,14 @@
 namespace starboard {
 namespace nplb {
 namespace {
+
+class PairSbSocketReceiveFromTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketAddressType, SbSocketAddressType> > {
+ public:
+  SbSocketAddressType GetServerAddressType() { return GetParam().first; }
+  SbSocketAddressType GetClientAddressType() { return GetParam().second; }
+};
 
 // Transfers data between the two connected local sockets, spinning until |size|
 // has been transfered, or an error occurs.
@@ -59,15 +69,14 @@ int Transfer(SbSocket receive_socket,
   return size;
 }
 
-TEST(SbSocketReceiveFromTest, SunnyDay) {
+TEST_P(PairSbSocketReceiveFromTest, SunnyDay) {
   const int kBufSize = 256 * 1024;
   const int kSockBufSize = kBufSize / 8;
 
   ConnectedTrio trio =
-      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
-  if (!SbSocketIsValid(trio.server_socket)) {
-    return;
-  }
+      CreateAndConnect(GetServerAddressType(), GetClientAddressType(),
+                       GetPortNumberForTests(), kSocketTimeout);
+  ASSERT_TRUE(SbSocketIsValid(trio.server_socket));
 
   // Let's set the buffers small to create partial reads and writes.
   SbSocketSetReceiveBufferSize(trio.client_socket, kSockBufSize);
@@ -115,6 +124,22 @@ TEST(SbSocketReceiveFromTest, RainyDayInvalidSocket) {
   int result = SbSocketReceiveFrom(NULL, buf, sizeof(buf), NULL);
   EXPECT_EQ(-1, result);
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketReceiveFromTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+#else
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketReceiveFromTest,
+    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
+                                     kSbSocketAddressTypeIpv4)));
+#endif
 
 }  // namespace
 }  // namespace nplb

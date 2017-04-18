@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/socket_helpers.h"
+#include <utility>
+
 #include "starboard/log.h"
+#include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,6 +23,14 @@
 namespace starboard {
 namespace nplb {
 namespace {
+
+class SbSocketResolveTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketResolveFilter, SbSocketAddressType> > {
+ public:
+  SbSocketResolveFilter GetResolveFilter() { return GetParam().first; }
+  SbSocketAddressType GetAddressType() { return GetParam().second; }
+};
 
 // This is to use NULL in asserts, which otherwise complain about long
 // vs. pointer type.
@@ -31,7 +41,7 @@ const char* kTestHostName = "www.yahoo.com";
 
 #define LOG_ADDRESS(i) "In returned address #" << (i)
 
-TEST(SbSocketResolveTest, SunnyDay) {
+TEST_F(SbSocketResolveTest, SunnyDay) {
   SbSocketResolution* resolution = SbSocketResolve(kTestHostName, 0);
   ASSERT_NE(kNull, resolution);
   EXPECT_LT(0, resolution->address_count);
@@ -47,35 +57,20 @@ TEST(SbSocketResolveTest, SunnyDay) {
   SbSocketFreeResolution(resolution);
 }
 
-TEST(SbSocketResolveTest, SunnyDayIpv4) {
+TEST_P(SbSocketResolveTest, SunnyDayFiltered) {
   SbSocketResolution* resolution =
-      SbSocketResolve(kTestHostName, kSbSocketResolveFilterIpv4);
+      SbSocketResolve(kTestHostName, GetResolveFilter());
   ASSERT_NE(kNull, resolution);
   EXPECT_LT(0, resolution->address_count);
   EXPECT_NE(kNull, resolution->addresses);
   for (int i = 0; i < resolution->address_count; ++i) {
     const SbSocketAddress& address = resolution->addresses[i];
-    EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type) << LOG_ADDRESS(i);
+    EXPECT_EQ(GetAddressType(), address.type) << LOG_ADDRESS(i);
   }
   SbSocketFreeResolution(resolution);
 }
 
-#if SB_HAS(IPV6)
-TEST(SbSocketResolveTest, SunnyDayIpv6) {
-  SbSocketResolution* resolution =
-      SbSocketResolve(kTestHostName, kSbSocketResolveFilterIpv6);
-  ASSERT_NE(kNull, resolution);
-  EXPECT_LT(0, resolution->address_count);
-  EXPECT_NE(kNull, resolution->addresses);
-  for (int i = 0; i < resolution->address_count; ++i) {
-    const SbSocketAddress& address = resolution->addresses[i];
-    EXPECT_EQ(kSbSocketAddressTypeIpv6, address.type) << LOG_ADDRESS(i);
-  }
-  SbSocketFreeResolution(resolution);
-}
-#endif
-
-TEST(SbSocketResolveTest, IgnoreExtraBits) {
+TEST_F(SbSocketResolveTest, IgnoreExtraBits) {
   // Even with this extra bit set, the resolution should come out the same.
   SbSocketResolution* resolution1 = SbSocketResolve(kTestHostName, 1 << 14);
   SbSocketResolution* resolution2 = SbSocketResolve(kTestHostName, 0);
@@ -89,10 +84,25 @@ TEST(SbSocketResolveTest, IgnoreExtraBits) {
   SbSocketFreeResolution(resolution2);
 }
 
-TEST(SbSocketResolveTest, RainyDayNullHostname) {
+TEST_F(SbSocketResolveTest, RainyDayNullHostname) {
   SbSocketResolution* resolution = SbSocketResolve(NULL, 0);
   ASSERT_EQ(kNull, resolution);
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    SbSocketResolveTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketResolveFilterIpv4, kSbSocketAddressTypeIpv4),
+        std::make_pair(kSbSocketResolveFilterIpv6, kSbSocketAddressTypeIpv6)));
+#else
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    SbSocketResolveTest,
+    ::testing::Values(std::make_pair(kSbSocketResolveFilterIpv4,
+                                     kSbSocketAddressTypeIpv4)));
+#endif
 
 }  // namespace
 }  // namespace nplb
