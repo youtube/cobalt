@@ -15,7 +15,6 @@
 #include "cobalt/renderer/renderer_module.h"
 
 #include "base/debug/trace_event.h"
-#include "cobalt/browser/memory_settings/memory_calculations.h"
 #include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
@@ -83,7 +82,7 @@ void RendererModule::Options::SetPerPlatformDefaultOptions() {
   // Set default options from the current build's Starboard configuration.
   surface_cache_size_in_bytes = COBALT_SURFACE_CACHE_SIZE_IN_BYTES;
   // Default to 4MB, but this may be modified externally.
-  skia_cache_size_in_bytes = browser::memory_settings::kMinSkiaCacheSize;
+  skia_cache_size_in_bytes = 4 * 1024 * 1024;
   scratch_surface_cache_size_in_bytes =
       COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
   // 8MB default for software_surface_cache.
