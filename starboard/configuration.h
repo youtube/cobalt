@@ -60,7 +60,7 @@
 
 // Adds kSbSystemPropertyUserAgentAuxField to the SbSystemPropertyId
 // enum to allow platform-specific  User-Agent suffix.
-#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_VERSION SB_EXPERIMENTAL_API_VERSION
+#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Introduce 'starboard/speech_recognizer.h'
 // This newly-introduced 'starboard/speech_recognizer.h' adds the on-device
