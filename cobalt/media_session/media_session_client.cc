@@ -82,7 +82,13 @@ MediaSessionClient::GetAvailableActions() {
 
 void MediaSessionClient::UpdatePlatformPlaybackState(
     MediaSessionPlaybackState state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  if (base::MessageLoopProxy::current() != media_session_->message_loop_) {
+    media_session_->message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
+                              base::Unretained(this), state));
+    return;
+  }
+
   MediaSessionPlaybackState prev_actual_state = GetActualPlaybackState();
   platform_playback_state_ = state;
 
