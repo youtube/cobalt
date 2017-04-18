@@ -25,7 +25,7 @@ namespace {
 
 TEST(SbSocketClearLastErrorTest, SunnyDay) {
   // Set up a socket, but don't Bind or Listen.
-  SbSocket server_socket = CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpSocket(kSbSocketAddressTypeIpv4);
   ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   // Accept on the unbound socket should result in an error.

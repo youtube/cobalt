@@ -22,12 +22,14 @@ namespace nplb {
 namespace {
 
 SbSocket CreateMulticastSocket(const SbSocketAddress& address) {
-  SbSocket socket = CreateUdpIpv4Socket();
+  SbSocket socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
   EXPECT_TRUE(SbSocketIsValid(socket));
   EXPECT_TRUE(SbSocketSetReuseAddress(socket, true));
 
   // It will choose a port for me.
-  SbSocketAddress bind_address = GetIpv4Unspecified(0);
+  SbSocketAddress bind_address =
+      GetUnspecifiedAddress(kSbSocketAddressTypeIpv4, 0);
   EXPECT_EQ(kSbSocketOk, SbSocketBind(socket, &bind_address));
 
   EXPECT_TRUE(SbSocketJoinMulticastGroup(socket, &address));
@@ -35,7 +37,8 @@ SbSocket CreateMulticastSocket(const SbSocketAddress& address) {
 }
 
 SbSocket CreateSendSocket() {
-  SbSocket socket = CreateUdpIpv4Socket();
+  SbSocket socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
   EXPECT_TRUE(SbSocketIsValid(socket));
   EXPECT_TRUE(SbSocketSetReuseAddress(socket, true));
   return socket;
@@ -45,7 +48,7 @@ TEST(SbSocketJoinMulticastGroupTest, SunnyDay) {
   // "224.0.2.0" is an unassigned ad-hoc multicast address. Hopefully no one is
   // spamming it on the local network.
   // http://www.iana.org/assignments/multicast-addresses/multicast-addresses.xhtml
-  SbSocketAddress address = GetIpv4Unspecified(0);
+  SbSocketAddress address = GetUnspecifiedAddress(kSbSocketAddressTypeIpv4, 0);
   address.address[0] = 224;
   address.address[2] = 2;
 
@@ -96,13 +99,14 @@ TEST(SbSocketJoinMulticastGroupTest, SunnyDay) {
 }
 
 TEST(SbSocketJoinMulticastGroupTest, RainyDayInvalidSocket) {
-  SbSocketAddress address = GetIpv4Unspecified(0);
+  SbSocketAddress address = GetUnspecifiedAddress(kSbSocketAddressTypeIpv4, 0);
   EXPECT_FALSE(SbSocketJoinMulticastGroup(kSbSocketInvalid, &address));
 }
 
 TEST(SbSocketJoinMulticastGroupTest, RainyDayInvalidAddress) {
-  SbSocket socket = CreateUdpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+  SbSocket socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
   EXPECT_FALSE(SbSocketJoinMulticastGroup(socket, NULL));
   EXPECT_TRUE(SbSocketDestroy(socket));
 }

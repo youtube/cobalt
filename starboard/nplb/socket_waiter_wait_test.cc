@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "starboard/log.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/nplb/thread_helpers.h"
@@ -24,6 +26,20 @@
 namespace starboard {
 namespace nplb {
 namespace {
+
+class SbSocketWaiterWaitTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+class PairSbSocketWaiterWaitTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketAddressType, SbSocketAddressType> > {
+ public:
+  SbSocketAddressType GetServerAddressType() { return GetParam().first; }
+  SbSocketAddressType GetClientAddressType() { return GetParam().second; }
+};
 
 struct CallbackValues {
   int count;
@@ -55,18 +71,16 @@ void FailSocketWaiterCallback(SbSocketWaiter waiter,
   ADD_FAILURE() << __FUNCTION__ << " was called.";
 }
 
-TEST(SbSocketWaiterWaitTest, SunnyDay) {
+TEST_P(PairSbSocketWaiterWaitTest, SunnyDay) {
   const int kBufSize = 1024;
 
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
   ConnectedTrio trio =
-      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
-  if (!SbSocketIsValid(trio.server_socket)) {
-    ADD_FAILURE();
-    return;
-  }
+      CreateAndConnect(GetServerAddressType(), GetClientAddressType(),
+                       GetPortNumberForTests(), kSocketTimeout);
+  ASSERT_TRUE(SbSocketIsValid(trio.server_socket));
 
   // The client socket should be ready to write right away, but not read until
   // it gets some data.
@@ -198,12 +212,14 @@ void AlreadyReadySocketWaiterCallback(SbSocketWaiter waiter,
 // This test ensures that if the socket gets written to while it is not being
 // waited on, and inside a callback, it will become ready immediately the next
 // time it is waited on.
-TEST(SbSocketWaiterWaitTest, SunnyDayAlreadyReady) {
+TEST_P(PairSbSocketWaiterWaitTest, SunnyDayAlreadyReady) {
   AlreadyReadyContext context;
   context.waiter = SbSocketWaiterCreate();
   ASSERT_TRUE(SbSocketWaiterIsValid(context.waiter));
 
-  context.trio = CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
+  context.trio =
+      CreateAndConnect(GetServerAddressType(), GetClientAddressType(),
+                       GetPortNumberForTests(), kSocketTimeout);
   ASSERT_TRUE(SbSocketIsValid(context.trio.server_socket));
 
   EXPECT_TRUE(SbSocketWaiterAdd(context.waiter, context.trio.client_socket,
@@ -221,9 +237,32 @@ TEST(SbSocketWaiterWaitTest, SunnyDayAlreadyReady) {
   EXPECT_TRUE(SbThreadJoin(thread, NULL));
 }
 
-TEST(SbSocketWaiterWaitTest, RainyDayInvalidWaiter) {
+TEST_F(SbSocketWaiterWaitTest, RainyDayInvalidWaiter) {
   WaitShouldNotBlock(kSbSocketWaiterInvalid);
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketWaiterWaitTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketWaiterWaitTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketWaiterWaitTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketWaiterWaitTest,
+    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
+                                     kSbSocketAddressTypeIpv4)));
+#endif
 
 }  // namespace
 }  // namespace nplb

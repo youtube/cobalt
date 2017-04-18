@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "starboard/log.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
@@ -21,6 +23,20 @@
 namespace starboard {
 namespace nplb {
 namespace {
+
+class SbSocketIsConnectedAndIdleTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+class PairSbSocketIsConnectedAndIdleTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketAddressType, SbSocketAddressType> > {
+ public:
+  SbSocketAddressType GetServerAddressType() { return GetParam().first; }
+  SbSocketAddressType GetClientAddressType() { return GetParam().second; }
+};
 
 bool IsNonIdleWithin(SbSocket socket, SbTimeMonotonic timeout) {
   SbTimeMonotonic deadline = SbTimeGetMonotonicNow() + timeout;
@@ -32,16 +48,15 @@ bool IsNonIdleWithin(SbSocket socket, SbTimeMonotonic timeout) {
   return false;
 }
 
-TEST(SbSocketIsConnectedAndIdleTest, RainyDayInvalidSocket) {
+TEST_F(SbSocketIsConnectedAndIdleTest, RainyDayInvalidSocket) {
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(kSbSocketInvalid));
 }
 
-TEST(SbSocketIsConnectedAndIdleTest, SunnyDay) {
+TEST_P(PairSbSocketIsConnectedAndIdleTest, SunnyDay) {
   ConnectedTrio trio =
-      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
-  if (!SbSocketIsValid(trio.server_socket)) {
-    return;
-  }
+      CreateAndConnect(GetServerAddressType(), GetClientAddressType(),
+                       GetPortNumberForTests(), kSocketTimeout);
+  ASSERT_TRUE(SbSocketIsValid(trio.server_socket));
 
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(trio.listen_socket));
   EXPECT_TRUE(SbSocketIsConnectedAndIdle(trio.server_socket));
@@ -63,27 +78,43 @@ TEST(SbSocketIsConnectedAndIdleTest, SunnyDay) {
   EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
 }
 
-TEST(SbSocketIsConnectedAndIdleTest, SunnyDayNotConnected) {
-  SbSocket socket = CreateTcpIpv4Socket();
-  if (!SbSocketIsValid(socket)) {
-    return;
-  }
-
+TEST_P(SbSocketIsConnectedAndIdleTest, SunnyDayNotConnected) {
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
   EXPECT_TRUE(IsNonIdleWithin(socket, kSocketTimeout));
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
-TEST(SbSocketIsConnectedAndIdleTest, SunnyDayListeningNotConnected) {
+TEST_P(SbSocketIsConnectedAndIdleTest, SunnyDayListeningNotConnected) {
   SbSocket server_socket =
-      CreateListeningTcpIpv4Socket(GetPortNumberForTests());
-  if (!SbSocketIsValid(server_socket)) {
-    return;
-  }
-
+      CreateListeningTcpSocket(GetAddressType(), GetPortNumberForTests());
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
   EXPECT_FALSE(SbSocketIsConnectedAndIdle(server_socket));
-
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketIsConnectedAndIdleTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketIsConnectedAndIdleTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketIsConnectedAndIdleTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketIsConnectedAndIdleTest,
+    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
+                                     kSbSocketAddressTypeIpv4)));
+#endif
 
 }  // namespace
 }  // namespace nplb
