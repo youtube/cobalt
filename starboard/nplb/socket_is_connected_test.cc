@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "starboard/log.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
@@ -21,17 +23,29 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSocketIsConnectedTest, RainyDayInvalidSocket) {
+class SbSocketIsConnectedTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+class PairSbSocketIsConnectedTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketAddressType, SbSocketAddressType> > {
+ public:
+  SbSocketAddressType GetServerAddressType() { return GetParam().first; }
+  SbSocketAddressType GetClientAddressType() { return GetParam().second; }
+};
+
+TEST_F(SbSocketIsConnectedTest, RainyDayInvalidSocket) {
   EXPECT_FALSE(SbSocketIsConnected(kSbSocketInvalid));
 }
 
-TEST(SbSocketIsConnectedTest, SunnyDay) {
+TEST_P(PairSbSocketIsConnectedTest, SunnyDay) {
   ConnectedTrio trio =
-      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
-  if (!SbSocketIsValid(trio.server_socket)) {
-    return;
-  }
-
+      CreateAndConnect(GetServerAddressType(), GetClientAddressType(),
+                       GetPortNumberForTests(), kSocketTimeout);
+  ASSERT_TRUE(SbSocketIsValid(trio.server_socket));
   EXPECT_FALSE(SbSocketIsConnected(trio.listen_socket));
   EXPECT_TRUE(SbSocketIsConnected(trio.server_socket));
   EXPECT_TRUE(SbSocketIsConnected(trio.client_socket));
@@ -48,28 +62,43 @@ TEST(SbSocketIsConnectedTest, SunnyDay) {
   EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
 }
 
-TEST(SbSocketIsConnectedTest, SunnyDayNotConnected) {
-  SbSocket socket = CreateTcpIpv4Socket();
-  if (!SbSocketIsValid(socket)) {
-    return;
-  }
-
+TEST_P(SbSocketIsConnectedTest, SunnyDayNotConnected) {
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
   EXPECT_FALSE(SbSocketIsConnected(socket));
-
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
-TEST(SbSocketIsConnectedTest, SunnyDayListeningNotConnected) {
+TEST_P(SbSocketIsConnectedTest, SunnyDayListeningNotConnected) {
   SbSocket server_socket =
-      CreateListeningTcpIpv4Socket(GetPortNumberForTests());
-  if (!SbSocketIsValid(server_socket)) {
-    return;
-  }
-
+      CreateListeningTcpSocket(GetAddressType(), GetPortNumberForTests());
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
   EXPECT_FALSE(SbSocketIsConnected(server_socket));
-
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketIsConnectedTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketIsConnectedTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketIsConnectedTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketIsConnectedTest,
+    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
+                                     kSbSocketAddressTypeIpv4)));
+#endif
 
 }  // namespace
 }  // namespace nplb

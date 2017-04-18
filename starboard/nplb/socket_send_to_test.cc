@@ -15,6 +15,8 @@
 // SendTo is largely tested with ReceiveFrom, so look there for more invovled
 // tests.
 
+#include <utility>
+
 #include "starboard/memory.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
@@ -25,6 +27,14 @@
 namespace starboard {
 namespace nplb {
 namespace {
+
+class PairSbSocketSendToTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketAddressType, SbSocketAddressType> > {
+ public:
+  SbSocketAddressType GetServerAddressType() { return GetParam().first; }
+  SbSocketAddressType GetClientAddressType() { return GetParam().second; }
+};
 
 // Thread entry point to continuously write to a socket that is expected to
 // be closed on another thread.
@@ -58,9 +68,10 @@ TEST(SbSocketSendToTest, RainyDayInvalidSocket) {
   EXPECT_EQ(-1, result);
 }
 
-TEST(SbSocketSendToTest, RainyDaySendToClosedSocket) {
+TEST_P(PairSbSocketSendToTest, RainyDaySendToClosedSocket) {
   ConnectedTrio trio =
-      CreateAndConnect(GetPortNumberForTests(), kSocketTimeout);
+      CreateAndConnect(GetServerAddressType(), GetClientAddressType(),
+                       GetPortNumberForTests(), kSocketTimeout);
   EXPECT_NE(trio.client_socket, kSbSocketInvalid);
   EXPECT_NE(trio.server_socket, kSbSocketInvalid);
   EXPECT_NE(trio.listen_socket, kSbSocketInvalid);
@@ -87,6 +98,21 @@ TEST(SbSocketSendToTest, RainyDaySendToClosedSocket) {
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
 }
 
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketSendToTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+#else
+INSTANTIATE_TEST_CASE_P(
+    SbSocketAddressTypes,
+    PairSbSocketSendToTest,
+    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
+                                     kSbSocketAddressTypeIpv4)));
+#endif
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
