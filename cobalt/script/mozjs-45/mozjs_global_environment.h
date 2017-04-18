@@ -37,6 +37,7 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
+class MozjsScriptValueFactory;
 class ReferencedObjectMap;
 class WeakHandle;
 
@@ -78,16 +79,17 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void Bind(const std::string& identifier,
             const scoped_refptr<Wrappable>& impl) OVERRIDE;
 
+  ScriptValueFactory* script_value_factory() OVERRIDE;
+
+  // Evaluates any automatically included Javascript for the environment.
+  void EvaluateAutomatics();
+
   JSContext* context() const { return context_; }
 
   JSObject* global_object_proxy() const { return global_object_proxy_; }
   JSObject* global_object() const {
     return js::GetProxyTargetObject(global_object_proxy_);
   }
-
-  // TODO: Have and make use of a script value factory and implement this
-  // getter.
-  ScriptValueFactory* script_value_factory() OVERRIDE { return NULL; }
 
   WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
@@ -168,6 +170,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;
   ContextDestructor context_destructor_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
+  scoped_ptr<MozjsScriptValueFactory> script_value_factory_;
   scoped_ptr<OpaqueRootTracker::OpaqueRootState> opaque_root_state_;
   JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;
