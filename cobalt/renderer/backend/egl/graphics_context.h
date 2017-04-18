@@ -103,6 +103,9 @@ class GraphicsContextEGL : public GraphicsContext {
   // specified as a surface.
   void MakeCurrentWithSurface(RenderTargetEGL* surface);
 
+  // If this context is current, then forcefully rebind its current surface.
+  void ResetCurrentSurface();
+
   // Alternatively, this call can be made to make the context current along
   // with a null surface.  You would be interested in this method if you don't
   // plan to be making any draw calls, such as if you're setting up a texture.

@@ -54,12 +54,16 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
 DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
     const math::RectF& rect, const render_tree::ColorRGBA& color,
-    const GenerateTextureFunction& generate_texture)
+    const backend::TextureEGL* texture,
+    const math::Matrix3F& texcoord_transform,
+    const base::Closure& draw_offscreen,
+    const base::Closure& draw_onscreen)
     : DrawObject(base_state),
-      texcoord_transform_(math::Matrix3F::Identity()),
+      texcoord_transform_(texcoord_transform),
       rect_(rect),
-      texture_(NULL),
-      generate_texture_(generate_texture),
+      texture_(texture),
+      draw_offscreen_(draw_offscreen),
+      draw_onscreen_(draw_onscreen),
       vertex_buffer_(NULL),
       clamp_texcoords_(false),
       tile_texture_(false) {
@@ -70,8 +74,8 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
 void DrawRectColorTexture::ExecuteOffscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  if (!generate_texture_.is_null()) {
-    generate_texture_.Run(&texture_, &texcoord_transform_);
+  if (!draw_offscreen_.is_null()) {
+    draw_offscreen_.Run();
   }
 }
 
@@ -136,6 +140,10 @@ void DrawRectColorTexture::ExecuteOnscreenUpdateVertexBuffer(
 void DrawRectColorTexture::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  if (!draw_onscreen_.is_null()) {
+    draw_onscreen_.Run();
+  }
+
   ShaderProgram<ShaderVertexColorTexcoord,
                 ShaderFragmentColorTexcoord>* program;
   program_manager->GetProgram(&program);

@@ -36,6 +36,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
+#include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
 
 namespace cobalt {
 namespace renderer {
@@ -48,14 +49,13 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   typedef base::Callback<void(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::RectF& viewport_unscaled,
-      const math::SizeF& viewport_scale,
-      const backend::TextureEGL** out_texture,
-      math::Matrix3F* out_texcoord_transform)>
+      const math::Matrix3F& transform,
+      const OffscreenTargetManager::TargetInfo& target)>
       FallbackRasterizeFunction;
 
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
                         DrawObjectManager* draw_object_manager,
+                        OffscreenTargetManager* offscreen_target_manager,
                         const FallbackRasterizeFunction* fallback_rasterize);
 
   void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
@@ -85,10 +85,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   GraphicsState* graphics_state_;
   DrawObjectManager* draw_object_manager_;
+  OffscreenTargetManager* offscreen_target_manager_;
   const FallbackRasterizeFunction* fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;
-  math::SizeF viewport_size_;
 };
 
 }  // namespace egl

@@ -35,8 +35,19 @@ namespace egl {
 // minimize the cost of switching render targets.
 class OffscreenTargetManager {
  public:
+  struct TargetInfo {
+    TargetInfo()
+        : framebuffer(NULL),
+          skia_canvas(NULL),
+          is_scratch_surface(false) {}
+    backend::FramebufferEGL* framebuffer;
+    SkCanvas* skia_canvas;
+    math::RectF region;
+    bool is_scratch_surface;
+  };
+
   OffscreenTargetManager(backend::GraphicsContextEGL* graphics_context,
-                         GrContext* skia_context);
+                         GrContext* skia_context, size_t memory_limit);
   ~OffscreenTargetManager();
 
   // Update must be called once per frame, before any allocation requests are
@@ -52,20 +63,19 @@ class OffscreenTargetManager {
   // The returned values are only valid until the next call to Update().
   bool GetCachedOffscreenTarget(
       const render_tree::Node* node, const math::SizeF& size,
-      backend::FramebufferEGL** out_framebuffer, SkCanvas** out_skia_canvas,
-      math::RectF* out_target_rect);
+      TargetInfo* out_target_info);
 
   // Allocate an offscreen target of the specified size.
   // The returned values are only valid until the next call to Update().
   void AllocateOffscreenTarget(
       const render_tree::Node* node, const math::SizeF& size,
-      backend::FramebufferEGL** out_framebuffer, SkCanvas** out_skia_canvas,
-      math::RectF* out_target_rect);
+      TargetInfo* out_target_info);
 
  private:
   // Use an atlas for offscreen targets.
   struct OffscreenAtlas;
 
+  void InitializeTargets(const math::Size& frame_size);
   OffscreenAtlas* CreateOffscreenAtlas(const math::Size& size);
 
   backend::GraphicsContextEGL* graphics_context_;
@@ -73,18 +83,15 @@ class OffscreenTargetManager {
 
   ScopedVector<OffscreenAtlas> offscreen_atlases_;
   scoped_ptr<OffscreenAtlas> offscreen_cache_;
-
-  // Size of the smallest offscreen target atlas that can hold all offscreen
-  // targets requested this frame.
-  math::Size offscreen_atlas_size_;
-
-  // Limit for the largest offscreen atlas that should be used.
-  math::Size offscreen_atlas_size_max_;
+  scoped_ptr<OffscreenAtlas> scratch_surface_;
 
   // Align offscreen targets to a particular size to more efficiently use the
   // offscreen target atlas. Use a power of 2 for the alignment so that a bit
   // mask can be used for the alignment calculation.
   math::Size offscreen_target_size_mask_;
+
+  // Maximum number of bytes that can be used for offscreen atlases.
+  size_t memory_limit_;
 };
 
 }  // namespace egl

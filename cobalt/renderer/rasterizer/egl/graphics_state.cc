@@ -35,6 +35,12 @@ GraphicsState::GraphicsState()
   depth_test_enabled_ = false;
   depth_write_enabled_ = true;
   Reset();
+
+  // These settings should only need to be set once. Nothing should touch them.
+  GL_CALL(glDepthRangef(0.0f, 1.0f));
+  GL_CALL(glDisable(GL_DITHER));
+  GL_CALL(glDisable(GL_CULL_FACE));
+  GL_CALL(glDisable(GL_STENCIL_TEST));
 }
 
 GraphicsState::~GraphicsState() {
@@ -73,6 +79,7 @@ void GraphicsState::EndFrame() {
   GL_CALL(glDisable(GL_BLEND));
   GL_CALL(glDisable(GL_DEPTH_TEST));
   GL_CALL(glDepthMask(GL_TRUE));
+  GL_CALL(glUseProgram(0));
 
   // Since the GL state was changed without going through the cache, mark it
   // as dirty.
@@ -352,10 +359,10 @@ float GraphicsState::NextClosestDepth(float depth) {
 
 void GraphicsState::Reset() {
   program_ = 0;
-  GL_CALL(glUseProgram(0));
 
   Viewport(viewport_.x(), viewport_.y(), viewport_.width(), viewport_.height());
   Scissor(scissor_.x(), scissor_.y(), scissor_.width(), scissor_.height());
+  GL_CALL(glEnable(GL_SCISSOR_TEST));
 
   array_buffer_handle_ = 0;
   texture_unit_ = 0;
@@ -364,6 +371,11 @@ void GraphicsState::Reset() {
   enabled_vertex_attrib_array_mask_ = 0;
   disable_vertex_attrib_array_mask_ = 0;
   clip_adjustment_dirty_ = true;
+
+  if (vertex_data_buffer_updated_) {
+    array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
+    GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
+  }
 
   if (blend_enabled_) {
     GL_CALL(glEnable(GL_BLEND));
@@ -379,12 +391,6 @@ void GraphicsState::Reset() {
   }
   GL_CALL(glDepthMask(depth_write_enabled_ ? GL_TRUE : GL_FALSE));
   ResetDepthFunc();
-  GL_CALL(glDepthRangef(0.0f, 1.0f));
-
-  GL_CALL(glDisable(GL_DITHER));
-  GL_CALL(glDisable(GL_CULL_FACE));
-  GL_CALL(glDisable(GL_STENCIL_TEST));
-  GL_CALL(glEnable(GL_SCISSOR_TEST));
 
   state_dirty_ = false;
 }

@@ -35,7 +35,8 @@ struct VertexAttributes {
 
 DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
-    const math::RectF& rect, const backend::TextureEGL* texture,
+    const math::RectF& rect,
+    const backend::TextureEGL* texture,
     const math::Matrix3F& texcoord_transform)
     : DrawObject(base_state),
       texcoord_transform_(texcoord_transform),
@@ -49,12 +50,16 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
 DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
     const math::RectF& rect,
-    const GenerateTextureFunction& generate_texture)
+    const backend::TextureEGL* texture,
+    const math::Matrix3F& texcoord_transform,
+    const base::Closure& draw_offscreen,
+    const base::Closure& draw_onscreen)
     : DrawObject(base_state),
-      texcoord_transform_(math::Matrix3F::Identity()),
+      texcoord_transform_(texcoord_transform),
       rect_(rect),
-      texture_(NULL),
-      generate_texture_(generate_texture),
+      texture_(texture),
+      draw_offscreen_(draw_offscreen),
+      draw_onscreen_(draw_onscreen),
       vertex_buffer_(NULL),
       tile_texture_(false) {
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
@@ -63,8 +68,8 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
 void DrawRectTexture::ExecuteOffscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  if (!generate_texture_.is_null()) {
-    generate_texture_.Run(&texture_, &texcoord_transform_);
+  if (!draw_offscreen_.is_null()) {
+    draw_offscreen_.Run();
   }
 }
 
@@ -102,6 +107,10 @@ void DrawRectTexture::ExecuteOnscreenUpdateVertexBuffer(
 void DrawRectTexture::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  if (!draw_onscreen_.is_null()) {
+    draw_onscreen_.Run();
+  }
+
   ShaderProgram<ShaderVertexTexcoord,
                 ShaderFragmentTexcoord>* program;
   program_manager->GetProgram(&program);
