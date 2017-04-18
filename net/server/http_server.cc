@@ -180,7 +180,18 @@ void HttpServer::DidRead(StreamListenSocket* socket,
       base::StringToSizeT(
           base::StringPiece(request.GetHeaderValue("Content-Length")),
           &content_length);
-      if (content_length > 0 && pos < len) {
+
+      if (pos > connection->recv_data_.size()) {
+        NOTREACHED() << "pos should not be outside of recv_data_";
+        break;
+      }
+
+      size_t payload_size = connection->recv_data_.size() - pos;
+      if ((content_length > 0) && (content_length > payload_size)) {
+        break;
+      }
+
+      if (content_length > 0 && pos < (connection->recv_data_.size())) {
         request.data = connection->recv_data_.substr(pos);
       }
       pos += request.data.length();
