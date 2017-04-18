@@ -15,7 +15,7 @@
 #include "cobalt/renderer/renderer_module.h"
 
 #include "base/debug/trace_event.h"
-#include "cobalt/browser/memory_settings/memory_settings.h"
+#include "cobalt/browser/memory_settings/memory_calculations.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
