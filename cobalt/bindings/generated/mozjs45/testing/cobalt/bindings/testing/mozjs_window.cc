@@ -1060,6 +1060,7 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
   MozjsWindow::CreateProxy(
       context, global_interface);
   mozjs_global_environment->SetEnvironmentSettings(environment_settings);
+  mozjs_global_environment->EvaluateAutomatics();
 
   WrapperFactory* wrapper_factory =
       mozjs_global_environment->wrapper_factory();
