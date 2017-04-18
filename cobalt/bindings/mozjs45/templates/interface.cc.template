@@ -954,6 +954,7 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   {{binding_class}}::CreateProxy(
       context, global_interface);
   mozjs_global_environment->SetEnvironmentSettings(environment_settings);
+  mozjs_global_environment->EvaluateAutomatics();
 
   WrapperFactory* wrapper_factory =
       mozjs_global_environment->wrapper_factory();

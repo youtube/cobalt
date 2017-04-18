@@ -43,6 +43,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/mozjs-45/mozjs-45.gyp:mozjs-45_lib',
+        'embed_mozjs_resources_as_header_files',
       ],
       'defines': [ 'ENGINE_SUPPORTS_INT64', ],
       'all_dependent_settings': {
@@ -76,5 +77,42 @@
         '<(DEPTH)/third_party/mozjs-45/mozjs-45.gyp:mozjs-45_lib',
       ],
     },
+
+    {
+      # This target takes specified files and embeds them as header files for
+      # inclusion into the binary. The script currently requires all resources
+      # to be embedded to live in the same directory.
+      'target_name': 'embed_mozjs_resources_as_header_files',
+      'type': 'none',
+      # Because we generate a header, we must set the hard_dependency flag.
+      'hard_dependency': 1,
+      'variables': {
+        'script_path': '<(DEPTH)/cobalt/build/generate_data_header.py',
+        'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/script/mozjs-45/embedded_resources.h',
+      },
+      'sources': [
+        '<(DEPTH)/third_party/promise-polyfill/promise.min.js',
+      ],
+      'actions': [
+        {
+          'action_name': 'embed_mozjs_resources_as_header_files',
+          'inputs': [
+            '<(script_path)',
+            '<@(_sources)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)', 'MozjsEmbeddedResources', '<(output_path)', '<@(_sources)' ],
+          'message': 'Embedding mozjs resources in into header file, "<(output_path)".',
+        },
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
+    },
+
   ],
 }

@@ -52,7 +52,6 @@ bool NativeExecutor(JSContext* context, unsigned argc, JS::Value* vp) {
   // Get the this object. Should be the native_promise object.
   JS::RootedValue this_value(context, call_args.computeThis(context));
   DCHECK(this_value.isObject());
-  // JS::RootedObject this_object(context, JSVAL_TO_OBJECT(this_value));
   JS::RootedObject this_object(context, &this_value.toObject());
   DCHECK_EQ(JS_GetClass(this_object), &native_promise_class);
 
@@ -84,10 +83,14 @@ JSObject* CreateNativePromise(JSContext* context) {
 
 JSObject* BindCallable(JSContext* context, JSObject* target_arg,
                        JSObject* new_this) {
-  // TODO: |JS_BindCallable| was removed sometime in between 24 and 45,
-  // reimplement it.
-  NOTIMPLEMENTED();
-  return NULL;
+  JS::RootedObject target(context, target_arg);
+  JS::AutoValueArray<1> args(context);
+  args[0].setObjectOrNull(new_this);
+  JS::RootedValue result(context);
+  bool call_bind_result =
+      JS_CallFunctionName(context, target, "bind", args, &result);
+  DCHECK(call_bind_result);
+  return &result.toObject();
 }
 
 // Create a new native function with the |native_promise| bound as |this|.
