@@ -80,9 +80,6 @@ android {
             path 'CMakeLists.txt'
         }
     }
-    if (!project.hasProperty('doStrip')) {
-      packagingOptions.doNotStrip '**/libstarboard.so'
-    }
 }
 
 // Flavors of the assemble tasks and externalNativeBuild (NDK/cmake) are created during evaluation
