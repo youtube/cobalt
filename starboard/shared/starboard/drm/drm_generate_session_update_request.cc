@@ -25,9 +25,16 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
                                        const void* initialization_data,
                                        int initialization_data_size) {
   if (!SbDrmSystemIsValid(drm_system)) {
-    SB_DLOG(WARNING) << "Invalid drm system";
+    SB_DLOG(ERROR) << "Invalid DRM system.";
     return;
   }
+
+#if SB_API_VERSION >= 4
+  if (ticket == kSbDrmTicketInvalid) {
+    SB_DLOG(ERROR) << "Ticket must be specified.";
+    return;
+  }
+#endif  // SB_API_VERSION >= 4
 
   drm_system->GenerateSessionUpdateRequest(
 #if SB_API_VERSION >= 4
