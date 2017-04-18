@@ -26,7 +26,7 @@
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/browser/memory_settings/memory_settings.h"
+#include "cobalt/browser/memory_settings/memory_calculations.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
