@@ -23,13 +23,19 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSocketListenTest, RainyDayInvalid) {
+class SbSocketListenTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+TEST_F(SbSocketListenTest, RainyDayInvalid) {
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketListen(kSbSocketInvalid));
 }
 
-TEST(SbSocketListenTest, SunnyDayUnbound) {
-  SbSocket server_socket = CreateServerTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(server_socket));
+TEST_P(SbSocketListenTest, SunnyDayUnbound) {
+  SbSocket server_socket = CreateServerTcpSocket(GetAddressType());
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   EXPECT_EQ(kSbSocketOk, SbSocketListen(server_socket));
 
@@ -37,12 +43,23 @@ TEST(SbSocketListenTest, SunnyDayUnbound) {
   // all local interfaces.
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
-  EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
+  EXPECT_EQ(GetAddressType(), address.type);
   EXPECT_NE(0, address.port);
   EXPECT_TRUE(IsUnspecified(&address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketListenTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketListenTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+#endif
 
 }  // namespace
 }  // namespace nplb
