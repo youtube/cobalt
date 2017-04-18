@@ -54,6 +54,7 @@ class MediaSessionClient {
   // Sets the platform's current playback state. This is used to compute
   // the "guessed playback state"
   // https://wicg.github.io/mediasession/#guessed-playback-state
+  // Can be invoked from any thread.
   void UpdatePlatformPlaybackState(MediaSessionPlaybackState state);
 
   // Invokes a given media session action
