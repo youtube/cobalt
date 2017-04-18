@@ -33,10 +33,14 @@ struct SbDrmSystemPrivate {
       const char* type,
       const void* initialization_data,
       int initialization_data_size) = 0;
-  virtual void UpdateSession(const void* key,
-                             int key_size,
-                             const void* session_id,
-                             int session_id_size) = 0;
+  virtual void UpdateSession(
+#if SB_API_VERSION >= 4
+      int ticket,
+#endif  // SB_API_VERSION >= 4
+      const void* key,
+      int key_size,
+      const void* session_id,
+      int session_id_size) = 0;
   virtual void CloseSession(const void* session_id, int session_id_size) = 0;
 
   virtual DecryptStatus Decrypt(InputBuffer* buffer) = 0;
