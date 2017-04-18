@@ -33,7 +33,7 @@
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
-#include "cobalt/browser/memory_settings/memory_settings.h"
+#include "cobalt/browser/memory_settings/memory_calculations.h"
 #include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/loader/image/image_decoder.h"
