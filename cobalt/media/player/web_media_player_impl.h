@@ -182,6 +182,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   bool GetDebugReportDataAddress(void** out_address, size_t* out_size) OVERRIDE;
 
+  void SetDrmSystem(DrmSystem* drm_system) OVERRIDE;
+  void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
+
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);
   void OnPipelineError(PipelineStatus error);
@@ -212,6 +215,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();
 
+ private:
   // Callbacks that forward duration change from |pipeline_| to |client_|.
   void OnDurationChanged();
 
@@ -303,6 +307,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   base::Callback<void(base::TimeDelta*, bool*)>
       media_time_and_seeking_state_cb_;
+
+  DrmSystemReadyCB drm_system_ready_cb_;
+  DrmSystem* drm_system_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };
