@@ -46,6 +46,11 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   void SourceOpened() OVERRIDE {}
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const OVERRIDE { return ""; }
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  void EncryptedMediaInitData(EmeInitDataType init_data_type,
+                              const unsigned char* init_data,
+                              unsigned init_data_length) OVERRIDE {}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 };
 
 WebMediaPlayerHelper::WebMediaPlayerHelper(MediaModule* media_module)

@@ -19,6 +19,7 @@
 #include "base/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
+#include "cobalt/media/base/drm_system.h"
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
@@ -119,7 +120,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       incremented_externally_allocated_memory_(false),
       is_local_source_(false),
       supports_save_(true),
-      suppress_destruction_errors_(false) {
+      suppress_destruction_errors_(false),
+      drm_system_(NULL) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::WebMediaPlayerImpl");
 
   DCHECK(buffer_allocator_);
@@ -306,9 +308,6 @@ void WebMediaPlayerImpl::Seek(float seconds) {
     state_.pending_seek_seconds = seconds;
     if (chunk_demuxer_) {
       chunk_demuxer_->CancelPendingSeek(ConvertSecondsToTimestamp(seconds));
-      // TODO: Migrate the following
-      // decryptor_->CancelDecrypt(Decryptor::kAudio);
-      // decryptor_->CancelDecrypt(Decryptor::kVideo);
     }
     return;
   }
@@ -324,9 +323,6 @@ void WebMediaPlayerImpl::Seek(float seconds) {
 
   if (chunk_demuxer_) {
     chunk_demuxer_->StartWaitingForSeek(seek_time);
-    // TODO: Migrate the following
-    // decryptor_->CancelDecrypt(Decryptor::kAudio);
-    // decryptor_->CancelDecrypt(Decryptor::kVideo);
   }
 
   // Kick off the asynchronous seek!
@@ -536,6 +532,24 @@ bool WebMediaPlayerImpl::GetDebugReportDataAddress(void** out_address,
   return true;
 }
 
+void WebMediaPlayerImpl::SetDrmSystem(DrmSystem* drm_system) {
+  DCHECK_EQ(static_cast<DrmSystem*>(NULL), drm_system_);
+  DCHECK_NE(static_cast<DrmSystem*>(NULL), drm_system);
+
+  drm_system_ = drm_system;
+  if (!drm_system_ready_cb_.is_null()) {
+    drm_system_ready_cb_.Run(drm_system_->wrapped_drm_system());
+  }
+}
+
+void WebMediaPlayerImpl::SetDrmSystemReadyCB(
+    const DrmSystemReadyCB& drm_system_ready_cb) {
+  drm_system_ready_cb_ = drm_system_ready_cb;
+  if (drm_system_) {
+    drm_system_ready_cb_.Run(drm_system_->wrapped_drm_system());
+  }
+}
+
 void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   state_.starting = false;
@@ -662,7 +676,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
 
   pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
-      demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
+      demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
@@ -744,8 +759,10 @@ void WebMediaPlayerImpl::GetMediaTimeAndSeekingState(
 
 void WebMediaPlayerImpl::OnEncryptedMediaInitData(
     EmeInitDataType init_data_type, const std::vector<uint8_t>& init_data) {
-  // TODO: Implement EME.
-  NOTIMPLEMENTED();
+  DCHECK_EQ(main_loop_, MessageLoop::current());
+
+  GetClient()->EncryptedMediaInitData(init_data_type, &init_data[0],
+                                      init_data.size());
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {

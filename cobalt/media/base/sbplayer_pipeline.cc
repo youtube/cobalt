@@ -55,6 +55,7 @@ namespace {
 // parameters exceed what base::Bind() can support.
 struct StartTaskParameters {
   Demuxer* demuxer;
+  SetDrmSystemReadyCB set_drm_system_ready_cb;
   PipelineStatusCB ended_cb;
   PipelineStatusCB error_cb;
   PipelineStatusCB seek_cb;
@@ -76,8 +77,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void Suspend() OVERRIDE;
   void Resume() OVERRIDE;
-  void Start(Demuxer* demuxer, const PipelineStatusCB& ended_cb,
-             const PipelineStatusCB& error_cb, const PipelineStatusCB& seek_cb,
+  void Start(Demuxer* demuxer,
+             const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+             const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
+             const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb) OVERRIDE;
 
@@ -117,7 +120,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE;
 
   void CreatePlayer(SbDrmSystem drm_system);
-  void SetDecryptor(Decryptor* decryptor);
   void OnDemuxerInitialized(PipelineStatus status);
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
@@ -180,6 +182,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::Closure stop_cb_;
 
   // Permanent callbacks passed in via Start().
+  SetDrmSystemReadyCB set_drm_system_ready_cb_;
   PipelineStatusCB ended_cb_;
   PipelineStatusCB error_cb_;
   BufferingStateCB buffering_state_cb_;
@@ -252,7 +255,9 @@ void SbPlayerPipeline::Resume() {
   waitable_event.Wait();
 }
 
-void SbPlayerPipeline::Start(Demuxer* demuxer, const PipelineStatusCB& ended_cb,
+void SbPlayerPipeline::Start(Demuxer* demuxer,
+                             const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+                             const PipelineStatusCB& ended_cb,
                              const PipelineStatusCB& error_cb,
                              const PipelineStatusCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
@@ -268,6 +273,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer, const PipelineStatusCB& ended_cb,
 
   StartTaskParameters parameters;
   parameters.demuxer = demuxer;
+  parameters.set_drm_system_ready_cb = set_drm_system_ready_cb;
   parameters.ended_cb = ended_cb;
   parameters.error_cb = error_cb;
   parameters.seek_cb = seek_cb;
@@ -473,6 +479,7 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   DCHECK(!demuxer_);
 
   demuxer_ = parameters.demuxer;
+  set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
   ended_cb_ = parameters.ended_cb;
   error_cb_ = parameters.error_cb;
   {
@@ -594,19 +601,6 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   seek_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
 }
 
-void SbPlayerPipeline::SetDecryptor(Decryptor* decryptor) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-
-  if (!decryptor) {
-    return;
-  }
-  NOTREACHED();
-  // TODO: Migrate this
-  // StarboardDecryptor* sb_decryptor =
-  //    reinterpret_cast<StarboardDecryptor*>(decryptor);
-  // CreatePlayer(sb_decryptor->drm_system());
-}
-
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerInitialized");
 
@@ -646,10 +640,8 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     natural_size_ = video_stream_->video_decoder_config().natural_size();
     is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
     if (is_encrypted) {
-      // TODO: Migrate this
-      // decryptor_ready_cb_.Run(
-      //    BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDecryptor,
-      //    this)));
+      set_drm_system_ready_cb_.Run(
+          BindToCurrentLoop(base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
       return;
     }
   }

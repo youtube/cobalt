@@ -99,6 +99,10 @@ class DummyWebMediaPlayer : public WebMediaPlayer {
   unsigned GetAudioDecodedByteCount() const OVERRIDE { return 0; }
   unsigned GetVideoDecodedByteCount() const OVERRIDE { return 0; }
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  void SetDrmSystem(DrmSystem* drm_system) OVERRIDE {}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
   Ranges<base::TimeDelta> buffer_;
 };
 
