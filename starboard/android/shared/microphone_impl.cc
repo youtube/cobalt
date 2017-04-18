@@ -115,7 +115,7 @@ bool SbMicrophoneImpl::RequestAudioPermission() {
   jobject j_record_audio_helper =
       static_cast<jobject>(env->CallActivityObjectMethodOrAbort(
           "getRecordAudioPermissionHelper",
-          "()Lfoo/cobalt/RecordAudioPermissionHelper;"));
+          "()Lfoo/cobalt/coat/RecordAudioPermissionHelper;"));
   jboolean j_permission = env->CallBooleanMethodOrAbort(
       j_record_audio_helper, "requestRecordAudioPermission", "(J)Z",
       reinterpret_cast<intptr_t>(this));
