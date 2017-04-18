@@ -30,6 +30,7 @@
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
+#include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/gpu/GrContext.h"
@@ -54,10 +55,8 @@ class HardwareRasterizer::Impl {
 
   void SubmitToFallbackRasterizer(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::RectF& viewport_unscaled,
-      const math::SizeF& viewport_scale,
-      const backend::TextureEGL** out_texture,
-      math::Matrix3F* out_texcoord_transform);
+      const math::Matrix3F& transform,
+      const OffscreenTargetManager::TargetInfo& target);
 
   render_tree::ResourceProvider* GetResourceProvider() {
     return fallback_rasterizer_->GetResourceProvider();
@@ -67,6 +66,8 @@ class HardwareRasterizer::Impl {
   GrContext* GetFallbackContext() {
     return fallback_rasterizer_->GetGrContext();
   }
+
+  void ResetFallbackContextDuringFrame();
 
   void RasterizeTree(const scoped_refptr<render_tree::Node>& render_tree,
                      backend::RenderTargetEGL* render_target);
@@ -88,17 +89,18 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
     : fallback_rasterizer_(new skia::HardwareRasterizer(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          surface_cache_size_in_bytes)),
+          0 /* fallback rasterizer should not use a surface cache */)),
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
+  DLOG(INFO) << "surface_cache_size_in_bytes: " << surface_cache_size_in_bytes;
+
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_);
-
   graphics_state_.reset(new GraphicsState());
   shader_program_manager_.reset(new ShaderProgramManager());
-  offscreen_target_manager_.reset(
-      new OffscreenTargetManager(graphics_context_, GetFallbackContext()));
+  offscreen_target_manager_.reset(new OffscreenTargetManager(
+      graphics_context_, GetFallbackContext(), surface_cache_size_in_bytes));
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -157,87 +159,54 @@ void HardwareRasterizer::Impl::Submit(
 
 void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const math::RectF& viewport_unscaled,
-    const math::SizeF& viewport_scale,
-    const backend::TextureEGL** out_texture,
-    math::Matrix3F* out_texcoord_transform) {
+    const math::Matrix3F& transform,
+    const OffscreenTargetManager::TargetInfo& target) {
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "SubmitToFallbackRasterizer");
 
-  // Get an offscreen target for rendering.
-  math::RectF target_rect(0, 0, 0, 0);
-  backend::FramebufferEGL* framebuffer = NULL;
-  SkCanvas* canvas = NULL;
+  // Use skia to rasterize to the allocated offscreen target.
+  target.skia_canvas->save();
 
-  // Handle scaling of contents as requested.
-  math::RectF viewport(viewport_unscaled.x() * viewport_scale.width(),
-                       viewport_unscaled.y() * viewport_scale.height(),
-                       viewport_unscaled.width() * viewport_scale.width(),
-                       viewport_unscaled.height() * viewport_scale.height());
-
-  // It's possible for the desired viewport to be larger than can be allocated.
-  // In this situation, rendering will need to be scaled down.
-  math::RectF viewport_actual(viewport);
-
-  // See if there is already a cache of the results. If not, then allocate
-  // a target and render to it.
-  if (!offscreen_target_manager_->GetCachedOffscreenTarget(
-      render_tree.get(), viewport.size(),
-      &framebuffer, &canvas, &target_rect)) {
-    offscreen_target_manager_->AllocateOffscreenTarget(
-        render_tree.get(), viewport.size(),
-        &framebuffer, &canvas, &target_rect);
-
-    // Use skia to rasterize to the allocated offscreen target.
-    canvas->save();
-    if (target_rect.width() < viewport.width() ||
-        target_rect.height() < viewport.height()) {
-      // The allocated offscreen target is smaller than requested. Scale
-      // rendering so it can fit into the smaller target.
-      math::SizeF scale(target_rect.width() / viewport.width(),
-                        target_rect.height() / viewport.height());
-      viewport_actual.SetRect(viewport_actual.x() * scale.width(),
-                              viewport_actual.y() * scale.height(),
-                              viewport_actual.width() * scale.width(),
-                              viewport_actual.height() * scale.height());
-      canvas->clipRect(SkRect::MakeXYWH(
-          target_rect.x(), target_rect.y(),
-          viewport_actual.width() + 0.5f, viewport_actual.height() + 0.5f));
-      canvas->translate(viewport_actual.x() + target_rect.x(),
-                        viewport_actual.y() + target_rect.y());
-      canvas->scale(scale.width(), scale.height());
-    } else {
-      canvas->clipRect(SkRect::MakeXYWH(
-          target_rect.x(), target_rect.y(),
-          viewport_actual.width() + 0.5f, viewport_actual.height() + 0.5f));
-      canvas->translate(viewport_actual.x() + target_rect.x(),
-                        viewport_actual.y() + target_rect.y());
-    }
-
-    if (viewport_scale.width() != 1.0f || viewport_scale.height() != 1.0f) {
-      canvas->scale(viewport_scale.width(), viewport_scale.height());
-    }
-
-    fallback_rasterizer_->SubmitOffscreen(render_tree, canvas);
-    canvas->restore();
-  } else if (target_rect.width() < viewport.width() ||
-             target_rect.height() < viewport.height()) {
-    // The cached offscreen target is smaller than originally requested.
-    math::SizeF scale(target_rect.width() / viewport.width(),
-                      target_rect.height() / viewport.height());
-    viewport_actual.SetRect(viewport_actual.x() * scale.width(),
-                            viewport_actual.y() * scale.height(),
-                            viewport_actual.width() * scale.width(),
-                            viewport_actual.height() * scale.height());
+  if (target.is_scratch_surface) {
+    // The scratch surface is used immediately after rendering to it. So we
+    // are switching from this rasterizer to skia, then will switch back to
+    // our rasterizer context.
+    ResetFallbackContextDuringFrame();
+    target.skia_canvas->clear(SK_ColorTRANSPARENT);
   }
 
-  float scale_x = 1.0f / framebuffer->GetSize().width();
-  float scale_y = 1.0f / framebuffer->GetSize().height();
-  *out_texcoord_transform = math::Matrix3F::FromValues(
-      viewport_actual.width() * scale_x, 0, target_rect.x() * scale_x,
-      0, viewport_actual.height() * scale_y, target_rect.y() * scale_y,
-      0, 0, 1);
-  *out_texture = framebuffer->GetColorTexture();
+  target.skia_canvas->clipRect(SkRect::MakeXYWH(
+      target.region.x(), target.region.y(),
+      target.region.width(), target.region.height()));
+  target.skia_canvas->translate(target.region.x(), target.region.y());
+  target.skia_canvas->concat(skia::CobaltMatrixToSkia(transform));
+  fallback_rasterizer_->SubmitOffscreen(render_tree, target.skia_canvas);
+
+  if (target.is_scratch_surface) {
+    // Flush the skia draw calls so the contents can be used immediately.
+    target.skia_canvas->flush();
+
+    // Switch back to the current render target and context.
+    graphics_context_->ResetCurrentSurface();
+    graphics_state_->SetDirty();
+  }
+
+  target.skia_canvas->restore();
+}
+
+void HardwareRasterizer::Impl::ResetFallbackContextDuringFrame() {
+  // Perform a minimal reset of the fallback context. Only need to invalidate
+  // states that this rasterizer pollutes.
+  uint32_t untouched_states = kMSAAEnable_GrGLBackendState |
+      kStencil_GrGLBackendState | kPixelStore_GrGLBackendState |
+      kFixedFunction_GrGLBackendState | kPathRendering_GrGLBackendState;
+
+  // Manually reset a subset of kMisc_GrGLBackendState
+  untouched_states |= kMisc_GrGLBackendState;
+  GL_CALL(glDisable(GL_DEPTH_TEST));
+  GL_CALL(glDepthMask(GL_FALSE));
+
+  GetFallbackContext()->resetContext(~untouched_states & kAll_GrBackendState);
 }
 
 void HardwareRasterizer::Impl::RasterizeTree(
@@ -249,6 +218,7 @@ void HardwareRasterizer::Impl::RasterizeTree(
                  base::Unretained(this));
   RenderTreeNodeVisitor visitor(graphics_state_.get(),
                                 &draw_object_manager,
+                                offscreen_target_manager_.get(),
                                 &fallback_rasterize);
 
   // Traverse the render tree to populate the draw object manager.
