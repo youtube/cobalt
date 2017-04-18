@@ -19,65 +19,78 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSocketCreateTest, TcpIpv4) {
-  SbSocket socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-  EXPECT_TRUE(SbSocketIsValid(socket));
+class SbSocketCreateTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+class PairSbSocketCreateTest
+    : public ::testing::TestWithParam<
+          std::pair<SbSocketAddressType, SbSocketProtocol> > {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam().first; }
+  SbSocketProtocol GetProtocol() { return GetParam().second; }
+};
+
+TEST_P(PairSbSocketCreateTest, Create) {
+  SbSocket socket = SbSocketCreate(GetAddressType(), GetProtocol());
+#if !SB_HAS(IPV6)
+  // It is allowed for a platform not to support IPv6 sockets, but we use this
+  // test to at least exercise the code path.
+  if (kSbSocketAddressTypeIpv6 == GetAddressType()) {
+    if (SbSocketIsValid(socket)) {
+      EXPECT_TRUE(SbSocketDestroy(socket));
+    }
+    return;
+  }
+#endif
+  if (kSbSocketProtocolUdp == GetProtocol()) {
+    // It is allowed for a platform not to support UDP sockets, but we use this
+    // test to at least exercise the code path.
+    if (SbSocketIsValid(socket)) {
+      EXPECT_TRUE(SbSocketDestroy(socket));
+    }
+    return;
+  }
+  ASSERT_TRUE(SbSocketIsValid(socket));
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
-TEST(SbSocketCreateTest, TcpIpv6) {
-  // It is allowed for a platform not to support IPv6 sockets, but we use this
-  // test to at least exercise the code path.
-  SbSocket socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv6, kSbSocketProtocolTcp);
-  if (SbSocketIsValid(socket)) {
-    EXPECT_TRUE(SbSocketDestroy(socket));
-  }
-}
-
-TEST(SbSocketCreateTest, UdpIpv4) {
-  // It is allowed for a platform not to support UDP sockets, but we use this
-  // test to at least exercise the code path.
-  SbSocket socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
-  if (SbSocketIsValid(socket)) {
-    EXPECT_TRUE(SbSocketDestroy(socket));
-  }
-}
-
-TEST(SbSocketCreateTest, UdpIpv6) {
-  // It is allowed for a platform not to support UDP and/or IPv6 sockets, but we
-  // use this test to at least exercise the code path.
-  SbSocket socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv6, kSbSocketProtocolUdp);
-  if (SbSocketIsValid(socket)) {
-    EXPECT_TRUE(SbSocketDestroy(socket));
-  }
-}
-
-TEST(SbSocketCreateTest, ATonOfTcpIpv4) {
+TEST_P(SbSocketCreateTest, ATonOfTcp) {
   const int kATon = 4096;
   for (int i = 0; i < kATon; ++i) {
-    SbSocket socket =
-        SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-    EXPECT_TRUE(SbSocketIsValid(socket));
+    SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+    ASSERT_TRUE(SbSocketIsValid(socket));
     EXPECT_TRUE(SbSocketDestroy(socket));
   }
 }
 
-TEST(SbSocketCreateTest, ManyTcpIpv4AtOnce) {
+TEST_P(SbSocketCreateTest, ManyTcpAtOnce) {
   const int kMany = 128;
   SbSocket sockets[kMany] = {0};
   for (int i = 0; i < kMany; ++i) {
-    sockets[i] = SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-    EXPECT_TRUE(SbSocketIsValid(sockets[i]));
+    sockets[i] = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+    ASSERT_TRUE(SbSocketIsValid(sockets[i]));
   }
 
   for (int i = 0; i < kMany; ++i) {
     EXPECT_TRUE(SbSocketDestroy(sockets[i]));
   }
 }
+
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketCreateTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+INSTANTIATE_TEST_CASE_P(
+    SbSocketTypes,
+    PairSbSocketCreateTest,
+    ::testing::Values(
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp),
+        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketProtocolTcp),
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketProtocolUdp)));
 
 }  // namespace
 }  // namespace nplb
