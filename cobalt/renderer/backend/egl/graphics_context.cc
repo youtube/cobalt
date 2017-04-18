@@ -265,6 +265,20 @@ void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
   current_surface_ = surface;
 }
 
+void GraphicsContextEGL::ResetCurrentSurface() {
+  if (is_current_ && current_surface_) {
+    EGLSurface egl_surface = current_surface_->GetSurface();
+    if (egl_surface == EGL_NO_SURFACE) {
+      DCHECK_NE(current_surface_->GetPlatformHandle(), 0);
+      egl_surface = null_surface_->GetSurface();
+    }
+
+    EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
+        current_surface_->GetPlatformHandle()));
+  }
+}
+
 void GraphicsContextEGL::MakeCurrent() {
   MakeCurrentWithSurface(null_surface_);
 }
