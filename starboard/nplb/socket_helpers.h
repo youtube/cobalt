@@ -25,16 +25,6 @@ namespace nplb {
 
 const SbTime kSocketTimeout = kSbTimeSecond / 5;
 
-// Creates a plain TCP/IPv4 socket.
-static inline SbSocket CreateTcpIpv4Socket() {
-  return SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-}
-
-// Creates a plain UDP/IPv4 socket.
-static inline SbSocket CreateUdpIpv4Socket() {
-  return SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
-}
-
 // Returns true if the given address is the unspecified address (all zeros),
 // supporting both address types.
 bool IsUnspecified(const SbSocketAddress* address);
@@ -47,29 +37,21 @@ bool IsLocalhost(const SbSocketAddress* address);
 // This will always return the same port number.
 int GetPortNumberForTests();
 
-// Returns an IPv4 localhost address with the given port.
-SbSocketAddress GetIpv4Localhost(int port);
+// Returns an IP localhost address with the given port.
+SbSocketAddress GetLocalhostAddress(SbSocketAddressType address_type, int port);
 
-// Returns an IPv4 unspecified address with the given port.
-SbSocketAddress GetIpv4Unspecified(int port);
+// Returns an IP unspecified address with the given port.
+SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
+                                      int port);
 
-// Returns an IPv6 localhost address with the given port.
-SbSocketAddress GetIpv6Localhost(int port);
+// Creates a TCP/IP server socket (sets Reuse Address option).
+SbSocket CreateServerTcpSocket(SbSocketAddressType address_type);
 
-// Returns an IPv6 unspecified address with the given port.
-SbSocketAddress GetIpv6Unspecified(int port);
+// Creates a TCP/IP socket bound to all interfaces on the given port.
+SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port);
 
-// Creates a TCP/IPv4 server socket (sets Reuse Address option).
-SbSocket CreateServerTcpIpv4Socket();
-
-// Creates a TCP/IPv4 socket bound to all interfaces on the given port.
-SbSocket CreateBoundTcpIpv4Socket(int port);
-
-// Creates a TCP/IPv4 socket listening on all interfaces on the given port.
-SbSocket CreateListeningTcpIpv4Socket(int port);
-
-// Creates a TCP/IPv4 socket connecting to the given port on localhost.
-SbSocket CreateConnectingTcpIpv4Socket(int port);
+// Creates a TCP/IP socket listening on all interfaces on the given port.
+SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port);
 
 // Tries to accept a new connection from the given listening socket by checking,
 // yielding, and retrying for up to timeout. Returns kSbSocketInvalid if no
@@ -104,10 +86,13 @@ typedef struct ConnectedTrio {
   SbSocket server_socket;
 } ConnectedTrio;
 
-// Creates and returns 3 sockets, a connected client and server, and a listener
-// on the given port. If anything fails, adds a failure and returns three
-// invalid sockets.
-ConnectedTrio CreateAndConnect(int port, SbTime timeout);
+// Creates and returns 3 TCP/IP sockets, a connected client and server, and a
+// listener on the given port. If anything fails, adds a failure and returns
+// three invalid sockets.
+ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
+                               SbSocketAddressType client_address_type,
+                               int port,
+                               SbTime timeout);
 
 // Waits on the given waiter, and returns the elapsed time.
 SbTimeMonotonic TimedWait(SbSocketWaiter waiter);
