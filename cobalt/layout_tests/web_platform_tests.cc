@@ -23,7 +23,6 @@
 #include "base/run_loop.h"
 #include "base/string_util.h"
 #include "base/values.h"
-#include "cobalt/browser/memory_settings/memory_calculations.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/layout_tests/test_utils.h"
