@@ -126,7 +126,7 @@ class MockResourceProvider : public ResourceProvider {
         GetLocalTypefaceMock(font_family_name, font_style));
   }
   scoped_refptr<Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) {
+      const char* font_face_name) {
     return scoped_refptr<Typeface>(
         GetLocalTypefaceIfAvailableMock(font_face_name));
   }
