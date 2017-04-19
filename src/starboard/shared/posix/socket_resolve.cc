@@ -57,26 +57,29 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
 
   // Translate all the sockaddrs.
   sbposix::SockAddr* sock_addrs = new sbposix::SockAddr[address_count];
+  bool* skips = new bool[address_count];
   int index = 0;
-  int skip = 0;
+  int skip_count = 0;
   for (const struct addrinfo *i = ai; i != NULL; i = i->ai_next, ++index) {
     // Skip over any addresses we can't parse.
-    if (!sock_addrs[index].FromSockaddr(i->ai_addr)) {
-      ++skip;
-    }
+    skips[index] = !sock_addrs[index].FromSockaddr(i->ai_addr);
+    if (skips[index])
+      ++skip_count;
   }
 
-  result->address_count = address_count - skip;
+  result->address_count = address_count - skip_count;
   result->addresses = new SbSocketAddress[result->address_count];
 
   int result_index = 0;
   for (int i = 0; i < address_count; ++i) {
-    if (sock_addrs[i].ToSbSocketAddress(&result->addresses[result_index])) {
+    if (!skips[i] &&
+        sock_addrs[i].ToSbSocketAddress(&result->addresses[result_index])) {
       ++result_index;
     }
   }
 
   delete[] sock_addrs;
+  delete[] skips;
   freeaddrinfo(ai);
   return result;
 }
