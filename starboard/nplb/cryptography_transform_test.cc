@@ -45,12 +45,13 @@ TEST(SbCryptographyTransform, SunnyDay) {
     return;
   }
 
-  const int kBufferSize = sizeof(kClearText) - 1;
+  const int kInputSize = SbStringGetLength(kClearText);
+  const int kBufferSize = sizeof(kClearText);
   char* cipher_text = new char[kBufferSize];
   SbMemorySet(cipher_text, 0, kBufferSize);
-  int count = SbCryptographyTransform(transformer, kClearText, kBufferSize,
+  int count = SbCryptographyTransform(transformer, kClearText, kInputSize,
                                       cipher_text);
-  EXPECT_EQ(kBufferSize, count);
+  EXPECT_EQ(kInputSize, count);
   EXPECT_NE(0, SbStringCompare(kClearText, cipher_text, kBufferSize));
 
   SbCryptographyTransformer decode_transformer =
@@ -64,11 +65,11 @@ TEST(SbCryptographyTransform, SunnyDay) {
   char* decrypted_text = new char[kBufferSize];
   SbMemorySet(decrypted_text, 0, kBufferSize);
   count =
-      SbCryptographyTransform(decode_transformer, cipher_text, kBufferSize,
+      SbCryptographyTransform(decode_transformer, cipher_text, kInputSize,
                               decrypted_text);
 
-  EXPECT_EQ(kBufferSize, count);
-  EXPECT_EQ(kBufferSize, SbStringGetLength(decrypted_text));
+  EXPECT_EQ(kInputSize, count);
+  EXPECT_EQ(kInputSize, SbStringGetLength(decrypted_text));
   EXPECT_STREQ(kClearText, decrypted_text);
 
   delete[] decrypted_text;
