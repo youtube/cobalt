@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
+#ifndef STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
+#define STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
 
-#include "starboard/android/shared/cobalt/android_media_session_client.h"
-#include "starboard/shared/starboard/player/player_internal.h"
+namespace starboard {
+namespace android {
+namespace shared {
+namespace cobalt {
 
-using starboard::android::shared::cobalt::kNone;
-using starboard::android::shared::cobalt::
-    UpdateActiveSessionPlatformPlaybackState;
+// Duplicated in CobaltMediaSession.java
+enum PlaybackState { kPlaying = 0, kPaused = 1, kNone = 2 };
 
-void SbPlayerDestroy(SbPlayer player) {
-  if (!SbPlayerIsValid(player)) {
-    return;
-  }
-  UpdateActiveSessionPlatformPlaybackState(kNone);
-  delete player;
-}
+void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
+
+}  // namespace cobalt
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
