@@ -51,7 +51,7 @@
         '<(DEPTH)/starboard/shared/stub/condition_variable_wait_timed.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_destroy_transformer.cc',
-        '<(DEPTH)/starboard/shared/stub/cryptography_transform_block.cc',
+        '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
         '<(DEPTH)/starboard/shared/stub/directory_can_open.cc',
         '<(DEPTH)/starboard/shared/stub/directory_close.cc',
         '<(DEPTH)/starboard/shared/stub/directory_create.cc',
