@@ -29,11 +29,12 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SkiaTypeface::SkiaTypeface(SkTypeface* typeface) : typeface_(SkRef(typeface)) {
+SkiaTypeface::SkiaTypeface(SkTypeface_Cobalt* typeface)
+    : typeface_(SkRef(typeface)) {
   character_glyph_thread_checker_.DetachFromThread();
 }
 
-SkTypeface* SkiaTypeface::GetSkTypeface() const {
+SkTypeface_Cobalt* SkiaTypeface::GetSkTypeface() const {
   return SkRef(typeface_.get());
 }
 
