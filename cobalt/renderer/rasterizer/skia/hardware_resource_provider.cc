@@ -28,6 +28,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
@@ -261,8 +262,10 @@ scoped_refptr<render_tree::Typeface> HardwareResourceProvider::GetLocalTypeface(
                "HardwareResourceProvider::GetLocalTypeface()");
 
   SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyle(
-      font_family_name, CobaltFontStyleToSkFontStyle(font_style)));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          font_manager->matchFamilyStyle(
+              font_family_name, CobaltFontStyleToSkFontStyle(font_style))));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
@@ -276,7 +279,8 @@ HardwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
   SkFontMgr_Cobalt* cobalt_font_manager =
       base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
 
-  SkTypeface* typeface = cobalt_font_manager->matchFaceName(font_face_name);
+  SkTypeface_Cobalt* typeface = base::polymorphic_downcast<SkTypeface_Cobalt*>(
+      cobalt_font_manager->matchFaceName(font_face_name));
   if (typeface != NULL) {
     SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
@@ -293,9 +297,11 @@ HardwareResourceProvider::GetCharacterFallbackTypeface(
                "HardwareResourceProvider::GetCharacterFallbackTypeface()");
 
   SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyleCharacter(
-      0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
-      character));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          font_manager->matchFamilyStyleCharacter(
+              0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
+              character)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
@@ -325,7 +331,9 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
       sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
 
   SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(skia_data));
-  SkAutoTUnref<SkTypeface> typeface(SkTypeface::CreateFromStream(stream));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          SkTypeface::CreateFromStream(stream)));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
   } else {

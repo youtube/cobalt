@@ -11,12 +11,16 @@
     list. However, when it is not included, then the lack of a "name" attribute
     causes the family to be added to the fallback list.
 
-    The pages attribute indicates which character pages are contained within
-    the font. It is used with character fallback to allow the system to quickly
-    determine that a character cannot appear in a font without requiring the
-    full character map to be loaded into memory. Character pages are zero
-    indexed, and each page contains 256 characters, so character 1000 would be
-    contained within page 3.
+    The optional family attribute "pages" indicates which character pages are
+    contained within the family. It is used with character fallback to allow the
+    system to quickly determine that a character cannot appear in a font without
+    requiring the full character map to be loaded into memory. Character pages
+    are zero indexed, and each page contains 256 characters, so character 1000
+    would be contained within page 3.
+
+    The optional font attribute "disable_synthetic_bolding" prevents the font
+    from being synthetically bolded. By default synthetic bolding is done when
+    there is no bold font available and a bold weight (>500) is specified.
 -->
     <!-- first family is default -->
     <family>
