@@ -41,10 +41,13 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   FindDefaultFamily(default_families);
 }
 
-SkTypeface* SkFontMgr_Cobalt::matchFaceName(const std::string& font_face_name) {
-  if (font_face_name.empty()) {
+SkTypeface* SkFontMgr_Cobalt::MatchFaceName(const char face_name[]) {
+  if (!face_name) {
     return NULL;
   }
+
+  SkAutoAsciiToLC face_name_to_lc(face_name);
+  std::string face_name_string(face_name_to_lc.lc(), face_name_to_lc.length());
 
   // Lock the style sets mutex prior to accessing them.
   SkAutoMutexAcquire scoped_mutex(style_sets_mutex_);
@@ -57,12 +60,12 @@ SkTypeface* SkFontMgr_Cobalt::matchFaceName(const std::string& font_face_name) {
                : full_font_name_to_style_set_map_;
 
     NameToStyleSetMap::iterator style_set_iterator =
-        name_to_style_set_map.find(font_face_name);
+        name_to_style_set_map.find(face_name_string);
     if (style_set_iterator != name_to_style_set_map.end()) {
       SkFontStyleSet_Cobalt* style_set = style_set_iterator->second;
       SkTypeface* typeface =
-          i == 0 ? style_set->MatchFontPostScriptName(font_face_name)
-                 : style_set->MatchFullFontName(font_face_name);
+          i == 0 ? style_set->MatchFontPostScriptName(face_name_string)
+                 : style_set->MatchFullFontName(face_name_string);
       if (typeface != NULL) {
         return typeface;
       } else {
@@ -109,8 +112,8 @@ SkFontStyleSet_Cobalt* SkFontMgr_Cobalt::onMatchFamily(
 
   SkAutoAsciiToLC family_name_to_lc(family_name);
 
-  NameToStyleSetMap::const_iterator family_iterator =
-      name_to_family_map_.find(family_name_to_lc.lc());
+  NameToStyleSetMap::const_iterator family_iterator = name_to_family_map_.find(
+      std::string(family_name_to_lc.lc(), family_name_to_lc.length()));
   if (family_iterator != name_to_family_map_.end()) {
     return SkRef(family_iterator->second);
   }

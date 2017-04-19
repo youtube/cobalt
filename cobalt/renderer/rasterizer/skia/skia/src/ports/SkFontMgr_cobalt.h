@@ -48,7 +48,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
                    const SkTArray<SkString, true>& default_fonts);
 
   // NOTE: This returns NULL if a match is not found.
-  SkTypeface* matchFaceName(const std::string& font_face_name);
+  SkTypeface* MatchFaceName(const char face_name[]);
 
  protected:
   // From SkFontMgr
