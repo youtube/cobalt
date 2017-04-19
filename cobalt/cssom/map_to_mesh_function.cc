@@ -44,8 +44,8 @@ std::string MapToMeshFunction::ToString() const {
     }
   }
 
-  result.append(base::StringPrintf(", %.7grad", horizontal_fov()));
-  result.append(base::StringPrintf(" %.7grad, ", vertical_fov()));
+  result.append(base::StringPrintf(", %.7grad", horizontal_fov_in_radians()));
+  result.append(base::StringPrintf(" %.7grad, ", vertical_fov_in_radians()));
 
   result.append("matrix3d(");
   for (int col = 0; col <= 3; ++col) {
@@ -107,8 +107,8 @@ const MapToMeshFunction* MapToMeshFunction::ExtractFromFilterList(
 
 bool MapToMeshFunction::operator==(const MapToMeshFunction& rhs) const {
   if (mesh_spec().mesh_type() != rhs.mesh_spec().mesh_type() ||
-      horizontal_fov() != rhs.horizontal_fov() ||
-      horizontal_fov() != rhs.horizontal_fov() ||
+      horizontal_fov_in_radians() != rhs.horizontal_fov_in_radians() ||
+      vertical_fov_in_radians() != rhs.vertical_fov_in_radians() ||
       !stereo_mode()->Equals(*rhs.stereo_mode())) {
     return false;
   }
