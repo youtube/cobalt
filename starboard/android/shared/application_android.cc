@@ -275,6 +275,23 @@ void ApplicationAndroid::SetExitOnActivityDestroy(int error_level) {
   exit_error_level_ = error_level;
 }
 
+bool ApplicationAndroid::OnSearchRequested() {
+  for (int i = 0; i < 2; i++) {
+    SbInputData* data = new SbInputData();
+    SbMemorySet(data, 0, sizeof(*data));
+    data->window = window_;
+    data->key = kSbKeyBrowserSearch;
+    data->type = (i == 0) ? kSbInputEventTypePress : kSbInputEventTypeUnpress;
+    Inject(new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>));
+  }
+  return true;
+}
+
+extern "C" SB_EXPORT_PLATFORM
+jboolean Java_foo_cobalt_coat_CobaltActivity_nativeOnSearchRequested() {
+  return ApplicationAndroid::Get()->OnSearchRequested();
+}
+
 void ApplicationAndroid::HandleDeepLink(const char* link_url) {
   if (link_url == NULL || link_url[0] == '\0') {
     return;
@@ -285,7 +302,7 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_coat_CobaltActivity_handleDeepLink(
+void Java_foo_cobalt_coat_CobaltActivity_nativeHandleDeepLink(
     JNIEnv* env, jobject unused_this, jstring j_url) {
   if (j_url) {
     const char* utf_chars = env->GetStringUTFChars(j_url, NULL);

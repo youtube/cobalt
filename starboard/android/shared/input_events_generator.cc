@@ -138,8 +138,6 @@ SbKey InputEventsGenerator::AInputEventToSbKey(AInputEvent *event) {
       return kSbKeyScroll;
 
     // System functions
-    case AKEYCODE_SEARCH:
-      return kSbKeyBrowserSearch;
     case AKEYCODE_SLEEP:
       return kSbKeySleep;
     case AKEYCODE_HELP:
@@ -364,6 +362,7 @@ SbKey InputEventsGenerator::AInputEventToSbKey(AInputEvent *event) {
     case AKEYCODE_MUTE:
     case AKEYCODE_BRIGHTNESS_UP:
     case AKEYCODE_BRIGHTNESS_DOWN:
+    case AKEYCODE_SEARCH:
     default:
       return kSbKeyUnknown;
   }
