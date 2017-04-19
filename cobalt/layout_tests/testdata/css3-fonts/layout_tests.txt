@@ -1,4 +1,6 @@
 4-2-font-face-font-family-hides-system-font-family
+4-3-src-local-can-match-font-postscript-name
+4-3-src-local-can-match-full-font-name
 4-3-use-first-available-local-font-face
 4-3-use-next-font-family-if-font-face-sources-unavailable
 4-4-use-correct-style-in-font-face-set
