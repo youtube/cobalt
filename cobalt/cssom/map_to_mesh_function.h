@@ -98,12 +98,13 @@ class MapToMeshFunction : public FilterFunction {
     DISALLOW_COPY_AND_ASSIGN(MeshSpec);
   };
 
-  MapToMeshFunction(scoped_ptr<MeshSpec> mesh_spec, float horizontal_fov,
-                    float vertical_fov, const glm::mat4& transform,
+  MapToMeshFunction(scoped_ptr<MeshSpec> mesh_spec,
+                    float horizontal_fov_in_radians,
+                    float vertical_fov_in_radians, const glm::mat4& transform,
                     const scoped_refptr<KeywordValue>& stereo_mode)
       : mesh_spec_(mesh_spec.Pass()),
-        horizontal_fov_(horizontal_fov),
-        vertical_fov_(vertical_fov),
+        horizontal_fov_in_radians_(horizontal_fov_in_radians),
+        vertical_fov_in_radians_(vertical_fov_in_radians),
         transform_(transform),
         stereo_mode_(stereo_mode) {
     DCHECK(mesh_spec_);
@@ -113,25 +114,25 @@ class MapToMeshFunction : public FilterFunction {
   // Alternate constructor for mesh URL lists.
   MapToMeshFunction(const scoped_refptr<PropertyValue>& mesh_url,
                     ResolutionMatchedMeshListBuilder resolution_matched_meshes,
-                    float horizontal_fov, float vertical_fov,
-                    const glm::mat4& transform,
+                    float horizontal_fov_in_radians,
+                    float vertical_fov_in_radians, const glm::mat4& transform,
                     const scoped_refptr<KeywordValue>& stereo_mode)
       : mesh_spec_(
             new MeshSpec(kUrls, mesh_url, resolution_matched_meshes.Pass())),
-        horizontal_fov_(horizontal_fov),
-        vertical_fov_(vertical_fov),
+        horizontal_fov_in_radians_(horizontal_fov_in_radians),
+        vertical_fov_in_radians_(vertical_fov_in_radians),
         transform_(transform),
         stereo_mode_(stereo_mode) {
     DCHECK(stereo_mode_);
   }
 
   // Alternate constructor for built-in meshes.
-  MapToMeshFunction(MeshSpecType spec_type, float horizontal_fov,
-                    float vertical_fov, const glm::mat4& transform,
+  MapToMeshFunction(MeshSpecType spec_type, float horizontal_fov_in_radians,
+                    float vertical_fov_in_radians, const glm::mat4& transform,
                     const scoped_refptr<KeywordValue>& stereo_mode)
       : mesh_spec_(new MeshSpec(spec_type)),
-        horizontal_fov_(horizontal_fov),
-        vertical_fov_(vertical_fov),
+        horizontal_fov_in_radians_(horizontal_fov_in_radians),
+        vertical_fov_in_radians_(vertical_fov_in_radians),
         transform_(transform),
         stereo_mode_(stereo_mode) {
     DCHECK(stereo_mode_);
@@ -140,8 +141,8 @@ class MapToMeshFunction : public FilterFunction {
   ~MapToMeshFunction() OVERRIDE {}
 
   const MeshSpec& mesh_spec() const { return *mesh_spec_; }
-  float horizontal_fov() const { return horizontal_fov_; }
-  float vertical_fov() const { return vertical_fov_; }
+  float horizontal_fov_in_radians() const { return horizontal_fov_in_radians_; }
+  float vertical_fov_in_radians() const { return vertical_fov_in_radians_; }
   const glm::mat4& transform() const { return transform_; }
   const scoped_refptr<KeywordValue>& stereo_mode() const {
     return stereo_mode_;
@@ -158,8 +159,8 @@ class MapToMeshFunction : public FilterFunction {
 
  private:
   const scoped_ptr<MeshSpec> mesh_spec_;
-  const float horizontal_fov_;
-  const float vertical_fov_;
+  const float horizontal_fov_in_radians_;
+  const float vertical_fov_in_radians_;
   const glm::mat4 transform_;
   const scoped_refptr<KeywordValue> stereo_mode_;
 

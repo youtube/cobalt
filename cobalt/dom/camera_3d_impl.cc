@@ -59,7 +59,8 @@ float DegreesToRadians(float degrees) { return (degrees / 360.0f) * 2 * kPiF; }
 }  // namespace
 
 glm::mat4 Camera3DImpl::QueryViewPerspectiveMatrix(
-    float width_to_height_aspect_ratio) {
+    float width_over_height_aspect_ratio, float max_horizontal_fov_rad,
+    float max_vertical_fov_rad) {
   base::AutoLock lock(mutex_);
   AccumulateOrientation();
 
@@ -74,12 +75,14 @@ glm::mat4 Camera3DImpl::QueryViewPerspectiveMatrix(
       glm::rotate(-DegreesToRadians(orientation_.yaw), glm::vec3(0, 1, 0));
 
   // Setup a (right-handed) perspective projection matrix.
-  const float kVerticalFOVInDegrees = 60.0f;
+  float vertical_fov_rad =
+      std::min(max_vertical_fov_rad,
+               max_horizontal_fov_rad / width_over_height_aspect_ratio);
+
   const float kNearZ = 0.01f;
   const float kFarZ = 1000.0f;
-  glm::mat4 projection =
-      glm::perspectiveRH(DegreesToRadians(kVerticalFOVInDegrees),
-                         width_to_height_aspect_ratio, kNearZ, kFarZ);
+  glm::mat4 projection = glm::perspectiveRH(
+      vertical_fov_rad, width_over_height_aspect_ratio, kNearZ, kFarZ);
   return projection * camera_rotations;
 }
 
