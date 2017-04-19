@@ -164,6 +164,12 @@ class TextShaper {
                       render_tree::FontVector* maybe_used_fonts,
                       float* current_width);
 
+  // Add the glyphs from a run of a single font within a simple text run to the
+  // glyph buffer.
+  void AddFontRunToGlyphBuffer(const render_tree::FontProvider* font_provider,
+                               const Font* font, const int glyph_count,
+                               SkTextBlobBuilder* builder);
+
   // Verifies that the glyph arrays have the required size allocated. If they do
   // not, then the arrays are re-allocated with the required size.
   void EnsureLocalGlyphArraysHaveSize(size_t size);
