@@ -52,7 +52,9 @@ class Camera3DImpl : public base::RefCountedThreadSafe<Camera3DImpl> {
   // Returns the camera's view-perspective matrix, setup according to the passed
   // in width/height aspect ratio.  It is likely that this function will be
   // called from another thread, like a renderer thread.
-  glm::mat4 QueryViewPerspectiveMatrix(float width_to_height_aspect_ratio);
+  glm::mat4 QueryViewPerspectiveMatrix(float width_over_height_aspect_ratio,
+                                       float max_horizontal_fov_rad,
+                                       float max_vertical_fov_rad);
 
  private:
   struct KeycodeMappingInfo {
