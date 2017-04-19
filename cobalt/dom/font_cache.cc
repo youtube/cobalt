@@ -373,7 +373,8 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFontByFaceName(
       break;
     }
     const scoped_refptr<render_tree::Typeface>& typeface(
-        resource_provider()->GetLocalTypefaceByFaceNameIfAvailable(font_face));
+        resource_provider()->GetLocalTypefaceByFaceNameIfAvailable(
+            font_face.c_str()));
     if (!typeface) {
       break;
     }
