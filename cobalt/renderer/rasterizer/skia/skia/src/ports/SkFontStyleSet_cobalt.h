@@ -45,12 +45,14 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     SkFontStyleSetEntry_Cobalt(const SkString& file_path, const int face_index,
                                const SkFontStyle& style,
                                const std::string& full_name,
-                               const std::string& postscript_name)
+                               const std::string& postscript_name,
+                               const bool disable_synthetic_bolding)
         : font_file_path(file_path),
           face_index(face_index),
           font_style(style),
           full_font_name(full_name),
           font_postscript_name(postscript_name),
+          disable_synthetic_bolding(disable_synthetic_bolding),
           is_face_info_generated(false),
           face_style(SkTypeface::kNormal),
           face_is_fixed_pitch(false),
@@ -59,11 +61,9 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     const SkString font_file_path;
     const int face_index;
     const SkFontStyle font_style;
-
-    // These two members are declared as std::string since we have a hasher
-    // for std::string, but not SkString at this point.
     const std::string full_font_name;
     const std::string font_postscript_name;
+    const bool disable_synthetic_bolding;
 
     // Face info is generated from the font file.
     bool is_face_info_generated;
