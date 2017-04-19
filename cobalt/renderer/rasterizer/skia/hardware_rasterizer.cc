@@ -250,6 +250,42 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   gr_context_->resetContext();
 }
 
+namespace {
+
+// For stereoscopic video, the actual video is split (either horizontally or
+// vertically) in two, one video for the left eye and one for the right eye.
+// This function will adjust the content region rectangle to match only the
+// left eye's video region, since we are ultimately presenting to a monoscopic
+// display.
+math::Rect AdjustContentRegionForStereoMode(render_tree::StereoMode stereo_mode,
+                                            const math::Rect& content_region) {
+  switch (stereo_mode) {
+    case render_tree::kLeftRight: {
+      // Use the left half (left eye) of the video only.
+      math::Rect adjusted_content_region(content_region);
+      adjusted_content_region.set_width(content_region.width() / 2);
+      return adjusted_content_region;
+    }
+
+    case render_tree::kTopBottom: {
+      // Use the top half (left eye) of the video only.
+      math::Rect adjusted_content_region(content_region);
+      adjusted_content_region.set_height(content_region.height() / 2);
+      return adjusted_content_region;
+    }
+
+    case render_tree::kMono:
+    case render_tree::kLeftRightUnadjustedTextureCoords:
+      // No modifications needed here, pass content region through unchanged.
+      return content_region;
+  }
+
+  NOTREACHED();
+  return content_region;
+}
+
+}  // namespace
+
 void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
     const render_tree::ImageNode* image_node,
     const render_tree::MapToMeshFilter& mesh_filter,
@@ -300,11 +336,15 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
                                            content_region.height()))
               .get())
           ->GetVBO();
+
+  math::Rect stereo_adjusted_content_region = AdjustContentRegionForStereoMode(
+      mesh_filter.stereo_mode(), content_region);
+
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderVBO(mono_vbo->GetHandle(),
-                                     mono_vbo->GetVertexCount(),
-                                     mono_vbo->GetDrawMode(), texture,
-                                     content_region, draw_state->transform_3d);
+  textured_mesh_renderer_->RenderVBO(
+      mono_vbo->GetHandle(), mono_vbo->GetVertexCount(),
+      mono_vbo->GetDrawMode(), texture, stereo_adjusted_content_region,
+      draw_state->transform_3d);
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();
