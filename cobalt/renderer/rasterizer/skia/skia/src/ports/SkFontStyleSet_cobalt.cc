@@ -15,6 +15,8 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 
 #include <cmath>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 #include <limits>
 
 #include "base/debug/trace_event.h"
@@ -100,9 +102,10 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
                                     font_file.postscript_name.size());
     }
 
-    styles_.push_back().reset(SkNEW_ARGS(
-        SkFontStyleSetEntry_Cobalt,
-        (file_path, font_file.index, style, full_font_name, postscript_name)));
+    styles_.push_back().reset(
+        SkNEW_ARGS(SkFontStyleSetEntry_Cobalt,
+                   (file_path, font_file.index, style, full_font_name,
+                    postscript_name, font_file.disable_synthetic_bolding)));
   }
 }
 
@@ -382,10 +385,11 @@ void SkFontStyleSet_Cobalt::CreateSystemTypeface(
   if (GenerateStyleFaceInfo(style_entry, stream)) {
     LOG(ERROR) << "Scanned font from file: " << style_entry->face_name.c_str()
                << "(" << style_entry->face_style << ")";
-    style_entry->typeface.reset(SkNEW_ARGS(
-        SkTypeface_CobaltSystem,
-        (stream_provider, style_entry->face_index, style_entry->face_style,
-         style_entry->face_is_fixed_pitch, family_name_)));
+    style_entry->typeface.reset(
+        SkNEW_ARGS(SkTypeface_CobaltSystem,
+                   (stream_provider, style_entry->face_index,
+                    style_entry->face_style, style_entry->face_is_fixed_pitch,
+                    family_name_, style_entry->disable_synthetic_bolding)));
   } else {
     LOG(ERROR) << "Failed to scan font: "
                << style_entry->font_file_path.c_str();
