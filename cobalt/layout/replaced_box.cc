@@ -659,7 +659,9 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
 
   // Attach a 3D camera to the map-to-mesh node.
   border_node_builder->AddChild(
-      used_style_provider()->attach_camera_node_function().Run(filter_node));
+      used_style_provider()->attach_camera_node_function().Run(
+          filter_node, mtm_function->horizontal_fov_in_radians(),
+          mtm_function->vertical_fov_in_radians()));
 }
 
 void ReplacedBox::RenderAndAnimateContentWithLetterboxing(

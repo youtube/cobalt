@@ -105,16 +105,19 @@ namespace {
 
 void UpdateCamera(
     float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3DImpl> camera,
+    float max_horizontal_fov_rad, float max_vertical_fov_rad,
     render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
     base::TimeDelta time) {
   UNREFERENCED_PARAMETER(time);
-  transform_node_builder->transform =
-      camera->QueryViewPerspectiveMatrix(width_to_height_aspect_ratio);
+  transform_node_builder->transform = camera->QueryViewPerspectiveMatrix(
+      width_to_height_aspect_ratio, max_horizontal_fov_rad,
+      max_vertical_fov_rad);
 }
 
 scoped_refptr<render_tree::Node> AttachCameraNodes(
     const scoped_refptr<dom::Window> window,
-    const scoped_refptr<render_tree::Node>& source) {
+    const scoped_refptr<render_tree::Node>& source,
+    float max_horizontal_fov_rad, float max_vertical_fov_rad) {
   // Attach a 3D transform node that applies the current camera matrix transform
   // to the rest of the render tree.
   scoped_refptr<render_tree::MatrixTransform3DNode> transform_node =
@@ -127,7 +130,8 @@ scoped_refptr<render_tree::Node> AttachCameraNodes(
   animate_node_builder.Add(
       transform_node,
       base::Bind(&UpdateCamera, window->inner_width() / window->inner_height(),
-                 window->camera_3d()->impl()));
+                 window->camera_3d()->impl(), max_horizontal_fov_rad,
+                 max_vertical_fov_rad));
   return new render_tree::animations::AnimateNode(animate_node_builder,
                                                   transform_node);
 }
