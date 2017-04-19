@@ -142,7 +142,7 @@ class ResourceProvider {
   // Font's typeface (aka face name) is combination of a style and a font
   // family.  Font's style consists of weight, and a slant (but not size).
   virtual scoped_refptr<Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) = 0;
+      const char* font_face_name) = 0;
 
   // Given a UTF-32 character, a set of typeface information, and a language,
   // this method returns the best-fit locally available fallback typeface that

@@ -155,7 +155,7 @@ scoped_refptr<Typeface> ResourceProvider::GetLocalTypeface(
 
 scoped_refptr<render_tree::Typeface>
 ResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
-    const std::string& font_face_name) {
+    const char* font_face_name) {
   return skia_resource_provider_->GetLocalTypefaceByFaceNameIfAvailable(
       font_face_name);
 }

@@ -326,13 +326,15 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         break;
       case 9:
         if (strncmp("font_name", name, 9) == 0) {
-          file->full_font_name = value;
+          SkAutoAsciiToLC to_lowercase(value);
+          file->full_font_name = to_lowercase.lc();
           continue;
         }
         break;
       case 15:
         if (strncmp("postscript_name", name, 15) == 0) {
-          file->postscript_name = value;
+          SkAutoAsciiToLC to_lowercase(value);
+          file->postscript_name = to_lowercase.lc();
           continue;
         }
         break;
