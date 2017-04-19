@@ -14,7 +14,7 @@
 
 #include "starboard/player.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/cobalt/android_media_session_client.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/log.h"
@@ -25,7 +25,9 @@
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
-using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::cobalt::kPlaying;
+using starboard::android::shared::cobalt::
+    UpdateActiveSessionPlatformPlaybackState;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
@@ -63,8 +65,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallActivityVoidMethodOrAbort("onMediaStart", "()V");
+  UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
