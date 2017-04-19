@@ -127,7 +127,7 @@ scoped_refptr<render_tree::Typeface> SoftwareResourceProvider::GetLocalTypeface(
 
 scoped_refptr<render_tree::Typeface>
 SoftwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
-    const std::string& font_face_name) {
+    const char* font_face_name) {
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::GetLocalTypefaceIfAvailable()");
 
@@ -136,7 +136,7 @@ SoftwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
       base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
 
   SkTypeface_Cobalt* typeface = base::polymorphic_downcast<SkTypeface_Cobalt*>(
-      cobalt_font_manager->matchFaceName(font_face_name));
+      cobalt_font_manager->MatchFaceName(font_face_name));
   if (typeface != NULL) {
     SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
