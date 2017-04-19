@@ -40,11 +40,6 @@
       font-weight: bold;
       font-style: italic;
     }
-    .font-face-1-normal-italic {
-      font-family: font-face-1;
-      font-weight: normal;
-      font-style: italic;
-    }
     .font-face-2-normal-normal {
       font-family: font-face-2;
       font-weight: normal;
@@ -99,7 +94,8 @@
   <div class="containing-block">
     <div class="font-face-1-normal-normal">The Hegemony Consul</div>
     <!-- Note: font-face-1 selects a local font file, which only has an regular
-      style.  So, for the next three cases, a normal style is rendered.
+      style.  So, for the next three cases, a normal style is rendered,
+      although synthetic bolding is used for the bold weights.
     -->
     <div class="font-face-1-normal-italic">The Hegemony Consul</div>
     <div class="font-face-1-bold-normal">The Hegemony Consul</div>

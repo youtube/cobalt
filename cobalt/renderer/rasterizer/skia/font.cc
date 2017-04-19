@@ -52,7 +52,9 @@ Font::Font(SkiaTypeface* typeface, SkScalar size)
   glyph_bounds_thread_checker_.DetachFromThread();
 }
 
-SkTypeface* Font::GetSkTypeface() const { return typeface_->GetSkTypeface(); }
+SkTypeface_Cobalt* Font::GetSkTypeface() const {
+  return typeface_->GetSkTypeface();
+}
 
 render_tree::TypefaceId Font::GetTypefaceId() const {
   return typeface_->GetId();

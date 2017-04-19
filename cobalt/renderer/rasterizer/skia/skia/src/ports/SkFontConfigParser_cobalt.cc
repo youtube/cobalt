@@ -298,26 +298,6 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
     const char* value = attributes[i + 1];
 
     switch (strlen(name)) {
-      case 9:
-        if (strncmp("font_name", name, 9) == 0) {
-          file->full_font_name = value;
-          continue;
-        }
-        break;
-      case 15:
-        if (strncmp("postscript_name", name, 15) == 0) {
-          file->postscript_name = value;
-          continue;
-        }
-        break;
-      case 6:
-        if (strncmp("weight", name, 6) == 0) {
-          if (!ParseNonNegativeInteger(value, &file->weight)) {
-            DLOG(WARNING) << "Invalid font weight [" << value << "]";
-          }
-          continue;
-        }
-        break;
       case 5:
         if (strncmp("index", name, 5) == 0) {
           if (!ParseNonNegativeInteger(value, &file->index)) {
@@ -334,6 +314,33 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
           } else {
             NOTREACHED() << "Unsupported style [" << value << "]";
           }
+        }
+        break;
+      case 6:
+        if (strncmp("weight", name, 6) == 0) {
+          if (!ParseNonNegativeInteger(value, &file->weight)) {
+            DLOG(WARNING) << "Invalid font weight [" << value << "]";
+          }
+          continue;
+        }
+        break;
+      case 9:
+        if (strncmp("font_name", name, 9) == 0) {
+          file->full_font_name = value;
+          continue;
+        }
+        break;
+      case 15:
+        if (strncmp("postscript_name", name, 15) == 0) {
+          file->postscript_name = value;
+          continue;
+        }
+        break;
+      case 25:
+        if (strncmp("disable_synthetic_bolding", name, 25) == 0) {
+          file->disable_synthetic_bolding =
+              strcmp("true", value) == 0 || strcmp("1", value) == 0;
+          continue;
         }
         break;
       default:

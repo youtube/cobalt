@@ -22,7 +22,8 @@ SkTypeface_Cobalt::SkTypeface_Cobalt(int face_index, Style style,
                                      const SkString family_name)
     : INHERITED(style, SkTypefaceCache::NewFontID(), is_fixed_pitch),
       face_index_(face_index),
-      family_name_(family_name) {}
+      family_name_(family_name),
+      synthesizes_bold_(!isBold()) {}
 
 void SkTypeface_Cobalt::onGetFamilyName(SkString* family_name) const {
   *family_name = family_name_;
@@ -55,9 +56,14 @@ SkStreamAsset* SkTypeface_CobaltStream::onOpenStream(int* face_index) const {
 
 SkTypeface_CobaltSystem::SkTypeface_CobaltSystem(
     SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
-    Style style, bool is_fixed_pitch, const SkString family_name)
+    Style style, bool is_fixed_pitch, const SkString family_name,
+    bool disable_synthetic_bolding)
     : INHERITED(face_index, style, is_fixed_pitch, family_name),
-      stream_provider_(stream_provider) {}
+      stream_provider_(stream_provider) {
+  if (disable_synthetic_bolding) {
+    synthesizes_bold_ = false;
+  }
+}
 
 void SkTypeface_CobaltSystem::onGetFontDescriptor(SkFontDescriptor* descriptor,
                                                   bool* serialize) const {

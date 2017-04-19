@@ -35,7 +35,11 @@ namespace {
 class SingleFontFontProvider : public render_tree::FontProvider {
  public:
   explicit SingleFontFontProvider(const scoped_refptr<render_tree::Font>& font)
-      : font_(font) {}
+      : size_(base::polymorphic_downcast<Font*>(font.get())->size()),
+        font_(font) {}
+
+  const render_tree::FontStyle& style() const OVERRIDE { return style_; }
+  float size() const OVERRIDE { return size_; }
 
   const scoped_refptr<render_tree::Font>& GetCharacterFont(
       int32 utf32_character, render_tree::GlyphIndex* glyph_index) OVERRIDE {
@@ -44,10 +48,12 @@ class SingleFontFontProvider : public render_tree::FontProvider {
   }
 
  private:
+  render_tree::FontStyle style_;
+  float size_;
   scoped_refptr<render_tree::Font> font_;
 };
 
-void TryAddFontToUsedFonts(const scoped_refptr<render_tree::Font>& font,
+void TryAddFontToUsedFonts(Font* font,
                            render_tree::FontVector* maybe_used_fonts) {
   if (!maybe_used_fonts) {
     return;
@@ -56,12 +62,23 @@ void TryAddFontToUsedFonts(const scoped_refptr<render_tree::Font>& font,
   // Verify that the font has not already been added to the used fonts, before
   // adding it to the end.
   for (int i = 0; i < maybe_used_fonts->size(); ++i) {
-    if ((*maybe_used_fonts)[i]->GetTypefaceId() == font->GetTypefaceId()) {
+    if ((*maybe_used_fonts)[i] == font) {
       return;
     }
   }
 
   maybe_used_fonts->push_back(font);
+}
+
+bool ShouldFakeBoldText(const render_tree::FontProvider* font_provider,
+                        const Font* font) {
+  // A font-weight greater than 500 indicates bold if it is available. Use
+  // synthetic bolding if this is a bold weight and the selected font
+  // synthesizes bold.
+  // https://www.w3.org/TR/css-fonts-3/#font-weight-prop
+  // https://www.w3.org/TR/css-fonts-3/#font-style-matching
+  return font_provider->style().weight > 500 &&
+         font->GetSkTypeface()->synthesizes_bold();
 }
 
 }  // namespace
@@ -232,7 +249,7 @@ bool TextShaper::CollectScriptRuns(const char16* text_buffer,
       //   2. If the characters use different scripts, the next script isn't
       //      inherited, and the next character doesn't support the current
       //      script.
-      if ((current_font->GetTypefaceId() != next_font->GetTypefaceId()) ||
+      if ((current_font != next_font) ||
           ((current_script != next_script) &&
            (next_script != USCRIPT_INHERITED) &&
            (!uscript_hasScript(next_character, current_script)))) {
@@ -310,6 +327,7 @@ void TextShaper::ShapeComplexRun(const char16* text_buffer,
   if (maybe_builder) {
     SkPaint paint = script_run.font->GetSkPaint();
     paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
+    paint.setFakeBoldText(ShouldFakeBoldText(font_provider, script_run.font));
     run_buffer = &(maybe_builder->allocRunPos(paint, glyph_count));
   }
 
@@ -426,22 +444,13 @@ void TextShaper::ShapeSimpleRun(const char16* text_buffer, size_t text_length,
     // If there's a builder (meaning that a glyph buffer is being generated),
     // then we need to update the glyph buffer data for the new glyph.
     if (maybe_builder) {
-      // If at least one glyph has previously been added and the typeface has
-      // changed, then the current run has ended and we need to add the run
-      // into the glyph buffer. Allocate space within the text blob for the
-      // glyphs and copy them into the blob.
-      if (glyph_count > 0 &&
-          last_font->GetTypefaceId() != current_font->GetTypefaceId()) {
+      // If at least one glyph has previously been added and the font has
+      // changed, then the current run has ended and we need to add the font run
+      // into the glyph buffer.
+      if (glyph_count > 0 && last_font != current_font) {
         TryAddFontToUsedFonts(last_font, maybe_used_fonts);
-
-        SkPaint paint = last_font->GetSkPaint();
-        paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
-        const SkTextBlobBuilder::RunBuffer& buffer =
-            maybe_builder->allocRunPosH(paint, glyph_count, 0);
-        std::copy(&local_glyphs_[0], &local_glyphs_[0] + glyph_count,
-                  buffer.glyphs);
-        std::copy(&local_positions_[0], &local_positions_[0] + glyph_count,
-                  buffer.pos);
+        AddFontRunToGlyphBuffer(font_provider, last_font, glyph_count,
+                                maybe_builder);
         glyph_count = 0;
       }
 
@@ -464,20 +473,29 @@ void TextShaper::ShapeSimpleRun(const char16* text_buffer, size_t text_length,
   }
 
   // If there's a builder (meaning that a glyph buffer is being generated), and
-  // the at least one glyph was generated, then allocate space within the text
-  // blob for the glyphs and copy them into the blob.
+  // at least one glyph was generated, then we need to add the final font run
+  // into the glyph buffer.
   if (maybe_builder && glyph_count > 0) {
     TryAddFontToUsedFonts(last_font, maybe_used_fonts);
-
-    SkPaint paint = last_font->GetSkPaint();
-    paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
-    const SkTextBlobBuilder::RunBuffer& buffer =
-        maybe_builder->allocRunPosH(paint, glyph_count, 0);
-    std::copy(&local_glyphs_[0], &local_glyphs_[0] + glyph_count,
-              buffer.glyphs);
-    std::copy(&local_positions_[0], &local_positions_[0] + glyph_count,
-              buffer.pos);
+    AddFontRunToGlyphBuffer(font_provider, last_font, glyph_count,
+                            maybe_builder);
   }
+}
+
+void TextShaper::AddFontRunToGlyphBuffer(
+    const render_tree::FontProvider* font_provider, const Font* font,
+    const int glyph_count, SkTextBlobBuilder* builder) {
+  SkPaint paint = font->GetSkPaint();
+  paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
+  paint.setFakeBoldText(ShouldFakeBoldText(font_provider, font));
+
+  // Allocate space within the text blob for the glyphs and copy them into the
+  // blob.
+  const SkTextBlobBuilder::RunBuffer& buffer =
+      builder->allocRunPosH(paint, glyph_count, 0);
+  std::copy(&local_glyphs_[0], &local_glyphs_[0] + glyph_count, buffer.glyphs);
+  std::copy(&local_positions_[0], &local_positions_[0] + glyph_count,
+            buffer.pos);
 }
 
 void TextShaper::EnsureLocalGlyphArraysHaveSize(size_t size) {

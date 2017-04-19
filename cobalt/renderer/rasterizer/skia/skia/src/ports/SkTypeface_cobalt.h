@@ -28,11 +28,14 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
   SkTypeface_Cobalt(int face_index, Style style, bool is_fixed_pitch,
                     const SkString family_name);
 
+  bool synthesizes_bold() const { return synthesizes_bold_; }
+
  protected:
   virtual void onGetFamilyName(SkString* family_name) const SK_OVERRIDE;
 
   int face_index_;
   SkString family_name_;
+  bool synthesizes_bold_;
 
  private:
   typedef SkTypeface_FreeType INHERITED;
@@ -58,7 +61,8 @@ class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
  public:
   SkTypeface_CobaltSystem(SkFileMemoryChunkStreamProvider* stream_provider,
                           int face_index, Style style, bool is_fixed_pitch,
-                          const SkString family_name);
+                          const SkString family_name,
+                          bool disable_synthetic_bolding);
 
   virtual void onGetFontDescriptor(SkFontDescriptor* descriptor,
                                    bool* serialize) const SK_OVERRIDE;
