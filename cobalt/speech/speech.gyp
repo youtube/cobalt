@@ -28,6 +28,8 @@
       'sources': [
         'audio_encoder_flac.cc',
         'audio_encoder_flac.h',
+        'cobalt_speech_recognizer.cc',
+        'cobalt_speech_recognizer.h',
         'endpointer_delegate.cc',
         'endpointer_delegate.h',
         'google_streaming_api.pb.cc',
