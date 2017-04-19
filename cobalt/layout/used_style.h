@@ -58,8 +58,15 @@ class ContainingBlock;
 
 class UsedStyleProvider {
  public:
+  // A function that will attach a camera matrix projection transform to a given
+  // sub render tree.  |max_horizontal_fov_rad| and |max_vertical_fov_rad|
+  // dictate the minimum field of view to use in that direction, in radians.
+  // These minimum FOV values are compared against the values derived from
+  // applying the aspect ratio to the other FOV value, and using whichever one
+  // is most minimum.
   typedef base::Callback<scoped_refptr<render_tree::Node>(
-      const scoped_refptr<render_tree::Node>&)> AttachCameraNodeFunction;
+      const scoped_refptr<render_tree::Node>&, float max_horizontal_fov_rad,
+      float max_vertical_fov_rad)> AttachCameraNodeFunction;
 
   UsedStyleProvider(
       dom::HTMLElementContext* html_element_context, dom::FontCache* font_cache,
