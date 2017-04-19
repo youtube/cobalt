@@ -20,8 +20,8 @@
 #include "starboard/shared/starboard/cryptography/software_aes.h"
 #include "starboard/string.h"
 
-#if SB_API_VERSION < SB_CRYPTOGRAPHY_API_VERSION
-#error "SbCryptography requires SB_API_VERSION >= SB_CRYPTOGRAPHY_API_VERSION."
+#if SB_API_VERSION < 4
+#error "SbCryptography requires SB_API_VERSION >= 4."
 #endif
 
 SbCryptographyTransformer SbCryptographyCreateTransformer(
@@ -29,7 +29,7 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
     int block_size_bits,
     SbCryptographyDirection direction,
     SbCryptographyBlockCipherMode mode,
-    void* initialization_vector,
+    const void* initialization_vector,
     int initialization_vector_size,
     const void* key,
     int key_size) {

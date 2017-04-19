@@ -24,7 +24,7 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
     int block_size_bits,
     SbCryptographyDirection direction,
     SbCryptographyBlockCipherMode mode,
-    void* initialization_vector,
+    const void* initialization_vector,
     int initialization_vector_size,
     const void* key,
     int key_size) {
