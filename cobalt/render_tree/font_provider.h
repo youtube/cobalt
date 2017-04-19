@@ -22,10 +22,16 @@ namespace cobalt {
 namespace render_tree {
 
 // The FontProvider class is an abstract base class representing a collection of
-// fonts with a matching size and style, which provides fonts for any given
+// fonts with a matching style and size, which provides fonts for any given
 // character based upon what it considers to be the best match.
 class FontProvider {
  public:
+  // The style of the fonts contained within the collection.
+  virtual const render_tree::FontStyle& style() const = 0;
+
+  // The size of the fonts contained within the collection.
+  virtual float size() const = 0;
+
   // Returns the font-glyph combination that the FontProvider considers to be
   // the best match for the passed in character. The returned font is guaranteed
   // to be non-NULL. However, the glyph index may be set to |kInvalidGlyphIndex|
