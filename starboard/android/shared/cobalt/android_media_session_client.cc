@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/android/shared/cobalt/android_media_session_client.h"
+
 #include "base/time.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -29,6 +31,7 @@ using ::cobalt::media_session::MediaMetadata;
 using ::cobalt::media_session::MediaSession;
 using ::cobalt::media_session::MediaSessionAction;
 using ::cobalt::media_session::MediaSessionClient;
+using ::cobalt::media_session::MediaSessionPlaybackState;
 using ::cobalt::media_session::kMediaSessionActionPause;
 using ::cobalt::media_session::kMediaSessionActionPlay;
 using ::cobalt::media_session::kMediaSessionActionSeekbackward;
@@ -36,6 +39,8 @@ using ::cobalt::media_session::kMediaSessionActionSeekforward;
 using ::cobalt::media_session::kMediaSessionActionPrevioustrack;
 using ::cobalt::media_session::kMediaSessionActionNexttrack;
 using ::cobalt::media_session::kMediaSessionPlaybackStateNone;
+using ::cobalt::media_session::kMediaSessionPlaybackStatePaused;
+using ::cobalt::media_session::kMediaSessionPlaybackStatePlaying;
 
 using ::starboard::android::shared::JniEnvExt;
 using ::starboard::android::shared::ScopedLocalJavaRef;
@@ -52,7 +57,7 @@ const jlong kPlaybackStateActionFastForward = 1 << 6;
 
 // Converts a MediaSessionClient::AvailableActions bitset into
 // a android.media.session.PlaybackState jlong bitset.
-jlong convertMediaSessionAvailableActions(
+jlong MediaSessionActionsToPlaybackStateActions(
     const MediaSessionClient::AvailableActionsSet& actions) {
   jlong result = 0;
   if (actions[kMediaSessionActionPause]) {
@@ -73,7 +78,62 @@ jlong convertMediaSessionAvailableActions(
   if (actions[kMediaSessionActionSeekforward]) {
     result |= kPlaybackStateActionFastForward;
   }
+  return result;
+}
 
+PlaybackState MediaSessionPlaybackStateToPlaybackState(
+    MediaSessionPlaybackState in_state) {
+  switch (in_state) {
+    case kMediaSessionPlaybackStatePlaying:
+      return kPlaying;
+    case kMediaSessionPlaybackStatePaused:
+      return kPaused;
+    case kMediaSessionPlaybackStateNone:
+      return kNone;
+  }
+}
+
+MediaSessionAction PlaybackStateActionToMediaSessionAction(jlong action) {
+  MediaSessionAction result;
+  switch (action) {
+    case kPlaybackStateActionPause:
+      result = kMediaSessionActionPause;
+      break;
+    case kPlaybackStateActionPlay:
+      result = kMediaSessionActionPlay;
+      break;
+    case kPlaybackStateActionRewind:
+      result = kMediaSessionActionSeekbackward;
+      break;
+    case kPlaybackStateActionSkipToPrevious:
+      result = kMediaSessionActionPrevioustrack;
+      break;
+    case kPlaybackStateActionSkipToNext:
+      result = kMediaSessionActionNexttrack;
+      break;
+    case kPlaybackStateActionFastForward:
+      result = kMediaSessionActionSeekforward;
+      break;
+  }
+  return result;
+}
+
+MediaSessionPlaybackState PlaybackStateToMediaSessionPlaybackState(
+    PlaybackState state) {
+  MediaSessionPlaybackState result;
+  switch (state) {
+    case kPlaying:
+      result = kMediaSessionPlaybackStatePlaying;
+      break;
+    case kPaused:
+      result = kMediaSessionPlaybackStatePaused;
+      break;
+    case kNone:
+      result = kMediaSessionPlaybackStateNone;
+      break;
+    default:
+      SB_NOTREACHED();
+  }
   return result;
 }
 
@@ -95,33 +155,24 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     SbOnce(&once_flag, OnceInit);
     SbMutexAcquire(&mutex);
 
-    if (active_client == NULL) {
-      return;
+    if (active_client != NULL) {
+      MediaSessionAction cobalt_action =
+          PlaybackStateActionToMediaSessionAction(action);
+      active_client->InvokeAction(cobalt_action);
     }
 
-    MediaSessionAction cobalt_action;
-    switch (action) {
-      case kPlaybackStateActionPause:
-        cobalt_action = kMediaSessionActionPause;
-        break;
-      case kPlaybackStateActionPlay:
-        cobalt_action = kMediaSessionActionPlay;
-        break;
-      case kPlaybackStateActionRewind:
-        cobalt_action = kMediaSessionActionSeekbackward;
-        break;
-      case kPlaybackStateActionSkipToPrevious:
-        cobalt_action = kMediaSessionActionPrevioustrack;
-        break;
-      case kPlaybackStateActionSkipToNext:
-        cobalt_action = kMediaSessionActionNexttrack;
-        break;
-      case kPlaybackStateActionFastForward:
-        cobalt_action = kMediaSessionActionSeekforward;
-        break;
+    SbMutexRelease(&mutex);
+  }
+
+  static void UpdateActiveSessionPlatformPlaybackState(
+      MediaSessionPlaybackState state) {
+    SbOnce(&once_flag, OnceInit);
+    SbMutexAcquire(&mutex);
+
+    if (active_client != NULL) {
+      active_client->UpdatePlatformPlaybackState(state);
     }
 
-    active_client->InvokeAction(cobalt_action);
     SbMutexRelease(&mutex);
   }
 
@@ -139,12 +190,12 @@ class AndroidMediaSessionClient : public MediaSessionClient {
   virtual void OnMediaSessionChanged() OVERRIDE {
     JniEnvExt* env = JniEnvExt::Get();
 
-    jboolean session_active = static_cast<jboolean>(
-        kMediaSessionPlaybackStateNone == GetActualPlaybackState());
+    jint playback_state =
+        MediaSessionPlaybackStateToPlaybackState(GetActualPlaybackState());
 
     SbOnce(&once_flag, OnceInit);
     SbMutexAcquire(&mutex);
-    if (session_active) {
+    if (playback_state != kNone) {
       active_client = this;
     } else if (active_client == this) {
       active_client = NULL;
@@ -165,12 +216,12 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     }
 
     jlong playback_state_actions =
-        convertMediaSessionAvailableActions(GetAvailableActions());
+        MediaSessionActionsToPlaybackStateActions(GetAvailableActions());
 
     env->CallActivityVoidMethodOrAbort(
         "updateMediaSession",
-        "(ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V",
-        session_active, title.Get(), artist.Get(), album.Get(),
+        "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V",
+        playback_state, title.Get(), artist.Get(), album.Get(),
         playback_state_actions);
   }
 };
@@ -178,6 +229,15 @@ class AndroidMediaSessionClient : public MediaSessionClient {
 SbOnceControl AndroidMediaSessionClient::once_flag = SB_ONCE_INITIALIZER;
 SbMutex AndroidMediaSessionClient::mutex;
 AndroidMediaSessionClient* AndroidMediaSessionClient::active_client = NULL;
+
+void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
+  MediaSessionPlaybackState media_session_state =
+      PlaybackStateToMediaSessionPlaybackState(state);
+
+  AndroidMediaSessionClient::UpdateActiveSessionPlatformPlaybackState(
+      media_session_state);
+}
+
 }  // namespace cobalt
 }  // namespace shared
 }  // namespace android
