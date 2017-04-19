@@ -57,11 +57,13 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
 
   // Translate all the sockaddrs.
   sbposix::SockAddr* sock_addrs = new sbposix::SockAddr[address_count];
+  bool* parsed = new bool[address_count];
   int index = 0;
   int skip = 0;
   for (const struct addrinfo *i = ai; i != NULL; i = i->ai_next, ++index) {
     // Skip over any addresses we can't parse.
-    if (!sock_addrs[index].FromSockaddr(i->ai_addr)) {
+    parsed[index] = sock_addrs[index].FromSockaddr(i->ai_addr);
+    if (!parsed[index]) {
       ++skip;
     }
   }
@@ -71,11 +73,13 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
 
   int result_index = 0;
   for (int i = 0; i < address_count; ++i) {
-    if (sock_addrs[i].ToSbSocketAddress(&result->addresses[result_index])) {
+    if (parsed[i] &&
+        sock_addrs[i].ToSbSocketAddress(&result->addresses[result_index])) {
       ++result_index;
     }
   }
 
+  delete[] parsed;
   delete[] sock_addrs;
   freeaddrinfo(ai);
   return result;
