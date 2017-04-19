@@ -273,7 +273,7 @@
       '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_destroy_transformer.cc',
-      '<(DEPTH)/starboard/shared/stub/cryptography_transform_block.cc',
+      '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
       '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
       '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
       '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
