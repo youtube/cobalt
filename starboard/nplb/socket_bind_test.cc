@@ -112,17 +112,16 @@ TEST_P(SbSocketBindTest, RainyDayBadInterface) {
   SbSocketFreeResolution(resolution);
 }
 
-TEST_P(SbSocketBindTest, SunnyDayLocalInterface) {
-  SbSocket server_socket = CreateServerTcpSocket(GetAddressType());
-  ASSERT_TRUE(SbSocketIsValid(server_socket));
-
+TEST_F(SbSocketBindTest, SunnyDayLocalInterface) {
   SbSocketAddress address = {0};
-  address.type = GetAddressType();
 #if SB_API_VERSION < 4
   EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
 #else
   EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
 #endif  // SB_API_VERSION < 4
+  SbSocket server_socket = CreateServerTcpSocket(address.type);
+  ASSERT_TRUE(SbSocketIsValid(server_socket));
+
   EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
