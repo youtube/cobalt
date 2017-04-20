@@ -71,7 +71,7 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
     network::NetworkModule* network_module,
     const Microphone::Options& microphone_options,
     const EventCallback& event_callback)
-    : event_callback_(event_callback), endpointer_delegate_(kSampleRate) {
+    : SpeechRecognizer(event_callback), endpointer_delegate_(kSampleRate) {
   UNREFERENCED_PARAMETER(microphone_options);
 
   GoogleSpeechService::URLFetcherCreator url_fetcher_creator =
@@ -115,13 +115,13 @@ void CobaltSpeechRecognizer::Stop() {
   endpointer_delegate_.Stop();
   microphone_manager_->Close();
   service_->Stop();
-  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
+  RunEventCallback(new dom::Event(base::Tokens::soundend()));
 }
 
 void CobaltSpeechRecognizer::OnDataReceived(
     scoped_ptr<ShellAudioBus> audio_bus) {
   if (endpointer_delegate_.IsFirstTimeSoundStarted(*audio_bus)) {
-    event_callback_.Run(new dom::Event(base::Tokens::soundstart()));
+    RunEventCallback(new dom::Event(base::Tokens::soundstart()));
   }
   service_->RecognizeAudio(audio_bus.Pass(), false);
 }
@@ -139,7 +139,7 @@ void CobaltSpeechRecognizer::OnDataCompletion() {
 
 void CobaltSpeechRecognizer::OnRecognizerEvent(
     const scoped_refptr<dom::Event>& event) {
-  event_callback_.Run(event);
+  RunEventCallback(event);
 }
 
 void CobaltSpeechRecognizer::OnMicError(
@@ -147,7 +147,7 @@ void CobaltSpeechRecognizer::OnMicError(
   // An error is occured in Mic, so stop the energy endpointer and recognizer.
   endpointer_delegate_.Stop();
   service_->Stop();
-  event_callback_.Run(event);
+  RunEventCallback(event);
 }
 
 }  // namespace speech
