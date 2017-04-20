@@ -42,7 +42,8 @@ StorageUpgradeHandler::StorageUpgradeHandler(const GURL& url)
 
 void StorageUpgradeHandler::OnUpgrade(storage::StorageManager* storage,
                                       const char* data, int size) {
-  storage::upgrade::UpgradeReader upgrade_reader(data, size);
+  storage::upgrade::UpgradeReader upgrade_reader;
+  upgrade_reader.Parse(data, size);
   int num_cookies = upgrade_reader.GetNumCookies();
   int num_local_storage_entries = upgrade_reader.GetNumLocalStorageEntries();
   DLOG(INFO) << "Upgrading legacy save data: " << num_cookies << " cookies, "
