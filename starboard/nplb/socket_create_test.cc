@@ -79,10 +79,17 @@ TEST_P(SbSocketCreateTest, ManyTcpAtOnce) {
   }
 }
 
+#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketCreateTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
                                           kSbSocketAddressTypeIpv6));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketCreateTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+#endif
+
 INSTANTIATE_TEST_CASE_P(
     SbSocketTypes,
     PairSbSocketCreateTest,
