@@ -31,10 +31,6 @@ namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-#if LIBAVUTIL_VERSION_MAJOR > 52
-#error "Unsupported version of libavutil. Expect version major <= 52."
-#endif
-
 void InitializeFfmpeg();
 
 // In Ffmpeg, the calls to avcodec_open2() and avcodec_close() are not
