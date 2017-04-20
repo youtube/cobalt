@@ -56,6 +56,8 @@
         'speech_recognition_result.h',
         'speech_recognition_result_list.cc',
         'speech_recognition_result_list.h',
+        'speech_recognizer.cc',
+        'speech_recognizer.h',
         'speech_synthesis.cc',
         'speech_synthesis.h',
         'speech_synthesis_error_event.h',
@@ -64,6 +66,8 @@
         'speech_synthesis_utterance.cc',
         'speech_synthesis_utterance.h',
         'speech_synthesis_voice.h',
+        'starboard_speech_recognizer.cc',
+        'starboard_speech_recognizer.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',

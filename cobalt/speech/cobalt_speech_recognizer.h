@@ -24,6 +24,7 @@
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
+#include "cobalt/speech/speech_recognizer.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -33,22 +34,25 @@
 namespace cobalt {
 namespace speech {
 
-class CobaltSpeechRecognizer {
+// Cobalt's implementation of speech recognizer which interacts with Google
+// speech service and device's microphone. It collects the microphone PCM audio
+// data and sends it to Google speech service, then gets the recognition results
+// from there.
+class CobaltSpeechRecognizer : public SpeechRecognizer {
  public:
 #if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   typedef ::media::ShellAudioBus ShellAudioBus;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
 
   CobaltSpeechRecognizer(network::NetworkModule* network_module,
                          const Microphone::Options& microphone_options,
                          const EventCallback& event_callback);
   ~CobaltSpeechRecognizer();
 
-  void Start(const SpeechRecognitionConfig& config);
-  void Stop();
+  void Start(const SpeechRecognitionConfig& config) SB_OVERRIDE;
+  void Stop() SB_OVERRIDE;
 
  private:
   // Callbacks from mic.
