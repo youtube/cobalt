@@ -78,26 +78,22 @@ TEST_P(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-TEST_P(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
-  SbSocket server_socket = CreateServerTcpSocket(GetAddressType());
+TEST_F(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
+  SbSocketAddress interface_address = {0};
+#if SB_API_VERSION < 4
+  EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&interface_address));
+#else
+  EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &interface_address, NULL));
+#endif
+  SbSocket server_socket = CreateServerTcpSocket(interface_address.type);
   ASSERT_TRUE(SbSocketIsValid(server_socket));
 
-  {
-    SbSocketAddress address = {0};
-    address.type = GetAddressType();
-#if SB_API_VERSION < 4
-    EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
-#else
-    EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
-#endif
-    EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
-  }
+  EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &interface_address));
 
-  SbSocketAddress address = {0};
-  EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
-  EXPECT_EQ(GetAddressType(), address.type);
-  EXPECT_NE(0, address.port);
-  EXPECT_FALSE(IsUnspecified(&address));
+  SbSocketAddress local_address = {0};
+  EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &local_address));
+  EXPECT_NE(0, local_address.port);
+  EXPECT_FALSE(IsUnspecified(&local_address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
