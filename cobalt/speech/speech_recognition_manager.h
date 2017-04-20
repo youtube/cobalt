@@ -19,9 +19,9 @@
 
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_state.h"
-#include "cobalt/speech/cobalt_speech_recognizer.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/speech_recognition_config.h"
+#include "cobalt/speech/speech_recognizer.h"
 
 namespace cobalt {
 namespace speech {
@@ -63,7 +63,7 @@ class SpeechRecognitionManager {
 
   // Callback for sending dom events if available.
   EventCallback event_callback_;
-  scoped_ptr<CobaltSpeechRecognizer> recognizer_;
+  scoped_ptr<SpeechRecognizer> recognizer_;
 
   State state_;
 };

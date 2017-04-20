@@ -16,6 +16,12 @@
 
 #include "base/bind.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/speech/speech_configuration.h"
+#if defined(SB_USE_SB_SPEECH_RECOGNIZER)
+#include "cobalt/speech/starboard_speech_recognizer.h"
+#else
+#include "cobalt/speech/cobalt_speech_recognizer.h"
+#endif  // defined(SB_USE_SB_SPEECH_RECOGNIZER)
 
 namespace cobalt {
 namespace speech {
@@ -27,11 +33,19 @@ SpeechRecognitionManager::SpeechRecognitionManager(
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
       main_message_loop_(base::MessageLoopProxy::current()),
       event_callback_(event_callback),
-      recognizer_(new CobaltSpeechRecognizer(
-          network_module, microphone_options,
-          base::Bind(&SpeechRecognitionManager::OnEventAvailable,
-                     base::Unretained(this)))),
-      state_(kStopped) {}
+      state_(kStopped) {
+#if defined(SB_USE_SB_SPEECH_RECOGNIZER)
+  UNREFERENCED_PARAMETER(network_module);
+  UNREFERENCED_PARAMETER(microphone_options);
+  recognizer_.reset(new StarboardSpeechRecognizer(base::Bind(
+      &SpeechRecognitionManager::OnEventAvailable, base::Unretained(this))));
+#else
+  recognizer_.reset(new CobaltSpeechRecognizer(
+      network_module, microphone_options,
+      base::Bind(&SpeechRecognitionManager::OnEventAvailable,
+                 base::Unretained(this))));
+#endif  // defined(SB_USE_SB_SPEECH_RECOGNIZER)
+}
 
 SpeechRecognitionManager::~SpeechRecognitionManager() { Abort(); }
 
