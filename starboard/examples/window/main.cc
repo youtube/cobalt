@@ -13,12 +13,19 @@
 // limitations under the License.
 
 #include <iomanip>
+#include <set>
 
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
 #include "starboard/window.h"
+
+namespace {
+// Helper set to keep track of which keys are currently pressed.
+typedef std::set<SbKey> KeySet;
+KeySet s_is_pressed;
+}  // namespace
 
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
@@ -31,6 +38,27 @@ void SbEventHandle(const SbEvent* event) {
     }
     case kSbEventTypeInput: {
       SbInputData* data = static_cast<SbInputData*>(event->data);
+
+      // Track which keys are currently pressed, from our perspective outside
+      // of Starboard.  Print out the current state after each key event.
+      if (data->type == kSbInputEventTypePress ||
+          data->type == kSbInputEventTypeUnpress) {
+        if (data->type == kSbInputEventTypePress) {
+          s_is_pressed.insert(data->key);
+        } else {
+          s_is_pressed.erase(data->key);
+        }
+        if (!s_is_pressed.empty()) {
+          SB_DLOG(INFO) << "Keys currently pressed:";
+          for (KeySet::const_iterator iter = s_is_pressed.begin();
+               iter != s_is_pressed.end(); ++iter) {
+            SB_DLOG(INFO) << "  " << std::hex << *iter;
+          }
+        } else {
+          SB_DLOG(INFO) << "No keys currently pressed.";
+        }
+      }
+
       SB_DLOG(INFO) << __FUNCTION__ << ": INPUT: type=" << data->type
                     << ", window=" << data->window
                     << ", device_type=" << data->device_type
