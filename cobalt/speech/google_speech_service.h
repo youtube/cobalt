@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SPEECH_SPEECH_RECOGNIZER_H_
-#define COBALT_SPEECH_SPEECH_RECOGNIZER_H_
+#ifndef COBALT_SPEECH_GOOGLE_SPEECH_SERVICE_H_
+#define COBALT_SPEECH_GOOGLE_SPEECH_SERVICE_H_
 
 #include <string>
 #include <vector>
@@ -42,7 +42,7 @@ namespace speech {
 // recognition result is parsed by JSON parser and a SpeechRecognitionEvent,
 // is formed based on the parsed result, would be sent to speech recognition
 // manager.
-class SpeechRecognizer : public net::URLFetcherDelegate {
+class GoogleSpeechService : public net::URLFetcherDelegate {
  public:
 #if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
@@ -56,10 +56,10 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
       const GURL&, net::URLFetcher::RequestType, net::URLFetcherDelegate*)>
       URLFetcherCreator;
 
-  SpeechRecognizer(network::NetworkModule* network_module,
-                   const EventCallback& event_callback,
-                   const URLFetcherCreator& fetcher_creator);
-  ~SpeechRecognizer() OVERRIDE;
+  GoogleSpeechService(network::NetworkModule* network_module,
+                      const EventCallback& event_callback,
+                      const URLFetcherCreator& fetcher_creator);
+  ~GoogleSpeechService() OVERRIDE;
 
   // Multiple calls to Start/Stop are allowed, the implementation should take
   // care of multiple calls.
@@ -111,4 +111,4 @@ class SpeechRecognizer : public net::URLFetcherDelegate {
 }  // namespace speech
 }  // namespace cobalt
 
-#endif  // COBALT_SPEECH_SPEECH_RECOGNIZER_H_
+#endif  // COBALT_SPEECH_GOOGLE_SPEECH_SERVICE_H_

@@ -29,9 +29,7 @@ SpeechRecognitionManager::SpeechRecognitionManager(
       event_callback_(event_callback),
       recognizer_(new CobaltSpeechRecognizer(
           network_module, microphone_options,
-          base::Bind(&SpeechRecognitionManager::OnSuccess,
-                     base::Unretained(this)),
-          base::Bind(&SpeechRecognitionManager::OnError,
+          base::Bind(&SpeechRecognitionManager::OnEventAvailable,
                      base::Unretained(this)))),
       state_(kStopped) {}
 
@@ -79,33 +77,18 @@ void SpeechRecognitionManager::Abort() {
   recognizer_->Stop();
 }
 
-void SpeechRecognitionManager::OnSuccess(
+void SpeechRecognitionManager::OnEventAvailable(
     const scoped_refptr<dom::Event>& event) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     // Called from recognizer. |event_callback_| is required to be run on
     // the |main_message_loop_|.
     main_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&SpeechRecognitionManager::OnSuccess, weak_this_, event));
+        FROM_HERE, base::Bind(&SpeechRecognitionManager::OnEventAvailable,
+                              weak_this_, event));
     return;
   }
 
   // Do not return any information if in the abort state.
-  if (state_ != kAborted) {
-    event_callback_.Run(event);
-  }
-}
-
-void SpeechRecognitionManager::OnError(const scoped_refptr<dom::Event>& event) {
-  if (!main_message_loop_->BelongsToCurrentThread()) {
-    // Called from recognizer. |event_callback_| is required to be run on
-    // the |main_message_loop_|.
-    main_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&SpeechRecognitionManager::OnError, weak_this_, event));
-    return;
-  }
-
   if (state_ != kAborted) {
     event_callback_.Run(event);
   }
