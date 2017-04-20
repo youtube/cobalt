@@ -49,11 +49,6 @@ class InputEventsGenerator {
     kNumAxes,
   };
 
-  enum HatAxis {
-    kHatX,
-    kHatY,
-  };
-
   bool ProcessKeyEvent(
       AInputEvent* android_event,
       std::vector< ::starboard::shared::starboard::Application::Event*>*
@@ -70,8 +65,16 @@ class InputEventsGenerator {
           events);
   void UpdateDeviceFlatMapIfNecessary(AInputEvent* android_event);
 
-  SbKey AInputEventToSbKey(AInputEvent *event);
-  bool IsDpadEventFromStick(AInputEvent *event);
+  void ProcessFallbackDPadEvent(
+      SbInputEventType type,
+      SbKey key,
+      AInputEvent* android_event,
+      std::vector< ::starboard::shared::starboard::Application::Event*>*
+          events);
+  void UpdateHatValuesAndPossiblySynthesizeKeyEvents(
+      AInputEvent* android_event,
+      std::vector< ::starboard::shared::starboard::Application::Event*>*
+          events);
 
   SbWindow window_;
 
@@ -82,9 +85,10 @@ class InputEventsGenerator {
   // The curent X/Y analog values of the "hat" (dpad on the game controller).
   float hat_value_[2];
 
-  // The keycode for the X/Y axes of the "hat" for which we have sent a pressed
-  // event and are still waiting to send the unpressed event.
-  int32_t hat_pressed_[2];
+  // The last known value of the left thumbstick, used to track when we should
+  // generate key unpressed events for it.  We store values for horizontal and
+  // vertical directions independently.
+  SbKey left_thumbstick_key_pressed_[2];
 };
 
 }  // namespace shared
