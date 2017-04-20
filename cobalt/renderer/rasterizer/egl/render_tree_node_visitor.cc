@@ -22,6 +22,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/rasterizer/common/utils.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
@@ -81,16 +82,16 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
   const render_tree::CompositionNode::Builder& data = composition_node->data();
-  draw_state_.transform(0, 2) += data.offset().x();
-  draw_state_.transform(1, 2) += data.offset().y();
+  math::Matrix3F old_transform = draw_state_.transform;
+  draw_state_.transform = draw_state_.transform *
+      math::TranslateMatrix(data.offset().x(), data.offset().y());
   const render_tree::CompositionNode::Children& children =
       data.children();
   for (render_tree::CompositionNode::Children::const_iterator iter =
        children.begin(); iter != children.end(); ++iter) {
     (*iter)->Accept(this);
   }
-  draw_state_.transform(0, 2) -= data.offset().x();
-  draw_state_.transform(1, 2) -= data.offset().y();
+  draw_state_.transform = old_transform;
 }
 
 void RenderTreeNodeVisitor::Visit(
