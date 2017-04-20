@@ -173,9 +173,6 @@ bool FindIPv4InterfaceIP(SbSocketAddress* out_interface_ip,
     SB_NOTREACHED() << "out_interface_ip must be specified";
     return false;
   }
-  if (out_interface_ip->type != kSbSocketAddressTypeIpv4) {
-    return false;
-  }
   struct ifaddrs* interface_addrs = NULL;
 
   int retval = getifaddrs(&interface_addrs);
@@ -229,9 +226,6 @@ bool FindIPv6InterfaceIP(SbSocketAddress* out_interface_ip,
                          SbSocketAddress* out_netmask) {
   if (!out_interface_ip) {
     SB_NOTREACHED() << "out_interface_ip must be specified";
-    return false;
-  }
-  if (out_interface_ip->type != kSbSocketAddressTypeIpv6) {
     return false;
   }
   struct ifaddrs* interface_addrs = NULL;
