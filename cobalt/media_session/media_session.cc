@@ -25,6 +25,14 @@ MediaSession::MediaSession(MediaSessionClient* client)
       message_loop_(base::MessageLoopProxy::current()),
       is_change_task_queued_(false) {}
 
+MediaSession::~MediaSession() {
+  ActionMap::iterator it;
+  for (it = action_map_.begin(); it != action_map_.end(); ++it) {
+    delete it->second;
+  }
+  action_map_.clear();
+}
+
 void MediaSession::set_metadata(scoped_refptr<MediaMetadata> value) {
   metadata_ = value;
   MaybeQueueChangeTask();
