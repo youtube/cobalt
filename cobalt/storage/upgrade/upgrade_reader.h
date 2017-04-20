@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/values.h"
 #include "net/cookies/canonical_cookie.h"
 
@@ -35,8 +36,11 @@ class UpgradeReader {
     std::string value;
   };
 
+  UpgradeReader() {}
+  virtual ~UpgradeReader() {}
+
   // Parse |data| in JSON-encoded legacy save data upgrade format.
-  UpgradeReader(const char* data, int size);
+  void Parse(const char* data, int size);
 
   // The number of valid cookies found in the parsed data. May be zero.
   int GetNumCookies() const;
@@ -69,6 +73,12 @@ class UpgradeReader {
   // valid local storage entry.
   void AddLocalStorageEntryIfValid(
       const base::DictionaryValue* local_storage_entry);
+
+  // Alerts porters that expiration is required.
+  virtual void OnNullExpiration() {
+    NOTREACHED() << "Cookies must have a specified expiration, "
+                    "as there is no reasonable default.";
+  }
 
   std::vector<net::CanonicalCookie> cookies_;
   std::vector<LocalStorageEntry> local_storage_entries_;

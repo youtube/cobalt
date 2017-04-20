@@ -32,6 +32,13 @@ namespace upgrade {
 
 namespace {
 
+using ::testing::StrictMock;
+
+class MockUpgradeReader : public UpgradeReader {
+ public:
+  MOCK_METHOD0(OnNullExpiration, void());
+};
+
 void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(pathname);
   EXPECT_TRUE(string_out);
@@ -71,7 +78,7 @@ void ValidateCookie(const net::CanonicalCookie* cookie, const std::string& url,
   const std::string domain = host.empty() ? "" : host.substr(host.find("."));
   const std::string path = "/";
   const base::Time creation = base::Time::Now();
-  const base::Time expiration = creation;
+  const base::Time expiration = base::Time();
   const bool http_only = false;
   ValidateCookie(cookie, url, name, value, domain, path, creation, expiration,
                  http_only);
@@ -91,8 +98,13 @@ TEST(StorageUpgradeTest, UpgradeMinimalCookie) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/minimal_cookie_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(file_contents.c_str(),
-                               static_cast<int>(file_contents.length()));
+  StrictMock<MockUpgradeReader> upgrade_reader;
+
+  // No expiration
+  EXPECT_CALL(upgrade_reader, OnNullExpiration());
+
+  upgrade_reader.Parse(file_contents.c_str(),
+                       static_cast<int>(file_contents.length()));
 
   // 1 cookie.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 1);
@@ -111,8 +123,9 @@ TEST(StorageUpgradeTest, UpgradeMinimalLocalStorageEntry) {
   ReadFileToString(
       "cobalt/storage/upgrade/testdata/minimal_local_storage_entry_v1.json",
       &file_contents);
-  UpgradeReader upgrade_reader(file_contents.c_str(),
-                               static_cast<int>(file_contents.length()));
+  UpgradeReader upgrade_reader;
+  upgrade_reader.Parse(file_contents.c_str(),
+                       static_cast<int>(file_contents.length()));
 
   // 0 cookies.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 0);
@@ -130,8 +143,9 @@ TEST(StorageUpgradeTest, UpgradeFullData) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/full_data_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(file_contents.c_str(),
-                               static_cast<int>(file_contents.length()));
+  UpgradeReader upgrade_reader;
+  upgrade_reader.Parse(file_contents.c_str(),
+                       static_cast<int>(file_contents.length()));
 
   // 2 cookies.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 2);
@@ -163,8 +177,9 @@ TEST(StorageUpgradeTest, UpgradeMissingFields) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/missing_fields_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(file_contents.c_str(),
-                               static_cast<int>(file_contents.length()));
+  UpgradeReader upgrade_reader;
+  upgrade_reader.Parse(file_contents.c_str(),
+                       static_cast<int>(file_contents.length()));
 
   // 1 cookie with missing fields, 2 local storage entries with missing fields,
   // 1 valid local storage entry.
@@ -181,8 +196,9 @@ TEST(StorageUpgradeTest, UpgradeMalformed) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/malformed_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(file_contents.c_str(),
-                               static_cast<int>(file_contents.length()));
+  UpgradeReader upgrade_reader;
+  upgrade_reader.Parse(file_contents.c_str(),
+                       static_cast<int>(file_contents.length()));
 
   // No cookies or local storage entries available in malformed data.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 0);
@@ -195,8 +211,13 @@ TEST(StorageUpgradeTest, UpgradeExtraFields) {
   std::string file_contents;
   ReadFileToString("cobalt/storage/upgrade/testdata/extra_fields_v1.json",
                    &file_contents);
-  UpgradeReader upgrade_reader(file_contents.c_str(),
-                               static_cast<int>(file_contents.length()));
+  StrictMock<MockUpgradeReader> upgrade_reader;
+
+  // No expiration
+  EXPECT_CALL(upgrade_reader, OnNullExpiration());
+
+  upgrade_reader.Parse(file_contents.c_str(),
+                       static_cast<int>(file_contents.length()));
 
   // 1 cookie, extra fields should be ignored.
   EXPECT_EQ(upgrade_reader.GetNumCookies(), 1);
