@@ -95,11 +95,12 @@ TEST(SbPlayerTest, SunnyDay) {
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
     SbPlayerDestroy(player);
-    SbWindowDestroy(window);
 
 #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
   }
 #endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+
+  SbWindowDestroy(window);
 }
 
 }  // namespace nplb
