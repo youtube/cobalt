@@ -119,11 +119,12 @@ TEST(SbPlayerTest, SunnyDay) {
 #endif  // SB_API_VERSION >= 4
 
     SbPlayerDestroy(player);
-    SbWindowDestroy(window);
 
 #if SB_API_VERSION >= 4
   }
 #endif  // SB_API_VERSION >= 4
+
+  SbWindowDestroy(window);
 }
 
 }  // namespace nplb
