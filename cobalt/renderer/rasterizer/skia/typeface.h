@@ -38,8 +38,8 @@ class SkiaTypeface : public render_tree::Typeface {
  public:
   explicit SkiaTypeface(SkTypeface_Cobalt* typeface);
 
-  // Returns the contained SkTypeface object, which has its reference count
-  // incremented.
+  // Returns the contained SkTypeface_Cobalt object, which has its reference
+  // count incremented.
   // NOTE: The caller is responsible for decrementing the reference count after
   // finishing with the object.
   SkTypeface_Cobalt* GetSkTypeface() const;
