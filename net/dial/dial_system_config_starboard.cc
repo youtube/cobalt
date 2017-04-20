@@ -21,30 +21,44 @@ namespace net {
 // static
 std::string DialSystemConfig::GetFriendlyName() {
   char buffer[kMaxNameSize];
-  SbSystemGetProperty(kSbSystemPropertyFriendlyName, buffer, sizeof(buffer));
-  return std::string(buffer);
+  if (SbSystemGetProperty(kSbSystemPropertyFriendlyName, buffer,
+                          sizeof(buffer))) {
+    return std::string(buffer);
+  } else {
+    return std::string();
+  }
 }
 
 // static
 std::string DialSystemConfig::GetManufacturerName() {
   char buffer[kMaxNameSize];
-  SbSystemGetProperty(kSbSystemPropertyManufacturerName, buffer,
-                      sizeof(buffer));
-  return std::string(buffer);
+  if (SbSystemGetProperty(kSbSystemPropertyManufacturerName, buffer,
+                          sizeof(buffer))) {
+    return std::string(buffer);
+  } else {
+    return std::string();
+  }
 }
 
 // static
 std::string DialSystemConfig::GetModelName() {
   char buffer[kMaxNameSize];
-  SbSystemGetProperty(kSbSystemPropertyModelName, buffer, sizeof(buffer));
-  return std::string(buffer);
+  if (SbSystemGetProperty(kSbSystemPropertyModelName, buffer, sizeof(buffer))) {
+    return std::string(buffer);
+  } else {
+    return std::string();
+  }
 }
 
 // static
 std::string DialSystemConfig::GeneratePlatformUuid() {
   char buffer[kMaxNameSize];
-  SbSystemGetProperty(kSbSystemPropertyPlatformUuid, buffer, sizeof(buffer));
-  return std::string(buffer);
+  if (SbSystemGetProperty(kSbSystemPropertyPlatformUuid, buffer,
+                          sizeof(buffer))) {
+    return std::string(buffer);
+  } else {
+    return std::string();
+  }
 }
 
 }  // namespace net
