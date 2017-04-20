@@ -70,13 +70,11 @@ scoped_ptr<Microphone> CreateFakeMicrophone(const Microphone::Options& options,
 CobaltSpeechRecognizer::CobaltSpeechRecognizer(
     network::NetworkModule* network_module,
     const Microphone::Options& microphone_options,
-    const EventCallback& success_callback, const EventCallback& error_callback)
-    : success_callback_(success_callback),
-      error_callback_(error_callback),
-      endpointer_delegate_(kSampleRate) {
+    const EventCallback& event_callback)
+    : event_callback_(event_callback), endpointer_delegate_(kSampleRate) {
   UNREFERENCED_PARAMETER(microphone_options);
 
-  SpeechRecognizer::URLFetcherCreator url_fetcher_creator =
+  GoogleSpeechService::URLFetcherCreator url_fetcher_creator =
       base::Bind(&CreateURLFetcher);
   MicrophoneManager::MicrophoneCreator microphone_creator =
       base::Bind(&CreateMicrophone);
@@ -92,7 +90,7 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 #endif  // defined(SB_USE_SB_MICROPHONE)
 
-  recognizer_.reset(new SpeechRecognizer(
+  service_.reset(new GoogleSpeechService(
       network_module, base::Bind(&CobaltSpeechRecognizer::OnRecognizerEvent,
                                  base::Unretained(this)),
       url_fetcher_creator));
@@ -108,7 +106,7 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
 CobaltSpeechRecognizer::~CobaltSpeechRecognizer() {}
 
 void CobaltSpeechRecognizer::Start(const SpeechRecognitionConfig& config) {
-  recognizer_->Start(config, kSampleRate);
+  service_->Start(config, kSampleRate);
   microphone_manager_->Open();
   endpointer_delegate_.Start();
 }
@@ -116,16 +114,16 @@ void CobaltSpeechRecognizer::Start(const SpeechRecognitionConfig& config) {
 void CobaltSpeechRecognizer::Stop() {
   endpointer_delegate_.Stop();
   microphone_manager_->Close();
-  recognizer_->Stop();
-  success_callback_.Run(new dom::Event(base::Tokens::soundend()));
+  service_->Stop();
+  event_callback_.Run(new dom::Event(base::Tokens::soundend()));
 }
 
 void CobaltSpeechRecognizer::OnDataReceived(
     scoped_ptr<ShellAudioBus> audio_bus) {
   if (endpointer_delegate_.IsFirstTimeSoundStarted(*audio_bus)) {
-    success_callback_.Run(new dom::Event(base::Tokens::soundstart()));
+    event_callback_.Run(new dom::Event(base::Tokens::soundstart()));
   }
-  recognizer_->RecognizeAudio(audio_bus.Pass(), false);
+  service_->RecognizeAudio(audio_bus.Pass(), false);
 }
 
 void CobaltSpeechRecognizer::OnDataCompletion() {
@@ -136,20 +134,20 @@ void CobaltSpeechRecognizer::OnDataCompletion() {
   scoped_ptr<ShellAudioBus> dummy_audio_bus(new ShellAudioBus(
       1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
   dummy_audio_bus->ZeroAllFrames();
-  recognizer_->RecognizeAudio(dummy_audio_bus.Pass(), true);
+  service_->RecognizeAudio(dummy_audio_bus.Pass(), true);
 }
 
 void CobaltSpeechRecognizer::OnRecognizerEvent(
     const scoped_refptr<dom::Event>& event) {
-  success_callback_.Run(event);
+  event_callback_.Run(event);
 }
 
 void CobaltSpeechRecognizer::OnMicError(
     const scoped_refptr<dom::Event>& event) {
   // An error is occured in Mic, so stop the energy endpointer and recognizer.
   endpointer_delegate_.Stop();
-  recognizer_->Stop();
-  error_callback_.Run(event);
+  service_->Stop();
+  event_callback_.Run(event);
 }
 
 }  // namespace speech

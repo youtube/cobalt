@@ -53,8 +53,7 @@ class SpeechRecognitionManager {
     kAborted,
   };
 
-  void OnSuccess(const scoped_refptr<dom::Event>& event);
-  void OnError(const scoped_refptr<dom::Event>& event);
+  void OnEventAvailable(const scoped_refptr<dom::Event>& event);
 
   base::WeakPtrFactory<SpeechRecognitionManager> weak_ptr_factory_;
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in
