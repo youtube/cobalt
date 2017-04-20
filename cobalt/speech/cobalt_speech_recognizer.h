@@ -17,13 +17,13 @@
 
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/endpointer_delegate.h"
+#include "cobalt/speech/google_speech_service.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_manager.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
-#include "cobalt/speech/speech_recognizer.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -44,8 +44,7 @@ class CobaltSpeechRecognizer {
 
   CobaltSpeechRecognizer(network::NetworkModule* network_module,
                          const Microphone::Options& microphone_options,
-                         const EventCallback& success_callback,
-                         const EventCallback& error_callback);
+                         const EventCallback& event_callback);
   ~CobaltSpeechRecognizer();
 
   void Start(const SpeechRecognitionConfig& config);
@@ -60,9 +59,8 @@ class CobaltSpeechRecognizer {
   // Callbacks from recognizer.
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
 
-  EventCallback success_callback_;
-  EventCallback error_callback_;
-  scoped_ptr<SpeechRecognizer> recognizer_;
+  EventCallback event_callback_;
+  scoped_ptr<GoogleSpeechService> service_;
   scoped_ptr<MicrophoneManager> microphone_manager_;
   // Delegate of endpointer which is used for detecting sound energy.
   EndPointerDelegate endpointer_delegate_;
