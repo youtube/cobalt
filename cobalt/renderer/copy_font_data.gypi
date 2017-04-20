@@ -109,18 +109,10 @@
         }], # 10megabytes
         [ 'cobalt_font_package == "unlimited"', {
           'files+': [
-            '<(source_all_fonts_dir)/Roboto-Thin.ttf',
-            '<(source_all_fonts_dir)/Roboto-ThinItalic.ttf',
-            '<(source_all_fonts_dir)/Roboto-Light.ttf',
-            '<(source_all_fonts_dir)/Roboto-LightItalic.ttf',
             '<(source_all_fonts_dir)/Roboto-Regular.ttf',
             '<(source_all_fonts_dir)/Roboto-Italic.ttf',
-            '<(source_all_fonts_dir)/Roboto-Medium.ttf',
-            '<(source_all_fonts_dir)/Roboto-MediumItalic.ttf',
             '<(source_all_fonts_dir)/Roboto-Bold.ttf',
             '<(source_all_fonts_dir)/Roboto-BoldItalic.ttf',
-            '<(source_all_fonts_dir)/Roboto-Black.ttf',
-            '<(source_all_fonts_dir)/Roboto-BlackItalic.ttf',
             '<(source_all_fonts_dir)/NotoSerif-Regular.ttf',
             '<(source_all_fonts_dir)/NotoSerif-Italic.ttf',
             '<(source_all_fonts_dir)/NotoSerif-Bold.ttf',
