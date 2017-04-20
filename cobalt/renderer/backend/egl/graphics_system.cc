@@ -14,6 +14,7 @@
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 
+#include "base/debug/leak_annotations.h"
 #if defined(ENABLE_GLIMP_TRACING)
 #include "base/debug/trace_event.h"
 #endif
@@ -58,7 +59,13 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
   display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   CHECK_NE(EGL_NO_DISPLAY, display_);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
-  EGL_CALL(eglInitialize(display_, NULL, NULL));
+
+  {
+    // Despite eglTerminate() being used in the destructor, the current
+    // mesa egl drivers still leak memory.
+    ANNOTATE_SCOPED_MEMORY_LEAK;
+    EGL_CALL(eglInitialize(display_, NULL, NULL));
+  }
 
   // Setup our configuration to support RGBA and compatibility with PBuffer
   // objects (for offscreen rendering).
