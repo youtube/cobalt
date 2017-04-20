@@ -103,16 +103,12 @@ float GetFlat(jobject input_device, int axis) {
   return flat;
 }
 
-}  // namespace
-
-InputEventsGenerator::InputEventsGenerator(SbWindow window)
-    : window_(window), hat_value_(), hat_pressed_() {
-  SB_DCHECK(SbWindowIsValid(window_));
+bool IsDPadKey(SbKey key) {
+  return key == kSbKeyGamepadDPadUp || key == kSbKeyGamepadDPadDown ||
+         key == kSbKeyGamepadDPadLeft || key == kSbKeyGamepadDPadRight;
 }
 
-InputEventsGenerator::~InputEventsGenerator() {}
-
-SbKey InputEventsGenerator::AInputEventToSbKey(AInputEvent *event) {
+SbKey AInputEventToSbKey(AInputEvent* event) {
   int32_t keycode = AKeyEvent_getKeyCode(event);
   switch (keycode) {
     // Modifiers
@@ -165,21 +161,13 @@ SbKey InputEventsGenerator::AInputEventToSbKey(AInputEvent *event) {
 
     // D-pad
     case AKEYCODE_DPAD_UP:
-      return IsDpadEventFromStick(event)
-          ? kSbKeyGamepadLeftStickUp
-          : kSbKeyGamepadDPadUp;
+      return kSbKeyGamepadDPadUp;
     case AKEYCODE_DPAD_DOWN:
-      return IsDpadEventFromStick(event)
-          ? kSbKeyGamepadLeftStickDown
-          : kSbKeyGamepadDPadDown;
+      return kSbKeyGamepadDPadDown;
     case AKEYCODE_DPAD_LEFT:
-      return IsDpadEventFromStick(event)
-          ? kSbKeyGamepadLeftStickLeft
-          : kSbKeyGamepadDPadLeft;
+      return kSbKeyGamepadDPadLeft;
     case AKEYCODE_DPAD_RIGHT:
-      return IsDpadEventFromStick(event)
-          ? kSbKeyGamepadLeftStickRight
-          : kSbKeyGamepadDPadRight;
+      return kSbKeyGamepadDPadRight;
     case AKEYCODE_DPAD_CENTER:
       return kSbKeyGamepad1;
 
@@ -368,50 +356,16 @@ SbKey InputEventsGenerator::AInputEventToSbKey(AInputEvent *event) {
   }
 }
 
-bool InputEventsGenerator::IsDpadEventFromStick(AInputEvent *event) {
-  // Synthesized events from the stick are always fallback events.
-  if ((AKeyEvent_getFlags(event) & AKEY_EVENT_FLAG_FALLBACK) == 0) {
-    return false;
-  }
+}  // namespace
 
-  int32_t keycode = AKeyEvent_getKeyCode(event);
-  bool is_dpad =
-      keycode == AKEYCODE_DPAD_UP ||
-      keycode == AKEYCODE_DPAD_DOWN ||
-      keycode == AKEYCODE_DPAD_LEFT ||
-      keycode == AKEYCODE_DPAD_RIGHT;
-  if (!is_dpad) {
-    SB_NOTREACHED();
-    return false;
-  }
-
-  int axis =
-      (keycode == AKEYCODE_DPAD_LEFT || keycode == AKEYCODE_DPAD_RIGHT)
-      ? kHatX : kHatY;
-  float sign =
-      (keycode == AKEYCODE_DPAD_LEFT || keycode == AKEYCODE_DPAD_UP)
-      ? -1.0 : 1.0;
-
-  // The "hat" is the dpad on the game controller, which sends motion events as
-  // if it's analog, even though it's a digital input. If the hat is pressed
-  // then that's what the fallback event is from.
-  bool is_hat;
-  if (AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP) {
-    // Are we waiting for this up event from the hat?
-    is_hat = (hat_pressed_[axis] == keycode);
-    if (is_hat) {
-      hat_pressed_[axis] = 0;
-    }
-  } else {
-    is_hat = (sign * hat_value_[axis]) >= 0.5;
-    if (is_hat) {
-      // Now we're waiting for the up event from the hat for this keycode.
-      hat_pressed_[axis] = keycode;
-    }
-  }
-  // If it's not from the hat, then it's from the stick.
-  return !is_hat;
+InputEventsGenerator::InputEventsGenerator(SbWindow window)
+    : window_(window),
+      hat_value_(),
+      left_thumbstick_key_pressed_{kSbKeyUnknown, kSbKeyUnknown} {
+  SB_DCHECK(SbWindowIsValid(window_));
 }
+
+InputEventsGenerator::~InputEventsGenerator() {}
 
 // For a left joystick, AMOTION_EVENT_AXIS_X reports the absolute X position of
 // the joystick. The value is normalized to a range from -1.0 (left) to 1.0
@@ -482,28 +436,28 @@ void InputEventsGenerator::ProcessJoyStickEvent(
       CreateMoveEventWithKey(device_id, window_, key, input_vector));
 }
 
-bool InputEventsGenerator::ProcessKeyEvent(
+namespace {
+
+// Generate a Starboard event from an Android event, with the SbKey and
+// SbInputEventType pre-specified (so that it can be used by event
+// synthesization as well.)
+void PushKeyEvent(
+    SbKey key,
+    SbInputEventType type,
+    SbWindow window,
     AInputEvent* android_event,
     std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  if (key == kSbKeyUnknown) {
+    SB_NOTREACHED();
+    return;
+  }
+
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
 
   // window
-  data->window = window_;
-
-  // type
-  switch (AKeyEvent_getAction(android_event)) {
-    case AKEY_EVENT_ACTION_DOWN:
-      data->type = kSbInputEventTypePress;
-      break;
-    case AKEY_EVENT_ACTION_UP:
-      data->type = kSbInputEventTypeUnpress;
-      break;
-    default:
-      // TODO: send multiple events for AKEY_EVENT_ACTION_MULTIPLE
-      delete data;
-      return false;
-  }
+  data->window = window;
+  data->type = type;
 
   // device
   // TODO: differentiate gamepad, remote, etc.
@@ -511,18 +465,143 @@ bool InputEventsGenerator::ProcessKeyEvent(
   data->device_id = AInputEvent_getDeviceId(android_event);
 
   // key
-  data->key = AInputEventToSbKey(android_event);
+  data->key = key;
   data->key_location = AInputEventToSbKeyLocation(android_event);
   data->key_modifiers = AInputEventToSbModifiers(android_event);
-
-  if (data->key == kSbKeyUnknown) {
-    delete data;
-    return false;
-  }
 
   ApplicationAndroid::Event* event = new Application::Event(
       kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>);
   events->push_back(event);
+}
+
+// Some helper enumerations to index into the InputEventsGenerator::hat_value_
+// array.
+enum HatAxis {
+  kHatX,
+  kHatY,
+};
+
+struct HatValue {
+  HatAxis axis;
+  float value;
+};
+
+// Converts Starboard DPad direction keys to Starboard left thumbstick
+// direction keys.
+SbKey ConvertDPadKeyToThumbstickKey(SbKey key) {
+  switch (key) {
+    case kSbKeyGamepadDPadUp:
+      return kSbKeyGamepadLeftStickUp;
+    case kSbKeyGamepadDPadDown:
+      return kSbKeyGamepadLeftStickDown;
+    case kSbKeyGamepadDPadLeft:
+      return kSbKeyGamepadLeftStickLeft;
+    case kSbKeyGamepadDPadRight:
+      return kSbKeyGamepadLeftStickRight;
+    default: {
+      SB_NOTREACHED();
+      return kSbKeyUnknown;
+    }
+  }
+}
+
+// Convert a Starboard DPad direction key to a (axis, direction) pair.
+HatValue HatValueForDPadKey(SbKey key) {
+  SB_DCHECK(IsDPadKey(key));
+
+  switch (key) {
+    case kSbKeyGamepadDPadUp:
+      return HatValue({kHatY, -1.0f});
+    case kSbKeyGamepadDPadDown:
+      return HatValue({kHatY, 1.0f});
+    case kSbKeyGamepadDPadLeft:
+      return HatValue({kHatX, -1.0f});
+    case kSbKeyGamepadDPadRight:
+      return HatValue({kHatX, 1.0f});
+    default: {
+      SB_NOTREACHED();
+      return HatValue({kHatX, 0.0f});
+    }
+  }
+}
+
+// The inverse of HatValueForDPadKey().
+SbKey KeyForHatValue(const HatValue& hat_value) {
+  SB_DCHECK(hat_value.value > 0.5f || hat_value.value < -0.5f);
+  if (hat_value.axis == kHatX) {
+    if (hat_value.value > 0.5f) {
+      return kSbKeyGamepadDPadRight;
+    } else {
+      return kSbKeyGamepadDPadLeft;
+    }
+  } else if (hat_value.axis == kHatY) {
+    if (hat_value.value > 0.5f) {
+      return kSbKeyGamepadDPadDown;
+    } else {
+      return kSbKeyGamepadDPadUp;
+    }
+  } else {
+    SB_NOTREACHED();
+    return kSbKeyUnknown;
+  }
+}
+
+// Analyzes old axis values and new axis values and fire off any synthesized
+// key press/unpress events as necessary.
+void PossiblySynthesizeHatKeyEvents(
+    HatAxis axis,
+    float old_value,
+    float new_value,
+    SbWindow window,
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  if (old_value == new_value) {
+    // No events to generate if the hat motion value did not change.
+    return;
+  }
+
+  if (old_value > 0.5f || old_value < -0.5f) {
+    PushKeyEvent(KeyForHatValue(HatValue({axis, old_value})),
+                 kSbInputEventTypeUnpress, window, android_event, events);
+  }
+  if (new_value > 0.5f || new_value < -0.5f) {
+    PushKeyEvent(KeyForHatValue(HatValue({axis, new_value})),
+                 kSbInputEventTypePress, window, android_event, events);
+  }
+}
+
+}  // namespace
+
+bool InputEventsGenerator::ProcessKeyEvent(
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  SbInputEventType type;
+  switch (AKeyEvent_getAction(android_event)) {
+    case AKEY_EVENT_ACTION_DOWN:
+      type = kSbInputEventTypePress;
+      break;
+    case AKEY_EVENT_ACTION_UP:
+      type = kSbInputEventTypeUnpress;
+      break;
+    default:
+      // TODO: send multiple events for AKEY_EVENT_ACTION_MULTIPLE
+      return false;
+  }
+
+  SbKey key = AInputEventToSbKey(android_event);
+  if (key == kSbKeyUnknown) {
+    return false;
+  }
+
+  if (AKeyEvent_getFlags(android_event) & AKEY_EVENT_FLAG_FALLBACK &&
+      IsDPadKey(key)) {
+    // For fallback DPad keys, we flow into special processing to manage the
+    // differentiation between the actual DPad and the left thumbstick, since
+    // Android conflates the key down/up events for these inputs.
+    ProcessFallbackDPadEvent(type, key, android_event, events);
+  } else {
+    PushKeyEvent(key, type, window_, android_event, events);
+  }
   return true;
 }
 
@@ -540,18 +619,84 @@ bool InputEventsGenerator::ProcessMotionEvent(
   ProcessJoyStickEvent(kRightX, AMOTION_EVENT_AXIS_Z, android_event, events);
   ProcessJoyStickEvent(kRightY, AMOTION_EVENT_AXIS_RZ, android_event, events);
 
-  // Remember the "hat" input values (dpad on the game controller) for
-  // IsDpadEventFromStick() to differentiate hat vs. stick fallback events.
-  hat_value_[kHatX] =
-      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_X, 0);
-  hat_value_[kHatY] =
-      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_Y, 0);
+  // Remember the "hat" input values (dpad on the game controller) to help
+  // differentiate hat vs. stick fallback events.
+  UpdateHatValuesAndPossiblySynthesizeKeyEvents(android_event, events);
 
   // Lie to Android and tell it that we did not process the motion event,
   // causing Android to synthesize dpad key events for us. When we handle
   // those synthesized key events we'll enqueue kSbKeyGamepadLeft rather
   // than kSbKeyGamepadDPad events if they're from the joystick.
   return false;
+}
+
+// Special processing to disambiguate between DPad events and left-thumbstick
+// direction key events.
+void InputEventsGenerator::ProcessFallbackDPadEvent(
+    SbInputEventType type,
+    SbKey key,
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  SB_DCHECK(AKeyEvent_getFlags(android_event) & AKEY_EVENT_FLAG_FALLBACK);
+  SB_DCHECK(IsDPadKey(key));
+
+  HatAxis hat_axis = HatValueForDPadKey(key).axis;
+
+  if (hat_value_[hat_axis] != 0.0f && type == kSbInputEventTypePress) {
+    // Direction pad events are all assumed to be coming from the hat controls
+    // if motion events for that hat DPAD is active, but we do still handle
+    // repeat keys here.
+    if (AKeyEvent_getRepeatCount(android_event) > 0) {
+      SB_LOG(INFO) << AKeyEvent_getRepeatCount(android_event);
+      PushKeyEvent(key, kSbInputEventTypePress, window_, android_event, events);
+    }
+    return;
+  }
+
+  // If we get this far, then we are exclusively dealing with thumbstick events,
+  // as actual DPad events are processed in motion events by checking the
+  // hat axis representing the DPad.
+  SbKey thumbstick_key = ConvertDPadKeyToThumbstickKey(key);
+
+  if (left_thumbstick_key_pressed_[hat_axis] != kSbKeyUnknown &&
+      (type == kSbInputEventTypeUnpress ||
+       left_thumbstick_key_pressed_[hat_axis] != thumbstick_key)) {
+    // Fire an unpressed event if our current key differs from the last seen
+    // key.
+    PushKeyEvent(left_thumbstick_key_pressed_[hat_axis],
+                 kSbInputEventTypeUnpress, window_, android_event, events);
+  }
+
+  if (type == kSbInputEventTypePress) {
+    if (left_thumbstick_key_pressed_[hat_axis] != thumbstick_key) {
+      PushKeyEvent(thumbstick_key, kSbInputEventTypePress, window_,
+                   android_event, events);
+      left_thumbstick_key_pressed_[hat_axis] = thumbstick_key;
+    }
+  } else if (type == kSbInputEventTypeUnpress) {
+    left_thumbstick_key_pressed_[hat_axis] = kSbKeyUnknown;
+  } else {
+    SB_NOTREACHED();
+  }
+}
+
+// Update |InputEventsGenerator::hat_value_| according to the incoming motion
+// event's data.  Possibly generate DPad events based on any changes in value
+// here.
+void InputEventsGenerator::UpdateHatValuesAndPossiblySynthesizeKeyEvents(
+    AInputEvent* android_event,
+    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+  float new_hat_x =
+      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_X, 0);
+  PossiblySynthesizeHatKeyEvents(kHatX, hat_value_[kHatX], new_hat_x, window_,
+                                 android_event, events);
+  hat_value_[kHatX] = new_hat_x;
+
+  float new_hat_y =
+      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_Y, 0);
+  PossiblySynthesizeHatKeyEvents(kHatY, hat_value_[kHatY], new_hat_y, window_,
+                                 android_event, events);
+  hat_value_[kHatY] = new_hat_y;
 }
 
 void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
