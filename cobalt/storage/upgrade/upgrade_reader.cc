@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/i18n/time_formatting.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -36,7 +37,8 @@ const char kHeader[] = "UPG0";
 const int kMaxUpgradeDataSize = 10 * 1024 * 1024;
 
 // Deseralize a time value encoded as a possibly empty ASCII decimal string.
-base::Time StringToTime(const std::string& time_as_string) {
+base::Time StringToTime(const std::string& time_as_string,
+                        const base::Time& default_time) {
   if (!time_as_string.empty()) {
     int64 time_as_int64;
     if (base::StringToInt64(time_as_string, &time_as_int64)) {
@@ -44,15 +46,15 @@ base::Time StringToTime(const std::string& time_as_string) {
     }
   }
 
-  // Default value.
-  return base::Time::Now();
+  return default_time;
 }
 
 base::Time GetSerializedTime(const base::DictionaryValue* dictionary,
-                             const std::string& field_name) {
+                             const std::string& field_name,
+                             const base::Time& default_time) {
   std::string time_string;
   dictionary->GetString(field_name, &time_string);
-  return StringToTime(time_string);
+  return StringToTime(time_string, default_time);
 }
 
 // Get a list contained in a dictionary.
@@ -104,7 +106,7 @@ const base::DictionaryValue* GetListItem(
 
 }  // namespace
 
-UpgradeReader::UpgradeReader(const char* data, int size) {
+void UpgradeReader::Parse(const char* data, int size) {
   DCHECK(data);
   DCHECK_GE(size, kHeaderSize);
   DCHECK_LE(size, kMaxUpgradeDataSize);
@@ -168,9 +170,12 @@ void UpgradeReader::AddCookieIfValid(const base::DictionaryValue* cookie) {
   cookie->GetString("domain", &domain);
   std::string path = "/";
   cookie->GetString("path", &path);
-  base::Time creation = GetSerializedTime(cookie, "creation");
-  base::Time expiration = GetSerializedTime(cookie, "expiration");
-  base::Time last_access = GetSerializedTime(cookie, "last_access");
+  base::Time creation =
+      GetSerializedTime(cookie, "creation", base::Time::Now());
+  base::Time expiration =
+      GetSerializedTime(cookie, "expiration", base::Time());
+  base::Time last_access =
+      GetSerializedTime(cookie, "last_access", base::Time::Now());
   bool http_only = false;
   cookie->GetBoolean("http_only", &http_only);
 
@@ -178,6 +183,15 @@ void UpgradeReader::AddCookieIfValid(const base::DictionaryValue* cookie) {
   const std::string mac_key;
   const std::string mac_algorithm;
   const bool secure = true;
+
+  if (expiration.is_null()) {
+    LOG(ERROR) << "\"" << name
+               << "\" cookie can not be upgraded due to null expiration.";
+    OnNullExpiration();
+  }
+  LOG_IF(ERROR, expiration < base::Time::UnixEpoch())
+      << "\"" << name << "\" upgrade cookie expiration is "
+      << base::TimeFormatFriendlyDateAndTime(expiration);
 
   cookies_.push_back(net::CanonicalCookie(
       gurl, name, value, domain, path, mac_key, mac_algorithm, creation,
