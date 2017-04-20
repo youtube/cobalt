@@ -54,7 +54,8 @@ SbSocketError SbSocketBind(SbSocket socket,
       SbMemoryIsZero(local_address->address, 16)) {
     if (!sbposix::SetBooleanSocketOption(socket, IPPROTO_IPV6, IPV6_V6ONLY,
                                          "IPV6_V6ONLY", false)) {
-      return socket->error;
+      // Silently ignore errors, assume the default behavior is as expected.
+      socket->error = kSbSocketOk;
     }
   }
 #endif
