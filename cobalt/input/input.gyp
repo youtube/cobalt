@@ -45,14 +45,6 @@
             'input_device_manager_starboard.cc',
           ],
         }],
-        ['OS!="starboard" and actual_target_arch=="ps3"', {
-          'sources': [
-            'input_device_manager_ps3.cc',
-            'input_device_manager_ps3.h',
-            'keycode_conversion_ps3.cc',
-            'keycode_conversion_ps3.h',
-          ],
-        }],
         ['OS!="starboard" and actual_target_arch=="win"', {
           'sources': [
             'input_device_manager_<(actual_target_arch).cc',
