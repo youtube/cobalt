@@ -121,6 +121,7 @@ class VideoDecoder
 
   static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
+  void JoinOnDecoderThread();
 
   // Attempt to initialize the codec.  Returns whether initialization was
   // successful.

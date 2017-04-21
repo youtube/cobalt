@@ -72,7 +72,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 }
 
 VideoDecoder::~VideoDecoder() {
-  Reset();
+  JoinOnDecoderThread();
   TeardownCodec();
   ClearVideoWindow();
 }
@@ -108,21 +108,14 @@ void VideoDecoder::WriteEndOfStream() {
 }
 
 void VideoDecoder::Reset() {
-  // Join the thread to ensure that all callbacks in process are finished.
-  if (SbThreadIsValid(decoder_thread_)) {
-    event_queue_.Clear();
-    event_queue_.PushBack(Event(Event::kReset));
-    SbThreadJoin(decoder_thread_, NULL);
-  }
-
-  decoder_thread_ = kSbThreadInvalid;
-  stream_ended_ = false;
-
+  JoinOnDecoderThread();
   TeardownCodec();
   if (!InitializeCodec()) {
     // TODO: Communicate this failure to our clients somehow.
     SB_LOG(ERROR) << "Failed to initialize codec after reset.";
   }
+
+  stream_ended_ = false;
 }
 
 bool VideoDecoder::InitializeCodec() {
@@ -258,6 +251,15 @@ void VideoDecoder::DecoderThreadFunc() {
       continue;
     }
   }
+}
+
+void VideoDecoder::JoinOnDecoderThread() {
+  if (SbThreadIsValid(decoder_thread_)) {
+    event_queue_.Clear();
+    event_queue_.PushBack(Event(Event::kReset));
+    SbThreadJoin(decoder_thread_, NULL);
+  }
+  decoder_thread_ = kSbThreadInvalid;
 }
 
 bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
