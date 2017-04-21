@@ -26,6 +26,7 @@
 #include "cobalt/renderer/rasterizer/common/utils.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_linear_gradient.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_blur.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
@@ -312,8 +313,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
 
   // Only solid color brushes are supported at this time.
-  const bool brush_supported = !brush || brush->GetTypeId() ==
-      base::GetTypeId<render_tree::SolidColorBrush>();
+  const bool brush_supported = !brush ||
+      brush->GetTypeId() == base::GetTypeId<render_tree::SolidColorBrush>() ||
+      brush->GetTypeId() == base::GetTypeId<render_tree::LinearGradientBrush>();
 
   // Borders are not supported natively by this rasterizer at this time. The
   // difficulty lies in getting anti-aliased borders and minimizing state
@@ -335,21 +337,35 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
     // Handle drawing the content.
     if (brush) {
-      const render_tree::SolidColorBrush* solid_brush =
-          base::polymorphic_downcast<const render_tree::SolidColorBrush*>
-              (brush.get());
-      const render_tree::ColorRGBA& brush_color(solid_brush->color());
-      render_tree::ColorRGBA content_color(
-          brush_color.r() * brush_color.a(),
-          brush_color.g() * brush_color.a(),
-          brush_color.b() * brush_color.a(),
-          brush_color.a());
-      scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-          draw_state_, content_rect, content_color));
-      if (draw_state_.opacity * content_color.a() == 1.0f) {
-        AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
-            DrawObjectManager::kOffscreenNone);
+      base::TypeId brush_type = brush->GetTypeId();
+      if (brush_type == base::GetTypeId<render_tree::SolidColorBrush>()) {
+        const render_tree::SolidColorBrush* solid_brush =
+            base::polymorphic_downcast<const render_tree::SolidColorBrush*>
+                (brush.get());
+        const render_tree::ColorRGBA& brush_color(solid_brush->color());
+        render_tree::ColorRGBA content_color(
+            brush_color.r() * brush_color.a(),
+            brush_color.g() * brush_color.a(),
+            brush_color.b() * brush_color.a(),
+            brush_color.a());
+        scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+            draw_state_, content_rect, content_color));
+        if (draw_state_.opacity * content_color.a() == 1.0f) {
+          AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
+              DrawObjectManager::kOffscreenNone);
+        } else {
+          AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
+              DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
+        }
       } else {
+        const render_tree::LinearGradientBrush* linear_brush =
+            base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
+                (brush.get());
+        scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
+            draw_state_, content_rect, *linear_brush));
+        // The draw may use transparent colors or a depth stencil (but only
+        // the inclusive one, so only one depth value is needed), so make it
+        // a transparent draw.
         AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
             DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
       }

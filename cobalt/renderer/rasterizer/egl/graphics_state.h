@@ -50,6 +50,7 @@ class GraphicsState {
 
   // Set the current shader program to be used.
   void UseProgram(GLuint program);
+  GLuint GetProgram() const { return program_; }
 
   // Set the viewport.
   void Viewport(int x, int y, int width, int height);
