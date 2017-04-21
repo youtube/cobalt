@@ -34,7 +34,7 @@
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
-#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
+#include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"

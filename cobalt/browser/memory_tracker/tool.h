@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_MEMORY_TRACKER_MEMORY_TRACKER_TOOL_H_
-#define COBALT_BROWSER_MEMORY_TRACKER_MEMORY_TRACKER_TOOL_H_
+#ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_H_
+#define COBALT_BROWSER_MEMORY_TRACKER_TOOL_H_
 
 #include <string>
 
@@ -23,17 +23,17 @@ namespace cobalt {
 namespace browser {
 namespace memory_tracker {
 
-class MemoryTrackerTool {
+// Self running tool. It only has a destructor defined.
+class Tool {
  public:
-  virtual ~MemoryTrackerTool() {}
+  virtual ~Tool() {}
 };
 
 // Instantiates the memory tracker tool from the command argument.
-scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
-    const std::string& command_arg);
+scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg);
 
 }  // namespace memory_tracker
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_MEMORY_TRACKER_MEMORY_TRACKER_TOOL_H_
+#endif  // COBALT_BROWSER_MEMORY_TRACKER_TOOL_H_

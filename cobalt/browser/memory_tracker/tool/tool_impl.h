@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_MEMORY_TRACKER_MEMORY_TRACKER_TOOL_IMPL_H_
-#define COBALT_BROWSER_MEMORY_TRACKER_MEMORY_TRACKER_TOOL_IMPL_H_
+#ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_TOOL_IMPL_H_
+#define COBALT_BROWSER_MEMORY_TRACKER_TOOL_TOOL_IMPL_H_
 
 #include <deque>
 #include <map>
@@ -27,7 +27,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/simple_thread.h"
 #include "base/time.h"
-#include "cobalt/browser/memory_tracker/buffered_file_writer.h"
+#include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/concurrent_map.h"
@@ -65,35 +65,34 @@ class AbstractLogger {
 class Params;
 
 //
-class AbstractMemoryTrackerTool {
+class AbstractTool {
  public:
-  virtual ~AbstractMemoryTrackerTool() {}
+  virtual ~AbstractTool() {}
   virtual std::string tool_name() const = 0;
   virtual void Run(Params* params) = 0;
 };
 
-class MemoryTrackerToolThread : public base::SimpleThread {
+class ToolThread : public base::SimpleThread {
  public:
   typedef base::SimpleThread Super;
-  MemoryTrackerToolThread(nb::analytics::MemoryTracker* memory_tracker,
-                          AbstractMemoryTrackerTool* tool,
-                          AbstractLogger* logger);
-  virtual ~MemoryTrackerToolThread();
+  ToolThread(nb::analytics::MemoryTracker* memory_tracker, AbstractTool* tool,
+             AbstractLogger* logger);
+  virtual ~ToolThread();
 
   virtual void Join() OVERRIDE;
   virtual void Run() OVERRIDE;
 
  private:
   scoped_ptr<Params> params_;
-  scoped_ptr<AbstractMemoryTrackerTool> tool_;
+  scoped_ptr<AbstractTool> tool_;
 };
 
 // Start() is called when this object is created, and Cancel() & Join() are
 // called during destruction.
-class MemoryTrackerPrint : public AbstractMemoryTrackerTool {
+class PrintTool : public AbstractTool {
  public:
-  MemoryTrackerPrint();
-  ~MemoryTrackerPrint() OVERRIDE;
+  PrintTool();
+  ~PrintTool() OVERRIDE;
 
   // Overridden so that the thread can exit gracefully.
   virtual void Run(Params* params) OVERRIDE;
@@ -114,11 +113,11 @@ class MemoryTrackerPrint : public AbstractMemoryTrackerTool {
 // This data can be pasted directly into a Google spreadsheet and visualized.
 // Note that this thread will implicitly call Start() is called during
 // construction and Cancel() & Join() during destruction.
-class MemoryTrackerPrintCSV : public AbstractMemoryTrackerTool {
+class PrintCSVTool : public AbstractTool {
  public:
   // This tool will only produce on CSV dump of the engine. This is useful
   // for profiling startup memory consumption.
-  MemoryTrackerPrintCSV(int sampling_interval_ms, int sampling_time_ms);
+  PrintCSVTool(int sampling_interval_ms, int sampling_time_ms);
 
   // Overridden so that the thread can exit gracefully.
   virtual void Run(Params* params) OVERRIDE;
@@ -184,9 +183,9 @@ struct TimeSeries {
 //  ...
 //  // END CSV of COUNT of allocations per region.
 //  //////////////////////////////////////////////
-class MemoryTrackerCompressedTimeSeries : public AbstractMemoryTrackerTool {
+class CompressedTimeSeriesTool : public AbstractTool {
  public:
-  MemoryTrackerCompressedTimeSeries();
+  CompressedTimeSeriesTool();
   virtual void Run(Params* params) OVERRIDE;
   virtual std::string tool_name() const OVERRIDE {
     return "MemoryTrackerCompressedTimeSeries";
@@ -207,7 +206,7 @@ class MemoryTrackerCompressedTimeSeries : public AbstractMemoryTrackerTool {
 // the number of memory allocations for objects. The objects are binned
 // according to the size of the memory allocation. Objects within the same
 // power of two are binned together. For example 1024 will be binned with 1025.
-class MemorySizeBinner : public AbstractMemoryTrackerTool {
+class MemorySizeBinner : public AbstractTool {
  public:
   // memory_scope_name represents the memory scope that is to be investigated.
   explicit MemorySizeBinner(const std::string& memory_scope_name);
@@ -308,10 +307,10 @@ class FindTopSizes : public nb::analytics::AllocationVisitor {
 // Outputs memory_log.txt to the output log location. This log contains
 // allocations with a stack trace (non-symbolized) and deallocations without
 // a stack.
-class MemoryTrackerLogWriter : public AbstractMemoryTrackerTool {
+class LogWriterTool : public AbstractTool {
  public:
-  MemoryTrackerLogWriter();
-  virtual ~MemoryTrackerLogWriter();
+  LogWriterTool();
+  virtual ~LogWriterTool();
 
   // Interface AbstrctMemoryTrackerTool
   virtual std::string tool_name() const OVERRIDE;
@@ -343,9 +342,8 @@ class MemoryTrackerLogWriter : public AbstractMemoryTrackerTool {
 
 // Records allocations and outputs leaks as a CSV. Each column will
 // have an associated symbol.
-class MemoryTrackerLeakFinder
-    : public AbstractMemoryTrackerTool,
-      public nb::analytics::MemoryTrackerDebugCallback {
+class LeakFinderTool : public AbstractTool,
+                       public nb::analytics::MemoryTrackerDebugCallback {
  public:
   enum StackTraceMode {
     // Always get the C++ version of the stack trace.
@@ -355,8 +353,8 @@ class MemoryTrackerLeakFinder
     kJavascript,
   };
 
-  explicit MemoryTrackerLeakFinder(StackTraceMode pref);
-  virtual ~MemoryTrackerLeakFinder();
+  explicit LeakFinderTool(StackTraceMode pref);
+  virtual ~LeakFinderTool();
 
   // OnMemoryAllocation() and OnMemoryDeallocation() are part of
   // class MemoryTrackerDebugCallback.
@@ -470,4 +468,4 @@ class MemoryTrackerLeakFinder
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_MEMORY_TRACKER_MEMORY_TRACKER_TOOL_IMPL_H_
+#endif  // COBALT_BROWSER_MEMORY_TRACKER_TOOL_TOOL_IMPL_H_

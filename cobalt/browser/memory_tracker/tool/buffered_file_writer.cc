@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/memory_tracker/buffered_file_writer.h"
+#include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -67,13 +67,11 @@ void BufferedFileWriter::StartThread() {
     return;
   }
 
-  flush_thread_ = SbThreadCreate(0,     // default stack size.
-                                  kSbThreadPriorityHigh,
-                                  kSbThreadNoAffinity,
-                                  true,  // true - joinable.
-                                  "AllocationLoggerWriter",
-                                  ThreadEntryFunc,
-                                  static_cast<void*>(this));
+  flush_thread_ = SbThreadCreate(0,  // default stack size.
+                                 kSbThreadPriorityHigh, kSbThreadNoAffinity,
+                                 true,  // true - joinable.
+                                 "AllocationLoggerWriter", ThreadEntryFunc,
+                                 static_cast<void*>(this));
 }
 
 void BufferedFileWriter::Append(const char* data, size_t num_bytes) {
