@@ -325,9 +325,18 @@ class Application {
   // i.e. false means to abort the event queue.
   bool DispatchAndDelete(Application::Event* event);
 
- private:
+  // Only used to support outside run-loop in each application implementation
+  void SetCommandLine(int argc, const char** argv) {
+    command_line_.reset(new CommandLine(argc, argv));
+  }
+
+  // Returns the error level after the app stopped
+  int GetErrorLevel() const { return error_level_; }
+
+  // Calls registered callback. This is called only |Run| or outside run-loop.
   void CallTeardownCallbacks();
 
+ private:
   // The single application instance.
   static Application* g_instance;
 

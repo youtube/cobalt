@@ -20,24 +20,21 @@
 #include "starboard/shared/signal/suspend_signals.h"
 #include "starboard/shared/wayland/application_wayland.h"
 
-SbThread cobalt_thread_;
-bool first_launch = true;
-
-static void* runCobalt(void* data) {
-  // Add proper argument here. Run(argc, argv)
-  starboard::shared::starboard::Application::Get()->Run(0, NULL);
-  return NULL;
+static Eina_Bool ecore_idle_cb(void* data) {
+  if (!starboard::shared::wayland::ApplicationWayland::Get()->RunOnce()) {
+    return ECORE_CALLBACK_CANCEL;
+  }
+  return ECORE_CALLBACK_RENEW;
 }
 
-int aul_handler(aul_type type, bundle* kb, void* data) {
+static int aul_handler(aul_type type, bundle* kb, void* data) {
+  static bool first_launch = true;
   switch (type) {
     case AUL_START: {
       SB_DLOG(INFO) << "AUL_START";
       if (first_launch) {
-        cobalt_thread_ =
-            SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity,
-                           true, "tizen_cobalt", runCobalt, NULL);
-        SB_DCHECK(SbThreadIsValid(cobalt_thread_));
+        starboard::shared::wayland::ApplicationWayland::Get()->RunReady(0,
+                                                                        NULL);
         first_launch = false;
       } else {
         starboard::shared::wayland::ApplicationWayland::Get()->WindowRaise();
@@ -50,8 +47,8 @@ int aul_handler(aul_type type, bundle* kb, void* data) {
     }
     case AUL_TERMINATE: {
       SB_DLOG(INFO) << "AUL_TERMINATE";
-      starboard::shared::starboard::Application::Get()->Stop(0);
-      SbThreadJoin(cobalt_thread_, NULL);
+      starboard::shared::wayland::ApplicationWayland::Get()->Stop(0);
+      starboard::shared::wayland::ApplicationWayland::Get()->RunExit();
       elm_exit();
       break;
     }
@@ -71,11 +68,12 @@ int main(int argc, char** argv) {
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
   starboard::shared::wayland::ApplicationWayland application;
+  ecore_idler_add(ecore_idle_cb, NULL);
 
   elm_run();
+  elm_shutdown();
 
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
-  elm_shutdown();
   return 0;
 }

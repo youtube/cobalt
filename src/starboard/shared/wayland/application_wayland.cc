@@ -43,7 +43,31 @@ ApplicationWayland::ApplicationWayland()
     : seat_(NULL),
       keyboard_(NULL),
       key_repeat_event_id_(kSbEventIdInvalid),
-      key_repeat_interval_(kKeyHoldTime) {}
+      key_repeat_interval_(kKeyHoldTime),
+      key_modifiers_(0) {}
+
+void ApplicationWayland::RunReady(int argc, const char** argv) {
+  Initialize();
+  SetCommandLine(argc, argv);
+  if (IsStartImmediate()) {
+    DispatchStart();
+  }
+}
+
+bool ApplicationWayland::RunOnce() {
+  return DispatchNextEvent();
+}
+
+int ApplicationWayland::RunExit() {
+  for (;;) {
+    if (!DispatchNextEvent()) {
+      break;
+    }
+  }
+  CallTeardownCallbacks();
+  Teardown();
+  return GetErrorLevel();
+}
 
 SbWindow ApplicationWayland::CreateWindow(const SbWindowOptions* options) {
   SB_DLOG(INFO) << "CreateWindow";
@@ -256,11 +280,11 @@ void ApplicationWayland::CreateKey(int key, int state, bool is_repeat) {
   SbMemorySet(data, 0, sizeof(*data));
   data->window = window_;
   data->type = (state == 0 ? kSbInputEventTypeUnpress : kSbInputEventTypePress);
-  data->device_type = kSbInputDeviceTypeRemote;  // device_type;
+  data->device_type = kSbInputDeviceTypeRemote;
   data->device_id = 1;                           // kKeyboardDeviceId;
   data->key = KeyCodeToSbKey(key);
   data->key_location = KeyCodeToSbKeyLocation(key);
-  data->key_modifiers = 0;  // modifiers;
+  data->key_modifiers = key_modifiers_;
   Inject(new Event(kSbEventTypeInput, data,
                    &Application::DeleteDestructor<SbInputData>));
 
@@ -286,16 +310,16 @@ void ApplicationWayland::WindowRaise() {
     wl_shell_surface_set_toplevel(window_->shell_surface);
 }
 
-void ApplicationWayland::Pause() {
-  Application::Pause(NULL, NULL);
+void ApplicationWayland::Pause(void* context, EventHandledCallback callback) {
+  Application::Pause(context, callback);
 
   ScopedLock lock(observers_mutex_);
   std::for_each(observers_.begin(), observers_.end(),
                 [](StateObserver* i) { i->OnAppPause(); });
 }
 
-void ApplicationWayland::Unpause() {
-  Application::Unpause(NULL, NULL);
+void ApplicationWayland::Unpause(void* context, EventHandledCallback callback) {
+  Application::Unpause(context, callback);
 
   ScopedLock lock(observers_mutex_);
   std::for_each(observers_.begin(), observers_.end(),
@@ -315,6 +339,13 @@ void ApplicationWayland::UnregisterObserver(StateObserver* observer) {
   if (it == observers_.end())
     return;
   observers_.erase(it);
+}
+
+void ApplicationWayland::Deeplink(char* payload) {
+  char* copiedPayload = new char[strlen(payload) + 1];
+  strcpy(copiedPayload, payload);
+  Inject(new Event(kSbEventTypeLink, (void*)copiedPayload,
+                   [](void* data) { delete[](char*) data; }));
 }
 
 }  // namespace wayland

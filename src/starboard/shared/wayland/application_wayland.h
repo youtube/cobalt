@@ -44,6 +44,11 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
         shared::starboard::Application::Get());
   }
 
+  // start run-loop outside. functions of |Run| is splitted into 3
+  void RunReady(int argc, const char** argv);
+  bool RunOnce();
+  int RunExit();
+
   // window
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
@@ -54,6 +59,7 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   void SetPolicy(tizen_policy* policy) { tz_policy_ = policy; }
   tizen_policy* GetPolicy() { return tz_policy_; }
   void WindowRaise();
+  wl_display* GetWLDisplay() { return display_; }
 
   // input devices
   void SetKeyboard(wl_keyboard* keyboard) { keyboard_ = keyboard; }
@@ -62,13 +68,14 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   wl_seat* GetSeat() { return seat_; }
 
   // key event
+  void UpdateKeyModifiers(unsigned int modifiers) { key_modifiers_ = modifiers; }
   void CreateRepeatKey();
   void DeleteRepeatKey();
   void CreateKey(int key, int state, bool is_repeat);
 
   // state change
-  void Pause() SB_OVERRIDE;
-  void Unpause() SB_OVERRIDE;
+  void Pause(void* context, EventHandledCallback callback) SB_OVERRIDE;
+  void Unpause(void* context, EventHandledCallback callback) SB_OVERRIDE;
 
   // state change observer
   class StateObserver {
@@ -80,6 +87,9 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   };
   void RegisterObserver(StateObserver* observer);
   void UnregisterObserver(StateObserver* observer);
+
+  // deeplink
+  void Deeplink(char* payload);
 
  protected:
   // --- Application overrides ---
@@ -112,6 +122,7 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   int key_repeat_state_;
   SbEventId key_repeat_event_id_;
   SbTime key_repeat_interval_;
+  unsigned int key_modifiers_;
 
   // wakeup event
   int wakeup_fd_;
