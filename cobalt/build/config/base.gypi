@@ -38,9 +38,44 @@
     'cobalt_enable_lib%': 0,
 
     # Contains the current font package selection.  This can be used to trade
-    # font quality, coverage, and latency with smaller font package size.
-    # See content/fonts/README.md for more details.
-    'cobalt_font_package%': 'unlimited',
+    # font quality, coverage, and latency for different font package sizes.
+    # The font package can be one of the following options:
+    #   'expanded' -- The largest package. It includes everything in the
+    #                 'standard' package, along with bold Noto CJK. It is
+    #                 recommended that 'local_font_cache_size_in_bytes' be
+    #                 increased to 24MB when using this package to account for
+    #                 the extra memory required by bold Noto CJK. This package
+    #                 is ~46.2MB.
+    #   'standard' -- The default package. It includes all non-CJK Noto fallback
+    #                 fonts in both regular and bold weights, along with regular
+    #                 weight Noto CJK (bold CJK is synthesized from it), and all
+    #                 FCC fonts. This package is ~26.9MB.
+    #   'limited_with_noto_jp' -- A significantly smaller package than
+    #                 'standard'. This package removes the bold non-CJK Noto
+    #                 fallback fonts (the regular weight is still included and
+    #                 is used to synthesize bold), removes the FCC fonts (which
+    #                 must be downloaded from the web), and replaces high
+    #                 quality Noto CJK with lower quality DroidSansFallback for
+    #                 both Chinese and Korean (Noto is still provided for
+    #                 Japanese). Because DroidSansFallback cannot synthesize
+    #                 bold, bold glyphs are unavailable in Chinese and Korean.
+    #                 This package is ~10.9MB.
+    #   'limited'  -- A smaller package than 'limited_with_noto_jp'. The
+    #                 packages are identical with the exception that 'limited'
+    #                 does not include the high quality Noto Japanese font;
+    #                 instead it relies on the lower quality DroidSansFallback
+    #                 for all CJK characters. Because DroidSansFallback cannot
+    #                 synthesize bold, bold glyphs are unavailable in Chinese,
+    #                 Japanese, and Korean. This package is ~7.7MB.
+    #   'minimal'  -- The smallest possible font package. It only includes
+    #                 Roboto's Basic Latin characters. Everything else must be
+    #                 downloaded from the web. This package is ~16.4KB.
+    # NOTE: When bold is needed, but unavailable, it is typically synthesized,
+    #       resulting in lower quality glyphs than those generated directly from
+    #       a bold font. However, this does not occur with DroidSansFallback,
+    #       which is not high enough quality to synthesize. Its glyphs always
+    #       have a regular weight.
+    'cobalt_font_package%': 'standard',
 
     # Build version number.
     'cobalt_version%': 0,
