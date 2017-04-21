@@ -47,6 +47,7 @@
 #else
 #include <math.h>
 #include <stdarg.h>
+#include "starboard/system.h"
 #endif
 
 #include <algorithm>
@@ -4181,6 +4182,9 @@ void UnitTest::AddTestPartResult(
       // when a failure happens and both the --gtest_break_on_failure and
       // the --gtest_catch_exceptions flags are specified.
       DebugBreak();
+
+#elif GTEST_OS_STARBOARD
+      SbSystemBreakIntoDebugger();
 #else
       // Dereference NULL through a volatile pointer to prevent the compiler
       // from removing. We use this rather than abort() or __builtin_trap() for
