@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
+#include "cobalt/browser/memory_tracker/tool.h"
 
 #include <cstdlib>
 #include <map>
@@ -20,7 +20,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
+#include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/lexical_cast.h"
 #include "starboard/log.h"
@@ -31,14 +31,14 @@ namespace memory_tracker {
 
 #if !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 // Null implementation for memory tracker tool.
-class MemoryTrackerToolNull : public MemoryTrackerTool {
+class NullTool : public Tool {
  public:
-  virtual ~MemoryTrackerToolNull() {}
+  virtual ~NullTool() {}
 };
 
 // Instantiates the memory tracker tool from the command argument.
-scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(const std::string&) {
-  return scoped_ptr<MemoryTrackerTool>(new MemoryTrackerToolNull);
+scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string&) {
+  return scoped_ptr<Tool>(new NullTool);
 }
 
 #else
@@ -98,7 +98,7 @@ std::string ParseToolArg(const std::string& command_arg) {
   const size_t last_closing_paren_idx = command_arg.find_last_of(')');
 
   if ((first_open_paren_idx == std::string::npos) ||
-     (last_closing_paren_idx == std::string::npos)) {
+      (last_closing_paren_idx == std::string::npos)) {
     return "";
   }
 
@@ -106,14 +106,14 @@ std::string ParseToolArg(const std::string& command_arg) {
     return "";
   }
 
-  const size_t begin_idx = first_open_paren_idx+1;
-  const size_t length = (last_closing_paren_idx-begin_idx);
+  const size_t begin_idx = first_open_paren_idx + 1;
+  const size_t length = (last_closing_paren_idx - begin_idx);
   std::string arg_str = command_arg.substr(begin_idx, length);
   return arg_str;
 }
 }  // namespace.
 
-class MemoryTrackerThreadImpl : public MemoryTrackerTool {
+class MemoryTrackerThreadImpl : public Tool {
  public:
   explicit MemoryTrackerThreadImpl(base::SimpleThread* ptr)
       : thread_ptr_(ptr) {}
@@ -121,8 +121,7 @@ class MemoryTrackerThreadImpl : public MemoryTrackerTool {
   scoped_ptr<base::SimpleThread> thread_ptr_;
 };
 
-scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
-    const std::string& command_arg) {
+scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
   // The command line switch for memory_tracker was used. Look into the args
   // and determine the mode that the memory_tracker should be used for.
 
@@ -240,7 +239,7 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
 
   // Tools are expected to instantiate the MemoryTracker if they need it.
   MemoryTracker* memory_tracker = NULL;
-  scoped_ptr<AbstractMemoryTrackerTool> tool_ptr;
+  scoped_ptr<AbstractTool> tool_ptr;
 
   const SwitchVal& value = found_it->second;
   switch (value.enum_value) {
@@ -290,22 +289,21 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       // Time until output is triggered.
       int sampling_time_ms = F::ToMilliseconds(num_mins);
       // Create a thread that will gather memory metrics for startup.
-      tool_ptr.reset(
-          new MemoryTrackerPrintCSV(sampling_interval_ms, sampling_time_ms));
+      tool_ptr.reset(new PrintCSVTool(sampling_interval_ms, sampling_time_ms));
       break;
     }
     case kContinuousPrinter: {
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report memory use.
-      tool_ptr.reset(new MemoryTrackerPrint);
+      tool_ptr.reset(new PrintTool);
       break;
     }
     case kCompressedTimeseries: {
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report memory use.
-      tool_ptr.reset(new MemoryTrackerCompressedTimeSeries);
+      tool_ptr.reset(new CompressedTimeSeriesTool);
       break;
     }
     case kBinnerAnalytics: {
@@ -317,14 +315,13 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       break;
     }
     case kAllocationLogger: {
-      scoped_ptr<MemoryTrackerLogWriter> disk_writer_tool(
-          new MemoryTrackerLogWriter());
+      scoped_ptr<LogWriterTool> disk_writer_tool(new LogWriterTool());
       tool_ptr.reset(disk_writer_tool.release());
       break;
     }
     case kLeakTracer: {
-      scoped_ptr<MemoryTrackerLeakFinder> leak_finder(
-          new MemoryTrackerLeakFinder(MemoryTrackerLeakFinder::kCPlusPlus));
+      scoped_ptr<LeakFinderTool> leak_finder(
+          new LeakFinderTool(LeakFinderTool::kCPlusPlus));
 
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
@@ -333,8 +330,8 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
       break;
     }
     case kJavascriptLeakTracer: {
-      scoped_ptr<MemoryTrackerLeakFinder> leak_finder(
-          new MemoryTrackerLeakFinder(MemoryTrackerLeakFinder::kJavascript));
+      scoped_ptr<LeakFinderTool> leak_finder(
+          new LeakFinderTool(LeakFinderTool::kJavascript));
 
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
@@ -350,11 +347,11 @@ scoped_ptr<MemoryTrackerTool> CreateMemoryTrackerTool(
 
   if (tool_ptr.get()) {
     base::SimpleThread* thread =
-        new MemoryTrackerToolThread(memory_tracker,  // May be NULL.
-                                    tool_ptr.release(), new SbLogger);
-    return scoped_ptr<MemoryTrackerTool>(new MemoryTrackerThreadImpl(thread));
+        new ToolThread(memory_tracker,  // May be NULL.
+                       tool_ptr.release(), new SbLogger);
+    return scoped_ptr<Tool>(new MemoryTrackerThreadImpl(thread));
   } else {
-    return scoped_ptr<MemoryTrackerTool>();
+    return scoped_ptr<Tool>();
   }
 }
 

@@ -22,7 +22,7 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
-#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
+#include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/system_window/system_window.h"
 
 #if defined(ENABLE_WEBDRIVER)
@@ -172,7 +172,7 @@ class Application {
   base::Timer stats_update_timer_;
   base::Timer lite_stats_update_timer_;
 
-  scoped_ptr<memory_tracker::MemoryTrackerTool> memory_tracker_tool_;
+  scoped_ptr<memory_tracker::Tool> memory_tracker_tool_;
 };
 
 // Factory method for creating an application.  It should be implemented
