@@ -77,7 +77,8 @@ glm::mat4 Camera3DImpl::QueryViewPerspectiveMatrix(
   // Setup a (right-handed) perspective projection matrix.
   float vertical_fov_rad =
       std::min(max_vertical_fov_rad,
-               max_horizontal_fov_rad / width_over_height_aspect_ratio);
+               2 * static_cast<float>(atan(tan(max_horizontal_fov_rad * 0.5f) /
+                                           width_over_height_aspect_ratio)));
 
   const float kNearZ = 0.01f;
   const float kFarZ = 1000.0f;
