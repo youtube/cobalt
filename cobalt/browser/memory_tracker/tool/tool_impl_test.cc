@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "build/build_config.h"  // defines OS_STARBOARD
-#include "cobalt/browser/memory_tracker/memory_tracker_tool_impl.h"
+#include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
