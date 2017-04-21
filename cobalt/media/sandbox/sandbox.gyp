@@ -116,7 +116,7 @@
     },
   ],
   'conditions': [
-    ['sb_media_platform == "starboard"', {
+    ['sb_media_platform == "starboard" and cobalt_media_source_2016==1', {
       'targets': [
         {
           'target_name': 'media2_sandbox',
