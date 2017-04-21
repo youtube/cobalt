@@ -95,20 +95,37 @@ TEST(Semaphore, ThreadTakesWait_PutBeforeTimeExpires) {
               kSbTimeMillisecond * 10);  // Error threshold
 }
 
+double IsDoubleNear(double first, double second, double diff_threshold) {
+  double diff = first - second;
+  if (diff < 0) {
+    diff = -diff;
+  }
+  return diff < diff_threshold;
+}
+
 TEST(Semaphore, ThreadTakesWait_TimeExpires) {
-  SbTime wait_time = kSbTimeMillisecond * 20;
-  ThreadTakesWaitSemaphore thread(wait_time);
-  thread.Start();
+  const int attempts = 20;  // Retest up to 20 times.
+  bool passed = false;
 
-  SbThreadSleep(wait_time * 2);
-  thread.semaphore_.Put();
+  const SbTime kTimeThreshold = kSbTimeMillisecond * 5;
 
-  thread.Join();
+  for (int i = 0; i < attempts; ++i) {
+    SbTime wait_time = kSbTimeMillisecond * 20;
+    ThreadTakesWaitSemaphore thread(wait_time);
+    thread.Start();
 
-  EXPECT_FALSE(thread.result_signaled_);
-  EXPECT_NEAR(thread.result_wait_time_,
-              wait_time,
-              kSbTimeMillisecond * 5);  // Error threshold
+    SbThreadSleep(wait_time * 2);
+    thread.semaphore_.Put();
+
+    thread.Join();
+    EXPECT_FALSE(thread.result_signaled_);
+
+    if (IsDoubleNear(wait_time, thread.result_wait_time_, kTimeThreshold)) {
+      return;  // Test passed.
+    }
+  }
+
+  EXPECT_TRUE(false) << "Thread waited, but time exceeded expectations.";
 }
 
 class ThreadPutsSemaphore : public AbstractTestThread {
