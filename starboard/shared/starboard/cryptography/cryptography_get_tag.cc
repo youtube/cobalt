@@ -15,15 +15,24 @@
 #include "starboard/configuration.h"
 #include "starboard/cryptography.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
+#include "starboard/shared/starboard/cryptography/software_aes.h"
 
 #if SB_API_VERSION < 4
 #error "SbCryptography requires SB_API_VERSION >= 4."
 #endif
 
-void SbCryptographyDestroyTransformer(SbCryptographyTransformer transformer) {
-  if (!transformer) {
-    return;
+using starboard::shared::starboard::cryptography::AES_gcm128_tag;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm;
+
+bool SbCryptographyGetTag(
+    SbCryptographyTransformer transformer,
+    void* out_tag,
+    int out_tag_size) {
+  if (transformer->algorithm != kAlgorithmAes128Gcm) {
+    SB_DLOG(ERROR) << "Trying to get tag on non-GCM transformer.";
+    return false;
   }
 
-  delete transformer;
+  AES_gcm128_tag(&transformer->gcm_context, out_tag, out_tag_size);
+  return true;
 }
