@@ -17,6 +17,7 @@
 import argparse
 import logging
 import os
+import shlex
 import sys
 import textwrap
 
@@ -162,6 +163,21 @@ class _GypRunner(object):
     }
     variables.update(self.platform_config.GetVariables(config_name))
     _AppendVariables(variables, args)
+
+    # Add the symbolizer path for ASAN to allow translation of callstacks.
+    asan_symbolizer_path = ''
+    if variables.get('use_asan', 0) == 1:
+      compiler_commandline = shlex.split(os.environ.get('CC', ''))
+      for path in compiler_commandline:
+        if os.path.isfile(path):
+          test_path = os.path.join(os.path.dirname(path), 'llvm-symbolizer')
+          if os.path.isfile(test_path):
+            asan_symbolizer_path = test_path
+            break
+    asan_variables = {
+      'asan_symbolizer_path': asan_symbolizer_path,
+    }
+    _AppendVariables(asan_variables, args)
 
     # Add config specific generator variables.
     generator_config = '{}_{}'.format(self.options.platform, config_name)
