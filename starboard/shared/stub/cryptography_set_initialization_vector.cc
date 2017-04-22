@@ -14,16 +14,16 @@
 
 #include "starboard/configuration.h"
 #include "starboard/cryptography.h"
-#include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 
 #if SB_API_VERSION < 4
 #error "SbCryptography requires SB_API_VERSION >= 4."
 #endif
 
-void SbCryptographyDestroyTransformer(SbCryptographyTransformer transformer) {
-  if (!transformer) {
-    return;
-  }
-
-  delete transformer;
+void SbCryptographySetInitializationVector(
+    SbCryptographyTransformer transformer,
+    const void* initialization_vector,
+    int initialization_vector_size) {
+  SB_UNREFERENCED_PARAMETER(transformer);
+  SB_UNREFERENCED_PARAMETER(initialization_vector);
+  SB_UNREFERENCED_PARAMETER(initialization_vector_size);
 }

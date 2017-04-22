@@ -14,10 +14,30 @@
 
 // Module Overview: Starboard Cryptography module
 //
-// Hardware-accelerated cryptography. Platforms should only implement
-// this when there are hardware-accelerated cryptography facilities.
-// Applications should use CPU-based algorithms if the cipher
+// Hardware-accelerated cryptography. Platforms should **only** implement this
+// when there are **hardware-accelerated** cryptography facilities. Applications
+// must fall back to platform-independent CPU-based algorithms if the cipher
 // algorithm isn't supported in hardware.
+//
+// # Tips for Porters
+//
+// You should implement cipher algorithms in this descending order of priority
+// to maximize usage for SSL.
+//
+//   1. GCM - The preferred block cipher mode for OpenSSL, mainly due to speed.
+//   2. CBC - If GCM is disabled, then SSL will use the CBC stream cipher.
+//      Normally this is less desirable because GCM is faster, but if CBC is
+//      hardware-accelerated, it is likely to be better than software GCM. CBC
+//      is also considered by some to be more secure.
+//   3. CTR - This can be used internally with GCM, as long as the CTR
+//      implementation only uses the last 4 bytes of the IV for the counter.
+//      (i.e. 96-bit IV, 32-bit counter)
+//   4. ECB - This is for if you only have core AES block encryption. It can be
+//      used with any of the other cipher block modes to accelerate the core AES
+//      algorithm if none of the streaming modes can be accelerated.
+//
+// Further reading on GCM vs CBC vs CTR:
+// https://crypto.stackexchange.com/questions/10775/practical-disadvantages-of-gcm-mode-encryption
 
 #ifndef STARBOARD_CRYPTOGRAPHY_H_
 #define STARBOARD_CRYPTOGRAPHY_H_
@@ -118,7 +138,8 @@ static SB_C_INLINE bool SbCryptographyIsTransformerValid(
 // |block_size_bits|: The block size variant of the algorithm to use, in bits.
 // |direction|: The direction in which to transform the data.
 // |mode|: The block cipher mode to use.
-// |initialization_vector|: The Initialization Vector (IV) to use.
+// |initialization_vector|: The Initialization Vector (IV) to use. May be NULL
+// for block cipher modes that don't use it, or don't set it at init time.
 // |initialization_vector_size|: The size, in bytes, of the IV.
 // |key|: The key to use for this transformation.
 // |key_size|: The size, in bytes, of the key.
@@ -155,6 +176,33 @@ SB_EXPORT int SbCryptographyTransform(
     const void* in_data,
     int in_data_size,
     void* out_data);
+
+// Sets the initialization vector (IV) for a transformer, replacing the
+// internally-set IV. The block cipher mode algorithm will update the IV
+// appropriately after every block, so this is not necessary unless the stream
+// is discontiguous in some way. This happens with AES-GCM in TLS.
+SB_EXPORT void SbCryptographySetInitializationVector(
+    SbCryptographyTransformer transformer,
+    const void* initialization_vector,
+    int initialization_vector_size);
+
+// Sets additional authenticated data (AAD) for a transformer, for chaining
+// modes that support it (GCM). Returns whether the data was successfully
+// set. This can fail if the chaining mode doesn't support AAD, if the
+// parameters are invalid, or if the internal state is invalid for setting AAD.
+SB_EXPORT bool SbCryptographySetAuthenticatedData(
+    SbCryptographyTransformer transformer,
+    const void* data,
+    int data_size);
+
+// Calculates the authenticator tag for a transformer and places up to
+// |out_tag_size| bytes of it in |out_tag|. Returns whether it was able to get
+// the tag, which mainly has to do with whether it is compatible with the
+// current block cipher mode.
+SB_EXPORT bool SbCryptographyGetTag(
+    SbCryptographyTransformer transformer,
+    void* out_tag,
+    int out_tag_size);
 
 #ifdef __cplusplus
 }  // extern "C"
