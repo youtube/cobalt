@@ -83,6 +83,7 @@
         'configuration_test.cc',
         'cryptography_create_transformer_test.cc',
         'cryptography_transform_test.cc',
+        'cryptography_transform_gcm_test.cc',
         'decode_target_create_test.cc',
         'decode_target_provider_test.cc',
         'directory_can_open_test.cc',

@@ -46,6 +46,19 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
     starboard::shared::starboard::cryptography::AES_ctr128_encrypt(
         in_data, out_data, in_data_size, &(transformer->key), transformer->ivec,
         transformer->ecount_buf, &transformer->counter);
+  } else if (transformer->algorithm ==
+             starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm) {
+    if (transformer->direction == kSbCryptographyDirectionEncode) {
+      starboard::shared::starboard::cryptography::AES_gcm128_encrypt(
+          &transformer->gcm_context, &transformer->key, in_data, out_data,
+          in_data_size);
+    } else if (transformer->direction == kSbCryptographyDirectionDecode) {
+      starboard::shared::starboard::cryptography::AES_gcm128_decrypt(
+          &transformer->gcm_context, &transformer->key, in_data, out_data,
+          in_data_size);
+    } else {
+      SB_NOTREACHED();
+    }
   }
 
   return in_data_size;
