@@ -141,6 +141,13 @@
         'defines': [
           'ADDRESS_SANITIZER',
         ],
+        'conditions': [
+          ['asan_symbolizer_path!=""', {
+            'defines': [
+              'ASAN_SYMBOLIZER_PATH="<@(asan_symbolizer_path)"',
+            ],
+          }],
+        ],
       }],
       ['use_tsan==1', {
         'cflags': [
