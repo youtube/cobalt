@@ -14,4 +14,6 @@
   <string name="starboard_account_auth_error">Account authorization failed.</string>
   <!-- Toast message indicating that the selected account is no longer available to sign-in. -->
   <string name="starboard_missing_account">Account not available:\n%1$s</string>
+  <!-- Toast message shown when the user has denied permission to get device accounts. -->
+  <string name="starboard_accounts_permission">Sign in requires Contacts permission to be granted in system settings.</string>
 </resources>
