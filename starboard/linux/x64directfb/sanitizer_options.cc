@@ -41,4 +41,10 @@ SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
       "leak:__strdup\n";
 }
 
+#if defined(ASAN_SYMBOLIZER_PATH)
+extern "C" const char *__asan_default_options() {
+  return "external_symbolizer_path=" ASAN_SYMBOLIZER_PATH;
+}
+#endif
+
 #endif  // defined(ADDRESS_SANITIZER)
