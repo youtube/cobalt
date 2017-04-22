@@ -24,6 +24,13 @@
 #error "SbCryptography requires SB_API_VERSION >= 4."
 #endif
 
+using starboard::shared::starboard::cryptography::AES_KEY;
+using starboard::shared::starboard::cryptography::AES_gcm128_init;
+using starboard::shared::starboard::cryptography::Algorithm;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Cbc;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Ctr;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm;
+
 SbCryptographyTransformer SbCryptographyCreateTransformer(
     const char* algorithm,
     int block_size_bits,
@@ -44,34 +51,37 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
   }
 
   // TODO: Support 64-bit IV with CTR mode.
-  if (initialization_vector_size != block_size_bits / 8) {
+  if ((mode == kSbCryptographyBlockCipherModeGcm &&
+       initialization_vector_size != 0) ||
+      (mode != kSbCryptographyBlockCipherModeGcm &&
+       initialization_vector_size != block_size_bits / 8)) {
     SB_DLOG(WARNING) << "Unsupported initialization_vector_size: "
                      << initialization_vector_size;
     return kSbCryptographyInvalidTransformer;
   }
 
-  // TODO: Support 192, 256-bit keys for AES.
-  if (key_size != block_size_bits / 8) {
+  if (key_size != 16 && key_size != 24 && key_size != 32) {
     SB_DLOG(WARNING) << "Unsupported key_size: " << key_size;
     return kSbCryptographyInvalidTransformer;
   }
 
-  starboard::shared::starboard::cryptography::Algorithm combined_algorithm;
+  Algorithm combined_algorithm;
   if (mode == kSbCryptographyBlockCipherModeCbc) {
-    combined_algorithm =
-        starboard::shared::starboard::cryptography::kAlgorithmAes128Cbc;
+    combined_algorithm = kAlgorithmAes128Cbc;
   } else if (mode == kSbCryptographyBlockCipherModeCtr) {
-    combined_algorithm =
-        starboard::shared::starboard::cryptography::kAlgorithmAes128Ctr;
+    combined_algorithm = kAlgorithmAes128Ctr;
+  } else if (mode == kSbCryptographyBlockCipherModeGcm) {
+    combined_algorithm = kAlgorithmAes128Gcm;
   } else {
     SB_DLOG(WARNING) << "Unsupported block cipher mode: " << mode;
     return kSbCryptographyInvalidTransformer;
   }
 
-  starboard::shared::starboard::cryptography::AES_KEY aeskey = {0};
+  AES_KEY aeskey = {0};
   int result = -1;
   if (direction == kSbCryptographyDirectionDecode &&
-      mode != kSbCryptographyBlockCipherModeCtr) {
+      mode != kSbCryptographyBlockCipherModeCtr &&
+      mode != kSbCryptographyBlockCipherModeGcm) {
     result = AES_set_decrypt_key(key, key_size * 8, &aeskey);
   } else {
     result = AES_set_encrypt_key(key, key_size * 8, &aeskey);
@@ -88,7 +98,15 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
   transformer->key = aeskey;
   transformer->algorithm = combined_algorithm;
   transformer->direction = direction;
-  SbMemoryCopy(transformer->ivec, initialization_vector,
-               initialization_vector_size);
+  if (initialization_vector_size) {
+    SbMemoryCopy(transformer->ivec, initialization_vector,
+                 initialization_vector_size);
+  }
+
+  if (transformer->algorithm == kAlgorithmAes128Gcm) {
+    AES_gcm128_init(&transformer->gcm_context, &transformer->key,
+                    direction == kSbCryptographyDirectionEncode ? 1 : 0);
+  }
+
   return transformer;
 }

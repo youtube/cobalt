@@ -25,10 +25,12 @@ namespace shared {
 namespace starboard {
 namespace cryptography {
 
-// The only modes supported by this software implementation.
+// The modes supported by this software-only implementation.
 enum Algorithm {
   kAlgorithmAes128Cbc,
   kAlgorithmAes128Ctr,
+  kAlgorithmAes128Ecb,
+  kAlgorithmAes128Gcm,
 };
 
 }  // namespace cryptography
@@ -37,10 +39,11 @@ enum Algorithm {
 }  // namespace starboard
 
 struct SbCryptographyTransformerPrivate {
-  starboard::shared::starboard::cryptography::AES_KEY key;
-  uint8_t ivec[SB_AES_BLOCK_SIZE];
   starboard::shared::starboard::cryptography::Algorithm algorithm;
   SbCryptographyDirection direction;
+  starboard::shared::starboard::cryptography::GCM128_CONTEXT gcm_context;
+  starboard::shared::starboard::cryptography::AES_KEY key;
+  uint8_t ivec[SB_AES_BLOCK_SIZE];
   uint8_t ecount_buf[SB_AES_BLOCK_SIZE];
   uint32_t counter;
 };
