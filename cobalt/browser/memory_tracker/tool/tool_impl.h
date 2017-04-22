@@ -64,27 +64,12 @@ class AbstractLogger {
 // their run cycle.
 class Params;
 
-//
+// Base class for all tools.
 class AbstractTool {
  public:
   virtual ~AbstractTool() {}
   virtual std::string tool_name() const = 0;
   virtual void Run(Params* params) = 0;
-};
-
-class ToolThread : public base::SimpleThread {
- public:
-  typedef base::SimpleThread Super;
-  ToolThread(nb::analytics::MemoryTracker* memory_tracker, AbstractTool* tool,
-             AbstractLogger* logger);
-  virtual ~ToolThread();
-
-  virtual void Join() OVERRIDE;
-  virtual void Run() OVERRIDE;
-
- private:
-  scoped_ptr<Params> params_;
-  scoped_ptr<AbstractTool> tool_;
 };
 
 // Start() is called when this object is created, and Cancel() & Join() are

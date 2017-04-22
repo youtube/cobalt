@@ -28,6 +28,8 @@
 #include "base/time.h"
 #include "cobalt/base/c_val_collection_entry_stats.h"
 #include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
+#include "cobalt/browser/memory_tracker/tool/params.h"
+#include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 #include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
@@ -149,26 +151,6 @@ void RemoveOddElements(VectorType* v) {
   v->erase(write_it, v->end());
 }
 
-// NoMemoryTracking will disable memory tracking while in the current scope of
-// execution. When the object is destroyed it will reset the previous state
-// of allocation tracking.
-// Example:
-//   void Foo() {
-//     NoMemoryTracking no_memory_tracking_in_scope;
-//     int* ptr = new int();  // ptr is not tracked.
-//     delete ptr;
-//     return;    // Previous memory tracking state is restored.
-//   }
-class NoMemoryTracking {
- public:
-  explicit NoMemoryTracking(nb::analytics::MemoryTracker* owner);
-  ~NoMemoryTracking();
-
- private:
-  bool prev_val_;
-  nb::analytics::MemoryTracker* owner_;
-};
-
 // Simple timer class that fires once after dt time has elapsed.
 class Timer {
  public:
@@ -279,88 +261,6 @@ const char* BaseNameFast(const char* file_name) {
 }
 
 }  // namespace
-
-class Params {
- public:
-  Params(nb::analytics::MemoryTracker* memory_tracker, AbstractLogger* logger,
-         base::Time start_time)
-      : memory_tracker_(memory_tracker),
-        finished_(false),
-        logger_(logger),
-        timer_(start_time) {}
-  bool finished() const { return finished_; }
-  bool wait_for_finish_signal(SbTime wait_us) {
-    return finished_semaphore_.TakeWait(wait_us);
-  }
-  void set_finished(bool val) {
-    finished_ = val;
-    finished_semaphore_.Put();
-  }
-
-  nb::analytics::MemoryTracker* memory_tracker() const {
-    return memory_tracker_;
-  }
-  AbstractLogger* logger() { return logger_.get(); }
-  base::TimeDelta time_since_start() const {
-    return base::Time::NowFromSystemTime() - timer_;
-  }
-  std::string TimeInMinutesString() const {
-    base::TimeDelta delta_t = time_since_start();
-    int64 seconds = delta_t.InSeconds();
-    float time_mins = static_cast<float>(seconds) / 60.f;
-    std::stringstream ss;
-
-    ss << time_mins;
-    return ss.str();
-  }
-
- private:
-  nb::analytics::MemoryTracker* memory_tracker_;
-  bool finished_;
-  scoped_ptr<AbstractLogger> logger_;
-  base::Time timer_;
-  starboard::Semaphore finished_semaphore_;
-};
-
-ToolThread::ToolThread(nb::analytics::MemoryTracker* memory_tracker,
-                       AbstractTool* tool, AbstractLogger* logger)
-    : Super(tool->tool_name()),
-      params_(
-          new Params(memory_tracker, logger, base::Time::NowFromSystemTime())),
-      tool_(tool) {
-  Start();
-}
-
-ToolThread::~ToolThread() {
-  Join();
-  tool_.reset();
-  params_.reset();
-}
-
-void ToolThread::Join() {
-  params_->set_finished(true);
-  Super::Join();
-}
-
-void ToolThread::Run() {
-  NoMemoryTracking no_mem_tracking_in_this_scope(params_->memory_tracker());
-  // This tool will run until the finished_ if flipped to false.
-  tool_->Run(params_.get());
-}
-
-NoMemoryTracking::NoMemoryTracking(nb::analytics::MemoryTracker* owner)
-    : prev_val_(false), owner_(owner) {
-  if (owner_) {
-    prev_val_ = owner_->IsMemoryTrackingEnabled();
-    owner_->SetMemoryTrackingEnabled(false);
-  }
-}
-
-NoMemoryTracking::~NoMemoryTracking() {
-  if (owner_) {
-    owner_->SetMemoryTrackingEnabled(prev_val_);
-  }
-}
 
 class PrintTool::CvalsMap {
  public:
