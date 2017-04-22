@@ -15,15 +15,24 @@
 #include "starboard/configuration.h"
 #include "starboard/cryptography.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
+#include "starboard/shared/starboard/cryptography/software_aes.h"
 
 #if SB_API_VERSION < 4
 #error "SbCryptography requires SB_API_VERSION >= 4."
 #endif
 
-void SbCryptographyDestroyTransformer(SbCryptographyTransformer transformer) {
-  if (!transformer) {
-    return;
+using starboard::shared::starboard::cryptography::AES_gcm128_aad;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm;
+
+bool SbCryptographySetAuthenticatedData(
+    SbCryptographyTransformer transformer,
+    const void* data,
+    int data_size) {
+  if (transformer->algorithm != kAlgorithmAes128Gcm) {
+    SB_DLOG(ERROR) << "Trying to set AAD on non-GCM transformer.";
+    return false;
   }
 
-  delete transformer;
+  int result = AES_gcm128_aad(&transformer->gcm_context, data, data_size);
+  return result == 1;
 }
