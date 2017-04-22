@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
+#include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/lexical_cast.h"
 #include "starboard/log.h"
