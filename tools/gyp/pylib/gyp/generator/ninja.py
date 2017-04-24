@@ -1671,7 +1671,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   if flavor in ['win', 'xb1']:
     master_ninja.variable('ld', ld)
     master_ninja.variable('idl', 'midl.exe')
-    master_ninja.variable('ar', 'lib.exe')
+    master_ninja.variable('ar', os.environ.get('AR', 'ar'))
     master_ninja.variable('rc', 'rc.exe')
     master_ninja.variable('asm', 'ml.exe')
     master_ninja.variable('mt', 'mt.exe')
