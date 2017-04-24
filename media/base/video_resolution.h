@@ -17,6 +17,7 @@
 #ifndef MEDIA_BASE_VIDEO_RESOLUTION_H_
 #define MEDIA_BASE_VIDEO_RESOLUTION_H_
 
+#include "base/logging.h"
 #include "media/base/media_export.h"
 #include "ui/gfx/size.h"
 
@@ -24,11 +25,15 @@ namespace media {
 
 // Enumerates the various representations of the resolution of videos.  Note
 // that except |kVideoResolutionInvalid|, all other values are guaranteed to be
-// in the same order as its (width, height) pair.
+// in the same order as its (width, height) pair. Note, unlike the other valid
+// resolution levels, |kVideoResolutionHighRes| is not a 16:9 resolution.
 enum VideoResolution {
-  kVideoResolution1080p,  // 1920 x 1080
-  kVideoResolution2k,     // 2560 x 1440
-  kVideoResolution4k,     // 3840 x 2160
+  kVideoResolution1080p,    // 1920 x 1080
+  kVideoResolution2k,       // 2560 x 1440
+  kVideoResolution4k,       // 3840 x 2160
+  kVideoResolution5k,       // 5120 × 2880
+  kVideoResolution8k,       // 7680 x 4320
+  kVideoResolutionHighRes,  // 8192 x 8192
   kVideoResolutionInvalid
 };
 
@@ -42,6 +47,17 @@ inline VideoResolution GetVideoResolution(int width, int height) {
   if (width <= 3840 && height <= 2160) {
     return kVideoResolution4k;
   }
+  if (width <= 5120 && height <= 2880) {
+    return kVideoResolution5k;
+  }
+  if (width <= 7680 && height <= 4320) {
+    return kVideoResolution8k;
+  }
+  if (width <= 8192 && height <= 8192) {
+    return kVideoResolutionHighRes;
+  }
+  DLOG(FATAL) << "Invalid VideoResolution: width: " << width
+              << " height: " << height;
   return kVideoResolutionInvalid;
 }
 
