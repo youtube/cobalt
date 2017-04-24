@@ -16,6 +16,7 @@
 #define COBALT_SPEECH_STARBOARD_SPEECH_RECOGNIZER_H_
 
 #include "cobalt/speech/speech_configuration.h"
+#include "cobalt/speech/speech_recognition_result_list.h"
 #include "cobalt/speech/speech_recognizer.h"
 #include "starboard/speech_recognizer.h"
 
@@ -28,11 +29,24 @@ namespace speech {
 // receives the speech recognition results from there.
 class StarboardSpeechRecognizer : public SpeechRecognizer {
  public:
+  typedef SpeechRecognitionResultList::SpeechRecognitionResults
+      SpeechRecognitionResults;
+
   explicit StarboardSpeechRecognizer(const EventCallback& event_callback);
   ~StarboardSpeechRecognizer();
 
   void Start(const SpeechRecognitionConfig& config) SB_OVERRIDE;
   void Stop() SB_OVERRIDE;
+
+  void OnRecognizerSpeechDetected(bool detected);
+  void OnRecognizerError(SbSpeechRecognizerError error);
+  void OnRecognizerResults(SbSpeechResult* results, int results_size,
+                           bool is_final);
+
+ private:
+  SbSpeechRecognizer speech_recognizer_;
+  // Used for accumulating final results.
+  SpeechRecognitionResults final_results_;
 };
 
 }  // namespace speech
