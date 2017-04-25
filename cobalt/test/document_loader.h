@@ -59,9 +59,9 @@ class DocumentLoader : public dom::DocumentObserver {
             &fetcher_factory_, css_parser_.get(), dom_parser_.get(),
             NULL /* can_play_type_handler  */,
             NULL /* web_media_player_factory */, &script_runner_,
-            NULL /* media_source_registry */, &resource_provider_,
-            NULL /* animated_image_tracker */, image_cache_.get(),
-            NULL /* reduced_image_cache_capacity_manager */,
+            NULL /* script_value_factory */, NULL /* media_source_registry */,
+            &resource_provider_, NULL /* animated_image_tracker */,
+            image_cache_.get(), NULL /* reduced_image_cache_capacity_manager */,
             NULL /* remote_font_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */) {}
   void Load(const GURL& url) {

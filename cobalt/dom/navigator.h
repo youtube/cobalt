@@ -21,6 +21,7 @@
 #include "cobalt/dom/mime_type_array.h"
 #include "cobalt/dom/plugin_array.h"
 #include "cobalt/media_session/media_session.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -33,7 +34,8 @@ namespace dom {
 class Navigator : public script::Wrappable {
  public:
   Navigator(const std::string& user_agent, const std::string& language,
-            scoped_refptr<cobalt::media_session::MediaSession> media_session);
+            scoped_refptr<cobalt::media_session::MediaSession> media_session,
+            script::ScriptValueFactory* script_value_factory);
 
   // Web API: NavigatorID
   const std::string& user_agent() const;
@@ -62,6 +64,7 @@ class Navigator : public script::Wrappable {
   scoped_refptr<MimeTypeArray> mime_types_;
   scoped_refptr<PluginArray> plugins_;
   scoped_refptr<cobalt::media_session::MediaSession> media_session_;
+  script::ScriptValueFactory* script_value_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Navigator);
 };
