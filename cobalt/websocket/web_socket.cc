@@ -180,7 +180,11 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
   Initialize(settings, url, sub_protocols, exception_state);
 }
 
-WebSocket::~WebSocket() { impl_->SetWebSocketEventDelegate(NULL); }
+WebSocket::~WebSocket() {
+  if (impl_) {
+    impl_->SetWebSocketEventDelegate(NULL);
+  }
+}
 
 std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
   if (!IsValidBinaryType(binary_type_)) {
