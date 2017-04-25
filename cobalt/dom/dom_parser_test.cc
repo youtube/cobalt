@@ -45,9 +45,9 @@ DOMParserTest::DOMParserTest()
       html_element_context_(
           &fetcher_factory_, &stub_css_parser_, dom_parser_parser_.get(),
           NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
-          &stub_script_runner_, NULL /* media_source_registry */,
-          NULL /* resource_provider */, NULL /* animated_image_tracker */,
-          NULL /* image_cache */,
+          &stub_script_runner_, NULL /* script_value_factory */,
+          NULL /* media_source_registry */, NULL /* resource_provider */,
+          NULL /* animated_image_tracker */, NULL /* image_cache */,
           NULL /* reduced_image_cache_capacity_manager */,
           NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
           NULL /* dom_stat_tracker */, "" /* language */),

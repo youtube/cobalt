@@ -31,6 +31,7 @@
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/script/script_value_factory.h"
 
 namespace cobalt {
 namespace dom {
@@ -50,6 +51,7 @@ class HTMLElementContext {
       Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
       media::WebMediaPlayerFactory* web_media_player_factory,
       script::ScriptRunner* script_runner,
+      script::ScriptValueFactory* script_value_factory,
       MediaSourceRegistry* media_source_registry,
       render_tree::ResourceProvider** resource_provider,
       loader::image::AnimatedImageTracker* animated_image_tracker,
@@ -74,7 +76,12 @@ class HTMLElementContext {
     return web_media_player_factory_;
   }
 
-  script::ScriptRunner* script_runner() { return script_runner_; }
+  script::ScriptRunner* script_runner() const { return script_runner_; }
+
+  script::ScriptValueFactory* script_value_factory() const {
+    return script_value_factory_;
+  }
+
   MediaSourceRegistry* media_source_registry() {
     return media_source_registry_;
   }
@@ -117,6 +124,7 @@ class HTMLElementContext {
   media::CanPlayTypeHandler* can_play_type_handler_;
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
+  script::ScriptValueFactory* const script_value_factory_;
   MediaSourceRegistry* const media_source_registry_;
   render_tree::ResourceProvider** resource_provider_;
   loader::image::AnimatedImageTracker* const animated_image_tracker_;
