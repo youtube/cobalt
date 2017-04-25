@@ -40,6 +40,13 @@ class InputEventsGenerator {
       std::vector< ::starboard::shared::starboard::Application::Event*>*
           events);
 
+  // Create press/unpress events from SbKey
+  // (for use with CobaltA11yHelper injection)
+  void CreateInputEventsFromSbKey(
+      SbKey key,
+      std::vector< ::starboard::shared::starboard::Application::Event*>*
+          events);
+
  private:
   enum FlatAxis {
     kLeftX,

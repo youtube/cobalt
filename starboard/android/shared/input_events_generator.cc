@@ -741,6 +741,46 @@ bool InputEventsGenerator::CreateInputEvents(
   return false;
 }
 
+void InputEventsGenerator::CreateInputEventsFromSbKey(
+    SbKey key,
+    std::vector<::starboard::shared::starboard::Application::Event*>* events) {
+  events->clear();
+
+  // Press event
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  data->window = window_;
+  data->type = kSbInputEventTypePress;
+
+  data->device_type = kSbInputDeviceTypeKeyboard;
+  data->device_id = 0;
+
+  data->key = key;
+  data->key_location = kSbKeyLocationUnspecified;
+  data->key_modifiers = kSbKeyModifiersNone;
+
+  events->push_back(new Application::Event(
+      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
+
+  // Unpress event
+  data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  data->window = window_;
+  data->type = kSbInputEventTypeUnpress;
+
+  data->device_type = kSbInputDeviceTypeKeyboard;
+  data->device_id = 0;
+
+  data->key = key;
+  data->key_location = kSbKeyLocationUnspecified;
+  data->key_modifiers = kSbKeyModifiersNone;
+
+  events->push_back(new Application::Event(
+      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
