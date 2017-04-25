@@ -48,6 +48,8 @@ class ApplicationAndroid
   void SetExitOnActivityDestroy(int error_level);
   bool OnSearchRequested();
   void HandleDeepLink(const char* link_url);
+  void TriggerKeyboardInject(SbKey key);
+  void OnKeyboardInject();
 
  protected:
   // --- Application overrides ---
@@ -73,6 +75,9 @@ class ApplicationAndroid
   // The application state from android_native_app_glue.
   struct android_app* android_state_;
 
+  int keyboard_inject_readfd_;
+  int keyboard_inject_writefd_;
+
   // The single open window, if any.
   SbWindow window_;
   scoped_ptr<InputEventsGenerator> input_events_generator_;
@@ -81,6 +86,8 @@ class ApplicationAndroid
 
   bool exit_on_destroy_;
   int exit_error_level_;
+
+  android_poll_source keyboard_inject_source_;
 };
 
 }  // namespace shared
