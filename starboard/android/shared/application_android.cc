@@ -17,6 +17,7 @@
 #include <android/native_activity.h>
 #include <android_native_app_glue.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <map>
 #include <string>
@@ -34,6 +35,10 @@
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/string.h"
+
+namespace starboard {
+namespace android {
+namespace shared {
 
 namespace {
 
@@ -66,23 +71,59 @@ std::map<int, const char*> CreateAppCmdNamesMap() {
 std::map<int, const char*> kAppCmdNames = CreateAppCmdNamesMap();
 #endif  // NDEBUG
 
+SB_C_INLINE ApplicationAndroid* ToApplication(struct android_app* app) {
+  return static_cast<ApplicationAndroid*>(app->userData);
+}
+
+void ProcessKeyboardInject(struct android_app* app,
+                           struct android_poll_source* source) {
+  ToApplication(app)->OnKeyboardInject();
+}
+
 }  // namespace
 
-namespace starboard {
-namespace android {
-namespace shared {
+void ApplicationAndroid::OnKeyboardInject() {
+  SbKey key;
+  int err = read(keyboard_inject_readfd_, &key, sizeof(key));
+  SB_DCHECK(err >= 0) << "Read failed errno:" << errno;
+
+  std::vector<Event*> events;
+  input_events_generator_->CreateInputEventsFromSbKey(key, &events);
+  for (int i = 0; i < events.size(); ++i) {
+    DispatchAndDelete(events[i]);
+  }
+}
 
 // "using" doesn't work with class members, so make a local convienience type.
 typedef ::starboard::shared::starboard::Application::Event Event;
 
 ApplicationAndroid::ApplicationAndroid(struct android_app* state)
     : android_state_(state),
+      keyboard_inject_readfd_(-1),
+      keyboard_inject_writefd_(-1),
       window_(kSbWindowInvalid),
       last_is_accessibility_high_contrast_text_enabled_(false),
       exit_on_destroy_(false),
-      exit_error_level_(0) {}
+      exit_error_level_(0) {
+  keyboard_inject_source_.app = state;
+  keyboard_inject_source_.id = LOOPER_ID_INPUT;
+  keyboard_inject_source_.process = ProcessKeyboardInject;
 
-ApplicationAndroid::~ApplicationAndroid() {}
+  int pipefd[2];
+  int err = pipe(pipefd);
+  SB_CHECK(err >= 0) << "pipe errno is:" << errno;
+  keyboard_inject_readfd_ = pipefd[0];
+  keyboard_inject_writefd_ = pipefd[1];
+
+  ALooper_addFd(ALooper_forThread(), keyboard_inject_readfd_, 1,
+                ALOOPER_EVENT_INPUT, NULL, &keyboard_inject_source_);
+}
+
+ApplicationAndroid::~ApplicationAndroid() {
+  ALooper_removeFd(ALooper_forThread(), keyboard_inject_readfd_);
+  close(keyboard_inject_readfd_);
+  close(keyboard_inject_writefd_);
+}
 
 void ApplicationAndroid::Initialize() {
   // Called once here to help SbTimeZoneGet*Name()
@@ -375,11 +416,6 @@ extern "C" void android_main(struct android_app* state) {
   }
 }
 
-static SB_C_INLINE ApplicationAndroid* ToApplication(
-    struct android_app* app) {
-  return static_cast<ApplicationAndroid*>(app->userData);
-}
-
 // static
 void ApplicationAndroid::HandleCommand(struct android_app* app, int32_t cmd) {
   SB_DLOG(INFO) << "HandleCommand " << cmd;
@@ -408,6 +444,17 @@ extern "C" SB_EXPORT_PLATFORM void CobaltActivity_onCreate(
 
   SbConditionVariableWait(&app_created_condition, &app_created_mutex);
   SbMutexRelease(&app_created_mutex);
+}
+
+void ApplicationAndroid::TriggerKeyboardInject(SbKey key) {
+  write(keyboard_inject_writefd_, &key, sizeof(key));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_foo_cobalt_coat_CobaltA11yHelper_injectKeyEvent(JNIEnv* env,
+                                                     jobject unused_clazz,
+                                                     jint key) {
+  ApplicationAndroid::Get()->TriggerKeyboardInject(static_cast<SbKey>(key));
 }
 
 }  // namespace shared
