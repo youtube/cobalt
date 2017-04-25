@@ -62,6 +62,10 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+
+        # TODO: Remove the dependency below, it works around the fact that
+        #       ScriptValueFactory has non-virtual method CreatePromise().
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
       ],
     },
 

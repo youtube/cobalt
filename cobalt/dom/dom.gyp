@@ -337,6 +337,11 @@
         'testing/stub_script_runner.cc',
         'testing/stub_script_runner.h',
       ],
+      'dependencies': [
+        # TODO: Remove the dependency below, it works around the fact that
+        #       ScriptValueFactory has non-virtual method CreatePromise().
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
+      ],
     },
   ],
 }
