@@ -52,6 +52,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
@@ -115,6 +116,7 @@ class Window : public EventTarget {
       media::WebMediaPlayerFactory* web_media_player_factory,
       script::ExecutionState* execution_state,
       script::ScriptRunner* script_runner,
+      script::ScriptValueFactory* script_value_factory,
       MediaSourceRegistry* media_source_registry,
       DomStatTracker* dom_stat_tracker, const GURL& url,
       const std::string& user_agent, const std::string& language,
