@@ -50,6 +50,10 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'xhr',
         'xhr_copy_test_data',
+
+        # TODO: Remove the dependency below, it works around the fact that
+        #       ScriptValueFactory has non-virtual method CreatePromise().
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
       ],
     },
     {

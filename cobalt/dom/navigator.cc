@@ -22,12 +22,14 @@ namespace cobalt {
 namespace dom {
 
 Navigator::Navigator(const std::string& user_agent, const std::string& language,
-                     scoped_refptr<MediaSession> media_session)
+                     scoped_refptr<MediaSession> media_session,
+                     script::ScriptValueFactory* script_value_factory)
     : user_agent_(user_agent),
       language_(language),
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),
-      media_session_(media_session) {}
+      media_session_(media_session),
+      script_value_factory_(script_value_factory) {}
 
 const std::string& Navigator::language() const { return language_; }
 

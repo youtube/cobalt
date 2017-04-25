@@ -76,7 +76,7 @@ class NodeTest : public ::testing::Test {
 
 NodeTest::NodeTest()
     : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL, "") {
+                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, "") {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 
   document_ = new Document(&html_element_context_);
