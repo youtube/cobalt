@@ -152,7 +152,8 @@ class WebModule::Impl {
   // output parameter and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
                          const base::SourceLocation& script_location,
-                         base::WaitableEvent* got_result, std::string* result);
+                         base::WaitableEvent* got_result, std::string* result,
+                         bool *out_succeeded);
 
   // Clears disables timer related objects
   // so that the message loop can easily exit
@@ -622,11 +623,12 @@ void WebModule::Impl::InjectKeyboardEvent(
 
 void WebModule::Impl::ExecuteJavascript(
     const std::string& script_utf8, const base::SourceLocation& script_location,
-    base::WaitableEvent* got_result, std::string* result) {
+    base::WaitableEvent* got_result, std::string* result, bool* out_succeeded) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(script_runner_);
-  *result = script_runner_->Execute(script_utf8, script_location);
+  *result = script_runner_->Execute(script_utf8, script_location,
+      out_succeeded);
   got_result->Signal();
 }
 
@@ -953,7 +955,8 @@ void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
 
 std::string WebModule::ExecuteJavascript(
     const std::string& script_utf8,
-    const base::SourceLocation& script_location) {
+    const base::SourceLocation& script_location,
+    bool* out_succeeded) {
   TRACE_EVENT0("cobalt::browser", "WebModule::ExecuteJavascript()");
   DCHECK(message_loop());
   DCHECK(impl_);
@@ -963,7 +966,8 @@ std::string WebModule::ExecuteJavascript(
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::ExecuteJavascript,
                             base::Unretained(impl_.get()), script_utf8,
-                            script_location, &got_result, &result));
+                            script_location, &got_result, &result,
+                            out_succeeded));
   got_result.Wait();
   return result;
 }

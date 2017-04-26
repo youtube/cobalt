@@ -69,7 +69,8 @@ class ScriptRunnerImpl : public ScriptRunner {
       : global_environment_(global_environment) {}
 
   std::string Execute(const std::string& script_utf8,
-                      const base::SourceLocation& script_location) OVERRIDE;
+                      const base::SourceLocation& script_location,
+                      bool* out_succeeded) OVERRIDE;
   GlobalEnvironment* GetGlobalEnvironment() const OVERRIDE {
     return global_environment_;
   }
@@ -80,9 +81,13 @@ class ScriptRunnerImpl : public ScriptRunner {
 
 std::string ScriptRunnerImpl::Execute(
     const std::string& script_utf8,
-    const base::SourceLocation& script_location) {
+    const base::SourceLocation& script_location,
+    bool* out_succeeded) {
   scoped_refptr<SourceCode> source_code =
       SourceCode::CreateSourceCode(script_utf8, script_location);
+  if (out_succeeded) {
+    *out_succeeded = false;
+  }
   if (source_code == NULL) {
     NOTREACHED() << "Failed to pre-process JavaScript source.";
     return "";
@@ -98,6 +103,9 @@ std::string ScriptRunnerImpl::Execute(
 #if defined(HANDLE_CORE_DUMP)
   script_runner_log.Get().IncrementSuccessCount();
 #endif
+  if (out_succeeded) {
+    *out_succeeded = true;
+  }
   return result;
 }
 
