@@ -42,6 +42,9 @@
   readonly attribute Camera3D camera3D;
   [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
   [CallWith=EnvironmentSettings] void gc();
+  // Mozilla's non-standard minimize() function.
+  // https://developer.mozilla.org/en-US/docs/Web/API/Window/minimize
+  void minimize();
 };
 Window implements GlobalEventHandlers;
 Window implements WindowEventHandlers;

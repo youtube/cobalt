@@ -63,6 +63,7 @@ class WindowTest : public ::testing::Test {
             base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             base::Closure() /* window_close */,
+            base::Closure() /* window_minimize */,
             stub_media_module_->system_window(), NULL, NULL)) {}
 
   ~WindowTest() OVERRIDE {}

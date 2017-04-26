@@ -181,6 +181,7 @@ class WebModule {
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const OnErrorCallback& error_callback,
             const base::Closure& window_close_callback,
+            const base::Closure& window_minimize_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
@@ -230,6 +231,7 @@ class WebModule {
         const OnRenderTreeProducedCallback& render_tree_produced_callback,
         const OnErrorCallback& error_callback,
         const base::Closure& window_close_callback,
+        const base::Closure& window_minimize_callback,
         media::MediaModule* media_module,
         network::NetworkModule* network_module,
         const math::Size& window_dimensions,
@@ -240,6 +242,7 @@ class WebModule {
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
           window_close_callback(window_close_callback),
+          window_minimize_callback(window_minimize_callback),
           media_module(media_module),
           network_module(network_module),
           window_dimensions(window_dimensions),
@@ -253,6 +256,7 @@ class WebModule {
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
     const base::Closure& window_close_callback;
+    const base::Closure& window_minimize_callback;
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
     math::Size window_dimensions;
