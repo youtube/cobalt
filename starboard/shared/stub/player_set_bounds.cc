@@ -26,5 +26,4 @@ void SbPlayerSetBounds(SbPlayer /*player*/,
                        int /*height*/) {
 }
 
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
