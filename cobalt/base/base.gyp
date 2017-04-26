@@ -48,7 +48,6 @@
         'localized_strings.h',
         'log_message_handler.cc',
         'log_message_handler.h',
-        'math.cc',
         'math.h',
         'message_queue.h',
         'path_provider.cc',
