@@ -196,7 +196,8 @@ class WebModule {
   // thread will block until the JavaScript has executed and the output results
   // are available.
   std::string ExecuteJavascript(const std::string& script_utf8,
-                                const base::SourceLocation& script_location);
+                                const base::SourceLocation& script_location,
+                                bool* out_succeeded);
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
