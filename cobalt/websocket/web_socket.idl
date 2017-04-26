@@ -47,9 +47,12 @@ interface WebSocket : EventTarget {
            attribute EventHandler onmessage;
   [RaisesException] attribute DOMString binaryType;
   [RaisesException] void send(DOMString data);
-  [RaisesException] void send(Blob data);
   [RaisesException] void send(ArrayBuffer data);
-  [RaisesException] void send(ArrayBufferView data);
+
+  // Blob is not currently supported in Cobalt.
+  // [RaisesException] void send(Blob data);
+  // ArrayBufferViews translation is not well supported in Cobalt.
+  // [RaisesException] void send(ArrayBufferView data);
 };
 
 typedef EventListener? EventHandler;
