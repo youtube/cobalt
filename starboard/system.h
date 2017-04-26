@@ -435,6 +435,43 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
 
+#if SB_API_VERSION >= 4
+// Requests that the application move into the Paused state at the next
+// convenient point. This should roughly correspond to "unfocused application"
+// in a traditional window manager, where the application may be partially
+// visible.
+//
+// This function eventually causes a |kSbEventTypePause| event to be dispatched
+// to the application. Before the |kSbEventTypePause| event is dispatched, some
+// work may continue to be done, and unrelated system events may be dispatched.
+SB_EXPORT void SbSystemRequestPause();
+
+// Requests that the application move into the Started state at the next
+// convenient point. This should roughly correspond to a "focused application"
+// in a traditional window manager, where the application is fully visible and
+// the primary receiver of input events.
+//
+// This function eventually causes a |kSbEventTypeUnpause| event to be
+// dispatched to the application. Before |kSbEventTypeUnpause| is dispatched,
+// some work may continue to be done, and unrelated system events may be
+// dispatched.
+SB_EXPORT void SbSystemRequestUnpause();
+
+// Requests that the application move into the Suspended state at the next
+// convenient point. This should roughly correspond to "minimization" in a
+// traditional window manager, where the application is no longer visible.
+//
+// This function eventually causes a |kSbEventTypeSuspend| event to be
+// dispatched to the application. Before the |kSbEventTypeSuspend| event is
+// dispatched, some work may continue to be done, and unrelated system events
+// may be dispatched.
+//
+// In the Suspended state, the application will be resident, but probably not
+// running. The expectation is that an external system event will bring the
+// application out of the Suspended state.
+SB_EXPORT void SbSystemRequestSuspend();
+#endif  // SB_API_VERSION >= 4
+
 // Requests that the application be terminated gracefully at the next
 // convenient point. In the meantime, some work may continue to be done, and
 // unrelated system events may be dispatched. This function eventually causes
