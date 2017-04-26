@@ -190,6 +190,7 @@ DebugConsole::DebugConsole(
       GURL(kInitialDebugConsoleUrl), render_tree_produced_callback,
       base::Bind(&DebugConsole::OnError, base::Unretained(this)),
       base::Closure(), /* window_close_callback */
+      base::Closure(), /* window_minimize_callback */
       media_module, network_module, window_dimensions, resource_provider,
       media_module->system_window(), layout_refresh_rate, web_module_options));
 }
