@@ -473,8 +473,7 @@ SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
                                  int y,
                                  int width,
                                  int height);
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 
 #if SB_API_VERSION < 4
 
