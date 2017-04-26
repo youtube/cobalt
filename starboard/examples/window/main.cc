@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <iomanip>
+#include <sstream>
 
 #include "starboard/event.h"
 #include "starboard/input.h"
@@ -20,33 +21,70 @@
 #include "starboard/system.h"
 #include "starboard/window.h"
 
+SbWindow g_window;
+
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart: {
-      SB_DLOG(INFO) << __FUNCTION__ << ": START";
+      SB_LOG(INFO) << "START";
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-      SbWindow window = SbWindowCreate(NULL);
-      SB_CHECK(SbWindowIsValid(window));
+      g_window = SbWindowCreate(NULL);
+      SB_CHECK(SbWindowIsValid(g_window));
+
+#if SB_API_VERSION >= 4
+      SB_LOG(INFO) << "    F1 - Pause";
+      SB_LOG(INFO) << "    F2 - Unpause";
+      SB_LOG(INFO) << "    F3 - Suspend";
+#endif  // SB_API_VERSION >= 4
+      SB_LOG(INFO) << "    F5 - Stop";
       break;
     }
     case kSbEventTypeInput: {
       SbInputData* data = static_cast<SbInputData*>(event->data);
-      SB_DLOG(INFO) << __FUNCTION__ << ": INPUT: type=" << data->type
-                    << ", window=" << data->window
-                    << ", device_type=" << data->device_type
-                    << ", device_id=" << data->device_id
-                    << ", key=0x" << std::hex << data->key
-                    << ", character=" << data->character
-                    << ", modifiers=0x" << std::hex << data->key_modifiers
-                    << ", location=" << std::dec << data->key_location
-                    << ", position="
-                    << "[ " << data->position.x << " , " << data->position.y
-                    << " ]";
+      switch (data->key) {
+#if SB_API_VERSION >= 4
+        case kSbKeyF1:
+          SbSystemRequestPause();
+          break;
+        case kSbKeyF2:
+          SbSystemRequestUnpause();
+          break;
+        case kSbKeyF3:
+          SbSystemRequestSuspend();
+          break;
+#endif  // SB_API_VERSION >= 4
+        case kSbKeyF5:
+          SbSystemRequestStop(0);
+          break;
+        default:
+          // Do nothing.
+          break;
+      }
+      break;
+    }
+    case kSbEventTypePause: {
+      SB_LOG(INFO) << "PAUSE";
+      break;
+    }
+    case kSbEventTypeResume: {
+      SB_LOG(INFO) << "RESUME";
+      break;
+    }
+    case kSbEventTypeStop: {
+      SB_LOG(INFO) << "STOP";
+      SbWindowDestroy(g_window);
+      break;
+    }
+    case kSbEventTypeSuspend: {
+      SB_LOG(INFO) << "SUSPEND";
+      break;
+    }
+    case kSbEventTypeUnpause: {
+      SB_LOG(INFO) << "UNPAUSE";
       break;
     }
     default:
-      SB_DLOG(INFO) << __FUNCTION__ << ": Event Type " << event->type
-                    << " not handled.";
+      SB_LOG(INFO) << "Event Type " << event->type << " not handled.";
       break;
   }
 }
