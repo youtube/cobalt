@@ -20,97 +20,77 @@
   'variables': {
     'source_font_files_dir': '<(static_contents_source_dir)/fonts/font_files',
 
-    'include_minimal_font': 0,
-
-    'include_named_roboto_regular': 0,
-    'include_named_roboto_bold': 0,
-    'include_named_roboto_italic': 0,
-    'include_named_noto_serif_regular': 0,
-    'include_named_noto_serif_bold': 0,
-    'include_named_noto_serif_italic': 0,
-    'include_named_fcc_fonts_regular': 0,
-    'include_named_fcc_fonts_bold': 0,
-
-    'include_fallback_lang_non_cjk_noto_regular': 0,
-    'include_fallback_lang_non_cjk_noto_bold': 0,
-    'include_fallback_lang_cjk_noto_regular': 0,
-    'include_fallback_lang_cjk_noto_bold': 0,
-    'include_fallback_lang_cjk_droid_regular': 0,
-    'include_fallback_lang_jp_noto_regular': 0,
-    'include_fallback_emoji_noto_regular': 0,
-    'include_fallback_symbols_noto_regular': 0,
-
     'conditions': [
       [ 'cobalt_font_package == "expanded"', {
         'source_xml_file_dir': '<(static_contents_source_dir)/fonts/xml/common',
 
-        'include_named_roboto_regular': 1,
-        'include_named_roboto_bold': 1,
-        'include_named_roboto_italic': 1,
-        'include_named_noto_serif_regular': 1,
-        'include_named_noto_serif_bold': 1,
-        'include_named_noto_serif_italic': 1,
-        'include_named_fcc_fonts_regular': 1,
-        'include_named_fcc_fonts_bold': 1,
-
-        'include_fallback_lang_non_cjk_noto_regular': 1,
-        'include_fallback_lang_non_cjk_noto_bold': 1,
-        'include_fallback_lang_cjk_noto_regular': 1,
-        'include_fallback_lang_cjk_noto_bold': 1,
-        'include_fallback_emoji_noto_regular': 1,
-        'include_fallback_symbols_noto_regular': 1,
+        'package_named_sans_serif': 4,
+        'package_named_serif': 4,
+        'package_named_fcc_fonts': 2,
+        'package_fallback_lang_non_cjk': 2,
+        'package_fallback_lang_cjk': 2,
+        'package_fallback_lang_cjk_low_quality': 0,
+        'package_fallback_lang_jp': 0,
+        'package_fallback_emoji': 1,
+        'package_fallback_symbols': 1,
       }],
 
       # 'unlimited' is deprecated but is mapped to 'standard'
       [ 'cobalt_font_package == "standard" or cobalt_font_package == "unlimited"', {
         'source_xml_file_dir': '<(static_contents_source_dir)/fonts/xml/common',
 
-        'include_named_roboto_regular': 1,
-        'include_named_roboto_bold': 1,
-        'include_named_roboto_italic': 1,
-        'include_named_noto_serif_regular': 1,
-        'include_named_noto_serif_bold': 1,
-        'include_named_noto_serif_italic': 1,
-        'include_named_fcc_fonts_regular': 1,
-        'include_named_fcc_fonts_bold': 1,
-
-        'include_fallback_lang_non_cjk_noto_regular': 1,
-        'include_fallback_lang_non_cjk_noto_bold': 1,
-        'include_fallback_lang_cjk_noto_regular': 1,
-        'include_fallback_emoji_noto_regular': 1,
-        'include_fallback_symbols_noto_regular': 1,
+        'package_named_sans_serif': 3,
+        'package_named_serif': 3,
+        'package_named_fcc_fonts': 2,
+        'package_fallback_lang_non_cjk': 2,
+        'package_fallback_lang_cjk': 1,
+        'package_fallback_lang_cjk_low_quality': 0,
+        'package_fallback_lang_jp': 0,
+        'package_fallback_emoji': 1,
+        'package_fallback_symbols': 1,
       }],
 
       # '10megabytes' is deprecated but is mapped to 'limited_with_noto_jp'
-      [ 'cobalt_font_package == "limited_with_noto_jp" or cobalt_font_package == "10megabytes"', {
+      [ 'cobalt_font_package == "limited_with_jp" or cobalt_font_package == "10megabytes"', {
         'source_xml_file_dir': '<(static_contents_source_dir)/fonts/xml/common',
 
-        'include_named_roboto_regular': 1,
-        'include_named_roboto_bold': 1,
-
-        'include_fallback_lang_non_cjk_noto_regular': 1,
-        'include_fallback_lang_cjk_droid_regular': 1,
-        'include_fallback_lang_jp_noto_regular': 1,
-        'include_fallback_emoji_noto_regular': 1,
-        'include_fallback_symbols_noto_regular': 1,
+        'package_named_sans_serif': 2,
+        'package_named_serif': 0,
+        'package_named_fcc_fonts': 0,
+        'package_fallback_lang_non_cjk': 1,
+        'package_fallback_lang_cjk': 0,
+        'package_fallback_lang_cjk_low_quality': 1,
+        'package_fallback_lang_jp': 1,
+        'package_fallback_emoji': 1,
+        'package_fallback_symbols': 1,
       }],
 
       [ 'cobalt_font_package == "limited"', {
         'source_xml_file_dir': '<(static_contents_source_dir)/fonts/xml/common',
 
-        'include_named_roboto_regular': 1,
-        'include_named_roboto_bold': 1,
-
-        'include_fallback_lang_non_cjk_noto_regular': 1,
-        'include_fallback_lang_cjk_droid_regular': 1,
-        'include_fallback_emoji_noto_regular': 1,
-        'include_fallback_symbols_noto_regular': 1,
+        'package_named_sans_serif': 2,
+        'package_named_serif': 0,
+        'package_named_fcc_fonts': 0,
+        'package_fallback_lang_non_cjk': 1,
+        'package_fallback_lang_cjk': 0,
+        'package_fallback_lang_cjk_low_quality': 1,
+        'package_fallback_lang_jp': 0,
+        'package_fallback_emoji': 1,
+        'package_fallback_symbols': 1,
       }],
 
       [ 'cobalt_font_package == "minimal"', {
-        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/xml/minimal',
+        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/xml/common',
 
-        'include_minimal_font': 1,
+        'package_named_sans_serif': 0,
+        'package_named_serif': 0,
+        'package_named_fcc_fonts': 0,
+        'package_fallback_lang_non_cjk': 0,
+        'package_fallback_lang_cjk': 0,
+        'package_fallback_lang_cjk_low_quality': 0,
+        'package_fallback_lang_jp': 0,
+        'package_fallback_emoji': 0,
+        'package_fallback_symbols': 0,
       }],
 
       [ 'cobalt_font_package == "android_system"', {
@@ -119,14 +99,46 @@
         # files for those not in cobalt content.
         'source_xml_file_dir': '<(static_contents_source_dir)/fonts/xml/android',
 
-        # Include minimal font to guarantee that a fallback Roboto font is
-        # available for Basic Latin.
-        'include_minimal_font': 1,
-
         # Emojis are currently included because Cobalt's version of Skia does
         # not support Android's color emojis and will be removed when Skia is
         # rebased.
-        'include_fallback_emoji_noto_regular': 1,
+        'package_named_sans_serif': 0,
+        'package_named_serif': 0,
+        'package_named_fcc_fonts': 0,
+        'package_fallback_lang_non_cjk': 0,
+        'package_fallback_lang_cjk': 0,
+        'package_fallback_lang_cjk_low_quality': 0,
+        'package_fallback_lang_jp': 0,
+        'package_fallback_emoji': 1,
+        'package_fallback_symbols': 0,
+      }],
+
+      [ 'cobalt_font_package_override_named_sans_serif >= 0', {
+        'package_named_sans_serif': '<(cobalt_font_package_override_named_sans_serif)',
+      }],
+      [ 'cobalt_font_package_override_named_serif >= 0', {
+        'package_named_serif': '<(cobalt_font_package_override_named_serif)',
+      }],
+      [ 'cobalt_font_package_override_named_fcc_fonts >= 0', {
+        'package_named_fcc_fonts': '<(cobalt_font_package_override_named_fcc_fonts)',
+      }],
+      [ 'cobalt_font_package_override_fallback_lang_non_cjk >= 0', {
+        'package_fallback_lang_non_cjk': '<(cobalt_font_package_override_fallback_lang_non_cjk)',
+      }],
+      [ 'cobalt_font_package_override_fallback_lang_cjk >= 0', {
+        'package_fallback_lang_cjk': '<(cobalt_font_package_override_fallback_lang_cjk)',
+      }],
+      [ 'cobalt_font_package_override_fallback_lang_cjk_low_quality >= 0', {
+        'package_fallback_lang_cjk_low_quality': '<(cobalt_font_package_override_fallback_lang_cjk_low_quality)',
+      }],
+      [ 'cobalt_font_package_override_fallback_lang_jp >= 0', {
+        'package_fallback_lang_jp': '<(cobalt_font_package_override_fallback_lang_jp)',
+      }],
+      [ 'cobalt_font_package_override_fallback_emoji >= 0', {
+        'package_fallback_emoji': '<(cobalt_font_package_override_fallback_emoji)',
+      }],
+      [ 'cobalt_font_package_override_fallback_symbols >= 0', {
+        'package_fallback_symbols': '<(cobalt_font_package_override_fallback_symbols)',
       }],
     ],
   },
@@ -138,44 +150,44 @@
         '<(source_xml_file_dir)/fonts.xml',
       ],
       'conditions': [
-        [ 'include_minimal_font', {
+        [ 'package_named_sans_serif == 0', {
           'files+': [
             '<(source_font_files_dir)/Roboto-Regular-Subsetted.ttf',
           ],
         }],
-        [ 'include_named_roboto_regular', {
+        [ 'package_named_sans_serif >= 1', {
           'files+': [
             '<(source_font_files_dir)/Roboto-Regular.ttf',
           ],
         }],
-        [ 'include_named_roboto_bold', {
+        [ 'package_named_sans_serif >= 2', {
           'files+': [
             '<(source_font_files_dir)/Roboto-Bold.ttf',
           ],
         }],
-        [ 'include_named_roboto_italic', {
+        [ 'package_named_sans_serif >= 3', {
           'files+': [
             '<(source_font_files_dir)/Roboto-Italic.ttf',
             '<(source_font_files_dir)/Roboto-BoldItalic.ttf',
           ],
         }],
-        [ 'include_named_noto_serif_regular', {
+        [ 'package_named_serif >= 1', {
           'files+': [
             '<(source_font_files_dir)/NotoSerif-Regular.ttf',
           ],
         }],
-        [ 'include_named_noto_serif_bold', {
+        [ 'package_named_serif >= 2', {
           'files+': [
             '<(source_font_files_dir)/NotoSerif-Bold.ttf',
           ],
         }],
-        [ 'include_named_noto_serif_italic', {
+        [ 'package_named_serif >= 3', {
           'files+': [
             '<(source_font_files_dir)/NotoSerif-Italic.ttf',
             '<(source_font_files_dir)/NotoSerif-BoldItalic.ttf',
           ],
         }],
-        [ 'include_named_fcc_fonts_regular', {
+        [ 'package_named_fcc_fonts >= 1', {
           'files+': [
             # sans-serif-monospace
             '<(source_font_files_dir)/DroidSansMono.ttf',
@@ -189,13 +201,13 @@
             '<(source_font_files_dir)/CarroisGothicSC-Regular.ttf',
           ],
         }],
-        [ 'include_named_fcc_fonts_bold', {
+        [ 'package_named_fcc_fonts >= 2', {
           'files+': [
             # cursive
             '<(source_font_files_dir)/DancingScript-Bold.ttf',
           ],
         }],
-        [ 'include_fallback_lang_non_cjk_noto_regular', {
+        [ 'package_fallback_lang_non_cjk >= 1', {
           'files+': [
             '<(source_font_files_dir)/NotoNaskhArabicUI-Regular.ttf',
             '<(source_font_files_dir)/NotoSansArmenian-Regular.ttf',
@@ -254,7 +266,7 @@
             '<(source_font_files_dir)/NotoSansYi-Regular.ttf',
           ],
         }],
-        [ 'include_fallback_lang_non_cjk_noto_bold', {
+        [ 'package_fallback_lang_non_cjk >= 2', {
           'files+': [
             '<(source_font_files_dir)/NotoNaskhArabicUI-Bold.ttf',
             '<(source_font_files_dir)/NotoSansArmenian-Bold.ttf',
@@ -280,32 +292,32 @@
             '<(source_font_files_dir)/NotoSansTibetan-Bold.ttf',
           ],
         }],
-        [ 'include_fallback_lang_cjk_noto_regular', {
+        [ 'package_fallback_lang_cjk >= 1', {
           'files+': [
             '<(source_font_files_dir)/NotoSansCJK-Regular.ttc',
           ],
         }],
-        [ 'include_fallback_lang_cjk_noto_bold', {
+        [ 'package_fallback_lang_cjk >= 2', {
           'files+': [
             '<(source_font_files_dir)/NotoSansCJK-Bold.ttc',
           ],
         }],
-        [ 'include_fallback_lang_cjk_droid_regular', {
+        [ 'package_fallback_lang_cjk_low_quality >= 1', {
           'files+': [
             '<(source_font_files_dir)/DroidSansFallback.ttf',
           ],
         }],
-        [ 'include_fallback_lang_jp_noto_regular', {
+        [ 'package_fallback_lang_jp >= 1', {
           'files+': [
             '<(source_font_files_dir)/NotoSansJP-Regular.otf',
           ],
         }],
-        [ 'include_fallback_emoji_noto_regular', {
+        [ 'package_fallback_emoji >= 1', {
           'files+': [
             '<(source_font_files_dir)/NotoEmoji-Regular.ttf',
           ],
         }],
-        [ 'include_fallback_symbols_noto_regular', {
+        [ 'package_fallback_symbols >= 1', {
           'files+': [
             '<(source_font_files_dir)/NotoSansSymbols-Regular-Subsetted.ttf',
             '<(source_font_files_dir)/NotoSansSymbols-Regular-Subsetted2.ttf',
