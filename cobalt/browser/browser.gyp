@@ -49,6 +49,8 @@
         'memory_tracker/tool/tool_impl.h',
         'memory_tracker/tool/tool_thread.cc',
         'memory_tracker/tool/tool_thread.h',
+        'memory_tracker/tool/util.cc',
+        'memory_tracker/tool/util.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
         'resource_provider_array_buffer_allocator.cc',
@@ -193,6 +195,7 @@
         'memory_settings/pretty_print_test.cc',
         'memory_settings/memory_settings_test.cc',
         'memory_tracker/tool/tool_impl_test.cc',
+        'memory_tracker/tool/util_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
