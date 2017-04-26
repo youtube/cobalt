@@ -41,41 +41,69 @@
     # font quality, coverage, and latency for different font package sizes.
     # The font package can be one of the following options:
     #   'expanded' -- The largest package. It includes everything in the
-    #                 'standard' package, along with bold Noto CJK. It is
+    #                 'standard' package, along with 'bold' weight CJK. It is
     #                 recommended that 'local_font_cache_size_in_bytes' be
     #                 increased to 24MB when using this package to account for
-    #                 the extra memory required by bold Noto CJK. This package
-    #                 is ~46.2MB.
-    #   'standard' -- The default package. It includes all non-CJK Noto fallback
-    #                 fonts in both regular and bold weights, along with regular
-    #                 weight Noto CJK (bold CJK is synthesized from it), and all
+    #                 the extra memory required by bold CJK. This package is
+    #                 ~46.2MB.
+    #   'standard' -- The default package. It includes all non-CJK fallback
+    #                 fonts in both 'normal' and 'bold' weights, 'normal' weight
+    #                 CJK ('bold' weight CJK is synthesized from it), and all
     #                 FCC fonts. This package is ~26.9MB.
-    #   'limited_with_noto_jp' -- A significantly smaller package than
-    #                 'standard'. This package removes the bold non-CJK Noto
-    #                 fallback fonts (the regular weight is still included and
-    #                 is used to synthesize bold), removes the FCC fonts (which
-    #                 must be downloaded from the web), and replaces high
-    #                 quality Noto CJK with lower quality DroidSansFallback for
-    #                 both Chinese and Korean (Noto is still provided for
-    #                 Japanese). Because DroidSansFallback cannot synthesize
-    #                 bold, bold glyphs are unavailable in Chinese and Korean.
-    #                 This package is ~10.9MB.
-    #   'limited'  -- A smaller package than 'limited_with_noto_jp'. The
-    #                 packages are identical with the exception that 'limited'
-    #                 does not include the high quality Noto Japanese font;
-    #                 instead it relies on the lower quality DroidSansFallback
-    #                 for all CJK characters. Because DroidSansFallback cannot
-    #                 synthesize bold, bold glyphs are unavailable in Chinese,
-    #                 Japanese, and Korean. This package is ~7.7MB.
+    #   'limited_with_jp' -- A significantly smaller package than 'standard'.
+    #                 This package removes the 'bold' weighted non-CJK fallback
+    #                 fonts (the 'normal' weight is still included and is used
+    #                 to synthesize bold), removes the FCC fonts (which must be
+    #                 downloaded from the web), and replaces standard CJK with
+    #                 low quality CJK. However, higher quality Japanese is still
+    #                 included. Because low quality CJK cannot synthesize bold,
+    #                 bold glyphs are unavailable in Chinese and Korean. This
+    #                 package is ~10.9MB.
+    #   'limited'  -- A smaller package than 'limited_with_jp'. The two packages
+    #                 are identical with the exception that 'limited' does not
+    #                 include the higher quality Japanese font; instead it
+    #                 relies on low quality CJK for all CJK characters. Because
+    #                 low quality CJK cannot synthesize bold, bold glyphs are
+    #                 unavailable in Chinese, Japanese, and Korean. This package
+    #                 is ~7.7MB.
     #   'minimal'  -- The smallest possible font package. It only includes
     #                 Roboto's Basic Latin characters. Everything else must be
     #                 downloaded from the web. This package is ~16.4KB.
     # NOTE: When bold is needed, but unavailable, it is typically synthesized,
     #       resulting in lower quality glyphs than those generated directly from
-    #       a bold font. However, this does not occur with DroidSansFallback,
+    #       a bold font. However, this does not occur with low quality CJK,
     #       which is not high enough quality to synthesize. Its glyphs always
-    #       have a regular weight.
+    #       have a 'normal' weight.
     'cobalt_font_package%': 'standard',
+
+    # Font package overrides can be used to modify the files included within the
+    # selected package. The following values are available:
+    #   -1 -- The package value for the specified category is not overridden.
+    #    0 -- The package value is overridden and no fonts for the specified
+    #         category are included.
+    #    1 -- The package value is overridden and fonts from the specified
+    #         category with a weight of 'normal' and a style of 'normal' are
+    #         included.
+    #    2 -- The package value is overridden and fonts from the specified
+    #         category with a weight of either 'normal' or bold' and a style of
+    #         'normal' are included.
+    #    3 -- The package value is overridden and fonts from the specified
+    #         category with a weight of either 'normal' or 'bold' and a style of
+    #         either 'normal' or 'italic' are included.
+    #    4 -- The package value is overridden and all available fonts from the
+    #         specified category are included. This may include additional
+    #         weights beyond 'normal' and 'bold'.
+    # See content/fonts/README.md for details on the specific values used by
+    # each of the packages use for the various font categories.
+    'cobalt_font_package_override_named_sans_serif%': -1,
+    'cobalt_font_package_override_named_serif%': -1,
+    'cobalt_font_package_override_named_fcc_fonts%': -1,
+    'cobalt_font_package_override_fallback_lang_non_cjk%': -1,
+    'cobalt_font_package_override_fallback_lang_cjk%': -1,
+    'cobalt_font_package_override_fallback_lang_cjk_low_quality%': -1,
+    'cobalt_font_package_override_fallback_lang_jp%': -1,
+    'cobalt_font_package_override_fallback_emoji%': -1,
+    'cobalt_font_package_override_fallback_symbols%': -1,
 
     # Build version number.
     'cobalt_version%': 0,
