@@ -410,6 +410,9 @@
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
+        '<(DEPTH)/starboard/shared/stub/system_request_pause.cc',
+        '<(DEPTH)/starboard/shared/stub/system_request_suspend.cc',
+        '<(DEPTH)/starboard/shared/stub/system_request_unpause.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
