@@ -17,11 +17,4 @@
 
 #include <cmath>
 
-#include "build/build_config.h"
-
-// The MSVC compiler doesn't have roundf().
-#if defined(COMPILER_MSVC)
-float roundf(float x);
-#endif  // defined(COMPILER_MSVC)
-
 #endif  // COBALT_BASE_MATH_H_
