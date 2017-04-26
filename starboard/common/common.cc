@@ -16,6 +16,8 @@
 
 // This audit is here so it is only displayed once every build.
 #if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
-#pragma message "Your platform's SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION."
-#pragma message "You are implementing the experimental SB API at your own risk!"
+#pragma message( \
+    "Your platform's SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION.")
+#pragma message( \
+    "You are implementing the experimental SB API at your own risk!")
 #endif
