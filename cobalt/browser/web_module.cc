@@ -492,8 +492,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
-      data.window_close_callback, data.system_window_,
-      data.options.input_poller, media_session_client_->GetMediaSession(),
+      data.window_close_callback, data.window_minimize_callback,
+      data.system_window_, data.options.input_poller,
+      media_session_client_->GetMediaSession(),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
   DCHECK(window_);
 
@@ -855,6 +856,7 @@ WebModule::WebModule(
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
     const OnErrorCallback& error_callback,
     const base::Closure& window_close_callback,
+    const base::Closure& window_minimize_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider,
@@ -863,9 +865,9 @@ WebModule::WebModule(
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, render_tree_produced_callback, error_callback,
-      window_close_callback, media_module, network_module, window_dimensions,
-      resource_provider, kDOMMaxElementDepth, system_window,
-      layout_refresh_rate, options);
+      window_close_callback, window_minimize_callback, media_module,
+      network_module, window_dimensions, resource_provider, kDOMMaxElementDepth,
+      system_window, layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
