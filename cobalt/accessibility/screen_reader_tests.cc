@@ -164,6 +164,7 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
       url, base::Bind(&LiveRegionMutationTest::OnRenderTreeProducedStub),
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
       base::Bind(&LiveRegionMutationTest::Quit, base::Unretained(this)),
+      base::Closure(), /* window_minimize_callback */
       NULL /* media_module */, &network_module, kDefaultViewportSize,
       &resource_provider, NULL /* system_window */, kRefreshRate,
       web_module_options);

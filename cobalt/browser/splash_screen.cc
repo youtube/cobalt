@@ -47,6 +47,7 @@ SplashScreen::SplashScreen(
       base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
+      base::Closure(),  // window_minimize_callback
       &stub_media_module_, network_module, window_dimensions, resource_provider,
       stub_media_module_.system_window(), layout_refresh_rate,
       web_module_options));

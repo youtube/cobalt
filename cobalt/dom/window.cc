@@ -92,6 +92,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Closure& csp_policy_changed_callback,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
+               const base::Closure& window_minimize_callback,
                system_window::SystemWindow* system_window,
                const scoped_refptr<input::InputPoller>& input_poller,
                const scoped_refptr<MediaSession>& media_session,
@@ -136,6 +137,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
+      window_minimize_callback_(window_minimize_callback),
       system_window_(system_window) {
 #if defined(ENABLE_TEST_RUNNER)
   test_runner_ = new TestRunner();
@@ -186,6 +188,12 @@ const scoped_refptr<History>& Window::history() const { return history_; }
 void Window::Close() {
   if (!window_close_callback_.is_null()) {
     window_close_callback_.Run();
+  }
+}
+
+void Window::Minimize() {
+  if (!window_minimize_callback_.is_null()) {
+    window_minimize_callback_.Run();
   }
 }
 
