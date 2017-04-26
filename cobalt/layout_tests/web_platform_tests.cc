@@ -133,7 +133,7 @@ void WebModuleErrorCallback(base::RunLoop* run_loop, MessageLoop* message_loop,
   message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
-std::string RunWebPlatformTest(const GURL& url) {
+std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   LogFilter log_filter;
   for (size_t i = 0; i < arraysize(kLogSuppressions); ++i) {
     log_filter.Add(kLogSuppressions[i]);
@@ -182,7 +182,8 @@ std::string RunWebPlatformTest(const GURL& url) {
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
   std::string output = web_module.ExecuteJavascript(
-      extract_results, base::SourceLocation(__FILE__, __LINE__, 1));
+      extract_results, base::SourceLocation(__FILE__, __LINE__, 1),
+      got_results);
   return output;
 }
 
@@ -273,7 +274,9 @@ TEST_P(WebPlatformTest, Run) {
 
   std::cout << "(" << test_url << ")" << std::endl;
 
-  std::string json_results = RunWebPlatformTest(test_url);
+  bool got_results = false;
+  std::string json_results = RunWebPlatformTest(test_url, &got_results);
+  EXPECT_TRUE(got_results);
   std::vector<TestResult> results = ParseResults(json_results);
   for (size_t i = 0; i < results.size(); ++i) {
     const WebPlatformTestInfo& test_info = GetParam();

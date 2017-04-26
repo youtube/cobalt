@@ -2,5 +2,5 @@
 # TODO
 # idlharness.html
 # mediametadata.html
-playbackstate.html,PASS
+# js_error: playbackstate.html,PASS
 setactionhandler.html,PASS

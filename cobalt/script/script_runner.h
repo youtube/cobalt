@@ -32,8 +32,11 @@ class ScriptRunner {
   static scoped_ptr<ScriptRunner> CreateScriptRunner(
       const scoped_refptr<GlobalEnvironment>& global_environment);
 
+  // |out_succeeded| is an optional parameter which reports whether the
+  //   script executed without errors.
   virtual std::string Execute(const std::string& script_utf8,
-                              const base::SourceLocation& script_location) = 0;
+                              const base::SourceLocation& script_location,
+                              bool* out_succeeded) = 0;
   virtual GlobalEnvironment* GetGlobalEnvironment() const { return NULL; }
   virtual ~ScriptRunner() {}
 };

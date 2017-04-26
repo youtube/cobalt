@@ -517,7 +517,8 @@ void HTMLScriptElement::Execute(const std::string& content,
   // script was obtained, the script block's type as the scripting language, and
   // the script settings object of the script element's Document's Window
   // object.
-  html_element_context()->script_runner()->Execute(content, script_location);
+  html_element_context()->script_runner()->Execute(content, script_location,
+      NULL /* output: succeeded */);
 
   // 5. 6. Not needed by Cobalt.
 

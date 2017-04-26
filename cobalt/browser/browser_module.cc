@@ -363,7 +363,8 @@ void BrowserModule::Reload() {
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
       "location.reload();",
-      base::SourceLocation("[object BrowserModule]", 1, 1));
+      base::SourceLocation("[object BrowserModule]", 1, 1),
+      NULL /* output: succeeded */);
 }
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
