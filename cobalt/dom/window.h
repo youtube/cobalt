@@ -127,6 +127,7 @@ class Window : public EventTarget {
       const base::Closure& csp_policy_changed_callback,
       const base::Closure& ran_animation_frame_callbacks_callback,
       const base::Closure& window_close_callback,
+      const base::Closure& window_minimize_callback,
       system_window::SystemWindow* system_window,
       const scoped_refptr<input::InputPoller>& input_poller,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
@@ -140,6 +141,7 @@ class Window : public EventTarget {
   const scoped_refptr<Location>& location() const;
   const scoped_refptr<History>& history() const;
   void Close();
+  void Minimize();
 
   scoped_refptr<Window> frames() { return this; }
   unsigned int length() { return 0; }
@@ -317,6 +319,7 @@ class Window : public EventTarget {
 
   const base::Closure ran_animation_frame_callbacks_callback_;
   const base::Closure window_close_callback_;
+  const base::Closure window_minimize_callback_;
 
   system_window::SystemWindow* system_window_;
 

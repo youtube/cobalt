@@ -439,6 +439,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                       base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(), system_window_,
       kLayoutMaxRefreshFrequencyInHz, options));
@@ -531,7 +532,21 @@ void BrowserModule::OnWindowClose() {
 #if defined(OS_STARBOARD)
   SbSystemRequestStop(0);
 #else
-  LOG(WARNING) << "window.close is not supported on this platform.";
+  LOG(WARNING) << "window.close() is not supported on this platform.";
+#endif
+}
+
+void BrowserModule::OnWindowMinimize() {
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (input_device_manager_fuzzer_) {
+    return;
+  }
+#endif
+
+#if defined(OS_STARBOARD) && SB_API_VERSION >= 4
+  SbSystemRequestSuspend();
+#else
+  LOG(WARNING) << "window.minimize() is not supported on this platform.";
 #endif
 }
 
