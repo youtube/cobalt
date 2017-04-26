@@ -59,7 +59,9 @@ class StubWindow {
         std::string() /* default security policy */, dom::kCspEnforcementEnable,
         base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
-        base::Closure() /* window_close */, NULL, NULL, NULL);
+        base::Closure() /* window_close */,
+        base::Closure() /* window_minimize */,
+        NULL, NULL, NULL);
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 
