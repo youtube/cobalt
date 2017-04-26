@@ -70,7 +70,8 @@ void EnsureValuePositive(IntSetting* setting) {
 }
 
 void EnsureValuePositive(DimensionSetting* setting) {
-  if (setting->value().GetArea() < 0) {
+  const math::Size value = setting->value();
+  if (value.width() < 0 || value.height() < 0) {
     setting->set_value(setting->source_type(), math::Size(0, 0));
   }
 }
