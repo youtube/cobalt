@@ -114,7 +114,7 @@ responseText-status.html,PASS
 # Synchronous
 responsetype.html,DISABLE
 responsexml-basic.htm,FAIL
-responsexml-document-properties.htm,FAIL
+# js_error: responsexml-document-properties.htm,FAIL
 responsexml-media-type.htm,FAIL
 responsexml-non-document-types.htm,PASS
 # Synchronous
@@ -135,7 +135,7 @@ send-authentication-basic-setrequestheader-existing-session.htm,FAIL
 send-authentication-basic-setrequestheader.htm,FAIL
 send-authentication-competing-names-passwords.htm,FAIL
 send-authentication-cors-basic-setrequestheader.htm,FAIL
-send-authentication-existing-session-manual.htm,FAIL
+# js_error: send-authentication-existing-session-manual.htm,FAIL
 # Synchronous
 send-authentication-prompt-2-manual.htm,FAIL
 send-authentication-prompt-manual.htm,FAIL
@@ -150,7 +150,7 @@ send-data-unexpected-tostring.htm,FAIL
 send-entity-body-basic.htm,FAIL
 send-entity-body-document-bogus.htm,FAIL
 # SyntaxError: Unexpected EOF
-send-entity-body-document.htm,FAIL
+# js_error: send-entity-body-document.htm,FAIL
 send-entity-body-empty.htm,FAIL
 send-entity-body-get-head-async.htm,PASS
 send-entity-body-get-head.htm,FAIL
@@ -211,14 +211,14 @@ xmlhttprequest-eventtarget.htm,PASS
 xmlhttprequest-network-error.htm,PASS
 xmlhttprequest-network-error-sync.htm,FAIL
 # Not sure why these fail. Seems to break the harness.
-xmlhttprequest-timeout-aborted.html,FAIL
-xmlhttprequest-timeout-abortedonmain.html,FAIL
-xmlhttprequest-timeout-overridesexpires.html,FAIL
-xmlhttprequest-timeout-overrides.html,FAIL
-xmlhttprequest-timeout-simple.html,FAIL
+# js_error: xmlhttprequest-timeout-aborted.html,FAIL
+# js_error: xmlhttprequest-timeout-abortedonmain.html,FAIL
+# js_error: xmlhttprequest-timeout-overridesexpires.html,FAIL
+# js_error: xmlhttprequest-timeout-overrides.html,FAIL
+# js_error: xmlhttprequest-timeout-simple.html,FAIL
 # Synchronous
-xmlhttprequest-timeout-synconmain.html,FAIL
-xmlhttprequest-timeout-twice.html,FAIL
+# js_error: xmlhttprequest-timeout-synconmain.html,FAIL
+# js_error: xmlhttprequest-timeout-twice.html,FAIL
 # Workers are disabled.
 xmlhttprequest-timeout-worker-aborted.html,DISABLE
 xmlhttprequest-timeout-worker-overridesexpires.html,DISABLE
