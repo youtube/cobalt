@@ -17,13 +17,9 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_PRETTY_PRINT_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_PRETTY_PRINT_H_
 
-#include <map>
 #include <string>
 #include <vector>
 
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/stringprintf.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 
 namespace cobalt {
