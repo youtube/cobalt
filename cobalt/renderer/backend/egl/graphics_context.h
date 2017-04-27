@@ -116,13 +116,13 @@ class GraphicsContextEGL : public GraphicsContext {
 
   void Blit(GLuint texture, int x, int y, int width, int height);
 
+ private:
   // Performs a test to determine if the pixel data returned by glReadPixels
   // needs to be vertically flipped or not.  This test is expensive, so it
   // caches the results the first time it is computed and simply returns the
   // cached value on subsequent calls.
   bool ComputeReadPixelsNeedVerticalFlip();
 
- private:
   // Sets up all structures (like Shaders and vertex buffers) required to
   // support the Frame::BlitToRenderTarget() functionality.
   void SetupBlitObjects();
