@@ -149,6 +149,9 @@
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
 
+// Whether the current platform provides ssize_t.
+#define SB_HAS_SSIZE_T 1
+
 // Whether the current platform has microphone supported.
 #define SB_HAS_MICROPHONE 0
 
