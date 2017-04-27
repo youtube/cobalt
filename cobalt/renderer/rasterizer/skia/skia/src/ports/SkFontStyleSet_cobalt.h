@@ -110,7 +110,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
                              SkStreamAsset* stream);
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
-  void CreateSystemTypeface(
+  void CreateStreamProviderTypeface(
       SkFontStyleSetEntry_Cobalt* style,
       SkFileMemoryChunkStreamProvider* stream_provider = NULL);
 

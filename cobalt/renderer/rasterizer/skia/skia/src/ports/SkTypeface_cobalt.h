@@ -57,12 +57,12 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
   SkAutoTUnref<SkStreamAsset> stream_;
 };
 
-class SkTypeface_CobaltSystem : public SkTypeface_Cobalt {
+class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {
  public:
-  SkTypeface_CobaltSystem(SkFileMemoryChunkStreamProvider* stream_provider,
-                          int face_index, Style style, bool is_fixed_pitch,
-                          const SkString family_name,
-                          bool disable_synthetic_bolding);
+  SkTypeface_CobaltStreamProvider(
+      SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
+      Style style, bool is_fixed_pitch, const SkString family_name,
+      bool disable_synthetic_bolding);
 
   virtual void onGetFontDescriptor(SkFontDescriptor* descriptor,
                                    bool* serialize) const SK_OVERRIDE;
