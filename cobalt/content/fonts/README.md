@@ -59,11 +59,12 @@ Example:
 *  'limited_with_jp' -- A significantly smaller package than 'standard'. This
                  package removes the 'bold' weighted non-CJK fallback fonts (the
                  'normal' weight is still included and is used to synthesize
-                 bold), removes the FCC fonts (which must be downloaded from the
-                 web), and replaces standard CJK with low quality CJK. However,
-                 higher quality Japanese is still included. Because low quality
-                 CJK cannot synthesize bold, bold glyphs are unavailable in
-                 Chinese and Korean. This package is ~10.9MB.
+                 bold), removes the FCC fonts (which must be provided by the
+                 system or downloaded from the web), and replaces standard CJK
+                 with low quality CJK. However, higher quality Japanese is still
+                 included. Because low quality CJK cannot synthesize bold, bold
+                 glyphs are unavailable in Chinese and Korean. This package is
+                 ~10.9MB.
 
                  Package category values:
                   'package_named_sans_serif': 2,
@@ -95,8 +96,8 @@ Example:
                   'package_fallback_symbols': 1,
 
 *  'minimal'  -- The smallest possible font package. It only includes Roboto's
-                 Basic Latin characters. Everything else must be downloaded from
-                 the web. This package is ~16.4KB.
+                 Basic Latin characters. Everything else must be provided by the
+                 system or downloaded from the web. This package is ~16.4KB.
 
                  Package category values:
                   'package_named_sans_serif': 0,

@@ -80,9 +80,10 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
 
     SkString file_path(SkOSPath::Join(base_path, font_file.file_name.c_str()));
 
-    // Sanity check that something exists at this location.
+    // Validate that the file exists at this location. If it does not, then skip
+    // over it; it isn't being added to the set.
     if (!sk_exists(file_path.c_str(), kRead_SkFILE_Flag)) {
-      LOG(ERROR) << "Failed to find font file: " << file_path.c_str();
+      DLOG(INFO) << "Failed to find font file: " << file_path.c_str();
       continue;
     }
 
@@ -170,7 +171,7 @@ SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
   SkFontStyleSetEntry_Cobalt* style = styles_[style_index];
   // If the typeface doesn't already exist, then attempt to create it.
   if (style->typeface == NULL) {
-    CreateSystemTypeface(style);
+    CreateStreamProviderTypeface(style);
     // If the creation attempt failed and the typeface is still NULL, then
     // remove the entry from the set's styles.
     if (style->typeface == NULL) {
@@ -250,7 +251,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
           stream_provider->OpenStream());
       if (GenerateStyleFaceInfo(closest_style, stream)) {
         if (CharacterMapContainsCharacter(character)) {
-          CreateSystemTypeface(closest_style, stream_provider);
+          CreateStreamProviderTypeface(closest_style, stream_provider);
           return true;
         } else {
           // If a typeface was not created, destroy the stream and purge any
@@ -370,11 +371,11 @@ int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
   return closest_index;
 }
 
-void SkFontStyleSet_Cobalt::CreateSystemTypeface(
+void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry,
     SkFileMemoryChunkStreamProvider* stream_provider /*=NULL*/) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkFontStyleSet_Cobalt::CreateSystemTypeface()");
+               "SkFontStyleSet_Cobalt::CreateStreamProviderTypeface()");
 
   if (!stream_provider) {
     stream_provider = system_typeface_stream_manager_->GetStreamProvider(
@@ -386,7 +387,7 @@ void SkFontStyleSet_Cobalt::CreateSystemTypeface(
     LOG(ERROR) << "Scanned font from file: " << style_entry->face_name.c_str()
                << "(" << style_entry->face_style << ")";
     style_entry->typeface.reset(
-        SkNEW_ARGS(SkTypeface_CobaltSystem,
+        SkNEW_ARGS(SkTypeface_CobaltStreamProvider,
                    (stream_provider, style_entry->face_index,
                     style_entry->face_style, style_entry->face_is_fixed_pitch,
                     family_name_, style_entry->disable_synthetic_bolding)));

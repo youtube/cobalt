@@ -29,7 +29,7 @@
 
 namespace {
 
-const char* kSystemFontsFile = "fonts.xml";
+const char* kConfigFile = "fonts.xml";
 
 /////////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -65,6 +65,21 @@ bool ParseNonNegativeInteger(const char* s, T* value) {
     n = (n * 10) + d;
   }
   *value = n;
+  return true;
+}
+
+template <typename T>
+bool ParseInteger(const char* s, T* value) {
+  SK_COMPILE_ASSERT(std::numeric_limits<T>::is_signed, T_must_be_signed);
+  T multiplier = 1;
+  if (*s && *s == '-') {
+    multiplier = -1;
+    ++s;
+  }
+  if (!ParseNonNegativeInteger(s, value)) {
+    return false;
+  }
+  *value *= multiplier;
   return true;
 }
 
@@ -243,13 +258,16 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
   }
 
   // A <family> may have the following attributes:
-  // name (string), fallback (true, false), lang (string), pages (comma
+  // name (string), fallback_priority (int), lang (string), pages (comma
   // delimited int ranges)
   // A <family> tag must have a canonical name attribute or be a fallback
   // family in order to be usable, unless it is the default family.
-  // If the fallback attribute exists, then it alone determines whether the
-  // family is a fallback family.  However, if it does not exist, then the
-  // lack of a name attribute makes it a fallback family.
+  // A family is a fallback family if one of two conditions are met:
+  //   1. It does not have a "name" attribute.
+  //   2. It has a "fallback_priority" attribute.
+  // If the fallback_priority attribute exists, then the family is given the
+  // fallback priority specified by the value. If it does not exist, then the
+  // fallback priority defaults to 0.
   // The lang and pages attributes are only used by fallback families.
 
   bool encountered_fallback_attribute = false;
@@ -276,10 +294,12 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
         SkDebugf("---- Page ranges %s (INVALID)", value);
         family->page_ranges.reset();
       }
-    } else if (name_len == 8 && strncmp("fallback", name, name_len) == 0) {
+    } else if (name_len == 17 &&
+               strncmp("fallback_priority", name, name_len) == 0) {
       encountered_fallback_attribute = true;
-      family->is_fallback_family =
-          strcmp("true", value) == 0 || strcmp("1", value) == 0;
+      if (!ParseInteger(value, &family->fallback_priority)) {
+        DLOG(WARNING) << "Invalid fallback priority [" << value << "]";
+      }
     }
   }
 }
@@ -523,9 +543,8 @@ void ParserFatal(void* context, const char* message, ...) {
 
 // This function parses the given filename and stores the results in the given
 // families array.
-void ParseConfigFile(const char* directory, const char* filename,
-                     SkTDArray<FontFamily*>* families) {
-  SkString file_path = SkOSPath::Join(directory, filename);
+void ParseConfigFile(const char* directory, SkTDArray<FontFamily*>* families) {
+  SkString file_path = SkOSPath::Join(directory, kConfigFile);
 
   SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
   if (file_stream == NULL) {
@@ -546,11 +565,6 @@ void ParseConfigFile(const char* directory, const char* filename,
                         static_cast<int>(file_data->size()));
 }
 
-void GetSystemFontFamilies(const char* directory,
-                           SkTDArray<FontFamily*>* font_families) {
-  ParseConfigFile(directory, kSystemFontsFile, font_families);
-}
-
 }  // namespace
 
 namespace SkFontConfigParser {
@@ -559,7 +573,7 @@ namespace SkFontConfigParser {
 // is returned in the given fontFamilies array.
 void GetFontFamilies(const char* directory,
                      SkTDArray<FontFamily*>* font_families) {
-  GetSystemFontFamilies(directory, font_families);
+  ParseConfigFile(directory, font_families);
 }
 
 }  // namespace SkFontConfigParser
