@@ -20,6 +20,9 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
+#include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
+#include "cobalt/browser/memory_tracker/tool/log_writer_tool.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 #include "nb/analytics/memory_tracker_helpers.h"
