@@ -17,6 +17,7 @@
 
 #include <android/input.h>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "starboard/input.h"
@@ -29,23 +30,21 @@ namespace shared {
 
 class InputEventsGenerator {
  public:
+  typedef ::starboard::shared::starboard::Application::Event Event;
+  typedef std::vector<std::unique_ptr<Event> > Events;
+
   explicit InputEventsGenerator(SbWindow window);
   virtual ~InputEventsGenerator();
 
   // Translates an Android input event into a series of Starboard application
   // events. The caller owns the new events and must delete them when done with
   // them.
-  bool CreateInputEvents(
-      AInputEvent* android_event,
-      std::vector< ::starboard::shared::starboard::Application::Event*>*
-          events);
+  bool CreateInputEventsFromAndroidEvent(AInputEvent* android_event,
+                                         Events* events);
 
   // Create press/unpress events from SbKey
   // (for use with CobaltA11yHelper injection)
-  void CreateInputEventsFromSbKey(
-      SbKey key,
-      std::vector< ::starboard::shared::starboard::Application::Event*>*
-          events);
+  void CreateInputEventsFromSbKey(SbKey key, Events* events);
 
  private:
   enum FlatAxis {
@@ -56,32 +55,20 @@ class InputEventsGenerator {
     kNumAxes,
   };
 
-  bool ProcessKeyEvent(
-      AInputEvent* android_event,
-      std::vector< ::starboard::shared::starboard::Application::Event*>*
-          events);
-  bool ProcessMotionEvent(
-      AInputEvent* android_event,
-      std::vector< ::starboard::shared::starboard::Application::Event*>*
-          events);
-  void ProcessJoyStickEvent(
-      FlatAxis axis,
-      int32_t motion_axis,
-      AInputEvent* android_event,
-      std::vector< ::starboard::shared::starboard::Application::Event*>*
-          events);
+  bool ProcessKeyEvent(AInputEvent* android_event, Events* events);
+  bool ProcessMotionEvent(AInputEvent* android_event, Events* events);
+  void ProcessJoyStickEvent(FlatAxis axis,
+                            int32_t motion_axis,
+                            AInputEvent* android_event,
+                            Events* events);
   void UpdateDeviceFlatMapIfNecessary(AInputEvent* android_event);
 
-  void ProcessFallbackDPadEvent(
-      SbInputEventType type,
-      SbKey key,
-      AInputEvent* android_event,
-      std::vector< ::starboard::shared::starboard::Application::Event*>*
-          events);
-  void UpdateHatValuesAndPossiblySynthesizeKeyEvents(
-      AInputEvent* android_event,
-      std::vector< ::starboard::shared::starboard::Application::Event*>*
-          events);
+  void ProcessFallbackDPadEvent(SbInputEventType type,
+                                SbKey key,
+                                AInputEvent* android_event,
+                                Events* events);
+  void UpdateHatValuesAndPossiblySynthesizeKeyEvents(AInputEvent* android_event,
+                                                     Events* events);
 
   SbWindow window_;
 
