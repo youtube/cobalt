@@ -512,9 +512,7 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
   // Create a canvas from the render target.
   GrBackendRenderTargetDesc skia_desc =
       CobaltRenderTargetToSkiaBackendRenderTargetDesc(render_target.get());
-  skia_desc.fOrigin = graphics_context_->ComputeReadPixelsNeedVerticalFlip()
-                          ? kTopLeft_GrSurfaceOrigin
-                          : kBottomLeft_GrSurfaceOrigin;
+  skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
   SkAutoTUnref<GrRenderTarget> skia_render_target(
       gr_context_->wrapBackendRenderTarget(skia_desc));
   SkSurface* sk_output_surface =
