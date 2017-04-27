@@ -14,17 +14,30 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
+#include "base/base_paths_starboard.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
 
 SkFontMgr* SkFontMgr::Factory() {
-  FilePath font_directory;
-  CHECK(PathService::Get(base::DIR_EXE, &font_directory));
-  font_directory = font_directory.Append(FILE_PATH_LITERAL("fonts"));
+  FilePath cobalt_font_directory;
+  CHECK(PathService::Get(base::DIR_EXE, &cobalt_font_directory));
+  cobalt_font_directory =
+      cobalt_font_directory.Append(FILE_PATH_LITERAL("fonts"));
+
+  FilePath system_font_config_directory;
+  PathService::Get(base::DIR_SYSTEM_FONTS_CONFIGURATION,
+                   &system_font_config_directory);
+
+  FilePath system_font_files_directory;
+  PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory);
 
   SkTArray<SkString, true> default_families;
   default_families.push_back(SkString("sans-serif"));
 
-  return new SkFontMgr_Cobalt(font_directory.value().c_str(), default_families);
+  return new SkFontMgr_Cobalt(cobalt_font_directory.value().c_str(),
+                              cobalt_font_directory.value().c_str(),
+                              system_font_config_directory.value().c_str(),
+                              system_font_files_directory.value().c_str(),
+                              default_families);
 }

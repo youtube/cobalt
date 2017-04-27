@@ -35,7 +35,7 @@ SkTypeface_CobaltStream::SkTypeface_CobaltStream(SkStreamAsset* stream,
                                                  const SkString family_name)
     : INHERITED(face_index, style, is_fixed_pitch, family_name),
       stream_(SkRef(stream)) {
-  LOG(INFO) << "Created SkTypeface_CobaltMemory: " << family_name.c_str() << "("
+  LOG(INFO) << "Created SkTypeface_CobaltStream: " << family_name.c_str() << "("
             << style << "); Size: " << stream_->getLength() << " bytes";
 }
 
@@ -54,7 +54,7 @@ SkStreamAsset* SkTypeface_CobaltStream::onOpenStream(int* face_index) const {
   return stream_->duplicate();
 }
 
-SkTypeface_CobaltSystem::SkTypeface_CobaltSystem(
+SkTypeface_CobaltStreamProvider::SkTypeface_CobaltStreamProvider(
     SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
     Style style, bool is_fixed_pitch, const SkString family_name,
     bool disable_synthetic_bolding)
@@ -63,10 +63,12 @@ SkTypeface_CobaltSystem::SkTypeface_CobaltSystem(
   if (disable_synthetic_bolding) {
     synthesizes_bold_ = false;
   }
+  LOG(INFO) << "Created SkTypeface_CobaltStreamProvider: "
+            << family_name.c_str() << "(" << style << ");";
 }
 
-void SkTypeface_CobaltSystem::onGetFontDescriptor(SkFontDescriptor* descriptor,
-                                                  bool* serialize) const {
+void SkTypeface_CobaltStreamProvider::onGetFontDescriptor(
+    SkFontDescriptor* descriptor, bool* serialize) const {
   SkASSERT(descriptor);
   SkASSERT(serialize);
   descriptor->setFamilyName(family_name_.c_str());
@@ -75,7 +77,8 @@ void SkTypeface_CobaltSystem::onGetFontDescriptor(SkFontDescriptor* descriptor,
   *serialize = false;
 }
 
-SkStreamAsset* SkTypeface_CobaltSystem::onOpenStream(int* face_index) const {
+SkStreamAsset* SkTypeface_CobaltStreamProvider::onOpenStream(
+    int* face_index) const {
   *face_index = face_index_;
   return stream_provider_->OpenStream();
 }
