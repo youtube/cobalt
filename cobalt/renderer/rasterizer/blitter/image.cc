@@ -94,8 +94,8 @@ SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,
 SinglePlaneImage::SinglePlaneImage(
     const scoped_refptr<render_tree::Node>& root,
     SubmitOffscreenCallback submit_offscreen_callback, SbBlitterDevice device)
-    : size_(static_cast<int>(root->GetBounds().size().width()),
-            static_cast<int>(root->GetBounds().size().height())),
+    : size_(static_cast<int>(root->GetBounds().right()),
+            static_cast<int>(root->GetBounds().bottom())),
       is_opaque_(false) {
   initialize_image_ = base::Bind(
       &SinglePlaneImage::InitializeImageFromRenderTree, base::Unretained(this),
