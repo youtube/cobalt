@@ -1,26 +1,38 @@
-Cobalt Webdriver-driven Benchmarks
----------------------
+# Cobalt Webdriver-driven Benchmarks
 
 This directory contains a set of webdriver-driven benchmarks
 for Cobalt.
 
 Each file should contain a set of tests in Python "unittest" format.
 
-All tests in all of the files included within "all.py" will be run on the
-build system. Results can be recorded in the build results database.
+All tests in all of the files included within [all.py](all.py) will be run on
+the build system. Results can be recorded in the build results database.
 
-To run an individual test, simply execute a script directly (or run
-all of them via "all.py"). Platform configuration will be inferred from
-the environment if set. Otherwise, it must be specified via commandline
-parameters.
+## Running the tests
 
-To make a new test:
+In most cases, you will want to run all tests, and you can do so by executing
+the script [all.py](all.py).  You can call `python all.py --help` to see a list
+of commandline parameters to call it with.  For example, to run tests on the
+raspi-2 QA build, you should run the following command:
+
+```
+python all.py -p raspi-2 -c qa -d $RASPI_ADDR
+```
+
+Where `RASPI_ADDR` is set to the IP of the target Raspberry Pi device.
+
+To run individual tests, simply execute the script directly. For all tests,
+platform configuration will be inferred from the environment if set. Otherwise,
+it must be specified via commandline parameters.
+
+## Creating a new test
 
  1. If appropriate, create a new file borrowing the boilerplate from
-    an existing simple file, such as "browse_horizontal.py".
+    an existing simple file, such as
+    [browse_horizontal.py](browse_horizontal.py).
 
- 2. Add the file name to the tests added within "all.py", causing it run
-    when "all.py" is run.
+ 2. Add the file name to the tests added within [all.py](all.py), causing it run
+    when [all.py](all.py) is run.
 
  3. If this file contains internal names or details, consider adding it
     to the "EXCLUDE.FILES" list.
@@ -29,4 +41,105 @@ To make a new test:
     appropriate.
 
  5. Results must be added to the build results database schema. See
-    the internal "README-Updating-Result-Schema.md" file
+    the internal
+    [README-Updating-Result-Schema.md](README-Updating-Result-Schema.md) file.
+
+## Testing arbitrary loaders
+
+Unfortunately we haven't yet had the time to implement an easy way to adjust
+the test URL query parameters.  In order to adjust the query parameters to test,
+you should do the following:
+
+Open [../tv_testcase_util.py](../tv_testcase_util.py) and in the function
+`get_url()`, replace the line
+
+```
+query_dict = BASE_PARAMS.copy()
+```
+
+with
+
+```
+query_dict = {}
+```
+
+and then append the following else-clause to the `if query_params:` statement,
+
+```
+else:
+  query_dict = BASE_PARAMS.copy()
+```
+
+and then finally, near the top of the file, modify `BASE_PARAMS` to include all
+query parameters you would like to test.  For example,
+
+```
+BASE_PARAMS = {"loader": "airc"}
+```
+
+## Benchmark Results
+
+The results will be printed to stdout.  You should redirect output to a file
+if you would like to store the results.  Each line of the benchmark output
+prefixed with `webdriver_benchmark TEST_RESULT:` provides the result of one
+measurment.  Those lines have the following format:
+
+```
+webdriver_benchmark TEST_RESULT: result_name result_value
+```
+
+where `result_name` is the name of the result and `result_value` is a number
+providing the measured result for that metric.  For example,
+
+```
+webdriver_benchmark TEST RESULT: wbBrowseHorizontalDurLayoutBoxTreeUpdateUsedSizesUsPct50 3061.5
+```
+
+gives the 50th percentile of the duration Cobalt took to update the box tree's
+used sizes, on a horizontal scroll event, in microseconds.
+
+Note that most time-based measurements are in microseconds.
+
+### Interesting benchmarks
+
+Some particularly interesting benchmark results are:
+
+ - `wbStartupDurBlankToBrowseUs*`: Measures the startup time, until all images
+   finish loading.
+ - `wbBrowseToWatchDurVideoStartDelay*`: Measures the browse-to-watch time.
+ - `wbBrowseVerticalDurTotalUs*`: Measures the input latency (i.e. JavaScript
+   execution time + layout time) during vertical scroll events.
+ - `wbBrowseVerticalDurRasterizeAnimationsUs*`: Measures the time it takes to
+   render each frame of the animation triggered by a vertical scroll event.
+   The inverse of this number is the framerate.
+ - `wbBrowseHorizontalDurTotalUs*`: Same as `wbBrowseVerticalDurTotalUs*` except
+   for horizontal scroll events.
+ - `wbBrowseHorizontalDurRasterizeAnimationsUs*`: Same as
+   `wbBrowseVerticalDurRasterizeAnimationsUs*` except for horizontal scroll
+   events.
+
+In each case above, the `*` symbol can be one of either `Mean`, `Pct25`,
+`Pct50`, `Pct75` or `Pct95`.  For example, `wbStartupDurBlankToBrowseUsMean` or
+`wbStartupDurBlankToBrowseUsPct95` are both valid measurements.  The
+webdriver benchmarks runs its tests many times in order to obtain multiple
+samples, so you can drill into the data by exploring either the mean, or the
+various percentiles.
+
+### Filtering results
+
+The webdriver benchmarks output many metrics, but you may only be interested
+in a few.  You will have to manually filter only the metrics that you are
+interested in.  You can do so with `grep`, for example:
+
+```
+python all.py -p raspi-2 -c qa -d $RASPI_ADDR > results.txt
+echo "" > filtered_results.txt
+grep -o "wbStartupDurBlankToBrowseUs.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseToWatchDurVideoStartDelay.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseVerticalDurTotalUs.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseVerticalDurRasterizeAnimationsUs.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseHorizontalDurTotalUs.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseHorizontalDurRasterizeAnimationsUs.*$" results.txt >> filtered_results.txt
+cat filtered_results.txt
+```
+
