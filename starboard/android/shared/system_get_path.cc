@@ -22,6 +22,7 @@
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/directory.h"
+#include "starboard/log.h"
 #include "starboard/string.h"
 
 using ::starboard::android::shared::g_app_assets_dir;
@@ -104,6 +105,10 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       }
       break;
     }
+
+    default:
+      SB_NOTIMPLEMENTED();
+      return false;
   }
 
   int length = strlen(path);
