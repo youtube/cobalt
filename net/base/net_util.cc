@@ -2122,6 +2122,11 @@ const unsigned char kIPv4MappedPrefix[] =
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF };
 }
 
+#if SB_HAS(IPV6)
+const unsigned char kIPv6Localhost[] = {0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 0, 1};
+#endif
+
 IPAddressNumber ConvertIPv4NumberToIPv6Number(
     const IPAddressNumber& ipv4_number) {
   DCHECK(ipv4_number.size() == 4);
@@ -2260,6 +2265,13 @@ bool IsLocalhost(const std::string& host) {
       host == "localhost6.localdomain6")
     return true;
 
+#if SB_HAS(IPV6)
+  IPAddressNumber ipv6_localhost;
+  ipv6_localhost.reserve(16);
+  ipv6_localhost.insert(ipv6_localhost.end(), kIPv6Localhost,
+                        kIPv6Localhost + arraysize(kIPv6Localhost));
+#endif
+
   IPAddressNumber ip_number;
   if (ParseIPLiteralToNumber(host, &ip_number)) {
     size_t size = ip_number.size();
@@ -2273,11 +2285,9 @@ bool IsLocalhost(const std::string& host) {
         return IPNumberMatchesPrefix(ip_number, localhost_prefix, 8);
       }
 
-#if defined(IN6ADDR_ANY_INIT)
+#if SB_HAS(IPV6)
       case kIPv6AddressSize: {
-        struct in6_addr sin6_addr;
-        memcpy(&sin6_addr, &ip_number[0], kIPv6AddressSize);
-        return !!IN6_IS_ADDR_LOOPBACK(&sin6_addr);
+        return ip_number == ipv6_localhost;
       }
 #endif
 
