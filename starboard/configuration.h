@@ -284,6 +284,21 @@ struct CompileAssert {};
 #define SB_DEPRECATED_EXTERNAL(FUNC) SB_DEPRECATED(FUNC)
 #endif
 
+#if SB_API_VERSION >= 4
+// Macro to annotate a function as noreturn, which signals to the compiler
+// that the function cannot return.
+#if !defined(SB_NORETURN)
+#if SB_IS(COMPILER_GCC)
+#define SB_NORETURN __attribute__((__noreturn__))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_NORETURN __declspec(noreturn)
+#else
+// Empty definition for other compilers.
+#define SB_NORETURN
+#endif
+#endif  // SB_NORETURN
+#endif  // SB_API_VERSION >= 4
+
 // --- Configuration Audits --------------------------------------------------
 
 #if !defined(SB_API_VERSION)
