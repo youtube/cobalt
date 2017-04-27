@@ -87,10 +87,10 @@ void ApplicationAndroid::OnKeyboardInject() {
   int err = read(keyboard_inject_readfd_, &key, sizeof(key));
   SB_DCHECK(err >= 0) << "Read failed errno:" << errno;
 
-  std::vector<Event*> events;
+  InputEventsGenerator::Events events;
   input_events_generator_->CreateInputEventsFromSbKey(key, &events);
   for (int i = 0; i < events.size(); ++i) {
-    DispatchAndDelete(events[i]);
+    DispatchAndDelete(events[i].release());
   }
 }
 
@@ -297,11 +297,11 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
 
 bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
   SB_DCHECK(input_events_generator_);
-  std::vector<Event*> events;
-  bool handled =
-      input_events_generator_->CreateInputEvents(androidEvent, &events);
+  InputEventsGenerator::Events events;
+  bool handled = input_events_generator_->CreateInputEventsFromAndroidEvent(
+      androidEvent, &events);
   for (int i = 0; i < events.size(); ++i) {
-    DispatchAndDelete(events[i]);
+    DispatchAndDelete(events[i].release());
   }
 
   return handled;
