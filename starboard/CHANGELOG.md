@@ -129,3 +129,10 @@ Added `kSbSystemPathFontDirectory` and `kSbSystemPathFontConfigurationDirectory`
 which can be optionally specified for platforms that want to provide system
 fonts to Starboard applications. The font and font configuration formats
 supported are application-specific.
+
+### Add `SB_NORETURN` to `starboard/configuration.h`.
+Added attribute macro `SB_NORETURN` to allow functions to be marked as noreturn.
+
+### Mark `SbSystemBreakIntoDebugger` `SB_NORETURN`.
+Add `SB_NORETURN` to declaration of `SbSystemBreakIntoDebugger`, to allow it to
+be used in a manner similar to `abort`.
