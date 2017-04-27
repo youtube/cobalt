@@ -29,6 +29,8 @@ namespace android {
 namespace shared {
 
 using ::starboard::shared::starboard::Application;
+typedef ::starboard::android::shared::InputEventsGenerator::Event Event;
+typedef ::starboard::android::shared::InputEventsGenerator::Events Events;
 
 namespace {
 
@@ -67,10 +69,11 @@ unsigned int AInputEventToSbModifiers(AInputEvent *event) {
   return modifiers;
 }
 
-Application::Event* CreateMoveEventWithKey(int32_t device_id,
-                                           SbWindow window,
-                                           SbKey key,
-                                           const SbInputVector& input_vector) {
+std::unique_ptr<Event> CreateMoveEventWithKey(
+    int32_t device_id,
+    SbWindow window,
+    SbKey key,
+    const SbInputVector& input_vector) {
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
 
@@ -86,8 +89,8 @@ Application::Event* CreateMoveEventWithKey(int32_t device_id,
   data->key_modifiers = kSbKeyModifiersNone;
   data->position = input_vector;
 
-  return new Application::Event(kSbEventTypeInput, data,
-                                &Application::DeleteDestructor<SbInputData>);
+  return std::unique_ptr<Event>(new Application::Event(
+      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
 }
 
 float GetFlat(jobject input_device, int axis) {
@@ -380,11 +383,10 @@ InputEventsGenerator::~InputEventsGenerator() {}
 //
 // On game pads with two analog joysticks, AMOTION_EVENT_AXIS_RZ is often
 // reinterpreted to report the absolute Y position of the second joystick.
-void InputEventsGenerator::ProcessJoyStickEvent(
-    FlatAxis axis,
-    int32_t motion_axis,
-    AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+void InputEventsGenerator::ProcessJoyStickEvent(FlatAxis axis,
+                                                int32_t motion_axis,
+                                                AInputEvent* android_event,
+                                                Events* events) {
   SB_DCHECK(AMotionEvent_getPointerCount(android_event) > 0);
 
   int32_t device_id = AInputEvent_getDeviceId(android_event);
@@ -441,12 +443,11 @@ namespace {
 // Generate a Starboard event from an Android event, with the SbKey and
 // SbInputEventType pre-specified (so that it can be used by event
 // synthesization as well.)
-void PushKeyEvent(
-    SbKey key,
-    SbInputEventType type,
-    SbWindow window,
-    AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+void PushKeyEvent(SbKey key,
+                  SbInputEventType type,
+                  SbWindow window,
+                  AInputEvent* android_event,
+                  Events* events) {
   if (key == kSbKeyUnknown) {
     SB_NOTREACHED();
     return;
@@ -469,9 +470,9 @@ void PushKeyEvent(
   data->key_location = AInputEventToSbKeyLocation(android_event);
   data->key_modifiers = AInputEventToSbModifiers(android_event);
 
-  ApplicationAndroid::Event* event = new Application::Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>);
-  events->push_back(event);
+  std::unique_ptr<Event> event(new Event(
+      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
+  events->push_back(std::move(event));
 }
 
 // Some helper enumerations to index into the InputEventsGenerator::hat_value_
@@ -548,13 +549,12 @@ SbKey KeyForHatValue(const HatValue& hat_value) {
 
 // Analyzes old axis values and new axis values and fire off any synthesized
 // key press/unpress events as necessary.
-void PossiblySynthesizeHatKeyEvents(
-    HatAxis axis,
-    float old_value,
-    float new_value,
-    SbWindow window,
-    AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+void PossiblySynthesizeHatKeyEvents(HatAxis axis,
+                                    float old_value,
+                                    float new_value,
+                                    SbWindow window,
+                                    AInputEvent* android_event,
+                                    Events* events) {
   if (old_value == new_value) {
     // No events to generate if the hat motion value did not change.
     return;
@@ -572,9 +572,8 @@ void PossiblySynthesizeHatKeyEvents(
 
 }  // namespace
 
-bool InputEventsGenerator::ProcessKeyEvent(
-    AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+bool InputEventsGenerator::ProcessKeyEvent(AInputEvent* android_event,
+                                           Events* events) {
   SbInputEventType type;
   switch (AKeyEvent_getAction(android_event)) {
     case AKEY_EVENT_ACTION_DOWN:
@@ -605,9 +604,8 @@ bool InputEventsGenerator::ProcessKeyEvent(
   return true;
 }
 
-bool InputEventsGenerator::ProcessMotionEvent(
-    AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+bool InputEventsGenerator::ProcessMotionEvent(AInputEvent* android_event,
+                                              Events* events) {
   if ((AInputEvent_getSource(android_event) & AINPUT_SOURCE_JOYSTICK) == 0) {
     // Only handles joystick motion events.
     return false;
@@ -632,11 +630,10 @@ bool InputEventsGenerator::ProcessMotionEvent(
 
 // Special processing to disambiguate between DPad events and left-thumbstick
 // direction key events.
-void InputEventsGenerator::ProcessFallbackDPadEvent(
-    SbInputEventType type,
-    SbKey key,
-    AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+void InputEventsGenerator::ProcessFallbackDPadEvent(SbInputEventType type,
+                                                    SbKey key,
+                                                    AInputEvent* android_event,
+                                                    Events* events) {
   SB_DCHECK(AKeyEvent_getFlags(android_event) & AKEY_EVENT_FLAG_FALLBACK);
   SB_DCHECK(IsDPadKey(key));
 
@@ -685,7 +682,7 @@ void InputEventsGenerator::ProcessFallbackDPadEvent(
 // here.
 void InputEventsGenerator::UpdateHatValuesAndPossiblySynthesizeKeyEvents(
     AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+    Events* events) {
   float new_hat_x =
       AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_X, 0);
   PossiblySynthesizeHatKeyEvents(kHatX, hat_value_[kHatX], new_hat_x, window_,
@@ -719,9 +716,9 @@ void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
   env->DeleteLocalRef(input_device);
 }
 
-bool InputEventsGenerator::CreateInputEvents(
+bool InputEventsGenerator::CreateInputEventsFromAndroidEvent(
     AInputEvent* android_event,
-    std::vector< ::starboard::shared::starboard::Application::Event*>* events) {
+    Events* events) {
   if (android_event == NULL ||
       (AInputEvent_getType(android_event) != AINPUT_EVENT_TYPE_KEY &&
        AInputEvent_getType(android_event) != AINPUT_EVENT_TYPE_MOTION)) {
@@ -741,9 +738,8 @@ bool InputEventsGenerator::CreateInputEvents(
   return false;
 }
 
-void InputEventsGenerator::CreateInputEventsFromSbKey(
-    SbKey key,
-    std::vector<::starboard::shared::starboard::Application::Event*>* events) {
+void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
+                                                      Events* events) {
   events->clear();
 
   // Press event
@@ -760,8 +756,8 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(
   data->key_location = kSbKeyLocationUnspecified;
   data->key_modifiers = kSbKeyModifiersNone;
 
-  events->push_back(new Application::Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
+  events->push_back(std::unique_ptr<Event>(new Application::Event(
+      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>)));
 
   // Unpress event
   data = new SbInputData();
@@ -777,8 +773,8 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(
   data->key_location = kSbKeyLocationUnspecified;
   data->key_modifiers = kSbKeyModifiersNone;
 
-  events->push_back(new Application::Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
+  events->push_back(std::unique_ptr<Event>(new Application::Event(
+      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>)));
 }
 
 }  // namespace shared
