@@ -8,7 +8,7 @@ version previous to it.
 
 ## Version 4
 
-**Decode-to-texture player output mode**
+### Decode-to-Texture Player Output Mode
 Feature introducing support for decode-to-texture player output mode, and
 runtime player output mode selection and detection.
 In `starboard/configuration.h`,
@@ -52,68 +52,74 @@ In `starboard/player.h`, `starboard/image.h` and `starboard/decode_target.h`,
     implementation detail to be dealt with in other Starboard API functions
     that create `SbDecodeTargets`, like `SbImageDecode()` or `SbPlayerCreate()`.
 
-**Playback Rate**
+### Playback Rate
 Support for setting the playback rate on an SbPlayer.  This allows for control
 of the playback speed of video at runtime.
 
-**Floating point input vector**
+### Floating Point Input Vector
 Change `input.h`'s `SbInputVector` structure to contain float members instead of
 ints.
 
-**Delete SbUserApplicationTokenResults**
+### Delete SbUserApplicationTokenResults
 Deleted the vestigal struct `SbUserApplicationTokenResults` from `user.h`.
 
-**Storage options for encoded audio/video data**
+### Storage Options for Encoded Audio/Video Data
 Enables the SbPlayer implementation to provide instructions to its user on
 how to store audio/video data.  Encoded audio/video data is cached once being
 demuxed and may occupy a significant amount of memory.  Enabling this feature
 allows the SbPlayer implementation to have better control on where encoded
 audio/video data is stored.
 
-**Unified implementation of `SbMediaCanPlayMimeAndKeySystem()`**
+### Unified implementation of `SbMediaCanPlayMimeAndKeySystem()`
 Use a unified implementation of `SbMediaCanPlayMimeAndKeySystem()` based on
 `SbMediaIsSupported()`, `SbMediaIsAudioSupported()`, and
 `SbMediaIsVideoSupported()`.
 
-**Introduce `ticket` parameter to `SbDrmGenerateSessionUpdateRequest()`**
+### Introduce `ticket` parameter to `SbDrmGenerateSessionUpdateRequest()`
 Introduce `ticket` parameter to `SbDrmGenerateSessionUpdateRequest()`
 and `SbDrmSessionUpdateRequestFunc` to allow distinguishing between callbacks
 from multiple concurrent calls.
 
-**Introduce `SbSocketGetInterfaceAddress()`**
+### Introduce `SbSocketGetInterfaceAddress()`
 `SbSocketGetInterfaceAddress()` is introduced to let applications find out
 which source IP address and the associated netmask will be used to connect to
 the destination. This is very important for multi-homed devices, and for
 certain conditions in IPv6.
 
-**Introduce `starboard/cryptography.h`**
+### Introduce `starboard/cryptography.h`
 In newly-introduced `starboard/cryptography.h`,
   * Optional support for accelerated cryptography, which can, in
     particular, be used for accelerating SSL.
 
-**Introduce z-index parameter to `SbPlayerSetBounds()`**
+### Introduce z-index parameter to `SbPlayerSetBounds()`
 Allow `SbPlayerSetBounds` to use an extra parameter to indicate the z-index of
 the video so multiple overlapping videos can be rendered.
 
-**Media source buffer settings removed from `configuration.h`**
+### Media source buffer settings removed from `configuration.h`
 Media source buffer settings in Starboard.
 
-**Introduce `starboard/accessibility.h`**
+### Introduce `starboard/accessibility.h`
 In particular, the functions `SbAccessibilityGetDisplaySettings()` and
 `SbAccessibilityGetTextToSpeechSettings()` have now been introduced.
 
 Additionally, a new Starboard event, `kSbEventTypeAccessiblitySettingsChanged`,
 has been defined in `starboard/event.h`.
 
-
-**HDR decode support**
+### HDR decode support
 In `starboard/media.h`, `SbMediaColorMetadata` is now defined and it contains
 HDR metadata. The field `SbMediaColorMetadata color_metadata` is now added to
 `SbMediaVideoSampleInfo`.
 
-**Add `kSbSystemDeviceTypeAndroidTV` to `starboard/system.h`**
+### Add `kSbSystemDeviceTypeAndroidTV` to `starboard/system.h`
 A new device type, `kSbSystemDeviceTypeAndroidTV`, is added to
 starboard/system.h.
 
-**Deprecate `SbSpeechSynthesisSetLanguage()`**
+### Deprecate `SbSpeechSynthesisSetLanguage()`
 SbSpeechSynthesisSetLanguage() has been deprecated.
+
+### Request State Change Support
+Added `SbSystemRequestPause()`, `SbSystemRequestUnpause()`,
+`SbSystemRequestSuspend()`.
+
+`SbSystemRequestSuspend()` in particular can be hooked into a platform's "hide"
+or "minimize" window functionality.
