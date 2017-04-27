@@ -230,8 +230,8 @@ HardwareFrontendImage::HardwareFrontendImage(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : is_opaque_(false),
-      size_(static_cast<int>(root->GetBounds().size().width()),
-            static_cast<int>(root->GetBounds().size().height())),
+      size_(static_cast<int>(root->GetBounds().right()),
+            static_cast<int>(root->GetBounds().bottom())),
       rasterizer_message_loop_(rasterizer_message_loop) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
