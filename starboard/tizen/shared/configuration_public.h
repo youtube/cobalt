@@ -49,6 +49,9 @@
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
 
+// Whether the current platform provides ssize_t.
+#define SB_HAS_SSIZE_T 1
+
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
     (__WCHAR_MAX__ == 0x7fffffff || __WCHAR_MAX__ == 0xffffffff)
