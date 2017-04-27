@@ -182,27 +182,27 @@ SbAtomicRelease_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
 static SB_C_FORCE_INLINE void
 SbAtomicNoBarrier_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
 #if SB_HAS(64_BIT_POINTERS)
-  return SbAtomicNoBarrier_Store64(ptr, value);
+  SbAtomicNoBarrier_Store64(ptr, value);
 #else
-  return SbAtomicNoBarrier_Store(ptr, value);
+  SbAtomicNoBarrier_Store(ptr, value);
 #endif
 }
 
 static SB_C_FORCE_INLINE void
 SbAtomicAcquire_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
 #if SB_HAS(64_BIT_POINTERS)
-  return SbAtomicAcquire_Store64(ptr, value);
+  SbAtomicAcquire_Store64(ptr, value);
 #else
-  return SbAtomicAcquire_Store(ptr, value);
+  SbAtomicAcquire_Store(ptr, value);
 #endif
 }
 
 static SB_C_FORCE_INLINE void
 SbAtomicRelease_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
 #if SB_HAS(64_BIT_POINTERS)
-  return SbAtomicRelease_Store64(ptr, value);
+  SbAtomicRelease_Store64(ptr, value);
 #else
-  return SbAtomicRelease_Store(ptr, value);
+  SbAtomicRelease_Store(ptr, value);
 #endif
 }
 
