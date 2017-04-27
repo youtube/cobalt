@@ -59,7 +59,11 @@
 #include <sstream>
 #include <vector>
 
-#if GTEST_OS_LINUX
+#if GTEST_OS_STARBOARD
+
+// Starboard does not require any additional includes.
+
+#elif GTEST_OS_LINUX
 
 // TODO(kenton@google.com): Use autoconf to detect availability of
 // gettimeofday().
