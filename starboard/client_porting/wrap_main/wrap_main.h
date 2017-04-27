@@ -20,7 +20,6 @@
 #ifndef STARBOARD_CLIENT_PORTING_WRAP_MAIN_WRAP_MAIN_H_
 #define STARBOARD_CLIENT_PORTING_WRAP_MAIN_WRAP_MAIN_H_
 
-#if defined(STARBOARD)
 #include "starboard/event.h"
 #include "starboard/system.h"
 
@@ -48,38 +47,10 @@ void SimpleEventHandler(const SbEvent* event) {
 }  // namespace client_porting
 }  // namespace starboard
 
-#if defined(_WIN32)
-// Today there is no Starboard win32. Make sure those who create it know
-// the _CrtSet* functions below should be moved to starboard win32 main.
-#error For starboard win32, please move _CrtSet* to main
-#endif
 #define STARBOARD_WRAP_SIMPLE_MAIN(main_function)                \
   void SbEventHandle(const SbEvent* event) {                     \
     ::starboard::client_porting::wrap_main::SimpleEventHandler<  \
         main_function>(event);                                   \
   }
 
-#else
-#if defined(_WIN32)
-#include <windows.h>
-
-// TODO this case should be removed when win32 is starboardized
-#define STARBOARD_WRAP_SIMPLE_MAIN(main_function)                             \
-  int main(int argc, char** argv) {                                           \
-    if (!IsDebuggerPresent()) {                                               \
-      _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG); \
-      _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);  \
-      _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);   \
-      _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);                    \
-    }                                                                         \
-    return main_function(argc, argv);                                         \
-  }
-#else  // defined(_WIN32)
-#define STARBOARD_WRAP_SIMPLE_MAIN(main_function) \
-  int main(int argc, char** argv) {               \
-    return main_function(argc, argv);             \
-  }
-#endif
-
-#endif  // STARBOARD
 #endif  // STARBOARD_CLIENT_PORTING_WRAP_MAIN_WRAP_MAIN_H_
