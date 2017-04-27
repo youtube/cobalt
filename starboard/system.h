@@ -45,6 +45,18 @@ typedef enum SbSystemPathId {
   // screenshots) can be written into.
   kSbSystemPathDebugOutputDirectory,
 
+#if SB_API_VERSION >= 4
+  // Path to a directory where system font files can be found. Should only be
+  // specified on platforms that provide fonts usable by Starboard applications.
+  kSbSystemPathFontDirectory,
+
+  // Path to a directory where system font configuration metadata can be
+  // found. May be the same directory as |kSbSystemPathFontDirectory|, but not
+  // necessarily. Should only be specified on platforms that provide fonts
+  // usable by Starboard applications.
+  kSbSystemPathFontConfigurationDirectory,
+#endif  // SB_API_VERSION >= 4
+
   // Path to the directory containing the root of the source tree.
   kSbSystemPathSourceDirectory,
 
