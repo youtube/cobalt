@@ -123,3 +123,9 @@ Added `SbSystemRequestPause()`, `SbSystemRequestUnpause()`,
 
 `SbSystemRequestSuspend()` in particular can be hooked into a platform's "hide"
 or "minimize" window functionality.
+
+### Font Directory Path Support
+Added `kSbSystemPathFontDirectory` and `kSbSystemPathFontConfigurationDirectory`
+which can be optionally specified for platforms that want to provide system
+fonts to Starboard applications. The font and font configuration formats
+supported are application-specific.

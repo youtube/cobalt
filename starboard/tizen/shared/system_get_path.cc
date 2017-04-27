@@ -153,6 +153,10 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
                              path_size);
     case kSbSystemPathExecutableFile:
       return GetExecutablePath(out_path, path_size);
+
+    default:
+      SB_NOTIMPLEMENTED();
+      return false;
   }
 
   int length = strlen(path);
