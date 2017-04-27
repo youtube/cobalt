@@ -15,6 +15,7 @@
 #include "cobalt/browser/memory_tracker/tool/util.h"
 
 #include <algorithm>
+#include <iterator>
 #include <string>
 #include <vector>
 
