@@ -126,12 +126,13 @@ struct FontFileInfo {
 // cannot possible contain a character, without needing to load the font file
 // and generate a full mapping of the font's characters.
 struct FontFamily {
-  FontFamily() : is_fallback_family(true) {}
+  FontFamily() : is_fallback_family(true), fallback_priority(0) {}
 
   SkTArray<SkString> names;
   SkTArray<FontFileInfo> fonts;
   SkLanguage language;
   bool is_fallback_family;
+  int fallback_priority;
   font_character_map::PageRanges page_ranges;
 };
 
