@@ -277,6 +277,9 @@ typedef int (*SbSystemComparator)(const void* a, const void* b);
 
 // Breaks the current program into the debugger, if a debugger is attached.
 // If a debugger is not attached, this function aborts the program.
+#if SB_API_VERSION >= 4
+SB_NORETURN
+#endif
 SB_EXPORT void SbSystemBreakIntoDebugger();
 
 // Attempts to determine whether the current program is running inside or
