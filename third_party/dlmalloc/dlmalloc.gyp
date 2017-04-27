@@ -13,7 +13,7 @@
       'include_dirs': [
       ],
       'conditions': [
-        ['target_arch=="xb1" or target_arch=="xb360"', {
+        ['target_os=="win"', {
           # Compile dlmalloc.c as C++ on MSVC.
           'msvs_settings': {
             'VCCLCompilerTool': {
