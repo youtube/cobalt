@@ -554,9 +554,6 @@
           }],
         ],
       }],  # OS == "starboard"
-      ['target_arch in ["xb1", "xb360"]', {
-        'defines': ['_USE_MATH_DEFINES'],  # For #define M_PI
-      }],
       ['in_app_dial == 1', {
         'defines': [
           'DIAL_SERVER',
