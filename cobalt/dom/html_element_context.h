@@ -46,6 +46,7 @@ class HTMLElementContext {
  public:
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
+  HTMLElementContext();
   HTMLElementContext(
       loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
       Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
