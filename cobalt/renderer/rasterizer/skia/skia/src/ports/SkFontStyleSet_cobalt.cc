@@ -28,10 +28,42 @@
 namespace {
 
 int MatchScore(const SkFontStyle& pattern, const SkFontStyle& candidate) {
+  // This logic is taken from Skia and is based upon the algorithm specified
+  // within the spec:
+  //   https://www.w3.org/TR/css-fonts-3/#font-matching-algorithm
+
   int score = 0;
-  score += std::abs((pattern.width() - candidate.width()) * 100);
-  score += (pattern.isItalic() == candidate.isItalic()) ? 0 : 1000;
-  score += std::abs(pattern.weight() - candidate.weight());
+
+  // CSS style (italic/oblique)
+  // Being italic trumps all valid weights which are not italic.
+  // Note that newer specs differentiate between italic and oblique.
+  if (pattern.isItalic() == candidate.isItalic()) {
+    score += 1001;
+  }
+
+  // The 'closer' to the target weight, the higher the score.
+  // 1000 is the 'heaviest' recognized weight
+  if (pattern.weight() == candidate.weight()) {
+    score += 1000;
+  } else if (pattern.weight() <= 500) {
+    if (400 <= pattern.weight() && pattern.weight() < 450) {
+      if (450 <= candidate.weight() && candidate.weight() <= 500) {
+        score += 500;
+      }
+    }
+    if (candidate.weight() <= pattern.weight()) {
+      score += 1000 - pattern.weight() + candidate.weight();
+    } else {
+      score += 1000 - candidate.weight();
+    }
+  } else if (pattern.weight() > 500) {
+    if (candidate.weight() > pattern.weight()) {
+      score += 1000 + pattern.weight() - candidate.weight();
+    } else {
+      score += candidate.weight();
+    }
+  }
+
   return score;
 }
 
@@ -360,12 +392,12 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
 
 int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
   int closest_index = 0;
-  int min_score = std::numeric_limits<int>::max();
+  int max_score = std::numeric_limits<int>::min();
   for (int i = 0; i < styles_.count(); ++i) {
     int score = MatchScore(pattern, styles_[i]->font_style);
-    if (score < min_score) {
+    if (score > max_score) {
       closest_index = i;
-      min_score = score;
+      max_score = score;
     }
   }
   return closest_index;
