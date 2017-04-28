@@ -19,6 +19,27 @@
 namespace cobalt {
 namespace dom {
 
+HTMLElementContext::HTMLElementContext()
+    : fetcher_factory_(NULL),
+      css_parser_(NULL),
+      dom_parser_(NULL),
+      can_play_type_handler_(NULL),
+      web_media_player_factory_(NULL),
+      script_runner_(NULL),
+      script_value_factory_(NULL),
+      media_source_registry_(NULL),
+      resource_provider_(NULL),
+      animated_image_tracker_(NULL),
+      image_cache_(NULL),
+      reduced_image_cache_capacity_manager_(NULL),
+      remote_typeface_cache_(NULL),
+      mesh_cache_(NULL),
+      dom_stat_tracker_(NULL),
+      sync_load_thread_("Synchronous Load"),
+      html_element_factory_(new HTMLElementFactory()) {
+  sync_load_thread_.Start();
+}
+
 HTMLElementContext::HTMLElementContext(
     loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
     Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
