@@ -420,50 +420,6 @@ void AliasElementHandler(FamilyData* family_data, const char** attributes) {
   target_family->names.push_back().set(alias_name);
 }
 
-bool FindWeight400(FontFamily* family) {
-  for (int i = 0; i < family->fonts.count(); i++) {
-    if (family->fonts[i].weight == 400) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool DesiredWeight(int weight) { return (weight == 400 || weight == 700); }
-
-int CountDesiredWeight(FontFamily* family) {
-  int count = 0;
-  for (int i = 0; i < family->fonts.count(); i++) {
-    if (DesiredWeight(family->fonts[i].weight)) {
-      count++;
-    }
-  }
-  return count;
-}
-
-// To meet Skia's expectations, any family that contains weight=400
-// fonts should *only* contain {400,700}
-void PurgeUndesiredWeights(FontFamily* family) {
-  int count = CountDesiredWeight(family);
-  for (int i = 1, j = 0; i < family->fonts.count(); i++) {
-    if (DesiredWeight(family->fonts[j].weight)) {
-      j++;
-    }
-    if ((i != j) && DesiredWeight(family->fonts[i].weight)) {
-      family->fonts[j] = family->fonts[i];
-    }
-  }
-  family->fonts.resize_back(count);
-}
-
-void FamilySetElementEndHandler(FamilyData* familyData) {
-  for (int i = 0; i < familyData->families->count(); i++) {
-    if (FindWeight400((*familyData->families)[i])) {
-      PurgeUndesiredWeights((*familyData->families)[i]);
-    }
-  }
-}
-
 void StartElement(void* data, const xmlChar* xml_tag,
                   const xmlChar** xml_attribute_pairs) {
   FamilyData* family_data = reinterpret_cast<FamilyData*>(data);
@@ -494,9 +450,7 @@ void EndElement(void* data, const xmlChar* xml_tag) {
   const char* tag = reinterpret_cast<const char*>(xml_tag);
   size_t tag_len = strlen(tag);
 
-  if (tag_len == 9 && strncmp("familyset", tag, tag_len) == 0) {
-    FamilySetElementEndHandler(family_data);
-  } else if (tag_len == 6 && strncmp("family", tag, tag_len) == 0) {
+  if (tag_len == 6 && strncmp("family", tag, tag_len) == 0) {
     if (family_data->current_family != NULL) {
       *family_data->families->append() = family_data->current_family.release();
     } else {
