@@ -246,6 +246,13 @@ class Document : public Node, public cssom::MutationObserver {
     return keyframes_map_;
   }
 
+  // Returns whether the document has browsing context. Having the browsing
+  // context means the document is shown on the screen.
+  //   https://www.w3.org/TR/html5/browsers.html#browsing-context
+  bool HasBrowsingContext() { return !!window_; }
+
+  void set_window(Window* window) { window_ = window; }
+
   // Sets the active element of the document.
   void SetActiveElement(Element* active_element);
 
@@ -348,11 +355,6 @@ class Document : public Node, public cssom::MutationObserver {
   // Compiles/updates a set of all declared CSS keyframes used to define CSS
   // Animations, using all the style sheets in the document.
   void UpdateKeyframes();
-
-  // Returns whether the document has browsing context. Having the browsing
-  // context means the document is shown on the screen.
-  //   https://www.w3.org/TR/html5/browsers.html#browsing-context
-  bool HasBrowsingContext() { return !!window_; }
 
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
