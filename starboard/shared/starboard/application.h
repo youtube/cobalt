@@ -292,6 +292,12 @@ class Application {
   // kSbTimeMax if there are no queued TimedEvents.
   virtual SbTimeMonotonic GetNextTimedEventTargetTime() = 0;
 
+  // Sets the command-line parameters for the application. Used to support
+  // system message pump-based implementations, which don't call |Run()|.
+  void SetCommandLine(int argc, const char** argv) {
+    command_line_.reset(new CommandLine(argc, argv));
+  }
+
   // Sets the launch deep link string, if any, which is passed in the start
   // event that initializes and starts Cobalt.
   void SetStartLink(const char* start_link);
@@ -303,6 +309,10 @@ class Application {
 
   // Returns the current application state.
   State state() const { return state_; }
+
+  // Returns the error level that the application has been stopped with. |0|
+  // means "success" or at least "no error."
+  int error_level() const { return error_level_; }
 
   // Returns true if the Start event should be sent in |Run| before entering the
   // event loop. Derived classes that return false must call |DispatchStart|.
@@ -317,9 +327,11 @@ class Application {
   // i.e. false means to abort the event queue.
   bool DispatchAndDelete(Application::Event* event);
 
- private:
+  // Calls registered Starboard teardown callbacks. This is called only by
+  // |Run()| or directly by system message pump implementations at teardown.
   void CallTeardownCallbacks();
 
+ private:
   // The single application instance.
   static Application* g_instance;
 
