@@ -968,6 +968,7 @@ JSVAL_IS_TRACEABLE_IMPL(jsval_layout l)
     return JSVAL_IS_GCTHING_IMPL(l) && !JSVAL_IS_NULL_IMPL(l);
 }
 
+// TODO : Fix Windows compilation problem with JSVAL_TO_IMPL.
 static inline jsval_layout JSVAL_TO_IMPL(JS::Value v);
 static inline JS_VALUE_CONSTEXPR JS::Value IMPL_TO_JSVAL(jsval_layout l);
 

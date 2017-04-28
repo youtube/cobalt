@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "js-confdefs.h"
+
 namespace mozilla {
 
 /**
@@ -46,7 +48,7 @@ struct TimeStampInitialization
 
 static TimeStampInitialization sInitOnce;
 
-MFBT_API TimeStamp
+TimeStamp
 TimeStamp::ProcessCreation(bool& aIsInconsistent)
 {
   aIsInconsistent = false;

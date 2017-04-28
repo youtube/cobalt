@@ -24,6 +24,7 @@
 #include <locale.h>
 #include <string.h>
 
+// TODO: Starboardize.
 #ifdef JS_CAN_CHECK_THREADSAFE_ACCESSES
 # include <sys/mman.h>
 #endif
@@ -259,6 +260,7 @@ SignalBasedTriggersDisabled()
   return !!js_sb_getenv("JS_DISABLE_SLOW_SCRIPT_SIGNALS") || !!js_sb_getenv("JS_NO_SIGNALS");
 }
 
+// TODO: Starboardize.
 bool
 JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 {
