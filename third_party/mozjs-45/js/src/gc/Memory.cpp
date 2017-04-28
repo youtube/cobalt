@@ -12,7 +12,9 @@
 #include "js/HeapAPI.h"
 #include "vm/Runtime.h"
 
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#elif defined(XP_WIN)
 
 #include "jswin.h"
 #include <psapi.h>
@@ -815,7 +817,9 @@ void
 ProtectPages(void* p, size_t size)
 {
     MOZ_ASSERT(size % pageSize == 0);
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+    SB_NOTIMPLEMENTED();
+#elif defined(XP_WIN)
     DWORD oldProtect;
     if (!VirtualProtect(p, size, PAGE_NOACCESS, &oldProtect))
         MOZ_CRASH("VirtualProtect(PAGE_NOACCESS) failed");
@@ -830,7 +834,9 @@ void
 UnprotectPages(void* p, size_t size)
 {
     MOZ_ASSERT(size % pageSize == 0);
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+    SB_NOTIMPLEMENTED();
+#elif defined(XP_WIN)
     DWORD oldProtect;
     if (!VirtualProtect(p, size, PAGE_READWRITE, &oldProtect))
         MOZ_CRASH("VirtualProtect(PAGE_READWRITE) failed");

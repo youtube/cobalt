@@ -37,12 +37,14 @@
 
 using namespace js::jit;
 
+// TODO: Starboardize.
 size_t
 ExecutableAllocator::determinePageSize()
 {
     return getpagesize();
 }
 
+// TODO: Starboardize. PROT_READ, etc. flags are not defined in Starboard.
 void*
 js::jit::AllocateExecutableMemory(void* addr, size_t bytes, unsigned permissions, const char* tag,
                                   size_t pageSize)
@@ -52,6 +54,7 @@ js::jit::AllocateExecutableMemory(void* addr, size_t bytes, unsigned permissions
     return p == MAP_FAILED ? nullptr : p;
 }
 
+// TODO: Starboardize.
 void
 js::jit::DeallocateExecutableMemory(void* addr, size_t bytes, size_t pageSize)
 {
@@ -75,9 +78,11 @@ ExecutableAllocator::systemRelease(const ExecutablePool::Allocation& alloc)
     DeallocateExecutableMemory(alloc.pages, alloc.size, pageSize);
 }
 
+// TODO: Starboardize. PROT_READ, etc. flags are not defined in Starboard.
 static const unsigned FLAGS_RW = PROT_READ | PROT_WRITE;
 static const unsigned FLAGS_RX = PROT_READ | PROT_EXEC;
 
+// TODO: Starboardize.
 void
 ExecutableAllocator::reprotectRegion(void* start, size_t size, ProtectionSetting setting)
 {
@@ -98,6 +103,7 @@ ExecutableAllocator::reprotectRegion(void* start, size_t size, ProtectionSetting
     mprotect(pageStart, size, (setting == Writable) ? FLAGS_RW : FLAGS_RX);
 }
 
+// TODO: Starboardize.
 /* static */ unsigned
 ExecutableAllocator::initialProtectionFlags(ProtectionSetting protection)
 {
