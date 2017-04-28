@@ -14,6 +14,8 @@
 
 #include "mozilla/Attributes.h"
 
+#include "js-confdefs.h"
+
 namespace mozilla {
 
 /**
