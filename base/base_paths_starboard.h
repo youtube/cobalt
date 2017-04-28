@@ -31,6 +31,18 @@ enum {
   DIR_HOME,     // The root of the primary directory for a user (and their
                 // programs) to place their personal files.
 
+  DIR_SYSTEM_FONTS,                // Directory where system font files can be
+                                   // be found. This is only specified on
+                                   // platforms that provide fonts usable by
+                                   // Starboard applications.
+
+  DIR_SYSTEM_FONTS_CONFIGURATION,  // Directory where system font configuration
+                                   // metadata can be found. May be the same
+                                   // directory as DIR_SYSTEM_FONTS, but not
+                                   // necessarily. This is only specified on
+                                   // platforms that provide fonts usable by
+                                   // Starboard applications.
+
   PATH_STARBOARD_END
 };
 
