@@ -18,6 +18,8 @@
 #include "starboard/microphone.h"
 #include "starboard/shared/internal_only.h"
 
+#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+
 struct SbMicrophonePrivate {
   virtual ~SbMicrophonePrivate() {}
   virtual bool Open() = 0;
@@ -33,5 +35,7 @@ struct SbMicrophonePrivate {
                                        int buffer_size_bytes);
   static void DestroyMicrophone(SbMicrophone microphone);
 };
+
+#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
 
 #endif  // STARBOARD_SHARED_STARBOARD_MICROPHONE_MICROPHONE_INTERNAL_H_
