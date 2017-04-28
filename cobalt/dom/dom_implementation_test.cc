@@ -24,9 +24,7 @@ namespace cobalt {
 namespace dom {
 
 TEST(DOMImplementationTest, CreateDocumentShouldCreateXMLDocument) {
-  HTMLElementContext html_element_context(NULL, NULL, NULL, NULL, NULL, NULL,
-                                          NULL, NULL, NULL, NULL, NULL, NULL,
-                                          NULL, NULL, NULL, "");
+  HTMLElementContext html_element_context;
   scoped_refptr<DOMImplementation> dom_implementation =
       new DOMImplementation(&html_element_context);
   scoped_refptr<Document> document =
