@@ -37,7 +37,9 @@
  * These macros are designed for use by library interfaces -- not for normal
  * methods or data used cross-file.
  */
-#if defined(WIN32)
+#if defined(STARBOARD)
+#define MOZ_EXPORT /* nothing */
+#elif defined(WIN32)
 #  define MOZ_EXPORT   __declspec(dllexport)
 #else /* Unix */
 #  ifdef HAVE_VISIBILITY_ATTRIBUTE
@@ -57,7 +59,9 @@
  * the export or import version of the macro, depending upon the compilation
  * mode.
  */
-#ifdef _WIN32
+#if defined(STARBOARD)
+#define MOZ_IMPORT_API /* nothing */
+#elif defined(_WIN32)
 #  if defined(__MWERKS__)
 #    define MOZ_IMPORT_API /* nothing */
 #  else

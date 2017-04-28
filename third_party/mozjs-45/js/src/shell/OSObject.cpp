@@ -37,7 +37,8 @@
 
 #include "jsobjinlines.h"
 
-#ifdef XP_WIN
+#if defined(STARBOARD)
+#elif defined(XP_WIN)
 # define PATH_MAX (MAX_PATH > _MAX_DIR ? MAX_PATH : _MAX_DIR)
 # define getcwd _getcwd
 #else
@@ -521,7 +522,10 @@ ReportSysError(JSContext* cx, const char* prefix)
 {
     char buffer[200];
 
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+    SbSystemGetErrorString(errno, buffer, sizeof(buffer));
+    const char* errstr = buffer;
+#elif defined(XP_WIN)
     strerror_s(buffer, sizeof(buffer), errno);
     const char* errstr = buffer;
 #else

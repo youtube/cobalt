@@ -24,6 +24,7 @@
 #endif
 
 #include "jstypes.h"
+#include "js-confdefs.h"
 
 /* The public JS engine namespace. */
 namespace JS {}
