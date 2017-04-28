@@ -28,6 +28,7 @@
 
 namespace mozilla {
 
+// TODO: Starboardize.
 // Returns 0 for success and -1 (with errno) for error.
 static int
 TagAnonymousMemoryAligned(const void* aPtr, size_t aLength, const char* aTag)
@@ -39,6 +40,7 @@ TagAnonymousMemoryAligned(const void* aPtr, size_t aLength, const char* aTag)
                reinterpret_cast<unsigned long>(aTag));
 }
 
+// TODO: Starboardize.
 // On some architectures, it's possible for the page size to be larger
 // than the PAGE_SIZE we were compiled with.  This computes the
 // equivalent of PAGE_MASK.
@@ -89,6 +91,7 @@ MozTagAnonymousMemory(const void* aPtr, size_t aLength, const char* aTag)
   }
 }
 
+// TODO: Starboardize.
 void*
 MozTaggedAnonymousMmap(void* aAddr, size_t aLength, int aProt, int aFlags,
                        int aFd, off_t aOffset, const char* aTag)

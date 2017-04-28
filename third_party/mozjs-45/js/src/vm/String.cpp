@@ -18,6 +18,7 @@
 
 #include "jscntxtinlines.h"
 #include "jscompartmentinlines.h"
+#include "js-confdefs.h"
 
 // Unified leak fix:
 #include "builtin/ModuleObject.h"

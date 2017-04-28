@@ -11,7 +11,8 @@
 #include "mozilla/PodOperations.h"
 
 #include <string.h>
-#ifndef XP_WIN
+#if defined(STARBOARD)
+#elif !defined(XP_WIN)
 # include <sys/mman.h>
 #endif
 

@@ -3778,6 +3778,7 @@ JS_DefineFunctionById(JSContext* cx, HandleObject obj, HandleId id, JSNative cal
 
 typedef Vector<char, 8, TempAllocPolicy> FileContents;
 
+// TODO: Starboardize this similar to mozjs 24.
 static bool
 ReadCompleteFile(JSContext* cx, FILE* fp, FileContents& buffer)
 {

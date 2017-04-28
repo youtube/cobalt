@@ -8,6 +8,7 @@
 #define gc_GCRuntime_h
 
 #include "mozilla/Atomics.h"
+#include "mozilla/DebugOnly.h"
 
 #include "jsfriendapi.h"
 #include "jsgc.h"
