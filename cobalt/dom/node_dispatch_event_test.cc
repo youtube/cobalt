@@ -56,9 +56,7 @@ class NodeDispatchEventTest : public ::testing::Test {
   scoped_ptr<MockEventListener> event_listener_bubbling_;
 };
 
-NodeDispatchEventTest::NodeDispatchEventTest()
-    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, "") {
+NodeDispatchEventTest::NodeDispatchEventTest() {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 
   document_ = new Document(&html_element_context_);
