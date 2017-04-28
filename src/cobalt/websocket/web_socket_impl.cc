@@ -57,7 +57,7 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
                              WebsocketEventInterface *delegate)
     : network_module_(network_module),
       delegate_(delegate),
-      handshake_helper_(network_module->GetUserAgent()),
+      handshake_helper_(network_module ? network_module->GetUserAgent() : ""),
       handshake_completed_(false) {
   DCHECK(delegate_);
   DCHECK(MessageLoop::current());
@@ -65,8 +65,17 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
   owner_task_runner_ = MessageLoop::current()->message_loop_proxy();
 }
 
+void WebSocketImpl::SetWebSocketEventDelegate(
+    WebsocketEventInterface *delegate) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  delegate_ = delegate;
+}
+
 void WebSocketImpl::Connect(const std::string &origin, const GURL &url,
                             const std::vector<std::string> &sub_protocols) {
+  if (!network_module_) {
+    return;
+  }
   DCHECK(network_module_->url_request_context_getter());
   thread_checker_.CalledOnValidThread();
   origin_ = origin;
@@ -108,6 +117,7 @@ void WebSocketImpl::DoConnect(
   job_created_event->Signal();  // Signal that this->job_ has been assigned.
 
   job_->set_context(context->GetURLRequestContext());
+  job_->set_network_task_runner(context->GetNetworkTaskRunner());
   job_->Connect();
 
   DCHECK_EQ(GetCurrentState(), net::WebSocketJob::CONNECTING);
@@ -116,25 +126,48 @@ void WebSocketImpl::DoConnect(
 void WebSocketImpl::Close(const net::WebSocketError code,
                           const std::string &reason) {
   DCHECK(job_);
+  CloseInfo close_info(code, reason);
   delegate_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebSocketImpl::DoClose, this, code, reason));
+      FROM_HERE, base::Bind(&WebSocketImpl::DoClose, this, close_info));
 }
 
-void WebSocketImpl::DoClose(const net::WebSocketError code,
-                            const std::string &reason) {
+void WebSocketImpl::DoClose(const CloseInfo &close_info) {
   DCHECK(job_);
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   net::WebSocketJob::State current_state = GetCurrentState();
-  if ((current_state != net::WebSocketJob::CLOSED) &&
-      (current_state != net::WebSocketJob::CLOSING)) {
-    // Write the close frame
-    std::string error_message;
-    if (!SendClose(code, reason, &error_message)) {
-      DLOG(ERROR) << "Error while sending websocket close: " << error_message;
+  switch (current_state) {
+    case net::WebSocketJob::CONNECTING:
+    case net::WebSocketJob::OPEN: {
+      // Write the close frame
+      std::string error_message;
+      if (!SendClose(close_info.code, close_info.reason, &error_message)) {
+        DLOG(ERROR) << "Error while sending websocket close: " << error_message;
+      }
+      net::WebSocketJob::State new_state;
+      if (peer_close_info_) {
+        // We have received a Close frame from the peer.
+        new_state = net::WebSocketJob::RECV_CLOSED;
+      } else {
+        // We have not received a Close frame from the peer.
+        new_state = net::WebSocketJob::SEND_CLOSED;
+      }
+      job_->SetState(new_state);
+      job_->Close();
+      break;
     }
+    case net::WebSocketJob::SEND_CLOSED:
+      if (peer_close_info_) {
+        // Closing handshake is now complete.
+        job_->SetState(net::WebSocketJob::CLOSE_WAIT);
+        job_->Close();
+      }
+    case net::WebSocketJob::CLOSE_WAIT:
+    case net::WebSocketJob::CLOSED:
+    case net::WebSocketJob::INITIALIZED:
+    case net::WebSocketJob::RECV_CLOSED:
+      break;
   }
-  job_->Close();
 }
 
 void WebSocketImpl::DoPong(const scoped_refptr<net::IOBufferWithSize> payload) {
@@ -143,8 +176,8 @@ void WebSocketImpl::DoPong(const scoped_refptr<net::IOBufferWithSize> payload) {
 
   net::WebSocketJob::State current_state = GetCurrentState();
 
-  if ((current_state == net::WebSocketJob::CLOSED) ||
-      (current_state == net::WebSocketJob::CLOSING)) {
+  if (!((current_state == net::WebSocketJob::CONNECTING) ||
+        (current_state == net::WebSocketJob::OPEN))) {
     return;
   }
 
@@ -225,8 +258,6 @@ void WebSocketImpl::OnReceivedData(net::SocketStream *socket, const char *data,
     return;
   }
 
-  DLOG(INFO) << "ReceivedData " << len << " bytes.";
-
   std::size_t payload_offset = 0;
   if (!ProcessHandshake(&payload_offset)) {
     return;  // Handshake is still in progress.
@@ -244,7 +275,6 @@ void WebSocketImpl::OnReceivedData(net::SocketStream *socket, const char *data,
     DLOG(INFO) << "Error while decoding websocket: " << websocket_error;
     return;
   }
-  DLOG(INFO) << "Received " << frame_chunks.size() << " chunks.";
 
   bool protocol_violation_occured = false;
 
@@ -272,14 +302,6 @@ void WebSocketImpl::OnReceivedData(net::SocketStream *socket, const char *data,
         }
       }
     }
-
-    //    if (header) {
-    //      DLOG(INFO) << "Got a chunk " << header->opcode << " "
-    //                 << chunk->final_chunk;
-    //    } else {
-    //      DLOG(INFO) << "Got a chunk ? "
-    //                 << " " << chunk->final_chunk;
-    //    }
 
     // Note that |MoveInto| transfers ownership of the pointer.
     WebSocketFrameContainer::ErrorCode move_into_retval =
@@ -310,20 +332,55 @@ void WebSocketImpl::OnReceivedData(net::SocketStream *socket, const char *data,
   protocol_violation_occured |= (iterator != frame_chunks.end());
 
   if (protocol_violation_occured) {
-    TrampolineClose();
+    CloseInfo close_info(net::kWebSocketErrorProtocolError);
+    TrampolineClose(close_info);
     frame_chunks.erase(iterator, frame_chunks.end());
   }
 
   frame_chunks.weak_clear();
 }
 
-void WebSocketImpl::TrampolineClose(const net::WebSocketError error_code) {
-  std::string empty;
+// The main reason to call TrampolineClose is to ensure messages that are posted
+// from this thread prior to this function call are processed before the
+// connection is closed.
+void WebSocketImpl::TrampolineClose(const CloseInfo &close_info) {
   base::Closure no_op_closure(base::Bind(&base::DoNothing));
+
   base::Closure do_close_closure(
-      base::Bind(&WebSocketImpl::DoClose, this, error_code, empty));
+      base::Bind(&WebSocketImpl::DoClose, this, close_info));
   owner_task_runner_->PostTaskAndReply(FROM_HERE, no_op_closure,
                                        do_close_closure);
+}
+
+void WebSocketImpl::OnWebSocketConnected(
+    const std::string &selected_subprotocol) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnConnected(selected_subprotocol);
+  }
+}
+
+void WebSocketImpl::OnWebSocketDisconnected(bool was_clean, uint16 code,
+                                            const std::string &reason) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnDisconnected(was_clean, code, reason);
+  }
+}
+
+void WebSocketImpl::OnWebSocketSentData(int amount_sent) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnSentData(amount_sent);
+  }
+}
+
+void WebSocketImpl::OnWebSocketReceivedData(
+    bool is_text_frame, scoped_refptr<net::IOBufferWithSize> data) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (delegate_) {
+    delegate_->OnReceivedData(is_text_frame, data);
+  }
 }
 
 void WebSocketImpl::ProcessCompleteMessage(
@@ -354,27 +411,32 @@ void WebSocketImpl::ProcessCompleteMessage(
   if (is_text_message && buf && (buf->size() > 0)) {
     base::StringPiece payload_string_piece(buf->data(), buf->size());
     if (!IsStringUTF8(payload_string_piece)) {
-      TrampolineClose();
+      CloseInfo close_info(net::kWebSocketErrorProtocolError);
+      TrampolineClose(close_info);
       return;
     }
   }
 
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnReceivedData,
-                            base::Unretained(delegate_), is_text_message, buf));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketReceivedData, this,
+                            is_text_message, buf));
 }
 
 void WebSocketImpl::ProcessControlMessage(
     const WebSocketMessageContainer &message_container) {
   if (message_container.empty()) {
-    DoClose(net::kWebSocketErrorInternalServerError, "Message has no frames.");
+    CloseInfo close_info(net::kWebSocketErrorInternalServerError,
+                         "Message has no frames.");
+    DoClose(close_info);
     NOTREACHED();
     return;
   }
 
   if (message_container.GetCurrentPayloadSizeBytes() >
       kMaxControlPayloadSizeInBytes) {
-    DoClose(net::kWebSocketErrorProtocolError, "Control Frame too large");
+    CloseInfo close_info(net::kWebSocketErrorProtocolError,
+                         "Control Frame too large");
+    DoClose(close_info);
     return;
   }
 
@@ -385,8 +447,9 @@ void WebSocketImpl::ProcessControlMessage(
   if (number_of_frames > 0) {
     const net::WebSocketFrameHeader *header = frames.begin()->GetHeader();
     if ((number_of_frames > 1) || (header && !header->final)) {
-      DoClose(net::kWebSocketErrorProtocolError,
-              "Control messages must not be fragmented");
+      CloseInfo close_info(net::kWebSocketErrorProtocolError,
+                           "Control messages must not be fragmented");
+      DoClose(close_info);
       return;
     }
   }
@@ -414,7 +477,10 @@ void WebSocketImpl::ProcessControlMessage(
     case net::WebSocketFrameHeader::kOpCodeBinary:
     default:
       NOTREACHED() << "Invalid case " << header_pointer->opcode;
-      DoClose(net::kWebSocketErrorInternalServerError, "Invalid op code.");
+
+      CloseInfo close_info(net::kWebSocketErrorInternalServerError,
+                           "Invalid op code.");
+      DoClose(close_info);
       break;
   }
 }
@@ -447,11 +513,15 @@ void WebSocketImpl::HandleClose(
     const scoped_refptr<net::IOBufferWithSize> &close_data) {
   net::WebSocketError outgoing_status_code = net::kWebSocketNormalClosure;
   std::size_t payload_length = 0;
+  std::string close_reason;
   if (close_data) {
     DCHECK_EQ(header.payload_length, close_data->size());
     DCHECK(close_data->data());
     payload_length = close_data->size();
   }
+
+  peer_close_info_ = CloseInfo(net::kWebSocketErrorNoStatusReceived);
+
   if (payload_length == 0) {
     // default status code of normal is OK.
   } else if (payload_length < 2) {
@@ -473,44 +543,65 @@ void WebSocketImpl::HandleClose(
       payload_length -= sizeof(status_code_on_wire);
 
       if (net::IsValidCloseStatusCode(status_code_on_wire)) {
-        DLOG(INFO) << "Received close status code in close "
-                   << outgoing_status_code;
+        DLOG(INFO) << "Websocket received close status code: "
+                   << status_code_on_wire;
+        peer_close_info_->code = net::WebSocketError(status_code_on_wire);
       } else {
-        DLOG(ERROR) << "Received invalid status code in close "
+        DLOG(ERROR) << "Websocket received invalid close status code: "
                     << outgoing_status_code;
         outgoing_status_code = net::kWebSocketErrorProtocolError;
       }
 
-      std::string close_reason(payload_pointer, payload_length);
-      if (IsStringUTF8(close_reason)) {
-        DLOG(INFO) << "Websocket close reason [" << close_reason << "]";
-      } else {
-        outgoing_status_code = net::kWebSocketErrorProtocolError;
+      close_reason.assign(payload_pointer, payload_length);
+      if (payload_length > 0) {
+        if (IsStringUTF8(close_reason)) {
+          DLOG(INFO) << "Websocket close reason [" << close_reason << "]";
+          peer_close_info_->reason = close_reason;
+        } else {
+          outgoing_status_code = net::kWebSocketErrorProtocolError;
+        }
       }
     }
   }
 
-  TrampolineClose(outgoing_status_code);
+  CloseInfo outgoing_close_info(outgoing_status_code, close_reason);
+  TrampolineClose(outgoing_close_info);
 }
 
 void WebSocketImpl::OnSentData(net::SocketStream *socket, int amount_sent) {
   UNREFERENCED_PARAMETER(socket);
-  UNREFERENCED_PARAMETER(amount_sent);
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
-  DLOG(INFO) << "Websocket Sent " << amount_sent << " bytes.";
+  std::size_t payload_sent = buffered_amount_tracker_.Pop(amount_sent);
+  DCHECK_GE(payload_sent, 0ul);
+  DCHECK_LE(payload_sent, static_cast<unsigned int>(kint32max));
+
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnSentData,
-                            base::Unretained(delegate_), amount_sent));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketSentData, this,
+                            static_cast<int>(payload_sent)));
 }
 
 void WebSocketImpl::OnClose(net::SocketStream *socket) {
-  DLOG(INFO) << "Got a close yaar";
   UNREFERENCED_PARAMETER(socket);
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+
+  bool close_was_clean = false;
+  net::WebSocketError close_code = net::kWebSocketErrorAbnormalClosure;
+  std::string close_reason;
+
+  if (peer_close_info_) {
+    close_was_clean = true;
+    close_code = peer_close_info_->code;
+    close_reason = peer_close_info_->reason;
+  }
+
+  DLOG(INFO) << "WebSocket is closing. was_clean[" << std::boolalpha
+             << close_was_clean << "] code[" << close_code << "] reason["
+             << close_reason << "]";
+
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnDisconnected,
-                            base::Unretained(delegate_)));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketDisconnected, this,
+                            close_was_clean, close_code, close_reason));
 }
 
 // Currently only called in SocketStream::Finish(), so it is meant
@@ -536,14 +627,16 @@ void WebSocketImpl::OnConnected(net::SocketStream *socket,
   handshake_helper_.GenerateHandshakeRequest(
       connect_url_, origin_, desired_sub_protocols_, &header_string);
 
+  buffered_amount_tracker_.Add(false, header_string.size());
+
   job_->SendData(header_string.data(), static_cast<int>(header_string.size()));
 }
 
 void WebSocketImpl::OnHandshakeComplete(
     const std::string &selected_subprotocol) {
   owner_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&WebsocketEventInterface::OnConnected,
-                            base::Unretained(delegate_), selected_subprotocol));
+      FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketConnected, this,
+                            selected_subprotocol));
 }
 
 // Note that |payload_length| in |header| will define the payload length.
@@ -575,21 +668,28 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader &header,
   DCHECK_EQ(application_payload_offset + payload_length, frame_size);
   if (payload_length != 0) {
     char *payload_offset = data_ptr.get() + application_payload_offset;
-    COMPILE_ASSERT(kMaxFramePayloadInBytes < kint32max,
-                   frame_payload_size_too_big);
+    COMPILE_ASSERT(
+        kMaxFramePayloadInBytes < static_cast<std::size_t>(kint32max),
+        frame_payload_size_too_big);
     SbMemoryCopy(payload_offset, data, static_cast<int>(payload_length));
     net::MaskWebSocketFramePayload(masking_key, 0, payload_offset,
                                    static_cast<int>(payload_length));
   }
 
+  int overhead_bytes = static_cast<int>(frame_size);
+  if ((header.opcode == net::WebSocketFrameHeader::kOpCodeText) ||
+      (header.opcode == net::WebSocketFrameHeader::kOpCodeBinary)) {
+    // Only consider text and binary frames as "payload".
+    overhead_bytes = application_payload_offset;
+  }
   if (delegate_task_runner_->BelongsToCurrentThread()) {
     // this behavior is not just an optimization, but required in case
     // we are closing the connection
-    SendFrame(data_ptr.Pass(), static_cast<int>(frame_size));
+    SendFrame(data_ptr.Pass(), static_cast<int>(frame_size), overhead_bytes);
   } else {
-    base::Closure do_send_closure(base::Bind(&WebSocketImpl::SendFrame, this,
-                                             base::Passed(data_ptr.Pass()),
-                                             static_cast<int>(frame_size)));
+    base::Closure do_send_closure(base::Bind(
+        &WebSocketImpl::SendFrame, this, base::Passed(data_ptr.Pass()),
+        static_cast<int>(frame_size), overhead_bytes));
     delegate_task_runner_->PostTask(FROM_HERE, do_send_closure);
   }
 
@@ -638,7 +738,8 @@ bool WebSocketImpl::ProcessHandshake(std::size_t *payload_offset) {
   } else {
     DLOG(ERROR) << "Handshake response is invalid: " << error_message;
     // Something is wrong, let's shutdown.
-    job_->Close();
+    CloseInfo close_info(net::kWebSocketErrorProtocolError);
+    DoClose(close_info);
   }
 
   return false;
@@ -672,6 +773,8 @@ bool WebSocketImpl::SendText(const char *data, std::size_t length,
   header.masked = true;
   header.payload_length = length;
 
+  *buffered_amount += length;
+
   return SendHelper(header, data, error_message);
 }
 
@@ -691,6 +794,8 @@ bool WebSocketImpl::SendBinary(const char *data, std::size_t length,
   header.opcode = net::WebSocketFrameHeader::kOpCodeBinary;
   header.masked = true;
   header.payload_length = length;
+
+  *buffered_amount += length;
 
   return SendHelper(header, data, error_message);
 }
@@ -763,10 +868,20 @@ bool WebSocketImpl::SendPong(base::StringPiece payload,
   return SendHelper(header, payload.data(), error_message);
 }
 
-void WebSocketImpl::SendFrame(const scoped_array<char> data, const int length) {
+void WebSocketImpl::SendFrame(const scoped_array<char> data, const int length,
+                              const int overhead_bytes) {
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+
   DCHECK(data);
   DCHECK_GE(length, 0);
+  DCHECK_GE(length, overhead_bytes);
+
+  buffered_amount_tracker_.Add(false, overhead_bytes);
+  int user_payload_bytes = length - overhead_bytes;
+  if (user_payload_bytes > 0) {
+    buffered_amount_tracker_.Add(true, user_payload_bytes);
+  }
+
   job_->SendData(data.get(), length);
 }
 

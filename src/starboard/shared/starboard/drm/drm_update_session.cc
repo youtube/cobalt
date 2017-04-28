@@ -18,6 +18,9 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmUpdateSession(SbDrmSystem drm_system,
+#if SB_API_VERSION >= 4
+                        int ticket,
+#endif  // SB_API_VERSION >= 4
                         const void* key,
                         int key_size,
                         const void* session_id,
@@ -27,5 +30,9 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->UpdateSession(key, key_size, session_id, session_id_size);
+  drm_system->UpdateSession(
+#if SB_API_VERSION >= 4
+      ticket,
+#endif  // SB_API_VERSION >= 4
+      key, key_size, session_id, session_id_size);
 }

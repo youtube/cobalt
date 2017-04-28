@@ -23,21 +23,38 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSocketConnectTest, RainyDayNullSocket) {
-  SbSocketAddress address = GetIpv4Unspecified(2048);
+class SbSocketConnectTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+TEST_P(SbSocketConnectTest, RainyDayNullSocket) {
+  SbSocketAddress address = GetUnspecifiedAddress(GetAddressType(), 2048);
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketConnect(kSbSocketInvalid, &address));
 }
 
-TEST(SbSocketConnectTest, RainyDayNullAddress) {
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+TEST_P(SbSocketConnectTest, RainyDayNullAddress) {
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketConnect(socket, NULL));
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
-TEST(SbSocketConnectTest, RainyDayNullNull) {
+TEST_F(SbSocketConnectTest, RainyDayNullNull) {
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketConnect(kSbSocketInvalid, NULL));
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketConnectTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketConnectTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+#endif
 
 }  // namespace
 }  // namespace nplb

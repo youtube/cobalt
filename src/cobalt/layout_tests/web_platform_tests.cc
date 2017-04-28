@@ -23,7 +23,6 @@
 #include "base/run_loop.h"
 #include "base/string_util.h"
 #include "base/values.h"
-#include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/layout_tests/test_utils.h"
@@ -134,7 +133,7 @@ void WebModuleErrorCallback(base::RunLoop* run_loop, MessageLoop* message_loop,
   message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
-std::string RunWebPlatformTest(const GURL& url) {
+std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   LogFilter log_filter;
   for (size_t i = 0; i < arraysize(kLogSuppressions); ++i) {
     log_filter.Add(kLogSuppressions[i]);
@@ -164,7 +163,7 @@ std::string RunWebPlatformTest(const GURL& url) {
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options(kDefaultViewportSize);
+  browser::WebModule::Options web_module_options;
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
 
   // Prepare a slot for our results to be placed when ready.
@@ -176,14 +175,17 @@ std::string RunWebPlatformTest(const GURL& url) {
       url, base::Bind(&WebModuleOnRenderTreeProducedCallback, &results,
                       &run_loop, MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
-      base::Closure() /* window_close_callback */, media_module.get(),
-      &network_module, kDefaultViewportSize, &resource_provider,
-      media_module->system_window(), 60.0f, web_module_options);
+      base::Closure() /* window_close_callback */,
+      base::Closure() /* window_minimize_callback */,
+      media_module.get(), &network_module, kDefaultViewportSize,
+      &resource_provider, media_module->system_window(), 60.0f,
+      web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
   std::string output = web_module.ExecuteJavascript(
-      extract_results, base::SourceLocation(__FILE__, __LINE__, 1));
+      extract_results, base::SourceLocation(__FILE__, __LINE__, 1),
+      got_results);
   return output;
 }
 
@@ -274,7 +276,9 @@ TEST_P(WebPlatformTest, Run) {
 
   std::cout << "(" << test_url << ")" << std::endl;
 
-  std::string json_results = RunWebPlatformTest(test_url);
+  bool got_results = false;
+  std::string json_results = RunWebPlatformTest(test_url, &got_results);
+  EXPECT_TRUE(got_results);
   std::vector<TestResult> results = ParseResults(json_results);
   for (size_t i = 0; i < results.size(); ++i) {
     const WebPlatformTestInfo& test_info = GetParam();
@@ -302,6 +306,10 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(dom, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests("dom")));
+
+INSTANTIATE_TEST_CASE_P(
+    mediasession, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")));
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests

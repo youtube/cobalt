@@ -80,7 +80,9 @@ private:
 
 class GrFontCache {
 public:
-    GrFontCache(GrGpu*);
+    GrFontCache(int atlas_texture_width,
+                int atlas_texture_height,
+                GrGpu*);
     ~GrFontCache();
 
     inline GrTextStrike* getStrike(GrFontScaler*, bool useDistanceField);
@@ -133,6 +135,12 @@ private:
     GrTextStrike* generateStrike(GrFontScaler*);
     inline void detachStrikeFromList(GrTextStrike*);
     void purgeStrike(GrTextStrike* strike);
+
+    int num_plots_x() const;
+    int num_plots_y() const;
+
+    int atlas_texture_width_;
+    int atlas_texture_height_;
 };
 
 #endif

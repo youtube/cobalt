@@ -32,10 +32,11 @@ typedef ::media::ShellAudioBus ShellAudioBus;
 
 void MixAudioBufferBasedOnInterpretation(
     const float* speaker, const float* discrete,
-    const AudioNode::ChannelInterpretation& interpretation,
-    ShellAudioBus* source, ShellAudioBus* output_audio_data) {
+    const AudioNodeChannelInterpretation& interpretation, ShellAudioBus* source,
+    ShellAudioBus* output_audio_data) {
   const float* kMatrix =
-      interpretation == AudioNode::kSpeakers ? speaker : discrete;
+      interpretation == kAudioNodeChannelInterpretationSpeakers ? speaker
+                                                                : discrete;
   size_t array_size = source->channels() * output_audio_data->channels();
   std::vector<float> matrix(kMatrix, kMatrix + array_size);
   output_audio_data->Mix(*source, matrix);
@@ -49,12 +50,12 @@ void MixAudioBufferBasedOnInterpretation(
 // "discrete".
 // Up down mix equations for mono, stereo, quad, 5.1:
 //   https://www.w3.org/TR/webaudio/#ChannelLayouts
-void MixAudioBuffer(const AudioNode::ChannelInterpretation& interpretation,
+void MixAudioBuffer(const AudioNodeChannelInterpretation& interpretation,
                     ShellAudioBus* source, ShellAudioBus* output_audio_data) {
   DCHECK_GT(source->channels(), 0u);
   DCHECK_GT(output_audio_data->channels(), 0u);
-  DCHECK(interpretation == AudioNode::kSpeakers ||
-         interpretation == AudioNode::kDiscrete)
+  DCHECK(interpretation == kAudioNodeChannelInterpretationSpeakers ||
+         interpretation == kAudioNodeChannelInterpretationDiscrete)
       << interpretation;
 
   if (output_audio_data->channels() == source->channels()) {
@@ -235,7 +236,7 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
   // TODO: Consider computing computedNumberOfChannels and do up-mix or
   // down-mix base on computedNumberOfChannels. The current implementation
   // is based on the fact that the channelCountMode is max.
-  if (owner_node_->channel_count_mode() != AudioNode::kMax) {
+  if (owner_node_->channel_count_mode() != kAudioNodeChannelCountModeMax) {
     DLOG(ERROR) << "Unsupported channel count mode: "
                 << owner_node_->channel_count_mode();
     return;

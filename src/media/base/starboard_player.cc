@@ -56,11 +56,11 @@ StarboardPlayer::StarboardPlayer(
   audio_config_.CopyFrom(audio_config);
   video_config_.CopyFrom(video_config);
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   output_mode_ = ComputeSbPlayerOutputMode(
       MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
       prefer_decode_to_texture);
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
   CreatePlayer();
 
   message_loop->PostTask(
@@ -73,11 +73,13 @@ StarboardPlayer::~StarboardPlayer() {
 
   set_bounds_helper_->SetPlayer(NULL);
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ShellVideoFrameProvider::kOutputModeInvalid);
+#if SB_API_VERSION >= 4
   ShellMediaPlatform::Instance()
       ->GetVideoFrameProvider()
       ->ResetGetCurrentSbDecodeTargetFunction();
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   SbPlayerDestroy(player_);
 }
@@ -131,7 +133,7 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   video_info.frame_width = frame_width_;
   video_info.frame_height = frame_height_;
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
   SbMediaColorMetadata sb_media_color_metadata =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
   video_info.color_metadata = &sb_media_color_metadata;
@@ -139,27 +141,43 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   if (is_encrypted) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
+#if SB_API_VERSION >= 4
+  const void* sample_buffers[] = {buffer->GetData()};
+  int sample_buffer_sizes[] = {buffer->GetDataSize()};
+  SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
+                      sample_buffers, sample_buffer_sizes, 1,
+                      TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
+                      type == DemuxerStream::VIDEO ? &video_info : NULL,
+                      drm_info.subsample_count > 0 ? &drm_info : NULL);
+#else   // SB_API_VERSION >= 4
   SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
                       buffer->GetData(), buffer->GetDataSize(),
                       TimeDeltaToSbMediaTime(buffer->GetTimestamp()),
                       type == DemuxerStream::VIDEO ? &video_info : NULL,
                       drm_info.subsample_count > 0 ? &drm_info : NULL);
+#endif  // SB_API_VERSION >= 4
 }
 
 void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION >= 4
+  const int kZIndex = 0;
+  SbPlayerSetBounds(player_, kZIndex, rect.x(), rect.y(), rect.width(),
+                    rect.height());
+#else   // SB_API_VERSION >= 4
   SbPlayerSetBounds(player_, rect.x(), rect.y(), rect.width(), rect.height());
+#endif  // SB_API_VERSION >= 4
 }
 
 void StarboardPlayer::PrepareForSeek() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   ++ticket_;
-#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION < 4
   SbPlayerSetPause(player_, true);
-#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#else   // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, 0.f);
-#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION < 4
   seek_pending_ = true;
 }
 
@@ -185,11 +203,11 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   ++ticket_;
   SbPlayerSeek(player_, TimeDeltaToSbMediaTime(time), ticket_);
   seek_pending_ = false;
-#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION < 4
   SbPlayerSetPause(player_, playback_rate_ == 0.0);
-#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#else  // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, playback_rate_);
-#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION < 4
 }
 
 void StarboardPlayer::SetVolume(float volume) {
@@ -211,11 +229,11 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   DCHECK(SbPlayerIsValid(player_));
 
   playback_rate_ = playback_rate;
-#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION < 4
   SbPlayerSetPause(player_, playback_rate == 0.0);
-#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#else   // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, playback_rate);
-#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION < 4
 }
 
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
@@ -265,11 +283,11 @@ void StarboardPlayer::Suspend() {
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION < 4
   SbPlayerSetPause(player_, true);
-#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#else   // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, 0.0);
-#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION < 4
 
   base::AutoLock auto_lock(lock_);
 
@@ -306,6 +324,25 @@ void StarboardPlayer::Resume() {
   state_ = kResuming;
 }
 
+namespace {
+#if SB_API_VERSION >= 4
+ShellVideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
+    SbPlayerOutputMode output_mode) {
+  switch (output_mode) {
+    case kSbPlayerOutputModeDecodeToTexture:
+      return ShellVideoFrameProvider::kOutputModeDecodeToTexture;
+    case kSbPlayerOutputModePunchOut:
+      return ShellVideoFrameProvider::kOutputModePunchOut;
+    case kSbPlayerOutputModeInvalid:
+      return ShellVideoFrameProvider::kOutputModeInvalid;
+  }
+
+  NOTREACHED();
+  return ShellVideoFrameProvider::kOutputModeInvalid;
+}
+#endif  // #if SB_API_VERSION >= 4
+}  // namespace
+
 void StarboardPlayer::CreatePlayer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -331,25 +368,25 @@ void StarboardPlayer::CreatePlayer() {
   SbMediaVideoCodec video_codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
       &audio_header, &StarboardPlayer::DeallocateSampleCB,
       &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
       ,
-      output_mode_
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+      output_mode_,
+      ShellMediaPlatform::Instance()->GetSbDecodeTargetGraphicsContextProvider()
+#elif SB_API_VERSION >= 3
       ,
       ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
 #endif  // SB_API_VERSION >= 3
-      );
+          );
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
@@ -359,19 +396,23 @@ void StarboardPlayer::CreatePlayer() {
             base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
                        base::Unretained(this)));
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ToVideoFrameProviderOutputMode(output_mode_));
+#else   // SB_API_VERSION >= 4
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ShellVideoFrameProvider::kOutputModePunchOut);
+#endif  // SB_API_VERSION >= 4
   set_bounds_helper_->SetPlayer(this);
 }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
   return SbPlayerGetCurrentFrame(player_);
 }
 SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
   return output_mode_;
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 void StarboardPlayer::ClearDecoderBufferCache() {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -446,11 +487,11 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player,
     }
     SbPlayerSeek(player_, TimeDeltaToSbMediaTime(preroll_timestamp_), ticket_);
     SetVolume(volume_);
-#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION < 4
     SbPlayerSetPause(player_, playback_rate_ == 0.0);
-#else   // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#else  // SB_API_VERSION < 4
     SbPlayerSetPlaybackRate(player_, playback_rate_);
-#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION < 4
     return;
   }
   host_->OnPlayerStatus(state);
@@ -505,7 +546,7 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player,
                             helper->weak_this_, sample_buffer));
 }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     SbMediaVideoCodec codec,
@@ -520,7 +561,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     output_mode = kSbPlayerOutputModePunchOut;
   }
   if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
-      SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
+      SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture, codec,
                                   drm_system)) {
     output_mode = kSbPlayerOutputModeDecodeToTexture;
   }
@@ -528,6 +569,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
 
   return output_mode;
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 }  // namespace media

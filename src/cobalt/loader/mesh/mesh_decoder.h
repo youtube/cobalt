@@ -63,7 +63,7 @@ class MeshDecoder : public Decoder {
 
   scoped_ptr<std::vector<uint8> > raw_data_;
 
-  bool suspended_;
+  bool is_suspended_;
 };
 
 }  // namespace mesh

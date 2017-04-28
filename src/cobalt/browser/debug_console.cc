@@ -15,7 +15,6 @@
 #if defined(ENABLE_DEBUG_CONSOLE)
 
 #include "cobalt/browser/debug_console.h"
-
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/file_util.h"
@@ -24,6 +23,8 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/window.h"
 
 namespace cobalt {
 namespace browser {
@@ -147,7 +148,11 @@ int GetInitialMode() {
 // A function to create a DebugHub object, to be injected into WebModule.
 scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::DebugHub::GetHudModeCallback& get_hud_mode_function,
-    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback) {
+    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
+    const scoped_refptr<dom::Window>& window,
+    dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+  UNREFERENCED_PARAMETER(window);
+  UNREFERENCED_PARAMETER(mutation_observer_task_manager);
   return new debug::DebugHub(get_hud_mode_function, get_debug_server_callback);
 }
 
@@ -163,9 +168,11 @@ DebugConsole::DebugConsole(
     const script::JavaScriptEngine::Options& js_options) {
   mode_ = GetInitialMode();
 
-  WebModule::Options web_module_options(window_dimensions);
+  WebModule::Options web_module_options;
   web_module_options.javascript_options = js_options;
   web_module_options.name = "DebugConsoleWebModule";
+  // The debug console does not load any image assets.
+  web_module_options.image_cache_capacity = 0;
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
   // javascript.
   web_module_options.csp_enforcement_mode = dom::kCspEnforcementDisable;
@@ -183,6 +190,7 @@ DebugConsole::DebugConsole(
       GURL(kInitialDebugConsoleUrl), render_tree_produced_callback,
       base::Bind(&DebugConsole::OnError, base::Unretained(this)),
       base::Closure(), /* window_close_callback */
+      base::Closure(), /* window_minimize_callback */
       media_module, network_module, window_dimensions, resource_provider,
       media_module->system_window(), layout_refresh_rate, web_module_options));
 }

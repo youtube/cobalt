@@ -59,6 +59,7 @@
 #include "cobalt/dom/audio_track_list.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/source_buffer_append_mode.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/track_default_list.h"
 #include "cobalt/dom/video_track_list.h"
@@ -76,13 +77,6 @@ class MediaSource;
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer
 class SourceBuffer : public dom::EventTarget {
  public:
-  // Web API: SourceBuffer
-  //
-  enum AppendMode {
-    kSegments,
-    kSequence,
-  };
-
   // Custom, not in any spec.
   //
   SourceBuffer(const std::string& id, MediaSource* media_source,
@@ -90,11 +84,12 @@ class SourceBuffer : public dom::EventTarget {
 
   // Web API: SourceBuffer
   //
-  AppendMode mode(script::ExceptionState* exception_state) const {
+  SourceBufferAppendMode mode(script::ExceptionState* exception_state) const {
     UNREFERENCED_PARAMETER(exception_state);
     return mode_;
   }
-  void set_mode(AppendMode mode, script::ExceptionState* exception_state);
+  void set_mode(SourceBufferAppendMode mode,
+                script::ExceptionState* exception_state);
   bool updating() const { return updating_; }
   scoped_refptr<TimeRanges> buffered(
       script::ExceptionState* exception_state) const;
@@ -173,7 +168,7 @@ class SourceBuffer : public dom::EventTarget {
   scoped_refptr<TrackDefaultList> track_defaults_;
   EventQueue* event_queue_;
 
-  AppendMode mode_;
+  SourceBufferAppendMode mode_;
   bool updating_;
   double timestamp_offset_;
   scoped_refptr<AudioTrackList> audio_tracks_;

@@ -50,6 +50,7 @@ class GraphicsState {
 
   // Set the current shader program to be used.
   void UseProgram(GLuint program);
+  GLuint GetProgram() const { return program_; }
 
   // Set the viewport.
   void Viewport(int x, int y, int width, int height);
@@ -63,20 +64,31 @@ class GraphicsState {
   // Default = disabled.
   void EnableBlend();
   void DisableBlend();
+  bool IsBlendEnabled() const { return blend_enabled_; }
 
   // Control depth testing.
   // Default = enabled.
   void EnableDepthTest();
   void DisableDepthTest();
+  bool IsDepthTestEnabled() const { return depth_test_enabled_; }
 
   // Control writing to the depth buffer.
   // Default = enabled.
   void EnableDepthWrite();
   void DisableDepthWrite();
+  bool IsDepthWriteEnabled() const { return depth_write_enabled_; }
+
+  // Reset to the default depth function.
+  void ResetDepthFunc();
 
   // Bind a texture to a given texture unit. Combines glActiveTexture and
   // glBindTexture.
   void ActiveBindTexture(GLenum texture_unit, GLenum target, GLuint texture);
+
+  // Bind a texture to the specified texture unit and set its texture wrap
+  // mode.
+  void ActiveBindTexture(GLenum texture_unit, GLenum target, GLuint texture,
+                         GLint texture_wrap_mode);
 
   // Set the clip adjustment to be used with vertex shaders. This transforms
   // the vertex coordinates from view space to clip space.

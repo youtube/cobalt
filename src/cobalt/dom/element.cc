@@ -72,9 +72,9 @@ Element::Element(Document* document)
   ++(element_count_log.Get().count);
 }
 
-Element::Element(Document* document, base::Token tag_name)
+Element::Element(Document* document, base::Token local_name)
     : Node(document),
-      tag_name_(tag_name),
+      local_name_(local_name),
       animations_(new web_animations::AnimationSet()) {
   ++(element_count_log.Get().count);
 }
@@ -97,14 +97,18 @@ base::optional<std::string> Element::text_content() const {
 void Element::set_text_content(
     const base::optional<std::string>& text_content) {
   TRACK_MEMORY_SCOPE("DOM");
-  // Remove all children and replace them with a single Text node.
-  while (HasChildNodes()) {
-    RemoveChild(first_child());
-  }
+  // https://www.w3.org/TR/dom/#dom-node-textcontent
+  // 1. Let node be null.
+  scoped_refptr<Node> new_node;
+
+  // 2. If new value is not the empty string, set node to a new Text node whose
+  //    data is new value.
   std::string new_text_content = text_content.value_or("");
   if (!new_text_content.empty()) {
-    AppendChild(new Text(node_document(), new_text_content));
+    new_node = new Text(node_document(), new_text_content);
   }
+  // 3. Replace all with node within the context object.
+  ReplaceAll(new_node);
 }
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
@@ -308,6 +312,25 @@ void Element::RemoveAttribute(const std::string& name) {
   OnRemoveAttribute(name);
 }
 
+// Algorithm for tag_name:
+//   https://www.w3.org/TR/dom/#dom-element-tagname
+base::Token Element::tag_name() const {
+  // 1. If context object's namespace prefix is not null, let qualified name be
+  // its namespace prefix, followed by a ":" (U+003A), followed by its local
+  // name. Otherwise, let qualified name be its local name.
+  std::string qualified_name = local_name_.c_str();
+
+  // 2. If the context object is in the HTML namespace and its node document is
+  // an HTML document, let qualified name be converted to ASCII uppercase.
+  Document* document = node_document();
+  if (document && !document->IsXMLDocument()) {
+    StringToUpperASCII(&qualified_name);
+  }
+
+  // 3. Return qualified name.
+  return base::Token(qualified_name);
+}
+
 // Algorithm for HasAttribute:
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-hasattribute
 bool Element::HasAttribute(const std::string& name) const {
@@ -327,9 +350,21 @@ bool Element::HasAttribute(const std::string& name) const {
   return iter != attribute_map_.end();
 }
 
+// Algorithm for GetElementsByTagName:
+//   https://www.w3.org/TR/dom/#concept-getelementsbytagname
 scoped_refptr<HTMLCollection> Element::GetElementsByTagName(
-    const std::string& tag_name) const {
-  return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
+    const std::string& local_name) const {
+  Document* document = node_document();
+  // 2. If the document is not an HTML document, then return an HTML collection
+  //    whose name is local name. If it is an HTML document, then return an,
+  //    HTML collection whose name is local name converted to ASCII lowercase.
+  if (document && document->IsXMLDocument()) {
+    return HTMLCollection::CreateWithElementsByLocalName(this, local_name);
+  } else {
+    const std::string lower_local_name = StringToLowerASCII(local_name);
+    return HTMLCollection::CreateWithElementsByLocalName(this,
+                                                         lower_local_name);
+  }
 }
 
 scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
@@ -520,7 +555,7 @@ void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
   TRACK_MEMORY_SCOPE("DOM");
-  Element* new_element = new Element(node_document(), tag_name());
+  Element* new_element = new Element(node_document(), local_name_);
   new_element->CopyAttributes(*this);
   return new_element;
 }
@@ -585,7 +620,7 @@ HTMLElementContext* Element::html_element_context() {
 }
 
 std::string Element::GetDebugName() {
-  std::string name = tag_name_.c_str();
+  std::string name = local_name_.c_str();
   if (HasAttribute("id")) {
     name += "#";
     name += id_attribute_.c_str();

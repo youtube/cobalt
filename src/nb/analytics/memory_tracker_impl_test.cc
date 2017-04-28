@@ -46,8 +46,9 @@ struct CustomObject {
 
 void* operator new(std::size_t size, CustomObject ignored) {
   SB_UNREFERENCED_PARAMETER(ignored);
-  // Volitile prevent optimization and elmination of operator new.
-  volatile void* ptr = SbMemoryAllocate(size);
+  // Volatile prevents optimization and elimination of operator new by the
+  // optimizing compiler.
+  volatile void* ptr = ::operator new(size);
   return const_cast<void*>(ptr);
 }
 
@@ -254,18 +255,27 @@ class MemoryTrackerImplTest : public ::testing::Test {
   static void SetUpTestCase() {
     if (!s_memory_tracker_) {
       s_memory_tracker_ = new MemoryTrackerImpl;
-      s_memory_tracker_enabled_ =
-          s_memory_tracker_->InstallGlobalTrackingHooks();
     }
+    // There are obligatory background threads for nb_test suite. This filter
+    // makes sure that they don't intercept this test.
+    s_memory_tracker_->SetThreadFilter(SbThreadGetId());
+    s_memory_tracker_enabled_ =
+        s_memory_tracker_->InstallGlobalTrackingHooks();
   }
-  static void TearDownTestCase() { SbMemorySetReporter(NULL); }
+  static void TearDownTestCase() {
+    s_memory_tracker_->RemoveGlobalTrackingHooks();
+    // Give time for threads to sync. We don't use locks on the reporter
+    // for performance reasons.
+    SbThreadSleep(250 * kSbTimeMillisecond);
+  }
 
   virtual void SetUp() {
     memory_tracker()->Clear();
-    memory_tracker()->SetThreadFilter(SbThreadGetId());
   }
 
-  virtual void TearDown() { memory_tracker()->Clear(); }
+  virtual void TearDown() {
+    memory_tracker()->Clear();
+  }
   static bool s_memory_tracker_enabled_;
 };
 bool MemoryTrackerImplTest::s_memory_tracker_enabled_ = false;
@@ -447,6 +457,7 @@ TEST_F(MemoryTrackerImplTest, PushAllocGroupCachedHandle) {
 
   EXPECT_EQ_NO_TRACKING(memory_scope.cached_handle_,
                         static_cast<void*>(group));
+  NbPopMemoryScope();
 }
 
 // Tests the expectation that the macro TRACK_MEMORY_SCOPE will capture the

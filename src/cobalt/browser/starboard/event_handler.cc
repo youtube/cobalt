@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/network/network_event.h"
 #include "cobalt/system_window/application_event.h"
@@ -49,38 +50,50 @@ void EventHandler::HandleEvent(const SbEvent* starboard_event) {
   g_the_event_handler->DispatchEvent(starboard_event);
 }
 
+void EventHandler::DispatchEventInternal(base::Event* event) const {
+  event_dispatcher_->DispatchEvent(make_scoped_ptr<base::Event>(event));
+}
+
 void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
   // Create a Cobalt event from the Starboard event, if recognized.
-  scoped_ptr<base::Event> cobalt_event;
-  if (starboard_event->type == kSbEventTypePause) {
-    cobalt_event.reset(new system_window::ApplicationEvent(
-        system_window::ApplicationEvent::kPause));
-  } else if (starboard_event->type == kSbEventTypeUnpause) {
-    cobalt_event.reset(new system_window::ApplicationEvent(
-        system_window::ApplicationEvent::kUnpause));
-  } else if (starboard_event->type == kSbEventTypeSuspend) {
-    cobalt_event.reset(new system_window::ApplicationEvent(
-        system_window::ApplicationEvent::kSuspend));
-  } else if (starboard_event->type == kSbEventTypeResume) {
-    cobalt_event.reset(new system_window::ApplicationEvent(
-        system_window::ApplicationEvent::kResume));
-  } else if (starboard_event->type == kSbEventTypeNetworkConnect) {
-    cobalt_event.reset(
-        new network::NetworkEvent(network::NetworkEvent::kConnection));
-  } else if (starboard_event->type == kSbEventTypeNetworkDisconnect) {
-    cobalt_event.reset(
-        new network::NetworkEvent(network::NetworkEvent::kDisconnection));
-  } else if (starboard_event->type == kSbEventTypeLink) {
-    const char* link = static_cast<const char*>(starboard_event->data);
-    cobalt_event.reset(new base::DeepLinkEvent(link));
-  }
-
-  // Dispatch the Cobalt event, if created.
-  if (cobalt_event) {
-    event_dispatcher_->DispatchEvent(cobalt_event.Pass());
-  } else {
-    DLOG(WARNING) << "Unhandled Starboard event of type: "
-                  << starboard_event->type;
+  switch (starboard_event->type) {
+    case kSbEventTypePause:
+      DispatchEventInternal(new system_window::ApplicationEvent(
+          system_window::ApplicationEvent::kPause));
+      break;
+    case kSbEventTypeUnpause:
+      DispatchEventInternal(new system_window::ApplicationEvent(
+          system_window::ApplicationEvent::kUnpause));
+      break;
+    case kSbEventTypeSuspend:
+      DispatchEventInternal(new system_window::ApplicationEvent(
+          system_window::ApplicationEvent::kSuspend));
+      break;
+    case kSbEventTypeResume:
+      DispatchEventInternal(new system_window::ApplicationEvent(
+          system_window::ApplicationEvent::kResume));
+      break;
+    case kSbEventTypeNetworkConnect:
+      DispatchEventInternal(
+          new network::NetworkEvent(network::NetworkEvent::kConnection));
+      break;
+    case kSbEventTypeNetworkDisconnect:
+      DispatchEventInternal(
+          new network::NetworkEvent(network::NetworkEvent::kDisconnection));
+      break;
+    case kSbEventTypeLink: {
+      const char* link = static_cast<const char*>(starboard_event->data);
+      DispatchEventInternal(new base::DeepLinkEvent(link));
+      break;
+    }
+#if SB_API_VERSION >= 4
+    case kSbEventTypeAccessiblitySettingsChanged:
+      DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
+      break;
+#endif  // SB_API_VERSION >= 4
+    default:
+      DLOG(WARNING) << "Unhandled Starboard event of type: "
+                    << starboard_event->type;
   }
 }
 

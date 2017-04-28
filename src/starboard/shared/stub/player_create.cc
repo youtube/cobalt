@@ -28,11 +28,11 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbPlayerDecoderStatusFunc /*decoder_status_func*/,
                         SbPlayerStatusFunc /*player_status_func*/,
                         void* /*context*/
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
                         ,
-                        SbPlayerOutputMode output_mode
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_VERSION(3)
+                        SbPlayerOutputMode output_mode,
+                        SbDecodeTargetGraphicsContextProvider* /*provider*/
+#elif SB_VERSION(3)
                         ,
                         SbDecodeTargetProvider* /*provider*/
 #endif

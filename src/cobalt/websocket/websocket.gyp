@@ -21,21 +21,25 @@
       'target_name': 'websocket',
       'type': 'static_library',
       'sources': [
+        'buffered_amount_tracker.cc',
+        'buffered_amount_tracker.h',
+        'close_event.h',
         'sec_web_socket_key.h',
         'web_socket.cc',
         'web_socket.h',
         'web_socket_event_interface.h',
-        'web_socket_frame_container.h',
         'web_socket_frame_container.cc',
-        'web_socket_handshake_helper.h',
+        'web_socket_frame_container.h',
         'web_socket_handshake_helper.cc',
-        'web_socket_impl.h',
+        'web_socket_handshake_helper.h',
         'web_socket_impl.cc',
-        'web_socket_message_container.h',
+        'web_socket_impl.h',
         'web_socket_message_container.cc',
+        'web_socket_message_container.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
@@ -46,6 +50,7 @@
       'target_name': 'websocket_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'buffered_amount_tracker_test.cc',
         'web_socket_frame_container_test.cc',
         'web_socket_handshake_helper_test.cc',
         'web_socket_message_container_test.cc',
@@ -57,6 +62,10 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+
+        # TODO: Remove the dependency below, it works around the fact that
+        #       ScriptValueFactory has non-virtual method CreatePromise().
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
       ],
     },
 
@@ -73,3 +82,4 @@
     },
   ],
 }
+

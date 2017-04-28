@@ -23,10 +23,14 @@
       'target_name': 'network',
       'type': 'static_library',
       'sources': [
+        'socket_address_parser.cc',
+        'socket_address_parser.h',
         'cookie_jar_impl.cc',
         'cookie_jar_impl.h',
         'net_poster.cc',
         'net_poster.h',
+        'local_network.cc',
+        'local_network.h',
         'network_delegate.cc',
         'network_delegate.h',
         'network_event.h',
@@ -103,6 +107,7 @@
       'target_name': 'network_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'local_network_test.cc',
         'persistent_cookie_store_test.cc',
         'user_agent_string_factory_test.cc',
       ],

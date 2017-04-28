@@ -14,7 +14,10 @@
 
 #include "cobalt/network/network_delegate.h"
 
+#include "cobalt/network/local_network.h"
+#include "cobalt/network/socket_address_parser.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_util.h"
 
 namespace cobalt {
 namespace network {
@@ -40,14 +43,50 @@ int NetworkDelegate::OnBeforeURLRequest(
   bool require_https = require_https_;
 #endif
 
+  const GURL& url = request->url();
   if (!require_https) {
     return net::OK;
-  } else if (request->url().SchemeIsSecure() ||
-             request->url().SchemeIs("data")) {
+  } else if (url.SchemeIsSecure() || url.SchemeIs("data")) {
     return net::OK;
-  } else {
-    return net::ERR_DISALLOWED_URL_SCHEME;
   }
+
+  if (!url.is_valid() || url.is_empty()) {
+    return net::ERR_INVALID_ARGUMENT;
+  }
+
+  const url_parse::Parsed& parsed = url.parsed_for_possibly_invalid_spec();
+
+  if (!url.has_host() || !parsed.host.is_valid() ||
+      !parsed.host.is_nonempty()) {
+    return net::ERR_INVALID_ARGUMENT;
+  }
+
+  const std::string& valid_spec = url.possibly_invalid_spec();
+  const char* valid_spec_cstr = valid_spec.c_str();
+
+  std::string host;
+#if SB_HAS(IPV6)
+  host = url.HostNoBrackets();
+#else
+  host.append(valid_spec_cstr + parsed.host.begin,
+              valid_spec_cstr + parsed.host.begin + parsed.host.len);
+#endif
+  if (net::IsLocalhost(host)) {
+    return net::OK;
+  }
+
+  SbSocketAddress destination;
+  // Note that ParseSocketAddress will only pass if host is a numeric IP.
+  if (!cobalt::network::ParseSocketAddress(valid_spec_cstr, parsed.host,
+                                           &destination)) {
+    return net::ERR_INVALID_ARGUMENT;
+  }
+
+  if (IsIPInPrivateRange(destination) || IsIPInLocalNetwork(destination)) {
+    return net::OK;
+  }
+
+  return net::ERR_DISALLOWED_URL_SCHEME;
 }
 
 int NetworkDelegate::OnBeforeSendHeaders(

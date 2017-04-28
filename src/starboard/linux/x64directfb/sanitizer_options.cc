@@ -38,7 +38,13 @@ extern "C" void _sanitizer_options_link_helper() { }
 SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
   return
       // DirectFB leaks __strdup data at initialization time.
-      "leak:__strdup\n"
+      "leak:__strdup\n";
 }
+
+#if defined(ASAN_SYMBOLIZER_PATH)
+extern "C" const char *__asan_default_options() {
+  return "external_symbolizer_path=" ASAN_SYMBOLIZER_PATH;
+}
+#endif
 
 #endif  // defined(ADDRESS_SANITIZER)

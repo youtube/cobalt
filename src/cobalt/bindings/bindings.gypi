@@ -20,7 +20,8 @@
 # Input variables:
 #   source_idl_files: All IDL files for which a bindings wrapper should be
 #       created.
-#   dictionary_idl_files: All IDL files for IDL dictionaries.
+#   generated_header_idl_files: IDL files for IDL dictionaries and IDL enums. A
+#       header will be generated for these that can be #included in
 #   dependency_idl_files: IDL files that are dependencies of other IDLs, but no
 #       bindings wrapper will be created. For example, partial interfaces and
 #       the right-hand-side of implements statements.
@@ -71,6 +72,7 @@
     'bindings_include_dirs': ['<@(engine_include_dirs)'],
     'bindings_templates_dir': '<(engine_templates_dir)',
     'idl_compiler_script': '<(engine_idl_compiler)',
+    'conversion_header_generator_script': '<(engine_conversion_header_generator_script)',
 
     # Templates that are shared by the code generation for multiple engines.
     'shared_template_files': [
@@ -88,11 +90,10 @@
     # directory of each IDL.
     'source_idl_files': [],
 
-    # A class definition that matches the dictionary definition and is
-    # suitable to be included and used in Cobalt code will be generated, as well
-    # as a conversion function between an instance of this class and a JS
-    # object.
-    'dictionary_idl_files': [],
+    # For each IDL file in this list, a header file that can be #included in
+    # Cobalt will be generated, as well as a .cc file that implements the
+    # conversion to/from a JS value.
+    'generated_header_idl_files': [],
 
     # Partial interfaces and the right-side of "implements"
     # Code will not get generated for these interfaces; they are used to add
@@ -140,6 +141,7 @@
       '<(DEPTH)/cobalt/bindings/expression_generator.py',
       '<(DEPTH)/cobalt/bindings/contexts.py',
       '<(DEPTH)/cobalt/bindings/idl_compiler_cobalt.py',
+      '<(DEPTH)/cobalt/bindings/generate_conversion_header.py',
       '<(DEPTH)/cobalt/bindings/name_conversion.py',
       '<(DEPTH)/cobalt/bindings/overload_context.py',
       '<@(code_generator_template_files)',
@@ -180,6 +182,15 @@
          ' --base_directory <(DEPTH)'
          ' <@(source_idl_files))'],
 
+    # .cc files that implement conversion functions to/from a JS value for
+    # generated types (enums and dictionaries).
+    'generated_type_conversions':
+        ['<!@pymod_do_main(cobalt.build.path_conversion -s'
+         ' --output_directory <(generated_source_output_dir)'
+         ' --output_extension cc --output_prefix <(prefix)_'
+         ' --base_directory <(DEPTH)'
+         ' <@(generated_header_idl_files))'],
+
     # Generated IDL file that will define all the constructors that should be
     # on the Window object
     'global_constructors_generated_idl_file':
@@ -189,6 +200,11 @@
     # there is a header for each IDL.
     'global_constructors_generated_header_file':
         '<(generated_idls_output_dir)/<(window_component)/window_constructors.h',
+
+    # Generated header file that contains forward declarations for converting
+    # to/from JS value and generated types.
+    'generated_type_conversion_header_file':
+        '<(generated_source_output_dir)/<(prefix)_gen_type_conversion.h',
   },
 
   'targets': [
@@ -204,7 +220,8 @@
       'dependencies': [
         'cached_jinja_templates',
         'cached_lex_yacc_tables',
-        'generated_dictionaries',
+        'generated_types',
+        'generated_type_conversion',
         'global_constructors_idls',
         'interfaces_info_overall',
         '<@(bindings_dependencies)',
@@ -245,6 +262,9 @@
           # not in this list is encountered, it will cause an error in the
           # pipeline.
           '<(extended_attributes_file)',
+
+          # Forward declarations of conversion functions for generated types.
+          '<(generated_type_conversion_header_file)',
         ],
         'outputs': [
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
@@ -278,6 +298,7 @@
         ],
         'sources': [
           '<@(generated_sources)',
+          '<@(generated_type_conversions)',
         ],
         'defines': [ '<@(bindings_defines)'],
       }
@@ -286,7 +307,7 @@
     {
       # Based on the generated_bindings target above. Main difference is that
       # this produces two .h files, and takes the dictionary idl files as input.
-      'target_name': 'generated_dictionaries',
+      'target_name': 'generated_types',
       'type': 'none',
       'hard_dependency': 1,
       'dependencies': [
@@ -296,7 +317,7 @@
         'interfaces_info_overall',
       ],
       'sources': [
-        '<@(dictionary_idl_files)',
+        '<@(generated_header_idl_files)',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -338,7 +359,7 @@
           '<!@pymod_do_main(cobalt.build.path_conversion -s '
               '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))',
           '<!@pymod_do_main(cobalt.build.path_conversion -s -p <(prefix)_ '
-              '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
+              '-e cc -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
           'python',
@@ -358,13 +379,83 @@
         'message': 'Generating dictionary from <(RULE_INPUT_PATH)',
       }],
     },
+    {
+      # Create a target that depends on this target to compile the generated
+      # source files. There should be only one such target.
+      # Based on blink/Source/bindings/core/v8/generated.gyp:bindings_core_v8_generated_individual
+      'target_name': 'generated_type_conversion',
+      'type': 'none',
+      # The 'binding' rule generates .h files, so mark as hard_dependency, per:
+      # https://code.google.com/p/gyp/wiki/InputFormatReference#Linking_Dependencies
+      'hard_dependency': 1,
+      'dependencies': [
+        'cached_jinja_templates',
+        'cached_lex_yacc_tables',
+        'global_constructors_idls',
+        'interfaces_info_overall',
+        '<@(bindings_dependencies)',
+      ],
+      'export_dependent_settings': [
+        '<@(bindings_dependencies)',
+      ],
+      'sources': [
+        '<@(source_idl_files)',
+        '<@(generated_header_idl_files)'
+      ],
+      'actions': [{
+        'action_name': 'generate_type_conversion_header',
+        'inputs': [
+          # Script source files, etc.
+          '<@(bindings_extra_inputs)',
+
+          # This file is global, so if it changes all files are rebuilt.
+          # However, this file will only change when dependency structure
+          # changes, so shouldn't change too much.
+          # See blink/Source/bindings/core/v8/generated.gyp for more info
+          '<(interfaces_info_combined_pickle)',
+
+          # Similarly, all files are rebuilt if a partial interface or
+          # right side of 'implements' changes.
+          # See blink/Source/bindings/core/v8/generated.gyp for more info
+          '<@(dependency_idl_files)',
+
+          # Also add as a dependency the set of unsupported IDL files.
+          '<@(unsupported_interface_idl_files)',
+
+          # The generated constructors IDL is also a partial interface, and
+          # we need to rebuild if it is modified.
+          '<(global_constructors_generated_idl_file)',
+
+          # The whitelist of what extended attributes we support. If an attribute
+          # not in this list is encountered, it will cause an error in the
+          # pipeline.
+          '<(extended_attributes_file)',
+        ],
+        'outputs': [
+          '<(generated_type_conversion_header_file)',
+        ],
+        'action': [
+          'python',
+          '<(conversion_header_generator_script)',
+          '--cache-dir',
+          '<(bindings_scripts_output_dir)',
+          '--output-dir',
+          '<(generated_source_output_dir)',
+          '--interfaces-info',
+          '<(interfaces_info_combined_pickle)',
+          '--component-info',
+          '<(component_info_pickle)',
+        ],
+        'message': 'Generating generated type conversion header',
+      }],
+    },
 
     {
       # Based on blink/Source/bindings/core/generated.gyp:core_global_objects
       'target_name': 'global_objects',
       'variables': {
         'idl_files': [
-          '<@(source_idl_files)', '<@(dictionary_idl_files)'
+          '<@(source_idl_files)', '<@(generated_header_idl_files)'
         ],
         'output_file': '<(bindings_scripts_output_dir)/GlobalObjects.pickle',
       },
@@ -405,7 +496,8 @@
       ],
       'variables': {
         'static_idl_files': [
-          '<@(source_idl_files)', '<@(dictionary_idl_files)',
+          '<@(source_idl_files)',
+          '<@(generated_header_idl_files)',
           '<@(dependency_idl_files)',
           '<@(unsupported_interface_idl_files)'],
         'generated_idl_files': ['<(global_constructors_generated_idl_file)'],

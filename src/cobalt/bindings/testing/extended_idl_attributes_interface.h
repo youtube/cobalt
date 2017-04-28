@@ -27,6 +27,8 @@ class ExtendedIDLAttributesInterface : public script::Wrappable {
  public:
   MOCK_METHOD1(CallWithSettings, void(script::EnvironmentSettings*));
   MOCK_METHOD1(ClampArgument, void(uint16_t));
+  MOCK_METHOD0(attribute_default, bool());
+  MOCK_METHOD1(set_attribute_default, void(bool));
 
   DEFINE_WRAPPABLE_TYPE(ExtendedIDLAttributesInterface);
 };

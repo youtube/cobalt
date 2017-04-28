@@ -22,7 +22,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-VideoRendererImpl::VideoRendererImpl(scoped_ptr<VideoDecoder> decoder)
+VideoRendererImpl::VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder)
     : seeking_(false),
       seeking_to_pts_(0),
       end_of_stream_written_(false),
@@ -80,8 +80,6 @@ void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
 scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
     SbMediaTime media_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-  decoder_->SetCurrentTime(media_time);
 
   if (frames_.empty()) {
     return last_displayed_frame_;
@@ -142,7 +140,7 @@ void VideoRendererImpl::OnDecoderStatusUpdate(
   need_more_input_ = (status == VideoDecoder::kNeedMoreInput);
 }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   if (decoder_) {
     return decoder_->GetCurrentDecodeTarget();
@@ -150,7 +148,7 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 }  // namespace filter
 }  // namespace player

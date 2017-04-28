@@ -247,7 +247,8 @@ bool TextAlternativeHelper::TryAppendFromAltProperty(
   // https://www.w3.org/TR/REC-html40/struct/objects.html#h-13.8
   // The only element type that supports the "alt" attribute that Cobalt
   // implements is the <img> element.
-  if (element->tag_name() == dom::HTMLImageElement::kTagName) {
+  if (element->AsHTMLElement() &&
+      element->AsHTMLElement()->AsHTMLImageElement()) {
     base::optional<std::string> alt_attribute =
         element->GetAttribute(base::Tokens::alt().c_str());
     if (alt_attribute) {

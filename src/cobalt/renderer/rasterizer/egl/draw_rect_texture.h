@@ -29,10 +29,6 @@ namespace egl {
 // Handles drawing a textured rectangle.
 class DrawRectTexture : public DrawObject {
  public:
-  typedef base::Callback<void(const backend::TextureEGL** out_texture,
-                              math::Matrix3F* out_texcoord_transform)>
-      GenerateTextureFunction;
-
   DrawRectTexture(GraphicsState* graphics_state,
                   const BaseState& base_state,
                   const math::RectF& rect,
@@ -42,7 +38,10 @@ class DrawRectTexture : public DrawObject {
   DrawRectTexture(GraphicsState* graphics_state,
                   const BaseState& base_state,
                   const math::RectF& rect,
-                  const GenerateTextureFunction& generate_texture);
+                  const backend::TextureEGL* texture,
+                  const math::Matrix3F& texcoord_transform,
+                  const base::Closure& draw_offscreen,
+                  const base::Closure& draw_onscreen);
 
   void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
@@ -55,9 +54,11 @@ class DrawRectTexture : public DrawObject {
   math::Matrix3F texcoord_transform_;
   math::RectF rect_;
   const backend::TextureEGL* texture_;
-  GenerateTextureFunction generate_texture_;
+  base::Closure draw_offscreen_;
+  base::Closure draw_onscreen_;
 
   uint8_t* vertex_buffer_;
+  bool tile_texture_;
 };
 
 }  // namespace egl

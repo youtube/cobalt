@@ -87,11 +87,16 @@ SB_EXPORT bool SbImageIsDecodeSupported(const char* mime_type,
 // requested format is not supported or the decode fails,
 // kSbDecodeTargetInvalid will be returned, with any intermediate allocations
 // being cleaned up in the implementation.
-SB_EXPORT SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
-                                       void* data,
-                                       int data_size,
-                                       const char* mime_type,
-                                       SbDecodeTargetFormat format);
+SB_EXPORT SbDecodeTarget SbImageDecode(
+#if SB_API_VERSION >= 4
+    SbDecodeTargetGraphicsContextProvider* context_provider,
+#else
+    SbDecodeTargetProvider* provider,
+#endif
+    void* data,
+    int data_size,
+    const char* mime_type,
+    SbDecodeTargetFormat format);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -32,6 +32,45 @@ class VideoDecoder {
  public:
   enum Status { kNeedMoreInput, kBufferFull, kFatalError };
 
+  virtual ~VideoDecoder() {}
+
+  // Send encoded video frame stored in |input_buffer| to decode.
+  virtual void WriteInputBuffer(const InputBuffer& input_buffer) = 0;
+  // Note that there won't be more input data unless Reset() is called.
+  // OnDecoderStatusUpdate will still be called on Host during flushing until
+  // the |frame| is an EOS frame.
+  virtual void WriteEndOfStream() = 0;
+  // Clear any cached buffer of the codec and reset the state of the codec.
+  // This function will be called during seek to ensure that there is no left
+  // over data from previous buffers.  No DecoderStatusFunc call will be made
+  // after this function returns unless WriteInputFrame() or WriteEndOfStream()
+  // is called again.
+  virtual void Reset() = 0;
+
+#if SB_API_VERSION >= 3
+  // May be called from an arbitrary thread (e.g. a renderer thread).
+  virtual SbDecodeTarget GetCurrentDecodeTarget() {
+    return kSbDecodeTargetInvalid;
+  }
+#endif  // SB_API_VERSION >= 3
+
+#if SB_API_VERSION >= 4
+  // Individual implementations must implement this function to indicate which
+  // output modes they support.
+  static bool OutputModeSupported(SbPlayerOutputMode output_mode,
+                                  SbMediaVideoCodec codec,
+                                  SbDrmSystem drm_system);
+#endif  // SB_API_VERSION >= 3
+};
+
+// An extended |VideoDecoder| that is capable of providing |VideoFrame|s to
+// |Host| that owns it.  If the platform's video decoder implementation can
+// satisfy this interface, then the default video renderer implementation may
+// be used.  If not, then the platform will also likely require a video
+// renderer implementation that is somehow capable of receiving video frames
+// (through |VideoFrame| or possibly some other means).
+class HostedVideoDecoder : public VideoDecoder {
+ public:
   class Host {
    public:
     // |frame| can contain a decoded frame or be NULL when |status| is not
@@ -47,43 +86,7 @@ class VideoDecoder {
     ~Host() {}
   };
 
-  virtual ~VideoDecoder() {}
-
   virtual void SetHost(Host* host) = 0;
-
-  // Send encoded video frame stored in |input_buffer| to decode.
-  virtual void WriteInputBuffer(const InputBuffer& input_buffer) = 0;
-  // Note that there won't be more input data unless Reset() is called.
-  // OnDecoderStatusUpdate will still be called on Host during flushing until
-  // the |frame| is an EOS frame.
-  virtual void WriteEndOfStream() = 0;
-  // Clear any cached buffer of the codec and reset the state of the codec.
-  // This function will be called during seek to ensure that there is no left
-  // over data from previous buffers.  No DecoderStatusFunc call will be made
-  // after this function returns unless WriteInputFrame() or WriteEndOfStream()
-  // is called again.
-  virtual void Reset() = 0;
-
-  // In certain cases, a decoder may benefit from knowing the current time of
-  // the audio decoder that it is following.  This optional function provides
-  // the renderer that owns the decoder an opportunity to provide this
-  // information to the decoder.
-  virtual void SetCurrentTime(SbMediaTime current_time) {}
-
-#if SB_API_VERSION >= 3
-  // May be called from an arbitrary thread (e.g. a renderer thread).
-  virtual SbDecodeTarget GetCurrentDecodeTarget() {
-    return kSbDecodeTargetInvalid;
-  }
-#endif  // SB_API_VERSION >= 3
-
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-  // Individual implementations must implement this function to indicate which
-  // output modes they support.
-  static bool OutputModeSupported(SbPlayerOutputMode output_mode,
-                                  SbMediaVideoCodec codec,
-                                  SbDrmSystem drm_system);
-#endif  // SB_API_VERSION >= 3
 };
 
 }  // namespace filter

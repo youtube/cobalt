@@ -23,6 +23,7 @@
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/mozjs-45/interface_data.h"
 #include "cobalt/script/mozjs-45/opaque_root_tracker.h"
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
@@ -36,6 +37,7 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
+class MozjsScriptValueFactory;
 class ReferencedObjectMap;
 class WeakHandle;
 
@@ -44,7 +46,8 @@ class WeakHandle;
 class MozjsGlobalEnvironment : public GlobalEnvironment,
                                public Wrappable::CachedWrapperAccessor {
  public:
-  explicit MozjsGlobalEnvironment(JSRuntime* runtime);
+  MozjsGlobalEnvironment(JSRuntime* runtime,
+                         const JavaScriptEngine::Options& options);
   ~MozjsGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;
@@ -75,6 +78,11 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   void Bind(const std::string& identifier,
             const scoped_refptr<Wrappable>& impl) OVERRIDE;
+
+  ScriptValueFactory* script_value_factory() OVERRIDE;
+
+  // Evaluates any automatically included Javascript for the environment.
+  void EvaluateAutomatics();
 
   JSContext* context() const { return context_; }
 
@@ -162,6 +170,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;
   ContextDestructor context_destructor_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
+  scoped_ptr<MozjsScriptValueFactory> script_value_factory_;
   scoped_ptr<OpaqueRootTracker::OpaqueRootState> opaque_root_state_;
   JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;

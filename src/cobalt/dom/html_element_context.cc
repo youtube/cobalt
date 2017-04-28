@@ -24,8 +24,10 @@ HTMLElementContext::HTMLElementContext(
     Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
     script::ScriptRunner* script_runner,
+    script::ScriptValueFactory* script_value_factory,
     MediaSourceRegistry* media_source_registry,
     render_tree::ResourceProvider** resource_provider,
+    loader::image::AnimatedImageTracker* animated_image_tracker,
     loader::image::ImageCache* image_cache,
     loader::image::ReducedCacheCapacityManager*
         reduced_image_cache_capacity_manager,
@@ -38,8 +40,10 @@ HTMLElementContext::HTMLElementContext(
       can_play_type_handler_(can_play_type_handler),
       web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner),
+      script_value_factory_(script_value_factory),
       media_source_registry_(media_source_registry),
       resource_provider_(resource_provider),
+      animated_image_tracker_(animated_image_tracker),
       image_cache_(image_cache),
       reduced_image_cache_capacity_manager_(
           reduced_image_cache_capacity_manager),

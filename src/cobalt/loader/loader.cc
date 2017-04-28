@@ -74,41 +74,36 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
 
 Loader::Loader(const FetcherCreator& fetcher_creator,
                scoped_ptr<Decoder> decoder, const OnErrorFunction& on_error,
-               const OnDestructionFunction& on_destruction)
+               const OnDestructionFunction& on_destruction, bool is_suspended)
     : fetcher_creator_(fetcher_creator),
       decoder_(decoder.Pass()),
       on_error_(on_error),
       on_destruction_(on_destruction),
-      suspended_(false) {
+      is_suspended_(is_suspended) {
+  DCHECK(!fetcher_creator_.is_null());
   DCHECK(decoder_);
   DCHECK(!on_error.is_null());
 
-  Start();
-
-  // Post the error callback on the current message loop in case loader is
-  // destroyed in the callback.
-  if (!fetcher_) {
-    fetcher_creator_error_closure_.Reset(
-        base::Bind(on_error, "Fetcher was not created."));
-    MessageLoop::current()->PostTask(FROM_HERE,
-                                     fetcher_creator_error_closure_.callback());
+  if (!is_suspended_) {
+    Start();
   }
 }
 
 Loader::~Loader() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
   if (!on_destruction_.is_null()) {
     on_destruction_.Run(this);
   }
 
-  DCHECK(thread_checker_.CalledOnValidThread());
   fetcher_creator_error_closure_.Cancel();
 }
 
 void Loader::Suspend() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (suspended_) {
-    return;
-  }
+  DCHECK(!is_suspended_);
+
+  is_suspended_ = true;
 
   bool suspendable = decoder_->Suspend();
   if (fetcher_) {
@@ -116,9 +111,7 @@ void Loader::Suspend() {
   }
 
   fetcher_to_decoder_adaptor_.reset();
-
   fetcher_creator_error_closure_.Cancel();
-  suspended_ = true;
 
   if (!suspendable) {
     on_error_.Run("Aborted.");
@@ -127,21 +120,30 @@ void Loader::Suspend() {
 
 void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (!suspended_) {
-    return;
-  }
-  suspended_ = false;
+  DCHECK(is_suspended_);
+
+  is_suspended_ = false;
+
   decoder_->Resume(resource_provider);
   Start();
 }
 
 void Loader::Start() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(decoder_);
-  DCHECK(!fetcher_creator_.is_null());
+  DCHECK(!is_suspended_);
+
   fetcher_to_decoder_adaptor_.reset(
       new FetcherToDecoderAdapter(decoder_.get(), on_error_));
   fetcher_ = fetcher_creator_.Run(fetcher_to_decoder_adaptor_.get());
+
+  // Post the error callback on the current message loop in case the loader is
+  // destroyed in the callback.
+  if (!fetcher_) {
+    fetcher_creator_error_closure_.Reset(
+        base::Bind(on_error_, "Fetcher was not created."));
+    MessageLoop::current()->PostTask(FROM_HERE,
+                                     fetcher_creator_error_closure_.callback());
+  }
 }
 
 }  // namespace loader

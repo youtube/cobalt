@@ -129,7 +129,7 @@
  */
 #include <time.h>
 
-#if !U_PLATFORM_USES_ONLY_WIN32_API
+#if !U_PLATFORM_USES_ONLY_WIN32_API && !defined(STARBOARD)
 #include <sys/time.h>
 #endif
 

@@ -17,6 +17,7 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/loader/image/animated_webp_image.h"
+#include "nb/memory_scope.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -28,6 +29,7 @@ WEBPImageDecoder::WEBPImageDecoder(
     : ImageDataDecoder(resource_provider),
       internal_decoder_(NULL),
       has_animation_(false) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
   WebPInitDecoderConfig(&config_);
@@ -53,6 +55,7 @@ uint8_t* WEBPImageDecoder::GetOriginalMemory() {
 
 size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::DecodeChunkInternal()");
   if (state() == kWaitingForHeader) {
@@ -73,7 +76,7 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       has_animation_ = true;
       animated_webp_image_ = new AnimatedWebPImage(
           math::Size(config_.input.width, config_.input.height),
-          !!config_.input.has_alpha, resource_provider());
+          !!config_.input.has_alpha, pixel_format(), resource_provider());
     }
     set_state(kReadLines);
   }
@@ -110,6 +113,7 @@ void WEBPImageDecoder::FinishInternal() {
 }
 
 bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::ReadHeader()");
   // Retrieve features from the bitstream. The *features structure is filled
   // with information gathered from the bitstream.
@@ -130,9 +134,12 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
 }
 
 bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
+  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::CreateInternalDecoder()");
-  config_.output.colorspace = has_alpha ? MODE_rgbA : MODE_RGBA;
+  config_.output.colorspace = pixel_format() == render_tree::kPixelFormatRGBA8
+                                  ? (has_alpha ? MODE_rgbA : MODE_RGBA)
+                                  : (has_alpha ? MODE_bgrA : MODE_BGRA);
   config_.output.u.RGBA.stride = image_data()->GetDescriptor().pitch_in_bytes;
   config_.output.u.RGBA.size =
       static_cast<size_t>(config_.output.u.RGBA.stride *

@@ -26,6 +26,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/backend/blitter/render_target.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
 #include "starboard/blitter.h"
 
@@ -35,6 +36,10 @@ namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace blitter {
+
+typedef base::Callback<void(const scoped_refptr<render_tree::Node>& render_tree,
+                            const scoped_refptr<backend::RenderTarget>&
+                                render_target)> SubmitOffscreenCallback;
 
 // render_tree::ImageData objects are implemented in the Blitter API via the
 // SbBlitterPixelData objects, which is conceptually an exact match for
@@ -75,6 +80,10 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,
                    const base::Closure& delete_function);
 
+  SinglePlaneImage(const scoped_refptr<render_tree::Node>& root,
+                   SubmitOffscreenCallback submit_offscreen_callback,
+                   SbBlitterDevice device);
+
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
   SbBlitterSurface surface() const { return surface_; }
@@ -92,6 +101,11 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
  private:
   ~SinglePlaneImage() OVERRIDE;
 
+  void InitializeImageFromRenderTree(
+      const scoped_refptr<render_tree::Node>& root,
+      const SubmitOffscreenCallback& submit_offscreen_callback,
+      SbBlitterDevice device);
+
   math::Size size_;
   SbBlitterSurface surface_;
 
@@ -104,6 +118,10 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   // If |delete_function| is provided, it will be called in the destructor
   // instead of manually calling SbBlitterDestroySurface(surface_).
   base::Closure delete_function_;
+
+  // This closure binds the image construction parameters so that we can delay
+  // construction of it until it is accessed by the rasterizer thread.
+  base::Closure initialize_image_;
 };
 
 }  // namespace blitter

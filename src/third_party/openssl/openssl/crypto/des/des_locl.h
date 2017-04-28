@@ -77,7 +77,7 @@
 #  if !defined(OPENSSL_SYS_VMS) || defined(__DECC)
 #   ifdef OPENSSL_UNISTD
 #    include OPENSSL_UNISTD
-#   else
+#   elif !defined(OPENSSL_SYS_STARBOARD)
 #    include <unistd.h>
 #   endif
 #   include <math.h>

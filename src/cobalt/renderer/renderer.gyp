@@ -22,8 +22,6 @@
       'target_name': 'renderer',
       'type': 'static_library',
       'sources': [
-        'frame_rate_throttler.cc',
-        'frame_rate_throttler.h',
         'pipeline.cc',
         'pipeline.h',
         'renderer_module.cc',
@@ -49,6 +47,7 @@
         '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
         '<(DEPTH)/cobalt/renderer/rasterizer/rasterizer.gyp:rasterizer',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
+        '<(DEPTH)/nb/nb.gyp:nb',
       ],
       'conditions': [
         ['OS=="starboard"', {

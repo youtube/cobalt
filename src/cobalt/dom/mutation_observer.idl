@@ -21,7 +21,7 @@
   ConstructorCallWith=EnvironmentSettings,
 ]
 interface MutationObserver {
-  void observe(Node target, MutationObserverInit options);
+  [RaisesException] void observe(Node target, MutationObserverInit options);
   void disconnect();
   sequence<MutationRecord> takeRecords();
 };

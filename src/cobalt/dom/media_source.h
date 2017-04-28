@@ -26,6 +26,8 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/media_source_end_of_stream_error.h"
+#include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/dom/source_buffer.h"
 #include "cobalt/dom/source_buffer_list.h"
 #include "cobalt/dom/url_registry.h"
@@ -48,12 +50,6 @@ class MediaSource : public EventTarget {
  public:
   typedef UrlRegistry<MediaSource> Registry;
 
-  // Web API: MediaSource
-  //
-  enum EndOfStreamError { kNoError, kNetwork, kDecode };
-
-  enum ReadyState { kClosed, kOpen, kEnded };
-
   // Custom, not in any spec.
   //
   MediaSource();
@@ -69,10 +65,10 @@ class MediaSource : public EventTarget {
   void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
                           script::ExceptionState* exception_state);
 
-  ReadyState ready_state() const;
+  MediaSourceReadyState ready_state() const;
 
   void EndOfStream(script::ExceptionState* exception_state);
-  void EndOfStream(EndOfStreamError error,
+  void EndOfStream(MediaSourceEndOfStreamError error,
                    script::ExceptionState* exception_state);
 
   static bool IsTypeSupported(script::EnvironmentSettings* settings,
@@ -99,7 +95,7 @@ class MediaSource : public EventTarget {
              script::ExceptionState* exception_state);
 
   // Methods used by HTMLMediaElement
-  void SetReadyState(ReadyState ready_state);
+  void SetReadyState(MediaSourceReadyState ready_state);
 
   DEFINE_WRAPPABLE_TYPE(MediaSource);
 
@@ -107,7 +103,7 @@ class MediaSource : public EventTarget {
   // From EventTarget.
   std::string GetDebugName() OVERRIDE { return "MediaSource"; }
 
-  ReadyState ready_state_;
+  MediaSourceReadyState ready_state_;
   ::media::WebMediaPlayer* player_;
   EventQueue event_queue_;
   scoped_refptr<SourceBufferList> source_buffers_;

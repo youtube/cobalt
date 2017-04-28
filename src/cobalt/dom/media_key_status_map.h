@@ -27,17 +27,6 @@ namespace dom {
 
 class MediaKeyStatusMap : public script::Wrappable {
  public:
-  enum MediaKeyStatus {
-    kUsable,
-    kExpired,
-    kReleased,
-    kOutputRestricted,
-    kOutputDownscaled,
-    kStatusPending,
-    kInternalError,
-    kMaxMediaKeyStatus,
-  };
-
   typedef script::UnionType2<scoped_refptr<ArrayBufferView>,
                              scoped_refptr<ArrayBuffer> > BufferSource;
   uint32_t size() const { return 0; }

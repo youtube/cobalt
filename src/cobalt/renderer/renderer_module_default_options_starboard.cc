@@ -39,16 +39,20 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::SoftwareRasterizer(
           graphics_context, options.surface_cache_size_in_bytes));
-#elif defined(COBALT_FORCE_CUSTOM_RASTERIZER)
+#elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
-          graphics_context, options.skia_cache_size_in_bytes,
+          graphics_context, options.skia_texture_atlas_dimensions.width(),
+          options.skia_texture_atlas_dimensions.height(),
+          options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
-          graphics_context, options.skia_cache_size_in_bytes,
+          graphics_context, options.skia_texture_atlas_dimensions.width(),
+          options.skia_texture_atlas_dimensions.height(),
+          options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
@@ -60,7 +64,9 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
-          graphics_context, options.scratch_surface_cache_size_in_bytes,
+          graphics_context, options.skia_texture_atlas_dimensions.width(),
+          options.skia_texture_atlas_dimensions.height(),
+          options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes,
           options.software_surface_cache_size_in_bytes));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
@@ -75,11 +81,12 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
   // Set default options from the current build's Starboard configuration.
   surface_cache_size_in_bytes = COBALT_SURFACE_CACHE_SIZE_IN_BYTES;
-  skia_cache_size_in_bytes = COBALT_SKIA_CACHE_SIZE_IN_BYTES;
+  // Default to 4MB, but this may be modified externally.
+  skia_cache_size_in_bytes = 4 * 1024 * 1024;
   scratch_surface_cache_size_in_bytes =
       COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
-  software_surface_cache_size_in_bytes =
-      COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES;
+  // 8MB default for software_surface_cache.
+  software_surface_cache_size_in_bytes = 8 * 1024 * 1024;
 
   // If there is no need to frequently flip the display buffer, then enable
   // support for an optimization where the scene is not re-rasterized each frame

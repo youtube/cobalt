@@ -161,9 +161,20 @@ scoped_refptr<DOMImplementation> Document::implementation() {
   return implementation_;
 }
 
+// Algorithm for GetElementsByTagName:
+//   https://www.w3.org/TR/dom/#concept-getelementsbytagname
 scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
     const std::string& local_name) const {
-  return HTMLCollection::CreateWithElementsByTagName(this, local_name);
+  // 2. If the document is not an HTML document, then return an HTML collection
+  //    whose name is local name. If it is an HTML document, then return an,
+  //    HTML collection whose name is local name converted to ASCII lowercase.
+  if (IsXMLDocument()) {
+    return HTMLCollection::CreateWithElementsByLocalName(this, local_name);
+  } else {
+    const std::string lower_local_name = StringToLowerASCII(local_name);
+    return HTMLCollection::CreateWithElementsByLocalName(this,
+                                                         lower_local_name);
+  }
 }
 
 scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
@@ -212,10 +223,10 @@ scoped_refptr<Event> Document::CreateEvent(
     return new UIEvent(Event::Uninitialized);
   }
 
-  DOMException::Raise(DOMException::kNotSupportedErr,
-                      "document.createEvent does not support \""
-                        + interface_name + "\".",
-                      exception_state);
+  DOMException::Raise(
+      DOMException::kNotSupportedErr,
+      "document.createEvent does not support \"" + interface_name + "\".",
+      exception_state);
 
   // Return value will be ignored.
   return NULL;
@@ -268,11 +279,6 @@ scoped_refptr<HTMLBodyElement> Document::body() const {
 void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
   // 1. If the new value is not a body or frameset element, then throw a
   //    HierarchyRequestError exception and abort these steps.
-  if (body->tag_name() != HTMLBodyElement::kTagName) {
-    // TODO: Throw JS HierarchyRequestError.
-    return;
-  }
-
   // 2. Otherwise, if the new value is the same as the body element, do nothing.
   //    Abort these steps.
   scoped_refptr<HTMLBodyElement> current_body = this->body();
@@ -379,11 +385,26 @@ scoped_refptr<HTMLHtmlElement> Document::html() const {
 }
 
 void Document::SetActiveElement(Element* active_element) {
+  // Invalidate matching rules on old and new active element.
+  if (active_element_) {
+    HTMLElement* html_element = active_element_->AsHTMLElement();
+    if (html_element) {
+      html_element->InvalidateMatchingRulesRecursively();
+    }
+  }
   if (active_element) {
+    HTMLElement* html_element = active_element->AsHTMLElement();
+    if (html_element) {
+      html_element->InvalidateMatchingRulesRecursively();
+    }
     active_element_ = base::AsWeakPtr(active_element);
   } else {
     active_element_.reset();
   }
+
+  // Record mutation and trigger layout.
+  is_computed_style_dirty_ = true;
+  RecordMutation();
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnFocusChanged());
 }
 
@@ -450,7 +471,7 @@ void Document::OnCSSMutation() {
 
   scoped_refptr<HTMLHtmlElement> current_html = html();
   if (current_html) {
-    current_html->InvalidateComputedStylesRecursively();
+    current_html->InvalidateComputedStylesOfNodeAndDescendants();
   }
 
   RecordMutation();
@@ -465,7 +486,10 @@ void Document::OnDOMMutation() {
 }
 
 void Document::OnTypefaceLoadEvent() {
-  InvalidateLayoutBoxesFromNodeAndDescendants();
+  scoped_refptr<HTMLHtmlElement> current_html = html();
+  if (current_html) {
+    current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
+  }
   RecordMutation();
 }
 
@@ -581,7 +605,10 @@ void Document::SetPartialLayout(const std::string& mode_string) {
        mode_token_iterator != mode_tokens.end(); ++mode_token_iterator) {
     const std::string& mode_token = *mode_token_iterator;
     if (mode_token == "wipe") {
-      InvalidateLayoutBoxesFromNodeAndDescendants();
+      scoped_refptr<HTMLHtmlElement> current_html = html();
+      if (current_html) {
+        current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
+      }
       DLOG(INFO) << "Partial Layout state wiped";
     } else if (mode_token == "off") {
       partial_layout_is_enabled_ = false;
@@ -610,7 +637,7 @@ void Document::SetViewport(const math::Size& viewport_size) {
 
   scoped_refptr<HTMLHtmlElement> current_html = html();
   if (current_html) {
-    current_html->InvalidateComputedStylesRecursively();
+    current_html->InvalidateComputedStylesOfNodeAndDescendants();
   }
 }
 
@@ -648,20 +675,22 @@ void Document::UpdateSelectorTree() {
   }
 }
 
-void Document::InvalidateLayout() {
-  // Set all invalidation flags and recursively invalidate the computed style.
-  is_selector_tree_dirty_ = true;
+void Document::PurgeCachedResources() {
+  // Set the computed style to dirty so that it'll be able to update any
+  // elements that had images purged when it resumes.
   is_computed_style_dirty_ = true;
-  are_font_faces_dirty_ = true;
-  are_keyframes_dirty_ = true;
 
   scoped_refptr<HTMLHtmlElement> current_html = html();
   if (current_html) {
-    current_html->InvalidateComputedStylesRecursively();
+    current_html->PurgeCachedBackgroundImagesOfNodeAndDescendants();
   }
+}
 
-  // Finally, also destroy all cached layout boxes.
-  InvalidateLayoutBoxesFromNodeAndDescendants();
+void Document::InvalidateLayoutBoxes() {
+  scoped_refptr<HTMLHtmlElement> current_html = html();
+  if (current_html) {
+    current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
+  }
 }
 
 void Document::DisableJit() {
@@ -730,7 +759,7 @@ void Document::UpdateKeyframes() {
     // the keyframes map changed.
     scoped_refptr<HTMLHtmlElement> current_html = html();
     if (current_html) {
-      current_html->InvalidateComputedStylesRecursively();
+      current_html->InvalidateComputedStylesOfNodeAndDescendants();
     }
   }
 }

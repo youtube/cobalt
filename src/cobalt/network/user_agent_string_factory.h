@@ -42,13 +42,14 @@ class UserAgentStringFactory {
   std::string os_name_and_version_;
   std::string architecture_tokens_;
   std::string starboard_version_;
+  std::string aux_field_;
 
   struct YouTubeTVInfo {
     enum DeviceType {
       kInvalidDeviceType,
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
       kAndroidTV,
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
       kBlueRayDiskPlayer,
       kGameConsole,
       kOverTheTopBox,

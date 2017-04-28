@@ -71,8 +71,9 @@ bool IsZeroWidthSpaceOrFeed(char c) {
   return strchr(kZeroWidthSpacesAndFeeds, c) != NULL;
 }
 
-bool IsInHeadElement(const dom::Element* element) {
-  if (element->tag_name() == dom::HTMLHeadElement::kTagName) {
+bool IsInHeadElement(dom::Element* element) {
+  if (element->AsHTMLElement() &&
+      element->AsHTMLElement()->AsHTMLHeadElement()) {
     return true;
   }
   scoped_refptr<dom::Element> parent = element->parent_element();
@@ -215,7 +216,7 @@ bool LastLineIsNonEmpty(const std::vector<std::string>& lines) {
 void GetElementTextInternal(dom::Element* element,
                             std::vector<std::string>* lines) {
   // If the element is a: BR element: Push '' to lines and continue.
-  if (element->tag_name() == dom::HTMLBRElement::kTagName) {
+  if (element->AsHTMLElement() && element->AsHTMLElement()->AsHTMLBRElement()) {
     lines->push_back("");
     return;
   }
@@ -437,7 +438,8 @@ bool IsDisplayed(dom::Element* element) {
   // By convention, BODY element is always shown: BODY represents the document
   // and even if there's nothing rendered in there, user can always see there's
   // the document.
-  if (element->tag_name() == dom::HTMLBodyElement::kTagName) {
+  if (element->AsHTMLElement() &&
+      element->AsHTMLElement()->AsHTMLBodyElement()) {
     return true;
   }
 

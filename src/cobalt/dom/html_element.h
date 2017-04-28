@@ -16,6 +16,7 @@
 #define COBALT_DOM_HTML_ELEMENT_H_
 
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
@@ -202,8 +203,14 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return css_computed_style_declaration_->data();
   }
 
-  // Invalidates the cached computed style of this element and its descendants.
-  void InvalidateComputedStylesRecursively() OVERRIDE;
+  void PurgeCachedBackgroundImagesOfNodeAndDescendants() OVERRIDE;
+  void InvalidateComputedStylesOfNodeAndDescendants() OVERRIDE;
+  void InvalidateLayoutBoxesOfNodeAndAncestors() OVERRIDE;
+  void InvalidateLayoutBoxesOfNodeAndDescendants() OVERRIDE;
+  void InvalidateLayoutBoxSizes() OVERRIDE;
+  void InvalidateLayoutBoxCrossReferences() OVERRIDE;
+  void InvalidateLayoutBoxRenderTreeNodes() OVERRIDE;
+
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
@@ -230,11 +237,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
-  void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
-  void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
-  void InvalidateLayoutBoxSizesFromNode() OVERRIDE;
-  void InvalidateLayoutBoxCrossReferencesFromNode() OVERRIDE;
-  void InvalidateRenderTreeNodesFromNode() OVERRIDE;
 
   // Determines whether this element is focusable.
   bool IsFocusable() const { return HasAttribute("tabindex"); }
@@ -254,14 +256,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
-  HTMLElement(Document* document, base::Token tag_name);
+  HTMLElement(Document* document, base::Token local_name);
   ~HTMLElement() OVERRIDE;
 
   void CopyDirectionality(const HTMLElement& other);
-
-  // Releases image resources and invalidates computed style if there are images
-  // associated with this html element in the image cache.
-  void ReleaseImagesAndInvalidateComputedStyleIfNecessary() OVERRIDE;
 
   // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
   // make stat updates even after its weak pointer to its document has been
@@ -285,6 +283,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // determining directionality of elements. As a result of this, setting the
   // directionality does not invalidate the computed style.
   void SetDirectionality(const std::string& value);
+
+  // Clear the list of active background images, and notify the animated image
+  // tracker to stop the animations.
+  void ClearActiveBackgroundImages();
 
   void UpdateCachedBackgroundImagesFromComputedStyle();
 
@@ -335,6 +337,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   base::WeakPtr<DOMStringMap> dataset_;
+
+  std::vector<GURL> active_background_images_;
 
   // |cached_background_images_| contains a list of CachedImage references for
   // all images referenced by the computed value for the background_image CSS

@@ -32,6 +32,9 @@ bool SystemDeviceTypeIsTv(SbSystemDeviceType device_type) {
     case kSbSystemDeviceTypeOverTheTopBox:
     case kSbSystemDeviceTypeSetTopBox:
     case kSbSystemDeviceTypeTV:
+#if SB_API_VERSION >= 4
+    case kSbSystemDeviceTypeAndroidTV:
+#endif  // SB_API_VERSION >= 4
       return true;
     case kSbSystemDeviceTypeDesktopPC:
     case kSbSystemDeviceTypeUnknown:
@@ -69,6 +72,14 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
       youtube_tv_info_->network_operator = value;
     }
 
+#if SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
+    result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value,
+                                 kSystemPropertyMaxLength);
+    if (result) {
+      aux_field_ = value;
+    }
+#endif  // SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
+
     // Device Type
     switch (device_type) {
       case kSbSystemDeviceTypeBlueRayDiskPlayer:
@@ -86,11 +97,11 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
       case kSbSystemDeviceTypeTV:
         youtube_tv_info_->device_type = YouTubeTVInfo::kTV;
         break;
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
       case kSbSystemDeviceTypeAndroidTV:
         youtube_tv_info_->device_type = YouTubeTVInfo::kAndroidTV;
         break;
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
       case kSbSystemDeviceTypeDesktopPC:
       default:
         youtube_tv_info_->device_type = YouTubeTVInfo::kInvalidDeviceType;

@@ -407,15 +407,13 @@ float GetFontSize(const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
 }  // namespace
 
 UsedStyleProvider::UsedStyleProvider(
-    dom::HTMLElementContext* html_element_context,
-    loader::image::ImageCache* image_cache, dom::FontCache* font_cache,
-    const AttachCameraNodeFunction& attach_camera_node_function,
-    loader::mesh::MeshCache* mesh_cache)
-    : html_element_context_(html_element_context),
-      image_cache_(image_cache),
-      font_cache_(font_cache),
-      attach_camera_node_function_(attach_camera_node_function),
-      mesh_cache_(mesh_cache) {}
+    dom::HTMLElementContext* html_element_context, dom::FontCache* font_cache,
+    const AttachCameraNodeFunction& attach_camera_node_function)
+    : font_cache_(font_cache),
+      animated_image_tracker_(html_element_context->animated_image_tracker()),
+      image_cache_(html_element_context->image_cache()),
+      mesh_cache_(html_element_context->mesh_cache()),
+      attach_camera_node_function_(attach_camera_node_function) {}
 
 scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -469,14 +467,26 @@ scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
 
 scoped_refptr<loader::image::Image> UsedStyleProvider::ResolveURLToImage(
     const GURL& url) {
+  DCHECK(animated_image_tracker_);
   DCHECK(image_cache_);
-  return image_cache_->CreateCachedResource(url)->TryGetResource();
+  scoped_refptr<loader::image::Image> image =
+      image_cache_->CreateCachedResource(url)->TryGetResource();
+  if (image && image->IsAnimated()) {
+    loader::image::AnimatedImage* animated_image =
+        base::polymorphic_downcast<loader::image::AnimatedImage*>(image.get());
+    animated_image_tracker_->RecordImage(url, animated_image);
+  }
+  return image;
 }
 
 scoped_refptr<loader::mesh::MeshProjection>
 UsedStyleProvider::ResolveURLToMeshProjection(const GURL& url) {
   DCHECK(mesh_cache_);
   return mesh_cache_->CreateCachedResource(url)->TryGetResource();
+}
+
+void UsedStyleProvider::UpdateAnimatedImages() {
+  animated_image_tracker_->ProcessRecordedImages();
 }
 
 void UsedStyleProvider::CleanupAfterLayout() {
@@ -514,6 +524,21 @@ LayoutUnit GetUsedLength(
       base::polymorphic_downcast<cssom::LengthValue*>(length_refptr.get());
   DCHECK_EQ(length->unit(), cssom::kPixelsUnit);
   return LayoutUnit(length->value());
+}
+
+LayoutUnit GetUsedNonNegativeLength(
+    const scoped_refptr<cssom::PropertyValue>& length_refptr) {
+  cssom::LengthValue* length =
+      base::polymorphic_downcast<cssom::LengthValue*>(length_refptr.get());
+  DCHECK_EQ(length->unit(), cssom::kPixelsUnit);
+  LayoutUnit layout_unit(length->value());
+  if (layout_unit < LayoutUnit(0)) {
+    DLOG(WARNING) << "Invalid non-negative layout length "
+                  << layout_unit.toFloat() << ", original length was "
+                  << length->value();
+    layout_unit = LayoutUnit(0);
+  }
+  return layout_unit;
 }
 
 class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {

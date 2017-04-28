@@ -14,6 +14,10 @@
 
 #include "starboard/socket.h"
 
+#if SB_API_VERSION < 4
+
 bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* /*out_address*/) {
   return false;
 }
+
+#endif  // SB_API_VERSION < 4

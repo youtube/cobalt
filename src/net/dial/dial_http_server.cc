@@ -77,11 +77,37 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   int ret = http_server_->GetLocalAddress(addr);
 
 #if defined(OS_STARBOARD)
+
+#if SB_API_VERSION >= 4
+  if (ret != 0) {
+    return ERR_FAILED;
+  }
+
+  SbSocketAddress local_ip = {0};
+
   // Now get the IPAddress of the network card.
+  SbSocketAddress destination = {0};
+  SbSocketAddress netmask = {0};
+
+  // Dial only works with IPv4.
+  destination.type = kSbSocketAddressTypeIpv4;
+  if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
+    return ERR_FAILED;
+  }
+  local_ip.port = addr->port();
+
+  if (addr->FromSbSocketAddress(&local_ip)) {
+    return OK;
+  }
+
+  return ERR_FAILED;
+#else
   SbSocketAddress address;
   ret |= SbSocketGetLocalInterfaceAddress(&address) ? 0 : -1;
   address.port = addr->port();
   return (ret == 0 && addr->FromSbSocketAddress(&address)) ? OK : ERR_FAILED;
+#endif  // SB_API_VERSION >= 4
+
 #else
   // Now get the IPAddress of the network card.
   SockaddrStorage sock_addr;

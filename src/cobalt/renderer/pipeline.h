@@ -190,9 +190,6 @@ class Pipeline {
   // did not have active animations.
   bool last_render_animations_active_;
 
-  // Tracks whether or not animations are currently playing.
-  base::CVal<bool> has_active_animations_c_val_;
-
   // Timer tracking the amount of time spent in
   // |RasterizeSubmissionToRenderTarget| when the render tree has changed.
   // The tracking is flushed when the max count is hit.
@@ -201,6 +198,9 @@ class Pipeline {
   // |RasterizeSubmissionToRenderTarget| while animations are active. The
   // tracking is flushed when the animations expire.
   base::CValCollectionTimerStats<base::CValDebug> rasterize_animations_timer_;
+
+  // Tracks whether or not animations are currently playing.
+  base::CVal<bool> has_active_animations_c_val_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.

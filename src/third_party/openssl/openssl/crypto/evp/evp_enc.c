@@ -72,6 +72,10 @@
 #endif
 #include "evp_locl.h"
 
+#if defined(OPENSSL_SYS_STARBOARD)
+#include "starboard/cryptography.h"
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+
 #ifdef OPENSSL_FIPS
 # define M_do_cipher(ctx, out, in, inl) FIPS_cipher(ctx, out, in, inl)
 #else
@@ -544,6 +548,9 @@ void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
 
 int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *c)
 {
+#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+    SbCryptographyDestroyTransformer(c->stream_transformer);
+#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
 #ifndef OPENSSL_FIPS
     if (c->cipher != NULL) {
         if (c->cipher->cleanup && !c->cipher->cleanup(c))

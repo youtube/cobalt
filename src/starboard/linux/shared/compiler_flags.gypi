@@ -42,6 +42,9 @@
     ],
     'conditions': [
       ['clang==1', {
+        'linker_flags': [
+          '-fuse-ld=lld',
+        ],
         'common_clang_flags': [
           '-Werror',
           '-fcolor-diagnostics',
@@ -50,8 +53,7 @@
           # Warn for implicit type conversions that may change a value.
           '-Wconversion',
           '-Wno-c++11-compat',
-          # This (rightfully) complains about 'override', which we use
-          # heavily.
+          # This complains about 'override', which we use heavily.
           '-Wno-c++11-extensions',
           # Warns on switches on enums that cover all enum values but
           # also contain a default: branch. Chrome is full of that.
@@ -98,11 +100,7 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      # Limit to gnu++98. This allows Linux to be a canary build for any
-      # C++11 features that are not supported on some platforms' compilers.
-      # We do allow ourselves GNU extensions, which are assumed to exist
-      # by Chromium code.
-      '-std=gnu++98',
+      '-std=gnu++11',
     ],
     'target_conditions': [
       ['cobalt_code==1', {
@@ -142,6 +140,13 @@
         ],
         'defines': [
           'ADDRESS_SANITIZER',
+        ],
+        'conditions': [
+          ['asan_symbolizer_path!=""', {
+            'defines': [
+              'ASAN_SYMBOLIZER_PATH="<@(asan_symbolizer_path)"',
+            ],
+          }],
         ],
       }],
       ['use_tsan==1', {

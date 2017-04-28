@@ -309,5 +309,9 @@ bool Display::SwapBuffers(EGLSurface surface) {
   return true;
 }
 
+bool Display::SwapInterval(EGLint interval) {
+  return impl_->SetSwapInterval(interval);
+}
+
 }  // namespace egl
 }  // namespace glimp

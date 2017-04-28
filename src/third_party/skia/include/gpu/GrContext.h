@@ -62,7 +62,9 @@ public:
     /**
      * Creates a GrContext for a backend context.
      */
-    static GrContext* Create(GrBackend, GrBackendContext, const Options* opts = NULL);
+    static GrContext* Create(GrBackend, GrBackendContext,
+                             int atlas_tex_width, int atlas_tex_height,
+                             const Options* opts = NULL);
 
     virtual ~GrContext();
 
@@ -1029,9 +1031,14 @@ private:
 
     int                             fMaxTextureSizeOverride;
 
+    // The size of the glyph atlas texture.
+    int atlas_texture_width;
+    int atlas_texture_height;
+
     const Options                   fOptions;
 
-    GrContext(const Options&); // init must be called after the constructor.
+    // init must be called after the constructor.
+    GrContext(int atlas_tex_width, int atlas_tex_height, const Options&);
     bool init(GrBackend, GrBackendContext);
 
     void setupDrawBuffer();

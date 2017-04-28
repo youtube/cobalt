@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/compiler.h"
@@ -25,6 +26,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/blob.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
@@ -36,7 +38,7 @@
 namespace cobalt {
 namespace websocket {
 
-// This class represents a WebSocket.  It will abide by RFC 6455 "The WebSocket
+// This class represents a WebSocket.  It abides by RFC 6455 "The WebSocket
 // Protocol", and implements the The WebSocket API spec at
 // https://www.w3.org/TR/websockets/ (as of Jan 2017).
 class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
@@ -56,6 +58,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   WebSocket(script::EnvironmentSettings* settings, const std::string& url,
             const std::vector<std::string>& sub_protocols,
             script::ExceptionState* exception_state);
+  ~WebSocket();
 
   // Readonly Attributes.
   uint32 buffered_amount() const { return buffered_amount_; }
@@ -93,6 +96,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onclose(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::close(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   const EventListenerScriptValue* onerror() const {
@@ -101,6 +105,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onerror(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::error(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   const EventListenerScriptValue* onmessage() const {
@@ -109,6 +114,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onmessage(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::message(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   const EventListenerScriptValue* onopen() const {
@@ -117,6 +123,7 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
 
   void set_onopen(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::open(), event_listener);
+    PotentiallyAllowGarbageCollection();
   }
 
   std::string GetHost() const { return resolved_url_.host(); }
@@ -125,16 +132,35 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   int GetPort() const { return resolved_url_.EffectiveIntPort(); }
   std::string GetPortAsString() const;
 
+  dom::CspDelegate* csp_delegate() const;
+
   DEFINE_WRAPPABLE_TYPE(WebSocket)
 
  private:
+  // The following constructors are used for testing only.
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            script::ExceptionState* exception_state,
+            const bool require_network_module);
+
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            const std::string& sub_protocol_list,
+            script::ExceptionState* exception_state,
+            const bool require_network_module);
+
+  WebSocket(script::EnvironmentSettings* settings, const std::string& url,
+            const std::vector<std::string>& sub_protocols,
+            script::ExceptionState* exception_state,
+            const bool require_network_module);
+
   void OnConnected(const std::string& selected_subprotocol) OVERRIDE;
 
-  void OnDisconnected() OVERRIDE {
-    this->DispatchEvent(new dom::Event(base::Tokens::close()));
-  }
+  void OnDisconnected(bool was_clean, uint16 code,
+                      const std::string& reason) OVERRIDE;
+
   void OnSentData(int amount_sent) OVERRIDE {
-    UNREFERENCED_PARAMETER(amount_sent);
+    DCHECK_GE(buffered_amount_, amount_sent);
+    buffered_amount_ -= amount_sent;
+    PotentiallyAllowGarbageCollection();
   }
   void OnReceivedData(bool is_text_frame,
                       scoped_refptr<net::IOBufferWithSize> data) OVERRIDE;
@@ -142,14 +168,35 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
     this->DispatchEvent(new dom::Event(base::Tokens::error()));
   }
 
-  void Initialize(dom::DOMSettings* dom_settings, const std::string& url,
+  void Initialize(script::EnvironmentSettings* settings, const std::string& url,
                   const std::vector<std::string>& sub_protocols,
                   script::ExceptionState* exception_state);
 
   void Connect(const GURL& url, const std::vector<std::string>& sub_protocols);
 
+  void SetReadyState(const uint16 ready_state) {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    ready_state_ = ready_state;
+    PotentiallyAllowGarbageCollection();
+  }
+
+  // TODO: Investigate if these are worth optimizing.
+  bool HasOnOpenListener() const { return (onopen() != NULL); }
+  bool HasOnMessageListener() const { return (onmessage() != NULL); }
+  bool HasOnErrorListener() const { return (onerror() != NULL); }
+  bool HasOnCloseListener() const { return (onclose() != NULL); }
+  bool HasOutstandingData() const { return (buffered_amount_ > 0); }
+
+  void PotentiallyAllowGarbageCollection();
+
   // Returns false if the check fails.
   bool CheckReadyState(script::ExceptionState* exception_state);
+
+  // Per https://www.w3.org/TR/websockets/#garbage-collection, prevent garbage
+  // collection of this object while connection is live and event listeners are
+  // registered.
+  void AllowGarbageCollection();
+  void PreventGarbageCollection();
 
   // https://www.w3.org/TR/websockets/#dom-websocket-bufferedamount
   int32 buffered_amount_;
@@ -172,10 +219,30 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   std::string resource_name_;  // The path of the URL.
   std::string entry_script_origin_;
 
+  bool require_network_module_;
   dom::DOMSettings* settings_;
   scoped_refptr<WebSocketImpl> impl_;
 
-  FRIEND_TEST(WebSocketTest, GoodOrigin);
+  bool preventing_gc_;
+
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, BadOrigin);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, GoodOrigin);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, TestInitialReadyState);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, SyntaxErrorWhenBadScheme);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseWsAndWssCorrectly);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, CheckSecure);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, SyntaxErrorWhenRelativeUrl);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, URLHasFragments);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, URLHasPort);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, URLHasNoPort);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseHost);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseResourceName);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseEmptyResourceName);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseResourceNameWithQuery);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, FailUnsecurePort);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, FailInvalidSubProtocols);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, SubProtocols);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, DuplicatedSubProtocols);
 
   DISALLOW_COPY_AND_ASSIGN(WebSocket);
 };

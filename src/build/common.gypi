@@ -965,7 +965,7 @@
     'sas_dll_exists': '<!(python <(DEPTH)/build/dir_exists.py <(sas_dll_path))',
     'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
-    'windows_sdk_default_path': '<(DEPTH)/third_party/platformsdk_win8/files',
+    'windows_sdk_path%': 'C:/Program Files (x86)/Windows Kits/10',
     'directx_sdk_default_path': '<(DEPTH)/third_party/directxsdk/files',
 
     # Whether we are using the rlz library or not.  Platforms like Android send
@@ -973,11 +973,6 @@
     'enable_rlz%': 0,
 
     'conditions': [
-      ['OS=="win" and "<!(python <(DEPTH)/build/dir_exists.py <(windows_sdk_default_path))"=="True"', {
-        'windows_sdk_path%': '<(windows_sdk_default_path)',
-      }, {
-        'windows_sdk_path%': 'C:/Program Files (x86)/Windows Kits/8.0',
-      }],
       ['OS=="win" and "<!(python <(DEPTH)/build/dir_exists.py <(directx_sdk_default_path))"=="True"', {
         'directx_sdk_path%': '<(directx_sdk_default_path)',
       }, {
@@ -2007,7 +2002,7 @@
             ],
           }],
           # TODO(darin): Unfortunately, some third_party code depends on base.
-          [ '(OS=="win" or target_arch=="xb1") and component=="shared_library"', {
+          [ 'target_os=="win" and component=="shared_library"', {
             'msvs_disabled_warnings': [
               4251,  # class 'std::xx' needs to have dll-interface.
             ],

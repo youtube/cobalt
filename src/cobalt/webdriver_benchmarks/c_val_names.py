@@ -13,10 +13,6 @@ def count_image_cache_loading_resources():
   return "Count.MainWebModule.ImageCache.LoadingResources"
 
 
-def count_font_files_loaded():
-  return "Count.Font.FilesLoaded"
-
-
 def event_duration_dom_video_start_delay():
   return "Event.Duration.MainWebModule.DOM.VideoStartDelay"
 

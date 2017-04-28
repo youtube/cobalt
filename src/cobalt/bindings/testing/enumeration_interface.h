@@ -15,6 +15,7 @@
 #ifndef COBALT_BINDINGS_TESTING_ENUMERATION_INTERFACE_H_
 #define COBALT_BINDINGS_TESTING_ENUMERATION_INTERFACE_H_
 
+#include "cobalt/bindings/testing/test_enum.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -24,9 +25,10 @@ namespace testing {
 
 class EnumerationInterface : public script::Wrappable {
  public:
-  enum TestEnum { kAlpha, kBeta, kGamma };
   MOCK_METHOD0(enum_property, TestEnum());
   MOCK_METHOD1(set_enum_property, void(TestEnum));
+
+  void OptionalEnumWithDefault(TestEnum /* value */) {}
 
   DEFINE_WRAPPABLE_TYPE(EnumerationInterface);
 };

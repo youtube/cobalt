@@ -618,7 +618,7 @@ class MsvsSettings(object):
     def midl(name, default=None):
       return self.ConvertVSMacros(midl_get(name, default=default),
                                   config=config)
-    if config.startswith('XB1'):
+    if config.startswith('xb1'):
       tlb = ''
       header = midl('HeaderFileName', default='${root}.h')
       dlldata = ''
@@ -634,7 +634,7 @@ class MsvsSettings(object):
       # Note that .tlb is not included in the outputs as it is not always
       # generated depending on the content of the input idl file.
       outdir = midl('OutputDirectory', default='')
-    if config.startswith('XB1'):
+    if config.startswith('xb1'):
       output = [header]
     else:
       output = [header, dlldata, iid, proxy]
@@ -643,9 +643,9 @@ class MsvsSettings(object):
                  ('dlldata', dlldata),
                  ('iid', iid),
                  ('proxy', proxy)]
-    if config.startswith('XB1'):
-      metadata_dir = '"%s%s"' % (os.environ.get('DurangoXDK'),
-          'adk\\references\\commonconfiguration\\neutral')
+    if config.startswith('xb1'):
+      metadata_dir = '"%s%s"' % ('C:\\Program Files (x86)\\Windows Kits\\10\\',
+          'UnionMetadata')
       flags = ['/env', 'x64', '/W1', '/char', 'signed', '/enum_class',
                '/metadata_dir', metadata_dir, '/notlb', '/winrt']
     else:
@@ -829,17 +829,13 @@ def GenerateXB1EnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
           'lbshell', 'build', 'platforms', 'DurangoVars.cmd'),
       'ADK'
   ]
-  # Using cygwin python so there is a bit of wrapping done to get the
-  # dos environment via set:
+  # Get the dos environment via set:
   # Use cmd /c to execute under native windows command
   args_cmd  = 'cmd /c '
-  # Convert the cygwin path i.e. /cygdrive/c .. to C:\ ..
-  args_bat  = '\"`cygpath -d \'' + vs_args[0] + '\'` '
-  # Create a list of the remaining arguments to the bat file
-  args_args = ' '.join(vs_args[1:])
-  args_set  = ' && set\"'
+  args_set  = '\"set\"'
 
-  args = args_cmd + args_bat + args_args + args_set
+  args = args_cmd + args_set
+
   popen = subprocess.Popen(
       args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   variables, _ = popen.communicate()

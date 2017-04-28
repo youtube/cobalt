@@ -26,6 +26,12 @@ namespace csp {
 
 class SourceListDirective : public Directive {
  public:
+  class LocalNetworkChecker : public SourceList::LocalNetworkCheckerInterface {
+   public:
+    bool IsIPInLocalNetwork(const SbSocketAddress& destination) const OVERRIDE;
+    bool IsIPInPrivateRange(const SbSocketAddress& destination) const OVERRIDE;
+  };
+
   SourceListDirective(const std::string& name, const std::string& value,
                       ContentSecurityPolicy* policy);
 
@@ -39,6 +45,8 @@ class SourceListDirective : public Directive {
   uint8 hash_algorithms_used() const;
 
  private:
+  // Note: Ensure |local_network_checker_| is initialized before |source_list_|.
+  LocalNetworkChecker local_network_checker_;
   SourceList source_list_;
   DISALLOW_COPY_AND_ASSIGN(SourceListDirective);
 };

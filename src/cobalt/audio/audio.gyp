@@ -47,9 +47,16 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
       ],
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
+      ]
     },
 
     {
@@ -63,6 +70,10 @@
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+
+        # TODO: Remove the dependency below, it works around the fact that
+        #       ScriptValueFactory has non-virtual method CreatePromise().
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
       ],
     },
 

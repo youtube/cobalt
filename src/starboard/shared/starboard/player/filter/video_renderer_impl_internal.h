@@ -35,10 +35,12 @@ namespace player {
 namespace filter {
 
 // A default implementation of |VideoRenderer| that only depends on the
-// |VideoDecoder| interface, rather than a platform specific implementation.
-class VideoRendererImpl : public VideoRenderer {
+// |HostedVideoDecoder| interface, rather than a platform specific
+// implementation.
+class VideoRendererImpl : public VideoRenderer,
+                          private HostedVideoDecoder::Host {
  public:
-  explicit VideoRendererImpl(scoped_ptr<VideoDecoder> decoder);
+  explicit VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder);
 
   int GetDroppedFrames() const SB_OVERRIDE { return dropped_frames_; }
 
@@ -56,9 +58,9 @@ class VideoRendererImpl : public VideoRenderer {
   bool CanAcceptMoreData() const SB_OVERRIDE;
   bool IsSeekingInProgress() const SB_OVERRIDE;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
  private:
   typedef std::list<scoped_refptr<VideoFrame> > Frames;
@@ -94,7 +96,7 @@ class VideoRendererImpl : public VideoRenderer {
   bool need_more_input_;
   int dropped_frames_;
 
-  scoped_ptr<VideoDecoder> decoder_;
+  scoped_ptr<HostedVideoDecoder> decoder_;
 };
 
 }  // namespace filter

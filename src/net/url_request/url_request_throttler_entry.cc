@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_throttler_entry.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "base/logging.h"

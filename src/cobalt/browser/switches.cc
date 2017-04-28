@@ -161,6 +161,12 @@ const char kViewport[] = "viewport";
 // Specifies that javascript jit should be disabled.
 const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 
+// Specifies the javascript gc threshold. When this amount of garbage has
+// collected then the garbage collector will begin running.
+const char kJavaScriptGcThresholdInBytes[] = "javascript_gc_threshold_in_bytes";
+
+const char kSkiaTextureAtlasDimensions[] = "skia_atlas_texture_dimensions";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

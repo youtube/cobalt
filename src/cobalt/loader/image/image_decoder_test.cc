@@ -21,7 +21,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
-#include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/image/animated_webp_image.h"
@@ -652,8 +652,6 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
       CheckSameColor(pixels, size.width(), size.height(), expected_color));
 }
 
-void SignalWaitable(base::WaitableEvent* event) { event->Signal(); }
-
 // Test that we can properly decode animated WEBP image.
 TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
   MockImageDecoder image_decoder;
@@ -669,10 +667,11 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
           image_decoder.image().get());
   ASSERT_TRUE(animated_webp_image);
 
-  base::WaitableEvent decoded_frames_event(true, false);
-  animated_webp_image->SetDecodedFramesCallback(
-      base::Bind(&SignalWaitable, &decoded_frames_event));
-  decoded_frames_event.Wait();
+  base::Thread thread("AnimatedWebP test");
+  thread.Start();
+  animated_webp_image->Play(thread.message_loop_proxy());
+  animated_webp_image->Stop();
+  thread.Stop();
 
   // The image should contain the whole undecoded data from the file.
   EXPECT_EQ(3224674u, animated_webp_image->GetEstimatedSizeInBytes());
@@ -699,10 +698,11 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
           image_decoder.image().get());
   ASSERT_TRUE(animated_webp_image);
 
-  base::WaitableEvent decoded_frames_event(true, false);
-  animated_webp_image->SetDecodedFramesCallback(
-      base::Bind(&SignalWaitable, &decoded_frames_event));
-  decoded_frames_event.Wait();
+  base::Thread thread("AnimatedWebP test");
+  thread.Start();
+  animated_webp_image->Play(thread.message_loop_proxy());
+  animated_webp_image->Stop();
+  thread.Stop();
 
   // The image should contain the whole undecoded data from the file.
   EXPECT_EQ(3224674u, animated_webp_image->GetEstimatedSizeInBytes());

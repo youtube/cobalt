@@ -10,6 +10,8 @@
 #ifndef SkMath_DEFINED
 #define SkMath_DEFINED
 
+#include "build/build_config.h"
+
 #include "SkTypes.h"
 
 // 64bit -> 32bit utilities
@@ -72,7 +74,7 @@ int32_t SkSqrtBits(int32_t value, int bitBias);
 int SkCLZ_portable(uint32_t);
 
 #ifndef SkCLZ
-    #if defined(_MSC_VER) && _MSC_VER >= 1400
+    #if defined(_MSC_VER) && _MSC_VER >= 1400 && !defined(OS_STARBOARD)
         #include <intrin.h>
 
         static inline int SkCLZ(uint32_t mask) {

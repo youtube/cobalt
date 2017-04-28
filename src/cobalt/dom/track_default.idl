@@ -14,12 +14,6 @@
 
 // https://www.w3.org/TR/2016/CR-media-source-20160705/#trackdefault
 
-enum TrackDefaultType {
-  "audio",
-  "video",
-  "text"
-};
-
 [
   Constructor(TrackDefaultType type,
               DOMString language,

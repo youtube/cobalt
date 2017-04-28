@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/threading/thread_checker.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -24,7 +25,6 @@
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
-#include "cobalt/renderer/frame_rate_throttler.h"
 #include "cobalt/renderer/rasterizer/blitter/cached_software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
@@ -43,6 +43,7 @@ namespace blitter {
 class HardwareRasterizer::Impl {
  public:
   explicit Impl(backend::GraphicsContext* graphics_context,
+                int skia_atlas_width, int skia_atlas_height,
                 int scratch_surface_size_in_bytes,
                 int surface_cache_size_in_bytes,
                 int software_surface_cache_size_in_bytes);
@@ -52,14 +53,19 @@ class HardwareRasterizer::Impl {
               const scoped_refptr<backend::RenderTarget>& render_target,
               const Options& options);
 
+  void SubmitOffscreenToRenderTarget(
+      const scoped_refptr<render_tree::Node>& render_tree,
+      const scoped_refptr<backend::RenderTarget>& render_target);
+
   render_tree::ResourceProvider* GetResourceProvider();
 
  private:
 #if defined(ENABLE_DEBUG_CONSOLE)
   void OnToggleHighlightSoftwareDraws(const std::string& message);
 #endif
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   void SetupLastFrameSurface(int width, int height);
-
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   base::ThreadChecker thread_checker_;
 
   backend::GraphicsContextBlitter* context_;
@@ -80,8 +86,6 @@ class HardwareRasterizer::Impl {
   CachedSoftwareRasterizer software_surface_cache_;
   LinearGradientCache linear_gradient_cache_;
 
-  FrameRateThrottler frame_rate_throttler_;
-
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Debug command to toggle cache highlights to help visualize which nodes
   // are being cached.
@@ -92,6 +96,7 @@ class HardwareRasterizer::Impl {
 };
 
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
+                               int skia_atlas_width, int skia_atlas_height,
                                int scratch_surface_size_in_bytes,
                                int surface_cache_size_in_bytes,
                                int software_surface_cache_size_in_bytes)
@@ -118,9 +123,12 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
           "scene software rasterization is occurring.")
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 {
-  resource_provider_ = scoped_ptr<render_tree::ResourceProvider>(
-      new ResourceProvider(context_->GetSbBlitterDevice(),
-                           software_surface_cache_.GetResourceProvider()));
+  resource_provider_ =
+      scoped_ptr<render_tree::ResourceProvider>(new ResourceProvider(
+          context_->GetSbBlitterDevice(),
+          software_surface_cache_.GetResourceProvider(),
+          base::Bind(&HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget,
+                     base::Unretained(this))));
 
   if (surface_cache_size_in_bytes > 0) {
     surface_cache_delegate_.emplace(context_->GetSbBlitterDevice(),
@@ -131,7 +139,11 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   }
 }
 
-HardwareRasterizer::Impl::~Impl() { SbBlitterDestroySurface(current_frame_); }
+HardwareRasterizer::Impl::~Impl() {
+  if (SbBlitterIsSurfaceValid(current_frame_)) {
+    SbBlitterDestroySurface(current_frame_);
+  }
+}
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 void HardwareRasterizer::Impl::OnToggleHighlightSoftwareDraws(
@@ -146,6 +158,7 @@ void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<backend::RenderTarget>& render_target,
     const Options& options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
+  DCHECK(thread_checker_.CalledOnValidThread());
 
   int width = render_target->GetSize().width();
   int height = render_target->GetSize().height();
@@ -156,12 +169,19 @@ void HardwareRasterizer::Impl::Submit(
       base::polymorphic_downcast<backend::RenderTargetBlitter*>(
           render_target.get());
 
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   if (!SbBlitterIsSurfaceValid(current_frame_)) {
     SetupLastFrameSurface(width, height);
   }
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
-  CHECK(SbBlitterSetRenderTarget(
-      context, SbBlitterGetRenderTargetFromSurface(current_frame_)));
+  SbBlitterRenderTarget visitor_render_target = kSbBlitterInvalidRenderTarget;
+  if (SbBlitterIsSurfaceValid(current_frame_)) {
+    visitor_render_target = SbBlitterGetRenderTargetFromSurface(current_frame_);
+  } else {
+    visitor_render_target = render_target_blitter->GetSbRenderTarget();
+  }
+  CHECK(SbBlitterSetRenderTarget(context, visitor_render_target));
 
   // Update our surface cache to do per-frame calculations such as deciding
   // which render tree nodes are candidates for caching in this upcoming
@@ -191,14 +211,15 @@ void HardwareRasterizer::Impl::Submit(
     // Visit the render tree with our Blitter API visitor.
     BoundsStack start_bounds(context_->GetSbBlitterContext(),
                              math::Rect(render_target_blitter->GetSize()));
-    if (options.dirty && !cleared) {
+
+    if (SbBlitterIsSurfaceValid(current_frame_) && options.dirty && !cleared) {
       // If a dirty rectangle was specified, limit our redrawing to within it.
       start_bounds.Push(*options.dirty);
     }
 
-    RenderState initial_render_state(
-        SbBlitterGetRenderTargetFromSurface(current_frame_), Transform(),
-        start_bounds);
+    RenderState initial_render_state(visitor_render_target, Transform(),
+                                     start_bounds);
+
 #if defined(ENABLE_DEBUG_CONSOLE)
     initial_render_state.highlight_software_draws =
         toggle_highlight_software_draws_;
@@ -212,37 +233,74 @@ void HardwareRasterizer::Impl::Submit(
     render_tree->Accept(&visitor);
   }
 
-  // Finally flip the surface to make visible the rendered results.
-  CHECK(SbBlitterSetRenderTarget(context,
-                                 render_target_blitter->GetSbRenderTarget()));
-  CHECK(SbBlitterSetBlending(context, false));
-  CHECK(SbBlitterSetModulateBlitsWithColor(context, false));
-  CHECK(SbBlitterBlitRectToRect(context, current_frame_,
-                                SbBlitterMakeRect(0, 0, width, height),
-                                SbBlitterMakeRect(0, 0, width, height)));
+  if (SbBlitterIsSurfaceValid(current_frame_)) {
+    // Finally flip the surface to make visible the rendered results.
+    CHECK(SbBlitterSetRenderTarget(context,
+                                   render_target_blitter->GetSbRenderTarget()));
+    CHECK(SbBlitterSetBlending(context, false));
+    CHECK(SbBlitterSetModulateBlitsWithColor(context, false));
+    CHECK(SbBlitterBlitRectToRect(context, current_frame_,
+                                  SbBlitterMakeRect(0, 0, width, height),
+                                  SbBlitterMakeRect(0, 0, width, height)));
+  }
+
   CHECK(SbBlitterFlushContext(context));
-  frame_rate_throttler_.EndInterval();
   render_target_blitter->Flip();
-  frame_rate_throttler_.BeginInterval();
 
   ++submit_count_;
+}
+
+void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    const scoped_refptr<backend::RenderTarget>& render_target) {
+  TRACE_EVENT0("cobalt::renderer",
+               "Rasterizer::SubmitOffscreenToRenderTarget()");
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  SbBlitterContext context = context_->GetSbBlitterContext();
+
+  backend::RenderTargetBlitter* render_target_blitter =
+      base::polymorphic_downcast<backend::RenderTargetBlitter*>(
+          render_target.get());
+
+  SbBlitterRenderTarget visitor_render_target =
+      render_target_blitter->GetSbRenderTarget();
+  CHECK(SbBlitterSetRenderTarget(context, visitor_render_target));
+
+  BoundsStack start_bounds(context_->GetSbBlitterContext(),
+                           math::Rect(render_target_blitter->GetSize()));
+
+  RenderState initial_render_state(visitor_render_target, Transform(),
+                                   start_bounds);
+
+  RenderTreeNodeVisitor visitor(
+      context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
+      initial_render_state, NULL, NULL, NULL, NULL, NULL);
+  render_tree->Accept(&visitor);
+
+  CHECK(SbBlitterFlushContext(context));
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
 }
 
+#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 void HardwareRasterizer::Impl::SetupLastFrameSurface(int width, int height) {
   current_frame_ =
       SbBlitterCreateRenderTargetSurface(context_->GetSbBlitterDevice(), width,
                                          height, kSbBlitterSurfaceFormatRGBA8);
 }
+#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context,
+    int skia_atlas_width, int skia_atlas_height,
     int scratch_surface_size_in_bytes, int surface_cache_size_in_bytes,
     int software_surface_cache_size_in_bytes)
-    : impl_(new Impl(graphics_context, scratch_surface_size_in_bytes,
+    : impl_(new Impl(graphics_context,
+                     skia_atlas_width, skia_atlas_height,
+                     scratch_surface_size_in_bytes,
                      surface_cache_size_in_bytes,
                      software_surface_cache_size_in_bytes)) {}
 

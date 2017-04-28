@@ -42,6 +42,7 @@
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
+#include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
@@ -51,10 +52,19 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
-#include "cobalt/speech/speech_synthesis.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
+
+namespace cobalt {
+namespace media_session {
+class MediaSession;
+}  // namespace media_session
+namespace speech {
+class SpeechSynthesis;
+}  // namespace speech
+}  // namespace cobalt
 
 namespace cobalt {
 namespace dom {
@@ -91,34 +101,39 @@ class Window : public EventTarget {
       HTMLDecoderCreatorCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
-  Window(int width, int height, cssom::CSSParser* css_parser,
-         Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
-         render_tree::ResourceProvider** resource_provider,
-         loader::image::ImageCache* image_cache,
-         loader::image::ReducedCacheCapacityManager*
-             reduced_image_cache_capacity_manager,
-         loader::font::RemoteTypefaceCache* remote_typeface_cache,
-         loader::mesh::MeshCache* mesh_cache,
-         LocalStorageDatabase* local_storage_database,
-         media::CanPlayTypeHandler* can_play_type_handler,
-         media::WebMediaPlayerFactory* web_media_player_factory,
-         script::ExecutionState* execution_state,
-         script::ScriptRunner* script_runner,
-         MediaSourceRegistry* media_source_registry,
-         DomStatTracker* dom_stat_tracker, const GURL& url,
-         const std::string& user_agent, const std::string& language,
-         const base::Callback<void(const GURL&)> navigation_callback,
-         const base::Callback<void(const std::string&)>& error_callback,
-         network_bridge::CookieJar* cookie_jar,
-         const network_bridge::PostSender& post_sender,
-         const std::string& default_security_policy,
-         dom::CspEnforcementType csp_enforcement_mode,
-         const base::Closure& csp_policy_changed_callback,
-         const base::Closure& ran_animation_frame_callbacks_callback,
-         const base::Closure& window_close_callback,
-         system_window::SystemWindow* system_window,
-         const scoped_refptr<input::InputPoller>& input_poller,
-         int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
+  Window(
+      int width, int height, cssom::CSSParser* css_parser, Parser* dom_parser,
+      loader::FetcherFactory* fetcher_factory,
+      render_tree::ResourceProvider** resource_provider,
+      loader::image::AnimatedImageTracker* animated_image_tracker,
+      loader::image::ImageCache* image_cache,
+      loader::image::ReducedCacheCapacityManager*
+          reduced_image_cache_capacity_manager,
+      loader::font::RemoteTypefaceCache* remote_typeface_cache,
+      loader::mesh::MeshCache* mesh_cache,
+      LocalStorageDatabase* local_storage_database,
+      media::CanPlayTypeHandler* can_play_type_handler,
+      media::WebMediaPlayerFactory* web_media_player_factory,
+      script::ExecutionState* execution_state,
+      script::ScriptRunner* script_runner,
+      script::ScriptValueFactory* script_value_factory,
+      MediaSourceRegistry* media_source_registry,
+      DomStatTracker* dom_stat_tracker, const GURL& url,
+      const std::string& user_agent, const std::string& language,
+      const base::Callback<void(const GURL&)> navigation_callback,
+      const base::Callback<void(const std::string&)>& error_callback,
+      network_bridge::CookieJar* cookie_jar,
+      const network_bridge::PostSender& post_sender,
+      const std::string& default_security_policy,
+      dom::CspEnforcementType csp_enforcement_mode,
+      const base::Closure& csp_policy_changed_callback,
+      const base::Closure& ran_animation_frame_callbacks_callback,
+      const base::Closure& window_close_callback,
+      const base::Closure& window_minimize_callback,
+      system_window::SystemWindow* system_window,
+      const scoped_refptr<input::InputPoller>& input_poller,
+      const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
+      int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
   //
@@ -128,6 +143,7 @@ class Window : public EventTarget {
   const scoped_refptr<Location>& location() const;
   const scoped_refptr<History>& history() const;
   void Close();
+  void Minimize();
 
   scoped_refptr<Window> frames() { return this; }
   unsigned int length() { return 0; }
@@ -230,9 +246,7 @@ class Window : public EventTarget {
 
   // Web API: SpeechSynthesisGetter (implements)
   //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#tts-section
-  scoped_refptr<speech::SpeechSynthesis> speech_synthesis() const {
-    return speech_synthesis_;
-  }
+  scoped_refptr<speech::SpeechSynthesis> speech_synthesis() const;
 
   // Custom, not in any spec.
   //
@@ -307,6 +321,7 @@ class Window : public EventTarget {
 
   const base::Closure ran_animation_frame_callbacks_callback_;
   const base::Closure window_close_callback_;
+  const base::Closure window_minimize_callback_;
 
   system_window::SystemWindow* system_window_;
 

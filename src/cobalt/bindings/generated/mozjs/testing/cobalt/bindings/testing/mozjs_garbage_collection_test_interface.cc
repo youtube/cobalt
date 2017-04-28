@@ -27,6 +27,8 @@
 #include "cobalt/bindings/testing/garbage_collection_test_interface.h"
 #include "cobalt/bindings/testing/mozjs_garbage_collection_test_interface.h"
 
+#include "mozjs_gen_type_conversion.h"
+
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs/callback_function_conversion.h"

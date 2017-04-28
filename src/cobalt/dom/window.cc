@@ -39,7 +39,11 @@
 #include "cobalt/dom/screen.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/window_timers.h"
+#include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/speech/speech_synthesis.h"
+
+using cobalt::media_session::MediaSession;
 
 namespace cobalt {
 namespace dom {
@@ -65,6 +69,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
                render_tree::ResourceProvider** resource_provider,
+               loader::image::AnimatedImageTracker* animated_image_tracker,
                loader::image::ImageCache* image_cache,
                loader::image::ReducedCacheCapacityManager*
                    reduced_image_cache_capacity_manager,
@@ -75,6 +80,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ExecutionState* execution_state,
                script::ScriptRunner* script_runner,
+               script::ScriptValueFactory* script_value_factory,
                MediaSource::Registry* media_source_registry,
                DomStatTracker* dom_stat_tracker, const GURL& url,
                const std::string& user_agent, const std::string& language,
@@ -87,15 +93,18 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Closure& csp_policy_changed_callback,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
+               const base::Closure& window_minimize_callback,
                system_window::SystemWindow* system_window,
                const scoped_refptr<input::InputPoller>& input_poller,
+               const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
           fetcher_factory, css_parser, dom_parser, can_play_type_handler,
-          web_media_player_factory, script_runner, media_source_registry,
-          resource_provider, image_cache, reduced_image_cache_capacity_manager,
+          web_media_player_factory, script_runner, script_value_factory,
+          media_source_registry, resource_provider, animated_image_tracker,
+          image_cache, reduced_image_cache_capacity_manager,
           remote_typeface_cache, mesh_cache, dom_stat_tracker, language)),
       performance_(new Performance(new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
@@ -111,7 +120,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
               dom_max_element_depth)))),
       document_loader_(NULL),
       history_(new History()),
-      navigator_(new Navigator(user_agent, language)),
+      navigator_(new Navigator(user_agent, language, media_session,
+                               script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
@@ -129,6 +139,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
+      window_minimize_callback_(window_minimize_callback),
       system_window_(system_window) {
 #if defined(ENABLE_TEST_RUNNER)
   test_runner_ = new TestRunner();
@@ -179,6 +190,12 @@ const scoped_refptr<History>& Window::history() const { return history_; }
 void Window::Close() {
   if (!window_close_callback_.is_null()) {
     window_close_callback_.Run();
+  }
+}
+
+void Window::Minimize() {
+  if (!window_minimize_callback_.is_null()) {
+    window_minimize_callback_.Run();
   }
 }
 
@@ -317,6 +334,10 @@ scoped_refptr<Storage> Window::session_storage() const {
 
 const scoped_refptr<Performance>& Window::performance() const {
   return performance_;
+}
+
+scoped_refptr<speech::SpeechSynthesis> Window::speech_synthesis() const {
+  return speech_synthesis_;
 }
 
 const scoped_refptr<Console>& Window::console() const { return console_; }

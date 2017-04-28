@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <iomanip>
+#include <set>
+#include <sstream>
 
 #include "starboard/event.h"
 #include "starboard/input.h"
@@ -20,33 +22,109 @@
 #include "starboard/system.h"
 #include "starboard/window.h"
 
+namespace {
+// Helper set to keep track of which keys are currently pressed.
+typedef std::set<SbKey> KeySet;
+KeySet s_is_pressed;
+}  // namespace
+
+SbWindow g_window;
+
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart: {
-      SB_DLOG(INFO) << __FUNCTION__ << ": START";
+      SB_LOG(INFO) << "START";
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-      SbWindow window = SbWindowCreate(NULL);
-      SB_CHECK(SbWindowIsValid(window));
+      g_window = SbWindowCreate(NULL);
+      SB_CHECK(SbWindowIsValid(g_window));
+
+#if SB_API_VERSION >= 4
+      SB_LOG(INFO) << "    F1 - Pause";
+      SB_LOG(INFO) << "    F2 - Unpause";
+      SB_LOG(INFO) << "    F3 - Suspend";
+#endif  // SB_API_VERSION >= 4
+      SB_LOG(INFO) << "    F5 - Stop";
       break;
     }
     case kSbEventTypeInput: {
       SbInputData* data = static_cast<SbInputData*>(event->data);
-      SB_DLOG(INFO) << __FUNCTION__ << ": INPUT: type=" << data->type
-                    << ", window=" << data->window
-                    << ", device_type=" << data->device_type
-                    << ", device_id=" << data->device_id
-                    << ", key=0x" << std::hex << data->key
-                    << ", character=" << data->character
-                    << ", modifiers=0x" << std::hex << data->key_modifiers
-                    << ", location=" << std::dec << data->key_location
-                    << ", position="
-                    << "[ " << data->position.x << " , " << data->position.y
-                    << " ]";
+
+      SB_LOG(INFO) << "INPUT: type=" << data->type
+                   << ", window=" << data->window
+                   << ", device_type=" << data->device_type
+                   << ", device_id=" << data->device_id
+                   << ", key=0x" << std::hex << data->key
+                   << ", character=" << data->character
+                   << ", modifiers=0x" << std::hex << data->key_modifiers
+                   << ", location=" << std::dec << data->key_location
+                   << ", position="
+                   << "[ " << data->position.x << " , " << data->position.y
+                   << " ]";
+
+      // Track which keys are currently pressed, from our perspective outside
+      // of Starboard.  Print out the current state after each key event.
+      if (data->type == kSbInputEventTypePress ||
+          data->type == kSbInputEventTypeUnpress) {
+        if (data->type == kSbInputEventTypePress) {
+          s_is_pressed.insert(data->key);
+        } else {
+          s_is_pressed.erase(data->key);
+        }
+        if (!s_is_pressed.empty()) {
+          std::stringstream keys;
+          keys << "Keys currently pressed:";
+          for (KeySet::const_iterator iter = s_is_pressed.begin();
+               iter != s_is_pressed.end(); ++iter) {
+            keys << " " << std::hex << *iter;
+          }
+          SB_LOG(INFO) << keys.str();
+        }
+      }
+
+      switch (data->key) {
+#if SB_API_VERSION >= 4
+        case kSbKeyF1:
+          SbSystemRequestPause();
+          break;
+        case kSbKeyF2:
+          SbSystemRequestUnpause();
+          break;
+        case kSbKeyF3:
+          SbSystemRequestSuspend();
+          break;
+#endif  // SB_API_VERSION >= 4
+        case kSbKeyF5:
+          SbSystemRequestStop(0);
+          break;
+        default:
+          // Do nothing.
+          break;
+      }
+      break;
+    }
+    case kSbEventTypePause: {
+      SB_LOG(INFO) << "PAUSE";
+      break;
+    }
+    case kSbEventTypeResume: {
+      SB_LOG(INFO) << "RESUME";
+      break;
+    }
+    case kSbEventTypeStop: {
+      SB_LOG(INFO) << "STOP";
+      SbWindowDestroy(g_window);
+      break;
+    }
+    case kSbEventTypeSuspend: {
+      SB_LOG(INFO) << "SUSPEND";
+      break;
+    }
+    case kSbEventTypeUnpause: {
+      SB_LOG(INFO) << "UNPAUSE";
       break;
     }
     default:
-      SB_DLOG(INFO) << __FUNCTION__ << ": Event Type " << event->type
-                    << " not handled.";
+      SB_LOG(INFO) << "Event Type " << event->type << " not handled.";
       break;
   }
 }

@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/filter_function_list_value.h"
@@ -63,6 +64,13 @@ const float kFallbackWidth = 300.0f;
 
 const char* kEquirectangularMeshURL =
     "h5vcc-embedded://equirectangular_40_40.msh";
+
+const char* kWarningInvalidMeshUrl =
+    "Mesh specification invalid in map-to-mesh filter: "
+    "must be either a valid URL or 'equirectangular'.";
+
+const char* kWarningLoadingMeshFailed =
+    "Could not load mesh specified by map-to-mesh filter.";
 
 // Convert the parsed keyword value for a stereo mode into a stereo mode enum
 // value.
@@ -572,38 +580,88 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
 
   // Fetch either the embedded equirectangular mesh or a custom one depending
   // on the spec.
-  GURL url;
+  MapToMeshFilter::Builder builder;
   if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
     // Custom mesh URLs.
+    // Set a default mesh (in case no resolution-specific mesh matches).
     cssom::URLValue* url_value =
         base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
-    url = GURL(url_value->value());
+    GURL default_url(url_value->value());
+
+    if (!default_url.is_valid()) {
+      DLOG(WARNING) << kWarningInvalidMeshUrl;
+      return;
+    }
+
+    scoped_refptr<loader::mesh::MeshProjection> default_mesh_projection(
+        used_style_provider()->ResolveURLToMeshProjection(default_url));
+
+    if (!default_mesh_projection) {
+      DLOG(WARNING) << kWarningLoadingMeshFailed;
+      return;
+    }
+
+    builder.SetDefaultMeshes(
+        default_mesh_projection->GetMesh(
+            loader::mesh::MeshProjection::kLeftEyeOrMonoCollection),
+        default_mesh_projection->GetMesh(
+            loader::mesh::MeshProjection::kRightEyeCollection));
+
+    // Lookup among the list of resolutions for a match and use that mesh URL.
+    const cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder& meshes =
+        spec.resolution_matched_meshes();
+    for (size_t i = 0; i < meshes.size(); i++) {
+      cssom::URLValue* url_value = base::polymorphic_downcast<cssom::URLValue*>(
+          meshes[i]->mesh_url().get());
+      GURL url(url_value->value());
+
+      if (!url.is_valid()) {
+        DLOG(WARNING) << kWarningInvalidMeshUrl;
+        return;
+      }
+      scoped_refptr<loader::mesh::MeshProjection> mesh_projection(
+          used_style_provider()->ResolveURLToMeshProjection(url));
+
+      if (!mesh_projection) {
+        DLOG(WARNING) << kWarningLoadingMeshFailed;
+      }
+
+      TRACE_EVENT2("cobalt::layout",
+                   "ReplacedBox::RenderAndAnimateContentWithMapToMesh()",
+                   "height", meshes[i]->height_match(),
+                   "crc", mesh_projection->crc().value_or(-1));
+
+      builder.AddResolutionMatchedMeshes(
+          math::Size(meshes[i]->width_match(), meshes[i]->height_match()),
+          mesh_projection->GetMesh(
+              loader::mesh::MeshProjection::kLeftEyeOrMonoCollection),
+          mesh_projection->GetMesh(
+              loader::mesh::MeshProjection::kRightEyeCollection));
+    }
   } else if (spec.mesh_type() == cssom::MapToMeshFunction::kEquirectangular) {
-    url = GURL(kEquirectangularMeshURL);
+    GURL url(kEquirectangularMeshURL);
+    scoped_refptr<loader::mesh::MeshProjection> mesh_projection(
+        used_style_provider()->ResolveURLToMeshProjection(url));
+
+    if (!mesh_projection) {
+      DLOG(WARNING) << kWarningLoadingMeshFailed;
+    }
+
+    builder.SetDefaultMeshes(
+        mesh_projection->GetMesh(
+            loader::mesh::MeshProjection::kLeftEyeOrMonoCollection),
+        mesh_projection->GetMesh(
+            loader::mesh::MeshProjection::kRightEyeCollection));
   }
 
-  DCHECK(url.is_valid())
-      << "Mesh specification invalid in map-to-mesh filter: must be either a"
-         " valid URL or 'equirectangular'";
-
-  scoped_refptr<loader::mesh::MeshProjection> mesh_projection(
-      used_style_provider()->ResolveURLToMeshProjection(url));
-
-  DCHECK(mesh_projection)
-      << "Could not load mesh specified by map-to-mesh filter.";
-
-  scoped_refptr<render_tree::Mesh> left_eye_mesh = mesh_projection->GetMesh(
-      loader::mesh::MeshProjection::kLeftEyeOrMonoCollection);
-  scoped_refptr<render_tree::Mesh> right_eye_mesh = mesh_projection->GetMesh(
-      loader::mesh::MeshProjection::kRightEyeCollection);
-
-  scoped_refptr<render_tree::Node> filter_node = new FilterNode(
-      MapToMeshFilter(stereo_mode, left_eye_mesh, right_eye_mesh),
-      animate_node);
+  scoped_refptr<render_tree::Node> filter_node =
+      new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
 
   // Attach a 3D camera to the map-to-mesh node.
   border_node_builder->AddChild(
-      used_style_provider()->attach_camera_node_function().Run(filter_node));
+      used_style_provider()->attach_camera_node_function().Run(
+          filter_node, mtm_function->horizontal_fov_in_radians(),
+          mtm_function->vertical_fov_in_radians()));
 }
 
 void ReplacedBox::RenderAndAnimateContentWithLetterboxing(

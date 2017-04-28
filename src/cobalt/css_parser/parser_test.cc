@@ -8402,8 +8402,9 @@ TEST_F(ParserTest, ParsesMtmSingleUrlFilter) {
   EXPECT_EQ(cssom::MapToMeshFunction::kUrls,
             mtm_function->mesh_spec().mesh_type());
 
-  EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
-  EXPECT_EQ(1.5f, mtm_function->vertical_fov());
+  EXPECT_EQ(static_cast<float>(M_PI),
+            mtm_function->horizontal_fov_in_radians());
+  EXPECT_EQ(1.5f, mtm_function->vertical_fov_in_radians());
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
             cssom::KeywordValue::kMonoscopic);
@@ -8434,8 +8435,9 @@ TEST_F(ParserTest, ParsesMtmEquirectangularFilter) {
   EXPECT_EQ(cssom::MapToMeshFunction::kEquirectangular,
             mtm_function->mesh_spec().mesh_type());
 
-  EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
-  EXPECT_EQ(1.5f, mtm_function->vertical_fov());
+  EXPECT_EQ(static_cast<float>(M_PI),
+            mtm_function->horizontal_fov_in_radians());
+  EXPECT_EQ(1.5f, mtm_function->vertical_fov_in_radians());
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
             cssom::KeywordValue::kMonoscopic);
@@ -8462,8 +8464,9 @@ TEST_F(ParserTest, ParsesMtmWIPFilterName) {
       dynamic_cast<const cssom::MapToMeshFunction*>(filter_list->value()[0]);
   ASSERT_TRUE(mtm_function);
 
-  EXPECT_EQ(static_cast<float>(M_PI), mtm_function->horizontal_fov());
-  EXPECT_EQ(1.2f, mtm_function->vertical_fov());
+  EXPECT_EQ(static_cast<float>(M_PI),
+            mtm_function->horizontal_fov_in_radians());
+  EXPECT_EQ(1.2f, mtm_function->vertical_fov_in_radians());
 
   EXPECT_EQ(mtm_function->stereo_mode()->value(),
             cssom::KeywordValue::kMonoscopic);

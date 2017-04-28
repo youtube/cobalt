@@ -25,6 +25,7 @@
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module_stub.h"
+#include "cobalt/media_session/media_session.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "googleurl/src/gurl.h"
@@ -51,10 +52,10 @@ class WindowTest : public ::testing::Test {
         url_("about:blank"),
         window_(new Window(
             1920, 1080, css_parser_.get(), dom_parser_.get(),
-            fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
+            fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
             &local_storage_database_, stub_media_module_.get(),
-            stub_media_module_.get(), NULL, NULL, NULL, NULL, url_, "", "en-US",
-            base::Callback<void(const GURL &)>(),
+            stub_media_module_.get(), NULL, NULL, NULL, NULL, NULL, url_, "",
+            "en-US", base::Callback<void(const GURL &)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
             NULL, network_bridge::PostSender(),
@@ -62,7 +63,8 @@ class WindowTest : public ::testing::Test {
             base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             base::Closure() /* window_close */,
-            stub_media_module_->system_window(), NULL)) {}
+            base::Closure() /* window_minimize */,
+            stub_media_module_->system_window(), NULL, NULL)) {}
 
   ~WindowTest() OVERRIDE {}
 

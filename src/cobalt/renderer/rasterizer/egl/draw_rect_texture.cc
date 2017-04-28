@@ -16,6 +16,7 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/basictypes.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
@@ -34,34 +35,41 @@ struct VertexAttributes {
 
 DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
-    const math::RectF& rect, const backend::TextureEGL* texture,
+    const math::RectF& rect,
+    const backend::TextureEGL* texture,
     const math::Matrix3F& texcoord_transform)
     : DrawObject(base_state),
       texcoord_transform_(texcoord_transform),
       rect_(rect),
       texture_(texture),
-      vertex_buffer_(NULL) {
+      vertex_buffer_(NULL),
+      tile_texture_(false) {
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
 DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
     const BaseState& base_state,
     const math::RectF& rect,
-    const GenerateTextureFunction& generate_texture)
+    const backend::TextureEGL* texture,
+    const math::Matrix3F& texcoord_transform,
+    const base::Closure& draw_offscreen,
+    const base::Closure& draw_onscreen)
     : DrawObject(base_state),
-      texcoord_transform_(math::Matrix3F::Identity()),
+      texcoord_transform_(texcoord_transform),
       rect_(rect),
-      texture_(NULL),
-      generate_texture_(generate_texture),
-      vertex_buffer_(NULL) {
+      texture_(texture),
+      draw_offscreen_(draw_offscreen),
+      draw_onscreen_(draw_onscreen),
+      vertex_buffer_(NULL),
+      tile_texture_(false) {
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
 void DrawRectTexture::ExecuteOffscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  if (!generate_texture_.is_null()) {
-    generate_texture_.Run(&texture_, &texcoord_transform_);
+  if (!draw_offscreen_.is_null()) {
+    draw_offscreen_.Run();
   }
 }
 
@@ -88,11 +96,21 @@ void DrawRectTexture::ExecuteOnscreenUpdateVertexBuffer(
   vertex_buffer_ = graphics_state->AllocateVertexData(
       sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
+
+  for (int i = 0; i < arraysize(attributes); ++i) {
+    tile_texture_ = tile_texture_ ||
+        attributes[i].texcoord[0] < 0.0f || attributes[i].texcoord[0] > 1.0f ||
+        attributes[i].texcoord[1] < 0.0f || attributes[i].texcoord[1] > 1.0f;
+  }
 }
 
 void DrawRectTexture::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  if (!draw_onscreen_.is_null()) {
+    draw_onscreen_.Run();
+  }
+
   ShaderProgram<ShaderVertexTexcoord,
                 ShaderFragmentTexcoord>* program;
   program_manager->GetProgram(&program);
@@ -113,10 +131,21 @@ void DrawRectTexture::ExecuteOnscreenRasterize(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
-  graphics_state->ActiveBindTexture(
-      program->GetFragmentShader().u_texture_texunit(),
-      texture_->GetTarget(), texture_->gl_handle());
-  GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+
+  if (tile_texture_) {
+    graphics_state->ActiveBindTexture(
+        program->GetFragmentShader().u_texture_texunit(),
+        texture_->GetTarget(), texture_->gl_handle(), GL_REPEAT);
+    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+    graphics_state->ActiveBindTexture(
+        program->GetFragmentShader().u_texture_texunit(),
+        texture_->GetTarget(), texture_->gl_handle(), GL_CLAMP_TO_EDGE);
+  } else {
+    graphics_state->ActiveBindTexture(
+        program->GetFragmentShader().u_texture_texunit(),
+        texture_->GetTarget(), texture_->gl_handle());
+    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+  }
 }
 
 }  // namespace egl

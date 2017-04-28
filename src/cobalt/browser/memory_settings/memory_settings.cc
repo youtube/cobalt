@@ -17,43 +17,95 @@
 #include "cobalt/browser/memory_settings/memory_settings.h"
 
 #include <algorithm>
+#include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
+#include "base/string_split.h"
+#include "base/stringprintf.h"
+#include "cobalt/browser/switches.h"
+#include "nb/lexical_cast.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
 
-template <typename T>
-T ClampValue(const T& input, const T& minimum, const T& maximum) {
-  return std::max<T>(minimum, std::min<T>(maximum, input));
+struct ParsedIntValue {
+ public:
+  ParsedIntValue() : value_(0), error_(false) {}
+  ParsedIntValue(const ParsedIntValue& other)
+      : value_(other.value_), error_(other.error_) {}
+  int value_;
+  bool error_;  // true if there was a parse error.
+};
+// Parses a string like "1234x5678" to vector of parsed int values.
+std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
+  std::vector<ParsedIntValue> output;
+
+  std::vector<std::string> lengths;
+  base::SplitString(value_str, 'x', &lengths);
+
+  for (size_t i = 0; i < lengths.size(); ++i) {
+    ParsedIntValue parsed_value;
+    parsed_value.error_ = !base::StringToInt(lengths[i], &parsed_value.value_);
+    output.push_back(parsed_value);
+  }
+  return output;
 }
 
-double DisplayScaleTo1080p(const math::Size& dimensions) {
-  static const double kNumReferencePixels = 1920. * 1080.;
-  const double num_pixels = static_cast<double>(dimensions.width()) *
-                            static_cast<double>(dimensions.height());
-  return num_pixels / kNumReferencePixels;
-}
 }  // namespace
 
-size_t GetImageCacheSize(const math::Size& dimensions) {
-  if (COBALT_IMAGE_CACHE_SIZE_IN_BYTES >= 0) {
-    return COBALT_IMAGE_CACHE_SIZE_IN_BYTES;
-  }
-  size_t return_val = CalculateImageCacheSize(dimensions);
-  return static_cast<int>(return_val);
+MemorySetting::MemorySetting(ClassType type, const std::string& name)
+    : class_type_(type), name_(name), source_type_(kUnset) {}
+
+IntSetting::IntSetting(const std::string& name)
+    : MemorySetting(kInt, name), value_() {}
+
+std::string IntSetting::ValueToString() const {
+  std::stringstream ss;
+  ss << value_;
+  return ss.str();
 }
 
-size_t CalculateImageCacheSize(const math::Size& dimensions) {
-  const double display_scale = DisplayScaleTo1080p(dimensions);
-  static const size_t kReferenceSize1080p = 32 * 1024 * 1024;
-  double output_bytes = kReferenceSize1080p * display_scale;
+bool IntSetting::TryParseValue(SourceType source_type,
+                               const std::string& string_value) {
+  bool parse_ok = false;
+  int64_t int_value = nb::lexical_cast<int64_t>(string_value, &parse_ok);
 
-  return ClampValue<size_t>(static_cast<size_t>(output_bytes),
-                            kMinImageCacheSize, kMaxImageCacheSize);
+  if (parse_ok) {
+    set_value(source_type, int_value);
+    return true;
+  } else {
+    LOG(ERROR) << "Invalid value for command line setting: " << string_value;
+    return false;
+  }
+}
+
+DimensionSetting::DimensionSetting(const std::string& name)
+    : MemorySetting(kDimensions, name) {}
+
+std::string DimensionSetting::ValueToString() const {
+  std::stringstream ss;
+  ss << value_.width() << "x" << value_.height();
+  return ss.str();
+}
+
+bool DimensionSetting::TryParseValue(SourceType source_type,
+                                     const std::string& string_value) {
+  std::vector<ParsedIntValue> int_values = ParseDimensions(string_value);
+  const bool parse_ok = (int_values.size() == 2) && (!int_values[0].error_) &&
+                        (!int_values[1].error_);
+  if (parse_ok) {
+    math::Size rectangle(int_values[0].value_, int_values[1].value_);
+    set_value(source_type, rectangle);
+    return true;
+  } else {
+    LOG(ERROR) << "Invalid value for parse value setting: " << string_value;
+    return false;
+  }
 }
 
 }  // namespace memory_settings

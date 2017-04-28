@@ -35,6 +35,12 @@ GraphicsState::GraphicsState()
   depth_test_enabled_ = false;
   depth_write_enabled_ = true;
   Reset();
+
+  // These settings should only need to be set once. Nothing should touch them.
+  GL_CALL(glDepthRangef(0.0f, 1.0f));
+  GL_CALL(glDisable(GL_DITHER));
+  GL_CALL(glDisable(GL_CULL_FACE));
+  GL_CALL(glDisable(GL_STENCIL_TEST));
 }
 
 GraphicsState::~GraphicsState() {
@@ -73,6 +79,7 @@ void GraphicsState::EndFrame() {
   GL_CALL(glDisable(GL_BLEND));
   GL_CALL(glDisable(GL_DEPTH_TEST));
   GL_CALL(glDepthMask(GL_TRUE));
+  GL_CALL(glUseProgram(0));
 
   // Since the GL state was changed without going through the cache, mark it
   // as dirty.
@@ -173,6 +180,10 @@ void GraphicsState::DisableDepthWrite() {
   }
 }
 
+void GraphicsState::ResetDepthFunc() {
+  GL_CALL(glDepthFunc(GL_LESS));
+}
+
 void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
                                       GLuint texture) {
   int texunit_index = texture_unit - GL_TEXTURE0;
@@ -192,6 +203,29 @@ void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
       texunit_texture_[texunit_index] = texture;
     }
   }
+}
+
+void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
+    GLuint texture, GLint texture_wrap_mode) {
+  int texunit_index = texture_unit - GL_TEXTURE0;
+
+  if (texture_unit_ != texture_unit) {
+    texture_unit_ = texture_unit;
+    GL_CALL(glActiveTexture(texture_unit));
+    GL_CALL(glBindTexture(target, texture));
+  } else if (texunit_index >= kNumTextureUnitsCached ||
+             texunit_target_[texunit_index] != target ||
+             texunit_texture_[texunit_index] != texture) {
+    GL_CALL(glBindTexture(target, texture));
+  }
+
+  if (texunit_index < kNumTextureUnitsCached) {
+    texunit_target_[texunit_index] = target;
+    texunit_texture_[texunit_index] = texture;
+  }
+
+  GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_S, texture_wrap_mode));
+  GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_T, texture_wrap_mode));
 }
 
 void GraphicsState::SetClipAdjustment(const math::Size& render_target_size) {
@@ -325,10 +359,10 @@ float GraphicsState::NextClosestDepth(float depth) {
 
 void GraphicsState::Reset() {
   program_ = 0;
-  GL_CALL(glUseProgram(0));
 
   Viewport(viewport_.x(), viewport_.y(), viewport_.width(), viewport_.height());
   Scissor(scissor_.x(), scissor_.y(), scissor_.width(), scissor_.height());
+  GL_CALL(glEnable(GL_SCISSOR_TEST));
 
   array_buffer_handle_ = 0;
   texture_unit_ = 0;
@@ -337,6 +371,11 @@ void GraphicsState::Reset() {
   enabled_vertex_attrib_array_mask_ = 0;
   disable_vertex_attrib_array_mask_ = 0;
   clip_adjustment_dirty_ = true;
+
+  if (vertex_data_buffer_updated_) {
+    array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
+    GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
+  }
 
   if (blend_enabled_) {
     GL_CALL(glEnable(GL_BLEND));
@@ -351,13 +390,7 @@ void GraphicsState::Reset() {
     GL_CALL(glDisable(GL_DEPTH_TEST));
   }
   GL_CALL(glDepthMask(depth_write_enabled_ ? GL_TRUE : GL_FALSE));
-  GL_CALL(glDepthFunc(GL_LESS));
-  GL_CALL(glDepthRangef(0.0f, 1.0f));
-
-  GL_CALL(glDisable(GL_DITHER));
-  GL_CALL(glDisable(GL_CULL_FACE));
-  GL_CALL(glDisable(GL_STENCIL_TEST));
-  GL_CALL(glEnable(GL_SCISSOR_TEST));
+  ResetDepthFunc();
 
   state_dirty_ = false;
 }

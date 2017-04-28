@@ -14,6 +14,8 @@
 
 #include "starboard/socket.h"
 
+#if SB_API_VERSION < 4
+
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 
@@ -67,3 +69,5 @@ bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address) {
   freeifaddrs(ifaddr);
   return false;
 }
+
+#endif  // SB_API_VERSION < 4

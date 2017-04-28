@@ -45,6 +45,18 @@ typedef enum SbSystemPathId {
   // screenshots) can be written into.
   kSbSystemPathDebugOutputDirectory,
 
+#if SB_API_VERSION >= 4
+  // Path to a directory where system font files can be found. Should only be
+  // specified on platforms that provide fonts usable by Starboard applications.
+  kSbSystemPathFontDirectory,
+
+  // Path to a directory where system font configuration metadata can be
+  // found. May be the same directory as |kSbSystemPathFontDirectory|, but not
+  // necessarily. Should only be specified on platforms that provide fonts
+  // usable by Starboard applications.
+  kSbSystemPathFontConfigurationDirectory,
+#endif  // SB_API_VERSION >= 4
+
   // Path to the directory containing the root of the source tree.
   kSbSystemPathSourceDirectory,
 
@@ -104,6 +116,10 @@ typedef enum SbSystemPropertyId {
   // Speech APIs and generate a Speech API key.
   kSbSystemPropertySpeechApiKey,
 #endif  // SB_VERSION(2)
+#if SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
+  // A field that, if available, is appended to the user agent
+  kSbSystemPropertyUserAgentAuxField,
+#endif  // SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
 } SbSystemPropertyId;
 
 // Enumeration of device types.
@@ -129,10 +145,10 @@ typedef enum SbSystemDeviceType {
   // Desktop PC.
   kSbSystemDeviceTypeDesktopPC,
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   // Unknown device.
   kSbSystemDeviceTypeUnknown,
@@ -261,6 +277,9 @@ typedef int (*SbSystemComparator)(const void* a, const void* b);
 
 // Breaks the current program into the debugger, if a debugger is attached.
 // If a debugger is not attached, this function aborts the program.
+#if SB_API_VERSION >= 4
+SB_NORETURN
+#endif
 SB_EXPORT void SbSystemBreakIntoDebugger();
 
 // Attempts to determine whether the current program is running inside or
@@ -430,6 +449,43 @@ SB_EXPORT int SbSystemGetStack(void** out_stack, int stack_size);
 SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
+
+#if SB_API_VERSION >= 4
+// Requests that the application move into the Paused state at the next
+// convenient point. This should roughly correspond to "unfocused application"
+// in a traditional window manager, where the application may be partially
+// visible.
+//
+// This function eventually causes a |kSbEventTypePause| event to be dispatched
+// to the application. Before the |kSbEventTypePause| event is dispatched, some
+// work may continue to be done, and unrelated system events may be dispatched.
+SB_EXPORT void SbSystemRequestPause();
+
+// Requests that the application move into the Started state at the next
+// convenient point. This should roughly correspond to a "focused application"
+// in a traditional window manager, where the application is fully visible and
+// the primary receiver of input events.
+//
+// This function eventually causes a |kSbEventTypeUnpause| event to be
+// dispatched to the application. Before |kSbEventTypeUnpause| is dispatched,
+// some work may continue to be done, and unrelated system events may be
+// dispatched.
+SB_EXPORT void SbSystemRequestUnpause();
+
+// Requests that the application move into the Suspended state at the next
+// convenient point. This should roughly correspond to "minimization" in a
+// traditional window manager, where the application is no longer visible.
+//
+// This function eventually causes a |kSbEventTypeSuspend| event to be
+// dispatched to the application. Before the |kSbEventTypeSuspend| event is
+// dispatched, some work may continue to be done, and unrelated system events
+// may be dispatched.
+//
+// In the Suspended state, the application will be resident, but probably not
+// running. The expectation is that an external system event will bring the
+// application out of the Suspended state.
+SB_EXPORT void SbSystemRequestSuspend();
+#endif  // SB_API_VERSION >= 4
 
 // Requests that the application be terminated gracefully at the next
 // convenient point. In the meantime, some work may continue to be done, and

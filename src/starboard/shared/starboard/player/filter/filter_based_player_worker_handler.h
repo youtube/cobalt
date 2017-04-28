@@ -42,14 +42,14 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
                                  SbMediaAudioCodec audio_codec,
                                  SbDrmSystem drm_system,
                                  const SbMediaAudioHeader& audio_header
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
                                  ,
-                                 SbPlayerOutputMode output_mode
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+                                 SbPlayerOutputMode output_mode,
+                                 SbDecodeTargetGraphicsContextProvider* provider
+#elif SB_API_VERSION >= 3
                                  ,
                                  SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION >= 3
+#endif                               // SB_API_VERSION >= 4
                                  );  // NOLINT(whitespace/parens)
 
  private:
@@ -63,17 +63,17 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   bool WriteSample(InputBuffer input_buffer, bool* written) SB_OVERRIDE;
   bool WriteEndOfStream(SbMediaType sample_type) SB_OVERRIDE;
   bool SetPause(bool pause) SB_OVERRIDE;
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
   bool SetPlaybackRate(double playback_rate) SB_OVERRIDE;
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
   bool SetBounds(const PlayerWorker::Bounds& bounds) SB_OVERRIDE;
   void Stop() SB_OVERRIDE;
 
   void Update();
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   PlayerWorker* player_worker_;
   JobQueue* job_queue_;
@@ -104,12 +104,13 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   // accesses are happening from the same thread.
   ::starboard::Mutex video_renderer_existence_mutex_;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbPlayerOutputMode output_mode_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-#if SB_API_VERSION >= 3
+  SbDecodeTargetGraphicsContextProvider*
+      decode_target_graphics_context_provider_;
+#elif SB_API_VERSION >= 3
   SbDecodeTargetProvider* decode_target_provider_;
-#endif  // SB_API_VERSION >= 3
+#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace filter

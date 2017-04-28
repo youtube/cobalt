@@ -64,7 +64,7 @@ DocumentTest::DocumentTest()
     : css_parser_(css_parser::Parser::Create()),
       dom_stat_tracker_(new DomStatTracker("DocumentTest")),
       html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                             dom_stat_tracker_.get(), "") {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
@@ -113,7 +113,7 @@ TEST_F(DocumentTest, CreateElement) {
   scoped_refptr<Element> element = document->CreateElement("element");
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
-  EXPECT_EQ("element", element->node_name());
+  EXPECT_EQ("ELEMENT", element->node_name());
 
   EXPECT_EQ(document, element->node_document());
   EXPECT_EQ(NULL, element->parent_node());
@@ -121,7 +121,7 @@ TEST_F(DocumentTest, CreateElement) {
   EXPECT_EQ(NULL, element->last_child());
 
   element = document->CreateElement("ELEMENT");
-  EXPECT_EQ("element", element->node_name());
+  EXPECT_EQ("ELEMENT", element->node_name());
 }
 
 TEST_F(DocumentTest, CreateTextNode) {

@@ -18,6 +18,7 @@
     'display.h',
     'framebuffer.h',
     'framebuffer.cc',
+    'framebuffer_render_target.h',
     'graphics_context.cc',
     'graphics_context.h',
     'graphics_system.cc',
@@ -38,7 +39,9 @@
     'utils.cc',
     'utils.h',
   ],
-
+  'defines': [
+    'COBALT_EGL_SWAP_INTERVAL=<(cobalt_egl_swap_interval)',
+  ],
   'dependencies': [
     '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
   ],
@@ -46,4 +49,11 @@
     '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
   ],
 
+  'conditions': [
+    ['render_dirty_region_only==1', {
+      'defines': [
+        'COBALT_RENDER_DIRTY_REGION_ONLY',
+      ],
+    }],
+  ],
 }

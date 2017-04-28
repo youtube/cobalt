@@ -41,6 +41,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],

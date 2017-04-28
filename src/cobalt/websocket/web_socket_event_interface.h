@@ -27,7 +27,8 @@ class WebsocketEventInterface {
  public:
   virtual ~WebsocketEventInterface() {}
   virtual void OnConnected(const std::string& selected_subprotocol) = 0;
-  virtual void OnDisconnected() = 0;
+  virtual void OnDisconnected(bool was_clean, uint16 code,
+                              const std::string& reason) = 0;
   virtual void OnSentData(int amount_sent) = 0;
   virtual void OnReceivedData(bool is_text_frame,
                               scoped_refptr<net::IOBufferWithSize> data) = 0;

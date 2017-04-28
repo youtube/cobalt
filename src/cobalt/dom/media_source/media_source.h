@@ -57,6 +57,8 @@
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/media_source/source_buffer.h"
 #include "cobalt/dom/media_source/source_buffer_list.h"
+#include "cobalt/dom/media_source_end_of_stream_error.h"
+#include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/video_track.h"
@@ -74,12 +76,6 @@ class MediaSource : public EventTarget {
  public:
   typedef UrlRegistry<MediaSource> Registry;
 
-  // Web API: MediaSource
-  //
-  enum EndOfStreamError { kNoError, kNetwork, kDecode };
-
-  enum ReadyState { kClosed, kOpen, kEnded };
-
   // Custom, not in any spec.
   //
   MediaSource();
@@ -89,7 +85,7 @@ class MediaSource : public EventTarget {
   //
   scoped_refptr<SourceBufferList> source_buffers() const;
   scoped_refptr<SourceBufferList> active_source_buffers() const;
-  ReadyState ready_state() const;
+  MediaSourceReadyState ready_state() const;
   double duration(script::ExceptionState* exception_state) const;
   void set_duration(double duration, script::ExceptionState* exception_state);
   scoped_refptr<SourceBuffer> AddSourceBuffer(
@@ -98,7 +94,7 @@ class MediaSource : public EventTarget {
                           script::ExceptionState* exception_state);
 
   void EndOfStream(script::ExceptionState* exception_state);
-  void EndOfStream(EndOfStreamError error,
+  void EndOfStream(MediaSourceEndOfStreamError error,
                    script::ExceptionState* exception_state);
   void SetLiveSeekableRange(double start, double end,
                             script::ExceptionState* exception_state);
@@ -128,12 +124,12 @@ class MediaSource : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(MediaSource);
 
  private:
-  void SetReadyState(ReadyState ready_state);
+  void SetReadyState(MediaSourceReadyState ready_state);
   bool IsUpdating() const;
   void ScheduleEvent(base::Token eventName);
 
   media::ChunkDemuxer* chunk_demuxer_;
-  ReadyState ready_state_;
+  MediaSourceReadyState ready_state_;
   EventQueue event_queue_;
   base::WeakPtr<HTMLMediaElement> attached_element_;
 

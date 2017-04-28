@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/typeface.h"
 
@@ -77,6 +78,10 @@ class MockResourceProvider : public ResourceProvider {
                render_tree::Mesh*(std::vector<render_tree::Mesh::Vertex>*,
                                   render_tree::Mesh::DrawMode));
 
+  MOCK_METHOD1(DrawOffscreenImage,
+               scoped_refptr<render_tree::Image>(
+                   const scoped_refptr<render_tree::Node>& root));
+
   scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
                                           PixelFormat pixel_format,
                                           AlphaFormat alpha_format) {
@@ -87,18 +92,27 @@ class MockResourceProvider : public ResourceProvider {
     return scoped_refptr<Image>(CreateImageMock(pixel_data.get()));
   }
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
+
+#if SB_API_VERSION >= 3
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(SbDecodeTarget target) {
     UNREFERENCED_PARAMETER(target);
     return NULL;
   }
 
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
-
   bool SupportsSbDecodeTarget() { return false; }
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
+#endif  // SB_API_VERSION >= 3
+
+#if SB_API_VERSION >= 4
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() {
+    return NULL;
+  }
+#elif SB_API_VERSION >= 3
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
+#endif  // SB_API_VERSION >= 4
+
+#endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) {
@@ -117,7 +131,7 @@ class MockResourceProvider : public ResourceProvider {
         GetLocalTypefaceMock(font_family_name, font_style));
   }
   scoped_refptr<Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) {
+      const char* font_face_name) {
     return scoped_refptr<Typeface>(
         GetLocalTypefaceIfAvailableMock(font_face_name));
   }

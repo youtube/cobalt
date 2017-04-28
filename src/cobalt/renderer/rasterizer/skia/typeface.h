@@ -20,10 +20,10 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/typeface.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 
 #include "third_party/skia/include/core/SkPaint.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "third_party/skia/include/core/SkTypeface.h"
 
 namespace cobalt {
 namespace renderer {
@@ -36,13 +36,13 @@ namespace skia {
 // than the thread making the character glyph queries.
 class SkiaTypeface : public render_tree::Typeface {
  public:
-  explicit SkiaTypeface(SkTypeface* typeface);
+  explicit SkiaTypeface(SkTypeface_Cobalt* typeface);
 
-  // Returns the contained SkTypeface object, which has its reference count
-  // incremented.
+  // Returns the contained SkTypeface_Cobalt object, which has its reference
+  // count incremented.
   // NOTE: The caller is responsible for decrementing the reference count after
   // finishing with the object.
-  SkTypeface* GetSkTypeface() const;
+  SkTypeface_Cobalt* GetSkTypeface() const;
 
   // From render_tree::Typeface
 
@@ -69,7 +69,7 @@ class SkiaTypeface : public render_tree::Typeface {
   typedef base::hash_map<int32, render_tree::GlyphIndex> CharacterToGlyphMap;
 
   // The underlying SkTypeface that was used to create this typeface.
-  SkAutoTUnref<SkTypeface> typeface_;
+  SkAutoTUnref<SkTypeface_Cobalt> typeface_;
 
   // The glyphs for characters are lazily computed and cached to speed up later
   // lookups. The page containing indices 0-255 is optimized within an array.

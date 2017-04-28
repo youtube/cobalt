@@ -14,7 +14,9 @@
 
 #include "cobalt/renderer/rasterizer/blitter/image.h"
 
+#include "base/bind.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/renderer/backend/blitter/surface_render_target.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
@@ -89,7 +91,25 @@ SinglePlaneImage::SinglePlaneImage(SbBlitterSurface surface, bool is_opaque,
   size_ = math::Size(info.width, info.height);
 }
 
-bool SinglePlaneImage::EnsureInitialized() { return false; }
+SinglePlaneImage::SinglePlaneImage(
+    const scoped_refptr<render_tree::Node>& root,
+    SubmitOffscreenCallback submit_offscreen_callback, SbBlitterDevice device)
+    : size_(static_cast<int>(root->GetBounds().right()),
+            static_cast<int>(root->GetBounds().bottom())),
+      is_opaque_(false) {
+  initialize_image_ = base::Bind(
+      &SinglePlaneImage::InitializeImageFromRenderTree, base::Unretained(this),
+      root, submit_offscreen_callback, device);
+}
+
+bool SinglePlaneImage::EnsureInitialized() {
+  if (!initialize_image_.is_null()) {
+    initialize_image_.Run();
+    initialize_image_.Reset();
+    return true;
+  }
+  return false;
+}
 
 const SkBitmap* SinglePlaneImage::GetBitmap() const {
   // This function will only ever get called if the Skia software renderer needs
@@ -126,6 +146,18 @@ SinglePlaneImage::~SinglePlaneImage() {
   } else {
     SbBlitterDestroySurface(surface_);
   }
+}
+
+void SinglePlaneImage::InitializeImageFromRenderTree(
+    const scoped_refptr<render_tree::Node>& root,
+    const SubmitOffscreenCallback& submit_offscreen_callback,
+    SbBlitterDevice device) {
+  scoped_refptr<backend::SurfaceRenderTargetBlitter> render_target(
+      new backend::SurfaceRenderTargetBlitter(device, size_));
+
+  submit_offscreen_callback.Run(root, render_target);
+  surface_ = render_target->TakeSbSurface();
+  CHECK(SbBlitterIsSurfaceValid(surface_));
 }
 
 }  // namespace blitter

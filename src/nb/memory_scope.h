@@ -58,13 +58,15 @@
   static NbMemoryScopeInfo memory_scope_handle_##LineNum =                \
       { NULL, Str, FileStr, LineNum, FuncStr, true };                     \
   NbPushMemoryScope(&memory_scope_handle_##LineNum);                      \
-  NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;
+  NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;                  \
+  (void)pop_on_scope_end_##LineNum;
 
 #define TRACK_MEMORY_STATIC_NOT_CACHED_IMPL_2(Str, FileStr, LineNum, FuncStr) \
   NbMemoryScopeInfo memory_scope_handle_##LineNum = {                         \
       NULL, Str, FileStr, LineNum, FuncStr, false};                           \
   NbPushMemoryScope(&memory_scope_handle_##LineNum);                          \
-  NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;
+  NbPopMemoryScopeOnScopeEnd pop_on_scope_end_##LineNum;                      \
+  (void)pop_on_scope_end_##LineNum;
 
 #ifdef __cplusplus
 extern "C" {

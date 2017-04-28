@@ -55,6 +55,9 @@ class GraphicsContextEGL : public GraphicsContext {
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE;
 
+  scoped_refptr<RenderTarget> CreateDownloadableOffscreenRenderTarget(
+      const math::Size& dimensions) OVERRIDE;
+
   void InitializeDebugContext() OVERRIDE;
 
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
@@ -99,6 +102,9 @@ class GraphicsContextEGL : public GraphicsContext {
   // that is provided but does not require a surface binding, null_surface_ is
   // specified as a surface.
   void MakeCurrentWithSurface(RenderTargetEGL* surface);
+
+  // If this context is current, then forcefully rebind its current surface.
+  void ResetCurrentSurface();
 
   // Alternatively, this call can be made to make the context current along
   // with a null surface.  You would be interested in this method if you don't

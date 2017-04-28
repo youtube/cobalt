@@ -21,17 +21,23 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+class SbSocketWaiterAddTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
 void NoOpSocketWaiterCallback(SbSocketWaiter waiter,
                               SbSocket socket,
                               void* context,
                               int ready_interests) {}
 
-TEST(SbSocketWaiterAddTest, SunnyDay) {
+TEST_P(SbSocketWaiterAddTest, SunnyDay) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_TRUE(SbSocketWaiterAdd(
       waiter, socket, NULL, &NoOpSocketWaiterCallback,
@@ -41,12 +47,12 @@ TEST(SbSocketWaiterAddTest, SunnyDay) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-TEST(SbSocketWaiterAddTest, SunnyDayPersistent) {
+TEST_P(SbSocketWaiterAddTest, SunnyDayPersistent) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_TRUE(SbSocketWaiterAdd(
       waiter, socket, NULL, &NoOpSocketWaiterCallback,
@@ -56,15 +62,15 @@ TEST(SbSocketWaiterAddTest, SunnyDayPersistent) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-TEST(SbSocketWaiterAddTest, SunnyDayMany) {
+TEST_P(SbSocketWaiterAddTest, SunnyDayMany) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
   const int kMany = SB_FILE_MAX_OPEN;
   SbSocket sockets[kMany] = {0};
   for (int i = 0; i < kMany; ++i) {
-    sockets[i] = SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-    EXPECT_TRUE(SbSocketIsValid(sockets[i]));
+    sockets[i] = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+    ASSERT_TRUE(SbSocketIsValid(sockets[i]));
     EXPECT_TRUE(SbSocketWaiterAdd(
         waiter, sockets[i], NULL, &NoOpSocketWaiterCallback,
         kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
@@ -77,12 +83,12 @@ TEST(SbSocketWaiterAddTest, SunnyDayMany) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-TEST(SbSocketWaiterAddTest, RainyDayAddToSameWaiter) {
+TEST_P(SbSocketWaiterAddTest, RainyDayAddToSameWaiter) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
 
   // First add should succeed.
   EXPECT_TRUE(SbSocketWaiterAdd(
@@ -111,15 +117,15 @@ TEST(SbSocketWaiterAddTest, RainyDayAddToSameWaiter) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-TEST(SbSocketWaiterAddTest, RainyDayAddToOtherWaiter) {
+TEST_P(SbSocketWaiterAddTest, RainyDayAddToOtherWaiter) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
   SbSocketWaiter waiter2 = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter2));
 
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
 
   // The first add should succeed.
   EXPECT_TRUE(SbSocketWaiterAdd(
@@ -149,7 +155,7 @@ TEST(SbSocketWaiterAddTest, RainyDayAddToOtherWaiter) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter2));
 }
 
-TEST(SbSocketWaiterRemoveTest, RainyDayInvalidSocket) {
+TEST_F(SbSocketWaiterAddTest, RainyDayInvalidSocket) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
@@ -160,9 +166,9 @@ TEST(SbSocketWaiterRemoveTest, RainyDayInvalidSocket) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-TEST(SbSocketWaiterRemoveTest, RainyDayInvalidWaiter) {
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+TEST_P(SbSocketWaiterAddTest, RainyDayInvalidWaiter) {
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_FALSE(SbSocketWaiterAdd(
       kSbSocketWaiterInvalid, socket, NULL, &NoOpSocketWaiterCallback,
@@ -171,11 +177,11 @@ TEST(SbSocketWaiterRemoveTest, RainyDayInvalidWaiter) {
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
-TEST(SbSocketWaiterRemoveTest, RainyDayNoCallback) {
+TEST_P(SbSocketWaiterAddTest, RainyDayNoCallback) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_FALSE(SbSocketWaiterAdd(
       waiter, socket, NULL, NULL,
@@ -185,11 +191,11 @@ TEST(SbSocketWaiterRemoveTest, RainyDayNoCallback) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-TEST(SbSocketWaiterRemoveTest, RainyDayNoInterest) {
+TEST_P(SbSocketWaiterAddTest, RainyDayNoInterest) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
-  SbSocket socket = CreateTcpIpv4Socket();
-  EXPECT_TRUE(SbSocketIsValid(socket));
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_FALSE(SbSocketWaiterAdd(waiter, socket, NULL,
                                  &NoOpSocketWaiterCallback,
@@ -198,6 +204,17 @@ TEST(SbSocketWaiterRemoveTest, RainyDayNoInterest) {
   EXPECT_TRUE(SbSocketDestroy(socket));
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketWaiterAddTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketWaiterAddTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+#endif
 
 }  // namespace
 }  // namespace nplb

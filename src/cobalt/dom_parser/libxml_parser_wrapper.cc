@@ -32,6 +32,7 @@
 #include "starboard/ps4/core_dump_handler.h"
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // defined(OS_STARBOARD)
+#include "third_party/libxml/src/include/libxml/xmlerror.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -257,7 +258,7 @@ void LibxmlParserWrapper::OnEndElement(const std::string& name) {
       element->OnParserEndTag();
     }
 
-    if (element->node_name() == name) {
+    if (element->local_name() == name) {
       return;
     }
   }
@@ -290,6 +291,12 @@ void LibxmlParserWrapper::OnComment(const std::string& comment) {
 void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
                                          const std::string& message) {
   DCHECK(severity >= kWarning && severity <= kFatal);
+
+  xmlErrorPtr error = xmlGetLastError();
+  if (error->code == XML_HTML_UNKNOWN_TAG) {
+    return;
+  }
+
   if (severity > max_severity_) {
     max_severity_ = severity;
   }

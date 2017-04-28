@@ -4,6 +4,8 @@
 
 #include "net/base/gzip_filter.h"
 
+#include <algorithm>
+
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
 #else

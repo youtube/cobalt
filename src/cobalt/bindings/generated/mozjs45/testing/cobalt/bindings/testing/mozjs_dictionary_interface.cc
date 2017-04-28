@@ -24,7 +24,10 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
-#include "cobalt/bindings/testing/mozjs_test_dictionary.h"
+#include "cobalt/bindings/testing/dictionary_with_dictionary_member.h"
+#include "cobalt/bindings/testing/test_dictionary.h"
+
+#include "mozjs_gen_type_conversion.h"
 
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
@@ -36,6 +39,8 @@
 #include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
+#include "cobalt/script/mozjs-45/native_promise.h"
 #include "cobalt/script/mozjs-45/proxy_handler.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
@@ -48,6 +53,7 @@
 namespace {
 using cobalt::bindings::testing::DictionaryInterface;
 using cobalt::bindings::testing::MozjsDictionaryInterface;
+using cobalt::bindings::testing::DictionaryWithDictionaryMember;
 using cobalt::bindings::testing::TestDictionary;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
@@ -73,6 +79,7 @@ using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::kConversionFlagClamped;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
@@ -329,6 +336,71 @@ bool fcn_dictionaryOperation(
   return !exception_state.is_exception_set();
 }
 
+bool fcn_testOperation(
+    JSContext* context, uint32_t argc, JS::Value *vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  // Compute the 'this' value.
+  JS::RootedValue this_value(context, JS_ComputeThis(context, vp));
+  // 'this' should be an object.
+  JS::RootedObject object(context);
+  if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
+    NOTREACHED();
+    return false;
+  }
+  if (!JS_ValueToObject(context, this_value, &object)) {
+    NOTREACHED();
+    return false;
+  }
+  const JSClass* proto_class =
+      MozjsDictionaryInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<DictionaryInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  DictionaryInterface* impl =
+      wrapper_private->wrappable<DictionaryInterface>().get();
+  const size_t kMinArguments = 1;
+  if (args.length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return false;
+  }
+  // Non-optional arguments
+  TypeTraits<DictionaryWithDictionaryMember >::ConversionType dict;
+
+  DCHECK_LT(0, args.length());
+  JS::RootedValue non_optional_value0(
+      context, args[0]);
+  FromJSValue(context,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &dict);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->TestOperation(dict);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 
 const JSPropertySpec prototype_properties[] = {
@@ -344,6 +416,9 @@ const JSPropertySpec prototype_properties[] = {
 const JSFunctionSpec prototype_functions[] = {
   JS_FNSPEC(
       "dictionaryOperation", fcn_dictionaryOperation, NULL,
+      1, JSPROP_ENUMERATE, NULL),
+  JS_FNSPEC(
+      "testOperation", fcn_testOperation, NULL,
       1, JSPROP_ENUMERATE, NULL),
   JS_FS_END
 };

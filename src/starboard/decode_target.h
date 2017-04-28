@@ -34,26 +34,29 @@
 // an error. Each decoder provides a way to check if a given
 // SbDecodeTargetFormat is supported by that decoder.
 //
-// #### SbDecodeTargetProvider
+// #### SbDecodeTargetGraphicsContextProvider
 //
 // Some components may need to acquire SbDecodeTargets compatible with a certain
 // rendering context, which may need to be created on a particular thread. The
-// SbDecodeTargetProvider is a way for the primary rendering context to provide
-// an interface that can create SbDecodeTargets on a designated thread.
+// SbDecodeTargetGraphicsContextProvider are passed in to the Starboard
+// implementation from the application and provide information about the
+// rendering context that will be used to render the SbDecodeTarget objects.
+// For GLES renderers, it also provides functionality to enable the Starboard
+// implementation to run arbitrary code on the application's renderer thread
+// with the renderer's EGLContext held current.  This may be useful if your
+// SbDecodeTarget creation code needs to execute GLES commands like, for
+// example, glGenTextures().
 //
 // The primary usage is likely to be the the SbPlayer implementation on some
 // platforms.
 //
 // #### SbDecodeTarget Example
 //
-// Let's say there's an image decoder for .foo files:
+// Let's say that we are an application and we would like to use the interface
+// defined in starboard/image.h to decode an imaginary "image/foo" image type.
 //
-//     bool SbImageDecodeFooSupportsFormat(SbDecodeTargetFormat format);
-//     SbDecodeTarget SbImageDecodeFoo(void* data, int data_size,
-//                                     SbDecodeTargetFormat format);
-//
-// First, the client should enumerate which SbDecodeTargetFormats are supported
-// by that decoder.
+// First, the application should enumerate which SbDecodeTargetFormats are
+// supported by that decoder.
 //
 //     SbDecodeTargetFormat kPreferredFormats[] = {
 //         kSbDecodeTargetFormat3PlaneYUVI420,
@@ -63,19 +66,20 @@
 //
 //     SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
 //     for (int i = 0; i < SB_ARRAY_SIZE_INT(kPreferredFormats); ++i) {
-//       if (SbImageDecodeFooSupportsFormat(kPreferredFormats[i])) {
+//       if (SbImageIsDecodeSupported("image/foo", kPreferredFormats[i])) {
 //         format = kPreferredFormats[i];
 //         break;
 //       }
 //     }
 //
-// Now that the client has a format, it can create a decode target that it
+// Now that the application has a format, it can create a decode target that it
 // will use to decode the .foo file into. Let's assume format is
 // kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform.
 // Also, we won't do any error checking, to keep things even simpler.
 //
-//     SbDecodeTarget target = SbImageDecodeFoo(encoded_foo_data,
-//                                              encoded_foo_data_size, format);
+//     SbDecodeTarget target = SbImageDecode(
+//         context_provider, encoded_foo_data, encoded_foo_data_size,
+//         "image/foo", format);
 //
 //     // If the decode works, you can get the texture out and render it.
 //     SbDecodeTargetInfo info;
@@ -96,10 +100,10 @@
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
 #elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION < 4
 #endif  // SB_HAS(BLITTER)
 
 #ifdef __cplusplus
@@ -162,6 +166,63 @@ typedef enum SbDecodeTargetPlane {
   kSbDecodeTargetPlaneV = 2,
 } SbDecodeTargetPlane;
 
+#if SB_API_VERSION >= 4
+#if SB_HAS(GLES2)
+struct SbDecodeTargetGraphicsContextProvider;
+
+// Signature for a Starboard implementaion function that is to be run by a
+// SbDecodeTargetGlesContextRunner callback.
+typedef void (*SbDecodeTargetGlesContextRunnerTarget)(
+    void* gles_context_runner_target_context);
+
+// Signature for a function provided by the application to the Starboard
+// implementation that will let the Starboard implementation run arbitrary code
+// on the application's renderer thread with the application's EGLContext held
+// current.
+typedef void (*SbDecodeTargetGlesContextRunner)(
+    struct SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context);
+#endif  // SB_HAS(GLES2)
+
+// In general, the SbDecodeTargetGraphicsContextProvider structure provides
+// information about the graphics context that will be used to render
+// SbDecodeTargets.  Some Starboard implementations may need to have references
+// to some graphics objects when creating/destroying resources used by
+// SbDecodeTarget.  References to SbDecodeTargetGraphicsContextProvider objects
+// should be provided to all Starboard functions that might create
+// SbDecodeTargets (e.g. SbImageDecode()).
+typedef struct SbDecodeTargetGraphicsContextProvider {
+#if SB_HAS(BLITTER)
+  // The SbBlitterDevice object that will be used to render any produced
+  // SbDecodeTargets.
+  SbBlitterDevice device;
+#elif SB_HAS(GLES2)
+  // A reference to the EGLDisplay object that hosts the EGLContext that will
+  // be used to render any produced SbDecodeTargets.  Note that it has the
+  // type |void*| in order to avoid #including the EGL header files here.
+  void* egl_display;
+  // The EGLContext object that will be used to render any produced
+  // SbDecodeTargets.  Note that it has the
+  // type |void*| in order to avoid #including the EGL header files here.
+  void* egl_context;
+
+  // The |gles_context_runner| function pointer is passed in from the
+  // application into the Starboard implementation, and can be invoked by the
+  // Starboard implementation to allow running arbitrary code on the renderer's
+  // thread with the EGLContext above held current.
+  SbDecodeTargetGlesContextRunner gles_context_runner;
+
+  // Context data that is to be passed in to |gles_context_runner| when it is
+  // invoked.
+  void* gles_context_runner_context;
+#else  // SB_HAS(BLITTER)
+  // Some compilers complain about empty structures, this is to appease them.
+  char dummy;
+#endif  // SB_HAS(BLITTER)
+} SbDecodeTargetGraphicsContextProvider;
+
+#else   // SB_API_VERSION >= 4
 // A function that can produce an SbDecodeTarget of the given |format|, |width|,
 // and |height|.
 typedef SbDecodeTarget (*SbDecodeTargetAcquireFunction)(
@@ -186,8 +247,9 @@ typedef struct SbDecodeTargetProvider {
   // |context| will be passed into every call to |acquire| and |release|.
   void* context;
 } SbDecodeTargetProvider;
+#endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 
 // Defines a rectangular content region within a SbDecodeTargetInfoPlane
 // structure.
@@ -256,7 +318,7 @@ typedef struct SbDecodeTargetInfo {
   SbDecodeTargetInfoPlane planes[3];
 } SbDecodeTargetInfo;
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 // --- Constants -------------------------------------------------------------
 
@@ -276,9 +338,9 @@ static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
   return format != kSbDecodeTargetFormatInvalid;
 }
 
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION < 4
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_HAS(BLITTER)
 
 // Creates a new SbBlitter-compatible SbDecodeTarget from one or more |planes|
 // created from |display|.
@@ -295,25 +357,8 @@ SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(SbDecodeTargetFormat format,
 SB_EXPORT SbBlitterSurface SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                                                   SbDecodeTargetPlane plane);
 
-#else  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
-// Creates a new SbBlitter-compatible SbDecodeTarget and all internal
-// surfaces/planes associated with it, created from |device|.
-//
-// |device|: The device from which the internal surfaces should be created on.
-// |format|: The format of the decode target being created.
-// |width|: The width of the decode target being created.
-// |height|: The height of the decode target being created.
-SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(SbBlitterDevice device,
-                                              SbDecodeTargetFormat format,
-                                              int width,
-                                              int height);
-
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
 #elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 // Creates a new EGL/GLES2-compatible SbDecodeTarget from one or more |planes|
 // owned by |context|, created from |display|. Must be called from a thread
 // where |context| is current.
@@ -335,39 +380,6 @@ SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(EGLDisplay display,
 SB_EXPORT GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
                                         SbDecodeTargetPlane plane);
 
-#else  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
-// SBCHANGELOG: SbDecodeTargetCreate() is now responsible for creating its
-//              internal planes/textures/surfaces, instead of expecting them
-//              to be externally created and passed into it.  This allows the
-//              platform to customize the process of plane creation.  This
-//              change applies to both Blitter API and GLES platforms.
-
-// Creates a new EGL/GLES2-compatible SbDecodeTarget including all internal
-// textures/planes associated with it, which will be owned by |context|, created
-// from |display|. Must be called from a thread where |context| is current.
-// Returns kSbDecodeTargetInvalid on failure.
-//
-// void* is used in place of the EGL types so as to avoid including EGL headers,
-// which may transitively include unexpected platform-specific headers. You must
-// call reinterpret_cast<void*>(my_egl_context).
-//
-// |display|: The platform-specific graphics display (e.g. EGLDisplay) being
-// targeted.
-// |context|: The platform-specific graphics context (e.g. EGLContext) that owns
-// the provided planes, or NULL if a context is not required.
-// |format|: The format of the decode target being created, which implies how
-// many |planes| are expected, and what format they are expected to be in.
-// |width|: The width of the decode target being created.
-// |height|: The height of the decode target being created.
-SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(void* display,
-                                              void* context,
-                                              SbDecodeTargetFormat format,
-                                              int width,
-                                              int height);
-
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
 #else  // SB_HAS(BLITTER)
 
 // Stub function for when graphics aren't enabled.  Always creates
@@ -380,8 +392,6 @@ SbDecodeTargetCreate(SbDecodeTargetFormat format) {
 }
 
 #endif  // SB_HAS(BLITTER)
-
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
 
 // Destroys the given SbDecodeTarget and all its associated surfaces.
 SB_EXPORT void SbDecodeTargetDestroy(SbDecodeTarget decode_target);
@@ -400,7 +410,24 @@ SbDecodeTargetGetFormat(SbDecodeTarget decode_target);
 // not have alpha values, then this function should return |true|.
 SB_EXPORT bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target);
 
-#else  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+// Inline convenience function to acquire an SbDecodeTarget of type |format|,
+// |width|, and |height| from |provider|.
+static SB_C_INLINE SbDecodeTarget
+SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider* provider,
+                                  SbDecodeTargetFormat format,
+                                  int width,
+                                  int height) {
+  return provider->acquire(provider->context, format, width, height);
+}
+
+// Inline convenience function to release |decode_target| back to |provider|.
+static SB_C_INLINE void SbDecodeTargetReleaseToProvider(
+    SbDecodeTargetProvider* provider,
+    SbDecodeTarget decode_target) {
+  provider->release(provider->context, decode_target);
+}
+
+#else  // SB_API_VERSION < 4
 
 // SBCHANGELOG: Rename SbDecodeTargetDestroy() to SbDecodeTargetRelease() to
 //              more accurately reflect its potential semantics as a reference
@@ -422,24 +449,37 @@ SB_EXPORT void SbDecodeTargetRelease(SbDecodeTarget decode_target);
 SB_EXPORT bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                                      SbDecodeTargetInfo* out_info);
 
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-
-// Inline convenience function to acquire an SbDecodeTarget of type |format|,
-// |width|, and |height| from |provider|.
-static SB_C_INLINE SbDecodeTarget
-SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider* provider,
-                                  SbDecodeTargetFormat format,
-                                  int width,
-                                  int height) {
-  return provider->acquire(provider->context, format, width, height);
+#if SB_HAS(GLES2)
+// Inline convenience function to run an arbitrary
+// SbDecodeTargetGlesContextRunnerTarget function through a
+// SbDecodeTargetGraphicsContextProvider.  This is intended to be called by
+// Starboard implementations, if it is necessary.
+static SB_C_INLINE void SbDecodeTargetRunInGlesContext(
+    SbDecodeTargetGraphicsContextProvider* provider,
+    SbDecodeTargetGlesContextRunnerTarget target,
+    void* target_context) {
+  provider->gles_context_runner(provider, target, target_context);
 }
 
-// Inline convenience function to release |decode_target| back to |provider|.
-static SB_C_INLINE void SbDecodeTargetReleaseToProvider(
-    SbDecodeTargetProvider* provider,
+// This function is just an implementation detail of
+// SbDecodeTargetReleaseInGlesContext() and should not be called directly.
+static SB_C_INLINE void PrivateDecodeTargetReleaser(void* context) {
+  SbDecodeTarget decode_target = (SbDecodeTarget)context;
+  SbDecodeTargetRelease(decode_target);
+}
+
+// Helper function that is possibly useful to Starboard implementations that
+// will release a decode target on the thread with the GLES context current.
+static SB_C_INLINE void SbDecodeTargetReleaseInGlesContext(
+    SbDecodeTargetGraphicsContextProvider* provider,
     SbDecodeTarget decode_target) {
-  provider->release(provider->context, decode_target);
+  SbDecodeTargetRunInGlesContext(provider, &PrivateDecodeTargetReleaser,
+                                 (void*)decode_target);
 }
+
+#endif  // SB_HAS(GLES2)
+
+#endif  // SB_API_VERSION < 4
 
 #ifdef __cplusplus
 }  // extern "C"

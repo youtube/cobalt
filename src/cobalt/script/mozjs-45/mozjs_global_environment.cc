@@ -20,7 +20,9 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/embedded_resources.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
+#include "cobalt/script/mozjs-45/mozjs_script_value_factory.h"
 #include "cobalt/script/mozjs-45/mozjs_source_code.h"
 #include "cobalt/script/mozjs-45/mozjs_wrapper_handle.h"
 #include "cobalt/script/mozjs-45/proxy_handler.h"
@@ -117,7 +119,8 @@ ProxyHandler::IndexedPropertyHooks MozjsStubHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsStubHandler> proxy_handler;
 }  // namespace
 
-MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
+MozjsGlobalEnvironment::MozjsGlobalEnvironment(
+    JSRuntime* runtime, const JavaScriptEngine::Options& options)
     : context_(NULL),
       garbage_collection_count_(0),
       cached_interface_data_deleter_(&cached_interface_data_),
@@ -135,6 +138,7 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
                              kMaxCodeCacheBytes);
 
   wrapper_factory_.reset(new WrapperFactory(context_));
+  script_value_factory_.reset(new MozjsScriptValueFactory(this));
   referenced_objects_.reset(new ReferencedObjectMap(context_));
   opaque_root_tracker_.reset(new OpaqueRootTracker(
       context_, referenced_objects_.get(), wrapper_factory_.get()));
@@ -173,6 +177,8 @@ void MozjsGlobalEnvironment::CreateGlobalObject() {
       context_, ProxyHandler::NewProxy(context_, proxy_handler.Pointer(),
                                        global_object, NULL));
   global_object_proxy_ = proxy;
+
+  EvaluateAutomatics();
 }
 
 bool MozjsGlobalEnvironment::EvaluateScript(
@@ -337,6 +343,25 @@ void MozjsGlobalEnvironment::Bind(const std::string& identifier,
                                 wrapper_value);
 
   DCHECK(success);
+}
+
+ScriptValueFactory* MozjsGlobalEnvironment::script_value_factory() {
+  DCHECK(script_value_factory_);
+  return script_value_factory_.get();
+}
+
+void MozjsGlobalEnvironment::EvaluateAutomatics() {
+  TRACK_MEMORY_SCOPE("Javascript");
+  std::string source(
+      reinterpret_cast<const char*>(MozjsEmbeddedResources::promise_min_js),
+      sizeof(MozjsEmbeddedResources::promise_min_js));
+  scoped_refptr<SourceCode> source_code =
+      new MozjsSourceCode(source, base::SourceLocation("promise.min.js", 1, 1));
+  std::string result;
+  bool success = EvaluateScript(source_code, &result);
+  if (!success) {
+    DLOG(FATAL) << result;
+  }
 }
 
 InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(intptr_t key) {

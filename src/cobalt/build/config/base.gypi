@@ -33,10 +33,77 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
+    # Enables embedding Cobalt as a shared library within another app. This
+    # requires a 'lib' starboard implementation for the corresponding platform.
+    'cobalt_enable_lib%': 0,
+
     # Contains the current font package selection.  This can be used to trade
-    # font quality, coverage, and latency with smaller font package size.
-    # See content/fonts/README.md for more details.
-    'cobalt_font_package%': 'unlimited',
+    # font quality, coverage, and latency for different font package sizes.
+    # The font package can be one of the following options:
+    #   'expanded' -- The largest package. It includes everything in the
+    #                 'standard' package, along with 'bold' weight CJK. It is
+    #                 recommended that 'local_font_cache_size_in_bytes' be
+    #                 increased to 24MB when using this package to account for
+    #                 the extra memory required by bold CJK. This package is
+    #                 ~46.2MB.
+    #   'standard' -- The default package. It includes all non-CJK fallback
+    #                 fonts in both 'normal' and 'bold' weights, 'normal' weight
+    #                 CJK ('bold' weight CJK is synthesized from it), and all
+    #                 FCC fonts. This package is ~26.9MB.
+    #   'limited_with_jp' -- A significantly smaller package than 'standard'.
+    #                 This package removes the 'bold' weighted non-CJK fallback
+    #                 fonts (the 'normal' weight is still included and is used
+    #                 to synthesize bold), removes the FCC fonts (which must be
+    #                 downloaded from the web), and replaces standard CJK with
+    #                 low quality CJK. However, higher quality Japanese is still
+    #                 included. Because low quality CJK cannot synthesize bold,
+    #                 bold glyphs are unavailable in Chinese and Korean. This
+    #                 package is ~10.9MB.
+    #   'limited'  -- A smaller package than 'limited_with_jp'. The two packages
+    #                 are identical with the exception that 'limited' does not
+    #                 include the higher quality Japanese font; instead it
+    #                 relies on low quality CJK for all CJK characters. Because
+    #                 low quality CJK cannot synthesize bold, bold glyphs are
+    #                 unavailable in Chinese, Japanese, and Korean. This package
+    #                 is ~7.7MB.
+    #   'minimal'  -- The smallest possible font package. It only includes
+    #                 Roboto's Basic Latin characters. Everything else must be
+    #                 downloaded from the web. This package is ~16.4KB.
+    # NOTE: When bold is needed, but unavailable, it is typically synthesized,
+    #       resulting in lower quality glyphs than those generated directly from
+    #       a bold font. However, this does not occur with low quality CJK,
+    #       which is not high enough quality to synthesize. Its glyphs always
+    #       have a 'normal' weight.
+    'cobalt_font_package%': 'standard',
+
+    # Font package overrides can be used to modify the files included within the
+    # selected package. The following values are available:
+    #   -1 -- The package value for the specified category is not overridden.
+    #    0 -- The package value is overridden and no fonts for the specified
+    #         category are included.
+    #    1 -- The package value is overridden and fonts from the specified
+    #         category with a weight of 'normal' and a style of 'normal' are
+    #         included.
+    #    2 -- The package value is overridden and fonts from the specified
+    #         category with a weight of either 'normal' or bold' and a style of
+    #         'normal' are included.
+    #    3 -- The package value is overridden and fonts from the specified
+    #         category with a weight of either 'normal' or 'bold' and a style of
+    #         either 'normal' or 'italic' are included.
+    #    4 -- The package value is overridden and all available fonts from the
+    #         specified category are included. This may include additional
+    #         weights beyond 'normal' and 'bold'.
+    # See content/fonts/README.md for details on the specific values used by
+    # each of the packages use for the various font categories.
+    'cobalt_font_package_override_named_sans_serif%': -1,
+    'cobalt_font_package_override_named_serif%': -1,
+    'cobalt_font_package_override_named_fcc_fonts%': -1,
+    'cobalt_font_package_override_fallback_lang_non_cjk%': -1,
+    'cobalt_font_package_override_fallback_lang_cjk%': -1,
+    'cobalt_font_package_override_fallback_lang_cjk_low_quality%': -1,
+    'cobalt_font_package_override_fallback_lang_jp%': -1,
+    'cobalt_font_package_override_fallback_emoji%': -1,
+    'cobalt_font_package_override_fallback_symbols%': -1,
 
     # Build version number.
     'cobalt_version%': 0,
@@ -67,6 +134,19 @@
     #                 still be available and valid, but it will do nothing.
     'rasterizer_type%': 'hardware',
 
+    # If set to 1, will enable support for rendering only the regions of the
+    # display that are modified due to animations, instead of re-rendering the
+    # entire scene each frame.  This feature can reduce startup time where
+    # usually there is a small loading spinner animating on the screen.  On GLES
+    # renderers, Cobalt will attempt to implement this support by using
+    # eglSurfaceAttrib(..., EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED), otherwise
+    # the dirty region will be silently disabled.  On Blitter API platforms,
+    # if this is enabled, we explicitly create an extra offscreen full-size
+    # intermediate surface to render into.  Note that some GLES driver
+    # implementations may internally allocate an extra full screen surface to
+    # support this feature.
+    'render_dirty_region_only%': 1,
+
     # Modify this value to adjust the default rasterizer setting for your
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
@@ -76,7 +156,11 @@
     # swapping frames may take some additional processing time, so it may be
     # better to specify a lower delay. For example, '33' instead of '33.33'
     # for 30 Hz refresh.
-    'cobalt_minimum_frame_time_in_milliseconds%': '0',
+    'cobalt_minimum_frame_time_in_milliseconds%': '16.4',
+
+    # Cobalt will call eglSwapInterval() and specify this value before calling
+    # eglSwapBuffers() each frame.
+    'cobalt_egl_swap_interval%': 1,
 
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
@@ -87,6 +171,9 @@
 
     # Set to 1 to build with DIAL support.
     'in_app_dial%': 0,
+
+    # Set to 1 to enable a custom MediaSessionClient.
+    'custom_media_session_client%': 0,
 
     # Set to 1 to enable H5vccAccountManager.
     'enable_account_manager%': 0,
@@ -166,14 +253,14 @@
     # surface cache facilitates the reuse of temporary offscreen surfaces
     # within a single frame.  This setting is only relevant when using the
     # hardware-accelerated Skia rasterizer.
-    'scratch_surface_cache_size_in_bytes%': 7 * 1024 * 1024,
+    'scratch_surface_cache_size_in_bytes%': 0,
 
     # Determines the capacity of the surface cache.  The surface cache tracks
     # which render tree nodes are being re-used across frames and stores the
     # nodes that are most CPU-expensive to render into surfaces.
     'surface_cache_size_in_bytes%': 0,
 
-    # Determines the capacity of the image cache which manages image surfaces
+    # Determines the capacity of the image cache, which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
     # ideally) these images are cached within GPU memory.
     # Set to -1 to automatically calculate the value at runtime, based on
@@ -181,9 +268,18 @@
     # SbSystemGetTotalGPUMemory().
     'image_cache_size_in_bytes%': -1,
 
-    # Determines the capacity of the remote typefaces cache which manages all
-    # typefaces downloaded from a web page.
-    'remote_typeface_cache_size_in_bytes%': 5 * 1024 * 1024,
+    # Determines the capacity of the local font cache, which manages all fonts
+    # loaded from local files. Newly encountered sections of font files are
+    # lazily loaded into the cache, enabling subsequent requests to the same
+    # file sections to be handled via direct memory access. Once the limit is
+    # reached, further requests are handled via file stream.
+    # Setting the value to 0 disables memory caching and causes all font file
+    # accesses to be done using file streams.
+    'local_font_cache_size_in_bytes%': 16 * 1024 * 1024,
+
+    # Determines the capacity of the remote font cache, which manages all
+    # fonts downloaded from a web page.
+    'remote_font_cache_size_in_bytes%': 4 * 1024 * 1024,
 
     # Determines the capacity of the mesh cache. Each mesh is held compressed
     # in main memory, to be inflated into a GPU buffer when needed for
@@ -213,8 +309,10 @@
     # result in visible stutter. Such thrashing is more likely to occur when CJK
     # language glyphs are rendered and when the size of the glyphs in pixels is
     # larger, such as for higher resolution displays.
-    'skia_glyph_atlas_width%': '2048',
-    'skia_glyph_atlas_height%': '2048',
+    # The negative default values indicates to the engine that these settings
+    # should be automatically set.
+    'skia_glyph_atlas_width%': '-1',
+    'skia_glyph_atlas_height%': '-1',
 
     # Determines the size of garbage collection threshold. After this many bytes
     # have been allocated, the mozjs garbage collector will run. Lowering this
@@ -266,10 +364,12 @@
     # as expected, rather than requiring it to be set for each platform.
     #'javascript_engine%': 'mozjs',
 
-    # Enable jit by default. It can be set to 0 to run in interpreter-only mode.
+    # Disable jit and run in interpreter-only mode by default. It can be set to
+    # 1 to run in jit mode.  We have found that disabling jit often results in
+    # faster JavaScript execution and lower memory usage.
     # Setting this to 1 on a platform or engine for which there is no JIT
     # implementation is a no-op.
-    'cobalt_enable_jit%': 1,
+    'cobalt_enable_jit%': 0,
 
     # Customize variables used by Chromium's build/common.gypi.
 
@@ -286,7 +386,57 @@
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
     'sb_libevent_method%': 'epoll',
+
+    # Use media source extension implementation that is conformed to the
+    # Candidate Recommandation of July 5th 2016.
     'cobalt_media_source_2016%': 0,
+
+    # Note that the following media buffer related variables are only used when
+    # |cobalt_media_source_2016| is set to 1.
+
+    # This can be set to "memory" or "file".  When it is set to "memory", the
+    # media buffers will be stored in main memory allocated by SbMemory
+    # functions.  When it is set to "file", the media buffers will be stored in
+    # a temporary file in the system cache folder acquired by calling
+    # SbSystemGetPath() with "kSbSystemPathCacheDirectory".  Note that when its
+    # value is "file" the media stack will still allocate memory to cache the
+    # the buffers in use.
+    'cobalt_media_buffer_storage_type%': 'memory',
+    # The amount of memory that will be used to store media buffers allocated
+    # during system startup.  To allocate a large chunk at startup helps with
+    # reducing frafmentation and can avoid failures to allocate incrementally.
+    # This can be set to 0.
+    'cobalt_media_buffer_initial_capacity%': 26 * 1024 * 1024,
+    # When the media stack needs more memory to store media buffers, it will
+    # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
+    # This can be set to 0, in which case the media stack will allocate extra
+    # memory on demand.  When |cobalt_media_buffer_initial_capacity| and this
+    # value are both set to 0, the media stack will allocate individual buffers
+    # directly using SbMemory functions.
+    'cobalt_media_buffer_allocation_unit%': 0 * 1024 * 1024,
+
+    # Specifies the maximum amount of memory used by audio or text buffers of
+    # media source before triggering a garbage collection.  A large value will
+    # cause more memory being used by audio buffers but will also make
+    # JavaScript app less likely to re-download audio data.  Note that the
+    # JavaScript app may experience significant difficulty if this value is too
+    # low.
+    'cobalt_media_buffer_non_video_budget%': 5 * 1024 * 1024,
+
+    # Specifies the maximum amount of memory used by video buffers of media
+    # source before triggering a garbage collection when the video resolution is
+    # lower than 1080p (1920x1080).  A large value will cause more memory being
+    # used by video buffers but will also make JavaScript app less likely to
+    # re-download video data.  Note that the JavaScript app may experience
+    # significant difficulty if this value is too low.
+    'cobalt_media_buffer_video_budget_1080p%': 16 * 1024 * 1024,
+    # Specifies the maximum amount of memory used by video buffers of media
+    # source before triggering a garbage collection when the video resolution is
+    # lower than 4k (3840x2160).  A large value will cause more memory being
+    # used by video buffers but will also make JavaScript app less likely to
+    # re-download video data.  Note that the JavaScript app may experience
+    # significant difficulty if this value is too low.
+    'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
   },
 
   'target_defaults': {
@@ -304,6 +454,11 @@
     },
     'defines': [
       'COBALT',
+      'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
+      'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
+      'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
+      'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
+      'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],
@@ -328,6 +483,24 @@
     'libraries': [ '<@(platform_libraries)' ],
 
     'conditions': [
+      ['cobalt_media_source_2016 == 1', {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2016=1',
+        ],
+      }, {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_2012=1',
+        ],
+      }],
+      ['cobalt_media_buffer_storage_type == "memory"', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY=1',
+        ],
+      }, {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE=1',
+        ],
+      }],
       ['final_executable_type=="shared_library"', {
         'target_conditions': [
           ['_toolset=="target"', {
@@ -356,15 +529,6 @@
           'COBALT_WEBKIT_SHARED=1',
         ],
       }],
-      ['cobalt_media_source_2016 == 1', {
-        'defines': [
-          'COBALT_MEDIA_SOURCE_2016=1',
-        ],
-      }, {
-        'defines': [
-          'COBALT_MEDIA_SOURCE_2012=1',
-        ],
-      }],
       ['OS == "lb_shell"', {
         'defines': [
           '__LB_SHELL__',
@@ -390,9 +554,6 @@
           }],
         ],
       }],  # OS == "starboard"
-      ['target_arch in ["xb1", "xb360"]', {
-        'defines': ['_USE_MATH_DEFINES'],  # For #define M_PI
-      }],
       ['in_app_dial == 1', {
         'defines': [
           'DIAL_SERVER',
@@ -424,6 +585,7 @@
           'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
           'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
+          'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
           '_DEBUG',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
@@ -449,6 +611,7 @@
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_DEVEL',
           'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
+          'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
@@ -472,6 +635,7 @@
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_QA',
           'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
+          'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
           'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_C_VAL',
           'ENABLE_DEBUG_CONSOLE',
@@ -506,8 +670,10 @@
 
   # For configurations other than Gold, set the flag that lets test data files
   # be copied and carried along with the build.
+  # Clients must copy over all content; to avoid having to copy over extra data, we
+  # omit the test data
   'conditions': [
-    ['cobalt_config != "gold"', {
+    ['cobalt_config != "gold" and cobalt_enable_lib == 0', {
       'variables' : {
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,

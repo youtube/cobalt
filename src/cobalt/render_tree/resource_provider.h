@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/mesh.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/typeface.h"
 #if defined(STARBOARD)
 #include "starboard/decode_target.h"
@@ -74,22 +75,30 @@ class ResourceProvider {
   virtual scoped_refptr<Image> CreateImage(
       scoped_ptr<ImageData> pixel_data) = 0;
 
-#if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3
   // This function will consume an SbDecodeTarget object produced by
   // SbDecodeTargetCreate(), wrap it in a render_tree::Image that can be used
   // in a render tree, and return it to the caller.
   virtual scoped_refptr<Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget target) = 0;
 
+  // Whether SbDecodeTargetIsSupported or not.
+  virtual bool SupportsSbDecodeTarget() = 0;
+#endif  // SB_API_VERSION >= 3
+
+#if SB_API_VERSION >= 4
+  // Return the SbDecodeTargetGraphicsContextProvider associated with the
+  // ResourceProvider, if it exists.  Returns NULL if SbDecodeTarget is not
+  // supported.
+  virtual SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() = 0;
+#elif SB_API_VERSION >= 3
   // Return the associated SbDecodeTargetProvider with the ResourceProvider,
   // if it exists.  Returns NULL if SbDecodeTarget is not supported.
   virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() = 0;
-
-  // Whether SbDecodeTargetIsSupported or not.
-  virtual bool SupportsSbDecodeTarget() = 0;
 #endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
+#endif  // SB_HAS(GRAPHICS)
 
   // Returns a raw chunk of memory that can later be passed into a function like
   // CreateMultiPlaneImageFromRawMemory() in order to create a texture.
@@ -134,7 +143,7 @@ class ResourceProvider {
   // Font's typeface (aka face name) is combination of a style and a font
   // family.  Font's style consists of weight, and a slant (but not size).
   virtual scoped_refptr<Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) = 0;
+      const char* font_face_name) = 0;
 
   // Given a UTF-32 character, a set of typeface information, and a language,
   // this method returns the best-fit locally available fallback typeface that
@@ -206,6 +215,9 @@ class ResourceProvider {
   virtual scoped_refptr<Mesh> CreateMesh(
       scoped_ptr<std::vector<Mesh::Vertex> > vertices,
       Mesh::DrawMode draw_mode) = 0;
+
+  virtual scoped_refptr<Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) = 0;
 };
 
 }  // namespace render_tree

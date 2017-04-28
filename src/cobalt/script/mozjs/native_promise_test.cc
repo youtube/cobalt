@@ -34,8 +34,7 @@ class NativePromiseTest : public ::testing::Test {
   NativePromiseTest()
       : environment_settings_(new script::EnvironmentSettings),
         engine_(script::JavaScriptEngine::CreateEngine()),
-        global_environment_(engine_->CreateGlobalEnvironment(
-            script::JavaScriptEngine::Options())) {
+        global_environment_(engine_->CreateGlobalEnvironment()) {
     global_environment_->CreateGlobalObject();
   }
 

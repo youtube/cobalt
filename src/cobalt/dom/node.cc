@@ -482,34 +482,48 @@ void Node::OnRemovedFromDocument() {
   }
 }
 
-void Node::InvalidateComputedStylesRecursively() {
+void Node::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
+  PurgeCachedBackgroundImagesOfDescendants();
+}
+
+void Node::InvalidateComputedStylesOfNodeAndDescendants() {
+  InvalidateComputedStylesOfDescendants();
+}
+
+void Node::InvalidateLayoutBoxesOfNodeAndAncestors() {
+  InvalidateLayoutBoxesOfAncestors();
+}
+
+void Node::InvalidateLayoutBoxesOfNodeAndDescendants() {
+  InvalidateLayoutBoxesOfDescendants();
+}
+
+void Node::PurgeCachedBackgroundImagesOfDescendants() {
   Node* child = first_child_;
   while (child) {
-    child->InvalidateComputedStylesRecursively();
+    child->PurgeCachedBackgroundImagesOfNodeAndDescendants();
     child = child->next_sibling_;
   }
 }
 
-void Node::PurgeCachedResourceReferencesRecursively() {
-  ReleaseImagesAndInvalidateComputedStyleIfNecessary();
-
+void Node::InvalidateComputedStylesOfDescendants() {
   Node* child = first_child_;
   while (child) {
-    child->PurgeCachedResourceReferencesRecursively();
+    child->InvalidateComputedStylesOfNodeAndDescendants();
     child = child->next_sibling_;
   }
 }
 
-void Node::InvalidateLayoutBoxesFromNodeAndAncestors() {
+void Node::InvalidateLayoutBoxesOfAncestors() {
   if (parent_) {
-    parent_->InvalidateLayoutBoxesFromNodeAndAncestors();
+    parent_->InvalidateLayoutBoxesOfNodeAndAncestors();
   }
 }
 
-void Node::InvalidateLayoutBoxesFromNodeAndDescendants() {
+void Node::InvalidateLayoutBoxesOfDescendants() {
   Node* child = first_child_;
   while (child) {
-    child->InvalidateLayoutBoxesFromNodeAndDescendants();
+    child->InvalidateLayoutBoxesOfNodeAndDescendants();
     child = child->next_sibling_;
   }
 }
@@ -638,8 +652,7 @@ void Node::Insert(const scoped_refptr<Node>& node,
       scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
       added_nodes->AppendNode(node);
       mutation_reporter.ReportChildListMutation(
-          added_nodes, NULL, child && child->previous_sibling_
-                                 ? child->previous_sibling_
+          added_nodes, NULL, child ? child->previous_sibling_
                                  : this->last_child_ /* previous_sibling */,
           child /* next_sibling */);
     }
@@ -674,7 +687,7 @@ void Node::Insert(const scoped_refptr<Node>& node,
   // being changed.
   // NOTE: The added node does not have any invalidations done, because they
   // occur on the remove and are guaranteed to not be needed at this point.
-  InvalidateLayoutBoxesFromNodeAndAncestors();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
 
   if (inserted_into_document_) {
     node->OnInsertedIntoDocument();
@@ -711,12 +724,18 @@ void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
 
   // Invalidate the layout boxes of the previous parent as a result of its
   // children being changed.
-  InvalidateLayoutBoxesFromNodeAndAncestors();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
+
+  // Purge any cached background images now that this node and its descendants
+  // are no longer in the tree, so that the images can be released from the
+  // resource cache.
+  node->PurgeCachedBackgroundImagesOfNodeAndDescendants();
+
   // Invalidate the styles and layout boxes of the node being removed from
   // the tree. These are no longer valid as a result of the child and its
   // descendants losing their inherited styles.
-  node->InvalidateComputedStylesRecursively();
-  node->InvalidateLayoutBoxesFromNodeAndDescendants();
+  node->InvalidateComputedStylesOfNodeAndDescendants();
+  node->InvalidateLayoutBoxesOfNodeAndDescendants();
 
   bool was_inserted_to_document = node->inserted_into_document_;
   if (was_inserted_to_document) {
@@ -771,6 +790,59 @@ void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
     scoped_refptr<Document> document = node->owner_document();
     if (document) {
       document->OnDOMMutation();
+    }
+  }
+}
+
+// Algorithm for ReplaceAll:
+//   https://www.w3.org/TR/dom/#concept-node-replace-all
+void Node::ReplaceAll(const scoped_refptr<Node>& node) {
+  // 1. If node is not null, adopt node into parent's node document.
+  if (node) {
+    node->AdoptIntoDocument(this->node_document());
+  }
+
+  // 2. Let removedNodes be parent's children.
+  scoped_refptr<NodeList> removed_nodes = new NodeList();
+  scoped_refptr<Node> next_child = first_child_;
+  while (next_child) {
+    removed_nodes->AppendNode(next_child);
+    next_child = next_child->next_sibling();
+  }
+
+  // 3. Let addedNodes be the empty list if node is null, node's children if
+  //    node is a DocumentFragment node, and a list containing node otherwise.
+  scoped_refptr<NodeList> added_nodes = new NodeList();
+  if (node) {
+    added_nodes->AppendNode(node);
+  }
+
+  // 4. Remove all parent's children, in tree order, with the suppress observers
+  //    flag set.
+  while (HasChildNodes()) {
+    Remove(first_child(), true);
+  }
+
+  // 5. If node is not null, insert node into parent before null with the
+  //    suppress observers flag set.
+  if (node) {
+    Insert(node, NULL, true);
+  }
+
+  // 6. Queue a mutation record of "childList" for parent with addedNodes
+  //    addedNodes and removedNodes removedNodes.
+  scoped_ptr<RegisteredObserverVector> observers =
+      GatherInclusiveAncestorsObservers();
+  if (!observers->empty()) {
+    MutationReporter mutation_reporter(this, observers.Pass());
+    scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
+    if (node) {
+      added_nodes->AppendNode(node);
+    }
+    if (added_nodes->length() > 0 || removed_nodes->length() > 0) {
+      mutation_reporter.ReportChildListMutation(
+          added_nodes, removed_nodes, NULL /* previous_sibling */,
+          NULL /* next_sibling */);
     }
   }
 }

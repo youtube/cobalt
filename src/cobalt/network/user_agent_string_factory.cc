@@ -73,6 +73,11 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
         youtube_tv_info_->brand.c_str(), youtube_tv_info_->model.c_str(),
         CreateConnectionTypeString().c_str());
   }
+
+  if (!aux_field_.empty()) {
+    user_agent.append(" ");
+    user_agent.append(aux_field_);
+  }
   return user_agent;
 }
 
@@ -107,10 +112,10 @@ std::string UserAgentStringFactory::CreateDeviceTypeString() {
       return "STB";
     case YouTubeTVInfo::kTV:
       return "TV";
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
     case YouTubeTVInfo::kAndroidTV:
       return "ATV";
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
     case YouTubeTVInfo::kInvalidDeviceType:
     default:
       NOTREACHED();

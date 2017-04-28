@@ -17,9 +17,13 @@
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 
+#include "base/debug/leak_annotations.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
+#include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
+#include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/utils.h"
@@ -69,6 +73,13 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   bgra_format_supported_ = HasExtension("GL_EXT_texture_format_BGRA8888");
 
   SetupBlitObjects();
+
+  {
+    // The current mesa egl drivers leak memory on the first call to glDraw*.
+    // Get that first draw out of the way, and do something useful with it.
+    ANNOTATE_SCOPED_MEMORY_LEAK;
+    ComputeReadPixelsNeedVerticalFlip();
+  }
 }
 
 GraphicsSystemEGL* GraphicsContextEGL::system_egl() {
@@ -94,13 +105,11 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
 
   ScopedMakeCurrent scoped_make_current(this);
 
-  scoped_refptr<RenderTarget> render_target = CreateOffscreenRenderTarget(
-      math::Size(kDummyTextureWidth, kDummyTextureHeight));
-  scoped_refptr<PBufferRenderTargetEGL> render_target_egl = make_scoped_refptr(
-      base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get()));
-  {
-    ScopedMakeCurrent scoped_make_current(this, render_target_egl);
+  scoped_ptr<FramebufferEGL> framebuffer(new FramebufferEGL(this,
+      math::Size(kDummyTextureWidth, kDummyTextureHeight), GL_RGBA, GL_NONE));
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->gl_handle()));
 
+  {
     // Create a 2-pixel texture and then immediately blit it to our 2-pixel
     // framebuffer render target.
     GLuint texture;
@@ -135,23 +144,11 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   }
 
   // Now read back the texture data using glReadPixels().
-  scoped_ptr<TextureEGL> render_target_texture(
-      new TextureEGL(this, render_target_egl));
-
-  GLuint framebuffer;
-  GL_CALL(glGenFramebuffers(1, &framebuffer));
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer));
-
-  GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_2D,
-                                 render_target_texture->gl_handle(), 0));
-
-  uint32_t out_data[2];
+  uint32_t out_data[kDummyTextureWidth * kDummyTextureHeight];
   GL_CALL(glReadPixels(0, 0, kDummyTextureWidth, kDummyTextureHeight, GL_RGBA,
                        GL_UNSIGNED_BYTE, out_data));
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-  GL_CALL(glDeleteFramebuffers(1, &framebuffer));
 
   // Ensure the data is in one of two possible states, flipped or not flipped.
   DCHECK((out_data[0] == 0x00000000 && out_data[1] == 0xFFFFFFFF) ||
@@ -243,7 +240,29 @@ void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
       "Use ReleaseCurrentContext().";
 
   EGLSurface egl_surface = surface->GetSurface();
-  EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+  if (egl_surface != EGL_NO_SURFACE) {
+    // This render target is not a frame buffer object. It has an EGLSurface
+    // that can be bound using eglMakeCurrent.
+    DCHECK_EQ(surface->GetPlatformHandle(), 0);
+
+    EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+
+    // Minimize calls to glBindFramebuffer. Normally, nothing keeps their
+    // framebuffer object bound, so 0 is normally bound at this point --
+    // unless the previous MakeCurrentWithSurface bound a framebuffer object.
+    if (current_surface_ && current_surface_->GetPlatformHandle() != 0) {
+      GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    }
+  } else {
+    // This is a framebuffer object, and it does not have an EGL surface. It
+    // must be bound using glBindFramebuffer. Use the null surface's EGLSurface
+    // with eglMakeCurrent to avoid polluting the previous EGLSurface target.
+    DCHECK_NE(surface->GetPlatformHandle(), 0);
+
+    egl_surface = null_surface_->GetSurface();
+    EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, surface->GetPlatformHandle()));
+  }
 
   if (surface->IsWindowRenderTarget() && !surface->has_been_made_current()) {
     SecurityClear();
@@ -254,11 +273,26 @@ void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
   current_surface_ = surface;
 }
 
+void GraphicsContextEGL::ResetCurrentSurface() {
+  if (is_current_ && current_surface_) {
+    EGLSurface egl_surface = current_surface_->GetSurface();
+    if (egl_surface == EGL_NO_SURFACE) {
+      DCHECK_NE(current_surface_->GetPlatformHandle(), 0);
+      egl_surface = null_surface_->GetSurface();
+    }
+
+    EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
+        current_surface_->GetPlatformHandle()));
+  }
+}
+
 void GraphicsContextEGL::MakeCurrent() {
   MakeCurrentWithSurface(null_surface_);
 }
 
 void GraphicsContextEGL::ReleaseCurrentContext() {
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
   EGL_CALL(eglMakeCurrent(
       display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
@@ -292,6 +326,15 @@ scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
   return render_target;
 }
 
+scoped_refptr<RenderTarget>
+  GraphicsContextEGL::CreateDownloadableOffscreenRenderTarget(
+      const math::Size& dimensions) {
+  scoped_refptr<RenderTarget> render_target(new FramebufferRenderTargetEGL(
+      this, dimensions));
+
+  return render_target;
+}
+
 void GraphicsContextEGL::InitializeDebugContext() {
   ComputeReadPixelsNeedVerticalFlip();
 }
@@ -314,40 +357,54 @@ scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
     const scoped_refptr<RenderTarget>& render_target) {
   TRACE_EVENT0("cobalt::renderer",
                "GraphicsContextEGL::DownloadPixelDataAsRGBA()");
-
-  PBufferRenderTargetEGL* pbuffer_render_target =
-      base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get());
-
-  scoped_ptr<TextureEGL> texture(new TextureEGL(this, pbuffer_render_target));
-
   ScopedMakeCurrent scoped_current_context(this);
 
-  // This shouldn't be strictly necessary as glReadPixels() should implicitly
-  // call glFinish(), however it doesn't hurt to be safe and guard against
-  // potentially different implementations.  Performance is not an issue
-  // in this function, because it is only used by tests to verify rendered
-  // output.
-  GL_CALL(glFinish());
-
-  GLuint texture_framebuffer;
-  GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, texture_framebuffer));
-
-  GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_2D, texture->gl_handle(), 0));
-  DCHECK_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
   int pitch_in_bytes =
-      texture->GetSize().width() * BytesPerPixelForGLFormat(GL_RGBA);
-
+      render_target->GetSize().width() * BytesPerPixelForGLFormat(GL_RGBA);
   scoped_array<uint8_t> pixels(
-      new uint8_t[texture->GetSize().height() * pitch_in_bytes]);
-  GL_CALL(glReadPixels(0, 0, texture->GetSize().width(),
-                       texture->GetSize().height(), GL_RGBA, GL_UNSIGNED_BYTE,
-                       pixels.get()));
+      new uint8_t[render_target->GetSize().height() * pitch_in_bytes]);
 
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-  GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
+  if (render_target->GetPlatformHandle() == 0) {
+    // Need to bind the PBufferSurface to a framebuffer object in order to
+    // read its pixels.
+    PBufferRenderTargetEGL* pbuffer_render_target =
+        base::polymorphic_downcast<PBufferRenderTargetEGL*>
+            (render_target.get());
+
+    scoped_ptr<TextureEGL> texture(new TextureEGL(this, pbuffer_render_target));
+    DCHECK(texture->GetSize() == render_target->GetSize());
+
+    // This shouldn't be strictly necessary as glReadPixels() should implicitly
+    // call glFinish(), however it doesn't hurt to be safe and guard against
+    // potentially different implementations.  Performance is not an issue
+    // in this function, because it is only used by tests to verify rendered
+    // output.
+    GL_CALL(glFinish());
+
+    GLuint texture_framebuffer;
+    GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, texture_framebuffer));
+
+    GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_2D, texture->gl_handle(), 0));
+    DCHECK_EQ(GL_FRAMEBUFFER_COMPLETE,
+              glCheckFramebufferStatus(GL_FRAMEBUFFER));
+
+    GL_CALL(glReadPixels(0, 0, texture->GetSize().width(),
+                         texture->GetSize().height(), GL_RGBA, GL_UNSIGNED_BYTE,
+                         pixels.get()));
+
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
+  } else {
+    // The render target is a framebuffer object, so just bind it and read.
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
+                              render_target->GetPlatformHandle()));
+    GL_CALL(glReadPixels(0, 0, render_target->GetSize().width(),
+                         render_target->GetSize().height(), GL_RGBA,
+                         GL_UNSIGNED_BYTE, pixels.get()));
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+  }
 
   // Vertically flip the resulting pixel data before returning so that the 0th
   // pixel is at the top-left.  While computing this is not a fast procedure,
@@ -359,7 +416,7 @@ scoped_array<uint8_t> GraphicsContextEGL::DownloadPixelDataAsRGBA(
     // to return already flipped pixels.  So in that case, we flip them again
     // before returning here.
     VerticallyFlipPixels(pixels.get(), pitch_in_bytes,
-                         texture->GetSize().height());
+                         render_target->GetSize().height());
   }
 
   return pixels.Pass();
@@ -404,13 +461,19 @@ void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
 void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::SwapBuffers()");
 
-  eglSwapBuffers(display_, surface->GetSurface());
-  EGLint swap_err = eglGetError();
-  if (swap_err != EGL_SUCCESS) {
-    LOG(WARNING) << "Marking surface bad after swap error "
-                 << std::hex << swap_err;
-    surface->set_surface_bad();
-    return;
+  // SwapBuffers should have no effect for offscreen render targets. The
+  // current implementation of eglSwapBuffers() does nothing for PBuffers,
+  // so only check for framebuffer render targets.
+  if (surface->GetPlatformHandle() == 0) {
+    eglSwapInterval(display_, COBALT_EGL_SWAP_INTERVAL);
+    eglSwapBuffers(display_, surface->GetSurface());
+    EGLint swap_err = eglGetError();
+    if (swap_err != EGL_SUCCESS) {
+      LOG(WARNING) << "Marking surface bad after swap error "
+                   << std::hex << swap_err;
+      surface->set_surface_bad();
+      return;
+    }
   }
 
   surface->increment_swap_count();
@@ -423,9 +486,16 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
 }
 
 void GraphicsContextEGL::SecurityClear() {
+#if defined(COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR)
   // Clear the screen to a color that is bright and gross to exaggerate that
   // this is a problem if it is witnessed.
   GL_CALL(glClearColor(1.0f, 0.4f, 1.0f, 1.0f));
+#else
+  // In release builds we certainly still want to perform this security
+  // clear, but should a poor user actually encounter it, we don't need
+  // to shock them with an ugly pink color.
+  GL_CALL(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
+#endif  // defined(COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR)
   GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
 }
 

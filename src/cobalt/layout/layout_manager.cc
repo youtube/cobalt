@@ -105,16 +105,19 @@ namespace {
 
 void UpdateCamera(
     float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3DImpl> camera,
+    float max_horizontal_fov_rad, float max_vertical_fov_rad,
     render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
     base::TimeDelta time) {
   UNREFERENCED_PARAMETER(time);
-  transform_node_builder->transform =
-      camera->QueryViewPerspectiveMatrix(width_to_height_aspect_ratio);
+  transform_node_builder->transform = camera->QueryViewPerspectiveMatrix(
+      width_to_height_aspect_ratio, max_horizontal_fov_rad,
+      max_vertical_fov_rad);
 }
 
 scoped_refptr<render_tree::Node> AttachCameraNodes(
     const scoped_refptr<dom::Window> window,
-    const scoped_refptr<render_tree::Node>& source) {
+    const scoped_refptr<render_tree::Node>& source,
+    float max_horizontal_fov_rad, float max_vertical_fov_rad) {
   // Attach a 3D transform node that applies the current camera matrix transform
   // to the rest of the render tree.
   scoped_refptr<render_tree::MatrixTransform3DNode> transform_node =
@@ -127,7 +130,8 @@ scoped_refptr<render_tree::Node> AttachCameraNodes(
   animate_node_builder.Add(
       transform_node,
       base::Bind(&UpdateCamera, window->inner_width() / window->inner_height(),
-                 window->camera_3d()->impl()));
+                 window->camera_3d()->impl(), max_horizontal_fov_rad,
+                 max_vertical_fov_rad));
   return new render_tree::animations::AnimateNode(animate_node_builder,
                                                   transform_node);
 }
@@ -142,12 +146,9 @@ LayoutManager::Impl::Impl(
     LayoutStatTracker* layout_stat_tracker)
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
-      used_style_provider_(
-          new UsedStyleProvider(window->html_element_context(),
-                                window->html_element_context()->image_cache(),
-                                window->document()->font_cache(),
-                                base::Bind(&AttachCameraNodes, window),
-                                window->html_element_context()->mesh_cache())),
+      used_style_provider_(new UsedStyleProvider(
+          window->html_element_context(), window->document()->font_cache(),
+          base::Bind(&AttachCameraNodes, window))),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
       layout_dirty_(StringPrintf("%s.Layout.IsDirty", name.c_str()), true,
@@ -230,13 +231,15 @@ void LayoutManager::Impl::Suspend() {
   // Mark that we are suspended so that we don't try to perform any layouts.
   suspended_ = true;
 
+  // Invalidate any cached layout boxes from the document prior to clearing
+  // the initial containing block. That'll ensure that the full box tree is
+  // destroyed when the containing block is destroyed and that no children of
+  // |initial_containing_block_| are holding on to stale parent pointers.
+  window_->document()->InvalidateLayoutBoxes();
+
   // Clear our reference to the initial containing block to allow any resources
   // like images that were referenced by it to be released.
   initial_containing_block_ = NULL;
-
-  // Invalidate the document's layout so that all references to any resources
-  // such as images will be released.
-  window_->document()->InvalidateLayout();
 }
 
 void LayoutManager::Impl::Resume() {

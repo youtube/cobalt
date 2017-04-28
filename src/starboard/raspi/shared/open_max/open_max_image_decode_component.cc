@@ -18,6 +18,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
+#include "starboard/raspi/shared/open_max/decode_target_create.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 #include "starboard/thread.h"
 
@@ -46,7 +47,7 @@ const MimeToFormat kSupportedFormats[] = {
 OpenMaxImageDecodeComponent::OpenMaxImageDecodeComponent()
     : OpenMaxComponent("OMX.broadcom.image_decode"),
       state_(kStateIdle),
-      target_provider_(NULL),
+      graphics_context_provider_(NULL),
       target_(NULL),
       input_format_(OMX_IMAGE_CodingMax) {}
 
@@ -62,14 +63,14 @@ OMX_IMAGE_CODINGTYPE OpenMaxImageDecodeComponent::GetCompressionFormat(
 }
 
 SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
-    SbDecodeTargetProvider* provider,
+    SbDecodeTargetGraphicsContextProvider* provider,
     const char* mime_type,
     SbDecodeTargetFormat output_format,
     const void* data,
     int data_size) {
   SB_DCHECK(target_ == NULL);
 
-  target_provider_ = provider;
+  graphics_context_provider_ = provider;
   SetInputFormat(mime_type, output_format);
 
   // Start the component and enable the input port.
@@ -117,8 +118,8 @@ void OpenMaxImageDecodeComponent::SetInputFormat(const char* mime_type,
 void OpenMaxImageDecodeComponent::SetOutputFormat(OMX_COLOR_FORMATTYPE format,
                                                   int width,
                                                   int height) {
-  target_ = SbDecodeTargetAcquireFromProvider(
-      target_provider_, kSbDecodeTargetFormat1PlaneRGBA, width, height);
+  target_ = DecodeTargetCreate(graphics_context_provider_,
+                               kSbDecodeTargetFormat1PlaneRGBA, width, height);
   target_->info.is_opaque =
       (input_format_ == OMX_IMAGE_CodingPNG) ? false : true;
   render_component_.SetOutputImage(target_->images[0]);

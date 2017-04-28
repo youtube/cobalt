@@ -20,7 +20,7 @@ MessagePumpDefault::MessagePumpDefault()
 }
 
 void MessagePumpDefault::Run(Delegate* delegate) {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   DCHECK(keep_running_) << "Quit must have been called outside of Run!";
 
   for (;;) {

@@ -17,6 +17,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "starboard/decode_target.h"
 
@@ -46,18 +47,25 @@ class ShellVideoFrameProvider
     kOutputModeInvalid,
   };
 
-  ShellVideoFrameProvider() : output_mode_(kOutputModePunchOut) {}
+  ShellVideoFrameProvider() : output_mode_(kOutputModeInvalid) {}
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   scoped_refptr<VideoFrame> GetCurrentFrame() { return NULL; }
 
-  void SetOutputMode(OutputMode output_mode) { output_mode_ = output_mode; }
-  OutputMode GetOutputMode() const { return output_mode_; }
+  void SetOutputMode(OutputMode output_mode) {
+    base::AutoLock auto_lock(lock_);
+    output_mode_ = output_mode;
+  }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+  ShellVideoFrameProvider::OutputMode GetOutputMode() const {
+    base::AutoLock auto_lock(lock_);
+    return output_mode_;
+  }
+
+#if SB_API_VERSION >= 4
   // For Starboard platforms that have a decode-to-texture player, we enable
   // this ShellVideoFrameProvider to act as a bridge for Cobalt code to query
   // for the current SbDecodeTarget.  In effect, we bypass all of
@@ -66,27 +74,32 @@ class ShellVideoFrameProvider
   // needed.
   void SetGetCurrentSbDecodeTargetFunction(
       GetCurrentSbDecodeTargetFunction function) {
+    base::AutoLock auto_lock(lock_);
     get_current_sb_decode_target_function_ = function;
   }
 
   void ResetGetCurrentSbDecodeTargetFunction() {
+    base::AutoLock auto_lock(lock_);
     get_current_sb_decode_target_function_.Reset();
   }
 
   SbDecodeTarget GetCurrentSbDecodeTarget() const {
+    base::AutoLock auto_lock(lock_);
     if (get_current_sb_decode_target_function_.is_null()) {
       return kSbDecodeTargetInvalid;
     } else {
       return get_current_sb_decode_target_function_.Run();
     }
   }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
  private:
+  mutable base::Lock lock_;
+
   OutputMode output_mode_;
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   DISALLOW_COPY_AND_ASSIGN(ShellVideoFrameProvider);
 };

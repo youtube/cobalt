@@ -26,7 +26,7 @@ typedef ::media::BufferedDataSource BufferedDataSource;
 typedef ::media::WebMediaPlayer WebMediaPlayer;
 typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 using ::media::Ranges;
-#endif  // !defined(WebMediaPlayerDelegate)
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 
@@ -82,7 +82,9 @@ class DummyWebMediaPlayer : public WebMediaPlayer {
   ReadyState GetReadyState() const OVERRIDE { return kReadyStateHaveNothing; }
 
   bool DidLoadingProgress() const OVERRIDE { return false; }
+#if !defined(COBALT_MEDIA_SOURCE_2016)
   unsigned long long GetTotalBytes() const OVERRIDE { return 0; }
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
   bool HasSingleSecurityOrigin() const OVERRIDE { return false; }
   bool DidPassCORSAccessCheck() const OVERRIDE { return false; }
@@ -96,6 +98,10 @@ class DummyWebMediaPlayer : public WebMediaPlayer {
   unsigned GetDroppedFrameCount() const OVERRIDE { return 0; }
   unsigned GetAudioDecodedByteCount() const OVERRIDE { return 0; }
   unsigned GetVideoDecodedByteCount() const OVERRIDE { return 0; }
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  void SetDrmSystem(DrmSystem* drm_system) OVERRIDE {}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   Ranges<base::TimeDelta> buffer_;
 };

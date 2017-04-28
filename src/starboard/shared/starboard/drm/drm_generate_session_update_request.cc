@@ -18,14 +18,27 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
+#if SB_API_VERSION >= 4
+                                       int ticket,
+#endif  // SB_API_VERSION >= 4
                                        const char* type,
                                        const void* initialization_data,
                                        int initialization_data_size) {
   if (!SbDrmSystemIsValid(drm_system)) {
-    SB_DLOG(WARNING) << "Invalid drm system";
+    SB_DLOG(ERROR) << "Invalid DRM system.";
     return;
   }
 
-  drm_system->GenerateSessionUpdateRequest(type, initialization_data,
-                                           initialization_data_size);
+#if SB_API_VERSION >= 4
+  if (ticket == kSbDrmTicketInvalid) {
+    SB_DLOG(ERROR) << "Ticket must be specified.";
+    return;
+  }
+#endif  // SB_API_VERSION >= 4
+
+  drm_system->GenerateSessionUpdateRequest(
+#if SB_API_VERSION >= 4
+      ticket,
+#endif  // SB_API_VERSION >= 4
+      type, initialization_data, initialization_data_size);
 }

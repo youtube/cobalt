@@ -14,14 +14,22 @@
 
 #include "cobalt/csp/source_list.h"
 
+#include <algorithm>
+
 #include "base/base64.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/network/socket_address_parser.h"
+#include "googleurl/src/url_canon_ip.h"
+#include "googleurl/src/url_constants.h"
 #include "net/base/escape.h"
+#include "net/base/net_util.h"
+#include "starboard/socket.h"
 
 namespace cobalt {
 namespace csp {
 
 namespace {
+
 bool IsSourceListNone(const char* begin, const char* end) {
   SkipWhile<IsAsciiWhitespace>(&begin, end);
 
@@ -56,9 +64,14 @@ bool SchemeCanMatchStar(const GURL& url) {
            url.SchemeIs("filesystem"));
 }
 
+bool IsInsecureScheme(const GURL& url) {
+  return url.SchemeIs(url::kHttpScheme) || url.SchemeIs(url::kWsScheme);
+}
+
 }  // namespace
 
-SourceList::SourceList(ContentSecurityPolicy* policy,
+SourceList::SourceList(const LocalNetworkCheckerInterface* checker,
+                       ContentSecurityPolicy* policy,
                        const std::string& directive_name)
     : policy_(policy),
       directive_name_(directive_name),
@@ -66,7 +79,11 @@ SourceList::SourceList(ContentSecurityPolicy* policy,
       allow_star_(false),
       allow_inline_(false),
       allow_eval_(false),
-      hash_algorithms_used_(0) {}
+      allow_insecure_connections_to_local_network_(false),
+      allow_insecure_connections_to_localhost_(false),
+      allow_insecure_connections_to_private_range_(false),
+      hash_algorithms_used_(0),
+      local_network_checker_(checker) {}
 
 bool SourceList::Matches(
     const GURL& url,
@@ -83,6 +100,59 @@ bool SourceList::Matches(
     if (list_[i].Matches(url, redirect_status)) {
       return true;
     }
+  }
+
+  if (!url.is_valid() || url.is_empty()) {
+    return false;
+  }
+  // Since url is valid, we can now use possibly_invalid_spec() below.
+  const std::string& valid_spec = url.possibly_invalid_spec();
+
+  const url_parse::Parsed& parsed = url.parsed_for_possibly_invalid_spec();
+
+  if (!url.has_host() || !parsed.host.is_valid() ||
+      !parsed.host.is_nonempty()) {
+    return false;
+  }
+
+  if (!IsInsecureScheme(url)) {
+    return false;
+  }
+
+  if (allow_insecure_connections_to_localhost_) {
+    std::string host;
+#if SB_HAS(IPV6)
+    host = url.HostNoBrackets();
+#else
+    host.append(valid_spec.c_str() + parsed.host.begin,
+                valid_spec.c_str() + parsed.host.begin + parsed.host.len);
+#endif
+    if (net::IsLocalhost(host)) {
+      return true;
+    }
+  }
+
+  /* allow mixed content for local network or private ranges? */
+  if (!(allow_insecure_connections_to_local_network_ ||
+        allow_insecure_connections_to_private_range_)) {
+    return false;
+  }
+
+  SbSocketAddress destination;
+  // Note that GetDestinationForHost will only pass if host is a numeric IP.
+  if (!cobalt::network::ParseSocketAddress(valid_spec.c_str(), parsed.host,
+                                           &destination)) {
+    return false;
+  }
+
+  if (allow_insecure_connections_to_private_range_ &&
+      local_network_checker_->IsIPInPrivateRange(destination)) {
+    return true;
+  }
+
+  if (allow_insecure_connections_to_local_network_ &&
+      local_network_checker_->IsIPInLocalNetwork(destination)) {
+    return true;
   }
 
   return false;
@@ -179,6 +249,21 @@ bool SourceList::ParseSource(const char* begin, const char* end,
   if (LowerCaseEqualsASCII(begin, end, "'unsafe-eval'")) {
     AddSourceUnsafeEval();
     return true;
+  }
+
+  if (directive_name_.compare(ContentSecurityPolicy::kConnectSrc) == 0) {
+    if (LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-localhost'")) {
+      AddSourceLocalhost();
+      return true;
+    }
+    if (LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-local-network'")) {
+      AddSourceLocalNetwork();
+      return true;
+    }
+    if (LowerCaseEqualsASCII(begin, end, "'cobalt-insecure-private-range'")) {
+      AddSourcePrivateRange();
+      return true;
+    }
   }
 
   std::string nonce;
@@ -502,6 +587,18 @@ bool SourceList::ParsePort(const char* begin, const char* end, int* port,
   bool ok = base::StringToInt(
       base::StringPiece(begin, static_cast<size_t>(end - begin)), port);
   return ok;
+}
+
+void SourceList::AddSourceLocalhost() {
+  allow_insecure_connections_to_localhost_ = true;
+}
+
+void SourceList::AddSourceLocalNetwork() {
+  allow_insecure_connections_to_local_network_ = true;
+}
+
+void SourceList::AddSourcePrivateRange() {
+  allow_insecure_connections_to_private_range_ = true;
 }
 
 void SourceList::AddSourceSelf() { allow_self_ = true; }

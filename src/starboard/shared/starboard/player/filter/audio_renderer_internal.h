@@ -36,9 +36,9 @@ class AudioRenderer {
   virtual void WriteEndOfStream() = 0;
   virtual void Play() = 0;
   virtual void Pause() = 0;
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
   virtual void SetPlaybackRate(double playback_rate) = 0;
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
   virtual void Seek(SbMediaTime seek_to_pts) = 0;
   virtual bool IsEndOfStreamWritten() const = 0;
   virtual bool IsEndOfStreamPlayed() const = 0;

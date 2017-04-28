@@ -19,6 +19,8 @@
 #include <vector>
 
 #include "cobalt/audio/audio_helpers.h"
+#include "cobalt/audio/audio_node_channel_count_mode.h"
+#include "cobalt/audio/audio_node_channel_interpretation.h"
 #include "cobalt/audio/audio_node_input.h"
 #include "cobalt/audio/audio_node_output.h"
 #include "cobalt/dom/dom_exception.h"
@@ -55,17 +57,6 @@ class AudioNode : public dom::EventTarget {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
  public:
-  enum ChannelCountMode {
-    kMax,
-    kClampedMax,
-    kExplicit,
-  };
-
-  enum ChannelInterpretation {
-    kSpeakers,
-    kDiscrete,
-  };
-
   explicit AudioNode(AudioContext* context);
 
   // Web API: AudioNode
@@ -97,19 +88,20 @@ class AudioNode : public dom::EventTarget {
   // Determines how channels will be counted when up-mixing and down-mixing
   // connections to any inputs to the node. This attributes has no effect for
   // nodes with no inputs.
-  const ChannelCountMode& channel_count_mode() const {
+  const AudioNodeChannelCountMode& channel_count_mode() const {
     return channel_count_mode_;
   }
-  void set_channel_count_mode(const ChannelCountMode& channel_count_mode);
+  void set_channel_count_mode(
+      const AudioNodeChannelCountMode& channel_count_mode);
 
   // Determines how individual channels will be treated when up-mixing and
   // down-mixing connections to any inputs to the node. This attribute has no
   // effect for nodes with no inputs.
-  const ChannelInterpretation& channel_interpretation() const {
+  const AudioNodeChannelInterpretation& channel_interpretation() const {
     return channel_interpretation_;
   }
   void set_channel_interpretation(
-      const ChannelInterpretation& channel_interpretation);
+      const AudioNodeChannelInterpretation& channel_interpretation);
 
   // Connects the AudioNode to another AudioNode.
   void Connect(const scoped_refptr<AudioNode>& destination, uint32 output,
@@ -156,8 +148,8 @@ class AudioNode : public dom::EventTarget {
 
   // Channel up-mixing and down-mixing rules for all inputs.
   uint32 channel_count_;
-  ChannelCountMode channel_count_mode_;
-  ChannelInterpretation channel_interpretation_;
+  AudioNodeChannelCountMode channel_count_mode_;
+  AudioNodeChannelInterpretation channel_interpretation_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioNode);
 };

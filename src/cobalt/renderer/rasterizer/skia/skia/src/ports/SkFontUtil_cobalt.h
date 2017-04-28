@@ -101,12 +101,17 @@ struct FontFileInfo {
   };
   typedef uint32_t FontStyle;
 
-  FontFileInfo() : index(0), weight(400), style(kNormal_FontStyle) {}
+  FontFileInfo()
+      : index(0),
+        weight(400),
+        style(kNormal_FontStyle),
+        disable_synthetic_bolding(false) {}
 
   SkString file_name;
   int index;
   int weight;
   FontStyle style;
+  bool disable_synthetic_bolding;
 
   SkString full_font_name;
   SkString postscript_name;

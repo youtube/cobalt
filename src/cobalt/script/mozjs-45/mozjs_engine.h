@@ -27,7 +27,13 @@ namespace mozjs {
 
 class MozjsEngine : public JavaScriptEngine {
  public:
-  MozjsEngine();
+  struct Options {
+    explicit Options(const JavaScriptEngine::Options& js_options)
+        : js_options(js_options) {}
+    JavaScriptEngine::Options js_options;  // Generic settings.
+  };
+
+  explicit MozjsEngine(const Options& options);
   ~MozjsEngine() OVERRIDE;
 
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
@@ -43,10 +49,8 @@ class MozjsEngine : public JavaScriptEngine {
   static void GCCallback(JSRuntime* runtime, JSGCStatus status, void* data);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                bool is_compartment, void* data);
-  static JSBool ErrorHookCallback(JSContext* context, const char* message,
-                                  JSErrorReport* report, void* closure);
-  JSBool ReportJSError(JSContext* context, const char* message,
-                       JSErrorReport* report);
+  bool ReportJSError(JSContext* context, const char* message,
+                     JSErrorReport* report);
 
   base::ThreadChecker thread_checker_;
 
@@ -66,6 +70,8 @@ class MozjsEngine : public JavaScriptEngine {
 
   // Used to handle javascript errors.
   ErrorHandler error_handler_;
+
+  Options options_;
 };
 }  // namespace mozjs
 }  // namespace script

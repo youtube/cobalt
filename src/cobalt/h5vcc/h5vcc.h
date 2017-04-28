@@ -18,6 +18,8 @@
 #include <string>
 
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
@@ -48,7 +50,8 @@ class H5vcc : public script::Wrappable {
     std::string initial_deep_link;
   };
 
-  explicit H5vcc(const Settings& config);
+  H5vcc(const Settings& config, const scoped_refptr<dom::Window>& window,
+        dom::MutationObserverTaskManager* mutation_observer_task_manager);
   const scoped_refptr<H5vccAccessibility>& accessibility() const {
     return accessibility_;
   }

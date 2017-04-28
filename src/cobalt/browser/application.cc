@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/application.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -32,8 +33,8 @@
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
-#include "cobalt/browser/memory_settings/memory_settings.h"
-#include "cobalt/browser/memory_tracker/memory_tracker_tool.h"
+#include "cobalt/browser/memory_settings/auto_mem.h"
+#include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
@@ -51,6 +52,7 @@
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 #if defined(OS_STARBOARD)
+#include "nb/lexical_cast.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #endif  // defined(OS_STARBOARD)
@@ -195,6 +197,30 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+// Represents a parsed int.
+struct ParsedIntValue {
+ public:
+  ParsedIntValue() : value_(0), error_(false) {}
+  ParsedIntValue(const ParsedIntValue& other)
+      : value_(other.value_), error_(other.error_) {}
+  int value_;
+  bool error_;  // true if there was a parse error.
+};
+// Parses a string like "1234x5678" to vector of parsed int values.
+std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
+  std::vector<ParsedIntValue> output;
+
+  std::vector<std::string> lengths;
+  base::SplitString(value_str, 'x', &lengths);
+
+  for (size_t i = 0; i < lengths.size(); ++i) {
+    ParsedIntValue parsed_value;
+    parsed_value.error_ = !base::StringToInt(lengths[i], &parsed_value.value_);
+    output.push_back(parsed_value);
+  }
+  return output;
+}
+
 std::string GetMinLogLevelString() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -241,17 +267,31 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
                           &options->scratch_surface_cache_size_in_bytes);
-  SetIntegerIfSwitchIsSet(browser::switches::kSkiaCacheSizeInBytes,
-                          &options->skia_cache_size_in_bytes);
-  SetIntegerIfSwitchIsSet(browser::switches::kSoftwareSurfaceCacheSizeInBytes,
-                          &options->software_surface_cache_size_in_bytes);
 }
 
 void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
-  SetIntegerIfSwitchIsSet(browser::switches::kImageCacheSizeInBytes,
-                          &options->image_cache_capacity);
   SetIntegerIfSwitchIsSet(browser::switches::kRemoteTypefaceCacheSizeInBytes,
                           &options->remote_typeface_cache_capacity);
+}
+
+template <typename T>
+base::optional<T> ParseSetting(const CommandLine* command_line,
+                               const char* switch_name) {
+  base::optional<T> output;
+  if (!command_line->HasSwitch(switch_name)) {
+    return output;
+  }
+  std::string switch_value = command_line->GetSwitchValueNative(switch_name);
+
+  bool parse_ok = false;
+  T value = nb::lexical_cast<T>(switch_value.c_str(), &parse_ok);
+
+  if (parse_ok) {
+    output = static_cast<T>(value);
+  } else {
+    LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
+  }
+  return output;
 }
 
 // Restrict navigation to a couple of whitelisted URLs by default.
@@ -311,6 +351,29 @@ Application::NetworkStatus Application::network_status_ =
 int Application::network_connect_count_ = 0;
 int Application::network_disconnect_count_ = 0;
 
+void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
+                          BrowserModule::Options* options) {
+  std::stringstream ss;
+  ss << "\n\n" << auto_mem.ToPrettyPrintString() << "\n\n";
+  SB_LOG(INFO) << ss.str();
+
+  options->web_module_options.image_cache_capacity =
+      static_cast<int>(auto_mem.image_cache_size_in_bytes()->value());
+
+  options->renderer_module_options.skia_cache_size_in_bytes =
+      static_cast<int>(auto_mem.skia_cache_size_in_bytes()->value());
+
+  options->renderer_module_options.skia_texture_atlas_dimensions =
+      auto_mem.skia_atlas_texture_dimensions()->value();
+
+  options->web_module_options.javascript_options.gc_threshold_bytes =
+      static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());
+
+  options->renderer_module_options.software_surface_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem.software_surface_cache_size_in_bytes()->value());
+}
+
 Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
@@ -357,8 +420,7 @@ Application::Application(const base::Closure& quit_closure)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   math::Size window_size = InitSystemWindow(command_line);
 
-  WebModule::Options web_options(window_size);
-
+  WebModule::Options web_options;
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
@@ -372,6 +434,10 @@ Application::Application(const base::Closure& quit_closure)
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
     options.web_module_options.javascript_options.disable_jit = true;
   }
+
+  memory_settings::AutoMem auto_mem(window_size, *command_line,
+                                    memory_settings::GetDefaultBuildSettings());
+  ApplyAutoMemSettings(auto_mem, &options);
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
@@ -691,23 +757,31 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
   if (command_line->HasSwitch(browser::switches::kViewport)) {
     const std::string switchValue =
         command_line->GetSwitchValueASCII(browser::switches::kViewport);
-    std::vector<std::string> lengths;
-    base::SplitString(switchValue, 'x', &lengths);
-    if (lengths.size() >= 1) {
-      int width = -1;
-      if (base::StringToInt(lengths[0], &width) && width >= 1) {
-        int height = -1;
-        if (lengths.size() < 2) {
+
+    std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switchValue);
+
+    if (parsed_ints.size() >= 1) {
+      const ParsedIntValue parsed_width = parsed_ints[0];
+      if (!parsed_width.error_) {
+        const ParsedIntValue* parsed_height_ptr = NULL;
+        if (parsed_ints.size() >= 2) {
+          parsed_height_ptr = &parsed_ints[1];
+        }
+
+        if (!parsed_height_ptr) {
           // Allow shorthand specification of the viewport by only giving the
           // width. This calculates the height at 4:3 aspect ratio for smaller
           // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-          if (width >= 1280) {
-            viewport_size.emplace(width, 9 * width / 16);
+          if (parsed_width.value_ >= 1280) {
+            viewport_size.emplace(parsed_width.value_,
+                                  9 * parsed_width.value_ / 16);
           } else {
-            viewport_size.emplace(width, 3 * width / 4);
+            viewport_size.emplace(parsed_width.value_,
+                                  3 * parsed_width.value_ / 4);
           }
-        } else if (base::StringToInt(lengths[1], &height) && height >= 1) {
-          viewport_size.emplace(width, height);
+        } else if (!parsed_height_ptr->error_) {
+          viewport_size.emplace(parsed_width.value_,
+                                parsed_height_ptr->value_);
         } else {
           DLOG(ERROR) << "Invalid value specified for viewport height: "
                       << switchValue << ". Using default viewport size.";

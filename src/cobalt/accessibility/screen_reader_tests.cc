@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
+#include "cobalt/accessibility/screen_reader.h"
 #include "cobalt/accessibility/text_alternative.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/browser/web_module.h"
@@ -36,15 +37,20 @@ namespace accessibility {
 namespace {
 struct TestInfo {
   TestInfo(const std::string& html_file_name,
-           const std::string& expected_result)
-      : html_file_name(html_file_name), expected_result(expected_result) {}
+           const std::string& expected_result,
+           bool screen_reader_enabled)
+      : html_file_name(html_file_name),
+        expected_result(expected_result),
+        screen_reader_enabled(screen_reader_enabled) {}
   std::string html_file_name;
   std::string expected_result;
+  bool screen_reader_enabled;
 };
 
 // Enumerate the *.html files in the accessibility_test directory and build
 // a list of input .html files and expected results.
-std::vector<TestInfo> EnumerateTests(const std::string& subdir) {
+std::vector<TestInfo> EnumerateTests(bool screen_reader_enabled,
+                                     const std::string& subdir) {
   std::vector<TestInfo> infos;
   FilePath root_directory;
   PathService::Get(base::DIR_SOURCE_ROOT, &root_directory);
@@ -65,7 +71,9 @@ std::vector<TestInfo> EnumerateTests(const std::string& subdir) {
         continue;
       }
       TrimWhitespaceASCII(results, TRIM_ALL, &results);
-      infos.push_back(TestInfo(html_file.BaseName().value(), results));
+      infos.push_back(TestInfo(html_file.BaseName().value(),
+                               results,
+                               screen_reader_enabled));
     }
   }
   return infos;
@@ -89,13 +97,29 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
     DLOG(ERROR) << error;
     Quit();
   }
-  void Quit() { quit_event_.Signal(); }
+  void Quit() {
+    quit_event_.Signal();
+    screen_reader_.reset();
+  }
+
+  scoped_refptr<script::Wrappable> CreateWindowAttribute(
+      const scoped_refptr<dom::Window>& window,
+      dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+    screen_reader_.reset(new accessibility::ScreenReader(
+        window->document(), &tts_engine_, mutation_observer_task_manager));
+    screen_reader_->set_enabled(GetParam().screen_reader_enabled);
+    EXPECT_EQ(GetParam().screen_reader_enabled, screen_reader_->enabled());
+
+    return NULL;
+  }
+
   static void OnRenderTreeProducedStub(
       const browser::WebModule::LayoutResults&) {}
 
  protected:
   MockTTSEngine tts_engine_;
   base::WaitableEvent quit_event_;
+  scoped_ptr<accessibility::ScreenReader> screen_reader_;
 };
 }  // namespace
 
@@ -122,12 +146,13 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
 
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options(kDefaultViewportSize);
-  web_module_options.tts_engine = &tts_engine_;
+  browser::WebModule::Options web_module_options;
+  web_module_options.injected_window_attributes["test"] = base::Bind(
+      &LiveRegionMutationTest::CreateWindowAttribute, base::Unretained(this));
 
   // Set expected result from mutation.
   std::string expected_speech = GetParam().expected_result;
-  if (expected_speech.empty()) {
+  if (expected_speech.empty() || !GetParam().screen_reader_enabled) {
     EXPECT_CALL(tts_engine_, Speak(_)).Times(0);
   } else {
     EXPECT_CALL(tts_engine_, Speak(expected_speech));
@@ -139,6 +164,7 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
       url, base::Bind(&LiveRegionMutationTest::OnRenderTreeProducedStub),
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
       base::Bind(&LiveRegionMutationTest::Quit, base::Unretained(this)),
+      base::Closure(), /* window_minimize_callback */
       NULL /* media_module */, &network_module, kDefaultViewportSize,
       &resource_provider, NULL /* system_window */, kRefreshRate,
       web_module_options);
@@ -149,9 +175,14 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
 
 INSTANTIATE_TEST_CASE_P(
     TextAlternativeTest, TextAlternativeTest,
-    ::testing::ValuesIn(EnumerateTests("text_alternative")));
+    ::testing::ValuesIn(EnumerateTests(true, "text_alternative")));
 
-INSTANTIATE_TEST_CASE_P(LiveRegionMutationTest, LiveRegionMutationTest,
-                        ::testing::ValuesIn(EnumerateTests("live_region")));
+INSTANTIATE_TEST_CASE_P(
+    LiveRegionMutationTestEnabled, LiveRegionMutationTest,
+    ::testing::ValuesIn(EnumerateTests(true, "live_region")));
+
+INSTANTIATE_TEST_CASE_P(
+    LiveRegionMutationTestDisabled, LiveRegionMutationTest,
+    ::testing::ValuesIn(EnumerateTests(false, "live_region")));
 }  // namespace accessibility
 }  // namespace cobalt

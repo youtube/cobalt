@@ -105,7 +105,7 @@ void MessagePumpUIStarboard::ScheduleWork() {
 
 void MessagePumpUIStarboard::ScheduleDelayedWork(
     const base::TimeTicks& delayed_work_time) {
-  TRACK_MEMORY_SCOPE("TaskProcessor");
+  TRACK_MEMORY_SCOPE("MessageLoop");
   base::TimeDelta delay;
   if (!delayed_work_time.is_null()) {
     delay = delayed_work_time - base::TimeTicks::Now();

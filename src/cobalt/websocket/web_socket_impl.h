@@ -21,9 +21,11 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
+#include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/websocket/buffered_amount_tracker.h"
 #include "cobalt/websocket/web_socket_event_interface.h"
 #include "cobalt/websocket/web_socket_frame_container.h"
 #include "cobalt/websocket/web_socket_handshake_helper.h"
@@ -53,6 +55,8 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   explicit WebSocketImpl(cobalt::network::NetworkModule* network_module,
                          WebsocketEventInterface* delegate);
 
+  void SetWebSocketEventDelegate(WebsocketEventInterface* delegate);
+
   // These functions are meant to be called from the Web Module thread.
   void Connect(const std::string& origin, const GURL& url,
                const std::vector<std::string>& sub_protocols);
@@ -81,13 +85,23 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   void OnError(const net::SocketStream* socket, int error) OVERRIDE;
 
  private:
+  struct CloseInfo {
+    CloseInfo(const net::WebSocketError code, const std::string& reason)
+        : code(code), reason(reason) {}
+    explicit CloseInfo(const net::WebSocketError code) : code(code) {}
+
+    net::WebSocketError code;
+    std::string reason;
+  };
+
   void DoDetach(base::WaitableEvent* waitable_event);
-  void DoClose(const net::WebSocketError code, const std::string& reason);
+  void DoClose(const CloseInfo& close_info);
   void DoPong(const scoped_refptr<net::IOBufferWithSize> payload);
   void DoConnect(
       scoped_refptr<cobalt::network::URLRequestContextGetter> context,
       const GURL& url, base::WaitableEvent* job_created_event);
-  void SendFrame(const scoped_array<char> data, const int length);
+  void SendFrame(const scoped_array<char> data, const int length,
+                 const int overhead_bytes);
   void OnHandshakeComplete(const std::string& selected_subprotocol);
 
   void ProcessCompleteMessage(
@@ -114,8 +128,15 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   // Returns true if the handshake has been fully processed.
   bool ProcessHandshake(std::size_t* payload_offset);
 
-  void TrampolineClose(
-      const net::WebSocketError error_code = net::kWebSocketErrorProtocolError);
+  void TrampolineClose(const CloseInfo& close_info);
+
+  void OnWebSocketConnected(const std::string& selected_subprotocol);
+  void OnWebSocketDisconnected(bool was_clean, uint16 code,
+                               const std::string& reason);
+  void OnWebSocketSentData(int amount_sent);
+  void OnWebSocketReceivedData(bool is_text_frame,
+                               scoped_refptr<net::IOBufferWithSize> data);
+  void OnWebSocketError();
 
   base::ThreadChecker thread_checker_;
   net::WebSocketJob::State GetCurrentState() const;
@@ -131,6 +152,9 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   net::WebSocketFrameParser frame_parser_;
   WebSocketFrameContainer current_frame_container_;
   WebSocketMessageContainer current_message_container_;
+
+  base::optional<CloseInfo> peer_close_info_;
+  BufferedAmountTracker buffered_amount_tracker_;
 
   scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;
   scoped_refptr<base::SingleThreadTaskRunner> owner_task_runner_;

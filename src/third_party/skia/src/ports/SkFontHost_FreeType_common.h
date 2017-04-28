@@ -13,8 +13,11 @@
 #include "SkScalerContext.h"
 #include "SkTypeface.h"
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
+// These are forward declared to avoid pimpl but also hide the FreeType implementation.
+typedef struct FT_LibraryRec_* FT_Library;
+typedef struct FT_FaceRec_* FT_Face;
+typedef struct FT_StreamRec_* FT_Stream;
+typedef signed long FT_Pos;
 
 #ifdef SK_DEBUG
     #define SkASSERT_CONTINUE(pred)                                                         \

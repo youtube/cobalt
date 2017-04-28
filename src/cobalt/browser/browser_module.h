@@ -184,8 +184,11 @@ class BrowserModule {
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen();
 
-  // Called when web module has received window.close.
+  // Called when web module has received window.close().
   void OnWindowClose();
+
+  // Called when web module has received window.minimize().
+  void OnWindowMinimize();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Toggles the input fuzzer on/off.  Ignores the parameter.

@@ -60,6 +60,8 @@
 #ifndef HEADER_DTLS1_H
 # define HEADER_DTLS1_H
 
+#include "build/build_config.h"
+
 # include <openssl/buffer.h>
 # include <openssl/pqueue.h>
 # ifdef OPENSSL_SYS_VMS
@@ -74,7 +76,7 @@
 # else
 #  if defined(OPENSSL_SYS_VXWORKS)
 #   include <sys/times.h>
-#  else
+#  elif !defined(OS_STARBOARD)
 #   include <sys/time.h>
 #  endif
 # endif

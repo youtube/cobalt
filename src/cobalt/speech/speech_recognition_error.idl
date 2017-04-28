@@ -14,18 +14,7 @@
 
 // https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-section
 
-enum ErrorCode {
-  "no-speech",
-  "aborted",
-  "audio-capture",
-  "network",
-  "not-allowed",
-  "service-not-allowed",
-  "bad-grammar",
-  "language-not-supported"
-};
-
 interface SpeechRecognitionError : Event {
-  readonly attribute ErrorCode error;
+  readonly attribute SpeechRecognitionErrorCode error;
   readonly attribute DOMString message;
 };

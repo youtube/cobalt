@@ -19,7 +19,7 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
+#include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 
 namespace cobalt {
@@ -52,10 +52,9 @@ class TextureEGL {
              const math::Size& size, GLenum format, GLenum target,
              const base::Closure& delete_function);
 
-  // Create a texture from a pre-existing offscreen PBuffer render target.
-  explicit TextureEGL(
-      GraphicsContextEGL* graphics_context,
-      const scoped_refptr<PBufferRenderTargetEGL>& render_target);
+  // Create a texture from a pre-existing offscreen render target.
+  TextureEGL(GraphicsContextEGL* graphics_context,
+             const scoped_refptr<RenderTargetEGL>& render_target);
   virtual ~TextureEGL();
 
   const math::Size& GetSize() const { return size_; }
@@ -86,7 +85,7 @@ class TextureEGL {
 
   // If the texture was constructed from a render target, we keep a reference
   // to the render target.
-  scoped_refptr<PBufferRenderTargetEGL> source_render_target_;
+  scoped_refptr<RenderTargetEGL> source_render_target_;
 
   // If non-null, will be called upon destruction instead of manually deleting
   // the texture via glDeleteTextures().

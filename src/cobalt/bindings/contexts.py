@@ -51,6 +51,8 @@ def idl_literal_to_cobalt_literal(idl_type, idl_literal):
   """Map IDL literal to the corresponding cobalt value."""
   if idl_literal.is_null and not idl_type.is_interface_type:
     return 'base::nullopt'
+  if idl_type.is_enum:
+    return convert_to_cobalt_enumeration_value(idl_type, idl_literal.value)
   return str(idl_literal)
 
 
@@ -232,6 +234,8 @@ class ContextBuilder(object):
       cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
     elif idl_type.is_union_type:
       cobalt_type = self.idl_union_type_to_cobalt(idl_type)
+    elif idl_type.is_enum:
+      cobalt_type = idl_type.name
     elif is_sequence_type(idl_type):
       cobalt_type = self.idl_sequence_type_to_cobalt(idl_type)
     elif idl_type.name == 'void':
@@ -257,8 +261,6 @@ class ContextBuilder(object):
     idl_type = self.resolve_typedef(typed_object.idl_type)
     if idl_type.is_callback_function:
       cobalt_type = interface.name + '::' + get_interface_name(idl_type)
-    elif idl_type.is_enum:
-      cobalt_type = '%s::%s' % (interface.name, get_interface_name(idl_type))
     else:
       cobalt_type = self.idl_type_to_cobalt_type(idl_type)
     if getattr(typed_object, 'is_variadic', False):
@@ -423,13 +425,15 @@ class ContextBuilder(object):
 
   def attribute_context(self, interface, attribute, definitions):
     """Create template values for attribute bindings."""
+    cobalt_name = attribute.extended_attributes.get(
+        'ImplementedAs', convert_to_cobalt_name(attribute.name))
     context = {
         'idl_name':
             attribute.name,
         'getter_function_name':
-            convert_to_cobalt_name(attribute.name),
+            cobalt_name,
         'setter_function_name':
-            'set_' + convert_to_cobalt_name(attribute.name),
+            'set_' + cobalt_name,
         'type':
             self.typed_object_to_cobalt_type(interface, attribute),
         'is_static':
@@ -478,10 +482,10 @@ class ContextBuilder(object):
   def enumeration_context(self, enumeration):
     """Create template values for IDL enumeration type bindings."""
     return {
-        'name':
+        'enumeration_name':
             enumeration.name,
-        'value_pairs': [(convert_to_cobalt_enumeration_value(value), value,)
-                        for value in enumeration.values],
+        'value_pairs': [(convert_to_cobalt_enumeration_value(
+            enumeration.name, value), value,) for value in enumeration.values],
     }
 
   def constant_context(self, constant):

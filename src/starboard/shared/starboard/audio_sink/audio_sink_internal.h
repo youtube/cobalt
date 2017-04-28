@@ -39,9 +39,9 @@ struct SbAudioSinkPrivate {
   };
 
   virtual ~SbAudioSinkPrivate() {}
-#if SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION >= 4
   virtual void SetPlaybackRate(double playback_rate) = 0;
-#endif  // SB_API_VERSION >= SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION >= 4
   virtual bool IsType(Type* type) = 0;
 
   // The following two functions will be called during application startup and

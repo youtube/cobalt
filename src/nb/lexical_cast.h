@@ -46,7 +46,7 @@ namespace nb {
 //   EXPECT_FALSE(ok);
 //   EXPECT_EQ(0, value);
 template <typename T>
-T lexical_cast(const char* s, bool* cast_ok = NULL) {
+inline T lexical_cast(const char* s, bool* cast_ok = NULL) {
   if (!s) {  // Handle NULL case of input string.
     if (cast_ok) {
       *cast_ok = false;
@@ -66,12 +66,17 @@ T lexical_cast(const char* s, bool* cast_ok = NULL) {
   return value;
 }
 
+template <typename T>
+inline T lexical_cast(const std::string& s, bool* cast_ok = NULL) {
+  return lexical_cast<T>(s.c_str(), cast_ok);
+}
+
 // int8_t and uint8_t will normally be interpreted as a char, which will
 // result in only the first character being parsed. This is obviously not
 // what we want. Therefore we provide specializations for lexical_cast for
 // these types.
 template <>
-int8_t lexical_cast<int8_t>(const char* s, bool* cast_ok) {
+inline int8_t lexical_cast<int8_t>(const char* s, bool* cast_ok) {
   int16_t value_i16 = lexical_cast<int16_t>(s, cast_ok);
   if (value_i16 < std::numeric_limits<int8_t>::min() ||
       value_i16 > std::numeric_limits<int8_t>::max()) {
@@ -84,7 +89,7 @@ int8_t lexical_cast<int8_t>(const char* s, bool* cast_ok) {
 }
 
 template <typename SmallInt>
-SmallInt NarrowingLexicalCast(const char* s, bool* cast_ok) {
+inline SmallInt NarrowingLexicalCast(const char* s, bool* cast_ok) {
   int64_t value = lexical_cast<int64_t>(s, cast_ok);
   if ((value > std::numeric_limits<SmallInt>::max()) ||
       (value < std::numeric_limits<SmallInt>::min())) {
@@ -97,23 +102,23 @@ SmallInt NarrowingLexicalCast(const char* s, bool* cast_ok) {
 }
 
 template <>
-uint8_t lexical_cast<uint8_t>(const char* s, bool* cast_ok) {
+inline uint8_t lexical_cast<uint8_t>(const char* s, bool* cast_ok) {
   return NarrowingLexicalCast<uint8_t>(s, cast_ok);
 }
 
 template <>
-uint16_t lexical_cast<uint16_t>(const char* s, bool* cast_ok) {
+inline uint16_t lexical_cast<uint16_t>(const char* s, bool* cast_ok) {
   return NarrowingLexicalCast<uint16_t>(s, cast_ok);
 }
 
 template <>
-uint32_t lexical_cast<uint32_t>(const char* s, bool* cast_ok) {
+inline uint32_t lexical_cast<uint32_t>(const char* s, bool* cast_ok) {
   return NarrowingLexicalCast<uint32_t>(s, cast_ok);
 }
 
 // uint64_t types will have a max value of int64_t. But this is acceptable.
 template <>
-uint64_t lexical_cast<uint64_t>(const char* s, bool* cast_ok) {
+inline uint64_t lexical_cast<uint64_t>(const char* s, bool* cast_ok) {
   int64_t val_i64 = lexical_cast<int64_t>(s, cast_ok);
   // Handle failure condition for negative values.
   if (val_i64 < 0) {

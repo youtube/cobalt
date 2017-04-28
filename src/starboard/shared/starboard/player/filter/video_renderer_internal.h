@@ -31,7 +31,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class VideoRenderer : protected VideoDecoder::Host {
+class VideoRenderer {
  public:
   virtual ~VideoRenderer() {}
 
@@ -44,9 +44,9 @@ class VideoRenderer : protected VideoDecoder::Host {
   virtual bool IsEndOfStreamPlayed() const = 0;
   virtual bool CanAcceptMoreData() const = 0;
   virtual bool IsSeekingInProgress() const = 0;
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace filter

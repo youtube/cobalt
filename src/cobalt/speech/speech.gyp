@@ -28,8 +28,12 @@
       'sources': [
         'audio_encoder_flac.cc',
         'audio_encoder_flac.h',
+        'cobalt_speech_recognizer.cc',
+        'cobalt_speech_recognizer.h',
         'endpointer_delegate.cc',
         'endpointer_delegate.h',
+        'google_speech_service.cc',
+        'google_speech_service.h',
         'google_streaming_api.pb.cc',
         'google_streaming_api.pb.h',
         'google_streaming_api.pb.proto',
@@ -62,13 +66,22 @@
         'speech_synthesis_utterance.cc',
         'speech_synthesis_utterance.h',
         'speech_synthesis_voice.h',
+        'starboard_speech_recognizer.cc',
+        'starboard_speech_recognizer.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/content/browser/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
       ],
       'include_dirs': [
         # Get protobuf headers from the chromium tree.

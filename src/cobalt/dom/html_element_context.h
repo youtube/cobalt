@@ -25,11 +25,13 @@
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
+#include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/script/script_value_factory.h"
 
 namespace cobalt {
 namespace dom {
@@ -44,20 +46,21 @@ class HTMLElementContext {
  public:
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
-  HTMLElementContext(loader::FetcherFactory* fetcher_factory,
-                     cssom::CSSParser* css_parser, Parser* dom_parser,
-                     media::CanPlayTypeHandler* can_play_type_handler,
-                     media::WebMediaPlayerFactory* web_media_player_factory,
-                     script::ScriptRunner* script_runner,
-                     MediaSourceRegistry* media_source_registry,
-                     render_tree::ResourceProvider** resource_provider,
-                     loader::image::ImageCache* image_cache,
-                     loader::image::ReducedCacheCapacityManager*
-                         reduced_image_cache_capacity_manager,
-                     loader::font::RemoteTypefaceCache* remote_typeface_cache,
-                     loader::mesh::MeshCache* mesh_cache,
-                     DomStatTracker* dom_stat_tracker,
-                     const std::string& language);
+  HTMLElementContext(
+      loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
+      Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
+      media::WebMediaPlayerFactory* web_media_player_factory,
+      script::ScriptRunner* script_runner,
+      script::ScriptValueFactory* script_value_factory,
+      MediaSourceRegistry* media_source_registry,
+      render_tree::ResourceProvider** resource_provider,
+      loader::image::AnimatedImageTracker* animated_image_tracker,
+      loader::image::ImageCache* image_cache,
+      loader::image::ReducedCacheCapacityManager*
+          reduced_image_cache_capacity_manager,
+      loader::font::RemoteTypefaceCache* remote_typeface_cache,
+      loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
+      const std::string& language);
   ~HTMLElementContext();
 
   loader::FetcherFactory* fetcher_factory() { return fetcher_factory_; }
@@ -73,13 +76,22 @@ class HTMLElementContext {
     return web_media_player_factory_;
   }
 
-  script::ScriptRunner* script_runner() { return script_runner_; }
+  script::ScriptRunner* script_runner() const { return script_runner_; }
+
+  script::ScriptValueFactory* script_value_factory() const {
+    return script_value_factory_;
+  }
+
   MediaSourceRegistry* media_source_registry() {
     return media_source_registry_;
   }
 
   render_tree::ResourceProvider** resource_provider() const {
     return resource_provider_;
+  }
+
+  loader::image::AnimatedImageTracker* animated_image_tracker() const {
+    return animated_image_tracker_;
   }
 
   loader::image::ImageCache* image_cache() const { return image_cache_; }
@@ -112,8 +124,10 @@ class HTMLElementContext {
   media::CanPlayTypeHandler* can_play_type_handler_;
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
+  script::ScriptValueFactory* const script_value_factory_;
   MediaSourceRegistry* const media_source_registry_;
   render_tree::ResourceProvider** resource_provider_;
+  loader::image::AnimatedImageTracker* const animated_image_tracker_;
   loader::image::ImageCache* const image_cache_;
   loader::image::ReducedCacheCapacityManager* const
       reduced_image_cache_capacity_manager_;

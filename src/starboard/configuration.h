@@ -39,12 +39,12 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 4
+#define SB_MAXIMUM_API_VERSION 5
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 4
+#define SB_EXPERIMENTAL_API_VERSION 5
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -52,49 +52,20 @@
 // starboard/CHANGELOG.md when released.  Thus, you can find examples of the
 // format your feature comments should take by checking that file.
 
-// Feature introducing support for decode-to-texture player output mode, and
-// runtime player output mode selection and detection.
-// In starboard/configuration.h,
-//   * SB_IS_PLAYER_PUNCHED_OUT, SB_IS_PLAYER_PRODUCING_TEXTURE, and
-//     SB_IS_PLAYER_COMPOSITED now no longer need to be defined (and should not
-//     be defined) by platforms.  Instead, these capabilities are detected at
-//     runtime via SbPlayerOutputModeSupported().
-// In starboard/player.h,
-//   * The enum SbPlayerOutputMode is introduced.
-//   * SbPlayerOutputModeSupported() is introduced to let applications query
-//     for player output mode support.
-//   * SbPlayerCreate() now takes an additional parameter that specifies the
-//     desired output mode.
-//   * The punch out specific function SbPlayerSetBounds() must now be
-//     defined on all platforms, even if they don't support punch out (in which
-//     case they can implement a stub).
-//   * The function SbPlayerGetCompositionHandle() is removed.
-//   * The function SbPlayerGetTextureId() is replaced by the new
-//     SbPlayerGetCurrentFrame(), which returns a SbDecodeTarget.
-// In starboard/decode_target.h,
-//   * All get methods (SbDecodeTargetGetPlane() and SbDecodeTargetGetFormat(),
-//     SbDecodeTargetIsOpaque()) are now replaced with SbDecodeTargetGetInfo().
-//   * The SbDecodeTargetInfo structure is introduced and is the return value
-//     type of SbDecodeTargetGetInfo().
-//   * SbDecdodeTargetCreate() is now responsible for creating all its internal
-//     planes, and so its |planes| parameter is replaced by |width| and
-//     |height| parameters.
-//   * The GLES2 version of SbDecdodeTargetCreate() has its EGL types
-//     (EGLDisplay, EGLContext) replaced by void* types, so that decode_target.h
-//     can avoid #including EGL/GLES2 headers.
-//   * SbDecodeTargetDestroy() is renamed to SbDecodeTargetRelease().
-#define SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+// EXAMPLE:
+//   // Introduce new experimental feature.
+//   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
+//   //   exposes functionality for my new feature.
+//   #define SB_MY_EXPERIMENTAL_FEATURE VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Support for setting the playback rate on an SbPlayer.  This allows for
-// control of the playback speed of video at runtime.
-#define SB_PLAYER_SET_PLAYBACK_RATE_VERSION SB_EXPERIMENTAL_API_VERSION
+// Adds kSbSystemPropertyUserAgentAuxField to the SbSystemPropertyId
+// enum to allow platform-specific  User-Agent suffix.
+#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Change input.h's SbInputVector structure to contain float members instead of
-// ints.
-#define SB_INPUT_FLOATING_POINT_INPUT_VECTOR_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deleted the vestigal struct SbUserApplicationTokenResults from user.h.
-#define SB_DELETE_USER_APPLICATION_TOKEN_VERSION SB_EXPERIMENTAL_API_VERSION
+// Introduce 'starboard/speech_recognizer.h'
+// This newly-introduced 'starboard/speech_recognizer.h' adds the on-device
+// speech recognizer feature.
+#define SB_SPEECH_RECOGNIZER_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -107,18 +78,20 @@
 // --- Common Helper Macros --------------------------------------------------
 
 // Determines a compile-time capability of the system.
-#define SB_CAN(SB_FEATURE) (defined(SB_CAN_##SB_FEATURE) && SB_CAN_##SB_FEATURE)
+#define SB_CAN(SB_FEATURE) \
+  ((defined SB_CAN_##SB_FEATURE) && SB_CAN_##SB_FEATURE)
 
 // Determines at compile-time whether this platform has a standard feature or
 // header available.
-#define SB_HAS(SB_FEATURE) (defined(SB_HAS_##SB_FEATURE) && SB_HAS_##SB_FEATURE)
+#define SB_HAS(SB_FEATURE) \
+  ((defined SB_HAS_##SB_FEATURE) && SB_HAS_##SB_FEATURE)
 
 // Determines at compile-time an inherent aspect of this platform.
-#define SB_IS(SB_FEATURE) (defined(SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
+#define SB_IS(SB_FEATURE) ((defined SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
 
 // Determines at compile-time whether this platform has a quirk.
 #define SB_HAS_QUIRK(SB_FEATURE) \
-  (defined(SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
+  ((defined SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
 
 // Determines at compile-time if this platform implements a given Starboard API
 // version number (or above).
@@ -195,7 +168,7 @@ struct CompileAssert {};
 #define SB_RESTRICT
 #endif  // COMPILER
 #else   // __cplusplus
-#define SB_RESTRICT restrict
+#define SB_RESTRICT __restrict
 #endif  // __cplusplus
 #endif  // SB_RESTRICT
 
@@ -310,6 +283,21 @@ struct CompileAssert {};
 #else
 #define SB_DEPRECATED_EXTERNAL(FUNC) SB_DEPRECATED(FUNC)
 #endif
+
+#if SB_API_VERSION >= 4
+// Macro to annotate a function as noreturn, which signals to the compiler
+// that the function cannot return.
+#if !defined(SB_NORETURN)
+#if SB_IS(COMPILER_GCC)
+#define SB_NORETURN __attribute__((__noreturn__))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_NORETURN __declspec(noreturn)
+#else
+// Empty definition for other compilers.
+#define SB_NORETURN
+#endif
+#endif  // SB_NORETURN
+#endif  // SB_API_VERSION >= 4
 
 // --- Configuration Audits --------------------------------------------------
 
@@ -448,7 +436,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
 #endif
 
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
 #if SB_HAS(PLAYER)
 #if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
     !SB_IS(PLAYER_PRODUCING_TEXTURE)
@@ -467,12 +455,12 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your player can't have a composition method if it doesn't exist."
 #endif
 #endif  // SB_HAS(PLAYER)
-#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // SB_API_VERSION < 4
 #if defined(SB_IS_PLAYER_COMPOSITITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
-#endif  // // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // // SB_API_VERSION < 4
 
 #if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
                             SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
@@ -512,6 +500,63 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if !defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
 #error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
 #endif
+
+#if SB_API_VERSION >= 4
+
+#if !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
+#error \
+    "Your platform must define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND."
+#endif  // !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
+
+#if !defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
+#error \
+    "Your platform must define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND."
+#endif  // !defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
+
+#endif  // SB_API_VERSION >= 4
+
+#if SB_API_VERSION >= 4
+
+#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
+#error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
+#error "Use gyp variable |cobalt_media_buffer_non_video_budget| instead."
+#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
+
+#if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
+#error "SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT is deprecated."
+#error "Use gyp variable |cobalt_media_buffer_video_budget_1080p| instead."
+#error "Use gyp variable |cobalt_media_buffer_video_budget_4k| instead."
+#endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
+
+#if defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
+#error "SB_MEDIA_MAIN_BUFFER_BUDGET is deprecated."
+#endif  // defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
+
+#if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
+#error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
+#endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
+
+#if COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET <= 0
+#error "cobalt_media_buffer_non_video_budget has to be greater than 0."
+#endif  // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET < 0
+
+#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P <= 0
+#error "cobalt_media_buffer_video_budget_1080p has to be greater than 0."
+#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P < 0
+
+#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K < COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
+#error cobalt_media_buffer_video_budget_4k has to be greater than or equal to \
+           cobalt_media_buffer_video_budget_1080p.
+#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K <
+        //     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
+
+#endif  // SB_API_VERSION >= 4
+
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#if !defined(SB_HAS_SPEECH_RECOGNIZER)
+#error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
+#endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 

@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
@@ -36,7 +35,7 @@ namespace cobalt {
 namespace media {
 
 // TODO: Add switch to disable caching
-class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
+class StarboardPlayer {
  public:
   class Host {
    public:
@@ -74,16 +73,34 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   void Suspend();
   void Resume();
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
  private:
   enum State {
     kPlaying,
     kSuspended,
     kResuming,
+  };
+
+  // This class ensures that the callbacks posted to |message_loop_| are ignored
+  // automatically once StarboardPlayer is destroyed.
+  class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
+   public:
+    explicit CallbackHelper(StarboardPlayer* player);
+
+    void ClearDecoderBufferCache();
+    void OnDecoderStatus(SbPlayer player, SbMediaType type,
+                         SbPlayerDecoderState state, int ticket);
+    void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
+    void OnDeallocateSample(const void* sample_buffer);
+    void ResetPlayer();
+
+   private:
+    base::Lock lock_;
+    StarboardPlayer* player_;
   };
 
   static const int64 kClearDecoderCacheIntervalInMilliseconds = 1000;
@@ -110,23 +127,24 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   static void DeallocateSampleCB(SbPlayer player, void* context,
                                  const void* sample_buffer);
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   // Returns the output mode that should be used for a video with the given
   // specifications.
   static SbPlayerOutputMode ComputeSbPlayerOutputMode(
       SbMediaVideoCodec codec, SbDrmSystem drm_system,
       bool prefer_decode_to_texture);
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
   // The following variables are initialized in the ctor and never changed.
   const scoped_refptr<base::MessageLoopProxy> message_loop_;
+  scoped_refptr<CallbackHelper> callback_helper_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   const SbWindow window_;
   const SbDrmSystem drm_system_;
   Host* const host_;
+  // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
-  const base::WeakPtr<StarboardPlayer> weak_this_;
 
   // The following variables are only changed or accessed from the
   // |message_loop_|.
@@ -149,10 +167,10 @@ class StarboardPlayer : public base::SupportsWeakPtr<StarboardPlayer> {
   uint32 cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace media

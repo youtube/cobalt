@@ -21,108 +21,29 @@
 #include <string>
 #include <vector>
 
-#include "base/logging.h"
-#include "starboard/log.h"
-#include "starboard/memory.h"
-#include "starboard/system.h"
-
+#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
-///////////////////////////////////
-//
-//            WIDTH | HEIGHT
-// -------------------------
-// 8K:        7,680 x 4,320
-// Cinema 4K: 4,096 x 2,160
-// 4k/UHD:    3,840 x 2,160
-// 2K:        2,048 x 1,080
-// WUXGA:     1,920 x 1,200
-// 1080p:     1,920 x 1,080
-// 720p:      1,280 x 720
-// 480p:        640 x 480
-enum StandardDisplaySettings {
-  k8k,
-  kCinema4k,
-  kUHD4k,
-  k2k,
-  kWUXGA,
-  k1080p,
-  k720p,
-  k480p
-};
-
-math::Size GetDimensions(StandardDisplaySettings enum_value) {
-  switch (enum_value) {
-    case k8k: {
-      return math::Size(7680, 4320);
-    }
-    case kCinema4k: {
-      return math::Size(4096, 2160);
-    }
-    case kUHD4k: {
-      return math::Size(3840, 2160);
-    }
-    case k2k: {
-      return math::Size(2048, 1080);
-    }
-    case kWUXGA: {
-      return math::Size(1920, 1200);
-    }
-    case k1080p: {
-      return math::Size(1920, 1080);
-    }
-    case k720p: {
-      return math::Size(1280, 720);
-    }
-    case k480p: {
-      return math::Size(640, 480);
-    }
-  }
-
-  EXPECT_TRUE(false)
-    << "Should not be reached. Unknown enum_value: " << enum_value;
-  return GetDimensions(k1080p);
+TEST(IntSetting, ParseFromString) {
+  scoped_ptr<IntSetting> int_setting(new IntSetting("dummy"));
+  EXPECT_EQ(std::string("dummy"), int_setting->name());
+  ASSERT_TRUE(int_setting->TryParseValue(MemorySetting::kCmdLine, "123"));
+  EXPECT_EQ(123, int_setting->value());
+  EXPECT_EQ(MemorySetting::kCmdLine, int_setting->source_type());
+  EXPECT_EQ(std::string("123"), int_setting->ValueToString());
 }
 
-TEST(MemorySettings, CalculateImageCacheSize) {
-  EXPECT_EQ(kMinImageCacheSize, CalculateImageCacheSize(GetDimensions(k720p)));
-  EXPECT_EQ(32 * 1024 * 1024,  // 32MB.
-            CalculateImageCacheSize(GetDimensions(k1080p)));
-  EXPECT_EQ(kMaxImageCacheSize, CalculateImageCacheSize(GetDimensions(kUHD4k)));
-
-  // Expect that the floor is hit for smaller values.
-  EXPECT_EQ(kMinImageCacheSize, CalculateImageCacheSize(GetDimensions(k480p)));
-
-  // Expect that the ceiling is hit for larger values.
-  EXPECT_EQ(kMaxImageCacheSize,
-            CalculateImageCacheSize(GetDimensions(kCinema4k)));
-  EXPECT_EQ(kMaxImageCacheSize, CalculateImageCacheSize(GetDimensions(k8k)));
-}
-
-TEST(MemorySettings, GetImageCacheSize) {
-  if (COBALT_IMAGE_CACHE_SIZE_IN_BYTES >= 0) {
-    // Expect that regardless of the display size, the value returned will
-    // be equal to COBALT_IMAGE_CACHE_SIZE_IN_BYTES
-    EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-              GetImageCacheSize(GetDimensions(k720p)));
-    EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-              GetImageCacheSize(GetDimensions(k1080p)));
-    EXPECT_EQ(COBALT_IMAGE_CACHE_SIZE_IN_BYTES,
-              GetImageCacheSize(GetDimensions(kUHD4k)));
-  } else {
-    // ... otherwise expect that the GetImageCacheSize() is equal to
-    // CalculateImageCacheSize().
-    EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k720p)),
-              GetImageCacheSize(GetDimensions(k720p)));
-    EXPECT_EQ(CalculateImageCacheSize(GetDimensions(k1080p)),
-              GetImageCacheSize(GetDimensions(k1080p)));
-    EXPECT_EQ(CalculateImageCacheSize(GetDimensions(kUHD4k)),
-              GetImageCacheSize(GetDimensions(kUHD4k)));
-  }
+TEST(DimensionSetting, ParseFromString) {
+  scoped_ptr<DimensionSetting> rect_setting(new DimensionSetting("dummy"));
+  ASSERT_TRUE(
+      rect_setting->TryParseValue(MemorySetting::kCmdLine, "1234x5678"));
+  EXPECT_EQ(math::Size(1234, 5678), rect_setting->value());
+  EXPECT_EQ(MemorySetting::kCmdLine, rect_setting->source_type());
+  EXPECT_EQ(std::string("1234x5678"), rect_setting->ValueToString());
 }
 
 }  // namespace memory_settings

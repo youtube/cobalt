@@ -24,8 +24,8 @@ AudioNode::AudioNode(AudioContext* context)
     : audio_context_(context),
       audio_lock_(context->audio_lock()),
       channel_count_(2),
-      channel_count_mode_(AudioNode::kMax),
-      channel_interpretation_(AudioNode::kSpeakers) {}
+      channel_count_mode_(kAudioNodeChannelCountModeMax),
+      channel_interpretation_(kAudioNodeChannelInterpretationSpeakers) {}
 
 AudioNode::~AudioNode() {
   AudioLock::AutoLock lock(audio_lock());
@@ -56,14 +56,14 @@ void AudioNode::set_channel_count(uint32 channel_count,
 }
 
 void AudioNode::set_channel_count_mode(
-    const ChannelCountMode& channel_count_mode) {
+    const AudioNodeChannelCountMode& channel_count_mode) {
   AudioLock::AutoLock lock(audio_lock());
 
   channel_count_mode_ = channel_count_mode;
 }
 
 void AudioNode::set_channel_interpretation(
-    const ChannelInterpretation& channel_interpretation) {
+    const AudioNodeChannelInterpretation& channel_interpretation) {
   AudioLock::AutoLock lock(audio_lock());
 
   channel_interpretation_ = channel_interpretation;

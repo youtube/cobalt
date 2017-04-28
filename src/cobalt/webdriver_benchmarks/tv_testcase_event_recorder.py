@@ -26,7 +26,6 @@ class EventRecorderOptions(object):
 
     self.record_rasterize_animations = True
     self.record_video_start_delay = False
-    self.skip_font_file_load_events = True
 
 
 class EventRecorder(object):
@@ -40,9 +39,6 @@ class EventRecorder(object):
   Both rasterize animations and video start delay data can potentially be
   recorded, depending on the |record_rasterize_animations| and
   |record_video_start_delay| option flags.
-
-  Additionally, events containing font file loads can be skipped if the
-  |skip_font_file_load_events| option flag is set to True.
   """
 
   def __init__(self, options):
@@ -57,12 +53,8 @@ class EventRecorder(object):
     self.test = options.test
     self.event_name = options.event_name
     self.event_type = options.event_type
-    self.skip_font_file_load_events = options.skip_font_file_load_events
-
-    self.font_files_loaded_count = None
 
     self.render_tree_failure_count = 0
-    self.font_file_load_skip_count = 0
 
     # Each entry in the list contains a tuple with a key and value recorder.
     self.value_dictionary_recorders = []
@@ -151,29 +143,10 @@ class EventRecorder(object):
 
   def on_start_event(self):
     """Handles logic related to the start of the event instance."""
-
-    # If the recorder is set to skip events with font file loads and the font
-    # file loaded count hasn't been initialized yet, then do that now.
-    if self.skip_font_file_load_events and self.font_files_loaded_count is None:
-      self.font_files_loaded_count = self.test.get_cval(
-          c_val_names.count_font_files_loaded())
+    pass
 
   def on_end_event(self):
     """Handles logic related to the end of the event instance."""
-
-    # If the recorder is set to skip events with font file loads and a font file
-    # loaded during the event, then its data is not collected. Log that it was
-    # skipped and return.
-    if self.skip_font_file_load_events:
-      current_font_files_loaded_count = self.test.get_cval(
-          c_val_names.count_font_files_loaded())
-      if self.font_files_loaded_count != current_font_files_loaded_count:
-        self.font_file_load_skip_count += 1
-        print("{} event skipped because a font file loaded during it! {} "
-              "events skipped.".format(self.event_name,
-                                       self.font_file_load_skip_count))
-        self.font_files_loaded_count = current_font_files_loaded_count
-        return
 
     value_dictionary = self.test.get_cval(
         c_val_names.event_value_dictionary(self.event_type))

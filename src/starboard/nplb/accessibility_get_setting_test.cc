@@ -19,7 +19,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
 
 TEST(SbAccessibilityGetSettingTest, CanCallGetTextToSpeechSettings) {
   SbAccessibilityTextToSpeechSettings settings = {0};
