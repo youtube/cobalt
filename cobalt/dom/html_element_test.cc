@@ -30,6 +30,11 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/named_node_map.h"
+#include "cobalt/dom/testing/stub_window.h"
+#include "cobalt/dom/window.h"
+#include "cobalt/media_session/media_session.h"
+#include "cobalt/network_bridge/net_poster.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Return;
@@ -59,10 +64,10 @@ ACTION_P(InvokeCallback0, callback) {
 const char kFooBarDeclarationString[] = "foo: bar;";
 const char kDisplayInlineDeclarationString[] = "display: inline;";
 
-class MockLayoutBoxes : public dom::LayoutBoxes {
+class MockLayoutBoxes : public LayoutBoxes {
  public:
   MOCK_CONST_METHOD0(type, Type());
-  MOCK_CONST_METHOD0(GetClientRects, scoped_refptr<dom::DOMRectList>());
+  MOCK_CONST_METHOD0(GetClientRects, scoped_refptr<DOMRectList>());
 
   MOCK_CONST_METHOD0(IsInlineLevel, bool());
 
@@ -122,7 +127,6 @@ class HTMLElementTest : public ::testing::Test {
   scoped_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
-  MessageLoop message_loop_;
 };
 
 scoped_refptr<HTMLElement>
@@ -142,8 +146,7 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
     if (parent_html_element) {
       // Set layout boxes for all elements that have a child.
       scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-      parent_html_element->set_layout_boxes(
-          layout_boxes.PassAs<dom::LayoutBoxes>());
+      parent_html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
 
       parent_html_element->AppendChild(child_html_element);
     }
@@ -162,7 +165,7 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
     if (child_element) {
       scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
       parent_element->AsHTMLElement()->set_layout_boxes(
-          layout_boxes.PassAs<dom::LayoutBoxes>());
+          layout_boxes.PassAs<LayoutBoxes>());
     }
     parent_element = child_element;
   }
@@ -199,26 +202,82 @@ TEST_F(HTMLElementTest, TabIndex) {
   EXPECT_EQ(-1, html_element->tab_index());
 }
 
-TEST_F(HTMLElementTest, FocusBlur) {
-  scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
-  EXPECT_FALSE(document_->active_element());
-
-  html_element->set_tab_index(-1);
-  html_element->Focus();
-  EXPECT_EQ(html_element, document_->active_element()->AsHTMLElement());
-
-  html_element->Blur();
-  EXPECT_FALSE(document_->active_element());
-}
-
 TEST_F(HTMLElementTest, IsFocusable) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
   EXPECT_FALSE(html_element->IsFocusable());
 
   html_element->set_tab_index(-1);
+  html_element->set_layout_boxes(scoped_ptr<LayoutBoxes>(new MockLayoutBoxes));
   EXPECT_TRUE(html_element->IsFocusable());
+}
+
+TEST_F(HTMLElementTest, Focus) {
+  // Give the document browsing context which is needed for focus to work.
+  testing::StubWindow window;
+  document_->set_window(window.window());
+
+  scoped_refptr<HTMLElement> html_element_1 =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<HTMLElement> html_element_2 =
+      document_->CreateElement("div")->AsHTMLElement();
+  document_->AppendChild(html_element_1);
+  document_->AppendChild(html_element_2);
+  EXPECT_FALSE(document_->active_element());
+
+  html_element_1->set_tab_index(-1);
+  html_element_1->set_layout_boxes(
+      scoped_ptr<LayoutBoxes>(new MockLayoutBoxes));
+  html_element_1->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element_1, document_->active_element()->AsHTMLElement());
+
+  html_element_2->set_tab_index(-1);
+  html_element_2->set_layout_boxes(
+      scoped_ptr<LayoutBoxes>(new MockLayoutBoxes));
+  html_element_2->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+}
+
+TEST_F(HTMLElementTest, Blur) {
+  // Give the document browsing context which is needed for focus to work.
+  testing::StubWindow window;
+  document_->set_window(window.window());
+
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  document_->AppendChild(html_element);
+  EXPECT_FALSE(document_->active_element());
+
+  html_element->set_tab_index(-1);
+  html_element->set_layout_boxes(scoped_ptr<LayoutBoxes>(new MockLayoutBoxes));
+  html_element->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element, document_->active_element()->AsHTMLElement());
+
+  html_element->Blur();
+  EXPECT_FALSE(document_->active_element());
+}
+
+TEST_F(HTMLElementTest, RemoveActiveElementShouldRunBlur) {
+  // Give the document browsing context which is needed for focus to work.
+  testing::StubWindow window;
+  document_->set_window(window.window());
+
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  document_->AppendChild(html_element);
+  EXPECT_FALSE(document_->active_element());
+
+  html_element->set_tab_index(-1);
+  html_element->set_layout_boxes(scoped_ptr<LayoutBoxes>(new MockLayoutBoxes));
+  html_element->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element, document_->active_element()->AsHTMLElement());
+
+  document_->RemoveChild(html_element);
+  EXPECT_FALSE(document_->active_element());
 }
 
 TEST_F(HTMLElementTest, LayoutBoxesGetter) {
@@ -227,16 +286,16 @@ TEST_F(HTMLElementTest, LayoutBoxesGetter) {
 
   scoped_ptr<MockLayoutBoxes> mock_layout_boxes(new MockLayoutBoxes);
   MockLayoutBoxes* saved_mock_layout_boxes_ptr = mock_layout_boxes.get();
-  html_element->set_layout_boxes(mock_layout_boxes.PassAs<dom::LayoutBoxes>());
+  html_element->set_layout_boxes(mock_layout_boxes.PassAs<LayoutBoxes>());
   DCHECK(mock_layout_boxes.get() == NULL);
 
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   html_element->layout_boxes()),
               type())
-      .WillOnce(Return(dom::LayoutBoxes::kLayoutLayoutBoxes));
-  dom::LayoutBoxes* layout_boxes = html_element->layout_boxes();
+      .WillOnce(Return(LayoutBoxes::kLayoutLayoutBoxes));
+  LayoutBoxes* layout_boxes = html_element->layout_boxes();
   EXPECT_EQ(layout_boxes, saved_mock_layout_boxes_ptr);
-  EXPECT_EQ(layout_boxes->type(), dom::LayoutBoxes::kLayoutLayoutBoxes);
+  EXPECT_EQ(layout_boxes->type(), LayoutBoxes::kLayoutLayoutBoxes);
 }
 
 TEST_F(HTMLElementTest, GetBoundingClientRectWithoutLayoutBox) {
@@ -264,7 +323,7 @@ TEST_F(HTMLElementTest, ClientTop) {
   EXPECT_FLOAT_EQ(html_element->client_top(), 0.0f);
 
   scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<dom::LayoutBoxes>());
+  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
 
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
@@ -298,7 +357,7 @@ TEST_F(HTMLElementTest, ClientLeft) {
   EXPECT_FLOAT_EQ(html_element->client_left(), 0.0f);
 
   scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<dom::LayoutBoxes>());
+  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
 
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
@@ -582,7 +641,7 @@ TEST_F(HTMLElementTest, OffsetWidth) {
   EXPECT_FLOAT_EQ(html_element->offset_width(), 0.0f);
 
   scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<dom::LayoutBoxes>());
+  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
 
   // 2. Return the border edge width of the first CSS layout box associated with
   // the element, ignoring any transforms that apply to the element and its
@@ -605,7 +664,7 @@ TEST_F(HTMLElementTest, OffsetHeight) {
   EXPECT_FLOAT_EQ(html_element->offset_height(), 0.0f);
 
   scoped_ptr<MockLayoutBoxes> layout_boxes(new MockLayoutBoxes);
-  html_element->set_layout_boxes(layout_boxes.PassAs<dom::LayoutBoxes>());
+  html_element->set_layout_boxes(layout_boxes.PassAs<LayoutBoxes>());
 
   // 2. Return the border edge height of the first CSS layout box associated
   // with the element, ignoring any transforms that apply to the element and its
