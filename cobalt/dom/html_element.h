@@ -238,8 +238,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
 
-  // Determines whether this element is focusable.
-  bool IsFocusable() const { return HasAttribute("tabindex"); }
+  bool IsFocusable() const;
 
   PseudoElement* pseudo_element(PseudoElementType type) const {
     DCHECK(type < kMaxPseudoElementType);
@@ -269,11 +268,20 @@ class HTMLElement : public Element, public cssom::MutationObserver {
  private:
   // From Node.
   void OnMutation() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
 
   // From Element.
   void OnSetAttribute(const std::string& name,
                       const std::string& value) OVERRIDE;
   void OnRemoveAttribute(const std::string& name) OVERRIDE;
+
+  // An element is being rendered if it has any associated CSS layout boxes, SVG
+  // layout boxes, or some equivalent in other styling languages.
+  //   https://www.w3.org/TR/html5/rendering.html#being-rendered
+  bool IsBeingRendered() const { return layout_boxes_; }
+
+  void RunFocusingSteps();
+  void RunUnFocusingSteps();
 
   // This both updates the directionality based upon the string value and
   // invalidates layout box caching if the value has changed.
@@ -297,6 +305,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Returns true if the element is the root element as defined in
   // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
+
+  bool locked_for_focus_;
 
   // The directionality of the html element is determined by the 'dir'
   // attribute.
