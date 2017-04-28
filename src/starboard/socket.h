@@ -227,6 +227,57 @@ SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
 SB_EXPORT bool SbSocketGetLocalAddress(SbSocket socket,
                                        SbSocketAddress* out_address);
 
+#if SB_API_VERSION >= 4
+// Gets the source address and the netmask that would be used to connect to the
+// destination.  The netmask parameter is optional, and only populated if a
+// non-NULL parameter is passed in.  To determine which source IP will be used,
+// the kernel takes into account the protocol, routes, destination
+// ip, etc.  The subnet mask, aka netmask, is used to find the routing prefix.
+// In IPv6, this should be derived from the prefix value.
+//
+// Returns whether it was possible to determine the source address and the
+// netmask (if non-NULL value is passed) to be used to connect to the
+// destination.  This function could fail if the destination is not reachable,
+// if it an invalid address, etc.
+//
+// |destination|: The destination IP to be connected to.  If IP addresses is not
+// 0.0.0.0 or ::, then temporary addresses may be returned.
+//
+// If the destination address is 0.0.0.0, and its |type| is
+// |kSbSocketAddressTypeIpv4|, then any IPv4 local interface that is up and not
+// a loopback interface is a valid return value.
+//
+// If the destination address is ::, and its |type| is
+// |kSbSocketAddressTypeIpv6| then any IPv6 local interface that is up and not
+// loopback or a link-local IP is a valid return value.  However, in the case of
+// IPv6, the address with the biggest scope must be returned.  E.g., a globally
+// scoped and routable IP is prefered over a unique local address (ULA).  Also,
+// the IP address that is returned must be permanent.
+//
+// If destination address is NULL, then any IP address that is valid for
+// |destination| set to 0.0.0.0 (IPv4) or :: (IPv6) can be returned.
+//
+// |out_source_address|: This function places the address of the local interface
+// in this output variable.
+// |out_netmask|: This parameter is optional.  If a non-NULL value is passed in,
+// this function places the netmask associated with the source address in this
+// output variable.
+SB_EXPORT bool SbSocketGetInterfaceAddress(
+    const SbSocketAddress* const destination,
+    SbSocketAddress* out_source_address,
+    SbSocketAddress* out_netmask);
+
+#else
+
+// Gets the address of the local IPv4 network interface. The return value
+// indicates whether the address was retrieved successfully.
+//
+// |out_address|: The retrieved address. The address does not include loopback
+//   (or IPv6) addresses.
+SB_EXPORT bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address);
+
+#endif  // SB_API_VERSION >= 4
+
 // Reads up to |data_size| bytes from |socket| into |out_data| and places the
 // source address of the packet in |out_source| if out_source is not NULL.
 // Returns the number of bytes read, or a negative number if there is an error,
@@ -355,13 +406,6 @@ SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
 SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
                                           const SbSocketAddress* address);
 
-// Gets the address of the local IPv4 network interface. The return value
-// indicates whether the address was retrieved successfully.
-//
-// |out_address|: The retrieved address. The address does not include loopback
-//   (or IPv6) addresses.
-SB_EXPORT bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address);
-
 // Synchronously resolves |hostname| into the returned SbSocketResolution,
 // which must be freed with SbSocketFreeResolution. The function returns
 // |NULL| if it is unable to resolve |hostname|.
@@ -391,11 +435,28 @@ inline std::ostream& operator<<(std::ostream& os,
   if (address.type == kSbSocketAddressTypeIpv6) {
     os << std::hex << "[";
     const uint16_t* fields = reinterpret_cast<const uint16_t*>(address.address);
-    for (int i = 0; i < 8; ++i) {
+    int i = 0;
+    while (fields[i] == 0) {
+      if (i == 0) {
+        os << ":";
+      }
+      ++i;
+      if (i == 8) {
+        os << ":";
+      }
+    }
+    for (; i < 8; ++i) {
       if (i != 0) {
         os << ":";
       }
+#if SB_IS(LITTLE_ENDIAN)
+      const uint8_t* fields8 = reinterpret_cast<const uint8_t*>(&fields[i]);
+      const uint16_t value = static_cast<uint16_t>(fields8[0]) * 256 |
+                             static_cast<uint16_t>(fields8[1]);
+      os << value;
+#else
       os << fields[i];
+#endif
     }
     os << "]" << std::dec;
   } else {

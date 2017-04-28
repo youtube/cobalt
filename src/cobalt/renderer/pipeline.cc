@@ -26,6 +26,7 @@
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "nb/memory_scope.h"
 
 using cobalt::render_tree::Node;
 using cobalt::render_tree::animations::AnimateNode;
@@ -189,7 +190,8 @@ void Pipeline::RasterizeToRGBAPixels(
   }
   // Create a new target that is the same dimensions as the display target.
   scoped_refptr<backend::RenderTarget> offscreen_target =
-      graphics_context_->CreateOffscreenRenderTarget(render_target_->GetSize());
+      graphics_context_->CreateDownloadableOffscreenRenderTarget(
+          render_target_->GetSize());
 
   // Rasterize this submission into the newly created target.
   RasterizeSubmissionToRenderTarget(render_tree_submission, offscreen_target);
@@ -214,7 +216,8 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
     // platform does not rate limit itself during swaps. This was changed from
     // 15ms to accommodate 120fps requirements on some platforms.
     rasterize_timer_.emplace(
-        FROM_HERE, base::TimeDelta::FromMilliseconds(7),
+        FROM_HERE, base::TimeDelta::FromMillisecondsD(
+                       COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true, true);
     rasterize_timer_->Reset();

@@ -22,7 +22,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
 
   def __init__(self,
                platform,
-               asan_enabled_by_default=True,
+               asan_enabled_by_default=False,
                goma_supports_compiler=True):
     super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
 

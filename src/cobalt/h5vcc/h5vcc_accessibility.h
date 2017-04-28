@@ -15,6 +15,11 @@
 #ifndef COBALT_H5VCC_H5VCC_ACCESSIBILITY_H_
 #define COBALT_H5VCC_H5VCC_ACCESSIBILITY_H_
 
+#include "base/message_loop_proxy.h"
+#include "cobalt/accessibility/screen_reader.h"
+#include "cobalt/accessibility/tts_engine.h"
+#include "cobalt/base/event_dispatcher.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -28,19 +33,36 @@ class H5vccAccessibility : public script::Wrappable {
   typedef script::CallbackFunction<void()> H5vccAccessibilityCallback;
   typedef script::ScriptValue<H5vccAccessibilityCallback>
       H5vccAccessibilityCallbackHolder;
-  H5vccAccessibility() {}
+  H5vccAccessibility(
+      base::EventDispatcher* event_dispatcher,
+      const scoped_refptr<dom::Window>& window,
+      dom::MutationObserverTaskManager* mutation_observer_task_manager);
 
   bool high_contrast_text() const;
   void AddHighContrastTextListener(
-      const H5vccAccessibilityCallbackHolder& holder) {
-    UNREFERENCED_PARAMETER(holder);
-  }
+      const H5vccAccessibilityCallbackHolder& holder);
+  void OnApplicationEvent(const base::Event* event);
 
   bool text_to_speech() const;
+
+  bool built_in_screen_reader() const;
+  void set_built_in_screen_reader(bool value);
 
   DEFINE_WRAPPABLE_TYPE(H5vccAccessibility);
 
  private:
+  typedef H5vccAccessibilityCallbackHolder::Reference
+      H5vccAccessibilityCallbackReference;
+
+  void InternalOnApplicationEvent();
+
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+
+  base::EventDispatcher* event_dispatcher_;
+  scoped_ptr<H5vccAccessibilityCallbackReference> high_contrast_text_listener_;
+  scoped_ptr<accessibility::TTSEngine> tts_engine_;
+  scoped_ptr<accessibility::ScreenReader> screen_reader_;
+
   DISALLOW_COPY_AND_ASSIGN(H5vccAccessibility);
 };
 

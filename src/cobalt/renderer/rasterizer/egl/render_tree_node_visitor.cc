@@ -18,9 +18,11 @@
 #include <cmath>
 
 #include "base/debug/trace_event.h"
+#include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
+#include "cobalt/renderer/rasterizer/common/utils.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
@@ -59,6 +61,7 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
   draw_state_.depth = graphics_state_->NextClosestDepth(draw_state_.depth);
 
   draw_state_.scissor.Intersect(graphics_state->GetScissor());
+  viewport_size_ = graphics_state->GetViewport().size();
 }
 
 void RenderTreeNodeVisitor::Visit(
@@ -138,7 +141,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   if (data.opacity_filter &&
       !data.viewport_filter &&
       !data.blur_filter &&
-      !data.map_to_mesh_filter) {
+      !data.map_to_mesh_filter &&
+      common::utils::NodeCanRenderWithOpacity(data.source)) {
     float old_opacity = draw_state_.opacity;
     draw_state_.opacity *= data.opacity_filter->opacity();
     data.source->Accept(this);
@@ -165,6 +169,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
+  bool clamp_texcoords = false;
+  bool is_opaque = skia_image->IsOpaque() && draw_state_.opacity == 1.0f;
 
   // Ensure any required backend processing is done to create the necessary
   // GPU resource.
@@ -182,36 +188,53 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
                                data.local_transform(0, 2);
     texcoord_transform(1, 2) = -texcoord_transform(1, 1) *
                                data.local_transform(1, 2);
+    if (texcoord_transform(0, 0) < 1.0f || texcoord_transform(1, 1) < 1.0f) {
+      // Edges may interpolate with texels outside the designated region.
+      // Use a fragment shader that clamps the texture coordinates to prevent
+      // that from happening.
+      clamp_texcoords = true;
+    }
   } else {
     texcoord_transform = data.local_transform.Inverse();
   }
 
   // Different shaders are used depending on whether the image has a single
   // plane or multiple planes.
+  scoped_ptr<DrawObject> draw;
+  DrawObjectManager::OnscreenType onscreen_type;
+
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
-    if (hardware_image->IsOpaque() && draw_state_.opacity == 1.0f) {
-      scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
-          draw_state_, data.destination_rect,
-          hardware_image->GetTextureEGL(), texcoord_transform));
-      AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenRectTexture,
-          DrawObjectManager::kOffscreenNone);
-    } else {
-      scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
-          draw_state_, data.destination_rect,
+    if (clamp_texcoords || !is_opaque) {
+      onscreen_type = DrawObjectManager::kOnscreenRectColorTexture;
+      draw.reset(new DrawRectColorTexture(graphics_state_, draw_state_,
+          data.destination_rect,
           render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
-          hardware_image->GetTextureEGL(), texcoord_transform));
-      AddTransparentDraw(draw.Pass(),
-          DrawObjectManager::kOnscreenRectColorTexture,
-          DrawObjectManager::kOffscreenNone, image_node->GetBounds());
+          hardware_image->GetTextureEGL(), texcoord_transform,
+          clamp_texcoords));
+    } else {
+      onscreen_type = DrawObjectManager::kOnscreenRectTexture;
+      draw.reset(new DrawRectTexture(graphics_state_, draw_state_,
+          data.destination_rect, hardware_image->GetTextureEGL(),
+          texcoord_transform));
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
     FallbackRasterize(image_node,
                       DrawObjectManager::kOffscreenSkiaMultiPlaneImage);
+    return;
   } else {
     NOTREACHED();
+    return;
+  }
+
+  if (is_opaque) {
+    AddOpaqueDraw(draw.Pass(), onscreen_type,
+        DrawObjectManager::kOffscreenNone);
+  } else {
+    AddTransparentDraw(draw.Pass(), onscreen_type,
+        DrawObjectManager::kOffscreenNone, image_node->GetBounds());
   }
 }
 
@@ -305,17 +328,50 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   FallbackRasterize(text_node, DrawObjectManager::kOffscreenSkiaText);
 }
 
-void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
+void RenderTreeNodeVisitor::FallbackRasterize(
+    scoped_refptr<render_tree::Node> node,
     DrawObjectManager::OffscreenType offscreen_type) {
   DCHECK_NE(offscreen_type, DrawObjectManager::kOffscreenNone);
+  base::optional<math::Matrix3F> original_transform;
 
   // Use fallback_rasterize_ to render to an offscreen target. Add a small
   // buffer to allow anti-aliased edges (e.g. rendered text).
-  const int kBorderWidth = 1;
+  const float kBorderWidth = 1.0f;
   math::RectF node_bounds(node->GetBounds());
-  math::RectF viewport(kBorderWidth, kBorderWidth,
-      node_bounds.right() + 2 * kBorderWidth,
-      node_bounds.bottom() + 2 * kBorderWidth);
+  math::RectF viewport(
+      // Viewport position is used to translate rendering within the offscreen
+      // render target. Use as small a target as possible.
+      kBorderWidth - node_bounds.x(),
+      kBorderWidth - node_bounds.y(),
+      node_bounds.width() + 2 * kBorderWidth,
+      node_bounds.height() + 2 * kBorderWidth);
+
+  // Determine if the contents need to be scaled to preserve fidelity when
+  // rasterized onscreen. If the scaled size is larger than the main viewport's
+  // size, then just clamp to that.
+  const float kScaleThreshold = 1.0f;
+  math::RectF mapped_bounds(draw_state_.transform.MapRect(node_bounds));
+  math::SizeF viewport_scale(1.0f, 1.0f);
+  if (mapped_bounds.width() > viewport_size_.width() ||
+      mapped_bounds.height() > viewport_size_.height()) {
+    // Just render what will fit onscreen.
+    mapped_bounds.Intersect(draw_state_.scissor);
+    if (mapped_bounds.IsEmpty()) {
+      return;
+    }
+    viewport.SetRect(-mapped_bounds.x(), -mapped_bounds.y(),
+                     mapped_bounds.width(), mapped_bounds.height());
+    // Treat the offscreen render target as a window that maps onto the main
+    // render target.
+    original_transform = draw_state_.transform;
+    draw_state_.transform = math::Matrix3F::Identity();
+    node = new render_tree::MatrixTransformNode(node, *original_transform);
+  } else if (mapped_bounds.width() > node_bounds.width() + kScaleThreshold ||
+             mapped_bounds.height() > node_bounds.height() + kScaleThreshold) {
+    // Scale up the offscreen contents to avoid pixelation.
+    viewport_scale.set_width(mapped_bounds.width() / node_bounds.width());
+    viewport_scale.set_height(mapped_bounds.height() / node_bounds.height());
+  }
 
   // Adjust the draw rect to accomodate the extra border and align texels with
   // pixels. Perform the smallest fractional pixel shift for alignment.
@@ -323,23 +379,27 @@ void RenderTreeNodeVisitor::FallbackRasterize(render_tree::Node* node,
       draw_state_.transform(0, 2);
   float trans_y = std::floor(draw_state_.transform(1, 2) + 0.5f) -
       draw_state_.transform(1, 2);
-  math::RectF draw_rect(-kBorderWidth + trans_x, -kBorderWidth + trans_y,
+  math::RectF draw_rect(trans_x - viewport.x(), trans_y - viewport.y(),
       viewport.width(), viewport.height());
 
   if (draw_state_.opacity == 1.0f) {
     scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
         draw_state_, draw_rect, base::Bind(*fallback_rasterize_,
-            scoped_refptr<render_tree::Node>(node), viewport)));
+            scoped_refptr<render_tree::Node>(node), viewport, viewport_scale)));
     AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenRectTexture,
         offscreen_type, draw_rect);
   } else {
     scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
         draw_state_, draw_rect, render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
         base::Bind(*fallback_rasterize_,
-            scoped_refptr<render_tree::Node>(node), viewport)));
+            scoped_refptr<render_tree::Node>(node), viewport, viewport_scale)));
     AddTransparentDraw(draw.Pass(),
         DrawObjectManager::kOnscreenRectColorTexture, offscreen_type,
         draw_rect);
+  }
+
+  if (original_transform) {
+    draw_state_.transform = *original_transform;
   }
 }
 

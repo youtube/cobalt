@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2015/WD-FileAPI-20150421/#dfn-Blob
+// https://www.w3.org/TR/FileAPI/#dfn-Blob
 
 [
-  //Constructor,
-  // TODO: When arrays or sequences are supported, support the constructor
-  // defined in the standard with multiple blobparts, and drop the single
-  // ArrayBuffer constructor.
-  Constructor(optional ArrayBuffer buffer),
+  Constructor,
+  // TODO: Accept DOMString blob parts in the following union.
+  Constructor(sequence<(ArrayBuffer or ArrayBufferView or DataView or Blob)> blobParts, optional BlobPropertyBag options),
   ConstructorCallWith=EnvironmentSettings
 ]
 interface Blob {
   readonly attribute unsigned long long size;
+  // TODO: Expose type and use for blob fetching and decoding.
+  // readonly attribute DOMString type;
 };

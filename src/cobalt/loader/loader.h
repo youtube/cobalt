@@ -46,7 +46,8 @@ class Loader {
   // It is allowed to destroy the loader in the error callback.
   Loader(const FetcherCreator& fetcher_creator, scoped_ptr<Decoder> decoder,
          const OnErrorFunction& on_error,
-         const OnDestructionFunction& on_destruction = OnDestructionFunction());
+         const OnDestructionFunction& on_destruction = OnDestructionFunction(),
+         bool is_suspended = false);
 
   ~Loader();
 
@@ -75,7 +76,7 @@ class Loader {
   OnErrorFunction on_error_;
   OnDestructionFunction on_destruction_;
 
-  bool suspended_;
+  bool is_suspended_;
 
   DISALLOW_COPY_AND_ASSIGN(Loader);
 };

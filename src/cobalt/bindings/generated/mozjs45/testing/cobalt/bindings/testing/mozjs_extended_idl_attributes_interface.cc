@@ -25,6 +25,8 @@
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
 
+#include "mozjs_gen_type_conversion.h"
+
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs-45/callback_function_conversion.h"
@@ -35,6 +37,8 @@
 #include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
+#include "cobalt/script/mozjs-45/native_promise.h"
 #include "cobalt/script/mozjs-45/proxy_handler.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
@@ -71,6 +75,7 @@ using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::kConversionFlagClamped;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
@@ -171,6 +176,96 @@ const JSClass interface_object_class_definition = {
     &HasInstance,
     NULL,
 };
+
+bool get_default(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject object(context, &args.thisv().toObject());
+  const JSClass* proto_class =
+      MozjsExtendedIDLAttributesInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ExtendedIDLAttributesInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  ExtendedIDLAttributesInterface* impl =
+      wrapper_private->wrappable<ExtendedIDLAttributesInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->attribute_default(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+bool set_default(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject object(context, &args.thisv().toObject());
+
+  const JSClass* proto_class =
+      MozjsExtendedIDLAttributesInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<ExtendedIDLAttributesInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  ExtendedIDLAttributesInterface* impl =
+      wrapper_private->wrappable<ExtendedIDLAttributesInterface>().get();
+  TypeTraits<bool >::ConversionType value;
+  if (args.length() != 1) {
+    NOTREACHED();
+    return false;
+  }
+  FromJSValue(context, args[0], kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_attribute_default(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
 
 bool fcn_callWithSettings(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -289,6 +384,12 @@ bool fcn_clampArgument(
 
 
 const JSPropertySpec prototype_properties[] = {
+  {  // Read/Write property
+    "default",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &get_default, NULL } },
+    { { &set_default, NULL } },
+  },
   JS_PS_END
 };
 

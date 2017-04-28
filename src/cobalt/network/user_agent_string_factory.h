@@ -46,9 +46,9 @@ class UserAgentStringFactory {
   struct YouTubeTVInfo {
     enum DeviceType {
       kInvalidDeviceType,
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 4
       kAndroidTV,
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 4
       kBlueRayDiskPlayer,
       kGameConsole,
       kOverTheTopBox,

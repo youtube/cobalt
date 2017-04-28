@@ -21,6 +21,7 @@
 #include <cstring>
 
 #include "starboard/directory.h"
+#include "starboard/log.h"
 #include "starboard/string.h"
 
 namespace {
@@ -58,7 +59,8 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
     return false;
   }
 
-  char* last_slash = strrchr(out_path, '/');
+  char* last_slash =
+      const_cast<char *>(SbStringFindLastCharacter(out_path, '/'));
   if (!last_slash) {
     return false;
   }
@@ -73,7 +75,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     return false;
   }
 
-  const int kPathSize = PATH_MAX;
+  const int kPathSize = SB_FILE_MAX_PATH;
   char path[kPathSize];
   path[0] = '\0';
 
@@ -127,9 +129,13 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
                              path_size);
     case kSbSystemPathExecutableFile:
       return GetExecutablePath(out_path, path_size);
+
+    default:
+      SB_NOTIMPLEMENTED();
+      return false;
   }
 
-  int length = strlen(path);
+  int length = SbStringGetLength(path);
   if (length < 1 || length > path_size) {
     return false;
   }

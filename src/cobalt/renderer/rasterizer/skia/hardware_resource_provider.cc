@@ -28,6 +28,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
@@ -39,59 +40,31 @@ using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageData;
 using cobalt::render_tree::RawImageMemory;
 
-namespace {
-
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
-    SB_HAS(GRAPHICS)
-
-void DecodeTargetAcquireOnRasterizer(
-    cobalt::renderer::backend::GraphicsContextEGL* context_egl,
-    SbDecodeTargetFormat format, int width, int height,
-    SbDecodeTarget* out_decode_target, base::WaitableEvent* done_event) {
-  cobalt::renderer::backend::GraphicsContextEGL::ScopedMakeCurrent
-      scoped_context(context_egl);
-
-  *out_decode_target =
-      SbDecodeTargetCreate(context_egl->system_egl()->GetDisplay(),
-                           context_egl->GetContext(), format, width, height);
-
-  done_event->Signal();
-}
-
-void DecodeTargetReleaseOnRasterizer(
-    cobalt::renderer::backend::GraphicsContextEGL* context_egl,
-    SbDecodeTarget decode_target) {
-  cobalt::renderer::backend::GraphicsContextEGL::ScopedMakeCurrent
-      scoped_context(context_egl);
-
-  SbDecodeTargetRelease(decode_target);
-}
-
-#endif  // SB_VERSION(SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION) && \
-           SB_HAS(GRAPHICS)
-
-}  // namespace
-
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace skia {
 
 HardwareResourceProvider::HardwareResourceProvider(
-    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context)
+    backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+    SubmitOffscreenCallback submit_offscreen_callback)
     : cobalt_context_(cobalt_context),
       gr_context_(gr_context),
+      submit_offscreen_callback_(submit_offscreen_callback),
       self_message_loop_(MessageLoop::current()) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
   SkSafeUnref(SkFontMgr::RefDefault());
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
-    SB_HAS(GRAPHICS)
-  decode_target_provider_.acquire = &DecodeTargetAcquire;
-  decode_target_provider_.release = &DecodeTargetRelease;
-  decode_target_provider_.context = this;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+#if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+  decode_target_graphics_context_provider_.egl_display =
+      cobalt_context_->system_egl()->GetDisplay();
+  decode_target_graphics_context_provider_.egl_context =
+      cobalt_context_->GetContext();
+  decode_target_graphics_context_provider_.gles_context_runner =
+      &HardwareResourceProvider::GraphicsContextRunner;
+  decode_target_graphics_context_provider_.gles_context_runner_context = this;
+#endif  // SB_API_VERSION >= 4 && \
            SB_HAS(GRAPHICS)
 }
 
@@ -161,8 +134,7 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
       self_message_loop_));
 }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
-    SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
 scoped_refptr<render_tree::Image>
     HardwareResourceProvider::CreateImageFromSbDecodeTarget(
         SbDecodeTarget decode_target) {
@@ -198,39 +170,48 @@ scoped_refptr<render_tree::Image>
       content_region.Pass(), self_message_loop_));
 }
 
+namespace {
+void RunGraphicsContextRunnerOnRasterizerThread(
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context,
+    backend::GraphicsContextEGL* graphics_context,
+    base::WaitableEvent* done_event) {
+  backend::GraphicsContextEGL::ScopedMakeCurrent make_current(graphics_context);
+  target_function(target_function_context);
+  done_event->Signal();
+}
+}  // namespace
+
 // static
-SbDecodeTarget HardwareResourceProvider::DecodeTargetAcquire(void* context,
-    SbDecodeTargetFormat format, int width, int height) {
+void HardwareResourceProvider::GraphicsContextRunner(
+    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context) {
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
 
   HardwareResourceProvider* provider =
-      reinterpret_cast<HardwareResourceProvider*>(context);
+      reinterpret_cast<HardwareResourceProvider*>(
+          graphics_context_provider->gles_context_runner_context);
 
-  base::WaitableEvent done_event(true, false);
-
-  // Texture creation must occur on the rasterizer thread.
-  provider->self_message_loop_->PostTask(FROM_HERE,
-      base::Bind(&DecodeTargetAcquireOnRasterizer,
-                 provider->cobalt_context_,
-                 format, width, height,
-                 &decode_target, &done_event));
-  done_event.Wait();
-
-  return decode_target;
+  if (MessageLoop::current() != provider->self_message_loop_) {
+    // Post a task to the rasterizer thread to have it run the requested
+    // function, and wait for it to complete before returning.
+    base::WaitableEvent done_event(true, false);
+    provider->self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&RunGraphicsContextRunnerOnRasterizerThread,
+                              target_function, target_function_context,
+                              provider->cobalt_context_, &done_event));
+    done_event.Wait();
+  } else {
+    // If we are already on the rasterizer thread, just run the function
+    // directly.
+    backend::GraphicsContextEGL::ScopedMakeCurrent make_current(
+        provider->cobalt_context_);
+    target_function(target_function_context);
+  }
 }
 
-// static
-void HardwareResourceProvider::DecodeTargetRelease(void* context,
-    SbDecodeTarget decode_target) {
-  HardwareResourceProvider* provider =
-      reinterpret_cast<HardwareResourceProvider*>(context);
-
-  // Texture deletion must occur on the rasterizer thread.
-  provider->self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&DecodeTargetReleaseOnRasterizer,
-                            provider->cobalt_context_, decode_target));
-}
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+#endif  // SB_API_VERSION >= 4 && \
            SB_HAS(GRAPHICS)
 
 scoped_ptr<RawImageMemory> HardwareResourceProvider::AllocateRawImageMemory(
@@ -283,14 +264,16 @@ scoped_refptr<render_tree::Typeface> HardwareResourceProvider::GetLocalTypeface(
                "HardwareResourceProvider::GetLocalTypeface()");
 
   SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyle(
-      font_family_name, CobaltFontStyleToSkFontStyle(font_style)));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          font_manager->matchFamilyStyle(
+              font_family_name, CobaltFontStyleToSkFontStyle(font_style))));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
 scoped_refptr<render_tree::Typeface>
 HardwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
-    const std::string& font_face_name) {
+    const char* font_face_name) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::GetLocalTypefaceIfAvailable()");
 
@@ -298,7 +281,8 @@ HardwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
   SkFontMgr_Cobalt* cobalt_font_manager =
       base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
 
-  SkTypeface* typeface = cobalt_font_manager->matchFaceName(font_face_name);
+  SkTypeface_Cobalt* typeface = base::polymorphic_downcast<SkTypeface_Cobalt*>(
+      cobalt_font_manager->MatchFaceName(font_face_name));
   if (typeface != NULL) {
     SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
@@ -315,9 +299,11 @@ HardwareResourceProvider::GetCharacterFallbackTypeface(
                "HardwareResourceProvider::GetCharacterFallbackTypeface()");
 
   SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyleCharacter(
-      0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
-      character));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          font_manager->matchFamilyStyleCharacter(
+              0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
+              character)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
@@ -347,7 +333,9 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
       sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
 
   SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(skia_data));
-  SkAutoTUnref<SkTypeface> typeface(SkTypeface::CreateFromStream(stream));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          SkTypeface::CreateFromStream(stream)));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
   } else {
@@ -383,6 +371,13 @@ scoped_refptr<render_tree::Mesh> HardwareResourceProvider::CreateMesh(
     scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     render_tree::Mesh::DrawMode draw_mode) {
   return new HardwareMesh(vertices.Pass(), draw_mode);
+}
+
+scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
+    const scoped_refptr<render_tree::Node>& root) {
+  return make_scoped_refptr(new HardwareFrontendImage(
+      root, submit_offscreen_callback_, cobalt_context_, gr_context_,
+      self_message_loop_));
 }
 
 }  // namespace skia

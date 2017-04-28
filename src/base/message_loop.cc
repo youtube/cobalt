@@ -501,6 +501,20 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
 
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     WillProcessTask(pending_task.time_posted));
+
+#ifdef STARBOARD_ALLOWS_MEMORY_TRACKING
+  // To assist in tracking memory for async jobs the information on where
+  // the async job came from is used.
+  const char* file_name = pending_task.posted_from.file_name();
+  const int line_num = pending_task.posted_from.line_number();
+  const char* function_name = pending_task.posted_from.function_name();
+
+  // The impl versions of these macros are not compiled out. Therefore the
+  // entire statement is wrapped up in an #ifdef.
+  TRACK_MEMORY_STATIC_NOT_CACHED_IMPL_2("MessageLoop", file_name, line_num,
+                                        function_name);
+#endif
+
   pending_task.task.Run();
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     DidProcessTask(pending_task.time_posted));

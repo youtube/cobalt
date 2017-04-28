@@ -75,6 +75,10 @@ TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
   BasicTest(kSbSystemPathSourceDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTempDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTestOutputDirectory, false, false, __LINE__);
+#if SB_API_VERSION >= 4
+  BasicTest(kSbSystemPathFontDirectory, false, false, __LINE__);
+  BasicTest(kSbSystemPathFontConfigurationDirectory, false, false, __LINE__);
+#endif  // SB_API_VERSION >= 4
 }
 
 }  // namespace

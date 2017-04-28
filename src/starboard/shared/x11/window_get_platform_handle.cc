@@ -23,8 +23,7 @@ void* SbWindowGetPlatformHandle(SbWindow window) {
   }
 
   Window handle = None;
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   handle = window->gl_window;
 #else
   handle = window->window;

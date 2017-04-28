@@ -24,6 +24,10 @@
     'in_app_dial%': 1,
     'gl_type%': 'system_gles3',
 
+    # This should have a default value in cobalt/base.gypi. See the comment
+    # there for acceptable values for this variable.
+    'cobalt_media_source_2016': 1,
+
     'platform_libraries': [
       '-lasound',
       '-lavcodec',
@@ -40,12 +44,22 @@
       '-U__linux__',
     ],
 
+    # Using an inner scope for 'variables' so that it can be made a default
+    # (and so overridden elsewhere), but yet still used immediately in this
+    # file.
+    'variables': {
+      'use_dlmalloc_allocator%': 0,
+    },
+
     'conditions': [
-      ['use_asan==0', {
+      ['use_dlmalloc_allocator==1 and use_asan==0', {
         'linker_flags': [
-          # We don't wrap these symbols, but this ensures that they aren't
-          # linked in. We do have to allow them to linked in when using ASAN, as
-          # it needs to use its own version of these allocators in the Starboard
+          # If we're not using the system allocator (e.g. we are using dlmalloc
+          # and ASAN is inactive) then we should never be making any calls to
+          # malloc() or free().  The following linker flags ensure that they
+          # are not linked in because we don't actually implement the wrapped
+          # version of them. We do link them in when using ASAN, as it needs to
+          # use its own version of these allocators in the Starboard
           # implementation.
           '-Wl,--wrap=malloc',
           '-Wl,--wrap=calloc',

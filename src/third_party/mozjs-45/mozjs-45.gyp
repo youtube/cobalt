@@ -61,6 +61,7 @@
       'type': 'static_library',
       'cflags': [
         '-Wno-invalid-offsetof',
+        '-Wno-undefined-var-template',
         '-Wno-unused-function',
         '-include <(DEPTH)/third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
       ],
@@ -78,6 +79,7 @@
         ],
         'cflags': [
           '-Wno-invalid-offsetof',
+          '-Wno-undefined-var-template',
           '-Wno-unused-function',
           '-include <(DEPTH)/third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
         ],
@@ -97,6 +99,11 @@
               'JS_CODEGEN_MIPS32=1',
               'JS_CPU_MIPS=1',
               'JS_NUNBOX32=1',
+            ],
+          }],
+          ['cobalt_config != "gold"', {
+            'defines': [
+              'JS_TRACE_LOGGING=1',
             ],
           }],
         ],

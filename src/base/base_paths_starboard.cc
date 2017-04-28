@@ -22,7 +22,7 @@ namespace base {
 // This is where we can control the path for placement of a lot of file
 // resources for cobalt.
 bool PathProviderStarboard(int key, FilePath *result) {
-  char path[SB_FILE_MAX_PATH];
+  char path[SB_FILE_MAX_PATH] = {0};
   switch (key) {
     case base::FILE_EXE: {
       bool success = SbSystemGetPath(kSbSystemPathExecutableFile, path,

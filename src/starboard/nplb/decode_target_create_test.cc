@@ -19,7 +19,7 @@
 // which will define None to be 0L, which conflicts with gtest.
 #include "starboard/decode_target.h"  // NOLINT(build/include_order)
 
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_API_VERSION < 4 && SB_HAS(GRAPHICS)
 
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
@@ -42,7 +42,7 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
 
   ASSERT_TRUE(SbBlitterSetRenderTarget(env.context(), env.render_target()));
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
   SbDecodeTarget target = SbDecodeTargetCreate(
       env.device(), kSbDecodeTargetFormat1PlaneRGBA, kWidth, kHeight);
   if (SbDecodeTargetIsValid(target)) {
@@ -59,7 +59,7 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
         SbBlitterIsSurfaceValid(info.planes[kSbDecodeTargetPlaneRGBA].surface));
   }
   SbDecodeTargetRelease(target);
-#else   // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // SB_API_VERSION >= 4
   SbBlitterSurface surface =
       CreateArbitraryRenderTargetSurface(env.device(), kWidth, kHeight);
 
@@ -72,7 +72,7 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
   }
   SbDecodeTargetDestroy(target);
   EXPECT_TRUE(SbBlitterDestroySurface(surface));
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 }
 #elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
 // clang-format off
@@ -175,7 +175,7 @@ class SbDecodeTargetTest : public testing::Test {
   SbWindow window_;
 };
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
   const int kTextureWidth = 256;
   const int kTextureHeight = 256;
@@ -200,7 +200,7 @@ TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
     SbDecodeTargetRelease(target);
   }
 }
-#else   // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // #if SB_API_VERSION >= 4
 TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
   // Generate a texture to put in the SbDecodeTarget.
   const int kTextureWidth = 256;
@@ -224,7 +224,7 @@ TEST_F(SbDecodeTargetTest, SunnyDayCreate) {
   }
   glDeleteTextures(1, &texture_handle);
 }
-#endif  // #if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // #if SB_API_VERSION >= 4
 
 #else  // SB_HAS(BLITTER)
 
@@ -244,4 +244,6 @@ TEST(SbDecodeTargetTest, SunnyDayCreate) {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3 && \
+        // SB_API_VERSION < 4 && \
+        // SB_HAS(GRAPHICS)

@@ -17,19 +17,7 @@
       'target_name': 'starboard_platform',
       'product_name': 'starboard_platform_future',
       'type': 'static_library',
-      'sources': [
-        '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
-        '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_create_blitter.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_get_format.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_get_plane_blitter.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_get_size.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_is_opaque.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
-        '<(DEPTH)/starboard/shared/stub/image_decode.cc',
-        '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
-      ],
+      'sources': [],
       'defines': [
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.

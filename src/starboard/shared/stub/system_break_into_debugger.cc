@@ -15,4 +15,5 @@
 #include "starboard/system.h"
 
 void SbSystemBreakIntoDebugger() {
+  __builtin_unreachable();
 }

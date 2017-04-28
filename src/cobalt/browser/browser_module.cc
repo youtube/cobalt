@@ -35,6 +35,8 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/keycode.h"
+#include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "nb/memory_scope.h"
@@ -189,8 +191,11 @@ void GetVideoContainerSizeOverride(math::Size* output_size) {
 #endif
 
 scoped_refptr<script::Wrappable> CreateH5VCC(
-    const h5vcc::H5vcc::Settings& settings) {
-  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
+    const h5vcc::H5vcc::Settings& settings,
+    const scoped_refptr<dom::Window>& window,
+    dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+  return scoped_refptr<script::Wrappable>(
+      new h5vcc::H5vcc(settings, window, mutation_observer_task_manager));
 }
 
 }  // namespace
@@ -433,6 +438,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
                       base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(), system_window_,
       kLayoutMaxRefreshFrequencyInHz, options));
@@ -525,7 +531,21 @@ void BrowserModule::OnWindowClose() {
 #if defined(OS_STARBOARD)
   SbSystemRequestStop(0);
 #else
-  LOG(WARNING) << "window.close is not supported on this platform.";
+  LOG(WARNING) << "window.close() is not supported on this platform.";
+#endif
+}
+
+void BrowserModule::OnWindowMinimize() {
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (input_device_manager_fuzzer_) {
+    return;
+  }
+#endif
+
+#if defined(OS_STARBOARD) && SB_API_VERSION >= 4
+  SbSystemRequestSuspend();
+#else
+  LOG(WARNING) << "window.minimize() is not supported on this platform.";
 #endif
 }
 
@@ -857,19 +877,19 @@ void BrowserModule::Resume() {
 
   renderer_module_.Resume();
 
-  media_module_->Resume();
+  // Note that at this point, it is probable that this resource provider is
+  // different than the one that was managed in the associated call to
+  // Suspend().
+  render_tree::ResourceProvider* resource_provider =
+      renderer_module_.pipeline()->GetResourceProvider();
+
+  media_module_->Resume(resource_provider);
 
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   // Resume() is not supported on platforms that allocates ArrayBuffer on GPU
   // memory.
   NOTREACHED();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-
-  // Note that at this point, it is probable that this resource provider is
-  // different than the one that was managed in the associated call to
-  // Suspend().
-  render_tree::ResourceProvider* resource_provider =
-      renderer_module_.pipeline()->GetResourceProvider();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {

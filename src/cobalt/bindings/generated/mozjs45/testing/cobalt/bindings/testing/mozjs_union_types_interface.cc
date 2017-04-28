@@ -29,6 +29,8 @@
 #include "cobalt/bindings/testing/mozjs_arbitrary_interface.h"
 #include "cobalt/bindings/testing/mozjs_base_interface.h"
 
+#include "mozjs_gen_type_conversion.h"
+
 #include "base/lazy_instance.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs-45/callback_function_conversion.h"
@@ -39,6 +41,8 @@
 #include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
+#include "cobalt/script/mozjs-45/native_promise.h"
 #include "cobalt/script/mozjs-45/proxy_handler.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
@@ -79,6 +83,7 @@ using cobalt::script::mozjs::ToJSValue;
 using cobalt::script::mozjs::TypeTraits;
 using cobalt::script::mozjs::WrapperFactory;
 using cobalt::script::mozjs::WrapperPrivate;
+using cobalt::script::mozjs::kConversionFlagClamped;
 using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;

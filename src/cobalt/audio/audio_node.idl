@@ -14,17 +14,6 @@
 
 // https://www.w3.org/TR/webaudio/#AudioNode-section
 
-enum ChannelCountMode {
-  "max",
-  "clamped-max",
-  "explicit"
-};
-
-enum ChannelInterpretation {
-  "speakers",
-  "discrete"
-};
-
 interface AudioNode : EventTarget {
   [RaisesException] void connect(AudioNode destination,
                                  optional unsigned long output = 0,
@@ -37,6 +26,6 @@ interface AudioNode : EventTarget {
 
   // Channel up-mixing and down-mixing rules for all inputs.
   [RaisesException=Setter] attribute unsigned long channelCount;
-  attribute ChannelCountMode channelCountMode;
-  attribute ChannelInterpretation channelInterpretation;
+  attribute AudioNodeChannelCountMode channelCountMode;
+  attribute AudioNodeChannelInterpretation channelInterpretation;
 };

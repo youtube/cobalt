@@ -39,12 +39,15 @@ SplashScreen::SplashScreen(
   // we set it and its image decoding thread to be high priority.
   web_module_options.thread_priority = base::kThreadPriority_High;
   web_module_options.loader_thread_priority = base::kThreadPriority_High;
+  web_module_options.animated_image_decode_thread_priority =
+      base::kThreadPriority_High;
 
   web_module_.reset(new WebModule(
       options.url,
       base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
+      base::Closure(),  // window_minimize_callback
       &stub_media_module_, network_module, window_dimensions, resource_provider,
       stub_media_module_.system_window(), layout_refresh_rate,
       web_module_options));

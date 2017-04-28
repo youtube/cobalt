@@ -64,6 +64,10 @@
 #  include "modes_lcl.h"
 #  include <openssl/rand.h>
 
+#if defined(OPENSSL_SYS_STARBOARD)
+# include "starboard/cryptography.h"
+#endif
+
 typedef struct {
     AES_KEY ks;
     block128_f block;
@@ -107,6 +111,235 @@ typedef struct {
 } EVP_AES_CCM_CTX;
 
 #  define MAXBITCHUNK     ((size_t)1<<(sizeof(size_t)*8-4))
+
+#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+static bool sb_translate_mode(int flags, SbCryptographyBlockCipherMode *mode) {
+  switch (flags & EVP_CIPH_MODE) {
+    case EVP_CIPH_CBC_MODE:
+      *mode = kSbCryptographyBlockCipherModeCbc;
+      return true;
+    case EVP_CIPH_CFB_MODE:
+      *mode = kSbCryptographyBlockCipherModeCfb;
+      return true;
+    case EVP_CIPH_CTR_MODE:
+      *mode = kSbCryptographyBlockCipherModeCtr;
+      return true;
+    case EVP_CIPH_ECB_MODE:
+      *mode = kSbCryptographyBlockCipherModeEcb;
+      return true;
+    case EVP_CIPH_OFB_MODE:
+      *mode = kSbCryptographyBlockCipherModeOfb;
+      return true;
+    default:
+      break;
+  }
+
+  return false;
+}
+
+static inline bool sb_has_stream(EVP_CIPHER_CTX *context) {
+  return SbCryptographyIsTransformerValid(context->stream_transformer);
+}
+
+static inline bool sb_gcm_has_stream(GCM128_CONTEXT *context) {
+  return SbCryptographyIsTransformerValid(context->gcm_transformer);
+}
+
+static int sb_init_key(EVP_CIPHER_CTX* context,
+                       const unsigned char* key,
+                       const unsigned char* initialization_vector,
+                       int encrypt) {
+  SbCryptographyDirection direction =
+      (encrypt ? kSbCryptographyDirectionEncode :
+       kSbCryptographyDirectionDecode);
+
+  SbCryptographyBlockCipherMode mode;
+  if (!sb_translate_mode(context->cipher->flags, &mode)) {
+    return 0;
+  }
+
+  context->stream_transformer =
+      SbCryptographyCreateTransformer(
+          kSbCryptographyAlgorithmAes,
+          context->cipher->block_size * 8,
+          direction,
+          mode,
+          initialization_vector,
+          context->cipher->iv_len,
+          key,
+          context->cipher->key_len);
+
+  return sb_has_stream(context) ? 1 : 0;
+}
+
+static inline int sb_cipher(EVP_CIPHER_CTX *context,
+                            unsigned char *out,
+                            const unsigned char *in,
+                            size_t len) {
+  if (!sb_has_stream(context)) {
+    return 0;
+  }
+
+  int result = SbCryptographyTransform(context->stream_transformer,
+                                       in,
+                                       len,
+                                       out);
+  return (result == len);
+}
+
+static bool sb_gcm_init(GCM128_CONTEXT *context, const void *key, int key_length,
+                        int encrypt) {
+  SbCryptographyDirection direction =
+      (encrypt ? kSbCryptographyDirectionEncode :
+       kSbCryptographyDirectionDecode);
+  context->gcm_transformer =
+      SbCryptographyCreateTransformer(
+          kSbCryptographyAlgorithmAes,
+          128,
+          direction,
+          kSbCryptographyBlockCipherModeGcm,
+          NULL,
+          0,
+          key,
+          key_length);
+  return sb_gcm_has_stream(context);
+}
+
+static inline void sb_gcm_setiv(GCM128_CONTEXT *context,
+                                const unsigned char *initialization_vector,
+                                size_t initialization_vector_size) {
+  if (sb_gcm_has_stream(context)) {
+    SbCryptographySetInitializationVector(context->gcm_transformer,
+                                          initialization_vector,
+                                          initialization_vector_size);
+    return;
+  }
+
+  CRYPTO_gcm128_setiv(context, initialization_vector,
+                      initialization_vector_size);
+}
+
+static inline int sb_gcm_aad(GCM128_CONTEXT *context,
+                             const unsigned char *data,
+                             size_t data_size) {
+  if (sb_gcm_has_stream(context)) {
+    return SbCryptographySetAuthenticatedData(context->gcm_transformer,
+                                              data, data_size) ? 0 : -1;
+  }
+
+  return CRYPTO_gcm128_aad(context, data, data_size);
+}
+
+static inline int sb_gcm_encrypt(GCM128_CONTEXT *context,
+                                 const unsigned char *in, unsigned char *out,
+                                 size_t len) {
+  if (sb_gcm_has_stream(context)) {
+    int result =
+        SbCryptographyTransform(context->gcm_transformer, in, len, out);
+    return result == len ? 0 : -1;
+  }
+
+  return CRYPTO_gcm128_encrypt(context, in, out, len);
+}
+
+static inline int sb_gcm_decrypt(GCM128_CONTEXT *context,
+                                 const unsigned char *in, unsigned char *out,
+                                 size_t len) {
+  if (sb_gcm_has_stream(context)) {
+    int result =
+        SbCryptographyTransform(context->gcm_transformer, in, len, out);
+    return result == len ? 0 : -1;
+  }
+
+  return CRYPTO_gcm128_decrypt(context, in, out, len);
+}
+
+static inline int sb_gcm_finish(GCM128_CONTEXT *context,
+                                const unsigned char *tag, size_t len) {
+  if (sb_gcm_has_stream(context)) {
+    unsigned char actual_tag[16];
+    SbCryptographyGetTag(context->gcm_transformer, actual_tag, 16);
+    return SbMemoryCompare(tag, actual_tag, len) == 0 ? 0 : -1;
+  }
+
+  return CRYPTO_gcm128_finish(context, tag, len);
+}
+
+static inline void sb_gcm_tag(GCM128_CONTEXT *context,
+                              unsigned char *tag, size_t len) {
+  if (sb_gcm_has_stream(context)) {
+    SbCryptographyGetTag(context->gcm_transformer, tag, len);
+    return;
+  }
+
+  CRYPTO_gcm128_tag(context, tag, len);
+}
+
+#define SB_TRY_INIT(context, key, iv, encrypt)  \
+  if (sb_init_key(context, key, iv, encrypt)) { \
+    return 1;                                   \
+  }
+
+#define SB_TRY_CIPHER(context, out, in, len) \
+  if (sb_cipher(context, out, in, len)) {    \
+    return 1;                                \
+  }
+
+#else  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+
+static inline bool sb_has_stream(EVP_CIPHER_CTX *context) {
+  return false;
+}
+
+static inline bool sb_gcm_has_stream(GCM128_CONTEXT *context) {
+  return false;
+}
+
+static bool sb_gcm_init(GCM128_CONTEXT *context, const void *key, int key_length,
+                        int encrypt) {
+  return false;
+}
+
+static inline void sb_gcm_setiv(GCM128_CONTEXT *context,
+                                const unsigned char *initialization_vector,
+                                size_t initialization_vector_size) {
+  CRYPTO_gcm128_setiv(context, initialization_vector,
+                      initialization_vector_size);
+}
+
+static inline int sb_gcm_aad(GCM128_CONTEXT *context,
+                             const unsigned char *data,
+                             size_t data_size) {
+  return CRYPTO_gcm128_aad(context, data, data_size);
+}
+
+static inline int sb_gcm_encrypt(GCM128_CONTEXT *context,
+                                 const unsigned char *in, unsigned char *out,
+                                 size_t len) {
+  return CRYPTO_gcm128_encrypt(context, in, out, len);
+}
+
+static inline int sb_gcm_decrypt(GCM128_CONTEXT *context,
+                                 const unsigned char *in, unsigned char *out,
+                                 size_t len) {
+  return CRYPTO_gcm128_decrypt(context, in, out, len);
+}
+
+static inline int sb_gcm_finish(GCM128_CONTEXT *context,
+                                const unsigned char *tag, size_t len) {
+  return CRYPTO_gcm128_finish(context, tag, len);
+}
+
+static inline void sb_gcm_tag(GCM128_CONTEXT *context, unsigned char *tag,
+                              size_t len) {
+  CRYPTO_gcm128_tag(context, tag, len);
+}
+
+#define SB_TRY_INIT(context, key, iv, encrypt)
+
+#define SB_TRY_CIPHER(context, out, in, len)
+
+#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
 
 #  ifdef VPAES_ASM
 int vpaes_set_encrypt_key(const unsigned char *userKey, int bits,
@@ -479,6 +712,8 @@ static int aes_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     int ret, mode;
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
 
+    SB_TRY_INIT(ctx, key, iv, enc);
+
     mode = ctx->cipher->flags & EVP_CIPH_MODE;
     if ((mode == EVP_CIPH_ECB_MODE || mode == EVP_CIPH_CBC_MODE)
         && !enc)
@@ -542,6 +777,8 @@ static int aes_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
 
+    SB_TRY_CIPHER(ctx, out, in, len);
+
     if (dat->stream.cbc)
         (*dat->stream.cbc) (in, out, len, &dat->ks, ctx->iv, ctx->encrypt);
     else if (ctx->encrypt)
@@ -559,6 +796,8 @@ static int aes_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     size_t i;
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
 
+    SB_TRY_CIPHER(ctx, out, in, len);
+
     if (len < bl)
         return 1;
 
@@ -573,6 +812,8 @@ static int aes_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
 
+    SB_TRY_CIPHER(ctx, out, in, len);
+
     CRYPTO_ofb128_encrypt(in, out, len, &dat->ks,
                           ctx->iv, &ctx->num, dat->block);
     return 1;
@@ -582,6 +823,8 @@ static int aes_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                           const unsigned char *in, size_t len)
 {
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
+
+    SB_TRY_CIPHER(ctx, out, in, len);
 
     CRYPTO_cfb128_encrypt(in, out, len, &dat->ks,
                           ctx->iv, &ctx->num, ctx->encrypt, dat->block);
@@ -593,6 +836,8 @@ static int aes_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
 
+    SB_TRY_CIPHER(ctx, out, in, len);
+
     CRYPTO_cfb128_8_encrypt(in, out, len, &dat->ks,
                             ctx->iv, &ctx->num, ctx->encrypt, dat->block);
     return 1;
@@ -602,6 +847,8 @@ static int aes_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                            const unsigned char *in, size_t len)
 {
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
+
+    SB_TRY_CIPHER(ctx, out, in, len);
 
     if (ctx->flags & EVP_CIPH_FLAG_LENGTH_BITS) {
         CRYPTO_cfb128_1_encrypt(in, out, len, &dat->ks,
@@ -627,6 +874,8 @@ static int aes_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     unsigned int num = ctx->num;
     EVP_AES_KEY *dat = (EVP_AES_KEY *) ctx->cipher_data;
 
+    SB_TRY_CIPHER(ctx, out, in, len);
+
     if (dat->stream.ctr)
         CRYPTO_ctr128_encrypt_ctr32(in, out, len, &dat->ks,
                                     ctx->iv, ctx->buf, &num, dat->stream.ctr);
@@ -644,6 +893,11 @@ BLOCK_CIPHER_generic_pack(NID_aes, 128, EVP_CIPH_FLAG_FIPS)
 static int aes_gcm_cleanup(EVP_CIPHER_CTX *c)
 {
     EVP_AES_GCM_CTX *gctx = c->cipher_data;
+#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+    SbCryptographyDestroyTransformer(gctx->gcm.gcm_transformer);
+    SbCryptographyDestroyTransformer(gctx->gcm.ctr_transformer);
+    SbCryptographyDestroyTransformer(gctx->gcm.ecb_transformer);
+#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
     OPENSSL_cleanse(&gctx->gcm, sizeof(gctx->gcm));
     if (gctx->iv != c->iv)
         OPENSSL_free(gctx->iv);
@@ -669,6 +923,7 @@ static void ctr64_inc(unsigned char *counter)
 static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
     EVP_AES_GCM_CTX *gctx = c->cipher_data;
+
     switch (type) {
     case EVP_CTRL_INIT:
         gctx->key_set = 0;
@@ -678,6 +933,12 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         gctx->taglen = -1;
         gctx->iv_gen = 0;
         gctx->tls_aad_len = -1;
+#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+        gctx->ctr = NULL;
+        gctx->gcm.gcm_transformer = kSbCryptographyInvalidTransformer;
+        gctx->gcm.ctr_transformer = kSbCryptographyInvalidTransformer;
+        gctx->gcm.ecb_transformer = kSbCryptographyInvalidTransformer;
+#endif
         return 1;
 
     case EVP_CTRL_GCM_SET_IVLEN:
@@ -735,7 +996,7 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_GCM_IV_GEN:
         if (gctx->iv_gen == 0 || gctx->key_set == 0)
             return 0;
-        CRYPTO_gcm128_setiv(&gctx->gcm, gctx->iv, gctx->ivlen);
+        sb_gcm_setiv(&gctx->gcm, gctx->iv, gctx->ivlen);
         if (arg <= 0 || arg > gctx->ivlen)
             arg = gctx->ivlen;
         OPENSSL_port_memcpy(ptr, gctx->iv + gctx->ivlen - arg, arg);
@@ -751,7 +1012,7 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         if (gctx->iv_gen == 0 || gctx->key_set == 0 || c->encrypt)
             return 0;
         OPENSSL_port_memcpy(gctx->iv + gctx->ivlen - arg, ptr, arg);
-        CRYPTO_gcm128_setiv(&gctx->gcm, gctx->iv, gctx->ivlen);
+        sb_gcm_setiv(&gctx->gcm, gctx->iv, gctx->ivlen);
         gctx->iv_set = 1;
         return 1;
 
@@ -810,32 +1071,38 @@ static int aes_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
         do {
 #  ifdef BSAES_CAPABLE
             if (BSAES_CAPABLE) {
-                AES_set_encrypt_key(key, ctx->key_len * 8, &gctx->ks);
-                CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
-                                   (block128_f) AES_encrypt);
-                gctx->ctr = (ctr128_f) bsaes_ctr32_encrypt_blocks;
+                if (!sb_gcm_init(&gctx->gcm, key, ctx->key_len, enc)) {
+                    AES_set_encrypt_key(key, ctx->key_len * 8, &gctx->ks);
+                    CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
+                                       (block128_f) AES_encrypt);
+                    gctx->ctr = (ctr128_f) bsaes_ctr32_encrypt_blocks;
+                }
                 break;
             } else
 #  endif
 #  ifdef VPAES_CAPABLE
             if (VPAES_CAPABLE) {
-                vpaes_set_encrypt_key(key, ctx->key_len * 8, &gctx->ks);
-                CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
-                                   (block128_f) vpaes_encrypt);
-                gctx->ctr = NULL;
+                if (!sb_gcm_init(&gctx->gcm, key, ctx->key_len, enc)) {
+                    vpaes_set_encrypt_key(key, ctx->key_len * 8, &gctx->ks);
+                    CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
+                                       (block128_f) vpaes_encrypt);
+                    gctx->ctr = NULL;
+                }
                 break;
             } else
 #  endif
                 (void)0;        /* terminate potentially open 'else' */
 
-            AES_set_encrypt_key(key, ctx->key_len * 8, &gctx->ks);
-            CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
-                               (block128_f) AES_encrypt);
+            if (!sb_gcm_init(&gctx->gcm, key, ctx->key_len, enc)) {
+                AES_set_encrypt_key(key, ctx->key_len * 8, &gctx->ks);
+                CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
+                                   (block128_f) AES_encrypt);
 #  ifdef AES_CTR_ASM
-            gctx->ctr = (ctr128_f) AES_ctr32_encrypt;
+                gctx->ctr = (ctr128_f) AES_ctr32_encrypt;
 #  else
-            gctx->ctr = NULL;
+                gctx->ctr = NULL;
 #  endif
+            }
         } while (0);
 
         /*
@@ -844,14 +1111,14 @@ static int aes_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
         if (iv == NULL && gctx->iv_set)
             iv = gctx->iv;
         if (iv) {
-            CRYPTO_gcm128_setiv(&gctx->gcm, iv, gctx->ivlen);
+            sb_gcm_setiv(&gctx->gcm, iv, gctx->ivlen);
             gctx->iv_set = 1;
         }
         gctx->key_set = 1;
     } else {
         /* If key set use IV, otherwise copy */
         if (gctx->key_set)
-            CRYPTO_gcm128_setiv(&gctx->gcm, iv, gctx->ivlen);
+            sb_gcm_setiv(&gctx->gcm, iv, gctx->ivlen);
         else
             OPENSSL_port_memcpy(gctx->iv, iv, gctx->ivlen);
         gctx->iv_set = 1;
@@ -885,7 +1152,7 @@ static int aes_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                             EVP_GCM_TLS_EXPLICIT_IV_LEN, out) <= 0)
         goto err;
     /* Use saved AAD */
-    if (CRYPTO_gcm128_aad(&gctx->gcm, ctx->buf, gctx->tls_aad_len))
+    if (sb_gcm_aad(&gctx->gcm, ctx->buf, gctx->tls_aad_len))
         goto err;
     /* Fix buffer and length to point to payload */
     in += EVP_GCM_TLS_EXPLICIT_IV_LEN;
@@ -898,12 +1165,12 @@ static int aes_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                             in, out, len, gctx->ctr))
                 goto err;
         } else {
-            if (CRYPTO_gcm128_encrypt(&gctx->gcm, in, out, len))
+            if (sb_gcm_encrypt(&gctx->gcm, in, out, len))
                 goto err;
         }
         out += len;
         /* Finally write tag */
-        CRYPTO_gcm128_tag(&gctx->gcm, out, EVP_GCM_TLS_TAG_LEN);
+        sb_gcm_tag(&gctx->gcm, out, EVP_GCM_TLS_TAG_LEN);
         rv = len + EVP_GCM_TLS_EXPLICIT_IV_LEN + EVP_GCM_TLS_TAG_LEN;
     } else {
         /* Decrypt */
@@ -912,11 +1179,11 @@ static int aes_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                             in, out, len, gctx->ctr))
                 goto err;
         } else {
-            if (CRYPTO_gcm128_decrypt(&gctx->gcm, in, out, len))
+            if (sb_gcm_decrypt(&gctx->gcm, in, out, len))
                 goto err;
         }
         /* Retrieve tag */
-        CRYPTO_gcm128_tag(&gctx->gcm, ctx->buf, EVP_GCM_TLS_TAG_LEN);
+        sb_gcm_tag(&gctx->gcm, ctx->buf, EVP_GCM_TLS_TAG_LEN);
         /* If tag mismatch wipe buffer */
         if (CRYPTO_memcmp(ctx->buf, in + len, EVP_GCM_TLS_TAG_LEN)) {
             OPENSSL_cleanse(out, len);
@@ -946,7 +1213,7 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         return -1;
     if (in) {
         if (out == NULL) {
-            if (CRYPTO_gcm128_aad(&gctx->gcm, in, len))
+            if (sb_gcm_aad(&gctx->gcm, in, len))
                 return -1;
         } else if (ctx->encrypt) {
             if (gctx->ctr) {
@@ -954,7 +1221,7 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                                 in, out, len, gctx->ctr))
                     return -1;
             } else {
-                if (CRYPTO_gcm128_encrypt(&gctx->gcm, in, out, len))
+                if (sb_gcm_encrypt(&gctx->gcm, in, out, len))
                     return -1;
             }
         } else {
@@ -963,7 +1230,7 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                                                 in, out, len, gctx->ctr))
                     return -1;
             } else {
-                if (CRYPTO_gcm128_decrypt(&gctx->gcm, in, out, len))
+                if (sb_gcm_decrypt(&gctx->gcm, in, out, len))
                     return -1;
             }
         }
@@ -972,12 +1239,12 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         if (!ctx->encrypt) {
             if (gctx->taglen < 0)
                 return -1;
-            if (CRYPTO_gcm128_finish(&gctx->gcm, ctx->buf, gctx->taglen) != 0)
+            if (sb_gcm_finish(&gctx->gcm, ctx->buf, gctx->taglen) != 0)
                 return -1;
             gctx->iv_set = 0;
             return 0;
         }
-        CRYPTO_gcm128_tag(&gctx->gcm, ctx->buf, 16);
+        sb_gcm_tag(&gctx->gcm, ctx->buf, 16);
         gctx->taglen = 16;
         /* Don't reuse the IV */
         gctx->iv_set = 0;

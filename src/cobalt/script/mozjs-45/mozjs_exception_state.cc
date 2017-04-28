@@ -20,6 +20,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "third_party/mozjs-45/js/src/jsexn.h"
 
 namespace cobalt {
 namespace script {
@@ -72,30 +73,38 @@ void MozjsExceptionState::SetException(
   is_exception_set_ = true;
 }
 
-void MozjsExceptionState::SetSimpleException(MessageType message_type,
-                                             int dummy, ...) {
+void MozjsExceptionState::SetSimpleExceptionVA(SimpleExceptionType type,
+                                               const char* format,
+                                               va_list arguments) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!is_exception_set_);
 
-  va_list arguments;
-  va_start(arguments, dummy);
-  std::string error_message =
-      base::StringPrintV(GetExceptionMessageFormat(message_type), arguments);
+  std::string error_message = base::StringPrintV(format, arguments);
   JSErrorFormatString format_string;
   format_string.format = error_message.c_str();
   // Already fed arguments for format.
   format_string.argCount = 0;
-  format_string.exnType =
-      ConvertToMozjsExceptionType(GetSimpleExceptionType(message_type));
+  format_string.exnType = ConvertToMozjsExceptionType(type);
 
   // This function creates a JSErrorReport, populate it with an error message
   // obtained from the given JSErrorCallback. The resulting error message is
   // passed to the context's JSErrorReporter callback.
   JS_ReportErrorNumber(context_, GetErrorMessage,
-                       static_cast<void*>(&format_string), message_type);
-  va_end(arguments);
-
+                       static_cast<void*>(&format_string), type);
   is_exception_set_ = true;
+}
+
+// static
+JSObject* MozjsExceptionState::CreateErrorObject(JSContext* context,
+                                                 SimpleExceptionType type) {
+  JSExnType mozjs_type = ConvertToMozjsExceptionType(type);
+  JS::RootedObject error_prototype(context);
+  if (!JS_GetClassPrototype(context, js::GetExceptionProtoKey(mozjs_type),
+                            &error_prototype)) {
+    DLOG(ERROR) << "Failed to get Error prototype.";
+    return NULL;
+  }
+  return JS_NewObjectWithGivenProto(context, NULL, error_prototype);
 }
 
 }  // namespace mozjs

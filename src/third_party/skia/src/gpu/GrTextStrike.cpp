@@ -17,11 +17,6 @@
 
 #if defined(COBALT)
 
-// On Cobalt we would like to avoid re-rasterizing glyphs as much as possible,
-// so increase the default atlas size.
-#define GR_ATLAS_TEXTURE_WIDTH COBALT_SKIA_GLYPH_ATLAS_WIDTH
-#define GR_ATLAS_TEXTURE_HEIGHT COBALT_SKIA_GLYPH_ATLAS_HEIGHT
-
 // On Cobalt, not being able to fit glyphs into the atlas is a big penalty,
 // since its software rendering is not optimized.  Increase the plot size
 // to allow it to accommodate larger glyphs and avoid this situation as
@@ -31,23 +26,22 @@
 
 #else
 
-#define GR_ATLAS_TEXTURE_WIDTH 1024
-#define GR_ATLAS_TEXTURE_HEIGHT 2048
-
 #define GR_PLOT_WIDTH  256
 #define GR_PLOT_HEIGHT 256
 
 #endif  // defined(COBALT)
-
-#define GR_NUM_PLOTS_X   (GR_ATLAS_TEXTURE_WIDTH / GR_PLOT_WIDTH)
-#define GR_NUM_PLOTS_Y   (GR_ATLAS_TEXTURE_HEIGHT / GR_PLOT_HEIGHT)
 
 #define FONT_CACHE_STATS 0
 #if FONT_CACHE_STATS
 static int g_PurgeCount = 0;
 #endif
 
-GrFontCache::GrFontCache(GrGpu* gpu) : fGpu(gpu) {
+GrFontCache::GrFontCache(int atlas_texture_width,
+                         int atlas_texture_height,
+                         GrGpu* gpu)
+    : atlas_texture_width_(atlas_texture_width),
+      atlas_texture_height_(atlas_texture_height),
+      fGpu(gpu) {
     gpu->ref();
     for (int i = 0; i < kAtlasCount; ++i) {
         fAtlases[i] = NULL;
@@ -101,12 +95,12 @@ GrTextStrike* GrFontCache::generateStrike(GrFontScaler* scaler) {
     GrPixelConfig config = mask_format_to_pixel_config(format);
     int atlasIndex = mask_format_to_atlas_index(format);
     if (NULL == fAtlases[atlasIndex]) {
-        SkISize textureSize = SkISize::Make(GR_ATLAS_TEXTURE_WIDTH,
-                                            GR_ATLAS_TEXTURE_HEIGHT);
+        SkISize textureSize = SkISize::Make(atlas_texture_width_,
+                                            atlas_texture_height_);
         fAtlases[atlasIndex] = SkNEW_ARGS(GrAtlas, (fGpu, config, kNone_GrTextureFlags,
                                                     textureSize,
-                                                    GR_NUM_PLOTS_X,
-                                                    GR_NUM_PLOTS_Y,
+                                                    num_plots_x(),
+                                                    num_plots_y(),
                                                     true));
     }
     GrTextStrike* strike = SkNEW_ARGS(GrTextStrike,
@@ -364,4 +358,13 @@ bool GrTextStrike::addGlyphToAtlas(GrGlyph* glyph, GrFontScaler* scaler) {
 
     glyph->fPlot = plot;
     return true;
+}
+
+
+int GrFontCache::num_plots_x() const {
+  return (atlas_texture_width_ / GR_PLOT_WIDTH);
+}
+
+int GrFontCache::num_plots_y() const {
+  return (atlas_texture_height_ / GR_PLOT_HEIGHT);
 }

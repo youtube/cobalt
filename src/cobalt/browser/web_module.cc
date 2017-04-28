@@ -23,10 +23,6 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
-#include "cobalt/accessibility/screen_reader.h"
-#include "cobalt/accessibility/starboard_tts_engine.h"
-#include "cobalt/accessibility/tts_engine.h"
-#include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
@@ -45,6 +41,8 @@
 #include "cobalt/dom/url.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/loader/image/animated_image_tracker.h"
+#include "cobalt/media_session/default_media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
@@ -110,28 +108,6 @@ class JSEngineStats {
   // actually occupied by JS objects, and the part that is not yet.
   base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory_;
 };
-
-#if SB_HAS(SPEECH_SYNTHESIS)
-bool IsTextToSpeechEnabled() {
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  // Check for a command-line override to enable TTS.
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
-    return true;
-  }
-#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-  // Check if the tts feature is enabled in Starboard.
-  SbAccessibilityTextToSpeechSettings tts_settings = {0};
-  // Check platform settings.
-  if (SbAccessibilityGetTextToSpeechSettings(&tts_settings)) {
-    return tts_settings.has_text_to_speech_setting &&
-           tts_settings.is_text_to_speech_enabled;
-  }
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-  return false;
-}
-#endif  // SB_HAS(SPEECH_SYNTHESIS)
 
 // StartupTimer is designed to measure time since the startup of the app.
 // It is loader initialized to have the most accurate start time as possible.
@@ -212,6 +188,12 @@ class WebModule::Impl {
  private:
   class DocumentLoadedObserver;
 
+  // Purge all resource caches owned by the WebModule.
+  void PurgeResourceCaches();
+
+  // Disable callbacks in all resource caches owned by the WebModule.
+  void DisableCallbacksInResourceCaches();
+
   // Injects a list of custom window attributes into the WebModule's window
   // object.
   void InjectCustomWindowAttributes(
@@ -267,6 +249,8 @@ class WebModule::Impl {
   // LoaderFactory that is used to acquire references to resources from a
   // URL.
   scoped_ptr<loader::LoaderFactory> loader_factory_;
+
+  scoped_ptr<loader::image::AnimatedImageTracker> animated_image_tracker_;
 
   // ImageCache that is used to manage image cache logic.
   scoped_ptr<loader::image::ImageCache> image_cache_;
@@ -337,12 +321,6 @@ class WebModule::Impl {
   // Triggers layout whenever the document changes.
   scoped_ptr<layout::LayoutManager> layout_manager_;
 
-  // TTSEngine that the ScreenReader speaks to.
-  scoped_ptr<accessibility::TTSEngine> tts_engine_;
-
-  // Utters the text contents of the focused element.
-  scoped_ptr<accessibility::ScreenReader> screen_reader_;
-
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
@@ -362,6 +340,8 @@ class WebModule::Impl {
   scoped_ptr<base::ConsoleCommandManager::CommandHandler>
       partial_layout_command_handler_;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+  scoped_ptr<media_session::MediaSessionClient> media_session_client_;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -427,6 +407,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new loader::LoaderFactory(fetcher_factory_.get(), resource_provider_,
                                 data.options.loader_thread_priority));
 
+  animated_image_tracker_.reset(new loader::image::AnimatedImageTracker(
+      data.options.animated_image_decode_thread_priority));
+
   DCHECK_LE(0, data.options.image_cache_capacity);
   image_cache_ = loader::image::CreateImageCache(
       base::StringPrintf("%s.ImageCache", name_.c_str()),
@@ -461,7 +444,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new browser::WebModuleStatTracker(name_, data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
-  javascript_engine_ = script::JavaScriptEngine::CreateEngine();
+  script::JavaScriptEngine::Options options;
+  options.gc_threshold_bytes =
+      memory_settings::GetJsEngineGarbageCollectionThresholdInBytes();
+
+  javascript_engine_ = script::JavaScriptEngine::CreateEngine(options);
   DCHECK(javascript_engine_);
 
 #if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
@@ -475,8 +462,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
 
-  global_environment_ = javascript_engine_->CreateGlobalEnvironment(
-      data.options.javascript_options);
+  global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
   execution_state_ =
@@ -489,10 +475,12 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
+  media_session_client_.reset(new media_session::DefaultMediaSessionClient());
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-      &resource_provider_, image_cache_.get(),
+      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(), data.media_module,
       data.media_module, execution_state_.get(), script_runner_.get(),
@@ -507,9 +495,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
-      data.window_close_callback, data.system_window_,
-      data.options.input_poller, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth);
+      data.window_close_callback, data.window_minimize_callback,
+      data.system_window_, data.options.input_poller,
+      media_session_client_->GetMediaSession(),
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -566,26 +555,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
-  // If a TTSEngine was provided through the options, use it.
-  accessibility::TTSEngine* tts_engine = data.options.tts_engine;
-  if (!tts_engine) {
-#if SB_HAS(SPEECH_SYNTHESIS)
-    if (IsTextToSpeechEnabled()) {
-      // Create a StarboardTTSEngine if TTS is enabled.
-      tts_engine_.reset(new accessibility::StarboardTTSEngine());
-    }
-#endif  // SB_HAS(SPEECH_SYNTHESIS)
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-    if (!tts_engine_) {
-      tts_engine_.reset(new accessibility::TTSLogger());
-    }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-    tts_engine = tts_engine_.get();
-  }
-  if (tts_engine) {
-    screen_reader_.reset(new accessibility::ScreenReader(
-        window_->document(), tts_engine, &mutation_observer_task_manager_));
-  }
   is_running_ = true;
 }
 
@@ -596,6 +565,7 @@ WebModule::Impl::~Impl() {
   global_environment_->SetReportEvalCallback(base::Closure());
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
   document_load_observer_.reset();
+  media_session_client_.reset();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset();
@@ -606,10 +576,8 @@ WebModule::Impl::~Impl() {
   // callback to occur into a DOM object that is being kept alive by a JS engine
   // reference even after the DOM tree has been destroyed. This can result in a
   // crash when the callback attempts to access a stale Document pointer.
-  remote_typeface_cache_->DisableCallbacks();
-  image_cache_->DisableCallbacks();
+  DisableCallbacksInResourceCaches();
 
-  screen_reader_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
@@ -625,6 +593,7 @@ WebModule::Impl::~Impl() {
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();
+  animated_image_tracker_.reset();
   image_cache_.reset();
   fetcher_factory_.reset();
   dom_parser_.reset();
@@ -768,15 +737,26 @@ void WebModule::Impl::InjectCustomWindowAttributes(
   for (Options::InjectedWindowAttributes::const_iterator iter =
            attributes.begin();
        iter != attributes.end(); ++iter) {
-    global_environment_->Bind(iter->first, iter->second.Run());
+    global_environment_->Bind(
+        iter->first,
+        iter->second.Run(window_, &mutation_observer_task_manager_));
   }
 }
 
 void WebModule::Impl::SuspendLoaders() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::SuspendLoaders()");
 
+  // Purge the resource caches before running any suspend logic. This will force
+  // any pending callbacks that the caches are batching to run.
+  PurgeResourceCaches();
+
   // Stop the generation of render trees.
   layout_manager_->Suspend();
+
+  // Purge the cached resources prior to the suspend. That may cancel pending
+  // loads, allowing the suspend to occur faster and preventing unnecessary
+  // callbacks.
+  window_->document()->PurgeCachedResources();
 
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
@@ -789,14 +769,12 @@ void WebModule::Impl::FinishSuspend() {
 
   // Ensure the document is not holding onto any more image cached resources so
   // that they are eligible to be purged.
-  window_->document()->PurgeCachedResourceReferencesRecursively();
+  window_->document()->PurgeCachedResources();
 
-  // Clear out all image resources from the image cache. We need to do this
-  // after we abort all in-progress loads, and after we clear all document
-  // references, or they will still be referenced and won't be cleared from the
-  // cache.
-  image_cache_->Purge();
-  remote_typeface_cache_->Purge();
+  // Clear out all resource caches. We need to do this after we abort all
+  // in-progress loads, and after we clear all document references, or they will
+  // still be referenced and won't be cleared from the cache.
+  PurgeResourceCaches();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // The debug overlay may be holding onto a render tree, clear that out.
@@ -841,6 +819,18 @@ void WebModule::Impl::ReportScriptError(
   SbLogRaw(ss.str().c_str());
 }
 
+void WebModule::Impl::PurgeResourceCaches() {
+  image_cache_->Purge();
+  remote_typeface_cache_->Purge();
+  mesh_cache_->Purge();
+}
+
+void WebModule::Impl::DisableCallbacksInResourceCaches() {
+  image_cache_->DisableCallbacks();
+  remote_typeface_cache_->DisableCallbacks();
+  mesh_cache_->DisableCallbacks();
+}
+
 WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)
     : web_module_(web_module) {}
 
@@ -862,13 +852,14 @@ WebModule::Options::Options(const math::Size& ui_dimensions)
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
       loader_thread_priority(base::kThreadPriority_Low),
-      tts_engine(NULL) {}
+      animated_image_decode_thread_priority(base::kThreadPriority_Low) {}
 
 WebModule::WebModule(
     const GURL& initial_url,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
     const OnErrorCallback& error_callback,
     const base::Closure& window_close_callback,
+    const base::Closure& window_minimize_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider,
@@ -877,9 +868,9 @@ WebModule::WebModule(
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, render_tree_produced_callback, error_callback,
-      window_close_callback, media_module, network_module, window_dimensions,
-      resource_provider, kDOMMaxElementDepth, system_window,
-      layout_refresh_rate, options);
+      window_close_callback, window_minimize_callback, media_module,
+      network_module, window_dimensions, resource_provider, kDOMMaxElementDepth,
+      system_window, layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.

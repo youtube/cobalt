@@ -21,8 +21,14 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSocketSetOptionsTest, TryThemAll) {
-  SbSocket socket = CreateTcpIpv4Socket();
+class SbSocketSetOptionsTest
+    : public ::testing::TestWithParam<SbSocketAddressType> {
+ public:
+  SbSocketAddressType GetAddressType() { return GetParam(); }
+};
+
+TEST_P(SbSocketSetOptionsTest, TryThemAll) {
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
 
   EXPECT_TRUE(SbSocketSetBroadcast(socket, true));
   EXPECT_TRUE(SbSocketSetReuseAddress(socket, true));
@@ -39,6 +45,17 @@ TEST(SbSocketSetOptionsTest, TryThemAll) {
 }
 
 // TODO: Come up with some way to test the effects of these options.
+
+#if SB_HAS(IPV6)
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketSetOptionsTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4,
+                                          kSbSocketAddressTypeIpv6));
+#else
+INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
+                        SbSocketSetOptionsTest,
+                        ::testing::Values(kSbSocketAddressTypeIpv4));
+#endif
 
 }  // namespace
 }  // namespace nplb

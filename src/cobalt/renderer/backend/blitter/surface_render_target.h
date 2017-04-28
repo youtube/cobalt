@@ -36,6 +36,15 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
 
   SbBlitterSurface GetSbSurface() const { return surface_; }
 
+  // Returns and gives up ownership of the surface. After this is called, the
+  // SurfaceRenderTargetBlitter's internal surface will be invalid and so the
+  // object itself becomes invalid.
+  SbBlitterSurface TakeSbSurface() {
+    SbBlitterSurface original_surface_ = surface_;
+    surface_ = kSbBlitterInvalidSurface;
+    return original_surface_;
+  }
+
   void Flip() OVERRIDE {}
 
  private:

@@ -15,43 +15,57 @@
 #ifndef COBALT_DOM_BLOB_H_
 #define COBALT_DOM_BLOB_H_
 
+#include <algorithm>
+#include <string>
 #include <vector>
 
 #include "cobalt/dom/array_buffer.h"
+#include "cobalt/dom/array_buffer_view.h"
+#include "cobalt/dom/data_view.h"
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/sequence.h"
+#include "cobalt/script/union_type.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace dom {
 
+// This ensures this header can be included without depending on generated
+// dictionaries.
+class BlobPropertyBag;
+
 // A Blob object refers to a byte sequence, and has a size attribute which is
 // the total number of bytes in the byte sequence, and a type attribute, which
 // is an ASCII-encoded string in lower case representing the media type of the
 // byte sequence.
-//    https://www.w3.org/TR/2015/WD-FileAPI-20150421/#dfn-Blob
-//
-// Note: Cobalt currently does not implement nor need the type attribute.
+//    https://www.w3.org/TR/FileAPI/#dfn-Blob
 class Blob : public script::Wrappable {
  public:
   typedef UrlRegistry<Blob> Registry;
+  typedef script::UnionType4<
+      scoped_refptr<ArrayBuffer>, scoped_refptr<ArrayBufferView>,
+      scoped_refptr<DataView>, scoped_refptr<Blob> > BlobPart;
 
   Blob(script::EnvironmentSettings* settings,
-       const scoped_refptr<ArrayBuffer>& buffer = NULL)
-      : buffer_(
-            buffer ? buffer->Slice(settings, 0)
-                   : scoped_refptr<ArrayBuffer>(new ArrayBuffer(settings, 0))) {
-  }
+       const scoped_refptr<ArrayBuffer>& buffer = NULL);
+
+  Blob(script::EnvironmentSettings* settings,
+       script::Sequence<BlobPart> blobParts,
+       const BlobPropertyBag& options = EmptyBlobPropertyBag());
 
   const uint8* data() { return buffer_->data(); }
 
-  uint64 size() { return static_cast<uint64>(buffer_->byte_length()); }
+  uint64 size() const { return static_cast<uint64>(buffer_->byte_length()); }
 
   DEFINE_WRAPPABLE_TYPE(Blob);
 
  private:
+  static const BlobPropertyBag& EmptyBlobPropertyBag();
+
   scoped_refptr<ArrayBuffer> buffer_;
+  const std::string type_;
 
   DISALLOW_COPY_AND_ASSIGN(Blob);
 };

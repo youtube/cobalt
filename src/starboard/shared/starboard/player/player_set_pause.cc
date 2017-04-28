@@ -17,7 +17,7 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#if SB_API_VERSION < 4
 
 void SbPlayerSetPause(SbPlayer player, bool pause) {
   if (!SbPlayerIsValid(player)) {
@@ -27,4 +27,4 @@ void SbPlayerSetPause(SbPlayer player, bool pause) {
   player->SetPause(pause);
 }
 
-#endif  // SB_API_VERSION < SB_PLAYER_SET_PLAYBACK_RATE_VERSION
+#endif  // SB_API_VERSION < 4

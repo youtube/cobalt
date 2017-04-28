@@ -45,22 +45,34 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> CreateImage(
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 4
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
     NOTREACHED();
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
-    SbDecodeTargetDestroy(decode_target);
-#else   // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
     SbDecodeTargetRelease(decode_target);
-#endif  // SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+    return NULL;
+  }
+
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+    return NULL;
+  }
+
+  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
+#elif SB_API_VERSION >= 3
+  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
+      SbDecodeTarget decode_target) OVERRIDE {
+    NOTREACHED();
+    SbDecodeTargetDestroy(decode_target);
     return NULL;
   }
 
   SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
 
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 4
+#endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) OVERRIDE;
@@ -75,7 +87,7 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
       const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) OVERRIDE;
+      const char* font_face_name) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
       int32 character, render_tree::FontStyle font_style,
@@ -105,6 +117,9 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Mesh> CreateMesh(
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
+
+  scoped_refptr<render_tree::Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE;
 
  private:
   TextShaper text_shaper_;

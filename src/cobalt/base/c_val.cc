@@ -22,7 +22,7 @@ CValManager* CValManager::GetInstance() {
                    StaticMemorySingletonTraits<CValManager> >::get();
 }
 
-CValManager::CValManager() {
+CValManager::CValManager() : value_lock_refptr_(new RefCountedThreadSafeLock) {
   // Allocate these dynamically since CValManager may live across DLL boundaries
   // and so this allows its size to be more consistent (and avoids compiler
   // warnings on some platforms).
@@ -33,6 +33,15 @@ CValManager::CValManager() {
 }
 
 CValManager::~CValManager() {
+  // Lock the value lock prior to notifying the surviving CVals that the manager
+  // has been destroyed. This ensures that they will not attempt to make calls
+  // into the manager during destruction.
+  base::AutoLock auto_lock(value_lock_refptr_->GetLock());
+  for (NameVarMap::iterator iter = registered_vars_->begin();
+       iter != registered_vars_->end(); ++iter) {
+    iter->second->OnManagerDestroyed();
+  }
+
 #if defined(ENABLE_DEBUG_C_VAL)
   delete on_changed_hook_set_;
 #endif  // ENABLE_DEBUG_C_VAL

@@ -18,6 +18,7 @@
 #define COBALT_LOADER_IMAGE_IMAGE_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/message_loop_proxy.h"
 #include "base/time.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
@@ -82,6 +83,14 @@ class AnimatedImage : public Image {
 
   // Get the current frame. Implementation should be thread safe.
   virtual scoped_refptr<render_tree::Image> GetFrame() = 0;
+
+  // Start playing the animation, decoding on the given message loop.
+  // Implementation should be thread safe.
+  virtual void Play(
+      const scoped_refptr<base::MessageLoopProxy>& message_loop) = 0;
+
+  // Stop playing the animation.
+  virtual void Stop() = 0;
 
   // This callback is intended to be used in a render_tree::AnimateNode.
   void AnimateCallback(const math::RectF& destination_rect,

@@ -78,6 +78,11 @@ class GraphicsState {
   // glBindTexture.
   void ActiveBindTexture(GLenum texture_unit, GLenum target, GLuint texture);
 
+  // Bind a texture to the specified texture unit and set its texture wrap
+  // mode.
+  void ActiveBindTexture(GLenum texture_unit, GLenum target, GLuint texture,
+                         GLint texture_wrap_mode);
+
   // Set the clip adjustment to be used with vertex shaders. This transforms
   // the vertex coordinates from view space to clip space.
   void SetClipAdjustment(const math::Size& render_target_size);

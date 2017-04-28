@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "cobalt/math/size.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
@@ -36,7 +38,8 @@ namespace skia {
 class HardwareResourceProvider : public render_tree::ResourceProvider {
  public:
   HardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
-                           GrContext* gr_context);
+                           GrContext* gr_context,
+                           SubmitOffscreenCallback submit_offscreen_callback);
 
   void Finish() OVERRIDE;
 
@@ -51,15 +54,16 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
 #if SB_HAS(GRAPHICS)
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
 
   // Return the associated SbDecodeTargetProvider with the ResourceProvider,
   // if it exists.  Returns NULL if SbDecodeTarget is not supported.
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE {
-    return &decode_target_provider_;
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+    return &decode_target_graphics_context_provider_;
   }
 
   // Whether SbDecodeTargetIsSupported or not.
@@ -82,7 +86,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
@@ -98,7 +102,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) OVERRIDE;
+      const char* font_face_name) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
       int32 character, render_tree::FontStyle font_style,
@@ -129,20 +133,25 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
 
+  scoped_refptr<render_tree::Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE;
+
  private:
   backend::GraphicsContextEGL* cobalt_context_;
   GrContext* gr_context_;
+  SubmitOffscreenCallback submit_offscreen_callback_;
 
   TextShaper text_shaper_;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
-    SB_HAS(GRAPHICS)
-  static SbDecodeTarget DecodeTargetAcquire(void* context,
-                                            SbDecodeTargetFormat format,
-                                            int width, int height);
-  static void DecodeTargetRelease(void* context, SbDecodeTarget decode_target);
-  SbDecodeTargetProvider decode_target_provider_;
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION && \
+#if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+  static void GraphicsContextRunner(
+      SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context);
+
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
+#endif  // SB_API_VERSION >= 4 && \
            SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was

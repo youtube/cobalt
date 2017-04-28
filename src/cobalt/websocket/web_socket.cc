@@ -21,8 +21,13 @@
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
+#include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/window.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/websocket/close_event.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_constants.h"
@@ -32,6 +37,8 @@
 namespace {
 
 typedef uint16 SerializedCloseStatusCodeType;
+
+static const std::string kComma = ",";
 
 bool IsURLAbsolute(cobalt::dom::DOMSettings* dom_settings,
                    const std::string& url) {
@@ -160,31 +167,23 @@ const uint16 WebSocket::kClosed;
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      script::ExceptionState* exception_state)
-    : buffered_amount_(0),
-      ready_state_(kConnecting),
-      binary_type_(dom::MessageEvent::kBlob),
-      is_secure_(false),
-      port_(-1),
-      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
+    : require_network_module_(true) {
   const std::vector<std::string> empty;
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  Initialize(dom_settings, url, empty, exception_state);
+  Initialize(settings, url, empty, exception_state);
 }
 
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      const std::vector<std::string>& sub_protocols,
                      script::ExceptionState* exception_state)
-    : buffered_amount_(0),
-      ready_state_(kConnecting),
-      binary_type_(dom::MessageEvent::kBlob),
-      is_secure_(false),
-      port_(-1),
-      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  Initialize(dom_settings, url, sub_protocols, exception_state);
+    : require_network_module_(true) {
+  Initialize(settings, url, sub_protocols, exception_state);
+}
+
+WebSocket::~WebSocket() {
+  if (impl_) {
+    impl_->SetWebSocketEventDelegate(NULL);
+  }
 }
 
 std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
@@ -198,19 +197,13 @@ std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket.
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
-                     const std::string& url, const std::string& sub_protocol,
+                     const std::string& url,
+                     const std::string& sub_protocol_list,
                      script::ExceptionState* exception_state)
-    : buffered_amount_(0),
-      ready_state_(kConnecting),
-      binary_type_(dom::MessageEvent::kBlob),
-      is_secure_(false),
-      port_(-1),
-      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)) {
+    : require_network_module_(true) {
   std::vector<std::string> sub_protocols;
-  sub_protocols.push_back(sub_protocol);
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  Initialize(dom_settings, url, sub_protocols, exception_state);
+  Tokenize(sub_protocol_list, kComma, &sub_protocols);
+  Initialize(settings, url, sub_protocols, exception_state);
 }
 
 void WebSocket::set_binary_type(const std::string& binary_type,
@@ -269,12 +262,14 @@ void WebSocket::Close(const uint16 code, const std::string& reason,
     return;
   }
 
-  switch (ready_state_) {
+  DLOG(INFO) << "Websocket close code " << code;
+
+  switch (ready_state()) {
     case kOpen:
     case kConnecting:
       DCHECK(impl_);
       impl_->Close(net::WebSocketError(code), reason);
-      ready_state_ = kClosing;
+      SetReadyState(kClosing);
       break;
     case kClosing:
     case kClosed:
@@ -291,7 +286,7 @@ bool WebSocket::CheckReadyState(script::ExceptionState* exception_state) {
   // Per Websockets API spec:
   // "If the readyState attribute is CONNECTING, it must throw an
   // InvalidStateError exception"
-  if (ready_state_ == kConnecting) {
+  if (ready_state() == kConnecting) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
                              "readyState is not in CONNECTING state",
                              exception_state);
@@ -402,8 +397,18 @@ void WebSocket::OnConnected(const std::string& selected_subprotocol) {
   DLOG(INFO) << "Websockets selected subprotocol: [" << selected_subprotocol
              << "]";
   protocol_ = selected_subprotocol;
-  ready_state_ = kOpen;
+  SetReadyState(kOpen);
   this->DispatchEvent(new dom::Event(base::Tokens::open()));
+}
+
+void WebSocket::OnDisconnected(bool was_clean, uint16 code,
+                               const std::string& reason) {
+  SetReadyState(kClosed);
+  CloseEventInit close_event_init;
+  close_event_init.set_was_clean(was_clean);
+  close_event_init.set_code(code);
+  close_event_init.set_reason(reason);
+  this->DispatchEvent(new CloseEvent(base::Tokens::close(), close_event_init));
 }
 
 void WebSocket::OnReceivedData(bool is_text_frame,
@@ -416,13 +421,20 @@ void WebSocket::OnReceivedData(bool is_text_frame,
                                             response_type_code, data));
 }
 
-void WebSocket::Initialize(dom::DOMSettings* dom_settings,
+void WebSocket::Initialize(script::EnvironmentSettings* settings,
                            const std::string& url,
                            const std::vector<std::string>& sub_protocols,
                            script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  buffered_amount_ = 0;
+  binary_type_ = dom::MessageEvent::kBlob;
+  is_secure_ = false;
+  port_ = -1;
+  preventing_gc_ = false;
+  SetReadyState(kConnecting);
 
-  if (!dom_settings) {
+  settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
+  if (!settings_) {
     dom::DOMException::Raise(dom::DOMException::kNone,
                              "Internal error: Unable to get DOM settings.",
                              exception_state);
@@ -430,7 +442,15 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
     return;
   }
 
-  if (!dom_settings->base_url().is_valid()) {
+  if (require_network_module_ && !settings_->network_module()) {
+    dom::DOMException::Raise(dom::DOMException::kNone,
+                             "Internal error: Unable to get network module.",
+                             exception_state);
+    NOTREACHED() << "Unable to get network module.";
+    return;
+  }
+
+  if (!settings_->base_url().is_valid()) {
     dom::DOMException::Raise(
         dom::DOMException::kNone,
         "Internal error: base_url (the url of the entry script) must be valid.",
@@ -440,7 +460,7 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
     // GetOrigin() can only be called on valid urls.
     // Since origin does not contain fragments, spec() is guaranteed
     // to return an ASCII encoded string.
-    entry_script_origin_ = dom_settings->base_url().GetOrigin().spec();
+    entry_script_origin_ = settings_->base_url().GetOrigin().spec();
   }
 
   // Per spec:
@@ -448,7 +468,7 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
   // port, resource name, and secure. If this fails, throw a SyntaxError
   // exception and abort these steps. [WSP]"
 
-  resolved_url_ = dom_settings->base_url().Resolve(url);
+  resolved_url_ = settings_->base_url().Resolve(url);
   if (resolved_url_.is_empty()) {
     dom::DOMException::Raise(dom::DOMException::kSyntaxErr, "url is empty",
                              exception_state);
@@ -461,7 +481,7 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
     return;
   }
 
-  bool is_absolute = IsURLAbsolute(dom_settings, url);
+  bool is_absolute = IsURLAbsolute(settings_, url);
 
   if (!is_absolute) {
     std::string error_message = "Only relative URLs are supported.  [" + url +
@@ -498,6 +518,13 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
     return;
   }
 
+  dom::CspDelegate* csp = csp_delegate();
+  if (csp &&
+      !csp->CanLoad(dom::CspDelegate::kWebSocket, resolved_url_, false)) {
+    dom::DOMException::Raise(dom::DOMException::kSecurityErr, exception_state);
+    return;
+  }
+
   if (!net::IsPortAllowedByDefault(GetPort())) {
     std::string error_message = "Connecting to port " + GetPortAsString() +
                                 " using websockets is not allowed.";
@@ -527,22 +554,136 @@ void WebSocket::Initialize(dom::DOMSettings* dom_settings,
   Connect(resolved_url_, sub_protocols);
 }
 
+dom::CspDelegate* WebSocket::csp_delegate() const {
+  DCHECK(settings_);
+  if (!settings_) {
+    return NULL;
+  }
+  if (settings_->window() && settings_->window()->document()) {
+    return settings_->window()->document()->csp_delegate();
+  } else {
+    return NULL;
+  }
+}
+
 void WebSocket::Connect(const GURL& url,
                         const std::vector<std::string>& sub_protocols) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(settings_);
-  DCHECK(settings_->network_module());
 
   GURL origin_gurl = settings_->base_url().GetOrigin();
   const std::string& origin = origin_gurl.possibly_invalid_spec();
 
-  impl_ = make_scoped_refptr<WebSocketImpl>(
-      new WebSocketImpl(settings_->network_module(), this));
+  impl_ =
+      make_scoped_refptr(new WebSocketImpl(settings_->network_module(), this));
 
-  UNREFERENCED_PARAMETER(origin);
-  UNREFERENCED_PARAMETER(url);
-  UNREFERENCED_PARAMETER(sub_protocols);
-  // impl_->Connect(origin, url, sub_protocols);
+  impl_->Connect(origin, url, sub_protocols);
+}
+
+WebSocket::WebSocket(script::EnvironmentSettings* settings,
+                     const std::string& url,
+                     script::ExceptionState* exception_state,
+                     const bool require_network_module)
+    : require_network_module_(require_network_module) {
+  const std::vector<std::string> empty;
+  Initialize(settings, url, empty, exception_state);
+}
+
+WebSocket::WebSocket(script::EnvironmentSettings* settings,
+                     const std::string& url, const std::string& sub_protocol,
+                     script::ExceptionState* exception_state,
+                     const bool require_network_module)
+    : require_network_module_(require_network_module) {
+  std::vector<std::string> sub_protocols;
+  sub_protocols.push_back(sub_protocol);
+  Initialize(settings, url, sub_protocols, exception_state);
+}
+
+WebSocket::WebSocket(script::EnvironmentSettings* settings,
+                     const std::string& url,
+                     const std::vector<std::string>& sub_protocols,
+                     script::ExceptionState* exception_state,
+                     const bool require_network_module)
+    : require_network_module_(require_network_module) {
+  Initialize(settings, url, sub_protocols, exception_state);
+}
+
+void WebSocket::PotentiallyAllowGarbageCollection() {
+  bool prevent_gc = false;
+  switch (ready_state()) {
+    case kOpen:
+      //  Per spec, "A WebSocket object whose readyState attribute's value was
+      //  set to OPEN (1) as of the last time the event loop started executing a
+      //  task must not be garbage collected if there are any event listeners
+      //  registered for message events, error, or close events..
+      //  A WebSocket object with an established connection that has data queued
+      //  to be transmitted to the network must not be garbage collected."
+      prevent_gc = HasOnMessageListener() || HasOnErrorListener() ||
+                   HasOnCloseListener() || HasOutstandingData();
+      break;
+    case kConnecting:
+      //  Per spec, "WebSocket object whose readyState attribute's value was set
+      //  to CONNECTING (0) as of the last time the event loop started executing
+      //  a task must not be garbage collected if there are any event listeners
+      //  registered for open events, message events, error events, or close
+      //  events."
+      prevent_gc = HasOnOpenListener() || HasOnMessageListener() ||
+                   HasOnErrorListener() || HasOnCloseListener() ||
+                   HasOutstandingData();
+      break;
+    case kClosing:
+      //  Per spec, "A WebSocket object whose readyState attribute's value was
+      //  set to CLOSING (2) as of the last time the event loop started
+      //  executing a task must not be garbage collected if there are any event
+      //  listeners registered for error or close events."
+      prevent_gc =
+          HasOnErrorListener() || HasOnCloseListener() || HasOutstandingData();
+      break;
+    case kClosed:
+      prevent_gc = false;
+      break;
+    default:
+      NOTREACHED() << "Invalid ready_state: " << ready_state();
+  }
+
+  if (prevent_gc != preventing_gc_) {
+    if (prevent_gc) {
+      PreventGarbageCollection();
+    } else {
+      AllowGarbageCollection();
+    }
+
+    // The above function calls should change |preventing_gc_|.
+    DCHECK_EQ(prevent_gc, preventing_gc_);
+  }
+}
+
+void WebSocket::PreventGarbageCollection() {
+  settings_->global_environment()->PreventGarbageCollection(
+      make_scoped_refptr(this));
+  DCHECK(!preventing_gc_);
+  preventing_gc_ = true;
+}
+
+void WebSocket::AllowGarbageCollection() {
+  DCHECK(preventing_gc_);
+
+  // Note: the fall through in this switch statement is on purpose.
+  switch (ready_state_) {
+    case kConnecting:
+      DCHECK(!HasOnOpenListener());
+    case kOpen:
+      DCHECK(!HasOnMessageListener());
+    case kClosing:
+      DCHECK(!HasOnErrorListener());
+      DCHECK(!HasOnCloseListener());
+    default:
+      break;
+  }
+
+  preventing_gc_ = false;
+  settings_->global_environment()->AllowGarbageCollection(
+      make_scoped_refptr(this));
 }
 
 }  // namespace websocket

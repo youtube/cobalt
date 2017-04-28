@@ -75,6 +75,10 @@
 #  include <openssl/bio.h>
 # endif
 
+#if defined(OPENSSL_SYS_STARBOARD)
+#  include "starboard/cryptography.h"
+#endif  // defined(STARBOARD)
+
 /*-
 #define EVP_RC2_KEY_SIZE                16
 #define EVP_RC4_KEY_SIZE                16
@@ -432,6 +436,15 @@ struct evp_cipher_ctx_st {
     int buf_len;                /* number we have left */
     unsigned char oiv[EVP_MAX_IV_LENGTH]; /* original iv */
     unsigned char iv[EVP_MAX_IV_LENGTH]; /* working iv */
+#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+    // A handle to a transformer for the full stream cipher. Intermediate state
+    // is kept internally to the transformer, so fields like |iv| and |num| are
+    // not used.
+    //
+    // This is not used for GCM. The GCM transformer is inside the GCM context,
+    // which is stored as the |cipher_data| for the GCM cipher.
+    SbCryptographyTransformer stream_transformer;
+#endif  // defined(STARBOARD) && SB_API_VERSION >= 4
     unsigned char buf[EVP_MAX_BLOCK_LENGTH]; /* saved partial block */
     int num;                    /* used by cfb/ofb/ctr mode */
     void *app_data;             /* application stuff */

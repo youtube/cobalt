@@ -34,7 +34,9 @@
         'audio_track_list.h',
         'benchmark_stat_names.cc',
         'benchmark_stat_names.h',
+        'blob.cc',
         'blob.h',
+        'blob_property_bag.h',
         'camera_3d.cc',
         'camera_3d.h',
         'camera_3d_impl.cc',
@@ -267,7 +269,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
@@ -319,7 +321,7 @@
         # Additionally, ensure that the include directories for generated
         # headers are put on the include directories for targets that depend
         # on this one.
-        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_dictionaries',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
       ]
     },
 

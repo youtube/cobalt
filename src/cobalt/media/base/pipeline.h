@@ -19,21 +19,17 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
 #include "base/time.h"
-#include "cobalt/media/base/decryptor.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/ranges.h"
+#include "starboard/drm.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
-#if defined(OS_STARBOARD)
 #if SB_HAS(PLAYER)
-
 #define COBALT_USE_SBPLAYER_PIPELINE
-
 #endif  // SB_HAS(PLAYER)
-#endif  // defined(OS_STARBOARD)
 
 #if defined(COBALT_USE_SBPLAYER_PIPELINE)
 #include "starboard/window.h"
@@ -46,6 +42,12 @@ namespace cobalt {
 namespace media {
 
 class MediaLog;
+
+// Callback to notify that a DRM system is ready.
+typedef base::Callback<void(SbDrmSystem)> DrmSystemReadyCB;
+
+// Callback to set a DrmSystemReadyCB.
+typedef base::Callback<void(const DrmSystemReadyCB&)> SetDrmSystemReadyCB;
 
 // Pipeline contains the common interface for media pipelines.  It provides
 // functions to perform asynchronous initialization, pausing, seeking and
@@ -90,8 +92,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   //
   // The following permanent callbacks will be executed as follows up until
   // Stop() has completed:
-  //   |decryptor_ready_cb| can be used if Pipeline needs to be notified when
-  //                        the Decryptor is ready.
+  //   |set_drm_system_ready_cb| can be used if Pipeline needs to be notified
+  //                             when the |SbDrmSystem| is ready.
   //   |ended_cb| will be executed whenever the media reaches the end.
   //   |error_cb| will be executed whenever an error occurs but hasn't
   //              been reported already through another callback.
@@ -100,12 +102,13 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   //   |duration_change_cb| optional callback that will be executed whenever the
   //                        presentation duration changes.
   // It is an error to call this method after the pipeline has already started.
-  virtual void Start(Demuxer* demuxer, const PipelineStatusCB& ended_cb,
+  virtual void Start(Demuxer* demuxer,
+                     const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+                     const PipelineStatusCB& ended_cb,
                      const PipelineStatusCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
-                     const base::Closure& duration_change_cb,
-                     bool prefer_decode_to_texture) = 0;
+                     const base::Closure& duration_change_cb) = 0;
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.
@@ -176,8 +179,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // Get the SetBoundsCB used to set the bounds of the video frame.
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
 
-  // Returns whether the player is configured for outputting in punch out mode.
-  virtual bool IsPunchOutMode() { return false; }
+  // Updates the player's preference for decode-to-texture versus punch through.
+  virtual void SetDecodeToTextureOutputMode(bool /*enabled*/) {}
 };
 
 }  // namespace media

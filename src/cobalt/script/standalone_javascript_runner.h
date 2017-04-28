@@ -29,10 +29,11 @@ namespace script {
 // execute JavaScript.
 class StandaloneJavascriptRunner {
  public:
-  explicit StandaloneJavascriptRunner(const JavaScriptEngine::Options& options);
+  StandaloneJavascriptRunner(
+      const JavaScriptEngine::Options& options = JavaScriptEngine::Options());
 
   template <typename GlobalInterface>
-  explicit StandaloneJavascriptRunner(
+  StandaloneJavascriptRunner(
       const JavaScriptEngine::Options& options,
       const scoped_refptr<GlobalInterface>& global_object) {
     CommonInitialization(options);

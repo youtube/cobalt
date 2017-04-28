@@ -265,7 +265,7 @@ void VideoDecoder::InitializeCodec() {
     return;
   }
 
-  int rv = avcodec_open2(codec_context_, codec, NULL);
+  int rv = OpenCodec(codec_context_, codec);
   if (rv < 0) {
     SB_LOG(ERROR) << "Unable to open codec";
     TeardownCodec();
@@ -281,7 +281,7 @@ void VideoDecoder::InitializeCodec() {
 
 void VideoDecoder::TeardownCodec() {
   if (codec_context_) {
-    avcodec_close(codec_context_);
+    CloseCodec(codec_context_);
     av_free(codec_context_);
     codec_context_ = NULL;
   }
@@ -297,7 +297,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 // static
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
@@ -307,7 +307,7 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
 
   return output_mode == kSbPlayerOutputModePunchOut;
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4
 
 }  // namespace filter
 }  // namespace player

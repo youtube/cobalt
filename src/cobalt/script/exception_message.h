@@ -60,24 +60,11 @@ enum MessageType {
   kOutsideBounds,
   kInvalidLength,
   kNotAnArrayBuffer,
-  kWrongByteOffsetMultiple,
-  kWrongByteLengthMultiple,
-  kPropertySyntaxError,
 
   kNumMessageTypes,
 };
 
-// Exception message contains an exception information. It includes a
-// |message_type| which is the index of each exception message, a
-// |exception_type| which is based on the spec. of simple exception, and a
-//  message |format|.
-struct ExceptionMessage {
-  MessageType message_type;
-  SimpleExceptionType exception_type;
-  const char* format;
-};
-
-const char* GetExceptionMessageFormat(MessageType message_type);
+const char* GetExceptionMessage(MessageType message_type);
 SimpleExceptionType GetSimpleExceptionType(MessageType message_type);
 
 }  // namespace script

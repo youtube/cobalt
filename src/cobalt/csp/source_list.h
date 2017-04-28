@@ -20,9 +20,12 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/hash_tables.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/csp/source.h"
+#include "cobalt/network/local_network.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -30,7 +33,17 @@ namespace csp {
 
 class SourceList {
  public:
-  SourceList(ContentSecurityPolicy* policy, const std::string& directive_name);
+  struct LocalNetworkCheckerInterface {
+    virtual bool IsIPInLocalNetwork(
+        const SbSocketAddress& destination) const = 0;
+    virtual bool IsIPInPrivateRange(
+        const SbSocketAddress& destination) const = 0;
+
+    virtual ~LocalNetworkCheckerInterface() {}
+  };
+
+  SourceList(const LocalNetworkCheckerInterface* checker,
+             ContentSecurityPolicy* policy, const std::string& directive_name);
   void Parse(const base::StringPiece& begin);
 
   bool Matches(const GURL& url,
@@ -56,6 +69,9 @@ class SourceList {
   bool ParseHash(const char* begin, const char* end, DigestValue* hash,
                  HashAlgorithm* hash_algorithm);
 
+  void AddSourceLocalhost();
+  void AddSourceLocalNetwork();
+  void AddSourcePrivateRange();
   void AddSourceSelf();
   void AddSourceStar();
   void AddSourceUnsafeInline();
@@ -70,11 +86,18 @@ class SourceList {
   bool allow_star_;
   bool allow_inline_;
   bool allow_eval_;
+  bool allow_insecure_connections_to_local_network_;
+  bool allow_insecure_connections_to_localhost_;
+  bool allow_insecure_connections_to_private_range_;
   base::hash_set<std::string> nonces_;
   // TODO: This is a hash_set in blink. Need to implement
   // a hash for HashValue.
   std::set<HashValue> hashes_;
   uint8 hash_algorithms_used_;
+
+  const LocalNetworkCheckerInterface* local_network_checker_;
+
+  FRIEND_TEST_ALL_PREFIXES(SourceListTest, TestInsecureLocalNetworkDefault);
 
   DISALLOW_COPY_AND_ASSIGN(SourceList);
 };

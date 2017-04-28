@@ -86,12 +86,14 @@ private:
 };
 
 GrContext* GrContext::Create(GrBackend backend, GrBackendContext backendContext,
+                             int atlas_tex_width, int atlas_tex_height,
                              const Options* opts) {
+
     GrContext* context;
     if (NULL == opts) {
-        context = SkNEW_ARGS(GrContext, (Options()));
+        context = SkNEW_ARGS(GrContext, (atlas_tex_width, atlas_tex_height, Options()));
     } else {
-        context = SkNEW_ARGS(GrContext, (*opts));
+        context = SkNEW_ARGS(GrContext, (atlas_tex_width, atlas_tex_height, *opts));
     }
 
     if (context->init(backend, backendContext)) {
@@ -102,7 +104,11 @@ GrContext* GrContext::Create(GrBackend backend, GrBackendContext backendContext,
     }
 }
 
-GrContext::GrContext(const Options& opts) : fOptions(opts) {
+GrContext::GrContext(int atlas_tex_width, int atlas_tex_height,
+                     const Options& opts) :
+      atlas_texture_width(atlas_tex_width),
+      atlas_texture_height(atlas_tex_height),
+      fOptions(opts) {
     fDrawState = NULL;
     fGpu = NULL;
     fClip = NULL;
@@ -121,7 +127,8 @@ GrContext::GrContext(const Options& opts) : fOptions(opts) {
     fMaxTextureSizeOverride = 1 << 20;
 }
 
-bool GrContext::init(GrBackend backend, GrBackendContext backendContext) {
+bool GrContext::init(GrBackend backend,
+                     GrBackendContext backendContext) {
     SkASSERT(NULL == fGpu);
 
     fGpu = GrGpu::Create(backend, backendContext, this);
@@ -137,7 +144,9 @@ bool GrContext::init(GrBackend backend, GrBackendContext backendContext) {
     fResourceCache->setOverbudgetCallback(OverbudgetCB, this);
     fResourceCache2 = SkNEW(GrResourceCache2);
 
-    fFontCache = SkNEW_ARGS(GrFontCache, (fGpu));
+    fFontCache = SkNEW_ARGS(GrFontCache, (atlas_texture_width,
+                                          atlas_texture_height,
+                                          fGpu));
 
     fLayerCache.reset(SkNEW_ARGS(GrLayerCache, (this)));
 

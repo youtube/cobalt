@@ -107,7 +107,6 @@ void DOMTokenList::Add(const std::vector<std::string>& tokens) {
     }
   }
 
-  const size_t old_size = tokens_.size();
   for (std::vector<std::string>::const_iterator it = tokens.begin();
        it != tokens.end(); ++it) {
     // 3. For each token in tokens, in given order, that is not in tokens,
@@ -119,9 +118,7 @@ void DOMTokenList::Add(const std::vector<std::string>& tokens) {
   }
 
   // 4. Run the update steps.
-  if (tokens_.size() != old_size) {
-    RunUpdateSteps();
-  }
+  RunUpdateSteps();
 }
 
 // Algorithm for Remove:
@@ -140,7 +137,6 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
     }
   }
 
-  const size_t old_size = tokens_.size();
   for (std::vector<std::string>::const_iterator it = tokens.begin();
        it != tokens.end(); ++it) {
     // 3. For each token in tokens, remove token from tokens.
@@ -149,9 +145,7 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   }
 
   // 4. Run the update steps.
-  if (tokens_.size() != old_size) {
-    RunUpdateSteps();
-  }
+  RunUpdateSteps();
 }
 
 // Algorithm for AnonymousStringifier:

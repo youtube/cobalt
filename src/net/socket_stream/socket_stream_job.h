@@ -55,6 +55,14 @@ class NET_EXPORT SocketStreamJob
   void set_context(const URLRequestContext* context) {
     socket_->set_context(context);
   }
+  void set_network_task_runner(
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner) {
+    network_task_runner_ = task_runner;
+  }
+
+  base::SingleThreadTaskRunner* network_task_runner() {
+    return network_task_runner_.get();
+  }
 
   virtual void Connect();
 
@@ -79,6 +87,7 @@ class NET_EXPORT SocketStreamJob
   virtual ~SocketStreamJob();
 
   scoped_refptr<SocketStream> socket_;
+  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStreamJob);
 };

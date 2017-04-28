@@ -29,10 +29,12 @@
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/mozjs-45/union_type_conversion_forward.h"
 #include "cobalt/script/mozjs-45/util/algorithm_helpers.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/value_handle.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/public/CharacterEncoding.h"
 #include "third_party/mozjs-45/js/public/Conversions.h"
@@ -53,9 +55,10 @@ enum ConversionFlags {
   kConversionFlagNullable = 1 << 1,
   kConversionFlagTreatNullAsEmptyString = 1 << 2,
   kConversionFlagTreatUndefinedAsEmptyString = 1 << 3,
+  kConversionFlagClamped = 1 << 4,
 
   // Valid conversion flags for numeric values.
-  kConversionFlagsNumeric = kConversionFlagRestricted,
+  kConversionFlagsNumeric = kConversionFlagRestricted | kConversionFlagClamped,
 
   // Valid conversion flags for string types.
   kConversionFlagsString = kConversionFlagTreatNullAsEmptyString |
@@ -135,6 +138,52 @@ inline void ToJSValue(
   out_value.setInt32(in_number);
 }
 
+template <typename T>
+inline const double UpperBound() {
+  return std::numeric_limits<T>::max();
+}
+
+template <typename T>
+inline const double LowerBound() {
+  return std::numeric_limits<T>::min();
+}
+
+// The below specializations of UpperBound<T> and LowerBound<T> for 64
+// bit integers use the (2^(53) - 1) and similar bounds specified in
+// step 1 of ConvertToInt, see:
+// https://heycam.github.io/webidl/#abstract-opdef-converttoint
+template <>
+inline const double UpperBound<int64_t>() {
+  const double kInt64UpperBound = static_cast<double>((1ull << 53) - 1);
+  return kInt64UpperBound;
+}
+
+template <>
+inline const double LowerBound<int64_t>() {
+  const double kInt64LowerBound = static_cast<double>(-(1ull << 53) + 1);
+  return kInt64LowerBound;
+}
+
+template <>
+inline const double UpperBound<uint64_t>() {
+  const double kUInt64UpperBound = static_cast<double>((1ull << 53) - 1);
+  return kUInt64UpperBound;
+}
+
+template <typename T>
+void ClampedValue(JSContext* context, JS::HandleValue value,
+                  JS::MutableHandleValue clamped_value) {
+  double value_double;
+  JS::ToNumber(context, value, &value_double);
+  if (value_double > UpperBound<T>()) {
+    clamped_value.setDouble(UpperBound<T>());
+  } else if (value_double < LowerBound<T>()) {
+    clamped_value.setDouble(LowerBound<T>());
+  } else {
+    clamped_value.set(value);
+  }
+}
+
 // JSValue -> signed integers <= 4 bytes
 template <typename T>
 inline void FromJSValue(
@@ -146,14 +195,21 @@ inline void FromJSValue(
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
   DCHECK(out_number);
 
   int32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
-  bool success = JS::ToInt32(context, value, &out);
+  // TODO: Consider only creating |value_to_convert| if the conversion flag is
+  // set.
+  JS::RootedValue value_to_convert(context);
+  if (conversion_flags & kConversionFlagClamped) {
+    ClampedValue<T>(context, value, &value_to_convert);
+  } else {
+    value_to_convert.set(value);
+  }
+
+  bool success = JS::ToInt32(context, value_to_convert, &out);
   DCHECK(success);
 
   *out_number = static_cast<T>(out);
@@ -180,7 +236,15 @@ inline void FromJSValue(
   DCHECK(out_number);
   int64_t out;
   // This produces an IDL long long.
-  bool success = JS::ToInt64(context, value, &out);
+  // TODO: Consider only creating |value_to_convert| if the conversion flag is
+  // set.
+  JS::RootedValue value_to_convert(context);
+  if (conversion_flags & kConversionFlagClamped) {
+    ClampedValue<T>(context, value, &value_to_convert);
+  } else {
+    value_to_convert.set(value);
+  }
+  bool success = JS::ToInt64(context, value_to_convert, &out);
   DCHECK(success);
   if (!success) {
     exception_state->SetSimpleException(kNotInt64Type);
@@ -228,16 +292,25 @@ inline void FromJSValue(
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
   DCHECK(out_number);
 
   uint32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
-  bool success = JS::ToUint32(context, value, &out);
+  // TODO: Consider only creating |value_to_convert| if the conversion flag is
+  // set.
+  JS::RootedValue value_to_convert(context);
+  if (conversion_flags & kConversionFlagClamped) {
+    ClampedValue<T>(context, value, &value_to_convert);
+  } else {
+    value_to_convert.set(value);
+  }
+  bool success = JS::ToUint32(context, value_to_convert, &out);
   DCHECK(success);
-
+  if (!success) {
+    exception_state->SetSimpleException(kNotUint64Type);
+    return;
+  }
   *out_number = static_cast<T>(out);
 }
 
@@ -252,13 +325,19 @@ inline void FromJSValue(
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
   DCHECK(out_number);
 
   uint64_t out;
   // This produces and IDL unsigned long long.
-  bool success = JS::ToUint64(context, value, &out);
+  // TODO: Consider only creating |value_to_convert| if the conversion flag is
+  // set.
+  JS::RootedValue value_to_convert(context);
+  if (conversion_flags & kConversionFlagClamped) {
+    ClampedValue<T>(context, value, &value_to_convert);
+  } else {
+    value_to_convert.set(value);
+  }
+  bool success = JS::ToUint64(context, value_to_convert, &out);
   DCHECK(success);
   if (!success) {
     exception_state->SetSimpleException(kNotUint64Type);
@@ -376,6 +455,15 @@ void ToJSValue(JSContext* context,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  MozjsObjectHandleHolder* out_holder);
+
+// ValueHandle -> JSValue
+void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
+               JS::MutableHandleValue out_value);
+
+// JSValue -> ValueHandle
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 MozjsValueHandleHolder* out_holder);
 
 // object -> JSValue
 template <typename T>

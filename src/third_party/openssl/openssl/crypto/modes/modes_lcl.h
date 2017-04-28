@@ -6,6 +6,11 @@
  */
 
 #include <openssl/modes.h>
+#include <openssl/opensslconf.h>
+
+#if defined(OPENSSL_SYS_STARBOARD)
+#include "starboard/cryptography.h"
+#endif
 
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
 typedef __int64 i64;
@@ -115,6 +120,23 @@ struct gcm128_context {
     unsigned int mres, ares;
     block128_f block;
     void *key;
+
+#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+    // A handle to a HW-accelerated transformer for the GCM block cipher
+    // mode. If valid, then this is used instead of any other state in the
+    // context.
+    SbCryptographyTransformer gcm_transformer;
+
+    // A handle to a HW-accelerated transformer for the CTR block cipher
+    // mode. If valid, then the software GCM code will wrap the hardware CTR
+    // stream.
+    SbCryptographyTransformer ctr_transformer;
+
+    // A handle to a HW-accelerated transformer for the ECB block cipher
+    // mode. If valid, then the software GCM code will wrap the hardware ECB
+    // block cipher.
+    SbCryptographyTransformer ecb_transformer;
+#endif
 };
 
 struct xts128_context {

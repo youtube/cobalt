@@ -16,6 +16,7 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/basictypes.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
@@ -40,7 +41,8 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
       texcoord_transform_(texcoord_transform),
       rect_(rect),
       texture_(texture),
-      vertex_buffer_(NULL) {
+      vertex_buffer_(NULL),
+      tile_texture_(false) {
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
@@ -53,7 +55,8 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
       rect_(rect),
       texture_(NULL),
       generate_texture_(generate_texture),
-      vertex_buffer_(NULL) {
+      vertex_buffer_(NULL),
+      tile_texture_(false) {
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
@@ -88,6 +91,12 @@ void DrawRectTexture::ExecuteOnscreenUpdateVertexBuffer(
   vertex_buffer_ = graphics_state->AllocateVertexData(
       sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
+
+  for (int i = 0; i < arraysize(attributes); ++i) {
+    tile_texture_ = tile_texture_ ||
+        attributes[i].texcoord[0] < 0.0f || attributes[i].texcoord[0] > 1.0f ||
+        attributes[i].texcoord[1] < 0.0f || attributes[i].texcoord[1] > 1.0f;
+  }
 }
 
 void DrawRectTexture::ExecuteOnscreenRasterize(
@@ -113,10 +122,21 @@ void DrawRectTexture::ExecuteOnscreenRasterize(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
-  graphics_state->ActiveBindTexture(
-      program->GetFragmentShader().u_texture_texunit(),
-      texture_->GetTarget(), texture_->gl_handle());
-  GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+
+  if (tile_texture_) {
+    graphics_state->ActiveBindTexture(
+        program->GetFragmentShader().u_texture_texunit(),
+        texture_->GetTarget(), texture_->gl_handle(), GL_REPEAT);
+    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+    graphics_state->ActiveBindTexture(
+        program->GetFragmentShader().u_texture_texunit(),
+        texture_->GetTarget(), texture_->gl_handle(), GL_CLAMP_TO_EDGE);
+  } else {
+    graphics_state->ActiveBindTexture(
+        program->GetFragmentShader().u_texture_texunit(),
+        texture_->GetTarget(), texture_->gl_handle());
+    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+  }
 }
 
 }  // namespace egl

@@ -20,6 +20,7 @@
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
 #include "cobalt/renderer/rasterizer/skia/software_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
@@ -117,14 +118,16 @@ scoped_refptr<render_tree::Typeface> SoftwareResourceProvider::GetLocalTypeface(
                "SoftwareResourceProvider::GetLocalTypeface()");
 
   SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyle(
-      font_family_name, CobaltFontStyleToSkFontStyle(font_style)));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          font_manager->matchFamilyStyle(
+              font_family_name, CobaltFontStyleToSkFontStyle(font_style))));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
 scoped_refptr<render_tree::Typeface>
 SoftwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
-    const std::string& font_face_name) {
+    const char* font_face_name) {
   TRACE_EVENT0("cobalt::renderer",
                "SoftwareResourceProvider::GetLocalTypefaceIfAvailable()");
 
@@ -132,7 +135,8 @@ SoftwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
   SkFontMgr_Cobalt* cobalt_font_manager =
       base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
 
-  SkTypeface* typeface = cobalt_font_manager->matchFaceName(font_face_name);
+  SkTypeface_Cobalt* typeface = base::polymorphic_downcast<SkTypeface_Cobalt*>(
+      cobalt_font_manager->MatchFaceName(font_face_name));
   if (typeface != NULL) {
     SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
@@ -149,9 +153,11 @@ SoftwareResourceProvider::GetCharacterFallbackTypeface(
                "SoftwareResourceProvider::GetCharacterFallbackTypeface()");
 
   SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface> typeface(font_manager->matchFamilyStyleCharacter(
-      0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
-      character));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          font_manager->matchFamilyStyleCharacter(
+              0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
+              character)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
@@ -181,7 +187,9 @@ SoftwareResourceProvider::CreateTypefaceFromRawData(
       sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
 
   SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(skia_data));
-  SkAutoTUnref<SkTypeface> typeface(SkTypeface::CreateFromStream(stream));
+  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          SkTypeface::CreateFromStream(stream)));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
   } else {
@@ -217,6 +225,12 @@ scoped_refptr<render_tree::Mesh> SoftwareResourceProvider::CreateMesh(
     scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     render_tree::Mesh::DrawMode draw_mode) {
   return new SoftwareMesh(vertices.Pass(), draw_mode);
+}
+
+scoped_refptr<render_tree::Image> SoftwareResourceProvider::DrawOffscreenImage(
+    const scoped_refptr<render_tree::Node>& root) {
+  UNREFERENCED_PARAMETER(root);
+  return scoped_refptr<render_tree::Image>(NULL);
 }
 
 }  // namespace skia

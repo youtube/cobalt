@@ -26,11 +26,10 @@
 #include "starboard/log.h"
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 #include <X11/extensions/Xcomposite.h>
 #include <X11/extensions/Xrender.h>
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION ||
+#endif  // SB_API_VERSION >= 4 ||
         // SB_IS(PLAYER_PUNCHED_OUT)
 
 namespace {
@@ -38,22 +37,20 @@ namespace {
 const int kWindowWidth = 1920;
 const int kWindowHeight = 1080;
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 bool HasNeededExtensionsForPunchedOutVideo(Display* display) {
   int dummy;
   return (XRenderQueryExtension(display, &dummy, &dummy) &&
           XCompositeQueryExtension(display, &dummy, &dummy));
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION ||
+#endif  // SB_API_VERSION >= 4 ||
         // SB_IS(PLAYER_PUNCHED_OUT)
 }  // namespace
 
 SbWindowPrivate::SbWindowPrivate(Display* display,
                                  const SbWindowOptions* options)
     : window(None)
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
       ,
       window_picture(None),
       composition_pixmap(None),
@@ -65,7 +62,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
       video_picture(None),
       gl_window(None),
       gl_picture(None)
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION ||
+#endif  // SB_API_VERSION >= 4 ||
       // SB_IS(PLAYER_PUNCHED_OUT)
       ,
       display(display) {
@@ -107,8 +104,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   Atom wm_delete = XInternAtom(display, "WM_DELETE_WINDOW", True);
   XSetWMProtocols(display, window, &wm_delete, 1);
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   SB_CHECK(HasNeededExtensionsForPunchedOutVideo(display));
   gl_window = XCreateSimpleWindow(display, window, 0, 0, width, height, 0,
                                   WhitePixel(display, DefaultScreen(display)),
@@ -132,15 +128,14 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
       XRenderFindVisualFormat(display, x_visual_info.visual);
   window_picture = XRenderCreatePicture(display, window, pict_format, 0, NULL);
   SB_CHECK(window_picture != None);
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION ||
+#endif  // SB_API_VERSION >= 4 ||
         // SB_IS(PLAYER_PUNCHED_OUT)
 
   XMapWindow(display, window);
 }
 
 SbWindowPrivate::~SbWindowPrivate() {
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   if (composition_pixmap != None) {
     XFreePixmap(display, composition_pixmap);
     XRenderFreePicture(display, composition_picture);
@@ -153,13 +148,12 @@ SbWindowPrivate::~SbWindowPrivate() {
   XRenderFreePicture(display, gl_picture);
   XDestroyWindow(display, gl_window);
   XRenderFreePicture(display, window_picture);
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+#endif  // SB_API_VERSION >= 4 || \
            SB_IS(PLAYER_PUNCHED_OUT)
   XDestroyWindow(display, window);
 }
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
-    SB_IS(PLAYER_PUNCHED_OUT)
+#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 void SbWindowPrivate::Composite(
     int bounds_x,
     int bounds_y,
@@ -264,21 +258,21 @@ void SbWindowPrivate::Composite(
 
     int dest_x = bounds_x + (bounds_width - video_width) / 2;
     int dest_y = bounds_y + (bounds_height - video_height) / 2;
-    XRenderComposite(display, PictOpSrc, video_picture, NULL,
+    XRenderComposite(display, PictOpSrc, video_picture, None,
                      composition_picture, 0, 0, 0, 0, dest_x, dest_y,
                      video_width, video_height);
   }
 
   // Composite (with blending) the GL output on top of the composition pixmap
   // that already has the current video frame if video is playing.
-  XRenderComposite(display, PictOpOver, gl_picture, NULL, composition_picture,
+  XRenderComposite(display, PictOpOver, gl_picture, None, composition_picture,
                    0, 0, 0, 0, 0, 0, width, height);
 
   // Now that we have a fully-composited frame in composition_pixmap, render it
   // to the window, which acts as our front buffer.
-  XRenderComposite(display, PictOpSrc, composition_picture, NULL,
+  XRenderComposite(display, PictOpSrc, composition_picture, None,
                    window_picture, 0, 0, 0, 0, 0, 0, width, height);
   XSynchronize(display, False);
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION || \
+#endif  // SB_API_VERSION >= 4 || \
            SB_IS(PLAYER_PUNCHED_OUT)

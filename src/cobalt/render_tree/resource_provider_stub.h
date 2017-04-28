@@ -212,18 +212,25 @@ class ResourceProviderStub : public ResourceProvider {
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
     NOTREACHED();
-#if SB_API_VERSION < SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION < 4
     SbDecodeTargetDestroy(decode_target);
-#else   // SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#else   // 4
     SbDecodeTargetRelease(decode_target);
-#endif  // SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // 4
     return NULL;
   }
 
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 #endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+
+#if SB_API_VERSION >= 4
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+    return NULL;
+  }
+#elif SB_API_VERSION >= 3
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+#endif  // SB_API_VERSION >= 4
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) OVERRIDE {
@@ -252,7 +259,7 @@ class ResourceProviderStub : public ResourceProvider {
   }
 
   scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) OVERRIDE {
+      const char* font_face_name) OVERRIDE {
     UNREFERENCED_PARAMETER(font_face_name);
     return make_scoped_refptr(new TypefaceStub(NULL));
   }
@@ -315,6 +322,12 @@ class ResourceProviderStub : public ResourceProvider {
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE {
     return new MeshStub(vertices.Pass(), draw_mode);
+  }
+
+  scoped_refptr<Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE {
+    UNREFERENCED_PARAMETER(root);
+    return scoped_refptr<Image>(NULL);
   }
 };
 

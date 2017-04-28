@@ -21,6 +21,7 @@
       'product_name': 'cobalt_base',
       'type': 'static_library',
       'sources': [
+        'accessibility_changed_event.h',
         'address_sanitizer.h',
         'clock.h',
         'cobalt_paths.h',
@@ -55,6 +56,7 @@
         'poller.h',
         'polymorphic_downcast.h',
         'polymorphic_equatable.h',
+        'ref_counted_lock.h',
         'source_location.h',
         'stop_watch.cc',
         'stop_watch.h',

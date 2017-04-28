@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/flat_map.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
@@ -77,6 +78,107 @@ class RawAllocator : public std::allocator<T> {
   };
 };
 
+// A map of ThreadId -> int. This map is highly concurrent and allows
+// access of elements without much contention.
+class ConcurrentThreadIdMap {
+ public:
+  ConcurrentThreadIdMap() {
+    // Prime number reduces collisions.
+    static const size_t kNumBuckets = 101;
+    map_vector_.resize(kNumBuckets);
+
+    for (size_t i = 0; i < map_vector_.size(); ++i) {
+      void* memory_block = SbMemoryAllocateNoReport(sizeof(LockedMap));
+      map_vector_[i] = new (memory_block) LockedMap;
+    }
+  }
+
+  ~ConcurrentThreadIdMap() {
+    for (size_t i = 0; i < map_vector_.size(); ++i) {
+      LockedMap* obj = map_vector_[i];
+      obj->~LockedMap();
+      SbMemoryDeallocateNoReport(obj);
+    }
+  }
+
+  bool GetIfExists(SbThreadId key, int* value) const {
+    const LockedMap& map = GetBucket(key);
+    ScopedLock lock(map.mutex_);
+    ThreadIdMap::const_iterator it = map.map_.find(key);
+    if (it != map.map_.end()) {
+      *value = it->second;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  void Insert(SbThreadId key, int value) {
+    LockedMap& map = GetBucket(key);
+    ScopedLock lock(map.mutex_);
+    map.map_[key] = value;
+  }
+
+  void Erase(SbThreadId key) {
+    LockedMap& map = GetBucket(key);
+    ScopedLock lock(map.mutex_);
+    map.map_.erase(key);
+  }
+
+ private:
+  typedef std::map<SbThreadId,
+                   int,
+                   std::less<SbThreadId>,
+                   RawAllocator<std::pair<const SbThreadId, int> > >
+      ThreadIdMap;
+
+  struct LockedMap {
+    Mutex mutex_;
+    ThreadIdMap map_;
+  };
+
+  // Simple hashing function for 32 bit numbers.
+  // Based off of Jenkins hash found at this url:
+  // https://gist.github.com/badboy/6267743#file-inthash-md
+  static size_t Hash(SbThreadId id) {
+    static const uint32_t kMagicNum1 = 0x7ed55d16;
+    static const uint32_t kMagicNum2 = 0xc761c23c;
+    static const uint32_t kMagicNum3 = 0x165667b1;
+    static const uint32_t kMagicNum4 = 0xd3a2646c;
+    static const uint32_t kMagicNum5 = 0xfd7046c5;
+    static const uint32_t kMagicNum6 = 0xfd7046c5;
+
+    static const uint32_t kMagicShift1 = 12;
+    static const uint32_t kMagicShift2 = 19;
+    static const uint32_t kMagicShift3 = 5;
+    static const uint32_t kMagicShift4 = 9;
+    static const uint32_t kMagicShift5 = 3;
+    static const uint32_t kMagicShift6 = 16;
+
+    uint32_t key = static_cast<uint32_t>(id);
+    key = (key + kMagicNum1) + (key << kMagicShift1);
+    key = (key ^ kMagicNum2) ^ (key >> kMagicShift2);
+    key = (key + kMagicNum3) + (key << kMagicShift3);
+    key = (key + kMagicNum4) ^ (key << kMagicShift4);
+    key = (key + kMagicNum5) + (key << kMagicShift5);
+    key = (key ^ kMagicNum6) ^ (key >> kMagicShift6);
+    return static_cast<size_t>(key);
+  }
+
+  const LockedMap& GetBucket(SbThreadId key) const {
+    size_t bucket_index = Hash(key) % map_vector_.size();
+    return *map_vector_[bucket_index];
+  }
+
+  LockedMap& GetBucket(SbThreadId key) {
+    size_t bucket_index = Hash(key) % map_vector_.size();
+    return *map_vector_[bucket_index];
+  }
+
+  typedef std::vector<LockedMap*, RawAllocator<LockedMap*> > MapVector;
+  MapVector map_vector_;
+};
+
 }  // namespace
 
 struct TLSKeyManager::InternalData {
@@ -84,11 +186,7 @@ struct TLSKeyManager::InternalData {
   // any platform using this TLSKeyManager will crash during memory reporting.
   typedef std::vector<KeyRecord, RawAllocator<KeyRecord> > VectorKeyRecord;
   typedef std::vector<int, RawAllocator<int> > VectorInt;
-  typedef std::map<SbThreadId,
-                   int,
-                   std::less<SbThreadId>,
-                   RawAllocator<std::pair<const SbThreadId, int> > >
-      ThreadIdMap;
+  typedef ConcurrentThreadIdMap ThreadIdMap;
 
   // Overrides new/delete for InternalData to bypass memory reporting.
   static void* operator new(size_t n) { return SbMemoryAllocateNoReport(n); }
@@ -119,7 +217,11 @@ TLSKeyManager::TLSKeyManager() {
 }
 
 SbThreadLocalKey TLSKeyManager::CreateKey(SbThreadLocalDestructor destructor) {
-  SbThreadLocalKey key = new SbThreadLocalKeyPrivate();
+  // Allocate key and bypass the the normal allocator. Otherwise there
+  // could be a re-entrant loop that kills the process.
+  void* memory_block =
+      SbMemoryAllocateNoReport(sizeof(SbThreadLocalKeyPrivate));
+  SbThreadLocalKey key = new (memory_block) SbThreadLocalKeyPrivate();
 
   ScopedLock lock(mutex_);
   key->index = GetUnusedKeyIndex();
@@ -143,7 +245,8 @@ void TLSKeyManager::DestroyKey(SbThreadLocalKey key) {
   SB_DCHECK(IsKeyActive(key));
   data_->key_table_[key->index].valid = false;
 
-  delete key;
+  key.~SbThreadLocalKey();
+  SbMemoryDeallocateNoReport(key);
 }
 
 bool TLSKeyManager::SetLocalValue(SbThreadLocalKey key, void* value) {
@@ -151,13 +254,15 @@ bool TLSKeyManager::SetLocalValue(SbThreadLocalKey key, void* value) {
     return false;
   }
 
+  int current_thread_id = GetCurrentThreadId();
+
   ScopedLock lock(mutex_);
 
   if (!IsKeyActive(key)) {
     return false;
   }
 
-  data_->key_table_[key->index].values[GetCurrentThreadId()] = value;
+  data_->key_table_[key->index].values[current_thread_id] = value;
 
   return true;
 }
@@ -167,19 +272,21 @@ void* TLSKeyManager::GetLocalValue(SbThreadLocalKey key) {
     return NULL;
   }
 
+  int current_thread_id = GetCurrentThreadId();
+
   ScopedLock lock(mutex_);
 
   if (!IsKeyActive(key)) {
     return NULL;
   }
 
-  return data_->key_table_[key->index].values[GetCurrentThreadId()];
+  return data_->key_table_[key->index].values[current_thread_id];
 }
 
 void TLSKeyManager::InitializeTLSForThread() {
-  ScopedLock lock(mutex_);
-
   int current_thread_id = GetCurrentThreadId();
+
+  ScopedLock lock(mutex_);
 
   const size_t table_size = data_->key_table_.size();
   for (int i = 0; i < table_size; ++i) {
@@ -191,9 +298,9 @@ void TLSKeyManager::InitializeTLSForThread() {
 }
 
 void TLSKeyManager::ShutdownTLSForThread() {
-  ScopedLock lock(mutex_);
-
   int current_thread_id = GetCurrentThreadId();
+
+  ScopedLock lock(mutex_);
 
   // Apply the destructors multiple times (4 is the minimum value
   // according to the specifications).  This is necessary if one of
@@ -220,7 +327,7 @@ void TLSKeyManager::ShutdownTLSForThread() {
     }
   }
 
-  data_->thread_id_map_.erase(SbThreadGetId());
+  data_->thread_id_map_.Erase(SbThreadGetId());
   data_->available_thread_ids_.push_back(current_thread_id);
 }
 
@@ -243,17 +350,20 @@ int TLSKeyManager::GetUnusedKeyIndex() {
 }
 
 int TLSKeyManager::GetCurrentThreadId() {
-  InternalData::ThreadIdMap::const_iterator found =
-      data_->thread_id_map_.find(SbThreadGetId());
-  if (found != data_->thread_id_map_.end()) {
-    return found->second;
+  const SbThreadId thread_id = SbThreadGetId();
+
+  int value = -1;
+  if (data_->thread_id_map_.GetIfExists(thread_id, &value)) {
+    return value;
   }
+
+  ScopedLock lock(mutex_);
 
   SB_DCHECK(!data_->available_thread_ids_.empty());
   int thread_tls_id = data_->available_thread_ids_.back();
   data_->available_thread_ids_.pop_back();
-  data_->thread_id_map_.insert(std::make_pair(SbThreadGetId(), thread_tls_id));
 
+  data_->thread_id_map_.Insert(thread_id, thread_tls_id);
   return thread_tls_id;
 }
 

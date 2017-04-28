@@ -48,7 +48,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
   typedef base::Callback<void(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::RectF& viewport,
+      const math::RectF& viewport_unscaled,
+      const math::SizeF& viewport_scale,
       const backend::TextureEGL** out_texture,
       math::Matrix3F* out_texcoord_transform)>
       FallbackRasterizeFunction;
@@ -71,7 +72,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
-  void FallbackRasterize(render_tree::Node* node,
+  void FallbackRasterize(scoped_refptr<render_tree::Node> node,
                          DrawObjectManager::OffscreenType offscreen_type);
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
@@ -87,6 +88,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   const FallbackRasterizeFunction* fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;
+  math::SizeF viewport_size_;
 };
 
 }  // namespace egl

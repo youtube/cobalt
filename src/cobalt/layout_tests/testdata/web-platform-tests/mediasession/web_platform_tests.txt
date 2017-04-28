@@ -1,0 +1,6 @@
+# MediaSession tests
+# TODO
+# idlharness.html
+# mediametadata.html
+playbackstate.html,PASS
+setactionhandler.html,PASS

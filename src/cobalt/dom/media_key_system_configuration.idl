@@ -14,12 +14,6 @@
 
 // https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#mediakeysystemconfiguration-dictionary
 
-enum MediaKeysRequirement {
-  "required",
-  "optional",
-  "not-allowed"
-};
-
 dictionary MediaKeySystemConfiguration {
   DOMString                               label = "";
   sequence<DOMString>                     initDataTypes = [];

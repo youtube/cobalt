@@ -28,6 +28,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
+#include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/mesh/mesh_projection.h"
@@ -57,14 +58,19 @@ class ContainingBlock;
 
 class UsedStyleProvider {
  public:
+  // A function that will attach a camera matrix projection transform to a given
+  // sub render tree.  |max_horizontal_fov_rad| and |max_vertical_fov_rad|
+  // dictate the minimum field of view to use in that direction, in radians.
+  // These minimum FOV values are compared against the values derived from
+  // applying the aspect ratio to the other FOV value, and using whichever one
+  // is most minimum.
   typedef base::Callback<scoped_refptr<render_tree::Node>(
-      const scoped_refptr<render_tree::Node>&)> AttachCameraNodeFunction;
+      const scoped_refptr<render_tree::Node>&, float max_horizontal_fov_rad,
+      float max_vertical_fov_rad)> AttachCameraNodeFunction;
 
-  UsedStyleProvider(dom::HTMLElementContext* html_element_context,
-                    loader::image::ImageCache* image_cache,
-                    dom::FontCache* font_cache,
-                    const AttachCameraNodeFunction& attach_camera_node_function,
-                    loader::mesh::MeshCache* mesh_cache = NULL);
+  UsedStyleProvider(
+      dom::HTMLElementContext* html_element_context, dom::FontCache* font_cache,
+      const AttachCameraNodeFunction& attach_camera_node_function);
 
   scoped_refptr<dom::FontList> GetUsedFontList(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -75,17 +81,14 @@ class UsedStyleProvider {
   scoped_refptr<loader::image::Image> ResolveURLToImage(const GURL& url);
   scoped_refptr<loader::mesh::MeshProjection> ResolveURLToMeshProjection(
       const GURL& url);
-  bool has_image_cache(const loader::image::ImageCache* image_cache) const {
-    return image_cache == image_cache_;
-  }
-
-  dom::HTMLElementContext* html_element_context() const {
-    return html_element_context_;
-  }
 
   const AttachCameraNodeFunction attach_camera_node_function() const {
     return attach_camera_node_function_;
   }
+
+  // Notifies animated image tracker to update the playing status of animated
+  // images.
+  void UpdateAnimatedImages();
 
  private:
   // Called after layout is completed so that it can perform any necessary
@@ -93,11 +96,11 @@ class UsedStyleProvider {
   // to remove any font lists that are no longer being referenced by boxes.
   void CleanupAfterLayout();
 
-  dom::HTMLElementContext* html_element_context_;
-  loader::image::ImageCache* const image_cache_;
   dom::FontCache* const font_cache_;
-  AttachCameraNodeFunction attach_camera_node_function_;
+  loader::image::AnimatedImageTracker* const animated_image_tracker_;
+  loader::image::ImageCache* const image_cache_;
   loader::mesh::MeshCache* const mesh_cache_;
+  AttachCameraNodeFunction attach_camera_node_function_;
 
   // |font_list_key_| is retained in between lookups so that the font names
   // vector will not need to allocate elements each time that it is populated.
@@ -131,6 +134,9 @@ render_tree::ColorRGBA GetUsedColor(
     const scoped_refptr<cssom::PropertyValue>& color_refptr);
 
 LayoutUnit GetUsedLength(
+    const scoped_refptr<cssom::PropertyValue>& length_refptr);
+
+LayoutUnit GetUsedNonNegativeLength(
     const scoped_refptr<cssom::PropertyValue>& length_refptr);
 
 class UsedBackgroundNodeProvider

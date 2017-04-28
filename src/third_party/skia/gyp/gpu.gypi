@@ -7,8 +7,6 @@
 #
 {
   'defines': [
-    'COBALT_SKIA_GLYPH_ATLAS_WIDTH=<(skia_glyph_atlas_width)',
-    'COBALT_SKIA_GLYPH_ATLAS_HEIGHT=<(skia_glyph_atlas_height)',
   ],
   'variables': {
     'skgpu_sources': [

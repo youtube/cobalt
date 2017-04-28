@@ -77,7 +77,9 @@ namespace browser {
 class WebModule {
  public:
   struct Options {
-    typedef base::Callback<scoped_refptr<script::Wrappable>()>
+    typedef base::Callback<scoped_refptr<script::Wrappable>(
+        const scoped_refptr<dom::Window>& window,
+        dom::MutationObserverTaskManager* mutation_observer_task_manager)>
         CreateObjectFunction;
     typedef base::hash_map<std::string, CreateObjectFunction>
         InjectedWindowAttributes;
@@ -157,8 +159,11 @@ class WebModule {
     // base::kThreadPriority_Low.
     base::ThreadPriority loader_thread_priority;
 
-    // TTSEngine instance to use for text-to-speech.
-    accessibility::TTSEngine* tts_engine;
+    // Specifies the priority tha the web module's animated image decoding
+    // thread will be assigned. This thread is responsible for decoding,
+    // blending and constructing individual frames from animated images. The
+    // default value is base::kThreadPriority_Low.
+    base::ThreadPriority animated_image_decode_thread_priority;
 
     // InputPoller to use for constantly polling the input key position or
     // state. For example, this is used to support 3D camera movements.
@@ -176,6 +181,7 @@ class WebModule {
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const OnErrorCallback& error_callback,
             const base::Closure& window_close_callback,
+            const base::Closure& window_minimize_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
@@ -224,6 +230,7 @@ class WebModule {
         const OnRenderTreeProducedCallback& render_tree_produced_callback,
         const OnErrorCallback& error_callback,
         const base::Closure& window_close_callback,
+        const base::Closure& window_minimize_callback,
         media::MediaModule* media_module,
         network::NetworkModule* network_module,
         const math::Size& window_dimensions,
@@ -234,6 +241,7 @@ class WebModule {
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
           window_close_callback(window_close_callback),
+          window_minimize_callback(window_minimize_callback),
           media_module(media_module),
           network_module(network_module),
           window_dimensions(window_dimensions),
@@ -247,6 +255,7 @@ class WebModule {
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
     const base::Closure& window_close_callback;
+    const base::Closure& window_minimize_callback;
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
     math::Size window_dimensions;

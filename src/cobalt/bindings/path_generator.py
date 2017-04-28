@@ -28,23 +28,44 @@ def _NormalizeSlashes(path):
 class PathBuilder(object):
   """Provides helper functions for getting paths related to an interface."""
 
-  def __init__(self, engine_prefix, interfaces_info, interfaces_root,
+  def __init__(self, engine_prefix, info_provider, interfaces_root,
                generated_root_directory):
     self.interfaces_root = _NormalizeSlashes(interfaces_root)
     self.generated_root = _NormalizeSlashes(generated_root_directory)
     self.engine_prefix = engine_prefix
-    self.interfaces_info = interfaces_info
+    self.info_provider = info_provider
+    self.interfaces_info = info_provider.interfaces_info
+
+  @property
+  def generated_conversion_header_path(self):
+    return os.path.join(self.generated_root,
+                        '%s_gen_type_conversion.h' % self.engine_prefix)
+
+  @property
+  def generated_conversion_include_path(self):
+    return os.path.relpath(self.generated_conversion_header_path,
+                           self.generated_root)
 
   def NamespaceComponents(self, interface_name):
     """Get the interface's namespace as a list of namespace components."""
     # Get the IDL filename relative to the cobalt directory, and split the
     # directory to get the list of namespace components.
-    interface_info = self.interfaces_info[interface_name]
-    idl_path = interface_info['full_path']
+    if interface_name in self.interfaces_info:
+      interface_info = self.interfaces_info[interface_name]
+      idl_path = interface_info['full_path']
+    elif interface_name in self.info_provider.enumerations:
+      enum_info = self.info_provider.enumerations[interface_name]
+      idl_path = enum_info['full_path']
+    else:
+      raise KeyError('Unknown interface name %s', interface_name)
 
     idl_path = os.path.relpath(idl_path, self.interfaces_root)
     components = os.path.dirname(idl_path).split(os.sep)
     return [os.path.basename(self.interfaces_root)] + components
+
+  def Namespace(self, interface_name):
+    """Get the interface's namespace."""
+    return '::'.join(self.NamespaceComponents(interface_name))
 
   def BindingsClass(self, interface_name):
     """Get the name of the generated bindings class."""
@@ -52,8 +73,8 @@ class PathBuilder(object):
 
   def FullBindingsClassName(self, interface_name):
     """Get the fully qualified name of the generated bindings class."""
-    components = self.NamespaceComponents(interface_name)
-    return '::'.join(components + [self.BindingsClass(interface_name)])
+    return '%s::%s' % (self.Namespace(interface_name),
+                       self.BindingsClass(interface_name))
 
   def FullClassName(self, interface_name):
     """Get the fully qualified name of the implementation class."""
@@ -109,12 +130,7 @@ class PathBuilder(object):
         output_extension='h',
         base_directory=os.path.dirname(self.interfaces_root))
 
-  def DictionaryConversionHeaderIncludePath(self, dictionary_name):
-    """Get the #include path to the dictionary's conversion header."""
-    path = self.BindingsHeaderFullPath(dictionary_name)
-    return os.path.relpath(path, self.generated_root)
-
-  def DictionaryConversionHeaderFullPath(self, dictionary_name):
+  def DictionaryConversionImplementationPath(self, dictionary_name):
     """Get the full path to the dictionary's conversion header."""
     interface_info = self.interfaces_info[dictionary_name]
     return ConvertPath(
@@ -122,5 +138,31 @@ class PathBuilder(object):
         forward_slashes=True,
         output_directory=self.generated_root,
         output_prefix='%s_' % self.engine_prefix,
+        output_extension='cc',
+        base_directory=os.path.dirname(self.interfaces_root))
+
+  def EnumHeaderIncludePath(self, enum_name):
+    """Get the #include path to the dictionary's header."""
+    path = self.EnumHeaderFullPath(enum_name)
+    return os.path.relpath(path, self.generated_root)
+
+  def EnumHeaderFullPath(self, enum_name):
+    """Get the full path to the dictionary's generated implementation header."""
+    interface_info = self.info_provider.enumerations[enum_name]
+    return ConvertPath(
+        interface_info['full_path'],
+        forward_slashes=True,
+        output_directory=self.generated_root,
         output_extension='h',
+        base_directory=os.path.dirname(self.interfaces_root))
+
+  def EnumConversionImplementationFullPath(self, enum_name):
+    """Get the full path to the dictionary's conversion header."""
+    interface_info = self.info_provider.enumerations[enum_name]
+    return ConvertPath(
+        interface_info['full_path'],
+        forward_slashes=True,
+        output_directory=self.generated_root,
+        output_prefix='%s_' % self.engine_prefix,
+        output_extension='cc',
         base_directory=os.path.dirname(self.interfaces_root))

@@ -14,7 +14,7 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#if SB_API_VERSION >= 4
 
 bool SbPlayerOutputModeSupported(SbPlayerOutputMode /*output_mode*/,
                                  SbMediaVideoCodec /*codec*/,
@@ -22,4 +22,4 @@ bool SbPlayerOutputModeSupported(SbPlayerOutputMode /*output_mode*/,
   return false;
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_DECODE_TO_TEXTURE_API_VERSION
+#endif  // SB_API_VERSION >= 4

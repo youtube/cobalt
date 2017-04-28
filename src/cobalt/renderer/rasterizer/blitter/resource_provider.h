@@ -23,6 +23,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/rasterizer/blitter/image.h"
 #include "starboard/blitter.h"
 #include "starboard/decode_target.h"
 
@@ -35,21 +36,28 @@ namespace blitter {
 
 class ResourceProvider : public render_tree::ResourceProvider {
  public:
-  explicit ResourceProvider(
-      SbBlitterDevice device,
-      render_tree::ResourceProvider* skia_resource_provider);
+  ResourceProvider(SbBlitterDevice device,
+                   render_tree::ResourceProvider* skia_resource_provider,
+                   SubmitOffscreenCallback submit_offscreen_callback);
   ~ResourceProvider() OVERRIDE {}
 
   void Finish() OVERRIDE {}
 
-#if SB_VERSION(3)
+#if SB_API_VERSION >= 3
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
 
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-
   bool SupportsSbDecodeTarget() OVERRIDE { return true; }
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3
+
+#if SB_API_VERSION >= 4
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+    return &decode_target_graphics_context_provider_;
+  }
+#elif SB_API_VERSION >= 3
+  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
+#endif  // SB_API_VERSION >= 4
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
@@ -74,7 +82,7 @@ class ResourceProvider : public render_tree::ResourceProvider {
       const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const std::string& font_face_name) OVERRIDE;
+      const char* font_face_name) OVERRIDE;
 
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
       int32 utf32_character, render_tree::FontStyle font_style,
@@ -102,6 +110,9 @@ class ResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
 
+  scoped_refptr<render_tree::Image> DrawOffscreenImage(
+      const scoped_refptr<render_tree::Node>& root) OVERRIDE;
+
  private:
   SbBlitterDevice device_;
 
@@ -109,6 +120,13 @@ class ResourceProvider : public render_tree::ResourceProvider {
   // ResourceProvider, as the Blitter API does not natively support font
   // rendering.
   render_tree::ResourceProvider* skia_resource_provider_;
+
+  SubmitOffscreenCallback submit_offscreen_callback_;
+
+#if SB_API_VERSION >= 4
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
+#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace blitter
