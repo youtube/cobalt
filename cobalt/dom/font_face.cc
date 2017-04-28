@@ -48,12 +48,12 @@ const FontFaceStyleSet::Entry* FontFaceStyleSet::MatchStyle(
 size_t FontFaceStyleSet::GetClosestStyleEntryIndex(
     const render_tree::FontStyle& pattern) const {
   size_t closest_index = 0;
-  int min_score = std::numeric_limits<int>::max();
+  int max_score = std::numeric_limits<int>::min();
   for (size_t i = 0; i < entries_.size(); ++i) {
     int score = MatchScore(pattern, entries_[i].style);
-    if (score < min_score) {
+    if (score > max_score) {
       closest_index = i;
-      min_score = score;
+      max_score = score;
     }
   }
 
@@ -63,9 +63,43 @@ size_t FontFaceStyleSet::GetClosestStyleEntryIndex(
 int FontFaceStyleSet::MatchScore(
     const render_tree::FontStyle& pattern,
     const render_tree::FontStyle& candidate) const {
+  // This logic is taken from Skia and is based upon the algorithm specified
+  // within the spec:
+  //   https://www.w3.org/TR/css-fonts-3/#font-matching-algorithm
+
   int score = 0;
-  score += (pattern.slant == candidate.slant) ? 0 : 1000;
-  score += std::abs(pattern.weight - candidate.weight);
+
+  // CSS style (italic/oblique)
+  // Being italic trumps all valid weights which are not italic.
+  // Note that newer specs differentiate between italic and oblique.
+  if ((pattern.slant == render_tree::FontStyle::kItalicSlant) ==
+      (candidate.slant == render_tree::FontStyle::kItalicSlant)) {
+    score += 1001;
+  }
+
+  // The 'closer' to the target weight, the higher the score.
+  // 1000 is the 'heaviest' recognized weight
+  if (pattern.weight == candidate.weight) {
+    score += 1000;
+  } else if (pattern.weight <= 500) {
+    if (400 <= pattern.weight && pattern.weight < 450) {
+      if (450 <= candidate.weight && candidate.weight <= 500) {
+        score += 500;
+      }
+    }
+    if (candidate.weight <= pattern.weight) {
+      score += 1000 - pattern.weight + candidate.weight;
+    } else {
+      score += 1000 - candidate.weight;
+    }
+  } else if (pattern.weight > 500) {
+    if (candidate.weight > pattern.weight) {
+      score += 1000 + pattern.weight - candidate.weight;
+    } else {
+      score += candidate.weight;
+    }
+  }
+
   return score;
 }
 
