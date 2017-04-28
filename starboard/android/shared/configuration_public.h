@@ -150,10 +150,10 @@
 #define SB_HAS_FLOAT_H 1
 
 // Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 1
+#define SB_HAS_MICROPHONE 0
 
 // Whether the current platform has speech recognizer.
-#define SB_HAS_SPEECH_RECOGNIZER 0
+#define SB_HAS_SPEECH_RECOGNIZER 1
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
