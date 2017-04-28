@@ -36,9 +36,7 @@ class DOMTokenListTest : public ::testing::Test {
   scoped_refptr<Document> document_;
 };
 
-DOMTokenListTest::DOMTokenListTest()
-    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, "") {
+DOMTokenListTest::DOMTokenListTest() {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);
 }
