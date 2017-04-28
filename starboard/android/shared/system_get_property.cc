@@ -33,8 +33,11 @@ using starboard::android::shared::JniEnvExt;
 namespace {
 
 const char kFriendlyName[] = "Android";
-const char kPlatformName[] = "Android; Linux " STRINGIZE(ANDROID_ABI);
 const char kUnknownValue[] = "unknown";
+// This is a format string template and the %s is meant to be replaced by
+// the Android release version number (e.g. "7.0" for Nougat).
+const char kPlatformNameFormat[] =
+    "Linux " STRINGIZE(ANDROID_ABI) "; Android %s";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -59,6 +62,26 @@ bool GetAndroidSystemProperty(const char* system_property_name,
     SbStringCopy(out_value, default_value, value_length);
   }
   return true;
+}
+
+// Populate the kPlatformNameFormat with the version number and if
+// |value_length| is large enough to store the result, copy the result into
+// |out_value|.
+bool CopyAndroidPlatformName(char* out_value, int value_length) {
+  // Get the Android version number (e.g. "7.0" for Nougat).
+  const int kStringBufferSize = 256;
+  char version_string_buffer[kStringBufferSize];
+  if (!GetAndroidSystemProperty("ro.build.version.release",
+                                version_string_buffer, kStringBufferSize,
+                                kUnknownValue)) {
+    return false;
+  }
+
+  char result_string[kStringBufferSize];
+  SbStringFormatF(result_string, kStringBufferSize, kPlatformNameFormat,
+                  version_string_buffer);
+
+  return CopyStringAndTestIfSuccess(out_value, value_length, result_string);
 }
 
 }  // namespace
@@ -91,7 +114,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);
 
     case kSbSystemPropertyPlatformName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
+      return CopyAndroidPlatformName(out_value, value_length);
 
     case kSbSystemPropertyPlatformUuid:
       SB_NOTIMPLEMENTED();
