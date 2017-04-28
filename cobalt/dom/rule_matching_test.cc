@@ -30,6 +30,7 @@
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -229,9 +230,15 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchTextOnly) {
 
 // div:focus should match focused div.
 TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
+  // Give the document browsing context which is needed for focus to work.
+  testing::StubWindow window;
+  document_->set_window(window.window());
+  // Give the document initial computed style.
+  document_->SetViewport(math::Size(320, 240));
+
   css_style_sheet_ = css_parser_->ParseStyleSheet(
       ":focus {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div tabIndex=-1/>");
+  root_->set_inner_html("<div tabIndex=\"-1\"/>");
   root_->first_element_child()->AsHTMLElement()->Focus();
   UpdateAllMatchingRules();
 
@@ -243,9 +250,15 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
 
 // div:focus shouldn't match unfocused div.
 TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
+  // Give the document browsing context which is needed for focus to work.
+  testing::StubWindow window;
+  document_->set_window(window.window());
+  // Give the document initial computed style.
+  document_->SetViewport(math::Size(320, 240));
+
   css_style_sheet_ = css_parser_->ParseStyleSheet(
       ":focus {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div tabIndex=-1/>");
+  root_->set_inner_html("<div tabIndex=\"-1\"/>");
   UpdateAllMatchingRules();
 
   cssom::RulesWithCascadePrecedence* matching_rules =
