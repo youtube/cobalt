@@ -30,7 +30,9 @@
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom_parser/parser.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -227,11 +229,45 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchTextOnly) {
   EXPECT_EQ(0, matching_rules->size());
 }
 
+class MockLayoutBoxes : public LayoutBoxes {
+ public:
+  MOCK_CONST_METHOD0(type, Type());
+  MOCK_CONST_METHOD0(GetClientRects, scoped_refptr<DOMRectList>());
+
+  MOCK_CONST_METHOD0(IsInlineLevel, bool());
+
+  MOCK_CONST_METHOD0(GetBorderEdgeLeft, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeTop, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeHeight, float());
+
+  MOCK_CONST_METHOD0(GetBorderLeftWidth, float());
+  MOCK_CONST_METHOD0(GetBorderTopWidth, float());
+
+  MOCK_CONST_METHOD0(GetMarginEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetMarginEdgeHeight, float());
+
+  MOCK_CONST_METHOD0(GetPaddingEdgeLeft, float());
+  MOCK_CONST_METHOD0(GetPaddingEdgeTop, float());
+  MOCK_CONST_METHOD0(GetPaddingEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetPaddingEdgeHeight, float());
+
+  MOCK_METHOD0(InvalidateSizes, void());
+  MOCK_METHOD0(InvalidateCrossReferences, void());
+  MOCK_METHOD0(InvalidateRenderTreeNodes, void());
+};
+
 // div:focus should match focused div.
 TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
+  // Give the document browsing context which is needed for focus to work.
+  testing::StubWindow window;
+  document_->set_window(window.window());
+
   css_style_sheet_ = css_parser_->ParseStyleSheet(
       ":focus {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
   root_->set_inner_html("<div tabIndex=-1/>");
+  root_->first_element_child()->AsHTMLElement()->set_layout_boxes(
+      scoped_ptr<LayoutBoxes>(new MockLayoutBoxes));
   root_->first_element_child()->AsHTMLElement()->Focus();
   UpdateAllMatchingRules();
 
@@ -243,6 +279,10 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
 
 // div:focus shouldn't match unfocused div.
 TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
+  // Give the document browsing context which is needed for focus to work.
+  testing::StubWindow window;
+  document_->set_window(window.window());
+
   css_style_sheet_ = css_parser_->ParseStyleSheet(
       ":focus {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
   root_->set_inner_html("<div tabIndex=-1/>");
