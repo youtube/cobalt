@@ -15,6 +15,7 @@
 #include "cobalt/dom/dom_implementation.h"
 
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/window.h"
 
 namespace cobalt {
@@ -32,13 +33,38 @@ scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
   return CreateDocument(namespace_name, qualified_name, NULL);
 }
 
+// Algorithm for CreateDocument:
+//   https://www.w3.org/TR/dom/#dom-domimplementation-createdocument
 scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
     base::optional<std::string> namespace_name,
     const std::string& qualified_name, scoped_refptr<DocumentType> doctype) {
-  UNREFERENCED_PARAMETER(namespace_name);
-  UNREFERENCED_PARAMETER(qualified_name);
-  DCHECK(!doctype);
-  return new XMLDocument(html_element_context_);
+  UNREFERENCED_PARAMETER(doctype);
+
+  // 1. Let document be a new XMLDocument.
+  scoped_refptr<XMLDocument> document = new XMLDocument(html_element_context_);
+
+  // 2. Let element be null.
+  scoped_refptr<Element> element;
+
+  // 3. If qualifiedName is not the empty string, set element to the result of
+  // invoking the createElementNS() method with the arguments namespace and
+  // qualifiedName on document. Rethrow any exceptions.
+  if (!qualified_name.empty()) {
+    element =
+        document->CreateElementNS(namespace_name.value_or(""), qualified_name);
+  }
+
+  // 4. Not needed by Cobalt.
+
+  // 5. If element is not null, append element to document.
+  if (element) {
+    document->AppendChild(element);
+  }
+
+  // 6. Not needed by Cobalt.
+
+  // 7. Return document.
+  return document;
 }
 
 }  // namespace dom
