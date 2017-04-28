@@ -329,7 +329,11 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
   return NULL;
 }
 
+// https://www.w3.org/TR/html5/editing.html#dom-document-activeelement
 scoped_refptr<Element> Document::active_element() const {
+  // The activeElement attribute on Document objects must return the element in
+  // the document that is focused. If no element in the Document is focused,
+  // this must return the body element.
   if (!active_element_) {
     return body();
   } else {
