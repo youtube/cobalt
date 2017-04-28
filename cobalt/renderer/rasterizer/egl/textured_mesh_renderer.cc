@@ -182,7 +182,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
 
     GL_CALL(glAttachShader(result.gl_program_id, blit_vertex_shader));
 
-    std::string sampler_type = "sampler";
+    std::string sampler_type = "sampler2D";
     if (texture_target == GL_TEXTURE_EXTERNAL_OES) {
       sampler_type = "samplerExternalOES";
     }
