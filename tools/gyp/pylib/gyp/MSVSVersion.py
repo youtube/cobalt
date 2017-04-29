@@ -197,6 +197,15 @@ def _CreateVersion(name, path, sdk_based=False):
   if path:
     path = os.path.normpath(path)
   versions = {
+      '2017': VisualStudioVersion('2017',
+                                  'Visual Studio 2017',
+                                  solution_version='12.0',
+                                  project_version='14.0',
+                                  flat_sln=False,
+                                  uses_vcxproj=True,
+                                  path=path,
+                                  sdk_based=sdk_based,
+                                  default_toolset='v141'),
       '2012': VisualStudioVersion('2012',
                                   'Visual Studio 2012',
                                   solution_version='12.00',
@@ -291,9 +300,19 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
     Where (e) is e for express editions of MSVS and blank otherwise.
   """
   version_to_year = {
-      '8.0': '2005', '9.0': '2008', '10.0': '2010', '11.0': '2012'}
+      '8.0': '2005', '9.0': '2008', '10.0': '2010', '11.0': '2012',
+      '14.0': '2015', '15.0': '2017'}
   versions = []
   for version in versions_to_check:
+    if version == '15.0':
+      # Version 15 does not include registry entries.
+      path = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE'
+      path = _ConvertToCygpath(path)
+      full_path = os.path.join(path, 'devenv.exe')
+      if os.path.exists(full_path):
+        versions.append(_CreateVersion(version_to_year[version],
+            os.path.join(path, '..', '..')))
+      continue
     # Old method of searching for which VS version is installed
     # We don't use the 2010-encouraged-way because we also want to get the
     # path to the binaries, which it doesn't offer.
@@ -345,7 +364,7 @@ def SelectVisualStudioVersion(version='auto'):
   if version == 'auto':
     version = os.environ.get('GYP_MSVS_VERSION', 'auto')
   version_map = {
-    'auto': ('10.0', '9.0', '8.0', '11.0'),
+    'auto': ('10.0', '9.0', '8.0', '11.0', '12.0'),
     '2005': ('8.0',),
     '2005e': ('8.0',),
     '2008': ('9.0',),
@@ -354,7 +373,9 @@ def SelectVisualStudioVersion(version='auto'):
     '2010e': ('10.0',),
     '2012': ('11.0',),
     '2012e': ('11.0',),
+    '2017': ('15.0',),
   }
+
   version = str(version)
   versions = _DetectVisualStudioVersions(version_map[version], 'e' in version)
   if not versions:
