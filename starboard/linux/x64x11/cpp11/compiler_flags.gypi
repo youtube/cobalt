@@ -128,6 +128,7 @@
           '-Wno-shift-negative-value',
           # Width of bit-field exceeds width of its type- value will be truncated
           '-Wno-bitfield-width',
+          '-Wno-undefined-var-template',
         ],
       }],
       ['use_asan==1', {
