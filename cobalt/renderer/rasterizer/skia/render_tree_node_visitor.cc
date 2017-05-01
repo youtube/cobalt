@@ -1442,35 +1442,54 @@ void DrawOutsetRectShadowNode(render_tree::RectShadowNode* node,
 
 void DrawRoundedRectShadowNode(render_tree::RectShadowNode* node,
                                SkCanvas* canvas) {
-  if (node->data().shadow.blur_sigma > 0.0f) {
-    NOTIMPLEMENTED() << "Cobalt doesn't currently support rendering blurred "
-                        "box shadows on rounded rectangles.";
-    return;
-  }
-  if (!IsCircle(node->data().rect.size(), *node->data().rounded_corners)) {
-    NOTIMPLEMENTED() << "Cobalt does not support box shadows with rounded "
-                        "corners that are not circles.";
-    return;
-  }
-
   RRect shadow_rrect = GetShadowRect(*node);
-
-  SkRRect skia_clip_rrect =
-      RoundedRectToSkia(node->data().rect, *node->data().rounded_corners);
-  SkRRect skia_draw_rrect =
-      RoundedRectToSkia(shadow_rrect.rect, *shadow_rrect.rounded_corners);
-
-  if (node->data().inset) {
-    std::swap(skia_clip_rrect, skia_draw_rrect);
-  }
 
   canvas->save();
 
-  canvas->clipRRect(skia_clip_rrect, SkRegion::kDifference_Op, true);
+  SkRRect skia_clip_rrect =
+      RoundedRectToSkia(node->data().rect, *node->data().rounded_corners);
+  SkRRect skia_shadow_rrect =
+      RoundedRectToSkia(shadow_rrect.rect, *shadow_rrect.rounded_corners);
 
-  SkPaint paint = GetPaintForBoxShadow(node->data().shadow);
-  paint.setAntiAlias(true);
-  canvas->drawRRect(skia_draw_rrect, paint);
+  if (node->data().inset) {
+    // Calculate the outer rect to be large enough such that blurring the outer
+    // unseen edge will not affect the visible inner region of the shadow.
+    math::RectF outer_rect = shadow_rrect.rect;
+    math::Vector2dF common_outer_rect_outset =
+        node->data().shadow.BlurExtent() +
+        math::Vector2dF(node->data().spread, node->data().spread);
+    math::InsetsF outer_rect_outset(
+        common_outer_rect_outset.x() + node->data().shadow.offset.x(),
+        common_outer_rect_outset.y() + node->data().shadow.offset.y(),
+        common_outer_rect_outset.x() - node->data().shadow.offset.x(),
+        common_outer_rect_outset.y() - node->data().shadow.offset.y());
+    outer_rect_outset.set_left(std::max(0.0f, outer_rect_outset.left()));
+    outer_rect_outset.set_top(std::max(0.0f, outer_rect_outset.top()));
+    outer_rect_outset.set_right(std::max(0.0f, outer_rect_outset.right()));
+    outer_rect_outset.set_bottom(std::max(0.0f, outer_rect_outset.bottom()));
+    outer_rect.Outset(outer_rect_outset);
+
+    SkRRect skia_outer_draw_rrect =
+        RoundedRectToSkia(outer_rect, *shadow_rrect.rounded_corners);
+
+    canvas->clipRRect(skia_clip_rrect, SkRegion::kIntersect_Op, true);
+
+    SkPaint paint = GetPaintForBoxShadow(node->data().shadow);
+    paint.setAntiAlias(true);
+
+    // Draw a rounded rect "ring".  We draw a ring whose outer rectangle is
+    // larger than the clip rectangle so that we can blur it without the outer
+    // edge's blur reaching the visible region.
+    canvas->drawDRRect(skia_outer_draw_rrect, skia_shadow_rrect, paint);
+  } else {
+    // Draw a rounded rectangle, possibly blurred, as the shadow rectangle,
+    // clipped by node->data().rect.
+    canvas->clipRRect(skia_clip_rrect, SkRegion::kDifference_Op, true);
+
+    SkPaint paint = GetPaintForBoxShadow(node->data().shadow);
+    paint.setAntiAlias(true);
+    canvas->drawRRect(skia_shadow_rrect, paint);
+  }
 
   canvas->restore();
 }
