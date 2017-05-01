@@ -134,7 +134,7 @@ bool IteratorClose(JSContext* context, JS::HandleObject iterator) {
 bool Call0(JSContext* context, JS::HandleFunction function,
            JS::HandleObject value, JS::MutableHandleValue out_result) {
   const size_t kNumArguments = 0;
-  JS::Value args[kNumArguments];
+  JS::Value *args = NULL;
   js::SetValueRangeToNull(args, kNumArguments);
   js::AutoValueArray auto_array_rooter(context, args, kNumArguments);
 
