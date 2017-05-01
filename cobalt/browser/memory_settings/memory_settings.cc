@@ -25,6 +25,8 @@
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/stringprintf.h"
+#include "cobalt/browser/memory_settings/build_settings.h"
+#include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
 #include "nb/lexical_cast.h"
 
@@ -59,16 +61,21 @@ std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
 }  // namespace
 
 MemorySetting::MemorySetting(ClassType type, const std::string& name)
-    : class_type_(type), name_(name), source_type_(kUnset) {}
+    : class_type_(type),
+      name_(name),
+      source_type_(kUnset),
+      memory_type_(kCPU) {}
 
 IntSetting::IntSetting(const std::string& name)
     : MemorySetting(kInt, name), value_() {}
 
 std::string IntSetting::ValueToString() const {
   std::stringstream ss;
-  ss << value_;
+  ss << value();
   return ss.str();
 }
+
+int64_t IntSetting::MemoryConsumption() const { return value(); }
 
 bool IntSetting::TryParseValue(SourceType source_type,
                                const std::string& string_value) {
@@ -89,23 +96,41 @@ DimensionSetting::DimensionSetting(const std::string& name)
 
 std::string DimensionSetting::ValueToString() const {
   std::stringstream ss;
-  ss << value_.width() << "x" << value_.height();
+  TextureDimensions value_data = value();
+  ss << value_data.width() << "x" << value_data.height() << "x"
+     << value_data.bytes_per_pixel();
   return ss.str();
+}
+
+int64_t DimensionSetting::MemoryConsumption() const {
+  return value().TotalBytes();
 }
 
 bool DimensionSetting::TryParseValue(SourceType source_type,
                                      const std::string& string_value) {
   std::vector<ParsedIntValue> int_values = ParseDimensions(string_value);
-  const bool parse_ok = (int_values.size() == 2) && (!int_values[0].error_) &&
-                        (!int_values[1].error_);
-  if (parse_ok) {
-    math::Size rectangle(int_values[0].value_, int_values[1].value_);
-    set_value(source_type, rectangle);
-    return true;
-  } else {
+
+  if ((int_values.size() < 2) || (int_values.size() > 3)) {
     LOG(ERROR) << "Invalid value for parse value setting: " << string_value;
-    return false;
+    return false;  // Parse failed.
   }
+
+  for (size_t i = 0; i < int_values.size(); ++i) {
+    if (int_values[i].error_) {
+      LOG(ERROR) << "Invalid value for parse value setting: " << string_value;
+      return false;  // Parse failed.
+    }
+  }
+
+  const int bytes_per_pixel =
+      int_values.size() == 3 ?
+      int_values[2].value_ : kSkiaGlyphAtlasTextureBytesPerPixel;
+
+  TextureDimensions tex_dimensions(int_values[0].value_, int_values[1].value_,
+                                   bytes_per_pixel);
+
+  set_value(source_type, tex_dimensions);
+  return true;
 }
 
 }  // namespace memory_settings
