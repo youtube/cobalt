@@ -90,18 +90,23 @@ TEST(MemorySettingsPrettyPrint, ToString) {
   std::string actual_string = GeneratePrettyPrintTable(memory_settings_ptr);
 
   std::string expected_string =
-      "NAME                                   VALUE       SOURCE     \n"
-      "+--------------------------------------+-----------+---------+\n"
+      " NAME                                   VALUE       SOURCE    \n"
+      " ____________________________________________________________ \n"
+      "|                                      |           |         |\n"
       "| image_cache_size_in_bytes            |      1234 | CmdLine |\n"
-      "+--------------------------------------+-----------+---------+\n"
+      "|______________________________________|___________|_________|\n"
+      "|                                      |           |         |\n"
       "| javascript_gc_threshold_in_bytes     |      1112 | AutoSet |\n"
-      "+--------------------------------------+-----------+---------+\n"
+      "|______________________________________|___________|_________|\n"
+      "|                                      |           |         |\n"
       "| skia_atlas_texture_dimensions        | 1234x4567 | CmdLine |\n"
-      "+--------------------------------------+-----------+---------+\n"
+      "|______________________________________|___________|_________|\n"
+      "|                                      |           |         |\n"
       "| skia_cache_size_in_bytes             |         0 |     N/A |\n"
-      "+--------------------------------------+-----------+---------+\n"
+      "|______________________________________|___________|_________|\n"
+      "|                                      |           |         |\n"
       "| software_surface_cache_size_in_bytes |      8910 |   Build |\n"
-      "+--------------------------------------+-----------+---------+\n";
+      "|______________________________________|___________|_________|\n";
 
   const bool strings_matched = (expected_string == actual_string);
   EXPECT_TRUE(strings_matched) << "Strings Mismatched:\n\n"
