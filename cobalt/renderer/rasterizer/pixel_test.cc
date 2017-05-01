@@ -2674,11 +2674,436 @@ TEST_F(PixelTest, BoxShadowWithInset) {
       Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 0.0f));
 }
 
-TEST_F(PixelTest, BoxShadowWithInsetSpreadAndBlur) {
+TEST_F(PixelTest, BoxShadowWithInset25pxSpreadAndBlur) {
   TestTree(CreateShadowRectWithBackground(
       output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
       ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
       Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f));
+}
+
+TEST_F(PixelTest, BoxShadowCircleWithInset25pxSpreadAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, BoxShadowCircleWithOutset25pxSpreadAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, BoxShadowCircleWithInset25pxSpread1pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowCircleWithInset25pxSpread1pxBlurRoundedCornersAndNoOffset) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(0.0f, 0.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, BoxShadowCircleWithOutset25pxSpread1pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, BoxShadowCircleWithInset25pxSpread8pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, BoxShadowCircleWithOutset25pxSpread8pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, BoxShadowCircleWithInset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowBigCircleWithInset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 25, 150, 150),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(75, 75)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowCircleWithOutset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, BoxShadowEllipseWithInset25pxSpreadAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest, BoxShadowEllipseWithOutset25pxSpreadAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest, BoxShadowEllipseWithInset25pxSpread1pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowEllipseWithOutset25pxSpread1pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest, BoxShadowEllipseWithInset25pxSpread8pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowEllipseWithOutset25pxSpread8pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowEllipseWithInset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowBigEllipseWithInset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 25, 190, 150),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(95, 75)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowEllipseWithOutset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset5pxSpreadAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(20, 20)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset5pxSpreadAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(20, 20)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset25pxSpreadAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(20, 20)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset25pxSpreadAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false,
+      25.0f, RoundedCorners(20, 20)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset5pxSpread5pxBlurAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(0.0f, 0.0f), 5.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset5pxSpread5pxBlurAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(0.0f, 0.0f), 5.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset5pxSpreadAndDifferentRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(20, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset5pxSpreadAndDifferentRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(20, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset5pxSpread25pxBlurAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 25.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(20, 20)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset5pxSpread25pxBlurAndSameRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 25.0f, ColorRGBA(0, 0, 0, 1)), false,
+      5.0f, RoundedCorners(20, 20)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithInset5pxSpread25pxBlurAndDifferentRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 25.0f, ColorRGBA(0, 0, 0, 1)), true, 5.0f,
+      RoundedCorners(20, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithOutset5pxSpread25pxBlurAndDifferentRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(10.0f, 10.0f), 25.0f, ColorRGBA(0, 0, 0, 1)), false,
+      5.0f, RoundedCorners(20, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset25pxSpreadAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset25pxSpreadAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset25pxSpread1pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset25pxSpread1pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset25pxSpread8pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset25pxSpread8pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset25pxSpread50pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(25, 50, 150, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(5, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInset25pxSpreadAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutset25pxSpreadAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithInset25pxSpread1pxBlurAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithOutset25pxSpread1pxBlurAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 1.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithInset25pxSpread8pxBlurAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithOutset25pxSpread8pxBlurAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithInset25pxSpread50pxBlurAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), true, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithOutset25pxSpread50pxBlurAndIsometricRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(8.0f, 8.0f), 50.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
+      RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInsetNeg10pxSpreadAnd10pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(-15.0f, 20.0f), 10.0f, ColorRGBA(0, 0, 0, 1)), true,
+      -10.0f, RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest,
+       BoxShadowWithOutsetNeg10pxSpreadAnd10pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(-15.0f, 20.0f), 10.0f, ColorRGBA(0, 0, 0, 1)), false,
+      -10.0f, RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithInsetNeg10pxSpreadAnd2pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(-15.0f, 20.0f), 2.0f, ColorRGBA(0, 0, 0, 1)), true,
+      -10.0f, RoundedCorners(10, 10)));
+}
+
+TEST_F(PixelTest, BoxShadowWithOutsetNeg10pxSpreadAnd2pxBlurAndRoundedCorners) {
+  TestTree(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 100, 100),
+      Shadow(Vector2dF(-15.0f, 20.0f), 2.0f, ColorRGBA(0, 0, 0, 1)), false,
+      -10.0f, RoundedCorners(10, 10)));
 }
 
 TEST_F(PixelTest, FilterBlurred0Point1PxText) {
