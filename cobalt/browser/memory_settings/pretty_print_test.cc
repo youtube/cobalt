@@ -17,6 +17,7 @@
 #include "cobalt/browser/memory_settings/pretty_print.h"
 
 #include <algorithm>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -36,82 +37,206 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
-scoped_ptr<MemorySetting> CreateMemorySetting(
-    MemorySetting::ClassType class_type, MemorySetting::SourceType source_type,
-    const std::string& name, const std::string& value) {
-  scoped_ptr<MemorySetting> setting;
+class TestSettingGroup {
+ public:
+  TestSettingGroup() {}
 
-  switch (class_type) {
-    case MemorySetting::kInt: {
-      setting.reset(new IntSetting(name));
-      break;
-    }
-    case MemorySetting::kDimensions: {
-      setting.reset(new DimensionSetting(name));
-      break;
-    }
-    default: {
-      EXPECT_TRUE(false) << "Unexpected type " << class_type;
-      setting.reset(new IntSetting(name));
-      break;
+  void LoadDefault() {
+    MakeSetting(MemorySetting::kInt, MemorySetting::kCmdLine,
+                MemorySetting::kGPU, switches::kImageCacheSizeInBytes, "1234");
+
+    MakeSetting(MemorySetting::kInt, MemorySetting::kAutoSet,
+                MemorySetting::kCPU, switches::kJavaScriptGcThresholdInBytes,
+                "1112");
+
+    MakeSetting(MemorySetting::kDimensions, MemorySetting::kCmdLine,
+                MemorySetting::kGPU, switches::kSkiaTextureAtlasDimensions,
+                "1234x4567");
+
+    MakeSetting(MemorySetting::kInt, MemorySetting::kCmdLine,
+                MemorySetting::kGPU, switches::kSkiaCacheSizeInBytes,
+                "12345678");
+
+    MakeSetting(MemorySetting::kInt, MemorySetting::kBuildSetting,
+                MemorySetting::kNotApplicable,
+                switches::kSoftwareSurfaceCacheSizeInBytes, "8910");
+  }
+
+  ~TestSettingGroup() {
+    for (ConstIter it = map_.begin(); it != map_.end(); ++it) {
+      delete it->second;
     }
   }
-  EXPECT_TRUE(setting->TryParseValue(source_type, value));
-  return setting.Pass();
+
+  // The memory setting is owned internally.
+  void MakeSetting(MemorySetting::ClassType class_type,
+                   MemorySetting::SourceType source_type,
+                   MemorySetting::MemoryType memory_type,
+                   const std::string& name, const std::string& value) {
+   const bool found = (map_.find(name) !=  map_.end());
+
+    ASSERT_FALSE(found);
+    map_[name] =
+        CreateMemorySetting(class_type, source_type, memory_type, name, value);
+  }
+
+  std::vector<const MemorySetting*> AsConstVector() const {
+    std::vector<const MemorySetting*> output;
+    for (ConstIter it = map_.begin(); it != map_.end(); ++it) {
+      output.push_back(it->second);
+    }
+    return output;
+  }
+
+ private:
+  static MemorySetting* CreateMemorySetting(
+      MemorySetting::ClassType class_type,
+      MemorySetting::SourceType source_type,
+      MemorySetting::MemoryType memory_type, const std::string& name,
+      const std::string& value) {
+    MemorySetting* memory_setting = NULL;
+    switch (class_type) {
+      case MemorySetting::kInt: {
+        memory_setting = new IntSetting(name);
+        break;
+      }
+      case MemorySetting::kDimensions: {
+        memory_setting = new DimensionSetting(name);
+        break;
+      }
+      default: {
+        EXPECT_TRUE(false) << "Unexpected type " << class_type;
+        memory_setting = new IntSetting(name);
+        break;
+      }
+    }
+    EXPECT_TRUE(memory_setting->TryParseValue(source_type, value));
+    memory_setting->set_memory_type(memory_type);
+    return memory_setting;
+  }
+
+  typedef std::map<std::string, MemorySetting*>::const_iterator ConstIter;
+  std::map<std::string, MemorySetting*> map_;
+};
+
+TEST(MemorySettingsPrettyPrint, GeneratePrettyPrintTable) {
+  TestSettingGroup setting_group;
+  setting_group.LoadDefault();
+  std::string actual_string =
+      GeneratePrettyPrintTable(setting_group.AsConstVector());
+
+  const char* expected_string =
+      " NAME                                   VALUE                   TYPE   SOURCE    \n"
+      " _______________________________________________________________________________ \n"
+      "|                                      |             |         |      |         |\n"
+      "| image_cache_size_in_bytes            |        1234 |  0.0 MB |  GPU | CmdLine |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| javascript_gc_threshold_in_bytes     |        1112 |  0.0 MB |  CPU | AutoSet |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| skia_atlas_texture_dimensions        | 1234x4567x2 | 10.7 MB |  GPU | CmdLine |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| skia_cache_size_in_bytes             |    12345678 | 11.8 MB |  GPU | CmdLine |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |\n"
+      "|______________________________________|_____________|_________|______|_________|\n";
+
+  EXPECT_STREQ(expected_string, actual_string.c_str());
+}
+
+TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithNoGpuMemory) {
+  const base::optional<int64_t> no_gpu_memory;
+  std::string actual_output =
+      GenerateMemoryTable(256 * 1024 * 1024,  // 256 MB CPU available
+                          no_gpu_memory,
+                          128 * 1024 * 1024,  // 128 MB CPU consumption
+                          0);                 // 0 MB GPU consumption.
+
+  const char* expected_output =
+      " TYPE   TOTAL       SETTINGS   \n"
+      " _____________________________ \n"
+      "|      |           |          |\n"
+      "| CPU  |  256.0 MB | 128.0 MB |\n"
+      "|______|___________|__________|\n"
+      "|      |           |          |\n"
+      "| GPU  | <UNKNOWN> |   0.0 MB |\n"
+      "|______|___________|__________|\n";
+
+  EXPECT_STREQ(expected_output, actual_output.c_str()) << actual_output;
+}
+
+TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
+  std::string actual_output =
+      GenerateMemoryTable(256 * 1024 * 1024,  // 256 MB CPU available.
+                          64 * 1024 * 1024,   // 64 MB GPU available.
+                          128 * 1024 * 1024,  // 128 MB CPU consumption.
+                          23592960);          // 22.5 MB GPU consumption.
+
+  const char* expected_output =
+      " TYPE   TOTAL      SETTINGS   \n"
+      " ____________________________ \n"
+      "|      |          |          |\n"
+      "| CPU  | 256.0 MB | 128.0 MB |\n"
+      "|______|__________|__________|\n"
+      "|      |          |          |\n"
+      "| GPU  |  64.0 MB |  22.5 MB |\n"
+      "|______|__________|__________|\n";
+
+  EXPECT_STREQ(expected_output, actual_output.c_str()) << actual_output;
 }
 
 TEST(MemorySettingsPrettyPrint, ToString) {
-  std::vector<const MemorySetting*> memory_settings_ptr;
-  scoped_ptr<MemorySetting> image_cache_setting =
-      CreateMemorySetting(MemorySetting::kInt, MemorySetting::kCmdLine,
-                          switches::kImageCacheSizeInBytes, "1234");
-  memory_settings_ptr.push_back(image_cache_setting.get());
+  TestSettingGroup test_setting_group;
+  test_setting_group.LoadDefault();
 
-  scoped_ptr<MemorySetting> js_gc_setting =
-      CreateMemorySetting(MemorySetting::kInt, MemorySetting::kAutoSet,
-                          switches::kJavaScriptGcThresholdInBytes, "1112");
-  memory_settings_ptr.push_back(js_gc_setting.get());
+  std::string actual_string = GeneratePrettyPrintTable(
+      test_setting_group.AsConstVector());
 
-  scoped_ptr<MemorySetting> skia_texture_setting =
-      CreateMemorySetting(MemorySetting::kDimensions, MemorySetting::kCmdLine,
-                          switches::kSkiaTextureAtlasDimensions, "1234x4567");
-  memory_settings_ptr.push_back(skia_texture_setting.get());
+  const char* expected_string =
+      " NAME                                   VALUE                   TYPE   SOURCE    \n"
+      " _______________________________________________________________________________ \n"
+      "|                                      |             |         |      |         |\n"
+      "| image_cache_size_in_bytes            |        1234 |  0.0 MB |  GPU | CmdLine |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| javascript_gc_threshold_in_bytes     |        1112 |  0.0 MB |  CPU | AutoSet |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| skia_atlas_texture_dimensions        | 1234x4567x2 | 10.7 MB |  GPU | CmdLine |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| skia_cache_size_in_bytes             |    12345678 | 11.8 MB |  GPU | CmdLine |\n"
+      "|______________________________________|_____________|_________|______|_________|\n"
+      "|                                      |             |         |      |         |\n"
+      "| software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |\n"
+      "|______________________________________|_____________|_________|______|_________|\n";
 
-  scoped_ptr<MemorySetting> skia_cache_setting =
-      CreateMemorySetting(MemorySetting::kInt, MemorySetting::kNotApplicable,
-                          switches::kSkiaCacheSizeInBytes, "0");
-  memory_settings_ptr.push_back(skia_cache_setting.get());
+  EXPECT_STREQ(expected_string, actual_string.c_str()) << actual_string;
+}
 
-  scoped_ptr<MemorySetting> software_surface_setting =
-      CreateMemorySetting(MemorySetting::kInt, MemorySetting::kBuildSetting,
-                          switches::kSoftwareSurfaceCacheSizeInBytes, "8910");
-  memory_settings_ptr.push_back(software_surface_setting.get());
+TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
+  const base::optional<int64_t> no_gpu_memory;
+  std::string actual_output = GenerateMemoryTable(
+      256 * 1024 * 1024,  // 256 MB CPU available.
+      no_gpu_memory,      // Signals that no gpu memory is available
+                          //   on this system.
+      128 * 1024 * 1024,  // 128 MB CPU consumption.
+      16 * 1024 * 1024);  // 16 MB GPU consumption.
 
-  std::string actual_string = GeneratePrettyPrintTable(memory_settings_ptr);
+  const char* expected_output =
+      " TYPE   TOTAL       SETTINGS   \n"
+      " _____________________________ \n"
+      "|      |           |          |\n"
+      "| CPU  |  256.0 MB | 128.0 MB |\n"
+      "|______|___________|__________|\n"
+      "|      |           |          |\n"
+      "| GPU  | <UNKNOWN> |  16.0 MB |\n"
+      "|______|___________|__________|\n";
 
-  std::string expected_string =
-      " NAME                                   VALUE       SOURCE    \n"
-      " ____________________________________________________________ \n"
-      "|                                      |           |         |\n"
-      "| image_cache_size_in_bytes            |      1234 | CmdLine |\n"
-      "|______________________________________|___________|_________|\n"
-      "|                                      |           |         |\n"
-      "| javascript_gc_threshold_in_bytes     |      1112 | AutoSet |\n"
-      "|______________________________________|___________|_________|\n"
-      "|                                      |           |         |\n"
-      "| skia_atlas_texture_dimensions        | 1234x4567 | CmdLine |\n"
-      "|______________________________________|___________|_________|\n"
-      "|                                      |           |         |\n"
-      "| skia_cache_size_in_bytes             |         0 |     N/A |\n"
-      "|______________________________________|___________|_________|\n"
-      "|                                      |           |         |\n"
-      "| software_surface_cache_size_in_bytes |      8910 |   Build |\n"
-      "|______________________________________|___________|_________|\n";
-
-  const bool strings_matched = (expected_string == actual_string);
-  EXPECT_TRUE(strings_matched) << "Strings Mismatched:\n\n"
-                               << "Actual:\n" << actual_string << "\n"
-                               << "Expected:\n" << expected_string << "\n";
+  EXPECT_STREQ(expected_output, actual_output.c_str()) << actual_output;
 }
 
 }  // namespace memory_settings
