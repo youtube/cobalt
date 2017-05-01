@@ -18,6 +18,7 @@
 #define COBALT_BROWSER_MEMORY_SETTINGS_CALCULATIONS_H_
 
 #include "base/optional.h"
+#include "cobalt/browser/memory_settings/texture_dimensions.h"
 #include "cobalt/math/size.h"
 #include "starboard/types.h"
 
@@ -41,7 +42,8 @@ int64_t CalculateImageCacheSize(const math::Size& dimensions);
 // and
 // kMinSkiaTextureAtlasHeight <= output.height() <= kMaxSkiaTextureAtlasHeight
 // will be true.
-math::Size CalculateSkiaGlyphAtlasTextureSize(const math::Size& ui_resolution);
+TextureDimensions CalculateSkiaGlyphAtlasTextureSize(
+    const math::Size& ui_resolution);
 
 // Calculates the SoftwareSurfaceCacheSize given the ui_resolution.
 int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
@@ -50,19 +52,6 @@ int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
 // Calculates the SkiaCachSize from the ui_resolution. This is normalized
 // to be 4MB @ 1080p and scales accordingly.
 int64_t CalculateSkiaCacheSize(const math::Size& ui_resolution);
-
-// These internal values are exposed for testing.
-enum MemorySizes {
-  kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
-  kMaxImageCacheSize = 64 * 1024 * 1024,  // 64mb
-
-  kMinSkiaTextureAtlasWidth = 2048,
-  kMinSkiaTextureAtlasHeight = 2048,
-
-  kDefaultJsGarbageCollectionThresholdSize = 1 * 1024 * 1024,  // 1mb
-
-  kMinSkiaCacheSize = 4 * 1024 * 1024,  // 4mb.
-};
 
 }  // namespace memory_settings
 }  // namespace browser
