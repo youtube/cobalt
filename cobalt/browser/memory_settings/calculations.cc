@@ -18,6 +18,8 @@
 
 #include <algorithm>
 
+#include "cobalt/browser/memory_settings/build_settings.h"
+#include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/math/size.h"
 
 namespace cobalt {
@@ -95,7 +97,8 @@ int64_t CalculateImageCacheSize(const math::Size& dimensions) {
                              kMinImageCacheSize, kMaxImageCacheSize);
 }
 
-math::Size CalculateSkiaGlyphAtlasTextureSize(const math::Size& ui_resolution) {
+TextureDimensions CalculateSkiaGlyphAtlasTextureSize(
+    const math::Size& ui_resolution) {
   // LinearRemap defines a mapping function which will map the number
   // of ui_resolution pixels to the number of texture atlas pixels such that:
   // 1080p (1920x1080) => maps to => 2048x2048 texture atlas pixels
@@ -113,9 +116,13 @@ math::Size CalculateSkiaGlyphAtlasTextureSize(const math::Size& ui_resolution) {
 
   // Clamp the atlas texture to be within a minimum range.
   math::Size clamped_atlas_texture(
-      std::max<int>(kMinSkiaTextureAtlasWidth, atlas_texture.width()),
-      std::max<int>(kMinSkiaTextureAtlasWidth, atlas_texture.height()));
-  return clamped_atlas_texture;
+      std::max<int>(kMinSkiaGlyphTextureAtlasWidth, atlas_texture.width()),
+      std::max<int>(kMinSkiaGlyphTextureAtlasWidth, atlas_texture.height()));
+
+  TextureDimensions texture_dimensions(clamped_atlas_texture.width(),
+                                       clamped_atlas_texture.height(),
+                                       kSkiaGlyphAtlasTextureBytesPerPixel);
+  return texture_dimensions;
 }
 
 int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
