@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/browser/memory_settings/test_common.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -41,9 +42,18 @@ TEST(DimensionSetting, ParseFromString) {
   scoped_ptr<DimensionSetting> rect_setting(new DimensionSetting("dummy"));
   ASSERT_TRUE(
       rect_setting->TryParseValue(MemorySetting::kCmdLine, "1234x5678"));
-  EXPECT_EQ(math::Size(1234, 5678), rect_setting->value());
+  EXPECT_EQ(TextureDimensions(1234, 5678, 2), rect_setting->value());
   EXPECT_EQ(MemorySetting::kCmdLine, rect_setting->source_type());
-  EXPECT_EQ(std::string("1234x5678"), rect_setting->ValueToString());
+  EXPECT_EQ(std::string("1234x5678x2"), rect_setting->ValueToString());
+}
+
+TEST(DimensionSetting, ParseFromStringWithBytesPerPixel) {
+  scoped_ptr<DimensionSetting> rect_setting(new DimensionSetting("dummy"));
+  ASSERT_TRUE(
+      rect_setting->TryParseValue(MemorySetting::kCmdLine, "1234x5678x12"));
+  EXPECT_EQ(TextureDimensions(1234, 5678, 12), rect_setting->value());
+  EXPECT_EQ(MemorySetting::kCmdLine, rect_setting->source_type());
+  EXPECT_EQ(std::string("1234x5678x12"), rect_setting->ValueToString());
 }
 
 }  // namespace memory_settings

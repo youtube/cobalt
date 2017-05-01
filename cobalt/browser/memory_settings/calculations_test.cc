@@ -23,6 +23,9 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "cobalt/browser/memory_settings/build_settings.h"
+#include "cobalt/browser/memory_settings/constants.h"
+#include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -111,14 +114,14 @@ TEST(MemoryCalculations, CalculateImageCacheSize) {
 // function (side effect free) and will produce expected results.
 TEST(MemoryCalculations, CalculateSkiaGlyphAtlasTextureSize) {
   math::Size ui_dimensions;
-  math::Size atlas_texture_size;
+  TextureDimensions atlas_texture_size;
 
   // Test that the small resolution of 480p produces a texture atlas
   // that is minimal.
   ui_dimensions = GetDimensions(k480p);
   atlas_texture_size = CalculateSkiaGlyphAtlasTextureSize(ui_dimensions);
-  EXPECT_EQ(kMinSkiaTextureAtlasWidth, atlas_texture_size.width());
-  EXPECT_EQ(kMinSkiaTextureAtlasHeight, atlas_texture_size.height());
+  EXPECT_EQ(kMinSkiaGlyphTextureAtlasWidth, atlas_texture_size.width());
+  EXPECT_EQ(kMinSkiaGlyphTextureAtlasHeight, atlas_texture_size.height());
 
   // Test that expected resolution of 1080p produces a 2048x2048
   // atlas texture.

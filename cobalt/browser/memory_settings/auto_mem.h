@@ -44,19 +44,23 @@ class AutoMem {
 
   const IntSetting* image_cache_size_in_bytes() const;
   const IntSetting* javascript_gc_threshold_in_bytes() const;
+  const IntSetting* misc_engine_cpu_size_in_bytes() const;
   const DimensionSetting* skia_atlas_texture_dimensions() const;
   const IntSetting* skia_cache_size_in_bytes() const;
   const IntSetting* software_surface_cache_size_in_bytes() const;
 
-  std::vector<const MemorySetting*> AllMemorySetttings() const;
+  std::vector<const MemorySetting*> AllMemorySettings() const;
+  std::vector<MemorySetting*> AllMemorySettingsMutable();
 
-  // Generates a string table of the memory settings. This is used during
-  // startup to display memory configuration information.
+  // Generates a string table of the memory settings and available memory for
+  // cpu and gpu. This is used during startup to display memory configuration
+  // information.
   std::string ToPrettyPrintString() const;
 
  private:
   scoped_ptr<IntSetting> image_cache_size_in_bytes_;
   scoped_ptr<IntSetting> javascript_gc_threshold_in_bytes_;
+  scoped_ptr<IntSetting> misc_cobalt_cpu_size_in_bytes_;
   scoped_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
   scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
   scoped_ptr<IntSetting> software_surface_cache_size_in_bytes_;

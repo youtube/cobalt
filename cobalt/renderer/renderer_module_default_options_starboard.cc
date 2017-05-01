@@ -42,16 +42,16 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
-          graphics_context, options.skia_texture_atlas_dimensions.width(),
-          options.skia_texture_atlas_dimensions.height(),
+          graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
+          options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
-          graphics_context, options.skia_texture_atlas_dimensions.width(),
-          options.skia_texture_atlas_dimensions.height(),
+          graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
+          options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes));
@@ -64,8 +64,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
-          graphics_context, options.skia_texture_atlas_dimensions.width(),
-          options.skia_texture_atlas_dimensions.height(),
+          graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
+          options.skia_glyph_texture_atlas_dimensions.height(),
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes,
           options.software_surface_cache_size_in_bytes));
