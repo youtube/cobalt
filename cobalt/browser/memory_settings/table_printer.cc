@@ -154,8 +154,7 @@ std::string TablePrinterImpl::MakeDataRow(const Row& row) const {
     std::string token = token_ss.str();
 
     std::stringstream row_ss;
-    const std::streamsize col_size =
-        static_cast<std::streamsize>(column_sizes_[i]);
+    const int col_size = static_cast<int>(column_sizes_[i]);
     row_ss << "|";
     row_ss << std::setfill(' ');
     row_ss << std::setw(col_size);
