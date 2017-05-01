@@ -323,7 +323,38 @@ void DoNothing() {}
 // ===================================================================
 // emulates google3/base/mutex.cc
 
-#ifdef _WIN32
+#if defined(STARBOARD)
+
+struct Mutex::Internal {
+  SbMutex mutex;
+};
+
+Mutex::Mutex() : mInternal(new Internal) {
+  SbMutexCreate(&mInternal->mutex);
+}
+
+Mutex::~Mutex() {
+  SbMutexDestroy(&mInternal->mutex);
+  delete mInternal;
+}
+
+void Mutex::Lock() {
+  if (!SbMutexIsSuccess(SbMutexAcquire(&mInternal->mutex))) {
+    GOOGLE_LOG(FATAL) << "SbMutexAcquire failed.";
+  }
+}
+
+void Mutex::Unlock() {
+  if (!SbMutexRelease(&mInternal->mutex)) {
+    GOOGLE_LOG(FATAL) << "SbMutexRelease failed.";
+  }
+}
+
+void Mutex::AssertHeld() {
+  // Starboard doesn't provide a way to check which thread holds the mutex.
+}
+
+#elif defined(_WIN32)
 
 struct Mutex::Internal {
   CRITICAL_SECTION mutex;
@@ -361,37 +392,6 @@ void Mutex::AssertHeld() {
 #ifndef NDEBUG
   GOOGLE_DCHECK_EQ(mInternal->thread_id, GetCurrentThreadId());
 #endif
-}
-
-#elif defined(STARBOARD)
-
-struct Mutex::Internal {
-  SbMutex mutex;
-};
-
-Mutex::Mutex() : mInternal(new Internal) {
-  SbMutexCreate(&mInternal->mutex);
-}
-
-Mutex::~Mutex() {
-  SbMutexDestroy(&mInternal->mutex);
-  delete mInternal;
-}
-
-void Mutex::Lock() {
-  if (!SbMutexIsSuccess(SbMutexAcquire(&mInternal->mutex))) {
-    GOOGLE_LOG(FATAL) << "SbMutexAcquire failed.";
-  }
-}
-
-void Mutex::Unlock() {
-  if (!SbMutexRelease(&mInternal->mutex)) {
-    GOOGLE_LOG(FATAL) << "SbMutexRelease failed.";
-  }
-}
-
-void Mutex::AssertHeld() {
-  // Starboard doesn't provide a way to check which thread holds the mutex.
 }
 
 #elif defined(HAVE_PTHREAD)
