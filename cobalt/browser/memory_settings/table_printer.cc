@@ -39,9 +39,22 @@ class TablePrinterImpl {
   static std::vector<size_t> MakeColumnSizeVector(const Table& table);
   static size_t ColumnPrintSize(const Table& table, size_t which_col);
   explicit TablePrinterImpl(const std::vector<size_t>& column_sizes);
+
+  // " col1     col2 "
   std::string MakeHeaderRow(const Row& header_row) const;
+
+  // ex: "| value1 | value2 |"
   std::string MakeDataRow(const Row& row) const;
-  std::string MakeDelimiterRow(const std::vector<size_t>& column_sizes) const;
+
+  // ex: "|________|________|"
+  std::string MakeRowDelimiter() const;
+
+  // Follows a data row to provide verticle space before a TopSeperatorRow().
+  // ex: "|        |        |"
+  std::string MakeTopSeperatorRowAbove() const;
+
+  // ex: " _________________ "
+  std::string MakeTopSeperatorRow() const;
 
   const std::vector<size_t>& column_sizes_;
 };
@@ -57,14 +70,19 @@ std::string TablePrinterImpl::ToString(const Table& rows) {
   TablePrinterImpl printer(column_sizes);
 
   std::stringstream output_ss;
-  std::string row_delimiter = printer.MakeDelimiterRow(column_sizes);
+  output_ss << printer.MakeHeaderRow(rows[0]) << "\n";
+  output_ss << printer.MakeTopSeperatorRow() << "\n";
 
-  for (size_t i = 0; i < rows.size(); ++i) {
+  std::string seperator_row_above = printer.MakeTopSeperatorRowAbove();
+  std::string row_delimiter = printer.MakeRowDelimiter();
+
+  // Print body.
+  for (size_t i = 1; i < rows.size(); ++i) {
     const Row& row = rows[i];
 
-    const std::string row_string =
-        (i == 0) ? printer.MakeHeaderRow(row) : printer.MakeDataRow(row);
+    const std::string row_string = printer.MakeDataRow(row);
 
+    output_ss << seperator_row_above << "\n";
     output_ss << row_string << "\n";
     output_ss << row_delimiter << "\n";
   }
@@ -128,13 +146,13 @@ std::string TablePrinterImpl::MakeHeaderRow(const Row& header_row) const {
   std::stringstream ss;
 
   for (size_t i = 0; i < header_row.size(); ++i) {
-    ss << header_row[i];
+    ss << " " << header_row[i];
     const size_t name_size = header_row[i].size();
     const size_t col_width = column_sizes_[i];
 
     DCHECK_LT(name_size, col_width);
 
-    for (size_t j = 0; j < col_width + 1 - name_size; ++j) {
+    for (size_t j = 0; j < col_width - name_size; ++j) {
       ss << " ";
     }
   }
@@ -171,19 +189,49 @@ std::string TablePrinterImpl::MakeDataRow(const Row& row) const {
   return output_ss.str();
 }
 
-std::string TablePrinterImpl::MakeDelimiterRow(
-    const std::vector<size_t>& column_sizes) const {
+std::string TablePrinterImpl::MakeRowDelimiter() const {
   std::stringstream ss;
-  for (size_t i = 0; i < column_sizes.size(); ++i) {
-    ss << "+";
-    const size_t col_width = column_sizes[i];
+  for (size_t i = 0; i < column_sizes_.size(); ++i) {
+    ss << "|";
+    const size_t col_width = column_sizes_[i];
     for (size_t j = 0; j < col_width; ++j) {
-      ss << "-";
+      ss << "_";
     }
   }
-  ss << "+";
+  ss << "|";
   return ss.str();
 }
+
+std::string TablePrinterImpl::MakeTopSeperatorRow() const {
+  std::stringstream ss;
+  for (size_t i = 0; i < column_sizes_.size(); ++i) {
+    if (i == 0) {
+      ss << " ";
+    } else {
+      ss << "_";
+    }
+    const size_t col_width = column_sizes_[i];
+    for (size_t j = 0; j < col_width; ++j) {
+      ss << "_";
+    }
+  }
+  ss << " ";
+  return ss.str();
+}
+
+std::string TablePrinterImpl::MakeTopSeperatorRowAbove() const {
+  std::stringstream ss;
+  for (size_t i = 0; i < column_sizes_.size(); ++i) {
+    ss << "|";
+    const size_t col_width = column_sizes_[i];
+    for (size_t j = 0; j < col_width; ++j) {
+      ss << " ";
+    }
+  }
+  ss << "|";
+  return ss.str();
+}
+
 }  // namespace.
 
 void TablePrinter::AddRow(const TablePrinter::Row& row) {
