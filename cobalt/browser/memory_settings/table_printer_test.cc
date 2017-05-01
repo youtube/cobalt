@@ -39,10 +39,11 @@ TEST(TablePrinterImpl, ToString) {
 
   std::string table_str = table.ToString();
   std::string expected_table_str =
-      "col1     col2      \n"
-      "+--------+--------+\n"
+      " col1     col2     \n"
+      " _________________ \n"
+      "|        |        |\n"
       "| value1 | value2 |\n"
-      "+--------+--------+\n";
+      "|________|________|\n";
 
   EXPECT_STREQ(expected_table_str.c_str(), table_str.c_str());
 }
