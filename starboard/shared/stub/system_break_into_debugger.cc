@@ -15,5 +15,7 @@
 #include "starboard/system.h"
 
 void SbSystemBreakIntoDebugger() {
+#if SB_IS(COMPILER_GCC)
   __builtin_unreachable();
+#endif
 }
