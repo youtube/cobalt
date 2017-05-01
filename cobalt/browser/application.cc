@@ -363,8 +363,15 @@ void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
   options->renderer_module_options.skia_cache_size_in_bytes =
       static_cast<int>(auto_mem.skia_cache_size_in_bytes()->value());
 
-  options->renderer_module_options.skia_texture_atlas_dimensions =
+  const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
       auto_mem.skia_atlas_texture_dimensions()->value();
+
+  // Right now the bytes_per_pixel is assumed in the engine. Any other value
+  // is currently forbidden.
+  DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
+  options->renderer_module_options.skia_glyph_texture_atlas_dimensions =
+      math::Size(skia_glyph_atlas_texture_dimensions.width(),
+                 skia_glyph_atlas_texture_dimensions.height());
 
   options->web_module_options.javascript_options.gc_threshold_bytes =
       static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());

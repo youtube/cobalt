@@ -51,7 +51,7 @@ class RendererModule {
 
     // Represents the dimensions of the skia texture atlas which holds all of
     // the glyph textures used during rendering.
-    math::Size skia_texture_atlas_dimensions;
+    math::Size skia_glyph_texture_atlas_dimensions;
 
     // Determines the capacity of the skia cache.  The Skia cache is maintained
     // within Skia and is used to cache the results of complicated effects such
