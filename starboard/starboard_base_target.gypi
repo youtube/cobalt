@@ -41,6 +41,11 @@
         'STARBOARD_ALLOWS_MEMORY_TRACKING',
       ],
     }],
+    ['sb_enable_lib==1', {
+      'defines': [
+        'SB_IS_LIBRARY=1',
+      ],
+    }],
     ['starboard_path == ""', {
       'defines': [
         # There doesn't appear to be any way to use the C preprocessor to do
