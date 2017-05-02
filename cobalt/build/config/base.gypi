@@ -35,7 +35,8 @@
 
     # Enables embedding Cobalt as a shared library within another app. This
     # requires a 'lib' starboard implementation for the corresponding platform.
-    'cobalt_enable_lib%': 0,
+    'sb_enable_lib%': 0,
+    'cobalt_enable_lib%': '<(sb_enable_lib)',
 
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency for different font package sizes.
