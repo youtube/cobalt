@@ -97,7 +97,7 @@ class ResourceProvider {
   // Return the associated SbDecodeTargetProvider with the ResourceProvider,
   // if it exists.  Returns NULL if SbDecodeTarget is not supported.
   virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() = 0;
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB__API_VERSION >= 4
 #endif  // SB_HAS(GRAPHICS)
 
   // Returns a raw chunk of memory that can later be passed into a function like
