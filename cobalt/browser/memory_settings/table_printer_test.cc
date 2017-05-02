@@ -22,6 +22,10 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
+#define RED_START "\x1b[31m"
+#define GREEN_START "\x1b[32m"
+#define COLOR_END "\x1b[0m"
+
 std::vector<std::string> MakeRow2(const std::string& col1,
                                   const std::string& col2) {
   std::vector<std::string> row;
@@ -30,7 +34,7 @@ std::vector<std::string> MakeRow2(const std::string& col1,
   return row;
 }
 
-TEST(TablePrinterImpl, ToString) {
+TEST(TablePrinter, ToString) {
   TablePrinter table;
 
   // Add header.
@@ -47,6 +51,39 @@ TEST(TablePrinterImpl, ToString) {
 
   EXPECT_STREQ(expected_table_str.c_str(), table_str.c_str());
 }
+
+TEST(TablePrinter, ToStringWithColor) {
+  TablePrinter table;
+
+  // Adds color to table.
+  table.set_text_color(TablePrinter::kRed);
+  table.set_table_color(TablePrinter::kGreen);
+
+  // Add header.
+  table.AddRow(MakeRow2("col1", "col2"));
+  table.AddRow(MakeRow2("value1", "value2"));
+
+  // These defines will wrap color constants for string literals.
+#define R(STR) RED_START STR COLOR_END
+#define G(STR) GREEN_START STR COLOR_END
+
+  std::string table_str = table.ToString();
+  std::string expected_table_str =
+      R(" col1     col2     ") "\n"
+      G(" _________________ ") "\n"
+      G("|        |        |") "\n"
+      G("|") R(" value1 ") G("|") R(" value2 ") G("|") "\n"
+      G("|________|________|") "\n";
+
+#undef R
+#undef G
+
+  EXPECT_STREQ(expected_table_str.c_str(), table_str.c_str());
+}
+
+#undef RED_START
+#undef GREEN_START
+#undef COLOR_END
 
 }  // namespace memory_settings
 }  // namespace browser
