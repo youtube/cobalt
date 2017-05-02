@@ -154,8 +154,10 @@
           'type': 'static_library',
           'defines': [
             'U_HIDE_DATA_SYMBOL',
+            'U_ICUDATAENTRY_IN_COMMON',
           ],
           'sources': [
+            'source/stubdata/stubdata.c',
           ],
           'conditions': [
             [ 'use_system_icu==1 and want_separate_host_toolset==1', {
@@ -303,9 +305,6 @@
               'defines': [
                 'U_HAVE_NL_LANGINFO_CODESET=0',
                 'U_HAVE_NL_LANGINFO=0'
-              ],
-              'sources': [
-                'source/stubdata/stubdata.c',
               ],
             }],
             ['OS=="lb_shell"', {
