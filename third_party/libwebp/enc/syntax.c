@@ -11,7 +11,11 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#else
 #include <assert.h>
+#endif
 
 #include "../utils/utils.h"
 #include "../webp/format_constants.h"  // RIFF constants
@@ -44,7 +48,7 @@ static WebPEncodingError PutRIFFHeader(const VP8Encoder* const enc,
   uint8_t riff[RIFF_HEADER_SIZE] = {
     'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'
   };
-  assert(riff_size == (uint32_t)riff_size);
+  SB_DCHECK(riff_size == (uint32_t)riff_size);
   PutLE32(riff + TAG_SIZE, (uint32_t)riff_size);
   if (!pic->writer(riff, sizeof(riff), pic)) {
     return VP8_ENC_ERROR_BAD_WRITE;
@@ -59,9 +63,9 @@ static WebPEncodingError PutVP8XHeader(const VP8Encoder* const enc) {
   };
   uint32_t flags = 0;
 
-  assert(IsVP8XNeeded(enc));
-  assert(pic->width >= 1 && pic->height >= 1);
-  assert(pic->width <= MAX_CANVAS_SIZE && pic->height <= MAX_CANVAS_SIZE);
+  SB_DCHECK(IsVP8XNeeded(enc));
+  SB_DCHECK(pic->width >= 1 && pic->height >= 1);
+  SB_DCHECK(pic->width <= MAX_CANVAS_SIZE && pic->height <= MAX_CANVAS_SIZE);
 
   if (enc->has_alpha_) {
     flags |= ALPHA_FLAG;
@@ -83,7 +87,7 @@ static WebPEncodingError PutAlphaChunk(const VP8Encoder* const enc) {
     'A', 'L', 'P', 'H'
   };
 
-  assert(enc->has_alpha_);
+  SB_DCHECK(enc->has_alpha_);
 
   // Alpha chunk header.
   PutLE32(alpha_chunk_hdr + TAG_SIZE, enc->alpha_data_size_);
@@ -108,7 +112,7 @@ static WebPEncodingError PutVP8Header(const WebPPicture* const pic,
   uint8_t vp8_chunk_hdr[CHUNK_HEADER_SIZE] = {
     'V', 'P', '8', ' '
   };
-  assert(vp8_size == (uint32_t)vp8_size);
+  SB_DCHECK(vp8_size == (uint32_t)vp8_size);
   PutLE32(vp8_chunk_hdr + TAG_SIZE, (uint32_t)vp8_size);
   if (!pic->writer(vp8_chunk_hdr, sizeof(vp8_chunk_hdr), pic)) {
     return VP8_ENC_ERROR_BAD_WRITE;
@@ -280,7 +284,7 @@ static int WriteExtensions(VP8Encoder* const enc) {
   PutLE24(buffer + 0, enc->layer_data_size_);
   buffer[3] = enc->pic_->colorspace & WEBP_CSP_UV_MASK;
   if (enc->layer_data_size_ > 0) {
-    assert(enc->use_layer_);
+    SB_DCHECK(enc->use_layer_);
     // append layer data to last partition
     if (!VP8BitWriterAppend(&enc->parts_[enc->num_parts_ - 1],
                             enc->layer_data_, enc->layer_data_size_)) {

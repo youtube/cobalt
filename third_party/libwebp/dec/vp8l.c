@@ -12,8 +12,14 @@
 // Authors: Vikas Arora (vikaas.arora@gmail.com)
 //          Jyrki Alakuijala (jyrki@google.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
+#endif
+
 #include "./vp8li.h"
 #include "../dsp/lossless.h"
 #include "../dsp/yuv.h"
@@ -157,7 +163,7 @@ static WEBP_INLINE int ReadSymbol(const HuffmanTree* tree,
   const HuffmanTreeNode* node = tree->root_;
   int num_bits = 0;
   uint32_t bits = VP8LPrefetchBits(br);
-  assert(node != NULL);
+  SB_DCHECK(node != NULL);
   while (!HuffmanTreeNodeIsLeaf(node)) {
     node = HuffmanTreeNextNode(node, bits & 1);
     bits >>= 1;
@@ -274,7 +280,7 @@ static int ReadHuffmanCode(int alphabet_size, VP8LDecoder* const dec,
     if (ok) {
       ok = HuffmanTreeBuildImplicit(tree, code_lengths, alphabet_size);
     }
-    free(code_lengths);
+    SbMemoryDeallocate(code_lengths);
   }
   ok = ok && !br->error_;
   if (!ok) {
@@ -293,7 +299,7 @@ static void DeleteHtreeGroups(HTreeGroup* htree_groups, int num_htree_groups) {
         HuffmanTreeRelease(&htrees[j]);
       }
     }
-    free(htree_groups);
+    SbMemoryDeallocate(htree_groups);
   }
 }
 
@@ -330,7 +336,7 @@ static int ReadHuffmanCodes(VP8LDecoder* const dec, int xsize, int ysize,
 
   if (br->error_) goto Error;
 
-  assert(num_htree_groups <= 0x10000);
+  SB_DCHECK(num_htree_groups <= 0x10000);
   htree_groups =
       (HTreeGroup*)WebPSafeCalloc((uint64_t)num_htree_groups,
                                   sizeof(*htree_groups));
@@ -357,7 +363,7 @@ static int ReadHuffmanCodes(VP8LDecoder* const dec, int xsize, int ysize,
   return 1;
 
  Error:
-  free(huffman_image);
+  SbMemoryDeallocate(huffman_image);
   DeleteHtreeGroups(htree_groups, num_htree_groups);
   return 0;
 }
@@ -383,7 +389,7 @@ static int AllocateAndInitRescaler(VP8LDecoder* const dec, VP8Io* const io) {
     dec->status_ = VP8_STATUS_OUT_OF_MEMORY;
     return 0;
   }
-  assert(dec->rescaler_memory == NULL);
+  SB_DCHECK(dec->rescaler_memory == NULL);
   dec->rescaler_memory = memory;
 
   dec->rescaler = (WebPRescaler*)memory;
@@ -567,8 +573,8 @@ static int EmitRowsYUVA(const VP8LDecoder* const dec,
 // Returns true if the crop window is not empty.
 static int SetCropWindow(VP8Io* const io, int y_start, int y_end,
                          const uint32_t** const in_data, int pixel_stride) {
-  assert(y_start < y_end);
-  assert(io->crop_left < io->crop_right);
+  SB_DCHECK(y_start < y_end);
+  SB_DCHECK(io->crop_left < io->crop_right);
   if (y_end > io->crop_bottom) {
     y_end = io->crop_bottom;  // make sure we don't overflow on last row.
   }
@@ -599,7 +605,7 @@ static WEBP_INLINE HTreeGroup* GetHtreeGroupForPos(VP8LMetadata* const hdr,
                                                    int x, int y) {
   const int meta_index = GetMetaIndex(hdr->huffman_image_, hdr->huffman_xsize_,
                                       hdr->huffman_subsample_bits_, x, y);
-  assert(meta_index < hdr->num_htree_groups_);
+  SB_DCHECK(meta_index < hdr->num_htree_groups_);
   return hdr->htree_groups_ + meta_index;
 }
 
@@ -619,7 +625,7 @@ static void ApplyInverseTransforms(VP8LDecoder* const dec, int num_rows,
 
   // Inverse transforms.
   // TODO: most transforms only need to operate on the cropped region only.
-  memcpy(rows_out, rows_in, cache_pixs * sizeof(*rows_out));
+  SbMemoryCopy(rows_out, rows_in, cache_pixs * sizeof(*rows_out));
   while (n-- > 0) {
     VP8LTransform* const transform = &dec->transforms_[n];
     VP8LInverseTransform(transform, start_row, end_row, rows_in, rows_out);
@@ -635,8 +641,8 @@ static void ApplyInverseTransformsAlpha(VP8LDecoder* const dec, int num_rows,
   const uint8_t* rows_in = rows;
   uint8_t* rows_out = (uint8_t*)dec->io_->opaque + dec->io_->width * start_row;
   VP8LTransform* const transform = &dec->transforms_[0];
-  assert(dec->next_transform_ == 1);
-  assert(transform->type_ == COLOR_INDEXING_TRANSFORM);
+  SB_DCHECK(dec->next_transform_ == 1);
+  SB_DCHECK(transform->type_ == COLOR_INDEXING_TRANSFORM);
   VP8LColorIndexInverseTransformAlpha(transform, start_row, end_row, rows_in,
                                       rows_out);
 }
@@ -674,13 +680,13 @@ static void ProcessRows(VP8LDecoder* const dec, int row) {
             EmitRescaledRowsYUVA(dec, rows_data, in_stride, io->mb_h) :
             EmitRowsYUVA(dec, rows_data, in_stride, io->mb_w, io->mb_h);
       }
-      assert(dec->last_out_row_ <= output->height);
+      SB_DCHECK(dec->last_out_row_ <= output->height);
     }
   }
 
   // Update 'last_row_'.
   dec->last_row_ = row;
-  assert(dec->last_row_ <= dec->height_);
+  SB_DCHECK(dec->last_row_ <= dec->height_);
 }
 
 #define DECODE_DATA_FUNC(FUNC_NAME, TYPE, STORE_PIXEL)                         \
@@ -699,7 +705,7 @@ static int FUNC_NAME(VP8LDecoder* const dec, TYPE* const data, int width,      \
   VP8LColorCache* const color_cache =                                          \
       (hdr->color_cache_size_ > 0) ? &hdr->color_cache_ : NULL;                \
   const int mask = hdr->huffman_mask_;                                         \
-  assert(htree_group != NULL);                                                 \
+  SB_DCHECK(htree_group != NULL);                                                 \
   while (!br->eos_ && src < src_end) {                                         \
     int code;                                                                  \
     /* Only update when changing tile. Note we could use this test:        */  \
@@ -768,7 +774,7 @@ static int FUNC_NAME(VP8LDecoder* const dec, TYPE* const data, int width,      \
       }                                                                        \
     } else if (code < color_cache_limit) {  /* Color cache */                  \
       const int key = code - len_code_limit;                                   \
-      assert(color_cache != NULL);                                             \
+      SB_DCHECK(color_cache != NULL);                                             \
       while (last_cached < src) {                                              \
         VP8LColorCacheInsert(color_cache, *last_cached++);                     \
       }                                                                        \
@@ -816,7 +822,7 @@ DECODE_DATA_FUNC(DecodeAlphaData, uint8_t, GetAlphaPixel)
 // VP8LTransform
 
 static void ClearTransform(VP8LTransform* const transform) {
-  free(transform->data_);
+  SbMemoryDeallocate(transform->data_);
   transform->data_ = NULL;
 }
 
@@ -840,7 +846,7 @@ static int ExpandColorMap(int num_colors, VP8LTransform* const transform) {
     }
     for (; i < 4 * final_num_colors; ++i)
       new_data[i] = 0;  // black tail.
-    free(transform->data_);
+    SbMemoryDeallocate(transform->data_);
     transform->data_ = new_color_map;
   }
   return 1;
@@ -865,7 +871,7 @@ static int ReadTransform(int* const xsize, int const* ysize,
   transform->ysize_ = *ysize;
   transform->data_ = NULL;
   ++dec->next_transform_;
-  assert(dec->next_transform_ <= NUM_TRANSFORMS);
+  SB_DCHECK(dec->next_transform_ <= NUM_TRANSFORMS);
 
   switch (type) {
     case PREDICTOR_TRANSFORM:
@@ -892,7 +898,7 @@ static int ReadTransform(int* const xsize, int const* ysize,
     case SUBTRACT_GREEN:
       break;
     default:
-      assert(0);    // can't happen
+      SB_DCHECK(0);    // can't happen
       break;
   }
 
@@ -903,14 +909,14 @@ static int ReadTransform(int* const xsize, int const* ysize,
 // VP8LMetadata
 
 static void InitMetadata(VP8LMetadata* const hdr) {
-  assert(hdr);
-  memset(hdr, 0, sizeof(*hdr));
+  SB_DCHECK(hdr);
+  SbMemorySet(hdr, 0, sizeof(*hdr));
 }
 
 static void ClearMetadata(VP8LMetadata* const hdr) {
-  assert(hdr);
+  SB_DCHECK(hdr);
 
-  free(hdr->huffman_image_);
+  SbMemoryDeallocate(hdr->huffman_image_);
   DeleteHtreeGroups(hdr->htree_groups_, hdr->num_htree_groups_);
   VP8LColorCacheClear(&hdr->color_cache_);
   InitMetadata(hdr);
@@ -920,7 +926,7 @@ static void ClearMetadata(VP8LMetadata* const hdr) {
 // VP8LDecoder
 
 VP8LDecoder* VP8LNew(void) {
-  VP8LDecoder* const dec = (VP8LDecoder*)calloc(1, sizeof(*dec));
+  VP8LDecoder* const dec = (VP8LDecoder*)SbMemoryCalloc(1, sizeof(*dec));
   if (dec == NULL) return NULL;
   dec->status_ = VP8_STATUS_OK;
   dec->action_ = READ_DIM;
@@ -933,7 +939,7 @@ void VP8LClear(VP8LDecoder* const dec) {
   if (dec == NULL) return;
   ClearMetadata(&dec->hdr_);
 
-  free(dec->pixels_);
+  SbMemoryDeallocate(dec->pixels_);
   dec->pixels_ = NULL;
   for (i = 0; i < dec->next_transform_; ++i) {
     ClearTransform(&dec->transforms_[i]);
@@ -941,7 +947,7 @@ void VP8LClear(VP8LDecoder* const dec) {
   dec->next_transform_ = 0;
   dec->transforms_seen_ = 0;
 
-  free(dec->rescaler_memory);
+  SbMemoryDeallocate(dec->rescaler_memory);
   dec->rescaler_memory = NULL;
 
   dec->output_ = NULL;   // leave no trace behind
@@ -950,7 +956,7 @@ void VP8LClear(VP8LDecoder* const dec) {
 void VP8LDelete(VP8LDecoder* const dec) {
   if (dec != NULL) {
     VP8LClear(dec);
-    free(dec);
+    SbMemoryDeallocate(dec);
   }
 }
 
@@ -1036,7 +1042,7 @@ static int DecodeImageStream(int xsize, int ysize,
  End:
 
   if (!ok) {
-    free(data);
+    SbMemoryDeallocate(data);
     ClearMetadata(hdr);
     // If not enough data (br.eos_) resulted in BIT_STREAM_ERROR, update the
     // status appropriately.
@@ -1049,8 +1055,8 @@ static int DecodeImageStream(int xsize, int ysize,
     } else {
       // We allocate image data in this function only for transforms. At level 0
       // (that is: not the transforms), we shouldn't have allocated anything.
-      assert(data == NULL);
-      assert(is_level0);
+      SB_DCHECK(data == NULL);
+      SB_DCHECK(is_level0);
     }
     if (!is_level0) ClearMetadata(hdr);  // Clean up temporary data behind.
   }
@@ -1073,7 +1079,7 @@ static int AllocateInternalBuffers(VP8LDecoder* const dec, int final_width,
   const uint64_t total_num_pixels =
       num_pixels + cache_top_pixels + cache_pixels;
 
-  assert(dec->width_ <= final_width);
+  SB_DCHECK(dec->width_ <= final_width);
   dec->pixels_ = (uint32_t*)WebPSafeMalloc(total_num_pixels, bytes_per_pixel);
   if (dec->pixels_ == NULL) {
     dec->argb_cache_ = NULL;    // for sanity check
@@ -1195,7 +1201,7 @@ int VP8LDecodeHeader(VP8LDecoder* const dec, VP8Io* const io) {
 
  Error:
   VP8LClear(dec);
-  assert(dec->status_ != VP8_STATUS_OK);
+  SB_DCHECK(dec->status_ != VP8_STATUS_OK);
   return 0;
 }
 
@@ -1208,11 +1214,11 @@ int VP8LDecodeImage(VP8LDecoder* const dec) {
   if (dec == NULL) return 0;
 
   io = dec->io_;
-  assert(io != NULL);
+  SB_DCHECK(io != NULL);
   params = (WebPDecParams*)io->opaque;
-  assert(params != NULL);
+  SB_DCHECK(params != NULL);
   dec->output_ = params->output;
-  assert(dec->output_ != NULL);
+  SB_DCHECK(dec->output_ != NULL);
 
   // Initialization.
   if (!WebPIoInitFromOptions(params->options, io, MODE_BGRA)) {
@@ -1238,7 +1244,7 @@ int VP8LDecodeImage(VP8LDecoder* const dec) {
 
  Err:
   VP8LClear(dec);
-  assert(dec->status_ != VP8_STATUS_OK);
+  SB_DCHECK(dec->status_ != VP8_STATUS_OK);
   return 0;
 }
 

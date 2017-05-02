@@ -16,7 +16,7 @@
 #define WEBP_UTILS_UTILS_H_
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
 #else
 #include <assert.h>
 #endif
@@ -37,11 +37,11 @@ extern "C" {
 // large, or return NULL. You don't need to call these for constructs like
 // malloc(sizeof(foo)), but only if there's picture-dependent size involved
 // somewhere (like: malloc(num_pixels * sizeof(*something))). That's why this
-// safe malloc() borrows the signature from calloc(), pointing at the dangerous
+// safe malloc() borrows the signature from malloc(), pointing at the dangerous
 // underlying multiply involved.
 void* WebPSafeMalloc(uint64_t nmemb, size_t size);
 // Note that WebPSafeCalloc() expects the second argument type to be 'size_t'
-// in order to favor the "calloc(num_foo, sizeof(foo))" pattern.
+// in order to favor the "SbMemoryCalloc(num_foo, sizeof(foo))" pattern.
 void* WebPSafeCalloc(uint64_t nmemb, size_t size);
 
 //------------------------------------------------------------------------------
@@ -62,13 +62,13 @@ static WEBP_INLINE uint32_t GetLE32(const uint8_t* const data) {
 
 // Store 16, 24 or 32 bits in little-endian order.
 static WEBP_INLINE void PutLE16(uint8_t* const data, int val) {
-  assert(val < (1 << 16));
+  SB_DCHECK(val < (1 << 16));
   data[0] = (val >> 0);
   data[1] = (val >> 8);
 }
 
 static WEBP_INLINE void PutLE24(uint8_t* const data, int val) {
-  assert(val < (1 << 24));
+  SB_DCHECK(val < (1 << 24));
   PutLE16(data, val & 0xffff);
   data[2] = (val >> 16);
 }

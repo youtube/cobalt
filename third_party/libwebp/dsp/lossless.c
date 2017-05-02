@@ -26,8 +26,14 @@ extern "C" {
 #include <emmintrin.h>
 #endif
 
-#include <math.h>
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/memory.h"
+#include "starboard/log.h"
+#else
 #include <stdlib.h>
+#endif
+#include <math.h>
 #include "./lossless.h"
 #include "../dec/vp8li.h"
 #include "./yuv.h"
@@ -236,7 +242,7 @@ const float kSLog2Table[LOG_LOOKUP_IDX_MAX] = {
 };
 
 float VP8LFastSLog2Slow(int v) {
-  assert(v >= LOG_LOOKUP_IDX_MAX);
+  SB_DCHECK(v >= LOG_LOOKUP_IDX_MAX);
   if (v < APPROX_LOG_MAX) {
     int log_cnt = 0;
     const float v_f = (float)v;
@@ -251,7 +257,7 @@ float VP8LFastSLog2Slow(int v) {
 }
 
 float VP8LFastLog2Slow(int v) {
-  assert(v >= LOG_LOOKUP_IDX_MAX);
+  SB_DCHECK(v >= LOG_LOOKUP_IDX_MAX);
   if (v < APPROX_LOG_MAX) {
     int log_cnt = 0;
     while (v >= LOG_LOOKUP_IDX_MAX) {
@@ -540,7 +546,7 @@ static int GetBestPredictorForTile(int width, int height,
     const PredictorFunc pred_func = kPredictors[mode];
     float cur_diff;
     int y;
-    memset(&histo[0][0], 0, sizeof(histo));
+    SbMemorySet(&histo[0][0], 0, sizeof(histo));
     for (y = 0; y < ymax; ++y) {
       int x;
       const int row = row_start + y;
@@ -620,17 +626,17 @@ void VP8LResidualImage(int width, int height, int bits,
   uint32_t* const current_tile_rows = argb_scratch + width;
   int tile_y;
   int histo[4][256];
-  memset(histo, 0, sizeof(histo));
+  SbMemorySet(histo, 0, sizeof(histo));
   for (tile_y = 0; tile_y < tiles_per_col; ++tile_y) {
     const int tile_y_offset = tile_y * max_tile_size;
     const int this_tile_height =
         (tile_y < tiles_per_col - 1) ? max_tile_size : height - tile_y_offset;
     int tile_x;
     if (tile_y > 0) {
-      memcpy(upper_row, current_tile_rows + (max_tile_size - 1) * width,
+      SbMemoryCopy(upper_row, current_tile_rows + (max_tile_size - 1) * width,
              width * sizeof(*upper_row));
     }
-    memcpy(current_tile_rows, &argb[tile_y_offset * width],
+    SbMemoryCopy(current_tile_rows, &argb[tile_y_offset * width],
            this_tile_height * width * sizeof(*current_tile_rows));
     for (tile_x = 0; tile_x < tiles_per_row; ++tile_x) {
       int pred;
@@ -1156,8 +1162,8 @@ COLOR_INDEX_INVERSE(VP8LColorIndexInverseTransformAlpha, uint8_t, GetAlphaIndex,
 void VP8LInverseTransform(const VP8LTransform* const transform,
                           int row_start, int row_end,
                           const uint32_t* const in, uint32_t* const out) {
-  assert(row_start < row_end);
-  assert(row_end <= transform->ysize_);
+  SB_DCHECK(row_start < row_end);
+  SB_DCHECK(row_end <= transform->ysize_);
   switch (transform->type_) {
     case SUBTRACT_GREEN:
       AddGreenToBlueAndRed(transform, row_start, row_end, out);
@@ -1168,7 +1174,7 @@ void VP8LInverseTransform(const VP8LTransform* const transform,
         // The last predicted row in this iteration will be the top-pred row
         // for the first row in next iteration.
         const int width = transform->xsize_;
-        memcpy(out - width, out + (row_end - row_start - 1) * width,
+        SbMemoryCopy(out - width, out + (row_end - row_start - 1) * width,
                width * sizeof(*out));
       }
       break;
@@ -1186,7 +1192,7 @@ void VP8LInverseTransform(const VP8LTransform* const transform,
         const int in_stride = (row_end - row_start) *
             VP8LSubSampleSize(transform->xsize_, transform->bits_);
         uint32_t* const src = out + out_stride - in_stride;
-        memmove(src, out, in_stride * sizeof(*src));
+        SbMemoryMove(src, out, in_stride * sizeof(*src));
         ColorIndexInverseTransform(transform, row_start, row_end, src, out);
       } else {
         ColorIndexInverseTransform(transform, row_start, row_end, in, out);
@@ -1310,7 +1316,7 @@ static void CopyOrSwap(const uint32_t* src, int num_pixels, uint8_t* dst,
       dst += sizeof(argb);
     }
   } else {
-    memcpy(dst, src, num_pixels * sizeof(*src));
+    SbMemoryCopy(dst, src, num_pixels * sizeof(*src));
   }
 }
 
@@ -1355,7 +1361,7 @@ void VP8LConvertFromBGRA(const uint32_t* const in_data, int num_pixels,
       ConvertBGRAToRGB565(in_data, num_pixels, rgba);
       break;
     default:
-      assert(0);          // Code flow should not reach here.
+      SB_DCHECK(0);          // Code flow should not reach here.
   }
 }
 

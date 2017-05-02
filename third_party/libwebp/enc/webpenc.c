@@ -11,10 +11,15 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#endif
 
 #include "./vp8enci.h"
 #include "./vp8li.h"
@@ -54,7 +59,7 @@ int WebPPictureInitInternal(WebPPicture* picture, int version) {
     return 0;   // caller/system version mismatch!
   }
   if (picture != NULL) {
-    memset(picture, 0, sizeof(*picture));
+    SbMemorySet(picture, 0, sizeof(*picture));
     picture->writer = DummyWriter;
     WebPEncodingSetError(picture, VP8_ENC_OK);
   }
@@ -228,7 +233,7 @@ static VP8Encoder* InitVP8Encoder(const WebPConfig* const config,
   }
   enc = (VP8Encoder*)mem;
   mem = (uint8_t*)DO_ALIGN(mem + sizeof(*enc));
-  memset(enc, 0, sizeof(*enc));
+  SbMemorySet(enc, 0, sizeof(*enc));
   enc->num_parts_ = 1 << config->partitions;
   enc->mb_w_ = mb_w;
   enc->mb_h_ = mb_h;
@@ -292,7 +297,7 @@ static int DeleteVP8Encoder(VP8Encoder* enc) {
     VP8EncDeleteLayer(enc);
 #endif
     VP8TBufferClear(&enc->tokens_);
-    free(enc);
+    SbMemoryDeallocate(enc);
   }
   return ok;
 }
@@ -336,8 +341,8 @@ static void StoreStats(VP8Encoder* const enc) {
 
 int WebPEncodingSetError(const WebPPicture* const pic,
                          WebPEncodingError error) {
-  assert((int)error < VP8_ENC_ERROR_LAST);
-  assert((int)error >= VP8_ENC_OK);
+  SB_DCHECK((int)error < VP8_ENC_ERROR_LAST);
+  SB_DCHECK((int)error >= VP8_ENC_OK);
   ((WebPPicture*)pic)->error_code = error;
   return 0;
 }
@@ -371,7 +376,7 @@ int WebPEncode(const WebPConfig* config, WebPPicture* pic) {
   if (pic->width > WEBP_MAX_DIMENSION || pic->height > WEBP_MAX_DIMENSION)
     return WebPEncodingSetError(pic, VP8_ENC_ERROR_BAD_DIMENSION);
 
-  if (pic->stats != NULL) memset(pic->stats, 0, sizeof(*pic->stats));
+  if (pic->stats != NULL) SbMemorySet(pic->stats, 0, sizeof(*pic->stats));
 
   if (!config->lossless) {
     VP8Encoder* enc = NULL;

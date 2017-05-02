@@ -13,6 +13,10 @@
 
 #include "./vp8enci.h"
 
+#if definend(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -218,7 +222,7 @@ static void DoFilter(const VP8EncIterator* const it, int level) {
   uint8_t* const v_dst = it->yuv_out2_ + V_OFF;
 
   // copy current block to yuv_out2_
-  memcpy(y_dst, it->yuv_out_, YUV_SIZE * sizeof(uint8_t));
+  SbMemoryCopy(y_dst, it->yuv_out_, YUV_SIZE * sizeof(uint8_t));
 
   if (enc->filter_hdr_.simple_ == 1) {   // simple
     VP8EncSimpleHFilter16i(y_dst, BPS, limit);
