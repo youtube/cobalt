@@ -13,8 +13,13 @@
 #include "config.h"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <math.h>
 #include <stdio.h>
+#endif
 
 #include "./backward_references.h"
 #include "./histogram.h"
@@ -22,11 +27,11 @@
 #include "../utils/utils.h"
 
 static void HistogramClear(VP8LHistogram* const p) {
-  memset(p->literal_, 0, sizeof(p->literal_));
-  memset(p->red_, 0, sizeof(p->red_));
-  memset(p->blue_, 0, sizeof(p->blue_));
-  memset(p->alpha_, 0, sizeof(p->alpha_));
-  memset(p->distance_, 0, sizeof(p->distance_));
+  SbMemorySet(p->literal_, 0, sizeof(p->literal_));
+  SbMemorySet(p->red_, 0, sizeof(p->red_));
+  SbMemorySet(p->blue_, 0, sizeof(p->blue_));
+  SbMemorySet(p->alpha_, 0, sizeof(p->alpha_));
+  SbMemorySet(p->distance_, 0, sizeof(p->distance_));
   p->bit_cost_ = 0;
 }
 
@@ -339,7 +344,7 @@ static void HistogramBuildImage(int xsize, int histo_bits,
   int x = 0, y = 0;
   const int histo_xsize = VP8LSubSampleSize(xsize, histo_bits);
   VP8LHistogram** const histograms = image->histograms;
-  assert(histo_bits > 0);
+  SB_DCHECK(histo_bits > 0);
   for (i = 0; i < backward_refs->size; ++i) {
     const PixOrCopy* const v = &backward_refs->refs[i];
     const int ix = (y >> histo_bits) * histo_xsize + (x >> histo_bits);
@@ -370,13 +375,13 @@ static int HistogramCombine(const VP8LHistogramSet* const in,
   int out_size = in->size;
   const int outer_iters = in->size * iter_mult;
   const int min_cluster_size = 2;
-  VP8LHistogram* const histos = (VP8LHistogram*)malloc(2 * sizeof(*histos));
+  VP8LHistogram* const histos = (VP8LHistogram*)SbMemoryAllocate(2 * sizeof(*histos));
   VP8LHistogram* cur_combo = histos + 0;    // trial merged histogram
   VP8LHistogram* best_combo = histos + 1;   // best merged histogram so far
   if (histos == NULL) goto End;
 
   // Copy histograms from in[] to out[].
-  assert(in->size <= out->size);
+  SB_DCHECK(in->size <= out->size);
   for (i = 0; i < in->size; ++i) {
     in->histograms[i]->bit_cost_ = VP8LHistogramEstimateBits(in->histograms[i]);
     *out->histograms[i] = *in->histograms[i];
@@ -433,7 +438,7 @@ static int HistogramCombine(const VP8LHistogramSet* const in,
   ok = 1;
 
  End:
-  free(histos);
+  SbMemoryDeallocate(histos);
   return ok;
 }
 
@@ -509,6 +514,6 @@ int VP8LGetHistoImageSymbols(int xsize, int ysize,
   ok = 1;
 
 Error:
-  free(image_out);
+  SbMemoryDeallocate(image_out);
   return ok;
 }

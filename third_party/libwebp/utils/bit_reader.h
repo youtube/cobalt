@@ -16,7 +16,8 @@
 #define WEBP_UTILS_BIT_READER_H_
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <assert.h>
 #ifdef _MSC_VER
@@ -154,7 +155,7 @@ extern const range_t kVP8NewRange[128];
 void VP8LoadFinalBytes(VP8BitReader* const br);    // special case for the tail
 
 static WEBP_INLINE void VP8LoadNewBytes(VP8BitReader* const br) {
-  assert(br != NULL && br->buf_ != NULL);
+  SB_DCHECK(br != NULL && br->buf_ != NULL);
   // Read 'BITS' bits at a time if possible.
   if (br->buf_ + sizeof(lbit_t) <= br->buf_end_) {
     // convert memory type to register type (with some zero'ing!)
@@ -253,7 +254,7 @@ static WEBP_INLINE void VP8Shift(VP8BitReader* const br) {
   br->bits_ -= shift;
 #else
   const int shift = kVP8Log2Range[br->range_];
-  assert(br->range_ < (range_t)128);
+  SB_DCHECK(br->range_ < (range_t)128);
   br->range_ = kVP8NewRange[br->range_];
   br->bits_ -= shift;
 #endif

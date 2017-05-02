@@ -12,7 +12,8 @@
 // Author: Jyrki Alakuijala (jyrki@google.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <assert.h>
 #include <stdlib.h>
@@ -30,8 +31,8 @@ extern "C" {
 
 int VP8LColorCacheInit(VP8LColorCache* const cc, int hash_bits) {
   const int hash_size = 1 << hash_bits;
-  assert(cc != NULL);
-  assert(hash_bits > 0);
+  SB_DCHECK(cc != NULL);
+  SB_DCHECK(hash_bits > 0);
   cc->colors_ = (uint32_t*)WebPSafeCalloc((uint64_t)hash_size,
                                           sizeof(*cc->colors_));
   if (cc->colors_ == NULL) return 0;
@@ -41,7 +42,7 @@ int VP8LColorCacheInit(VP8LColorCache* const cc, int hash_bits) {
 
 void VP8LColorCacheClear(VP8LColorCache* const cc) {
   if (cc != NULL) {
-    free(cc->colors_);
+    SbMemoryDeallocate(cc->colors_);
     cc->colors_ = NULL;
   }
 }

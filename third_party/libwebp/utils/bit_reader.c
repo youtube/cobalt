@@ -13,6 +13,10 @@
 
 #include "./bit_reader.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -28,9 +32,9 @@ extern "C" {
 
 void VP8InitBitReader(VP8BitReader* const br,
                       const uint8_t* const start, const uint8_t* const end) {
-  assert(br != NULL);
-  assert(start != NULL);
-  assert(start <= end);
+  SB_DCHECK(br != NULL);
+  SB_DCHECK(start != NULL);
+  SB_DCHECK(start <= end);
   br->range_   = MK(255 - 1);
   br->buf_     = start;
   br->buf_end_ = end;
@@ -74,7 +78,7 @@ const range_t kVP8NewRange[128] = {
 #undef MK
 
 void VP8LoadFinalBytes(VP8BitReader* const br) {
-  assert(br != NULL && br->buf_ != NULL);
+  SB_DCHECK(br != NULL && br->buf_ != NULL);
   // Only read 8bits at a time
   if (br->buf_ < br->buf_end_) {
 #ifndef USE_RIGHT_JUSTIFY
@@ -128,9 +132,9 @@ void VP8LInitBitReader(VP8LBitReader* const br,
                        const uint8_t* const start,
                        size_t length) {
   size_t i;
-  assert(br != NULL);
-  assert(start != NULL);
-  assert(length < 0xfffffff8u);   // can't happen with a RIFF chunk.
+  SB_DCHECK(br != NULL);
+  SB_DCHECK(start != NULL);
+  SB_DCHECK(length < 0xfffffff8u);   // can't happen with a RIFF chunk.
 
   br->buf_ = start;
   br->len_ = length;
@@ -147,9 +151,9 @@ void VP8LInitBitReader(VP8LBitReader* const br,
 
 void VP8LBitReaderSetBuffer(VP8LBitReader* const br,
                             const uint8_t* const buf, size_t len) {
-  assert(br != NULL);
-  assert(buf != NULL);
-  assert(len < 0xfffffff8u);   // can't happen with a RIFF chunk.
+  SB_DCHECK(br != NULL);
+  SB_DCHECK(buf != NULL);
+  SB_DCHECK(len < 0xfffffff8u);   // can't happen with a RIFF chunk.
   br->eos_ = (br->pos_ >= len);
   br->buf_ = buf;
   br->len_ = len;
@@ -186,7 +190,7 @@ void VP8LFillBitWindow(VP8LBitReader* const br) {
 }
 
 uint32_t VP8LReadBits(VP8LBitReader* const br, int n_bits) {
-  assert(n_bits >= 0);
+  SB_DCHECK(n_bits >= 0);
   // Flag an error if end_of_stream or n_bits is more than allowed limit.
   if (!br->eos_ && n_bits < MAX_NUM_BIT_READ) {
     const uint32_t val =

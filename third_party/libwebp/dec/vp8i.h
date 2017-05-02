@@ -14,7 +14,12 @@
 #ifndef WEBP_DEC_VP8I_H_
 #define WEBP_DEC_VP8I_H_
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#else
 #include <string.h>     // for memcpy()
+#endif
+
 #include "./vp8li.h"
 #include "../utils/bit_reader.h"
 #include "../utils/thread.h"

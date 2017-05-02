@@ -12,9 +12,15 @@
 // Author: Urvang (urvang@google.com)
 
 #include "./filters.h"
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -24,11 +30,11 @@ extern "C" {
 // Helpful macro.
 
 # define SANITY_CHECK(in, out)                              \
-  assert(in != NULL);                                       \
-  assert(out != NULL);                                      \
-  assert(width > 0);                                        \
-  assert(height > 0);                                       \
-  assert(stride >= width);
+  SB_DCHECK(in != NULL);                                       \
+  SB_DCHECK(out != NULL);                                      \
+  SB_DCHECK(width > 0);                                        \
+  SB_DCHECK(height > 0);                                       \
+  SB_DCHECK(stride >= width);
 
 static WEBP_INLINE void PredictLine(const uint8_t* src, const uint8_t* pred,
                                     uint8_t* dst, int length, int inverse) {
@@ -165,7 +171,7 @@ WEBP_FILTER_TYPE EstimateBestFilter(const uint8_t* data,
                                     int width, int height, int stride) {
   int i, j;
   int bins[WEBP_FILTER_LAST][SMAX];
-  memset(bins, 0, sizeof(bins));
+  SbMemorySet(bins, 0, sizeof(bins));
 
   // We only sample every other pixels. That's enough.
   for (j = 2; j < height - 1; j += 2) {

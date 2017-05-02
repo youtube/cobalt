@@ -11,7 +11,11 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>
+#endif
 
 #include "./vp8enci.h"
 
@@ -43,7 +47,7 @@ int VP8EncFinishLayer(VP8Encoder* const enc) {
 }
 
 void VP8EncDeleteLayer(VP8Encoder* enc) {
-  free(enc->layer_data_);
+  SbMemoryDeallocate(enc->layer_data_);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

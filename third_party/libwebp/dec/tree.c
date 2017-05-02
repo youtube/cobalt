@@ -15,6 +15,10 @@
 
 #define USE_GENERIC_TREE
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -327,12 +331,12 @@ static const uint8_t kBModesProba[NUM_BMODES][NUM_BMODES][NUM_BMODES - 1] = {
 };
 
 void VP8ResetProba(VP8Proba* const proba) {
-  memset(proba->segments_, 255u, sizeof(proba->segments_));
-  memcpy(proba->coeffs_, CoeffsProba0, sizeof(CoeffsProba0));
+  SbMemorySet(proba->segments_, 255u, sizeof(proba->segments_));
+  SbMemoryCopy(proba->coeffs_, CoeffsProba0, sizeof(CoeffsProba0));
 #ifndef ONLY_KEYFRAME_CODE
-  memcpy(proba->mv_, kMVProba0, sizeof(kMVProba0));
-  memcpy(proba->ymode_, kYModeProbaInter0, sizeof(kYModeProbaInter0));
-  memcpy(proba->uvmode_, kUVModeProbaInter0, sizeof(kUVModeProbaInter0));
+  SbMemoryCopy(proba->mv_, kMVProba0, sizeof(kMVProba0));
+  SbMemoryCopy(proba->ymode_, kYModeProbaInter0, sizeof(kYModeProbaInter0));
+  SbMemoryCopy(proba->uvmode_, kUVModeProbaInter0, sizeof(kUVModeProbaInter0));
 #endif
 }
 
@@ -346,8 +350,8 @@ void VP8ParseIntraMode(VP8BitReader* const br,  VP8Decoder* const dec) {
         VP8GetBit(br, 156) ? (VP8GetBit(br, 128) ? TM_PRED : H_PRED)
                            : (VP8GetBit(br, 163) ? V_PRED : DC_PRED);
     dec->imodes_[0] = ymode;
-    memset(top, ymode, 4 * sizeof(top[0]));
-    memset(left, ymode, 4 * sizeof(left[0]));
+    SbMemorySet(top, ymode, 4 * sizeof(top[0]));
+    SbMemorySet(left, ymode, 4 * sizeof(left[0]));
   } else {
     uint8_t* modes = dec->imodes_;
     int y;

@@ -11,9 +11,14 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#endif
 
 #include "./vp8enci.h"
 #include "./cost.h"
@@ -35,7 +40,7 @@ static void SmoothSegmentMap(VP8Encoder* const enc) {
   const int h = enc->mb_h_;
   const int majority_cnt_3_x_3_grid = 5;
   uint8_t* const tmp = (uint8_t*)WebPSafeMalloc((uint64_t)w * h, sizeof(*tmp));
-  assert((uint64_t)(w * h) == (uint64_t)w * h);   // no overflow, as per spec
+  SB_DCHECK((uint64_t)(w * h) == (uint64_t)w * h);   // no overflow, as per spec
 
   if (tmp == NULL) return;
   for (y = 1; y < h - 1; ++y) {
@@ -66,7 +71,7 @@ static void SmoothSegmentMap(VP8Encoder* const enc) {
       mb->segment_ = tmp[x + y * w];
     }
   }
-  free(tmp);
+  SbMemoryDeallocate(tmp);
 }
 
 //------------------------------------------------------------------------------
@@ -90,7 +95,7 @@ static void SetSegmentAlphas(VP8Encoder* const enc,
     }
   }
   if (max == min) max = min + 1;
-  assert(mid <= max && mid >= min);
+  SB_DCHECK(mid <= max && mid >= min);
   for (n = 0; n < nb; ++n) {
     const int alpha = 255 * (centers[n] - mid) / (max - min);
     const int beta = 255 * (centers[n] - min) / (max - min);
@@ -280,7 +285,7 @@ static int MBAnalyzeBestIntra4Mode(VP8EncIterator* const it,
     for (mode = 0; mode < max_mode; ++mode) {
       int alpha;
 
-      memset(&histos[cur_histo], 0, sizeof(histos[cur_histo]));
+      SbMemorySet(&histos[cur_histo], 0, sizeof(histos[cur_histo]));
       VP8CollectHistogram(src, it->yuv_p_ + VP8I4ModeOffsets[mode],
                           0, 1, &histos[cur_histo]);
       alpha = GetAlpha(&histos[cur_histo]);
