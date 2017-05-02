@@ -28,6 +28,7 @@
 #include "base/threading/simple_thread.h"
 #include "base/time.h"
 #include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
+#include "cobalt/browser/memory_tracker/tool/util.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/concurrent_map.h"
@@ -70,89 +71,6 @@ class AbstractTool {
   virtual ~AbstractTool() {}
   virtual std::string tool_name() const = 0;
   virtual void Run(Params* params) = 0;
-};
-
-// Start() is called when this object is created, and Cancel() & Join() are
-// called during destruction.
-class PrintTool : public AbstractTool {
- public:
-  PrintTool();
-  ~PrintTool() OVERRIDE;
-
-  // Overridden so that the thread can exit gracefully.
-  virtual void Run(Params* params) OVERRIDE;
-  virtual std::string tool_name() const OVERRIDE {
-    return "MemoryTrackerPrintThread";
-  }
-
- private:
-  class CvalsMap;
-  scoped_ptr<CvalsMap> cvals_map_;
-};
-
-// Generates CSV values of the engine.
-// There are three sections of data including:
-//   1. average bytes / alloc
-//   2. # Bytes allocated per memory scope.
-//   3. # Allocations per memory scope.
-// This data can be pasted directly into a Google spreadsheet and visualized.
-// Note that this thread will implicitly call Start() is called during
-// construction and Cancel() & Join() during destruction.
-class PrintCSVTool : public AbstractTool {
- public:
-  // This tool will only produce on CSV dump of the engine. This is useful
-  // for profiling startup memory consumption.
-  PrintCSVTool(int sampling_interval_ms, int sampling_time_ms);
-
-  // Overridden so that the thread can exit gracefully.
-  virtual void Run(Params* params) OVERRIDE;
-  virtual std::string tool_name() const OVERRIDE {
-    return "MemoryTrackerPrintCSV";
-  }
-
- private:
-  struct AllocationSamples {
-    std::vector<int32_t> number_allocations_;
-    std::vector<int64_t> allocated_bytes_;
-  };
-  typedef std::map<std::string, AllocationSamples> MapAllocationSamples;
-  static std::string ToCsvString(const MapAllocationSamples& samples);
-  static const char* UntrackedMemoryKey();
-  bool TimeExpiredYet(const Params& params);
-
-  const int sample_interval_ms_;
-  const int sampling_time_ms_;
-};
-
-struct AllocationSamples {
-  std::vector<int32_t> number_allocations_;
-  std::vector<int64_t> allocated_bytes_;
-};
-typedef std::map<std::string, AllocationSamples> MapAllocationSamples;
-typedef std::vector<base::TimeDelta> TimeStamps;
-
-struct TimeSeries {
-  MapAllocationSamples samples_;
-  TimeStamps time_stamps_;
-};
-
-// This tool inspects a memory scope and reports on the memory usage.
-// The output will be a CSV file printed to stdout representing
-// the number of memory allocations for objects. The objects are binned
-// according to the size of the memory allocation. Objects within the same
-// power of two are binned together. For example 1024 will be binned with 1025.
-class MemorySizeBinner : public AbstractTool {
- public:
-  // memory_scope_name represents the memory scope that is to be investigated.
-  explicit MemorySizeBinner(const std::string& memory_scope_name);
-
-  virtual void Run(Params* params) OVERRIDE;
-  virtual std::string tool_name() const OVERRIDE {
-    return "MemoryTrackerCompressedTimeSeries";
-  }
-
- private:
-  std::string memory_scope_name_;
 };
 
 // Bins the size according from all the encountered allocations.
