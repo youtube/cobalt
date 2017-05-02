@@ -14,11 +14,16 @@
 #ifndef WEBP_ENC_HISTOGRAM_H_
 #define WEBP_ENC_HISTOGRAM_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#endif
 
 #include "./backward_references.h"
 #include "../webp/format_constants.h"
@@ -43,7 +48,7 @@ typedef struct {
 } VP8LHistogram;
 
 // Collection of histograms with fixed capacity, allocated as one
-// big memory chunk. Can be destroyed by simply calling 'free()'.
+// big memory chunk. Can be destroyed by simply calling 'SbMemoryDeallocate()'.
 typedef struct {
   int size;         // number of slots currently in use
   int max_size;     // maximum capacity

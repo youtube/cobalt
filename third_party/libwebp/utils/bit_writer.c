@@ -13,7 +13,8 @@
 //         Vikas Arora (vikaas.arora@gmail.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <assert.h>
 #include <string.h>   // for memcpy()
@@ -43,13 +44,13 @@ static int BitWriterResize(VP8BitWriter* const bw, size_t extra_size) {
   new_size = 2 * bw->max_pos_;
   if (new_size < needed_size) new_size = needed_size;
   if (new_size < 1024) new_size = 1024;
-  new_buf = (uint8_t*)malloc(new_size);
+  new_buf = (uint8_t*)SbMemoryAllocate(new_size);
   if (new_buf == NULL) {
     bw->error_ = 1;
     return 0;
   }
-  memcpy(new_buf, bw->buf_, bw->pos_);
-  free(bw->buf_);
+  SbMemoryCopy(new_buf, bw->buf_, bw->pos_);
+  SbMemoryDeallocate(bw->buf_);
   bw->buf_ = new_buf;
   bw->max_pos_ = new_size;
   return 1;
@@ -58,7 +59,7 @@ static int BitWriterResize(VP8BitWriter* const bw, size_t extra_size) {
 static void kFlush(VP8BitWriter* const bw) {
   const int s = 8 + bw->nb_bits_;
   const int32_t bits = bw->value_ >> s;
-  assert(bw->nb_bits_ >= 0);
+  SB_DCHECK(bw->nb_bits_ >= 0);
   bw->value_ -= bits << s;
   bw->nb_bits_ -= 8;
   if ((bits & 0xff) != 0xff) {
@@ -182,18 +183,18 @@ uint8_t* VP8BitWriterFinish(VP8BitWriter* const bw) {
 
 int VP8BitWriterAppend(VP8BitWriter* const bw,
                        const uint8_t* data, size_t size) {
-  assert(data);
+  SB_DCHECK(data);
   if (bw->nb_bits_ != -8) return 0;   // kFlush() must have been called
   if (!BitWriterResize(bw, size)) return 0;
-  memcpy(bw->buf_ + bw->pos_, data, size);
+  SbMemoryCopy(bw->buf_ + bw->pos_, data, size);
   bw->pos_ += size;
   return 1;
 }
 
 void VP8BitWriterWipeOut(VP8BitWriter* const bw) {
   if (bw) {
-    free(bw->buf_);
-    memset(bw, 0, sizeof(*bw));
+    SbMemoryDeallocate(bw->buf_);
+    SbMemorySet(bw, 0, sizeof(*bw));
   }
 }
 
@@ -216,28 +217,28 @@ static int VP8LBitWriterResize(VP8LBitWriter* const bw, size_t extra_size) {
   if (allocated_size < size_required) allocated_size = size_required;
   // make allocated size multiple of 1k
   allocated_size = (((allocated_size >> 10) + 1) << 10);
-  allocated_buf = (uint8_t*)malloc(allocated_size);
+  allocated_buf = (uint8_t*)SbMemoryAllocate(allocated_size);
   if (allocated_buf == NULL) {
     bw->error_ = 1;
     return 0;
   }
-  memcpy(allocated_buf, bw->buf_, current_size);
-  free(bw->buf_);
+  SbMemoryCopy(allocated_buf, bw->buf_, current_size);
+  SbMemoryDeallocate(bw->buf_);
   bw->buf_ = allocated_buf;
   bw->max_bytes_ = allocated_size;
-  memset(allocated_buf + current_size, 0, allocated_size - current_size);
+  SbMemorySet(allocated_buf + current_size, 0, allocated_size - current_size);
   return 1;
 }
 
 int VP8LBitWriterInit(VP8LBitWriter* const bw, size_t expected_size) {
-  memset(bw, 0, sizeof(*bw));
+  SbMemorySet(bw, 0, sizeof(*bw));
   return VP8LBitWriterResize(bw, expected_size);
 }
 
 void VP8LBitWriterDestroy(VP8LBitWriter* const bw) {
   if (bw != NULL) {
-    free(bw->buf_);
-    memset(bw, 0, sizeof(*bw));
+    SbMemoryDeallocate(bw->buf_);
+    SbMemorySet(bw, 0, sizeof(*bw));
   }
 }
 
@@ -269,7 +270,7 @@ void VP8LWriteBits(VP8LBitWriter* const bw, int n_bits, uint32_t bits) {
         bits >>= 8;
       }
     }
-    assert(n_bits <= 25);
+    SB_DCHECK(n_bits <= 25);
     *p = bits;
     bw->bit_pos_ += n_bits;
   }

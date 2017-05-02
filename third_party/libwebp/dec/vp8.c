@@ -11,7 +11,12 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>
+#endif
 
 #include "./vp8i.h"
 #include "./vp8li.h"
@@ -41,13 +46,13 @@ int VP8InitIoInternal(VP8Io* const io, int version) {
     return 0;  // mismatch error
   }
   if (io != NULL) {
-    memset(io, 0, sizeof(*io));
+    SbMemorySet(io, 0, sizeof(*io));
   }
   return 1;
 }
 
 VP8Decoder* VP8New(void) {
-  VP8Decoder* const dec = (VP8Decoder*)calloc(1, sizeof(*dec));
+  VP8Decoder* const dec = (VP8Decoder*)SbMemoryCalloc(1, sizeof(*dec));
   if (dec != NULL) {
     SetOk(dec);
     WebPWorkerInit(&dec->worker_);
@@ -71,7 +76,7 @@ const char* VP8StatusMessage(VP8Decoder* const dec) {
 void VP8Delete(VP8Decoder* const dec) {
   if (dec != NULL) {
     VP8Clear(dec);
-    free(dec);
+    SbMemoryDeallocate(dec);
   }
 }
 
@@ -139,19 +144,19 @@ int VP8GetInfo(const uint8_t* data, size_t data_size, size_t chunk_size,
 // Header parsing
 
 static void ResetSegmentHeader(VP8SegmentHeader* const hdr) {
-  assert(hdr != NULL);
+  SB_DCHECK(hdr != NULL);
   hdr->use_segment_ = 0;
   hdr->update_map_ = 0;
   hdr->absolute_delta_ = 1;
-  memset(hdr->quantizer_, 0, sizeof(hdr->quantizer_));
-  memset(hdr->filter_strength_, 0, sizeof(hdr->filter_strength_));
+  SbMemorySet(hdr->quantizer_, 0, sizeof(hdr->quantizer_));
+  SbMemorySet(hdr->filter_strength_, 0, sizeof(hdr->filter_strength_));
 }
 
 // Paragraph 9.3
 static int ParseSegmentHeader(VP8BitReader* br,
                               VP8SegmentHeader* hdr, VP8Proba* proba) {
-  assert(br != NULL);
-  assert(hdr != NULL);
+  SB_DCHECK(br != NULL);
+  SB_DCHECK(hdr != NULL);
   hdr->use_segment_ = VP8Get(br);
   if (hdr->use_segment_) {
     hdr->update_map_ = VP8Get(br);
@@ -273,7 +278,7 @@ int VP8GetHeaders(VP8Decoder* const dec, VP8Io* const io) {
   }
 
   if (dec->alpha_data_ == NULL) {
-    assert(dec->alpha_data_size_ == 0);
+    SB_DCHECK(dec->alpha_data_size_ == 0);
     // We have NOT set alpha data yet. Set it now.
     // (This is to ensure that dec->alpha_data_ is NOT reset to NULL if
     // WebPParseHeaders() is called more than once, as in incremental decoding
@@ -285,7 +290,7 @@ int VP8GetHeaders(VP8Decoder* const dec, VP8Io* const io) {
   // Process the VP8 frame header.
   buf = headers.data + headers.offset;
   buf_size = headers.data_size - headers.offset;
-  assert(headers.data_size >= headers.offset);  // WebPParseHeaders' guarantee
+  SB_DCHECK(headers.data_size >= headers.offset);  // WebPParseHeaders' guarantee
   if (buf_size < 4) {
     return VP8SetError(dec, VP8_STATUS_NOT_ENOUGH_DATA,
                        "Truncated header.");
@@ -563,7 +568,7 @@ static void ParseResiduals(VP8Decoder* const dec,
   int x, y, ch;
 
   nz_dc.i32 = nz_ac.i32 = 0;
-  memset(dst, 0, 384 * sizeof(*dst));
+  SbMemorySet(dst, 0, 384 * sizeof(*dst));
   if (!dec->is_i4x4_) {    // parse DC
     int16_t dc[16] = { 0 };
     const int ctx = mb->dc_nz_ + left_mb->dc_nz_;
@@ -676,7 +681,7 @@ void VP8InitScanline(VP8Decoder* const dec) {
   VP8MB* const left = dec->mb_info_ - 1;
   left->nz_ = 0;
   left->dc_nz_ = 0;
-  memset(dec->intra_l_, B_DC_PRED, sizeof(dec->intra_l_));
+  SbMemorySet(dec->intra_l_, B_DC_PRED, sizeof(dec->intra_l_));
   dec->filter_row_ =
     (dec->filter_type_ > 0) &&
     (dec->mb_y_ >= dec->tl_mb_y_) && (dec->mb_y_ <= dec->br_mb_y_);
@@ -737,7 +742,7 @@ int VP8Decode(VP8Decoder* const dec, VP8Io* const io) {
       return 0;
     }
   }
-  assert(dec->ready_);
+  SB_DCHECK(dec->ready_);
 
   // Finish setting up the decoding parameter. Will call io->setup().
   ok = (VP8EnterCritical(dec, io) == VP8_STATUS_OK);
@@ -769,11 +774,11 @@ void VP8Clear(VP8Decoder* const dec) {
     WebPWorkerEnd(&dec->worker_);
   }
   if (dec->mem_) {
-    free(dec->mem_);
+    SbMemoryDeallocate(dec->mem_);
   }
   dec->mem_ = NULL;
   dec->mem_size_ = 0;
-  memset(&dec->br_, 0, sizeof(dec->br_));
+  SbMemorySet(&dec->br_, 0, sizeof(dec->br_));
   dec->ready_ = 0;
 }
 

@@ -14,8 +14,13 @@
 #ifndef WEBP_WEBP_MUX_TYPES_H_
 #define WEBP_WEBP_MUX_TYPES_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>  // free()
 #include <string.h>  // memset()
+#endif
 #include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -55,7 +60,7 @@ struct WebPData {
 // Initializes the contents of the 'webp_data' object with default values.
 static WEBP_INLINE void WebPDataInit(WebPData* webp_data) {
   if (webp_data != NULL) {
-    memset(webp_data, 0, sizeof(*webp_data));
+    SbMemorySet(webp_data, 0, sizeof(*webp_data));
   }
 }
 
@@ -63,7 +68,7 @@ static WEBP_INLINE void WebPDataInit(WebPData* webp_data) {
 // deallocate the object itself.
 static WEBP_INLINE void WebPDataClear(WebPData* webp_data) {
   if (webp_data != NULL) {
-    free((void*)webp_data->bytes);
+    SbMemoryDeallocate((void*)webp_data->bytes);
     WebPDataInit(webp_data);
   }
 }
@@ -74,9 +79,9 @@ static WEBP_INLINE int WebPDataCopy(const WebPData* src, WebPData* dst) {
   if (src == NULL || dst == NULL) return 0;
   WebPDataInit(dst);
   if (src->bytes != NULL && src->size != 0) {
-    dst->bytes = (uint8_t*)malloc(src->size);
+    dst->bytes = (uint8_t*)SbMemoryAllocate(src->size);
     if (dst->bytes == NULL) return 0;
-    memcpy((void*)dst->bytes, src->bytes, src->size);
+    SbMemoryCopy((void*)dst->bytes, src->bytes, src->size);
     dst->size = src->size;
   }
   return 1;

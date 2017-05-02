@@ -11,10 +11,15 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h."
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#endif
 
 #include "./vp8enci.h"
 #include "./cost.h"
@@ -93,7 +98,7 @@ static int FinalizeSkipProba(VP8Encoder* const enc) {
 
 static void ResetTokenStats(VP8Encoder* const enc) {
   VP8Proba* const proba = &enc->proba_;
-  memset(proba->stats_, 0, sizeof(proba->stats_));
+  SbMemorySet(proba->stats_, 0, sizeof(proba->stats_));
 }
 
 // Record proba context used
@@ -168,7 +173,7 @@ static int RecordCoeffs(int ctx, const VP8Residual* const res) {
 // Collect statistics and deduce probabilities for next coding pass.
 // Return the total bit-cost for coding the probability updates.
 static int CalcTokenProba(int nb, int total) {
-  assert(nb <= total);
+  SB_DCHECK(nb <= total);
   return nb ? (255 - nb * 255 / total) : 255;
 }
 
@@ -315,7 +320,7 @@ static int GetResidualCost(int ctx0, const VP8Residual* const res) {
   // Last coefficient is always non-zero
   {
     const int v = abs(res->coeffs[n]);
-    assert(v != 0);
+    SB_DCHECK(v != 0);
     cost += VP8BitCost(1, p0);
     cost += VP8LevelCost(t, v);
     if (n < 15) {
@@ -625,7 +630,7 @@ static void RecordTokens(VP8EncIterator* const it, const VP8ModeScore* const rd,
 static void SetBlock(uint8_t* p, int value, int size) {
   int y;
   for (y = 0; y < size; ++y) {
-    memset(p, value, size);
+    SbMemorySet(p, value, size);
     p += BPS;
   }
 }
@@ -918,11 +923,11 @@ int VP8EncTokenLoop(VP8Encoder* const enc) {
   if (max_count < MIN_COUNT) max_count = MIN_COUNT;
   cnt = max_count;
 
-  assert(enc->num_parts_ == 1);
-  assert(enc->use_tokens_);
-  assert(proba->use_skip_proba_ == 0);
-  assert(rd_opt >= RD_OPT_BASIC);   // otherwise, token-buffer won't be useful
-  assert(!enc->do_search_);         // TODO(skal): handle pass and dichotomy
+  SB_DCHECK(enc->num_parts_ == 1);
+  SB_DCHECK(enc->use_tokens_);
+  SB_DCHECK(proba->use_skip_proba_ == 0);
+  SB_DCHECK(rd_opt >= RD_OPT_BASIC);   // otherwise, token-buffer won't be useful
+  SB_DCHECK(!enc->do_search_);         // TODO(skal): handle pass and dichotomy
 
   SetLoopParams(enc, enc->config_->quality);
 
