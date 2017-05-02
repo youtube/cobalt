@@ -1655,6 +1655,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   cxx = GetEnvironFallback(['CXX_target', 'CXX'], cxx)
   master_ninja.variable('cxx', cxx)
   ld = GetEnvironFallback(['LD_target', 'LD'], ld)
+  idl = GetEnvironFallback(['IDL_target', 'IDL'], ld)
 
   if not cc_host:
     cc_host = cc
@@ -1670,7 +1671,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   ar_flags = ''
   if flavor in ['win', 'xb1']:
     master_ninja.variable('ld', ld)
-    master_ninja.variable('idl', 'midl.exe')
+    master_ninja.variable('idl', idl)
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
     master_ninja.variable('rc', 'rc.exe')
     master_ninja.variable('asm', 'ml.exe')
@@ -1804,7 +1805,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       description='IDL $in',
       command=('%s gyp-win-tool midl-wrapper $arch $outdir '
                '$tlb $h $dlldata $iid $proxy $in '
-               '$idlflags' % python_exec))
+               '$idl $idlflags' % python_exec))
     master_ninja.rule(
       'rc',
       description='RC $in',
