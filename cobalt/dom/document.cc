@@ -215,11 +215,11 @@ scoped_refptr<Event> Document::CreateEvent(
   TRACK_MEMORY_SCOPE("DOM");
   // https://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
   // The match of interface name is case-insensitive.
-  if (strcasecmp(interface_name.c_str(), "event") == 0 ||
-      strcasecmp(interface_name.c_str(), "events") == 0) {
+  if (base::strcasecmp(interface_name.c_str(), "event") == 0 ||
+      base::strcasecmp(interface_name.c_str(), "events") == 0) {
     return new Event(Event::Uninitialized);
-  } else if (strcasecmp(interface_name.c_str(), "uievent") == 0 ||
-             strcasecmp(interface_name.c_str(), "uievents") == 0) {
+  } else if (base::strcasecmp(interface_name.c_str(), "uievent") == 0 ||
+             base::strcasecmp(interface_name.c_str(), "uievents") == 0) {
     return new UIEvent(Event::Uninitialized);
   }
 
