@@ -1,51 +1,104 @@
-<familyset version="1">
 <!--
-    Fallback families are chosen based on a match: full BCP-47 language tag
-    including script, then just language with no script, and then all fonts are
-    considered regardless of language. Within each of these, the highest
-    priority family that satisfies the constraints and supports the character is
-    chosen. If more than one family has the same fallback priority, then order
-    of appearance is the final tiebreaker.
-
-    Cobalt families are loaded before system families and, as a result, always
-    win the order of appearance fallback tiebreaker with system families.
-    However, Cobalt fallback families all have the default fallback priority of
-    0; if it is desired that a system family be chosen before a Cobalt family
-    during fallback, then this can be accomplished by giving it a priority
-    greater than 0.
-
-    Families are included as fallback families if one of two conditions are met:
-      1. They do not have a "name" attribute.
-      2. They have a "fallback_priority" attribute.
-    This allows named families to also be fallback families if they are
-    explicitly given a fallback priority.
-
-    When "fallback_priority" is present, then its value, which is an integer,
-    dictates the fallback priority of the family. When it is not present, then
-    the family is given the default priority of 0.
-
-    The optional family attribute "pages" indicates which character pages are
-    contained within the family. It is used with character fallback to allow the
-    system to quickly determine that a character cannot appear in a font without
-    requiring the full character map to be loaded into memory. Character pages
-    are zero indexed, and each page contains 256 characters, so character 1000
-    would be contained within page 3.
-
-    For system families, it is safer not including "pages". When "pages" is
-    included, the correct family may potentially be skipped if there is an error
-    in the "pages" value. When "pages" is not included the correct fallback
-    family is always selected. The cost of not including "pages" is that more
-    full character maps will likely be loaded, which is a one-time performance
-    hit per family.
-
-    The optional font attributes "font_name" and "postscript_name" are used to
-    allow the font to be matched during local src lookup with @font-face rules.
-    https://www.w3.org/TR/css-fonts-3/#descdef-src
-
-    The optional font attribute "disable_synthetic_bolding" prevents the font
-    from being synthetically bolded. By default synthetic bolding is done when
-    there is no bold font available and a bold weight (>500) is specified.
--->
+ |==============================================================================
+ | OVERVIEW
+ | The font configuration files specify the local fonts available to Cobalt.
+ | They come in two flavors:
+ |   1. A required configuration file that Cobalt provides; it is loaded first
+ |      and specifies the superset of all fonts that can be included within the
+ |      Cobalt font package.
+ |   2. An optional configuration file that porters provide; it is loaded second
+ |      and specifies the system fonts available for use.
+ |
+ | There are two types of font families that the configurations can define:
+ | named families and fallback families.
+ |==============================================================================
+ | NAMED FAMILIES
+ | Named families are families that can be retrieved by name during font
+ | matching. Providing a family with the optional "name" attribute makes it a
+ | named family.
+ |
+ | Additionally, the alias tag can be used when more than one name needs to be
+ | mapped to the same same family. The alias's "name" attribute specifies an
+ | alternate name for the family and its "to" attribute specifies the specific
+ | family that it maps to. There is no limit to the number of aliases that can
+ | map to the same family. However, it is important to note that duplicate names
+ | are not allowed between aliases and families; they must all be unique.
+ |
+ | As an example, see the alias mapping "fantasy" to "serif" below. Because of
+ | the alias, whenever the font-family "fantasy" is encountered, the "serif"
+ | family is returned.
+ |
+ | System fonts shouldn't duplicate any family, alias, or font names contained
+ | within Cobalt's font configuration, unless the corresponding font files are
+ | stripped from Cobalt's font package.
+ |
+ | For example: if any of Cobalt's "sans-serif" font files are included in the
+ | selected Cobalt font package, then the system font configuration cannot
+ | contain a family named "sans-serif"; however, if Cobalt's "sans-serif" font
+ | files are entirely stripped from the package, then the system may provide its
+ | own "sans-serif" family without issues.
+ |==============================================================================
+ | FALLBACK FAMILIES
+ | Fallback families are used when none of the named families within a
+ | "font-family" property are found to support a character. When this occurs,
+ | Cobalt searches the fallback families for a font that supports the character.
+ |
+ | Families are included as fallback families if one of two conditions are met:
+ |  1. They do not have a "name" attribute.
+ |  2. They have a "fallback_priority" attribute.
+ | This allows named families to also be fallback families when they are
+ | explicitly given a fallback priority.
+ |
+ | When the optional family attribute "fallback_priority" is included, then its
+ | value, which is an integer, dictates the fallback priority of the family.
+ | When it is not present, then the family is given the default priority of 0.
+ |
+ | Fallback families are chosen based on a match: full BCP-47 language tag
+ | including script, then just language with no script, and then all fonts are
+ | considered regardless of language. Within each of these, the highest priority
+ | family that satisfies the constraints and supports the character is chosen.
+ | If more than one family has the same fallback priority, then order of
+ | appearance within the xml document is the final tiebreaker.
+ |
+ | Cobalt families are loaded before system families and, as a result, always
+ | win the order of appearance fallback tiebreaker with system families.
+ | However, Cobalt fallback families all have the default fallback priority of
+ | 0; if it is desired that a system family be chosen before a Cobalt family
+ | during fallback, then this can be accomplished by giving it a priority
+ | greater than 0.
+ |
+ | The optional family attribute "pages" indicates which character pages are
+ | contained within the family. It is used with character fallback to allow the
+ | system to quickly determine that a character cannot appear in a font without
+ | requiring the full character map to be loaded into memory. Character pages
+ | are zero-indexed, and each page contains 256 characters, so character 1000
+ | would be contained within page 3.
+ |
+ | For system families, it is safer not including "pages". When "pages" is
+ | included, the correct family may potentially be skipped if there is an error
+ | in the "pages" value. When "pages" is not included the correct fallback
+ | family is always selected. The cost of not including "pages" is that more
+ | full character maps will likely be loaded, which is a one-time performance
+ | hit per family, and results in a small increase in total memory usage.
+ |==============================================================================
+ | FONT ATTRIBUTES
+ | The optional font attributes "weight" and "style" are used to specify the
+ | weight and style that will be used during font matching within a family.
+ | "weight" must be a multiple of 100, between 100 and 900 inclusive; it
+ | defaults to 400 when not defined.
+ | "style" must have a value of either "normal" or "italic"; it defaults to
+ | "normal" when not defined.
+ |
+ | The optional font attributes "font_name" and "postscript_name" are used to
+ | allow the font to be matched during local src lookup with @font-face rules.
+ | https://www.w3.org/TR/css-fonts-3/#descdef-src
+ |
+ | The optional font attribute "disable_synthetic_bolding" prevents the font
+ | from being synthetically bolded. By default synthetic bolding is done when
+ | there is no bold font available and a bold weight (>500) is specified.
+ |==============================================================================
+ -->
+<familyset version="1">
     <!-- first family is default -->
     <family name="sans-serif">
         <font weight="100" style="normal" font_name="Roboto Thin" postscript_name="Roboto-Thin">Roboto-Thin.ttf</font>
