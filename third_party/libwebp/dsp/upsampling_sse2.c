@@ -19,9 +19,14 @@ extern "C" {
 
 #if defined(WEBP_USE_SSE2)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
-#include <emmintrin.h>
 #include <string.h>
+#endif
+#include <emmintrin.h>
 #include "./yuv.h"
 
 #ifdef FANCY_UPSAMPLING
@@ -99,11 +104,11 @@ static void Upsample32Pixels(const uint8_t r1[], const uint8_t r2[],
 
 #define UPSAMPLE_LAST_BLOCK(tb, bb, num_pixels, out) {                         \
   uint8_t r1[17], r2[17];                                                      \
-  memcpy(r1, (tb), (num_pixels));                                              \
-  memcpy(r2, (bb), (num_pixels));                                              \
+  SbMemoryCopy(r1, (tb), (num_pixels));                                              \
+  SbMemoryCopy(r2, (bb), (num_pixels));                                              \
   /* replicate last byte */                                                    \
-  memset(r1 + (num_pixels), r1[(num_pixels) - 1], 17 - (num_pixels));          \
-  memset(r2 + (num_pixels), r2[(num_pixels) - 1], 17 - (num_pixels));          \
+  SbMemorySet(r1 + (num_pixels), r1[(num_pixels) - 1], 17 - (num_pixels));          \
+  SbMemorySet(r2 + (num_pixels), r2[(num_pixels) - 1], 17 - (num_pixels));          \
   /* using the shared function instead of the macro saves ~3k code size */     \
   Upsample32Pixels(r1, r2, out);                                               \
 }
@@ -143,7 +148,7 @@ static void FUNC_NAME(const uint8_t* top_y, const uint8_t* bottom_y,           \
   const int u_diag = ((top_u[0] + cur_u[0]) >> 1) + 1;                         \
   const int v_diag = ((top_v[0] + cur_v[0]) >> 1) + 1;                         \
                                                                                \
-  assert(len > 0);                                                             \
+  SB_DCHECK(len > 0);                                                             \
   /* Treat the first pixel in regular way */                                   \
   if (top_y) {                                                                 \
     const int u0 = (top_u[0] + u_diag) >> 1;                                   \

@@ -12,7 +12,8 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <stdlib.h>
 #endif
@@ -36,14 +37,14 @@ static int CheckSizeArgumentsOverflow(uint64_t nmemb, size_t size) {
 
 void* WebPSafeMalloc(uint64_t nmemb, size_t size) {
   if (!CheckSizeArgumentsOverflow(nmemb, size)) return NULL;
-  assert(nmemb * size > 0);
-  return malloc((size_t)(nmemb * size));
+  SB_DCHECK(nmemb * size > 0);
+  return SbMemoryAllocate((size_t)(nmemb * size));
 }
 
 void* WebPSafeCalloc(uint64_t nmemb, size_t size) {
   if (!CheckSizeArgumentsOverflow(nmemb, size)) return NULL;
-  assert(nmemb * size > 0);
-  return calloc((size_t)nmemb, size);
+  SB_DCHECK(nmemb * size > 0);
+  return SbMemoryCalloc((size_t)nmemb, size);
 }
 
 //------------------------------------------------------------------------------

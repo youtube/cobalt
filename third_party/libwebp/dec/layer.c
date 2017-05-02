@@ -12,7 +12,7 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
 #else
 #include <assert.h>
 #include <stdlib.h>
@@ -27,8 +27,8 @@ extern "C" {
 //------------------------------------------------------------------------------
 
 int VP8DecodeLayer(VP8Decoder* const dec) {
-  assert(dec);
-  assert(dec->layer_data_size_ > 0);
+  SB_DCHECK(dec);
+  SB_DCHECK(dec->layer_data_size_ > 0);
   (void)dec;
 
   // TODO: handle enhancement layer here.

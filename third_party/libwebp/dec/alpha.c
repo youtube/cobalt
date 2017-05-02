@@ -11,7 +11,12 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>
+#endif
 #include "./vp8i.h"
 #include "./vp8li.h"
 #include "../utils/filters.h"
@@ -42,8 +47,8 @@ static int DecodeAlpha(const uint8_t* data, size_t data_size,
   const uint8_t* const alpha_data = data + ALPHA_HEADER_LEN;
   const size_t alpha_data_size = data_size - ALPHA_HEADER_LEN;
 
-  assert(width > 0 && height > 0);
-  assert(data != NULL && output != NULL);
+  SB_DCHECK(width > 0 && height > 0);
+  SB_DCHECK(data != NULL && output != NULL);
 
   if (data_size <= ALPHA_HEADER_LEN) {
     return 0;
@@ -64,7 +69,7 @@ static int DecodeAlpha(const uint8_t* data, size_t data_size,
   if (method == ALPHA_NO_COMPRESSION) {
     const size_t alpha_decoded_size = height * width;
     ok = (alpha_data_size >= alpha_decoded_size);
-    if (ok) memcpy(output, alpha_data, alpha_decoded_size);
+    if (ok) SbMemoryCopy(output, alpha_data, alpha_decoded_size);
   } else {
     ok = VP8LDecodeAlphaImageStream(width, height, alpha_data, alpha_data_size,
                                     output);
@@ -98,7 +103,7 @@ const uint8_t* VP8DecompressAlphaRows(VP8Decoder* const dec,
 
   if (row == 0) {
     // Decode everything during the first call.
-    assert(!dec->is_alpha_decoded_);
+    SB_DCHECK(!dec->is_alpha_decoded_);
     if (!DecodeAlpha(dec->alpha_data_, (size_t)dec->alpha_data_size_,
                      width, height, dec->alpha_plane_)) {
       return NULL;  // Error.

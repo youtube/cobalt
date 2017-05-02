@@ -17,6 +17,10 @@
 
 #include "../webp/types.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -31,7 +35,7 @@ static const uint32_t kHashMul = 0x1e35a7bd;
 
 static WEBP_INLINE uint32_t VP8LColorCacheLookup(
     const VP8LColorCache* const cc, uint32_t key) {
-  assert(key <= (~0U >> cc->hash_shift_));
+  SB_DCHECK(key <= (~0U >> cc->hash_shift_));
   return cc->colors_[key];
 }
 

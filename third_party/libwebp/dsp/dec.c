@@ -14,6 +14,10 @@
 #include "./dsp.h"
 #include "../dec/vp8i.h"
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -196,14 +200,14 @@ static void TM16(uint8_t *dst)  { TrueMotion(dst, 16); }
 static void VE16(uint8_t *dst) {     // vertical
   int j;
   for (j = 0; j < 16; ++j) {
-    memcpy(dst + j * BPS, dst - BPS, 16);
+    SbMemoryCopy(dst + j * BPS, dst - BPS, 16);
   }
 }
 
 static void HE16(uint8_t *dst) {     // horizontal
   int j;
   for (j = 16; j > 0; --j) {
-    memset(dst, dst[-1], 16);
+    SbMemorySet(dst, dst[-1], 16);
     dst += BPS;
   }
 }
@@ -211,7 +215,7 @@ static void HE16(uint8_t *dst) {     // horizontal
 static WEBP_INLINE void Put16(int v, uint8_t* dst) {
   int j;
   for (j = 0; j < 16; ++j) {
-    memset(dst + j * BPS, v, 16);
+    SbMemorySet(dst + j * BPS, v, 16);
   }
 }
 
@@ -262,7 +266,7 @@ static void VE4(uint8_t *dst) {    // vertical
   };
   int i;
   for (i = 0; i < 4; ++i) {
-    memcpy(dst + i * BPS, vals, sizeof(vals));
+    SbMemoryCopy(dst + i * BPS, vals, sizeof(vals));
   }
 }
 
@@ -283,7 +287,7 @@ static void DC4(uint8_t *dst) {   // DC
   int i;
   for (i = 0; i < 4; ++i) dc += dst[i - BPS] + dst[-1 + i * BPS];
   dc >>= 3;
-  for (i = 0; i < 4; ++i) memset(dst + i * BPS, dc, 4);
+  for (i = 0; i < 4; ++i) SbMemorySet(dst + i * BPS, dc, 4);
 }
 
 static void RD4(uint8_t *dst) {   // Down-right
@@ -415,14 +419,14 @@ static void HD4(uint8_t *dst) {  // Horizontal-Down
 static void VE8uv(uint8_t *dst) {    // vertical
   int j;
   for (j = 0; j < 8; ++j) {
-    memcpy(dst + j * BPS, dst - BPS, 8);
+    SbMemoryCopy(dst + j * BPS, dst - BPS, 8);
   }
 }
 
 static void HE8uv(uint8_t *dst) {    // horizontal
   int j;
   for (j = 0; j < 8; ++j) {
-    memset(dst, dst[-1], 8);
+    SbMemorySet(dst, dst[-1], 8);
     dst += BPS;
   }
 }
@@ -436,7 +440,7 @@ static WEBP_INLINE void Put8x8uv(uint8_t value, uint8_t* dst) {
     *(uint64_t*)(dst + j * BPS) = v;
   }
 #else
-  for (j = 0; j < 8; ++j) memset(dst + j * BPS, value, 8);
+  for (j = 0; j < 8; ++j) SbMemorySet(dst + j * BPS, value, 8);
 #endif
 }
 
