@@ -16,6 +16,7 @@
 #define COBALT_DOM_DATA_VIEW_H_
 
 #include <algorithm>
+#include <iterator>
 
 #include "build/build_config.h"
 #include "cobalt/dom/array_buffer.h"
