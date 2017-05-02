@@ -59,8 +59,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   typedef script::UnionType2<std::string, scoped_refptr<dom::ArrayBuffer> >
       ResponseType;
 
-  typedef script::UnionType2<std::string, scoped_refptr<dom::ArrayBufferView> >
-      RequestBodyType;
+  typedef script::UnionType3<std::string, scoped_refptr<dom::ArrayBufferView>,
+                             scoped_refptr<dom::ArrayBuffer> > RequestBodyType;
 
   enum State {
     kUnsent = 0,

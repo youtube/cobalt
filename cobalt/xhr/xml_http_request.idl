@@ -40,8 +40,10 @@
     attribute unsigned long timeout;
     [RaisesException=Setter] attribute boolean withCredentials;
     readonly attribute XMLHttpRequestUpload upload;
-    [RaisesException] void send(optional (DOMString or ArrayBufferView)? request_body);
-    // void send(optional (ArrayBufferView or Blob or Document or DOMString or FormData)? data);
+    // TODO: Upgrade to void send(optional (Document or BodyInit)? body = null);
+    //       See https://xhr.spec.whatwg.org/#interface-xmlhttprequest.
+    [RaisesException] void send(
+        optional (DOMString or ArrayBufferView or ArrayBuffer)? request_body);
     void abort();
 
     // response
