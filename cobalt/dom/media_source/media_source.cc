@@ -96,7 +96,7 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
   }
   *mime = tokens[0];
   for (size_t i = 1; i < tokens.size(); ++i) {
-    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
       continue;
     }
     *codecs = tokens[i].substr(strlen("codecs="));
