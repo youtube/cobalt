@@ -39,13 +39,33 @@ namespace memory_settings {
 //      "+--------+--------+\n";
 class TablePrinter {
  public:
+  enum Color {
+    kDefault,
+    kRed,
+    kGreen,
+    kYellow,
+    kBlue,
+    kMagenta,
+    kCyan
+  };
+
   typedef std::vector<std::string> Row;
+  TablePrinter();
 
   void AddRow(const Row& row);
   std::string ToString() const;
 
+  // Adds color to the string output. kDefault will omit any color value and
+  // just do straight text.
+  // Note: If SbLogIsTty() returns false then color output is disabled and its
+  //       recommended that these functions are not called.
+  void set_text_color(Color text_color) { text_color_ = text_color; }
+  void set_table_color(Color table_color) { table_color_ = table_color; }
+
  private:
   std::vector<Row> table_;
+  Color text_color_;
+  Color table_color_;
 };
 
 }  // namespace memory_settings
