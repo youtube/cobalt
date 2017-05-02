@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
+#include "cobalt/browser/memory_tracker/tool/util.h"
 #include "nb/analytics/memory_tracker.h"
 
 namespace cobalt {
