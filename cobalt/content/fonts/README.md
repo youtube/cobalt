@@ -1,16 +1,34 @@
-## Description
+# Fonts
 
-This directory contains fonts that can be packaged with Cobalt.
+By default, Cobalt includes a robust set of fonts that support most characters
+encountered around the world. While this will likely meet many porters' needs,
+the font system is also extremely configurable when desired.
 
-## How to use
+It can be configured in the following ways:
+  1. The porter can select from a variety of font packages that Cobalt offers
+     and then override specific sections of those packages to add or remove
+     additional fonts.
+  2. The porter can use system fonts to complement or even replace Cobalt's
+     fonts. However, it is important to note that, given the extensive language
+     support that Cobalt provides in its font packages, care should be taken
+     when replacing Cobalt's fonts to not significantly degrade that support.
+
+Both font packages and system fonts are described in more detail below.
+
+## Font Packages
+
+While the fonts included in Cobalt's default font package should work well in
+most cases, Cobalt offers the ability to customize the fonts included in builds
+through package profile selection and package overrides.
+
+### How to use
 
 To use this:
-
-1.  Select one of the packages below.
-2.  Add a variable named `cobalt_font_package` in your platform's
-    `gyp_configuration.gypi` file.
-3.  Optional: Add package overrides, which can be used to add or remove fonts
-    from the package.
+  1.  Select one of the package profiles below.
+  2.  Add a variable named `cobalt_font_package` in your platform's
+      `gyp_configuration.gypi` file.
+  3.  Optional: Add package overrides, which can be used to add or remove fonts
+      from the package.
 
 Example:
     This example uses the 'limited' package, but overrides it to include bold
@@ -22,7 +40,7 @@ Example:
         'cobalt_font_package_override_fallback_lang_cjk_low_quality': 0,
     }
 
-## Packages
+### Package Profiles
 *  'expanded' -- The largest package. It includes everything in the 'standard'
                  package, along with 'bold' weight CJK. It is recommended that
                  'local_font_cache_size_in_bytes' be increased to 24MB when
@@ -118,8 +136,8 @@ NOTE: When bold is needed, but unavailable, it is typically synthesized,
       weight.
 
 
-## Package font categories
-Each package contains values for the following categories, which specifies the
+### Package Font Categories
+Each package contains values for the following categories, which specify the
 fonts from each category included within the package:
   *  'package_named_sans_serif':
        Named sans-serif fonts.
@@ -153,7 +171,7 @@ fonts from each category included within the package:
        Symbol-related fallback fonts.
 
 
-## Package font category values
+### Package Font Category Values
 The following explains the meaning behind the values that packages use for each
 of the font categories:
   *  0 -- No fonts from the specified category are included.
@@ -167,7 +185,7 @@ of the font categories:
           include additional weights beyond 'normal' and 'bold'.
 
 
-## Overriding packages
+### Overriding Packages
 Font package overrides can be used to modify the files included within the
 selected package. The following override values are available for each font
 category:
@@ -187,7 +205,7 @@ category:
           beyond 'normal' and 'bold'.
 
 
-## Override mappings
+### Override Package Mappings
 The mapping between the override category name and the package category name:
   *  'cobalt_font_package_override_named_sans_serif' ==>
        'package_named_sans_serif'
@@ -207,3 +225,37 @@ The mapping between the override category name and the package category name:
        'package_fallback_emoji'
   *  'cobalt_font_package_override_fallback_symbols' ==>
        'package_fallback_symbols'
+
+
+## System Fonts
+
+Beyond simply providing the ability to configure the fonts that are included
+within its package, Cobalt supports the use of system fonts.
+
+### Starboard System Font Paths
+
+In order to enable system fonts, within SbSystemGetPath() porters must provide
+paths for kSbSystemPathFontDirectory, which contains the system font files, and
+for kSbSystemPathFontConfigurationDirectory, which contains the system font
+configuration file. These directories may be the same.
+
+### System Font Configuration File
+
+In addition to providing the directory paths, porters must implement a fonts.xml
+configuration file, which describes the system fonts that are available for use.
+
+The syntax of the system font configuration file is identical to that of
+Cobalt's font configuration file, which can be used as a reference. The system
+font configuration file can include both named font families and fallback font
+families. However, system fonts shouldn't duplicate any family, alias, or font
+names contained within Cobalt's font configuration, unless the corresponding
+font files are stripped from Cobalt's font package.
+
+For example: if any of Cobalt's "sans-serif" font files are included in the
+selected Cobalt font package, then the system font configuration cannot contain
+a family named "sans-serif"; however, if Cobalt's "sans-serif" font files are
+entirely stripped from the package, then the system may provide its own
+"sans-serif" family without issues.
+
+For more information on creating a font configuration, see
+[Cobalt's configuration file](config/common/fonts.xml).

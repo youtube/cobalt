@@ -64,7 +64,8 @@ SkTypeface_CobaltStreamProvider::SkTypeface_CobaltStreamProvider(
     synthesizes_bold_ = false;
   }
   LOG(INFO) << "Created SkTypeface_CobaltStreamProvider: "
-            << family_name.c_str() << "(" << style << ");";
+            << family_name.c_str() << "(" << style << "); File: \""
+            << stream_provider->file_path() << "\"";
 }
 
 void SkTypeface_CobaltStreamProvider::onGetFontDescriptor(
