@@ -12,7 +12,8 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <assert.h>
 #include <stdlib.h>
@@ -42,11 +43,11 @@ static int EmitYUV(const VP8Io* const io, WebPDecParams* const p) {
   const int uv_h = (mb_h + 1) / 2;
   int j;
   for (j = 0; j < mb_h; ++j) {
-    memcpy(y_dst + j * buf->y_stride, io->y + j * io->y_stride, mb_w);
+    SbMemoryCopy(y_dst + j * buf->y_stride, io->y + j * io->y_stride, mb_w);
   }
   for (j = 0; j < uv_h; ++j) {
-    memcpy(u_dst + j * buf->u_stride, io->u + j * io->uv_stride, uv_w);
-    memcpy(v_dst + j * buf->v_stride, io->v + j * io->uv_stride, uv_w);
+    SbMemoryCopy(u_dst + j * buf->u_stride, io->u + j * io->uv_stride, uv_w);
+    SbMemoryCopy(v_dst + j * buf->v_stride, io->v + j * io->uv_stride, uv_w);
   }
   return io->mb_h;
 }
@@ -147,9 +148,9 @@ static int EmitFancyRGB(const VP8Io* const io, WebPDecParams* const p) {
   cur_y += io->y_stride;
   if (io->crop_top + y_end < io->crop_bottom) {
     // Save the unfinished samples for next call (as we're not done yet).
-    memcpy(p->tmp_y, cur_y, mb_w * sizeof(*p->tmp_y));
-    memcpy(p->tmp_u, cur_u, uv_w * sizeof(*p->tmp_u));
-    memcpy(p->tmp_v, cur_v, uv_w * sizeof(*p->tmp_v));
+    SbMemoryCopy(p->tmp_y, cur_y, mb_w * sizeof(*p->tmp_y));
+    SbMemoryCopy(p->tmp_u, cur_u, uv_w * sizeof(*p->tmp_u));
+    SbMemoryCopy(p->tmp_v, cur_v, uv_w * sizeof(*p->tmp_v));
     // The fancy upsampler leaves a row unfinished behind
     // (except for the very last row)
     num_lines_out--;
@@ -177,14 +178,14 @@ static int EmitAlphaYUV(const VP8Io* const io, WebPDecParams* const p) {
 
   if (alpha != NULL) {
     for (j = 0; j < mb_h; ++j) {
-      memcpy(dst, alpha, mb_w * sizeof(*dst));
+      SbMemoryCopy(dst, alpha, mb_w * sizeof(*dst));
       alpha += io->width;
       dst += buf->a_stride;
     }
   } else if (buf->a != NULL) {
     // the user requested alpha, but there is none, set it to opaque.
     for (j = 0; j < mb_h; ++j) {
-      memset(dst, 0xff, mb_w * sizeof(*dst));
+      SbMemorySet(dst, 0xff, mb_w * sizeof(*dst));
       dst += buf->a_stride;
     }
   }
@@ -329,7 +330,7 @@ static int InitYUVRescaler(const VP8Io* const io, WebPDecParams* const p) {
   if (has_alpha) {
     tmp_size += work_size;
   }
-  p->memory = calloc(1, tmp_size * sizeof(*work));
+  p->memory = SbMemoryCalloc(1, tmp_size * sizeof(*work));
   if (p->memory == NULL) {
     return 0;   // memory error
   }
@@ -373,8 +374,8 @@ static int ExportRGB(WebPDecParams* const p, int y_pos) {
   // U/V can be +1/-1 line from the Y one.  Hence the double test.
   while (WebPRescalerHasPendingOutput(&p->scaler_y) &&
          WebPRescalerHasPendingOutput(&p->scaler_u)) {
-    assert(p->last_y + y_pos + num_lines_out < p->output->height);
-    assert(p->scaler_u.y_accum == p->scaler_v.y_accum);
+    SB_DCHECK(p->last_y + y_pos + num_lines_out < p->output->height);
+    SB_DCHECK(p->scaler_u.y_accum == p->scaler_v.y_accum);
     WebPRescalerExportRow(&p->scaler_y);
     WebPRescalerExportRow(&p->scaler_u);
     WebPRescalerExportRow(&p->scaler_v);
@@ -402,7 +403,7 @@ static int EmitRescaledRGB(const VP8Io* const io, WebPDecParams* const p) {
         WebPRescalerImport(&p->scaler_v, uv_mb_h - uv_j,
                            io->v + uv_j * io->uv_stride, io->uv_stride);
     (void)v_lines_in;   // remove a gcc warning
-    assert(u_lines_in == v_lines_in);
+    SB_DCHECK(u_lines_in == v_lines_in);
     j += y_lines_in;
     uv_j += u_lines_in;
     num_lines_out += ExportRGB(p, num_lines_out);
@@ -424,7 +425,7 @@ static int ExportAlpha(WebPDecParams* const p, int y_pos) {
 
   while (WebPRescalerHasPendingOutput(&p->scaler_a)) {
     int i;
-    assert(p->last_y + y_pos + num_lines_out < p->output->height);
+    SB_DCHECK(p->last_y + y_pos + num_lines_out < p->output->height);
     WebPRescalerExportRow(&p->scaler_a);
     for (i = 0; i < width; ++i) {
       const uint32_t alpha_value = p->scaler_a.dst[i];
@@ -453,7 +454,7 @@ static int ExportAlphaRGBA4444(WebPDecParams* const p, int y_pos) {
 
   while (WebPRescalerHasPendingOutput(&p->scaler_a)) {
     int i;
-    assert(p->last_y + y_pos + num_lines_out < p->output->height);
+    SB_DCHECK(p->last_y + y_pos + num_lines_out < p->output->height);
     WebPRescalerExportRow(&p->scaler_a);
     for (i = 0; i < width; ++i) {
       // Fill in the alpha value (converted to 4 bits).
@@ -501,7 +502,7 @@ static int InitRGBRescaler(const VP8Io* const io, WebPDecParams* const p) {
     tmp_size1 += work_size;
     tmp_size2 += out_width;
   }
-  p->memory = calloc(1, tmp_size1 * sizeof(*work) + tmp_size2 * sizeof(*tmp));
+  p->memory = SbMemoryCalloc(1, tmp_size1 * sizeof(*work) + tmp_size2 * sizeof(*tmp));
   if (p->memory == NULL) {
     return 0;   // memory error
   }
@@ -565,7 +566,7 @@ static int CustomSetup(VP8Io* io) {
 #ifdef FANCY_UPSAMPLING
       if (io->fancy_upsampling) {
         const int uv_width = (io->mb_w + 1) >> 1;
-        p->memory = malloc(io->mb_w + 2 * uv_width);
+        p->memory = SbMemoryAllocate(io->mb_w + 2 * uv_width);
         if (p->memory == NULL) {
           return 0;   // memory error.
         }
@@ -602,7 +603,7 @@ static int CustomPut(const VP8Io* io) {
   const int mb_w = io->mb_w;
   const int mb_h = io->mb_h;
   int num_lines_out;
-  assert(!(io->mb_y & 1));
+  SB_DCHECK(!(io->mb_y & 1));
 
   if (mb_w <= 0 || mb_h <= 0) {
     return 0;
@@ -619,7 +620,7 @@ static int CustomPut(const VP8Io* io) {
 
 static void CustomTeardown(const VP8Io* io) {
   WebPDecParams* const p = (WebPDecParams*)io->opaque;
-  free(p->memory);
+  SbMemoryDeallocate(p->memory);
   p->memory = NULL;
 }
 

@@ -10,9 +10,14 @@
 // Author: Jyrki Alakuijala (jyrki@google.com)
 //
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#endif
 
 #include "./backward_references.h"
 #include "./histogram.h"
@@ -88,13 +93,13 @@ void VP8LInitBackwardRefs(VP8LBackwardRefs* const refs) {
 
 void VP8LClearBackwardRefs(VP8LBackwardRefs* const refs) {
   if (refs != NULL) {
-    free(refs->refs);
+    SbMemoryDeallocate(refs->refs);
     VP8LInitBackwardRefs(refs);
   }
 }
 
 int VP8LBackwardRefsAlloc(VP8LBackwardRefs* const refs, int max_size) {
-  assert(refs != NULL);
+  SB_DCHECK(refs != NULL);
   refs->size = 0;
   refs->max_size = 0;
   refs->refs = (PixOrCopy*)WebPSafeMalloc((uint64_t)max_size,
@@ -130,8 +135,8 @@ static int HashChainInit(HashChain* const p, int size) {
 
 static void HashChainDelete(HashChain* const p) {
   if (p != NULL) {
-    free(p->chain_);
-    free(p);
+    SbMemoryDeallocate(p->chain_);
+    SbMemoryDeallocate(p);
   }
 }
 
@@ -152,7 +157,7 @@ static void GetParamsForHashChainFindCopy(int quality, int xsize,
   const int max_window_size = (quality > 50) ? WINDOW_SIZE
                             : (quality > 25) ? (xsize << 8)
                             : (xsize << 4);
-  assert(xsize > 0);
+  SB_DCHECK(xsize > 0);
   *window_size = (max_window_size > WINDOW_SIZE) ? WINDOW_SIZE
                : max_window_size;
   *iter_pos = 8 + (quality >> 3);
@@ -175,7 +180,7 @@ static int HashChainFindCopy(const HashChain* const p,
   const int min_pos =
       (base_position > window_size) ? base_position - window_size : 0;
   int pos;
-  assert(xsize > 0);
+  SB_DCHECK(xsize > 0);
   for (pos = p->hash_to_first_index_[GetPixPairHash64(argb_start)];
        pos >= min_pos;
        pos = p->chain_[pos]) {
@@ -269,7 +274,7 @@ static int BackwardReferencesHashChain(int xsize, int ysize,
   int cc_init = 0;
   const int use_color_cache = (cache_bits > 0);
   const int pix_count = xsize * ysize;
-  HashChain* const hash_chain = (HashChain*)malloc(sizeof(*hash_chain));
+  HashChain* const hash_chain = (HashChain*)SbMemoryAllocate(sizeof(*hash_chain));
   VP8LColorCache hashers;
   int window_size = WINDOW_SIZE;
   int iter_pos = 1;
@@ -398,7 +403,7 @@ static void ConvertPopulationCountTableToBitEstimates(
     }
   }
   if (nonzeros <= 1) {
-    memset(output, 0, num_symbols * sizeof(*output));
+    SbMemorySet(output, 0, num_symbols * sizeof(*output));
   } else {
     const double logsum = VP8LFastLog2(sum);
     for (i = 0; i < num_symbols; ++i) {
@@ -481,8 +486,8 @@ static int BackwardReferencesHashChainDistanceOnly(
   const int use_color_cache = (cache_bits > 0);
   float* const cost =
       (float*)WebPSafeMalloc((uint64_t)pix_count, sizeof(*cost));
-  CostModel* cost_model = (CostModel*)malloc(sizeof(*cost_model));
-  HashChain* hash_chain = (HashChain*)malloc(sizeof(*hash_chain));
+  CostModel* cost_model = (CostModel*)SbMemoryAllocate(sizeof(*cost_model));
+  HashChain* hash_chain = (HashChain*)SbMemoryAllocate(sizeof(*hash_chain));
   VP8LColorCache hashers;
   const double mul0 = (recursive_cost_model != 0) ? 1.0 : 0.68;
   const double mul1 = (recursive_cost_model != 0) ? 1.0 : 0.82;
@@ -593,8 +598,8 @@ static int BackwardReferencesHashChainDistanceOnly(
 Error:
   if (cc_init) VP8LColorCacheClear(&hashers);
   HashChainDelete(hash_chain);
-  free(cost_model);
-  free(cost);
+  SbMemoryDeallocate(cost_model);
+  SbMemoryDeallocate(cost);
   return ok;
 }
 
@@ -633,7 +638,7 @@ static int BackwardReferencesHashChainFollowChosenPath(
   int window_size = WINDOW_SIZE;
   int iter_pos = 1;
   int iter_limit = -1;
-  HashChain* hash_chain = (HashChain*)malloc(sizeof(*hash_chain));
+  HashChain* hash_chain = (HashChain*)SbMemoryAllocate(sizeof(*hash_chain));
   VP8LColorCache hashers;
 
   if (hash_chain == NULL || !HashChainInit(hash_chain, pix_count)) {
@@ -655,7 +660,7 @@ static int BackwardReferencesHashChainFollowChosenPath(
       HashChainFindCopy(hash_chain, i, xsize, argb, maxlen,
                         window_size, iter_pos, iter_limit,
                         &offset, &len);
-      assert(len == maxlen);
+      SB_DCHECK(len == maxlen);
       refs->refs[size] = PixOrCopyCreateCopy(offset, len);
       if (use_color_cache) {
         for (k = 0; k < len; ++k) {
@@ -684,7 +689,7 @@ static int BackwardReferencesHashChainFollowChosenPath(
       ++i;
     }
   }
-  assert(size <= refs->max_size);
+  SB_DCHECK(size <= refs->max_size);
   refs->size = size;
   ok = 1;
 Error:
@@ -721,7 +726,7 @@ static int BackwardReferencesTraceBackwards(int xsize, int ysize,
   }
   ok = 1;
  Error:
-  free(dist_array);
+  SbMemoryDeallocate(dist_array);
   return ok;
 }
 
@@ -765,7 +770,7 @@ int VP8LGetBackwardReferences(int width, int height,
 
   {
     double bit_cost_lz77, bit_cost_rle;
-    VP8LHistogram* const histo = (VP8LHistogram*)malloc(sizeof(*histo));
+    VP8LHistogram* const histo = (VP8LHistogram*)SbMemoryAllocate(sizeof(*histo));
     if (histo == NULL) goto Error1;
     // Evaluate lz77 coding
     VP8LHistogramCreate(histo, &refs_lz77, cache_bits);
@@ -775,7 +780,7 @@ int VP8LGetBackwardReferences(int width, int height,
     bit_cost_rle = VP8LHistogramEstimateBits(histo);
     // Decide if LZ77 is useful.
     lz77_is_useful = (bit_cost_lz77 < bit_cost_rle);
-    free(histo);
+    SbMemoryDeallocate(histo);
   }
 
   // Choose appropriate backward reference.
@@ -854,7 +859,7 @@ static int ComputeCacheHistogram(const uint32_t* const argb,
     }
     pixel_index += PixOrCopyLength(v);
   }
-  assert(pixel_index == xsize * ysize);
+  SB_DCHECK(pixel_index == xsize * ysize);
   (void)xsize;  // xsize is not used in non-debug compilations otherwise.
   (void)ysize;  // ysize is not used in non-debug compilations otherwise.
   if (cc_init) VP8LColorCacheClear(&hashers);

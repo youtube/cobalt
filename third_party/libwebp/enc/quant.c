@@ -11,8 +11,13 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <math.h>
+#endif
 
 #include "./vp8enci.h"
 #include "./cost.h"
@@ -314,7 +319,7 @@ void VP8SetSegmentParams(VP8Encoder* const enc, float quality) {
     const double expn = 1. - amp * enc->dqm_[i].alpha_;
     const double c = pow(c_base, expn);
     const int q = (int)(127. * (1. - c));
-    assert(expn > 0.);
+    SB_DCHECK(expn > 0.);
     enc->dqm_[i].quant_ = clip(q, 0, 127);
   }
 
@@ -612,8 +617,8 @@ static int TrellisQuantizeBlock(const VP8EncIterator* const it,
   }
 
   // Fresh start
-  memset(in + first, 0, (16 - first) * sizeof(*in));
-  memset(out + first, 0, (16 - first) * sizeof(*out));
+  SbMemorySet(in + first, 0, (16 - first) * sizeof(*in));
+  SbMemorySet(out + first, 0, (16 - first) * sizeof(*out));
   if (best_path[0] == -1) {
     return 0;   // skip!
   }
@@ -797,8 +802,8 @@ static void PickBestIntra16(VP8EncIterator* const it, VP8ModeScore* const rd) {
       CopyScore(rd, &rd16);
       rd->mode_i16 = mode;
       rd->nz = nz;
-      memcpy(rd->y_ac_levels, rd16.y_ac_levels, sizeof(rd16.y_ac_levels));
-      memcpy(rd->y_dc_levels, rd16.y_dc_levels, sizeof(rd16.y_dc_levels));
+      SbMemoryCopy(rd->y_ac_levels, rd16.y_ac_levels, sizeof(rd16.y_ac_levels));
+      SbMemoryCopy(rd->y_dc_levels, rd16.y_dc_levels, sizeof(rd16.y_dc_levels));
       SwapOut(it);
     }
   }
@@ -867,7 +872,7 @@ static int PickBestIntra4(VP8EncIterator* const it, VP8ModeScore* const rd) {
         CopyScore(&rd_i4, &rd_tmp);
         best_mode = mode;
         SwapPtr(&tmp_dst, &best_block);
-        memcpy(rd_best.y_ac_levels[it->i4_], tmp_levels, sizeof(tmp_levels));
+        SbMemoryCopy(rd_best.y_ac_levels[it->i4_], tmp_levels, sizeof(tmp_levels));
       }
     }
     SetRDScore(dqm->lambda_mode_, &rd_i4);
@@ -888,7 +893,7 @@ static int PickBestIntra4(VP8EncIterator* const it, VP8ModeScore* const rd) {
   CopyScore(rd, &rd_best);
   VP8SetIntra4Mode(it, rd->modes_i4);
   SwapOut(it);
-  memcpy(rd->y_ac_levels, rd_best.y_ac_levels, sizeof(rd->y_ac_levels));
+  SbMemoryCopy(rd->y_ac_levels, rd_best.y_ac_levels, sizeof(rd->y_ac_levels));
   return 1;   // select intra4x4 over intra16x16
 }
 
@@ -922,8 +927,8 @@ static void PickBestUV(VP8EncIterator* const it, VP8ModeScore* const rd) {
     if (mode == 0 || rd_uv.score < rd_best.score) {
       CopyScore(&rd_best, &rd_uv);
       rd->mode_uv = mode;
-      memcpy(rd->uv_levels, rd_uv.uv_levels, sizeof(rd->uv_levels));
-      memcpy(dst0, tmp_dst, UV_SIZE);   //  TODO: SwapUVOut() ?
+      SbMemoryCopy(rd->uv_levels, rd_uv.uv_levels, sizeof(rd->uv_levels));
+      SbMemoryCopy(dst0, tmp_dst, UV_SIZE);   //  TODO: SwapUVOut() ?
     }
   }
   VP8SetIntraUVMode(it, rd->mode_uv);

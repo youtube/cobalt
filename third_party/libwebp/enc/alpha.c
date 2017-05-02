@@ -12,7 +12,8 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <assert.h>
 #include <stdlib.h>
@@ -42,7 +43,7 @@ extern "C" {
 //
 // 'output' corresponds to the buffer containing compressed alpha data.
 //          This buffer is allocated by this method and caller should call
-//          free(*output) when done.
+//          SbMemoryDeallocate(*output) when done.
 // 'output_size' corresponds to size of this compressed alpha buffer.
 //
 // Returns 1 on successfully encoding the alpha and
@@ -87,7 +88,7 @@ static int EncodeLossless(const uint8_t* const data, int width, int height,
   config.method = effort_level;  // impact is very small
   // Set a moderate default quality setting for alpha.
   config.quality = 10.f * effort_level;
-  assert(config.quality >= 0 && config.quality <= 100.f);
+  SB_DCHECK(config.quality >= 0 && config.quality <= 100.f);
 
   ok = VP8LBitWriterInit(&tmp_bw, (width * height) >> 3);
   ok = ok && (VP8LEncodeStream(&config, &picture, &tmp_bw) == VP8_ENC_OK);
@@ -116,11 +117,11 @@ static int EncodeAlphaInternal(const uint8_t* const data, int width, int height,
   size_t expected_size;
   const size_t data_size = width * height;
 
-  assert((uint64_t)data_size == (uint64_t)width * height);  // as per spec
-  assert(filter >= 0 && filter < WEBP_FILTER_LAST);
-  assert(method >= ALPHA_NO_COMPRESSION);
-  assert(method <= ALPHA_LOSSLESS_COMPRESSION);
-  assert(sizeof(header) == ALPHA_HEADER_LEN);
+  SB_DCHECK((uint64_t)data_size == (uint64_t)width * height);  // as per spec
+  SB_DCHECK(filter >= 0 && filter < WEBP_FILTER_LAST);
+  SB_DCHECK(method >= ALPHA_NO_COMPRESSION);
+  SB_DCHECK(method <= ALPHA_LOSSLESS_COMPRESSION);
+  SB_DCHECK(sizeof(header) == ALPHA_HEADER_LEN);
   // TODO(skal): have a common function and #define's to validate alpha params.
 
   expected_size =
@@ -156,7 +157,7 @@ static int EncodeAlphaInternal(const uint8_t* const data, int width, int height,
 static void CopyPlane(const uint8_t* src, int src_stride,
                       uint8_t* dst, int dst_stride, int width, int height) {
   while (height-- > 0) {
-    memcpy(dst, src, width);
+    SbMemoryCopy(dst, src, width);
     src += src_stride;
     dst += dst_stride;
   }
@@ -196,12 +197,12 @@ static int EncodeAlpha(VP8Encoder* const enc,
   const int reduce_levels = (quality < 100);
 
   // quick sanity checks
-  assert((uint64_t)data_size == (uint64_t)width * height);  // as per spec
-  assert(enc != NULL && pic != NULL && pic->a != NULL);
-  assert(output != NULL && output_size != NULL);
-  assert(width > 0 && height > 0);
-  assert(pic->a_stride >= width);
-  assert(filter >= WEBP_FILTER_NONE && filter <= WEBP_FILTER_FAST);
+  SB_DCHECK((uint64_t)data_size == (uint64_t)width * height);  // as per spec
+  SB_DCHECK(enc != NULL && pic != NULL && pic->a != NULL);
+  SB_DCHECK(output != NULL && output_size != NULL);
+  SB_DCHECK(width > 0 && height > 0);
+  SB_DCHECK(pic->a_stride >= width);
+  SB_DCHECK(filter >= WEBP_FILTER_NONE && filter <= WEBP_FILTER_FAST);
 
   if (quality < 0 || quality > 100) {
     return 0;
@@ -211,7 +212,7 @@ static int EncodeAlpha(VP8Encoder* const enc,
     return 0;
   }
 
-  quant_alpha = (uint8_t*)malloc(data_size);
+  quant_alpha = (uint8_t*)SbMemoryAllocate(data_size);
   if (quant_alpha == NULL) {
     return 0;
   }
@@ -264,7 +265,7 @@ static int EncodeAlpha(VP8Encoder* const enc,
       goto Ok;
     }
 
-    filtered_alpha = (uint8_t*)malloc(data_size);
+    filtered_alpha = (uint8_t*)SbMemoryAllocate(data_size);
     ok = (filtered_alpha != NULL);
     if (!ok) {
       goto End;
@@ -277,7 +278,7 @@ static int EncodeAlpha(VP8Encoder* const enc,
                           VP8BitWriterSize(&bw) : (size_t)~0U;
       int wipe_tmp_bw = try_filter_none;
 
-      memset(&best_stats, 0, sizeof(best_stats));  // prevent spurious warning
+      SbMemorySet(&best_stats, 0, sizeof(best_stats));  // prevent spurious warning
       if (pic->stats != NULL) best_stats = *pic->stats;
       for (test_filter =
            try_filter_none ? WEBP_FILTER_HORIZONTAL : WEBP_FILTER_NONE;
@@ -320,10 +321,10 @@ static int EncodeAlpha(VP8Encoder* const enc,
         enc->sse_[3] = sse;
       }
     }
-    free(filtered_alpha);
+    SbMemoryDeallocate(filtered_alpha);
   }
  End:
-  free(quant_alpha);
+  SbMemoryDeallocate(quant_alpha);
   return ok;
 }
 
@@ -345,7 +346,7 @@ static int CompressAlphaJob(VP8Encoder* const enc, void* dummy) {
     return 0;
   }
   if (alpha_size != (uint32_t)alpha_size) {  // Sanity check.
-    free(alpha_data);
+    SbMemoryDeallocate(alpha_data);
     return 0;
   }
   enc->alpha_data_size_ = (uint32_t)alpha_size;
@@ -400,7 +401,7 @@ int VP8EncDeleteAlpha(VP8Encoder* const enc) {
     ok = WebPWorkerSync(worker);  // finish anything left in flight
     WebPWorkerEnd(worker);  // still need to end the worker, even if !ok
   }
-  free(enc->alpha_data_);
+  SbMemoryDeallocate(enc->alpha_data_);
   enc->alpha_data_ = NULL;
   enc->alpha_data_size_ = 0;
   enc->has_alpha_ = 0;

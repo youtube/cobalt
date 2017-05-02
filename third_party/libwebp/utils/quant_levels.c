@@ -13,7 +13,7 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
 #else
 #include <assert.h>
 #endif
@@ -76,8 +76,8 @@ int QuantizeLevels(uint8_t* const data, int width, int height,
   // Fixed values. Won't be changed.
   q_level[min_s] = 0;
   q_level[max_s] = num_levels - 1;
-  assert(inv_q_level[0] == min_s);
-  assert(inv_q_level[num_levels - 1] == max_s);
+  SB_DCHECK(inv_q_level[0] == min_s);
+  SB_DCHECK(inv_q_level[num_levels - 1] == max_s);
 
   // k-Means iterations.
   for (iter = 0; iter < MAX_ITER; ++iter) {
