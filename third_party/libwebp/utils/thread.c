@@ -11,8 +11,13 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include <assert.h>
-#include <string.h>   // for memset()
+
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
+#include <string.h>   // for SbMemorySet()
+#endif
 #include "./thread.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -180,7 +185,7 @@ static void WebPWorkerChangeState(WebPWorker* const worker,
 //------------------------------------------------------------------------------
 
 void WebPWorkerInit(WebPWorker* const worker) {
-  memset(worker, 0, sizeof(*worker));
+  SbMemorySet(worker, 0, sizeof(*worker));
   worker->status_ = NOT_OK;
 }
 
@@ -188,7 +193,7 @@ int WebPWorkerSync(WebPWorker* const worker) {
 #ifdef WEBP_USE_THREAD
   WebPWorkerChangeState(worker, OK);
 #endif
-  assert(worker->status_ <= OK);
+  SB_DCHECK(worker->status_ <= OK);
   return !worker->had_error;
 }
 
@@ -211,7 +216,7 @@ int WebPWorkerReset(WebPWorker* const worker) {
   } else if (worker->status_ > OK) {
     ok = WebPWorkerSync(worker);
   }
-  assert(!ok || (worker->status_ == OK));
+  SB_DCHECK(!ok || (worker->status_ == OK));
   return ok;
 }
 
@@ -235,7 +240,7 @@ void WebPWorkerEnd(WebPWorker* const worker) {
     worker->status_ = NOT_OK;
 #endif
   }
-  assert(worker->status_ == NOT_OK);
+  SB_DCHECK(worker->status_ == NOT_OK);
 }
 
 //------------------------------------------------------------------------------

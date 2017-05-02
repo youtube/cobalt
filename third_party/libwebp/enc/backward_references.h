@@ -13,8 +13,12 @@
 #ifndef WEBP_ENC_BACKWARD_REFERENCES_H_
 #define WEBP_ENC_BACKWARD_REFERENCES_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
+#endif
 #include "../webp/types.h"
 #include "../webp/format_constants.h"
 
@@ -37,7 +41,7 @@ extern "C" {
 #if defined(__GNUC__) && \
     ((__GNUC__ == 3 && __GNUC_MINOR__ >= 4) || __GNUC__ >= 4)
 static WEBP_INLINE int BitsLog2Floor(uint32_t n) {
-  assert(n != 0);
+  SB_DCHECK(n != 0);
   return 31 ^ __builtin_clz(n);
 }
 #elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
@@ -46,7 +50,7 @@ static WEBP_INLINE int BitsLog2Floor(uint32_t n) {
 
 static WEBP_INLINE int BitsLog2Floor(uint32_t n) {
   unsigned long first_set_bit;
-  assert(n != 0);
+  SB_DCHECK(n != 0);
   _BitScanReverse(&first_set_bit, n);
   return first_set_bit;
 }
@@ -57,7 +61,7 @@ static WEBP_INLINE int BitsLog2Floor(uint32_t n) {
   uint32_t value = n;
   int i;
 
-  assert(n != 0);
+  SB_DCHECK(n != 0);
   for (i = 4; i >= 0; --i) {
     const int shift = (1 << i);
     const uint32_t x = value >> shift;
@@ -125,8 +129,8 @@ static WEBP_INLINE PixOrCopy PixOrCopyCreateCopy(uint32_t distance,
 
 static WEBP_INLINE PixOrCopy PixOrCopyCreateCacheIdx(int idx) {
   PixOrCopy retval;
-  assert(idx >= 0);
-  assert(idx < (1 << MAX_COLOR_CACHE_BITS));
+  SB_DCHECK(idx >= 0);
+  SB_DCHECK(idx < (1 << MAX_COLOR_CACHE_BITS));
   retval.mode = kCacheIdx;
   retval.argb_or_distance = idx;
   retval.len = 1;
@@ -155,7 +159,7 @@ static WEBP_INLINE int PixOrCopyIsCopy(const PixOrCopy* const p) {
 
 static WEBP_INLINE uint32_t PixOrCopyLiteral(const PixOrCopy* const p,
                                              int component) {
-  assert(p->mode == kLiteral);
+  SB_DCHECK(p->mode == kLiteral);
   return (p->argb_or_distance >> (component * 8)) & 0xff;
 }
 
@@ -164,18 +168,18 @@ static WEBP_INLINE uint32_t PixOrCopyLength(const PixOrCopy* const p) {
 }
 
 static WEBP_INLINE uint32_t PixOrCopyArgb(const PixOrCopy* const p) {
-  assert(p->mode == kLiteral);
+  SB_DCHECK(p->mode == kLiteral);
   return p->argb_or_distance;
 }
 
 static WEBP_INLINE uint32_t PixOrCopyCacheIdx(const PixOrCopy* const p) {
-  assert(p->mode == kCacheIdx);
-  assert(p->argb_or_distance < (1U << MAX_COLOR_CACHE_BITS));
+  SB_DCHECK(p->mode == kCacheIdx);
+  SB_DCHECK(p->argb_or_distance < (1U << MAX_COLOR_CACHE_BITS));
   return p->argb_or_distance;
 }
 
 static WEBP_INLINE uint32_t PixOrCopyDistance(const PixOrCopy* const p) {
-  assert(p->mode == kCopy);
+  SB_DCHECK(p->mode == kCopy);
   return p->argb_or_distance;
 }
 

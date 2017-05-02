@@ -15,7 +15,7 @@
 #define WEBP_UTILS_HUFFMAN_H_
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
 #else
 #include <assert.h>
 #endif

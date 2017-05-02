@@ -17,6 +17,10 @@
 #include "./webpi.h"
 #include "../utils/utils.h"
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -176,14 +180,14 @@ int WebPInitDecBufferInternal(WebPDecBuffer* buffer, int version) {
     return 0;  // version mismatch
   }
   if (buffer == NULL) return 0;
-  memset(buffer, 0, sizeof(*buffer));
+  SbMemorySet(buffer, 0, sizeof(*buffer));
   return 1;
 }
 
 void WebPFreeDecBuffer(WebPDecBuffer* buffer) {
   if (buffer != NULL) {
     if (!buffer->is_external_memory)
-      free(buffer->private_memory);
+      SbMemoryDeallocate(buffer->private_memory);
     buffer->private_memory = NULL;
   }
 }

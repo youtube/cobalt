@@ -15,7 +15,12 @@
 #ifndef WEBP_DEC_VP8LI_H_
 #define WEBP_DEC_VP8LI_H_
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#else
 #include <string.h>     // for memcpy()
+#endif
+
 #include "./webpi.h"
 #include "../utils/bit_reader.h"
 #include "../utils/color_cache.h"

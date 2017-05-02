@@ -11,9 +11,14 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
+#endif
 
 #include "./vp8enci.h"
 #include "../utils/rescaler.h"
@@ -159,7 +164,7 @@ static void PictureResetYUVA(WebPPicture* const picture) {
 // into 'dst'. Mark 'dst' as not owning any memory.
 static void WebPPictureGrabSpecs(const WebPPicture* const src,
                                  WebPPicture* const dst) {
-  assert(src != NULL && dst != NULL);
+  SB_DCHECK(src != NULL && dst != NULL);
   *dst = *src;
   PictureResetYUVA(dst);
   PictureResetARGB(dst);
@@ -169,7 +174,7 @@ static void WebPPictureGrabSpecs(const WebPPicture* const src,
 // the other YUV(A) buffer.
 static int PictureAllocARGB(WebPPicture* const picture) {
   WebPPicture tmp;
-  free(picture->memory_argb_);
+  SbMemoryDeallocate(picture->memory_argb_);
   PictureResetARGB(picture);
   picture->use_argb = 1;
   WebPPictureGrabSpecs(picture, &tmp);
@@ -185,8 +190,8 @@ static int PictureAllocARGB(WebPPicture* const picture) {
 // Release memory owned by 'picture' (both YUV and ARGB buffers).
 void WebPPictureFree(WebPPicture* picture) {
   if (picture != NULL) {
-    free(picture->memory_);
-    free(picture->memory_argb_);
+    SbMemoryDeallocate(picture->memory_);
+    SbMemoryDeallocate(picture->memory_argb_);
     PictureResetYUVA(picture);
     PictureResetARGB(picture);
   }
@@ -199,7 +204,7 @@ void WebPPictureFree(WebPPicture* picture) {
 static void CopyPlane(const uint8_t* src, int src_stride,
                       uint8_t* dst, int dst_stride, int width, int height) {
   while (height-- > 0) {
-    memcpy(dst, src, width);
+    SbMemoryCopy(dst, src, width);
     src += src_stride;
     dst += dst_stride;
   }
@@ -387,7 +392,7 @@ static void RescalePlane(const uint8_t* src,
                    src_width, dst_width,
                    src_height, dst_height,
                    work);
-  memset(work, 0, 2 * dst_width * num_channels * sizeof(*work));
+  SbMemorySet(work, 0, 2 * dst_width * num_channels * sizeof(*work));
   while (y < src_height) {
     y += WebPRescalerImport(&rescaler, src_height - y,
                             src + y * src_stride, src_stride);
@@ -466,7 +471,7 @@ int WebPPictureRescale(WebPPicture* pic, int width, int height) {
                  work, 4);
   }
   WebPPictureFree(pic);
-  free(work);
+  SbMemoryDeallocate(work);
   *pic = tmp;
   return 1;
 }
@@ -498,15 +503,15 @@ int WebPMemoryWrite(const uint8_t* data, size_t data_size,
       return 0;
     }
     if (w->size > 0) {
-      memcpy(new_mem, w->mem, w->size);
+      SbMemoryCopy(new_mem, w->mem, w->size);
     }
-    free(w->mem);
+    SbMemoryDeallocate(w->mem);
     w->mem = new_mem;
     // down-cast is ok, thanks to WebPSafeMalloc
     w->max_size = (size_t)next_max_size;
   }
   if (data_size > 0) {
-    memcpy(w->mem + w->size, data, data_size);
+    SbMemoryCopy(w->mem + w->size, data, data_size);
     w->size += data_size;
   }
   return 1;
@@ -583,8 +588,8 @@ static void MakeGray(WebPPicture* const picture) {
   const int uv_width = HALVE(picture->width);
   const int uv_height = HALVE(picture->height);
   for (y = 0; y < uv_height; ++y) {
-    memset(picture->u + y * picture->uv_stride, 128, uv_width);
-    memset(picture->v + y * picture->uv_stride, 128, uv_width);
+    SbMemorySet(picture->u + y * picture->uv_stride, 128, uv_width);
+    SbMemorySet(picture->v + y * picture->uv_stride, 128, uv_width);
   }
 }
 
@@ -660,7 +665,7 @@ static int ImportYUVAFromRGBA(const uint8_t* const r_ptr,
   }
 
   if (has_alpha) {
-    assert(step >= 4);
+    SB_DCHECK(step >= 4);
     for (y = 0; y < height; ++y) {
       for (x = 0; x < width; ++x) {
         picture->a[x + y * picture->a_stride] =
@@ -707,7 +712,7 @@ static int Import(WebPPicture* const picture,
     }
   } else {
     int x, y;
-    assert(step >= 4);
+    SB_DCHECK(step >= 4);
     for (y = 0; y < height; ++y) {
       for (x = 0; x < width; ++x) {
         const int offset = step * x + y * rgb_stride;
@@ -832,7 +837,7 @@ int WebPPictureARGBToYUVA(WebPPicture* picture, WebPEncCSP colorspace) {
     // We work on a tmp copy of 'picture', because ImportYUVAFromRGBA()
     // would be calling WebPPictureFree(picture) otherwise.
     WebPPicture tmp = *picture;
-    PictureResetARGB(&tmp);  // reset ARGB buffer so that it's not free()'d.
+    PictureResetARGB(&tmp);  // reset ARGB buffer so that it's not SbMemoryDeallocate()'d.
     tmp.use_argb = 0;
     tmp.colorspace = colorspace & WEBP_CSP_UV_MASK;
     if (!ImportYUVAFromRGBA(r, g, b, a, 4, 4 * picture->argb_stride, &tmp)) {
@@ -868,7 +873,7 @@ static int is_transparent_area(const uint8_t* ptr, int stride, int size) {
 static WEBP_INLINE void flatten(uint8_t* ptr, int v, int stride, int size) {
   int y;
   for (y = 0; y < size; ++y) {
-    memset(ptr, v, size);
+    SbMemorySet(ptr, v, size);
     ptr += stride;
   }
 }
@@ -984,7 +989,7 @@ int WebPPictureDistortion(const WebPPicture* src, const WebPPicture* ref,
     return 0;
   }
 
-  memset(stats, 0, sizeof(stats));
+  SbMemorySet(stats, 0, sizeof(stats));
 
   uv_w = HALVE(src->width);
   uv_h = HALVE(src->height);
@@ -1074,7 +1079,7 @@ static size_t Encode(const uint8_t* rgba, int width, int height, int stride,
   ok = import(&pic, rgba, stride) && WebPEncode(&config, &pic);
   WebPPictureFree(&pic);
   if (!ok) {
-    free(wrt.mem);
+    SbMemoryDeallocate(wrt.mem);
     *output = NULL;
     return 0;
   }
