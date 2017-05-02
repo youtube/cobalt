@@ -345,6 +345,13 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
         request_body_text.assign(start + view->byte_offset(),
                                  view->byte_length());
       }
+    } else if (request_body->IsType<scoped_refptr<dom::ArrayBuffer> >()) {
+      scoped_refptr<dom::ArrayBuffer> array_buffer =
+          request_body->AsType<scoped_refptr<dom::ArrayBuffer> >();
+      if (array_buffer->byte_length()) {
+        const char* start = reinterpret_cast<const char*>(array_buffer->data());
+        request_body_text.assign(start, array_buffer->byte_length());
+      }
     }
   } else {
     upload_complete_ = true;

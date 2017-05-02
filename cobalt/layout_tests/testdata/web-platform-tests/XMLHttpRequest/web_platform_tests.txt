@@ -142,7 +142,7 @@ send-authentication-prompt-manual.htm,FAIL
 send-conditional.htm,FAIL
 send-content-type-charset.htm,FAIL
 send-content-type-string.htm,FAIL
-send-data-arraybuffer.htm,FAIL
+send-data-arraybuffer.htm,PASS
 send-data-blob.htm,FAIL
 send-data-es-object.htm,DISABLE
 send-data-unexpected-tostring.htm,FAIL
