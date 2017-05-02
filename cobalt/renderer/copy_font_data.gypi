@@ -22,7 +22,7 @@
 
     'conditions': [
       [ 'cobalt_font_package == "expanded"', {
-        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/config/common',
+        'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/common',
 
         'package_named_sans_serif': 4,
         'package_named_serif': 3,
@@ -37,7 +37,7 @@
 
       # 'unlimited' is deprecated but is mapped to 'standard'
       [ 'cobalt_font_package == "standard" or cobalt_font_package == "unlimited"', {
-        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/config/common',
+        'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/common',
 
         'package_named_sans_serif': 4,
         'package_named_serif': 3,
@@ -52,7 +52,7 @@
 
       # '10megabytes' is deprecated but is mapped to 'limited_with_jp'
       [ 'cobalt_font_package == "limited_with_jp" or cobalt_font_package == "10megabytes"', {
-        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/config/common',
+        'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/common',
 
         'package_named_sans_serif': 2,
         'package_named_serif': 0,
@@ -66,7 +66,7 @@
       }],
 
       [ 'cobalt_font_package == "limited"', {
-        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/config/common',
+        'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/common',
 
         'package_named_sans_serif': 2,
         'package_named_serif': 0,
@@ -80,7 +80,7 @@
       }],
 
       [ 'cobalt_font_package == "minimal"', {
-        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/config/common',
+        'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/common',
 
         'package_named_sans_serif': 0,
         'package_named_serif': 0,
@@ -97,7 +97,7 @@
         # fonts.xml contains a superset of what we expect to find on Android
         # devices. The Android SbFile implementation falls back to system font
         # files for those not in cobalt content.
-        'source_xml_file_dir': '<(static_contents_source_dir)/fonts/config/android',
+        'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/android',
 
         # Emojis are currently included because Cobalt's version of Skia does
         # not support Android's color emojis and will be removed when Skia is
@@ -147,7 +147,7 @@
     {
       'destination': '<(static_contents_output_data_dir)/fonts/',
       'files': [
-        '<(source_xml_file_dir)/fonts.xml',
+        '<(source_font_config_dir)/fonts.xml',
       ],
       'conditions': [
         [ 'package_named_sans_serif == 0', {
