@@ -239,7 +239,7 @@ class _GypRunner(object):
         full_starboard_path = platforms[platform]
         assert full_starboard_path[:len(source_tree_dir)] == source_tree_dir
         starboard_path = full_starboard_path[len(source_tree_dir) + 1:]
-        starboard_path.replace(os.sep, '/')
+        starboard_path = starboard_path.replace(os.sep, '/')
         assert starboard_path[0] not in [ os.sep, os.altsep ]
         variables['starboard_path'] = starboard_path
     _AppendVariables(variables, self.common_args)
