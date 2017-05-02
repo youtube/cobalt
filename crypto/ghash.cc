@@ -4,6 +4,8 @@
 
 #include "crypto/ghash.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "base/sys_byteorder.h"
 
