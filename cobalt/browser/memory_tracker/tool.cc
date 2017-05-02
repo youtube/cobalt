@@ -23,6 +23,9 @@
 #include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
 #include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
 #include "cobalt/browser/memory_tracker/tool/log_writer_tool.h"
+#include "cobalt/browser/memory_tracker/tool/memory_size_binner_tool.h"
+#include "cobalt/browser/memory_tracker/tool/print_csv_tool.h"
+#include "cobalt/browser/memory_tracker/tool/print_tool.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 #include "nb/analytics/memory_tracker_helpers.h"
@@ -315,7 +318,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report javascript memory
       // analytics.
-      tool_ptr.reset(new MemorySizeBinner(tool_arg));
+      tool_ptr.reset(new MemorySizeBinnerTool(tool_arg));
       break;
     }
     case kAllocationLogger: {
