@@ -15,8 +15,10 @@
 #ifndef COBALT_BROWSER_MEMORY_TRACKER_TOOL_UTIL_H_
 #define COBALT_BROWSER_MEMORY_TRACKER_TOOL_UTIL_H_
 
+#include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "base/time.h"
 
@@ -76,6 +78,18 @@ class Timer {
  private:
   base::TimeTicks start_time_;
   base::TimeDelta time_before_expiration_;
+};
+
+struct AllocationSamples {
+  std::vector<int32_t> number_allocations_;
+  std::vector<int64_t> allocated_bytes_;
+};
+typedef std::map<std::string, AllocationSamples> MapAllocationSamples;
+typedef std::vector<base::TimeDelta> TimeStamps;
+
+struct TimeSeries {
+  MapAllocationSamples samples_;
+  TimeStamps time_stamps_;
 };
 
 // Generates a linear fit in the form of slope / y-intercept form.
