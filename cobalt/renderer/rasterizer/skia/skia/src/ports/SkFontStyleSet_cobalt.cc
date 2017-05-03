@@ -14,9 +14,10 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 
-#include <cmath>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+#include <cmath>
 #include <limits>
 
 #include "base/debug/trace_event.h"
@@ -85,13 +86,11 @@ static unsigned long sk_cobalt_ft_stream_io(FT_Stream ftStream,
 static void sk_cobalt_ft_stream_close(FT_Stream) {}
 }
 
-//  This class is used by SkFontMgr_Cobalt to hold SkTypeface_CobaltSystem
-//  families.
 SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     const FontFamily& family, const char* base_path,
-    SkFileMemoryChunkStreamManager* const system_typeface_stream_manager,
+    SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
     SkMutex* const manager_owned_mutex)
-    : system_typeface_stream_manager_(system_typeface_stream_manager),
+    : local_typeface_stream_manager_(local_typeface_stream_manager),
       manager_owned_mutex_(manager_owned_mutex),
       is_fallback_family_(family.is_fallback_family),
       language_(family.language),
@@ -269,7 +268,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
       SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index];
 
       SkFileMemoryChunkStreamProvider* stream_provider =
-          system_typeface_stream_manager_->GetStreamProvider(
+          local_typeface_stream_manager_->GetStreamProvider(
               closest_style->font_file_path.c_str());
 
       // Create a snapshot prior to loading any additional memory chunks. In the
@@ -410,7 +409,7 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
                "SkFontStyleSet_Cobalt::CreateStreamProviderTypeface()");
 
   if (!stream_provider) {
-    stream_provider = system_typeface_stream_manager_->GetStreamProvider(
+    stream_provider = local_typeface_stream_manager_->GetStreamProvider(
         style_entry->font_file_path.c_str());
   }
 
