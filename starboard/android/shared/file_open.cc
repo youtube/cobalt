@@ -27,7 +27,7 @@ using starboard::android::shared::OpenAndroidAsset;
 
 namespace {
 
-// We don't package most font files in cobalt content and fallback to the system
+// We don't package most font files in Cobalt content and fallback to the system
 // font file of the same name.
 const char kFontsXml[] = "fonts.xml";
 const char kSystemFontsDir[] = "/system/fonts/";
@@ -38,6 +38,21 @@ const size_t kCobaltFontsDirLen = sizeof(kCobaltFontsDir) - 1;
 // Returns the fallback for the given asset path, or NULL if none. If not NULL
 // the result is in a buffer allocated by this function and that can be freed
 // with SbMemoryDeallocate.
+// NOTE: While Cobalt now provides a mechanism for loading system fonts through
+//       SbSystemGetPath(), using the fallback logic within SbFileOpen() is
+//       still preferred for Android's fonts. The reason for this is that the
+//       Android OS actually allows fonts to be loaded from two locations: one
+//       that it provides; and one that the devices running its OS, which it
+//       calls vendors, can provide. Rather than including the full Android font
+//       package, vendors have the option of using a smaller Android font
+//       package and supplementing it with their own fonts.
+//
+//       If Android were to use SbSystemGetPath() for its fonts, vendors would
+//       have no way of providing those supplemental fonts to Cobalt, which
+//       could result in a limited selection of fonts being available. By
+//       treating Android's fonts as Cobalt's fonts, Cobalt can still offer a
+//       straightforward mechanism for including vendor fonts via
+//       SbSystemGetPath().
 const char* FallbackPath(const char* path) {
   // Fonts fallback to the system fonts.
   if (path && strncmp(path, kCobaltFontsDir, kCobaltFontsDirLen) == 0) {
