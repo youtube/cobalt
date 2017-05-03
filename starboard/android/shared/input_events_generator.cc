@@ -665,11 +665,9 @@ void InputEventsGenerator::ProcessFallbackDPadEvent(SbInputEventType type,
   }
 
   if (type == kSbInputEventTypePress) {
-    if (left_thumbstick_key_pressed_[hat_axis] != thumbstick_key) {
-      PushKeyEvent(thumbstick_key, kSbInputEventTypePress, window_,
-                   android_event, events);
-      left_thumbstick_key_pressed_[hat_axis] = thumbstick_key;
-    }
+    PushKeyEvent(thumbstick_key, kSbInputEventTypePress, window_,
+                 android_event, events);
+    left_thumbstick_key_pressed_[hat_axis] = thumbstick_key;
   } else if (type == kSbInputEventTypeUnpress) {
     left_thumbstick_key_pressed_[hat_axis] = kSbKeyUnknown;
   } else {
