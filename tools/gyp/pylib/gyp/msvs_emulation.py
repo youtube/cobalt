@@ -645,7 +645,7 @@ class MsvsSettings(object):
                  ('proxy', proxy)]
     if config.startswith('xb1'):
       metadata_dir = '"%s%s"' % ('C:\\Program Files (x86)\\Windows Kits\\10\\',
-          'UnionMetadata')
+                                 'UnionMetadata')
       flags = ['/env', 'x64', '/W1', '/char', 'signed', '/enum_class',
                '/metadata_dir', metadata_dir, '/notlb', '/winrt']
     else:
@@ -823,18 +823,9 @@ def GenerateXB1EnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
   path."""
   arch = 'x64'
 
-  vs_args = [
-      os.path.join(
-          os.path.dirname(__file__), '..', '..', '..', '..', '..',
-          'lbshell', 'build', 'platforms', 'DurangoVars.cmd'),
-      'ADK'
-  ]
   # Get the dos environment via set:
   # Use cmd /c to execute under native windows command
-  args_cmd  = 'cmd /c '
-  args_set  = '\"set\"'
-
-  args = args_cmd + args_set
+  args  = 'set'
 
   popen = subprocess.Popen(
       args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
