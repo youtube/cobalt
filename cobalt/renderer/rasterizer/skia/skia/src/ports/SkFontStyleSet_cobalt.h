@@ -25,15 +25,12 @@
 #include "SkTArray.h"
 #include "SkTypeface.h"
 
-//  This class is used by SkFontMgr_Cobalt to hold SkTypeface_Cobalt families.
+// This class is used by SkFontMgr_Cobalt to store families of
+// SkTypeface_Cobalt objects.
 //
-//  To avoid the memory hit from keeping all fonts around, both the full
-//  character map for fonts and the font faces for fonts are lazily loaded
-//  when needed. After this, they are retained in memory.
-//
-//  The style sets contain an array of page ranges, providing information on
-//  characters that are potentially contained. To determine whether or not a
-//  character is actually contained, the full character map is generated.
+// Both the full character map of the style set and the typeface of each
+// individual entry are lazily loaded the first time that they are needed. After
+// this, they are retained in memory.
 class SkFontStyleSet_Cobalt : public SkFontStyleSet {
  public:
   struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
@@ -76,7 +73,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 
   SkFontStyleSet_Cobalt(
       const FontFamily& family, const char* base_path,
-      SkFileMemoryChunkStreamManager* const system_typeface_stream_manager,
+      SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
       SkMutex* const manager_owned_mutex);
 
   // From SkFontStyleSet
@@ -115,7 +112,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
       SkFileMemoryChunkStreamProvider* stream_provider = NULL);
 
   // NOTE: The following variables can safely be accessed outside of the mutex.
-  SkFileMemoryChunkStreamManager* const system_typeface_stream_manager_;
+  SkFileMemoryChunkStreamManager* const local_typeface_stream_manager_;
   SkMutex* const manager_owned_mutex_;
 
   SkString family_name_;
