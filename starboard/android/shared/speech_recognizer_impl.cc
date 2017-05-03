@@ -109,7 +109,7 @@ void SbSpeechRecognizerImpl::Cancel() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(j_voice_recognizer_, "cancelRecognition", "()V");
+  env->CallVoidMethodOrAbort(j_voice_recognizer_, "stopRecognition", "()V");
 }
 
 void SbSpeechRecognizerImpl::OnSpeechDetected(bool detected) {
