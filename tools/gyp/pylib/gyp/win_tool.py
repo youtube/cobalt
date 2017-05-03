@@ -96,12 +96,12 @@ class WinTool(object):
     return popen.returncode
 
   def ExecMidlWrapper(self, arch, outdir, tlb, h, dlldata, iid, proxy, idl,
-                      midl=None, *flags):
+                      *flags):
     """Filter noisy filenames output from MIDL compile step that isn't
     quietable via command line flags.
     """
     env = self._GetEnv(arch)
-    args = [(midl if midl else 'midl'), '/nologo'] + list(flags) + [
+    args = ['midl', '/nologo'] + list(flags) + [
           '/out', outdir,
           '/h', h,
           idl]
