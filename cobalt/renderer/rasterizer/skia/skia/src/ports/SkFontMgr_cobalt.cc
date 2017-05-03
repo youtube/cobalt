@@ -28,9 +28,8 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* system_font_config_directory,
     const char* system_font_files_directory,
     const SkTArray<SkString, true>& default_families)
-    : system_typeface_stream_manager_(
-          "Font.SystemTypeface",
-          COBALT_SYSTEM_TYPEFACE_CACHE_CAPACITY_IN_BYTES),
+    : local_typeface_stream_manager_("Font.LocalTypefaceCache",
+                                     COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES),
       default_family_(NULL) {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::SkFontMgr_Cobalt()");
 
@@ -282,7 +281,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
     SkAutoTUnref<SkFontStyleSet_Cobalt> new_set(
         SkNEW_ARGS(SkFontStyleSet_Cobalt,
                    (family, font_files_directory,
-                    &system_typeface_stream_manager_, &style_sets_mutex_)));
+                    &local_typeface_stream_manager_, &style_sets_mutex_)));
 
     // Do not add the set if none of its fonts were available. This allows the
     // config file to specify a superset of all fonts, and ones that are not
