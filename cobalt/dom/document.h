@@ -331,6 +331,8 @@ class Document : public Node, public cssom::MutationObserver {
   // Disable just-in-time compilation of JavaScript code.
   void DisableJit();
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:

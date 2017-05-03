@@ -135,6 +135,8 @@ class EventTarget : public script::Wrappable,
   // Returns a string that represents the target for debug purpose.
   virtual std::string GetDebugName() { return ""; }
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(EventTarget);
 
  protected:

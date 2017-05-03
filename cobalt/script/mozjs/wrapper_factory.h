@@ -46,6 +46,12 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   // Gets the Proxy for the Wrapper object for this Wrappable. It may create a
   // new Wrapper and Proxy.
   JSObject* GetWrapperProxy(const scoped_refptr<Wrappable>& wrappable) const;
+
+  // Check whether the Proxy for the Wrapper object for this Wrappable exists
+  // or not. This will NOT create a new Wrapper and Proxy if they do not
+  // already exist.
+  bool HasWrapperProxy(const scoped_refptr<Wrappable>& wrappable) const;
+
   // Returns true if this JSObject is a Wrapper object.
   bool IsWrapper(JS::HandleObject wrapper) const;
 
