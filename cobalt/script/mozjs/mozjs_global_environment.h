@@ -102,6 +102,10 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
     return opaque_root_tracker_.get();
   }
 
+  base::hash_set<Wrappable*>* visited_wrappables() {
+    return &visited_wrappables_;
+  }
+
   // Used for CallWith=EnvironmentSettings
   void SetEnvironmentSettings(EnvironmentSettings* environment_settings) {
     DCHECK(!environment_settings_);
@@ -174,6 +178,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   scoped_ptr<OpaqueRootTracker::OpaqueRootState> opaque_root_state_;
   JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;
+  // TODO: Should be |std::unordered_set| once C++11 is enabled.
+  base::hash_set<Wrappable*> visited_wrappables_;
 
   // If non-NULL, the error message from the ReportErrorHandler will get
   // assigned to this instead of being printed.

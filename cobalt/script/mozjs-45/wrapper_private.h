@@ -28,6 +28,29 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
+// Our mozjs specific implementation of |script::Tracer|. Tracing sessions
+// will be initiated from a |Wrapper| of SpiderMonkey's choice, and then it
+// will be the |mozjs::Tracer|'s job to assist SpiderMonkey's garbage
+// collector in traversing the graph of |Wrapper|s and |Wrappable|s.
+// |Wrappable|s will inform us about what they can reach through their
+// |TraceMembers| implementation, and then we will pass the reachable
+// |Wrappable|'s |Wrapper| to SpiderMonkey GC if it exists, and otherwise
+// continue traversing ourselves from |Wrappable| to (the unwrapped)
+// |Wrappable|.
+class Tracer : public ::cobalt::script::Tracer {
+ public:
+  explicit Tracer(JSTracer* js_tracer) : js_tracer_(js_tracer) {}
+  void Trace(Wrappable* wrappable) OVERRIDE;
+
+  void TraceFrom(Wrappable* wrappable);
+
+ private:
+  JSTracer* js_tracer_;
+  // Pending |Wrappable|s that we must traverse ourselves, since they did not
+  // have a |Wrapper|.
+  std::vector<Wrappable*> frontier_;
+};
+
 // Contains private data associated with a JSObject representing a JS wrapper
 // for a Cobalt platform object. There should be a one-to-one mapping of such
 // JSObjects and WrapperPrivate instances, and the corresponding WrapperPrivate
@@ -107,6 +130,8 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   JS::Heap<JSObject*> wrapper_proxy_;
   GetOpaqueRootFunction get_opaque_root_function_;
   GetReachableWrappablesFunction get_reachable_wrappables_function_;
+
+  friend Tracer;
 };
 
 }  // namespace mozjs

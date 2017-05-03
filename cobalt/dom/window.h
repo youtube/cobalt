@@ -278,6 +278,8 @@ class Window : public EventTarget {
   void SetSynchronousLayoutCallback(
       const base::Closure& synchronous_layout_callback);
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
