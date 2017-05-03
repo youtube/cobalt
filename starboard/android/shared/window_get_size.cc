@@ -14,9 +14,14 @@
 
 #include <android/native_window.h>
 
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/log.h"
 #include "starboard/window.h"
+
+using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
 bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   if (!SbWindowIsValid(window)) {
@@ -27,8 +32,20 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   size->width = ANativeWindow_getWidth(window->native_window);
   size->height = ANativeWindow_getHeight(window->native_window);
 
-  // TODO: Read Android property sys.display-size and compare to window size
-  size->video_pixel_ratio = 1.0f;
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jobject> display_size(
+      env->CallActivityObjectMethodOrAbort("getDisplaySize",
+                                           "()Landroid/util/Size;"));
+  int display_width =
+      env->CallIntMethodOrAbort(display_size.Get(), "getWidth", "()I");
+  int display_height =
+      env->CallIntMethodOrAbort(display_size.Get(), "getHeight", "()I");
+
+  // In the off chance we have non-square pixels, use the max ratio so the
+  // highest quality video suitable to the device gets selected.
+  size->video_pixel_ratio = std::max(
+      static_cast<float>(display_width) / size->width,
+      static_cast<float>(display_height) / size->height);
 
   return true;
 }
