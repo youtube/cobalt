@@ -435,6 +435,22 @@ scoped_refptr<Element> Node::AsElement() { return NULL; }
 
 scoped_refptr<Text> Node::AsText() { return NULL; }
 
+void Node::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  tracer->Trace(node_document_);
+  tracer->Trace(parent_);
+  tracer->Trace(previous_sibling_);
+  tracer->Trace(last_child_);
+  tracer->Trace(first_child_);
+  tracer->Trace(next_sibling_);
+  for (RegisteredObserverList::RegisteredObserverVector::const_iterator it =
+           registered_observers_.registered_observers().begin();
+       it != registered_observers_.registered_observers().end(); ++it) {
+    tracer->Trace(it->observer());
+  }
+}
+
 Node::Node(Document* document)
     : node_document_(base::AsWeakPtr(document)),
       parent_(NULL),
