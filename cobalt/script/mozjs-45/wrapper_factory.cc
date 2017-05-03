@@ -56,6 +56,13 @@ JSObject* WrapperFactory::GetWrapperProxy(
   return wrapper_proxy;
 }
 
+bool WrapperFactory::HasWrapperProxy(
+    const scoped_refptr<Wrappable>& wrappable) const {
+  return wrappable &&
+         !!MozjsWrapperHandle::GetObjectProxy(
+             GetCachedWrapper(wrappable.get()));
+}
+
 bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
   return JS_GetPrivate(wrapper) != NULL;
 }
