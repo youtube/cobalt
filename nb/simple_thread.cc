@@ -18,6 +18,7 @@
 
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
+#include "starboard/time.h"
 #include "starboard/types.h"
 #include "starboard/log.h"
 
@@ -43,6 +44,14 @@ void SimpleThread::Start() {
   // SbThreadCreate() above produced an invalid thread handle.
   SB_DCHECK(thread_ != kSbThreadInvalid);
   return;
+}
+
+void SimpleThread::Sleep(SbTime microseconds) {
+  SbThreadSleep(microseconds);
+}
+
+void SimpleThread::SleepMilliseconds(int value) {
+  return Sleep(value * kSbTimeMillisecond);
 }
 
 void* SimpleThread::ThreadEntryPoint(void* context) {
