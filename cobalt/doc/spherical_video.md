@@ -7,7 +7,7 @@ filter and custom [`window.camera3D` Web API](../dom/camera_3d.idl). Support
 for spherical video in Cobalt requires a GLES rasterizer (i.e. it is not
 supported for the Starboard Blitter API), and Starboard platform support for
 the player
-[decode-to-texture output mode](../starboard/doc/howto_decode_to_texture.md).
+[decode-to-texture output mode](../../starboard/doc/howto_decode_to_texture.md).
 
 ## Enabling spherical video support
 
@@ -37,4 +37,4 @@ function checkForMapToMeshSupport() {
 ```
 
 Finally, it is required that your platform provides
-[decode-to-texture support](../starboard/doc/howto_decode_to_texture.md).
+[decode-to-texture support](../../starboard/doc/howto_decode_to_texture.md).
