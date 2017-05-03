@@ -21,6 +21,7 @@
 
 #include "nb/atomic.h"
 #include "starboard/thread.h"
+#include "starboard/time.h"
 #include "starboard/types.h"
 
 namespace nb {
@@ -41,6 +42,12 @@ class SimpleThread {
   void Start();
   // Destroys the threads resources.
   void Join();
+
+  bool join_called() const { return join_called_.load(); }
+
+ protected:
+  static void Sleep(SbTime microseconds);
+  static void SleepMilliseconds(int value);
 
  private:
   static void* ThreadEntryPoint(void* context);
