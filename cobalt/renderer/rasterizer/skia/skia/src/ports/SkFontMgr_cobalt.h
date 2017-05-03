@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -128,7 +129,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // NOTE: |style_sets_mutex_| should be locked prior to calling this function.
   StyleSetArray* GetMatchingFallbackFamilies(const SkString& language_tag);
 
-  SkFileMemoryChunkStreamManager system_typeface_stream_manager_;
+  SkFileMemoryChunkStreamManager local_typeface_stream_manager_;
 
   SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> font_style_sets_;
 

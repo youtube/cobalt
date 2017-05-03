@@ -41,7 +41,7 @@
   ],
 
   'defines': [
-    'COBALT_SYSTEM_TYPEFACE_CACHE_CAPACITY_IN_BYTES=<(local_font_cache_size_in_bytes)',
+    'COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES=<(local_font_cache_size_in_bytes)',
   ],
 
   'include_dirs': [
