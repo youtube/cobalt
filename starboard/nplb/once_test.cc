@@ -106,8 +106,8 @@ TEST(SbOnceTest, SunnyDayMultipleThreadsInit) {
     RunSbOnceContext context;
 
     s_global_value = 0;
-    for (int i = 0; i < kMany; ++i) {
-      threads[i] =
+    for (int j = 0; j < kMany; ++j) {
+      threads[j] =
           SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
                          kThreadName, RunSbOnceEntryPoint, &context);
     }
@@ -115,7 +115,7 @@ TEST(SbOnceTest, SunnyDayMultipleThreadsInit) {
     // Wait for all threads to finish initializing and become ready, then
     // broadcast the signal to begin.  We do this to increase the chances that
     // threads will call SbOnce() at the same time as each other.
-    for (int i = 0; i < kMany; ++i) {
+    for (int j = 0; j < kMany; ++j) {
       context.semaphore.Take();
     }
     {
