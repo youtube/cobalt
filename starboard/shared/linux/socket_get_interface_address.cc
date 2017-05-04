@@ -26,7 +26,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "net/base/net_util.h"
 #include "starboard/byte_swap.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -36,6 +35,9 @@ namespace sbposix = starboard::shared::posix;
 
 namespace {
 
+// TODO: Move this constant to socket.h.
+const int kIPv6AddressSize = 16;
+
 bool IsAnyAddress(const SbSocketAddress& address) {
   switch (address.type) {
     case kSbSocketAddressTypeIpv4:
@@ -44,7 +46,7 @@ bool IsAnyAddress(const SbSocketAddress& address) {
 #if SB_HAS(IPV6)
     case kSbSocketAddressTypeIpv6: {
       bool found_nonzero = false;
-      for (std::size_t i = 0; i != net::kIPv6AddressSize; ++i) {
+      for (std::size_t i = 0; i != kIPv6AddressSize; ++i) {
         found_nonzero |= (address.address[i] != 0);
       }
       return !found_nonzero;
