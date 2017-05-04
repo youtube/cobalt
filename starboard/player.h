@@ -179,7 +179,9 @@ typedef void (*SbPlayerStatusFunc)(SbPlayer player,
                                    SbPlayerState state,
                                    int ticket);
 
-// Callback to free the given sample buffer data.
+// Callback to free the given sample buffer data.  When more than one buffer
+// are sent in SbPlayerWriteSample(), the implementation only has to call this
+// callback with |sample_buffer| points to the the first buffer.
 typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
                                              void* context,
                                              const void* sample_buffer);
