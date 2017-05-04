@@ -131,6 +131,13 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateNV12Frame(
   // issues.
   gfx::Size plane_size(param.visible_rect().size());
 
+  // When plane_size.height() is only aligned to 2, the height of U/V plane
+  // will be odd, which is not supported on most platforms.  Align height to 4
+  // to work around this issue.
+  if (param.decoded_height() % 4 == 0 && plane_size.height() % 4 != 0) {
+    plane_size.set_height((plane_size.height() + 3) / 4 * 4);
+  }
+
   intptr_t offset = 0;
   int pitch_in_bytes = param.y_pitch();
 
