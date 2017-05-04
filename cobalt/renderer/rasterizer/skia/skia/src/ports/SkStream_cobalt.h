@@ -67,7 +67,7 @@ class SkFileMemoryChunk : public base::RefCountedThreadSafe<SkFileMemoryChunk> {
 class SkFileMemoryChunkStreamManager {
  public:
   SkFileMemoryChunkStreamManager(const std::string& name,
-                                 int cache_size_in_bytes);
+                                 int cache_capacity_in_bytes);
 
   // Returns the stream provider associated with the file path. If it does not
   // exist then it is created.
@@ -90,7 +90,7 @@ class SkFileMemoryChunkStreamManager {
   base::subtle::Atomic32 available_chunk_count_;
 
   const base::CVal<base::cval::SizeInBytes, base::CValPublic>
-      cache_limit_in_bytes_;
+      cache_capacity_in_bytes_;
   base::CVal<base::cval::SizeInBytes, base::CValPublic> cache_size_in_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(SkFileMemoryChunkStreamManager);
