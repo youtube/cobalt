@@ -102,7 +102,8 @@ Note that most time-based measurements are in microseconds.
 
 ### Interesting benchmarks
 
-Some particularly interesting benchmark results are:
+#### Timing-related
+Some particularly interesting timing-related benchmark results are:
 
  - `wbStartupDurBlankToBrowseUs*`: Measures the startup time, until all images
    finish loading.
@@ -120,10 +121,34 @@ Some particularly interesting benchmark results are:
 
 In each case above, the `*` symbol can be one of either `Mean`, `Pct25`,
 `Pct50`, `Pct75` or `Pct95`.  For example, `wbStartupDurBlankToBrowseUsMean` or
-`wbStartupDurBlankToBrowseUsPct95` are both valid measurements.  The
+`wbStartupDurBlankToBrowseUsPct95` are both valid measurements. The webdriver
+benchmarks runs its tests many times in order to obtain multiple samples, so you
+can drill into the data by exploring either the mean, or the various
+percentiles.
+
+#### Object count-related
+Some particularly interesting count-related benchmark results are:
+
+ - `wbBrowseVerticalCntDomHtmlElements*`: Lists the number of HTML elements in
+   existence after the event. This includes HTML elements that are no longer in
+   the DOM but have not been garbage collected yet.
+ - `wbBrowseVerticalCntLayoutBoxes*`: Lists the number of layout boxes within
+   the layout tree after the event.
+ - `wbBrowseVerticalCntLayoutBoxesCreated*`: Lists the number of new layout
+   boxes that were created during the event.
+ - `wbBrowseHorizontalCntDomHtmlElements*`: Same as
+   `wbBrowseVerticalCntDomHtmlElements*` except for horizontal scroll events.
+ - `wbBrowseHorizontalCntLayoutBoxes*`: Same as
+   `wbBrowseVerticalCntLayoutBoxes*` except for horizontal scroll events.
+ - `wbBrowseHorizontalCntLayoutBoxesCreated*`: Same as
+   `wbBrowseVerticalCntLayoutBoxesCreated*` except for horizontal scroll events.
+
+In each case above,  the `*` symbol can be one of either `Max`, `Median`, or
+`Mean`. For example, `wbBrowseVerticalCntDomHtmlElementsMax` or
+`wbBrowseVerticalCntDomHtmlElementsMedian` are both valid measurements. The
 webdriver benchmarks runs its tests many times in order to obtain multiple
-samples, so you can drill into the data by exploring either the mean, or the
-various percentiles.
+samples, so you can drill into the data by exploring either the max, median, or
+mean.
 
 ### Filtering results
 
@@ -140,6 +165,10 @@ grep -o "wbBrowseVerticalDurTotalUs.*$" results.txt >> filtered_results.txt
 grep -o "wbBrowseVerticalDurRasterizeAnimationsUs.*$" results.txt >> filtered_results.txt
 grep -o "wbBrowseHorizontalDurTotalUs.*$" results.txt >> filtered_results.txt
 grep -o "wbBrowseHorizontalDurRasterizeAnimationsUs.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseVerticalCntDomHtmlElements.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseVerticalCntLayoutBoxes.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseHorizontalCntDomHtmlElements.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseHorizontalCntLayoutBoxes.*$" results.txt >> filtered_results.txt
 cat filtered_results.txt
 ```
 
