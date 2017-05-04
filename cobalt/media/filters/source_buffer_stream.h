@@ -151,7 +151,7 @@ class SourceBufferStreamState {
 class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
  public:
   using SourceBufferStreamState::BufferQueue;
-  using SourceBufferStreamState::RangeList;
+  typedef SourceBufferStreamState::RangeList RangeList;
 
   // Status returned by GetNextBuffer().
   // kSuccess: Indicates that the next buffer was returned.
