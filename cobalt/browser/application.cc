@@ -269,11 +269,6 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->scratch_surface_cache_size_in_bytes);
 }
 
-void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
-  SetIntegerIfSwitchIsSet(browser::switches::kRemoteTypefaceCacheSizeInBytes,
-                          &options->remote_typeface_cache_capacity);
-}
-
 template <typename T>
 base::optional<T> ParseSetting(const CommandLine* command_line,
                                const char* switch_name) {
@@ -373,6 +368,10 @@ void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
       math::Size(skia_glyph_atlas_texture_dimensions.width(),
                  skia_glyph_atlas_texture_dimensions.height());
 
+  options->web_module_options.remote_typeface_cache_capacity =
+      static_cast<int>(
+          auto_mem.remote_typeface_cache_size_in_bytes()->value());
+
   options->web_module_options.javascript_options.gc_threshold_bytes =
       static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());
 
@@ -436,7 +435,6 @@ Application::Application(const base::Closure& quit_closure)
   options.network_module_options.preferred_language = language;
 
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
-  ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
     options.web_module_options.javascript_options.disable_jit = true;
