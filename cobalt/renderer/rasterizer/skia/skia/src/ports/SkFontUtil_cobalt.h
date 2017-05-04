@@ -117,16 +117,22 @@ struct FontFileInfo {
   SkString postscript_name;
 };
 
-// A font family provides one or more names for a collection of fonts, each of
-// which has a different style (normal, italic) or weight (thin, light, bold,
-// etc).
-// Cobalt distinguishes "fallback" fonts to support non-ASCII character sets.
-// Page ranges are used to indicate the pages where a fallback font supports
-// at least one character. This allows Cobalt to quickly determine fonts that
-// cannot possible contain a character, without needing to load the font file
-// and generate a full mapping of the font's characters.
-struct FontFamily {
-  FontFamily() : is_fallback_family(true), fallback_priority(0) {}
+// A font family is a collection of fonts, which support the same characters,
+// each of which has a different style (normal, italic) or weight (thin, light,
+// bold, etc).
+//
+// Families can have any number of names, each of which can be used to look up
+// the family.
+//
+// Additionally, families can be fallback families, which are used to support
+// character sets that are unavailable within the named fonts.
+//
+// Page ranges are used with fallback families to indicate 256 character pages
+// where it contains at least one character. This allows Cobalt to quickly
+// determine that a family cannot support a character, without needing to
+// generate a full mapping of the family's characters.
+struct FontFamilyInfo {
+  FontFamilyInfo() : is_fallback_family(true), fallback_priority(0) {}
 
   SkTArray<SkString> names;
   SkTArray<FontFileInfo> fonts;

@@ -29,18 +29,25 @@
 #include "SkTArray.h"
 #include "SkTypeface.h"
 
-//  This class is essentially a collection of SkFontStyleSet_Cobalt, one
-//  SkFontStyleSet_Cobalt for each family. This class may be modified to load
-//  fonts from any source by changing the initialization.
+// This class, which is thread-safe, is Cobalt's implementation of SkFontMgr. It
+// is responsible for the creation of remote typefaces and for, given a set of
+// constraints, providing Cobalt with its best matching local typeface.
 //
-//  In addition to containing a collection of SkFontStyleSet_Cobalt, the class
-//  also contains a mapping of names to families, allowing for multiple aliases
-//  to map to the same back-end family.
+// When a remote typeface's raw data is downloaded from the web, it is provided
+// to the font manager, which returns a typeface created from that data.
 //
-//  It also contains a list of fallback fonts, which are used when attempting
-//  to match a character, rather than a family name. If a language is provided
-//  then fallback fonts with that language are given priority. Otherwise, the
-//  fallback fonts are checked in order.
+// For local typefaces, the font manager uses Cobalt-specific and
+// system-specific configuration files to generate named font families and
+// fallback font families. Cobalt uses named families when it needs a typeface
+// for a family with a specific name. It utilizes fallback families when none
+// of the listed named families supported a given character. In that case,
+// the manager finds the best match among the fallback families that can provide
+// a glyph for that character.
+//
+// For both named families and fallback families, after the manager locates the
+// best matching family, the determination of the specific typeface to use is
+// left to the family. The manager provides the family with the requested style
+// and the family returns the typeface that best fits that style.
 class SkFontMgr_Cobalt : public SkFontMgr {
  public:
   typedef std::vector<SkFontStyleSet_Cobalt*> StyleSetArray;
@@ -74,8 +81,8 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   virtual SkTypeface* onMatchFamilyStyle(
       const char family_name[], const SkFontStyle& style) const SK_OVERRIDE;
 
-// NOTE: This always returns a non-NULL value. If no match can be found, then
-// the best match among the default family is returned.
+  // NOTE: This always returns a non-NULL value. If no match can be found, then
+  // the best match among the default family is returned.
   virtual SkTypeface* onMatchFamilyStyleCharacter(
       const char family_name[], const SkFontStyle& style, const char bcp47[],
       SkUnichar character) const SK_OVERRIDE;
@@ -111,7 +118,8 @@ class SkFontMgr_Cobalt : public SkFontMgr {
       const char* font_config_directory, const char* font_files_directory,
       PriorityStyleSetArrayMap* priority_fallback_families);
   void BuildNameToFamilyMap(
-      const char* font_files_directory, SkTDArray<FontFamily*>* families,
+      const char* font_files_directory,
+      SkTDArray<FontFamilyInfo*>* config_font_families,
       PriorityStyleSetArrayMap* priority_fallback_families);
   void GeneratePriorityOrderedFallbackFamilies(
       const PriorityStyleSetArrayMap& priority_fallback_families);
@@ -131,14 +139,14 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   SkFileMemoryChunkStreamManager local_typeface_stream_manager_;
 
-  SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> font_style_sets_;
+  SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> families_;
 
   SkTArray<SkString> family_names_;
-  //  Map names to the back end so that all names for a given family refer to
-  //  the same (non-replicated) set of typefaces.
+  // Map names to the back end so that all names for a given family refer to
+  // the same (non-replicated) set of typefaces.
   NameToStyleSetMap name_to_family_map_;
-  NameToStyleSetMap full_font_name_to_style_set_map_;
-  NameToStyleSetMap font_postscript_name_to_style_set_map_;
+  NameToStyleSetMap full_font_name_to_family_map_;
+  NameToStyleSetMap font_postscript_name_to_family_map_;
 
   // Fallback families that are used during character fallback.
   // All fallback families, regardless of language.
@@ -148,12 +156,12 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   ScopedVector<StyleSetArray> language_fallback_families_array_;
   NameToStyleSetArrayMap language_fallback_families_map_;
 
-  // The default family that is used when no specific match is found during  a
+  // The default family that is used when no specific match is found during a
   // request.
   SkFontStyleSet_Cobalt* default_family_;
 
-  // Mutex shared by all style sets for accessing their modifiable data.
-  mutable SkMutex style_sets_mutex_;
+  // Mutex shared by all families for accessing their modifiable data.
+  mutable SkMutex family_mutex_;
 };
 
 #endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
