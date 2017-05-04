@@ -57,6 +57,8 @@ namespace base {
     MacroOpWithNameOnly(ended)                                       \
     MacroOpWithNameOnly(error)                                       \
     MacroOpWithNameOnly(focus)                                       \
+    MacroOpWithNameOnly(focusin)                                     \
+    MacroOpWithNameOnly(focusout)                                    \
     MacroOpWithNameOnly(hashchange)                                  \
     MacroOpWithNameOnly(keydown)                                     \
     MacroOpWithNameOnly(keypress)                                    \
