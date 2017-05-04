@@ -96,6 +96,7 @@
         '<(DEPTH)/starboard/shared/stub/media_is_audio_supported.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_output_protected.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
         '<(DEPTH)/starboard/shared/stub/media_is_video_supported.cc',
         '<(DEPTH)/starboard/shared/stub/media_set_output_protection.cc',
         '<(DEPTH)/starboard/shared/stub/memory_allocate_aligned_unchecked.cc',

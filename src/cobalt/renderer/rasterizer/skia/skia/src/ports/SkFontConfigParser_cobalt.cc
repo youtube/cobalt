@@ -19,6 +19,7 @@
 #include <stack>
 #include <string>
 
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -29,7 +30,7 @@
 
 namespace {
 
-const char* kSystemFontsFile = "fonts.xml";
+const char* kConfigFile = "fonts.xml";
 
 /////////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -59,10 +60,40 @@ bool ParseNonNegativeInteger(const char* s, T* value) {
     int d = *s - '0';
     // Check for overflow
     if (n > n_max || (n == n_max && d > d_max)) {
-      SkDebugf("---- ParseNonNegativeInteger error: overflow)");
+      LOG(ERROR) << "---- ParseNonNegativeInteger error: overflow";
       return false;
     }
     n = (n * 10) + d;
+  }
+  *value = n;
+  return true;
+}
+
+template <typename T>
+bool ParseInteger(const char* s, T* value) {
+  SK_COMPILE_ASSERT(std::numeric_limits<T>::is_signed, T_must_be_signed);
+  T multiplier = 1;
+  if (*s && *s == '-') {
+    multiplier = -1;
+    ++s;
+  }
+  if (!ParseNonNegativeInteger(s, value)) {
+    return false;
+  }
+  *value *= multiplier;
+  return true;
+}
+
+template <typename T>
+bool ParseFontWeight(const char* s, T* value) {
+  T n = 0;
+  if (!ParseNonNegativeInteger(s, &n)) {
+    return false;
+  }
+  // Verify that the weight is a multiple of 100 between 100 and 900.
+  // https://www.w3.org/TR/css-fonts-3/#font-weight-prop
+  if (n < 100 || n > 900 || n % 100 != 0) {
+    return false;
   }
   *value = n;
   return true;
@@ -93,7 +124,8 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
 
     for (int i = 0; i <= 1; ++i) {
       if (!IsAsciiDigit(*s)) {
-        SkDebugf("---- ParsePageRangeList error: non-ascii digit page range");
+        LOG(ERROR)
+            << "---- ParsePageRangeList error: non-ascii digit page range";
         return false;
       }
 
@@ -105,7 +137,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
         int d = *s - '0';
         // Check for overflow
         if (n > n_max || (n == n_max && d > d_max)) {
-          SkDebugf("---- ParsePageRangeList error: page range overflow");
+          LOG(ERROR) << "---- ParsePageRangeList error: page range overflow";
           return false;
         }
 
@@ -117,7 +149,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
         // max. Ranges must appear in order. If it isn't, then the parsing has
         // failed.
         if (last_max >= n) {
-          SkDebugf("---- ParsePageRangeList error: pages unordered");
+          LOG(ERROR) << "---- ParsePageRangeList error: pages unordered";
           return false;
         }
 
@@ -138,7 +170,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
           range_value.second = n;
           ranges->push_back(range_value);
         } else {
-          SkDebugf("---- ParsePageRangeList error: page range flipped");
+          LOG(ERROR) << "---- ParsePageRangeList error: page range flipped";
           return false;
         }
       }
@@ -156,7 +188,7 @@ bool ParsePageRangeList(const char* s, font_character_map::PageRanges* ranges) {
       if (*s == ',') {
         ++s;
       } else {
-        SkDebugf("---- ParsePageRangeList error: invalid character");
+        LOG(ERROR) << "---- ParsePageRangeList error: invalid character";
         return false;
       }
     }
@@ -243,13 +275,16 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
   }
 
   // A <family> may have the following attributes:
-  // name (string), fallback (true, false), lang (string), pages (comma
+  // name (string), fallback_priority (int), lang (string), pages (comma
   // delimited int ranges)
   // A <family> tag must have a canonical name attribute or be a fallback
   // family in order to be usable, unless it is the default family.
-  // If the fallback attribute exists, then it alone determines whether the
-  // family is a fallback family.  However, if it does not exist, then the
-  // lack of a name attribute makes it a fallback family.
+  // A family is a fallback family if one of two conditions are met:
+  //   1. It does not have a "name" attribute.
+  //   2. It has a "fallback_priority" attribute.
+  // If the fallback_priority attribute exists, then the family is given the
+  // fallback priority specified by the value. If it does not exist, then the
+  // fallback priority defaults to 0.
   // The lang and pages attributes are only used by fallback families.
 
   bool encountered_fallback_attribute = false;
@@ -273,13 +308,20 @@ void FamilyElementHandler(FontFamily* family, const char** attributes) {
       family->language = SkLanguage(value);
     } else if (name_len == 5 && strncmp("pages", name, name_len) == 0) {
       if (!ParsePageRangeList(value, &family->page_ranges)) {
-        SkDebugf("---- Page ranges %s (INVALID)", value);
+        LOG(ERROR) << "---- Invalid page ranges [" << value << "]";
+        NOTREACHED();
         family->page_ranges.reset();
       }
-    } else if (name_len == 8 && strncmp("fallback", name, name_len) == 0) {
+    } else if (name_len == 17 &&
+               strncmp("fallback_priority", name, name_len) == 0) {
       encountered_fallback_attribute = true;
-      family->is_fallback_family =
-          strcmp("true", value) == 0 || strcmp("1", value) == 0;
+      if (!ParseInteger(value, &family->fallback_priority)) {
+        LOG(ERROR) << "---- Invalid fallback priority [" << value << "]";
+        NOTREACHED();
+      }
+    } else {
+      LOG(ERROR) << "---- Unsupported family attribute [" << name << "]";
+      NOTREACHED();
     }
   }
 }
@@ -301,7 +343,8 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
       case 5:
         if (strncmp("index", name, 5) == 0) {
           if (!ParseNonNegativeInteger(value, &file->index)) {
-            DLOG(WARNING) << "Invalid font index [" << value << "]";
+            LOG(ERROR) << "---- Invalid font index [" << value << "]";
+            NOTREACHED();
           }
           continue;
         } else if (strncmp("style", name, 5) == 0) {
@@ -312,14 +355,16 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
             file->style = FontFileInfo::kNormal_FontStyle;
             continue;
           } else {
-            NOTREACHED() << "Unsupported style [" << value << "]";
+            LOG(ERROR) << "---- Unsupported style [" << value << "]";
+            NOTREACHED();
           }
         }
         break;
       case 6:
         if (strncmp("weight", name, 6) == 0) {
-          if (!ParseNonNegativeInteger(value, &file->weight)) {
-            DLOG(WARNING) << "Invalid font weight [" << value << "]";
+          if (!ParseFontWeight(value, &file->weight)) {
+            LOG(ERROR) << "---- Invalid font weight [" << value << "]";
+            NOTREACHED();
           }
           continue;
         }
@@ -349,7 +394,8 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
         break;
     }
 
-    NOTREACHED() << "Unsupported attribute [" << name << "]";
+    LOG(ERROR) << "---- Unsupported font attribute [" << name << "]";
+    NOTREACHED();
   }
 }
 
@@ -390,58 +436,17 @@ void AliasElementHandler(FamilyData* family_data, const char** attributes) {
   // Assumes that the named family is already declared
   FontFamily* target_family = FindFamily(family_data, to.c_str());
   if (!target_family) {
-    SkDebugf("---- Font alias target %s (NOT FOUND)", to.c_str());
+    LOG(ERROR) << "---- Invalid alias target [name: " << alias_name.c_str()
+               << ", to: " << to.c_str() << "]";
+    NOTREACHED();
     return;
   } else if (alias_name.size() == 0) {
-    SkDebugf("---- Font alias name for %s (NOT SET)", to.c_str());
+    LOG(ERROR) << "---- Invalid alias name [to: " << to.c_str() << "]";
+    NOTREACHED();
     return;
   }
 
   target_family->names.push_back().set(alias_name);
-}
-
-bool FindWeight400(FontFamily* family) {
-  for (int i = 0; i < family->fonts.count(); i++) {
-    if (family->fonts[i].weight == 400) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool DesiredWeight(int weight) { return (weight == 400 || weight == 700); }
-
-int CountDesiredWeight(FontFamily* family) {
-  int count = 0;
-  for (int i = 0; i < family->fonts.count(); i++) {
-    if (DesiredWeight(family->fonts[i].weight)) {
-      count++;
-    }
-  }
-  return count;
-}
-
-// To meet Skia's expectations, any family that contains weight=400
-// fonts should *only* contain {400,700}
-void PurgeUndesiredWeights(FontFamily* family) {
-  int count = CountDesiredWeight(family);
-  for (int i = 1, j = 0; i < family->fonts.count(); i++) {
-    if (DesiredWeight(family->fonts[j].weight)) {
-      j++;
-    }
-    if ((i != j) && DesiredWeight(family->fonts[i].weight)) {
-      family->fonts[j] = family->fonts[i];
-    }
-  }
-  family->fonts.resize_back(count);
-}
-
-void FamilySetElementEndHandler(FamilyData* familyData) {
-  for (int i = 0; i < familyData->families->count(); i++) {
-    if (FindWeight400((*familyData->families)[i])) {
-      PurgeUndesiredWeights((*familyData->families)[i]);
-    }
-  }
 }
 
 void StartElement(void* data, const xmlChar* xml_tag,
@@ -474,13 +479,12 @@ void EndElement(void* data, const xmlChar* xml_tag) {
   const char* tag = reinterpret_cast<const char*>(xml_tag);
   size_t tag_len = strlen(tag);
 
-  if (tag_len == 9 && strncmp("familyset", tag, tag_len) == 0) {
-    FamilySetElementEndHandler(family_data);
-  } else if (tag_len == 6 && strncmp("family", tag, tag_len) == 0) {
+  if (tag_len == 6 && strncmp("family", tag, tag_len) == 0) {
     if (family_data->current_family != NULL) {
       *family_data->families->append() = family_data->current_family.release();
     } else {
-      SkDebugf("---- Encountered end family tag with no current family");
+      LOG(ERROR) << "---- Encountered end family tag with no current family";
+      NOTREACHED();
     }
   }
 
@@ -501,42 +505,43 @@ void ParserWarning(void* context, const char* message, ...) {
   va_list arguments;
   va_start(arguments, message);
 
-  SkDebugf("---- Parsing warning: %s",
-           StringPrintVAndTrim(message, arguments).c_str());
+  DLOG(WARNING) << "---- Parsing warning: "
+                << StringPrintVAndTrim(message, arguments).c_str();
 }
 
 void ParserError(void* context, const char* message, ...) {
   va_list arguments;
   va_start(arguments, message);
 
-  SkDebugf("---- Parsing error: %s",
-           StringPrintVAndTrim(message, arguments).c_str());
+  LOG(ERROR) << "---- Parsing error: "
+             << StringPrintVAndTrim(message, arguments).c_str();
+  NOTREACHED();
 }
 
 void ParserFatal(void* context, const char* message, ...) {
   va_list arguments;
   va_start(arguments, message);
 
-  SkDebugf("---- Parsing fatal error: %s",
-           StringPrintVAndTrim(message, arguments).c_str());
+  LOG(ERROR) << "---- Parsing fatal error: "
+             << StringPrintVAndTrim(message, arguments).c_str();
+  NOTREACHED();
 }
 
 // This function parses the given filename and stores the results in the given
 // families array.
-void ParseConfigFile(const char* directory, const char* filename,
-                     SkTDArray<FontFamily*>* families) {
-  SkString file_path = SkOSPath::Join(directory, filename);
+void ParseConfigFile(const char* directory, SkTDArray<FontFamily*>* families) {
+  SkString file_path = SkOSPath::Join(directory, kConfigFile);
 
   SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
   if (file_stream == NULL) {
-    SkDebugf("---- Failed to open %s", file_path.c_str());
+    LOG(ERROR) << "---- Failed to open %s", file_path.c_str();
     return;
   }
 
   SkAutoDataUnref file_data(
       SkData::NewFromStream(file_stream, file_stream->getLength()));
   if (file_data == NULL) {
-    SkDebugf("---- Failed to read %s", file_path.c_str());
+    LOG(ERROR) << "---- Failed to read %s", file_path.c_str();
     return;
   }
 
@@ -544,11 +549,6 @@ void ParseConfigFile(const char* directory, const char* filename,
   xmlSAXUserParseMemory(&xml_sax_handler, &family_data,
                         static_cast<const char*>(file_data->data()),
                         static_cast<int>(file_data->size()));
-}
-
-void GetSystemFontFamilies(const char* directory,
-                           SkTDArray<FontFamily*>* font_families) {
-  ParseConfigFile(directory, kSystemFontsFile, font_families);
 }
 
 }  // namespace
@@ -559,7 +559,7 @@ namespace SkFontConfigParser {
 // is returned in the given fontFamilies array.
 void GetFontFamilies(const char* directory,
                      SkTDArray<FontFamily*>* font_families) {
-  GetSystemFontFamilies(directory, font_families);
+  ParseConfigFile(directory, font_families);
 }
 
 }  // namespace SkFontConfigParser

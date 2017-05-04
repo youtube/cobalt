@@ -50,6 +50,9 @@ void SpeechSynthesis::Cancel() {
     (*utterance_iterator)->DispatchErrorCancelledEvent();
   }
   utterances_.clear();
+#if SB_HAS(SPEECH_SYNTHESIS)
+  SbSpeechSynthesisCancel();
+#endif
 }
 
 void SpeechSynthesis::Resume() {

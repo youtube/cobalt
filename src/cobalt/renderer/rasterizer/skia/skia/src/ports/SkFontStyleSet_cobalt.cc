@@ -14,9 +14,10 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 
-#include <cmath>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+#include <cmath>
 #include <limits>
 
 #include "base/debug/trace_event.h"
@@ -28,10 +29,42 @@
 namespace {
 
 int MatchScore(const SkFontStyle& pattern, const SkFontStyle& candidate) {
+  // This logic is taken from Skia and is based upon the algorithm specified
+  // within the spec:
+  //   https://www.w3.org/TR/css-fonts-3/#font-matching-algorithm
+
   int score = 0;
-  score += std::abs((pattern.width() - candidate.width()) * 100);
-  score += (pattern.isItalic() == candidate.isItalic()) ? 0 : 1000;
-  score += std::abs(pattern.weight() - candidate.weight());
+
+  // CSS style (italic/oblique)
+  // Being italic trumps all valid weights which are not italic.
+  // Note that newer specs differentiate between italic and oblique.
+  if (pattern.isItalic() == candidate.isItalic()) {
+    score += 1001;
+  }
+
+  // The 'closer' to the target weight, the higher the score.
+  // 1000 is the 'heaviest' recognized weight
+  if (pattern.weight() == candidate.weight()) {
+    score += 1000;
+  } else if (pattern.weight() <= 500) {
+    if (400 <= pattern.weight() && pattern.weight() < 450) {
+      if (450 <= candidate.weight() && candidate.weight() <= 500) {
+        score += 500;
+      }
+    }
+    if (candidate.weight() <= pattern.weight()) {
+      score += 1000 - pattern.weight() + candidate.weight();
+    } else {
+      score += 1000 - candidate.weight();
+    }
+  } else if (pattern.weight() > 500) {
+    if (candidate.weight() > pattern.weight()) {
+      score += 1000 + pattern.weight() - candidate.weight();
+    } else {
+      score += candidate.weight();
+    }
+  }
+
   return score;
 }
 
@@ -53,13 +86,11 @@ static unsigned long sk_cobalt_ft_stream_io(FT_Stream ftStream,
 static void sk_cobalt_ft_stream_close(FT_Stream) {}
 }
 
-//  This class is used by SkFontMgr_Cobalt to hold SkTypeface_CobaltSystem
-//  families.
 SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     const FontFamily& family, const char* base_path,
-    SkFileMemoryChunkStreamManager* const system_typeface_stream_manager,
+    SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
     SkMutex* const manager_owned_mutex)
-    : system_typeface_stream_manager_(system_typeface_stream_manager),
+    : local_typeface_stream_manager_(local_typeface_stream_manager),
       manager_owned_mutex_(manager_owned_mutex),
       is_fallback_family_(family.is_fallback_family),
       language_(family.language),
@@ -80,9 +111,10 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
 
     SkString file_path(SkOSPath::Join(base_path, font_file.file_name.c_str()));
 
-    // Sanity check that something exists at this location.
+    // Validate that the file exists at this location. If it does not, then skip
+    // over it; it isn't being added to the set.
     if (!sk_exists(file_path.c_str(), kRead_SkFILE_Flag)) {
-      LOG(ERROR) << "Failed to find font file: " << file_path.c_str();
+      DLOG(INFO) << "Failed to find font file: " << file_path.c_str();
       continue;
     }
 
@@ -170,7 +202,7 @@ SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
   SkFontStyleSetEntry_Cobalt* style = styles_[style_index];
   // If the typeface doesn't already exist, then attempt to create it.
   if (style->typeface == NULL) {
-    CreateSystemTypeface(style);
+    CreateStreamProviderTypeface(style);
     // If the creation attempt failed and the typeface is still NULL, then
     // remove the entry from the set's styles.
     if (style->typeface == NULL) {
@@ -236,7 +268,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
       SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index];
 
       SkFileMemoryChunkStreamProvider* stream_provider =
-          system_typeface_stream_manager_->GetStreamProvider(
+          local_typeface_stream_manager_->GetStreamProvider(
               closest_style->font_file_path.c_str());
 
       // Create a snapshot prior to loading any additional memory chunks. In the
@@ -250,7 +282,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
           stream_provider->OpenStream());
       if (GenerateStyleFaceInfo(closest_style, stream)) {
         if (CharacterMapContainsCharacter(character)) {
-          CreateSystemTypeface(closest_style, stream_provider);
+          CreateStreamProviderTypeface(closest_style, stream_provider);
           return true;
         } else {
           // If a typeface was not created, destroy the stream and purge any
@@ -359,25 +391,25 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
 
 int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
   int closest_index = 0;
-  int min_score = std::numeric_limits<int>::max();
+  int max_score = std::numeric_limits<int>::min();
   for (int i = 0; i < styles_.count(); ++i) {
     int score = MatchScore(pattern, styles_[i]->font_style);
-    if (score < min_score) {
+    if (score > max_score) {
       closest_index = i;
-      min_score = score;
+      max_score = score;
     }
   }
   return closest_index;
 }
 
-void SkFontStyleSet_Cobalt::CreateSystemTypeface(
+void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry,
     SkFileMemoryChunkStreamProvider* stream_provider /*=NULL*/) {
   TRACE_EVENT0("cobalt::renderer",
-               "SkFontStyleSet_Cobalt::CreateSystemTypeface()");
+               "SkFontStyleSet_Cobalt::CreateStreamProviderTypeface()");
 
   if (!stream_provider) {
-    stream_provider = system_typeface_stream_manager_->GetStreamProvider(
+    stream_provider = local_typeface_stream_manager_->GetStreamProvider(
         style_entry->font_file_path.c_str());
   }
 
@@ -386,7 +418,7 @@ void SkFontStyleSet_Cobalt::CreateSystemTypeface(
     LOG(ERROR) << "Scanned font from file: " << style_entry->face_name.c_str()
                << "(" << style_entry->face_style << ")";
     style_entry->typeface.reset(
-        SkNEW_ARGS(SkTypeface_CobaltSystem,
+        SkNEW_ARGS(SkTypeface_CobaltStreamProvider,
                    (stream_provider, style_entry->face_index,
                     style_entry->face_style, style_entry->face_is_fixed_pitch,
                     family_name_, style_entry->disable_synthetic_bolding)));
