@@ -135,12 +135,6 @@ int64_t SumMemoryConsumption(
 AutoMem::AutoMem(const math::Size& ui_resolution,
                  const CommandLine& command_line,
                  const BuildSettings& build_settings) {
-  // Set the misc cobalt engine size to a specific size.
-  misc_cobalt_cpu_size_in_bytes_.reset(
-      new IntSetting("misc_cobalt_cpu_size_in_bytes"));
-  misc_cobalt_cpu_size_in_bytes_->set_value(
-      MemorySetting::kAutoSet, kMiscCobaltSizeInBytes);
-
   // Set the ImageCache
   image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kImageCacheSizeInBytes,
@@ -157,6 +151,21 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
       build_settings.javascript_garbage_collection_threshold_in_bytes,
       kDefaultJsGarbageCollectionThresholdSize);
   EnsureValuePositive(javascript_gc_threshold_in_bytes_.get());
+
+  // Set the misc cobalt size to a specific size.
+  misc_cobalt_cpu_size_in_bytes_.reset(
+      new IntSetting("misc_cobalt_cpu_size_in_bytes"));
+  misc_cobalt_cpu_size_in_bytes_->set_value(
+      MemorySetting::kAutoSet, kMiscCobaltSizeInBytes);
+
+  // Set remote_type_face_cache size.
+  remote_typeface_cache_size_in_bytes_ =
+      CreateMemorySetting<IntSetting, int64_t>(
+        switches::kRemoteTypefaceCacheSizeInBytes,
+        command_line,
+        build_settings.remote_typeface_cache_capacity_in_bytes,
+        kDefaultRemoteTypeFaceCacheSize);
+  EnsureValuePositive(remote_typeface_cache_size_in_bytes_.get());
 
   // Set skia_atlas_texture_dimensions
   skia_atlas_texture_dimensions_ =
@@ -212,6 +221,10 @@ const IntSetting* AutoMem::misc_engine_cpu_size_in_bytes() const {
   return misc_cobalt_cpu_size_in_bytes_.get();
 }
 
+const IntSetting* AutoMem::remote_typeface_cache_size_in_bytes() const {
+  return remote_typeface_cache_size_in_bytes_.get();
+}
+
 const IntSetting* AutoMem::image_cache_size_in_bytes() const {
   return image_cache_size_in_bytes_.get();
 }
@@ -250,6 +263,7 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   all_settings.push_back(image_cache_size_in_bytes_.get());
   all_settings.push_back(javascript_gc_threshold_in_bytes_.get());
   all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
+  all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
   all_settings.push_back(skia_atlas_texture_dimensions_.get());
   all_settings.push_back(skia_cache_size_in_bytes_.get());
   all_settings.push_back(software_surface_cache_size_in_bytes_.get());

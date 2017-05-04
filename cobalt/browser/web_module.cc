@@ -840,8 +840,7 @@ WebModule::Options::Options()
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
       image_cache_capacity(32 * 1024 * 1024),
-      remote_typeface_cache_capacity(
-          COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
+      remote_typeface_cache_capacity(4 * 1024 * 1024),
       mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
       csp_enforcement_mode(dom::kCspEnforcementEnable),
       csp_insecure_allowed_token(0),
