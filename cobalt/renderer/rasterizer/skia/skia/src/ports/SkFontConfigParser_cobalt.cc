@@ -253,23 +253,25 @@ enum ElementType {
   kOtherElementType,
 };
 
-// The FamilyData structure is passed around by the parser so that each handler
-// can read these variables that are relevant to the current parsing.
-struct FamilyData {
-  explicit FamilyData(SkTDArray<FontFamily*>* families_array)
+// The ParserContext structure is passed around by the parser so that each
+// handler can read these variables that are relevant to the current parsing.
+struct ParserContext {
+  explicit ParserContext(SkTDArray<FontFamilyInfo*>* families_array)
       : families(families_array), current_font_info(NULL) {}
 
   // The array that each family is put into as it is parsed
-  SkTDArray<FontFamily*>* families;
+  SkTDArray<FontFamilyInfo*>* families;
   // The current family being created. FamilyData owns this object while it is
   // not NULL.
-  scoped_ptr<FontFamily> current_family;
-  // The current fontInfo being created. It is owned by FontFamily.
+  scoped_ptr<FontFamilyInfo> current_family;
+  // The current FontFileInfo being created. It is owned by FontFamilyInfo.
   FontFileInfo* current_font_info;
+
+  // Contains all of the elements that are actively being parsed.
   std::stack<ElementType> element_stack;
 };
 
-void FamilyElementHandler(FontFamily* family, const char** attributes) {
+void FamilyElementHandler(FontFamilyInfo* family, const char** attributes) {
   if (attributes == NULL) {
     return;
   }
@@ -399,10 +401,10 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
   }
 }
 
-FontFamily* FindFamily(FamilyData* family_data, const char* family_name) {
+FontFamilyInfo* FindFamily(ParserContext* context, const char* family_name) {
   size_t name_len = strlen(family_name);
-  for (int i = 0; i < family_data->families->count(); i++) {
-    FontFamily* candidate = (*family_data->families)[i];
+  for (int i = 0; i < context->families->count(); i++) {
+    FontFamilyInfo* candidate = (*context->families)[i];
     for (int j = 0; j < candidate->names.count(); j++) {
       if (!strncmp(candidate->names[j].c_str(), family_name, name_len) &&
           name_len == strlen(candidate->names[j].c_str())) {
@@ -414,7 +416,7 @@ FontFamily* FindFamily(FamilyData* family_data, const char* family_name) {
   return NULL;
 }
 
-void AliasElementHandler(FamilyData* family_data, const char** attributes) {
+void AliasElementHandler(ParserContext* context, const char** attributes) {
   // An <alias> must have name and to attributes.
   // It is a variant name for a <family>.
 
@@ -434,7 +436,7 @@ void AliasElementHandler(FamilyData* family_data, const char** attributes) {
   }
 
   // Assumes that the named family is already declared
-  FontFamily* target_family = FindFamily(family_data, to.c_str());
+  FontFamilyInfo* target_family = FindFamily(context, to.c_str());
   if (!target_family) {
     LOG(ERROR) << "---- Invalid alias target [name: " << alias_name.c_str()
                << ", to: " << to.c_str() << "]";
@@ -449,55 +451,56 @@ void AliasElementHandler(FamilyData* family_data, const char** attributes) {
   target_family->names.push_back().set(alias_name);
 }
 
-void StartElement(void* data, const xmlChar* xml_tag,
+void StartElement(void* context, const xmlChar* xml_tag,
                   const xmlChar** xml_attribute_pairs) {
-  FamilyData* family_data = reinterpret_cast<FamilyData*>(data);
+  ParserContext* parser_context = reinterpret_cast<ParserContext*>(context);
   const char* tag = reinterpret_cast<const char*>(xml_tag);
   const char** attribute_pairs =
       reinterpret_cast<const char**>(xml_attribute_pairs);
   size_t tag_len = strlen(tag);
 
   if (tag_len == 6 && strncmp("family", tag, tag_len) == 0) {
-    family_data->element_stack.push(kFamilyElementType);
-    family_data->current_family = make_scoped_ptr(new FontFamily());
-    FamilyElementHandler(family_data->current_family.get(), attribute_pairs);
+    parser_context->element_stack.push(kFamilyElementType);
+    parser_context->current_family = make_scoped_ptr(new FontFamilyInfo());
+    FamilyElementHandler(parser_context->current_family.get(), attribute_pairs);
   } else if (tag_len == 4 && strncmp("font", tag, tag_len) == 0) {
-    family_data->element_stack.push(kFontElementType);
-    FontFileInfo* file = &family_data->current_family->fonts.push_back();
-    family_data->current_font_info = file;
+    parser_context->element_stack.push(kFontElementType);
+    FontFileInfo* file = &parser_context->current_family->fonts.push_back();
+    parser_context->current_font_info = file;
     FontElementHandler(file, attribute_pairs);
   } else if (tag_len == 5 && strncmp("alias", tag, tag_len) == 0) {
-    family_data->element_stack.push(kAliasElementType);
-    AliasElementHandler(family_data, attribute_pairs);
+    parser_context->element_stack.push(kAliasElementType);
+    AliasElementHandler(parser_context, attribute_pairs);
   } else {
-    family_data->element_stack.push(kOtherElementType);
+    parser_context->element_stack.push(kOtherElementType);
   }
 }
 
-void EndElement(void* data, const xmlChar* xml_tag) {
-  FamilyData* family_data = reinterpret_cast<FamilyData*>(data);
+void EndElement(void* context, const xmlChar* xml_tag) {
+  ParserContext* parser_context = reinterpret_cast<ParserContext*>(context);
   const char* tag = reinterpret_cast<const char*>(xml_tag);
   size_t tag_len = strlen(tag);
 
   if (tag_len == 6 && strncmp("family", tag, tag_len) == 0) {
-    if (family_data->current_family != NULL) {
-      *family_data->families->append() = family_data->current_family.release();
+    if (parser_context->current_family != NULL) {
+      *parser_context->families->append() =
+          parser_context->current_family.release();
     } else {
       LOG(ERROR) << "---- Encountered end family tag with no current family";
       NOTREACHED();
     }
   }
 
-  family_data->element_stack.pop();
+  parser_context->element_stack.pop();
 }
 
-void Characters(void* data, const xmlChar* xml_characters, int len) {
-  FamilyData* family_data = reinterpret_cast<FamilyData*>(data);
+void Characters(void* context, const xmlChar* xml_characters, int len) {
+  ParserContext* parser_context = reinterpret_cast<ParserContext*>(context);
   const char* characters = reinterpret_cast<const char*>(xml_characters);
 
-  if (family_data->element_stack.size() > 0 &&
-      family_data->element_stack.top() == kFontElementType) {
-    family_data->current_font_info->file_name.set(characters, len);
+  if (parser_context->element_stack.size() > 0 &&
+      parser_context->element_stack.top() == kFontElementType) {
+    parser_context->current_font_info->file_name.set(characters, len);
   }
 }
 
@@ -529,7 +532,8 @@ void ParserFatal(void* context, const char* message, ...) {
 
 // This function parses the given filename and stores the results in the given
 // families array.
-void ParseConfigFile(const char* directory, SkTDArray<FontFamily*>* families) {
+void ParseConfigFile(const char* directory,
+                     SkTDArray<FontFamilyInfo*>* families) {
   SkString file_path = SkOSPath::Join(directory, kConfigFile);
 
   SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
@@ -545,8 +549,8 @@ void ParseConfigFile(const char* directory, SkTDArray<FontFamily*>* families) {
     return;
   }
 
-  FamilyData family_data(families);
-  xmlSAXUserParseMemory(&xml_sax_handler, &family_data,
+  ParserContext parser_context(families);
+  xmlSAXUserParseMemory(&xml_sax_handler, &parser_context,
                         static_cast<const char*>(file_data->data()),
                         static_cast<int>(file_data->size()));
 }
@@ -558,7 +562,7 @@ namespace SkFontConfigParser {
 // Loads data on font families from the configuration file. The resulting data
 // is returned in the given fontFamilies array.
 void GetFontFamilies(const char* directory,
-                     SkTDArray<FontFamily*>* font_families) {
+                     SkTDArray<FontFamilyInfo*>* font_families) {
   ParseConfigFile(directory, font_families);
 }
 
