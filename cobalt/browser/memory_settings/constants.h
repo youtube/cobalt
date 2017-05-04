@@ -32,7 +32,7 @@ enum MemorySizes {
   kMinSkiaGlyphTextureAtlasWidth = 2048,
   kMinSkiaGlyphTextureAtlasHeight = 2048,
   kSkiaGlyphAtlasTextureBytesPerPixel = 2,
-
+  kDefaultRemoteTypeFaceCacheSize = 4 * 1024 * 1024,  // 4mb.
   kDefaultJsGarbageCollectionThresholdSize = 1 * 1024 * 1024,  // 1mb
 
   kMinSkiaCacheSize = 4 * 1024 * 1024,  // 4mb.
