@@ -24,5 +24,9 @@ FocusEvent::FocusEvent(base::Token type,
                        const scoped_refptr<EventTarget>& related_target)
     : UIEvent(type), related_target_(related_target) {}
 
+FocusEvent::FocusEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+                       const scoped_refptr<EventTarget>& related_target)
+    : UIEvent(type, bubbles, cancelable), related_target_(related_target) {}
+
 }  // namespace dom
 }  // namespace cobalt
