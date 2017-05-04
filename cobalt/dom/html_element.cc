@@ -775,7 +775,8 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
 // Algorithm for IsFocusable:
 //   https://www.w3.org/TR/html5/editing.html#focusable
 bool HTMLElement::IsFocusable() const {
-  return HasAttribute("tabindex") && IsBeingRendered();
+  // TODO: Include "being focused" here.
+  return HasAttribute("tabindex");
 }
 
 // Algorithm for RunFocusingSteps:
