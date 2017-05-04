@@ -34,6 +34,9 @@ class FocusEvent : public UIEvent {
   FocusEvent(base::Token type,
              const scoped_refptr<EventTarget>& related_target);
 
+  FocusEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+             const scoped_refptr<EventTarget>& related_target);
+
   // Web API: FocusEvent
   //
   const scoped_refptr<EventTarget>& related_target() const {

@@ -846,14 +846,29 @@ void HTMLElement::RunFocusingSteps() {
     old_active_element->AsHTMLElement()->RunUnFocusingSteps();
   }
 
-  // 3. Make the element the currently focused element in its top-level
-  // browsing context.
+  // focusin: A user agent MUST dispatch this event when an event target is
+  // about to receive focus. This event type MUST be dispatched before the
+  // element is given focus. The event target MUST be the element which is about
+  // to receive focus. This event type is similar to focus, but is dispatched
+  // before focus is shifted, and does bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusin
+  DispatchEvent(new FocusEvent(base::Tokens::focusin(), Event::kBubbles,
+                               Event::kNotCancelable, this));
+
+  // 3. Make the element the currently focused element in its top-level browsing
+  // context.
   document->SetActiveElement(this);
 
   // 4. Not needed by Cobalt.
 
   // 5. Fire a simple event named focus at the element.
-  DispatchEvent(new FocusEvent(base::Tokens::focus(), this));
+  // focus: A user agent MUST dispatch this event when an event target receives
+  // focus. The focus MUST be given to the element before the dispatch of this
+  // event type. This event type is similar to focusin, but is dispatched after
+  // focus is shifted, and does not bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focus
+  DispatchEvent(new FocusEvent(base::Tokens::focus(), Event::kNotBubbles,
+                               Event::kNotCancelable, this));
 
   // Custom, not in any sepc.
   InvalidateMatchingRulesRecursively();
@@ -864,6 +879,15 @@ void HTMLElement::RunFocusingSteps() {
 void HTMLElement::RunUnFocusingSteps() {
   // 1. Not needed by Cobalt.
 
+  // focusout: A user agent MUST dispatch this event when an event target is
+  // about to lose focus. This event type MUST be dispatched before the element
+  // loses focus. The event target MUST be the element which is about to lose
+  // focus. This event type is similar to blur, but is dispatched before focus
+  // is shifted, and does bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusout
+  DispatchEvent(new FocusEvent(base::Tokens::focusout(), Event::kBubbles,
+                               Event::kNotCancelable, this));
+
   // 2. Unfocus the element.
   Document* document = node_document();
   if (document && document->active_element() == this->AsElement()) {
@@ -871,7 +895,13 @@ void HTMLElement::RunUnFocusingSteps() {
   }
 
   // 3. Fire a simple event named blur at the element.
-  DispatchEvent(new FocusEvent(base::Tokens::blur(), this));
+  // blur: A user agent MUST dispatch this event when an event target loses
+  // focus. The focus MUST be taken from the element before the dispatch of this
+  // event type. This event type is similar to focusout, but is dispatched after
+  // focus is shifted, and does not bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-blur
+  DispatchEvent(new FocusEvent(base::Tokens::blur(), Event::kNotBubbles,
+                               Event::kNotCancelable, this));
 
   // Custom, not in any sepc.
   InvalidateMatchingRulesRecursively();
