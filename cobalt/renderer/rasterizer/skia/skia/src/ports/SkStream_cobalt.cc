@@ -23,12 +23,12 @@
 #include "SkOSFile.h"
 
 SkFileMemoryChunkStreamManager::SkFileMemoryChunkStreamManager(
-    const std::string& name, int cache_size_in_bytes)
-    : available_chunk_count_(cache_size_in_bytes /
+    const std::string& name, int cache_capacity_in_bytes)
+    : available_chunk_count_(cache_capacity_in_bytes /
                              SkFileMemoryChunk::kSizeInBytes),
-      cache_limit_in_bytes_(StringPrintf("Memory.%s.Capacity", name.c_str()),
-                            cache_size_in_bytes,
-                            "The byte capacity of the cache."),
+      cache_capacity_in_bytes_(StringPrintf("Memory.%s.Capacity", name.c_str()),
+                               cache_capacity_in_bytes,
+                               "The byte capacity of the cache."),
       cache_size_in_bytes_(
           StringPrintf("Memory.%s.Size", name.c_str()), 0,
           "Total number of bytes currently used by the cache.") {}
