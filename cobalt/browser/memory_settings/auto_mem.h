@@ -45,6 +45,7 @@ class AutoMem {
   const IntSetting* image_cache_size_in_bytes() const;
   const IntSetting* javascript_gc_threshold_in_bytes() const;
   const IntSetting* misc_engine_cpu_size_in_bytes() const;
+  const IntSetting* remote_typeface_cache_size_in_bytes() const;
   const DimensionSetting* skia_atlas_texture_dimensions() const;
   const IntSetting* skia_cache_size_in_bytes() const;
   const IntSetting* software_surface_cache_size_in_bytes() const;
@@ -61,6 +62,7 @@ class AutoMem {
   scoped_ptr<IntSetting> image_cache_size_in_bytes_;
   scoped_ptr<IntSetting> javascript_gc_threshold_in_bytes_;
   scoped_ptr<IntSetting> misc_cobalt_cpu_size_in_bytes_;
+  scoped_ptr<IntSetting> remote_typeface_cache_size_in_bytes_;
   scoped_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
   scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
   scoped_ptr<IntSetting> software_surface_cache_size_in_bytes_;
