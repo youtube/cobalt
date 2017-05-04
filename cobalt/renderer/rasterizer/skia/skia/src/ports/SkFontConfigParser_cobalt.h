@@ -23,7 +23,7 @@ namespace SkFontConfigParser {
 // Parses all system font configuration files and returns the results in an
 // array of FontFamily structures.
 void GetFontFamilies(const char* directory,
-                     SkTDArray<FontFamily*>* font_families);
+                     SkTDArray<FontFamilyInfo*>* font_families);
 
 }  // namespace SkFontConfigParser
 
