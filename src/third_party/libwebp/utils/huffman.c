@@ -12,7 +12,8 @@
 // Author: Urvang Joshi (urvang@google.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <assert.h>
 #include <stdlib.h>
@@ -44,14 +45,14 @@ static void AssignChildren(HuffmanTree* const tree,
                            HuffmanTreeNode* const node) {
   HuffmanTreeNode* const children = tree->root_ + tree->num_nodes_;
   node->children_ = (int)(children - node);
-  assert(children - node == (int)(children - node));
+  SB_DCHECK(children - node == (int)(children - node));
   tree->num_nodes_ += 2;
   TreeNodeInit(children + 0);
   TreeNodeInit(children + 1);
 }
 
 static int TreeInit(HuffmanTree* const tree, int num_leaves) {
-  assert(tree != NULL);
+  SB_DCHECK(tree != NULL);
   if (num_leaves == 0) return 0;
   // We allocate maximum possible nodes in the tree at once.
   // Note that a Huffman tree is a full binary tree; and in a full binary tree
@@ -67,7 +68,7 @@ static int TreeInit(HuffmanTree* const tree, int num_leaves) {
 
 void HuffmanTreeRelease(HuffmanTree* const tree) {
   if (tree != NULL) {
-    free(tree->root_);
+    SbMemoryDeallocate(tree->root_);
     tree->root_ = NULL;
     tree->max_nodes_ = 0;
     tree->num_nodes_ = 0;
@@ -83,9 +84,9 @@ int HuffmanCodeLengthsToCodes(const int* const code_lengths,
   int next_codes[MAX_ALLOWED_CODE_LENGTH + 1] = { 0 };
   int max_code_length = 0;
 
-  assert(code_lengths != NULL);
-  assert(code_lengths_size > 0);
-  assert(huff_codes != NULL);
+  SB_DCHECK(code_lengths != NULL);
+  SB_DCHECK(code_lengths_size > 0);
+  SB_DCHECK(huff_codes != NULL);
 
   // Calculate max code length.
   for (symbol = 0; symbol < code_lengths_size; ++symbol) {
@@ -154,8 +155,8 @@ int HuffmanTreeBuildImplicit(HuffmanTree* const tree,
   int num_symbols = 0;
   int root_symbol = 0;
 
-  assert(tree != NULL);
-  assert(code_lengths != NULL);
+  SB_DCHECK(tree != NULL);
+  SB_DCHECK(code_lengths != NULL);
 
   // Find out number of symbols and the root symbol.
   for (symbol = 0; symbol < code_lengths_size; ++symbol) {
@@ -199,7 +200,7 @@ int HuffmanTreeBuildImplicit(HuffmanTree* const tree,
     }
     ok = 1;
  End:
-    free(codes);
+    SbMemoryDeallocate(codes);
     ok = ok && IsFull(tree);
     if (!ok) HuffmanTreeRelease(tree);
     return ok;
@@ -214,10 +215,10 @@ int HuffmanTreeBuildExplicit(HuffmanTree* const tree,
   int ok = 0;
   int i;
 
-  assert(tree != NULL);
-  assert(code_lengths != NULL);
-  assert(codes != NULL);
-  assert(symbols != NULL);
+  SB_DCHECK(tree != NULL);
+  SB_DCHECK(code_lengths != NULL);
+  SB_DCHECK(codes != NULL);
+  SB_DCHECK(symbols != NULL);
 
   // Initialize the tree. Will fail if num_symbols = 0.
   if (!TreeInit(tree, num_symbols)) return 0;

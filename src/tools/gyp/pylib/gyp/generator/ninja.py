@@ -548,9 +548,6 @@ class NinjaWriter:
     if 'copies' in spec:
       outputs += self.WriteCopies(spec['copies'], prebuild, mac_bundle_depends)
 
-    if 'sources' in spec and self.flavor in ('win', 'xb1'):
-      outputs += self.WriteWinIdlFiles(spec, prebuild)
-
     stamp = self.WriteCollapsedDependencies('actions_rules_copies', outputs)
 
     if self.is_mac_bundle:
@@ -1670,7 +1667,6 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   ar_flags = ''
   if flavor in ['win', 'xb1']:
     master_ninja.variable('ld', ld)
-    master_ninja.variable('idl', 'midl.exe')
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
     master_ninja.variable('rc', 'rc.exe')
     master_ninja.variable('asm', 'ml.exe')
@@ -1799,12 +1795,6 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       rspfile='$out.rsp',
       rspfile_content='$defines $includes $cflags $cflags_cc')
 
-    master_ninja.rule(
-      'idl',
-      description='IDL $in',
-      command=('%s gyp-win-tool midl-wrapper $arch $outdir '
-               '$tlb $h $dlldata $iid $proxy $in '
-               '$idlflags' % python_exec))
     master_ninja.rule(
       'rc',
       description='RC $in',

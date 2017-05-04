@@ -39,7 +39,7 @@ ParseInt(const char* str)
 
 template<typename T>
 T overrideDefault(const char* param, T dflt) {
-    char* str = getenv(param);
+    char* str = js_sb_getenv(param);
     if (!str)
         return dflt;
     if (IsBool<T>::value) {
@@ -165,7 +165,7 @@ DefaultJitOptions::DefaultJitOptions()
     // a function with the highest ionmonkey optimization level.
     // (i.e. OptimizationLevel_Normal)
     const char* forcedDefaultIonWarmUpThresholdEnv = "JIT_OPTION_forcedDefaultIonWarmUpThreshold";
-    if (const char* env = getenv(forcedDefaultIonWarmUpThresholdEnv)) {
+    if (const char* env = js_sb_getenv(forcedDefaultIonWarmUpThresholdEnv)) {
         Maybe<int> value = ParseInt(env);
         if (value.isSome())
             forcedDefaultIonWarmUpThreshold.emplace(value.ref());
@@ -176,7 +176,7 @@ DefaultJitOptions::DefaultJitOptions()
     // Force the used register allocator instead of letting the optimization
     // pass decide.
     const char* forcedRegisterAllocatorEnv = "JIT_OPTION_forcedRegisterAllocator";
-    if (const char* env = getenv(forcedRegisterAllocatorEnv)) {
+    if (const char* env = js_sb_getenv(forcedRegisterAllocatorEnv)) {
         forcedRegisterAllocator = LookupRegisterAllocator(env);
         if (!forcedRegisterAllocator.isSome())
             Warn(forcedRegisterAllocatorEnv, env);

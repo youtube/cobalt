@@ -3374,7 +3374,7 @@ Assembler::GetNopFill()
 {
     static bool isSet = false;
     if (!isSet) {
-        char* fillStr = getenv("ARM_ASM_NOP_FILL");
+        char* fillStr = js_sb_getenv("ARM_ASM_NOP_FILL");
         uint32_t fill;
         if (fillStr && sscanf(fillStr, "%u", &fill) == 1)
             NopFill = fill;
@@ -3390,7 +3390,7 @@ Assembler::GetPoolMaxOffset()
 {
     static bool isSet = false;
     if (!isSet) {
-        char* poolMaxOffsetStr = getenv("ASM_POOL_MAX_OFFSET");
+        char* poolMaxOffsetStr = js_sb_getenv("ASM_POOL_MAX_OFFSET");
         uint32_t poolMaxOffset;
         if (poolMaxOffsetStr && sscanf(poolMaxOffsetStr, "%u", &poolMaxOffset) == 1)
             AsmPoolMaxOffset = poolMaxOffset;

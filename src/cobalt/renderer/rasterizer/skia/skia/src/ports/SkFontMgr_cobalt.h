@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -43,8 +44,12 @@
 class SkFontMgr_Cobalt : public SkFontMgr {
  public:
   typedef std::vector<SkFontStyleSet_Cobalt*> StyleSetArray;
+  typedef std::map<int, StyleSetArray> PriorityStyleSetArrayMap;
 
-  SkFontMgr_Cobalt(const char* directory,
+  SkFontMgr_Cobalt(const char* cobalt_font_config_directory,
+                   const char* cobalt_font_files_directory,
+                   const char* system_font_config_directory,
+                   const char* system_font_files_directory,
                    const SkTArray<SkString, true>& default_fonts);
 
   // NOTE: This returns NULL if a match is not found.
@@ -102,8 +107,14 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   typedef base::SmallMap<base::hash_map<std::string, StyleSetArray*> >
       NameToStyleSetArrayMap;
 
-  void BuildNameToFamilyMap(const char* base_path,
-                            SkTDArray<FontFamily*>* families);
+  void ParseConfigAndBuildFamilies(
+      const char* font_config_directory, const char* font_files_directory,
+      PriorityStyleSetArrayMap* priority_fallback_families);
+  void BuildNameToFamilyMap(
+      const char* font_files_directory, SkTDArray<FontFamily*>* families,
+      PriorityStyleSetArrayMap* priority_fallback_families);
+  void GeneratePriorityOrderedFallbackFamilies(
+      const PriorityStyleSetArrayMap& priority_fallback_families);
   void FindDefaultFamily(const SkTArray<SkString, true>& default_families);
 
   // Returns the first encountered fallback family that matches the language tag
@@ -118,7 +129,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // NOTE: |style_sets_mutex_| should be locked prior to calling this function.
   StyleSetArray* GetMatchingFallbackFamilies(const SkString& language_tag);
 
-  SkFileMemoryChunkStreamManager system_typeface_stream_manager_;
+  SkFileMemoryChunkStreamManager local_typeface_stream_manager_;
 
   SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> font_style_sets_;
 

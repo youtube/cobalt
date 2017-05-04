@@ -75,15 +75,13 @@
 #include "gc/FindSCCs-inl.h"
 #include "vm/String-inl.h"
 
-#ifdef XP_WIN
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#elif defined(XP_WIN)
 # include "jswin.h"
 #else
 # include <unistd.h>
 #endif
-
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#endif  // defined(STARBOARD)
 
 #if JS_TRACE_LOGGING
 #include "TraceLogging.h"

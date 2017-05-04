@@ -18,6 +18,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
+#include "starboard/system.h"
 #endif
 
 #if defined(STARBOARD)
@@ -153,7 +154,13 @@ extern "C" {
  * in release builds as well as debug builds.  But if the failure is one that
  * should be debugged and fixed, MOZ_ASSERT is generally preferable.
  */
-#if defined(_MSC_VER)
+#if defined(STARBOARD) && (SB_API_VERSION >= 4)
+#  define MOZ_CRASH() \
+     do { \
+       *((volatile int*) NULL) = 123; \
+       ::SbSystemBreakIntoDebugger(); \
+     } while (0)
+#elif defined(_MSC_VER)
    /*
     * On MSVC use the __debugbreak compiler intrinsic, which produces an inline
     * (not nested in a system function) breakpoint.  This distinctively invokes

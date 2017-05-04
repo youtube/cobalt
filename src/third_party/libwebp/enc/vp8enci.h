@@ -14,7 +14,12 @@
 #ifndef WEBP_ENC_VP8ENCI_H_
 #define WEBP_ENC_VP8ENCI_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <string.h>     // for memcpy()
+#endif
 #include "../webp/encode.h"
 #include "../dsp/dsp.h"
 #include "../utils/bit_writer.h"

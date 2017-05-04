@@ -11,7 +11,12 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>
+#endif
 
 #include "./vp8i.h"
 #include "./vp8li.h"
@@ -64,13 +69,13 @@ static WEBP_INLINE uint32_t get_le32(const uint8_t* const data) {
 static VP8StatusCode ParseRIFF(const uint8_t** const data,
                                size_t* const data_size,
                                size_t* const riff_size) {
-  assert(data != NULL);
-  assert(data_size != NULL);
-  assert(riff_size != NULL);
+  SB_DCHECK(data != NULL);
+  SB_DCHECK(data_size != NULL);
+  SB_DCHECK(riff_size != NULL);
 
   *riff_size = 0;  // Default: no RIFF present.
-  if (*data_size >= RIFF_HEADER_SIZE && !memcmp(*data, "RIFF", TAG_SIZE)) {
-    if (memcmp(*data + 8, "WEBP", TAG_SIZE)) {
+  if (*data_size >= RIFF_HEADER_SIZE && !SbMemoryCompare(*data, "RIFF", TAG_SIZE)) {
+    if (SbMemoryCompare(*data + 8, "WEBP", TAG_SIZE)) {
       return VP8_STATUS_BITSTREAM_ERROR;  // Wrong image file signature.
     } else {
       const uint32_t size = get_le32(*data + TAG_SIZE);
@@ -103,9 +108,9 @@ static VP8StatusCode ParseVP8X(const uint8_t** const data,
                                int* const width_ptr, int* const height_ptr,
                                uint32_t* const flags_ptr) {
   const uint32_t vp8x_size = CHUNK_HEADER_SIZE + VP8X_CHUNK_SIZE;
-  assert(data != NULL);
-  assert(data_size != NULL);
-  assert(found_vp8x != NULL);
+  SB_DCHECK(data != NULL);
+  SB_DCHECK(data_size != NULL);
+  SB_DCHECK(found_vp8x != NULL);
 
   *found_vp8x = 0;
 
@@ -113,7 +118,7 @@ static VP8StatusCode ParseVP8X(const uint8_t** const data,
     return VP8_STATUS_NOT_ENOUGH_DATA;  // Insufficient data.
   }
 
-  if (!memcmp(*data, "VP8X", TAG_SIZE)) {
+  if (!SbMemoryCompare(*data, "VP8X", TAG_SIZE)) {
     int width, height;
     uint32_t flags;
     const uint32_t chunk_size = get_le32(*data + TAG_SIZE);
@@ -160,13 +165,13 @@ static VP8StatusCode ParseOptionalChunks(const uint8_t** const data,
   uint32_t total_size = TAG_SIZE +           // "WEBP".
                         CHUNK_HEADER_SIZE +  // "VP8Xnnnn".
                         VP8X_CHUNK_SIZE;     // data.
-  assert(data != NULL);
-  assert(data_size != NULL);
+  SB_DCHECK(data != NULL);
+  SB_DCHECK(data_size != NULL);
   buf = *data;
   buf_size = *data_size;
 
-  assert(alpha_data != NULL);
-  assert(alpha_size != NULL);
+  SB_DCHECK(alpha_data != NULL);
+  SB_DCHECK(alpha_size != NULL);
   *alpha_data = NULL;
   *alpha_size = 0;
 
@@ -198,8 +203,8 @@ static VP8StatusCode ParseOptionalChunks(const uint8_t** const data,
     // parsed all the optional chunks.
     // Note: This check must occur before the check 'buf_size < disk_chunk_size'
     // below to allow incomplete VP8/VP8L chunks.
-    if (!memcmp(buf, "VP8 ", TAG_SIZE) ||
-        !memcmp(buf, "VP8L", TAG_SIZE)) {
+    if (!SbMemoryCompare(buf, "VP8 ", TAG_SIZE) ||
+        !SbMemoryCompare(buf, "VP8L", TAG_SIZE)) {
       return VP8_STATUS_OK;
     }
 
@@ -207,7 +212,7 @@ static VP8StatusCode ParseOptionalChunks(const uint8_t** const data,
       return VP8_STATUS_NOT_ENOUGH_DATA;
     }
 
-    if (!memcmp(buf, "ALPH", TAG_SIZE)) {         // A valid ALPH header.
+    if (!SbMemoryCompare(buf, "ALPH", TAG_SIZE)) {         // A valid ALPH header.
       *alpha_data = buf + CHUNK_HEADER_SIZE;
       *alpha_size = chunk_size;
     }
@@ -232,15 +237,15 @@ static VP8StatusCode ParseVP8Header(const uint8_t** const data_ptr,
                                     size_t* const chunk_size,
                                     int* const is_lossless) {
   const uint8_t* const data = *data_ptr;
-  const int is_vp8 = !memcmp(data, "VP8 ", TAG_SIZE);
-  const int is_vp8l = !memcmp(data, "VP8L", TAG_SIZE);
+  const int is_vp8 = !SbMemoryCompare(data, "VP8 ", TAG_SIZE);
+  const int is_vp8l = !SbMemoryCompare(data, "VP8L", TAG_SIZE);
   const uint32_t minimal_size =
       TAG_SIZE + CHUNK_HEADER_SIZE;  // "WEBP" + "VP8 nnnn" OR
                                      // "WEBP" + "VP8Lnnnn"
-  assert(data != NULL);
-  assert(data_size != NULL);
-  assert(chunk_size != NULL);
-  assert(is_lossless != NULL);
+  SB_DCHECK(data != NULL);
+  SB_DCHECK(data_size != NULL);
+  SB_DCHECK(chunk_size != NULL);
+  SB_DCHECK(is_lossless != NULL);
 
   if (*data_size < CHUNK_HEADER_SIZE) {
     return VP8_STATUS_NOT_ENOUGH_DATA;  // Insufficient data.
@@ -294,7 +299,7 @@ static VP8StatusCode ParseHeadersInternal(const uint8_t* data,
   if (data == NULL || data_size < RIFF_HEADER_SIZE) {
     return VP8_STATUS_NOT_ENOUGH_DATA;
   }
-  memset(&hdrs, 0, sizeof(hdrs));
+  SbMemorySet(&hdrs, 0, sizeof(hdrs));
   hdrs.data = data;
   hdrs.data_size = data_size;
 
@@ -328,7 +333,7 @@ static VP8StatusCode ParseHeadersInternal(const uint8_t* data,
 
   // Skip over optional chunks if data started with "RIFF + VP8X" or "ALPH".
   if ((found_riff && found_vp8x) ||
-      (!found_riff && !found_vp8x && !memcmp(data, "ALPH", TAG_SIZE))) {
+      (!found_riff && !found_vp8x && !SbMemoryCompare(data, "ALPH", TAG_SIZE))) {
     status = ParseOptionalChunks(&data, &data_size, hdrs.riff_size,
                                  &hdrs.alpha_data, &hdrs.alpha_data_size);
     if (status != VP8_STATUS_OK) {
@@ -373,8 +378,8 @@ static VP8StatusCode ParseHeadersInternal(const uint8_t* data,
   if (headers != NULL) {
     *headers = hdrs;
     headers->offset = data - headers->data;
-    assert((uint64_t)(data - headers->data) < MAX_CHUNK_PAYLOAD);
-    assert(headers->offset == headers->data_size - data_size);
+    SB_DCHECK((uint64_t)(data - headers->data) < MAX_CHUNK_PAYLOAD);
+    SB_DCHECK(headers->offset == headers->data_size - data_size);
   }
   return VP8_STATUS_OK;  // Return features from VP8 header.
 }
@@ -382,7 +387,7 @@ static VP8StatusCode ParseHeadersInternal(const uint8_t* data,
 VP8StatusCode WebPParseHeaders(WebPHeaderStructure* const headers) {
   VP8StatusCode status;
   int has_animation = 0;
-  assert(headers != NULL);
+  SB_DCHECK(headers != NULL);
   // fill out headers, ignore width/height/has_alpha.
   status = ParseHeadersInternal(headers->data, headers->data_size,
                                 NULL, NULL, NULL, &has_animation, headers);
@@ -400,7 +405,7 @@ VP8StatusCode WebPParseHeaders(WebPHeaderStructure* const headers) {
 
 void WebPResetDecParams(WebPDecParams* const params) {
   if (params) {
-    memset(params, 0, sizeof(*params));
+    SbMemorySet(params, 0, sizeof(*params));
   }
 }
 
@@ -421,7 +426,7 @@ static VP8StatusCode DecodeInto(const uint8_t* const data, size_t data_size,
     return status;
   }
 
-  assert(params != NULL);
+  SB_DCHECK(params != NULL);
   VP8InitIo(&io);
   io.data = headers.data + headers.offset;
   io.data_size = headers.data_size - headers.offset;
@@ -626,14 +631,14 @@ uint8_t* WebPDecodeYUV(const uint8_t* data, size_t data_size,
     *v = buf->v;
     *stride = buf->y_stride;
     *uv_stride = buf->u_stride;
-    assert(buf->u_stride == buf->v_stride);
+    SB_DCHECK(buf->u_stride == buf->v_stride);
   }
   return out;
 }
 
 static void DefaultFeatures(WebPBitstreamFeatures* const features) {
-  assert(features != NULL);
-  memset(features, 0, sizeof(*features));
+  SB_DCHECK(features != NULL);
+  SbMemorySet(features, 0, sizeof(*features));
   features->bitstream_version = 0;
 }
 
@@ -683,7 +688,7 @@ int WebPInitDecoderConfigInternal(WebPDecoderConfig* config,
   if (config == NULL) {
     return 0;
   }
-  memset(config, 0, sizeof(*config));
+  SbMemorySet(config, 0, sizeof(*config));
   DefaultFeatures(&config->input);
   WebPInitDecBuffer(&config->output);
   return 1;

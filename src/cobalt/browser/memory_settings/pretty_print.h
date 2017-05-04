@@ -17,34 +17,57 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_PRETTY_PRINT_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_PRETTY_PRINT_H_
 
-#include <map>
 #include <string>
 #include <vector>
 
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
-#include "base/stringprintf.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
 // Generates a table, ie:
-//    "NAME                                   VALUE       SOURCE          \n"
-//    "+--------------------------------------+-----------+--------------+\n"
-//    "| image_cache_size_in_bytes            |      1234 |      CmdLine |\n"
-//    "+--------------------------------------+-----------+--------------+\n"
-//    "| javascript_gc_threshold_in_bytes     |      1112 |      AutoSet |\n"
-//    "+--------------------------------------+-----------+--------------+\n"
-//    "| skia_atlas_texture_dimensions        | 1234x4567 |      CmdLine |\n"
-//    "+--------------------------------------+-----------+--------------+\n"
-//    "| skia_cache_size_in_bytes             |         0 |          N/A |\n"
-//    "+--------------------------------------+-----------+--------------+\n"
-//    "| software_surface_cache_size_in_bytes |      8910 | BuildSetting |\n"
-//    "+--------------------------------------+-----------+--------------+\n";
+//
+//   NAME                                   VALUE                   TYPE   SOURCE
+//   _______________________________________________________________________________
+//  |                                      |             |         |      |         |
+//  | image_cache_size_in_bytes            |    33554432 | 32.0 MB |  GPU | AutoSet |
+//  |______________________________________|_____________|_________|______|_________|
+//  |                                      |             |         |      |         |
+//  | javascript_gc_threshold_in_bytes     |     8388608 |  8.0 MB |  CPU |   Build |
+//  |______________________________________|_____________|_________|______|_________|
+//  |                                      |             |         |      |         |
+//  | misc_cobalt_engine_size_in_bytes     |    33554432 | 32.0 MB |  CPU |   Build |
+//  |______________________________________|_____________|_________|______|_________|
+//  |                                      |             |         |      |         |
+//  | skia_atlas_texture_dimensions        | 4096x8192x2 | 64.0 MB |  GPU |   Build |
+//  |______________________________________|_____________|_________|______|_________|
+//  |                                      |             |         |      |         |
+//  | skia_cache_size_in_bytes             |     4194304 |  4.0 MB |  GPU |   Build |
+//  |______________________________________|_____________|_________|______|_________|
+//  |                                      |             |         |      |         |
+//  | software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |
+//  |______________________________________|_____________|_________|______|_________|
 std::string GeneratePrettyPrintTable(
     const std::vector<const MemorySetting*>& memory_settings);
+
+// Generates a table, ie:
+//
+//   TYPE   TOTAL      SETTINGS
+//   ____________________________
+//  |      |          |          |
+//  | CPU  | 256.0 MB |  40.0 MB |
+//  |______|__________|__________|
+//  |      |          |          |
+//  | GPU  | 768.0 MB | 100.0 MB |
+//  |______|__________|__________|
+// When optional total_gpu_memory is null then the the value in the output
+// table will be <UNKNOWN>.
+std::string GenerateMemoryTable(int64_t total_cpu_memory,
+                                base::optional<int64_t> total_gpu_memory,
+                                int64_t settings_cpu_consumption,
+                                int64_t settings_gpu_consumption);
 
 }  // namespace memory_settings
 }  // namespace browser

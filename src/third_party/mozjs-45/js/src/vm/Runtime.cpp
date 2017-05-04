@@ -254,9 +254,9 @@ JSRuntime::JSRuntime(JSRuntime* parentRuntime)
 static bool
 SignalBasedTriggersDisabled()
 {
-  // Don't bother trying to cache the getenv lookup; this should be called
+  // Don't bother trying to cache the js_sb_getenv lookup; this should be called
   // infrequently.
-  return !!getenv("JS_DISABLE_SLOW_SCRIPT_SIGNALS") || !!getenv("JS_NO_SIGNALS");
+  return !!js_sb_getenv("JS_DISABLE_SLOW_SCRIPT_SIGNALS") || !!js_sb_getenv("JS_NO_SIGNALS");
 }
 
 bool
@@ -711,7 +711,7 @@ JSRuntime::getDefaultLocale()
 #ifdef HAVE_SETLOCALE
     locale = setlocale(LC_ALL, nullptr);
 #else
-    locale = getenv("LANG");
+    locale = js_sb_getenv("LANG");
 #endif
     // convert to a well-formed BCP 47 language tag
     if (!locale || !strcmp(locale, "C"))

@@ -101,21 +101,9 @@ class WinTool(object):
     quietable via command line flags.
     """
     env = self._GetEnv(arch)
-    if 'DURANGOXDK' in env:
-      # midl seems to want an absolute path here.
-      outdir = os.path.abspath(outdir)
-      args = ['midl', '/nologo'] + list(flags) + [
+    args = ['midl', '/nologo'] + list(flags) + [
           '/out', outdir,
           '/h', h,
-          idl]
-    else:
-      args = ['midl', '/nologo'] + list(flags) + [
-          '/out', outdir,
-          '/tlb', tlb,
-          '/h', h,
-          '/dlldata', dlldata,
-          '/iid', iid,
-          '/proxy', proxy,
           idl]
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

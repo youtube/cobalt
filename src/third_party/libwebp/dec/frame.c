@@ -11,7 +11,12 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>
+#endif
 #include "./vp8i.h"
 #include "../utils/utils.h"
 
@@ -92,7 +97,7 @@ static void DoFilter(const VP8Decoder* const dec, int mb_x, int mb_y) {
 static void FilterRow(const VP8Decoder* const dec) {
   int mb_x;
   const int mb_y = dec->thread_ctx_.mb_y_;
-  assert(dec->thread_ctx_.filter_row_);
+  SB_DCHECK(dec->thread_ctx_.filter_row_);
   for (mb_x = dec->tl_mb_x_; mb_x < dec->br_mb_x_; ++mb_x) {
     DoFilter(dec, mb_x, mb_y);
   }
@@ -215,7 +220,7 @@ static int FinishRow(VP8Decoder* const dec, VP8Io* const io) {
     if (y_start < io->crop_top) {
       const int delta_y = io->crop_top - y_start;
       y_start = io->crop_top;
-      assert(!(delta_y & 1));
+      SB_DCHECK(!(delta_y & 1));
       io->y += dec->cache_y_stride_ * delta_y;
       io->u += dec->cache_uv_stride_ * (delta_y >> 1);
       io->v += dec->cache_uv_stride_ * (delta_y >> 1);
@@ -239,9 +244,9 @@ static int FinishRow(VP8Decoder* const dec, VP8Io* const io) {
   // rotate top samples if needed
   if (ctx->id_ + 1 == dec->num_caches_) {
     if (!last_row) {
-      memcpy(dec->cache_y_ - ysize, ydst + 16 * dec->cache_y_stride_, ysize);
-      memcpy(dec->cache_u_ - uvsize, udst + 8 * dec->cache_uv_stride_, uvsize);
-      memcpy(dec->cache_v_ - uvsize, vdst + 8 * dec->cache_uv_stride_, uvsize);
+      SbMemoryCopy(dec->cache_y_ - ysize, ydst + 16 * dec->cache_y_stride_, ysize);
+      SbMemoryCopy(dec->cache_u_ - uvsize, udst + 8 * dec->cache_uv_stride_, uvsize);
+      SbMemoryCopy(dec->cache_v_ - uvsize, vdst + 8 * dec->cache_uv_stride_, uvsize);
     }
   }
 
@@ -264,7 +269,7 @@ int VP8ProcessRow(VP8Decoder* const dec, VP8Io* const io) {
     WebPWorker* const worker = &dec->worker_;
     // Finish previous job *before* updating context
     ok &= WebPWorkerSync(worker);
-    assert(worker->status_ == OK);
+    SB_DCHECK(worker->status_ == OK);
     if (ok) {   // spawn a new deblocking/output job
       ctx->io_ = *io;
       ctx->id_ = dec->cache_id_;
@@ -434,7 +439,7 @@ static int AllocateMemory(VP8Decoder* const dec) {
 
   if (needed != (size_t)needed) return 0;  // check for overflow
   if (needed > dec->mem_size_) {
-    free(dec->mem_);
+    SbMemoryDeallocate(dec->mem_);
     dec->mem_size_ = 0;
     dec->mem_ = WebPSafeMalloc(needed, sizeof(uint8_t));
     if (dec->mem_ == NULL) {
@@ -471,7 +476,7 @@ static int AllocateMemory(VP8Decoder* const dec) {
   }
 
   mem = (uint8_t*)((uintptr_t)(mem + ALIGN_MASK) & ~ALIGN_MASK);
-  assert((yuv_size & ALIGN_MASK) == 0);
+  SB_DCHECK((yuv_size & ALIGN_MASK) == 0);
   dec->yuv_b_ = (uint8_t*)mem;
   mem += yuv_size;
 
@@ -496,13 +501,13 @@ static int AllocateMemory(VP8Decoder* const dec) {
   // alpha plane
   dec->alpha_plane_ = alpha_size ? (uint8_t*)mem : NULL;
   mem += alpha_size;
-  assert(mem <= (uint8_t*)dec->mem_ + dec->mem_size_);
+  SB_DCHECK(mem <= (uint8_t*)dec->mem_ + dec->mem_size_);
 
   // note: left-info is initialized once for all.
-  memset(dec->mb_info_ - 1, 0, mb_info_size);
+  SbMemorySet(dec->mb_info_ - 1, 0, mb_info_size);
 
   // initialize top
-  memset(dec->intra_t_, B_DC_PRED, intra_pred_mode_size);
+  SbMemorySet(dec->intra_t_, B_DC_PRED, intra_pred_mode_size);
 
   return 1;
 }
@@ -589,15 +594,15 @@ void VP8ReconstructBlock(VP8Decoder* const dec) {
     int n;
 
     if (dec->mb_y_ > 0) {
-      memcpy(y_dst - BPS, top_y, 16);
-      memcpy(u_dst - BPS, top_u, 8);
-      memcpy(v_dst - BPS, top_v, 8);
+      SbMemoryCopy(y_dst - BPS, top_y, 16);
+      SbMemoryCopy(u_dst - BPS, top_u, 8);
+      SbMemoryCopy(v_dst - BPS, top_v, 8);
     } else if (dec->mb_x_ == 0) {
       // we only need to do this init once at block (0,0).
       // Afterward, it remains valid for the whole topmost row.
-      memset(y_dst - BPS - 1, 127, 16 + 4 + 1);
-      memset(u_dst - BPS - 1, 127, 8 + 1);
-      memset(v_dst - BPS - 1, 127, 8 + 1);
+      SbMemorySet(y_dst - BPS - 1, 127, 16 + 4 + 1);
+      SbMemorySet(u_dst - BPS - 1, 127, 8 + 1);
+      SbMemorySet(v_dst - BPS - 1, 127, 8 + 1);
     }
 
     // predict and add residuals
@@ -609,7 +614,7 @@ void VP8ReconstructBlock(VP8Decoder* const dec) {
         if (dec->mb_x_ >= dec->mb_w_ - 1) {    // on rightmost border
           top_right[0] = top_y[15] * 0x01010101u;
         } else {
-          memcpy(top_right, top_y + 16, sizeof(*top_right));
+          SbMemoryCopy(top_right, top_y + 16, sizeof(*top_right));
         }
       }
       // replicate the top-right pixels below
@@ -664,9 +669,9 @@ void VP8ReconstructBlock(VP8Decoder* const dec) {
 
       // stash away top samples for next block
       if (dec->mb_y_ < dec->mb_h_ - 1) {
-        memcpy(top_y, y_dst + 15 * BPS, 16);
-        memcpy(top_u, u_dst +  7 * BPS,  8);
-        memcpy(top_v, v_dst +  7 * BPS,  8);
+        SbMemoryCopy(top_y, y_dst + 15 * BPS, 16);
+        SbMemoryCopy(top_u, u_dst +  7 * BPS,  8);
+        SbMemoryCopy(top_v, v_dst +  7 * BPS,  8);
       }
     }
   }
@@ -678,11 +683,11 @@ void VP8ReconstructBlock(VP8Decoder* const dec) {
     uint8_t* const u_out = dec->cache_u_ + dec->mb_x_ * 8 + uv_offset;
     uint8_t* const v_out = dec->cache_v_ + dec->mb_x_ * 8 + uv_offset;
     for (j = 0; j < 16; ++j) {
-      memcpy(y_out + j * dec->cache_y_stride_, y_dst + j * BPS, 16);
+      SbMemoryCopy(y_out + j * dec->cache_y_stride_, y_dst + j * BPS, 16);
     }
     for (j = 0; j < 8; ++j) {
-      memcpy(u_out + j * dec->cache_uv_stride_, u_dst + j * BPS, 8);
-      memcpy(v_out + j * dec->cache_uv_stride_, v_dst + j * BPS, 8);
+      SbMemoryCopy(u_out + j * dec->cache_uv_stride_, u_dst + j * BPS, 8);
+      SbMemoryCopy(v_out + j * dec->cache_uv_stride_, v_dst + j * BPS, 8);
     }
   }
 }

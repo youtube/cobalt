@@ -22,6 +22,7 @@
 #include "nb/memory_scope.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
+#include "starboard/types.h"
 
 #define JS_OOM_POSSIBLY_FAIL() do {} while(0)
 #define JS_OOM_POSSIBLY_FAIL_REPORT(cx) do {} while(0)

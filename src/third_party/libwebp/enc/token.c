@@ -17,7 +17,8 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #if defined(STARBOARD)
-#include "third_party/libwebp/starboard_private.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #else
 #include <assert.h>
 #include <stdlib.h>
@@ -32,7 +33,7 @@ extern "C" {
 
 #if !defined(DISABLE_TOKEN_BUFFER)
 
-// we use pages to reduce the number of memcpy()
+// we use pages to reduce the number of SbMemoryCopy()
 #define MAX_NUM_TOKEN 8192          // max number of token per page
 #define FIXED_PROBA_BIT (1u << 14)
 
@@ -58,7 +59,7 @@ void VP8TBufferClear(VP8TBuffer* const b) {
     const VP8Tokens* p = b->pages_;
     while (p != NULL) {
       const VP8Tokens* const next = p->next_;
-      free((void*)p);
+      SbMemoryDeallocate((void*)p);
       p = next;
     }
     VP8TBufferInit(b);
@@ -66,7 +67,7 @@ void VP8TBufferClear(VP8TBuffer* const b) {
 }
 
 static int TBufferNewPage(VP8TBuffer* const b) {
-  VP8Tokens* const page = b->error_ ? NULL : (VP8Tokens*)malloc(sizeof(*page));
+  VP8Tokens* const page = b->error_ ? NULL : (VP8Tokens*)SbMemoryAllocate(sizeof(*page));
   if (page == NULL) {
     b->error_ = 1;
     return 0;
@@ -86,8 +87,8 @@ static int TBufferNewPage(VP8TBuffer* const b) {
 
 static WEBP_INLINE int AddToken(VP8TBuffer* const b,
                                 int bit, uint32_t proba_idx) {
-  assert(proba_idx < FIXED_PROBA_BIT);
-  assert(bit == 0 || bit == 1);
+  SB_DCHECK(proba_idx < FIXED_PROBA_BIT);
+  SB_DCHECK(bit == 0 || bit == 1);
   if (b->left_ > 0 || TBufferNewPage(b)) {
     const int slot = --b->left_;
     b->tokens_[slot] = (bit << 15) | proba_idx;
@@ -97,8 +98,8 @@ static WEBP_INLINE int AddToken(VP8TBuffer* const b,
 
 static WEBP_INLINE void AddConstantToken(VP8TBuffer* const b,
                                          int bit, int proba) {
-  assert(proba < 256);
-  assert(bit == 0 || bit == 1);
+  SB_DCHECK(proba < 256);
+  SB_DCHECK(bit == 0 || bit == 1);
   if (b->left_ > 0 || TBufferNewPage(b)) {
     const int slot = --b->left_;
     b->tokens_[slot] = (bit << 15) | FIXED_PROBA_BIT | proba;
@@ -235,7 +236,7 @@ int VP8EmitTokens(VP8TBuffer* const b, VP8BitWriter* const bw,
         VP8PutBit(bw, bit, probas[token & 0x3fffu]);
       }
     }
-    if (final_pass) free((void*)p);
+    if (final_pass) SbMemoryDeallocate((void*)p);
     p = next;
   }
   if (final_pass) b->pages_ = NULL;

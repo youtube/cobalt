@@ -156,7 +156,7 @@ SoftwareResourceProvider::GetCharacterFallbackTypeface(
   SkAutoTUnref<SkTypeface_Cobalt> typeface(
       base::polymorphic_downcast<SkTypeface_Cobalt*>(
           font_manager->matchFamilyStyleCharacter(
-              0, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
+              NULL, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
               character)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }

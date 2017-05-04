@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RENDERER_MODULE_H_
 #define COBALT_RENDERER_RENDERER_MODULE_H_
 
+#include "cobalt/base/camera_transform.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -35,6 +36,8 @@ class RendererModule {
         backend::GraphicsContext*, const Options& options)>
         CreateRasterizerCallback;
 
+    typedef base::Callback<base::CameraTransform()> GetCameraTransformCallback;
+
     // The rasterizer must be created, accessed, and destroyed within the same
     // thread, and so to facilitate that a rasterizer factory function must
     // be provided here instead of the rasterizer itself.
@@ -48,7 +51,7 @@ class RendererModule {
 
     // Represents the dimensions of the skia texture atlas which holds all of
     // the glyph textures used during rendering.
-    math::Size skia_texture_atlas_dimensions;
+    math::Size skia_glyph_texture_atlas_dimensions;
 
     // Determines the capacity of the skia cache.  The Skia cache is maintained
     // within Skia and is used to cache the results of complicated effects such
@@ -73,6 +76,10 @@ class RendererModule {
     // CPU time so long as there's no problem with the fact that the display
     // buffer will not be frequently swapped.
     bool submit_even_if_render_tree_is_unchanged;
+
+    // On modes with a 3D camera controllable by user input, fetch the affine
+    // transforms needed to render the scene from the camera's view.
+    GetCameraTransformCallback get_camera_transform;
 
    private:
     // Implemented per-platform, and allows each platform to customize

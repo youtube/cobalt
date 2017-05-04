@@ -83,6 +83,14 @@ typedef SB_INTPTR intptr_t;
 typedef SB_UINTPTR uintptr_t;
 #endif  // !SB_HAS(STDINT_H) && !SB_HAS(INTTYPES_H)
 
+#if !SB_HAS(SSIZE_T)
+#if SB_IS(32_BIT)
+typedef int32_t ssize_t;
+#elif SB_IS(64_BIT)
+typedef int64_t ssize_t;
+#endif
+#endif  // !SB_HAS(SSIZE_T)
+
 // Simulate stdbool.h for platforms that don't provide it.
 #if !SB_HAS(STDBOOL_H) && !defined(__cplusplus)
 #if __STDC_VERSION__ >= 199901L

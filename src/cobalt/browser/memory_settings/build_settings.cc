@@ -16,6 +16,8 @@
 
 #include "cobalt/browser/memory_settings/build_settings.h"
 
+#include "cobalt/browser/memory_settings/constants.h"
+
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
@@ -37,10 +39,10 @@ base::optional<int64_t> MakeValidIfGreaterThanOrEqualToZero(int64_t value) {
   return output;
 }
 
-base::optional<math::Size> MakeDimensionsIfPositive(int width, int height) {
-  base::optional<math::Size> output;
-  if ((width > 0) && (height > 0)) {
-    output = math::Size(width, height);
+base::optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
+  base::optional<TextureDimensions> output;
+  if ((td.width() > 0) && (td.height() > 0) && td.bytes_per_pixel() > 0) {
+    output = td;
   }
   return output;
 }
@@ -49,6 +51,7 @@ base::optional<math::Size> MakeDimensionsIfPositive(int width, int height) {
 BuildSettings GetDefaultBuildSettings() {
   BuildSettings settings;
   settings.has_blitter = HasBlitter();
+
   settings.cobalt_image_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_IMAGE_CACHE_SIZE_IN_BYTES);
   settings.javascript_garbage_collection_threshold_in_bytes =
@@ -56,8 +59,10 @@ BuildSettings GetDefaultBuildSettings() {
           COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES);
   settings.skia_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_SKIA_CACHE_SIZE_IN_BYTES);
-  settings.skia_texture_atlas_dimensions = MakeDimensionsIfPositive(
-      COBALT_SKIA_GLYPH_ATLAS_WIDTH, COBALT_SKIA_GLYPH_ATLAS_HEIGHT);
+  settings.skia_texture_atlas_dimensions =
+      MakeDimensionsIfValid(TextureDimensions(COBALT_SKIA_GLYPH_ATLAS_WIDTH,
+                                              COBALT_SKIA_GLYPH_ATLAS_HEIGHT,
+                                              kSkiaGlyphAtlasTextureBytesPerPixel));
   settings.software_surface_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);

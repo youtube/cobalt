@@ -21,6 +21,7 @@
 #endif
 
 #include "jstypes.h"
+#include "js-confdefs.h"
 
 #include "js/TemplateLib.h"
 

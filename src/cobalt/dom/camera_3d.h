@@ -17,8 +17,7 @@
 #ifndef COBALT_DOM_CAMERA_3D_H_
 #define COBALT_DOM_CAMERA_3D_H_
 
-#include "cobalt/dom/camera_3d_impl.h"
-#include "cobalt/input/input_poller.h"
+#include "cobalt/input/camera_3d.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -29,14 +28,14 @@ class Camera3D : public script::Wrappable {
  public:
   enum CameraAxes {
     // Restricted to [0deg, 360deg]
-    kDomCameraRoll = Camera3DImpl::kCameraRoll,
+    kDomCameraRoll = input::Camera3D::kCameraRoll,
     // Restricted to [-90deg, 90deg]
-    kDomCameraPitch = Camera3DImpl::kCameraPitch,
+    kDomCameraPitch = input::Camera3D::kCameraPitch,
     // Restricted to [0deg, 360deg]
-    kDomCameraYaw = Camera3DImpl::kCameraYaw,
+    kDomCameraYaw = input::Camera3D::kCameraYaw,
   };
 
-  explicit Camera3D(const scoped_refptr<input::InputPoller>& input_poller);
+  explicit Camera3D(const scoped_refptr<input::Camera3D>& impl);
 
   // Creates a mapping between the specified keyCode and the specified camera
   // axis, such that while the key is pressed, the cameraAxis will rotate at a
@@ -53,18 +52,18 @@ class Camera3D : public script::Wrappable {
   void Reset();
 
   // Custom, not in any spec.
-  scoped_refptr<Camera3DImpl> impl() { return impl_; }
+  scoped_refptr<input::Camera3D> impl() { return impl_; }
 
   DEFINE_WRAPPABLE_TYPE(Camera3D);
 
  private:
-  // We delegate all calls to an Impl version of Camera3D so that all camera
-  // state is stored within an object that is *not* a script::Wrappable.  This
-  // is important because Camera3DImpl will typically be attached to a render
+  // We delegate all calls to the implementation of Camera3D so that all camera
+  // state is stored within an object that is *not* a script::Wrappable. This
+  // is important because input::Camera3D will typically be attached to a render
   // tree, and render trees passed to the rasterizer have the potential to
-  // outlive the WebModule that created them, and the Camera3DImpl class is
-  // designed for just this.
-  scoped_refptr<Camera3DImpl> impl_;
+  // outlive the WebModule that created them, and input::Camera3D is designed
+  // for just this.
+  scoped_refptr<input::Camera3D> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(Camera3D);
 };

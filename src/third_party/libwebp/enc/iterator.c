@@ -15,6 +15,10 @@
 
 #include "./vp8enci.h"
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -27,17 +31,17 @@ static void InitLeft(VP8EncIterator* const it) {
   const VP8Encoder* const enc = it->enc_;
   enc->y_left_[-1] = enc->u_left_[-1] = enc->v_left_[-1] =
       (it->y_ > 0) ? 129 : 127;
-  memset(enc->y_left_, 129, 16);
-  memset(enc->u_left_, 129, 8);
-  memset(enc->v_left_, 129, 8);
+  SbMemorySet(enc->y_left_, 129, 16);
+  SbMemorySet(enc->u_left_, 129, 8);
+  SbMemorySet(enc->v_left_, 129, 8);
   it->left_nz_[8] = 0;
 }
 
 static void InitTop(VP8EncIterator* const it) {
   const VP8Encoder* const enc = it->enc_;
   const size_t top_size = enc->mb_w_ * 16;
-  memset(enc->y_top_, 127, 2 * top_size);
-  memset(enc->nz_, 0, enc->mb_w_ * sizeof(*enc->nz_));
+  SbMemorySet(enc->y_top_, 127, 2 * top_size);
+  SbMemorySet(enc->nz_, 0, enc->mb_w_ * sizeof(*enc->nz_));
 }
 
 void VP8IteratorReset(VP8EncIterator* const it) {
@@ -53,7 +57,7 @@ void VP8IteratorReset(VP8EncIterator* const it) {
   it->done_ = enc->mb_w_* enc->mb_h_;
   InitTop(it);
   InitLeft(it);
-  memset(it->bit_count_, 0, sizeof(it->bit_count_));
+  SbMemorySet(it->bit_count_, 0, sizeof(it->bit_count_));
   it->do_trellis_ = 0;
 }
 
@@ -90,15 +94,15 @@ static void ImportBlock(const uint8_t* src, int src_stride,
                         uint8_t* dst, int w, int h, int size) {
   int i;
   for (i = 0; i < h; ++i) {
-    memcpy(dst, src, w);
+    SbMemoryCopy(dst, src, w);
     if (w < size) {
-      memset(dst + w, dst[w - 1], size - w);
+      SbMemorySet(dst + w, dst[w - 1], size - w);
     }
     dst += BPS;
     src += src_stride;
   }
   for (i = h; i < size; ++i) {
-    memcpy(dst, dst - BPS, size);
+    SbMemoryCopy(dst, dst - BPS, size);
     dst += BPS;
   }
 }
@@ -136,7 +140,7 @@ void VP8IteratorImport(const VP8EncIterator* const it) {
 static void ExportBlock(const uint8_t* src, uint8_t* dst, int dst_stride,
                         int w, int h) {
   while (h-- > 0) {
-    memcpy(dst, src, w);
+    SbMemoryCopy(dst, src, w);
     dst += dst_stride;
     src += BPS;
   }
@@ -266,8 +270,8 @@ int VP8IteratorNext(VP8EncIterator* const it,
       enc->v_left_[-1] = enc->uv_top_[x * 16 + 8 + 7];
     }
     if (y < enc->mb_h_ - 1) {  // top
-      memcpy(enc->y_top_ + x * 16, ysrc + 15 * BPS, 16);
-      memcpy(enc->uv_top_ + x * 16, usrc + 7 * BPS, 8 + 8);
+      SbMemoryCopy(enc->y_top_ + x * 16, ysrc + 15 * BPS, 16);
+      SbMemoryCopy(enc->uv_top_ + x * 16, usrc + 7 * BPS, 8 + 8);
     }
   }
 
@@ -293,7 +297,7 @@ void VP8SetIntra16Mode(const VP8EncIterator* const it, int mode) {
   uint8_t* preds = it->preds_;
   int y;
   for (y = 0; y < 4; ++y) {
-    memset(preds, mode, 4);
+    SbMemorySet(preds, mode, 4);
     preds += it->enc_->preds_w_;
   }
   it->mb_->type_ = 1;
@@ -303,7 +307,7 @@ void VP8SetIntra4Mode(const VP8EncIterator* const it, const uint8_t* modes) {
   uint8_t* preds = it->preds_;
   int y;
   for (y = 4; y > 0; --y) {
-    memcpy(preds, modes, 4 * sizeof(*modes));
+    SbMemoryCopy(preds, modes, 4 * sizeof(*modes));
     preds += it->enc_->preds_w_;
     modes += 4;
   }

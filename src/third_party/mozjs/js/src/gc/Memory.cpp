@@ -11,6 +11,10 @@
 
 #include "js/HeapAPI.h"
 
+#if defined(STARBOARD)
+#include "starboard/types.h"
+#endif
+
 using namespace js;
 using namespace js::gc;
 

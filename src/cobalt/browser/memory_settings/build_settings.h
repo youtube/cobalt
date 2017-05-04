@@ -18,6 +18,7 @@
 #define COBALT_BROWSER_MEMORY_SETTINGS_BUILD_SETTINGS_H_
 
 #include "base/optional.h"
+#include "cobalt/browser/memory_settings/texture_dimensions.h"
 #include "cobalt/math/size.h"
 #include "starboard/types.h"
 
@@ -31,7 +32,7 @@ struct BuildSettings {
   base::optional<int64_t> cobalt_image_cache_size_in_bytes;
   base::optional<int64_t> javascript_garbage_collection_threshold_in_bytes;
   base::optional<int64_t> skia_cache_size_in_bytes;
-  base::optional<math::Size> skia_texture_atlas_dimensions;
+  base::optional<TextureDimensions> skia_texture_atlas_dimensions;
   base::optional<int64_t> software_surface_cache_size_in_bytes;
 };
 

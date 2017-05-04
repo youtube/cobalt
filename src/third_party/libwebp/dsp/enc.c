@@ -11,7 +11,13 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/memory.h"
+#else
 #include <stdlib.h>  // for abs()
+#endif
+
 #include "./dsp.h"
 #include "../enc/vp8enci.h"
 
@@ -229,7 +235,7 @@ static void FTransformWHT(const int16_t* in, int16_t* out) {
 static WEBP_INLINE void Fill(uint8_t* dst, int value, int size) {
   int j;
   for (j = 0; j < size; ++j) {
-    memset(dst + j * BPS, value, size);
+    SbMemorySet(dst + j * BPS, value, size);
   }
 }
 
@@ -237,7 +243,7 @@ static WEBP_INLINE void VerticalPred(uint8_t* dst,
                                      const uint8_t* top, int size) {
   int j;
   if (top) {
-    for (j = 0; j < size; ++j) memcpy(dst + j * BPS, top, size);
+    for (j = 0; j < size; ++j) SbMemoryCopy(dst + j * BPS, top, size);
   } else {
     Fill(dst, 127, size);
   }
@@ -248,7 +254,7 @@ static WEBP_INLINE void HorizontalPred(uint8_t* dst,
   if (left) {
     int j;
     for (j = 0; j < size; ++j) {
-      memset(dst + j * BPS, left[j], size);
+      SbMemorySet(dst + j * BPS, left[j], size);
     }
   } else {
     Fill(dst, 129, size);
@@ -354,7 +360,7 @@ static void VE4(uint8_t* dst, const uint8_t* top) {    // vertical
   };
   int i;
   for (i = 0; i < 4; ++i) {
-    memcpy(dst + i * BPS, vals, 4);
+    SbMemoryCopy(dst + i * BPS, vals, 4);
   }
 }
 
@@ -658,7 +664,7 @@ static int QuantizeBlock(int16_t in[16], int16_t out[16],
 static WEBP_INLINE void Copy(const uint8_t* src, uint8_t* dst, int size) {
   int y;
   for (y = 0; y < size; ++y) {
-    memcpy(dst, src, size);
+    SbMemoryCopy(dst, src, size);
     src += BPS;
     dst += BPS;
   }

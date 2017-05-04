@@ -223,6 +223,7 @@ class ResourceProviderStub : public ResourceProvider {
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
 #endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
+#if SB_HAS(GRAPHICS)
 #if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
@@ -231,6 +232,7 @@ class ResourceProviderStub : public ResourceProvider {
 #elif SB_API_VERSION >= 3
   SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
 #endif  // SB_API_VERSION >= 4
+#endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) OVERRIDE {

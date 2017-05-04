@@ -107,7 +107,7 @@ js::NativeObject::checkShapeConsistency()
 {
     static int throttle = -1;
     if (throttle < 0) {
-        if (const char* var = getenv("JS_CHECK_SHAPE_THROTTLE"))
+        if (const char* var = js_sb_getenv("JS_CHECK_SHAPE_THROTTLE"))
             throttle = atoi(var);
         if (throttle < 0)
             throttle = 0;
