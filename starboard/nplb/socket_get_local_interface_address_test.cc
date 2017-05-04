@@ -20,13 +20,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-class SbSocketGetLocalInterfaceAddressTest
-    : public ::testing::TestWithParam<SbSocketAddressType> {
- public:
-  SbSocketAddressType GetAddressType() { return GetParam(); }
-};
-
-TEST_F(SbSocketGetLocalInterfaceAddressTest, SunnyDay) {
+TEST(SbSocketGetLocalInterfaceAddressTest, SunnyDay) {
   SbSocketAddress address;
   // Initialize to something invalid.
   SbMemorySet(&address, 0xFE, sizeof(address));
@@ -40,24 +34,13 @@ TEST_F(SbSocketGetLocalInterfaceAddressTest, SunnyDay) {
   EXPECT_FALSE(IsLocalhost(&address));
 }
 
-TEST_F(SbSocketGetLocalInterfaceAddressTest, RainyDayNull) {
+TEST(SbSocketGetLocalInterfaceAddressTest, RainyDayNull) {
 #if SB_API_VERSION < 4
   EXPECT_FALSE(SbSocketGetLocalInterfaceAddress(NULL));
 #else
   EXPECT_FALSE(SbSocketGetInterfaceAddress(NULL, NULL, NULL));
 #endif  // SB_API_VERSION < 4
 }
-
-#if SB_HAS(IPV6)
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketGetLocalInterfaceAddressTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6));
-#else
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketGetLocalInterfaceAddressTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4));
-#endif
 
 }  // namespace
 }  // namespace nplb
