@@ -28,7 +28,9 @@
 namespace {
 
 typedef starboard::Queue<PRThread*> SetupSignalQueue;
-nb::ThreadLocalObject<PRThread> g_local_pr_thread;
+typedef nb::ThreadLocalObject<PRThread> ThreadLocalPRThread;
+SB_ONCE_INITIALIZE_FUNCTION(ThreadLocalPRThread,
+                            g_local_pr_thread);
 
 // Utility function to convert a PRInterval to signed 64 bit integer
 // microseconds.
@@ -61,8 +63,8 @@ void* ThreadEntryPointWrapper(void* context_as_void_pointer) {
 
   delete context;
 
-  SB_DCHECK(g_local_pr_thread.GetIfExists() == NULL);
-  PRThread* pr_thread = g_local_pr_thread.GetOrCreate(SbThreadGetCurrent());
+  SB_DCHECK(g_local_pr_thread()->GetIfExists() == NULL);
+  PRThread* pr_thread = g_local_pr_thread()->GetOrCreate(SbThreadGetCurrent());
   SB_DCHECK(pr_thread);
   setup_signal_queue->Put(pr_thread);
   pr_entry_point(pr_context);
@@ -119,7 +121,7 @@ PRStatus PR_WaitCondVar(PRCondVar* cvar, PRIntervalTime timeout) {
 }
 
 PRThread* PR_GetCurrentThread() {
-  return g_local_pr_thread.GetOrCreate(SbThreadGetCurrent());
+  return g_local_pr_thread()->GetOrCreate(SbThreadGetCurrent());
 }
 
 uint32_t PR_snprintf(char* out, uint32_t outlen, const char* fmt, ...) {
