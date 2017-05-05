@@ -22,6 +22,7 @@
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/string.h"
 
@@ -66,13 +67,14 @@ class SbSpeechRecognizerImpl : public SbSpeechRecognizerPrivate {
  private:
   SbSpeechRecognizerHandler handler_;
   jobject j_voice_recognizer_;
+  bool is_started_;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 };
 
 SbSpeechRecognizerImpl::SbSpeechRecognizerImpl(
     const SbSpeechRecognizerHandler* handler)
-    : handler_(*handler) {
+    : handler_(*handler), is_started_(false) {
   JniEnvExt* env = JniEnvExt::Get();
   jobject local_ref = env->CallActivityObjectMethodOrAbort(
       "getVoiceRecognizer", "()Lfoo/cobalt/coat/VoiceRecognizer;");
@@ -82,34 +84,45 @@ SbSpeechRecognizerImpl::SbSpeechRecognizerImpl(
 SbSpeechRecognizerImpl::~SbSpeechRecognizerImpl() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
+  Cancel();
+
   JniEnvExt* env = JniEnvExt::Get();
   env->DeleteGlobalRef(j_voice_recognizer_);
 }
 
 bool SbSpeechRecognizerImpl::Start(const SbSpeechConfiguration* configuration) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   SB_DCHECK(configuration);
+
+  if (is_started_) {
+    return false;
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(
       j_voice_recognizer_, "startRecognition", "(ZZIJ)V",
       configuration->continuous, configuration->interim_results,
       configuration->max_alternatives, reinterpret_cast<intptr_t>(this));
+
+  is_started_ = true;
   return true;
 }
 
 void SbSpeechRecognizerImpl::Stop() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
+  if (!is_started_) {
+    return;
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(j_voice_recognizer_, "stopRecognition", "()V");
+
+  is_started_ = false;
 }
 
 void SbSpeechRecognizerImpl::Cancel() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(j_voice_recognizer_, "stopRecognition", "()V");
+  Stop();
 }
 
 void SbSpeechRecognizerImpl::OnSpeechDetected(bool detected) {
@@ -185,12 +198,16 @@ void SbSpeechRecognizerImpl::OnResults(const std::vector<std::string>& results,
 }  // namespace starboard
 
 namespace {
+
+starboard::Mutex s_speech_recognizer_mutex_;
 SbSpeechRecognizer s_speech_recognizer = kSbSpeechRecognizerInvalid;
 }  // namespace
 
 // static
 SbSpeechRecognizer SbSpeechRecognizerPrivate::CreateSpeechRecognizer(
     const SbSpeechRecognizerHandler* handler) {
+  starboard::ScopedLock lock(s_speech_recognizer_mutex_);
+
   SB_DCHECK(!SbSpeechRecognizerIsValid(s_speech_recognizer));
   s_speech_recognizer =
       new starboard::android::shared::SbSpeechRecognizerImpl(handler);
@@ -200,6 +217,8 @@ SbSpeechRecognizer SbSpeechRecognizerPrivate::CreateSpeechRecognizer(
 // static
 void SbSpeechRecognizerPrivate::DestroySpeechRecognizer(
     SbSpeechRecognizer speech_recognizer) {
+  starboard::ScopedLock lock(s_speech_recognizer_mutex_);
+
   SB_DCHECK(s_speech_recognizer == speech_recognizer);
   SB_DCHECK(SbSpeechRecognizerIsValid(s_speech_recognizer));
   delete s_speech_recognizer;
@@ -212,9 +231,18 @@ Java_foo_cobalt_coat_VoiceRecognizer_nativeOnSpeechDetected(
     jobject jcaller,
     jlong nativeSpeechRecognizerImpl,
     jboolean detected) {
+  starboard::ScopedLock lock(s_speech_recognizer_mutex_);
+
   starboard::android::shared::SbSpeechRecognizerImpl* native =
       reinterpret_cast<starboard::android::shared::SbSpeechRecognizerImpl*>(
           nativeSpeechRecognizerImpl);
+  // This is called by the Android UI thread and it is possible that the
+  // SbSpeechRecognizer is destroyed before this is called.
+  if (native != s_speech_recognizer) {
+    SB_DLOG(WARNING) << "The speech recognizer is destroyed.";
+    return;
+  }
+
   native->OnSpeechDetected(detected);
 }
 
@@ -224,9 +252,18 @@ Java_foo_cobalt_coat_VoiceRecognizer_nativeOnError(
     jobject jcaller,
     jlong nativeSpeechRecognizerImpl,
     jint error) {
+  starboard::ScopedLock lock(s_speech_recognizer_mutex_);
+
   starboard::android::shared::SbSpeechRecognizerImpl* native =
       reinterpret_cast<starboard::android::shared::SbSpeechRecognizerImpl*>(
           nativeSpeechRecognizerImpl);
+  // This is called by the Android UI thread and it is possible that the
+  // SbSpeechRecognizer is destroyed before this is called.
+  if (native != s_speech_recognizer) {
+    SB_DLOG(WARNING) << "The speech recognizer is destroyed.";
+    return;
+  }
+
   native->OnError(error);
 }
 
@@ -238,9 +275,18 @@ Java_foo_cobalt_coat_VoiceRecognizer_nativeOnResults(
     jobjectArray results,
     jfloatArray confidences,
     jboolean is_final) {
+  starboard::ScopedLock lock(s_speech_recognizer_mutex_);
+
   starboard::android::shared::SbSpeechRecognizerImpl* native =
       reinterpret_cast<starboard::android::shared::SbSpeechRecognizerImpl*>(
           nativeSpeechRecognizerImpl);
+  // This is called by the Android UI thread and it is possible that the
+  // SbSpeechRecognizer is destroyed before this is called.
+  if (native != s_speech_recognizer) {
+    SB_DLOG(WARNING) << "The speech recognizer is destroyed.";
+    return;
+  }
+
   std::vector<std::string> options;
   jint argc = env->GetArrayLength(results);
   for (jint i = 0; i < argc; i++) {
