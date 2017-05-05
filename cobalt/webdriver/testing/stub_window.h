@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_TESTING_STUB_WINDOW_H_
-#define COBALT_DOM_TESTING_STUB_WINDOW_H_
+#ifndef COBALT_WEBDRIVER_TESTING_STUB_WINDOW_H_
+#define COBALT_WEBDRIVER_TESTING_STUB_WINDOW_H_
 
 #include <string>
 
@@ -28,16 +28,14 @@
 #include "cobalt/media/media_module_stub.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/network/network_module.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
-namespace dom {
+namespace webdriver {
 namespace testing {
 
-// A helper class for tests that brings up a dom::Window with a number of parts
-// stubbed out.
+// A helper class for WebDriver tests that brings up a dom::Window with a number
+// of parts stubbed out.
 class StubWindow {
  public:
   StubWindow()
@@ -72,7 +70,6 @@ class StubWindow {
   scoped_refptr<script::GlobalEnvironment> global_environment() {
     return global_environment_;
   }
-  css_parser::Parser* css_parser() { return css_parser_.get(); }
 
  private:
   static void StubErrorCallback(const std::string& /*error*/) {}
@@ -93,7 +90,7 @@ class StubWindow {
 };
 
 }  // namespace testing
-}  // namespace dom
+}  // namespace webdriver
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_TESTING_STUB_WINDOW_H_
+#endif  // COBALT_WEBDRIVER_TESTING_STUB_WINDOW_H_
