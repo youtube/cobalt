@@ -25,8 +25,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::lib::ExternalRasterizer(
         graphics_context,
-        options.skia_texture_atlas_dimensions.width(),
-        options.skia_texture_atlas_dimensions.height(),
+        options.skia_glyph_texture_atlas_dimensions.width(),
+        options.skia_glyph_texture_atlas_dimensions.height(),
         options.skia_cache_size_in_bytes,
         options.scratch_surface_cache_size_in_bytes,
         options.surface_cache_size_in_bytes));
