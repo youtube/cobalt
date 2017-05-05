@@ -331,6 +331,8 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(root);
     return scoped_refptr<Image>(NULL);
   }
+
+  void PurgeCaches() OVERRIDE {}
 };
 
 }  // namespace render_tree
