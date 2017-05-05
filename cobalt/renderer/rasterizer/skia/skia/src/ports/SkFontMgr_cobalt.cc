@@ -18,6 +18,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "SkData.h"
+#include "SkGraphics.h"
 #include "SkStream.h"
 #include "SkString.h"
 #include "SkTSearch.h"
@@ -57,6 +58,11 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
+}
+
+void SkFontMgr_Cobalt::PurgeCaches() {
+  SkGraphics::PurgeFontCache();
+  local_typeface_stream_manager_.PurgeUnusedMemoryChunks();
 }
 
 SkTypeface* SkFontMgr_Cobalt::MatchFaceName(const char face_name[]) {
