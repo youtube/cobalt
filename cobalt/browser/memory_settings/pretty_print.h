@@ -64,8 +64,8 @@ std::string GeneratePrettyPrintTable(
 //  |______|__________|__________|
 // When optional total_gpu_memory is null then the the value in the output
 // table will be <UNKNOWN>.
-std::string GenerateMemoryTable(int64_t total_cpu_memory,
-                                base::optional<int64_t> total_gpu_memory,
+std::string GenerateMemoryTable(const IntSetting& total_cpu_memory,
+                                const IntSetting& total_gpu_memory,
                                 int64_t settings_cpu_consumption,
                                 int64_t settings_gpu_consumption);
 
