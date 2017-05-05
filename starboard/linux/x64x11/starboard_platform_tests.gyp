@@ -19,6 +19,11 @@
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
         '<(DEPTH)/starboard/shared/starboard/media/mime_type_test.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal_test.cc',
+      ],
+      'defines': [
+        # This allows the tests to include internal only header files.
+        'STARBOARD_IMPLEMENTATION',
       ],
       'dependencies': [
         '<(DEPTH)/starboard/starboard.gyp:starboard',
