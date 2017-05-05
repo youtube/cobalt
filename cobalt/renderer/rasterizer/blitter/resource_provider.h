@@ -113,6 +113,8 @@ class ResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> DrawOffscreenImage(
       const scoped_refptr<render_tree::Node>& root) OVERRIDE;
 
+  void PurgeCaches() OVERRIDE;
+
  private:
   SbBlitterDevice device_;
 
