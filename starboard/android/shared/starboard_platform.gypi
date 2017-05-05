@@ -123,6 +123,7 @@
         'system_has_capability.cc',
         'system_platform_error.cc',
         'system_request_stop.cc',
+        'system_request_suspend.cc',
         'thread_get_name.cc',
         'thread_types_public.h',
         'time_zone_get_dst_name.cc',
@@ -410,7 +411,6 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_pause.cc',
-        '<(DEPTH)/starboard/shared/stub/system_request_suspend.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_unpause.cc',
       ],
       'defines': [
