@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/media/media_util.h"
 
+#include "starboard/log.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -46,6 +48,18 @@ SbMediaTransferId GetTransferIdFromString(const std::string& eotf) {
     return kSbMediaTransferIdAribStdB67;
   }
   return kSbMediaTransferIdUnknown;
+}
+
+int GetBytesPerSample(SbMediaAudioSampleType sample_type) {
+  switch (sample_type) {
+    case kSbMediaAudioSampleTypeInt16:
+      return 2;
+    case kSbMediaAudioSampleTypeFloat32:
+      return 4;
+  }
+
+  SB_NOTREACHED();
+  return 4;
 }
 
 }  // namespace media

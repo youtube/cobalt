@@ -33,6 +33,8 @@ bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);
 // Requirements (2018).
 SbMediaTransferId GetTransferIdFromString(const std::string& eotf);
 
+int GetBytesPerSample(SbMediaAudioSampleType sample_type);
+
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared

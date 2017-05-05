@@ -19,9 +19,9 @@
 
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -33,34 +33,58 @@ namespace filter {
 // This class decodes encoded audio stream into playable audio data.
 class AudioDecoder {
  public:
+  typedef ::starboard::shared::starboard::player::Closure Closure;
+  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
+  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+
   virtual ~AudioDecoder() {}
 
-  // Decode the encoded audio data stored in |input_buffer|.
-  virtual void Decode(const InputBuffer& input_buffer) = 0;
+  // Whenever the decoder produces a new output, it calls |output_cb| once and
+  // exactly once.  This notify the user to call Read() to acquire the next
+  // output.  The user is free to not call Read() immediately but it can expect
+  // that a further call of Read() returns valid output until Reset() is called.
+  // Note that |output_cb| is always called asynchronously on the calling job
+  // queue.
+  virtual void Initialize(const Closure& output_cb) = 0;
 
-  // Note that there won't be more input data unless Reset() is called.
+  // Decode the encoded audio data stored in |input_buffer|.  Whenever the input
+  // is consumed and the decoder is ready to accept a new input, it calls
+  // |consumed_cb|.
+  // Note that |consumed_cb| is always called asynchronously on the calling job
+  // queue.
+  virtual void Decode(const InputBuffer& input_buffer,
+                      const Closure& consumed_cb) = 0;
+
+  // Notice the object that there is no more input data unless Reset() is
+  // called.
   virtual void WriteEndOfStream() = 0;
 
-  // Try to read the next decoded audio buffer.  If there is no decoded audio
-  // available currently, it returns NULL.  If the audio stream reaches EOS and
-  // there is no more decoded audio available, it returns an EOS buffer.
+  // Try to read the next decoded audio buffer.  If the audio stream reaches EOS
+  // and there is no more decoded audio available, it returns an EOS buffer.  It
+  // should only be called when |output_cb| is called and will always return a
+  // valid buffer containing audio data or signals and EOS.
+  // Note that there may not be a one-to-one relationship between the decoded
+  // audio and the input data passed in via Decode().  The decoder may break or
+  // combine multiple decoded audio access units into one.  The implementation
+  // has to ensure that the particular resampler can handle such combined access
+  // units as input.
   virtual scoped_refptr<DecodedAudio> Read() = 0;
 
-  // Clear any cached buffer of the codec and reset the state of the codec.
-  // This function will be called during seek to ensure that the left over
-  // data from previous buffers are cleared.
+  // Clear any cached buffer of the codec and reset the state of the codec. This
+  // function will be called during seek to ensure that the left over data from
+  // from previous buffers are cleared.
   virtual void Reset() = 0;
 
   // Return the sample type of the decoded pcm data.
   virtual SbMediaAudioSampleType GetSampleType() const = 0;
 
+  // Return the storage type of the decoded pcm data.
+  virtual SbMediaAudioFrameStorageType GetStorageType() const = 0;
+
   // Return the sample rate of the incoming audio.  This should be used by the
   // audio renderer as the sample rate of the underlying audio stream can be
   // different than the sample rate stored in the meta data.
   virtual int GetSamplesPerSecond() const = 0;
-
-  // Return whether the decoder can accept more data or not.
-  virtual bool CanAcceptMoreData() const = 0;
 };
 
 }  // namespace filter
