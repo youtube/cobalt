@@ -12,18 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/nplb/speech_recognizer_helper.h"
 #include "starboard/speech_recognizer.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace nplb {
 
 #if SB_HAS(SPEECH_RECOGNIZER) && \
     SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
 
-#include "starboard/shared/starboard/speech_recognizer/speech_recognizer_internal.h"
-
-void SbSpeechRecognizerDestroy(SbSpeechRecognizer recognizer) {
-  if (SbSpeechRecognizerIsValid(recognizer)) {
-    SbSpeechRecognizerPrivate::DestroySpeechRecognizer(recognizer);
+TEST_F(SpeechRecognizerTest, StopIsCalledMultipleTimes) {
+  SbSpeechRecognizer recognizer = SbSpeechRecognizerCreate(handler());
+  EXPECT_TRUE(SbSpeechRecognizerIsValid(recognizer));
+  SbSpeechConfiguration configuration = {true, true, 1};
+  if (!SbSpeechRecognizerStart(recognizer, &configuration)) {
+    SB_LOG(WARNING) << "SbSpeechRecognizerStart failed. Test skipped.";
+    SbSpeechRecognizerDestroy(recognizer);
+    return;
   }
+
+  SbSpeechRecognizerStop(recognizer);
+  SbSpeechRecognizerStop(recognizer);
+  SbSpeechRecognizerStop(recognizer);
+  SbSpeechRecognizerDestroy(recognizer);
 }
 
 #endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >=
         // SB_SPEECH_RECOGNIZER_API_VERSION
+
+}  // namespace nplb
+}  // namespace starboard
