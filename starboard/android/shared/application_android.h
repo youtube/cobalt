@@ -55,7 +55,6 @@ class ApplicationAndroid
   // --- Application overrides ---
   void Initialize() SB_OVERRIDE;
   void Teardown() SB_OVERRIDE;
-  bool DispatchNextEvent() SB_OVERRIDE;
   bool IsStartImmediate() SB_OVERRIDE { return false; }
 
   // --- QueueApplication overrides ---
@@ -84,7 +83,6 @@ class ApplicationAndroid
 
   bool last_is_accessibility_high_contrast_text_enabled_;
 
-  bool exit_on_destroy_;
   int exit_error_level_;
 
   android_poll_source keyboard_inject_source_;

@@ -103,7 +103,6 @@ ApplicationAndroid::ApplicationAndroid(struct android_app* state)
       keyboard_inject_writefd_(-1),
       window_(kSbWindowInvalid),
       last_is_accessibility_high_contrast_text_enabled_(false),
-      exit_on_destroy_(false),
       exit_error_level_(0) {
   keyboard_inject_source_.app = state;
   keyboard_inject_source_.id = LOOPER_ID_INPUT;
@@ -159,15 +158,6 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
   delete window_;
   window_ = kSbWindowInvalid;
   return true;
-}
-
-bool ApplicationAndroid::DispatchNextEvent() {
-  // We already dispatched our own system events in OnAndroidCommand() and/or
-  // OnAndroidInput(), but we may have an injected event to dispatch.
-  DispatchAndDelete(GetNextEvent());
-
-  // Keep pumping events until Android is done with its lifecycle.
-  return !android_state_->destroyRequested;
 }
 
 Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
@@ -251,25 +241,17 @@ void ApplicationAndroid::OnAndroidCommand(int32_t cmd) {
       break;
     }
     case APP_CMD_DESTROY:
-      // Calling exit() on Android is not party-line thinking.
-      // However, if exit_on_destroy_ has been set, we're running
-      // some sort of automated test that's completed. Terminating
-      // the process is the only correct option.
-      //
-      // Note that we do not send kSbEventTypeStop if exit_on_destroy_
-      // is not set. "Destroy" here means "activity destroy" not
-      // "process destroy". Android can start a new activity in this
-      // process again, and Starboard cannot exit it's stop state.
-      if (exit_on_destroy_) {
-        DispatchAndDelete(new Event(kSbEventTypeStop, NULL, NULL));
-        // Note this log line may not flush before exit.
-        // Even __android_log_close() does not seem to guarentee it.
-        // Also __android_log_close() is not available on all platforms.
-        SB_LOG(ERROR) << "***Stopping Application*** " << exit_error_level_;
+      // Note this log line may not flush before exit.
+      // Even __android_log_close() does not seem to guarantee it.
+      // Also __android_log_close() is not available on all platforms.
+      // The actual exit code doesn't matter to Android, so just print it out.
+      SB_LOG(ERROR) << "***Stopping Application*** " << exit_error_level_;
 
-        // The actual exit code here doesn't matter.
-        exit(0);
-      }
+      // Inject the event to signal to the application to shutdown.  This
+      // event also signals to our Application super class that it should
+      // shutdown the event processing loop and return.
+      Inject(new Event(kSbEventTypeStop, NULL, NULL));
+
       break;
   }
 
@@ -312,7 +294,6 @@ ANativeActivity* ApplicationAndroid::GetActivity() {
 }
 
 void ApplicationAndroid::SetExitOnActivityDestroy(int error_level) {
-  exit_on_destroy_ = true;
   exit_error_level_ = error_level;
 }
 
