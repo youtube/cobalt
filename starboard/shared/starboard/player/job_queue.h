@@ -19,6 +19,7 @@
 
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
+#include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/queue.h"
 #include "starboard/shared/internal_only.h"
@@ -39,11 +40,30 @@ namespace player {
 // A thread can only have one job queue.
 class JobQueue {
  public:
+  class JobOwner {
+   protected:
+    explicit JobOwner(JobQueue* job_queue = JobQueue::current())
+        : job_queue_(job_queue) {
+      SB_DCHECK(job_queue);
+    }
+    ~JobOwner() { CancelPendingJobs(); }
+    bool BelongsToCurrentThread() const {
+      return job_queue_->BelongsToCurrentThread();
+    }
+    void Schedule(Closure closure, SbTimeMonotonic delay = 0) {
+      job_queue_->Schedule(closure, this, delay);
+    }
+    void CancelPendingJobs() { job_queue_->RemoveJobsByToken(this); }
+
+   private:
+    JobQueue* job_queue_;
+  };
+
   JobQueue();
   ~JobQueue();
 
-  void Schedule(Closure job, SbTimeMonotonic delay = 0);
-  void Remove(Closure job);
+  void Schedule(Closure closure, SbTimeMonotonic delay = 0);
+  void Remove(Closure closure);
 
   // The processing of jobs may not be stopped when this function returns, but
   // it is guaranteed that the processing will be stopped very soon.  So it is
@@ -57,8 +77,14 @@ class JobQueue {
   static JobQueue* current();
 
  private:
-  typedef std::multimap<SbTimeMonotonic, Closure> TimeToJobMap;
+  struct Job {
+    Closure closure;
+    JobOwner* owner;
+  };
+  typedef std::multimap<SbTimeMonotonic, Job> TimeToJobMap;
 
+  void Schedule(Closure closure, JobOwner* owner, SbTimeMonotonic delay);
+  void RemoveJobsByToken(JobOwner* owner);
   // Return true if a job is run, otherwise return false.  When there is no job
   // ready to run currently and |wait_for_next_job| is true, the function will
   // wait to until a job is available or if the |queue_| is woken up.  Note that
@@ -68,7 +94,7 @@ class JobQueue {
 
   SbThreadId thread_id_;
   Mutex mutex_;
-  Queue<Closure> queue_;
+  ConditionVariable condition_;
   TimeToJobMap time_to_job_map_;
   bool stopped_;
 };
