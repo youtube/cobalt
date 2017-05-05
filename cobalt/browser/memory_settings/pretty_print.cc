@@ -39,11 +39,14 @@ std::string StringifySourceType(const MemorySetting* setting) {
     case MemorySetting::kUnset: {
       return "Unset";
     }
-    case MemorySetting::kCmdLine: {
-      return "CmdLine";
+    case MemorySetting::kStarboardAPI: {
+      return "Starboard API";
     }
     case MemorySetting::kBuildSetting: {
       return "Build";
+    }
+    case MemorySetting::kCmdLine: {
+      return "CmdLine";
     }
     case MemorySetting::kAutoSet: {
       return "AutoSet";
@@ -96,7 +99,7 @@ std::string GeneratePrettyPrintTable(
   TablePrinter printer;
 
   std::vector<std::string> header;
-  header.push_back("NAME");
+  header.push_back("SETTING NAME");
   header.push_back("VALUE");
   header.push_back("");
   header.push_back("TYPE");
@@ -123,31 +126,33 @@ std::string GeneratePrettyPrintTable(
   return table_string;
 }
 
-std::string GenerateMemoryTable(int64_t total_cpu_memory,
-                                base::optional<int64_t> total_gpu_memory,
+std::string GenerateMemoryTable(const IntSetting& total_cpu_memory,
+                                const IntSetting& total_gpu_memory,
                                 int64_t settings_cpu_consumption,
                                 int64_t settings_gpu_consumption) {
   TablePrinter printer;
   std::vector<std::string> header;
-  header.push_back("TYPE");
+  header.push_back("MEMORY");
+  header.push_back("SOURCE");
   header.push_back("TOTAL");
-  header.push_back("SETTINGS");
+  header.push_back("SETTINGS CONSUME");
   printer.AddRow(header);
 
   std::vector<std::string> data_row;
-  data_row.push_back("CPU");
-  data_row.push_back(ToMegabyteString(total_cpu_memory));
+  data_row.push_back(total_cpu_memory.name());
+  data_row.push_back(StringifySourceType(&total_cpu_memory));
+  data_row.push_back(ToMegabyteString(total_cpu_memory.value()));
   data_row.push_back(ToMegabyteString(settings_cpu_consumption));
   printer.AddRow(data_row);
   data_row.clear();
 
-  data_row.push_back("GPU");
-
+  data_row.push_back(total_gpu_memory.name());
+  data_row.push_back(StringifySourceType(&total_gpu_memory));
   std::string total_gpu_consumption_str;
-  if (!total_gpu_memory) {
+  if (total_gpu_memory.value() <= 0) {
     total_gpu_consumption_str = "<UNKNOWN>";
   } else {
-    total_gpu_consumption_str = ToMegabyteString(*total_gpu_memory);
+    total_gpu_consumption_str = ToMegabyteString(total_gpu_memory.value());
   }
 
   data_row.push_back(total_gpu_consumption_str);

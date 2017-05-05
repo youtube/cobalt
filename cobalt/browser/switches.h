@@ -59,6 +59,9 @@ extern const char kDisableJavaScriptJit[];
 extern const char kJavaScriptGcThresholdInBytes[];
 extern const char kSkiaTextureAtlasDimensions[];
 
+extern const char kMaxCobaltCpuUsage[];
+extern const char kMaxCobaltGpuUsage[];
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt
