@@ -26,7 +26,6 @@ HTMLElementContext::HTMLElementContext()
       can_play_type_handler_(NULL),
       web_media_player_factory_(NULL),
       script_runner_(NULL),
-      script_value_factory_(NULL),
       media_source_registry_(NULL),
       resource_provider_(NULL),
       animated_image_tracker_(NULL),
