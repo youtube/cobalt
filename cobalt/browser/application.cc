@@ -52,7 +52,6 @@
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 #if defined(OS_STARBOARD)
-#include "nb/lexical_cast.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #endif  // defined(OS_STARBOARD)
@@ -267,26 +266,6 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
                           &options->scratch_surface_cache_size_in_bytes);
-}
-
-template <typename T>
-base::optional<T> ParseSetting(const CommandLine* command_line,
-                               const char* switch_name) {
-  base::optional<T> output;
-  if (!command_line->HasSwitch(switch_name)) {
-    return output;
-  }
-  std::string switch_value = command_line->GetSwitchValueNative(switch_name);
-
-  bool parse_ok = false;
-  T value = nb::lexical_cast<T>(switch_value.c_str(), &parse_ok);
-
-  if (parse_ok) {
-    output = static_cast<T>(value);
-  } else {
-    LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
-  }
-  return output;
 }
 
 // Restrict navigation to a couple of whitelisted URLs by default.
