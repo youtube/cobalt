@@ -167,6 +167,12 @@ const char kJavaScriptGcThresholdInBytes[] = "javascript_gc_threshold_in_bytes";
 
 const char kSkiaTextureAtlasDimensions[] = "skia_atlas_texture_dimensions";
 
+// Specifies the maximum CPU usage of the cobalt.
+const char kMaxCobaltCpuUsage[] = "max_cobalt_cpu_usage";
+
+// Specifies the maximum GPU usage of the cobalt.
+const char kMaxCobaltGpuUsage[] = "max_cobalt_gpu_usage";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

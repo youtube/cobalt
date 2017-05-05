@@ -27,23 +27,15 @@
 #include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/browser/memory_settings/constants.h"
+#include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/switches.h"
+#include "nb/lexical_cast.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
-
-int64_t GetTotalCpuMemory() { return SbSystemGetTotalCPUMemory(); }
-
-base::optional<int64_t> GetTotalGpuMemory() {
-  base::optional<int64_t> total_gpu_memory;
-  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
-    total_gpu_memory = SbSystemGetTotalGPUMemory();
-  }
-  return total_gpu_memory;
-}
 
 // Determines if the string value signals "autoset".
 bool StringValueSignalsAutoset(const std::string& value) {
@@ -92,6 +84,35 @@ scoped_ptr<MemorySettingType> CreateMemorySetting(
   return output.Pass();
 }
 
+scoped_ptr<IntSetting> CreateSystemMemorySetting(
+    const char* setting_name,
+    MemorySetting::MemoryType memory_type,
+    const CommandLine& command_line,
+    const base::optional<int64_t>& build_setting,
+    const base::optional<int64_t>& starboard_value) {
+  scoped_ptr<IntSetting> setting(new IntSetting(setting_name));
+  setting->set_memory_type(memory_type);
+  if (command_line.HasSwitch(setting_name)) {
+    const std::string value = command_line.GetSwitchValueNative(setting_name);
+    if (setting->TryParseValue(MemorySetting::kCmdLine, value)) {
+      return setting.Pass();
+    }
+  }
+
+  if (build_setting) {
+    setting->set_value(MemorySetting::kBuildSetting, *build_setting);
+    return setting.Pass();
+  }
+
+  if (starboard_value) {
+    setting->set_value(MemorySetting::kStarboardAPI, *starboard_value);
+    return setting.Pass();
+  }
+
+  setting->set_value(MemorySetting::kStarboardAPI, -1);
+  return setting.Pass();
+}
+
 void EnsureValuePositive(IntSetting* setting) {
   if (setting->value() < 0) {
     setting->set_value(setting->source_type(), 0);
@@ -130,11 +151,52 @@ int64_t SumMemoryConsumption(
   return sum;
 }
 
+
+// Creates the GPU setting.
+// This setting is unique because it may not be defined by command line, or
+// build. In this was, it can be unset.
+scoped_ptr<IntSetting> CreateGpuSetting(const CommandLine& command_line,
+                                        const BuildSettings& build_settings) {
+  // Bind to the starboard api, if applicable.
+  base::optional<int64_t> starboard_setting;
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    starboard_setting = SbSystemGetTotalGPUMemory();
+  }
+
+  scoped_ptr<IntSetting> gpu_setting =
+      CreateSystemMemorySetting(
+          switches::kMaxCobaltGpuUsage,
+          MemorySetting::kGPU,
+          command_line,
+          build_settings.max_gpu_in_bytes,
+          starboard_setting);
+
+  EnsureValuePositive(gpu_setting.get());
+  return gpu_setting.Pass();
+}
+
+scoped_ptr<IntSetting> CreateCpuSetting(const CommandLine& command_line,
+                                        const BuildSettings& build_settings) {
+  scoped_ptr<IntSetting> cpu_setting =
+      CreateSystemMemorySetting(
+          switches::kMaxCobaltGpuUsage,
+          MemorySetting::kCPU,
+          command_line,
+          build_settings.max_cpu_in_bytes,
+          SbSystemGetTotalCPUMemory());
+
+  EnsureValuePositive(cpu_setting.get());
+  return cpu_setting.Pass();
+}
+
 }  // namespace
 
 AutoMem::AutoMem(const math::Size& ui_resolution,
                  const CommandLine& command_line,
                  const BuildSettings& build_settings) {
+  max_cpu_bytes_ = CreateCpuSetting(command_line, build_settings);
+  max_gpu_bytes_ = CreateGpuSetting(command_line, build_settings);
+
   // Set the ImageCache
   image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kImageCacheSizeInBytes,
@@ -280,7 +342,7 @@ std::string AutoMem::ToPrettyPrintString() const {
   int64_t gpu_consumption =
       SumMemoryConsumption(MemorySetting::kGPU, all_settings);
 
-  ss << GenerateMemoryTable(GetTotalCpuMemory(), GetTotalGpuMemory(),
+  ss << GenerateMemoryTable(*max_cpu_bytes_, *max_gpu_bytes_,
                             cpu_consumption, gpu_consumption);
 
   std::string output_str = ss.str();

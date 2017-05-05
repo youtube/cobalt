@@ -331,6 +331,18 @@
     # from 8MB to 1MB.
     'mozjs_garbage_collection_threshold_in_bytes%': 8 * 1024 * 1024,
 
+    # Max Cobalt CPU usage specifies that the cobalt program should
+    # keep it's size below the specified size. A value of -1 causes this
+    # value to be assumed from the starboard API function:
+    # SbSystemGetTotalCPUMemory().
+    'max_cobalt_cpu_usage%': -1,
+
+    # Max Cobalt GPU usage specifies that the cobalt program should
+    # keep it's size below the specified size. A value of -1 causes this
+    # value to be assumed from the starboard API function:
+    # SbSystemGetTotalGPUMemory().
+    'max_cobalt_gpu_usage%': -1,
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker

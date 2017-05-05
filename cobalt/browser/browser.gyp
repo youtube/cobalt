@@ -89,6 +89,8 @@
         'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)',
         'COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES=<(software_surface_cache_size_in_bytes)',
         'COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
+        'COBALT_MAX_CPU_USAGE_IN_BYTES=<(max_cobalt_cpu_usage)',
+        'COBALT_MAX_GPU_USAGE_IN_BYTES=<(max_cobalt_gpu_usage)',
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',

@@ -50,6 +50,7 @@ class AutoMem {
   const IntSetting* skia_cache_size_in_bytes() const;
   const IntSetting* software_surface_cache_size_in_bytes() const;
 
+  // AllMemorySettings - does not include cpu & gpu max memory.
   std::vector<const MemorySetting*> AllMemorySettings() const;
   std::vector<MemorySetting*> AllMemorySettingsMutable();
 
@@ -66,6 +67,10 @@ class AutoMem {
   scoped_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
   scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
   scoped_ptr<IntSetting> software_surface_cache_size_in_bytes_;
+
+  // These settings are used for constraining the memory.
+  scoped_ptr<IntSetting> max_cpu_bytes_;
+  scoped_ptr<IntSetting> max_gpu_bytes_;
 };
 
 }  // namespace memory_settings

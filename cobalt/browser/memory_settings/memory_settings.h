@@ -39,7 +39,7 @@ class MemorySetting {
   // SourceType defines the location where the setting was set from.
   // kNotApplicable means the setting is not supported on the current system
   // configuration.
-  enum SourceType { kUnset, kCmdLine, kBuildSetting, kAutoSet };
+  enum SourceType { kUnset, kStarboardAPI, kBuildSetting, kCmdLine, kAutoSet };
   enum ClassType { kInt, kDimensions };
   enum MemoryType { kCPU, kGPU, kNotApplicable };
 
@@ -84,6 +84,11 @@ class IntSetting : public MemorySetting {
   virtual int64_t MemoryConsumption() const OVERRIDE;
 
   int64_t value() const { return valid() ? value_ : 0; }
+  base::optional<int64_t> optional_value() const {
+    base::optional<int64_t> output;
+    if (valid()) { output = value_; }
+    return output;
+  }
   void set_value(SourceType source_type, int64_t val) {
     source_type_ = source_type;
     value_ = val;
@@ -109,6 +114,12 @@ class DimensionSetting : public MemorySetting {
   TextureDimensions value() const {
     return valid() ? value_ : TextureDimensions();
   }
+  base::optional<TextureDimensions> optional_value() const {
+    base::optional<TextureDimensions> output;
+    if (valid()) { output = value_; }
+    return output;
+  }
+
   void set_value(SourceType source_type, const TextureDimensions& val) {
     source_type_ = source_type;
     value_ = val;
