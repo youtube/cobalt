@@ -191,31 +191,34 @@ void HTMLElement::set_tab_index(int32 tab_index) {
   SetAttribute("tabindex", base::Int32ToString(tab_index));
 }
 
-// Algorithm for Focus:
-//   https://www.w3.org/TR/html5/editing.html#dom-focus
 void HTMLElement::Focus() {
-  // 1. If the element is marked as locked for focus, then abort these steps.
-  if (locked_for_focus_) {
+  if (!IsFocusable()) {
     return;
   }
 
-  // 2. Mark the element as locked for focus.
-  locked_for_focus_ = true;
+  Document* document = node_document();
+  Element* old_active_element = document->active_element();
+  if (old_active_element == this->AsElement()) {
+    return;
+  }
 
-  // 3. Run the focusing steps for the element.
-  RunFocusingSteps();
+  document->SetActiveElement(this);
 
-  // 4. Unmark the element as locked for focus.
-  locked_for_focus_ = false;
+  if (old_active_element) {
+    old_active_element->DispatchEvent(
+        new FocusEvent(base::Tokens::blur(), this));
+  }
+
+  DispatchEvent(new FocusEvent(base::Tokens::focus(), old_active_element));
 }
 
-// Algorithm for Blur:
-//   https://www.w3.org/TR/html5/editing.html#dom-blur
 void HTMLElement::Blur() {
-  // The blur() method, when invoked, should run the unfocusing steps for the
-  // element on which the method was called instead. User agents may selectively
-  // or uniformly ignore calls to this method for usability reasons.
-  RunUnFocusingSteps();
+  Document* document = node_document();
+  if (document->active_element() == this->AsElement()) {
+    document->SetActiveElement(NULL);
+
+    DispatchEvent(new FocusEvent(base::Tokens::blur(), NULL));
+  }
 }
 
 // Algorithm for GetClientRects:
@@ -704,7 +707,6 @@ void HTMLElement::InvalidateLayoutBoxRenderTreeNodes() {
 HTMLElement::HTMLElement(Document* document, base::Token local_name)
     : Element(document, local_name),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
-      locked_for_focus_(false),
       directionality_(kNoExplicitDirectionality),
       style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
@@ -737,24 +739,6 @@ void HTMLElement::CopyDirectionality(const HTMLElement& other) {
 
 void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
-void HTMLElement::OnRemovedFromDocument() {
-  Node::OnRemovedFromDocument();
-
-  // When an element that is focused stops being a focusable element, or stops
-  // being focused without another element being explicitly focused in its
-  // stead, the user agent should synchronously run the unfocusing steps for the
-  // affected element only.
-  // For example, this might happen because the element is removed from its
-  // Document, or has a hidden attribute added. It would also happen to an input
-  // element when the element gets disabled.
-  //   https://www.w3.org/TR/html5/editing.html#unfocusing-steps
-  Document* document = node_document();
-  DCHECK(document);
-  if (document->active_element() == this->AsElement()) {
-    RunUnFocusingSteps();
-  }
-}
-
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
   if (name == "class" || name == "id") {
@@ -770,60 +754,6 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
   } else if (name == "dir") {
     SetDirectionality("");
   }
-}
-
-// Algorithm for IsFocusable:
-//   https://www.w3.org/TR/html5/editing.html#focusable
-bool HTMLElement::IsFocusable() const {
-  // TODO: Include "being focused" here.
-  return HasAttribute("tabindex");
-}
-
-// Algorithm for RunFocusingSteps:
-//   https://www.w3.org/TR/html5/editing.html#focusing-steps
-void HTMLElement::RunFocusingSteps() {
-  // 1. If the element is not in a Document, or if the element's Document has no
-  // browsing context, or if the element's Document's browsing context has no
-  // top-level browsing context, or if the element is not focusable, or if the
-  // element is already focused, then abort these steps.
-  Document* document = node_document();
-  if (!document || !document->HasBrowsingContext() || !IsFocusable()) {
-    return;
-  }
-  Element* old_active_element = document->active_element();
-  if (old_active_element == this) {
-    return;
-  }
-
-  // 2. If focusing the element will remove the focus from another element, then
-  // run the unfocusing steps for that element.
-  if (old_active_element && old_active_element->AsHTMLElement()) {
-    old_active_element->AsHTMLElement()->RunUnFocusingSteps();
-  }
-
-  // 3. Make the element the currently focused element in its top-level browsing
-  // context.
-  document->SetActiveElement(this);
-
-  // 4. Not needed by Cobalt.
-
-  // 5. Fire a simple event named focus at the element.
-  DispatchEvent(new FocusEvent(base::Tokens::focus(), this));
-}
-
-// Algorithm for RunUnFocusingSteps:
-//   https://www.w3.org/TR/html5/editing.html#unfocusing-steps
-void HTMLElement::RunUnFocusingSteps() {
-  // 1. Not needed by Cobalt.
-
-  // 2. Unfocus the element.
-  Document* document = node_document();
-  if (document && document->active_element() == this->AsElement()) {
-    document->SetActiveElement(NULL);
-  }
-
-  // 3. Fire a simple event named blur at the element.
-  DispatchEvent(new FocusEvent(base::Tokens::blur(), this));
 }
 
 void HTMLElement::SetDirectionality(const std::string& value) {
