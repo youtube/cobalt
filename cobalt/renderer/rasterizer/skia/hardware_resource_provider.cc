@@ -380,6 +380,13 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
       self_message_loop_));
 }
 
+void HardwareResourceProvider::PurgeCaches() {
+  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkFontMgr_Cobalt* cobalt_font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
+  cobalt_font_manager->PurgeCaches();
+}
+
 }  // namespace skia
 }  // namespace rasterizer
 }  // namespace renderer

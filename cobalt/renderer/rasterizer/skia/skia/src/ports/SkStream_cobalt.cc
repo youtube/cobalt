@@ -56,6 +56,15 @@ SkFileMemoryChunkStreamManager::GetStreamProvider(
   return stream_provider;
 }
 
+void SkFileMemoryChunkStreamManager::PurgeUnusedMemoryChunks() {
+  SkAutoMutexAcquire scoped_mutex(stream_provider_mutex_);
+  for (ScopedVector<SkFileMemoryChunkStreamProvider>::iterator iter =
+           stream_provider_array_.begin();
+       iter != stream_provider_array_.end(); ++iter) {
+    (*iter)->PurgeUnusedMemoryChunks();
+  }
+}
+
 bool SkFileMemoryChunkStreamManager::TryReserveMemoryChunk() {
   // First check to see if the count is already 0. If it is, then there's no
   // available memory chunk to try to reserve. Simply return failure.
