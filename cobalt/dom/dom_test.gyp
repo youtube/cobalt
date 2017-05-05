@@ -69,7 +69,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom_testing',
