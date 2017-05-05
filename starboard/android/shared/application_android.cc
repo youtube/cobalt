@@ -164,9 +164,11 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
   int ident;
   int looper_events;
   struct android_poll_source* source;
-  int timeMillis = time / 1000;
-
-  ident = ALooper_pollAll(timeMillis, NULL, &looper_events,
+  // Convert from microseconds to milliseconds, taking the ceiling value.
+  // If we take the floor, or round, then we end up busy looping every time
+  // the next event time is less than one millisecond.
+  int time_millis = (time + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
+  ident = ALooper_pollAll(time_millis, NULL, &looper_events,
                           reinterpret_cast<void**>(&source));
   if (ident >= 0 && source != NULL) {
     // This will end up calling OnAndroidCommand() or OnAndroidInput().
