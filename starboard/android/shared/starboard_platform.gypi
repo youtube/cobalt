@@ -383,6 +383,7 @@
         '<(DEPTH)/starboard/shared/starboard/player/video_frame_internal.h',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.h',
+        '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_create.cc',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_destroy.cc',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_internal.h',
