@@ -16,7 +16,6 @@
 
 #include <utility>
 
-#include "starboard/log.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
 
@@ -62,7 +61,8 @@ void ResetCurrentThreadJobQueue() {
 
 }  // namespace
 
-JobQueue::JobQueue() : thread_id_(SbThreadGetId()), stopped_(false) {
+JobQueue::JobQueue()
+    : thread_id_(SbThreadGetId()), condition_(mutex_), stopped_(false) {
   SB_DCHECK(SbThreadIsValidId(thread_id_));
   SetCurrentThreadJobQueue(this);
 }
@@ -73,39 +73,23 @@ JobQueue::~JobQueue() {
   ResetCurrentThreadJobQueue();
 }
 
-void JobQueue::Schedule(Closure job, SbTimeMonotonic delay /*= 0*/) {
-  SB_DCHECK(job.is_valid());
-  SB_DCHECK(delay >= 0) << delay;
-
-  ScopedLock scoped_lock(mutex_);
-  if (stopped_) {
-    return;
-  }
-  if (delay <= 0) {
-    queue_.Put(job);
-    return;
-  }
-  SbTimeMonotonic time_to_run_job = SbTimeGetMonotonicNow() + delay;
-  time_to_job_map_.insert(std::make_pair(time_to_run_job, job));
-  if (time_to_job_map_.begin()->second == job) {
-    queue_.Wake();
-  }
+void JobQueue::Schedule(Closure closure, SbTimeMonotonic delay /*= 0*/) {
+  Schedule(closure, NULL, delay);
 }
 
-void JobQueue::Remove(Closure job) {
+void JobQueue::Remove(Closure closure) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(job.is_valid());
+  SB_DCHECK(closure.is_valid());
 
   ScopedLock scoped_lock(mutex_);
-  queue_.Remove(job);
   // std::multimap::erase() doesn't return an iterator until C++11.  So this has
-  // to be done in a nested loop to delete multiple occurrences of |job|.
+  // to be done in a nested loop to delete multiple occurrences of |closure|.
   bool should_keep_running = true;
   while (should_keep_running) {
     should_keep_running = false;
     for (TimeToJobMap::iterator iter = time_to_job_map_.begin();
          iter != time_to_job_map_.end(); ++iter) {
-      if (iter->second == job) {
+      if (iter->second.closure == closure) {
         time_to_job_map_.erase(iter);
         should_keep_running = true;
         break;
@@ -118,17 +102,8 @@ void JobQueue::StopSoon() {
   {
     ScopedLock scoped_lock(mutex_);
     stopped_ = true;
+    time_to_job_map_.clear();
   }
-
-  queue_.Wake();
-
-  for (;;) {
-    Closure job = queue_.Poll();
-    if (!job.is_valid()) {
-      break;
-    }
-  }
-  time_to_job_map_.clear();
 }
 
 void JobQueue::RunUntilStopped() {
@@ -164,40 +139,87 @@ JobQueue* JobQueue::current() {
   return GetCurrentThreadJobQueue();
 }
 
+void JobQueue::Schedule(Closure closure,
+                        JobOwner* owner,
+                        SbTimeMonotonic delay) {
+  SB_DCHECK(closure.is_valid());
+  SB_DCHECK(delay >= 0) << delay;
+
+  Job job = {closure, owner};
+
+  ScopedLock scoped_lock(mutex_);
+  if (stopped_) {
+    return;
+  }
+  SbTimeMonotonic time_to_run_job = SbTimeGetMonotonicNow() + delay;
+  bool is_first_job = time_to_job_map_.empty() ||
+                      time_to_run_job < time_to_job_map_.begin()->first;
+
+  time_to_job_map_.insert(std::make_pair(time_to_run_job, job));
+  if (is_first_job) {
+    condition_.Signal();
+  }
+}
+
+void JobQueue::RemoveJobsByToken(JobOwner* owner) {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(owner);
+
+  ScopedLock scoped_lock(mutex_);
+  // std::multimap::erase() doesn't return an iterator until C++11.  So this has
+  // to be done in a nested loop to delete multiple occurrences of |closure|.
+  bool should_keep_running = true;
+  while (should_keep_running) {
+    should_keep_running = false;
+    for (TimeToJobMap::iterator iter = time_to_job_map_.begin();
+         iter != time_to_job_map_.end(); ++iter) {
+      if (iter->second.owner == owner) {
+        time_to_job_map_.erase(iter);
+        should_keep_running = true;
+        break;
+      }
+    }
+  }
+}
+
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   SB_DCHECK(BelongsToCurrentThread());
 
   Closure job;
-  // |kSbTimeMax| makes more sense here, but |kSbTimeDay| is much safer.
-  SbTimeMonotonic delay = kSbTimeDay;
 
   {
     ScopedLock scoped_lock(mutex_);
     if (stopped_) {
       return false;
     }
-    if (!time_to_job_map_.empty()) {
-      TimeToJobMap::iterator first_delayed_job = time_to_job_map_.begin();
-      delay = first_delayed_job->first - SbTimeGetMonotonicNow();
-      if (delay <= 0) {
-        job = first_delayed_job->second;
-        time_to_job_map_.erase(first_delayed_job);
+    if (time_to_job_map_.empty() && wait_for_next_job) {
+      // |kSbTimeMax| makes more sense here, but |kSbTimeDay| is much safer.
+      condition_.WaitTimed(kSbTimeDay);
+    }
+    if (time_to_job_map_.empty()) {
+      return false;
+    }
+    TimeToJobMap::iterator first_delayed_job = time_to_job_map_.begin();
+    SbTimeMonotonic delay = first_delayed_job->first - SbTimeGetMonotonicNow();
+    if (delay > 0) {
+      if (wait_for_next_job) {
+        condition_.WaitTimed(delay);
+      } else {
+        return false;
       }
     }
-  }
-
-  if (!job.is_valid()) {
-    if (wait_for_next_job) {
-      job = queue_.GetTimed(delay);
-    } else {
-      job = queue_.Poll();
+    // Try to retrieve the job again as the job map can be altered during the
+    // wait.
+    first_delayed_job = time_to_job_map_.begin();
+    delay = first_delayed_job->first - SbTimeGetMonotonicNow();
+    if (delay > 0) {
+      return false;
     }
+    job = first_delayed_job->second.closure;
+    time_to_job_map_.erase(first_delayed_job);
   }
 
-  if (!job.is_valid()) {
-    return false;
-  }
-
+  SB_DCHECK(job.is_valid());
   job.Run();
   return true;
 }
