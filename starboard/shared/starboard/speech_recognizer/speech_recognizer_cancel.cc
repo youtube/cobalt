@@ -21,8 +21,9 @@
 #include "starboard/shared/starboard/speech_recognizer/speech_recognizer_internal.h"
 
 void SbSpeechRecognizerCancel(SbSpeechRecognizer recognizer) {
-  SB_DCHECK(SbSpeechRecognizerIsValid(recognizer));
-  recognizer->Cancel();
+  if (SbSpeechRecognizerIsValid(recognizer)) {
+    recognizer->Cancel();
+  }
 }
 
 #endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >=
