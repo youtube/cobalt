@@ -74,6 +74,9 @@ class SkFileMemoryChunkStreamManager {
   SkFileMemoryChunkStreamProvider* GetStreamProvider(
       const std::string& file_path);
 
+  // Purges unused memory chunks from all existing stream providers.
+  void PurgeUnusedMemoryChunks();
+
  private:
   friend SkFileMemoryChunkStreamProvider;
 

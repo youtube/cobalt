@@ -59,6 +59,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
                    const char* system_font_files_directory,
                    const SkTArray<SkString, true>& default_fonts);
 
+  // Purges all font caching in Skia and the local stream manager.
+  void PurgeCaches();
+
   // NOTE: This returns NULL if a match is not found.
   SkTypeface* MatchFaceName(const char face_name[]);
 
