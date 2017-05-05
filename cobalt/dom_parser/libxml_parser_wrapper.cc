@@ -293,7 +293,7 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
   DCHECK(severity >= kWarning && severity <= kFatal);
 
   xmlErrorPtr error = xmlGetLastError();
-  if (error->code == XML_HTML_UNKNOWN_TAG) {
+  if (error && error->code == XML_HTML_UNKNOWN_TAG) {
     return;
   }
 
