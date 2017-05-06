@@ -245,7 +245,8 @@ void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
 
 using starboard::android::shared::cobalt::AndroidMediaSessionClient;
 
-extern "C" SB_EXPORT_PLATFORM void Java_foo_cobalt_media_nativeInvokeAction(
+extern "C" SB_EXPORT_PLATFORM
+void Java_foo_cobalt_media_CobaltMediaSession_nativeInvokeAction(
     JNIEnv* env,
     jlong action) {
   AndroidMediaSessionClient::NativeInvokeAction(action);
