@@ -44,6 +44,11 @@
     'cobalt_media_source_2016': 1,
     'cobalt_media_buffer_initial_capacity': 80 * 1024 * 1024,
 
+    # On Android, we almost never want to actually terminate the process, so
+    # instead indicate that we would instead like to be suspended when users
+    # initiate an "exit".
+    'cobalt_user_on_exit_strategy': 'suspend',
+
     # Switch Android's SurfaceFlinger queue to "async mode" so that we don't
     # queue up rendered frames which would interfere with frame timing and
     # more importantly lead to input latency.
