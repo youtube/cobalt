@@ -90,6 +90,17 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   }
 }
 
+void FontCache::PurgeCachedResources() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  font_face_map_->clear();
+  font_list_map_.clear();
+  inactive_font_set_.clear();
+  font_map_.clear();
+  character_fallback_typeface_maps_.clear();
+  requested_remote_typeface_cache_.clear();
+  local_typeface_map_.clear();
+}
+
 void FontCache::ProcessInactiveFontListsAndFonts() {
   DCHECK(thread_checker_.CalledOnValidThread());
   base::TimeTicks current_time = base::TimeTicks::Now();

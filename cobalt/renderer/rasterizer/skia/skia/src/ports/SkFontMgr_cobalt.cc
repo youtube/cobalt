@@ -63,6 +63,13 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 void SkFontMgr_Cobalt::PurgeCaches() {
   SkGraphics::PurgeFontCache();
   local_typeface_stream_manager_.PurgeUnusedMemoryChunks();
+
+  // Lock the family mutex prior to purging each family's unreferenced
+  // typefaces.
+  SkAutoMutexAcquire scoped_mutex(family_mutex_);
+  for (int i = 0; i < families_.count(); ++i) {
+    families_[i]->PurgeUnreferencedTypefaces();
+  }
 }
 
 SkTypeface* SkFontMgr_Cobalt::MatchFaceName(const char face_name[]) {

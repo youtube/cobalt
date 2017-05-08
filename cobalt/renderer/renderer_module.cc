@@ -24,7 +24,8 @@ namespace cobalt {
 namespace renderer {
 
 RendererModule::Options::Options()
-    : skia_glyph_texture_atlas_dimensions(2048, 2048) {
+    : skia_glyph_texture_atlas_dimensions(2048, 2048),
+      purge_skia_font_caches_on_destruction(true) {
   // Call into platform-specific code for setting up render module options.
   SetPerPlatformDefaultOptions();
 }

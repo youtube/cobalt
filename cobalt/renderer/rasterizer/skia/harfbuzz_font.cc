@@ -195,48 +195,40 @@ void UnrefSkTypeface(void* data) {
   SkSafeUnref(skia_face);
 }
 
-// Wrapper class for a HarfBuzz face created from a given Skia face.
-class HarfBuzzFace {
- public:
-  HarfBuzzFace() : face_(NULL) {}
-
-  ~HarfBuzzFace() {
-    if (face_) {
-      hb_face_destroy(face_);
-    }
-  }
-
-  void Init(SkTypeface* skia_face) {
-    face_ = hb_face_create_for_tables(GetFontTable, skia_face, UnrefSkTypeface);
-    DCHECK(face_);
-  }
-
-  hb_face_t* get() { return face_; }
-
- private:
-  hb_face_t* face_;
-};
-
 }  // namespace
 
-// Creates a HarfBuzz font from the given Skia font.
-hb_font_t* CreateHarfBuzzFont(Font* skia_font) {
-  static std::map<SkFontID, HarfBuzzFace> face_caches;
+HarfBuzzFontProvider::HarfBuzzFace::HarfBuzzFace() : face_(NULL) {}
 
+HarfBuzzFontProvider::HarfBuzzFace::~HarfBuzzFace() {
+  if (face_) {
+    hb_face_destroy(face_);
+  }
+}
+
+void HarfBuzzFontProvider::HarfBuzzFace::Init(SkTypeface* skia_face) {
+  face_ = hb_face_create_for_tables(GetFontTable, skia_face, UnrefSkTypeface);
+  DCHECK(face_);
+}
+
+hb_face_t* HarfBuzzFontProvider::HarfBuzzFace::get() { return face_; }
+
+hb_font_t* HarfBuzzFontProvider::GetHarfBuzzFont(Font* skia_font) {
   // Retrieve the typeface from the cache. In the case where it does not already
   // exist, it will be NULL and we must create it.
-  HarfBuzzFace& face_cache = face_caches[skia_font->GetTypefaceId()];
-  if (face_cache.get() == NULL) {
-    face_cache.Init(skia_font->GetSkTypeface());
+  HarfBuzzFace& face = face_cache_[skia_font->GetTypefaceId()];
+  if (face.get() == NULL) {
+    face.Init(skia_font->GetSkTypeface());
   }
 
-  hb_font_t* harfbuzz_font = hb_font_create(face_cache.get());
+  hb_font_t* harfbuzz_font = hb_font_create(face.get());
   const int scale = SkScalarToFixed(skia_font->size());
   hb_font_set_scale(harfbuzz_font, scale, scale);
   hb_font_set_funcs(harfbuzz_font, g_font_funcs.Get().get(), skia_font, NULL);
   hb_font_make_immutable(harfbuzz_font);
   return harfbuzz_font;
 }
+
+void HarfBuzzFontProvider::PurgeCaches() { face_cache_.clear(); }
 
 }  // namespace skia
 }  // namespace rasterizer

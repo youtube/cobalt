@@ -36,8 +36,7 @@
 // for specific characters during fallback.
 //
 // Both the character map of the style set and the typeface of each individual
-// entry are lazily loaded the first time that they are needed. After this, they
-// are retained in memory.
+// entry are lazily loaded the first time that they are needed.
 class SkFontStyleSet_Cobalt : public SkFontStyleSet {
  public:
   struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
@@ -117,6 +116,9 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   void CreateStreamProviderTypeface(
       SkFontStyleSetEntry_Cobalt* style,
       SkFileMemoryChunkStreamProvider* stream_provider = NULL);
+
+  // Purge typefaces that are only referenced internally.
+  void PurgeUnreferencedTypefaces();
 
   // NOTE: The following variables can safely be accessed outside of the mutex.
   SkFileMemoryChunkStreamManager* const local_typeface_stream_manager_;
