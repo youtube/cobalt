@@ -13,6 +13,12 @@
 # limitations under the License.
 
 {
+  'variables': {
+    # This should have a default value in cobalt/base.gypi. See the comment
+    # there for acceptable values for this variable.
+    'javascript_engine': 'mozjs',
+    'cobalt_enable_jit': 1,
+  },
   'target_defaults': {
     'default_configuration': 'linux-x64x11-gcc-4-4_debug',
     'configurations': {
