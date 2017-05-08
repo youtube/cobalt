@@ -35,6 +35,14 @@ class H5vccSystem : public script::Wrappable {
 
   bool TriggerHelp() const;
 
+  enum UserOnExitStrategy {
+    kUserOnExitStrategyClose,
+    kUserOnExitStrategyMinimize,
+    kUserOnExitStrategyNoExit,
+  };
+
+  uint32 user_on_exit_strategy() const;
+
   DEFINE_WRAPPABLE_TYPE(H5vccSystem);
 
  private:

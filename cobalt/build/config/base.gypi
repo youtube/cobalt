@@ -33,6 +33,17 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
+    # This variable defines what Cobalt's preferred strategy should be for
+    # handling internally triggered application exit requests (e.g. the user
+    # chooses to back out of the application).
+    #   'stop'    -- The application should call SbSystemRequestStop() on exit,
+    #                resulting in a complete shutdown of the application.
+    #   'suspend' -- The application should call SbSystemRequestSuspend() on
+    #                exit, resulting in the application being "minimized".
+    #   'noexit'  -- The application should never allow the user to trigger an
+    #                exit, this will be managed by the system.
+    'cobalt_user_on_exit_strategy': 'stop',
+
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency for different font package sizes.
     # The font package can be one of the following options:
