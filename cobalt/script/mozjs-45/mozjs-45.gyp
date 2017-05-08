@@ -80,8 +80,7 @@
 
     {
       # This target takes specified files and embeds them as header files for
-      # inclusion into the binary. The script currently requires all resources
-      # to be embedded to live in the same directory.
+      # inclusion into the binary.
       'target_name': 'embed_mozjs_resources_as_header_files',
       'type': 'none',
       # Because we generate a header, we must set the hard_dependency flag.
@@ -92,6 +91,9 @@
       },
       'sources': [
         '<(DEPTH)/third_party/promise-polyfill/promise.min.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/byte_length_queuing_strategy.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/count_queuing_strategy.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/readable_stream.js',
       ],
       'actions': [
         {
