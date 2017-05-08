@@ -149,6 +149,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
                               JS::MutableHandleValue out_result);
 
+  void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
+                              const char* filename);
+
   static void TraceFunction(JSTracer* trace, void* data);
 
   // Helper struct to ensure the context is destroyed in the correct order
