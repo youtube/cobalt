@@ -64,5 +64,21 @@ std::string H5vccSystem::version() const { return COBALT_VERSION; }
 // return false to indicate the client should launch their own dialog.
 bool H5vccSystem::TriggerHelp() const { return false; }
 
+uint32 H5vccSystem::user_on_exit_strategy() const {
+  // Convert from the Cobalt gyp setting variable's enum options to the H5VCC
+  // interface enum options.
+  std::string exit_strategy_str(COBALT_USER_ON_EXIT_STRATEGY);
+  if (exit_strategy_str == "stop") {
+    return static_cast<UserOnExitStrategy>(kUserOnExitStrategyClose);
+  } else if (exit_strategy_str == "suspend") {
+    return static_cast<UserOnExitStrategy>(kUserOnExitStrategyMinimize);
+  } else if (exit_strategy_str == "noexit") {
+    return static_cast<UserOnExitStrategy>(kUserOnExitStrategyNoExit);
+  } else {
+    NOTREACHED() << "Unknown gyp-defined exit strategy.";
+    return static_cast<UserOnExitStrategy>(kUserOnExitStrategyClose);
+  }
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt
