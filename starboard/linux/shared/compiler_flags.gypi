@@ -69,6 +69,11 @@
           '-Wno-unnamed-type-template-args',
           # Triggered by the COMPILE_ASSERT macro.
           '-Wno-unused-local-typedef',
+          # Do not warn if a function or variable cannot be implicitly
+          # instantiated.
+          '-Wno-undefined-var-template',
+          # Do not warn about an implicit exception spec mismatch.
+          '-Wno-implicit-exception-spec-mismatch',
         ],
       }],
       ['cobalt_fastbuild==0', {
@@ -126,6 +131,7 @@
           '-Wno-shift-negative-value',
           # Width of bit-field exceeds width of its type- value will be truncated
           '-Wno-bitfield-width',
+          '-Wno-undefined-var-template',
         ],
       }],
       ['use_asan==1', {
