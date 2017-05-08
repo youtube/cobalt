@@ -28,6 +28,8 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
                      TakeThenSignalEntryPoint, context);
 
   const SbTime kDelay = kSbTimeMillisecond * 10;
+  // Allow millisecond-level precision.
+  const SbTime kPrecision = kSbTimeMillisecond;
 
   // We know the thread hasn't signaled the condition variable yet, and won't
   // unless we tell it, so it should wait at least the whole delay time.
@@ -38,8 +40,8 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
         &context->condition, &context->mutex, kDelay);
     EXPECT_EQ(kSbConditionVariableTimedOut, result);
     SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - start;
-    EXPECT_LE(kDelay, elapsed);
-    EXPECT_GT(kDelay * 2, elapsed);
+    EXPECT_LE(kDelay, elapsed + kPrecision);
+    EXPECT_GT(kDelay * 2, elapsed - kPrecision);
     EXPECT_TRUE(SbMutexRelease(&context->mutex));
   }
 
