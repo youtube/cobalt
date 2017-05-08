@@ -210,17 +210,13 @@ class ResourceProvider {
                              render_tree::FontProvider* font_provider,
                              render_tree::FontVector* maybe_used_fonts) = 0;
 
-  // Cconsumes a list of vertices and returns
-  // a Mesh instance.
+  // Consumes a list of vertices and returns a Mesh instance.
   virtual scoped_refptr<Mesh> CreateMesh(
       scoped_ptr<std::vector<Mesh::Vertex> > vertices,
       Mesh::DrawMode draw_mode) = 0;
 
   virtual scoped_refptr<Image> DrawOffscreenImage(
       const scoped_refptr<render_tree::Node>& root) = 0;
-
-  // Purges any caches being used by the render_tree consumer.
-  virtual void PurgeCaches() = 0;
 };
 
 }  // namespace render_tree

@@ -24,12 +24,12 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
     const RendererModule::Options& options) {
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::lib::ExternalRasterizer(
-        graphics_context,
-        options.skia_glyph_texture_atlas_dimensions.width(),
-        options.skia_glyph_texture_atlas_dimensions.height(),
-        options.skia_cache_size_in_bytes,
-        options.scratch_surface_cache_size_in_bytes,
-        options.surface_cache_size_in_bytes));
+          graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
+          options.skia_glyph_texture_atlas_dimensions.height(),
+          options.skia_cache_size_in_bytes,
+          options.scratch_surface_cache_size_in_bytes,
+          options.surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 }
 }  // namespace
 

@@ -38,7 +38,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::SoftwareRasterizer(
-          graphics_context, options.surface_cache_size_in_bytes));
+          graphics_context, options.surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 #elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
@@ -46,7 +47,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
-          options.surface_cache_size_in_bytes));
+          options.surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
@@ -54,13 +56,15 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
-          options.surface_cache_size_in_bytes));
+          options.surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #elif SB_HAS(BLITTER)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::SoftwareRasterizer(
-          graphics_context, options.surface_cache_size_in_bytes));
+          graphics_context, options.surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
@@ -68,7 +72,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.scratch_surface_cache_size_in_bytes,
           options.surface_cache_size_in_bytes,
-          options.software_surface_cache_size_in_bytes));
+          options.software_surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #else
 #error "Either GLES2 or the Starboard Blitter API must be available."

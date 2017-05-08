@@ -779,9 +779,6 @@ void WebModule::Impl::FinishSuspend() {
   debug_overlay_->ClearInput();
 #endif
 
-  // Purge the resource provider's caches and mark that we have no resource
-  // provider.
-  resource_provider_->PurgeCaches();
   resource_provider_ = NULL;
 
   // Force garbage collection in |javascript_engine_|.
