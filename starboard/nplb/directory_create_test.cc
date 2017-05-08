@@ -55,15 +55,30 @@ TEST(SbDirectoryCreateTest, SunnyDayTrailingSeparators) {
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
 }
 
-TEST(SbDirectoryCreateTest, SunnyDayRoot) {
-  const char* kRootPath = SB_FILE_SEP_STRING;
-  EXPECT_TRUE(SbDirectoryCanOpen(kRootPath));
-  EXPECT_TRUE(SbDirectoryCreate(kRootPath));
-  EXPECT_TRUE(SbDirectoryCanOpen(kRootPath));
+TEST(SbDirectoryCreateTest, SunnyDayTempDirectory) {
+  const int kMaxFilePath = SB_FILE_MAX_PATH;
+  char temp_path[kMaxFilePath];
+  bool system_path_success =
+      SbSystemGetPath(kSbSystemPathTempDirectory, temp_path, kMaxFilePath);
+  ASSERT_TRUE(system_path_success);
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
+  EXPECT_TRUE(SbDirectoryCreate(temp_path));
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
+}
 
-  EXPECT_TRUE(SbDirectoryCanOpen(kManyFileSeparators));
-  EXPECT_TRUE(SbDirectoryCreate(kManyFileSeparators));
-  EXPECT_TRUE(SbDirectoryCanOpen(kManyFileSeparators));
+TEST(SbDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
+  const int kMaxFilePath = SB_FILE_MAX_PATH;
+  char temp_path[kMaxFilePath];
+  bool system_path_success =
+      SbSystemGetPath(kSbSystemPathTempDirectory, temp_path, kMaxFilePath);
+  ASSERT_TRUE(system_path_success);
+  const int new_size =
+      SbStringConcat(temp_path, kManyFileSeparators, kMaxFilePath);
+  ASSERT_LT(new_size, kMaxFilePath);
+
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
+  EXPECT_TRUE(SbDirectoryCreate(temp_path));
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
 }
 
 TEST(SbDirectoryCreateTest, FailureNullPath) {
