@@ -12,9 +12,9 @@ test(() => {
 
 test(() => {
 
-  for (const highWaterMark of [-Infinity, NaN, 'foo', {}, () => {}]) {
-    const strategy = new ByteLengthQueuingStrategy({ highWaterMark });
-    assert_equals(strategy.highWaterMark, highWaterMark, `${highWaterMark} gets set correctly`);
+  for (var highWaterMark of [-Infinity, NaN, 'foo', {}, () => {}]) {
+    const strategy = new ByteLengthQueuingStrategy({ highWaterMark: highWaterMark });
+    assert_equals(strategy.highWaterMark, highWaterMark, '${highWaterMark} gets set correctly');
   }
 
 }, 'Can construct a ByteLengthQueuingStrategy with any value as its high water mark');
