@@ -80,6 +80,11 @@
             'defines': [ 'ENABLE_WEBDRIVER', ],
           },
         }],
+        ['enable_webdriver==0', {
+          'sources': [
+          'stub_web_driver_module.cc'
+          ]
+        }],
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',

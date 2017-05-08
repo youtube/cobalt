@@ -16,6 +16,7 @@
 
 #include "cobalt/browser/memory_settings/build_settings.h"
 
+#include "base/optional.h"
 #include "cobalt/browser/memory_settings/constants.h"
 
 namespace cobalt {
@@ -46,6 +47,7 @@ base::optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
   }
   return output;
 }
+
 }  // namespace
 
 BuildSettings GetDefaultBuildSettings() {
@@ -57,15 +59,24 @@ BuildSettings GetDefaultBuildSettings() {
   settings.javascript_garbage_collection_threshold_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES);
+  settings.remote_typeface_cache_capacity_in_bytes =
+      MakeValidIfGreaterThanOrEqualToZero(
+          COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES);
   settings.skia_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_SKIA_CACHE_SIZE_IN_BYTES);
   settings.skia_texture_atlas_dimensions =
-      MakeDimensionsIfValid(TextureDimensions(COBALT_SKIA_GLYPH_ATLAS_WIDTH,
-                                              COBALT_SKIA_GLYPH_ATLAS_HEIGHT,
-                                              kSkiaGlyphAtlasTextureBytesPerPixel));
+      MakeDimensionsIfValid(
+          TextureDimensions(COBALT_SKIA_GLYPH_ATLAS_WIDTH,
+                            COBALT_SKIA_GLYPH_ATLAS_HEIGHT,
+                            kSkiaGlyphAtlasTextureBytesPerPixel));
   settings.software_surface_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);
+
+  settings.max_cpu_in_bytes =
+      MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_CPU_USAGE_IN_BYTES);
+  settings.max_gpu_in_bytes =
+      MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_GPU_USAGE_IN_BYTES);
   return settings;
 }
 

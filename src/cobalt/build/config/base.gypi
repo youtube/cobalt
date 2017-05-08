@@ -33,9 +33,15 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
-    # Enables embedding Cobalt as a shared library within another app. This
-    # requires a 'lib' starboard implementation for the corresponding platform.
-    'cobalt_enable_lib%': 0,
+    # 'sb_enable_lib' is initially defined inside this inner 'variables' dict so
+    # that it can be accessed by 'cobalt_enable_lib' below here.
+    'variables': {
+      # Enables embedding Cobalt as a shared library within another app. This
+      # requires a 'lib' starboard implementation for the corresponding platform.
+      'sb_enable_lib%': 0,
+    },
+    'sb_enable_lib%': '<(sb_enable_lib)',
+    'cobalt_enable_lib': '<(sb_enable_lib)',
 
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency for different font package sizes.
@@ -324,6 +330,18 @@
     # becomes 7% worse on average in certain cases when adjusting this number
     # from 8MB to 1MB.
     'mozjs_garbage_collection_threshold_in_bytes%': 8 * 1024 * 1024,
+
+    # Max Cobalt CPU usage specifies that the cobalt program should
+    # keep it's size below the specified size. A value of -1 causes this
+    # value to be assumed from the starboard API function:
+    # SbSystemGetTotalCPUMemory().
+    'max_cobalt_cpu_usage%': -1,
+
+    # Max Cobalt GPU usage specifies that the cobalt program should
+    # keep it's size below the specified size. A value of -1 causes this
+    # value to be assumed from the starboard API function:
+    # SbSystemGetTotalGPUMemory().
+    'max_cobalt_gpu_usage%': -1,
 
     # Compiler configuration.
 

@@ -33,7 +33,7 @@ class HTMLElementContext;
 // The DOMImplementation interface represent an object providing methods which
 // are not dependent on any particular document. Such an object is returned by
 // the Document.implementation property.
-//   https://www.w3.org/TR/2015/WD-dom-20150618/#interface-domimplementation
+//   https://www.w3.org/TR/dom/#domimplementation
 class DOMImplementation : public script::Wrappable {
  public:
   explicit DOMImplementation(script::EnvironmentSettings* settings);

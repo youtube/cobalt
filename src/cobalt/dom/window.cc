@@ -420,6 +420,20 @@ void Window::SetSynchronousLayoutCallback(
   document_->set_synchronous_layout_callback(synchronous_layout_callback);
 }
 
+void Window::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(performance_);
+  tracer->Trace(document_);
+  tracer->Trace(history_);
+  tracer->Trace(navigator_);
+  tracer->Trace(console_);
+  tracer->Trace(camera_3d_);
+  tracer->Trace(crypto_);
+  tracer->Trace(speech_synthesis_);
+  tracer->Trace(local_storage_);
+  tracer->Trace(session_storage_);
+  tracer->Trace(screen_);
+}
+
 Window::~Window() {}
 
 void Window::FireHashChangeEvent() {

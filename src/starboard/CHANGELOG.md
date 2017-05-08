@@ -16,6 +16,7 @@ In `starboard/configuration.h`,
     `SB_IS_PLAYER_COMPOSITED` now no longer need to be defined (and should not
     be defined) by platforms.  Instead, these capabilities are detected at
     runtime via `SbPlayerOutputModeSupported()`.
+
 In `starboard/player.h`,
   * The enum `SbPlayerOutputMode` is introduced.
   * `SbPlayerOutputModeSupported()` is introduced to let applications query
@@ -28,6 +29,7 @@ In `starboard/player.h`,
   * The function `SbPlayerGetCompositionHandle()` is removed.
   * The function `SbPlayerGetTextureId()` is replaced by the new
     `SbPlayerGetCurrentFrame()`, which returns a `SbDecodeTarget`.
+
 In `starboard/decode_target.h`,
   * All get methods (`SbDecodeTargetGetPlane()` and `SbDecodeTargetGetFormat()`,
     `SbDecodeTargetIsOpaque()`) are now replaced with `SbDecodeTargetGetInfo()`.
@@ -40,6 +42,7 @@ In `starboard/decode_target.h`,
     (`EGLDisplay`, `EGLContext`) replaced by `void*` types, so that
     `decode_target.h` can avoid #including EGL/GLES2 headers.
   * `SbDecodeTargetDestroy()` is renamed to `SbDecodeTargetRelease()`.
+
 In `starboard/player.h`, `starboard/image.h` and `starboard/decode_target.h`,
   * Replace `SbDecodeTargetProvider` with
     `SbDecodeTargetGraphicsContextProvider`.

@@ -16,6 +16,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/xml_document.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,15 +24,27 @@
 namespace cobalt {
 namespace dom {
 
-TEST(DOMImplementationTest, CreateDocumentShouldCreateXMLDocument) {
-  HTMLElementContext html_element_context(NULL, NULL, NULL, NULL, NULL, NULL,
-                                          NULL, NULL, NULL, NULL, NULL, NULL,
-                                          NULL, NULL, NULL, "");
+TEST(DOMImplementationTest, CreateDocumentWithEmptyName) {
+  HTMLElementContext html_element_context;
   scoped_refptr<DOMImplementation> dom_implementation =
       new DOMImplementation(&html_element_context);
   scoped_refptr<Document> document =
       dom_implementation->CreateDocument(base::optional<std::string>(""), "");
+  ASSERT_TRUE(document);
   EXPECT_TRUE(document->IsXMLDocument());
+  EXPECT_FALSE(document->first_element_child());
+}
+
+TEST(DOMImplementationTest, CreateDocumentWithName) {
+  HTMLElementContext html_element_context;
+  scoped_refptr<DOMImplementation> dom_implementation =
+      new DOMImplementation(&html_element_context);
+  scoped_refptr<Document> document = dom_implementation->CreateDocument(
+      base::optional<std::string>(""), "ROOT");
+  ASSERT_TRUE(document);
+  EXPECT_TRUE(document->IsXMLDocument());
+  ASSERT_TRUE(document->first_element_child());
+  EXPECT_EQ("ROOT", document->first_element_child()->tag_name());
 }
 
 }  // namespace dom

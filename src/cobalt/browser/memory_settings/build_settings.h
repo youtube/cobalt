@@ -27,13 +27,17 @@ namespace browser {
 namespace memory_settings {
 
 struct BuildSettings {
-  BuildSettings() : has_blitter(false) {}
+  BuildSettings() : has_blitter(false), max_cpu_in_bytes(0) {}
   bool has_blitter;
   base::optional<int64_t> cobalt_image_cache_size_in_bytes;
   base::optional<int64_t> javascript_garbage_collection_threshold_in_bytes;
+  base::optional<int64_t> remote_typeface_cache_capacity_in_bytes;
   base::optional<int64_t> skia_cache_size_in_bytes;
   base::optional<TextureDimensions> skia_texture_atlas_dimensions;
   base::optional<int64_t> software_surface_cache_size_in_bytes;
+
+  base::optional<int64_t> max_cpu_in_bytes;
+  base::optional<int64_t> max_gpu_in_bytes;
 };
 
 BuildSettings GetDefaultBuildSettings();

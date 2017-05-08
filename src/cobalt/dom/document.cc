@@ -43,6 +43,7 @@
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/initial_computed_style.h"
 #include "cobalt/dom/keyframes_map_updater.h"
 #include "cobalt/dom/location.h"
@@ -52,7 +53,6 @@
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
-
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -197,7 +197,7 @@ scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
 scoped_refptr<Element> Document::CreateElementNS(
     const std::string& namespace_uri, const std::string& local_name) {
   // TODO: Implement namespaces, if we actually need this.
-  NOTIMPLEMENTED() << namespace_uri;
+  UNREFERENCED_PARAMETER(namespace_uri);
   return CreateElement(local_name);
 }
 
@@ -698,6 +698,25 @@ void Document::DisableJit() {
       ->script_runner()
       ->GetGlobalEnvironment()
       ->DisableJit();
+}
+
+void Document::TraceMembers(script::Tracer* tracer) {
+  Node::TraceMembers(tracer);
+
+  tracer->Trace(implementation_);
+  tracer->Trace(style_sheets_);
+  for (std::deque<HTMLScriptElement*>::iterator it =
+           scripts_to_be_executed_.begin();
+       it != scripts_to_be_executed_.end(); ++it) {
+    tracer->Trace(static_cast<Wrappable*>(*it));
+  }
+  for (cssom::CSSKeyframesRule::NameMap::iterator it = keyframes_map_.begin();
+       it != keyframes_map_.end(); ++it) {
+    tracer->Trace(it->second);
+  }
+  tracer->Trace(location_);
+  tracer->Trace(user_agent_style_sheet_);
+  tracer->Trace(initial_computed_style_declaration_);
 }
 
 void Document::DispatchOnLoadEvent() {

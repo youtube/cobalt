@@ -802,7 +802,13 @@ JSVAL_EXTRACT_NON_DOUBLE_TYPE_IMPL(jsval_layout l)
 
 #endif  /* JS_BITS_PER_WORD */
 
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+// Note that the Value class's data member is private
+// if !defined(_MSC_VER) && !defined(__sparc) and is public otherwise.
+#define JSVAL_TO_IMPL(v) v.data
+#else
 static inline jsval_layout JSVAL_TO_IMPL(JS::Value v);
+#endif
 static inline JS::Value IMPL_TO_JSVAL(jsval_layout l);
 
 namespace JS {
@@ -1187,8 +1193,11 @@ class Value
         JS_STATIC_ASSERT(sizeof(JSWhyMagic) <= 4);
         JS_STATIC_ASSERT(sizeof(Value) == 8);
     }
-
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+    // Do not declare JSVAL_TO_IMPL a friend. It is a macro.
+#else
     friend jsval_layout (::JSVAL_TO_IMPL)(Value);
+#endif
     friend Value (::IMPL_TO_JSVAL)(jsval_layout l);
 };
 
@@ -1620,11 +1629,15 @@ class RootedBase<JS::Value> : public MutableValueOperations<JS::Rooted<JS::Value
 
 } // namespace js
 
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+// Do not define JSVAL_TO_IMPL as a function. It is a macro.
+#else
 inline jsval_layout
 JSVAL_TO_IMPL(JS::Value v)
 {
     return v.data;
 }
+#endif
 
 inline JS::Value
 IMPL_TO_JSVAL(jsval_layout l)

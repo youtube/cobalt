@@ -779,7 +779,9 @@ void WebModule::Impl::FinishSuspend() {
   debug_overlay_->ClearInput();
 #endif
 
-  // Finally mark that we have no resource provider.
+  // Finally purge the resource provider's caches and mark that we have no
+  // resource provider.
+  resource_provider_->PurgeCaches();
   resource_provider_ = NULL;
 }
 
@@ -840,8 +842,7 @@ WebModule::Options::Options()
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
       image_cache_capacity(32 * 1024 * 1024),
-      remote_typeface_cache_capacity(
-          COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES),
+      remote_typeface_cache_capacity(4 * 1024 * 1024),
       mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
       csp_enforcement_mode(dom::kCspEnforcementEnable),
       csp_insecure_allowed_token(0),

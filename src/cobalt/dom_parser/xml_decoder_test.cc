@@ -48,9 +48,7 @@ class XMLDecoderTest : public ::testing::Test {
 };
 
 XMLDecoderTest::XMLDecoderTest()
-    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, ""),
-      document_(new dom::XMLDocument(&html_element_context_)),
+    : document_(new dom::XMLDocument(&html_element_context_)),
       source_location_(base::SourceLocation("[object XMLDecoderTest]", 1, 1)) {}
 
 TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {

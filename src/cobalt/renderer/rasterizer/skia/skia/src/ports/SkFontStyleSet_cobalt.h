@@ -25,20 +25,27 @@
 #include "SkTArray.h"
 #include "SkTypeface.h"
 
-// This class is used by SkFontMgr_Cobalt to store families of
-// SkTypeface_Cobalt objects.
+// This class, which is thread-safe, is Cobalt's implementation of
+// SkFontStyleSet. It represents a collection of local typefaces that support
+// the same set of characters but with different styles. When a specific style
+// is requested, SkFontStyleSet returns the typeface that best matches that
+// style.
 //
-// Both the full character map of the style set and the typeface of each
-// individual entry are lazily loaded the first time that they are needed. After
-// this, they are retained in memory.
+// SkFontStyleSet contains a map of the characters that it supports. It uses
+// this map to quickly check for whether or not its typefaces can provide glyphs
+// for specific characters during fallback.
+//
+// Both the character map of the style set and the typeface of each individual
+// entry are lazily loaded the first time that they are needed. After this, they
+// are retained in memory.
 class SkFontStyleSet_Cobalt : public SkFontStyleSet {
  public:
   struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
-    // NOTE: |SkFontStyleSetEntry_Cobalt| objects are not guaranteed to last for
-    // the lifetime of |SkFontMgr_Cobalt| and can be removed by their owning
-    // |SkFontStyleSet_Cobalt| if their typeface fails to load properly. As a
+    // NOTE: SkFontStyleSetEntry_Cobalt objects are not guaranteed to last for
+    // the lifetime of SkFontMgr_Cobalt and can be removed by their owning
+    // SkFontStyleSet_Cobalt if their typeface fails to load properly. As a
     // result, it is not safe to store their pointers outside of
-    // |SkFontStyleSet_Cobalt|.
+    // SkFontStyleSet_Cobalt.
     SkFontStyleSetEntry_Cobalt(const SkString& file_path, const int face_index,
                                const SkFontStyle& style,
                                const std::string& full_name,
@@ -72,17 +79,17 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   };
 
   SkFontStyleSet_Cobalt(
-      const FontFamily& family, const char* base_path,
+      const FontFamilyInfo& family_info, const char* base_path,
       SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
       SkMutex* const manager_owned_mutex);
 
   // From SkFontStyleSet
   virtual int count() SK_OVERRIDE;
-  // NOTE: SkFontStyleSet_Cobalt does not support |getStyle|, as publicly
+  // NOTE: SkFontStyleSet_Cobalt does not support getStyle(), as publicly
   // accessing styles by index is unsafe.
   virtual void getStyle(int index, SkFontStyle* style,
                         SkString* name) SK_OVERRIDE;
-  // NOTE: SkFontStyleSet_Cobalt does not support |createTypeface|, as
+  // NOTE: SkFontStyleSet_Cobalt does not support createTypeface(), as
   // publicly accessing styles by index is unsafe.
   virtual SkTypeface* createTypeface(int index) SK_OVERRIDE;
 

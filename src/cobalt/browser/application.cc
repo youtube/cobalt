@@ -52,7 +52,6 @@
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
 #if defined(OS_STARBOARD)
-#include "nb/lexical_cast.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #endif  // defined(OS_STARBOARD)
@@ -269,31 +268,6 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->scratch_surface_cache_size_in_bytes);
 }
 
-void ApplyCommandLineSettingsToWebModuleOptions(WebModule::Options* options) {
-  SetIntegerIfSwitchIsSet(browser::switches::kRemoteTypefaceCacheSizeInBytes,
-                          &options->remote_typeface_cache_capacity);
-}
-
-template <typename T>
-base::optional<T> ParseSetting(const CommandLine* command_line,
-                               const char* switch_name) {
-  base::optional<T> output;
-  if (!command_line->HasSwitch(switch_name)) {
-    return output;
-  }
-  std::string switch_value = command_line->GetSwitchValueNative(switch_name);
-
-  bool parse_ok = false;
-  T value = nb::lexical_cast<T>(switch_value.c_str(), &parse_ok);
-
-  if (parse_ok) {
-    output = static_cast<T>(value);
-  } else {
-    LOG(ERROR) << "Invalid value for command line setting: " << switch_name;
-  }
-  return output;
-}
-
 // Restrict navigation to a couple of whitelisted URLs by default.
 const char kYouTubeTvLocationPolicy[] =
     "h5vcc-location-src "
@@ -373,6 +347,10 @@ void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
       math::Size(skia_glyph_atlas_texture_dimensions.width(),
                  skia_glyph_atlas_texture_dimensions.height());
 
+  options->web_module_options.remote_typeface_cache_capacity =
+      static_cast<int>(
+          auto_mem.remote_typeface_cache_size_in_bytes()->value());
+
   options->web_module_options.javascript_options.gc_threshold_bytes =
       static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());
 
@@ -436,7 +414,6 @@ Application::Application(const base::Closure& quit_closure)
   options.network_module_options.preferred_language = language;
 
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
-  ApplyCommandLineSettingsToWebModuleOptions(&options.web_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
     options.web_module_options.javascript_options.disable_jit = true;
