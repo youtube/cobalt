@@ -39,7 +39,9 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
  public:
   HardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
                            GrContext* gr_context,
-                           SubmitOffscreenCallback submit_offscreen_callback);
+                           SubmitOffscreenCallback submit_offscreen_callback,
+                           bool purge_skia_font_caches_on_destruction);
+  ~HardwareResourceProvider() OVERRIDE;
 
   void Finish() OVERRIDE;
 
@@ -136,12 +138,11 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> DrawOffscreenImage(
       const scoped_refptr<render_tree::Node>& root) OVERRIDE;
 
-  void PurgeCaches() OVERRIDE;
-
  private:
   backend::GraphicsContextEGL* cobalt_context_;
   GrContext* gr_context_;
   SubmitOffscreenCallback submit_offscreen_callback_;
+  const bool purge_skia_font_caches_on_destruction_;
 
   TextShaper text_shaper_;
 

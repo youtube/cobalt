@@ -27,13 +27,15 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::SoftwareRasterizer(
-          graphics_context, options.surface_cache_size_in_bytes));
+          graphics_context, options.surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
           graphics_context, options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
-          options.surface_cache_size_in_bytes));
+          options.surface_cache_size_in_bytes,
+          options.purge_skia_font_caches_on_destruction));
 #endif  // #if COBALT_FORCE_SOFTWARE_RASTERIZER
 }
 }  // namespace

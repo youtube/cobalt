@@ -164,8 +164,6 @@ class MockResourceProvider : public ResourceProvider {
       Mesh::DrawMode draw_mode) {
     return make_scoped_refptr(CreateMeshMock(vertices.get(), draw_mode));
   }
-
-  virtual void PurgeCaches() {}
 };
 
 }  // namespace render_tree

@@ -676,8 +676,13 @@ void Document::UpdateSelectorTree() {
 }
 
 void Document::PurgeCachedResources() {
+  // Set the font faces to dirty prior to purging the font cache so that they'll
+  // be restored when processing resumes.
+  are_font_faces_dirty_ = true;
+  font_cache_->PurgeCachedResources();
+
   // Set the computed style to dirty so that it'll be able to update any
-  // elements that had images purged when it resumes.
+  // elements that had images purged when processing resumes.
   is_computed_style_dirty_ = true;
 
   scoped_refptr<HTMLHtmlElement> current_html = html();

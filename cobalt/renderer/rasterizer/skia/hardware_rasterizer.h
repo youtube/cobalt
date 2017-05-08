@@ -54,7 +54,8 @@ class HardwareRasterizer : public Rasterizer {
                               int skia_atlas_width, int skia_atlas_height,
                               int skia_cache_size_in_bytes,
                               int scratch_surface_cache_size_in_bytes,
-                              int surface_cache_size_in_bytes);
+                              int surface_cache_size_in_bytes,
+                              bool purge_skia_font_caches_on_destruction);
   virtual ~HardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed
