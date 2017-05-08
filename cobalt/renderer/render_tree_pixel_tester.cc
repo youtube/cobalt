@@ -69,6 +69,11 @@ RenderTreePixelTester::RenderTreePixelTester(
 
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
+
+  // Don't purge the Skia font caches on destruction. Doing so will result in
+  // too much font thrashing during the tests.
+  render_module_options.purge_skia_font_caches_on_destruction = false;
+
   rasterizer_ = render_module_options.create_rasterizer_function.Run(
       graphics_context_.get(), render_module_options);
 }

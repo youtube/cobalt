@@ -415,8 +415,8 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
 
   SkAutoTUnref<SkFileMemoryChunkStream> stream(stream_provider->OpenStream());
   if (GenerateStyleFaceInfo(style_entry, stream)) {
-    LOG(ERROR) << "Scanned font from file: " << style_entry->face_name.c_str()
-               << "(" << style_entry->face_style << ")";
+    LOG(INFO) << "Scanned font from file: " << style_entry->face_name.c_str()
+              << "(" << style_entry->face_style << ")";
     style_entry->typeface.reset(
         SkNEW_ARGS(SkTypeface_CobaltStreamProvider,
                    (stream_provider, style_entry->face_index,
@@ -425,5 +425,16 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
   } else {
     LOG(ERROR) << "Failed to scan font: "
                << style_entry->font_file_path.c_str();
+  }
+}
+
+void SkFontStyleSet_Cobalt::PurgeUnreferencedTypefaces() {
+  // Walk each of the styles looking for any that have a non-NULL typeface.
+  // These are purged if they are unreferenced outside of the style set.
+  for (int i = 0; i < styles_.count(); ++i) {
+    SkAutoTUnref<SkTypeface>& typeface = styles_[i]->typeface;
+    if (typeface.get() != NULL && typeface->getRefCnt() == 1) {
+      typeface.reset(NULL);
+    }
   }
 }
