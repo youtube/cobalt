@@ -114,7 +114,7 @@ test(() => {
 
 test(() => {
 
-  for (const highWaterMark of [-1, -Infinity, NaN, 'foo', {}]) {
+  for (var highWaterMark of [-1, -Infinity, NaN, 'foo', {}]) {
     assert_throws(new RangeError(), () => {
       new ReadableStream({}, {
         size() {
@@ -130,7 +130,7 @@ test(() => {
 promise_test(() => {
 
   const promises = [];
-  for (const size of [NaN, -Infinity, Infinity, -1]) {
+  for (var size of [NaN, -Infinity, Infinity, -1]) {
     let theError;
     const rs = new ReadableStream(
       {
