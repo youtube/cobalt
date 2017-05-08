@@ -269,6 +269,19 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
   return success;
 }
 
+void MozjsGlobalEnvironment::EvaluateEmbeddedScript(
+    const unsigned char* data, size_t size, const char* filename) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  std::string source(reinterpret_cast<const char*>(data), size);
+  scoped_refptr<SourceCode> source_code =
+      new MozjsSourceCode(source, base::SourceLocation(filename, 1, 1));
+  std::string result;
+  bool success = EvaluateScript(source_code, &result);
+  if (!success) {
+    DLOG(FATAL) << result;
+  }
+}
+
 std::vector<StackFrame> MozjsGlobalEnvironment::GetStackTrace(int max_frames) {
   DCHECK(thread_checker_.CalledOnValidThread());
   return util::GetStackTrace(context_, max_frames);
@@ -351,17 +364,22 @@ ScriptValueFactory* MozjsGlobalEnvironment::script_value_factory() {
 }
 
 void MozjsGlobalEnvironment::EvaluateAutomatics() {
-  TRACK_MEMORY_SCOPE("Javascript");
-  std::string source(
-      reinterpret_cast<const char*>(MozjsEmbeddedResources::promise_min_js),
-      sizeof(MozjsEmbeddedResources::promise_min_js));
-  scoped_refptr<SourceCode> source_code =
-      new MozjsSourceCode(source, base::SourceLocation("promise.min.js", 1, 1));
-  std::string result;
-  bool success = EvaluateScript(source_code, &result);
-  if (!success) {
-    DLOG(FATAL) << result;
-  }
+  EvaluateEmbeddedScript(
+      MozjsEmbeddedResources::promise_min_js,
+      sizeof(MozjsEmbeddedResources::promise_min_js),
+      "promise.min.js");
+  EvaluateEmbeddedScript(
+      MozjsEmbeddedResources::byte_length_queuing_strategy_js,
+      sizeof(MozjsEmbeddedResources::byte_length_queuing_strategy_js),
+      "byte_length_queuing_strategy.js");
+  EvaluateEmbeddedScript(
+      MozjsEmbeddedResources::count_queuing_strategy_js,
+      sizeof(MozjsEmbeddedResources::count_queuing_strategy_js),
+      "count_queuing_strategy.js");
+  EvaluateEmbeddedScript(
+      MozjsEmbeddedResources::readable_stream_js,
+      sizeof(MozjsEmbeddedResources::readable_stream_js),
+      "readable_stream.js");
 }
 
 InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(intptr_t key) {
