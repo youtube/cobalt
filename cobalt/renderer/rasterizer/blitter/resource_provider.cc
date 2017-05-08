@@ -213,8 +213,6 @@ scoped_refptr<render_tree::Image> ResourceProvider::DrawOffscreenImage(
       new SinglePlaneImage(root, submit_offscreen_callback_, device_));
 }
 
-void ResourceProvider::PurgeCaches() { skia_resource_provider_->PurgeCaches(); }
-
 }  // namespace blitter
 }  // namespace rasterizer
 }  // namespace renderer

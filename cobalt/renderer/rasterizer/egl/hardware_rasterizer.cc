@@ -46,7 +46,8 @@ class HardwareRasterizer::Impl {
                 int skia_atlas_width, int skia_atlas_height,
                 int skia_cache_size_in_bytes,
                 int scratch_surface_cache_size_in_bytes,
-                int surface_cache_size_in_bytes);
+                int surface_cache_size_in_bytes,
+                bool purge_skia_font_caches_on_destruction);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -85,11 +86,13 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_atlas_width, int skia_atlas_height,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
-                               int surface_cache_size_in_bytes)
+                               int surface_cache_size_in_bytes,
+                               bool purge_skia_font_caches_on_destruction)
     : fallback_rasterizer_(new skia::HardwareRasterizer(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          0 /* fallback rasterizer should not use a surface cache */)),
+          0 /* fallback rasterizer should not use a surface cache */,
+          purge_skia_font_caches_on_destruction)),
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
@@ -271,11 +274,13 @@ void HardwareRasterizer::Impl::RasterizeTree(
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,
     int skia_atlas_height, int skia_cache_size_in_bytes,
-    int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes)
-    : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
-                     skia_cache_size_in_bytes,
-                     scratch_surface_cache_size_in_bytes,
-                     surface_cache_size_in_bytes)) {}
+    int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
+    bool purge_skia_font_caches_on_destruction)
+    : impl_(new Impl(
+          graphics_context, skia_atlas_width, skia_atlas_height,
+          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
+          surface_cache_size_in_bytes, purge_skia_font_caches_on_destruction)) {
+}
 
 void HardwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,

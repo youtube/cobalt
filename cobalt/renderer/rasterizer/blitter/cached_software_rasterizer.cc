@@ -34,13 +34,13 @@ size_t CachedSoftwareRasterizer::Surface::GetEstimatedMemoryUsage() const {
   return coord_mapping.output_bounds.size().GetArea() * 4;
 }
 
-CachedSoftwareRasterizer::CachedSoftwareRasterizer(SbBlitterDevice device,
-                                                   SbBlitterContext context,
-                                                   int cache_capacity)
+CachedSoftwareRasterizer::CachedSoftwareRasterizer(
+    SbBlitterDevice device, SbBlitterContext context, int cache_capacity,
+    bool purge_skia_font_caches_on_destruction)
     : cache_capacity_(cache_capacity),
       device_(device),
       context_(context),
-      software_rasterizer_(0),
+      software_rasterizer_(0, purge_skia_font_caches_on_destruction),
       cache_memory_usage_(
           "Memory.CachedSoftwareRasterizer.CacheUsage", 0,
           "Total memory occupied by cached software-rasterized surfaces."),
@@ -56,6 +56,7 @@ CachedSoftwareRasterizer::~CachedSoftwareRasterizer() {
     DCHECK(iter->second.cached);
     SbBlitterDestroySurface(iter->second.surface);
   }
+  surface_map_.clear();
 }
 
 void CachedSoftwareRasterizer::OnStartNewFrame() {

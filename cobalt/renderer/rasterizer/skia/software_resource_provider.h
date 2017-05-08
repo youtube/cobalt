@@ -31,7 +31,8 @@ namespace skia {
 // are to be consumed by this skia software rasterizer.
 class SoftwareResourceProvider : public render_tree::ResourceProvider {
  public:
-  SoftwareResourceProvider();
+  explicit SoftwareResourceProvider(bool purge_skia_font_caches_on_destruction);
+  ~SoftwareResourceProvider() OVERRIDE;
 
   void Finish() OVERRIDE{};
 
@@ -121,9 +122,9 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> DrawOffscreenImage(
       const scoped_refptr<render_tree::Node>& root) OVERRIDE;
 
-  void PurgeCaches() OVERRIDE;
-
  private:
+  const bool purge_skia_font_caches_on_destruction_;
+
   TextShaper text_shaper_;
 };
 

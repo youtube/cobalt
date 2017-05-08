@@ -29,11 +29,13 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
-SoftwareRasterizer::SoftwareRasterizer(backend::GraphicsContext* context,
-                                       int surface_cache_size)
+SoftwareRasterizer::SoftwareRasterizer(
+    backend::GraphicsContext* context, int surface_cache_size,
+    bool purge_skia_font_caches_on_destruction)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
           context)),
-      skia_rasterizer_(surface_cache_size) {}
+      skia_rasterizer_(surface_cache_size,
+                       purge_skia_font_caches_on_destruction) {}
 
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,

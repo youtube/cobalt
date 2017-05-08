@@ -47,10 +47,13 @@ namespace skia {
 
 HardwareResourceProvider::HardwareResourceProvider(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    SubmitOffscreenCallback submit_offscreen_callback)
+    SubmitOffscreenCallback submit_offscreen_callback,
+    bool purge_skia_font_caches_on_destruction)
     : cobalt_context_(cobalt_context),
       gr_context_(gr_context),
       submit_offscreen_callback_(submit_offscreen_callback),
+      purge_skia_font_caches_on_destruction_(
+          purge_skia_font_caches_on_destruction),
       self_message_loop_(MessageLoop::current()) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
@@ -66,6 +69,17 @@ HardwareResourceProvider::HardwareResourceProvider(
   decode_target_graphics_context_provider_.gles_context_runner_context = this;
 #endif  // SB_API_VERSION >= 4 && \
            SB_HAS(GRAPHICS)
+}
+
+HardwareResourceProvider::~HardwareResourceProvider() {
+  if (purge_skia_font_caches_on_destruction_) {
+    text_shaper_.PurgeCaches();
+
+    SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+    SkFontMgr_Cobalt* cobalt_font_manager =
+        base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
+    cobalt_font_manager->PurgeCaches();
+  }
 }
 
 void HardwareResourceProvider::Finish() {
@@ -378,13 +392,6 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
   return make_scoped_refptr(new HardwareFrontendImage(
       root, submit_offscreen_callback_, cobalt_context_, gr_context_,
       self_message_loop_));
-}
-
-void HardwareResourceProvider::PurgeCaches() {
-  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkFontMgr_Cobalt* cobalt_font_manager =
-      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
-  cobalt_font_manager->PurgeCaches();
 }
 
 }  // namespace skia

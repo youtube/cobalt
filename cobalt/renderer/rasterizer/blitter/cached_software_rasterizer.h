@@ -73,7 +73,8 @@ class CachedSoftwareRasterizer {
   };
 
   CachedSoftwareRasterizer(SbBlitterDevice device, SbBlitterContext context,
-                           int cache_capacity);
+                           int cache_capacity,
+                           bool purge_skia_font_caches_on_destruction);
   ~CachedSoftwareRasterizer();
 
   // Should be called once per frame.  This method will remove from the cache
