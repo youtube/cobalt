@@ -19,6 +19,8 @@
 #ifndef STARBOARD_KEY_H_
 #define STARBOARD_KEY_H_
 
+#include "starboard/configuration.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -279,6 +281,13 @@ typedef enum SbKeyModifiers {
   kSbKeyModifiersCtrl = 1 << 1,
   kSbKeyModifiersMeta = 1 << 2,
   kSbKeyModifiersShift = 1 << 3,
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  kSbKeyModifiersPointerButtonLeft = 1 << 4,
+  kSbKeyModifiersPointerButtonRight = 1 << 5,
+  kSbKeyModifiersPointerButtonMiddle = 1 << 6,
+  kSbKeyModifiersPointerButtonBack = 1 << 7,
+  kSbKeyModifiersPointerButtonForward = 1 << 8,
+#endif
 } SbKeyModifiers;
 
 #ifdef __cplusplus
