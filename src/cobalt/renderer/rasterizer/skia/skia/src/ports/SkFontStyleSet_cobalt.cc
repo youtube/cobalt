@@ -87,27 +87,27 @@ static void sk_cobalt_ft_stream_close(FT_Stream) {}
 }
 
 SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
-    const FontFamily& family, const char* base_path,
+    const FontFamilyInfo& family_info, const char* base_path,
     SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
     SkMutex* const manager_owned_mutex)
     : local_typeface_stream_manager_(local_typeface_stream_manager),
       manager_owned_mutex_(manager_owned_mutex),
-      is_fallback_family_(family.is_fallback_family),
-      language_(family.language),
-      page_ranges_(family.page_ranges),
+      is_fallback_family_(family_info.is_fallback_family),
+      language_(family_info.language),
+      page_ranges_(family_info.page_ranges),
       is_character_map_generated_(!is_fallback_family_) {
   TRACE_EVENT0("cobalt::renderer",
                "SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt()");
   DCHECK(manager_owned_mutex_);
 
-  if (family.names.count() == 0) {
+  if (family_info.names.count() == 0) {
     return;
   }
 
-  family_name_ = family.names[0];
+  family_name_ = family_info.names[0];
 
-  for (int i = 0; i < family.fonts.count(); ++i) {
-    const FontFileInfo& font_file = family.fonts[i];
+  for (int i = 0; i < family_info.fonts.count(); ++i) {
+    const FontFileInfo& font_file = family_info.fonts[i];
 
     SkString file_path(SkOSPath::Join(base_path, font_file.file_name.c_str()));
 

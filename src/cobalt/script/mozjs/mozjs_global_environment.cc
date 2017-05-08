@@ -394,26 +394,38 @@ void MozjsGlobalEnvironment::DoSweep() {
 void MozjsGlobalEnvironment::BeginGarbageCollection() {
   TRACK_MEMORY_SCOPE("Javascript");
   // It's possible that a GC could be triggered from within the
-  // BeginGarbageCollection callback. Only create the OpaqueRootState the first
-  // time we enter.
+  // BeginGarbageCollection callback. Only create the OpaqueRootState the
+  // first time we enter. Also, only verify that |visisted_wrappables_| is
+  // empty in this case.
+  // TODO: Opaque root logic is a special case of tracing wrappables, and
+  // should be removed.
   garbage_collection_count_++;
-  if (global_object_proxy_ && garbage_collection_count_ == 1) {
-    DCHECK(!opaque_root_state_);
-    JSAutoRequest auto_request(context_);
-    JSAutoCompartment auto_compartment(context_, global_object_proxy_);
-    // Get the current state of opaque root relationships. Keep this object
-    // alive for the duration of the GC phase to ensure that reachability
-    // between roots and reachable objects is maintained.
-    opaque_root_state_ = opaque_root_tracker_->GetCurrentOpaqueRootState();
+
+  if (garbage_collection_count_ == 1) {
+    if (global_object_proxy_) {
+      DCHECK(!opaque_root_state_);
+      JSAutoRequest auto_request(context_);
+      JSAutoCompartment auto_compartment(context_, global_object_proxy_);
+      // Get the current state of opaque root relationships. Keep this object
+      // alive for the duration of the GC phase to ensure that reachability
+      // between roots and reachable objects is maintained.
+      opaque_root_state_ = opaque_root_tracker_->GetCurrentOpaqueRootState();
+    }
+
+    DCHECK_EQ(visited_wrappables_.size(), 0);
   }
 }
 
 void MozjsGlobalEnvironment::EndGarbageCollection() {
-  // Reset opaque root reachability relationships.
+  // Reset opaque root reachability relationships. Also reset
+  // |visisted_wrappables_|.
+  // TODO: Opaque root logic is a special case of tracing wrappables, and
+  // should be removed.
   garbage_collection_count_--;
   DCHECK_GE(garbage_collection_count_, 0);
   if (garbage_collection_count_ == 0) {
     opaque_root_state_.reset(NULL);
+    visited_wrappables_.clear();
   }
 }
 

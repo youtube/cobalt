@@ -24,6 +24,12 @@
 namespace cobalt {
 namespace script {
 
+class Wrappable;
+class Tracer {
+ public:
+  virtual void Trace(Wrappable* wrappable) = 0;
+};
+
 class Wrappable : public base::RefCounted<Wrappable> {
  public:
   // A handle to this Wrappable's corresponding Wrapper object. It may be
@@ -64,6 +70,12 @@ class Wrappable : public base::RefCounted<Wrappable> {
   // other than the wrapper, the wrappable will be garbage collected despite
   // this (which will result in the Wrappable being destructed as well.)
   virtual bool ShouldKeepWrapperAlive() { return false; }
+
+  // Trace all native |Wrappable|s accessible by the |Wrappable|. Must be
+  // manually implemented by the |Wrappable|.
+  // TODO: Should be pure virtual after static analysis tool for |Wrappable|s
+  // is created.
+  virtual void TraceMembers(Tracer* /*tracer*/) {}
 
  protected:
   virtual ~Wrappable() { }

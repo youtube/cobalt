@@ -26,7 +26,7 @@ class SkFontMgr_Cobalt;
 class SkTypeface_Cobalt : public SkTypeface_FreeType {
  public:
   SkTypeface_Cobalt(int face_index, Style style, bool is_fixed_pitch,
-                    const SkString family_name);
+                    const SkString& family_name);
 
   bool synthesizes_bold() const { return synthesizes_bold_; }
 
@@ -44,7 +44,7 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
 class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  public:
   SkTypeface_CobaltStream(SkStreamAsset* stream, int face_index, Style style,
-                          bool is_fixed_pitch, const SkString family_name);
+                          bool is_fixed_pitch, const SkString& family_name);
 
   virtual void onGetFontDescriptor(SkFontDescriptor* descriptor,
                                    bool* serialize) const SK_OVERRIDE;
@@ -61,7 +61,7 @@ class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {
  public:
   SkTypeface_CobaltStreamProvider(
       SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
-      Style style, bool is_fixed_pitch, const SkString family_name,
+      Style style, bool is_fixed_pitch, const SkString& family_name,
       bool disable_synthetic_bolding);
 
   virtual void onGetFontDescriptor(SkFontDescriptor* descriptor,

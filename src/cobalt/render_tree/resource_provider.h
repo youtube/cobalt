@@ -218,6 +218,9 @@ class ResourceProvider {
 
   virtual scoped_refptr<Image> DrawOffscreenImage(
       const scoped_refptr<render_tree::Node>& root) = 0;
+
+  // Purges any caches being used by the render_tree consumer.
+  virtual void PurgeCaches() = 0;
 };
 
 }  // namespace render_tree
