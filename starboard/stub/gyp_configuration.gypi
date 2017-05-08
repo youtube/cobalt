@@ -24,7 +24,9 @@
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
+    'javascript_engine': 'mozjs-45',
+
+    'cobalt_enable_jit': 0,
 
     'cobalt_media_source_2016': 1,
 
@@ -87,6 +89,9 @@
           '-Wno-unnamed-type-template-args',
           # Triggered by the COMPILE_ASSERT macro.
           '-Wno-unused-local-typedef',
+          # Do not warn if a function or variable cannot be implicitly
+          # instantiated.
+          '-Wno-undefined-var-template',
         ],
       }],
       ['cobalt_fastbuild==0', {
@@ -118,11 +123,7 @@
       #'-std=c99',
     ],
     'cflags_cc': [
-      # Limit to gnu++98. This allows stub to be a canary build for any
-      # C++11 features that are not supported on some platforms' compilers.
-      # We do allow ourselves GNU extensions, which are assumed to exist
-      # by Chromium code.
-      #'-std=gnu++98',
+      '-std=gnu++11',
     ],
     'default_configuration': 'stub_debug',
     'configurations': {
