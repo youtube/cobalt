@@ -106,10 +106,6 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      # Limit to gnu++98. This allows Linux to be a canary build for any
-      # C++11 features that are not supported on some platforms' compilers.
-      # We do allow ourselves GNU extensions, which are assumed to exist
-      # by Chromium code.
       '-std=gnu++98',
     ],
     'target_conditions': [
