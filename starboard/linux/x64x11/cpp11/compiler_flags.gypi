@@ -128,6 +128,8 @@
           '-Wno-shift-negative-value',
           # Width of bit-field exceeds width of its type- value will be truncated
           '-Wno-bitfield-width',
+          # Do not warn if a function or variable cannot be implicitly
+          # instantiated.
           '-Wno-undefined-var-template',
         ],
       }],

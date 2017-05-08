@@ -16,8 +16,8 @@
   'variables': {
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 1,
+    'javascript_engine': 'mozjs-45',
+    'cobalt_enable_jit': 0,
   },
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
