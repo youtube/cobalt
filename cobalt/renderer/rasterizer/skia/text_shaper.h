@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
+#include "cobalt/renderer/rasterizer/skia/harfbuzz_font.h"
 
 #include "third_party/harfbuzz-ng/src/hb.h"
 #include "third_party/harfbuzz-ng/src/hb-icu.h"
@@ -89,6 +90,10 @@ class TextShaper {
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts);
+
+  // Purges any caches being used by the text shaper; currently, this consists
+  // of the HarfBuzzFontProvider's cache.
+  void PurgeCaches();
 
  private:
   // Internal class used for tracking the vertical bounds of a text buffer
@@ -155,8 +160,8 @@ class TextShaper {
                                    render_tree::FontVector* maybe_used_fonts,
                                    float* current_width);
 
-  // Shape a simple text run, relying on the skia::Font objects provided by
-  // the FontProvider to determine the shaping data.
+  // Shape a simple text run, relying on the skia::Font objects provided by the
+  // FontProvider to determine the shaping data.
   void ShapeSimpleRun(const char16* text_buffer, size_t text_length,
                       render_tree::FontProvider* font_provider,
                       SkTextBlobBuilder* maybe_builder,
@@ -180,6 +185,9 @@ class TextShaper {
   // Lock used during shaping to ensure it does not occur on multiple threads at
   // the same time.
   base::Lock shaping_mutex_;
+
+  // Provides fonts needed by HarfBuzz during complex shaping.
+  HarfBuzzFontProvider harfbuzz_font_provider_;
 
   // The allocated glyph and positions data. This is retained in between shaping
   // calls to prevent constantly needing to allocate the arrays. In the case
