@@ -264,6 +264,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       written_frames_ += written / (channels_ * GetSampleSize(sample_type_));
     }
   }
+
+  // For an immediate stop, use pause(), followed by flush() to discard audio
+  // data that hasn't been played back yet.
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "pause", "()V");
+  // Flushes the audio data currently queued for playback. Any data that has
+  // been written but not yet presented will be discarded.
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "flush", "()V");
 }
 
 }  // namespace
