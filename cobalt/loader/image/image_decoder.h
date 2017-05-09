@@ -28,19 +28,31 @@ namespace cobalt {
 namespace loader {
 namespace image {
 
-// This class handles decoding any image type. When the image type is determined
-// by the signature in the data being received, an image data decoder specific
+// This class handles decoding any image. If image type is not given, it is
+// determined by the signature in the data. Then an image data decoder specific
 // to that image type is created to parse the data. When the decoding is
 // complete, the image decoder retrieves the data and uses it to create the
 // image.
 class ImageDecoder : public Decoder {
  public:
+  // The various types of images we support decoding.
+  enum ImageType {
+    kImageTypeInvalid,
+    kImageTypeGIF,
+    kImageTypeJPEG,
+    kImageTypePNG,
+    kImageTypeWebP,
+  };
+
   typedef base::Callback<void(const scoped_refptr<Image>&)> SuccessCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ImageDecoder(render_tree::ResourceProvider* resource_provider,
                const SuccessCallback& success_callback,
                const ErrorCallback& error_callback);
+  ImageDecoder(render_tree::ResourceProvider* resource_provider,
+               const SuccessCallback& success_callback,
+               const ErrorCallback& error_callback, ImageType image_type);
 
   // From Decoder.
   LoadResponseType OnResponseStarted(
@@ -84,6 +96,7 @@ class ImageDecoder : public Decoder {
   render_tree::ResourceProvider* resource_provider_;
   const SuccessCallback success_callback_;
   const ErrorCallback error_callback_;
+  ImageType image_type_;
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
