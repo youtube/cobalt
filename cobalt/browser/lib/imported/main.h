@@ -19,17 +19,18 @@
 #define COBALT_BROWSER_LIB_IMPORTED_MAIN_H_
 
 #include "starboard/event.h"
+#include "starboard/export.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Invoked after Cobalt has been initialized.
-void CbLibOnCobaltInitialized();
+SB_IMPORT_PLATFORM void CbLibOnCobaltInitialized();
 
 // Invoked when Cobalt is receiving an event from Starboard.
 // Returns true if the client consumed |event|; false otherwise.
-bool CbLibHandleEvent(const SbEvent* event);
+SB_IMPORT_PLATFORM bool CbLibHandleEvent(const SbEvent* event);
 
 #ifdef __cplusplus
 }  // extern "C"
