@@ -25,6 +25,15 @@
         'external_rasterizer.cc',
         'renderer_module_default_options_lib.cc'
       ],
+      'all_dependent_settings': {
+        'target_conditions': [
+          ['_type=="executable" and _toolset=="target"', {
+            'sources': [
+              'imported/graphics_stub.cc',
+            ],
+          }],
+        ],
+      },
        'dependencies': [
          '<(DEPTH)/base/base.gyp:base',
          '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
