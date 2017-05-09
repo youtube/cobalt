@@ -21,12 +21,12 @@
 namespace cobalt {
 namespace accessibility {
 
-void StarboardTTSEngine::SpeakNow(const std::string& text) OVERRIDE {
+void StarboardTTSEngine::SpeakNow(const std::string& text) {
   SbSpeechSynthesisCancel();
   Speak(text);
 }
 
-void StarboardTTSEngine::Speak(const std::string& text) OVERRIDE {
+void StarboardTTSEngine::Speak(const std::string& text) {
   SbSpeechSynthesisSpeak(text.c_str());
 }
 
