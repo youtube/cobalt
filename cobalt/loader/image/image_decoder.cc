@@ -51,27 +51,18 @@ void CacheMessage(std::string* result, const std::string& message) {
   result->append(message);
 }
 
-// The various types of images we support decoding.
-enum ImageType {
-  kImageTypeInvalid,
-  kImageTypeGIF,
-  kImageTypeJPEG,
-  kImageTypePNG,
-  kImageTypeWebP,
-};
-
 // Determine the ImageType of an image from its signature.
-ImageType DetermineImageType(const uint8* header) {
+ImageDecoder::ImageType DetermineImageType(const uint8* header) {
   if (!memcmp(header, "\xFF\xD8\xFF", 3)) {
-    return kImageTypeJPEG;
+    return ImageDecoder::kImageTypeJPEG;
   } else if (!memcmp(header, "GIF87a", 6) || !memcmp(header, "GIF89a", 6)) {
-    return kImageTypeGIF;
+    return ImageDecoder::kImageTypeGIF;
   } else if (!memcmp(header, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8)) {
-    return kImageTypePNG;
+    return ImageDecoder::kImageTypePNG;
   } else if (!memcmp(header, "RIFF", 4) && !memcmp(header + 8, "WEBPVP", 6)) {
-    return kImageTypeWebP;
+    return ImageDecoder::kImageTypeWebP;
   } else {
-    return kImageTypeInvalid;
+    return ImageDecoder::kImageTypeInvalid;
   }
 }
 
@@ -83,9 +74,22 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
+      image_type_(kImageTypeInvalid),
       state_(resource_provider_ ? kWaitingForHeader : kSuspended),
       is_deletion_pending_(false) {
-  TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::ImageDecoder()");
+  signature_cache_.position = 0;
+}
+
+ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
+                           const SuccessCallback& success_callback,
+                           const ErrorCallback& error_callback,
+                           ImageType image_type)
+    : resource_provider_(resource_provider),
+      success_callback_(success_callback),
+      error_callback_(error_callback),
+      image_type_(image_type),
+      state_(resource_provider_ ? kWaitingForHeader : kSuspended),
+      is_deletion_pending_(false) {
   signature_cache_.position = 0;
 }
 
@@ -269,17 +273,17 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
 namespace {
 #if defined(STARBOARD)
 #if SB_VERSION(3) && SB_HAS(GRAPHICS)
-const char* GetMimeTypeFromImageType(ImageType image_type) {
+const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
   switch (image_type) {
-    case kImageTypeJPEG:
+    case ImageDecoder::kImageTypeJPEG:
       return "image/jpeg";
-    case kImageTypePNG:
+    case ImageDecoder::kImageTypePNG:
       return "image/png";
-    case kImageTypeGIF:
+    case ImageDecoder::kImageTypeGIF:
       return "image/gif";
-    case kImageTypeWebP:
+    case ImageDecoder::kImageTypeWebP:
       return "image/webp";
-    case kImageTypeInvalid:
+    case ImageDecoder::kImageTypeInvalid:
       return NULL;
     default: { NOTREACHED(); }
   }
@@ -288,7 +292,7 @@ const char* GetMimeTypeFromImageType(ImageType image_type) {
 
 // If |mime_type| is empty, |image_type| will be used to deduce the mime type.
 scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
-    const std::string& mime_type, ImageType image_type,
+    const std::string& mime_type, ImageDecoder::ImageType image_type,
     render_tree::ResourceProvider* resource_provider) {
   // clang-format off
   const SbDecodeTargetFormat kPreferredFormats[] = {
@@ -331,12 +335,13 @@ scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
 #endif  // defined(STARBOARD)
 
 scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
-    ImageType image_type, render_tree::ResourceProvider* resource_provider) {
+    ImageDecoder::ImageType image_type,
+    render_tree::ResourceProvider* resource_provider) {
   // Call different types of decoders by matching the image signature.
   if (s_use_stub_image_decoder) {
     return make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider));
-  } else if (image_type == kImageTypeJPEG) {
+  } else if (image_type == ImageDecoder::kImageTypeJPEG) {
 #if defined(USE_PS3_JPEG_IMAGE_DECODER)
     return make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoderPS3(resource_provider));
@@ -344,13 +349,13 @@ scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     return make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoder(resource_provider));
 #endif  // defined(USE_PS3_JPEG_IMAGE_DECODER)
-  } else if (image_type == kImageTypePNG) {
+  } else if (image_type == ImageDecoder::kImageTypePNG) {
     return make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider));
-  } else if (image_type == kImageTypeWebP) {
+  } else if (image_type == ImageDecoder::kImageTypeWebP) {
     return make_scoped_ptr<ImageDataDecoder>(
         new WEBPImageDecoder(resource_provider));
-  } else if (image_type == kImageTypeGIF) {
+  } else if (image_type == ImageDecoder::kImageTypeGIF) {
     return make_scoped_ptr<ImageDataDecoder>(
         new DummyGIFImageDecoder(resource_provider));
   } else {
@@ -374,17 +379,19 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
     return false;
   }
 
-  const ImageType image_type = DetermineImageType(signature_cache_.data);
+  if (image_type_ == kImageTypeInvalid) {
+    image_type_ = DetermineImageType(signature_cache_.data);
+  }
 
 #if defined(STARBOARD)
 #if SB_VERSION(3) && SB_HAS(GRAPHICS)
   decoder_ =
-      MaybeCreateStarboardDecoder(mime_type_, image_type, resource_provider_);
+      MaybeCreateStarboardDecoder(mime_type_, image_type_, resource_provider_);
 #endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
 #endif  // defined(STARBOARD)
 
   if (!decoder_) {
-    decoder_ = CreateImageDecoderFromImageType(image_type, resource_provider_);
+    decoder_ = CreateImageDecoderFromImageType(image_type_, resource_provider_);
   }
 
   if (!decoder_) {
