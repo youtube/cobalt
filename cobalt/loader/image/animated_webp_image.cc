@@ -16,7 +16,8 @@
 
 #include "cobalt/loader/image/animated_webp_image.h"
 
-#include "cobalt/loader/image/webp_image_decoder.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -170,11 +171,22 @@ void AnimatedWebPImage::DecodeFrames() {
   }
 }
 
+namespace {
+
+void RecordImage(scoped_refptr<render_tree::Image>* image_pointer,
+                 const scoped_refptr<loader::image::Image>& image) {
+  image::StaticImage* static_image =
+      base::polymorphic_downcast<loader::image::StaticImage*>(image.get());
+  DCHECK(static_image);
+  *image_pointer = static_image->image();
+}
+
+}  // namespace
+
 bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
   TRACK_MEMORY_SCOPE("Rendering");
   base::AutoLock lock(lock_);
   WebPIterator webp_iterator;
-  WEBPImageDecoder webp_image_decoder(resource_provider_);
   scoped_refptr<render_tree::Image> next_frame_image;
 
   // Decode the current frame.
@@ -185,24 +197,18 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
     if (!webp_iterator.complete) {
       return false;
     }
-    webp_image_decoder.DecodeChunk(webp_iterator.fragment.bytes,
-                                   webp_iterator.fragment.size);
-    if (!webp_image_decoder.FinishWithSuccess()) {
+
+    ImageDecoder image_decoder(
+        resource_provider_, base::Bind(&RecordImage, &next_frame_image),
+        ImageDecoder::ErrorCallback(), ImageDecoder::kImageTypeWebP);
+    image_decoder.DecodeChunk(
+        reinterpret_cast<const char*>(webp_iterator.fragment.bytes),
+        webp_iterator.fragment.size);
+    image_decoder.Finish();
+    if (!next_frame_image) {
       LOG(ERROR) << "Failed to decode WebP image frame.";
       return false;
     }
-
-    scoped_ptr<render_tree::ImageData> next_frame_data = AllocateImageData(
-        math::Size(webp_iterator.width, webp_iterator.height));
-    DCHECK(next_frame_data);
-    {
-      TRACE_EVENT0("cobalt::loader::image", "SbMemoryCopy");
-      SbMemoryCopy(next_frame_data->GetMemory(),
-                   webp_image_decoder.GetOriginalMemory(),
-                   webp_iterator.width * webp_iterator.height *
-                       render_tree::BytesPerPixel(pixel_format_));
-    }
-    next_frame_image = resource_provider_->CreateImage(next_frame_data.Pass());
   }
 
   // Alpha blend the current frame on top of the buffer.
