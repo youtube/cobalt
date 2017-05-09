@@ -18,20 +18,21 @@
 #ifndef COBALT_RENDERER_RASTERIZER_LIB_IMPORTED_GRAPHICS_H_
 #define COBALT_RENDERER_RASTERIZER_LIB_IMPORTED_GRAPHICS_H_
 
-// TODO: Use starboard/types.h instead.
-#include <stdint.h>
+#include "starboard/export.h"
+#include "starboard/types.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Invoked from the rasterization thread after the GL context has been created.
-void CbLibOnGraphicsContextCreated();
+SB_IMPORT_PLATFORM void CbLibOnGraphicsContextCreated();
 
 // Invoked as often as the platform can swap buffers from the rasterization
 // thread. |render_tree_texture_handle| corresponds to a GLint texture ID for
 // the current RenderTree.
-void CbLibRenderFrame(intptr_t render_tree_texture_handle);
+SB_IMPORT_PLATFORM void CbLibRenderFrame(intptr_t render_tree_texture_handle);
 
 #ifdef __cplusplus
 }  // extern "C"
