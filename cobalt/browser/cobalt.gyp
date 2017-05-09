@@ -23,6 +23,15 @@
       'conditions': [
         ['cobalt_enable_lib == 1', {
             'sources': ['lib/main.cc',],
+            'all_dependent_settings': {
+              'target_conditions': [
+                ['_type=="executable" and _toolset=="target"', {
+                  'sources': [
+                    'lib/imported/main_stub.cc',
+                  ],
+                }],
+              ],
+            },
         }, {
             'sources': ['main.cc',],
         }],
