@@ -17,6 +17,7 @@
 #ifndef COBALT_MATH_LINEAR_INTERPOLATOR_H_
 #define COBALT_MATH_LINEAR_INTERPOLATOR_H_
 
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -41,7 +42,7 @@ namespace math {
 //
 // Discontinuous values:
 //  This table supports discontinuous values. To enable this feature, insert a
-//  pair of duplicate keys, each with a different value. See example below. 
+//  pair of duplicate keys, each with a different value. See example below.
 //
 // Example (continuous):
 //  LinearInterpolator<float, float> interp;

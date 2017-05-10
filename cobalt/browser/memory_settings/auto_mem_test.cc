@@ -121,7 +121,7 @@ TEST(AutoMem, CommandLineSpecifiesAutoset) {
 
 // Tests that skia atlas texture will be bind to the built in value, iff it has
 // been set.
-TEST(AutoMem, SkiaAtlasTextureAtlasSize) {
+TEST(AutoMem, SkiaGlyphAtlasTextureSize) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
   BuildSettings builtin_settings;
   BuildSettings builtin_settings_with_default;
@@ -207,6 +207,37 @@ TEST(AutoMem, AllMemorySettingsAreOrderedByName) {
   for (size_t i = 1; i < settings.size(); ++i) {
     ASSERT_LT(settings[i-1]->name(), settings[i]->name());
   }
+}
+
+// Tests the expectation that constraining the CPU memory to 40MB will result
+// in AutoMem reducing the the memory footprint.
+TEST(AutoMem, ConstrainedCPUEnvironment) {
+  CommandLine empty_command_line(CommandLine::NO_PROGRAM);
+  BuildSettings builtin_settings;
+  builtin_settings.max_cpu_in_bytes = 40 * 1024 * 1024;
+
+  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
+
+  std::vector<const MemorySetting*> settings = auto_mem.AllMemorySettings();
+
+  const int64_t cpu_memory_consumption =
+      SumMemoryConsumption(MemorySetting::kCPU, settings);
+
+  EXPECT_LE(cpu_memory_consumption, 40 * 1024 * 1024);
+}
+
+// Tests the expectation that constraining the CPU memory to 40MB will result
+// in AutoMem reducing the the memory footprint.
+TEST(AutoMem, ConstrainedGPUEnvironment) {
+  CommandLine empty_command_line(CommandLine::NO_PROGRAM);
+  BuildSettings builtin_settings;
+  builtin_settings.max_gpu_in_bytes = 57 * 1024 * 1024;
+  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
+
+  std::vector<const MemorySetting*> settings = auto_mem.AllMemorySettings();
+  const int64_t gpu_memory_consumption =
+      SumMemoryConsumption(MemorySetting::kGPU, settings);
+  EXPECT_LE(gpu_memory_consumption, 57 * 1024 * 1024);
 }
 
 }  // namespace memory_settings

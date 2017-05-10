@@ -22,6 +22,8 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
+#include "cobalt/browser/memory_settings/auto_mem.h"
+#include "cobalt/browser/memory_settings/checker.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/system_window/system_window.h"
 
@@ -173,6 +175,13 @@ class Application {
   base::Timer lite_stats_update_timer_;
 
   scoped_ptr<memory_tracker::Tool> memory_tracker_tool_;
+
+  // Memory configuration tool.
+  scoped_ptr<memory_settings::AutoMem> auto_mem_;
+
+  // Fires memory warning once when memory exceeds specified max cpu/gpu
+  // memory.
+  memory_settings::Checker memory_settings_checker_;
 };
 
 // Factory method for creating an application.  It should be implemented
