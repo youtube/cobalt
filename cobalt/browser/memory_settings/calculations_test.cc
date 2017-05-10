@@ -110,7 +110,7 @@ TEST(MemoryCalculations, CalculateImageCacheSize) {
   EXPECT_EQ(kMaxImageCacheSize, CalculateImageCacheSize(GetDimensions(k8k)));
 }
 
-// Tests the expectation that CalculateSkiaAtlasTextureSize() is a pure
+// Tests the expectation that CalculateSkiaGlyphAtlasTextureSize() is a pure
 // function (side effect free) and will produce expected results.
 TEST(MemoryCalculations, CalculateSkiaGlyphAtlasTextureSize) {
   math::Size ui_dimensions;
@@ -154,6 +154,12 @@ TEST(MemoryCalculations, CalculateSoftwareSurfaceCacheSizeInBytes) {
   // Expect that a 1080p resolution produces a 9mb SoftwareSurfaceCache.
   EXPECT_EQ(9 * 1024 * 1024,
             CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
+}
+
+TEST(MemoryCalculations, CalculateMiscCobaltGpuSize) {
+  math::Size ui_resolution = GetDimensions(k1080p);
+  EXPECT_EQ(24 * 1024 * 1024,
+            CalculateMiscCobaltGpuSize(ui_resolution));
 }
 
 }  // namespace memory_settings

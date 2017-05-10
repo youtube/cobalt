@@ -69,6 +69,23 @@ std::string GenerateMemoryTable(const IntSetting& total_cpu_memory,
                                 int64_t settings_cpu_consumption,
                                 int64_t settings_gpu_consumption);
 
+// Example:
+//   ToMegabyteString(1 * 1024 * 1024, 1)
+// Returns: "1.0MB".
+std::string ToMegabyteString(int64_t bytes, int decimal_places);
+
+// Takes in a body such as "aaaabbbb" and generates a border around it:
+// MakeBoarder("aaaabbbb", '*')
+// Returns:
+//   ************
+//   * aaaabbbb *
+//   ************
+// Works with multiple lines.
+std::string MakeBorder(const std::string& body, const char border_ch);
+
+// Stringify's the MemorySetting::source_type() to a readable string value.
+std::string StringifySourceType(const MemorySetting& setting);
+
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt
