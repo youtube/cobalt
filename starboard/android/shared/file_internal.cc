@@ -54,18 +54,18 @@ void SbFileAndroidInitialize(ANativeActivity* activity) {
   g_asset_manager = activity->assetManager;
 
   JniEnvExt* env = JniEnvExt::Get();
-  jobject file_obj;
+  ScopedLocalJavaRef<jobject> file_obj;
 
   SB_DCHECK(g_app_files_dir == NULL);
-  file_obj =
-      env->CallActivityObjectMethodOrAbort("getFilesDir", "()Ljava/io/File;");
-  g_app_files_dir = GetAbsolutePath(env, file_obj);
+  file_obj.Reset(
+      env->CallActivityObjectMethodOrAbort("getFilesDir", "()Ljava/io/File;"));
+  g_app_files_dir = GetAbsolutePath(env, file_obj.Get());
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK(g_app_cache_dir == NULL);
-  file_obj =
-      env->CallActivityObjectMethodOrAbort("getCacheDir", "()Ljava/io/File;");
-  g_app_cache_dir = GetAbsolutePath(env, file_obj);
+  file_obj.Reset(
+      env->CallActivityObjectMethodOrAbort("getCacheDir", "()Ljava/io/File;"));
+  g_app_cache_dir = GetAbsolutePath(env, file_obj.Get());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 }
 
