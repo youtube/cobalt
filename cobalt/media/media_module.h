@@ -118,7 +118,7 @@ class MediaModule : public CanPlayTypeHandler,
 
  protected:
   explicit MediaModule(const math::Size& output_size)
-      : thread_("media_module"), output_size_(output_size) {
+      : thread_("media_module"), output_size_(output_size), suspended_(false) {
     thread_.Start();
     message_loop_ = thread_.message_loop_proxy();
   }
@@ -140,6 +140,7 @@ class MediaModule : public CanPlayTypeHandler,
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   Players players_;
   math::Size output_size_;
+  bool suspended_;
 };
 
 }  // namespace media
