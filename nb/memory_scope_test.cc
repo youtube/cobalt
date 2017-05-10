@@ -227,16 +227,7 @@ TEST_F(MemoryScopeReportingTest, NoPushPop) {
                             true};          // true allows caching.
 
   NbPushMemoryScope(&info);
-
-  ASSERT_FALSE(test_memory_reporter()->stack_thread_local()->empty());
-  NbMemoryScopeInfo* info_ptr =
-      test_memory_reporter()->stack_thread_local()->front();
-
-  EXPECT_EQ(&info, info_ptr);
-  EXPECT_STREQ(info.file_name_, file_name);
-  EXPECT_STREQ(info.function_name_, function_name);
-  EXPECT_EQ(info.line_number_, line_number);
-
+  ASSERT_TRUE(test_memory_reporter()->stack_thread_local()->empty());
   NbPopMemoryScope();
   EXPECT_TRUE(test_memory_reporter()->stack_thread_local()->empty());
 }
