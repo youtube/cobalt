@@ -629,6 +629,9 @@ SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
 void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
     const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas) {
   TRACE_EVENT0("cobalt::renderer", "RasterizeRenderTreeToCanvas");
+  // TODO: This trace uses the name in the current benchmark to keep it work as
+  // expected. Remove after switching to webdriver benchmark.
+  TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
   RenderTreeNodeVisitor::CreateScratchSurfaceFunction
       create_scratch_surface_function =
           base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
