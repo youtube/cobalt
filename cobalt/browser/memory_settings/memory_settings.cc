@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
@@ -28,6 +29,7 @@
 #include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/math/linear_interpolator.h"
 #include "nb/lexical_cast.h"
 
 namespace cobalt {
@@ -43,8 +45,12 @@ struct ParsedIntValue {
   int value_;
   bool error_;  // true if there was a parse error.
 };
+
 // Parses a string like "1234x5678" to vector of parsed int values.
-std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
+std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
+  std::string value_str = input;
+  std::transform(value_str.begin(), value_str.end(),
+                 value_str.begin(), ::tolower);
   std::vector<ParsedIntValue> output;
 
   std::vector<std::string> lengths;
@@ -58,7 +64,52 @@ std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
   return output;
 }
 
+bool StringEndsWith(const std::string& value, const std::string& ending) {
+  if (ending.size() > value.size()) {
+    return false;
+  }
+  // Reverse search through the back of the string.
+  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+// Handles bytes: "12435"
+// Handles kilobytes: "128KB"
+// Handles megabytes: "64MB"
+int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
+  // nb::lexical_cast<> will parse out the number but it will ignore the
+  // unit part, such as "kb" or "mb".
+  int64_t numerical_value = nb::lexical_cast<int64_t>(value, parse_ok);
+  if (!(*parse_ok) || value.size() < 2) {
+    return numerical_value;
+  }
+
+  // Lowercasing the string makes the units easier to detect.
+  std::string value_lower_case = value;
+  std::transform(value_lower_case.begin(), value_lower_case.end(),
+                 value_lower_case.begin(),
+                 ::tolower);
+
+  if (StringEndsWith(value_lower_case, "kb")) {
+    numerical_value *= 1024;  // convert kb -> bytes.
+  } else if (StringEndsWith(value_lower_case, "mb")) {
+    numerical_value *= 1024 * 1024;  // convert mb -> bytes.
+  }
+  return numerical_value;
+}
 }  // namespace
+
+void MemorySetting::set_memory_scaling_function(ScalingFunction function) {
+  memory_scaling_function_ = function;
+}
+
+double MemorySetting::ComputeAbsoluteMemoryScale(
+    double requested_memory_scale) const {
+  if (memory_scaling_function_.is_null()) {
+    return 1.0;
+  } else {
+    return memory_scaling_function_.Run(requested_memory_scale);
+  }
+}
 
 MemorySetting::MemorySetting(ClassType type, const std::string& name)
     : class_type_(type),
@@ -77,10 +128,18 @@ std::string IntSetting::ValueToString() const {
 
 int64_t IntSetting::MemoryConsumption() const { return value(); }
 
+void IntSetting::ScaleMemory(double memory_scale) {
+  DCHECK_LE(0.0, memory_scale);
+  DCHECK_LE(memory_scale, 1.0);
+
+  const int64_t new_value = static_cast<int64_t>(value() * memory_scale);
+  set_value(MemorySetting::kAutosetConstrained, new_value);
+}
+
 bool IntSetting::TryParseValue(SourceType source_type,
                                const std::string& string_value) {
   bool parse_ok = false;
-  int64_t int_value = nb::lexical_cast<int64_t>(string_value, &parse_ok);
+  int64_t int_value = ParseMemoryValue(string_value, &parse_ok);
 
   if (parse_ok) {
     set_value(source_type, int_value);
@@ -131,6 +190,87 @@ bool DimensionSetting::TryParseValue(SourceType source_type,
 
   set_value(source_type, tex_dimensions);
   return true;
+}
+
+SkiaGlyphAtlasTextureSetting::SkiaGlyphAtlasTextureSetting()
+    : DimensionSetting(switches::kSkiaTextureAtlasDimensions) {
+  set_memory_scaling_function(MakeSkiaGlyphAtlasMemoryScaler());
+}
+
+void SkiaGlyphAtlasTextureSetting::ScaleMemory(double memory_scale) {
+  DCHECK_LE(0.0, memory_scale);
+  DCHECK_LE(memory_scale, 1.0);
+
+  if (!valid()) {
+    return;
+  }
+  const size_t number_of_reductions = NumberOfReductions(memory_scale);
+  if (number_of_reductions == 0) {
+    return;
+  }
+
+  TextureDimensions texture_dims = value();
+  DCHECK_LT(0, texture_dims.width());
+  DCHECK_LT(0, texture_dims.height());
+
+  for (size_t i = 0; i < number_of_reductions; ++i) {
+    if (texture_dims.width() <= 1 && texture_dims.height() <=1) {
+      break;
+    }
+    if (texture_dims.width() > texture_dims.height()) {
+      texture_dims.set_width(texture_dims.width() / 2);
+    } else {
+      texture_dims.set_height(texture_dims.height() / 2);
+    }
+  }
+
+  set_value(MemorySetting::kAutosetConstrained, texture_dims);
+}
+
+size_t SkiaGlyphAtlasTextureSetting::NumberOfReductions(
+    double reduction_factor) {
+  size_t num_of_reductions = 0;
+  while (reduction_factor <= 0.5f) {
+    ++num_of_reductions;
+    reduction_factor *= 2.0;
+  }
+  return num_of_reductions;
+}
+
+JavaScriptGcThresholdSetting::JavaScriptGcThresholdSetting()
+    : IntSetting(switches::kJavaScriptGcThresholdInBytes) {
+}
+
+void JavaScriptGcThresholdSetting::PostInit() {
+  const int64_t normal_memory_consumption = MemoryConsumption();
+  const int64_t min_memory_consumption =
+      std::min<int64_t>(normal_memory_consumption, 1 * 1024 * 1024);
+
+  ScalingFunction function =
+      MakeJavaScriptGCScaler(min_memory_consumption,
+                             normal_memory_consumption);
+  set_memory_scaling_function(function);
+}
+
+int64_t SumMemoryConsumption(
+    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    const std::vector<const MemorySetting*>& memory_settings) {
+  int64_t sum = 0;
+  for (size_t i = 0; i < memory_settings.size(); ++i) {
+    const MemorySetting* setting = memory_settings[i];
+    if (!memory_type_filter || memory_type_filter == setting->memory_type()) {
+      sum += setting->MemoryConsumption();
+    }
+  }
+  return sum;
+}
+
+int64_t SumMemoryConsumption(
+    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    const std::vector<MemorySetting*>& memory_settings) {
+  const std::vector<const MemorySetting*> const_vector(
+      memory_settings.begin(), memory_settings.end());
+  return SumMemoryConsumption(memory_type_filter, const_vector);
 }
 
 }  // namespace memory_settings
