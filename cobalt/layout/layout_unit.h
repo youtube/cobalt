@@ -23,7 +23,6 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "cobalt/base/math.h"
 
 namespace cobalt {
 namespace layout {
