@@ -22,6 +22,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "starboard/log.h"
 
 namespace cobalt {
 namespace browser {
@@ -283,6 +284,10 @@ std::string TablePrinterImpl::MakeTopSeperatorRowAbove() const {
 }
 
 }  // namespace.
+
+bool TablePrinter::SystemSupportsColor() {
+  return SbLogIsTty();
+}
 
 TablePrinter::TablePrinter() : text_color_(kDefault), table_color_(kDefault) {
 }

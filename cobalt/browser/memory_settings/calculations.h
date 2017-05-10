@@ -33,7 +33,7 @@ namespace memory_settings {
 // The return ranges from [kMinImageCacheSize, kMaxImageCacheSize].
 int64_t CalculateImageCacheSize(const math::Size& dimensions);
 
-// Calculates the SkiaAtlasTextureSize.
+// Calculates the SkiaAtlasGlyphTextureSize.
 // When the ui resolution is 1920x1080, then the returned atlas texture size
 // will be 8192x4096. The texture will scale up and down, by powers of two,
 // in relation to the input ui_resolution. The returned value will be clamped
@@ -52,6 +52,10 @@ int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
 // Calculates the SkiaCachSize from the ui_resolution. This is normalized
 // to be 4MB @ 1080p and scales accordingly.
 int64_t CalculateSkiaCacheSize(const math::Size& ui_resolution);
+
+// Calculates the GPU usage of the app to un-accounted systems. Scales linearly
+// with ui_resolution.
+int64_t CalculateMiscCobaltGpuSize(const math::Size& ui_resolution);
 
 }  // namespace memory_settings
 }  // namespace browser

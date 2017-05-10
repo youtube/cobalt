@@ -19,9 +19,13 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
+#include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/memory_settings/texture_dimensions.h"
 #include "cobalt/math/size.h"
 #include "starboard/configuration.h"
@@ -39,28 +43,54 @@ class MemorySetting {
   // SourceType defines the location where the setting was set from.
   // kNotApplicable means the setting is not supported on the current system
   // configuration.
-  enum SourceType { kUnset, kStarboardAPI, kBuildSetting, kCmdLine, kAutoSet };
+  enum SourceType { kUnset, kStarboardAPI, kBuildSetting, kCmdLine, kAutoSet,
+                    kAutosetConstrained };
   enum ClassType { kInt, kDimensions };
   enum MemoryType { kCPU, kGPU, kNotApplicable };
 
+  // Stringify's the value of this memory setting.
   virtual std::string ValueToString() const = 0;
   // Returns true if the TryParseValue() succeeded when converting the string
   // into the internal value. If false, then the object should not be changed.
   virtual bool TryParseValue(SourceType source_type,
                              const std::string& string_value) = 0;
 
+  // Returns the memory consumption (in bytes) that the memory setting will
+  // be allocated.
   virtual int64_t MemoryConsumption() const = 0;
+
+  // Sets the memory scaling function. This will control whether this
+  // MemorySetting will allow it's memory to be adjusted. If this is not
+  // set then ComputeAbsoluteMemoryScale(...) will return 1.0 for all inputs
+  // values, indicating that it can't be adjusted.
+  void set_memory_scaling_function(ScalingFunction function);
+
+  // Computes the absolute memory scale value from the requested_memory_scale.
+  // The absolute memory scale can be multiplied against MemoryConsumption()
+  // to predict the new memory consumption. This prediction should match the
+  // actual memory consumption after ScaleMemory(memory_scale) is called.
+  double ComputeAbsoluteMemoryScale(double requested_memory_scale) const;
+
+  // Adjusts the memory by the percentage passed in. Note that the base value
+  // is adjusted and repeatedly calling this function will repeatedly adjust
+  // this value. For example, calling AdjustMemory(.5) twice will reduce the
+  // memory by 25%.
+  //
+  // Calling this function will automatically set the source_type to
+  // kAutosetConstrained.
+  //
+  // Note that the expectation here is that the memory scale passed in was
+  // generated from ComputeAbsoluteMemoryScale().
+  virtual void ScaleMemory(double memory_scale) = 0;
 
   // Setting kNotApplicable will invalidate the MemorySetting.
   void set_memory_type(MemoryType memory_type) { memory_type_ = memory_type; }
-
   const std::string& name() const { return name_; }
   SourceType source_type() const { return source_type_; }
   ClassType class_type() const { return class_type_; }
   MemoryType memory_type() const { return memory_type_; }
 
   bool valid() const { return kNotApplicable != memory_type_; }
-
  protected:
   MemorySetting(ClassType type, const std::string& name);
 
@@ -68,6 +98,7 @@ class MemorySetting {
   const std::string name_;
   SourceType source_type_;
   MemoryType memory_type_;  // Defaults to kCPU.
+  ScalingFunction memory_scaling_function_;
 
  private:
   // Default constructor for MemorySetting is forbidden. Do not use it.
@@ -82,6 +113,7 @@ class IntSetting : public MemorySetting {
 
   std::string ValueToString() const OVERRIDE;
   virtual int64_t MemoryConsumption() const OVERRIDE;
+  virtual void ScaleMemory(double absolute_constraining_value) OVERRIDE;
 
   int64_t value() const { return valid() ? value_ : 0; }
   base::optional<int64_t> optional_value() const {
@@ -95,7 +127,6 @@ class IntSetting : public MemorySetting {
   }
   bool TryParseValue(SourceType source_type,
                      const std::string& string_value) OVERRIDE;
-
  private:
   int64_t value_;
 
@@ -132,6 +163,29 @@ class DimensionSetting : public MemorySetting {
 
   SB_DISALLOW_COPY_AND_ASSIGN(DimensionSetting);
 };
+
+class SkiaGlyphAtlasTextureSetting : public DimensionSetting {
+ public:
+  SkiaGlyphAtlasTextureSetting();
+  virtual void ScaleMemory(double absolute_constraining_value) OVERRIDE;
+
+ private:
+  static size_t NumberOfReductions(double reduction_factor);
+};
+
+class JavaScriptGcThresholdSetting : public IntSetting {
+ public:
+  JavaScriptGcThresholdSetting();
+  void PostInit();
+};
+
+int64_t SumMemoryConsumption(
+    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    const std::vector<const MemorySetting*>& memory_settings);
+
+int64_t SumMemoryConsumption(
+    base::optional<MemorySetting::MemoryType> memory_type_filter,
+    const std::vector<MemorySetting*>& memory_settings);
 
 }  // namespace memory_settings
 }  // namespace browser
