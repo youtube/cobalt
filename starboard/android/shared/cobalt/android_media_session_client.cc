@@ -16,6 +16,7 @@
 
 #include "base/time.h"
 #include "cobalt/media_session/media_session_client.h"
+#include "cobalt/script/sequence.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/log.h"
@@ -27,6 +28,7 @@ namespace android {
 namespace shared {
 namespace cobalt {
 
+using ::cobalt::media_session::MediaImage;
 using ::cobalt::media_session::MediaMetadata;
 using ::cobalt::media_session::MediaSession;
 using ::cobalt::media_session::MediaSessionAction;
@@ -41,6 +43,8 @@ using ::cobalt::media_session::kMediaSessionActionNexttrack;
 using ::cobalt::media_session::kMediaSessionPlaybackStateNone;
 using ::cobalt::media_session::kMediaSessionPlaybackStatePaused;
 using ::cobalt::media_session::kMediaSessionPlaybackStatePlaying;
+
+using MediaImageSequence = ::cobalt::script::Sequence<MediaImage>;
 
 using ::starboard::android::shared::JniEnvExt;
 using ::starboard::android::shared::ScopedLocalJavaRef;
@@ -202,27 +206,59 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     }
     SbMutexRelease(&mutex);
 
-    scoped_refptr<MediaSession> media_session(GetMediaSession());
-    scoped_refptr<MediaMetadata> media_metadata(media_session->metadata());
-
-    ScopedLocalJavaRef<jstring> title;
-    ScopedLocalJavaRef<jstring> artist;
-    ScopedLocalJavaRef<jstring> album;
-
-    if (media_metadata) {
-      title.Reset(env->NewStringUTF(media_metadata->title().c_str()));
-      artist.Reset(env->NewStringUTF(media_metadata->artist().c_str()));
-      album.Reset(env->NewStringUTF(media_metadata->album().c_str()));
-    }
-
     jlong playback_state_actions =
         MediaSessionActionsToPlaybackStateActions(GetAvailableActions());
 
+    scoped_refptr<MediaSession> media_session(GetMediaSession());
+    scoped_refptr<MediaMetadata> media_metadata(media_session->metadata());
+
+    ScopedLocalJavaRef<jstring> j_title;
+    ScopedLocalJavaRef<jstring> j_artist;
+    ScopedLocalJavaRef<jstring> j_album;
+    ScopedLocalJavaRef<jobjectArray> j_artwork;
+
+    if (media_metadata) {
+      j_title.Reset(env->NewStringUTF(media_metadata->title().c_str()));
+      j_artist.Reset(env->NewStringUTF(media_metadata->artist().c_str()));
+      j_album.Reset(env->NewStringUTF(media_metadata->album().c_str()));
+
+      const MediaImageSequence& artwork(media_metadata->artwork());
+      if (!artwork.empty()) {
+        ScopedLocalJavaRef<jclass> media_image_class(
+            env->FindClassExtOrAbort("foo/cobalt/media/MediaImage"));
+        jmethodID media_image_constructor = env->GetMethodID(
+            media_image_class.Get(), "<init>",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+        env->AbortOnException();
+
+        j_artwork.Reset(static_cast<jobjectArray>(env->NewObjectArray(
+            artwork.size(), media_image_class.Get(), NULL)));
+        env->AbortOnException();
+
+        ScopedLocalJavaRef<jstring> j_src;
+        ScopedLocalJavaRef<jstring> j_sizes;
+        ScopedLocalJavaRef<jstring> j_type;
+        for (MediaImageSequence::size_type i = 0; i < artwork.size(); i++) {
+          const MediaImage& media_image(artwork.at(i));
+          j_src.Reset(env->NewStringUTF(media_image.src().c_str()));
+          j_sizes.Reset(env->NewStringUTF(media_image.sizes().c_str()));
+          j_type.Reset(env->NewStringUTF(media_image.type().c_str()));
+
+          ScopedLocalJavaRef<jobject> j_media_image(
+              env->NewObject(media_image_class.Get(), media_image_constructor,
+                             j_src.Get(), j_sizes.Get(), j_type.Get()));
+
+          env->SetObjectArrayElement(j_artwork.Get(), i, j_media_image.Get());
+        }
+      }
+    }
+
     env->CallActivityVoidMethodOrAbort(
         "updateMediaSession",
-        "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V",
-        playback_state, title.Get(), artist.Get(), album.Get(),
-        playback_state_actions);
+        "(IJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+            "[Lfoo/cobalt/media/MediaImage;)V",
+        playback_state, playback_state_actions,
+        j_title.Get(), j_artist.Get(), j_album.Get(), j_artwork.Get());
   }
 };
 
