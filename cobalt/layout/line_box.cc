@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <limits>
 
-#include "cobalt/base/math.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/used_style.h"
