@@ -14,32 +14,36 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_BROWSER_MEMORY_SETTINGS_CONSTANTS_H_
-#define COBALT_BROWSER_MEMORY_SETTINGS_CONSTANTS_H_
+#ifndef COBALT_BROWSER_MEMORY_SETTINGS_CHECKER_H_
+#define COBALT_BROWSER_MEMORY_SETTINGS_CHECKER_H_
+
+#include <string>
+
+#include "base/optional.h"
+#include "cobalt/browser/memory_settings/auto_mem.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
-// These internal values are exposed for testing.
-enum MemorySizes {
-  // Size of the engine, minus all caches.
-  kMiscCobaltSizeInBytes = 32 * 1024 * 1024,
+// This class is responsible for holding the logic necessary to check
+// whether the memory limit has been exceeded. If so then a error
+// message is fired once.
+class Checker {
+ public:
+  Checker();
+  void RunChecks(const AutoMem& auto_mem,
+                 int64_t curr_cpu_memory_usage,
+                 base::optional<int64_t> curr_gpu_memory_usage);
 
-  kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
-  kMaxImageCacheSize = 64 * 1024 * 1024,  // 64mb
-
-  kMinSkiaGlyphTextureAtlasWidth = 2048,
-  kMinSkiaGlyphTextureAtlasHeight = 2048,
-  kSkiaGlyphAtlasTextureBytesPerPixel = 2,
-  kDefaultRemoteTypeFaceCacheSize = 4 * 1024 * 1024,  // 4mb.
-  kDefaultJsGarbageCollectionThresholdSize = 8 * 1024 * 1024,  // 8mb
-
-  kMinSkiaCacheSize = 4 * 1024 * 1024,  // 4mb.
+ private:
+  bool cpu_memory_warning_fired_;
+  bool gpu_memory_warning_fired_;
 };
 
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_MEMORY_SETTINGS_CONSTANTS_H_
+#endif  // COBALT_BROWSER_MEMORY_SETTINGS_CHECKER_H_

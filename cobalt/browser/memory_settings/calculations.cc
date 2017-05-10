@@ -20,17 +20,13 @@
 
 #include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/constants.h"
+#include "cobalt/math/clamp.h"
 #include "cobalt/math/size.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
-
-template <typename T>
-T ClampValue(const T& input, const T& minimum, const T& maximum) {
-  return std::max<T>(minimum, std::min<T>(maximum, input));
-}
 
 double DisplayScaleTo1080p(const math::Size& dimensions) {
   static const double kNumReferencePixels = 1920. * 1080.;
@@ -39,8 +35,8 @@ double DisplayScaleTo1080p(const math::Size& dimensions) {
   return num_pixels / kNumReferencePixels;
 }
 
-// LinearRemap is a type of linear interpolation which maps a value from
-// one number line to a corresponding value on another number line.
+// LinearRemap maps a value from one number line to a corresponding value on
+// another number line.
 // Example:
 //  LinearRemap linear_remap(0, 1, 5, 10);
 //  EXPECT_EQ(5.0f, linear_remap.Map(0));
@@ -49,7 +45,9 @@ double DisplayScaleTo1080p(const math::Size& dimensions) {
 class LinearRemap {
  public:
   LinearRemap(double amin, double amax, double bmin, double bmax)
-      : amin_(amin), amax_(amax), bmin_(bmin), bmax_(bmax) {}
+      : amin_(amin), amax_(amax), bmin_(bmin), bmax_(bmax) {
+    DCHECK_NE(amax_, amin_);
+  }
 
   // Maps the value from the number line [amin,amax] to [bmin,bmax]. For
   // example:
@@ -58,8 +56,8 @@ class LinearRemap {
   //   Map((amax+amin)/2) -> (bmax+bmin)/2.
   double Map(double value) const {
     value -= amin_;
-    value /= (amax_ - amin_);
     value *= (bmax_ - bmin_);
+    value /= (amax_ - amin_);
     value += bmin_;
     return value;
   }
@@ -93,8 +91,8 @@ int64_t CalculateImageCacheSize(const math::Size& dimensions) {
   static const int64_t kReferenceSize1080p = 32 * 1024 * 1024;
   double output_bytes = kReferenceSize1080p * display_scale;
 
-  return ClampValue<int64_t>(static_cast<int64_t>(output_bytes),
-                             kMinImageCacheSize, kMaxImageCacheSize);
+  return math::Clamp<int64_t>(static_cast<int64_t>(output_bytes),
+                              kMinImageCacheSize, kMaxImageCacheSize);
 }
 
 TextureDimensions CalculateSkiaGlyphAtlasTextureSize(
@@ -130,7 +128,7 @@ int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
   // LinearRemap defines a mapping function which will map the number
   // of ui_resolution pixels to the number of surface texture cache such:
   // 720p (1280x720)   => maps to => 4MB &
-  // 1080p (1920x1200) => maps to => 9MB
+  // 1080p (1920x1080) => maps to => 9MB
   LinearRemap remap(1280 * 720, 1920 * 1080, 4 * 1024 * 1024, 9 * 1024 * 1024);
 
   int64_t surface_cache_size_in_bytes =
@@ -144,6 +142,16 @@ int64_t CalculateSkiaCacheSize(const math::Size& ui_resolution) {
   LinearRemap remap(0, 1920 * 1080, 0, 4 * 1024 * 1024);
   int64_t output = static_cast<int64_t>(remap.Map(ui_resolution.GetArea()));
   return std::max<int64_t>(output, kMinSkiaCacheSize);
+}
+
+int64_t CalculateMiscCobaltGpuSize(const math::Size& ui_resolution) {
+  // LinearRemap defines a mapping function which will map the number
+  // of ui_resolution pixels to the misc memory of the GPU. This mapping
+  // is linear such that:
+  // 1080p (1920x1080) => maps to => 24MB
+  LinearRemap remap(0, 1920 * 1080, 0, 24 * 1024 * 1024);
+
+  return static_cast<int64_t>(remap.Map(ui_resolution.GetArea()));
 }
 
 }  // namespace memory_settings
