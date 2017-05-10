@@ -220,6 +220,12 @@ void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
   *is_playing = true;
   *frames_in_buffer = frames_in_buffer_;
   *offset_in_frames = offset_in_frames_;
+
+  if (!end_of_stream_decoded_ && !read_from_decoder_closure_.is_valid()) {
+    read_from_decoder_closure_ =
+        Bind(&AudioRendererImpl::ReadFromDecoder, this);
+    job_queue_->Schedule(read_from_decoder_closure_);
+  }
 }
 
 void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
@@ -231,15 +237,6 @@ void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
   frames_in_buffer_ -= frames_consumed;
   frames_consumed_ += frames_consumed;
   frames_consumed_set_at_ = SbTimeGetMonotonicNow();
-
-  bool decoded_audio_available =
-      pending_decoded_audio_ ||
-      (end_of_stream_written_ && !end_of_stream_decoded_);
-  if (decoded_audio_available && !read_from_decoder_closure_.is_valid()) {
-    read_from_decoder_closure_ =
-        Bind(&AudioRendererImpl::ReadFromDecoder, this);
-    job_queue_->Schedule(read_from_decoder_closure_);
-  }
 }
 
 void AudioRendererImpl::LogFramesConsumed() {
