@@ -21,7 +21,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/base/math.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
