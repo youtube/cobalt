@@ -39,6 +39,8 @@ namespace memory_settings {
 //      "+--------+--------+\n";
 class TablePrinter {
  public:
+  static bool SystemSupportsColor();
+
   enum Color {
     kDefault,
     kRed,
