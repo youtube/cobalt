@@ -245,7 +245,22 @@ void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
     // that can be bound using eglMakeCurrent.
     DCHECK_EQ(surface->GetPlatformHandle(), 0);
 
-    EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+    eglMakeCurrent(display_, egl_surface, egl_surface, context_);
+    EGLint make_current_error = eglGetError();
+    if (make_current_error != EGL_SUCCESS) {
+      LOG(ERROR) << "eglMakeCurrent ERROR: " << make_current_error;
+      if (make_current_error == EGL_BAD_ALLOC ||
+          make_current_error == EGL_BAD_NATIVE_WINDOW) {
+        LOG(ERROR) << "eglMakeCurrent raised either EGL_BAD_ALLOC or "
+                      "EGL_BAD_NATIVE_WINDOW, continuing with null surface "
+                      "under the assumption that our window surface has become "
+                      "invalid due to a suspend or shutdown being triggered.";
+        egl_surface = null_surface_->GetSurface();
+        EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+      } else {
+        NOTREACHED() << "Unexpected error when calling eglMakeCurrent().";
+      }
+    }
 
     // Minimize calls to glBindFramebuffer. Normally, nothing keeps their
     // framebuffer object bound, so 0 is normally bound at this point --
