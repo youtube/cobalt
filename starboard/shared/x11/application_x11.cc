@@ -41,7 +41,12 @@ namespace starboard {
 namespace shared {
 namespace x11 {
 namespace {
-const int kKeyboardDeviceId = 1;
+
+enum {
+  kNoneDeviceId,
+  kKeyboardDeviceId,
+  kMouseDeviceId,
+};
 
 // Key translation taken from cobalt/system_window/linux/keycode_conversion.cc
 // Eventually, that code should be removed in favor of this code.
@@ -522,6 +527,47 @@ SbKey XKeyEventToSbKey(XKeyEvent* event) {
   return key;
 }
 
+bool XButtonEventIsWheelEvent(XButtonEvent* event) {
+  // Buttons 4, 5, 6, and 7 are wheel events.
+  return event->button >= 4 && event->button <= 7;
+}
+
+enum {
+  kWheelUpButton = 4,
+  kWheelDownButton = 5,
+  kWheelLeftButton = 6,
+  kWheelRightButton = 7,
+  kPointerBackButton = 8,
+  kPointerForwardButton = 9,
+};
+
+SbKey XButtonEventToSbKey(XButtonEvent* event) {
+  SbKey key;
+  switch (event->button) {
+    case Button1:
+      return kSbKeyMouse1;
+    case Button2:
+      return kSbKeyMouse2;
+    case Button3:
+      return kSbKeyMouse3;
+    case kWheelUpButton:
+      return kSbKeyUp;
+    case kWheelDownButton:
+      return kSbKeyDown;
+    case kWheelLeftButton:
+      return kSbKeyLeft;
+    case kWheelRightButton:
+      return kSbKeyRight;
+    case kPointerBackButton:
+      return kSbKeyBrowserBack;
+    case kPointerForwardButton:
+      return kSbKeyBrowserForward;
+    default:
+      return kSbKeyUnknown;
+  }
+  return key;
+}
+
 // Get a SbKeyLocation from an XKeyEvent.
 SbKeyLocation XKeyEventToSbKeyLocation(XKeyEvent* event) {
   KeySym keysym = XK_VoidSymbol;
@@ -543,19 +589,60 @@ SbKeyLocation XKeyEventToSbKeyLocation(XKeyEvent* event) {
 }
 
 // Get an SbKeyModifiers from an XKeyEvent.
-unsigned int XKeyEventToSbKeyModifiers(XKeyEvent* event) {
+unsigned int XEventStateToSbKeyModifiers(unsigned int state) {
   unsigned int key_modifiers = kSbKeyModifiersNone;
-  if (event->state & Mod1Mask) {
+  if (state & Mod1Mask) {
     key_modifiers |= kSbKeyModifiersAlt;
   }
-  if (event->state & ControlMask) {
+  if (state & ControlMask) {
     key_modifiers |= kSbKeyModifiersCtrl;
   }
-  if (event->state & ShiftMask) {
+  if (state & Mod4Mask) {
+    key_modifiers |= kSbKeyModifiersMeta;
+  }
+  if (state & ShiftMask) {
     key_modifiers |= kSbKeyModifiersShift;
   }
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  if (state & Button1Mask) {
+    key_modifiers |= kSbKeyModifiersPointerButtonLeft;
+  }
+  if (state & Button2Mask) {
+    key_modifiers |= kSbKeyModifiersPointerButtonMiddle;
+  }
+  if (state & Button3Mask) {
+    key_modifiers |= kSbKeyModifiersPointerButtonRight;
+  }
+#endif
+  // Note: Button 4 and button 5 represent vertical wheel motion. As a result,
+  // Button4Mask and Button5Mask do not represent a useful mouse button state
+  // since the wheel up and wheel down do not have 'buttons' that can be held
+  // down. The state of the Back and Forward mouse buttons is not reported to
+  // X11 clients. This is not a hardware limitation, but a result of historical
+  // Xorg X11 mouse driver button mapping choices.
   return key_modifiers;
 }
+
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+SbInputVector XButtonEventToSbInputVectorDelta(XButtonEvent* event) {
+  SbInputVector delta = {0, 0};
+  switch (event->button) {
+    case kWheelUpButton:
+      delta.y = -1;
+      break;
+    case kWheelDownButton:
+      delta.y = 1;
+      break;
+    case kWheelLeftButton:
+      delta.x = -1;
+      break;
+    case kWheelRightButton:
+      delta.x = 1;
+      break;
+  }
+  return delta;
+}
+#endif
 
 bool XNextEventTimed(Display* display, XEvent* out_event, SbTime duration) {
   if (XPending(display) == 0) {
@@ -855,7 +942,63 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->device_id = kKeyboardDeviceId;
       data->key = XKeyEventToSbKey(x_key_event);
       data->key_location = XKeyEventToSbKeyLocation(x_key_event);
-      data->key_modifiers = XKeyEventToSbKeyModifiers(x_key_event);
+      data->key_modifiers = XEventStateToSbKeyModifiers(x_key_event->state);
+      data->position.x = x_key_event->x;
+      data->position.y = x_key_event->y;
+      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+    }
+    case ButtonPress:
+    case ButtonRelease: {
+      XButtonEvent* x_button_event = reinterpret_cast<XButtonEvent*>(x_event);
+      SbInputData* data = new SbInputData();
+      SbMemorySet(data, 0, sizeof(*data));
+      data->window = FindWindow(x_button_event->window);
+      SB_DCHECK(SbWindowIsValid(data->window));
+      data->key = XButtonEventToSbKey(x_button_event);
+      bool is_press_event = ButtonPress == x_event->type;
+      data->type =
+          is_press_event ? kSbInputEventTypePress : kSbInputEventTypeUnpress;
+      data->device_type = kSbInputDeviceTypeMouse;
+      if (XButtonEventIsWheelEvent(x_button_event)) {
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+        if (!is_press_event) {
+          // unpress events from the wheel are discarded.
+          return NULL;
+        }
+        data->pressure = NAN;
+        data->size = {NAN, NAN};
+        data->tilt = {NAN, NAN};
+        data->type = kSbInputEventTypeWheel;
+        data->delta = XButtonEventToSbInputVectorDelta(x_button_event);
+#else
+        // This version of Starboard does not support wheel event types, send
+        // keyboard event types instead.
+        data->device_type = kSbInputDeviceTypeKeyboard;
+#endif
+      }
+      data->device_id = kMouseDeviceId;
+      data->key_modifiers = XEventStateToSbKeyModifiers(x_button_event->state);
+      data->position.x = x_button_event->x;
+      data->position.y = x_button_event->y;
+      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+    }
+    case MotionNotify: {
+      XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
+      SbInputData* data = new SbInputData();
+      SbMemorySet(data, 0, sizeof(*data));
+      data->window = FindWindow(x_motion_event->window);
+      SB_DCHECK(SbWindowIsValid(data->window));
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+      data->pressure = NAN;
+      data->size = {NAN, NAN};
+      data->tilt = {NAN, NAN};
+#endif
+      data->type = kSbInputEventTypeMove;
+      data->device_type = kSbInputDeviceTypeMouse;
+      data->device_id = kMouseDeviceId;
+      data->key_modifiers = XEventStateToSbKeyModifiers(x_motion_event->state);
+      data->position.x = x_motion_event->x;
+      data->position.y = x_motion_event->y;
       return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
     }
     case FocusIn: {
