@@ -93,6 +93,12 @@ void InputPollerImpl::UpdateInputEvent(
           NOTREACHED();
       }
     } break;
+    case system_window::InputEvent::kPointerDown:
+    case system_window::InputEvent::kPointerUp:
+    case system_window::InputEvent::kPointerMove:
+    case system_window::InputEvent::kWheel:
+      // Pointer and Wheel events are ignored here.
+      break;
     default:
       NOTREACHED();
   }

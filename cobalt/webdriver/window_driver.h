@@ -29,6 +29,8 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/pointer_event.h"
+#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
 #include "cobalt/webdriver/element_mapping.h"
@@ -53,15 +55,24 @@ namespace webdriver {
 // will map to a method on this class.
 class WindowDriver : private ElementMapping {
  public:
-  typedef base::Callback<void(scoped_refptr<dom::Element>,
-                              const dom::KeyboardEvent::Data&)>
+  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
+                              const dom::KeyboardEventInit&)>
       KeyboardEventInjector;
+  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
+                              const dom::PointerEventInit&)>
+      PointerEventInjector;
+  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
+                              const dom::WheelEventInit&)>
+      WheelEventInjector;
+
   typedef base::Callback<scoped_refptr<script::GlobalEnvironment>()>
       GetGlobalEnvironmentFunction;
   WindowDriver(const protocol::WindowId& window_id,
                const base::WeakPtr<dom::Window>& window,
                const GetGlobalEnvironmentFunction& get_global_environment,
-               KeyboardEventInjector keyboard_injector,
+               KeyboardEventInjector keyboard_event_injector,
+               PointerEventInjector pointer_event_injector,
+               WheelEventInjector wheel_event_injector,
                const scoped_refptr<base::MessageLoopProxy>& message_loop);
   ~WindowDriver();
   const protocol::WindowId& window_id() { return window_id_; }
@@ -135,7 +146,9 @@ class WindowDriver : private ElementMapping {
   // Bound to the WebDriver thread.
   base::ThreadChecker thread_checker_;
 
-  KeyboardEventInjector keyboard_injector_;
+  KeyboardEventInjector keyboard_event_injector_;
+  PointerEventInjector pointer_event_injector_;
+  WheelEventInjector wheel_event_injector_;
 
   // Anything that interacts with the window must be run on this message loop.
   scoped_refptr<base::MessageLoopProxy> window_message_loop_;

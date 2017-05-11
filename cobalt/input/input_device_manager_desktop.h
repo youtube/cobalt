@@ -24,8 +24,11 @@ namespace input {
 
 class InputDeviceManagerDesktop : public InputDeviceManager {
  public:
-  InputDeviceManagerDesktop(const KeyboardEventCallback& callback,
-                            system_window::SystemWindow* system_window);
+  InputDeviceManagerDesktop(
+      const KeyboardEventCallback& keyboard_event_callback,
+      const PointerEventCallback& pointer_event_callback,
+      const WheelEventCallback& wheel_event_callback,
+      system_window::SystemWindow* system_window);
 
   ~InputDeviceManagerDesktop() OVERRIDE;
 
@@ -35,15 +38,29 @@ class InputDeviceManagerDesktop : public InputDeviceManager {
   void HandleInputEvent(const base::Event* event);
 
  private:
+  void HandleKeyboardEvent(bool is_key_down,
+                           const system_window::InputEvent* input_event,
+                           int key_code);
+  void HandlePointerEvent(base::Token type,
+                          const system_window::InputEvent* input_event);
+
+  void HandleWheelEvent(const system_window::InputEvent* input_event);
+
   // Reference to the system window that will provide keyboard events.
   system_window::SystemWindow* system_window_;
 
-  // Store a callback wrapping the object event handler, HandleKeyboardEvent.
+  // Store a callback wrapping the object event handler, HandleInputEvent.
   // This is so we can remove it again when this object is destroyed.
-  base::EventCallback keyboard_event_callback_;
+  base::EventCallback input_event_callback_;
 
   // Keyboard event filters to process the events generated.
   KeypressGeneratorFilter keypress_generator_filter_;
+
+  // Called to handle a pointer event.
+  PointerEventCallback pointer_event_callback_;
+
+  // Called to handle a wheel event.
+  WheelEventCallback wheel_event_callback_;
 };
 
 }  // namespace input

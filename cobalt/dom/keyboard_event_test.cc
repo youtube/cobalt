@@ -15,6 +15,7 @@
 #include "cobalt/dom/keyboard_event.h"
 
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,132 +23,171 @@ namespace cobalt {
 namespace dom {
 
 TEST(KeyboardEventTest, ShouldHaveBubblesAndCancelableSet) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent("keydown");
   EXPECT_TRUE(keyboard_event->bubbles());
   EXPECT_TRUE(keyboard_event->cancelable());
 }
 
 TEST(KeyboardEventTest, CanGetKeyLocation) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  KeyboardEventInit init;
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent("keydown", init);
   EXPECT_EQ(keyboard_event->key_location(),
             KeyboardEvent::kDomKeyLocationStandard);
 
-  scoped_refptr<KeyboardEvent> keyboard_event_l = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationLeft,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  init.set_location(KeyboardEvent::kDomKeyLocationLeft);
+  scoped_refptr<KeyboardEvent> keyboard_event_l =
+      new KeyboardEvent("keydown", init);
   EXPECT_EQ(keyboard_event_l->key_location(),
             KeyboardEvent::kDomKeyLocationLeft);
 
-  scoped_refptr<KeyboardEvent> keyboard_event_r = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationRight,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  init.set_location(KeyboardEvent::kDomKeyLocationRight);
+  scoped_refptr<KeyboardEvent> keyboard_event_r =
+      new KeyboardEvent("keydown", init);
   EXPECT_EQ(keyboard_event_r->key_location(),
             KeyboardEvent::kDomKeyLocationRight);
 }
 
-TEST(KeyboardEventTest, CanGetKeyIdentifier) {
-  scoped_refptr<KeyboardEvent> keyboard_event_a = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, keycode::kA, 0, false);
+TEST(KeyboardEventTest, CanGetKeyIdentifierAndKeyAndCode) {
+  KeyboardEventInit init;
+  init.set_key_code(keycode::kA);
+  scoped_refptr<KeyboardEvent> keyboard_event_a =
+      new KeyboardEvent("keydown", init);
   EXPECT_EQ(keyboard_event_a->key_identifier(), "a");
+  EXPECT_EQ(keyboard_event_a->key(), "a");
+  EXPECT_EQ(keyboard_event_a->code(), "KeyA");
 
-  scoped_refptr<KeyboardEvent> keyboard_event_ca = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kCtrlKey, keycode::kA, 0, false);
+  init.set_key_code(keycode::kA);
+  init.set_ctrl_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_ca =
+      new KeyboardEvent("keydown", init);
+  init.set_ctrl_key(false);
   EXPECT_EQ(keyboard_event_ca->key_identifier(), "a");
+  EXPECT_EQ(keyboard_event_ca->key(), "a");
+  EXPECT_EQ(keyboard_event_ca->code(), "KeyA");
 
-  scoped_refptr<KeyboardEvent> keyboard_event_sa = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kShiftKey, keycode::kA, 0, false);
+  init.set_shift_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_sa =
+      new KeyboardEvent("keydown", init);
+  init.set_shift_key(false);
   EXPECT_EQ(keyboard_event_sa->key_identifier(), "A");
+  EXPECT_EQ(keyboard_event_sa->key(), "A");
+  EXPECT_EQ(keyboard_event_sa->code(), "KeyA");
 
-  scoped_refptr<KeyboardEvent> keyboard_event_1 = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, keycode::k1, 0, false);
+  init.set_key_code(keycode::k1);
+  scoped_refptr<KeyboardEvent> keyboard_event_1 =
+      new KeyboardEvent("keydown", init);
   EXPECT_EQ(keyboard_event_1->key_identifier(), "1");
+  EXPECT_EQ(keyboard_event_1->key(), "1");
+  EXPECT_EQ(keyboard_event_1->code(), "Digit1");
 
-  scoped_refptr<KeyboardEvent> keyboard_event_s1 = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kShiftKey, keycode::k1, 0, false);
+  init.set_shift_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_s1 =
+      new KeyboardEvent("keydown", init);
+  init.set_shift_key(false);
   EXPECT_EQ(keyboard_event_s1->key_identifier(), "!");
+  EXPECT_EQ(keyboard_event_s1->key(), "!");
+  EXPECT_EQ(keyboard_event_1->code(), "Digit1");
 
-  scoped_refptr<KeyboardEvent> keyboard_event_left = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, keycode::kLeft, 0, false);
+  init.set_key_code(keycode::kLeft);
+  scoped_refptr<KeyboardEvent> keyboard_event_left =
+      new KeyboardEvent("keydown", init);
   EXPECT_EQ(keyboard_event_left->key_identifier(), "ArrowLeft");
+  EXPECT_EQ(keyboard_event_left->key(), "ArrowLeft");
+  EXPECT_EQ(keyboard_event_left->code(), "ArrowLeft");
 
-  scoped_refptr<KeyboardEvent> keyboard_event_sleft = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kShiftKey, keycode::kLeft, 0, false);
+  init.set_shift_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_sleft =
+      new KeyboardEvent("keydown", init);
+  init.set_shift_key(false);
   EXPECT_EQ(keyboard_event_sleft->key_identifier(), "ArrowLeft");
+  EXPECT_EQ(keyboard_event_sleft->key(), "ArrowLeft");
+  EXPECT_EQ(keyboard_event_sleft->code(), "ArrowLeft");
+
+  init.set_key_code(keycode::kNumpad5);
+  init.set_shift_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_num5 =
+      new KeyboardEvent("keydown", init);
+  init.set_shift_key(false);
+  EXPECT_EQ(keyboard_event_num5->key_identifier(), "5");
+  EXPECT_EQ(keyboard_event_num5->key(), "5");
+  EXPECT_EQ(keyboard_event_num5->code(), "Numpad5");
+
+  init.set_key_code(keycode::kSpace);
+  scoped_refptr<KeyboardEvent> keyboard_event_space =
+      new KeyboardEvent("keydown", init);
+  EXPECT_EQ(keyboard_event_space->key_identifier(), " ");
+  EXPECT_EQ(keyboard_event_space->key(), " ");
+  EXPECT_EQ(keyboard_event_space->code(), "Space");
 }
 
 TEST(KeyboardEventTest, CanGetAltKey) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  KeyboardEventInit init;
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent("keydown", init);
   EXPECT_FALSE(keyboard_event->alt_key());
 
-  scoped_refptr<KeyboardEvent> keyboard_event_a = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kAltKey, 0, 0, false);
+  init.set_alt_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_a =
+      new KeyboardEvent("keydown", init);
+  init.set_alt_key(false);
   EXPECT_TRUE(keyboard_event_a->alt_key());
 }
 
 TEST(KeyboardEventTest, CanGetCtrlKey) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  KeyboardEventInit init;
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent("keydown", init);
   EXPECT_FALSE(keyboard_event->ctrl_key());
 
-  scoped_refptr<KeyboardEvent> keyboard_event_c = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kCtrlKey, 0, 0, false);
+  init.set_ctrl_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_c =
+      new KeyboardEvent("keydown", init);
+  init.set_ctrl_key(false);
   EXPECT_TRUE(keyboard_event_c->ctrl_key());
 }
 
 TEST(KeyboardEventTest, CanGetMetaKey) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  KeyboardEventInit init;
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent("keydown", init);
   EXPECT_FALSE(keyboard_event->meta_key());
 
-  scoped_refptr<KeyboardEvent> keyboard_event_m = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kMetaKey, 0, 0, false);
+  init.set_meta_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_m =
+      new KeyboardEvent("keydown", init);
+  init.set_meta_key(false);
   EXPECT_TRUE(keyboard_event_m->meta_key());
 }
 
 TEST(KeyboardEventTest, CanGetShiftKey) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  KeyboardEventInit init;
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent("keydown", init);
   EXPECT_FALSE(keyboard_event->shift_key());
 
-  scoped_refptr<KeyboardEvent> keyboard_event_s = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kShiftKey, 0, 0, false);
+  init.set_shift_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_s =
+      new KeyboardEvent("keydown", init);
+  init.set_shift_key(false);
   EXPECT_TRUE(keyboard_event_s->shift_key());
 }
 
 TEST(KeyboardEventTest, CanGetModifierState) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  KeyboardEventInit init;
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent("keydown", init);
   EXPECT_FALSE(keyboard_event->GetModifierState("Alt"));
   EXPECT_FALSE(keyboard_event->GetModifierState("Control"));
   EXPECT_FALSE(keyboard_event->GetModifierState("Meta"));
   EXPECT_FALSE(keyboard_event->GetModifierState("Shift"));
 
-  scoped_refptr<KeyboardEvent> keyboard_event_m = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kAltKey | KeyboardEvent::kCtrlKey |
-          KeyboardEvent::kMetaKey | KeyboardEvent::kShiftKey,
-      0, 0, false);
+  init.set_alt_key(true);
+  init.set_ctrl_key(true);
+  init.set_meta_key(true);
+  init.set_shift_key(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_m =
+      new KeyboardEvent("keydown", init);
   EXPECT_TRUE(keyboard_event_m->GetModifierState("Alt"));
   EXPECT_TRUE(keyboard_event_m->GetModifierState("Control"));
   EXPECT_TRUE(keyboard_event_m->GetModifierState("Meta"));
@@ -155,14 +195,14 @@ TEST(KeyboardEventTest, CanGetModifierState) {
 }
 
 TEST(KeyboardEventTest, CanGetRepeat) {
-  scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, 0, 0, false);
+  KeyboardEventInit init;
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent("keydown", init);
   EXPECT_FALSE(keyboard_event->repeat());
 
-  scoped_refptr<KeyboardEvent> keyboard_event_r = new KeyboardEvent(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kShiftKey, 0, 0, true);
+  init.set_repeat(true);
+  scoped_refptr<KeyboardEvent> keyboard_event_r =
+      new KeyboardEvent("keydown", init);
   EXPECT_TRUE(keyboard_event_r->repeat());
 }
 }  // namespace dom

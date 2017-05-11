@@ -17,9 +17,49 @@
 [NoInterfaceObject]
 interface GlobalEventHandlers {
   attribute EventHandler onblur;
+  attribute EventHandler onclick;
   attribute EventHandler onerror;
   attribute EventHandler onfocus;
+
+  attribute EventHandler onkeydown;
+  attribute EventHandler onkeypress;
+  attribute EventHandler onkeyup;
+
   attribute EventHandler onload;
+  attribute EventHandler onloadeddata;
+  attribute EventHandler onloadedmetadata;
+  attribute EventHandler onloadstart;
+
+  attribute EventHandler onmousedown;
+  attribute EventHandler onmouseenter;
+  attribute EventHandler onmouseleave;
+  attribute EventHandler onmousemove;
+  attribute EventHandler onmouseout;
+  attribute EventHandler onmouseover;
+  attribute EventHandler onmouseup;
+
+  attribute EventHandler onpause;
+  attribute EventHandler onplay;
+  attribute EventHandler onplaying;
+
+  // Extensions for the Pointer Events recommendation.
+  //  https://www.w3.org/TR/2015/REC-pointerevents-20150224/#extensions-to-the-globaleventhandlers-interface
+  attribute EventHandler onpointerdown;
+  attribute EventHandler onpointerenter;
+  attribute EventHandler onpointerleave;
+  attribute EventHandler onpointermove;
+  attribute EventHandler onpointerout;
+  attribute EventHandler onpointerover;
+  attribute EventHandler onpointerup;
+
+  attribute EventHandler onprogress;
+  attribute EventHandler onratechange;
+  attribute EventHandler onseeked;
+  attribute EventHandler onseeking;
+  attribute EventHandler ontimeupdate;
+  attribute EventHandler onvolumechange;
+  attribute EventHandler onwaiting;
+  attribute EventHandler onwheel;
 };
 
 // TODO: The IDL defines EventHandler as a nullable callback

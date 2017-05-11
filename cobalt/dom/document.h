@@ -17,6 +17,7 @@
 
 #include <deque>
 #include <map>
+#include <queue>
 #include <string>
 
 #include "base/callback.h"
@@ -190,6 +191,7 @@ class Document : public Node,
   scoped_refptr<HTMLHeadElement> head() const;
 
   scoped_refptr<Element> active_element() const;
+  scoped_refptr<HTMLElement> indicated_element() const;
 
   const EventListenerScriptValue* onreadystatechange() const {
     return GetAttributeEventListener(base::Tokens::readystatechange());
@@ -256,9 +258,13 @@ class Document : public Node,
   bool HasBrowsingContext() { return !!window_; }
 
   void set_window(Window* window) { window_ = window; }
+  const scoped_refptr<Window> window();
 
   // Sets the active element of the document.
   void SetActiveElement(Element* active_element);
+
+  // Sets the indicated element of the document.
+  void SetIndicatedElement(HTMLElement* indicated_element);
 
   // Count all ongoing loadings, including document itself and its dependent
   // resources, and dispatch OnLoad() if necessary.
@@ -372,6 +378,12 @@ class Document : public Node,
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
+  // Queue up pointer related events.
+  void QueuePointerEvent(const scoped_refptr<Event>& event);
+
+  // Get the next queued pointer event.
+  scoped_refptr<Event> GetNextQueuedPointerEvent();
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
@@ -436,6 +448,8 @@ class Document : public Node,
 
   // Weak reference to the active element.
   base::WeakPtr<Element> active_element_;
+  // Weak reference to the indicated element.
+  base::WeakPtr<HTMLElement> indicated_element_;
   // List of document observers.
   ObserverList<DocumentObserver> observers_;
   // Selector Tree.
@@ -457,6 +471,8 @@ class Document : public Node,
 
   // The max depth of elements that are guaranteed to be rendered.
   int dom_max_element_depth_;
+
+  std::queue<scoped_refptr<Event> > pointer_events_;
 };
 
 }  // namespace dom
