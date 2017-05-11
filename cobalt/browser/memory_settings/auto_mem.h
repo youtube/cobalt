@@ -63,7 +63,7 @@ class AutoMem {
   // Generates a string table of the memory settings and available memory for
   // cpu and gpu. This is used during startup to display memory configuration
   // information.
-  std::string ToPrettyPrintString() const;
+  std::string ToPrettyPrintString(bool use_color_ascii) const;
 
  private:
   void ConstructSettings(const math::Size& ui_resolution,
