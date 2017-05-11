@@ -29,11 +29,15 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_style_element.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/location.h"
+#include "cobalt/dom/message_event.h"
+#include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom/ui_event.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -145,19 +149,105 @@ TEST_F(DocumentTest, CreateComment) {
   EXPECT_EQ(document, comment->node_document());
 }
 
-TEST_F(DocumentTest, CreateEvent) {
+TEST_F(DocumentTest, CreateEventEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
   scoped_refptr<Document> document = new Document(&html_element_context_);
+
   // Create an Event, the name is case insensitive.
   scoped_refptr<Event> event = document->CreateEvent("EvEnT", &exception_state);
-
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
 
+  event = document->CreateEvent("EvEnTs", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_FALSE(dynamic_cast<UIEvent*>(event.get()));
+  EXPECT_FALSE(dynamic_cast<KeyboardEvent*>(event.get()));
+  EXPECT_FALSE(dynamic_cast<MessageEvent*>(event.get()));
+  EXPECT_FALSE(dynamic_cast<MouseEvent*>(event.get()));
+
+  event = document->CreateEvent("HtMlEvEnTs", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+}
+
+TEST_F(DocumentTest, CreateEventUIEvent) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
+  // Create an Event, the name is case insensitive.
+  scoped_refptr<Event> event =
+      document->CreateEvent("UiEvEnT", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<UIEvent*>(event.get()));
+
+  event = document->CreateEvent("UiEvEnTs", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<UIEvent*>(event.get()));
+}
+
+TEST_F(DocumentTest, CreateEventKeyboardEvent) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
+  // Create an Event, the name is case insensitive.
+  scoped_refptr<Event> event =
+      document->CreateEvent("KeYbOaRdEvEnT", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<KeyboardEvent*>(event.get()));
+
+  event = document->CreateEvent("KeYeVeNtS", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<KeyboardEvent*>(event.get()));
+}
+
+TEST_F(DocumentTest, CreateEventMessageEvent) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
+  // Create an Event, the name is case insensitive.
+  scoped_refptr<Event> event =
+      document->CreateEvent("MeSsAgEeVeNt", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<MessageEvent*>(event.get()));
+}
+
+TEST_F(DocumentTest, CreateEventMouseEvent) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
+  // Create an Event, the name is case insensitive.
+  scoped_refptr<Event> event =
+      document->CreateEvent("MoUsEeVeNt", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<MouseEvent*>(event.get()));
+
+  event = document->CreateEvent("MoUsEeVeNtS", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<MouseEvent*>(event.get()));
+}
+
+TEST_F(DocumentTest, CreateEventEventNotSupported) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
   EXPECT_CALL(exception_state, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
-  event = document->CreateEvent("Event Not Supported", &exception_state);
+  scoped_refptr<Event> event =
+      document->CreateEvent("Event Not Supported", &exception_state);
 
   EXPECT_FALSE(event);
   ASSERT_TRUE(exception);

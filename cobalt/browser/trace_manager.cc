@@ -32,13 +32,14 @@ const char kTraceCommandLongHelp[] =
     "If a trace is currently running, stops it and saves the result; "
     "otherwise starts a new trace.";
 
-// Name of the command to start / stop tracing after key event.
-const char kKeyTraceCommand[] = "key_trace";
+// Name of the command to start / stop tracing after input event.
+const char kInputTraceCommand[] = "input_trace";
 
-// Help strings for the key trace command.
-const char kKeyTraceCommandShortHelp[] = "Starts/stops tracing after key event";
-const char kKeyTraceCommandLongHelp[] =
-    "Switches the flag of whether we start a new tracing after each key "
+// Help strings for the input trace command.
+const char kInputTraceCommandShortHelp[] =
+    "Starts/stops tracing after input event";
+const char kInputTraceCommandLongHelp[] =
+    "Switches the flag of whether we start a new tracing after each input "
     "event.";
 
 }  // namespace
@@ -53,17 +54,18 @@ TraceManager::TraceManager()
           kTraceCommandChannel,
           base::Bind(&TraceManager::OnTraceMessage, base::Unretained(this)),
           kTraceCommandShortHelp, kTraceCommandLongHelp)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(key_trace_command_handler_(
-          kKeyTraceCommand,
-          base::Bind(&TraceManager::OnKeyTraceMessage, base::Unretained(this)),
-          kKeyTraceCommandShortHelp, kKeyTraceCommandLongHelp)),
-      key_tracing_enabled_(false) {}
+      ALLOW_THIS_IN_INITIALIZER_LIST(input_trace_command_handler_(
+          kInputTraceCommand,
+          base::Bind(&TraceManager::OnInputTraceMessage,
+                     base::Unretained(this)),
+          kInputTraceCommandShortHelp, kInputTraceCommandLongHelp)),
+      input_tracing_enabled_(false) {}
 
-void TraceManager::OnKeyEventProduced() {
+void TraceManager::OnInputEventProduced() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (key_tracing_enabled_ && !IsTracing()) {
+  if (input_tracing_enabled_ && !IsTracing()) {
     static const int kTraceTimeInMilliSeconds = 500;
-    LOG(INFO) << "Key event produced, start tracing for "
+    LOG(INFO) << "Input event produced, start tracing for "
               << kTraceTimeInMilliSeconds << "ms...";
     start_time_to_event_map_.clear();
     trace_event::TraceWithEventParserForDuration(
@@ -102,19 +104,19 @@ void TraceManager::OnTraceMessage(const std::string& message) {
   }
 }
 
-void TraceManager::OnKeyTraceMessage(const std::string& message) {
+void TraceManager::OnInputTraceMessage(const std::string& message) {
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(FROM_HERE,
-                                 base::Bind(&TraceManager::OnKeyTraceMessage,
+                                 base::Bind(&TraceManager::OnInputTraceMessage,
                                             base::Unretained(this), message));
     return;
   }
 
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  key_tracing_enabled_ = !key_tracing_enabled_;
-  LOG(INFO) << "Key tracing is now "
-            << (key_tracing_enabled_ ? "enabled" : "disabled") << ".";
+  input_tracing_enabled_ = !input_tracing_enabled_;
+  LOG(INFO) << "Input tracing is now "
+            << (input_tracing_enabled_ ? "enabled" : "disabled") << ".";
 }
 
 void TraceManager::OnReceiveTraceEvent(
@@ -123,6 +125,8 @@ void TraceManager::OnReceiveTraceEvent(
   // TODO: Generalize the following logic. Currently the criteria for
   // interesting events are hardcoded.
   if (event->name() == "WebModule::InjectKeyboardEvent()" ||
+      event->name() == "WebModule::InjectPointerEvent()" ||
+      event->name() == "WebModule::InjectWheelEvent()" ||
       event->name() == "Layout") {
     double event_duration = event->in_scope_duration()->InMillisecondsF();
 
@@ -148,7 +152,7 @@ void TraceManager::OnFinishReceiveTraceEvent() {
               << event->in_scope_duration()->InMillisecondsF() << "ms";
   }
   start_time_to_event_map_.clear();
-  LOG(INFO) << "Key trace finished.";
+  LOG(INFO) << "Input trace finished.";
 }
 
 }  // namespace browser

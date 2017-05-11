@@ -34,14 +34,14 @@ class TraceManager {
 
   TraceManager();
 
-  // Called by browser module when a key event is produced.
-  void OnKeyEventProduced();
+  // Called by browser module when an input event is produced.
+  void OnInputEventProduced();
 
   // Message handler callback for trace message from debug console.
   void OnTraceMessage(const std::string& message);
 
-  // Message handler callback for key trace message from debug console.
-  void OnKeyTraceMessage(const std::string& message);
+  // Message handler callback for input trace message from debug console.
+  void OnInputTraceMessage(const std::string& message);
 
   // Called when receiving and finishing receiving parsed trace events.
   void OnReceiveTraceEvent(
@@ -58,10 +58,10 @@ class TraceManager {
 
   // Command handler object for trace command from the debug console.
   base::ConsoleCommandManager::CommandHandler trace_command_handler_;
-  // Command handler object for key trace command from the debug console.
-  base::ConsoleCommandManager::CommandHandler key_trace_command_handler_;
-  // Whether key tracing is enabled.
-  bool key_tracing_enabled_;
+  // Command handler object for input trace command from the debug console.
+  base::ConsoleCommandManager::CommandHandler input_trace_command_handler_;
+  // Whether input tracing is enabled.
+  bool input_tracing_enabled_;
 
   base::ThreadChecker thread_checker_;
   // This object can be set to start a trace if a hotkey (like F3) is pressed.

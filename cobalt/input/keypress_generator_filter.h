@@ -15,7 +15,8 @@
 #ifndef COBALT_INPUT_KEYPRESS_GENERATOR_FILTER_H_
 #define COBALT_INPUT_KEYPRESS_GENERATOR_FILTER_H_
 
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/base/token.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/input/key_event_handler.h"
 
 namespace cobalt {
@@ -31,14 +32,15 @@ class KeypressGeneratorFilter : public KeyEventHandler {
 
   // Conditionally generates an additional keypress event.
   // Passes on the new and original events for further processing/handling.
-  void HandleKeyboardEvent(const dom::KeyboardEvent::Data& event) OVERRIDE;
+  void HandleKeyboardEvent(base::Token type,
+                           const dom::KeyboardEventInit& event) OVERRIDE;
 
  protected:
   // Generates a keypress event, if:
   // 1. The original event is a keydown.
   // 2. The keycode corresponds to a printable character, or BS/Enter.
   bool ConditionallyGenerateKeypressEvent(
-      const dom::KeyboardEvent::Data& orig_event);
+      base::Token type, const dom::KeyboardEventInit& orig_event);
 };
 
 }  // namespace input

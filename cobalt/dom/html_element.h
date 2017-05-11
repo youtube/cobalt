@@ -263,6 +263,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   bool matching_rules_valid() const { return matching_rules_valid_; }
 
+  // Returns whether the element has been designated.
+  //   https://www.w3.org/TR/selectors4/#hover-pseudo
+  bool IsDesignated();
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:

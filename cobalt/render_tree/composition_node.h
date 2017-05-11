@@ -78,9 +78,6 @@ class CompositionNode : public Node {
     // method.
     void AddChild(const scoped_refptr<Node>& node);
 
-    // Remove all existing children.
-    void ClearChildren() { children_.clear(); }
-
     // Returns the specified child as a pointer so that it can be modified.
     scoped_refptr<Node>* GetChild(int child_index) {
       DCHECK_GE(child_index, 0);

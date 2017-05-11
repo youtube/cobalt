@@ -15,6 +15,7 @@
 #include "cobalt/input/keypress_generator_filter.h"
 
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keycode.h"
 
 namespace cobalt {
@@ -28,41 +29,36 @@ KeypressGeneratorFilter::KeypressGeneratorFilter(KeyEventHandler* filter)
     : KeyEventHandler(filter) {}
 
 void KeypressGeneratorFilter::HandleKeyboardEvent(
-    const dom::KeyboardEvent::Data& keyboard_event) {
+    base::Token type, const dom::KeyboardEventInit& keyboard_event) {
   // Handle the original event
-  DispatchKeyboardEvent(keyboard_event);
+  DispatchKeyboardEvent(type, keyboard_event);
 
   // If the event was a keydown, we may also generate a keypress event.
-  ConditionallyGenerateKeypressEvent(keyboard_event);
+  ConditionallyGenerateKeypressEvent(type, keyboard_event);
 }
 
 bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
-    const dom::KeyboardEvent::Data& orig_event) {
+    base::Token type, const dom::KeyboardEventInit& orig_event) {
   // Ignore everything but keydown events.
-  if (orig_event.type != dom::KeyboardEvent::kTypeKeyDown) {
+  if (type != base::Tokens::keydown()) {
     return false;
   }
 
   // Don't generate a keypress event if one of the modifier keys other than
   // Shift is held down.
-  if (orig_event.modifiers & dom::UIEventWithKeyState::kAltKey ||
-      orig_event.modifiers & dom::UIEventWithKeyState::kCtrlKey ||
-      orig_event.modifiers & dom::UIEventWithKeyState::kMetaKey) {
+  if (orig_event.alt_key() || orig_event.ctrl_key() || orig_event.meta_key()) {
     return false;
   }
 
   // Get the char_code corresponding to the key_code of the event.
   // Only generate the keypress event if there is a valid char_code.
-  int key_code = orig_event.key_code;
-  int char_code =
-      dom::KeyboardEvent::ComputeCharCode(key_code, orig_event.modifiers);
+  int char_code = dom::KeyboardEvent::ComputeCharCode(orig_event.key_code(),
+                                                      orig_event.shift_key());
 
   if (char_code > 0) {
-    dom::KeyboardEvent::Data keypress_event(
-        dom::KeyboardEvent::kTypeKeyPress,
-        dom::KeyboardEvent::kDomKeyLocationStandard, orig_event.modifiers,
-        key_code, char_code, orig_event.repeat);
-    DispatchKeyboardEvent(keypress_event);
+    dom::KeyboardEventInit event(orig_event);
+    event.set_char_code(char_code);
+    DispatchKeyboardEvent(base::Tokens::keypress(), event);
     return true;
   }
 

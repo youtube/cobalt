@@ -22,6 +22,7 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_rule.h"
@@ -45,12 +46,17 @@
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/initial_computed_style.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keyframes_map_updater.h"
 #include "cobalt/dom/location.h"
+#include "cobalt/dom/message_event.h"
+#include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
+#include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
+#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "nb/memory_scope.h"
@@ -216,11 +222,20 @@ scoped_refptr<Event> Document::CreateEvent(
     const std::string& interface_name,
     script::ExceptionState* exception_state) {
   TRACK_MEMORY_SCOPE("DOM");
-  // https://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
+  // https://www.w3.org/TR/dom/#dom-document-createevent
   // The match of interface name is case-insensitive.
   if (base::strcasecmp(interface_name.c_str(), "event") == 0 ||
-      base::strcasecmp(interface_name.c_str(), "events") == 0) {
+      base::strcasecmp(interface_name.c_str(), "events") == 0 ||
+      base::strcasecmp(interface_name.c_str(), "htmlevents") == 0) {
     return new Event(Event::Uninitialized);
+  } else if (base::strcasecmp(interface_name.c_str(), "keyboardevent") == 0 ||
+             base::strcasecmp(interface_name.c_str(), "keyevents") == 0) {
+    return new KeyboardEvent(Event::Uninitialized);
+  } else if (base::strcasecmp(interface_name.c_str(), "messageevent") == 0) {
+    return new MessageEvent(Event::Uninitialized);
+  } else if (base::strcasecmp(interface_name.c_str(), "mouseevent") == 0 ||
+             base::strcasecmp(interface_name.c_str(), "mouseevents") == 0) {
+    return new MouseEvent(Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "uievent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "uievents") == 0) {
     return new UIEvent(Event::Uninitialized);
@@ -344,6 +359,11 @@ scoped_refptr<Element> Document::active_element() const {
   }
 }
 
+// https://www.w3.org/TR/2016/REC-html51-20161101/matching-html-elements-using-selectors.html#selectordef-hover
+scoped_refptr<HTMLElement> Document::indicated_element() const {
+  return indicated_element_.get();
+}
+
 void Document::set_cookie(const std::string& cookie) {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   UNREFERENCED_PARAMETER(cookie);
@@ -398,6 +418,23 @@ void Document::SetActiveElement(Element* active_element) {
     active_element_.reset();
   }
 }
+
+void Document::SetIndicatedElement(HTMLElement* indicated_element) {
+  if (indicated_element != indicated_element_) {
+    is_selector_tree_dirty_ = true;
+    if (indicated_element_) {
+      indicated_element_->OnCSSMutation();
+    }
+    if (indicated_element) {
+      indicated_element_ = base::AsWeakPtr(indicated_element);
+      indicated_element_->OnCSSMutation();
+    } else {
+      indicated_element_.reset();
+    }
+  }
+}
+
+const scoped_refptr<Window> Document::window() { return window_; }
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
 
@@ -801,6 +838,43 @@ void Document::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(location_);
   tracer->Trace(user_agent_style_sheet_);
   tracer->Trace(initial_computed_style_declaration_);
+}
+
+void Document::QueuePointerEvent(const scoped_refptr<Event>& event) {
+  // Only accept this for event types that are MouseEvents or known derivatives.
+  SB_DCHECK(event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
+            event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
+            event->GetWrappableType() == base::GetTypeId<WheelEvent>());
+
+  // Queue the event to be handled on the next layout.
+  pointer_events_.push(event);
+}
+
+scoped_refptr<Event> Document::GetNextQueuedPointerEvent() {
+  scoped_refptr<Event> event;
+  if (pointer_events_.empty()) {
+    return event;
+  }
+
+  // Ignore pointer move events when they are succeeded by additional pointer
+  // move events.
+  bool next_event_is_move_event =
+      pointer_events_.front()->type() == base::Tokens::pointermove() ||
+      pointer_events_.front()->type() == base::Tokens::mousemove();
+  bool current_event_is_move_event;
+  do {
+    current_event_is_move_event = next_event_is_move_event;
+    event = pointer_events_.front();
+    pointer_events_.pop();
+    if (!current_event_is_move_event) {
+      break;
+    }
+    next_event_is_move_event =
+        !pointer_events_.empty() &&
+        (pointer_events_.front()->type() == base::Tokens::pointermove() ||
+         pointer_events_.front()->type() == base::Tokens::mousemove());
+  } while (next_event_is_move_event);
+  return event;
 }
 
 void Document::DispatchOnLoadEvent() {

@@ -23,6 +23,8 @@
 namespace cobalt {
 namespace dom {
 
+// Events using the ProgressEvent interface indicate some kind of progression.
+//   https://www.w3.org/TR/progress-events/#interface-progressevent
 class ProgressEvent : public Event {
  public:
   explicit ProgressEvent(const std::string& type);
