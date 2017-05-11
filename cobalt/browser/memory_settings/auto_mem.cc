@@ -311,19 +311,20 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   return all_settings;
 }
 
-std::string AutoMem::ToPrettyPrintString() const {
+std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
   std::stringstream ss;
 
   ss << "AutoMem:\n\n";
   std::vector<const MemorySetting*> all_settings = AllMemorySettings();
-  ss << GeneratePrettyPrintTable(all_settings) << "\n";
+  ss << GeneratePrettyPrintTable(use_color_ascii, all_settings) << "\n";
 
   int64_t cpu_consumption =
       SumMemoryConsumption(MemorySetting::kCPU, all_settings);
   int64_t gpu_consumption =
       SumMemoryConsumption(MemorySetting::kGPU, all_settings);
 
-  ss << GenerateMemoryTable(*max_cpu_bytes_, *max_gpu_bytes_,
+  ss << GenerateMemoryTable(use_color_ascii,
+                            *max_cpu_bytes_, *max_gpu_bytes_,
                             cpu_consumption, gpu_consumption);
 
   // Copy strings and optionally add more.

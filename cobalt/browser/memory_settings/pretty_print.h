@@ -50,6 +50,7 @@ namespace memory_settings {
 //  | software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |
 //  |______________________________________|_____________|_________|______|_________|
 std::string GeneratePrettyPrintTable(
+    bool use_color_ascii,
     const std::vector<const MemorySetting*>& memory_settings);
 
 // Generates a table, ie:
@@ -64,7 +65,8 @@ std::string GeneratePrettyPrintTable(
 //  |______|__________|__________|
 // When optional total_gpu_memory is null then the the value in the output
 // table will be <UNKNOWN>.
-std::string GenerateMemoryTable(const IntSetting& total_cpu_memory,
+std::string GenerateMemoryTable(bool use_color_ascii,
+                                const IntSetting& total_cpu_memory,
                                 const IntSetting& total_gpu_memory,
                                 int64_t settings_cpu_consumption,
                                 int64_t settings_gpu_consumption);
