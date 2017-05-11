@@ -591,6 +591,9 @@ void Document::UpdateComputedStyles() {
 }
 
 void Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
+  TRACE_EVENT0(
+      "cobalt::dom", "Document::UpdateComputedStyleOnElementAndAncestor");
+
   if (!element || element->node_document() != this ||
       !is_computed_style_dirty_) {
     return;
