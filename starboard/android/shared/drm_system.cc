@@ -29,6 +29,7 @@ Java_foo_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
     JNIEnv* env,
     jobject unused_this,
     jlong native_media_drm_bridge,
+    jint ticket,
     jbyteArray j_session_id,
     jint request_type,
     jbyteArray j_message) {
@@ -45,8 +46,9 @@ Java_foo_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
 
   DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
   SB_DCHECK(drm_system);
-  drm_system->CallUpdateRequestCallback(session_id_elements, session_id_size,
-                                        message_elements, message_size, kNoUrl);
+  drm_system->CallUpdateRequestCallback(ticket, session_id_elements,
+                                        session_id_size, message_elements,
+                                        message_size, kNoUrl);
 }
 
 namespace starboard {
@@ -101,18 +103,17 @@ DrmSystem::~DrmSystem() {
   }
 }
 
-void DrmSystem::GenerateSessionUpdateRequest(
-    int /*ticket*/,  // TODO: Implement ticket passing.
-    const char* type,
-    const void* initialization_data,
-    int initialization_data_size) {
+void DrmSystem::GenerateSessionUpdateRequest(int ticket,
+                                             const char* type,
+                                             const void* initialization_data,
+                                             int initialization_data_size) {
   ScopedLocalJavaRef<jbyteArray> j_init_data(
       ByteArrayFromRaw(initialization_data, initialization_data_size));
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringUTFOrAbort(type));
-  env->CallVoidMethodOrAbort(j_media_drm_bridge_, "createSession",
-                             "([BLjava/lang/String;)V", j_init_data.Get(),
-                             j_mime.Get());
+  env->CallVoidMethodOrAbort(
+      j_media_drm_bridge_, "createSession", "(I[BLjava/lang/String;)V",
+      static_cast<jint>(ticket), j_init_data.Get(), j_mime.Get());
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
 }
@@ -151,15 +152,14 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   return kSuccess;
 }
 
-void DrmSystem::CallUpdateRequestCallback(const void* session_id,
+void DrmSystem::CallUpdateRequestCallback(int ticket,
+                                          const void* session_id,
                                           int session_id_size,
                                           const void* content,
                                           int content_size,
                                           const char* url) {
-  update_request_callback_(this, context_,
-                           0,  // TODO: Implement ticket passing.
-                           session_id, session_id_size, content, content_size,
-                           url);
+  update_request_callback_(this, context_, ticket, session_id, session_id_size,
+                           content, content_size, url);
 }
 
 }  // namespace shared
