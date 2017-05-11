@@ -1614,7 +1614,12 @@ std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
 }
 
-bool HTMLMediaElement::PreferDecodeToTexture() const {
+bool HTMLMediaElement::PreferDecodeToTexture() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture");
+
+#if defined(ENABLE_MAP_TO_MESH)
+  node_document()->UpdateComputedStyleOnElementAndAncestor(this);
+
   if (!computed_style()) {
     return false;
   }
@@ -1624,6 +1629,10 @@ bool HTMLMediaElement::PreferDecodeToTexture() const {
           computed_style()->filter());
 
   return map_to_mesh_filter;
+#else  // defined(ENABLE_MAP_TO_MESH)
+  // If map-to-mesh is disabled, we never prefer decode-to-texture.
+  return false;
+#endif  // defined(ENABLE_MAP_TO_MESH)
 }
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
