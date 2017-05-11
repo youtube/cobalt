@@ -34,13 +34,19 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/event.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/storage.h"
+#include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/url.h"
+#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
+#include "cobalt/layout/topmost_event_target.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/page_visibility/visibility_state.h"
@@ -169,14 +175,29 @@ class WebModule::Impl {
   // Otherwise, the currently focused element receives the event.
   // If element is specified, we must be on the WebModule's message loop
   void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
-                           const dom::KeyboardEvent::Data& event);
+                           base::Token type,
+                           const dom::KeyboardEventInit& event);
+
+  // Called to inject a pointer event into the web module.
+  // Event is directed at a specific element if the element is non-null.
+  // Otherwise, the currently focused element receives the event.
+  // If element is specified, we must be on the WebModule's message loop
+  void InjectPointerEvent(scoped_refptr<dom::Element> element, base::Token type,
+                          const dom::PointerEventInit& event);
+
+  // Called to inject a wheel event into the web module.
+  // Event is directed at a specific element if the element is non-null.
+  // Otherwise, the currently focused element receives the event.
+  // If element is specified, we must be on the WebModule's message loop
+  void InjectWheelEvent(scoped_refptr<dom::Element> element, base::Token type,
+                        const dom::WheelEventInit& event);
 
   // Called to execute JavaScript in this WebModule. Sets the |result|
   // output parameter and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
                          const base::SourceLocation& script_location,
                          base::WaitableEvent* got_result, std::string* result,
-                         bool *out_succeeded);
+                         bool* out_succeeded);
 
   // Clears disables timer related objects
   // so that the message loop can easily exit
@@ -257,6 +278,13 @@ class WebModule::Impl {
           javascript_engine_->UpdateMemoryStatsAndReturnReserved());
     }
   }
+
+  // Inject the DOM event object into the window or the element.
+  void InjectInputEvent(scoped_refptr<dom::Element> element,
+                        const scoped_refptr<dom::Event>& event);
+
+  // Handle queued pointer events. Called by LayoutManager on_layout callback.
+  void HandlePointerEvents();
 
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
@@ -375,6 +403,8 @@ class WebModule::Impl {
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   scoped_ptr<media_session::MediaSessionClient> media_session_client_;
+
+  layout::TopmostEventTarget topmost_event_target_;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -553,8 +583,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(!error_callback_.is_null());
 
   layout_manager_.reset(new layout::LayoutManager(
-      name_, window_.get(), base::Bind(&WebModule::Impl::OnRenderTreeProduced,
-                                       base::Unretained(this)),
+      name_, window_.get(),
+      base::Bind(&WebModule::Impl::OnRenderTreeProduced,
+                 base::Unretained(this)),
+      base::Bind(&WebModule::Impl::HandlePointerEvents, base::Unretained(this)),
       data.options.layout_trigger, data.dom_max_element_depth,
       data.layout_refresh_rate, data.network_module->preferred_language(),
       web_module_stat_tracker_->layout_stat_tracker()));
@@ -630,29 +662,47 @@ WebModule::Impl::~Impl() {
   css_parser_.reset();
 }
 
-void WebModule::Impl::InjectKeyboardEvent(
-    scoped_refptr<dom::Element> element,
-    const dom::KeyboardEvent::Data& event) {
+void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
+                                       const scoped_refptr<dom::Event>& event) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
 
-  // Construct the DOM object from the keyboard event builder and inject it
-  // into the window.
-  scoped_refptr<dom::KeyboardEvent> keyboard_event(
-      new dom::KeyboardEvent(event));
-
-  web_module_stat_tracker_->OnStartInjectEvent(keyboard_event);
+  web_module_stat_tracker_->OnStartInjectEvent(event);
 
   if (element) {
-    element->DispatchEvent(keyboard_event);
+    element->DispatchEvent(event);
   } else {
-    window_->InjectEvent(keyboard_event);
+    window_->InjectEvent(event);
   }
 
   web_module_stat_tracker_->OnEndInjectEvent(
       window_->HasPendingAnimationFrameCallbacks(),
       layout_manager_->IsNewRenderTreePending());
+}
+
+void WebModule::Impl::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
+                                          base::Token type,
+                                          const dom::KeyboardEventInit& event) {
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+      new dom::KeyboardEvent(type, window_, event));
+  InjectInputEvent(element, keyboard_event);
+}
+
+void WebModule::Impl::InjectPointerEvent(scoped_refptr<dom::Element> element,
+                                         base::Token type,
+                                         const dom::PointerEventInit& event) {
+  scoped_refptr<dom::PointerEvent> pointer_event(
+      new dom::PointerEvent(type, window_, event));
+  InjectInputEvent(element, pointer_event);
+}
+
+void WebModule::Impl::InjectWheelEvent(scoped_refptr<dom::Element> element,
+                                       base::Token type,
+                                       const dom::WheelEventInit& event) {
+  scoped_refptr<dom::WheelEvent> wheel_event(
+      new dom::WheelEvent(type, window_, event));
+  InjectInputEvent(element, wheel_event);
 }
 
 void WebModule::Impl::ExecuteJavascript(
@@ -746,6 +796,8 @@ void WebModule::Impl::CreateWindowDriver(
       window_id, window_weak_,
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::InjectPointerEvent, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::InjectWheelEvent, base::Unretained(this)),
       base::MessageLoopProxy::current()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
@@ -1014,15 +1066,40 @@ void WebModule::Initialize(const ConstructionData& data) {
   impl_.reset(new Impl(data));
 }
 
-void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
+void WebModule::InjectKeyboardEvent(base::Token type,
+                                    const dom::KeyboardEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
-               event.type);
+               type.c_str());
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::InjectKeyboardEvent,
-                                      base::Unretained(impl_.get()),
-                                      scoped_refptr<dom::Element>(), event));
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectKeyboardEvent,
+                            base::Unretained(impl_.get()),
+                            scoped_refptr<dom::Element>(), type, event));
+}
+
+void WebModule::InjectPointerEvent(base::Token type,
+                                   const dom::PointerEventInit& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectPointerEvent()", "type",
+               type.c_str());
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectPointerEvent,
+                            base::Unretained(impl_.get()),
+                            scoped_refptr<dom::Element>(), type, event));
+}
+
+void WebModule::InjectWheelEvent(base::Token type,
+                                 const dom::WheelEventInit& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectWheelEvent()", "type",
+               type.c_str());
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectWheelEvent,
+                            base::Unretained(impl_.get()),
+                            scoped_refptr<dom::Element>(), type, event));
 }
 
 std::string WebModule::ExecuteJavascript(
@@ -1172,6 +1249,22 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
+}
+
+void WebModule::Impl::HandlePointerEvents() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::HandlePointerEvents");
+  const scoped_refptr<dom::Document>& document = window_->document();
+  scoped_refptr<dom::Event> event;
+  do {
+    event = document->GetNextQueuedPointerEvent();
+    if (event) {
+      SB_DCHECK(
+          window_ ==
+          base::polymorphic_downcast<const dom::UIEvent* const>(event.get())
+              ->view());
+      topmost_event_target_.MaybeSendPointerEvents(event, window_);
+    }
+  } while (event && !layout_manager_->IsNewRenderTreePending());
 }
 
 }  // namespace browser

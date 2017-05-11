@@ -18,8 +18,8 @@ namespace cobalt {
 namespace input {
 
 void KeyEventHandler::HandleKeyboardEvent(
-    const dom::KeyboardEvent::Data& keyboard_event) {
-  DispatchKeyboardEvent(keyboard_event);
+    base::Token type, const dom::KeyboardEventInit& keyboard_event) {
+  DispatchKeyboardEvent(type, keyboard_event);
 }
 
 KeyEventHandler::KeyEventHandler(const KeyboardEventCallback& callback)
@@ -29,13 +29,13 @@ KeyEventHandler::KeyEventHandler(KeyEventHandler* filter)
     : keyboard_event_filter_(filter) {}
 
 void KeyEventHandler::DispatchKeyboardEvent(
-    const dom::KeyboardEvent::Data& keyboard_event) const {
+    base::Token type, const dom::KeyboardEventInit& keyboard_event) const {
   // If we have a key filter attached to this object, let it filter the event,
   // otherwise call the stored callback function directly.
   if (keyboard_event_filter_) {
-    keyboard_event_filter_->HandleKeyboardEvent(keyboard_event);
+    keyboard_event_filter_->HandleKeyboardEvent(type, keyboard_event);
   } else {
-    keyboard_event_callback_.Run(keyboard_event);
+    keyboard_event_callback_.Run(type, keyboard_event);
   }
 }
 

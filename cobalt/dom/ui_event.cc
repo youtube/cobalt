@@ -20,23 +20,36 @@
 namespace cobalt {
 namespace dom {
 
-UIEvent::UIEvent(const std::string& type) : Event(type) {}
+UIEvent::UIEvent(const std::string& type) : Event(type), detail_(0) {}
+UIEvent::UIEvent(const std::string& type, const UIEventInit& init_dict)
+    : Event(type, init_dict),
+      view_(init_dict.view()),
+      detail_(init_dict.detail()),
+      which_(init_dict.which()) {}
 
 UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
-    : Event(uninitialized_flag) {}
+    : Event(uninitialized_flag), detail_(0), which_(0) {}
 
-UIEvent::UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable)
-    : Event(type, bubbles, cancelable) {}
+UIEvent::UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+                 const scoped_refptr<Window>& view)
+    : Event(type, bubbles, cancelable), view_(view), detail_(0), which_(0) {}
 
 void UIEvent::InitUIEvent(const std::string& type, bool bubbles,
                           bool cancelable, const scoped_refptr<Window>& view,
                           int32 detail) {
-  UNREFERENCED_PARAMETER(detail);
   InitEvent(type, bubbles, cancelable);
   view_ = view;
+  detail_ = detail;
 }
 
-UIEvent::UIEvent(base::Token type) : Event(type) {}
+UIEvent::UIEvent(base::Token type) : Event(type), detail_(0), which_(0) {}
+UIEvent::UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+                 const scoped_refptr<Window>& view,
+                 const UIEventInit& init_dict)
+    : Event(type, bubbles, cancelable),
+      view_(view),
+      detail_(init_dict.detail()),
+      which_(init_dict.which()) {}
 
 }  // namespace dom
 }  // namespace cobalt

@@ -227,6 +227,10 @@ BrowserModule::BrowserModule(const GURL& url,
       input_device_manager_(input::InputDeviceManager::CreateFromWindow(
           base::Bind(&BrowserModule::OnKeyEventProduced,
                      base::Unretained(this)),
+          base::Bind(&BrowserModule::OnPointerEventProduced,
+                     base::Unretained(this)),
+          base::Bind(&BrowserModule::OnWheelEventProduced,
+                     base::Unretained(this)),
           system_window)),
       renderer_module_(system_window, RendererModuleWithCameraOptions(
                                           options.renderer_module_options,
@@ -653,40 +657,77 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-void BrowserModule::OnKeyEventProduced(const dom::KeyboardEvent::Data& event) {
+void BrowserModule::OnKeyEventProduced(base::Token type,
+                                       const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::OnKeyEventProduced, weak_this_, event));
+        FROM_HERE, base::Bind(&BrowserModule::OnKeyEventProduced, weak_this_,
+                              type, event));
     return;
   }
 
   // Filter the key event.
-  if (!FilterKeyEvent(event)) {
+  if (!FilterKeyEvent(type, event)) {
+    return;
+  }
+
+  InjectKeyEventToMainWebModule(type, event);
+}
+
+void BrowserModule::OnPointerEventProduced(base::Token type,
+                                           const dom::PointerEventInit& event) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnPointerEventProduced()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::OnPointerEventProduced,
+                              weak_this_, type, event));
     return;
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  trace_manager_.OnKeyEventProduced();
+  trace_manager_.OnInputEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-  InjectKeyEventToMainWebModule(event);
+  DCHECK(web_module_);
+  web_module_->InjectPointerEvent(type, event);
+}
+
+void BrowserModule::OnWheelEventProduced(base::Token type,
+                                         const dom::WheelEventInit& event) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnWheelEventProduced()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::OnWheelEventProduced, weak_this_,
+                              type, event));
+    return;
+  }
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  trace_manager_.OnInputEventProduced();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  DCHECK(web_module_);
+  web_module_->InjectWheelEvent(type, event);
 }
 
 void BrowserModule::InjectKeyEventToMainWebModule(
-    const dom::KeyboardEvent::Data& event) {
+    base::Token type, const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::InjectKeyEventToMainWebModule()");
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::InjectKeyEventToMainWebModule,
-                              weak_this_, event));
+                              weak_this_, type, event));
     return;
   }
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+  trace_manager_.OnInputEventProduced();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
   DCHECK(web_module_);
-  web_module_->InjectKeyboardEvent(event);
+  web_module_->InjectKeyboardEvent(type, event);
 }
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
@@ -703,10 +744,11 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
   Navigate(GURL(url_string));
 }
 
-bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
+bool BrowserModule::FilterKeyEvent(base::Token type,
+                                   const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::FilterKeyEvent()");
   // Check for hotkeys first. If it is a hotkey, no more processing is needed.
-  if (!FilterKeyEventForHotkeys(event)) {
+  if (!FilterKeyEventForHotkeys(type, event)) {
     return false;
   }
 
@@ -714,7 +756,7 @@ bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
   // If the debug console is fully visible, it gets the next chance to handle
   // key events.
   if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->FilterKeyEvent(event)) {
+    if (!debug_console_->FilterKeyEvent(type, event)) {
       return false;
     }
   }
@@ -724,14 +766,14 @@ bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
 }
 
 bool BrowserModule::FilterKeyEventForHotkeys(
-    const dom::KeyboardEvent::Data& event) {
+    base::Token type, const dom::KeyboardEventInit& event) {
 #if !defined(ENABLE_DEBUG_CONSOLE)
+  UNREFERENCED_PARAMETER(type);
   UNREFERENCED_PARAMETER(event);
 #else
-  if (event.key_code == dom::keycode::kF1 ||
-      (event.modifiers & dom::UIEventWithKeyState::kCtrlKey &&
-       event.key_code == dom::keycode::kO)) {
-    if (event.type == dom::KeyboardEvent::kTypeKeyDown) {
+  if (event.key_code() == dom::keycode::kF1 ||
+      (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
+    if (type == base::Tokens::keydown()) {
       // Ctrl+O toggles the debug console display.
       debug_console_->CycleMode();
     }

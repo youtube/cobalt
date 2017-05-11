@@ -34,6 +34,8 @@
 #include "cobalt/layout/vector2d_layout_unit.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/math/vector2d.h"
+#include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -107,6 +109,14 @@ class Box : public base::RefCounted<Box> {
     kInlineLevel,
   };
 
+  // The RenderSequence of a box is used to compare the relative drawing order
+  // of boxes. It stores a value for the box's drawing order at each ancestor
+  // composition node up to the root of the render tree. As a result, starting
+  // from the root ancestor, the box for which the render sequence ends first,
+  // or for which the drawing order value at a composition node is lower is
+  // drawn before the other box.
+  typedef std::vector<size_t> RenderSequence;
+
   Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
       UsedStyleProvider* used_style_provider,
@@ -140,7 +150,7 @@ class Box : public base::RefCounted<Box> {
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
 
-  // Returns true if the box is positioned (e.g. position is non-static or
+  // Returns trueif the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
   // not follow standard layout flow rules for determining its position.
   //   https://www.w3.org/TR/CSS21/visuren.html#positioned-element.
@@ -469,6 +479,22 @@ class Box : public base::RefCounted<Box> {
   // layout.
   void InvalidateParent() { parent_ = NULL; }
 
+  // Returns true if the box is positioned under the passed in coordinate.
+  bool IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const;
+
+  // Returns a data structure that can be used by Box::IsRenderedLater().
+  RenderSequence GetRenderSequence();
+
+  // Returns true if the box for the given render_sequence is rendered after
+  // the box for the other_render_sequence. The boxes must be from the same
+  // layout tree.
+  static bool IsRenderedLater(RenderSequence render_sequence,
+                              RenderSequence other_render_sequence);
+
+  // Updates the passed coordinate corresponding to the transform applied to
+  // this box.
+  void UpdateCoordinateForTransform(math::Vector2dF* coordinate) const;
+
  protected:
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
@@ -696,6 +722,11 @@ class Box : public base::RefCounted<Box> {
   // Render tree node caching is used to prevent the node from needing to be
   // recalculated during each call to RenderAndAnimateContent.
   base::optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
+
+  // A value that indicates the drawing order relative to boxes with the same
+  // rendering ancestor box (which is either the stacking context or the
+  // containing block). Smaller values indicate boxes that are drawn earlier.
+  size_t render_sequence_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;

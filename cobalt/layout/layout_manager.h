@@ -49,6 +49,8 @@ class LayoutManager {
   typedef base::Callback<void(const LayoutResults&)>
       OnRenderTreeProducedCallback;
 
+  typedef base::Callback<void()> OnLayoutCallback;
+
   // Specifies what event should trigger a layout, and hence what event
   // will result in a render tree being produced and passed in a call to
   // on_render_tree_produced_callback_.
@@ -62,7 +64,8 @@ class LayoutManager {
   LayoutManager(const std::string& name,
                 const scoped_refptr<dom::Window>& window,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
-                LayoutTrigger layout_trigger, const int dom_max_element_depth,
+                const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
+                const int dom_max_element_depth,
                 const float layout_refresh_rate, const std::string& language,
                 LayoutStatTracker* layout_stat_tracker);
   ~LayoutManager();

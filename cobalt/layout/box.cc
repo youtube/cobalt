@@ -31,7 +31,10 @@
 #include "cobalt/layout/render_tree_animations.h"
 #include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/layout/used_style.h"
+#include "cobalt/math/rect_f.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/math/vector2d.h"
+#include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/border.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
@@ -64,7 +67,8 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
     : css_computed_style_declaration_(css_computed_style_declaration),
       used_style_provider_(used_style_provider),
       layout_stat_tracker_(layout_stat_tracker),
-      parent_(NULL) {
+      parent_(NULL),
+      render_sequence_(0) {
   DCHECK(animations());
   DCHECK(used_style_provider_);
 
@@ -410,6 +414,7 @@ void Box::RenderAndAnimate(
     if (cached_render_tree_node_info_->node_) {
       parent_content_node_builder->AddChild(
           cached_render_tree_node_info_->node_);
+      render_sequence_ = parent_content_node_builder->children().size();
     }
     return;
   }
@@ -544,7 +549,41 @@ void Box::RenderAndAnimate(
                   new AnimateNode(animate_node_builder, border_node));
 
     parent_content_node_builder->AddChild(cached_render_tree_node_info_->node_);
+    render_sequence_ = parent_content_node_builder->children().size();
   }
+}
+
+Box::RenderSequence Box::GetRenderSequence() {
+  std::vector<size_t> render_sequence;
+  Box* ancestor_box = this;
+  Box* box = NULL;
+  while (ancestor_box && (box != ancestor_box)) {
+    box = ancestor_box;
+    if (box->cached_render_tree_node_info_) {
+      render_sequence.push_back(box->render_sequence_);
+      if (box->IsPositioned() || box->IsTransformed()) {
+        ancestor_box = box->GetStackingContext();
+      } else {
+        ancestor_box = box->GetContainingBlock();
+      }
+    }
+  }
+  return render_sequence;
+}
+
+bool Box::IsRenderedLater(RenderSequence render_sequence,
+                          RenderSequence other_render_sequence) {
+  for (size_t step = 0; step < render_sequence.size(); ++step) {
+    if (other_render_sequence.size() < 1 + step) {
+      return true;
+    }
+    size_t idx = render_sequence.size() - 1 - step;
+    size_t other_idx = other_render_sequence.size() - 1 - step;
+    if (render_sequence[idx] != other_render_sequence[other_idx]) {
+      return render_sequence[idx] > other_render_sequence[other_idx];
+    }
+  }
+  return false;
 }
 
 AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
@@ -780,6 +819,14 @@ int Box::GetZIndex() const {
     return base::polymorphic_downcast<cssom::IntegerValue*>(
                computed_style()->z_index().get())->value();
   }
+}
+
+bool Box::IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const {
+  RectLayoutUnit rect = GetBorderBox();
+  bool res =
+      coordinate.x() >= rect.x() && coordinate.x() <= rect.x() + rect.width() &&
+      coordinate.y() >= rect.y() && coordinate.y() <= rect.y() + rect.height();
+  return res;
 }
 
 void Box::UpdateCrossReferencesOfContainerBox(
@@ -1296,6 +1343,31 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
         (containing_block_width - border_box_width) / 2;
     set_margin_left(horizontal_margin);
     set_margin_right(horizontal_margin);
+  }
+}
+
+void Box::UpdateCoordinateForTransform(math::Vector2dF* coordinate) const {
+  // If the element has a transform, it needs to be applied.
+  if (!computed_style()) {
+    return;
+  }
+  const scoped_refptr<cssom::PropertyValue>& transform =
+      computed_style()->transform();
+  if (transform != cssom::KeywordValue::GetNone()) {
+    math::Vector2dF border_box_offset(
+        left().toFloat() + margin_left().toFloat(),
+        top().toFloat() + margin_top().toFloat());
+    math::RectF rect = math::RectF(PointAtOffsetFromOrigin(border_box_offset),
+                                   GetBorderBoxSize());
+    math::Matrix3F matrix =
+        GetCSSTransform(transform, computed_style()->transform_origin(), rect);
+    if (!matrix.IsIdentity()) {
+      // transform the coordinate.
+      math::PointF transformed_point =
+          matrix.Inverse() * math::PointF(coordinate->x(), coordinate->y());
+      coordinate->set_x(transformed_point.x());
+      coordinate->set_y(transformed_point.y());
+    }
   }
 }
 
