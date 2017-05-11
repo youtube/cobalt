@@ -421,7 +421,7 @@ def AskIfWantToWipeOutFolder():
 
 
 # Clobber the out/ folder for configs that use clang.
-def ClobberOutFolderForClang():
+def ClobberOutFolderForClang(toolchain_timestamp):
   should_wipe_out_folder = None
 
   directory_name_of_current_file = os.path.dirname(os.path.abspath(__file__))
@@ -435,22 +435,12 @@ def ClobberOutFolderForClang():
   out_subdirs = [os.path.join(out_dir, d)
                  for d in os.listdir(out_dir)]
   for build_folder in filter(os.path.isdir, out_subdirs):
-    if not os.path.exists(os.path.join(build_folder, 'build.ninja')):
+    build_file = os.path.join(build_folder, 'build.ninja')
+
+    if not os.path.exists(build_file):
       continue
 
-    package_version_filename = os.path.join(build_folder, 'cr_build_revision')
-    package_version = None
-    if os.path.isfile(package_version_filename):
-      with open(package_version_filename, 'r') as f:
-        package_version = f.read()
-    else:
-      # This could be a pre-existing build that used an old version of the
-      #   toolchain, or it could be a new config that hasn't been built.
-      if not os.path.exists(os.path.join(build_folder, '.ninja_log')):
-        # No build exists in this directory. No need to clean it.
-        continue
-
-    if package_version == PACKAGE_VERSION:
+    if os.path.getmtime(build_file) >= toolchain_timestamp:
       continue
 
     if should_wipe_out_folder is None:
@@ -461,8 +451,10 @@ def ClobberOutFolderForClang():
 
     RunCommand(['ninja', '-C', build_folder, '-t', 'clean'])
 
-    with open(package_version_filename, 'w') as f:
-      f.write(PACKAGE_VERSION)
+    # Update the build file's timestamp to signal that this folder is now
+    # up-to-date. The gyp step will write new build files anyway, but this may
+    # be a config which is NOT being gyp'd.
+    os.utime(build_file, (toolchain_timestamp, toolchain_timestamp))
 
 
 def UpdateClang(args):
@@ -470,12 +462,12 @@ def UpdateClang(args):
   # Required for LTO, which is used when is_official_build = true.
   need_gold_plugin = sys.platform.startswith('linux')
 
-  ClobberOutFolderForClang()
-
   if ReadStampFile(
       STAMP_FILE) == PACKAGE_VERSION and not args.force_local_build:
     if not need_gold_plugin or os.path.exists(
         os.path.join(LLVM_BUILD_DIR, "lib/LLVMgold.so")):
+      # Always check to clobber stale builds.
+      ClobberOutFolderForClang(os.path.getmtime(STAMP_FILE))
       return 0
 
   print 'Updating Clang to %s...' % PACKAGE_VERSION
@@ -509,6 +501,7 @@ def UpdateClang(args):
             LLVM_BUILD_DIR, PACKAGE_VERSION
         ])
       WriteStampFile(PACKAGE_VERSION, STAMP_FILE)
+      ClobberOutFolderForClang(os.path.getmtime(STAMP_FILE))
       return 0
     except urllib2.URLError:
       print 'Failed to download prebuilt clang %s' % cds_file
@@ -909,6 +902,7 @@ def UpdateClang(args):
     RunCommand(['ninja', 'check-all'], msvc_arch='x64')
 
   WriteStampFile(PACKAGE_VERSION, STAMP_FILE)
+  ClobberOutFolderForClang(os.path.getmtime(STAMP_FILE))
   print 'Clang update was successful.'
   return 0
 
