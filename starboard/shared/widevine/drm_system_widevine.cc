@@ -273,9 +273,11 @@ void SbDrmSystemWidevine::SendKeyMessage(const char* web_session_id,
 
 #if SB_API_VERSION >= 4
   int ticket = GetTicket();
-  // Reset ticket before invoking user-provided callback to indicate that
-  // no session update request is pending.
-  SetTicket(kSbDrmTicketInvalid);
+  if (SbDrmTicketIsValid(ticket)) {
+    // Reset ticket before invoking user-provided callback to indicate that
+    // no session update request is pending.
+    SetTicket(kSbDrmTicketInvalid);
+  }
 #endif  // SB_API_VERSION >= 4
 
   session_update_request_callback_(this, context_,
